@@ -37,11 +37,12 @@ jobs:
         run: |
           pip install -r requirements.txt
           pip install ruff
-      - name: Lint
-        run: ruff check --select F,E9 .
       - name: Django system check
         run: python manage.py check
       - name: Migrations are up to date
         run: python manage.py makemigrations --check --dry-run
       - name: Tests
         run: python manage.py test
+      - name: Lint
+        if: always()
+        run: ruff check --select F,E9 .

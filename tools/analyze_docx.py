@@ -216,7 +216,6 @@ def main():
     # ---- structure checks and proposed import rules
     print()
     print('== Structure checks')
-    sub_names = collections.Counter()
     items_before_sub = 0; mixed = 0; sub_without_items = 0; two_item_lists_in_row = 0
     cur_topic = None; seen_sub = False; prev = None; prev_item_num = None
     for i, r in enumerate(rows):
