@@ -47,10 +47,14 @@ You need an email address, a payment card and your GitHub account. Cost is about
 ### Create a profile and give people access (Admin)
 
 1. On the Home page press **Profiles**, then **New profile**, type a name (for example "Junior - Case Law") and save. Names cannot repeat (capital letters do not matter).
-2. Press **Users**. For a new person choose **Case law diary profile** when adding them; for an existing person press edit and pick the profile. A person has at most one profile; picking another replaces the old one, and leaving it blank removes their access.
-3. A person with no profile sees the Case Law Diary card on Home greyed out with "No profile assigned - ask the Admin", and the diary pages answer "403 forbidden" with the same message.
-4. The page header shows the profile name, for example "Case Law Diary · Main".
-5. To delete a profile press **Delete** on the Profiles screen. If it still has users or Subjects, the page explains this and you must tick the confirmation box; the users then lose access and the profile is hidden (its data stays in the database and in backups).
+2. Press **Users**. For a new person choose **Case law diary profile** and their **Role in that profile** (Reader or Editor) when adding them; for an existing person press edit. A person has at most one profile per program; picking another replaces the old one, and leaving it blank removes their access. The role belongs to the profile, so one person can be Editor in one profile and Reader in another. Admin is a separate, suite-wide setting.
+3. A person with no profile does not see the Case Law Diary on Home at all. If they have no program at all, Home says so and asks them to contact the Admin.
+4. The page header shows the profile name, for example "Case Law Diary · Main". Next to it, **Profile settings** lets an Editor of that profile set the **Export file name** (the start of exported Word file names); a Reader can only see it. Blank means "Case Law Diary Main" style (program name and profile name).
+5. To delete a profile press **Delete** on the Profiles screen. If it still has users or Subjects, the page explains this and you must tick the confirmation box; the users then lose access.
+
+### Restore a deleted profile (Admin)
+
+Deleted profiles are kept for 30 days (`PROFILE_RETENTION_DAYS`). On the Profiles screen, under **Deleted profiles**, you see the days left and a **Restore** button. Restoring gives the users their access back; it is refused, naming the users, if one of them has since been given another profile in that program, or if the name is now taken. After the window a nightly job removes the profile and its data for good, but only if today's backup succeeded. Each run is recorded in the purge log.
 
 Backups are of the whole database and include all profiles. A backup made before profiles existed restores into "Main".
 
