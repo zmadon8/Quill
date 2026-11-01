@@ -3,16 +3,26 @@
 {% block content %}
 <div class="home-column">
   <h1>Review list</h1>
-  <p class="meta">{{ total }} record{{ total|pluralize }} marked For review (Items and Sections)</p>
+  <p class="meta">{{ total }} record{{ total|pluralize }} marked For review (Items and Sections){% if chosen_subject %} in this Subject, of {{ all_total }} in all{% endif %}</p>
+  {% if subject_choices %}
+  <form method="get" class="review-filter" action="{% url 'review_list' %}">
+    <label for="review-subject">Subject</label>
+    <select id="review-subject" name="subject">
+      <option value="">All Subjects ({{ all_total }})</option>
+      {% for pk, name, count in subject_choices %}<option value="{{ pk }}"{% if pk == chosen_subject %} selected{% endif %}>{{ name }} ({{ count }})</option>{% endfor %}
+    </select>
+    <button type="submit">Show</button>
+  </form>
+  {% endif %}
   {% if rows %}
-  <div class="table-wrap">
+  <div class="table-wrap review-table">
   <table>
-    <thead><tr><th>Kind</th><th>Where</th><th>Text</th><th>Why</th></tr></thead>
+    <thead><tr><th class="col-kind">Kind</th><th>Where</th><th>Text</th><th>Why</th></tr></thead>
     <tbody>
     {% for r in rows %}
       <tr>
-        <td>{{ r.kind }}</td>
-        <td><a href="{{ r.url }}">{{ r.path }}</a></td>
+        <td class="col-kind">{{ r.kind }}</td>
+        <td><a href="{{ r.url }}" title="Open in context">{{ r.path }}</a></td>
         <td>{{ r.text }}</td>
         <td>{{ r.note }}</td>
       </tr>

@@ -471,6 +471,31 @@ class ReviewListTests(TestCase):
         positions = [body.index(x) for x in ("zzitemE1", "zzsectionE2", "zzsectionL1", "zzitemL2")]
         self.assertEqual(positions, sorted(positions))
 
+    def test_subject_filter_count_path_note_and_context_link(self):
+        reader = join_main(User.objects.create_user("rita", password=PASSWORD))
+        main = main_profile()
+        one = Subject.objects.create(profile=main, name="Arbitration", landing_position=1)
+        two = Subject.objects.create(profile=main, name="Contracts", landing_position=2)
+        topic = Topic.objects.create(profile=main, subject=one, name="Fraud")
+        Item.objects.create(profile=main, topic=topic, text="<p>zzfraud</p>", needs_review=True, review_note="whynote")
+        Section.objects.create(profile=main, subject=two, name="zzsection", needs_review=True)
+        self.client.force_login(reader)
+        resp = self.client.get(reverse("review_list"))
+        self.assertContains(resp, "2 records")
+        self.assertContains(resp, "Arbitration (1)")
+        self.assertContains(resp, "Contracts (1)")
+        self.assertContains(resp, "Arbitration &gt; Fraud")
+        self.assertContains(resp, "whynote")
+        self.assertContains(resp, 'href="%s"' % reverse("read_topic", args=[topic.pk]))
+        self.assertContains(resp, 'class="col-kind"')
+        resp = self.client.get(reverse("review_list"), {"subject": one.pk})
+        self.assertContains(resp, "1 record ")
+        self.assertContains(resp, "zzfraud")
+        self.assertNotContains(resp, "zzsection")
+        self.assertContains(resp, "of 2 in all")
+        resp = self.client.get(reverse("review_list"), {"subject": "bogus"})
+        self.assertContains(resp, "2 records")
+
     def test_requires_a_profile(self):
         user = User.objects.create_user("nobody", password=PASSWORD)
         self.client.force_login(user)
