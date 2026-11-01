@@ -680,7 +680,10 @@ class ProfileScreenTests(BaseCase):
         main.refresh_from_db()
         self.assertIsNotNone(main.deleted_at)
         self.assertIsNone(get_profile_for(self.user))
-        self.assertEqual(ProfileMembership.objects.filter(profile=main).count(), 0)
+        # Memberships are kept (suspended) so the profile can be restored.
+        self.assertEqual(ProfileMembership.objects.filter(profile=main, suspended=False).count(), 0)
+        self.assertTrue(ProfileMembership.objects.filter(profile=main, suspended=True).exists())
+        self.assertEqual(main.deleted_by, self.admin)
 
     def test_deleted_profile_name_can_be_reused(self):
         junior = Profile.objects.create(program="diary", name="Junior")
@@ -688,6 +691,154 @@ class ProfileScreenTests(BaseCase):
         self.client.post(reverse("profile_delete", args=[junior.pk]))
         resp = self.client.post(reverse("profile_create"), {"name": "junior"})
         self.assertRedirects(resp, reverse("profile_list"))
+
+
+@override_settings(SECURE_SSL_REDIRECT=False, PROFILE_RETENTION_DAYS=30)
+class ProfileRecoveryTests(BaseCase):
+    def delete_main(self):
+        main = ensure_default_profile()
+        self.client.force_login(self.admin)
+        self.client.post(reverse("profile_delete", args=[main.pk]), {"confirm": "yes"})
+        main.refresh_from_db()
+        return main
+
+    def test_list_shows_deleted_with_details(self):
+        main = self.delete_main()
+        page = self.client.get(reverse("profile_list"))
+        self.assertContains(page, "Deleted profiles")
+        self.assertContains(page, reverse("profile_restore", args=[main.pk]))
+        self.assertContains(page, "<td>30</td>")
+        self.assertContains(page, self.admin.username)
+
+    def test_restore_brings_back_exact_state_and_members(self):
+        main = self.delete_main()
+        self.assertIsNone(get_profile_for(self.user))
+        resp = self.client.post(reverse("profile_restore", args=[main.pk]))
+        self.assertRedirects(resp, reverse("profile_list"))
+        main.refresh_from_db()
+        self.assertIsNone(main.deleted_at)
+        self.assertIsNone(main.deleted_by)
+        self.assertEqual(main.name, "Main")
+        self.assertEqual(get_profile_for(self.user), main)
+        self.assertFalse(ProfileMembership.objects.filter(suspended=True).exists())
+
+    def test_restore_is_admin_only(self):
+        main = self.delete_main()
+        editor = self.make_user("ed2", role="editor")
+        self.client.force_login(editor)
+        self.assertEqual(self.client.post(reverse("profile_restore", args=[main.pk])).status_code, 403)
+        main.refresh_from_db()
+        self.assertIsNotNone(main.deleted_at)
+
+    def test_member_given_another_profile_can_be_assigned_and_blocks_restore(self):
+        main = self.delete_main()
+        junior = Profile.objects.create(program="diary", name="Junior")
+        from accounts.profiles import set_user_profile
+
+        set_user_profile(self.user, junior, "reader")
+        resp = self.client.post(reverse("profile_restore", args=[main.pk]), follow=True)
+        self.assertContains(resp, self.user.username)
+        self.assertContains(resp, "cannot be restored")
+        main.refresh_from_db()
+        self.assertIsNotNone(main.deleted_at)
+        self.assertEqual(get_profile_for(self.user), junior)
+
+    def test_same_name_asks_for_rename(self):
+        main = self.delete_main()
+        Profile.objects.create(program="diary", name="main")
+        page = self.client.post(reverse("profile_restore", args=[main.pk]))
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, "already exists")
+        main.refresh_from_db()
+        self.assertIsNotNone(main.deleted_at)
+        same = self.client.post(reverse("profile_restore", args=[main.pk]), {"name": "MAIN"})
+        self.assertEqual(same.status_code, 200)
+        resp = self.client.post(reverse("profile_restore", args=[main.pk]), {"name": "Main restored"})
+        self.assertRedirects(resp, reverse("profile_list"))
+        main.refresh_from_db()
+        self.assertIsNone(main.deleted_at)
+        self.assertEqual(main.name, "Main restored")
+
+    def test_cannot_restore_live_profile(self):
+        main = ensure_default_profile()
+        self.client.force_login(self.admin)
+        self.assertEqual(self.client.post(reverse("profile_restore", args=[main.pk])).status_code, 404)
+
+
+@override_settings(SECURE_SSL_REDIRECT=False, PROFILE_RETENTION_DAYS=30)
+class PurgeDeletedProfilesTests(BaseCase):
+    def setUp(self):
+        super().setUp()
+        from diary.models import Subject
+
+        self.Subject = Subject
+        self.old = Profile.objects.create(program="diary", name="Old")
+        self.recent = Profile.objects.create(program="diary", name="Recent")
+        self.live = ensure_default_profile()
+        now = timezone.now()
+        Profile.objects.filter(pk=self.old.pk).update(deleted_at=now - timedelta(days=31))
+        Profile.objects.filter(pk=self.recent.pk).update(deleted_at=now - timedelta(days=5))
+        for profile in (self.old, self.recent, self.live):
+            Subject.objects.create(profile=profile, name=f"S of {profile.name}")
+
+    def good_backup(self):
+        from backups import services
+
+        return services.create_backup("daily")
+
+    def run_purge(self):
+        from io import StringIO
+
+        call_command("purge_deleted_profiles", stdout=StringIO())
+
+    def test_purges_only_expired_profiles_and_their_data(self):
+        self.good_backup()
+        self.run_purge()
+        self.assertFalse(Profile.objects.filter(pk=self.old.pk).exists())
+        self.assertFalse(self.Subject.objects.filter(profile_id=self.old.pk).exists())
+        self.assertTrue(Profile.objects.filter(pk=self.recent.pk).exists())
+        self.assertTrue(self.Subject.objects.filter(profile=self.recent).exists())
+        self.assertTrue(self.Subject.objects.filter(profile=self.live).exists())
+
+    def test_log_entry_has_counts_and_is_shown(self):
+        from accounts.models import PurgeLog
+
+        self.good_backup()
+        self.run_purge()
+        log = PurgeLog.objects.get()
+        self.assertTrue(log.success)
+        self.assertEqual(log.counts.get("diary.Subject"), 1)
+        self.assertEqual(log.counts.get("accounts.Profile"), 1)
+        self.client.force_login(self.admin)
+        self.assertContains(self.client.get(reverse("profile_list")), "diary.Subject: 1")
+
+    def test_refuses_without_todays_backup(self):
+        from accounts.models import PurgeLog
+
+        with self.assertRaises(CommandError):
+            self.run_purge()
+        self.assertTrue(Profile.objects.filter(pk=self.old.pk).exists())
+        self.assertTrue(self.Subject.objects.filter(profile_id=self.old.pk).exists())
+        log = PurgeLog.objects.get()
+        self.assertFalse(log.success)
+        self.assertIn("no successful backup", log.message)
+
+    def test_refuses_when_todays_backup_failed(self):
+        from backups.models import BackupLog
+
+        self.good_backup()
+        BackupLog.objects.create(kind="daily", success=False, message="boom")
+        with self.assertRaises(CommandError):
+            self.run_purge()
+        self.assertTrue(Profile.objects.filter(pk=self.old.pk).exists())
+
+    def test_nothing_to_purge_logs_nothing(self):
+        from accounts.models import PurgeLog
+
+        Profile.objects.filter(pk=self.old.pk).update(deleted_at=timezone.now())
+        self.run_purge()
+        self.assertEqual(PurgeLog.objects.count(), 0)
+        self.assertTrue(Profile.objects.filter(pk=self.old.pk).exists())
 
 
 @override_settings(SECURE_SSL_REDIRECT=False)

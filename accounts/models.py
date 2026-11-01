@@ -61,12 +61,16 @@ class Profile(models.Model):
     For example "Madon - Case Law" and "Junior - Case Law" are two profiles of the Case Law Diary
     (program key ``diary``). Each holds its own Subjects and Items; nothing is shared between
     profiles. Names are unique per program among profiles that are not deleted, ignoring case.
-    Deleting only sets ``deleted_at``.
+    Deleting only sets ``deleted_at`` (and ``deleted_by``); the profile can be restored until the
+    purge job removes it for good after the retention period (``PROFILE_RETENTION_DAYS``).
     """
 
     program = models.CharField(max_length=30)
     name = models.CharField(max_length=60)
     deleted_at = models.DateTimeField(null=True, blank=True)
+    deleted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -94,17 +98,26 @@ class ProfileMembership(models.Model):
 
     ``program`` is copied from the profile on save so the database can enforce the rule
     "one profile per user per program". Several users may share a profile.
+
+    When a profile is deleted its memberships are kept but ``suspended``: they give no access and
+    do not count towards the one-profile rule, so the user can be given another profile meanwhile.
+    Restoring the profile lifts the suspension (refused if that user has since been given another).
     """
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="profile_memberships")
     profile = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name="memberships")
     program = models.CharField(max_length=30)
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default=ROLE_READER)
+    suspended = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=["user", "program"], name="membership_one_profile_per_program"),
+            models.UniqueConstraint(
+                fields=["user", "program"],
+                condition=Q(suspended=False),
+                name="membership_one_profile_per_program",
+            ),
         ]
 
     def save(self, *args, **kwargs):
@@ -127,6 +140,22 @@ class FailedLogin(models.Model):
 
     def __str__(self):
         return f"{self.username_lower} at {self.at:%Y-%m-%d %H:%M:%S}"
+
+
+class PurgeLog(models.Model):
+    """One run of the job that permanently removes deleted profiles (Admin can read it).
+
+    Never included in backup files themselves (like the backup log).
+    """
+
+    ran_at = models.DateTimeField(default=timezone.now)
+    success = models.BooleanField(default=False)
+    message = models.TextField(blank=True)
+    #: Rows removed, by model label (empty when nothing was removed).
+    counts = models.JSONField(default=dict, blank=True)
+
+    def __str__(self):
+        return f"purge {'ok' if self.success else 'REFUSED'} at {self.ran_at:%Y-%m-%d %H:%M}"
 
 
 def prune_failed_logins(now=None, max_age=timedelta(days=1)):

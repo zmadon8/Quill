@@ -38,7 +38,8 @@ services:
     region: singapore
     schedule: "30 20 * * *"
     buildCommand: ./build.sh
-    startCommand: python manage.py run_backup
+    # The purge only runs if the backup succeeded (&&), and refuses on its own if today's backup is missing.
+    startCommand: python manage.py run_backup && python manage.py purge_deleted_profiles
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.8
@@ -53,6 +54,9 @@ services:
           property: connectionString
       - key: BACKUP_RETENTION_DAYS
         value: "35"
+      # Days a deleted profile can be restored before it is removed for good.
+      - key: PROFILE_RETENTION_DAYS
+        value: "30"
 
 databases:
   - name: judgment-diary-db

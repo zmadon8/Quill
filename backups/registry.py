@@ -7,6 +7,7 @@ reverse order and loads in this order.
 
 Deliberately NOT in a backup file:
   * FailedLogin (short-lived login throttling),
+  * PurgeLog (history of the deleted-profile purge job),
   * sessions (people simply sign in again),
   * BackupFile and BackupLog (a backup must never contain other backups).
 

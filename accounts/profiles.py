@@ -4,7 +4,12 @@ Each user has at most one profile per program. The "default profile" helpers tak
 classes as arguments so the data migrations (which use historical models) and the tests share
 exactly the same logic.
 """
+import math
+from datetime import timedelta
+
+from django.conf import settings
 from django.db import transaction
+from django.utils import timezone
 
 from .models import ROLE_READER, Profile, ProfileMembership
 from .suite import KEY_DIARY
@@ -43,7 +48,11 @@ def assign_unassigned_users(user_model, membership_model, profile, role=ROLE_REA
     Users who already have a profile in that program are left alone (one per program).
     Returns the number of users assigned.
     """
-    already = membership_model.objects.filter(program=profile.program).values_list("user_id", flat=True)
+    memberships = membership_model.objects.filter(program=profile.program)
+    if any(field.name == "suspended" for field in membership_model._meta.get_fields()):
+        # Memberships of deleted profiles do not count (older migrations run before this column exists).
+        memberships = memberships.filter(suspended=False)
+    already = memberships.values_list("user_id", flat=True)
     count = 0
     for user_id in user_model.objects.exclude(pk__in=list(already)).values_list("pk", flat=True):
         membership_model.objects.create(user_id=user_id, profile=profile, program=profile.program, role=role)
@@ -65,7 +74,10 @@ def set_user_profile(user, profile, role=ROLE_READER, program=KEY_DIARY):
     Replaces any existing membership, so the one-per-program rule is never broken.
     """
     with transaction.atomic():
-        ProfileMembership.objects.filter(user=user, program=program).exclude(profile=profile).delete()
+        # Suspended memberships (of deleted profiles) are kept so those profiles stay restorable.
+        ProfileMembership.objects.filter(user=user, program=program, suspended=False).exclude(
+            profile=profile
+        ).delete()
         if profile is not None:
             membership, created = ProfileMembership.objects.get_or_create(
                 user=user, profile=profile, defaults={"program": program, "role": role}
@@ -82,3 +94,52 @@ def profile_usage(profile):
     members = ProfileMembership.objects.filter(profile=profile).count()
     subjects = Subject.objects.filter(profile=profile, deleted_at__isnull=True).count()
     return members, subjects
+
+
+def retention_days():
+    return settings.PROFILE_RETENTION_DAYS
+
+
+def purge_due(profile):
+    """When a deleted profile becomes eligible for the purge job."""
+    return profile.deleted_at + timedelta(days=retention_days())
+
+
+def days_left(profile, now=None):
+    """Whole days left to restore a deleted profile (0 once the window has passed)."""
+    seconds = (purge_due(profile) - (now or timezone.now())).total_seconds()
+    return max(0, math.ceil(seconds / 86400))
+
+
+def delete_profile(profile, user=None):
+    """Soft delete: hide the profile, suspend its memberships (kept for a restore), note who did it."""
+    with transaction.atomic():
+        ProfileMembership.objects.filter(profile=profile).update(suspended=True)
+        profile.deleted_at = timezone.now()
+        profile.deleted_by = user if user is not None and getattr(user, "pk", None) else None
+        profile.save(update_fields=["deleted_at", "deleted_by", "updated_at"])
+
+
+def restore_conflicts(profile):
+    """Users of a deleted profile who were given another profile in the same program meanwhile."""
+    suspended = ProfileMembership.objects.filter(profile=profile, suspended=True).values_list("user_id", flat=True)
+    taken = ProfileMembership.objects.filter(
+        program=profile.program, suspended=False, user_id__in=list(suspended)
+    ).select_related("user")
+    return sorted({m.user.username for m in taken}, key=str.lower)
+
+
+def name_clash(profile):
+    """True if a live profile in the same program already has this profile's name (ignoring case)."""
+    return Profile.objects.filter(
+        program=profile.program, name__iexact=profile.name, deleted_at__isnull=True
+    ).exclude(pk=profile.pk).exists()
+
+
+def restore_profile(profile):
+    """Bring a deleted profile back exactly as it was, with its members. Callers check conflicts first."""
+    with transaction.atomic():
+        ProfileMembership.objects.filter(profile=profile).update(suspended=False)
+        profile.deleted_at = None
+        profile.deleted_by = None
+        profile.save(update_fields=["deleted_at", "deleted_by", "updated_at"])

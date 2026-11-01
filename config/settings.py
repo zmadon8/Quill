@@ -146,6 +146,8 @@ STORAGES = {
 # Backup settings (used by the backups app).
 BACKUP_RETENTION_DAYS = max(30, _int("BACKUP_RETENTION_DAYS", 35))
 BACKUP_STALE_HOURS = _int("BACKUP_STALE_HOURS", 36)
+# Days a deleted profile can be restored before the purge job removes it for good.
+PROFILE_RETENTION_DAYS = max(1, _int("PROFILE_RETENTION_DAYS", 30))
 MAX_BACKUP_UPLOAD_MB = _int("MAX_BACKUP_UPLOAD_MB", 100)
 
 if not DEBUG:

@@ -21,4 +21,54 @@
   </tbody>
 </table>
 </div>
+
+<h2>Deleted profiles</h2>
+<p>A deleted profile can be restored for {{ retention_days }} day{{ retention_days|pluralize }}. After that it is removed for good, with all its data, by the nightly job (and only after a successful backup that day).</p>
+{% if deleted_profiles %}
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Name</th><th>Program</th><th>Deleted</th><th>Deleted by</th><th>Users</th><th>Days left</th><th></th></tr></thead>
+  <tbody>
+  {% for p in deleted_profiles %}
+    <tr>
+      <td>{{ p.name }}</td>
+      <td>{{ diary_name }}</td>
+      <td>{{ p.deleted_at|date:"Y-m-d H:i" }}</td>
+      <td>{{ p.deleted_by.username|default:"-" }}</td>
+      <td>{{ p.member_count }}</td>
+      <td>{{ p.days_left }}</td>
+      <td>
+        <form method="post" action="{% url 'profile_restore' p.pk %}" class="inline">
+          {% csrf_token %}
+          <button type="submit">Restore</button>
+        </form>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<p>No deleted profiles.</p>
+{% endif %}
+
+<h2>Permanent removal log</h2>
+{% if purge_logs %}
+<div class="table-wrap">
+<table>
+  <thead><tr><th>When</th><th>Result</th><th>Details</th></tr></thead>
+  <tbody>
+  {% for log in purge_logs %}
+    <tr>
+      <td>{{ log.ran_at|date:"Y-m-d H:i" }}</td>
+      <td>{% if log.success %}Removed{% else %}Refused{% endif %}</td>
+      <td>{{ log.message }}{% if log.counts %}<br>{% for label, number in log.counts.items %}{{ label }}: {{ number }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<p>Nothing has been removed for good yet.</p>
+{% endif %}
 {% endblock %}

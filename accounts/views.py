@@ -1,14 +1,21 @@
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404, redirect, render
-from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from . import suite
 from .forms import ProfileForm, SuiteNamesForm, UserCreateForm, UserEditForm
-from .models import Profile, ProfileMembership
+from .models import Profile, ProfileMembership, PurgeLog
 from .permissions import admin_required
-from .profiles import profile_usage
+from .profiles import (
+    days_left,
+    delete_profile,
+    name_clash,
+    profile_usage,
+    restore_conflicts,
+    restore_profile,
+    retention_days,
+)
 
 User = get_user_model()
 
@@ -100,7 +107,24 @@ def profile_list(request):
     profiles = list(_live_profiles().order_by("name"))
     for p in profiles:
         p.member_count, p.subject_count = profile_usage(p)
-    return render(request, "accounts/profile_list.html", {"profiles": profiles})
+    deleted = list(
+        Profile.objects.filter(program=suite.KEY_DIARY, deleted_at__isnull=False)
+        .select_related("deleted_by")
+        .order_by("-deleted_at")
+    )
+    for p in deleted:
+        p.days_left = days_left(p)
+        p.member_count, p.subject_count = profile_usage(p)
+    return render(
+        request,
+        "accounts/profile_list.html",
+        {
+            "profiles": profiles,
+            "deleted_profiles": deleted,
+            "retention_days": retention_days(),
+            "purge_logs": PurgeLog.objects.order_by("-ran_at", "-id")[:10],
+        },
+    )
 
 
 @admin_required
@@ -138,13 +162,53 @@ def profile_delete(request, pk):
             messages.error(request, f"Profile {target.name} is in use. Tick the box to confirm, or cancel.")
             return redirect("profile_delete", pk=target.pk)
         name = target.name
-        ProfileMembership.objects.filter(profile=target).delete()
-        target.deleted_at = timezone.now()
-        target.save(update_fields=["deleted_at", "updated_at"])
-        messages.success(request, f"Profile {name} deleted.")
+        delete_profile(target, request.user)
+        messages.success(
+            request,
+            f"Profile {name} deleted. You can restore it from the Deleted profiles list for {retention_days()} days.",
+        )
         return redirect("profile_list")
     return render(
         request,
         "accounts/profile_confirm_delete.html",
         {"target": target, "members": members, "subjects": subjects, "in_use": in_use},
     )
+
+
+@admin_required
+@require_http_methods(["GET", "POST"])
+def profile_restore(request, pk):
+    """Bring back a deleted profile with its members. Refused if a member now has another profile.
+
+    If a live profile has the same name, the Admin is asked for a new name first.
+    """
+    target = get_object_or_404(Profile, pk=pk, program=suite.KEY_DIARY, deleted_at__isnull=False)
+    conflicts = restore_conflicts(target)
+    if conflicts:
+        messages.error(
+            request,
+            f"Profile {target.name} cannot be restored: {', '.join(conflicts)} "
+            f"{'has' if len(conflicts) == 1 else 'have'} been given another profile since. "
+            "Change their profile on the Users screen first, then try again.",
+        )
+        return redirect("profile_list")
+    if name_clash(target) or (request.method == "POST" and "name" in request.POST):
+        form = ProfileForm(request.POST or None, instance=target)
+        if request.method == "POST" and form.is_valid():
+            form.save()
+            restore_profile(target)
+            messages.success(request, f"Profile {target.name} restored.")
+            return redirect("profile_list")
+        return render(
+            request,
+            "accounts/profile_form.html",
+            {
+                "form": form,
+                "title": f"Restore {target.name}",
+                "note": "A profile with this name already exists. Choose a different name for the restored profile.",
+            },
+        )
+    if request.method == "POST":
+        restore_profile(target)
+        messages.success(request, f"Profile {target.name} restored.")
+    return redirect("profile_list")
