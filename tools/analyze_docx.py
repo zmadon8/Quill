@@ -138,11 +138,11 @@ def main():
     other = [t for s in misc for t in s['topics']]
     print()
     print('Heading 1 total:', len(subjects), '| excluding Miscellaneous:', len(normal))
-    print('Miscellaneous Topics (become Other Acts subjects):', len(other))
+    print('Miscellaneous Topics (become Other Subjects):', len(other))
     print('REAL SUBJECT COUNT =', len(normal), '+', len(other), '=', len(normal) + len(other))
     print('Content directly under Miscellaneous before first Topic:', sum(len(s['pre']) for s in misc))
     print()
-    print('== Other Acts subjects (Miscellaneous topics)')
+    print('== Other Subjects (Miscellaneous topics)')
     print('Name'.ljust(50), *[c[:8].rjust(8) for c in cols[1:]])
     for t in other:
         print(t['name'][:49].ljust(50), *[str(t['c'][c]).rjust(8) for c in cols[1:]])
@@ -264,7 +264,7 @@ def main():
     for i, r in enumerate(rows):
         if r['level'] == 'unclassified':
             print('  ', i, r['text'][:160])
-    print('Topic names that are also Heading 1 names or duplicated among Other Acts:',
+    print('Topic names that are also Heading 1 names or duplicated among Other Subjects:',
           [k for k, v in collections.Counter(t['name'] for s in misc for t in s['topics']).items() if v > 1])
 
     # ---- Proposed deterministic split of Text / Citation
