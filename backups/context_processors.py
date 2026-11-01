@@ -1,13 +1,25 @@
+import logging
+
 from django.conf import settings
 from django.utils import timezone
 
 from . import policy
 from .models import BackupLog
 
+logger = logging.getLogger(__name__)
+
 BACKUP_KINDS = ["daily", "manual", "pre_restore", "pre_migration"]
 
 
 def backup_banner(request):
+    try:
+        return _backup_banner(request)
+    except Exception:
+        logger.exception("Could not work out the backup warning banner")
+        return {"backup_warning": None}
+
+
+def _backup_banner(request):
     """Warn Admins at the top of every page if backups are failing or old."""
     user = getattr(request, "user", None)
     if user is None or not user.is_authenticated or not user.is_admin:

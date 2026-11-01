@@ -17,6 +17,11 @@ from .models import BackupFile, BackupLog
 CONFIRM_WORD = "RESTORE"
 
 
+def csrf_failure(request, reason=""):
+    """Plain 403 page for a failed security check (stale page, cookies blocked, other address)."""
+    return render(request, "403_csrf.html", status=403)
+
+
 def _max_bytes():
     return settings.MAX_BACKUP_UPLOAD_MB * 1024 * 1024
 
@@ -47,7 +52,7 @@ def backup_download(request, pk):
         io.BytesIO(bytes(backup.data)),
         as_attachment=True,
         filename=backup.filename,
-        content_type="application/gzip",
+        content_type="application/octet-stream",
     )
 
 

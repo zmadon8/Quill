@@ -158,6 +158,23 @@ class ParseTests(BackupBase):
         with self.assertRaises(services.BackupError):
             services.parse_backup(raw, 50)
 
+    def test_accepts_plain_json(self):
+        raw = gzip.decompress(bytes(services.create_backup("daily").data))
+        self.assertEqual(services.parse_backup(raw, MAX)["format_version"], 1)
+
+    def test_rejects_plain_json_that_is_not_a_backup(self):
+        with self.assertRaises(services.BackupError):
+            services.parse_backup(b'{"hello": 1}', MAX)
+
+    def test_rejects_plain_json_too_large(self):
+        raw = gzip.decompress(bytes(services.create_backup("daily").data))
+        with self.assertRaises(services.BackupError):
+            services.parse_backup(raw, 50)
+
+    def test_rejects_random_bytes(self):
+        with self.assertRaises(services.BackupError):
+            services.parse_backup(b"\x00\x01\xfe\xff random", MAX)
+
     def test_accepts_valid_backup(self):
         raw = services.create_backup("daily").data
         self.assertEqual(services.parse_backup(raw, MAX)["format_version"], 1)
@@ -290,7 +307,9 @@ class ViewTests(BackupBase):
         self.login_admin()
         resp = self.client.get(reverse("backup_download", args=[backup.pk]))
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(resp["Content-Type"], "application/gzip")
+        self.assertEqual(resp["Content-Type"], "application/octet-stream")
+        self.assertNotIn("Content-Encoding", resp)
+        self.assertIn(".json.gz", resp["Content-Disposition"])
         self.assertIn("attachment", resp["Content-Disposition"])
         self.assertEqual(b"".join(resp.streaming_content), bytes(backup.data))
 
@@ -334,6 +353,19 @@ class ViewTests(BackupBase):
         self.assertRedirects(resp, reverse("restore_preview", args=[uploaded.pk]))
         self.assertEqual(bytes(uploaded.data), raw)
         self.assertNotIn(" ", uploaded.filename)
+
+    def test_upload_plain_json_goes_to_preview_and_restores(self):
+        raw = gzip.decompress(bytes(services.create_backup("daily").data))
+        User.objects.create_user("carol", password=PASSWORD)
+        self.login_admin()
+        upload = SimpleUploadedFile("judgment-diary-backup-x-manual.json", raw, content_type="application/json")
+        resp = self.client.post(reverse("restore_upload"), {"backup_file": upload})
+        uploaded = BackupFile.objects.get(kind="uploaded")
+        self.assertRedirects(resp, reverse("restore_preview", args=[uploaded.pk]))
+        self.assertEqual(bytes(uploaded.data), raw)
+        self.assertEqual(uploaded.sha256, hashlib.sha256(raw).hexdigest())
+        self.client.post(reverse("restore_preview", args=[uploaded.pk]), {"confirm": "RESTORE"})
+        self.assertNotIn("carol", self.usernames())
 
     def test_upload_corrupted_file_rejected_without_changes(self):
         User.objects.create_user("carol", password=PASSWORD)
@@ -452,3 +484,20 @@ class MigrateWithBackupTests(BackupBase):
     def test_real_pending_check_runs(self):
         # Test database is fully migrated, so nothing is pending.
         self.assertFalse(migrate_with_backup.has_pending_migrations())
+
+
+@override_settings(SECURE_SSL_REDIRECT=False)
+class FriendlyErrorTests(TestCase):
+    def test_csrf_failure_is_friendly(self):
+        from django.test import Client
+
+        client = Client(enforce_csrf_checks=True)
+        resp = client.post(reverse("backup_now"))
+        self.assertContains(resp, "security check", status_code=403)
+
+    def test_banner_failure_does_not_break_pages(self):
+        admin = User.objects.create_user("boss", password=PASSWORD, is_superuser=True, is_staff=True)
+        self.client.force_login(admin)
+        with mock.patch("backups.context_processors._backup_banner", side_effect=RuntimeError("x")):
+            resp = self.client.get(reverse("backup_list"))
+        self.assertEqual(resp.status_code, 200)

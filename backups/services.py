@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 
 FORMAT_MARKER = "judgment-diary-backup"
 FORMAT_VERSION = 1
+GZIP_MAGIC = b"\x1f\x8b"
 
 
 class BackupError(Exception):
@@ -172,16 +173,22 @@ def parse_backup(raw, max_bytes):
     Raises BackupError with a plain-language message if it is not usable.
     """
     raw = bytes(raw)
-    try:
-        decompressor = zlib.decompressobj(16 + zlib.MAX_WBITS)
-        data = decompressor.decompress(raw, max_bytes + 1)
-        complete = decompressor.eof
-    except zlib.error:
-        raise BackupError("This is not a backup file (it is not a compressed .gz file).")
-    if len(data) > max_bytes:
-        raise BackupError("This file is too large to be a valid backup.")
-    if not complete:
-        raise BackupError("This backup file is incomplete or damaged.")
+    if raw[:2] == GZIP_MAGIC:
+        try:
+            decompressor = zlib.decompressobj(16 + zlib.MAX_WBITS)
+            data = decompressor.decompress(raw, max_bytes + 1)
+            complete = decompressor.eof
+        except zlib.error:
+            raise BackupError("This is not a backup file (the compressed file is damaged).")
+        if len(data) > max_bytes:
+            raise BackupError("This file is too large to be a valid backup.")
+        if not complete:
+            raise BackupError("This backup file is incomplete or damaged.")
+    else:
+        # Some browsers unzip .gz downloads automatically, so a plain JSON file is accepted too.
+        data = raw
+        if len(data) > max_bytes:
+            raise BackupError("This file is too large to be a valid backup.")
     try:
         document = json.loads(data.decode("utf-8"))
     except (UnicodeDecodeError, ValueError):

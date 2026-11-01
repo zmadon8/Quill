@@ -42,6 +42,7 @@ if RENDER_EXTERNAL_HOSTNAME:
 if DEBUG and not ALLOWED_HOSTS:
     ALLOWED_HOSTS = ["localhost", "127.0.0.1", "[::1]", "testserver"]
 
+CSRF_FAILURE_VIEW = "backups.views.csrf_failure"
 CSRF_TRUSTED_ORIGINS = _csv("CSRF_TRUSTED_ORIGINS")
 if RENDER_EXTERNAL_HOSTNAME:
     CSRF_TRUSTED_ORIGINS.append(f"https://{RENDER_EXTERNAL_HOSTNAME}")
