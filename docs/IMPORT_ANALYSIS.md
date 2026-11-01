@@ -108,7 +108,7 @@ Grand totals across the file (these are the reconciliation targets): 41 Subjects
 
 The golden rules for the importer:
 
-1. **Never rewrite or correct anything.** Every paragraph is saved exactly as it appears in the file in a field called `original_line`. This includes odd spacing, curly quotes and typos.
+1. **Never rewrite or correct anything.** Every paragraph is saved exactly as it appears in the file in a field called `original_line`. This includes odd spacing, curly quotes and typos. The one exception, on your instruction (Q8), is that the 19 trailing colons on Topic and Sub-topic names are not stored in the name; the original line still has them, and every case is reported.
 2. **Split a line into Text and Citation only when it is unambiguous.**
 3. **Anything doubtful is imported whole**, marked `needs_review = Yes`, with a short `review_note` saying why. You can then fix it in the screen at your own pace.
 
