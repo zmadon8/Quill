@@ -21,6 +21,7 @@ class DiaryTests(TestCase):
 
     def test_home_shows_title_and_username(self):
         user = get_user_model().objects.create_user("alice", password="x-long-pass-123")
+        join_main(user)
         self.client.force_login(user)
         resp = self.client.get(reverse("home"))
         self.assertContains(resp, "Case Law Diary")
