@@ -391,16 +391,16 @@ Plain language. Please answer what you can. For each, my default (what I will do
 
 **About the combined app and structure**
 
-1. **The combined app.** Does the entry screen with other programs already exist? What are the other programs, and what technology are they built in? *Default: build the Judgment Diary as a standalone app that can be plugged in later.*
-2. **Other Acts structure.** Each Other Act (such as Companies Act) has no Topics after import. Shall Sub-topics (1, 2, 3) and Items sit directly under the Act, or shall each Act get a default Topic named "General"? *Default: directly under the Act (section 2.1). An Act then holds either Topics or Sub-topics, not both.*
-3. **Exporting one Other Act on its own.** Should it come out with the Act as Heading 1 (like any Subject) rather than inside an "Other Acts" Heading 1? *Default: Heading 1 alone.*
-4. **Nesting depth.** Is one level of Nested Items enough? *Default: yes.*
-5. **Notes ordering.** Notes sit after the Items of their parent and before the child headings. Right? *Default: yes.*
+1. **The combined app.** Does the entry screen with other programs already exist? What are the other programs, and what technology are they built in? *Default: build the Judgment Diary as a standalone app that can be plugged in later.* [Answer: Yes, do the Default for now]
+2. **Other Acts structure.** Each Other Act (such as Companies Act) has no Topics after import. Shall Sub-topics (1, 2, 3) and Items sit directly under the Act, or shall each Act get a default Topic named "General"? *Default: directly under the Act (section 2.1). An Act then holds either Topics or Sub-topics, not both.* [Answer: Yes]
+3. **Exporting one Other Act on its own.** Should it come out with the Act as Heading 1 (like any Subject) rather than inside an "Other Acts" Heading 1? *Default: Heading 1 alone.* [Answer: Yes]
+4. **Nesting depth.** Is one level of Nested Items enough? *Default: yes.* [Answer: Yes]
+5. **Notes ordering.** Notes sit after the Items of their parent and before the child headings. Right? *Default: yes.* [Answer: Yes]
 
 **Behaviour**
 
-6. **Restoring a deleted Subject whose name is now taken.** The app will ask you for a new name at that moment. Acceptable? *Default: yes.*
-7. **Edit history length.** At least 20 versions are required. I plan to keep all. Fine? *Default: keep all.*
+6. **Restoring a deleted Subject whose name is now taken.** The app will ask you for a new name at that moment. Acceptable? *Default: yes.* [Answer: Yes]
+7. **Edit history length.** At least 20 versions are required. I plan to keep all. Fine? *Default: keep all.* [Answer: Yes]
 
 **From the import analysis** (full wording is in `docs/IMPORT_ANALYSIS.md`, section 7; numbered there, not repeated here):
 
