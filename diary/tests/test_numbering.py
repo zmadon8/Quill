@@ -69,23 +69,23 @@ class ChildrenTests(unittest.TestCase):
         kinds = ["section", "item", "item"] + ["section"] + ["item"] * 8
         self.assertEqual(
             n.number_children(kinds),
-            ["(A)", "(i)", "(ii)", "(B)",
-             "(i)", "(ii)", "(iii)", "(iv)", "(v)", "(vi)", "(vii)", "(viii)"],
+            ["(a)", "(1)", "(2)", "(b)",
+             "(1)", "(2)", "(3)", "(4)", "(5)", "(6)", "(7)", "(8)"],
         )
 
     def test_items_before_first_section(self):
         kinds = ["item", "item", "section", "item"]
-        self.assertEqual(n.number_children(kinds), ["(i)", "(ii)", "(A)", "(i)"])
+        self.assertEqual(n.number_children(kinds), ["(1)", "(2)", "(a)", "(1)"])
 
     def test_nested_share_run(self):
         kinds = ["item", "nested", "item", "section", "nested", "item"]
         self.assertEqual(
-            n.number_children(kinds), ["(i)", "(ii)", "(iii)", "(A)", "(i)", "(ii)"]
+            n.number_children(kinds), ["(1)", "(2)", "(3)", "(a)", "(1)", "(2)"]
         )
 
     def test_notes_not_counted(self):
         kinds = ["item", "item", "note"]
-        self.assertEqual(n.number_children(kinds), ["(i)", "(ii)", ""])
+        self.assertEqual(n.number_children(kinds), ["(1)", "(2)", ""])
 
     def test_section_format(self):
         kinds = ["section", "item", "section", "item"]
@@ -96,9 +96,9 @@ class ChildrenTests(unittest.TestCase):
 
     def test_past_xxxix(self):
         labels = n.number_children(["item"] * 41)
-        self.assertEqual(labels[38], "(xxxix)")
-        self.assertEqual(labels[39], "(xl)")
-        self.assertEqual(labels[40], "(xli)")
+        self.assertEqual(labels[38], "(39)")
+        self.assertEqual(labels[39], "(40)")
+        self.assertEqual(labels[40], "(41)")
 
     def test_empty_and_bad_kind(self):
         self.assertEqual(n.number_children([]), [])

@@ -14,7 +14,7 @@ Your instructions and the analysis agree:
 
 - Each **Heading 1** is a **Subject**, except **Miscellaneous**. Miscellaneous contains the Other Subjects: each Topic inside it is really a Subject and is treated as an **Other Subject** (renamed from "Other Acts" by decision D8).
 - **Sub-topics** are the numbered lists 1, 2, 3.
-- **Items** (and Nested Items later) are numbered (i), (ii), (iii).
+- In the Word file, **Items** are numbered (i), (ii), (iii). In the Diary, Items (and Nested Items) are numbered (1), (2), (3) by default (decision D13); the importer still recognises Items by the Word file's own (i), (ii) numbering.
 - There are **no footnotes**. Footnotes are not part of the model. There are **two Sections** in the file: the two small headings `Ex Parte / Without Notice` and `Determining Jurisdiction`, which Word shows as (a) and (b) (decision I3, section 14).
 - Real counts: 41 Subjects (10 main plus 31 Other Subjects), 178 Topics under the 10 main Subjects, 323 Sub-topics, 2 Sections, 950 Items, no Nested Items, no bullets. Total text paragraphs: 11 + 209 + 323 + 2 + 950 = 1,495 (209 Heading 2 lines = 178 Topics + 31 Other Subjects).
 
@@ -24,8 +24,8 @@ Your instructions and the analysis agree:
 Subject            (Heading 1 in Word; Other Subjects live in the Other Subjects group)
   Topic            A, B, C
     Sub-topic      1, 2, 3
-      Item / Nested Item     (i), (ii), (iii)   (one shared run; restarts at (i) after each Section)
-      Section                bold header with its own number, e.g. (A), (B)   (no children)
+      Item / Nested Item     (1), (2), (3)      (one shared run; restarts at (1) after each Section)
+      Section                bold header with its own number, e.g. (a), (b)   (no children)
       Note                   cross-reference
 ```
 
@@ -33,7 +33,7 @@ Rules from the specification:
 
 1. An **Item** is one proposition of law: rich text plus one single-line **Citation**.
 2. A **Nested Item** is an Item that has Items beneath it. It has its own text and Citation and is numbered like an Item. Items beneath it show **bullets only**.
-3. A **Section** is a bold header line between Items. It has its own number (its own format, section 4) and no children. It acts as a grouping header **by position**: the Items that follow it, up to the next Section, are numbered afresh from (i). A Section can be marked For review like an Item (section 11).
+3. A **Section** is a bold header line between Items. It has its own number (its own format, section 4) and no children. It acts as a grouping header **by position**: the Items that follow it, up to the next Section, are numbered afresh from (1). A Section can be marked For review like an Item (section 11).
 4. A **Multi-Item** is an Item with several citations in one line, shown as (a), (b), (c). Each is a **Case** with its own Citation and an optional rich-text comment.
 5. Items may sit at any level: directly under a Subject, Topic, Sub-topic or Nested Item.
 6. A container shows its **own Items, Sections and Nested Items first** (one shared order), then its **Notes**, then its **child headings**.
@@ -131,10 +131,10 @@ Numbers are computed whenever a page or export is built, from the order of recor
 
 1. **Topics**: A, B, C within a Subject.
 2. **Sub-topics**: 1, 2, 3 within a Topic (or within a Subject for Other Subjects).
-3. **Sections** have their own numbering format (Settings, section 5.11). **Default (default, needs owner confirmation): (A), (B), (C)**, capital letters in brackets. Reason: capital letters read as headings, and the brackets keep them visibly different from Topics (A, B, C without brackets), Sub-topics (1, 2, 3) and Items ((i), (ii)). Sections are numbered in order within their parent container (a Subject, Topic, Sub-topic or Nested Item) and **restart under each parent**.
-4. **Items and Nested Items**: one shared run (i), (ii), (iii) within their parent, **restarting at (i) after each Section**.
-   - Items that come before the first Section of a container are numbered (i), (ii), ... as usual.
-   - Each Section restarts the Item numbering at (i) for the Items that follow it, up to the next Section (or the end of the container).
+3. **Sections** have their own numbering format (Settings, section 5.11). **Default (owner decision D13): (a), (b), (c)**, small letters in brackets, no full stop. The brackets keep them visibly different from Topics (A, B, C without brackets) and Sub-topics (1, 2, 3). Sections are numbered in order within their parent container (a Subject, Topic, Sub-topic or Nested Item) and **restart under each parent**.
+4. **Items and Nested Items**: one shared run (1), (2), (3) within their parent (owner decision D13), **restarting at (1) after each Section**.
+   - Items that come before the first Section of a container are numbered (1), (2), ... as usual.
+   - Each Section restarts the Item numbering at (1) for the Items that follow it, up to the next Section (or the end of the container).
    - Nested Items count as Items in this run. Bullets inside Nested Items are unchanged.
    - **Notes are not counted** and come after the shared sequence.
    - The Section number, the Item numbers and the restart are all generated from position. Nothing is stored.
@@ -146,20 +146,20 @@ Numbers are computed whenever a page or export is built, from the order of recor
 
 ```
 Clause 12: Leave to Sue                     (a Sub-topic; its own number comes from its position)
-   (A) Ex Parte / Without Notice            (Section, flagged for review at import)
-       (i)  ...                             (2 Items)
-       (ii) ...
-   (B) Determining Jurisdiction             (Section, flagged for review at import)
-       (i)  ...                             (8 Items, numbering restarted)
+   (a) Ex Parte / Without Notice            (Section, flagged for review at import)
+       (1) ...                              (2 Items)
+       (2) ...
+   (b) Determining Jurisdiction             (Section, flagged for review at import)
+       (1) ...                              (8 Items, numbering restarted)
        ...
-       (viii) ...
+       (8) ...
 ```
 
-If an Item were added before `Ex Parte / Without Notice`, it would read (i), and the Items under (A) would still start at (i). This now matches Word's own numbering for these Items, so there is no renumbering difference to report at import.
+If an Item were added before `Ex Parte / Without Notice`, it would read (1), and the Items under (a) would still start at (1). The Diary's labels differ from Word's (i), (ii) style by design (decision D13), but the grouping and the count of each run are the same as in Word, so there is no renumbering difference to report at import.
 
-**Moving or deleting a Section changes the numbers of Items.** The Items after a Section belong to its run by position, so removing or moving the Section merges them into the run before it (or moves the boundary). Before a move or delete the app shows a **preview** of the affected Items, before and after numbers (for example "these 8 Items will be numbered (iii) to (x) instead of (i) to (viii)"), and asks for confirmation. Undo works as for any other change (section 9.1). Because numbers are generated and never stored, there is nothing to repair afterwards.
+**Moving or deleting a Section changes the numbers of Items.** The Items after a Section belong to its run by position, so removing or moving the Section merges them into the run before it (or moves the boundary). Before a move or delete the app shows a **preview** of the affected Items, before and after numbers (for example "these 8 Items will be numbered (3) to (10) instead of (1) to (8)"), and asks for confirmation. Undo works as for any other change (section 9.1). Because numbers are generated and never stored, there is nothing to repair afterwards.
 
-Formats come from Settings (section 5.11). Format choices for Topics, Sub-topics, Items and Nested Items: A,B,C; a,b,c; 1,2,3; I,II,III; i,ii,iii; (A); (i); (a); (1); bullet; none. Sections use the same list plus one more style, **Section 1, Section 2**.
+Formats come from Settings (section 5.11). Format choices for Topics, Sub-topics, Items and Nested Items: A,B,C; a,b,c; 1,2,3; I,II,III; i,ii,iii; (A); (i); (a); (1); bullet; none. Sections use the same list plus one more style, **Section 1, Section 2**. Defaults: Topics A, B, C; Sub-topics 1, 2, 3; Sections (a), (b), (c); Items and Nested Items (1), (2), (3); Multi-Item citations (a), (b), (c).
 
 **Counting past the end of the alphabet.** Letters continue the way spreadsheets do: a to z, then aa, ab, ac... az, ba, and so on (A to Z, AA, AB for capitals). This never fails.
 
@@ -185,7 +185,7 @@ Numbers appear in two places only: on screen and in the Word export. Searching a
 
 ### 5.3 Reading view (4.3)
 - Item: text, then " - ", then the Citation in italics. A Multi-Item: description, then the citations on the same line, each preceded by (a), (b), separated by " ; ", with a Case comment following its citation.
-- A **Section** shows as a bold header line with its number (default (A), (B)); the Items below it restart at (i) and are indented under it. A Section marked For review shows the same **amber** marker and its note.
+- A **Section** shows as a bold header line with its number (default (a), (b)); the Items below it restart at (1) and are indented under it. A Section marked For review shows the same **amber** marker and its note.
 - Items with a flag are **red** with the flag text. Items marked "For review" show an **amber** marker.
 - Notes show a link icon and "See also: Subject > Topic > ..." and are clickable.
 - Order inside any container: Items, Sections and Nested Items (one shared order), then Notes, then child headings.
@@ -227,14 +227,14 @@ Always visible, returns to the previous page; sensible fallback to Home.
 Two independent panes side by side, each with its own location. Only on wide screens (about 1100 pixels and above). On narrower screens the option is hidden. Last milestone (7), so it can be refined without risk to the core.
 
 ### 5.10 Shortcuts (4.10)
-- Ctrl+Option+G opens Global Search; Ctrl+Option+H goes Home (Ctrl+Alt on Windows).
+- **Both sets of shortcuts are kept** (decision D13): Alt+G opens Global Search and Alt+H goes Home; Ctrl+Alt+G and Ctrl+Alt+H do the same. On a Mac, Option replaces Alt (Option+G, Option+H, Ctrl+Option+G, Ctrl+Option+H).
 - Cmd+G and Cmd+H are deliberately not used, as the browser needs them.
 - A visible **Search** button and **Home** button appear on every page.
 
 ### 5.11 Settings (4.11)
 Per user:
 - **Opening page**: Home, Other Subjects, Global Search, last page viewed, or a chosen Subject.
-- **Number formats** for Topics, Sub-topics, **Sections**, Items, Nested Items and Multi-Item citations, each with a live preview (the Sections preview shows a Section followed by Items restarting at (i)). Changing formats changes display and Word export only, never the stored data.
+- **Number formats** for Topics, Sub-topics, **Sections**, Items, Nested Items and Multi-Item citations, each with a live preview (the Sections preview shows a Section followed by Items restarting at (1)). Changing formats changes display and Word export only, never the stored data.
 - **Custom Name** (decision D11): the text that starts every exported Word file name. Default `Judgment Diary`. Rules: trimmed; 1 to 60 characters; not empty after cleaning; no leading or trailing dots or spaces. Characters not allowed in file names ( \ / : * ? " < > | and control characters ) are replaced with a hyphen `-`, and repeated spaces are collapsed. A **live preview** shows the resulting file name for each export type, with a note of any replacement made (for example "':' was replaced with '-'").
 - **Date format** for file names and the export date line: `YYYY-MM-DD` (default, needs owner confirmation), `DD-MM-YYYY`, or `D Month YYYY`.
 - **Time zone** for "today's date" in file names: default Asia/Kolkata (default, needs owner confirmation). The server itself stores times in UTC.
@@ -319,7 +319,7 @@ A new Item group starts whenever the Word list changes. The importer uses this o
    - counts per level and Subject versus the file (expected: 41 Subjects, 178 Topics under main Subjects, 323 Sub-topics, 2 Sections, 950 Items, 1,495 text paragraphs, 11 blanks skipped; 693 clean and 257 flagged Items; 2 flagged Sections; **259 review-marked records in all = 257 Items + 2 Sections**);
    - a **full-text round trip**: rebuild text from the database in order and compare with the Word file line by line; target is zero differences;
    - the list of every flagged line and why;
-   - the list of the 19 names changed by colon removal (original and stored form side by side), and a check that the generated Item numbers under the two Sections ((i), (ii) and (i) to (viii)) equal Word's own numbering. No renumbering difference is expected.
+   - the list of the 19 names changed by colon removal (original and stored form side by side), and a check that the count of generated Items under the two Sections (2 and 8) equals the count in Word's own lists ((i), (ii) and (i) to (viii) in Word; (1), (2) and (1) to (8) in the Diary). No renumbering difference is expected.
 4. A backup is taken immediately before and after import.
 5. The imported data is marked in history as `import`, so it can be seen what came from Word.
 
@@ -410,8 +410,8 @@ There are **three types of export** (decision D10). All three follow the same ma
 | Subject | Heading 1, each on its own page, name in the page header |
 | Topic | Heading 2, lettered per Settings |
 | Sub-topic | Bold numbered line |
-| Items and Nested Items | Numbered, one shared run that **restarts at (i) after each Section** |
-| Sections | Bold header line carrying the Section number per Settings (default (A), (B)) |
+| Items and Nested Items | Numbered, one shared run that **restarts at (1) after each Section** |
+| Sections | Bold header line carrying the Section number per Settings (default (a), (b)) |
 | Items in a Nested Item | Bullets |
 | Citation | Italic, preceded by " - " |
 | Multi-Item | Description, then (a), (b) citations on the same line, comments after each |
@@ -419,7 +419,7 @@ There are **three types of export** (decision D10). All three follow the same ma
 | Rich text | b, i, u kept |
 | Items under a heading | Precede its child headings |
 
-**Section numbering in Word.** The Section number is written as text in the bold header (so it cannot drift). The Items of each run (the Items before the first Section, then the Items after each Section) use their **own Word list instance with a restart override** (a separate numbering definition starting at 1 for each run), so Word restarts the numbers at (i) correctly after every Section. If any Word version is found to continue the numbers instead, the fallback is to write the Item numbers as text as well; this is checked in milestone 6.
+**Section numbering in Word.** The Section number is written as text in the bold header (so it cannot drift). The Items of each run (the Items before the first Section, then the Items after each Section) use their **own Word list instance with a restart override** (a separate numbering definition starting at 1 for each run), so Word restarts the numbers at (1) correctly after every Section. If any Word version is found to continue the numbers instead, the fallback is to write the Item numbers as text as well; this is checked in milestone 6.
 
 ### 12.1 The three types
 
@@ -519,19 +519,20 @@ All earlier open questions have been answered by the owner (N1 and N2 are closed
 - **I9. Two Sub-topics in a row.** [Answer: These are separate sub-topics, some of which may not have any items at present] **Decision:** separate Sub-topics, not flagged; empty Sub-topics are allowed.
 - **I10. Flagging the two Sections.** (This answers N2.) [Answer: Ok, flag them for my review.] **Decision:** both Sections (`Ex Parte / Without Notice`, `Determining Jurisdiction`) are imported with `needs_review = Yes` and a review note. At import there are 259 review-marked records: 257 Items plus 2 Sections.
 
-Confirmed earlier: each Heading 1 is a Subject; Miscellaneous holds Other Subjects; Sub-topics are 1, 2, 3; Items are (i), (ii), (iii); no footnotes.
+Confirmed earlier: each Heading 1 is a Subject; Miscellaneous holds Other Subjects; Sub-topics are 1, 2, 3; Items are (i), (ii), (iii) in the Word file (shown as (1), (2), (3) in the Diary by D13); no footnotes.
 
 **Decisions made after the first design** (the owner's wording kept verbatim; where the name "Other Acts" appears in a quotation it is the owner's original wording, and the name was changed by D8)
 
 - **D8. Rename "Other Acts" to "Other Subjects".** [Answer: change the name 'Other Acts' to 'Other Subjects'.] **Decision:** renamed everywhere (documents, screens, code, tests, file names, export).
-- **D9. Numbering of Sections and the Items after them.** (This answers N1, now closed.) [Answer: Your modification is correct. Perhaps, instead, give 'Sections' their own numbering system as well, and restart the numbering of items within them.] **Decision:** Sections have their own numbering format (Settings; default (A), (B), (C), default, needs owner confirmation) and each Section restarts the Item numbering at (i). Items before the first Section number as before. Section 4 has the full rules.
+- **D9. Numbering of Sections and the Items after them.** (This answers N1, now closed.) [Answer: Your modification is correct. Perhaps, instead, give 'Sections' their own numbering system as well, and restart the numbering of items within them.] **Decision:** Sections have their own numbering format (Settings; default changed to (a), (b), (c) by D13) and each Section restarts the Item numbering at (1). Items before the first Section number as before. Section 4 has the full rules.
 - **D10. Three types of Word export.** [Answer: I want three types of export to Word - (i) Full as 1 word document, (ii) Full, as separate word documents per Subject (though 'Other Subjects' will be kept together as a single subject), and (iii) Current View. The name of the word document will be as follows: [Custom Name, as modified in Settings] [(i) 'Full' if full, (ii) 'Name of Subject' if split subject wise, and (iii) 'Name of Subject, Topic, etc currently on screen', if for current view] [Today's Date].] **Decision:** section 12. The details not stated by the owner (zip delivery, manifest, file-name cleaning and length, date format, scope headings for Current View) are defaults, marked as needing owner confirmation.
 - **D11. Custom Name setting.** [Answer: [Custom Name, as modified in Settings]] (part of the D10 answer). **Decision:** a per-user Settings text, default `Judgment Diary`, with the rules and live file-name preview in section 5.11.
 - **D12. Three roles: Admin, Editor, Reader.** The owner asked whether the Admin can use the diary like a regular user (yes: Admin is an ordinary user plus the Users, Backups and Restore screens). The spec does not say whether other users may edit, so three roles were proposed: Admin (everything), Editor (read and edit), Reader (read only, the safe default for new accounts). [Answer: Yes, do that.] **Decision:** built in Milestone 0 (section 9.6). The permissions table in section 9.6 is a set of defaults: what Readers may export, whether Readers see the Trash, History and Review list, and that permanent delete and Import are Admin only are proposals needing owner confirmation (question 5).
+- **D13. Section and Item numbering; shortcuts.** (Answers open question 1 and the shortcut question.) [Answer: "Make section headers (a) Name. Change the numbering for Items to (1), (2)... Keep both shortcuts."] **Decision:** the default Section format is (a), (b), (c) (small letter in brackets, no full stop, e.g. "(a) Name"). The default Item and Nested Item format is (1), (2), (3). Existing Settings rows still holding the old defaults are updated by a data migration; rows where a format was chosen deliberately are untouched. Multi-Item citations stay (a), (b), (c) per the spec, which now matches the Section style. The Word file's own (i), (ii) numbering is unchanged, and the importer still recognises Items by it. Both shortcut sets are kept: Alt+G / Alt+H and Ctrl+Alt+G / Ctrl+Alt+H (Option on a Mac); section 5.10.
 
 **Open questions for the owner** (each has a default that is used unless you say otherwise)
 
-1. **Section number style.** Default: (A), (B), (C), capital letters in brackets. Other choices are in Settings, including "Section 1, Section 2".
+1. **Section number style.** Answered (D13): (a), (b), (c). Other choices are in Settings, including "Section 1, Section 2".
 2. **Date in file names.** Default: 2026-11-01 style (year-month-day), in Asia/Kolkata time. Other choices: 01-11-2026 or 1 November 2026.
 3. **Long file names.** Default: if a Current View name would exceed 120 characters, each part is cut to 30 characters and, if still too long, middle parts are replaced by `-`. The full path is always inside the document.
 4. **Current View of a Topic or Sub-topic.** Default: the Topic or Sub-topic heading becomes the top heading (Heading 1) and keeps its on-screen letter or number.

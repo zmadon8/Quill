@@ -89,7 +89,7 @@ def load_sample_data():
 
     remedies = Topic.objects.create(subject=contract, name="Remedies", position=2)
     clause = Subtopic.objects.create(topic=remedies, name="Clause 12: Leave to Sue", position=1)
-    _items(2, subtopic=clause)  # before the first Section: (i), (ii)
+    _items(2, subtopic=clause)  # before the first Section: (1), (2)
     section_a = Section.objects.create(subtopic=clause, name="Leave to sue: grounds", position=3)
     for n in (1, 2):
         Item.objects.create(subtopic=clause, text=f"<p>Section A proposition {n}.</p>",
@@ -107,9 +107,9 @@ def load_sample_data():
     for n in range(1, 31):
         Topic.objects.create(subject=longs, name=f"Sample Topic {n}", position=n)
     first_topic = longs.topics.get(position=1)
-    many = Subtopic.objects.create(topic=first_topic, name="Forty-five Items (past xxxix)", position=1)
+    many = Subtopic.objects.create(topic=first_topic, name="Forty-five Items (past 39)", position=1)
     _items(45, subtopic=many)
-    plenty = Subtopic.objects.create(topic=first_topic, name="Thirty Sections (letters past Z)", position=2)
+    plenty = Subtopic.objects.create(topic=first_topic, name="Thirty Sections (letters past z)", position=2)
     for n in range(1, 31):
         Section.objects.create(subtopic=plenty, name=f"Sample Section {n}", position=n)
 

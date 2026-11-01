@@ -71,7 +71,7 @@ def number_siblings(count, fmt):
     return [format_number(i, fmt) for i in range(1, count + 1)]
 
 
-def number_children(kinds, item_format="(i)", section_format="(A)"):
+def number_children(kinds, item_format="(1)", section_format="(a)"):
     """Labels for the ordered children of one container.
 
     kinds: sequence of "item", "nested", "section" or "note".

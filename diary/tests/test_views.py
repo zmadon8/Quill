@@ -150,21 +150,21 @@ class ReadingNumberingTests(TestCase):
         clause = Subtopic.objects.get(name="Clause 12: Leave to Sue")
         self.assertEqual(
             self.labels(clause),
-            ["(i)", "(ii)", "(A)", "(i)", "(ii)", "(B)"] + ["(i)", "(ii)", "(iii)", "(iv)", "(v)", "(vi)", "(vii)", "(viii)"],
+            ["(1)", "(2)", "(a)", "(1)", "(2)", "(b)"] + ["(1)", "(2)", "(3)", "(4)", "(5)", "(6)", "(7)", "(8)"],
         )
 
     def test_long_lists_continue_correctly(self):
         many = Subtopic.objects.get(name__startswith="Forty-five")
         labels = self.labels(many)
         self.assertEqual(len(labels), 45)
-        self.assertIn("(xxxix)", labels)
-        self.assertEqual(labels[39], "(xl)")
-        self.assertEqual(labels[-1], "(xlv)")
+        self.assertIn("(39)", labels)
+        self.assertEqual(labels[39], "(40)")
+        self.assertEqual(labels[-1], "(45)")
         plenty = Subtopic.objects.get(name__startswith="Thirty Sections")
         sections = self.labels(plenty)
-        self.assertEqual(sections[25], "(Z)")
-        self.assertEqual(sections[26], "(AA)")
-        self.assertEqual(sections[-1], "(AD)")
+        self.assertEqual(sections[25], "(z)")
+        self.assertEqual(sections[26], "(aa)")
+        self.assertEqual(sections[-1], "(ad)")
 
     def test_topics_and_subtopics_and_nested_bullets(self):
         contract = Subject.objects.get(name=SAMPLE_PREFIX + "Contract Law")
@@ -175,7 +175,7 @@ class ReadingNumberingTests(TestCase):
         self.assertIn(("subtopic", "2", "Acceptance"), headings)
         nested = [b for b in ctx["blocks"] if b["kind"] == "item" and b["is_nested"]][0]
         self.assertEqual([c["label"] for c in nested["children"]], ["\u2022", "\u2022"])
-        self.assertEqual(nested["label"], "(iv)")
+        self.assertEqual(nested["label"], "(4)")
 
     def test_deleted_records_are_not_shown_and_do_not_use_numbers(self):
         from django.utils import timezone
@@ -183,7 +183,7 @@ class ReadingNumberingTests(TestCase):
         offer = Subtopic.objects.get(name="Offer")
         Item.objects.filter(subtopic=offer, position=1).update(deleted_at=timezone.now())
         labels = self.labels(offer)
-        self.assertEqual(labels[0], "(i)")
+        self.assertEqual(labels[0], "(1)")
         self.assertEqual(len(labels), 5)
 
     def test_note_link_to_deleted_target_has_no_url(self):

@@ -7,7 +7,7 @@ This note explains what is actually inside your Word file, so the import into th
 
 - The file has **1,506 paragraphs**. 1,495 carry text and 11 are blank.
 - There are **no tables, no images and no footnotes** (the footnote part exists inside the file, but it holds zero real footnotes and nothing in the text points to one). This matches what you told me.
-- There are **2 lines that become "Sections"**: the small-letter (a)/(b) lines `Ex Parte / Without Notice` and `Determining Jurisdiction` (your decision, section 7, I3), flagged for review (I10). They are numbered with their own Section format and restart the Item numbering (D9). There are no other Sections.
+- There are **2 lines that become "Sections"**: the small-letter (a)/(b) lines `Ex Parte / Without Notice` and `Determining Jurisdiction` (your decision, section 7, I3), flagged for review (I10). They are numbered with their own Section format (default (a), (b)) and restart the Item numbering (D9, D13). There are no other Sections.
 - The real **Subject count is 41**, which matches your "about 41" (see section 3).
 - The structure is regular and can be read reliably from Word's own list formats. About **73% of the 950 Item lines (693 of 950)** can be split safely into Text and Citation. The other **257 lines** will be imported whole, as Text with no Citation, and flagged for your review. The 2 Sections are also flagged for your review, so **259 records** (257 Items + 2 Sections) carry a review marker after import. Nothing is ever rewritten.
 
@@ -187,7 +187,7 @@ That is 2 Sections and 10 Items (2 under the first Section, 8 under the second),
 
 How the importer builds it: the two small-letter lines become **Sections**; they are not counted as Items and not Sub-topics. A Section has no children, so it sits in the Sub-topic's shared order, at the position where it appears, and the Items that follow it (until the next Section, Sub-topic or Topic) are ordinary Items of the same Sub-topic placed after it. Membership is by position only. Both Sections are imported with **needs_review = Yes** and the note "imported from a small-letter (a)/(b) list; confirm these are Sections" (your decision I10).
 
-How it will be numbered in the Diary (decision D9): Sections have their own numbering format, default (A), (B), (C) (default, needs owner confirmation), and each Section restarts the Item numbering at (i). The Sub-topic reads: Section (A) `Ex Parte / Without Notice`, Items (i) and (ii); Section (B) `Determining Jurisdiction`, Items (i) to (viii). This matches Word's own numbering for these Items, so **there is no renumbering difference to report**.
+How it will be numbered in the Diary (decision D9): Sections have their own numbering format, default (a), (b), (c) (owner decision D13), and each Section restarts the Item numbering at (1). The Items are shown as (1), (2), ... in the Diary (D13), while the Word file uses (i), (ii), ... (the importer recognises Items by that). The Sub-topic reads: Section (a) `Ex Parte / Without Notice`, Items (1) and (2); Section (b) `Determining Jurisdiction`, Items (1) to (8). The grouping and counts match Word's lists, so **there is no renumbering difference to report**.
 
 ## 6. How the import will be checked
 
@@ -218,7 +218,7 @@ The owner's answers, kept verbatim in `[Answer: ...]`. Numbered as before (the D
 
 ### Questions raised by these decisions, now closed
 
-- **N1. Numbering after a Section.** [Answer: Your modification is correct. Perhaps, instead, give 'Sections' their own numbering system as well, and restart the numbering of items within them.] **Closed by decision D9** (`docs/DESIGN.md` sections 4 and 14): Sections have their own numbering and each restarts the Items at (i).
+- **N1. Numbering after a Section.** [Answer: Your modification is correct. Perhaps, instead, give 'Sections' their own numbering system as well, and restart the numbering of items within them.] **Closed by decision D9** (`docs/DESIGN.md` sections 4 and 14): Sections have their own numbering and each restarts the Items at (1) in the Diary (the Word file shows (i)).
 - **N2. Review flag on the Sections.** [Answer: Ok, flag them for my review.] **Closed by decision I10** (item 10 above).
 
 Note on names: the owner's later instruction to rename "Other Acts" to "Other Subjects" is decision D8 (`docs/DESIGN.md` section 14).

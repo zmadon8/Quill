@@ -28,13 +28,13 @@ Note: the technology (Django, PostgreSQL) is confirmed for a **standalone app** 
 **Deliverable:** All record types and database rules exist. Test data (not yours yet) can be loaded. Screens: landing page with Subject tiles and the Other Subjects tile, Subject contents (TOC), the reading view with Items, Citations in italics, Multi-Items, Nested Items, Sections, flags in red, with automatic numbering and the three View buttons. Phone layout from the start. Role rules apply from the first screen: Readers, Editors and Admins can all read; the app is built with the `reader_required`, `editor_required` and `admin_required` checks from `accounts/permissions.py` (`docs/DESIGN.md` section 9.6).
 
 **How you check it:**
-- Look at a small sample Subject; confirm Topics are A, B, C; Sub-topics 1, 2, 3; Items (i), (ii), (iii); Nested Item bullets; Sections with their own numbering (default (A), (B)) and Item numbering restarting at (i) after each Section (the Clause 12 example: Section (A) with Items (i), (ii); Section (B) with Items (i) to (viii)). Moving or deleting a Section shows a preview of the Items that will renumber.
+- Look at a small sample Subject; confirm Topics are A, B, C; Sub-topics 1, 2, 3; Items (1), (2), (3); Nested Item bullets; Sections with their own numbering (default (a), (b)) and Item numbering restarting at (1) after each Section (the Clause 12 example: Section (a) with Items (1), (2); Section (b) with Items (1) to (8)). Moving or deleting a Section shows a preview of the Items that will renumber.
 - Open a sample Other Subject and confirm it shows Sub-topics and Items directly.
 - Sign in as a Reader and as an Editor and confirm both can read everything they are meant to see (Milestone 1 screens are read-only for everyone).
 - Open on your phone: no sideways scrolling, text is easy to read, Contents button works.
 - Use "View whole Subject" and press Ctrl/Cmd + F in the browser: it finds text anywhere in the Subject.
-- Test numbering with a long list (past 26 items, and past (xxxix)) to see that it carries on correctly.
-- Automatic numbering tests (required) cover: the Section restart rule (Items after each Section start at (i)); Items before the first Section numbered (i), (ii) as usual; Section numbers restarting under each parent; Nested Items counting in the Item run with bullets unchanged; moving a Section and deleting a Section renumbering the Items that follow it (and Undo restoring the numbers); the Section format choices including "Section 1" and letters past z.
+- Test numbering with a long list (past 26 items, and past (39)) to see that it carries on correctly.
+- Automatic numbering tests (required) cover: the Section restart rule (Items after each Section start at (1)); Items before the first Section numbered (1), (2) as usual; Section numbers restarting under each parent; Nested Items counting in the Item run with bullets unchanged; moving a Section and deleting a Section renumbering the Items that follow it (and Undo restoring the numbers); the Section format choices including "Section 1" and letters past z.
 
 **Risks:**
 - Numbering mistakes (mitigation: many automatic tests for the numbering rules, including letters beyond z).
@@ -47,7 +47,7 @@ Note: the technology (Django, PostgreSQL) is confirmed for a **standalone app** 
 
 **How you check it:**
 - Read the dry-run report: 41 Subjects (10 main plus 31 Other Subjects), 178 Topics, 323 Sub-topics, 2 Sections, 950 Items; 693 clean and 257 flagged Items with reasons, and the 2 Sections listed as flagged with their reason. Review-marked records in all: 259 (257 Items + 2 Sections).
-- After the import, the Review list shows 259 records, and under `Clause 12: Leave to Sue` you see Section (A) with Items (i), (ii) and Section (B) with Items (i) to (viii), matching Word.
+- After the import, the Review list shows 259 records, and under `Clause 12: Leave to Sue` you see Section (a) with Items (1), (2) and Section (b) with Items (1) to (8), matching Word's grouping.
 - After the import, open ten Subjects of your choice and compare with Word.
 - Read the reconciliation report: counts match (including 259 review-marked records), and the text comparison reports only the expected differences: the 19 names with the trailing colon removed (your instruction). There is no Item renumbering difference to explain. Any other difference is listed and explained, never hidden.
 - Spot check the "original Word line" shown against what is displayed, for ten flagged and ten clean items.
@@ -81,7 +81,7 @@ Note: the technology (Django, PostgreSQL) is confirmed for a **standalone app** 
 
 ## Milestone 4: Search, Review list, Settings
 
-**Deliverable:** Global Search page with the shortcuts (Ctrl+Option+G, Ctrl+Option+H; Ctrl+Alt on Windows) and visible Search and Home buttons; filters; highlighted snippets; open in context. The Review list screen. Settings: opening page, number formats with preview (including the new Sections format), Custom Name for exported file names with a live file-name preview, and the date format (with time zone).
+**Deliverable:** Global Search page with the shortcuts (Alt+G, Alt+H and Ctrl+Alt+G, Ctrl+Alt+H; Option on a Mac) and visible Search and Home buttons; filters; highlighted snippets; open in context. The Review list screen. Settings: opening page, number formats with preview (including the new Sections format), Custom Name for exported file names with a live file-name preview, and the date format (with time zone).
 
 **How you check it:**
 - Search `2018 9 SCC 49` and find `(2018) 9 SCC 49`.
@@ -89,7 +89,7 @@ Note: the technology (Django, PostgreSQL) is confirmed for a **standalone app** 
 - Use the filters: one Subject, Citations only, review only. Result count shows.
 - Click a result: you land on the item, scrolled to it.
 - Time it: results should appear in under a second.
-- Change Items to (a), (b), (c) in Settings; the screens change and the stored data does not. Set the opening page and check it.
+- Change Items to (a), (b), (c) in Settings (the default is now (1), (2), (3)); the screens change and the stored data does not. Set the opening page and check it.
 - Mark an item For review with one click; see it in the Review list. Do the same for a Section; it appears as a header row with its number and parent path, and the search filter "For review only" finds it.
 - Change the Sections format (for example to "Section 1, Section 2") and watch the preview and screens change.
 - Type a Custom Name containing a colon; the preview shows the file name with a hyphen and says "':' was replaced with '-'". Empty names, over 60 characters, and leading or trailing dots or spaces are refused.
@@ -118,7 +118,7 @@ Note: the technology (Django, PostgreSQL) is confirmed for a **standalone app** 
 **Deliverable:** Three types of Word export following `docs/DESIGN.md` section 12: (i) Full, one document; (ii) Full, one document per Subject with all Other Subjects together, delivered as one .zip with a manifest; (iii) Current View (Subject, Topic or Sub-topic on screen, focused pane in split screen). Contents page, page headers, numbering per Settings (including Sections and the restart of Items after each Section), "See also" Notes, date and record count. File names built from the Custom Name, the part and the date. A "Backup" button for the restore file.
 
 **How you check it:**
-- Export (i) and open in Word: Subject names as headings, Topics lettered, Sub-topics numbered, Items (i), Citations in italic after " - ". Under `Clause 12: Leave to Sue` Section (A) has Items (i), (ii) and Section (B) has Items (i) to (viii), restarting correctly in Word.
+- Export (i) and open in Word: Subject names as headings, Topics lettered, Sub-topics numbered, Items (1), Citations in italic after " - ". Under `Clause 12: Leave to Sue` Section (a) has Items (1), (2) and Section (b) has Items (1) to (8), restarting correctly in Word.
 - Check the Other Subjects section (Heading 1 / 2 / 3) and a single Other Subject export (Heading 1 alone, confirmed).
 - **File names**: (i) `Judgment Diary Full 2026-11-01.docx` (with your Custom Name and date); (ii) the zip `... Full - by Subject <date>.zip` holding one `... <Subject name> <date>.docx` per Subject, one `... Other Subjects <date>.docx`, and `manifest.txt`; (iii) `... <on-screen path joined by ", "> <date>.docx`. Illegal characters are replaced by a hyphen; over-long paths are shortened by the documented rule; duplicates in the zip get " (2)".
 - **Zip contents and counts**: each document's record count matches the screen for that Subject, and the grand total in `manifest.txt` equals the count on the Full export.

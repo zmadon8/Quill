@@ -31,9 +31,9 @@ FORMAT_KEYS = {
 DEFAULT_FORMATS = {
     "topic_format": "upper_alpha",
     "subtopic_format": "decimal",
-    "section_format": "paren_upper_alpha",
-    "item_format": "paren_lower_roman",
-    "nested_item_format": "paren_lower_roman",
+    "section_format": "paren_lower_alpha",
+    "item_format": "paren_decimal",
+    "nested_item_format": "paren_decimal",
     "multi_citation_format": "paren_lower_alpha",
 }
 
