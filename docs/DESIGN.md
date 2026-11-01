@@ -12,20 +12,20 @@ This document turns your specification into a buildable design. Parts addressed 
 
 Your instructions and the analysis agree:
 
-- Each **Heading 1** is a **Subject**, except **Miscellaneous**. Miscellaneous contains the Other Acts: each Topic inside it is really a Subject and is treated as an **Other Act**.
+- Each **Heading 1** is a **Subject**, except **Miscellaneous**. Miscellaneous contains the Other Subjects: each Topic inside it is really a Subject and is treated as an **Other Subject** (renamed from "Other Acts" by decision D8).
 - **Sub-topics** are the numbered lists 1, 2, 3.
 - **Items** (and Nested Items later) are numbered (i), (ii), (iii).
 - There are **no footnotes**. Footnotes are not part of the model. There are **two Sections** in the file: the two small headings `Ex Parte / Without Notice` and `Determining Jurisdiction`, which Word shows as (a) and (b) (decision I3, section 14).
-- Real counts: 41 Subjects (10 main plus 31 Other Acts), 178 Topics under the 10 main Subjects, 323 Sub-topics, 2 Sections, 950 Items, no Nested Items, no bullets. Total text paragraphs: 11 + 209 + 323 + 2 + 950 = 1,495 (209 Heading 2 lines = 178 Topics + 31 Other Acts).
+- Real counts: 41 Subjects (10 main plus 31 Other Subjects), 178 Topics under the 10 main Subjects, 323 Sub-topics, 2 Sections, 950 Items, no Nested Items, no bullets. Total text paragraphs: 11 + 209 + 323 + 2 + 950 = 1,495 (209 Heading 2 lines = 178 Topics + 31 Other Subjects).
 
 ## 2. Hierarchy
 
 ```
-Subject            (Heading 1 in Word; "Other Acts" Subjects live in the Other Acts group)
+Subject            (Heading 1 in Word; Other Subjects live in the Other Subjects group)
   Topic            A, B, C
     Sub-topic      1, 2, 3
-      Item / Nested Item     (i), (ii), (iii)   (one shared run)
-      Section                bold header, no number
+      Item / Nested Item     (i), (ii), (iii)   (one shared run; restarts at (i) after each Section)
+      Section                bold header with its own number, e.g. (A), (B)   (no children)
       Note                   cross-reference
 ```
 
@@ -33,24 +33,24 @@ Rules from the specification:
 
 1. An **Item** is one proposition of law: rich text plus one single-line **Citation**.
 2. A **Nested Item** is an Item that has Items beneath it. It has its own text and Citation and is numbered like an Item. Items beneath it show **bullets only**.
-3. A **Section** is a bold header line between Items. It has no number, no children, and never interrupts numbering.
+3. A **Section** is a bold header line between Items. It has its own number (its own format, section 4) and no children. It acts as a grouping header **by position**: the Items that follow it, up to the next Section, are numbered afresh from (i). A Section can be marked For review like an Item (section 11).
 4. A **Multi-Item** is an Item with several citations in one line, shown as (a), (b), (c). Each is a **Case** with its own Citation and an optional rich-text comment.
 5. Items may sit at any level: directly under a Subject, Topic, Sub-topic or Nested Item.
 6. A container shows its **own Items, Sections and Nested Items first** (one shared order), then its **Notes**, then its **child headings**.
 7. Numbering is **generated from position and never stored** (section 5).
 
-### 2.1 Other Acts: no Topic level (decided, D2)
+### 2.1 Other Subjects: no Topic level (decided, D2; renamed by D8)
 
-An Other Act has no Topics after import: the file goes Topic, Sub-topic, Item, and the Topic became the Subject. So the model must let an Other Act hold Sub-topics and Items directly.
+An Other Subject has no Topics after import: the file goes Topic, Sub-topic, Item, and the Topic became the Subject. So the model must let an Other Subject hold Sub-topics and Items directly.
 
 The design allows this in the simplest way:
 
 - A **Sub-topic's parent** is either a **Topic** or a **Subject** (exactly one of the two, enforced by the database).
 - **Items, Sections, Notes** already allow a Subject as parent.
 - Rule: a Subject holds **either Topics or direct Sub-topics, not both**. The app refuses to mix them and explains why. This keeps numbering unambiguous.
-- Example: Income Tax (0 Sub-topics, 1 Item) shows its Item directly under the Subject. Companies Act (15 Sub-topics, 31 Items) shows Sub-topics 1 to 15 directly under the Act, with any Items that sit before them shown first.
+- Example: Income Tax (0 Sub-topics, 1 Item) shows its Item directly under the Subject. Companies Act (15 Sub-topics, 31 Items) shows Sub-topics 1 to 15 directly under that Subject, with any Items that sit before them shown first.
 
-Decided: Sub-topics and Items sit directly under the Act. (The alternative, a default Topic called "General", was rejected because it would show a heading you never wrote.)
+Decided: Sub-topics and Items sit directly under the Other Subject. (The alternative, a default Topic called "General", was rejected because it would show a heading you never wrote.)
 
 ### 2.2 One level of nesting
 
@@ -92,7 +92,7 @@ The database check is: "exactly one parent column is not empty". Linked records 
 
 **Subtopic**: `topic_id` or `subject_id` (see 3.1), `name`, `position`.
 
-**Section**: parent (3.1), `name`, `position`.
+**Section**: parent (3.1), `name`, `position`, `needs_review` (Yes/No, default No), `review_note`. A Section has no children and shares one `position` sequence with the Items and Nested Items of its parent. Its number is generated, never stored (section 4). The two imported Sections are created with `needs_review = Yes` (decision I10).
 
 **Item**:
 - parent (3.1), `kind` (plain, multi, nested), `text` (rich), `text_plain` (derived), `citation` (single-line plain text), `flag` (none, overruled, doubted, other), `flag_text`, `needs_review`, `review_note`, `position`.
@@ -105,11 +105,11 @@ The database check is: "exactly one parent column is not empty". Linked records 
 
 **NoteLink**: `note_id`, and exactly one target column: `subject_id`, `topic_id`, `subtopic_id`, `section_id`, `item_id` (a Nested Item is an Item). Links are never removed by the system, not even when the target is in Trash.
 
-**UserSettings**: `user_id`, `opening_page`, `opening_subject_id`, and the number formats for Topics, Sub-topics, Items, Nested Items and Multi-Item citations.
+**UserSettings**: `user_id`, `opening_page`, `opening_subject_id`, the number formats for Topics, Sub-topics, **Sections**, Items, Nested Items and Multi-Item citations, `export_custom_name` (text, default `Judgment Diary`), `export_date_format`, and the time zone used for dates (section 5.11).
 
 **User**: login name, password (stored only as a secure hash), `is_admin`, `is_active`.
 
-**VersionHistory** (new, one table for all record types): `record_type`, `record_id`, `version`, `snapshot` (the full record contents as of that version, including its parent and position), `changed_at`, `changed_by`, `change_kind` (create, edit, move, reorder, delete, restore, convert, import). Details in section 9.
+**VersionHistory** (new, one table for all record types): `record_type`, `record_id`, `version`, `snapshot` (the full record contents as of that version, including its parent and position), `changed_at`, `changed_by`, `change_kind` (create, edit, move, reorder, delete, restore, convert, import). A Section's snapshot includes its `needs_review` and `review_note`. Details in section 9.
 
 **BackupLog**: when each automatic backup ran, its size, whether it succeeded, and whether the off-site copy succeeded.
 
@@ -130,14 +130,36 @@ Deleting sets `deleted_at`. Nothing is physically removed except by the "Delete 
 Numbers are computed whenever a page or export is built, from the order of records, so moving or inserting something renumbers automatically with no stale numbers.
 
 1. **Topics**: A, B, C within a Subject.
-2. **Sub-topics**: 1, 2, 3 within a Topic (or within a Subject for Other Acts).
-3. **Items and Nested Items**: one shared run (i), (ii), (iii) within their parent. **Sections are not counted** and do not break the run. **Notes are not counted.**
-   - Consequence for the two imported Sections: in the Word file the Items under `Determining Jurisdiction` restart at (i), because Word starts a new list. In the Diary they continue the run. Under Sub-topic `Clause 12: Leave to Sue` the Items will therefore read: Section `Ex Parte / Without Notice`, (i), (ii); Section `Determining Jurisdiction`, (iii) to (x) (8 Items). This is a deliberate numbering difference from Word and is listed in the reconciliation report. Whether the run should instead restart after each Section is a new question for the owner (N1, section 14).
-4. **Items inside a Nested Item**: bullets, no numbers.
-5. Every level **restarts under its parent**.
-6. **Multi-Item citations**: (a), (b), (c) inside the item.
+2. **Sub-topics**: 1, 2, 3 within a Topic (or within a Subject for Other Subjects).
+3. **Sections** have their own numbering format (Settings, section 5.11). **Default (default, needs owner confirmation): (A), (B), (C)**, capital letters in brackets. Reason: capital letters read as headings, and the brackets keep them visibly different from Topics (A, B, C without brackets), Sub-topics (1, 2, 3) and Items ((i), (ii)). Sections are numbered in order within their parent container (a Subject, Topic, Sub-topic or Nested Item) and **restart under each parent**.
+4. **Items and Nested Items**: one shared run (i), (ii), (iii) within their parent, **restarting at (i) after each Section**.
+   - Items that come before the first Section of a container are numbered (i), (ii), ... as usual.
+   - Each Section restarts the Item numbering at (i) for the Items that follow it, up to the next Section (or the end of the container).
+   - Nested Items count as Items in this run. Bullets inside Nested Items are unchanged.
+   - **Notes are not counted** and come after the shared sequence.
+   - The Section number, the Item numbers and the restart are all generated from position. Nothing is stored.
+5. **Items inside a Nested Item**: bullets, no numbers.
+6. Every level **restarts under its parent**.
+7. **Multi-Item citations**: (a), (b), (c) inside the item.
 
-Formats come from Settings (section 6.11). Format choices: A,B,C; a,b,c; 1,2,3; I,II,III; i,ii,iii; (i); (a); (1); bullet; none.
+**Worked example** (Topic `Letters Patent & OS Rules`, Sub-topic `Clause 12: Leave to Sue`; 10 Items and 2 Sections in the Word file, no Item before the first Section). The Diary shows, with the default Section format:
+
+```
+Clause 12: Leave to Sue                     (a Sub-topic; its own number comes from its position)
+   (A) Ex Parte / Without Notice            (Section, flagged for review at import)
+       (i)  ...                             (2 Items)
+       (ii) ...
+   (B) Determining Jurisdiction             (Section, flagged for review at import)
+       (i)  ...                             (8 Items, numbering restarted)
+       ...
+       (viii) ...
+```
+
+If an Item were added before `Ex Parte / Without Notice`, it would read (i), and the Items under (A) would still start at (i). This now matches Word's own numbering for these Items, so there is no renumbering difference to report at import.
+
+**Moving or deleting a Section changes the numbers of Items.** The Items after a Section belong to its run by position, so removing or moving the Section merges them into the run before it (or moves the boundary). Before a move or delete the app shows a **preview** of the affected Items, before and after numbers (for example "these 8 Items will be numbered (iii) to (x) instead of (i) to (viii)"), and asks for confirmation. Undo works as for any other change (section 9.1). Because numbers are generated and never stored, there is nothing to repair afterwards.
+
+Formats come from Settings (section 5.11). Format choices for Topics, Sub-topics, Items and Nested Items: A,B,C; a,b,c; 1,2,3; I,II,III; i,ii,iii; (A); (i); (a); (1); bullet; none. Sections use the same list plus one more style, **Section 1, Section 2**.
 
 **Counting past the end of the alphabet.** Letters continue the way spreadsheets do: a to z, then aa, ab, ac... az, ba, and so on (A to Z, AA, AB for capitals). This never fails.
 
@@ -149,13 +171,13 @@ Numbers appear in two places only: on screen and in the Word export. Searching a
 
 ### 5.1 Landing page (4.1)
 - Shows Subjects with `show_on_landing = Yes` as tiles, in your chosen order.
-- A fixed tile **Other Acts** opens a list of Subjects with `show_on_landing = No`, also reorderable.
+- A fixed tile **Other Subjects** opens a list of Subjects with `show_on_landing = No`, also reorderable.
 - Each Subject has a switch (Yes/No) to move it between the two lists.
 - The app opens on the page chosen in Settings.
-- After import: 10 Subjects on the landing page and 31 under Other Acts.
+- After import: 10 Subjects on the landing page and 31 under Other Subjects.
 
 ### 5.2 Subject contents (4.2)
-- Topics are listed as a table of contents (TOC). Clicking a Topic shows its Sub-topics. For Other Acts the Sub-topics are listed directly.
+- Topics are listed as a table of contents (TOC). Clicking a Topic shows its Sub-topics. For Other Subjects the Sub-topics are listed directly.
 - No TOC entries for Nested Items or Sections.
 - Three buttons: **View whole Subject**, **View this Topic**, **View this Sub-topic**.
 - The TOC can stay visible at the side while reading.
@@ -163,12 +185,14 @@ Numbers appear in two places only: on screen and in the Word export. Searching a
 
 ### 5.3 Reading view (4.3)
 - Item: text, then " - ", then the Citation in italics. A Multi-Item: description, then the citations on the same line, each preceded by (a), (b), separated by " ; ", with a Case comment following its citation.
+- A **Section** shows as a bold header line with its number (default (A), (B)); the Items below it restart at (i) and are indented under it. A Section marked For review shows the same **amber** marker and its note.
 - Items with a flag are **red** with the flag text. Items marked "For review" show an **amber** marker.
 - Notes show a link icon and "See also: Subject > Topic > ..." and are clickable.
 - Order inside any container: Items, Sections and Nested Items (one shared order), then Notes, then child headings.
 
 ### 5.4 Edit mode (4.4)
 - One toggle switches edit mode on. Reading is the default so nothing changes by accident.
+- Moving or deleting a Section first shows a preview of the Items whose numbers will change (section 4).
 - In edit mode: edit, delete, move up/down buttons, drag-to-reorder, "move via tree" (pick a new place from a tree), add Item / Nested Item / Section / child heading, rename anything.
 - Drag handles use SortableJS; **move up/down buttons always exist too**, because dragging is poor on phones and for some users.
 - Rules refuse impossible moves (for example moving a Topic under an Item) and say why.
@@ -209,8 +233,11 @@ Two independent panes side by side, each with its own location. Only on wide scr
 
 ### 5.11 Settings (4.11)
 Per user:
-- **Opening page**: Home, Other Acts, Global Search, last page viewed, or a chosen Subject.
-- **Number formats** for Topics, Sub-topics, Items, Nested Items and Multi-Item citations, each with a live preview. Changing formats changes display and Word export only, never the stored data.
+- **Opening page**: Home, Other Subjects, Global Search, last page viewed, or a chosen Subject.
+- **Number formats** for Topics, Sub-topics, **Sections**, Items, Nested Items and Multi-Item citations, each with a live preview (the Sections preview shows a Section followed by Items restarting at (i)). Changing formats changes display and Word export only, never the stored data.
+- **Custom Name** (decision D11): the text that starts every exported Word file name. Default `Judgment Diary`. Rules: trimmed; 1 to 60 characters; not empty after cleaning; no leading or trailing dots or spaces. Characters not allowed in file names ( \ / : * ? " < > | and control characters ) are replaced with a hyphen `-`, and repeated spaces are collapsed. A **live preview** shows the resulting file name for each export type, with a note of any replacement made (for example "':' was replaced with '-'").
+- **Date format** for file names and the export date line: `YYYY-MM-DD` (default, needs owner confirmation), `DD-MM-YYYY`, or `D Month YYYY`.
+- **Time zone** for "today's date" in file names: default Asia/Kolkata (default, needs owner confirmation). The server itself stores times in UTC.
 
 ### 5.12 Phone (4.12)
 - One column, no sideways scrolling, text at least 16 px, tap targets at least 44 px.
@@ -220,7 +247,7 @@ Per user:
 - Written mobile-first so the phone layout is the base and wider screens add to it.
 
 ### 5.13 Other screens
-- **Review list**: every item marked For review across all Subjects, with path and note.
+- **Review list**: every Item and Section marked For review across all Subjects, with path and note. A Section appears as a header row with its number and its parent path.
 - **Trash**, **History**, **Backups**, **Users (Admin only)**, **Import report** (during import only).
 
 ## 6. Conversions: Item, Multi-Item, Nested Item (4.13)
@@ -263,16 +290,16 @@ Word shows every list entry at depth 0, so levels are recognised by **list forma
 | Word | Becomes |
 |---|---|
 | Heading 1, capital Roman (I., II.) | Subject (except Miscellaneous) |
-| Heading 1 "Miscellaneous" | Not a Subject. Its Heading 2 Topics become **Other Acts Subjects** with show_on_landing = No |
+| Heading 1 "Miscellaneous" | Not a Subject. Its Heading 2 Topics become **Other Subjects** with show_on_landing = No |
 | Heading 2, capital letters (A., B.) | Topic (under the 10 main Subjects) |
 | List Paragraph, plain numbers (1., 2.) | Sub-topic |
 | List Paragraph, small Roman ((i), (ii)) | Item |
-| List Paragraph, small letters ((a), (b)) | **Section** (decision I3). The 2 lines are `Ex Parte / Without Notice` and `Determining Jurisdiction` |
+| List Paragraph, small letters ((a), (b)) | **Section** (decision I3), imported with `needs_review = Yes` (decision I10). The 2 lines are `Ex Parte / Without Notice` and `Determining Jurisdiction` |
 | Blank paragraph | Skipped, but counted and listed in the report |
 
-A new Item group starts whenever the Word list changes. The importer uses this only to detect structure; because Items form one shared run, the Diary numbers them by position (section 4), not by the Word list.
+A new Item group starts whenever the Word list changes. The importer uses this only to detect structure; the Diary numbers Items by position (section 4), not by the Word list. Because each Section restarts the Item numbering, the generated numbers now agree with Word's own.
 
-**Section membership.** A Section has no children (section 2). The importer creates the Section as a sibling in the shared order, directly under the same Sub-topic (or Topic or Subject) as the lines around it, at the position where it appears in the file. The Items that follow it, up to the next Section, Sub-topic or Topic, are its "members" only by position: they are ordinary Items of the same parent, placed after the Section. The importer records the Section's `import_ref` and the first Item's `import_ref` so the reconciliation can show this grouping. If a small-letter list line ever appears where it cannot be attached to a parent, the importer stops and reports instead of guessing.
+**Section membership.** A Section has no children (section 2). The importer creates the Section as a sibling in the shared order, directly under the same Sub-topic (or Topic or Subject) as the lines around it, at the position where it appears in the file. The Items that follow it, up to the next Section, Sub-topic or Topic, are its "members" only by position: they are ordinary Items of the same parent, placed after the Section. The importer records the Section's `import_ref` and the first Item's `import_ref` so the reconciliation can show this grouping. Each imported Section gets `needs_review = Yes` and `review_note` "imported from a small-letter (a)/(b) list; confirm these are Sections" (decision I10). If a small-letter list line ever appears where it cannot be attached to a parent, the importer stops and reports instead of guessing.
 
 ### 8.2 Exactness
 - Every paragraph is stored whole in `original_line`, including odd spacing, curly quotes, ampersands and typos. Text is saved as typed.
@@ -286,13 +313,13 @@ A new Item group starts whenever the Word list changes. The importer uses this o
 - Two Sub-topics in a row are two separate Sub-topics; one may have no Items for now (I9). They are not flagged.
 
 ### 8.3 Dry run and reconciliation
-1. **Dry run**: a preview (page and downloadable file) shows counts per Subject and level, clean versus flagged with reasons, and the first lines of each Topic. Nothing is saved. You approve before the real import.
+1. **Dry run**: a preview (page and downloadable file) shows counts per Subject and level, clean versus flagged with reasons, the two Sections listed as flagged with their reason, and the first lines of each Topic. Nothing is saved. You approve before the real import.
 2. **Real import** is wrapped in a single database transaction: it fully succeeds or leaves nothing. Running it twice does not duplicate (each record carries its `import_ref`).
 3. **Reconciliation report** after import:
-   - counts per level and Subject versus the file (expected: 41 Subjects, 178 Topics under main Subjects, 323 Sub-topics, 2 Sections, 950 Items, 1,495 text paragraphs, 11 blanks skipped; 693 clean and 257 flagged Items);
+   - counts per level and Subject versus the file (expected: 41 Subjects, 178 Topics under main Subjects, 323 Sub-topics, 2 Sections, 950 Items, 1,495 text paragraphs, 11 blanks skipped; 693 clean and 257 flagged Items; 2 flagged Sections; **259 review-marked records in all = 257 Items + 2 Sections**);
    - a **full-text round trip**: rebuild text from the database in order and compare with the Word file line by line; target is zero differences;
    - the list of every flagged line and why;
-   - the list of the 19 names changed by colon removal (original and stored form side by side), and the note on the 8 Items renumbered by the Section rule (section 4).
+   - the list of the 19 names changed by colon removal (original and stored form side by side), and a check that the generated Item numbers under the two Sections ((i), (ii) and (i) to (viii)) equal Word's own numbering. No renumbering difference is expected.
 4. A backup is taken immediately before and after import.
 5. The imported data is marked in history as `import`, so it can be seen what came from Word.
 
@@ -332,11 +359,11 @@ A new Item group starts whenever the Word list changes. The importer uses this o
 
 ## 10. Search (spec section 5)
 
-- **Scope**: the whole database including Other Acts: headings, Item text, Citations, Cases, comments and Notes. **Trash excluded**.
+- **Scope**: the whole database including Other Subjects: headings, Item text, Citations, Cases, comments and Notes. **Trash excluded**.
 - **Case-insensitive; partial words; quoted phrases exact.**
 - **Punctuation-insensitive**: every searchable field has a second column holding a **normalised** copy: lower-case, punctuation and brackets turned to spaces, repeated spaces collapsed, curly quotes treated as straight. So `2018 9 SCC 49` finds `(2018) 9 SCC 49`. "&" is kept distinct from "and" (decided, I6; easy to change).
 - **Technique**: PostgreSQL full-text search for words and phrases, plus **trigram indexes** (pg_trgm) on the normalised column for partial words. Quoted phrases search the normalised text exactly.
-- **Filters**: Subject, Citations only, For review only.
+- **Filters**: Subject, Citations only, For review only (this covers flagged Items and flagged Sections). Section names are searchable like headings.
 - **Results** show the full path, a highlighted snippet, and the total count. Clicking opens the record **in context, scrolled to the item** and briefly highlighted.
 - **Speed**: the whole database is about 950 Items; the target is under 1 second for about 2,000. With indexes this is expected to be tens of milliseconds. It will be measured with test data of 5,000 Items.
 - The Search box on every page leads to the separate Search page. Within-page search is the browser's own Ctrl/Cmd + F (which works because of 5.2).
@@ -344,21 +371,21 @@ A new Item group starts whenever the Word list changes. The importer uses this o
 ## 11. Flags and review markers (spec section 6)
 
 - **Flag** (overruled, doubted, other plus short text): shown red. It is a separate field. Imported text stays exactly as in Word, so `[NO LONGER GOOD LAW]` stays inside the text and the flag field is left empty. You decided no coloured badge is needed (I5).
-- **For review**: amber marker plus optional note. One click to set or clear in the reading view. Appears in the Review list, as a search filter, and is **omitted from the Word export unless you include it** (export option).
-- Imported "needs review" lines use this same marker, with the reason as the note.
+- **For review**: amber marker plus optional note, on Items and on Sections (both have `needs_review` and `review_note`). One click to set or clear in the reading view. Appears in the Review list, as a search filter, and is **omitted from the Word export unless you include it** (export option).
+- Imported "needs review" lines use this same marker, with the reason as the note. At import 259 records carry it: 257 Items and the 2 Sections (decision I10).
 
 ## 12. Word export (spec section 9)
 
-Whole database or a single Subject. Mapping:
+There are **three types of export** (decision D10). All three follow the same mapping and the same options.
 
 | Diary | Word |
 |---|---|
-| Contents page | Lists every Subject; table of contents field |
+| Contents page | Lists every Subject in that document; table of contents field |
 | Subject | Heading 1, each on its own page, name in the page header |
 | Topic | Heading 2, lettered per Settings |
 | Sub-topic | Bold numbered line |
-| Items and Nested Items | Numbered, one shared run |
-| Sections | Bold, unnumbered |
+| Items and Nested Items | Numbered, one shared run that **restarts at (i) after each Section** |
+| Sections | Bold header line carrying the Section number per Settings (default (A), (B)) |
 | Items in a Nested Item | Bullets |
 | Citation | Italic, preceded by " - " |
 | Multi-Item | Description, then (a), (b) citations on the same line, comments after each |
@@ -366,12 +393,56 @@ Whole database or a single Subject. Mapping:
 | Rich text | b, i, u kept |
 | Items under a heading | Precede its child headings |
 
-Details:
-- **Other Acts** is a Subject at Heading 1 in a whole-database export. Its grouped Subjects are Heading 2, their Topics Heading 3 (Other Acts have no Topics, so Sub-topics and Items follow directly), then the same as above. This matches how your original Word file is organised.
-- **Single-Subject export of an Other Act**: it is exported as the Subject at **Heading 1 alone** (as every Subject is), without the "Other Acts" wrapper. Confirmed (D3).
+**Section numbering in Word.** The Section number is written as text in the bold header (so it cannot drift). The Items of each run (the Items before the first Section, then the Items after each Section) use their **own Word list instance with a restart override** (a separate numbering definition starting at 1 for each run), so Word restarts the numbers at (i) correctly after every Section. If any Word version is found to continue the numbers instead, the fallback is to write the Item numbers as text as well; this is checked in milestone 6.
+
+### 12.1 The three types
+
+**(i) Full, one Word document.** The whole database in one file.
+- **Other Subjects** is a Subject at Heading 1. Its grouped Subjects are Heading 2, and the level where Topics would be is Heading 3 (Other Subjects have no Topics, so Sub-topics and Items follow directly), then the same as above. This matches how your original Word file is organised.
+- The contents page lists all Subjects, the Other Subjects group and the Other Subjects inside it.
+
+**(ii) Full, one Word document per Subject, delivered as one .zip download.**
+- One document for each of the 10 main Subjects, plus **one single document holding all Other Subjects together**.
+- In each per-Subject document the Subject is Heading 1 as usual. The Other Subjects document keeps the Heading 1 / 2 / 3 structure of type (i).
+- Each document has its **own contents page, page header and count/date line**. The count is the number of records in that document.
+- The zip also holds a small **manifest.txt** listing each file and its record count, and the grand total. The grand total equals the count of the Full export (type i).
+- Two documents whose cleaned names are the same get " (2)", " (3)" added before the date, so nothing in the zip overwrites anything else.
+
+**(iii) Current View.** Exports exactly what is on the screen.
+- The scope is a Subject, a Topic or a Sub-topic. An Other Subject is a Subject scope; a single Other Subject exports with its name at **Heading 1 alone** (D3).
+- The scope heading becomes **Heading 1** and the levels below step down. Numbering starts as on screen: a Topic keeps its on-screen letter and a Sub-topic its on-screen number (default, needs owner confirmation).
+- The scope's whole subtree is exported (Trash excluded), not only the part scrolled into view.
+- **Split screen**: the export applies to the **focused pane**, shown by a highlighted pane border. The button label says which pane it will export (for example "Export current view: Arbitration, Fraud").
+- **Not offered** on search results, the Review list, Trash and History: the Current View button is disabled with a tooltip saying why. The Full exports and the review-marker option stay available.
+
+### 12.2 File names
+
+Format, space-separated: `[Custom Name] [Part] [Date].docx`
+
+| Type | Part | Example |
+|---|---|---|
+| (i) Full | `Full` | `Judgment Diary Full 2026-11-01.docx` |
+| (ii) per Subject | the Subject's name; the combined document is `Other Subjects` | `Judgment Diary Arbitration 2026-11-01.docx`, `Judgment Diary Other Subjects 2026-11-01.docx` |
+| (ii) the zip | `Full - by Subject` | `Judgment Diary Full - by Subject 2026-11-01.zip` |
+| (iii) Current View | the on-screen path, names joined by `, ` | `Judgment Diary Arbitration, Fraud 2026-11-01.docx` |
+
+Rules:
+- **Custom Name** comes from Settings (section 5.11): default `Judgment Diary`, 1 to 60 characters.
+- **Cleaning.** Every name that goes into a file name (Custom Name, Subject, Topic, Sub-topic) has these characters replaced by a hyphen `-`: `\ / : * ? " < > |` and control characters. Repeated spaces are collapsed to one, and leading or trailing spaces and dots are removed. The Settings preview tells you which replacements were made.
+- **Date.** Today's date in the Settings date format, default `YYYY-MM-DD` (default, needs owner confirmation), in the Settings time zone (default Asia/Kolkata, default, needs owner confirmation).
+- **Length (default, needs owner confirmation).** If the whole name without the extension would exceed 120 characters, the path in a Current View name is shortened: each segment is cut to 30 characters (at a word boundary if there is one after the 15th character, otherwise at the 30th), and if the name is still too long the middle segments are dropped and replaced by a single `-`, keeping the first and the last segment (for example `Arbitration, -, Fraud`). The full on-screen path is always printed in the document's page header, so nothing is lost from the document itself.
+- **Same day, same name.** The app never overwrites and does not add times or counters. A second export on the same day produces the same name, and the browser adds its own (1), (2) suffix.
+
+### 12.3 Contents, count and date
+
+- Each document has a contents page listing the Subjects (or, for a Current View, the headings) it contains.
+- Each document shows the **export date and the record count** for that document, so the count can be checked against the screen.
+- Excludes Trash.
+
+### 12.4 Options and other rules
+
 - Numbers follow **Settings** formats at the moment of export.
-- Excludes Trash. Shows the **export date and record count** (so you can check against the screen).
-- For Review markers appear only if you tick "include review markers".
+- **Review markers.** For Review markers (amber) on Items **and on Sections** appear only if you tick "include review markers". The option applies to all three types.
 - A separate **Backup** button gives the machine-readable restore file (not Word).
 - **Round trip check** (milestone 6): export, then compare against the Word original: apart from deliberate formatting, text must match line for line.
 
@@ -394,13 +465,13 @@ If the combined app uses a different technology, the data rules in sections 2 to
 
 ## 14. Decisions
 
-All earlier open questions have been answered by the owner. They are recorded here with the owner's exact answers kept in `[Answer: ...]` form. Import questions are in `docs/IMPORT_ANALYSIS.md`, section 7, with the same numbering (shown below as "I1" to "I9").
+All earlier open questions have been answered by the owner (N1 and N2 are closed by D9 and I10). They are recorded here with the owner's exact answers kept in `[Answer: ...]` form. Import questions are in `docs/IMPORT_ANALYSIS.md`, section 7, with the same numbering (shown below as "I1" to "I10").
 
 **About the combined app and structure**
 
 - **D1. The combined app.** Does the entry screen with other programs already exist? *Default: build the Judgment Diary as a standalone app that can be plugged in later.* [Answer: Yes, do the Default for now] **Decision: standalone app now.**
-- **D2. Other Acts structure.** Sub-topics (1, 2, 3) and Items sit directly under the Act (no "General" Topic); an Act holds either Topics or Sub-topics, not both. [Answer: Yes] **Decision: direct (section 2.1).**
-- **D3. Exporting one Other Act on its own.** Heading 1 alone. [Answer: Yes] **Decision: confirmed.**
+- **D2. Other Subjects structure** (named "Other Acts" when the owner answered; renamed by D8). Sub-topics (1, 2, 3) and Items sit directly under the Subject (no "General" Topic); an Other Subject holds either Topics or Sub-topics, not both. [Answer: Yes] **Decision: direct (section 2.1).**
+- **D3. Exporting one Other Subject on its own.** Heading 1 alone. [Answer: Yes] **Decision: confirmed.**
 - **D4. Nesting depth.** One level of Nested Items is enough. [Answer: Yes] **Decision: confirmed.**
 - **D5. Notes ordering.** Notes after the Items of their parent and before the child headings. [Answer: Yes] **Decision: confirmed.**
 
@@ -411,19 +482,29 @@ All earlier open questions have been answered by the owner. They are recorded he
 
 **From the import analysis** (wording in `docs/IMPORT_ANALYSIS.md`, section 7):
 
-- **I1. Other Acts and the Topic level.** [Answer: Yes] Same as D2.
+- **I1. Other Subjects and the Topic level.** [Answer: Yes] Same as D2.
 - **I2. Lines that are only a case name or only a citation.** [Answer: When in doubt, put as 'Text with no Citation', and flag for my later review] **Decision:** stored as Text with no Citation, For review with a reason.
-- **I3. The two "(a)/(b)" lines.** [Answer: These should be Sections] **Decision:** they become Sections (section 8.1). Numbering consequence in section 4, new question N1 below.
+- **I3. The two "(a)/(b)" lines.** [Answer: These should be Sections] **Decision:** they become Sections (section 8.1). Numbering consequence resolved by D9 (section 4); flagging by I10.
 - **I4. Several typed (i), (ii) citations in one line.** [Answer: Keep them as one long citation, and flag for review] **Decision:** one Item, flagged.
 - **I5. `[NO LONGER GOOD LAW]`.** [Answer: I do not need any coloured badge. Keep the wording in the text.] **Decision:** wording stays in the text, no badge.
 - **I6. Search wording.** [Answer: Ok] **Decision:** curly and straight quotes alike; "&" distinct from "and".
 - **I7. Blank paragraphs.** [Answer: Ok] **Decision:** skipped (11), listed in the report.
 - **I8. Trailing colons on Topics and Sub-topics.** [Answer: Remove the colons] **Decision:** the stored name has no trailing colon; the original stays in `original_line`; all 19 changes are reported. This is a deliberate exception to the rule of never altering text, made on the owner's instruction.
 - **I9. Two Sub-topics in a row.** [Answer: These are separate sub-topics, some of which may not have any items at present] **Decision:** separate Sub-topics, not flagged; empty Sub-topics are allowed.
+- **I10. Flagging the two Sections.** (This answers N2.) [Answer: Ok, flag them for my review.] **Decision:** both Sections (`Ex Parte / Without Notice`, `Determining Jurisdiction`) are imported with `needs_review = Yes` and a review note. At import there are 259 review-marked records: 257 Items plus 2 Sections.
 
-Confirmed earlier: each Heading 1 is a Subject; Miscellaneous holds Other Acts; Sub-topics are 1, 2, 3; Items are (i), (ii), (iii); no footnotes.
+Confirmed earlier: each Heading 1 is a Subject; Miscellaneous holds Other Subjects; Sub-topics are 1, 2, 3; Items are (i), (ii), (iii); no footnotes.
 
-**New questions for the owner**
+**Decisions made after the first design** (the owner's wording kept verbatim; where the name "Other Acts" appears in a quotation it is the owner's original wording, and the name was changed by D8)
 
-- **N1. Numbering after a Section.** Word restarts the Items at (i) after `Determining Jurisdiction`. The Diary's rule is that Sections never interrupt numbering, so those 8 Items would read (iii) to (x). Do you want (a) that (the design default), or (b) numbering to restart at (i) after each Section? (b) would be a change to the numbering rule that must be made before Milestone 1.
-- **N2. Section flagging.** The two Sections are imported without a review flag because you decided they are Sections. Say if you want them flagged for a look anyway.
+- **D8. Rename "Other Acts" to "Other Subjects".** [Answer: change the name 'Other Acts' to 'Other Subjects'.] **Decision:** renamed everywhere (documents, screens, code, tests, file names, export).
+- **D9. Numbering of Sections and the Items after them.** (This answers N1, now closed.) [Answer: Your modification is correct. Perhaps, instead, give 'Sections' their own numbering system as well, and restart the numbering of items within them.] **Decision:** Sections have their own numbering format (Settings; default (A), (B), (C), default, needs owner confirmation) and each Section restarts the Item numbering at (i). Items before the first Section number as before. Section 4 has the full rules.
+- **D10. Three types of Word export.** [Answer: I want three types of export to Word - (i) Full as 1 word document, (ii) Full, as separate word documents per Subject (though 'Other Subjects' will be kept together as a single subject), and (iii) Current View. The name of the word document will be as follows: [Custom Name, as modified in Settings] [(i) 'Full' if full, (ii) 'Name of Subject' if split subject wise, and (iii) 'Name of Subject, Topic, etc currently on screen', if for current view] [Today's Date].] **Decision:** section 12. The details not stated by the owner (zip delivery, manifest, file-name cleaning and length, date format, scope headings for Current View) are defaults, marked as needing owner confirmation.
+- **D11. Custom Name setting.** [Answer: [Custom Name, as modified in Settings]] (part of the D10 answer). **Decision:** a per-user Settings text, default `Judgment Diary`, with the rules and live file-name preview in section 5.11.
+
+**Open questions for the owner** (each has a default that is used unless you say otherwise)
+
+1. **Section number style.** Default: (A), (B), (C), capital letters in brackets. Other choices are in Settings, including "Section 1, Section 2".
+2. **Date in file names.** Default: 2026-11-01 style (year-month-day), in Asia/Kolkata time. Other choices: 01-11-2026 or 1 November 2026.
+3. **Long file names.** Default: if a Current View name would exceed 120 characters, each part is cut to 30 characters and, if still too long, middle parts are replaced by `-`. The full path is always inside the document.
+4. **Current View of a Topic or Sub-topic.** Default: the Topic or Sub-topic heading becomes the top heading (Heading 1) and keeps its on-screen letter or number.

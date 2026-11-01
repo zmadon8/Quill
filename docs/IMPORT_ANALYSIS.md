@@ -7,9 +7,9 @@ This note explains what is actually inside your Word file, so the import into th
 
 - The file has **1,506 paragraphs**. 1,495 carry text and 11 are blank.
 - There are **no tables, no images and no footnotes** (the footnote part exists inside the file, but it holds zero real footnotes and nothing in the text points to one). This matches what you told me.
-- There are **2 lines that become "Sections"**: the small-letter (a)/(b) lines `Ex Parte / Without Notice` and `Determining Jurisdiction` (your decision, section 7, I3). There are no other Sections.
+- There are **2 lines that become "Sections"**: the small-letter (a)/(b) lines `Ex Parte / Without Notice` and `Determining Jurisdiction` (your decision, section 7, I3), flagged for review (I10). They are numbered with their own Section format and restart the Item numbering (D9). There are no other Sections.
 - The real **Subject count is 41**, which matches your "about 41" (see section 3).
-- The structure is regular and can be read reliably from Word's own list formats. About **73% of the 950 Item lines (693 of 950)** can be split safely into Text and Citation. The other **257 lines** will be imported whole, as Text with no Citation, and flagged for your review. Nothing is ever rewritten.
+- The structure is regular and can be read reliably from Word's own list formats. About **73% of the 950 Item lines (693 of 950)** can be split safely into Text and Citation. The other **257 lines** will be imported whole, as Text with no Citation, and flagged for your review. The 2 Sections are also flagged for your review, so **259 records** (257 Items + 2 Sections) carry a review marker after import. Nothing is ever rewritten.
 
 ## 2. How the levels are recognised
 
@@ -24,7 +24,7 @@ Word stores every list entry at the same indent depth here (all 1,495 numbered p
 | Section | List Paragraph | (a), (b) (small letters) | 2 |
 | Blank lines | Normal | none | 11 |
 
-Total with text: 11 + 209 + 323 + 950 + 2 = 1,495. (The 209 Heading 2 lines are 178 Topics of the main Subjects plus 31 Other Acts, which become Subjects.)
+Total with text: 11 + 209 + 323 + 950 + 2 = 1,495. (The 209 Heading 2 lines are 178 Topics of the main Subjects plus 31 Other Subjects, which become Subjects.)
 
 What this tells us:
 
@@ -38,10 +38,10 @@ What this tells us:
 
 - Heading 1 lines in the file: **11** (Arbitration, Contracts, Evidence, Jurisprudence, Limitation, Miscellaneous, Procedure, Transfer of Property, Testamentary, Writ Petitions, Interesting Cases).
 - Excluding Miscellaneous: **10** Subjects.
-- Topics under Miscellaneous (these become "Other Acts" Subjects): **31**.
+- Topics under Miscellaneous (these become "Other Subjects" Subjects): **31**.
 - **10 + 31 = 41 Subjects.** Nothing sits directly under "Miscellaneous" itself; it only contains Topics.
 
-So the number you remembered is exactly right. The 31 Other Acts Subjects will be marked "not shown on the landing page" (show_on_landing = No), as in the specification.
+So the number you remembered is exactly right. The 31 Other Subjects will be marked "not shown on the landing page" (show_on_landing = No), as in the specification.
 
 ## 4. Counts per Subject
 
@@ -61,13 +61,13 @@ So the number you remembered is exactly right. The 31 Other Acts Subjects will b
 | Interesting Cases | 5 | 0 | 15 | 0 | 0 |
 | **Subtotal** | **178** | **226** | **753** | **2** | **10** |
 
-### 4.2 Miscellaneous (31 Topics that become Other Acts Subjects)
+### 4.2 Miscellaneous (31 Topics that become Other Subjects)
 
 Miscellaneous as a whole: 31 Topics, 97 Sub-topics, 197 Items, 1 blank line.
 
-In the new system each of these Topics becomes a Subject, so "Topics" in the table below are what the system will call Sub-topics and Items under that Subject (the Other Acts Subjects have no Topics of their own in the file; their Sub-topics and Items hang directly under the Subject; see Question 1).
+In the new system each of these Topics becomes a Subject, so "Topics" in the table below are what the system will call Sub-topics and Items under that Subject (the Other Subjects have no Topics of their own in the file; their Sub-topics and Items hang directly under the Subject; see Question 1).
 
-| Other Acts Subject | Sub-topics | Items |
+| Other Subject | Sub-topics | Items |
 |---|---:|---:|
 | Administrative Law | 3 | 7 |
 | Advocates | 3 | 3 |
@@ -135,7 +135,7 @@ Counts below were produced by the script over 952 lines, which is the 950 "(i)" 
 | 17 | Blank paragraphs | 11 | none to show | Skipped. They carry no text. They are listed in the report so nothing is lost silently. |
 | 18 | A Sub-topic directly after a Sub-topic (no Items between) | 2 | `Without Reasons` (under `Leaving question of Law Open`) and `Solicitors` (under `Professional Liability`) | Decided (I9): two separate Sub-topics in order. Not flagged; a Sub-topic may have no Items at present. |
 | 19 | A group of Items that restarts inside the same Topic or Sub-topic | 3 | e.g. under `Unlawful Subletting / Eviction` | Document order is kept. The Items stay under the same parent; needs_review note "list restarted". |
-| 20 | "(a)", "(b)" lines sitting between a "1." Sub-topic and its Items | 2 | `Ex Parte / Without Notice` and `Determining Jurisdiction` (under `Clause 12: Leave to Sue`, Topic `Letters Patent & OS Rules`) | Decided (I3): imported as **Sections** (not Sub-topics, not counted as Items). Not flagged. See section 5.1 for how Items after them are numbered. |
+| 20 | "(a)", "(b)" lines sitting between a "1." Sub-topic and its Items | 2 | `Ex Parte / Without Notice` and `Determining Jurisdiction` (under `Clause 12: Leave to Sue`, Topic `Letters Patent & OS Rules`) | Decided (I3, I10): imported as **Sections** (not Sub-topics, not counted as Items), flagged for review. See section 5.1 for how Items after them are numbered. |
 
 Not found at all: any other Sections, bullets, nested Items, tables, images, footnotes, headings with their own sub-numbering, Heading 2 lines without numbering, and Items deeper than level 0.
 
@@ -150,7 +150,7 @@ An Item line is split into **Text** (before the dash) and **Citation** (after it
 - no double spaces and no leading or trailing spaces;
 - the right-hand side contains a bracketed citation or something that clearly looks like a year and report name.
 
-Result on your file: **693 Items split cleanly, 257 imported whole (as Text with no Citation) with needs_review = Yes.** (The script reported 259 of 952 lines; the 2 extra are the (a)/(b) lines, which are now Sections.) The 257 break down (a line can have several reasons; the first matching reason is counted):
+Result on your file: **693 Items split cleanly, 257 imported whole (as Text with no Citation) with needs_review = Yes.** (The script reported 259 of 952 lines; the 2 extra are the (a)/(b) lines, which are now Sections.) The per-reason table below covers the **257 Items only**. The 2 Sections are flagged separately (reason: imported from a small-letter (a)/(b) list; confirm these are Sections), which makes **259 review-marked records in all** (257 Items + 2 Sections). The 257 break down (a line can have several reasons; the first matching reason is counted):
 
 | Reason | Lines |
 |---|---:|
@@ -163,7 +163,9 @@ Result on your file: **693 Items split cleanly, 257 imported whole (as Text with
 | Whole line in brackets | 2 |
 | Carries a flag | 1 |
 | Leading or trailing spaces | 1 |
-| **Total** | **257** |
+| **Total (Items)** | **257** |
+| Sections flagged (separate from the Items above) | 2 |
+| **All review-marked records at import** | **259** |
 
 Every one of these lines is stored whole in the Text field with an empty Citation, so no characters are moved or lost. The review screen would let you correct these one at a time, or sort them by reason. Reviewing about 260 lines is a manageable job, and the application stays fully usable while you do it.
 
@@ -181,26 +183,28 @@ The file has this shape (Topic `Letters Patent & OS Rules`, Sub-topic `Clause 12
        ... 8 Items in all
 ```
 
-How the importer builds it: the two small-letter lines become **Sections**; they are not counted as Items and not Sub-topics. A Section has no children, so it sits in the Sub-topic's shared order, at the position where it appears, and the Items that follow it (until the next Section, Sub-topic or Topic) are ordinary Items of the same Sub-topic placed after it. Membership is by position only.
+That is 2 Sections and 10 Items (2 under the first Section, 8 under the second), with no Item before the first Section.
 
-How it will be numbered in the Diary: Sections never interrupt the (i), (ii) run, so the Sub-topic reads: Section `Ex Parte / Without Notice`, (i), (ii), Section `Determining Jurisdiction`, then (iii) to (x). In Word the second group restarts at (i) to (viii). This is a difference in the printed number only; the text and order are identical. It is listed in the reconciliation report. **This is new question N1 (section 7).**
+How the importer builds it: the two small-letter lines become **Sections**; they are not counted as Items and not Sub-topics. A Section has no children, so it sits in the Sub-topic's shared order, at the position where it appears, and the Items that follow it (until the next Section, Sub-topic or Topic) are ordinary Items of the same Sub-topic placed after it. Membership is by position only. Both Sections are imported with **needs_review = Yes** and the note "imported from a small-letter (a)/(b) list; confirm these are Sections" (your decision I10).
+
+How it will be numbered in the Diary (decision D9): Sections have their own numbering format, default (A), (B), (C) (default, needs owner confirmation), and each Section restarts the Item numbering at (i). The Sub-topic reads: Section (A) `Ex Parte / Without Notice`, Items (i) and (ii); Section (B) `Determining Jurisdiction`, Items (i) to (viii). This matches Word's own numbering for these Items, so **there is no renumbering difference to report**.
 
 ## 6. How the import will be checked
 
-**Dry run.** Before anything is saved, the importer produces a preview file (and an on-screen page). It lists, without touching the database: the 41 Subjects, how many Topics, Sub-topics and Items each has, how many lines are clean, how many need review (with the reason), and the first few lines of each Topic so you can see that it looks right. You approve, and only then is the real import done. Running the import twice does not create duplicates.
+**Dry run.** Before anything is saved, the importer produces a preview file (and an on-screen page). It lists, without touching the database: the 41 Subjects, how many Topics, Sub-topics and Items each has, how many lines are clean, how many need review (with the reason; the two Sections are listed as flagged, with their reason), and the first few lines of each Topic so you can see that it looks right. You approve, and only then is the real import done. Running the import twice does not create duplicates.
 
 **Reconciliation report.** After the import, a report confirms nothing was lost or invented:
 
-1. Counts per level per Subject from the file against the counts in the database. They must match exactly (for example, 41 Subjects, 178 Topics under main Subjects, 323 Sub-topics, 2 Sections, 950 Items, 1,495 text paragraphs, 11 blank paragraphs skipped; 693 clean and 257 flagged Items).
-2. A **full-text comparison**: all text is rebuilt from the database in the original order and compared line by line with the Word file. Any difference is listed. The target is zero unexpected differences. The only expected differences are the **19 names with the trailing colon removed** (I8), which are listed with the original beside the stored name, and the Item numbers after `Determining Jurisdiction` (section 5.1), which are numbers and not text.
+1. Counts per level per Subject from the file against the counts in the database. They must match exactly (for example, 41 Subjects, 178 Topics under main Subjects, 323 Sub-topics, 2 Sections (both flagged), 950 Items, 1,495 text paragraphs, 11 blank paragraphs skipped; 693 clean and 257 flagged Items).
+2. A **full-text comparison**: all text is rebuilt from the database in the original order and compared line by line with the Word file. Any difference is listed. The target is zero unexpected differences. The only expected differences are the **19 names with the trailing colon removed** (I8), which are listed with the original beside the stored name. The Section numbers and the restarted Item numbers under the two Sections are checked against Word's own numbering and are expected to agree.
 3. The list of the 19 colon removals.
-4. A list of every line flagged needs_review with its reason.
+4. A list of every record flagged needs_review with its reason: 257 Items and 2 Sections, 259 in all.
 
 ## 7. Decisions
 
 The owner's answers, kept verbatim in `[Answer: ...]`. Numbered as before (the Design document refers to them as I1 to I9).
 
-1. **Other Acts Subjects and Topics.** Sub-topics and Items sit directly under the Act (no default "General" Topic). [Answer: Yes] **Decision: direct, as planned.**
+1. **Other Subjects and Topics** (called "Other Acts" when you answered; the name was changed by decision D8). Sub-topics and Items sit directly under the Subject (no default "General" Topic). [Answer: Yes] **Decision: direct, as planned.**
 2. **Lines that are only a case name or only a citation** (for example `Associate Builders`). [Answer: When in doubt, put as 'Text with no Citation', and flag for my later review] **Decision:** any doubtful line is stored whole as Text with no Citation and marked needs_review with a reason.
 3. **The two "(a)/(b)" lines** (`Ex Parte / Without Notice`, `Determining Jurisdiction`). [Answer: These should be Sections] **Decision:** Sections (section 5.1).
 4. **Lines with several citations marked (i), (ii).** There are 38. [Answer: Keep them as one long citation, and flag for review] **Decision:** one Item, flagged.
@@ -210,7 +214,11 @@ The owner's answers, kept verbatim in `[Answer: ...]`. Numbered as before (the D
 8. **Sub-topics (13) and Topics (6) that end in a colon.** [Answer: Remove the colons] **Decision:** colons removed from the stored name; original kept in `original_line`; all 19 listed in the reconciliation report.
 9. **Two Sub-topics in a row.** [Answer: These are separate sub-topics, some of which may not have any items at present] **Decision:** separate Sub-topics, not flagged.
 
-### New questions arising from these decisions
+10. **Flagging the two Sections** (this answers the earlier question N2). [Answer: Ok, flag them for my review.] **Decision:** both Sections are imported with needs_review = Yes and a review note.
 
-- **N1. Numbering after a Section.** Word restarts the Items at (i) after `Determining Jurisdiction`; the Diary will continue the run, so those 8 Items read (iii) to (x). Keep that (default), or restart numbering after each Section? See section 5.1 and `docs/DESIGN.md` section 4.
-- **N2. Review flag on the Sections.** The two Sections are not flagged. Tell me if you want them flagged.
+### Questions raised by these decisions, now closed
+
+- **N1. Numbering after a Section.** [Answer: Your modification is correct. Perhaps, instead, give 'Sections' their own numbering system as well, and restart the numbering of items within them.] **Closed by decision D9** (`docs/DESIGN.md` sections 4 and 14): Sections have their own numbering and each restarts the Items at (i).
+- **N2. Review flag on the Sections.** [Answer: Ok, flag them for my review.] **Closed by decision I10** (item 10 above).
+
+Note on names: the owner's later instruction to rename "Other Acts" to "Other Subjects" is decision D8 (`docs/DESIGN.md` section 14).

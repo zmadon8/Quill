@@ -2,7 +2,7 @@
 
 Each milestone ends with something you can open and check, and it is deployed before the next begins. Nothing moves on until you are satisfied. The overriding rule applies at every step: no data is altered, lost or merged silently.
 
-Note: the technology (Django, PostgreSQL) is confirmed for a **standalone app** that can be plugged into a combined app later (decision D1, `docs/DESIGN.md` section 14). All earlier open questions are answered. Two new questions (N1 numbering after a Section, N2 flagging the Sections) are listed in section 14; N1 should be answered before Milestone 1.
+Note: the technology (Django, PostgreSQL) is confirmed for a **standalone app** that can be plugged into a combined app later (decision D1, `docs/DESIGN.md` section 14). All earlier open questions are answered, including N1 (Sections now have their own numbering and restart the Items, D9) and N2 (the two Sections are flagged for review, I10). Four small open questions with defaults are listed at the end of `docs/DESIGN.md` section 14.
 
 ## Milestone 0: Skeleton, deploy, login, backup and restore
 
@@ -23,18 +23,19 @@ Note: the technology (Django, PostgreSQL) is confirmed for a **standalone app** 
 
 ## Milestone 1: Data model, reading view, numbering
 
-**Deliverable:** All record types and database rules exist. Test data (not yours yet) can be loaded. Screens: landing page with Subject tiles and the Other Acts tile, Subject contents (TOC), the reading view with Items, Citations in italics, Multi-Items, Nested Items, Sections, flags in red, with automatic numbering and the three View buttons. Phone layout from the start.
+**Deliverable:** All record types and database rules exist. Test data (not yours yet) can be loaded. Screens: landing page with Subject tiles and the Other Subjects tile, Subject contents (TOC), the reading view with Items, Citations in italics, Multi-Items, Nested Items, Sections, flags in red, with automatic numbering and the three View buttons. Phone layout from the start.
 
 **How you check it:**
-- Look at a small sample Subject; confirm Topics are A, B, C; Sub-topics 1, 2, 3; Items (i), (ii), (iii); Nested Item bullets; Sections unnumbered and not breaking numbering (the Clause 12 example: (i), (ii), Section, (iii) to (x)).
-- Open a sample Other Act and confirm it shows Sub-topics and Items directly.
+- Look at a small sample Subject; confirm Topics are A, B, C; Sub-topics 1, 2, 3; Items (i), (ii), (iii); Nested Item bullets; Sections with their own numbering (default (A), (B)) and Item numbering restarting at (i) after each Section (the Clause 12 example: Section (A) with Items (i), (ii); Section (B) with Items (i) to (viii)). Moving or deleting a Section shows a preview of the Items that will renumber.
+- Open a sample Other Subject and confirm it shows Sub-topics and Items directly.
 - Open on your phone: no sideways scrolling, text is easy to read, Contents button works.
 - Use "View whole Subject" and press Ctrl/Cmd + F in the browser: it finds text anywhere in the Subject.
 - Test numbering with a long list (past 26 items, and past (xxxix)) to see that it carries on correctly.
+- Automatic numbering tests (required) cover: the Section restart rule (Items after each Section start at (i)); Items before the first Section numbered (i), (ii) as usual; Section numbers restarting under each parent; Nested Items counting in the Item run with bullets unchanged; moving a Section and deleting a Section renumbering the Items that follow it (and Undo restoring the numbers); the Section format choices including "Section 1" and letters past z.
 
 **Risks:**
 - Numbering mistakes (mitigation: many automatic tests for the numbering rules, including letters beyond z).
-- Numbering rule after a Section (new question N1) must be settled before this milestone.
+- Numbering after a Section is settled (D9) but is the most intricate rule; it is covered by tests (below).
 - Phone layout needs repeated real-phone checks.
 
 ## Milestone 2: Import prototype, dry run, reconciliation
@@ -42,9 +43,10 @@ Note: the technology (Django, PostgreSQL) is confirmed for a **standalone app** 
 **Deliverable:** A supervised importer reading `Case Law Diary.docx` (never modifying it). A dry-run report (page and downloadable file). Then the real import into a test copy of the database, with a reconciliation report.
 
 **How you check it:**
-- Read the dry-run report: 41 Subjects (10 main plus 31 Other Acts), 178 Topics, 323 Sub-topics, 2 Sections, 950 Items; 693 clean and 257 flagged Items with reasons.
+- Read the dry-run report: 41 Subjects (10 main plus 31 Other Subjects), 178 Topics, 323 Sub-topics, 2 Sections, 950 Items; 693 clean and 257 flagged Items with reasons, and the 2 Sections listed as flagged with their reason. Review-marked records in all: 259 (257 Items + 2 Sections).
+- After the import, the Review list shows 259 records, and under `Clause 12: Leave to Sue` you see Section (A) with Items (i), (ii) and Section (B) with Items (i) to (viii), matching Word.
 - After the import, open ten Subjects of your choice and compare with Word.
-- Read the reconciliation report: counts match, and the text comparison reports only the expected differences: the 19 names with the trailing colon removed (your instruction). Any other difference is listed and explained, never hidden.
+- Read the reconciliation report: counts match (including 259 review-marked records), and the text comparison reports only the expected differences: the 19 names with the trailing colon removed (your instruction). There is no Item renumbering difference to explain. Any other difference is listed and explained, never hidden.
 - Spot check the "original Word line" shown against what is displayed, for ten flagged and ten clean items.
 - Run the import twice and see that nothing is duplicated.
 
@@ -61,6 +63,8 @@ Note: the technology (Django, PostgreSQL) is confirmed for a **standalone app** 
 - Edit an item with bold and italic; paste from Word and see only bold, italic, underline survive.
 - Delete a whole Topic, see it in Trash with its path, restore it, and see everything return in place.
 - Try permanent delete: it needs a second confirmation and only works from Trash.
+- Move and delete a Section: a preview lists the Items whose numbers will change; Undo brings the old numbers back.
+- Move and delete a Section: a preview lists the Items whose numbers will change; Undo brings the old numbers back.
 - Open the same item in two browser tabs, change both; the second save shows both versions and asks you.
 - Change an item, then press Undo; open its History and restore an earlier version.
 - Convert an Item to Multi and back; see the preview each time and the warning when comments would be flattened.
@@ -73,7 +77,7 @@ Note: the technology (Django, PostgreSQL) is confirmed for a **standalone app** 
 
 ## Milestone 4: Search, Review list, Settings
 
-**Deliverable:** Global Search page with the shortcuts (Ctrl+Option+G, Ctrl+Option+H; Ctrl+Alt on Windows) and visible Search and Home buttons; filters; highlighted snippets; open in context. The Review list screen. Settings: opening page, number formats with preview.
+**Deliverable:** Global Search page with the shortcuts (Ctrl+Option+G, Ctrl+Option+H; Ctrl+Alt on Windows) and visible Search and Home buttons; filters; highlighted snippets; open in context. The Review list screen. Settings: opening page, number formats with preview (including the new Sections format), Custom Name for exported file names with a live file-name preview, and the date format (with time zone).
 
 **How you check it:**
 - Search `2018 9 SCC 49` and find `(2018) 9 SCC 49`.
@@ -82,7 +86,9 @@ Note: the technology (Django, PostgreSQL) is confirmed for a **standalone app** 
 - Click a result: you land on the item, scrolled to it.
 - Time it: results should appear in under a second.
 - Change Items to (a), (b), (c) in Settings; the screens change and the stored data does not. Set the opening page and check it.
-- Mark an item For review with one click; see it in the Review list.
+- Mark an item For review with one click; see it in the Review list. Do the same for a Section; it appears as a header row with its number and parent path, and the search filter "For review only" finds it.
+- Change the Sections format (for example to "Section 1, Section 2") and watch the preview and screens change.
+- Type a Custom Name containing a colon; the preview shows the file name with a hyphen and says "':' was replaced with '-'". Empty names, over 60 characters, and leading or trailing dots or spaces are refused.
 
 **Risks:**
 - Search quality on citations with unusual punctuation (mitigation: test with real citations from your file).
@@ -105,18 +111,23 @@ Note: the technology (Django, PostgreSQL) is confirmed for a **standalone app** 
 
 ## Milestone 6: Word export and round-trip check
 
-**Deliverable:** Export to Word for the whole database or one Subject, following the layout in `docs/DESIGN.md` section 12, with contents page, page headers, numbering per Settings, "See also" Notes, date and record count. A "Backup" button for the restore file.
+**Deliverable:** Three types of Word export following `docs/DESIGN.md` section 12: (i) Full, one document; (ii) Full, one document per Subject with all Other Subjects together, delivered as one .zip with a manifest; (iii) Current View (Subject, Topic or Sub-topic on screen, focused pane in split screen). Contents page, page headers, numbering per Settings (including Sections and the restart of Items after each Section), "See also" Notes, date and record count. File names built from the Custom Name, the part and the date. A "Backup" button for the restore file.
 
 **How you check it:**
-- Export the whole database and open in Word: Subject names as headings, Topics lettered, Sub-topics numbered, Items (i), Citations in italic after " - ".
-- Check the Other Acts section and a single-Other-Act export (Heading 1 alone, confirmed).
-- The record count on the export matches the screen count.
+- Export (i) and open in Word: Subject names as headings, Topics lettered, Sub-topics numbered, Items (i), Citations in italic after " - ". Under `Clause 12: Leave to Sue` Section (A) has Items (i), (ii) and Section (B) has Items (i) to (viii), restarting correctly in Word.
+- Check the Other Subjects section (Heading 1 / 2 / 3) and a single Other Subject export (Heading 1 alone, confirmed).
+- **File names**: (i) `Judgment Diary Full 2026-11-01.docx` (with your Custom Name and date); (ii) the zip `... Full - by Subject <date>.zip` holding one `... <Subject name> <date>.docx` per Subject, one `... Other Subjects <date>.docx`, and `manifest.txt`; (iii) `... <on-screen path joined by ", "> <date>.docx`. Illegal characters are replaced by a hyphen; over-long paths are shortened by the documented rule; duplicates in the zip get " (2)".
+- **Zip contents and counts**: each document's record count matches the screen for that Subject, and the grand total in `manifest.txt` equals the count on the Full export.
+- **Current View**: exported from a Subject, a Topic and a Sub-topic (the heading becomes Heading 1, the on-screen letter or number is kept, the whole subtree is included, Trash is not). In split screen the focused pane is exported and the button names it. On Search results, the Review list, Trash and History the button is disabled with a tooltip.
+- Exporting twice on the same day gives the same file name (the browser adds (1)); the app never overwrites or adds counters.
+- The record count on each export matches the screen count.
 - **Round trip:** a comparison report of the export against your original Word file; differences should be only the deliberate ones (formatting), listed one by one.
-- Export with and without the review markers.
+- Export with and without the review markers (Items and Sections), for each of the three types.
 
 **Risks:**
-- Word's numbering and heading behaviour when documents are opened on different computers (mitigation: tested on your computer).
-- Size of a whole-database file and speed.
+- Word's numbering and heading behaviour when documents are opened on different computers, and the per-Section restart of Item numbers (mitigation: tested on your computer; fallback is to write the numbers as text).
+- Size of a whole-database file and speed, and zip creation for the per-Subject export.
+- File names containing characters or lengths that Windows or macOS refuse (mitigation: the cleaning and length rules, tested).
 - The comparison needs your judgment on which differences are acceptable.
 
 ## Milestone 7: Split screen and polish
@@ -134,4 +145,4 @@ Note: the technology (Django, PostgreSQL) is confirmed for a **standalone app** 
 
 ## Order and dependencies
 
-0, 1, then 2 (so real data can be seen), then 3, 4, 5, 6, 7. Milestones 4 and 5 can swap if you need Notes sooner. All questions in `docs/DESIGN.md` section 14 are answered. Only the two new questions remain: N1 (numbering after a Section), which must be answered before Milestone 1, and N2 (whether to flag the two Sections for review).
+0, 1, then 2 (so real data can be seen), then 3, 4, 5, 6, 7. Milestones 4 and 5 can swap if you need Notes sooner. All questions in `docs/DESIGN.md` section 14 are answered (N1 and N2 are closed by D9 and I10). Only four small questions remain, each with a default that is used unless you say otherwise: the Section number style, the date format in file names, the long file name rule, and the Current View heading level for a Topic.
