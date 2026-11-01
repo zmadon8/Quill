@@ -386,6 +386,14 @@ class ViewTests(BackupBase):
         self.assertEqual(resp.status_code, 302)
         self.assertIn(reverse("login"), resp["Location"])
 
+    def test_backup_tables_are_resizable(self):
+        self.login_admin()
+        self.client.post(reverse("backup_now"))
+        page = self.client.get(reverse("backup_list"))
+        self.assertContains(page, 'data-resizable-columns="backups-list"')
+        self.assertContains(page, 'data-resizable-columns="backups-log"')
+        self.assertContains(page, "js/resizable-columns.js")
+
     def test_list_and_backup_now(self):
         self.login_admin()
         resp = self.client.post(reverse("backup_now"))
