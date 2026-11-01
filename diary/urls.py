@@ -1,11 +1,9 @@
 from django.urls import path
-from django.views.generic import RedirectView
 
 from . import views
 
+# Mounted at /caselaw/ by config/urls.py. No app namespace: URL names stay global so every {% url %} and reverse() is unchanged.
 urlpatterns = [
-    path("", views.home, name="home"),
-    path("programs/", RedirectView.as_view(pattern_name="home", permanent=False), name="programs_legacy"),
     path("subjects/", views.subjects, name="subjects"),
     path("other-subjects/", views.other_subjects, name="other_subjects"),
     path("search/", views.search, name="search"),
@@ -16,5 +14,4 @@ urlpatterns = [
     path("review/", views.review_list, name="review_list"),
     path("import/", views.import_word, name="import_word"),
     path("profile-settings/", views.profile_settings, name="profile_settings"),
-    path("healthz/", views.healthz, name="healthz"),
 ]

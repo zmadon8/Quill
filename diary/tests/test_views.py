@@ -113,9 +113,10 @@ class HomeIndexTests(TestCase):
         self.client.force_login(self.admin)
         resp = self.client.get(reverse("subjects"))
         self.assertNotContains(resp, 'href="%s"' % reverse("user_list"))
-        self.assertContains(resp, 'href="%s"' % reverse("backup_list"))
+        self.assertNotContains(resp, 'href="%s"' % reverse("backup_list"))
         resp = self.client.get(reverse("home"))
         self.assertContains(resp, 'href="%s"' % reverse("user_list"))
+        self.assertContains(resp, 'href="%s"' % reverse("backup_list"))
 
     def test_nav_marks_current_page(self):
         self.client.force_login(self.admin)
@@ -135,13 +136,46 @@ class HomeIndexTests(TestCase):
         self.client.force_login(self.reader)
         self.assertRedirects(self.client.get("/programs/"), reverse("home"))
 
+    def test_caselaw_urls_and_old_urls_redirect(self):
+        self.client.force_login(self.reader)
+        self.assertEqual(reverse("subjects"), "/caselaw/subjects/")
+        self.assertEqual(reverse("search"), "/caselaw/search/")
+        self.assertEqual(reverse("subject_contents", args=[7]), "/caselaw/subjects/7/")
+        self.assertEqual(reverse("read_subject", args=[7]), "/caselaw/subjects/7/read/")
+        self.assertEqual(reverse("read_topic", args=[7]), "/caselaw/topics/7/read/")
+        self.assertEqual(reverse("read_subtopic", args=[7]), "/caselaw/subtopics/7/read/")
+        for name in ("other_subjects", "review_list", "import_word", "profile_settings"):
+            self.assertTrue(reverse(name).startswith("/caselaw/"), name)
+        for root in ("/", "/healthz/", "/users/", "/settings/", "/backups/", "/profiles/", "/login/", "/logout/"):
+            self.assertFalse(root.startswith("/caselaw/"))
+        self.assertEqual(reverse("backup_list"), "/backups/")
+        self.assertEqual(reverse("healthz"), "/healthz/")
+        moved = {
+            "/subjects/": "/caselaw/subjects/",
+            "/subjects/7/": "/caselaw/subjects/7/",
+            "/subjects/7/read/": "/caselaw/subjects/7/read/",
+            "/topics/7/read/": "/caselaw/topics/7/read/",
+            "/subtopics/7/read/": "/caselaw/subtopics/7/read/",
+            "/other-subjects/": "/caselaw/other-subjects/",
+            "/search/": "/caselaw/search/",
+            "/review/": "/caselaw/review/",
+            "/import/": "/caselaw/import/",
+            "/profile-settings/": "/caselaw/profile-settings/",
+        }
+        for old, new in moved.items():
+            resp = self.client.get(old)
+            self.assertEqual(resp.status_code, 301, old)
+            self.assertEqual(resp["Location"], new, old)
+        resp = self.client.get("/search/?q=abc")
+        self.assertEqual(resp["Location"], "/caselaw/search/?q=abc")
+
     def test_subjects_index_nav_has_no_other_subjects_or_users(self):
         self.client.force_login(self.admin)
         resp = self.client.get(reverse("subjects"))
         nav = resp.content.decode().split('class="program-nav"')[1].split("</nav>")[0]
         self.assertNotIn(reverse("other_subjects"), nav)
         self.assertNotIn(reverse("user_list"), nav)
-        self.assertIn(reverse("backup_list"), nav)
+        self.assertNotIn(reverse("backup_list"), nav)
         self.assertContains(resp, 'href="%s"' % reverse("other_subjects"))  # still reachable from the index
 
     def test_picker_top_row_is_users_name_logout_only(self):
@@ -150,7 +184,8 @@ class HomeIndexTests(TestCase):
         self.assertIn(reverse("user_list"), nav)
         self.assertIn("adam", nav)
         self.assertIn("Log out", nav)
-        for gone in (reverse("search"), reverse("subjects"), reverse("backup_list")):
+        self.assertIn(reverse("backup_list"), nav)
+        for gone in (reverse("search"), reverse("subjects")):
             self.assertNotIn(gone, nav)
         self.assertNotIn("Admin", nav)
         self.client.force_login(self.reader)
@@ -166,7 +201,7 @@ class HomeIndexTests(TestCase):
             self.assertIn('<a href="%s" title="Go to Home (Alt+H)" aria-label="Go to Home">' % reverse("home"), header, name)
             self.assertNotIn("switch-program", html, name)
             self.assertNotIn('class="toolbar', html, name)
-            if name in ("home", "user_list", "settings"):
+            if name in ("home", "user_list", "backup_list", "settings"):
                 self.assertEqual(header.count(">Home</a>"), 1, name)  # brand only, no extra Home button
             else:
                 self.assertNotIn(">Home</a>", header, name)

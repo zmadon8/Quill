@@ -11,7 +11,7 @@ The longer plans are in `docs/PLAN.md` (what is built when), `docs/DESIGN.md` (h
 - A Settings screen (Admin only, linked from the Home page next to Users): rename the Home page and the case law diary (shown as "Case Law Diary" by default). Only the displayed names change; the app, address names and code keep their internal names, and the names are saved in backups.
 - A Users screen (Admin only, linked from the Home page): add a person, change a password, disable or delete a person, and choose or change their role. The app will not let you delete or disable yourself, or remove the last Admin.
 - Profiles: separate data spaces (like separate notebooks) inside a program, for example "Madon - Case Law" and "Junior - Case Law". Each user has access to **one** profile per program (the Case Law Diary is one program), so the data of other profiles is never shown. Existing data and users were put into a profile called "Main". Admin only: a **Profiles** screen (linked on the Home page next to Users and Settings) to add, rename and delete profiles. See `docs/DESIGN.md` section 3.5.
-- A Backups screen (Admin only): "Backup now", a list of saved backups with Download and Restore, and a history of what happened.
+- A Backups screen at `/backups/` (Admin only, linked from Home): "Backup now", a list of saved backups with Download and Restore, and a history of what happened.
 - A nightly backup, made by a scheduled job, kept for at least 30 days.
 - A yellow warning bar at the top of every page (Admins only) if the last backup failed or there has been none for 36 hours.
 - A health check address (`/healthz/`) that Render uses to see that the site is up.
@@ -179,7 +179,7 @@ Layout:
 - `config/`: settings (all from environment variables), URLs.
 - `accounts/`: custom `User` (a `role` of admin, editor or reader; Admin is kept in step with Django's `is_superuser`; role checks in `permissions.py`), throttled login, Users screens, `create_first_admin`.
 - `backups/`: backup models (stored in the database), `policy.py` (pure Python rules), `registry.py` (which models are backed up), `services.py`, views, and the commands `run_backup` and `migrate_with_backup`.
-- `diary/`: the diary data model (Subjects, Topics, Sub-topics, Sections, Items, Cases, Notes, links, settings, version history), its database rules and migration, plus the placeholder home page and `/healthz/`.
+- `diary/`: the diary data model (Subjects, Topics, Sub-topics, Sections, Items, Cases, Notes, links, settings, version history), its database rules and migration, plus the Home page and `/healthz/` (in `root_urls.py`, with the permanent redirects from the old diary URLs). All Case Law Diary pages are under `/caselaw/` (for example `/caselaw/subjects/`); Home, Users, Profiles, Settings, Backups, login and logout stay at the root.
 - `render.yaml`, `build.sh`: Render deployment.
 
 When a later milestone adds diary models, append them to `BACKUP_MODELS` in `backups/registry.py` (parents before children) so they are included in backups and restores. Many-to-many fields are not backed up by the current design.
