@@ -41,6 +41,8 @@ Note: the technology (Django, PostgreSQL) is confirmed for a **standalone app** 
 - Numbering after a Section is settled (D9) but is the most intricate rule; it is covered by tests (below).
 - Phone layout needs repeated real-phone checks.
 
+**Profiles (added during Milestone 1, branch `profiles`):** done. Profile and ProfileMembership, a "Main" profile for existing data, profile columns on all diary tables, profile scoping of every diary view, the Admin Profiles screens, profile choice on the Users screen, the header profile name, the disabled Home card without a profile, and backups that include profiles (`docs/DESIGN.md` section 3.5). Later milestones keep the scoping rule: every query and every record number lookup is inside the user's profile.
+
 ## Milestone 2: Import prototype, dry run, reconciliation
 
 **Deliverable:** A supervised importer reading `Case Law Diary.docx` (never modifying it). A dry-run report (page and downloadable file). Then the real import, **into a profile chosen by the Admin** (profiles are separate data spaces, `docs/DESIGN.md` section 3.5), into a test copy of the database, with a reconciliation report.
@@ -60,7 +62,7 @@ Note: the technology (Django, PostgreSQL) is confirmed for a **standalone app** 
 
 ## Milestone 3: Edit mode, Trash, history, Undo, conversions
 
-**Deliverable:** Everything for changing data: edit mode toggle, add, rename, delete, move up/down, drag reorder, move via tree, the Item editor (rich text, Citation box, flags, For review, Cases), Trash with cascade and restore, permanent delete with double confirmation, version history (20 or more per Item), Undo, clash detection (both versions shown), and conversions with preview and refusal rules. **Role enforcement:** edit mode, delete, restore from Trash, Undo, history restore, conversions and conflict handling need Editor or Admin (server-side, not only hidden buttons); permanent delete needs Admin; Readers see no edit controls (`docs/DESIGN.md` section 9.6).
+**Deliverable:** Everything for changing data: edit mode toggle, add, rename, delete, move up/down, drag reorder, move via tree, the Item editor (rich text, Citation box, flags, For review, Cases), Trash with cascade and restore, permanent delete with double confirmation, version history (20 or more per Item), Undo, clash detection (both versions shown), and conversions with preview and refusal rules. **Role enforcement:** edit mode, delete, restore from Trash, Undo, history restore, conversions and conflict handling need Editor or Admin (server-side, not only hidden buttons); permanent delete needs Admin; Readers see no edit controls (`docs/DESIGN.md` section 9.6). **Profiles:** edits, Trash, history and Undo act only inside the user's profile; moves and links never cross profiles.
 
 **How you check it:**
 - Edit an item with bold and italic; paste from Word and see only bold, italic, underline survive.
@@ -81,7 +83,7 @@ Note: the technology (Django, PostgreSQL) is confirmed for a **standalone app** 
 
 ## Milestone 4: Search, Review list, Settings
 
-**Deliverable:** Global Search page with the shortcuts (Alt+G, Alt+H and Ctrl+Alt+G, Ctrl+Alt+H; Option on a Mac) and visible Search and Subjects buttons, with Home (the program picker) beside the program name; filters; highlighted snippets; open in context. The Review list screen. Settings: opening page (overrides login landing on Home), number formats with preview (including the new Sections format), Custom Name for exported file names with a live file-name preview, and the date format (with time zone).
+**Deliverable:** Global Search page with the shortcuts (Alt+G, Alt+H and Ctrl+Alt+G, Ctrl+Alt+H; Option on a Mac) and visible Search and Subjects buttons, with Home (the program picker) beside the program name; filters; highlighted snippets; open in context. The Review list screen. Settings: opening page (overrides login landing on Home), number formats with preview (including the new Sections format), Custom Name for exported file names with a live file-name preview, and the date format (with time zone). **Profiles:** Search, the Review list and the opening Subject setting look only inside the user's profile.
 
 **How you check it:**
 - Search `2018 9 SCC 49` and find `(2018) 9 SCC 49`.
@@ -115,7 +117,7 @@ Note: the technology (Django, PostgreSQL) is confirmed for a **standalone app** 
 
 ## Milestone 6: Word export and round-trip check
 
-**Deliverable:** Three types of Word export following `docs/DESIGN.md` section 12: (i) Full, one document; (ii) Full, one document per Subject with all Other Subjects together, delivered as one .zip with a manifest; (iii) Current View (Subject, Topic or Sub-topic on screen, focused pane in split screen). Contents page, page headers, numbering per Settings (including Sections and the restart of Items after each Section), "See also" Notes, date and record count. File names built from the Custom Name, the part and the date. A "Backup" button for the restore file.
+**Deliverable:** Three types of Word export following `docs/DESIGN.md` section 12: (i) Full, one document; (ii) Full, one document per Subject with all Other Subjects together, delivered as one .zip with a manifest; (iii) Current View (Subject, Topic or Sub-topic on screen, focused pane in split screen). Contents page, page headers, numbering per Settings (including Sections and the restart of Items after each Section), "See also" Notes, date and record count. File names built from the Custom Name, the part and the date. A "Backup" button for the restore file. **Profiles:** every export covers the user's profile only, and the file name may include the profile name.
 
 **How you check it:**
 - Export (i) and open in Word: Subject names as headings, Topics lettered, Sub-topics numbered, Items (1), Citations in italic after " - ". Under `Clause 12: Leave to Sue` Section (a) has Items (1), (2) and Section (b) has Items (1) to (8), restarting correctly in Word.

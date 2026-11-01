@@ -10,7 +10,7 @@ The longer plans are in `docs/PLAN.md` (what is built when), `docs/DESIGN.md` (h
 - Three roles: **Admin** (everything, including users and backups), **Editor** (reads and edits the diary) and **Reader** (reads only). New accounts are Readers. Your role is shown next to the Log out link. See `docs/DESIGN.md` section 9.6 for what each role may do (the diary screens come in later milestones).
 - A Settings screen (Admin only, linked from the Home page next to Users): rename the Home page and the case law diary (shown as "Case Law Diary" by default). Only the displayed names change; the app, address names and code keep their internal names, and the names are saved in backups.
 - A Users screen (Admin only, linked from the Home page): add a person, change a password, disable or delete a person, and choose or change their role. The app will not let you delete or disable yourself, or remove the last Admin.
-- Profiles: separate data spaces (like separate notebooks) inside a program. Each user has access to one profile per program. Existing data lives in a profile called "Main". The Admin screens for profiles come next; see `docs/DESIGN.md` section 3.5. The sample-data commands take `--profile`.
+- Profiles: separate data spaces (like separate notebooks) inside a program, for example "Madon - Case Law" and "Junior - Case Law". Each user has access to **one** profile per program (the Case Law Diary is one program), so the data of other profiles is never shown. Existing data and users were put into a profile called "Main". Admin only: a **Profiles** screen (linked on the Home page next to Users and Settings) to add, rename and delete profiles. See `docs/DESIGN.md` section 3.5.
 - A Backups screen (Admin only): "Backup now", a list of saved backups with Download and Restore, and a history of what happened.
 - A nightly backup, made by a scheduled job, kept for at least 30 days.
 - A yellow warning bar at the top of every page (Admins only) if the last backup failed or there has been none for 36 hours.
@@ -44,6 +44,16 @@ You need an email address, a payment card and your GitHub account. Cost is about
 5. If Render asks for `DJANGO_ALLOWED_HOSTS`, leave it empty unless you own a domain name. Then press **Apply** (or **Deploy Blueprint**).
 6. Wait for the first deploy to finish. Render shows "Live" and gives you an address ending in `onrender.com`. Open it. You should see the login page.
 
+### Create a profile and give people access (Admin)
+
+1. On the Home page press **Profiles**, then **New profile**, type a name (for example "Junior - Case Law") and save. Names cannot repeat (capital letters do not matter).
+2. Press **Users**. For a new person choose **Case law diary profile** when adding them; for an existing person press edit and pick the profile. A person has at most one profile; picking another replaces the old one, and leaving it blank removes their access.
+3. A person with no profile sees the Case Law Diary card on Home greyed out with "No profile assigned - ask the Admin", and the diary pages answer "403 forbidden" with the same message.
+4. The page header shows the profile name, for example "Case Law Diary · Main".
+5. To delete a profile press **Delete** on the Profiles screen. If it still has users or Subjects, the page explains this and you must tick the confirmation box; the users then lose access and the profile is hidden (its data stays in the database and in backups).
+
+Backups are of the whole database and include all profiles. A backup made before profiles existed restores into "Main".
+
 ### Look at sample data (Milestone 1) and remove it again
 
 Until your real Word file is imported, you can load a clearly named TEST set to look at the screens. Every sample Subject starts with `TEST SAMPLE:`.
@@ -54,6 +64,8 @@ In the Render Shell tab:
 python manage.py load_sample_data
 ```
 
+The sample Subjects go into the profile called "Main" (created if missing). To use another profile add `--profile "Name"`, for example `python manage.py load_sample_data --profile "Junior - Case Law"`.
+
 (Running it twice changes nothing the second time.) Then open the site: you will see the sample Subjects under **Subjects** (press **Open** on the Home page) and a sample under **Other Subjects** (last entry of the Subjects index).
 
 **Before the real import, remove the sample data:**
@@ -61,6 +73,8 @@ python manage.py load_sample_data
 ```
 python manage.py remove_sample_data
 ```
+
+(It acts only inside the profile "Main", or the one given with `--profile`.)
 
 This deletes only Subjects whose name starts with `TEST SAMPLE:` and what sits under them. Your own Subjects are never touched. Take a backup first if you have added anything of your own beneath a sample Subject.
 

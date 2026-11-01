@@ -138,6 +138,7 @@ Everything below that is marked **DEFAULT** is a choice made without the owner's
 - **Managing profiles.** Only the Admin creates, renames and soft-deletes profiles, from a Profiles screen on Home next to Users and Settings. Deleting a profile that still has data or members is refused unless explicitly confirmed, never silently. (DEFAULT, P1.)
 - **A user with no profile** in a program sees that program's card on Home disabled with "No profile assigned - ask the Admin", and the program's pages show the same message instead of any data. (DEFAULT, P6.)
 - **How it is built.** The diary views use a `profile_required` decorator (`diary/views.py`) that finds the user's profile and answers 403 with the page "No profile assigned - ask the Admin" when there is none (a page, not a redirect). Every query filters on that profile, so another profile's ids give 404. The header shows "Case Law Diary &middot; Main" (the profile name in small type). Deleting a profile in use needs a ticked confirmation, removes its users' access and soft-deletes it; its rows stay in the database. `UserSettings.opening_subject` is only honoured when that Subject is live and in the user's profile (`opening_subject_for`).
+- **Screens built.** The Profiles screen (Admin only) lists each profile with its users and Subjects, and has New profile, Rename and Delete. Delete soft-deletes. If the profile still has users or live Subjects, the page explains this and the Admin must tick a confirmation box; otherwise it is refused. Confirming removes the users' access to it; its rows stay in the database. On the Users screen, adding or editing a user has an optional "Case law diary profile" choice; choosing another replaces the old one, and blank removes access.
 - **Settings.** Display names (Home, Case Law Diary) stay global. Per-user settings stay per user (question: should they be per profile?). A user's opening Subject must belong to their profile. (DEFAULT, P8.)
 - **Existing data.** A profile called "Main" in the Case Law Diary is created by the migration; all existing diary records and all existing users are put into it. The first Admin created later also joins "Main". The sample-data commands take `--profile` (default "Main"; loading creates it if missing; removing only acts inside that profile). (DEFAULT, P9.)
 - **Backups** stay whole-database: profiles and memberships are in the backup file. A file made before profiles existed restores with its diary records and its users put into a "Main" profile, and the restore preview lists each profile with its users and records. Restoring or exporting a single profile is a possible later feature. (DEFAULT, P10.)
@@ -401,6 +402,10 @@ Permissions for the planned features. **Everything except the Admin-only account
 | Permanent delete from Trash | No | No (proposed) | Yes |
 | Import from Word | No | No (proposed) | Yes |
 | Users, Backups, Restore | No | No | Yes |
+| Profiles screens (list, add, rename, delete) and assigning a user's profile on the Users screen | No | No | Yes |
+| Open the program (needs a profile; without one the pages answer 403 "No profile assigned - ask the Admin") | Own profile only | Own profile only | Own profile only |
+
+Profiles (section 3.5) narrow every row above: a role applies only inside the user's own profile, and the Admin does not see other profiles' data either. Backups and Restore are whole-database and show all profiles. Trash, History, search, review and export work inside the user's profile only. (DEFAULT, P4, P5 and P10.)
 
 ## 10. Search (spec section 5)
 
@@ -610,3 +615,14 @@ Confirmed earlier: each Heading 1 is a Subject; Miscellaneous holds Other Subjec
   10. **P10.** Backups stay whole-database; an old backup restores into "Main"; per-profile backup is a possible later feature.
   11. **P11.** The diary header shows "Case Law Diary · Main".
   12. **P12.** The Milestone 2 import goes into a chosen profile.
+
+**Questions for the owner (profiles).** Each has a default that is used unless you say otherwise:
+
+1. **Who creates profiles (P1).** Default: only the Admin. Do you want anyone else to?
+2. **Where the role lives (P4).** Default: on the user, so one role everywhere. Or should each profile give its own role (for example Editor in one, Reader in another)?
+3. **Can the Admin switch profiles (P5).** Default: no, the Admin has one profile like everyone else and can only change who belongs where. Or should the Admin be able to look into any profile?
+4. **A user with no profile (P6).** Default: the program card is greyed out with "No profile assigned - ask the Admin", and the pages answer 403 with the same words.
+5. **Settings (P8).** Default: each person's own settings stay with the person, and display names stay global. Or should settings be separate per profile?
+6. **Name of the first profile (P9).** Default: "Main". Do you prefer another name?
+7. **Backups (P10).** Default: one backup of the whole database with all profiles. Do you ever need to back up or restore one profile alone?
+8. **Header (P11).** Default: "Case Law Diary · Main", the profile name in small type. Do you want it hidden when there is only one profile?
