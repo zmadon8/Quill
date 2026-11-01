@@ -16,6 +16,8 @@ from django.db import connection, transaction
 from django.db.migrations.loader import MigrationLoader
 from django.utils import timezone
 
+from accounts.models import normalise_role
+
 from . import policy, registry
 from .models import BackupFile, BackupLog
 
@@ -209,7 +211,22 @@ def parse_backup(raw, max_bytes):
                 or not isinstance(record.get("fields"), dict)
             ):
                 raise BackupError(f"This backup file is damaged (bad record in {label}).")
+    _normalise_user_records(models_in_file.get("accounts.User", []))
     return document
+
+
+def _normalise_user_records(records):
+    """Fill in ``role`` for users in the file, so older backups (made before roles) still restore.
+
+    A missing or unknown role becomes Reader, and Admin if the user is a superuser. This is done
+    here because restoring writes rows without calling ``User.save()``.
+    """
+    for record in records:
+        fields = record["fields"]
+        role, is_superuser = normalise_role(fields.get("role"), bool(fields.get("is_superuser")))
+        fields["role"] = role
+        fields["is_superuser"] = is_superuser
+        fields["is_staff"] = is_superuser
 
 
 def _file_has_active_admin(document):

@@ -44,6 +44,18 @@ class BackupBase(TestCase):
         self.client.login(username="boss", password=PASSWORD)
 
 
+class BackupRoleAccessTests(BackupBase):
+    def test_editor_and_reader_refused(self):
+        self.alice.set_role("editor")
+        self.alice.save()
+        for name in ("alice", "bob"):
+            self.client.login(username=name, password=PASSWORD)
+            for url in ("backup_list", "restore_upload"):
+                self.assertEqual(self.client.get(reverse(url)).status_code, 403, (name, url))
+            self.assertEqual(self.client.post(reverse("backup_now")).status_code, 403)
+            self.client.logout()
+
+
 class CreateBackupTests(BackupBase):
     def test_create_backup_contents_and_log(self):
         backup = services.create_backup("manual", self.admin)
@@ -172,7 +184,7 @@ class RestoreServiceTests(BackupBase):
         # on SQLite, so this test cannot verify it. Only PostgreSQL does (README rehearsal step 5).
         self.alice.is_active = False
         self.alice.save()
-        original = {u.username: (u.password, u.is_superuser, u.is_active) for u in User.objects.all()}
+        original = {u.username: (u.password, u.is_superuser, u.is_active, u.role) for u in User.objects.all()}
         doc = services.parse_backup(services.create_backup("manual").data, MAX)
 
         User.objects.create_user("carol", password=PASSWORD)
@@ -182,7 +194,7 @@ class RestoreServiceTests(BackupBase):
 
         services.restore_backup(doc, self.admin)
 
-        restored = {u.username: (u.password, u.is_superuser, u.is_active) for u in User.objects.all()}
+        restored = {u.username: (u.password, u.is_superuser, u.is_active, u.role) for u in User.objects.all()}
         self.assertEqual(restored, original)
         self.assertNotIn("carol", self.usernames())
         self.assertEqual(BackupFile.objects.filter(kind="pre_restore").count(), 1)
@@ -191,6 +203,34 @@ class RestoreServiceTests(BackupBase):
         safety = gunzip_json(BackupFile.objects.get(kind="pre_restore").data)
         safety_names = {r["fields"]["username"] for r in safety["models"]["accounts.User"]}
         self.assertEqual(safety_names, {"boss", "bob", "carol"})
+
+    def test_round_trip_keeps_roles(self):
+        self.alice.set_role("editor")
+        self.alice.save()
+        doc = services.parse_backup(services.create_backup("manual").data, MAX)
+        roles = {r["fields"]["username"]: r["fields"]["role"] for r in doc["models"]["accounts.User"]}
+        self.assertEqual(roles, {"boss": "admin", "alice": "editor", "bob": "reader"})
+        User.objects.filter(username="alice").update(role="reader")
+        services.restore_backup(doc, self.admin)
+        self.assertEqual(
+            dict(User.objects.values_list("username", "role")),
+            {"boss": "admin", "alice": "editor", "bob": "reader"},
+        )
+
+    def test_restore_old_backup_without_role_field(self):
+        doc = services.parse_backup(services.create_backup("manual").data, MAX)
+        for record in doc["models"]["accounts.User"]:
+            del record["fields"]["role"]
+        # Re-pack as an older file would be: parse again from bytes without the field.
+        raw = gzip.compress(json.dumps(doc).encode("utf-8"))
+        old = services.parse_backup(raw, MAX)
+        User.objects.all().update(role="editor")
+        services.restore_backup(old, self.admin)
+        self.assertEqual(
+            dict(User.objects.values_list("username", "role")),
+            {"boss": "admin", "alice": "reader", "bob": "reader"},
+        )
+        self.assertTrue(User.objects.get(username="boss").is_superuser)
 
     def test_restore_refused_without_active_admin(self):
         doc = services.parse_backup(services.create_backup("manual").data, MAX)
