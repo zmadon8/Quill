@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Undo anyway?{% endblock %}
+{% block content %}
+<div class="home-column">
+  <h1>Some records have changed since</h1>
+  <p>{{ message }} Undoing would also take back the later changes to:</p>
+  <ul>{% for c in changed %}<li>{{ c.label }} (saved as version {{ c.expected_version }}, now version {{ c.current_version }})</li>{% endfor %}</ul>
+  <form method="post" action="{% url 'edit_undo' %}" class="edit-confirm">
+    {% csrf_token %}
+    <input type="hidden" name="group" value="{{ group }}"><input type="hidden" name="force" value="1"><input type="hidden" name="next" value="{{ next_url }}">
+    <button type="submit" class="danger">Undo anyway</button>
+    <a class="button" href="{{ next_url }}">Cancel</a>
+  </form>
+</div>
+{% endblock %}

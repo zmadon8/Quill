@@ -1,10 +1,18 @@
 {% extends "base.html" %}
-{% load static %}
+{% load static diary_tags %}
 {% block title %}Edit {{ kind_name }}{% endblock %}
 {% block content %}
 <div class="home-column item-editor">
   <h1>Edit {{ kind_name }}</h1>
-  <p><a href="{{ back }}">Back to reading</a></p>
+  <p><a href="{{ back }}">Back to reading</a> &middot; <a href="{% url 'history' 'item' item.pk %}?next={{ back|urlencode }}">History</a></p>
+  {% if theirs %}
+  <details class="saved-version" open>
+    <summary>The saved version (version {{ item.version }}), for comparison</summary>
+    <p><strong>Text:</strong> {{ item.text|richhtml }}</p>
+    {% if not is_multi %}<p><strong>Citation:</strong> {{ item.citation }}</p>{% endif %}
+    <p><strong>Flag:</strong> {{ item.flag }} {{ item.flag_text }} &middot; <strong>For review:</strong> {{ item.needs_review|yesno }} {{ item.review_note }}</p>
+  </details>
+  {% endif %}
 
   <form method="post" action="{% url 'edit_item' item.pk %}" class="editor-form" data-item-editor novalidate>
     {% csrf_token %}

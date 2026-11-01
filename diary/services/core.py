@@ -5,6 +5,8 @@ Every public service function opens ``transaction.atomic()``, finds records with
 ``create`` (which bump the version and write a full snapshot to VersionHistory) and returns an
 ``ActionResult``. Nothing here removes rows.
 """
+import contextlib
+import contextvars
 import datetime
 import uuid
 from dataclasses import dataclass, field
@@ -71,13 +73,35 @@ def model_for(kind):
         raise NotFound(f"Unknown record type {kind!r}.")
 
 
+_shared_group = contextvars.ContextVar("diary_action_group", default=None)
+
+
+@contextlib.contextmanager
+def action_group():
+    """Make every service call inside the ``with`` share one Undo group (one user action = one group).
+
+    Yields the group id. Used by the views, so that a screen that makes several service calls (the
+    Item editor saves the Item and its Cases) is still one step for Undo.
+    """
+    group = uuid.uuid4()
+    token = _shared_group.set(group)
+    try:
+        yield group
+    finally:
+        _shared_group.reset(token)
+
+
+def _new_group():
+    return _shared_group.get() or uuid.uuid4()
+
+
 @dataclass
 class Ctx:
     """Who is acting, in which profile, and which Undo group the history rows belong to."""
 
     profile: object
     user: object = None
-    group: uuid.UUID = field(default_factory=uuid.uuid4)
+    group: uuid.UUID = field(default_factory=_new_group)
     touched: list = field(default_factory=list)  # [(record_type, record_id)] written so far
 
     @property

@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Restore the place too?{% endblock %}
+{% block content %}
+<div class="home-column">
+  <h1>The place it was in is in the Trash</h1>
+  <p>To put this back where it was, these must be restored too (only themselves, not everything else deleted with them):</p>
+  <ol>{% for c in chain %}<li>{{ c.kind_name }}: {{ c.label }}</li>{% endfor %}</ol>
+  <form method="post" action="{% url 'trash_restore' %}" class="edit-confirm">
+    {% csrf_token %}
+    {% for name, value in fields %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+    <button type="submit">Restore them too</button>
+    <a class="button" href="{{ next_url }}">Cancel</a>
+  </form>
+</div>
+{% endblock %}

@@ -288,3 +288,22 @@ table[data-resizable-columns] th { position: relative; overflow-wrap: anywhere; 
   .conv-compare { flex-direction: row; align-items: stretch; }
   .conv-arrow { transform: none; }
 }
+
+/* Trash, History, Undo and the conflict screen (Milestone 3d). Every control at least 44px high. */
+.undo-bar { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin: 1rem 0; padding: .5rem; border: 1px solid var(--hair); background: var(--panel); font-family: var(--font-sans); }
+.trash-list { list-style: none; margin: 0; padding: 0; }
+.trash-entry { margin: 0 0 1rem; padding: .75rem; border: 1px solid var(--hair); background: var(--panel); }
+.trash-entry p { margin: .2rem 0; }
+.trash-path { color: var(--muted); font-family: var(--font-sans); font-size: var(--small-size); overflow-wrap: anywhere; }
+.trash-entry .edit-actions form { margin: 0; }
+.history-table, .conflict-table { width: 100%; border-collapse: collapse; font-family: var(--font-sans); font-size: var(--small-size); }
+.history-table th, .history-table td, .conflict-table th, .conflict-table td { text-align: left; vertical-align: top; padding: .5rem; border-bottom: 1px solid var(--hair); overflow-wrap: anywhere; }
+.history-table tr.differs, .conflict-table tr.differs { background: var(--amber-bg); }
+.conflict-choices { display: grid; gap: 1rem; margin-top: 1.25rem; }
+.conflict-choice { padding: .75rem; border: 1px solid var(--hair); background: var(--panel); }
+.conflict-choice h2 { margin-top: 0; font-size: 1.25rem; }
+.conflict-choice button, .conflict-choice .button, .undo-bar button, .undo-bar .edit-btn { min-height: var(--tap); }
+.saved-version { margin: 1rem 0; padding: .5rem .75rem; border: 1px solid var(--hair); background: var(--amber-bg); }
+@media (min-width: 900px) {
+  .conflict-choices { grid-template-columns: repeat(3, 1fr); }
+}

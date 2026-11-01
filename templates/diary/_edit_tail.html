@@ -1,4 +1,15 @@
 {% load static %}{% if edit_mode %}
+<div class="undo-bar" data-undo-bar>
+  {% if undo %}
+  <form method="post" action="{% url 'edit_undo' %}">
+    {% csrf_token %}
+    <input type="hidden" name="group" value="{{ undo.group }}">
+    <input type="hidden" name="next" value="{{ next_url }}">
+    <button type="submit" class="edit-btn">Undo: {{ undo.text }}</button>
+  </form>
+  {% else %}<span class="hint">Nothing to undo in this session.</span>{% endif %}
+  <a class="edit-btn" href="{% url 'trash' %}">Trash</a>
+</div>
 <form method="post" action="{% url 'edit_move' %}" id="edit-drag-form" hidden>
   {% csrf_token %}
   <input type="hidden" name="kind"><input type="hidden" name="id"><input type="hidden" name="version">

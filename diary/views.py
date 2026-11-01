@@ -17,7 +17,7 @@ from accounts.permissions import admin_required, reader_required
 from accounts.profiles import export_file_name, request_profile, request_role
 from accounts.suite import KEY_DIARY
 
-from . import reading
+from . import reading, undo_session
 from .forms import ProfileSettingsForm
 from .importer import loader as import_loader
 from .importer import service as import_service
@@ -58,6 +58,7 @@ def edit_context(request):
     can_edit = user_can_edit(request)
     edit_mode = can_edit and request.GET.get("edit") == "1"
     return {
+        "undo": undo_session.latest(request) if edit_mode else None,
         "can_edit": can_edit,
         "edit_mode": edit_mode,
         "edit_qs": "?edit=1" if edit_mode else "",

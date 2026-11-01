@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}History{% endblock %}
+{% block content %}
+<div class="home-column history-page">
+  <h1>History of the {{ kind_name }} &ldquo;{{ title }}&rdquo;</h1>
+  <p><a href="{{ back }}">Back</a>{% if in_trash %} &middot; This record is in the Trash.{% endif %}{% if gone %} &middot; This record was deleted permanently; its history is kept.{% endif %}</p>
+  <table class="history-table">
+    <thead><tr><th scope="col">Version</th><th scope="col">What happened</th><th scope="col">Time (IST)</th><th scope="col">By</th><th scope="col"><span class="visually-hidden">Open</span></th></tr></thead>
+    <tbody>
+    {% for e in entries %}
+      <tr>
+        <th scope="row">{{ e.version }}{% if e.current %} (current){% endif %}</th>
+        <td>{{ e.kind }}</td>
+        <td>{{ e.when|date:"j M Y, H:i" }}</td>
+        <td>{{ e.who }}</td>
+        <td><a class="edit-btn" href="{% url 'history_version' kind pk e.version %}?next={{ back|urlencode }}">View</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

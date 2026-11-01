@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Delete permanently{% endblock %}
+{% block content %}
+<div class="home-column">
+  <h1>Delete permanently</h1>
+  <p>This removes the {{ kind_name }} &ldquo;{{ label }}&rdquo; for good. It cannot be restored from the Trash afterwards. What is lost ({{ total }} record{{ total|pluralize }}):</p>
+  <ul>{% for name, n in counts %}<li>{{ n }} {{ name }}{{ n|pluralize }}</li>{% endfor %}</ul>
+  <p class="hint">The version history is kept, and numbers are never reused.</p>
+  {% if links %}
+  <h2>Refused: other Notes link to this</h2>
+  <p>Nothing was deleted. Remove or change each of these links first:</p>
+  <ul class="link-list">
+    {% for l in links %}<li>Note &ldquo;{{ l.note_label }}&rdquo; ({% if l.live %}live{% else %}in the Trash{% endif %}) links to the {{ l.target_type }} &ldquo;{{ l.target_label }}&rdquo;.</li>{% endfor %}
+  </ul>
+  <p><a class="button" href="{{ back }}">Back to the Trash</a></p>
+  {% else %}
+  <form method="post" action="{% url 'trash_permanent' %}" class="edit-confirm">
+    {% csrf_token %}
+    <input type="hidden" name="kind" value="{{ kind }}"><input type="hidden" name="id" value="{{ id }}">
+    <input type="hidden" name="confirmed" value="1"><input type="hidden" name="next" value="{{ back }}">
+    <button type="submit" class="danger">Yes, delete these {{ total }} record{{ total|pluralize }} permanently</button>
+    <a class="button" href="{{ back }}">Cancel</a>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

@@ -16,6 +16,8 @@ from django.utils.html import escape
 from django.utils.http import url_has_allowed_host_and_scheme
 
 from . import services as svc
+from . import undo_session
+from .conflicts import conflict_page
 from .models import Item, Subject, Subtopic, Topic
 from .services.core import Ctx, descendants, get_record, label
 from .services.errors import Conflict, NotFound, ServiceError
@@ -51,16 +53,15 @@ def _next(request, default=None):
 
 
 def _conflict(request, exc):
-    return render(
-        request,
-        "diary/edit_conflict.html",
-        {"error": exc, "next_url": _next(request), "mine": sorted(exc.mine.items()), "kind_name": NICE.get(exc.record_type, "record")},
-        status=409,
-    )
+    return conflict_page(request, exc, _next(request))
 
 
 def _guarded(methods):
-    """Decorator: signed in, has a profile, is an Editor of it, only ``methods``; service errors become messages or pages."""
+    """Decorator: signed in, has a profile, is an Editor of it, only ``methods``; service errors become messages or pages.
+
+    A POST runs inside one Undo group (``action_group``), and the group is remembered in the session
+    when the action wrote anything, so the Undo button reverses the whole action.
+    """
 
     def decorate(view):
         @profile_required
@@ -70,15 +71,19 @@ def _guarded(methods):
                 raise PermissionDenied
             if request.method not in methods:
                 return HttpResponseNotAllowed(list(methods))
-            try:
-                return view(request, *args, **kwargs)
-            except NotFound as exc:
-                raise Http404(exc.message)
-            except Conflict as exc:
-                return _conflict(request, exc)
-            except ServiceError as exc:
-                messages.error(request, exc.message or "That could not be done.")
-                return redirect(_next(request))
+            with svc.action_group() as group:
+                try:
+                    response = view(request, *args, **kwargs)
+                except NotFound as exc:
+                    raise Http404(exc.message)
+                except Conflict as exc:
+                    response = _conflict(request, exc)
+                except ServiceError as exc:
+                    messages.error(request, exc.message or "That could not be done.")
+                    response = redirect(_next(request))
+            if request.method == "POST":
+                undo_session.remember(request, group)
+            return response
 
         return wrapper
 
@@ -89,6 +94,8 @@ def _guarded(methods):
 edit_endpoint = _guarded(("POST",))
 #: GET shows a page, POST changes (the Item editor).
 editor_page = _guarded(("GET", "POST"))
+#: GET only (Trash and History screens).
+editor_get = _guarded(("GET",))
 
 
 def _kind(request):

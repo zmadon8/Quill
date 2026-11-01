@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Trash{% endblock %}
+{% block content %}
+<div class="home-column trash-page">
+  <h1>Trash</h1>
+  <p class="hint">Deleted records wait here. Restore brings back a record together with what was deleted with it, in its old place. Deleting for good is for the Admin only and cannot be undone.</p>
+  {% if entries %}
+  <ul class="trash-list">
+    {% for e in entries %}
+    <li class="trash-entry">
+      <p class="trash-title"><strong>{{ e.kind_name }}:</strong> {{ e.label }}</p>
+      <p class="trash-path">{% if e.path %}In: {{ e.path }}{% else %}Top level{% endif %}{% if e.parent_in_trash %} (the place it was in is also in the Trash){% endif %}</p>
+      <p class="hint">Deleted {{ e.deleted_at|date:"j M Y, H:i" }} IST by {{ e.deleted_by }}. {{ e.count }} record{{ e.count|pluralize }} in this batch.</p>
+      <div class="edit-actions">
+        <form method="post" action="{% url 'trash_restore' %}">
+          {% csrf_token %}
+          <input type="hidden" name="kind" value="{{ e.type }}"><input type="hidden" name="id" value="{{ e.id }}"><input type="hidden" name="version" value="{{ e.version }}">
+          <input type="hidden" name="next" value="{% url 'trash' %}">
+          <button type="submit" class="edit-btn">Restore</button>
+        </form>
+        <a class="edit-btn" href="{% url 'history' e.type e.id %}?next={% url 'trash' %}">History</a>
+        {% if can_delete_permanently %}
+        <form method="post" action="{% url 'trash_permanent' %}">
+          {% csrf_token %}
+          <input type="hidden" name="kind" value="{{ e.type }}"><input type="hidden" name="id" value="{{ e.id }}">
+          <input type="hidden" name="next" value="{% url 'trash' %}">
+          <button type="submit" class="edit-btn danger">Delete permanently&hellip;</button>
+        </form>
+        {% endif %}
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p>The Trash is empty.</p>
+  {% endif %}
+</div>
+{% endblock %}

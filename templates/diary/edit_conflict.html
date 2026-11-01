@@ -1,14 +1,74 @@
 {% extends "base.html" %}
 {% block title %}Changed by someone else{% endblock %}
 {% block content %}
-<div class="home-column">
+<div class="home-column conflict">
   <h1>This {{ kind_name }} has changed</h1>
-  <p>{{ error.message }} Nothing was saved. Version you opened: {{ error.expected_version }}. Current version: {{ error.current_version }}.</p>
-  {% if mine %}
-  <h2>What you tried to save</h2>
-  <ul>{% for name, value in mine %}<li><strong>{{ name }}</strong>: {{ value }}</li>{% endfor %}</ul>
-  {% endif %}
-  <p>Go back, which reloads the page with the current version, and make your change again if it is still needed.</p>
-  <p><a class="button primary" href="{{ next_url }}">Reload and continue</a></p>
+  <p>{{ error.message }} Nothing was saved. The version you opened was {{ error.expected_version }}; the current version is {{ error.current_version }}.</p>
+  <p>Choose what to do. Nothing you typed is lost: it is shown here and kept by the first and third choices.</p>
+
+  <table class="conflict-table">
+    <thead><tr><th scope="col">Field</th><th scope="col">Mine (what you tried to save)</th><th scope="col">Theirs (saved now)</th></tr></thead>
+    <tbody>
+    {% for label, mine, theirs, differs in rows %}
+      <tr{% if differs %} class="differs"{% endif %}>
+        <th scope="row">{{ label }}</th>
+        <td class="mine">{{ mine|linebreaksbr }}</td>
+        <td class="theirs">{{ theirs|linebreaksbr }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="conflict-choices">
+    <section class="conflict-choice">
+      <h2>Keep mine</h2>
+      <p>Do the same again, over what is saved now. The other version stays in the History, so it can be restored.</p>
+      <form method="post" action="{{ action }}">
+        {% csrf_token %}
+        {% for name, value in fields %}{% if merge.type != "fields" or name != merge.field %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endif %}{% endfor %}
+        {% if merge.type == "fields" %}<input type="hidden" name="{{ merge.field }}" value="{{ merge.value }}">{% endif %}
+        <button type="submit">Keep mine</button>
+      </form>
+    </section>
+
+    <section class="conflict-choice">
+      <h2>Keep theirs</h2>
+      <p>Leave what is saved as it is and drop your change.</p>
+      <a class="button" href="{{ next_url }}">Keep theirs</a>
+    </section>
+
+    {% if merge.type %}
+    <section class="conflict-choice">
+      <h2>Edit and merge</h2>
+      {% if merge.type == "editor" %}
+      <p>Open the editor with everything you typed, next to the saved version, and save when it is right.</p>
+      <form method="post" action="{{ action }}">
+        {% csrf_token %}
+        {% for name, value in fields %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+        <input type="hidden" name="merge" value="1">
+        <button type="submit">Edit and merge</button>
+      </form>
+      {% elif merge.type == "fields" %}
+      <p>Change your text if you want, then save it over the current version.</p>
+      <form method="post" action="{{ action }}" class="edit-form">
+        {% csrf_token %}
+        {% for name, value in fields %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+        <label>{{ merge.label }}
+          {% if merge.multiline %}<textarea name="{{ merge.field }}" rows="3">{{ merge.value }}</textarea>
+          {% else %}<input type="text" name="{{ merge.field }}" value="{{ merge.value }}" maxlength="500">{% endif %}
+        </label>
+        <button type="submit">Save merged</button>
+      </form>
+      {% elif merge.type == "picker" %}
+      <p>Choose the place again, looking at the current state.</p>
+      <form method="post" action="{% url 'edit_move_to' %}">
+        {% csrf_token %}
+        {% for name, value in merge.fields %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+        <button type="submit">Choose the place again</button>
+      </form>
+      {% endif %}
+    </section>
+    {% endif %}
+  </div>
 </div>
 {% endblock %}

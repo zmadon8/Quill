@@ -160,7 +160,7 @@ def _person(user):
     return user.get_full_name() or user.get_username()
 
 
-def _render(request, item, back, values=None, rows=None, status=200):
+def _render(request, item, back, values=None, rows=None, status=200, theirs=False):
     if values is None:
         values = {"text": item.text, "citation": item.citation, "flag": item.flag, "flag_text": item.flag_text,
                   "needs_review": item.needs_review, "review_note": item.review_note}
@@ -181,6 +181,7 @@ def _render(request, item, back, values=None, rows=None, status=200):
         "created_by": _person(item.created_by),
         "updated_by": _person(item.updated_by),
         "item_label": label(item),
+        "theirs": theirs,
     }
     return render(request, "diary/item_editor.html", context, status=status)
 
@@ -190,9 +191,22 @@ def item_editor(request, pk):
     """GET: the editor. POST: save it (the whole form, with the versions it was opened at)."""
     item = _load_item(request, pk)
     back = _next(request, _default_back(item))
+    if request.method == "POST" and request.POST.get("merge"):
+        return _merge(request, item, back)
     if request.method == "POST":
         return _save(request, item, back)
     return _render(request, item, back)
+
+
+def _merge(request, item, back):
+    """Edit and merge (after a conflict): the editor again with what was typed, at the current version.
+
+    Nothing is saved. The saved values are shown above the form for comparison.
+    """
+    values = _values(request.POST)
+    rows = _case_rows(request.POST) if item.kind == KIND_MULTI else []
+    messages.info(request, "Someone else changed this Item. Your text is below; compare it with the saved version, then Save.")
+    return _render(request, item, back, values=values, rows=rows, theirs=True)
 
 
 # ------------------------------------------------------------------ conversions
