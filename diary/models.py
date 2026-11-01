@@ -5,6 +5,8 @@ position. Parents are separate optional links with a database rule that exactly
 one is filled (section 3.1). Nothing is removed by the system except through
 "Delete permanently"; deleting sets ``deleted_at``.
 """
+import uuid
+
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -79,6 +81,8 @@ class Record(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(null=True, blank=True)
+    # Shared by every record that went to Trash in the same delete (a TrashBatch id); empty otherwise.
+    delete_batch = models.UUIDField(null=True, blank=True, db_index=True)
     version = models.PositiveIntegerField(default=1)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
@@ -396,6 +400,26 @@ class UserSettings(models.Model):
         return f"Settings for {self.user_id}"
 
 
+class TrashBatch(models.Model):
+    """One delete action: the records it moved to Trash carry this id in ``delete_batch`` (section 5.6)."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    profile = models.ForeignKey("accounts.Profile", on_delete=models.PROTECT, related_name="+")
+    root_type = models.CharField(max_length=30)
+    root_id = models.BigIntegerField()
+    label = models.CharField(max_length=500, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+
+    class Meta:
+        verbose_name_plural = "trash batches"
+
+    def __str__(self):
+        return f"{self.root_type} {self.root_id}: {self.label}"
+
+
 class VersionHistory(models.Model):
     """One full snapshot of one record at one version (section 9.1)."""
 
@@ -409,6 +433,8 @@ class VersionHistory(models.Model):
     )
     profile = models.ForeignKey("accounts.Profile", on_delete=models.PROTECT, related_name="+")
     change_kind = models.CharField(max_length=10, choices=CHANGE_KIND_CHOICES)
+    # Every row written by one user action shares a group, so Undo can reverse the whole action.
+    group = models.UUIDField(null=True, blank=True, db_index=True)
 
     class Meta:
         verbose_name_plural = "version history"

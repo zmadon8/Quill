@@ -1,6 +1,7 @@
 import gzip
 import hashlib
 import json
+import uuid
 from datetime import timedelta
 from io import StringIO
 from unittest import mock
@@ -26,6 +27,7 @@ from diary.models import (
     Subject,
     Subtopic,
     Topic,
+    TrashBatch,
     UserSettings,
     VersionHistory,
 )
@@ -382,7 +384,15 @@ class DiaryRoundTripTests(BackupBase):
         SuiteName.objects.create(key="diary", display_name="Case Law Diary (custom)")
         UserSettings.objects.create(user=user, section_format="section_n", opening_subject=subject)
         VersionHistory.objects.create(profile=main_profile(),
-            record_type="item", record_id=item.pk, version=1, snapshot={"text": "x"}, change_kind="create"
+            record_type="item", record_id=item.pk, version=1, snapshot={"text": "x"}, change_kind="create",
+            group=uuid.uuid4(),
+        )
+        batch = TrashBatch.objects.create(
+            profile=main_profile(), root_type="item", root_id=item.pk, label="Gone", created_by=user
+        )
+        Item.objects.create(
+            profile=main_profile(), subtopic=subtopic, text="Trashed", position=2,
+            deleted_at=timezone.now(), delete_batch=batch.id,
         )
 
     def snapshot(self):
@@ -441,6 +451,59 @@ class DiaryRoundTripTests(BackupBase):
         services.restore_backup(doc, self.admin)
         self.assertTrue(all(sub.created_at.microsecond == 123000 for sub in Subject.objects.all()))
         self.assertTrue(Subject.objects.exists())
+
+
+class OldFileWithoutTrashBatchesTests(BackupBase):
+    """A backup made before Milestone 3 has no Trash batches, no delete_batch and no history group."""
+
+    build = DiaryRoundTripTests.build
+
+    def old_file(self):
+        doc = services.parse_backup(services.create_backup("manual").data, MAX)
+        del doc["models"]["diary.TrashBatch"]
+        del doc["counts"]["diary.TrashBatch"]
+        for label, records in doc["models"].items():
+            for record in records:
+                record["fields"].pop("delete_batch", None)
+                record["fields"].pop("group", None)
+        return json.dumps(doc).encode("utf-8")
+
+    def test_registry_lists_trash_batches_as_optional(self):
+        self.assertIn("diary.TrashBatch", registry.BACKUP_MODELS)
+        self.assertIn("diary.TrashBatch", registry.OPTIONAL_MODELS)
+        self.assertIn("diary.TrashBatch", registry.PROFILE_MODELS)
+
+    def test_new_file_carries_batches_and_groups(self):
+        self.build()
+        doc = services.parse_backup(services.create_backup("manual").data, MAX)
+        self.assertEqual(doc["counts"]["diary.TrashBatch"], 1)
+        trashed = [r for r in doc["models"]["diary.Item"] if r["fields"]["deleted_at"]]
+        self.assertEqual(trashed[0]["fields"]["delete_batch"], str(TrashBatch.objects.get().pk))
+        self.assertTrue(doc["models"]["diary.VersionHistory"][0]["fields"]["group"])
+
+    def test_old_file_is_accepted_and_restores_with_empty_defaults(self):
+        self.build()
+        doc = services.parse_backup(self.old_file(), MAX)
+        self.assertNotIn("diary.TrashBatch", doc["models"])
+        services.restore_backup(doc, self.admin)
+        self.assertEqual(TrashBatch.objects.count(), 0)
+        self.assertTrue(Item.objects.exists())
+        self.assertFalse(Item.objects.filter(delete_batch__isnull=False).exists())
+        self.assertTrue(Item.objects.filter(deleted_at__isnull=False).exists())
+        self.assertFalse(VersionHistory.objects.filter(group__isnull=False).exists())
+
+    def test_restoring_an_old_file_replaces_existing_trash_batches(self):
+        self.build()
+        doc = services.parse_backup(self.old_file(), MAX)
+        self.assertEqual(TrashBatch.objects.count(), 1)
+        services.restore_backup(doc, self.admin)
+        self.assertEqual(TrashBatch.objects.count(), 0)
+
+    def test_preview_of_an_old_file_lists_the_batches_as_removed(self):
+        self.build()
+        doc = services.parse_backup(self.old_file(), MAX)
+        row = {r["label"]: r for r in services.preview_restore(doc)}["diary.TrashBatch"]
+        self.assertEqual((row["in_file"], row["in_database_now"], row["would_be_removed"]), (0, 1, 1))
 
 
 class OldFileWithoutProfilesTests(BackupBase):

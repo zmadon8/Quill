@@ -22,6 +22,7 @@ BACKUP_MODELS = [
     "accounts.SuiteName",
     "accounts.Profile",
     "accounts.ProfileMembership",
+    "diary.TrashBatch",
     "diary.Subject",
     "diary.Topic",
     "diary.Subtopic",
@@ -36,12 +37,13 @@ BACKUP_MODELS = [
 
 #: Models an older backup file may lack. Restoring such a file empties the table, so the built-in
 #: defaults apply (a backup made before the Settings page existed has no display names). Profiles and
-#: memberships are optional too: see ``services.upgrade_old_document`` for how an older file is
+#: memberships are optional too, and so are Trash batches (added in Milestone 3; an older file simply has none): see ``services.upgrade_old_document`` for how an older file is
 #: given a default "Main" profile.
-OPTIONAL_MODELS = {"accounts.SuiteName", "accounts.Profile", "accounts.ProfileMembership"}
+OPTIONAL_MODELS = {"accounts.SuiteName", "accounts.Profile", "accounts.ProfileMembership", "diary.TrashBatch"}
 
 #: Diary models that carry a ``profile`` column. An older backup lacks it; such rows go into "Main".
 PROFILE_MODELS = [
+    "diary.TrashBatch",
     "diary.Subject",
     "diary.Topic",
     "diary.Subtopic",
