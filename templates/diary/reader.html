@@ -7,23 +7,26 @@
   <aside class="contents-panel" id="contents-panel" aria-label="Contents">
     {% include "diary/_panel.html" %}
   </aside>
-  <article class="reading">
+  <article class="reading{% if edit_mode %} editing{% endif %}"{% if edit_mode %} data-edit-mode data-move-url="{% url 'edit_move' %}"{% endif %}>
     <div class="actions">
       <button type="button" class="button small contents-button" data-contents-toggle aria-controls="contents-panel" aria-expanded="false">Subjects</button>
+      {% if can_edit %}<a class="button small{% if edit_mode %} primary{% endif %}" href="{{ toggle_url }}" data-edit-toggle{% if edit_mode %} aria-pressed="true"{% endif %}>{% if edit_mode %}Done editing{% else %}Edit mode{% endif %}</a>{% endif %}
     </div>
     {% for b in blocks %}
       {% if b.kind == "heading" %}
-        {% if b.level == "subject" %}<h1 id="{{ b.anchor }}">{{ b.name }}</h1>
-        {% elif b.level == "topic" %}<h2 id="{{ b.anchor }}" class="topic-heading"><span class="num">{{ b.label|dotted }}</span> {{ b.name }}</h2>
-        {% else %}<h3 id="{{ b.anchor }}" class="subtopic-heading"><span class="num">{{ b.label|dotted }}</span> {{ b.name }}</h3>{% endif %}
+        {% if b.level == "subject" %}<h1 id="{{ b.anchor }}">{{ b.name }}</h1>{% include "diary/_edit_bar.html" with ekind="subject" eid=b.id eversion=b.version ename=b.name eanchor=b.anchor erun="" erename=True eadd=True elanding=subject.show_on_landing %}
+        {% elif b.level == "topic" %}<h2 id="{{ b.anchor }}" class="topic-heading"><span class="num">{{ b.label|dotted }}</span> {{ b.name }}</h2>{% include "diary/_edit_bar.html" with ekind="topic" eid=b.id eversion=b.version ename=b.name eanchor=b.anchor erun=b.run erename=True eadd=True %}
+        {% else %}<h3 id="{{ b.anchor }}" class="subtopic-heading"><span class="num">{{ b.label|dotted }}</span> {{ b.name }}</h3>{% include "diary/_edit_bar.html" with ekind="subtopic" eid=b.id eversion=b.version ename=b.name eanchor=b.anchor erun=b.run erename=True eadd=True %}{% endif %}
       {% elif b.kind == "section" %}
         <div class="section-header{% if b.needs_review %} review{% endif %}" id="{{ b.anchor }}"><strong><span class="num">{{ b.label|dotted }}</span>{% if b.name %} {{ b.name }}{% endif %}</strong>{% if b.needs_review %} <span class="review-marker">For review{% if b.review_note %}: {{ b.review_note }}{% endif %}</span>{% endif %}</div>
+        {% include "diary/_edit_bar.html" with ekind="section" eid=b.id eversion=b.version ename=b.name eanchor=b.anchor erun=b.run erename=True eadd=False %}
       {% elif b.kind == "item" %}
         {% include "diary/_item.html" %}
       {% elif b.kind == "note" %}
         {% include "diary/_note.html" %}
       {% endif %}
     {% endfor %}
+    {% include "diary/_edit_tail.html" %}
   </article>
 </div>
 {% endblock %}

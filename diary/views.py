@@ -13,8 +13,8 @@ from django.urls import reverse
 
 from accounts.models import ROLE_EDITOR
 from accounts.models import Profile
-from accounts.permissions import admin_required, program_role, reader_required
-from accounts.profiles import export_file_name, request_profile
+from accounts.permissions import admin_required, reader_required
+from accounts.profiles import export_file_name, request_profile, request_role
 from accounts.suite import KEY_DIARY
 
 from . import reading
@@ -43,6 +43,27 @@ def profile_required(view):
         return view(request, *args, **kwargs)
 
     return wrapper
+
+
+def user_can_edit(request):
+    """Only Editors of the profile may edit; Admins follow the role of their own membership."""
+    return request_role(request, request.profile.program) == ROLE_EDITOR
+
+
+def edit_context(request):
+    """Template variables for Edit mode. Edit mode is on only for Editors, with ?edit=1 in the address.
+
+    ``next_url`` is where an edit sends the browser back to; ``toggle_url`` flips Edit mode.
+    """
+    can_edit = user_can_edit(request)
+    edit_mode = can_edit and request.GET.get("edit") == "1"
+    return {
+        "can_edit": can_edit,
+        "edit_mode": edit_mode,
+        "edit_qs": "?edit=1" if edit_mode else "",
+        "next_url": request.get_full_path(),
+        "toggle_url": request.path if edit_mode else f"{request.path}?edit=1",
+    }
 
 
 def _subjects(profile, **filters):
@@ -104,6 +125,7 @@ def subjects(request):
     total_items = sum(n for pk, (n, _) in counts.items() if pk in live_ids)
     total_review = sum(r for pk, (_, r) in counts.items() if pk in live_ids)
     return render(request, "diary/subjects.html", {
+        **edit_context(request),
         "subjects": landing,
         "other_count": other_count,
         "subject_total": len(live_ids),
@@ -122,7 +144,7 @@ def home(request):
 def profile_settings(request):
     """Settings of the user's profile. Editors can change the export name; Readers only view it."""
     profile = request.profile
-    can_edit = program_role(request.user, profile.program) == ROLE_EDITOR
+    can_edit = user_can_edit(request)
     form = ProfileSettingsForm(request.POST or None, instance=profile)
     if request.method == "POST":
         if not can_edit:
@@ -141,7 +163,7 @@ def profile_settings(request):
 @profile_required
 def other_subjects(request):
     subjects = _subjects(request.profile, show_on_landing=False).order_by("other_acts_position", "name", "pk")
-    return render(request, "diary/other_subjects.html", {"subjects": subjects})
+    return render(request, "diary/other_subjects.html", {**edit_context(request), "subjects": subjects})
 
 
 @profile_required
@@ -172,18 +194,19 @@ def subject_contents(request, pk):
     subject = get_object_or_404(_subjects(request.profile), pk=pk)
     context = reading.build_reading(subject, request.user)
     context.update(subject=subject, crumbs=_crumbs(subject), in_context=_in_context(request),
-                   **_panel_subjects(request.profile))
+                   **edit_context(request), **_panel_subjects(request.profile))
     return render(request, "diary/subject_contents.html", context)
 
 
 def _render_reading(request, subject, scope, target, crumbs):
     if scope != "subject" and _in_context(request):
         # View in context: the whole Subject is shown and the browser jumps to the chosen entry.
-        return redirect(f"{reverse('read_subject', args=[subject.pk])}#n-{scope}-{target.pk}")
+        keep = "?edit=1" if edit_context(request)["edit_mode"] else ""
+        return redirect(f"{reverse('read_subject', args=[subject.pk])}{keep}#n-{scope}-{target.pk}")
     context = reading.build_reading(subject, request.user, scope, target)
     current_topic = target.pk if scope == "topic" else (target.topic_id if scope == "subtopic" else None)
     context.update(subject=subject, scope=scope, target=target, crumbs=crumbs, toc_current_topic=current_topic,
-                   in_context=_in_context(request), **_panel_subjects(request.profile))
+                   in_context=_in_context(request), **edit_context(request), **_panel_subjects(request.profile))
     return render(request, "diary/reader.html", context)
 
 

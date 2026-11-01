@@ -65,8 +65,17 @@ def request_profile(request, program=KEY_DIARY):
     """The signed-in user's profile for ``program``, looked up once per request (None if none)."""
     attr = f"_profile_{program}"
     if not hasattr(request, attr):
-        setattr(request, attr, get_profile_for(getattr(request, "user", None), program))
+        membership = get_membership_for(getattr(request, "user", None), program)
+        setattr(request, f"_membership_{program}", membership)
+        setattr(request, attr, membership.profile if membership else None)
     return getattr(request, attr)
+
+
+def request_role(request, program=KEY_DIARY):
+    """The signed-in user's role in ``program`` for this request ("editor", "reader" or None); no extra query."""
+    request_profile(request, program)
+    membership = getattr(request, f"_membership_{program}", None)
+    return membership.role if membership else None
 
 
 def set_user_profile(user, profile, role=ROLE_READER, program=KEY_DIARY):

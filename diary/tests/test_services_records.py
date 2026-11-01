@@ -336,3 +336,35 @@ class HistoryRestoreTests(ServiceTestCase):
         svc.convert_item(self.profile, self.user, self.one.pk, "nested")
         with self.assertRaises(svc.Refused):
             svc.restore_version(self.profile, self.user, "item", self.one.pk, 2)
+
+
+class LandingTests(ServiceTestCase):
+    def test_a_subject_moves_between_the_two_lists_and_the_old_list_closes_up(self):
+        a = self.make("subject", name="A")
+        b = self.make("subject", name="B")
+        c = self.make("subject", name="C")
+        other = self.make("subject", name="Other", show_on_landing=False)
+        result = svc.set_landing(self.profile, self.user, a.pk, False)
+        self.assertTrue(result.changed)
+        self.assertFalse(self.get(a).show_on_landing)
+        self.assertEqual(self.get(a).other_acts_position, 2)
+        self.assertEqual(self.get(other).other_acts_position, 1)
+        self.assertEqual((self.get(b).landing_position, self.get(c).landing_position), (1, 2))
+        self.assertEqual(self.history_kinds(a), ["create", "move"])
+        svc.set_landing(self.profile, self.user, a.pk, True)
+        self.assertEqual((self.get(b).landing_position, self.get(c).landing_position, self.get(a).landing_position), (1, 2, 3))
+
+    def test_repeating_the_same_choice_changes_nothing(self):
+        a = self.make("subject", name="A")
+        count = VersionHistory.objects.count()
+        self.assertFalse(svc.set_landing(self.profile, self.user, a.pk, True).changed)
+        self.assertEqual(VersionHistory.objects.count(), count)
+
+    def test_stale_version_is_a_conflict_and_other_profiles_are_not_found(self):
+        a = self.make("subject", name="A")
+        svc.edit(self.profile, self.user, "subject", a.pk, {"name": "A2"})
+        with self.assertRaises(svc.Conflict):
+            svc.set_landing(self.profile, self.user, a.pk, False, expected_version=1)
+        foreign = self.make("subject", profile=self.other_profile, name="Foreign")
+        with self.assertRaises(svc.NotFound):
+            svc.set_landing(self.profile, self.user, foreign.pk, False)

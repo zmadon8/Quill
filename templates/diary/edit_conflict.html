@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Changed by someone else{% endblock %}
+{% block content %}
+<div class="home-column">
+  <h1>This {{ kind_name }} has changed</h1>
+  <p>{{ error.message }} Nothing was saved. Version you opened: {{ error.expected_version }}. Current version: {{ error.current_version }}.</p>
+  {% if mine %}
+  <h2>What you tried to save</h2>
+  <ul>{% for name, value in mine %}<li><strong>{{ name }}</strong>: {{ value }}</li>{% endfor %}</ul>
+  {% endif %}
+  <p>Go back, which reloads the page with the current version, and make your change again if it is still needed.</p>
+  <p><a class="button primary" href="{{ next_url }}">Reload and continue</a></p>
+</div>
+{% endblock %}

@@ -2,13 +2,29 @@
 {% block title %}Other Subjects{% endblock %}
 {% block content %}
 <h1>Other Subjects</h1>
+  {% if can_edit %}<p class="actions"><a class="button small{% if edit_mode %} primary{% endif %}" href="{{ toggle_url }}">{% if edit_mode %}Done editing{% else %}Edit mode{% endif %}</a></p>{% endif %}
 {% if subjects %}
 <ul class="plain-list">
   {% for subject in subjects %}
-  <li><a class="row-link" href="{% url 'subject_contents' subject.pk %}">{{ subject.name }}</a></li>
+  <li><a class="row-link" href="{% url 'subject_contents' subject.pk %}">{{ subject.name }}</a>
+  {% include "diary/_edit_bar.html" with ekind="subject" eid=subject.pk eversion=subject.version ename=subject.name eanchor="" erun="subject-show-0" erename=True eadd=False elanding=False %}</li>
   {% endfor %}
 </ul>
 {% else %}
 <p>There are no Other Subjects yet.</p>
 {% endif %}
+{% if edit_mode %}
+  <details class="edit-more">
+    <summary class="edit-btn">Add a Subject&hellip;</summary>
+    <form method="post" action="{% url 'edit_add' %}" class="edit-form">
+      {% csrf_token %}
+      <input type="hidden" name="what" value="subject">
+      <input type="hidden" name="landing" value="0">
+      <input type="hidden" name="next" value="{{ next_url }}">
+      <label>Subject name <input type="text" name="name" maxlength="300" required></label>
+      <button type="submit">Add at the end</button>
+    </form>
+  </details>
+  {% endif %}
+{% include "diary/_edit_tail.html" %}
 {% endblock %}

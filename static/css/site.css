@@ -212,3 +212,32 @@ table[data-resizable-columns] th { position: relative; overflow-wrap: anywhere; 
   .home-column h1 { font-size: 2rem; }
 }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* Edit mode (Milestone 3b). Phone first: one column, every control at least 44px high. */
+.edit-bar { display: flex; flex-direction: column; gap: .5rem; margin: .4rem 0 .8rem; padding: .5rem; border: 1px dashed var(--hair); background: var(--panel); font-family: var(--font-sans); font-size: var(--small-size); }
+.edit-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.edit-btn, .edit-bar summary.edit-btn { min-height: var(--tap); min-width: var(--tap); padding: 0 .9rem; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--ink); border-radius: 2px; background: var(--panel); color: var(--ink); cursor: pointer; font: inherit; list-style: none; }
+.edit-bar summary.edit-btn::-webkit-details-marker { display: none; }
+.edit-btn.danger { background: var(--oxblood); border-color: var(--oxblood); color: var(--oxblood-ink); }
+.drag-handle { cursor: grab; touch-action: none; user-select: none; letter-spacing: -.1em; }
+.drag-handle.active { cursor: grabbing; background: var(--amber-bg); }
+.edit-more[open] { border: 1px solid var(--hair); padding: .5rem; background: var(--bg); }
+.edit-form { display: flex; flex-direction: column; gap: .6rem; margin-top: .5rem; }
+.edit-form label { display: flex; flex-direction: column; gap: .25rem; }
+.edit-form input[type=text], .edit-form select, .edit-form textarea { min-height: var(--tap); font: inherit; padding: .4rem .6rem; width: 100%; box-sizing: border-box; }
+.dragging { opacity: .55; }
+.drop-before { box-shadow: 0 -3px 0 0 var(--focus); }
+.drop-after { box-shadow: 0 3px 0 0 var(--focus); }
+.edit-confirm { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1rem; }
+.renumber-list { padding-left: 1.25rem; }
+.picker-list { list-style: none; margin: 0; padding: 0; }
+.picker-list li { margin: .25rem 0; }
+.picker-list .depth-1 { padding-left: 1.25rem; }
+.picker-list .depth-2 { padding-left: 2.5rem; }
+.picker-list .depth-3 { padding-left: 3.75rem; }
+.picker-choice { width: 100%; justify-content: flex-start; white-space: normal; text-align: left; }
+.picker-no { display: block; min-height: var(--tap); padding: .6rem 1rem; color: var(--muted); }
+.subject-index .edit-bar, .plain-list .edit-bar { margin-top: .25rem; }
+@media (min-width: 900px) {
+  .edit-bar { flex-direction: row; flex-wrap: wrap; align-items: flex-start; }
+}

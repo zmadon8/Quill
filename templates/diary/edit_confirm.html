@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="home-column">
+  <h1>{{ title }}</h1>
+  <p>{{ lead }}</p>
+  {% if changes %}
+  <p>These numbers change:</p>
+  <ul class="renumber-list">
+    {% for c in changes %}<li><span class="num">{{ c.before }}</span> becomes <span class="num">{{ c.after }}</span> &middot; {{ c.label }}</li>{% endfor %}
+  </ul>
+  {% endif %}
+  <form method="post" action="{{ action }}" class="edit-confirm">
+    {% csrf_token %}
+    {% for name, value in fields %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+    <button type="submit"{% if danger %} class="danger"{% endif %}>{{ confirm_label }}</button>
+    <a class="button" href="{{ next_url }}">Cancel</a>
+  </form>
+</div>
+{% endblock %}

@@ -15,7 +15,7 @@ from .core import (
 )
 from .errors import Refused, ValidationFailed
 from .moves import ALLOWED_PARENTS, NICE, check_move_allowed, parent_column
-from .sequences import lock_sequence, make_room, sequence_key
+from .sequences import lock_sequence, make_room, normalize, place, sequence_key
 
 EDITABLE = {
     "subject": ("name",),
@@ -114,6 +114,27 @@ def create(profile, user, kind, parent=None, index=None, **fields):
         else:
             position = {"position": number}
         obj = create_row(ctx, model, **columns, **values, **position)
+        return make_result(ctx, obj)
+
+
+def set_landing(profile, user, subject_id, show, expected_version=None):
+    """Show a Subject on the landing page (True) or list it under Other Subjects (False).
+
+    It goes to the end of the other list and the list it left is renumbered 1..n. Repeating the
+    same choice changes nothing.
+    """
+    ctx = Ctx(profile, user)
+    show = bool(show)
+    with transaction.atomic():
+        obj = get_record(ctx, "subject", subject_id)
+        if obj.show_on_landing == show:
+            return make_result(ctx, obj)
+        check_version(obj, expected_version)
+        old_key = sequence_key(obj)
+        lock_sequence(ctx, old_key)
+        obj.show_on_landing = show
+        place(ctx, obj, sequence_key(obj), None, "move")
+        normalize(ctx, old_key)
         return make_result(ctx, obj)
 
 

@@ -5,13 +5,13 @@
     <li class="toc-node"{% if entry.subtopics %} data-toc-node="{{ entry.topic.pk }}"{% if entry.topic.pk == toc_current_topic %} data-toc-current{% endif %}{% endif %}>
       <div class="toc-row">
         {% if entry.subtopics %}<button type="button" class="toc-toggle" data-toc-toggle aria-expanded="true" aria-controls="toc-sub-{{ entry.topic.pk }}" aria-label="Sub-topics of {{ entry.topic.name }}"><span aria-hidden="true" class="toc-chevron"></span></button>{% else %}<span class="toc-spacer"></span>{% endif %}
-        <a href="{% if in_context %}{% url 'read_subject' subject.pk %}#n-topic-{{ entry.topic.pk }}{% else %}{% url 'read_topic' entry.topic.pk %}{% endif %}" data-own-url="{% url 'read_topic' entry.topic.pk %}" data-anchor="n-topic-{{ entry.topic.pk }}"><span class="num">{{ entry.label|dotted }}</span> {{ entry.topic.name }}</a>
+        <a href="{% if in_context %}{% url 'read_subject' subject.pk %}{{ edit_qs }}#n-topic-{{ entry.topic.pk }}{% else %}{% url 'read_topic' entry.topic.pk %}{{ edit_qs }}{% endif %}" data-own-url="{% url 'read_topic' entry.topic.pk %}" data-anchor="n-topic-{{ entry.topic.pk }}"><span class="num">{{ entry.label|dotted }}</span> {{ entry.topic.name }}</a>
       </div>
-      {% if entry.subtopics %}<ul id="toc-sub-{{ entry.topic.pk }}">{% for sub in entry.subtopics %}<li><a href="{% if in_context %}{% url 'read_subject' subject.pk %}#n-subtopic-{{ sub.subtopic.pk }}{% else %}{% url 'read_subtopic' sub.subtopic.pk %}{% endif %}" data-own-url="{% url 'read_subtopic' sub.subtopic.pk %}" data-anchor="n-subtopic-{{ sub.subtopic.pk }}"><span class="num">{{ sub.label|dotted }}</span> {{ sub.subtopic.name }}</a></li>{% endfor %}</ul>{% endif %}
+      {% if entry.subtopics %}<ul id="toc-sub-{{ entry.topic.pk }}">{% for sub in entry.subtopics %}<li><a href="{% if in_context %}{% url 'read_subject' subject.pk %}{{ edit_qs }}#n-subtopic-{{ sub.subtopic.pk }}{% else %}{% url 'read_subtopic' sub.subtopic.pk %}{{ edit_qs }}{% endif %}" data-own-url="{% url 'read_subtopic' sub.subtopic.pk %}" data-anchor="n-subtopic-{{ sub.subtopic.pk }}"><span class="num">{{ sub.label|dotted }}</span> {{ sub.subtopic.name }}</a></li>{% endfor %}</ul>{% endif %}
     </li>
     {% endfor %}
     {% for sub in direct_toc %}
-    <li><div class="toc-row"><span class="toc-spacer"></span><a href="{% if in_context %}{% url 'read_subject' subject.pk %}#n-subtopic-{{ sub.subtopic.pk }}{% else %}{% url 'read_subtopic' sub.subtopic.pk %}{% endif %}" data-own-url="{% url 'read_subtopic' sub.subtopic.pk %}" data-anchor="n-subtopic-{{ sub.subtopic.pk }}"><span class="num">{{ sub.label|dotted }}</span> {{ sub.subtopic.name }}</a></div></li>
+    <li><div class="toc-row"><span class="toc-spacer"></span><a href="{% if in_context %}{% url 'read_subject' subject.pk %}{{ edit_qs }}#n-subtopic-{{ sub.subtopic.pk }}{% else %}{% url 'read_subtopic' sub.subtopic.pk %}{{ edit_qs }}{% endif %}" data-own-url="{% url 'read_subtopic' sub.subtopic.pk %}" data-anchor="n-subtopic-{{ sub.subtopic.pk }}"><span class="num">{{ sub.label|dotted }}</span> {{ sub.subtopic.name }}</a></div></li>
     {% endfor %}
   </ul>
 </div>

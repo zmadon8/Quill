@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Move to{% endblock %}
+{% block content %}
+<div class="home-column">
+  <h1>Move the {{ kind_name }}</h1>
+  <p>Choose the new place for &ldquo;{{ record_label }}&rdquo;. It goes to the end of that place. You will see which numbers change before anything moves.</p>
+  <form method="post" action="{% url 'edit_move' %}" class="tree-picker">
+    {% csrf_token %}
+    {% for name, value in fields %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+    <ul class="picker-list">
+      {% for e in entries %}
+      <li class="depth-{{ e.depth }}">
+        {% if e.pick %}<button type="submit" name="parent" value="{{ e.type }}:{{ e.id }}" class="picker-choice">{{ e.label }} <span class="meta">{{ e.kind_name }}</span></button>
+        {% else %}<span class="picker-no">{{ e.label }} <span class="meta">{{ e.kind_name }}</span></span>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </form>
+  <p><a class="button" href="{{ next_url }}">Cancel</a></p>
+</div>
+{% endblock %}

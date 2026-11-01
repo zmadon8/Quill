@@ -165,6 +165,16 @@ def _locate(target):
     return path + [label], container, anchor
 
 
+def run_of(obj):
+    """The key of the position run an Item or Section sits in (used by the edit mode drag script)."""
+    if getattr(obj, "parent_item_id", None):
+        return f"kids-{obj.parent_item_id}"
+    for column in ("subtopic", "topic", "subject"):
+        if getattr(obj, f"{column}_id"):
+            return f"run-{column}-{getattr(obj, f'{column}_id')}"
+    return ""
+
+
 def _item_block(item, data, fmts, label, depth, under_section, is_child=False):
     cases = data.cases_by_item.get(item.pk, [])
     case_labels = numbering.multi_item_labels(len(cases))
@@ -176,6 +186,8 @@ def _item_block(item, data, fmts, label, depth, under_section, is_child=False):
     return {
         "kind": "item",
         "id": item.pk,
+        "version": item.version,
+        "run": run_of(item),
         "anchor": f"n-item-{item.pk}",
         "label": label,
         "depth": depth,
@@ -220,6 +232,8 @@ def _container_blocks(key, depth, data, fmts):
             blocks.append({
                 "kind": "section",
                 "id": obj.pk,
+                "version": obj.version,
+                "run": run_of(obj),
                 "anchor": f"n-section-{obj.pk}",
                 "label": label,
                 "name": obj.name,
@@ -236,8 +250,13 @@ def _container_blocks(key, depth, data, fmts):
 
 
 def _heading(kind, obj, label, depth):
-    return {"kind": "heading", "level": kind, "id": obj.pk, "anchor": f"n-{kind}-{obj.pk}",
-            "label": label, "name": obj.name, "depth": depth}
+    run = ""
+    if kind == "topic":
+        run = f"topic-{obj.subject_id}"
+    elif kind == "subtopic":
+        run = f"subtopic-topic-{obj.topic_id}" if obj.topic_id else f"subtopic-subject-{obj.subject_id}"
+    return {"kind": "heading", "level": kind, "id": obj.pk, "version": obj.version, "run": run,
+            "anchor": f"n-{kind}-{obj.pk}", "label": label, "name": obj.name, "depth": depth}
 
 
 def _subtopic_blocks(sub, label, data, fmts, depth):
