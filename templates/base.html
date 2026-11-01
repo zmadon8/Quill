@@ -3,6 +3,7 @@
 {# Nav: Subjects, Review (anyone with a profile) and Search; Backups for Admin only (Users lives on the suite Home page). Review, Trash and Settings arrive in later milestones. #}
 {% block program_title %}{{ diary_name }}{% endblock %}
 {% block program_name %}<a href="{% url 'home' %}" title="Go to Home (Alt+H)" aria-label="Go to Home">{{ diary_name }}</a>{% if current_profile %} <span class="profile-name">&middot; {{ current_profile.name }}</span>{% endif %}{% endblock %}
+{% block who %}{% endblock %}
 {% block program_nav %}{% with current=request.resolver_match.url_name %}
   <a href="{% url 'subjects' %}"{% if current == 'subjects' %} class="on" aria-current="page"{% endif %}>Subjects</a>
   {% if current_profile %}<a href="{% url 'review_list' %}"{% if current == 'review_list' %} class="on" aria-current="page"{% endif %}>Review</a>{% endif %}

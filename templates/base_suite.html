@@ -25,7 +25,7 @@
       {% if user.is_authenticated %}
       <nav class="program-nav" aria-label="Main">
         {% block program_nav %}{% endblock %}
-        <span class="who">{{ user.username }}</span>
+        {% block who %}<span class="who">{{ user.username }}</span>{% endblock %}
         <form method="post" action="{% url 'logout' %}" class="inline">
           {% csrf_token %}
           <button type="submit" class="link">Log out</button>

@@ -1,10 +1,11 @@
 {% extends "base.html" %}
+{% load diary_tags %}
 {% block title %}{{ subject.name }}{% endblock %}
 {% block crumb_nav %}<div class="crumb-row">{% include "diary/_crumbs.html" %}</div>{% endblock %}
 {% block content %}
 <div class="reader-layout">
   <aside class="contents-panel" id="contents-panel" aria-label="Contents">
-    {% include "diary/_panel.html" with toc_default="current" %}
+    {% include "diary/_panel.html" %}
   </aside>
   <article class="reading">
     <div class="actions">
@@ -13,10 +14,10 @@
     {% for b in blocks %}
       {% if b.kind == "heading" %}
         {% if b.level == "subject" %}<h1 id="{{ b.anchor }}">{{ b.name }}</h1>
-        {% elif b.level == "topic" %}<h2 id="{{ b.anchor }}" class="topic-heading"><span class="num">{{ b.label }}</span> {{ b.name }}</h2>
-        {% else %}<h3 id="{{ b.anchor }}" class="subtopic-heading"><span class="num">{{ b.label }}</span> {{ b.name }}</h3>{% endif %}
+        {% elif b.level == "topic" %}<h2 id="{{ b.anchor }}" class="topic-heading"><span class="num">{{ b.label|dotted }}</span> {{ b.name }}</h2>
+        {% else %}<h3 id="{{ b.anchor }}" class="subtopic-heading"><span class="num">{{ b.label|dotted }}</span> {{ b.name }}</h3>{% endif %}
       {% elif b.kind == "section" %}
-        <div class="section-header{% if b.needs_review %} review{% endif %}" id="{{ b.anchor }}"><strong><span class="num">{{ b.label }}</span>{% if b.name %} {{ b.name }}{% endif %}</strong>{% if b.needs_review %} <span class="review-marker">For review{% if b.review_note %}: {{ b.review_note }}{% endif %}</span>{% endif %}</div>
+        <div class="section-header{% if b.needs_review %} review{% endif %}" id="{{ b.anchor }}"><strong><span class="num">{{ b.label|dotted }}</span>{% if b.name %} {{ b.name }}{% endif %}</strong>{% if b.needs_review %} <span class="review-marker">For review{% if b.review_note %}: {{ b.review_note }}{% endif %}</span>{% endif %}</div>
       {% elif b.kind == "item" %}
         {% include "diary/_item.html" %}
       {% elif b.kind == "note" %}

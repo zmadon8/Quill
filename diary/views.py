@@ -157,19 +157,31 @@ def _panel_subjects(profile):
     }
 
 
+IN_CONTEXT_COOKIE = "quill_in_context"
+
+
+def _in_context(request):
+    """The "View in context" tick, remembered in a cookie so the server can show the whole Subject."""
+    return request.COOKIES.get(IN_CONTEXT_COOKIE) == "1"
+
+
 @profile_required
 def subject_contents(request, pk):
     subject = get_object_or_404(_subjects(request.profile), pk=pk)
     context = reading.build_reading(subject, request.user)
-    context.update(subject=subject, crumbs=_crumbs(subject), **_panel_subjects(request.profile))
+    context.update(subject=subject, crumbs=_crumbs(subject), in_context=_in_context(request),
+                   **_panel_subjects(request.profile))
     return render(request, "diary/subject_contents.html", context)
 
 
 def _render_reading(request, subject, scope, target, crumbs):
+    if scope != "subject" and _in_context(request):
+        # View in context: the whole Subject is shown and the browser jumps to the chosen entry.
+        return redirect(f"{reverse('read_subject', args=[subject.pk])}#n-{scope}-{target.pk}")
     context = reading.build_reading(subject, request.user, scope, target)
     current_topic = target.pk if scope == "topic" else (target.topic_id if scope == "subtopic" else None)
     context.update(subject=subject, scope=scope, target=target, crumbs=crumbs, toc_current_topic=current_topic,
-                   **_panel_subjects(request.profile))
+                   in_context=_in_context(request), **_panel_subjects(request.profile))
     return render(request, "diary/reader.html", context)
 
 

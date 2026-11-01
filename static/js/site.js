@@ -199,18 +199,37 @@
     nodes.forEach(function (node) {
       var id = node.dataset.tocNode;
       var open;
+      var hashNow = window.location.hash.replace(/^#/, "");
       if (node.hasAttribute("data-toc-current")) { open = true; }
+      else if (hashNow && node.querySelector('[data-anchor="' + hashNow + '"]')) { open = true; }
       else if (Object.prototype.hasOwnProperty.call(saved, id)) { open = !!saved[id]; }
-      else { open = box.dataset.tocDefault === "all"; }
+      else { open = false; }
       setOpen(node, open);
       node.querySelector("[data-toc-toggle]").addEventListener("click", function () {
         setOpen(node, node.classList.contains("collapsed"));
         save();
       });
     });
-    var expand = box.querySelector("[data-toc-expand-all]");
-    var collapse = box.querySelector("[data-toc-collapse-all]");
+    var expand = document.querySelector("[data-toc-expand-all]");
+    var collapse = document.querySelector("[data-toc-collapse-all]");
     if (expand) { expand.addEventListener("click", function () { nodes.forEach(function (n) { setOpen(n, true); }); save(); }); }
     if (collapse) { collapse.addEventListener("click", function () { nodes.forEach(function (n) { setOpen(n, false); }); save(); }); }
   });
+
+  // "View in context": remembered in a cookie so the server shows the whole Subject; Contents links then jump within it.
+  var contextBox = document.querySelector("[data-in-context]");
+  if (contextBox) {
+    contextBox.addEventListener("change", function () {
+      document.cookie = "quill_in_context=" + (contextBox.checked ? "1" : "0") + "; path=/; max-age=31536000; SameSite=Lax";
+      if (!contextBox.checked) {
+        // Leave the whole-Subject view for the Topic or Sub-topic that was being read, if the page is at one.
+        var hash = window.location.hash.replace(/^#/, "");
+        var links = document.querySelectorAll("[data-toc] a[data-anchor]");
+        for (var i = 0; i < links.length; i++) {
+          if (hash && links[i].dataset.anchor === hash) { window.location.href = links[i].dataset.ownUrl; return; }
+        }
+      }
+      window.location.reload();
+    });
+  }
 })();

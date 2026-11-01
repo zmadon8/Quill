@@ -1,9 +1,18 @@
 {# Left panel shared by the reading view and the Subject contents page. Heading "Subjects" switches between this Subject's Topic tree and the list of every Subject. #}
-{# Context: subject, toc, direct_toc, toc_default, toc_current_topic, panel_main, panel_other. #}
+{# Context: subject, toc, direct_toc, toc_current_topic, panel_main, panel_other. #}
 <div class="toc-resizer" data-toc-resizer role="separator" aria-orientation="vertical" tabindex="0" aria-label="Resize the Subjects panel. Use the left and right arrow keys. Double-click or press Home to reset." title="Drag to resize. Double-click to reset."></div>
 <h2 class="panel-heading"><a href="{% url 'subjects' %}" data-panel-switch aria-expanded="false" aria-controls="panel-subjects" title="Show all Subjects">Subjects</a></h2>
 <div data-panel-topics>
-  <p class="toc-subject"><a href="{% url 'read_subject' subject.pk %}" title="Read the whole Subject">{{ subject.name }}</a></p>
+  <label class="in-context"><input type="checkbox" data-in-context{% if in_context %} checked{% endif %}> View in context</label>
+  <div class="toc-subject-row">
+    <p class="toc-subject"><a href="{% url 'read_subject' subject.pk %}" title="Read the whole Subject">{{ subject.name }}</a></p>
+    {% if toc %}
+    <span class="toc-controls">
+      <button type="button" class="small icon-button" data-toc-expand-all title="Expand all" aria-label="Expand all"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path d="M8 7V1M5 4l3-3 3 3M8 9v6M5 12l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <button type="button" class="small icon-button" data-toc-collapse-all title="Collapse all" aria-label="Collapse all"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path d="M8 1v6M5 4l3 3 3-3M8 15V9M5 12l3-3 3 3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    </span>
+    {% endif %}
+  </div>
   {% include "diary/_toc.html" %}
   <button type="button" class="small toc-reset" data-toc-reset>Reset width</button>
 </div>
@@ -13,7 +22,7 @@
     {% for s in panel_main %}<li><a href="{% url 'subject_contents' s.pk %}"{% if s.pk == subject.pk %} class="current" aria-current="true"{% endif %}>{{ s.name }}</a></li>{% endfor %}
   </ul>
   {% if panel_other %}
-  <p class="panel-label">Other Subjects</p>
+  <p class="panel-label panel-label--other">Other Subjects</p>
   <ul class="panel-subject-list">
     {% for s in panel_other %}<li><a href="{% url 'subject_contents' s.pk %}"{% if s.pk == subject.pk %} class="current" aria-current="true"{% endif %}>{{ s.name }}</a></li>{% endfor %}
   </ul>

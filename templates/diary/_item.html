@@ -1,5 +1,5 @@
-<div class="item{% if b.indent %} under-section{% endif %}{% if b.flag %} flagged{% endif %}{% if b.needs_review %} review{% endif %}" id="{{ b.anchor }}">
-  <span class="num">{{ b.label }}</span>
+{% load diary_tags %}<div class="item{% if b.indent %} under-section{% endif %}{% if b.flag %} flagged{% endif %}{% if b.needs_review %} review{% endif %}" id="{{ b.anchor }}">
+  <span class="num">{{ b.label|dotted }}</span>
   <div class="item-body">
     <span class="item-text">{% if b.has_text %}{{ b.text }}{% endif %}</span>{% if b.is_multi %}{% if b.has_text %} - {% endif %}{% for case in b.cases %}<span class="case"><span class="num">{{ case.label }}</span> <em class="citation">{{ case.citation }}</em>{% if case.has_comment %} <span class="case-comment">{{ case.comment }}</span>{% endif %}</span>{% if not forloop.last %} ; {% endif %}{% endfor %}{% elif b.citation %}{% if b.has_text %} - {% endif %}<em class="citation">{{ b.citation }}</em>{% endif %}
     {% if b.flag %}<span class="flag-text">[{{ b.flag_label }}]</span>{% endif %}

@@ -358,7 +358,6 @@ class ReadingScreenTests(TestCase):
         self.assertContains(resp, 'id="contents-panel"')
         self.assertContains(resp, "Choose a Topic or Sub-topic from the list, or click the Subject name to read the whole Subject.")
         self.assertNotContains(resp, "data-contents-toggle")
-        self.assertContains(resp, 'data-toc-default="all"')
         self.assertContains(resp, "data-toc-expand-all")
         self.assertContains(resp, "data-toc-collapse-all")
         self.assertContains(resp, 'aria-expanded="true"')
@@ -388,7 +387,7 @@ class ReadingScreenTests(TestCase):
         self.assertIn('aria-expanded="false">Subjects</button>', html)
         self.assertNotIn('aria-expanded="false">Contents</button>', html)
 
-    def test_panel_labels_have_a_full_stop_but_the_reading_does_not(self):
+    def test_panel_and_reading_labels_both_have_a_full_stop(self):
         import re
 
         self.client.force_login(self.users["reader"])
@@ -399,8 +398,7 @@ class ReadingScreenTests(TestCase):
         self.assertTrue(all(lab.endswith(".") for lab in labels), labels)
         self.assertIn('<span class="num">A.</span> ', toc)
         reading_part = html.split("</aside>")[1]
-        self.assertIn('<span class="num">A</span> ', reading_part)
-        self.assertNotIn('<span class="num">A.</span>', reading_part)
+        self.assertIn('<span class="num">A.</span> ', reading_part)
 
     def test_contents_page_empty_subject_message(self):
         empty = Subject.objects.create(profile=main_profile(), name="Empty Subject", show_on_landing=True)
@@ -413,12 +411,25 @@ class ReadingScreenTests(TestCase):
         self.client.force_login(self.users["reader"])
         topic = Topic.objects.get(name="Remedies")
         resp = self.client.get(reverse("read_topic", args=[topic.pk]))
-        self.assertContains(resp, 'data-toc-default="current"')
         self.assertContains(resp, 'data-toc-node="%d" data-toc-current' % topic.pk)
         resp = self.client.get(reverse("read_subtopic", args=[self.offer.pk]))
         self.assertContains(resp, 'data-toc-node="%d" data-toc-current' % self.offer.topic_id)
         resp = self.client.get(reverse("read_subject", args=[self.contract.pk]))
         self.assertNotContains(resp, "data-toc-current")
+
+    def test_view_in_context_shows_whole_subject_and_jumps(self):
+        self.client.force_login(self.users["reader"])
+        topic = Topic.objects.get(name="Remedies")
+        resp = self.client.get(reverse("read_subject", args=[self.contract.pk]))
+        self.assertContains(resp, "data-in-context")
+        self.assertNotContains(resp, "data-in-context checked")
+        self.client.cookies["quill_in_context"] = "1"
+        resp = self.client.get(reverse("read_topic", args=[topic.pk]))
+        self.assertRedirects(resp, "%s#n-topic-%d" % (reverse("read_subject", args=[self.contract.pk]), topic.pk),
+                             fetch_redirect_response=False)
+        resp = self.client.get(reverse("read_subject", args=[self.contract.pk]))
+        self.assertContains(resp, "data-in-context checked")
+        self.assertContains(resp, 'href="%s#n-topic-%d"' % (reverse("read_subject", args=[self.contract.pk]), topic.pk))
 
     def test_other_subject_toc_has_nothing_to_expand(self):
         self.client.force_login(self.users["reader"])

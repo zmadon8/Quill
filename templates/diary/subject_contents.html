@@ -6,7 +6,7 @@
 <div class="reader-layout reader-layout--page{% if not toc and not direct_toc %} no-contents{% endif %}">
   {% if toc or direct_toc %}
   <aside class="contents-panel contents-panel--page" id="contents-panel" aria-label="Contents">
-    {% include "diary/_panel.html" with toc_default="all" toc_current_topic=None %}
+    {% include "diary/_panel.html" with toc_current_topic=None %}
   </aside>
   {% endif %}
   <article class="reading">
