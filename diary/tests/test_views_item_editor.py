@@ -473,3 +473,19 @@ class ReviewMarkerTests(ItemEditorTestCase):
         self.assertContains(self.client.get(url + "?edit=1"), "Clear review")
         self.assertNotContains(self.client.get(url), reverse("edit_review"))
         self.assertNotContains(self.reader_client.get(url + "?edit=1"), reverse("edit_review"))
+
+
+class CreateItemKindTests(ItemEditorTestCase):
+    def test_the_service_creates_a_nested_and_a_multi_item(self):
+        nested = self.make("item", ("topic", self.topic.pk), kind="nested", text="n", citation="N v M")
+        multi = self.make("item", ("topic", self.topic.pk), kind="multi", text="m")
+        self.assertEqual(self.get(nested).kind, "nested")
+        self.assertEqual(self.get(multi).kind, "multi")
+
+    def test_the_add_view_creates_a_nested_item_and_a_plain_item(self):
+        before = set(Item.objects.values_list("pk", flat=True))
+        for what in ("nested", "item"):
+            self.post("edit_add", {"what": what, "parent_type": "topic", "parent_id": self.topic.pk,
+                                   "text": what, "citation": "A v B"})
+        made = {i.text: i.kind for i in Item.objects.exclude(pk__in=before)}
+        self.assertEqual(made, {"nested": "nested", "item": "plain"})

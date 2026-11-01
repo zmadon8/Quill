@@ -81,35 +81,35 @@ def edit(profile, user, kind, record_id, changes, expected_version=None):
         return make_result(ctx, obj)
 
 
-def create(profile, user, kind, parent=None, index=None, **fields):
+def create(profile, user, record_type, parent=None, index=None, **fields):
     """Add a record. ``parent`` is (type, id); a Subject has none. It is placed at ``index`` (None = last)."""
-    if kind not in CREATABLE:
-        raise Refused(f"A {NICE.get(kind, kind)} cannot be created here.")
-    unknown = set(fields) - set(CREATABLE[kind])
+    if record_type not in CREATABLE:
+        raise Refused(f"A {NICE.get(record_type, record_type)} cannot be created here.")
+    unknown = set(fields) - set(CREATABLE[record_type])
     if unknown:
         raise Refused("These fields cannot be set: " + ", ".join(sorted(unknown)))
     ctx = Ctx(profile, user)
-    model = MODELS[kind]
-    values = {name: _normalise(kind, name, value) for name, value in fields.items()}
+    model = MODELS[record_type]
+    values = {name: _normalise(record_type, name, value) for name, value in fields.items()}
     with transaction.atomic():
-        if kind == "subject":
+        if record_type == "subject":
             if parent is not None:
                 raise Refused("A Subject has no parent.")
             columns = {}
         else:
             if parent is None:
-                raise Refused(f"A {NICE[kind]} needs a place to go.")
-            if parent[0] not in ALLOWED_PARENTS[kind]:
-                raise Refused(f"A {NICE[kind]} cannot be placed under a {NICE.get(parent[0], parent[0])}.")
+                raise Refused(f"A {NICE[record_type]} needs a place to go.")
+            if parent[0] not in ALLOWED_PARENTS[record_type]:
+                raise Refused(f"A {NICE[record_type]} cannot be placed under a {NICE.get(parent[0], parent[0])}.")
             target = get_record(ctx, parent[0], parent[1])
-            columns = {f"{parent_column(kind, parent[0])}_id": target.pk}
+            columns = {f"{parent_column(record_type, parent[0])}_id": target.pk}
             draft = model(profile_id=ctx.profile_id, **columns, **values)
             check_move_allowed(draft, parent[0], target)
         draft = model(profile_id=ctx.profile_id, **columns, **values)
         key = sequence_key(draft)
         lock_sequence(ctx, key)
         number = make_room(ctx, key, index)
-        if kind == "subject":
+        if record_type == "subject":
             position = {"landing_position" if draft.show_on_landing else "other_acts_position": number}
         else:
             position = {"position": number}

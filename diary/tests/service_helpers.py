@@ -24,8 +24,8 @@ class ServiceTestCase(TestCase):
         self.user2 = User.objects.create_user("editor2", password=PASSWORD)
 
     # -- shortcuts -------------------------------------------------------------------------
-    def make(self, kind, parent=None, index=None, profile=None, user=None, **fields):
-        return svc.create(profile or self.profile, user or self.user, kind, parent=parent, index=index, **fields).record
+    def make(self, record_type, parent=None, index=None, profile=None, user=None, **fields):
+        return svc.create(profile or self.profile, user or self.user, record_type, parent=parent, index=index, **fields).record
 
     def get(self, obj):
         return type(obj)._base_manager.get(pk=obj.pk)
