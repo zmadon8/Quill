@@ -86,6 +86,12 @@ class Record(models.Model):
     updated_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
     )
+    # The data space (notebook) this record lives in. Repeated on every record so that each
+    # query can be limited to one profile; it must equal the profile of every parent.
+    profile = models.ForeignKey("accounts.Profile", on_delete=models.PROTECT, related_name="+")
+
+    #: Names of the foreign keys to parent or target records; each must be in the same profile.
+    profile_parents = ()
 
     class Meta:
         abstract = True
@@ -93,6 +99,19 @@ class Record(models.Model):
     @property
     def is_deleted(self):
         return self.deleted_at is not None
+
+    def check_profile(self):
+        """Refuse a record whose parent (or link target) belongs to a different profile."""
+        if self.profile_id is None:
+            return
+        for name in self.profile_parents:
+            parent = getattr(self, name)
+            if parent is not None and parent.profile_id != self.profile_id:
+                raise ValidationError({name: "This must be in the same profile as the record that refers to it."})
+
+    def save(self, *args, **kwargs):
+        self.check_profile()
+        super().save(*args, **kwargs)
 
 
 class RichTextMixin:
@@ -128,6 +147,7 @@ class Subject(Record):
             models.CheckConstraint(condition=not_blank("name"), name="subject_name_not_blank"),
             models.UniqueConstraint(
                 Lower("name"),
+                "profile",
                 condition=Q(deleted_at__isnull=True),
                 name="subject_name_unique_live",
             ),
@@ -138,6 +158,7 @@ class Subject(Record):
 
 
 class Topic(Record):
+    profile_parents = ("subject",)
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name="topics")
     name = models.CharField(max_length=300)
     position = models.PositiveIntegerField(default=0)
@@ -152,6 +173,7 @@ class Topic(Record):
 
 
 class Subtopic(Record):
+    profile_parents = ("topic", "subject")
     topic = models.ForeignKey(Topic, null=True, blank=True, on_delete=models.CASCADE, related_name="subtopics")
     subject = models.ForeignKey(
         Subject, null=True, blank=True, on_delete=models.CASCADE, related_name="direct_subtopics"
@@ -172,6 +194,7 @@ class Subtopic(Record):
 
 
 class Section(Record):
+    profile_parents = ("subject", "topic", "subtopic")
     subject = models.ForeignKey(Subject, null=True, blank=True, on_delete=models.CASCADE, related_name="sections")
     topic = models.ForeignKey(Topic, null=True, blank=True, on_delete=models.CASCADE, related_name="sections")
     subtopic = models.ForeignKey(Subtopic, null=True, blank=True, on_delete=models.CASCADE, related_name="sections")
@@ -193,6 +216,7 @@ class Section(Record):
 
 class Item(RichTextMixin, Record):
     rich_fields = {"text": "text_plain"}
+    profile_parents = ("subject", "topic", "subtopic", "parent_item")
 
     subject = models.ForeignKey(Subject, null=True, blank=True, on_delete=models.CASCADE, related_name="items")
     topic = models.ForeignKey(Topic, null=True, blank=True, on_delete=models.CASCADE, related_name="items")
@@ -242,6 +266,7 @@ class Item(RichTextMixin, Record):
 
 
 class Case(RichTextMixin, Record):
+    profile_parents = ("item",)
     """One citation of a Multi-Item, with an optional rich-text comment."""
 
     rich_fields = {"comment": "comment_plain"}
@@ -265,6 +290,7 @@ class Case(RichTextMixin, Record):
 
 class Note(RichTextMixin, Record):
     rich_fields = {"text": "text_plain"}
+    profile_parents = ("subject", "topic", "subtopic", "item", "section")
 
     subject = models.ForeignKey(Subject, null=True, blank=True, on_delete=models.CASCADE, related_name="notes")
     topic = models.ForeignKey(Topic, null=True, blank=True, on_delete=models.CASCADE, related_name="notes")
@@ -288,6 +314,7 @@ class Note(RichTextMixin, Record):
 
 
 class NoteLink(Record):
+    profile_parents = ("note", "subject", "topic", "subtopic", "section", "item")
     """A cross-reference from a Note to one target. Never removed by the system (section 7)."""
 
     note = models.ForeignKey(Note, on_delete=models.CASCADE, related_name="links")
@@ -346,6 +373,7 @@ class VersionHistory(models.Model):
     changed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
     )
+    profile = models.ForeignKey("accounts.Profile", on_delete=models.PROTECT, related_name="+")
     change_kind = models.CharField(max_length=10, choices=CHANGE_KIND_CHOICES)
 
     class Meta:

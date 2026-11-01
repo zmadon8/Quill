@@ -8,6 +8,7 @@ from accounts.models import User
 from diary import reading
 from diary.models import Item, Note, NoteLink, Section, Subject, Subtopic, Topic
 from diary.sample_data import SAMPLE_PREFIX, load_sample_data, remove_sample_data
+from diary.tests.helpers import main_profile
 
 
 @override_settings(SECURE_SSL_REDIRECT=False)
@@ -43,22 +44,22 @@ class HomeIndexTests(TestCase):
 
         cls.reader = User.objects.create_user("rita", password=PASSWORD, role="reader")
         cls.admin = User.objects.create_user("adam", password=PASSWORD, role="admin")
-        cls.arb = Subject.objects.create(name="Arbitration", landing_position=1)
-        cls.con = Subject.objects.create(name="Contracts", landing_position=2)
-        cls.empty = Subject.objects.create(name="Empty Subject", landing_position=3)
-        Subject.objects.create(name="Other One", show_on_landing=False, other_acts_position=1)
-        Subject.objects.create(name="Other Two", show_on_landing=False, other_acts_position=2)
-        Subject.objects.create(name="Gone", show_on_landing=False, deleted_at=timezone.now())
-        topic = Topic.objects.create(subject=cls.arb, name="Fraud")
-        sub = Subtopic.objects.create(topic=topic, name="Ex parte")
-        Item.objects.create(subject=cls.arb, text="<p>direct</p>")
-        Item.objects.create(topic=topic, text="<p>in topic</p>", needs_review=True)
-        Item.objects.create(subtopic=sub, text="<p>in subtopic</p>")
-        nested = Item.objects.create(subtopic=sub, text="<p>nested</p>", kind="nested")
-        Item.objects.create(parent_item=nested, text="<p>child</p>")
-        Item.objects.create(subject=cls.arb, text="<p>deleted</p>", deleted_at=timezone.now())
-        direct_sub = Subtopic.objects.create(subject=cls.con, name="Direct")
-        Item.objects.create(subtopic=direct_sub, text="<p>c1</p>")
+        cls.arb = Subject.objects.create(profile=main_profile(), name="Arbitration", landing_position=1)
+        cls.con = Subject.objects.create(profile=main_profile(), name="Contracts", landing_position=2)
+        cls.empty = Subject.objects.create(profile=main_profile(), name="Empty Subject", landing_position=3)
+        Subject.objects.create(profile=main_profile(), name="Other One", show_on_landing=False, other_acts_position=1)
+        Subject.objects.create(profile=main_profile(), name="Other Two", show_on_landing=False, other_acts_position=2)
+        Subject.objects.create(profile=main_profile(), name="Gone", show_on_landing=False, deleted_at=timezone.now())
+        topic = Topic.objects.create(profile=main_profile(), subject=cls.arb, name="Fraud")
+        sub = Subtopic.objects.create(profile=main_profile(), topic=topic, name="Ex parte")
+        Item.objects.create(profile=main_profile(), subject=cls.arb, text="<p>direct</p>")
+        Item.objects.create(profile=main_profile(), topic=topic, text="<p>in topic</p>", needs_review=True)
+        Item.objects.create(profile=main_profile(), subtopic=sub, text="<p>in subtopic</p>")
+        nested = Item.objects.create(profile=main_profile(), subtopic=sub, text="<p>nested</p>", kind="nested")
+        Item.objects.create(profile=main_profile(), parent_item=nested, text="<p>child</p>")
+        Item.objects.create(profile=main_profile(), subject=cls.arb, text="<p>deleted</p>", deleted_at=timezone.now())
+        direct_sub = Subtopic.objects.create(profile=main_profile(), subject=cls.con, name="Direct")
+        Item.objects.create(profile=main_profile(), subtopic=direct_sub, text="<p>c1</p>")
 
     def counts(self, resp):
         import re
@@ -185,7 +186,7 @@ class HomeIndexTests(TestCase):
 class ReadingScreenTests(TestCase):
     @classmethod
     def setUpTestData(cls):
-        load_sample_data()
+        load_sample_data(main_profile())
         cls.users = {
             role: User.objects.create_user(role, password=PASSWORD, role=role)
             for role in ("reader", "editor", "admin")
@@ -280,7 +281,7 @@ class ReadingScreenTests(TestCase):
         self.assertContains(resp, 'aria-expanded="true"')
 
     def test_contents_page_empty_subject_message(self):
-        empty = Subject.objects.create(name="Empty Subject", show_on_landing=True)
+        empty = Subject.objects.create(profile=main_profile(), name="Empty Subject", show_on_landing=True)
         self.client.force_login(self.users["reader"])
         resp = self.client.get(reverse("subject_contents", args=[empty.pk]))
         self.assertContains(resp, "This Subject has no Topics or Sub-topics.")
@@ -344,7 +345,7 @@ class ReadingScreenTests(TestCase):
 class ReadingNumberingTests(TestCase):
     @classmethod
     def setUpTestData(cls):
-        load_sample_data()
+        load_sample_data(main_profile())
 
     def labels(self, subtopic):
         """Labels of the Items and Sections shown directly in one Sub-topic, in order."""
@@ -405,27 +406,27 @@ class ReadingNumberingTests(TestCase):
 
 class SampleDataTests(TestCase):
     def test_load_is_idempotent(self):
-        self.assertTrue(load_sample_data())
+        self.assertTrue(load_sample_data(main_profile()))
         count = Item.objects.count()
-        self.assertFalse(load_sample_data())
+        self.assertFalse(load_sample_data(main_profile()))
         self.assertEqual(Item.objects.count(), count)
         self.assertEqual(Subject.objects.filter(name__startswith=SAMPLE_PREFIX).count(), 3)
 
     def test_remove_deletes_only_sample_records(self):
-        real = Subject.objects.create(name="Real Subject")
-        real_topic = Topic.objects.create(subject=real, name="Real Topic")
-        real_item = Item.objects.create(topic=real_topic, text="<p>Mine</p>", citation="X")
-        real_section = Section.objects.create(topic=real_topic, name="S")
-        real_note = Note.objects.create(topic=real_topic, text="<p>n</p>")
-        load_sample_data()
-        self.assertEqual(remove_sample_data(), 3)
+        real = Subject.objects.create(profile=main_profile(), name="Real Subject")
+        real_topic = Topic.objects.create(profile=main_profile(), subject=real, name="Real Topic")
+        real_item = Item.objects.create(profile=main_profile(), topic=real_topic, text="<p>Mine</p>", citation="X")
+        real_section = Section.objects.create(profile=main_profile(), topic=real_topic, name="S")
+        real_note = Note.objects.create(profile=main_profile(), topic=real_topic, text="<p>n</p>")
+        load_sample_data(main_profile())
+        self.assertEqual(remove_sample_data(main_profile()), 3)
         self.assertEqual(list(Subject.objects.values_list("name", flat=True)), ["Real Subject"])
         self.assertTrue(Item.objects.filter(pk=real_item.pk).exists())
         self.assertTrue(Section.objects.filter(pk=real_section.pk).exists())
         self.assertTrue(Note.objects.filter(pk=real_note.pk).exists())
         self.assertEqual(Item.objects.count(), 1)
         self.assertEqual(NoteLink.objects.count(), 0)
-        self.assertEqual(remove_sample_data(), 0)
+        self.assertEqual(remove_sample_data(main_profile()), 0)
 
     def test_commands_run(self):
         from io import StringIO
