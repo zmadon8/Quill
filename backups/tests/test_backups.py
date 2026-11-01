@@ -78,7 +78,9 @@ class CreateBackupTests(BackupBase):
         self.assertEqual(doc["format_version"], 1)
         expected = {label: 0 for label in registry.BACKUP_MODELS}
         expected["accounts.User"] = 3
+        expected["accounts.Profile"] = 1  # the default "Main" profile created by the data migration
         self.assertEqual(doc["counts"], expected)
+        self.assertEqual(Profile.objects.get().name, "Main")
         names = {r["fields"]["username"] for r in doc["models"]["accounts.User"]}
         self.assertEqual(names, {"boss", "alice", "bob"})
         self.assertTrue(backup.filename.startswith("judgment-diary-backup-"))
