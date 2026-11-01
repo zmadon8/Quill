@@ -17,8 +17,8 @@
         <span class="brand">{% block program_name %}<a href="{% url 'home' %}" title="Go to Home (Alt+H)" aria-label="Go to Home">{{ diary_name }}</a>{% endblock %}</span>
         {% if user.is_authenticated %}
         <span class="history-buttons">
-          <button type="button" class="back-button" data-back data-fallback="{% url 'home' %}" title="Back (within this site)" aria-label="Back">&larr; Back</button>
-          <button type="button" class="forward-button" data-forward title="Forward (within this site)" aria-label="Forward">Forward &rarr;</button>
+          <button type="button" class="back-button" data-back data-fallback="{% url 'home' %}" title="Back (within this site)" aria-label="Back"><svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true" focusable="false"><path d="M14 8H2M7 3L2 8l5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <button type="button" class="forward-button" data-forward title="Forward (within this site)" aria-label="Forward"><svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true" focusable="false"><path d="M2 8h12M9 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         </span>
         {% endif %}
       </div>
