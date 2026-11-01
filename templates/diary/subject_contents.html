@@ -2,19 +2,17 @@
 {% block title %}{{ subject.name }}{% endblock %}
 {% block crumb_nav %}<div class="crumb-row">{% include "diary/_crumbs.html" %}</div>{% endblock %}
 {% block content %}
-{# Same layout as the reading view: Contents in the left panel. On phones the panel is shown in the page, full width. #}
+{# Same layout as the reading view: the panel on the left. On phones the panel is shown in the page, full width. #}
 <div class="reader-layout reader-layout--page{% if not toc and not direct_toc %} no-contents{% endif %}">
   {% if toc or direct_toc %}
   <aside class="contents-panel contents-panel--page" id="contents-panel" aria-label="Contents">
-    <h2>Contents</h2>
-    <p class="toc-subject"><a href="{% url 'read_subject' subject.pk %}" title="Read the whole Subject">{{ subject.name }}</a></p>
-    {% include "diary/_toc.html" with toc_default="all" toc_current_topic=None %}
+    {% include "diary/_panel.html" with toc_default="all" toc_current_topic=None %}
   </aside>
   {% endif %}
   <article class="reading">
     <h1>{{ subject.name }}</h1>
     {% if toc or direct_toc %}
-    <p class="hint">Choose a Topic or Sub-topic from Contents, or click the Subject name to read the whole Subject.</p>
+    <p class="hint">Choose a Topic or Sub-topic from the list, or click the Subject name to read the whole Subject.</p>
     {% else %}
     <p>This Subject has no Topics or Sub-topics. Click the Subject name in the breadcrumb to see its Items.</p>
     {% endif %}

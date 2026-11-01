@@ -14,7 +14,9 @@ a { color: inherit; }
 .brand-row { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .9rem; padding-bottom: .6rem; }
 .brand a { text-decoration: none; color: inherit; border-bottom: 1px solid transparent; }
 .brand a:hover, .brand a:focus-visible { color: var(--oxblood); border-bottom-color: var(--oxblood); }
-.back-button { font-size: var(--small-size); padding: 0 .8rem; min-width: var(--tap); }
+.history-buttons { display: inline-flex; gap: .4rem; }
+.back-button, .forward-button { font-size: var(--small-size); padding: 0 .8rem; min-width: var(--tap); white-space: nowrap; }
+.back-button:disabled, .forward-button:disabled { opacity: .45; cursor: not-allowed; }
 .brand { font-family: var(--font-serif); font-style: italic; font-size: 1.75rem; line-height: 1.1; }
 .profile-name { font-size: var(--small-size); font-style: normal; opacity: .7; }
 .button.disabled, .button[aria-disabled=true] { opacity: .45; cursor: not-allowed; pointer-events: none; }
@@ -36,7 +38,7 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
 .toc-subject { margin: 0 0 .5rem; font-weight: 600; }
 
 /* Buttons: outlined secondary, filled oxblood primary (class "primary"). */
-button, .button { display: inline-flex; align-items: center; justify-content: center; min-height: var(--tap); padding: 0 1rem; border: 1px solid var(--ink); background: var(--panel); color: var(--ink); border-radius: 2px; font: inherit; line-height: 1.2; cursor: pointer; text-decoration: none; }
+button, .button { white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; min-height: var(--tap); padding: 0 1rem; border: 1px solid var(--ink); background: var(--panel); color: var(--ink); border-radius: 2px; font: inherit; line-height: 1.2; cursor: pointer; text-decoration: none; }
 button:hover, .button:hover { background: #fff; }
 button.small, .button.small { padding: 0 .9rem; }
 button.primary, .button.primary, button[type=submit]:not(.link):not(.danger):not(.secondary) { background: var(--oxblood); border-color: var(--oxblood); color: var(--oxblood-ink); }
@@ -88,7 +90,7 @@ td a { display: inline-block; min-height: var(--tap); line-height: var(--tap); p
 .home-search { display: flex; gap: .5rem; margin: 1.5rem 0 1rem; }
 .home-search input[type=search] { flex: 1 1 auto; max-width: none; font-family: var(--font-serif); font-style: italic; font-size: 1.15rem; min-height: 52px; }
 .home-search input[type=search]::placeholder { color: var(--muted); }
-.home-search button { min-height: 52px; }
+.home-search button { min-height: 52px; min-width: 6rem; flex: 0 0 auto; }
 .subject-index { list-style: none; padding: 0; margin: 1.5rem 0 0; columns: 1; column-gap: 4rem; }
 .subject-index li { break-inside: avoid; }
 .subject-index a { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; min-height: var(--tap); padding: .7rem .1rem; text-decoration: none; border-bottom: 1px solid var(--hair); font-family: var(--font-serif); font-size: 1.25rem; }
@@ -142,6 +144,27 @@ td a { display: inline-block; min-height: var(--tap); line-height: var(--tap); p
 .toc-toggle[aria-expanded=false] .toc-chevron { transform: rotate(-45deg); }
 .toc-node ul[hidden] { display: none; }
 .hint { color: var(--muted); font-style: italic; }
+/* Panel heading switch, Subjects list, resize handle (handle and Reset width only on wide screens). */
+.panel-heading a { display: inline-flex; align-items: center; min-height: var(--tap); text-decoration: none; border-bottom: 1px dotted var(--muted); }
+.panel-heading a:hover { color: var(--oxblood); }
+.panel-subject-list { list-style: none; padding: 0 !important; margin: 0; }
+.panel-subject-list li { border-bottom: 1px solid var(--hair); }
+.panel-subject-list a { display: block; font-family: var(--font-serif); font-size: 1.1rem; }
+.panel-subject-list a.current { font-weight: 700; color: var(--oxblood); }
+.panel-label { margin: 1rem 0 .25rem; font-size: var(--small-size); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.toc-resizer, .toc-reset { display: none; }
+.toc-resizer { position: absolute; top: 0; bottom: 0; right: 0; width: 1rem; cursor: col-resize; touch-action: none; z-index: 2; }
+.toc-resizer::after { content: ""; position: absolute; top: 0; bottom: 0; left: .6rem; border-left: 1px solid var(--hair); }
+.toc-resizer:hover::after, .toc-resizer:focus-visible::after { border-left: 3px solid var(--focus); left: .5rem; }
+.toc-reset { margin-top: 1rem; }
+
+/* Review list: Kind on one line, the table scrolls inside its box on phones. */
+.col-kind { white-space: nowrap; min-width: 6.5rem; }
+.review-table { max-width: 100%; overflow-x: auto; }
+.review-table table { min-width: 40rem; }
+.review-filter { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin: 1rem 0; }
+.review-filter select { max-width: 22rem; }
+
 /* Subject contents page: Contents shown in the page on phones (no slide-over), side panel on wide screens. */
 .contents-panel--page { display: block; position: static; width: auto; box-shadow: none; padding: 0; background: none; }
 .reader-layout--page { display: flex; flex-direction: column; }
@@ -161,10 +184,12 @@ table[data-resizable-columns] th { position: relative; overflow-wrap: anywhere; 
 }
 @media (min-width: 900px) {
   .page { padding: 0 2.5rem 5rem; }
-  .reader-layout { display: grid; grid-template-columns: 16rem minmax(0, 1fr); gap: 3rem; align-items: start; }
+  .reader-layout { display: grid; grid-template-columns: var(--panel-width, 16rem) minmax(0, 1fr); gap: 3rem; align-items: start; }
   .reading { max-width: 46rem; }
   .contents-panel { display: block; position: sticky; top: 4rem; inset: auto; width: auto; max-height: calc(100vh - 6rem); box-shadow: none; border: 0; background: none; padding: 0; z-index: 1; }
   .contents-button { display: none; }
+  .toc-resizer { display: block; }
+  .toc-reset { display: inline-flex; }
   .reader-layout--page { display: grid; }
   .reader-layout--page .reading { order: 0; }
   .reader-layout--page.no-contents { grid-template-columns: minmax(0, 1fr); }

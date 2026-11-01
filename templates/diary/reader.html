@@ -4,13 +4,11 @@
 {% block content %}
 <div class="reader-layout">
   <aside class="contents-panel" id="contents-panel" aria-label="Contents">
-    <h2>Contents</h2>
-    <p class="toc-subject"><a href="{% url 'read_subject' subject.pk %}" title="Read the whole Subject">{{ subject.name }}</a></p>
-    {% include "diary/_toc.html" with toc_default="current" %}
+    {% include "diary/_panel.html" with toc_default="current" %}
   </aside>
   <article class="reading">
     <div class="actions">
-      <button type="button" class="button small contents-button" data-contents-toggle aria-controls="contents-panel" aria-expanded="false">Contents</button>
+      <button type="button" class="button small contents-button" data-contents-toggle aria-controls="contents-panel" aria-expanded="false">Subjects</button>
     </div>
     {% for b in blocks %}
       {% if b.kind == "heading" %}

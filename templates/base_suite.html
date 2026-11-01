@@ -14,8 +14,13 @@
   <div class="page">
     <header class="site-header">
       <div class="brand-row">
-        {% if user.is_authenticated %}<button type="button" class="back-button" data-back data-fallback="{% url 'subjects' %}" title="Back" aria-label="Back">&larr; Back</button>{% endif %}
         <span class="brand">{% block program_name %}<a href="{% url 'home' %}" title="Go to Home (Alt+H)" aria-label="Go to Home">{{ diary_name }}</a>{% endblock %}</span>
+        {% if user.is_authenticated %}
+        <span class="history-buttons">
+          <button type="button" class="back-button" data-back data-fallback="{% url 'home' %}" title="Back (within this site)" aria-label="Back">&larr; Back</button>
+          <button type="button" class="forward-button" data-forward title="Forward (within this site)" aria-label="Forward">Forward &rarr;</button>
+        </span>
+        {% endif %}
       </div>
       {% if user.is_authenticated %}
       <nav class="program-nav" aria-label="Main">

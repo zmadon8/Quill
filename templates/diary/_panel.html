@@ -1,0 +1,21 @@
+{# Left panel shared by the reading view and the Subject contents page. Heading "Subjects" switches between this Subject's Topic tree and the list of every Subject. #}
+{# Context: subject, toc, direct_toc, toc_default, toc_current_topic, panel_main, panel_other. #}
+<div class="toc-resizer" data-toc-resizer role="separator" aria-orientation="vertical" tabindex="0" aria-label="Resize the Subjects panel. Use the left and right arrow keys. Double-click or press Home to reset." title="Drag to resize. Double-click to reset."></div>
+<h2 class="panel-heading"><a href="{% url 'subjects' %}" data-panel-switch aria-expanded="false" aria-controls="panel-subjects" title="Show all Subjects">Subjects</a></h2>
+<div data-panel-topics>
+  <p class="toc-subject"><a href="{% url 'read_subject' subject.pk %}" title="Read the whole Subject">{{ subject.name }}</a></p>
+  {% include "diary/_toc.html" %}
+  <button type="button" class="small toc-reset" data-toc-reset>Reset width</button>
+</div>
+<div id="panel-subjects" data-panel-subjects hidden>
+  <p class="panel-back"><button type="button" class="small" data-panel-topics-link>&lsaquo; Topics</button></p>
+  <ul class="panel-subject-list">
+    {% for s in panel_main %}<li><a href="{% url 'subject_contents' s.pk %}"{% if s.pk == subject.pk %} class="current" aria-current="true"{% endif %}>{{ s.name }}</a></li>{% endfor %}
+  </ul>
+  {% if panel_other %}
+  <p class="panel-label">Other Subjects</p>
+  <ul class="panel-subject-list">
+    {% for s in panel_other %}<li><a href="{% url 'subject_contents' s.pk %}"{% if s.pk == subject.pk %} class="current" aria-current="true"{% endif %}>{{ s.name }}</a></li>{% endfor %}
+  </ul>
+  {% endif %}
+</div>

@@ -12,10 +12,83 @@
     if (e.code === "KeyG" && search) { e.preventDefault(); window.location.href = search; }
   });
 
+  // Back and Forward stay inside this site. Each tab keeps its own list of the site pages it has shown
+  // (sessionStorage, so a new tab starts fresh). Only same-origin paths are ever stored or followed, so
+  // the buttons can never take you to another website or the browser's start page. The browser's own
+  // Back and Forward buttons are not touched.
   var back = document.querySelector("[data-back]");
-  if (back) {
-    back.addEventListener("click", function () {
-      if (window.history.length > 1) { window.history.back(); } else { window.location.href = back.dataset.fallback; }
+  var forward = document.querySelector("[data-forward]");
+  if (back || forward) {
+    var NAV_KEY = "quill.nav";
+    var NAV_MAX = 50;
+    var here = window.location.pathname + window.location.search;
+    var homePath = (back && back.dataset.fallback) || home || "/";
+    var nav = { stack: [], i: -1 };
+
+    var isSitePath = function (u) { return typeof u === "string" && u.charAt(0) === "/" && u.charAt(1) !== "/" && u.charAt(1) !== "\\"; };
+    try {
+      var raw = JSON.parse(window.sessionStorage.getItem(NAV_KEY));
+      if (raw && Array.isArray(raw.stack) && raw.stack.every(isSitePath) && typeof raw.i === "number" && raw.i >= 0 && raw.i < raw.stack.length) { nav = raw; }
+    } catch (err) { nav = { stack: [], i: -1 }; }
+
+    var navType = "navigate";
+    try {
+      var entries = window.performance && window.performance.getEntriesByType && window.performance.getEntriesByType("navigation");
+      if (entries && entries.length) { navType = entries[0].type; }
+    } catch (err) { navType = "navigate"; }
+
+    var saveNav = function () { try { window.sessionStorage.setItem(NAV_KEY, JSON.stringify(nav)); } catch (err) { /* private mode */ } };
+    var record = function () {
+      if (nav.i >= 0 && nav.stack[nav.i] === here) { return; }  // reload, form re-display, or arrived by our own buttons
+      if (navType === "back_forward") {
+        // The browser's own Back/Forward: follow it if the page is next to us in the list, else start from here.
+        if (nav.stack[nav.i - 1] === here) { nav.i -= 1; return; }
+        if (nav.stack[nav.i + 1] === here) { nav.i += 1; return; }
+        var at = nav.stack.lastIndexOf(here);
+        if (at >= 0) { nav.i = at; return; }
+      }
+      nav.stack = nav.stack.slice(0, nav.i + 1);
+      nav.stack.push(here);
+      if (nav.stack.length > NAV_MAX) { nav.stack.shift(); }
+      nav.i = nav.stack.length - 1;
+    };
+    record();
+    saveNav();
+
+    var setDisabled = function (btn, off) {
+      btn.disabled = off;
+      btn.setAttribute("aria-disabled", off ? "true" : "false");
+    };
+    // Back is disabled only on the first page of the tab when that page is already Home.
+    if (back) { setDisabled(back, nav.i <= 0 && here === homePath); }
+    if (forward) { setDisabled(forward, nav.i >= nav.stack.length - 1); }
+
+    var go = function (index) {
+      var target = nav.stack[index];
+      if (!isSitePath(target)) { return; }
+      nav.i = index;
+      saveNav();
+      window.location.assign(target);
+    };
+    if (back) {
+      back.addEventListener("click", function () {
+        if (nav.i > 0) { go(nav.i - 1); } else if (here !== homePath && isSitePath(homePath)) { window.location.assign(homePath); }
+      });
+    }
+    if (forward) {
+      forward.addEventListener("click", function () { if (nav.i < nav.stack.length - 1) { go(nav.i + 1); } });
+    }
+    // Restored from the browser's page cache: re-read the stored position.
+    window.addEventListener("pageshow", function (e) {
+      if (!e.persisted) { return; }
+      try {
+        var again = JSON.parse(window.sessionStorage.getItem(NAV_KEY));
+        if (again && Array.isArray(again.stack)) { nav = again; }
+      } catch (err) { /* keep what we have */ }
+      var at = nav.stack.lastIndexOf(here);
+      if (at >= 0) { nav.i = at; saveNav(); }
+      if (back) { setDisabled(back, nav.i <= 0 && here === homePath); }
+      if (forward) { setDisabled(forward, nav.i >= nav.stack.length - 1); }
     });
   }
 
@@ -29,6 +102,78 @@
     panel.addEventListener("click", function (e) {
       if (e.target.closest && e.target.closest("a")) { panel.classList.remove("open"); toggle.setAttribute("aria-expanded", "false"); }
     });
+  }
+
+  // Panel heading "Subjects": switch between this Subject's Topic tree and the list of every Subject.
+  var switcher = document.querySelector("[data-panel-switch]");
+  var topicsView = document.querySelector("[data-panel-topics]");
+  var subjectsView = document.querySelector("[data-panel-subjects]");
+  if (switcher && topicsView && subjectsView) {
+    var showSubjects = function (on) {
+      subjectsView.hidden = !on;
+      topicsView.hidden = on;
+      switcher.setAttribute("aria-expanded", on ? "true" : "false");
+      if (on) {
+        var cur = subjectsView.querySelector("a.current") || subjectsView.querySelector("a");
+        if (cur) { cur.focus(); }
+      } else { switcher.focus(); }
+    };
+    switcher.addEventListener("click", function (e) { e.preventDefault(); showSubjects(subjectsView.hidden); });
+    var topicsLink = subjectsView.querySelector("[data-panel-topics-link]");
+    if (topicsLink) { topicsLink.addEventListener("click", function () { showSubjects(false); }); }
+  }
+
+  // Resizable panel (wide screens only; the handle and Reset button are hidden by CSS on narrow screens).
+  var handle = document.querySelector("[data-toc-resizer]");
+  var layout = document.querySelector(".reader-layout");
+  if (handle && layout) {
+    var WIDTH_KEY = "quill.panelwidth";
+    var W_MIN = 192, W_MAX = 640, W_DEFAULT = 256, W_STEP = 16;
+    var current = W_DEFAULT;
+    var clamp = function (w) { return Math.max(W_MIN, Math.min(W_MAX, Math.round(w))); };
+    var apply = function (w) {
+      current = clamp(w);
+      layout.style.setProperty("--panel-width", current + "px");
+      handle.setAttribute("aria-valuemin", W_MIN);
+      handle.setAttribute("aria-valuemax", W_MAX);
+      handle.setAttribute("aria-valuenow", current);
+    };
+    var persist = function () { try { window.localStorage.setItem(WIDTH_KEY, String(current)); } catch (err) { /* private mode */ } };
+    var reset = function () {
+      layout.style.removeProperty("--panel-width");
+      current = W_DEFAULT;
+      handle.setAttribute("aria-valuenow", W_DEFAULT);
+      try { window.localStorage.removeItem(WIDTH_KEY); } catch (err) { /* private mode */ }
+    };
+    handle.setAttribute("aria-valuemin", W_MIN);
+    handle.setAttribute("aria-valuemax", W_MAX);
+    handle.setAttribute("aria-valuenow", W_DEFAULT);
+    try {
+      var savedWidth = parseInt(window.localStorage.getItem(WIDTH_KEY), 10);
+      if (savedWidth) { apply(savedWidth); }
+    } catch (err) { /* private mode */ }
+
+    var dragging = false;
+    var left = 0;
+    var move = function (clientX) { apply(clientX - left); };
+    handle.addEventListener("pointerdown", function (e) {
+      dragging = true;
+      left = layout.getBoundingClientRect().left;
+      if (handle.setPointerCapture) { handle.setPointerCapture(e.pointerId); }
+      e.preventDefault();
+    });
+    handle.addEventListener("pointermove", function (e) { if (dragging) { move(e.clientX); } });
+    var stop = function () { if (dragging) { dragging = false; persist(); } };
+    handle.addEventListener("pointerup", stop);
+    handle.addEventListener("pointercancel", stop);
+    handle.addEventListener("dblclick", reset);
+    handle.addEventListener("keydown", function (e) {
+      if (e.key === "ArrowLeft") { apply(current - W_STEP); persist(); e.preventDefault(); }
+      else if (e.key === "ArrowRight") { apply(current + W_STEP); persist(); e.preventDefault(); }
+      else if (e.key === "Home") { reset(); e.preventDefault(); }
+    });
+    var resetButton = document.querySelector("[data-toc-reset]");
+    if (resetButton) { resetButton.addEventListener("click", reset); }
   }
 
   // Contents list: expand/collapse each Topic, plus Expand all / Collapse all.

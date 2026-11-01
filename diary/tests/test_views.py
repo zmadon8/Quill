@@ -207,6 +207,47 @@ class HomeIndexTests(TestCase):
                 self.assertNotIn(">Home</a>", header, name)
                 self.assertIn(">Case Law Diary</a>", header, name)
 
+    def test_back_and_forward_sit_right_of_the_program_name(self):
+        self.client.force_login(self.admin)
+        for name in ("home", "subjects", "user_list"):
+            header = self.client.get(reverse(name)).content.decode().split('<header class="site-header">')[1].split("</header>")[0]
+            brand = header.index('class="brand"')
+            back = header.index("data-back")
+            forward = header.index("data-forward")
+            self.assertLess(brand, back, name)
+            self.assertLess(back, forward, name)
+            self.assertLess(forward, header.index('class="program-nav"'), name)
+            self.assertIn('aria-label="Back"', header)
+            self.assertIn('aria-label="Forward"', header)
+            self.assertIn('data-fallback="%s"' % reverse("home"), header)
+
+    def test_review_in_diary_nav_for_anyone_with_a_profile(self):
+        for user in (self.reader, self.admin):
+            self.client.force_login(user)
+            nav = self.client.get(reverse("subjects")).content.decode().split('class="program-nav"')[1].split("</nav>")[0]
+            self.assertIn('href="%s"' % reverse("review_list"), nav)
+            self.assertIn(">Review</a>", nav)
+        nav = self.client.get(reverse("review_list")).content.decode().split('class="program-nav"')[1].split("</nav>")[0]
+        self.assertIn('class="on" aria-current="page">Review</a>', nav)
+        nav = self.client.get(reverse("home")).content.decode().split('class="program-nav"')[1].split("</nav>")[0]
+        self.assertNotIn(reverse("review_list"), nav)
+
+    def test_site_js_keeps_back_and_forward_inside_the_site(self):
+        from pathlib import Path
+
+        js = (Path(__file__).resolve().parents[2] / "static" / "js" / "site.js").read_text()
+        self.assertNotIn("history.back", js)
+        self.assertNotIn("history.go", js)
+        self.assertIn("sessionStorage", js)
+        self.assertIn("isSitePath", js)
+
+    def test_search_button_cannot_break_over_two_lines(self):
+        from pathlib import Path
+
+        css = (Path(__file__).resolve().parents[2] / "static" / "css" / "site.css").read_text()
+        self.assertIn("button, .button { white-space: nowrap;", css)
+        self.assertIn(".home-search button { min-height: 52px; min-width: 6rem;", css)
+
     def test_users_screen_uses_suite_header_without_toolbar(self):
         self.client.force_login(self.admin)
         html = self.client.get(reverse("user_list")).content.decode()
@@ -314,12 +355,51 @@ class ReadingScreenTests(TestCase):
         resp = self.client.get(reverse("subject_contents", args=[self.contract.pk]))
         self.assertContains(resp, 'class="reader-layout reader-layout--page"')
         self.assertContains(resp, 'id="contents-panel"')
-        self.assertContains(resp, "Choose a Topic or Sub-topic from Contents, or click the Subject name to read the whole Subject.")
+        self.assertContains(resp, "Choose a Topic or Sub-topic from the list, or click the Subject name to read the whole Subject.")
         self.assertNotContains(resp, "data-contents-toggle")
         self.assertContains(resp, 'data-toc-default="all"')
         self.assertContains(resp, "data-toc-expand-all")
         self.assertContains(resp, "data-toc-collapse-all")
         self.assertContains(resp, 'aria-expanded="true"')
+
+    def test_panel_heading_is_subjects_and_lists_every_subject(self):
+        self.client.force_login(self.users["reader"])
+        for url in (reverse("subject_contents", args=[self.contract.pk]), reverse("read_subject", args=[self.contract.pk]),
+                    reverse("read_topic", args=[Topic.objects.get(name="Remedies").pk])):
+            html = self.client.get(url).content.decode()
+            self.assertIn("data-panel-switch", html, url)
+            self.assertNotIn("<h2>Contents</h2>", html, url)
+            self.assertIn(">Subjects</a></h2>", html, url)
+            panel = html.split("data-panel-subjects")[1]
+            for subject in (self.contract, self.longs, self.other):
+                self.assertIn('href="%s"' % reverse("subject_contents", args=[subject.pk]), panel, url)
+            self.assertIn("Other Subjects", panel)
+            self.assertIn('class="current" aria-current="true">%s' % self.contract.name, panel)
+            self.assertIn("&lsaquo; Topics", panel)
+            self.assertLess(panel.index(self.contract.name), panel.index("Other Subjects"))
+            self.assertIn("data-toc-resizer", html)
+            self.assertIn('role="separator"', html)
+            self.assertIn("data-toc-reset", html)
+
+    def test_phone_button_is_called_subjects(self):
+        self.client.force_login(self.users["reader"])
+        html = self.client.get(reverse("read_subject", args=[self.contract.pk])).content.decode()
+        self.assertIn('aria-expanded="false">Subjects</button>', html)
+        self.assertNotIn('aria-expanded="false">Contents</button>', html)
+
+    def test_panel_labels_have_a_full_stop_but_the_reading_does_not(self):
+        import re
+
+        self.client.force_login(self.users["reader"])
+        html = self.client.get(reverse("read_subject", args=[self.contract.pk])).content.decode()
+        toc = html.split('class="toc-box"')[1].split("</aside>")[0]
+        labels = re.findall(r'<span class="num">([^<]*)</span>', toc)
+        self.assertTrue(labels)
+        self.assertTrue(all(lab.endswith(".") for lab in labels), labels)
+        self.assertIn('<span class="num">A.</span> ', toc)
+        reading_part = html.split("</aside>")[1]
+        self.assertIn('<span class="num">A</span> ', reading_part)
+        self.assertNotIn('<span class="num">A.</span>', reading_part)
 
     def test_contents_page_empty_subject_message(self):
         empty = Subject.objects.create(profile=main_profile(), name="Empty Subject", show_on_landing=True)
@@ -381,6 +461,17 @@ class ReadingScreenTests(TestCase):
         resp = self.client.get(reverse("read_subtopic", args=[self.clause.pk]))
         self.assertContains(resp, "Section 1")
         self.assertContains(resp, "Section 2")
+
+
+class DottedFilterTests(TestCase):
+    def test_dotted(self):
+        from diary.templatetags.diary_tags import dotted
+
+        self.assertEqual(dotted("A"), "A.")
+        self.assertEqual(dotted("12"), "12.")
+        self.assertEqual(dotted("iv"), "iv.")
+        self.assertEqual(dotted("(a)"), "(a)")
+        self.assertEqual(dotted(""), "")
 
 
 class ReadingNumberingTests(TestCase):

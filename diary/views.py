@@ -149,18 +149,27 @@ def search(request):
     return render(request, "diary/search.html")
 
 
+def _panel_subjects(profile):
+    """Every live Subject of the profile for the Subjects view of the Contents panel: main first, then Other, in order."""
+    return {
+        "panel_main": list(_subjects(profile, show_on_landing=True).order_by("landing_position", "name", "pk")),
+        "panel_other": list(_subjects(profile, show_on_landing=False).order_by("other_acts_position", "name", "pk")),
+    }
+
+
 @profile_required
 def subject_contents(request, pk):
     subject = get_object_or_404(_subjects(request.profile), pk=pk)
     context = reading.build_reading(subject, request.user)
-    context.update(subject=subject, crumbs=_crumbs(subject))
+    context.update(subject=subject, crumbs=_crumbs(subject), **_panel_subjects(request.profile))
     return render(request, "diary/subject_contents.html", context)
 
 
 def _render_reading(request, subject, scope, target, crumbs):
     context = reading.build_reading(subject, request.user, scope, target)
     current_topic = target.pk if scope == "topic" else (target.topic_id if scope == "subtopic" else None)
-    context.update(subject=subject, scope=scope, target=target, crumbs=crumbs, toc_current_topic=current_topic)
+    context.update(subject=subject, scope=scope, target=target, crumbs=crumbs, toc_current_topic=current_topic,
+                   **_panel_subjects(request.profile))
     return render(request, "diary/reader.html", context)
 
 
@@ -241,6 +250,7 @@ def _review_rows(profile):
                 place = (0, 0, 0)
             rows.append({
                 "kind": kind,
+                "subject_id": subject.pk,
                 "path": " > ".join(x.name for x in chain),
                 "text": text if len(text) <= 160 else text[:157] + "...",
                 "note": obj.review_note,
@@ -256,7 +266,21 @@ def _review_rows(profile):
 def review_list(request):
     """Docs/DESIGN.md section 5.12: everything marked For review, with path and note."""
     rows = _review_rows(request.profile)
-    return render(request, "diary/review_list.html", {"rows": rows, "total": len(rows)})
+    subject_counts = {}
+    for r in rows:
+        subject_counts[r["subject_id"]] = subject_counts.get(r["subject_id"], 0) + 1
+    panel = _panel_subjects(request.profile)
+    choices = [(s.pk, s.name, subject_counts[s.pk]) for s in panel["panel_main"] + panel["panel_other"]
+               if s.pk in subject_counts]
+    chosen = None
+    raw = request.GET.get("subject", "")
+    if raw.isdigit() and int(raw) in subject_counts:
+        chosen = int(raw)
+        rows = [r for r in rows if r["subject_id"] == chosen]
+    return render(request, "diary/review_list.html", {
+        "rows": rows, "total": len(rows), "all_total": sum(subject_counts.values()),
+        "subject_choices": choices, "chosen_subject": chosen,
+    })
 
 
 logger = logging.getLogger(__name__)
