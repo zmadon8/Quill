@@ -221,7 +221,7 @@
       });
     }
     // Keep the current entry in view inside the panel's own scrollbar (the page is not scrolled).
-    var scroller = box.closest(".contents-panel");
+    var scroller = box.closest(".panel-scroll") || box.closest(".contents-panel");
     var hashId = window.location.hash.replace(/^#/, "");
     var target = box.querySelector("[data-toc-current] > .toc-row") || (hashId && box.querySelector('a[data-anchor="' + hashId + '"]'));
     if (scroller && target) {
@@ -230,18 +230,36 @@
     }
   });
 
+  // Moving to another entry inside the whole Subject (hash change) opens its Topic and scrolls the panel to it.
+  window.addEventListener("hashchange", function () {
+    var id = window.location.hash.replace(/^#/, "");
+    if (!id) { return; }
+    var link = document.querySelector('[data-toc] a[data-anchor="' + id + '"]');
+    if (!link) { return; }
+    var node = link.closest("[data-toc-node]");
+    var btn = node && node.querySelector("[data-toc-toggle]");
+    if (node && node.classList.contains("collapsed") && btn) { btn.click(); }
+    var sc = link.closest(".panel-scroll");
+    if (sc) { sc.scrollTop = Math.max(0, link.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop - sc.clientHeight / 3); }
+  });
+
   // "View in context": remembered in a cookie so the server shows the whole Subject; Contents links then jump within it.
   // The choice is also kept in localStorage; if the cookie is missing but localStorage has it, the cookie is restored once.
   var contextBox = document.querySelector("[data-in-context]");
   if (contextBox) {
     var CTX_KEY = "quill.incontext";
     var setCookie = function (on) { document.cookie = "quill_in_context=" + (on ? "1" : "0") + "; path=/; max-age=31536000; SameSite=Lax"; };
+    var contextLabel = document.querySelector("[data-in-context-label]");
+    if (contextLabel) { contextLabel.hidden = false; }
     var storedCtx = null;
+    var triedRestore = null;
     try { storedCtx = window.localStorage.getItem(CTX_KEY); } catch (err) { storedCtx = null; }
-    if (storedCtx !== null && (storedCtx === "1") !== contextBox.checked) {
+    try { triedRestore = window.sessionStorage.getItem("quill.incontext.tried"); } catch (err) { triedRestore = null; }
+    if (storedCtx !== null && (storedCtx === "1") !== contextBox.checked && triedRestore === null) {
+      // One attempt per tab session: if cookies are blocked the page must not reload forever.
+      try { window.sessionStorage.setItem("quill.incontext.tried", "1"); } catch (err) { /* private mode */ }
       setCookie(storedCtx === "1");
-      window.location.reload();
-      return;
+      if (document.cookie.indexOf("quill_in_context=") !== -1) { window.location.reload(); return; }
     }
     contextBox.addEventListener("change", function () {
       try { window.localStorage.setItem(CTX_KEY, contextBox.checked ? "1" : "0"); } catch (err) { /* private mode */ }

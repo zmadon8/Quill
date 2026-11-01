@@ -161,8 +161,10 @@ IN_CONTEXT_COOKIE = "quill_in_context"
 
 
 def _in_context(request):
-    """The "View in context" tick, remembered in a cookie so the server can show the whole Subject."""
-    return request.COOKIES.get(IN_CONTEXT_COOKIE) == "1"
+    """The "View in context" tick, remembered in a cookie so the server can show the whole Subject.
+
+    On unless the cookie says "0" (unticked)."""
+    return request.COOKIES.get(IN_CONTEXT_COOKIE) != "0"
 
 
 @profile_required

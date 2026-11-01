@@ -196,14 +196,15 @@ table[data-resizable-columns] th { position: relative; overflow-wrap: anywhere; 
   .page { padding: 0 2.5rem 5rem; }
   .reader-layout { display: grid; grid-template-columns: var(--panel-width, 17.5rem) minmax(0, 1fr); gap: 3rem; align-items: start; }
   .reading { max-width: 46rem; }
-  .contents-panel { display: block; position: sticky; top: 4rem; inset: auto; width: auto; max-height: calc(100vh - 5rem); overflow-y: auto; box-shadow: none; border: 0; background: none; padding: 0; z-index: 1; }
+  .contents-panel { display: block; position: sticky; top: 4rem; inset: auto; width: auto; box-shadow: none; border: 0; background: none; padding: 0; z-index: 1; }
   .contents-button { display: none; }
   .toc-resizer { display: block; }
   .toc-reset { display: inline-flex; }
   .reader-layout--page { display: grid; }
   .reader-layout--page .reading { order: 0; }
   .reader-layout--page.no-contents { grid-template-columns: minmax(0, 1fr); }
-  .contents-panel--page { position: sticky; top: 4rem; max-height: calc(100vh - 6rem); overflow-y: auto; }
+  .contents-panel--page { position: sticky; top: 4rem; }
+  .panel-scroll { max-height: calc(100vh - 5rem); overflow-y: auto; padding-right: 1.25rem; }
 }
 @media (max-width: 599px) {
   .brand { font-size: 1.5rem; }

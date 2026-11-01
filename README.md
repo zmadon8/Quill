@@ -172,7 +172,7 @@ You normally do not touch these; the Blueprint sets them.
 
 - On wide screens the Contents panel stays on screen while you scroll, with its own scrollbar; the current entry is brought into view.
 - Topics start collapsed. Your open/close choices are remembered per Subject in this browser; the inward-arrows button (Collapse all) goes back to the default.
-- **View in context** ticked: choosing an entry opens the whole Subject and jumps to it. Unticked: you see only the Topic or Sub-topic you chose. The choice is remembered in this browser.
+- **View in context** ticked: choosing an entry opens the whole Subject and jumps to it. Unticked: you see only the Topic or Sub-topic you chose. The choice is remembered in this browser. It starts ticked. The tick appears only when JavaScript is on.
 - Numbers in the text now have full stops after them, as in the panel.
 
 ## Everyday use

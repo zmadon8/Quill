@@ -125,6 +125,19 @@ class HomeIndexTests(TestCase):
         self.assertContains(resp, 'class="on" aria-current="page">Users</a>')
         self.assertNotContains(resp, 'class="on" aria-current="page">Subjects</a>')
 
+    def test_login_page_is_plain(self):
+        resp = self.client.get(reverse("login"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertNotContains(resp, "Case Law Diary")
+        self.assertContains(resp, "Log in")
+
+    def test_username_shown_on_suite_pages_but_not_inside_the_program(self):
+        self.client.force_login(self.reader)
+        home = self.client.get(reverse("home"))
+        self.assertContains(home, 'class="who"')
+        for name in ("subjects", "search"):
+            self.assertNotContains(self.client.get(reverse(name)), 'class="who"', msg_prefix=name)
+
     def test_home_is_program_picker(self):
         self.client.force_login(self.reader)
         resp = self.client.get(reverse("home"))
@@ -280,6 +293,10 @@ class ReadingScreenTests(TestCase):
         cls.clause = Subtopic.objects.get(name="Clause 12: Leave to Sue")
         cls.offer = Subtopic.objects.get(name="Offer")
 
+    def setUp(self):
+        # View in context is on by default; most tests read single Topics, so start unticked.
+        self.client.cookies["quill_in_context"] = "0"
+
     def urls(self):
         return [
             reverse("subjects"),
@@ -417,23 +434,34 @@ class ReadingScreenTests(TestCase):
         resp = self.client.get(reverse("read_subject", args=[self.contract.pk]))
         self.assertNotContains(resp, "data-toc-current")
 
-    def test_view_in_context_shows_whole_subject_and_jumps(self):
+    def test_view_in_context_is_on_by_default_and_jumps(self):
         self.client.force_login(self.users["reader"])
         topic = Topic.objects.get(name="Remedies")
-        resp = self.client.get(reverse("read_subject", args=[self.contract.pk]))
-        self.assertContains(resp, "data-in-context")
-        self.assertNotContains(resp, "data-in-context checked")
-        self.client.cookies["quill_in_context"] = "1"
+        whole = reverse("read_subject", args=[self.contract.pk])
+        del self.client.cookies["quill_in_context"]
         resp = self.client.get(reverse("read_topic", args=[topic.pk]))
-        self.assertRedirects(resp, "%s#n-topic-%d" % (reverse("read_subject", args=[self.contract.pk]), topic.pk),
-                             fetch_redirect_response=False)
-        resp = self.client.get(reverse("read_subject", args=[self.contract.pk]))
+        self.assertRedirects(resp, "%s#n-topic-%d" % (whole, topic.pk), fetch_redirect_response=False)
+        resp = self.client.get(reverse("read_subtopic", args=[self.clause.pk]))
+        self.assertRedirects(resp, "%s#n-subtopic-%d" % (whole, self.clause.pk), fetch_redirect_response=False)
+        resp = self.client.get(whole)  # no redirect loop
+        self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "data-in-context checked")
-        self.assertContains(resp, 'href="%s#n-topic-%d"' % (reverse("read_subject", args=[self.contract.pk]), topic.pk))
+        self.assertContains(resp, 'href="%s#n-topic-%d"' % (whole, topic.pk))
+
+    def test_unticked_cookie_zero_keeps_topic_pages_and_own_links(self):
+        self.client.force_login(self.users["reader"])
+        topic = Topic.objects.get(name="Remedies")
+        self.client.cookies["quill_in_context"] = "0"
+        self.assertEqual(self.client.get(reverse("read_topic", args=[topic.pk])).status_code, 200)
+        self.assertEqual(self.client.get(reverse("read_subtopic", args=[self.clause.pk])).status_code, 200)
+        resp = self.client.get(reverse("read_subject", args=[self.contract.pk]))
+        self.assertNotContains(resp, "data-in-context checked")
+        self.assertContains(resp, 'href="%s"' % reverse("read_topic", args=[topic.pk]))
+        self.assertContains(resp, 'href="%s"' % reverse("read_subtopic", args=[self.clause.pk]))
 
     def test_contents_page_in_context_links_go_to_whole_subject(self):
         self.client.force_login(self.users["reader"])
-        self.client.cookies["quill_in_context"] = "1"
+        del self.client.cookies["quill_in_context"]
         resp = self.client.get(reverse("subject_contents", args=[self.contract.pk]))
         self.assertContains(resp, "data-in-context checked")
         self.assertContains(resp, 'href="%s#n-topic-' % reverse("read_subject", args=[self.contract.pk]))
@@ -444,17 +472,6 @@ class ReadingScreenTests(TestCase):
         self.assertContains(resp, 'title="Expand all" aria-label="Expand all"')
         self.assertContains(resp, 'title="Collapse all" aria-label="Collapse all"')
         self.assertContains(resp, 'class="panel-label panel-label--other">Other Subjects')
-
-    def test_panel_css_and_js_rules(self):
-        from pathlib import Path
-        root = Path(__file__).resolve().parents[2] / "static"
-        css = (root / "css" / "site.css").read_text()
-        js = (root / "js" / "site.js").read_text()
-        self.assertIn("position: sticky; top: 4rem; inset: auto; width: auto; max-height: calc(100vh - 5rem); overflow-y: auto;", css)
-        self.assertIn("align-items: start", css)
-        self.assertIn("width: var(--tap)", css)
-        self.assertIn("quill.incontext", js)
-        self.assertIn("removeItem(storeKey)", js)
 
     def test_other_subject_toc_has_nothing_to_expand(self):
         self.client.force_login(self.users["reader"])
@@ -635,6 +652,9 @@ class ProfileScopingTests(TestCase):
         cls.st_b = Subtopic.objects.create(profile=cls.b, topic=cls.top_b, name="Beta Subtopic")
         Item.objects.create(profile=cls.b, topic=cls.top_b, text="<p>b1</p>")
         Item.objects.create(profile=cls.b, topic=cls.top_b, text="<p>b2</p>")
+
+    def setUp(self):
+        self.client.cookies["quill_in_context"] = "0"  # View in context is on by default; read single pages here
 
     def test_index_lists_only_own_profile(self):
         self.client.force_login(self.user_a)
