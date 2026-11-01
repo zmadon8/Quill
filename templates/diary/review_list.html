@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Review list - {{ diary_name }}{% endblock %}
+{% block content %}
+<div class="home-column">
+  <h1>Review list</h1>
+  <p class="meta">{{ total }} record{{ total|pluralize }} marked For review (Items and Sections)</p>
+  {% if rows %}
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Kind</th><th>Where</th><th>Text</th><th>Why</th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr>
+        <td>{{ r.kind }}</td>
+        <td><a href="{{ r.url }}">{{ r.path }}</a></td>
+        <td>{{ r.text }}</td>
+        <td>{{ r.note }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="empty">Nothing is marked For review.</p>
+  {% endif %}
+</div>
+{% endblock %}

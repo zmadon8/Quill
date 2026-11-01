@@ -4,7 +4,7 @@
 <div class="home-column">
   <h1>Subjects</h1>
   <p class="home-subtitle">Index of Subjects</p>
-  <p class="meta home-meta">{{ subject_total }} subject{{ subject_total|pluralize }} &middot; {{ item_total }} item{{ item_total|pluralize }} &middot; {{ review_total }} for review</p>
+  <p class="meta home-meta">{{ subject_total }} subject{{ subject_total|pluralize }} &middot; {{ item_total }} item{{ item_total|pluralize }} &middot; <a href="{% url 'review_list' %}">{{ review_total }} for review</a></p>
   <form class="home-search" role="search" method="get" action="{% url 'search' %}">
     <label class="visually-hidden" for="home-q">Search the diary</label>
     <input type="search" id="home-q" name="q" placeholder="Search the diary&hellip;" autocomplete="off">

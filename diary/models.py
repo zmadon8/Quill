@@ -141,6 +141,9 @@ class Subject(Record):
     show_on_landing = models.BooleanField(default=True)
     landing_position = models.PositiveIntegerField(default=0)
     other_acts_position = models.PositiveIntegerField(default=0)
+    # Set by the Word import only (Milestone 2): the exact Word paragraph and where it came from.
+    original_line = models.TextField(blank=True)
+    import_ref = models.CharField(max_length=100, blank=True)
 
     class Meta:
         constraints = [
@@ -162,6 +165,9 @@ class Topic(Record):
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name="topics")
     name = models.CharField(max_length=300)
     position = models.PositiveIntegerField(default=0)
+    # Set by the Word import only (Milestone 2): the exact Word paragraph and where it came from.
+    original_line = models.TextField(blank=True)
+    import_ref = models.CharField(max_length=100, blank=True)
 
     class Meta:
         constraints = [
@@ -180,6 +186,9 @@ class Subtopic(Record):
     )
     name = models.CharField(max_length=300)
     position = models.PositiveIntegerField(default=0)
+    # Set by the Word import only (Milestone 2): the exact Word paragraph and where it came from.
+    original_line = models.TextField(blank=True)
+    import_ref = models.CharField(max_length=100, blank=True)
 
     class Meta:
         constraints = [
@@ -202,6 +211,9 @@ class Section(Record):
     position = models.PositiveIntegerField(default=0)
     needs_review = models.BooleanField(default=False)
     review_note = models.TextField(blank=True)
+    # Set by the Word import only (Milestone 2): the exact Word paragraph and where it came from.
+    original_line = models.TextField(blank=True)
+    import_ref = models.CharField(max_length=100, blank=True)
 
     class Meta:
         constraints = [

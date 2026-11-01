@@ -4,5 +4,6 @@
 {% block program_nav %}{% with current=request.resolver_match.url_name %}
   {% if user.is_admin %}<a href="{% url 'profile_list' %}"{% if current|slice:":8" == 'profile_' %} class="on" aria-current="page"{% endif %}>Profiles</a>{% endif %}
   {% if user.is_admin %}<a href="{% url 'user_list' %}"{% if current|slice:":5" == 'user_' %} class="on" aria-current="page"{% endif %}>Users</a>{% endif %}
+  {% if user.is_admin %}<a href="{% url 'import_word' %}"{% if current == 'import_word' %} class="on" aria-current="page"{% endif %}>Import</a>{% endif %}
   {% if user.is_admin %}<a href="{% url 'settings' %}"{% if current == 'settings' %} class="on" aria-current="page"{% endif %}>Settings</a>{% endif %}
 {% endwith %}{% endblock %}

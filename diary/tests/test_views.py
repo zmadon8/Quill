@@ -84,7 +84,8 @@ class HomeIndexTests(TestCase):
     def test_meta_line_totals(self):
         self.client.force_login(self.reader)
         resp = self.client.get(reverse("subjects"))
-        self.assertContains(resp, "5 subjects &middot; 6 items &middot; 1 for review")
+        self.assertContains(resp, "5 subjects &middot; 6 items &middot; ")
+        self.assertContains(resp, '>1 for review</a>')
 
     def test_counts_use_a_fixed_number_of_queries(self):
         self.client.force_login(self.reader)

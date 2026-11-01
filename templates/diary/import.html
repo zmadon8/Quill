@@ -1,0 +1,41 @@
+{% extends "base_suite_home.html" %}
+{% block title %}Import from Word - {{ diary_name }}{% endblock %}
+{% block content %}
+<h1>Import from Word</h1>
+<p>One-time, supervised import of <em>Case Law Diary.docx</em> into one profile. The Word file is only read, never changed. Step 1: run the <strong>dry run</strong> and read it. Step 2: import from the dry run page. Step 3: read the <strong>reconciliation</strong>. A backup is made just before and just after the import. Running the import again changes nothing.</p>
+
+<form method="post" enctype="multipart/form-data" class="stack">
+  {% csrf_token %}
+  <p><label for="id_profile">Profile to import into</label><br>
+  <select name="profile" id="id_profile">
+    <option value="">- choose -</option>
+    {% for p in profiles %}<option value="{{ p.pk }}"{% if chosen and chosen.pk == p.pk %} selected{% endif %}>{{ p.name }}</option>{% endfor %}
+  </select></p>
+  <p><label for="id_file">Word file (.docx, up to {{ max_mb }} MB)</label><br>
+  <input type="file" name="file" id="id_file" accept=".docx" required></p>
+  <p>
+    <button type="submit" name="action" value="dry_run" class="primary">Dry run</button>
+    <button type="submit" name="action" value="dry_run_download">Download dry run</button>
+    <button type="submit" name="action" value="reconcile">Reconcile with profile</button>
+    <button type="submit" name="action" value="reconcile_download">Download reconciliation</button>
+  </p>
+</form>
+
+{% if report %}
+<h2>{{ report_title }}{% if file_name %}: {{ file_name }}{% endif %}</h2>
+{% if state_messages %}<ul>{% for m in state_messages %}<li>{{ m }}</li>{% endfor %}</ul>{% endif %}
+{% if can_import %}
+<form method="post" enctype="multipart/form-data" class="stack">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="import">
+  <input type="hidden" name="profile" value="{{ chosen.pk }}">
+  <input type="hidden" name="sha256" value="{{ sha256 }}">
+  <p>To import into <strong>{{ chosen.name }}</strong>, choose the same file again (it must be exactly the file in this dry run, checked by its fingerprint {{ sha256|slice:":12" }}), and type IMPORT.</p>
+  <p><input type="file" name="file" accept=".docx" required>
+  <input type="text" name="confirm_word" autocomplete="off" placeholder="IMPORT" size="10" required>
+  <button type="submit" class="primary">Import into {{ chosen.name }}</button></p>
+</form>
+{% endif %}
+<pre class="report" style="overflow:auto; white-space:pre; max-height:70vh; padding:.75rem; border:1px solid #ccc;">{{ report }}</pre>
+{% endif %}
+{% endblock %}

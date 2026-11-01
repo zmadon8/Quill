@@ -5,16 +5,23 @@ from django.db import connection
 from django.db.models import Count, Q
 from django.db.models.functions import Coalesce
 from django.http import Http404, HttpResponse
+from django.utils import timezone
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 
 from accounts.models import ROLE_EDITOR
-from accounts.permissions import program_role, reader_required
+from accounts.models import Profile
+from accounts.permissions import admin_required, program_role, reader_required
 from accounts.profiles import export_file_name, request_profile
+from accounts.suite import KEY_DIARY
 
 from . import reading
 from .forms import ProfileSettingsForm
-from .models import Item, Subject, Subtopic, Topic
+from .importer import loader as import_loader
+from .importer import service as import_service
+from .importer.docx_reader import file_digest
+from .models import Item, Section, Subject, Subtopic, Topic
 
 NO_PROFILE_MESSAGE = "No profile assigned - ask the Admin"
 
@@ -202,3 +209,130 @@ def healthz(request):
     except Exception:
         return HttpResponse("database unavailable", status=503, content_type="text/plain")
     return HttpResponse("ok", content_type="text/plain")
+
+
+def _review_rows(profile):
+    """Every live Item and Section marked For review in ``profile``, with its path (document order after import)."""
+    rows = []
+    items = Item.objects.filter(profile=profile, needs_review=True, deleted_at__isnull=True).select_related(
+        "subject", "topic__subject", "subtopic__subject", "subtopic__topic__subject"
+    )
+    sections = Section.objects.filter(profile=profile, needs_review=True, deleted_at__isnull=True).select_related(
+        "subject", "topic__subject", "subtopic__subject", "subtopic__topic__subject"
+    )
+    for kind, queryset in (("Item", items), ("Section", sections)):
+        for obj in queryset.order_by("pk"):
+            subtopic = obj.subtopic
+            topic = obj.topic or (subtopic.topic if subtopic else None)
+            subject = obj.subject or (topic.subject if topic else None) or (subtopic.subject if subtopic else None)
+            chain = [x for x in (subject, topic, subtopic) if x is not None]
+            if subject is None or any(x.deleted_at is not None for x in chain):
+                continue  # an Item inside a Nested Item or a deleted parent is not listed here
+            link = ("read_subtopic", subtopic.pk) if subtopic else (
+                ("read_topic", topic.pk) if topic else ("read_subject", subject.pk))
+            text = obj.text_plain if kind == "Item" else obj.name
+            rows.append({
+                "kind": kind,
+                "path": " > ".join(x.name for x in chain),
+                "text": text if len(text) <= 160 else text[:157] + "...",
+                "note": obj.review_note,
+                "url": reverse(link[0], args=[link[1]]),
+                "order": (subject.show_on_landing is False, subject.landing_position or subject.other_acts_position,
+                          subject.pk, obj.pk),
+            })
+    rows.sort(key=lambda r: r["order"])
+    return rows
+
+
+@profile_required
+def review_list(request):
+    """Docs/DESIGN.md section 5.12: everything marked For review, with path and note."""
+    rows = _review_rows(request.profile)
+    return render(request, "diary/review_list.html", {"rows": rows, "total": len(rows)})
+
+
+MAX_IMPORT_MB = 25
+
+
+def _import_context(extra=None):
+    context = {
+        "profiles": Profile.objects.filter(program=KEY_DIARY, deleted_at__isnull=True).order_by("name"),
+        "max_mb": MAX_IMPORT_MB,
+    }
+    context.update(extra or {})
+    return context
+
+
+@admin_required
+def import_word(request):
+    """Admin only: dry run, import and reconciliation of the Word file into a chosen profile (Milestone 2).
+
+    Nothing is kept between requests: each button sends the file again. The import only runs with the
+    SHA-256 of the file that was shown in a dry run, so what is imported is what was approved.
+    """
+    if request.method != "POST":
+        return render(request, "diary/import.html", _import_context())
+    action = request.POST.get("action", "")
+    upload = request.FILES.get("file")
+    profile = Profile.objects.filter(
+        pk=request.POST.get("profile") or None, program=KEY_DIARY, deleted_at__isnull=True
+    ).first()
+
+    def again(message):
+        messages.error(request, message)
+        return render(request, "diary/import.html", _import_context({"chosen": profile}))
+
+    if upload is None:
+        return again("Choose the Word file first.")
+    if upload.size > MAX_IMPORT_MB * 1024 * 1024:
+        return again(f"That file is larger than {MAX_IMPORT_MB} MB.")
+    data = upload.read()
+    if action != "dry_run" and action != "dry_run_download" and profile is None:
+        return again("Choose the profile to import into.")
+    stamp = timezone.now().strftime("%Y%m%d-%H%M%S")
+
+    def download(text, name):
+        response = HttpResponse(text, content_type="text/plain; charset=utf-8")
+        response["Content-Disposition"] = f'attachment; filename="{name}-{stamp}.txt"'
+        return response
+
+    try:
+        if action in ("dry_run", "dry_run_download"):
+            plan, text = import_service.dry_run(data, upload.name)
+            if action == "dry_run_download":
+                return download(text, "dry-run-report")
+            state = None
+            if profile is not None:
+                state, state_messages = import_loader.check_state(plan, profile)
+            else:
+                state_messages = ["Choose a profile to see whether the import could run there."]
+            ready = state == import_loader.STATE_FRESH
+            return render(request, "diary/import.html", _import_context({
+                "chosen": profile, "report": text, "report_title": "Dry run (nothing saved)",
+                "sha256": file_digest(data) if ready else "",
+                "state_messages": state_messages, "file_name": upload.name, "can_import": ready,
+            }))
+        if action in ("reconcile", "reconcile_download"):
+            _, text = import_service.reconcile(data, upload.name, profile)
+            if action == "reconcile_download":
+                return download(text, "reconciliation-report")
+            return render(request, "diary/import.html", _import_context({
+                "chosen": profile, "report": text, "report_title": "Reconciliation", "file_name": upload.name,
+            }))
+        if action == "import":
+            if request.POST.get("confirm_word", "").strip() != "IMPORT":
+                return again('Type IMPORT in the box to confirm.')
+            if not request.POST.get("sha256"):
+                return again("Run the dry run first and import from its page.")
+            text, notes = import_service.run_import(
+                data, upload.name, profile, request.user, expected_sha256=request.POST["sha256"]
+            )
+            for note in notes:
+                messages.info(request, note)
+            return render(request, "diary/import.html", _import_context({
+                "chosen": profile, "report": text, "report_title": "Reconciliation after the import",
+                "file_name": upload.name,
+            }))
+    except (import_service.DocxError, import_service.ImportRefused) as exc:
+        return again(str(exc))
+    return again("Unknown action.")
