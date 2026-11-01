@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Restore preview - Judgment Diary{% endblock %}
+{% block content %}
+<h1>Restore preview</h1>
+<p>Backup: <strong>{{ backup.filename }}</strong> ({{ backup.created_at|date:"Y-m-d H:i" }} UTC)</p>
+<div class="warning-box">
+  <p><strong>Restoring replaces all current data with the contents of this file.</strong></p>
+  <p>A safety backup of the current data is taken first, so this step can be undone by restoring that safety backup.</p>
+  <p>Anyone whose account is not in the file will be signed out and removed.</p>
+</div>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Record type</th><th>In file</th><th>In database now</th><th>Would be added</th><th>Would be removed</th><th>Unchanged or overwritten</th></tr></thead>
+  <tbody>
+  {% for row in rows %}
+    <tr>
+      <td>{{ row.name }}</td>
+      <td>{{ row.in_file }}</td>
+      <td>{{ row.in_database_now }}</td>
+      <td>{{ row.would_be_added }}</td>
+      <td>{{ row.would_be_removed }}</td>
+      <td>{{ row.unchanged_or_overwritten }}</td>
+    </tr>
+    {% if row.added_names %}<tr><td colspan="6">Users that would be added: {{ row.added_names|join:", " }}</td></tr>{% endif %}
+    {% if row.removed_names %}<tr><td colspan="6">Users that would be removed: {{ row.removed_names|join:", " }}</td></tr>{% endif %}
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<form method="post">
+  {% csrf_token %}
+  <p><label for="confirm">To go ahead, type the word <strong>{{ confirm_word }}</strong>:</label><br>
+  <input type="text" id="confirm" name="confirm" autocomplete="off"></p>
+  <button type="submit" class="danger">Restore now</button>
+  <a href="{% url 'backup_list' %}">Cancel</a>
+</form>
+{% endblock %}

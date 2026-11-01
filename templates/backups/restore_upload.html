@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Restore from a file - Judgment Diary{% endblock %}
+{% block content %}
+<h1>Restore from a file</h1>
+<p>Choose a backup file (ending in <code>.json.gz</code>) that you downloaded earlier. The file is checked first. Nothing changes yet: you will see a preview and must confirm.</p>
+<p>Largest file accepted: {{ max_mb }} MB.</p>
+<form method="post" enctype="multipart/form-data">
+  {% csrf_token %}
+  <p><input type="file" name="backup_file" required></p>
+  <button type="submit">Check this file</button>
+  <a href="{% url 'backup_list' %}">Cancel</a>
+</form>
+{% endblock %}

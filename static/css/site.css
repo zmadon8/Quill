@@ -20,3 +20,8 @@ th, td { text-align: left; padding: .5rem; border-bottom: 1px solid #ddd; }
 .messages li.error { background: #f8e3e3; }
 .errorlist { padding-left: 1rem; }
 .helptext { display: block; font-size: .85rem; color: #555; }
+.banner-warning { padding: .6rem 1rem; background: #fff1c2; border-bottom: 2px solid #c79100; font-weight: 600; }
+.banner-warning a { color: #5c3d00; }
+.actions { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; margin-bottom: 1rem; }
+.warning-box { padding: .75rem 1rem; background: #fff1c2; border: 1px solid #c79100; border-radius: 4px; margin-bottom: 1rem; }
+input[type=file] { max-width: 100%; }

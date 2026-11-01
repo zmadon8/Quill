@@ -13,7 +13,7 @@
     <nav>
       <a href="{% url 'home' %}">Home</a>
       {% if user.is_superuser %}<a href="{% url 'user_list' %}">Users</a>{% endif %}
-      {# Backups link is added in FEAT-002 #}
+      {% if user.is_superuser %}<a href="{% url 'backup_list' %}">Backups</a>{% endif %}
       <form method="post" action="{% url 'logout' %}" class="inline">
         {% csrf_token %}
         <button type="submit" class="link">Log out ({{ user.username }})</button>
@@ -21,6 +21,7 @@
     </nav>
     {% endif %}
   </header>
+  {% if backup_warning %}<div class="banner-warning" role="alert"><a href="{% url 'backup_list' %}">{{ backup_warning }}</a></div>{% endif %}
   <main>
     {% if messages %}
     <ul class="messages">

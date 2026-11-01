@@ -47,13 +47,13 @@ if RENDER_EXTERNAL_HOSTNAME:
     CSRF_TRUSTED_ORIGINS.append(f"https://{RENDER_EXTERNAL_HOSTNAME}")
 
 INSTALLED_APPS = [
-    "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "accounts",
+    "backups",
     "diary",
 ]
 
@@ -81,7 +81,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
-                # backups.context_processors.backup_banner is added in FEAT-002.
+                "backups.context_processors.backup_banner",
             ],
         },
     },
@@ -140,7 +140,7 @@ STORAGES = {
     "staticfiles": {"BACKEND": "whitenoise.storage.CompressedStaticFilesStorage"},
 }
 
-# Backup settings (used by the backups app added in FEAT-002).
+# Backup settings (used by the backups app).
 BACKUP_RETENTION_DAYS = max(30, _int("BACKUP_RETENTION_DAYS", 35))
 BACKUP_STALE_HOURS = _int("BACKUP_STALE_HOURS", 36)
 MAX_BACKUP_UPLOAD_MB = _int("MAX_BACKUP_UPLOAD_MB", 100)
