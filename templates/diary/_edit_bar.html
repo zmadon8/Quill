@@ -1,4 +1,4 @@
-{# Edit controls for one record. Only ever rendered in Edit mode (Editors only). Context: ekind, eid, eversion, ename, eanchor, erun (position run, "" = cannot be reordered), erename (bool), eadd (bool), elanding (bool, Subjects only). #}
+{# Edit controls for one record. Only ever rendered in Edit mode (Editors only). Context: ekind, eid, eversion, ename, eanchor, erun (position run, "" = cannot be reordered), erename (bool), eadd (bool), elanding (bool, Subjects only), ereview (bool needs_review, Items and Sections only), enote (review note). #}
 {% if edit_mode %}
 <div class="edit-bar" data-edit-bar data-kind="{{ ekind }}" data-id="{{ eid }}" data-version="{{ eversion }}" data-run="{{ erun }}" data-target="{{ eanchor }}">
   <form method="post" action="{% url 'edit_move' %}" class="edit-actions">
@@ -12,11 +12,29 @@
     <button type="submit" name="direction" value="up" class="edit-btn" aria-label="Move up">Up</button>
     <button type="submit" name="direction" value="down" class="edit-btn" aria-label="Move down">Down</button>
     {% endif %}
+    {% if ekind == "item" %}<a class="edit-btn" href="{% url 'edit_item' eid %}?next={{ next_url|urlencode }}">Edit</a>{% endif %}
+    {% if ereview is True %}<button type="submit" formaction="{% url 'edit_review' %}" name="set" value="0" class="edit-btn">Clear review</button>
+    {% elif ereview is False %}<button type="submit" formaction="{% url 'edit_review' %}" name="set" value="1" class="edit-btn">Mark for review</button>{% endif %}
     {% if ekind != "subject" %}<button type="submit" formaction="{% url 'edit_move_to' %}" class="edit-btn">Move to&hellip;</button>{% endif %}
     {% if elanding is True %}<button type="submit" formaction="{% url 'edit_landing' %}" name="show" value="0" class="edit-btn">Move to Other Subjects</button>
     {% elif elanding is False %}<button type="submit" formaction="{% url 'edit_landing' %}" name="show" value="1" class="edit-btn">Show on landing page</button>{% endif %}
     <button type="submit" formaction="{% url 'edit_delete' %}" class="edit-btn danger">Delete</button>
   </form>
+  {% if ereview is True or ereview is False %}
+  <details class="edit-more">
+    <summary class="edit-btn">Review note</summary>
+    <form method="post" action="{% url 'edit_review' %}" class="edit-form">
+      {% csrf_token %}
+      <input type="hidden" name="kind" value="{{ ekind }}">
+      <input type="hidden" name="id" value="{{ eid }}">
+      <input type="hidden" name="version" value="{{ eversion }}">
+      <input type="hidden" name="next" value="{{ next_url }}">
+      <input type="hidden" name="set" value="1">
+      <label>Why it needs review <textarea name="note" rows="2">{{ enote }}</textarea></label>
+      <button type="submit">Mark for review with this note</button>
+    </form>
+  </details>
+  {% endif %}
   {% if erename %}
   <details class="edit-more">
     <summary class="edit-btn">Rename</summary>

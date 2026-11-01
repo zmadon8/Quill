@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% load diary_tags %}
+{% block title %}Change to {{ to_name }}{% endblock %}
+{% block content %}
+<div class="home-column item-editor">
+  <h1>Change to {{ to_name }}</h1>
+  <p>This {{ from_name }} becomes a {{ to_name }}. It keeps its place and its history, and Undo brings the old form back.</p>
+
+  {% if preview.refusal %}
+  <div class="notice refusal" role="alert">
+    <p><strong>This cannot be done.</strong> {{ preview.refusal }}</p>
+    {% if preview.reasons %}<ul>{% for reason in preview.reasons %}<li>{{ reason }}</li>{% endfor %}</ul>{% endif %}
+  </div>
+  {% endif %}
+
+  {% if preview.needs_option %}
+  <form method="post" action="{% url 'edit_item_convert' item.pk %}" class="editor-form">
+    {% csrf_token %}
+    <input type="hidden" name="to_kind" value="{{ to_kind }}">
+    <input type="hidden" name="version" value="{{ version }}">
+    <input type="hidden" name="next" value="{{ back }}">
+    <fieldset class="field">
+      <legend class="field-label">What should happen to the Items beneath it?</legend>
+      {% for opt in preview.options %}
+      <label class="choice">
+        <input type="radio" name="option" value="{{ opt.key }}"{% if not opt.available %} disabled{% endif %}{% if opt.key == "keep" %} checked{% endif %}>
+        {% if opt.key == "keep" %}Keep them as separate Items, moved to sit directly after it (nothing is lost).{% else %}Fold each one into a Case: its text becomes the comment and its citation the Case citation.{% endif %}
+        {% if not opt.available %}<span class="hint">Not available:</span><ul>{% for reason in opt.reasons %}<li>{{ reason }}</li>{% endfor %}</ul>{% endif %}
+      </label>
+      {% endfor %}
+    </fieldset>
+    <div class="editor-actions">
+      <button type="submit">Show the preview</button>
+      <a class="button" href="{{ editor_url }}">Cancel</a>
+    </div>
+  </form>
+  {% else %}
+    {% if not preview.refusal %}
+    <div class="conv-compare">
+      {% include "diary/_conv_state.html" with state=preview.before text=item.text %}
+      <div class="conv-arrow" aria-hidden="true">&rarr;</div>
+      {% include "diary/_conv_state.html" with state=preview.after text=item.text %}
+    </div>
+    {% for warning in preview.warnings %}<div class="notice warning" role="alert"><strong>Warning.</strong> {{ warning }}</div>{% endfor %}
+    {% endif %}
+    <form method="post" action="{% url 'edit_item_convert' item.pk %}" class="editor-actions">
+      {% csrf_token %}
+      <input type="hidden" name="to_kind" value="{{ to_kind }}">
+      <input type="hidden" name="version" value="{{ version }}">
+      <input type="hidden" name="next" value="{{ back }}">
+      <input type="hidden" name="option" value="{{ option }}">
+      {% if not preview.refusal %}
+      <input type="hidden" name="confirmed" value="1">
+      {% if preview.warnings %}<input type="hidden" name="accept" value="1">{% endif %}
+      <button type="submit">{% if preview.warnings %}I understand, change to {{ to_name }}{% else %}Change to {{ to_name }}{% endif %}</button>
+      {% endif %}
+      <a class="button" href="{{ editor_url }}">{% if preview.refusal %}Back{% else %}Cancel{% endif %}</a>
+    </form>
+    {% if preview.refusal and option == "fold" %}
+    <form method="post" action="{% url 'edit_item_convert' item.pk %}" class="editor-actions">
+      {% csrf_token %}
+      <input type="hidden" name="to_kind" value="{{ to_kind }}">
+      <input type="hidden" name="version" value="{{ version }}">
+      <input type="hidden" name="next" value="{{ back }}">
+      <input type="hidden" name="option" value="keep">
+      <button type="submit" class="secondary">Keep them as separate Items instead</button>
+    </form>
+    {% endif %}
+  {% endif %}
+</div>
+{% endblock %}

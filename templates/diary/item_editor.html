@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Edit {{ kind_name }}{% endblock %}
+{% block content %}
+<div class="home-column item-editor">
+  <h1>Edit {{ kind_name }}</h1>
+  <p><a href="{{ back }}">Back to reading</a></p>
+
+  <form method="post" action="{% url 'edit_item' item.pk %}" class="editor-form" data-item-editor novalidate>
+    {% csrf_token %}
+    <input type="hidden" name="version" value="{{ item.version }}">
+    <input type="hidden" name="next" value="{{ back }}">
+
+    <div class="field">
+      <div class="field-label">Text</div>
+      <p class="hint">Bold, italic and underline only. Press Enter for a new paragraph, Shift+Enter for a line break.</p>
+      {% include "diary/_richtext_field.html" with rname="text" rvalue=values.text rlabel="Item text" rrows=6 %}
+    </div>
+
+    {% if is_multi %}
+    <fieldset class="field cases" data-cases>
+      <legend class="field-label">Cases</legend>
+      <p class="hint">Each Case has its own citation and an optional comment. A Multi-Item has no citation of its own.</p>
+      <ol class="case-list" data-case-list>
+        {% for row in rows %}
+        <li class="case-row" data-case-row>
+          <input type="hidden" name="case_id" value="{{ row.id|default_if_none:'' }}">
+          <input type="hidden" name="case_version" value="{{ row.version|default_if_none:'' }}">
+          <div class="case-head"><strong data-case-number>Case {{ forloop.counter }}</strong>
+            <span class="case-buttons">
+              <button type="button" class="small" data-case-up aria-label="Move this Case up">Up</button>
+              <button type="button" class="small" data-case-down aria-label="Move this Case down">Down</button>
+              <button type="button" class="small danger" data-case-remove aria-label="Remove this Case">Remove</button>
+            </span>
+          </div>
+          <label>Citation <input type="text" name="case_citation" value="{{ row.citation }}" maxlength="1000"></label>
+          <div class="field-label">Comment (optional)</div>
+          {% include "diary/_richtext_field.html" with rname="case_comment" rvalue=row.comment rlabel="Case comment" rrows=3 %}
+        </li>
+        {% endfor %}
+      </ol>
+      <button type="button" data-case-add>Add a Case</button>
+      <template data-case-template>
+        <li class="case-row" data-case-row>
+          <input type="hidden" name="case_id" value="">
+          <input type="hidden" name="case_version" value="">
+          <div class="case-head"><strong data-case-number>Case</strong>
+            <span class="case-buttons">
+              <button type="button" class="small" data-case-up aria-label="Move this Case up">Up</button>
+              <button type="button" class="small" data-case-down aria-label="Move this Case down">Down</button>
+              <button type="button" class="small danger" data-case-remove aria-label="Remove this Case">Remove</button>
+            </span>
+          </div>
+          <label>Citation <input type="text" name="case_citation" value="" maxlength="1000"></label>
+          <div class="field-label">Comment (optional)</div>
+          <div class="rt" data-richtext><textarea class="rt-source" name="case_comment" rows="3" aria-label="Case comment"></textarea></div>
+        </li>
+      </template>
+    </fieldset>
+    {% else %}
+    <div class="field">
+      <label for="id-citation" class="field-label">Citation</label>
+      <input type="text" id="id-citation" name="citation" value="{{ values.citation }}" maxlength="1000">
+    </div>
+    {% endif %}
+
+    <fieldset class="field">
+      <legend class="field-label">Flag</legend>
+      <div class="flag-row">
+        <select name="flag" aria-label="Flag" data-flag-select>
+          {% for key, name in flag_choices %}<option value="{{ key }}"{% if values.flag == key %} selected{% endif %}>{{ name }}</option>{% endfor %}
+        </select>
+        <input type="text" name="flag_text" value="{{ values.flag_text }}" maxlength="300" placeholder="Short text shown in the flag (optional)" aria-label="Flag text" data-flag-text>
+      </div>
+    </fieldset>
+
+    <fieldset class="field">
+      <legend class="field-label">For review</legend>
+      <label class="switch"><input type="checkbox" name="needs_review" value="1"{% if values.needs_review %} checked{% endif %}> Mark this {{ kind_name }} For review</label>
+      <label>Note (optional) <textarea name="review_note" rows="2">{{ values.review_note }}</textarea></label>
+    </fieldset>
+
+    <div class="editor-actions">
+      <button type="submit">Save</button>
+      <a class="button" href="{{ back }}">Cancel</a>
+    </div>
+  </form>
+
+  {% if convertible %}
+  <section class="field" aria-labelledby="change-to">
+    <h2 id="change-to">Change to</h2>
+    <p class="hint">Save your changes first: changing the type opens a preview and does not keep what you have typed above.</p>
+    <div class="convert-row">
+      {% for key, name in convertible %}
+      <form method="post" action="{% url 'edit_item_convert' item.pk %}">
+        {% csrf_token %}
+        <input type="hidden" name="to_kind" value="{{ key }}">
+        <input type="hidden" name="version" value="{{ item.version }}">
+        <input type="hidden" name="next" value="{{ back }}">
+        <button type="submit" class="secondary">Change to {{ name }}</button>
+      </form>
+      {% endfor %}
+    </div>
+  </section>
+  {% elif item.parent_item_id %}
+  <p class="hint">An Item beneath a Nested Item stays a plain Item (one level of nesting).</p>
+  {% endif %}
+
+  <section class="field record-info" aria-labelledby="about">
+    <h2 id="about">About this record</h2>
+    <dl>
+      <dt>Created</dt><dd>{{ item.created_at|date:"j M Y, H:i" }} IST by {{ created_by }}</dd>
+      <dt>Last edited</dt><dd>{{ item.updated_at|date:"j M Y, H:i" }} IST by {{ updated_by }}</dd>
+      <dt>Version</dt><dd>{{ item.version }}</dd>
+    </dl>
+    {% if item.original_line %}
+    <details open class="original-line">
+      <summary>Original Word line (read only)</summary>
+      <p class="original-text">{{ item.original_line }}</p>
+    </details>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script src="{% static 'js/richtext-editor.js' %}"></script>
+<script src="{% static 'js/item-editor.js' %}"></script>
+{% endblock %}

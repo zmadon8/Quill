@@ -19,7 +19,7 @@
         {% else %}<h3 id="{{ b.anchor }}" class="subtopic-heading"><span class="num">{{ b.label|dotted }}</span> {{ b.name }}</h3>{% include "diary/_edit_bar.html" with ekind="subtopic" eid=b.id eversion=b.version ename=b.name eanchor=b.anchor erun=b.run erename=True eadd=True %}{% endif %}
       {% elif b.kind == "section" %}
         <div class="section-header{% if b.needs_review %} review{% endif %}" id="{{ b.anchor }}"><strong><span class="num">{{ b.label|dotted }}</span>{% if b.name %} {{ b.name }}{% endif %}</strong>{% if b.needs_review %} <span class="review-marker">For review{% if b.review_note %}: {{ b.review_note }}{% endif %}</span>{% endif %}</div>
-        {% include "diary/_edit_bar.html" with ekind="section" eid=b.id eversion=b.version ename=b.name eanchor=b.anchor erun=b.run erename=True eadd=False %}
+        {% include "diary/_edit_bar.html" with ekind="section" eid=b.id eversion=b.version ename=b.name eanchor=b.anchor erun=b.run erename=True eadd=False ereview=b.needs_review enote=b.review_note %}
       {% elif b.kind == "item" %}
         {% include "diary/_item.html" %}
       {% elif b.kind == "note" %}

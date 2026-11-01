@@ -38,16 +38,16 @@ ADDABLE = {
 ADD_NICE = {"nested": "Nested Item"}
 
 
-def _next(request):
-    """Where to go back to: the ``next`` address from the form if it is on this site, else the Subjects page."""
-    target = request.POST.get("next", "")
+def _next(request, default=None):
+    """Where to go back to: the ``next`` address from the form (or the address) if it is on this site, else ``default`` or the Subjects page."""
+    target = request.POST.get("next", "") or request.GET.get("next", "")
     if (
         target.startswith("/")
         and not target.startswith("//")
         and url_has_allowed_host_and_scheme(target, allowed_hosts={request.get_host()}, require_https=request.is_secure())
     ):
         return target
-    return reverse("subjects")
+    return default or reverse("subjects")
 
 
 def _conflict(request, exc):
@@ -59,27 +59,36 @@ def _conflict(request, exc):
     )
 
 
-def edit_endpoint(view):
-    """Signed in, has a profile, is an Editor of it, POST only; service errors become messages or pages."""
+def _guarded(methods):
+    """Decorator: signed in, has a profile, is an Editor of it, only ``methods``; service errors become messages or pages."""
 
-    @profile_required
-    @wraps(view)
-    def wrapper(request, *args, **kwargs):
-        if not user_can_edit(request):
-            raise PermissionDenied
-        if request.method != "POST":
-            return HttpResponseNotAllowed(["POST"])
-        try:
-            return view(request, *args, **kwargs)
-        except NotFound as exc:
-            raise Http404(exc.message)
-        except Conflict as exc:
-            return _conflict(request, exc)
-        except ServiceError as exc:
-            messages.error(request, exc.message or "That could not be done.")
-            return redirect(_next(request))
+    def decorate(view):
+        @profile_required
+        @wraps(view)
+        def wrapper(request, *args, **kwargs):
+            if not user_can_edit(request):
+                raise PermissionDenied
+            if request.method not in methods:
+                return HttpResponseNotAllowed(list(methods))
+            try:
+                return view(request, *args, **kwargs)
+            except NotFound as exc:
+                raise Http404(exc.message)
+            except Conflict as exc:
+                return _conflict(request, exc)
+            except ServiceError as exc:
+                messages.error(request, exc.message or "That could not be done.")
+                return redirect(_next(request))
 
-    return wrapper
+        return wrapper
+
+    return decorate
+
+
+#: POST only (every change).
+edit_endpoint = _guarded(("POST",))
+#: GET shows a page, POST changes (the Item editor).
+editor_page = _guarded(("GET", "POST"))
 
 
 def _kind(request):
