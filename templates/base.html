@@ -1,43 +1,12 @@
-{% load static %}<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}Judgment Diary{% endblock %}</title>
-  <link rel="stylesheet" href="{% static 'css/site.css' %}">
-</head>
-<body>
-  <header class="site-header">
-    <span class="brand">Judgment Diary</span>
-    {% if user.is_authenticated %}
-    <nav>
-      <a href="{% url 'home' %}">Home</a>
-      {% if user.is_admin %}<a href="{% url 'user_list' %}">Users</a>{% endif %}
-      {% if user.is_admin %}<a href="{% url 'backup_list' %}">Backups</a>{% endif %}
-      <form method="post" action="{% url 'logout' %}" class="inline">
-        {% csrf_token %}
-        <button type="submit" class="link">Log out ({{ user.username }}, {{ user.role_label }})</button>
-      </form>
-    </nav>
-    {% endif %}
-  </header>
-  {% if user.is_authenticated %}
-  <div class="toolbar">
-    <button type="button" class="back-button" data-back data-fallback="{% url 'home' %}">&larr; Back</button>
-    <a class="button" href="{% url 'home' %}" title="Home (Alt+H)">Home</a>
-    <a class="button" href="{% url 'search' %}" title="Search (Alt+G)">Search</a>
-    <nav class="breadcrumb" aria-label="You are here">{% block breadcrumb %}{% endblock %}</nav>
-  </div>
-  {% endif %}
-  {% if backup_warning %}<div class="banner-warning" role="alert"><a href="{% url 'backup_list' %}">{{ backup_warning }}</a></div>{% endif %}
-  <main>
-    {% if messages %}
-    <ul class="messages">
-      {% for message in messages %}<li class="{{ message.tags }}">{{ message }}</li>{% endfor %}
-    </ul>
-    {% endif %}
-    {% block content %}{% endblock %}
-  </main>
-  <script src="{% static 'js/site.js' %}" data-home="{% url 'home' %}" data-search="{% url 'search' %}"></script>
-</body>
-</html>
+{% extends "base_suite.html" %}
+{# Judgment Diary: fills the shared shell with this program's name and navigation. #}
+{# Nav by role: Users and Backups are Admin only. Review, Trash and Settings arrive in later milestones and are omitted for now. #}
+{% block program_title %}Judgment Diary{% endblock %}
+{% block program_name %}Judgment Diary{% endblock %}
+{% block program_nav %}{% with current=request.resolver_match.url_name %}
+  <a href="{% url 'home' %}"{% if current == 'home' %} class="on" aria-current="page"{% endif %}>Home</a>
+  <a href="{% url 'other_subjects' %}"{% if current == 'other_subjects' %} class="on" aria-current="page"{% endif %}>Other Subjects</a>
+  <a href="{% url 'search' %}"{% if current == 'search' %} class="on" aria-current="page"{% endif %}>Search</a>
+  {% if user.is_admin %}<a href="{% url 'user_list' %}"{% if current|slice:":5" == 'user_' %} class="on" aria-current="page"{% endif %}>Users</a>
+  <a href="{% url 'backup_list' %}"{% if current|slice:":7" == 'backup_' or current|slice:":8" == 'restore_' %} class="on" aria-current="page"{% endif %}>Backups</a>{% endif %}
+{% endwith %}{% endblock %}

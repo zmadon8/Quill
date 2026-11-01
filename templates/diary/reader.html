@@ -10,7 +10,7 @@
   </aside>
   <article class="reading">
     <div class="actions">
-      <button type="button" class="contents-button" data-contents-toggle aria-controls="contents-panel" aria-expanded="false">Contents</button>
+      <button type="button" class="button small contents-button" data-contents-toggle aria-controls="contents-panel" aria-expanded="false">Contents</button>
       <a class="button" href="{% url 'read_subject' subject.pk %}">View whole Subject</a>
       {% if scope == "topic" %}
       <a class="button" href="{% url 'read_topic' target.pk %}" aria-current="true">View this Topic</a>

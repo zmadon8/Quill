@@ -1,0 +1,53 @@
+{% load static %}<!DOCTYPE html>
+{# Shared shell for every program in the suite (Option D "Chambers"). A program extends this and fills: #}
+{# program_name, program_home_url (via with-less block), program_nav, page_title. See docs/DESIGN.md "Visual design". #}
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{% block program_title %}Judgment Diary{% endblock %}{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
+  <link rel="stylesheet" href="{% static 'css/site.css' %}">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <div class="page">
+    <header class="site-header">
+      <div class="brand-row">
+        <span class="brand">{% block program_name %}Judgment Diary{% endblock %}</span>
+        {% block program_switch %}{% if user.is_authenticated %}<a class="switch-program" href="{% url 'programs' %}">&#8644; Switch program</a>{% endif %}{% endblock %}
+      </div>
+      {% if user.is_authenticated %}
+      <nav class="program-nav" aria-label="Main">
+        {% block program_nav %}{% endblock %}
+        <span class="who">{{ user.username }} &middot; {{ user.role_label }}</span>
+        <form method="post" action="{% url 'logout' %}" class="inline">
+          {% csrf_token %}
+          <button type="submit" class="link">Log out</button>
+        </form>
+      </nav>
+      {% endif %}
+    </header>
+    {% if user.is_authenticated %}
+    <div class="toolbar">
+      <nav class="breadcrumb" aria-label="You are here">{% block breadcrumb %}{% endblock %}</nav>
+      <div class="toolbar-buttons">
+        <button type="button" class="button small back-button" data-back data-fallback="{% url 'home' %}">&larr; Back</button>
+        <a class="button small" href="{% url 'home' %}" title="Home (Alt+H)">Home</a>
+        <a class="button small" href="{% url 'search' %}" title="Search (Alt+G)">Search</a>
+      </div>
+    </div>
+    {% endif %}
+    {% if backup_warning %}<div class="banner-warning" role="alert"><a href="{% url 'backup_list' %}">{{ backup_warning }}</a></div>{% endif %}
+    <main id="main">
+      {% if messages %}
+      <ul class="messages">
+        {% for message in messages %}<li class="{{ message.tags }}">{{ message }}</li>{% endfor %}
+      </ul>
+      {% endif %}
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+  <script src="{% static 'js/site.js' %}" data-home="{% url 'home' %}" data-search="{% url 'search' %}"></script>
+</body>
+</html>
