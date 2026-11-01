@@ -4,6 +4,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_http_methods
 
 from . import suite
+from .clear import ClearRefused, clear_preview, clear_profile
 from .forms import ProfileForm, SuiteNamesForm, UserCreateForm, UserEditForm
 from .models import Profile, ProfileMembership, PurgeLog
 from .permissions import admin_required
@@ -212,3 +213,28 @@ def profile_restore(request, pk):
         restore_profile(target)
         messages.success(request, f"Profile {target.name} restored.")
     return redirect("profile_list")
+
+
+@admin_required
+@require_http_methods(["GET", "POST"])
+def profile_clear(request, pk):
+    """Delete ALL diary data in a profile (Admin only). Preview first; the profile name must be typed."""
+    target = get_object_or_404(_live_profiles(), pk=pk)
+    rows = clear_preview(target)
+    total = sum(number for _name, number in rows)
+    if request.method == "POST":
+        if request.POST.get("confirm", "").strip() != target.name:
+            messages.error(request, "Nothing was deleted. Type the profile's name exactly to confirm.")
+            return redirect("profile_clear", pk=target.pk)
+        try:
+            counts = clear_profile(target, request.user)
+        except ClearRefused as exc:
+            messages.error(request, str(exc))
+            return redirect("profile_clear", pk=target.pk)
+        messages.success(
+            request,
+            f"All diary data in {target.name} was deleted ({sum(counts.values())} rows). "
+            "A backup was taken first (kind: Before clearing profile).",
+        )
+        return redirect("profile_list")
+    return render(request, "accounts/profile_clear.html", {"target": target, "rows": rows, "total": total})

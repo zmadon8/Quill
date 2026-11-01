@@ -333,7 +333,7 @@ def import_word(request):
     data = upload.read()
     if action not in ("dry_run", "dry_run_download") and profile is None:
         return again("Choose the profile to check against.")
-    stamp = timezone.now().strftime("%Y%m%d-%H%M%S")
+    stamp = timezone.localtime().strftime("%Y%m%d-%H%M%S")
 
     def download(text, name):
         response = HttpResponse(text, content_type="text/plain; charset=utf-8")

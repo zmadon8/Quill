@@ -2,7 +2,7 @@
 {% block title %}Restore preview - {{ diary_name }}{% endblock %}
 {% block content %}
 <h1>Restore preview</h1>
-<p>Backup: <strong>{{ backup.filename }}</strong> ({{ backup.created_at|date:"Y-m-d H:i" }} UTC)</p>
+<p>Backup: <strong>{{ backup.filename }}</strong> ({{ backup.created_at|date:"Y-m-d H:i" }} IST)</p>
 <div class="warning-box">
   <p><strong>Restoring replaces all current data with the contents of this file.</strong></p>
   <p>A safety backup of the current data is taken first, so this step can be undone by restoring that safety backup.</p>

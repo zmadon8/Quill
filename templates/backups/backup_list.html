@@ -16,7 +16,7 @@
 {% if backups %}
 <div class="table-wrap">
 <table data-resizable-columns="backups-list">
-  <thead><tr><th>When (UTC)</th><th>Kind</th><th>Size</th><th>Records</th><th></th></tr></thead>
+  <thead><tr><th>Time (IST)</th><th>Kind</th><th>Size</th><th>Records</th><th></th></tr></thead>
   <tbody>
   {% for b in backups %}
     <tr>
@@ -24,7 +24,7 @@
       <td>{{ b.get_kind_display }}</td>
       <td>{{ b.size_bytes|filesizeformat }}</td>
       <td>{% for label, n in b.record_counts.items %}{{ label }}: {{ n }}{% if not forloop.last %}, {% endif %}{% endfor %}</td>
-      <td><a href="{% url 'backup_download' b.pk %}">Download</a> | <a href="{% url 'restore_preview' b.pk %}">Restore</a>{% if b.kind == "pre_import" or b.kind == "post_import" %} | <a href="{% url 'backup_delete' b.pk %}">Delete</a>{% endif %}</td>
+      <td><a href="{% url 'backup_download' b.pk %}">Download</a> | <a href="{% url 'restore_preview' b.pk %}">Restore</a>{% if b.kind == "pre_import" or b.kind == "post_import" or b.kind == "pre_clear" %} | <a href="{% url 'backup_delete' b.pk %}">Delete</a>{% endif %}</td>
     </tr>
   {% endfor %}
   </tbody>
@@ -37,7 +37,7 @@
 <h2>History (last 30)</h2>
 <div class="table-wrap">
 <table data-resizable-columns="backups-log">
-  <thead><tr><th>Started (UTC)</th><th>What</th><th>Result</th><th>Details</th></tr></thead>
+  <thead><tr><th>Time (IST)</th><th>What</th><th>Result</th><th>Details</th></tr></thead>
   <tbody>
   {% for log in logs %}
     <tr>

@@ -8,7 +8,7 @@ from .models import BackupLog
 
 logger = logging.getLogger(__name__)
 
-BACKUP_KINDS = ["daily", "manual", "pre_restore", "pre_migration", "pre_import", "post_import"]
+BACKUP_KINDS = ["daily", "manual", "pre_restore", "pre_migration", "pre_import", "post_import", "pre_clear"]
 
 
 def backup_banner(request):
@@ -29,7 +29,7 @@ def _backup_banner(request):
     latest = logs.order_by("-started_at", "-id").first()
     if latest is not None and not latest.success:
         when = timezone.localtime(latest.started_at).strftime("%Y-%m-%d %H:%M")
-        return {"backup_warning": f"The last backup FAILED ({when} UTC). Open Backups."}
+        return {"backup_warning": f"The last backup FAILED ({when} IST). Open Backups."}
 
     last_ok = logs.filter(success=True).order_by("-started_at", "-id").first()
     last_ok_at = last_ok.started_at if last_ok else None

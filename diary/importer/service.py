@@ -13,7 +13,7 @@ ImportRefused = loader.ImportRefused
 
 
 def _now():
-    return timezone.now().strftime("%Y-%m-%d %H:%M:%S %Z")
+    return timezone.localtime().strftime("%Y-%m-%d %H:%M:%S %Z")
 
 
 def _prepare(data):

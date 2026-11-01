@@ -1,0 +1,29 @@
+{% extends "base_suite_home.html" %}
+{% block title %}Delete all data - {{ diary_name }}{% endblock %}
+{% block content %}
+<h1>Delete all data in a profile</h1>
+<p>Profile: <strong>{{ target.name }}</strong></p>
+<p>This permanently deletes every diary record in this profile, including records in the Trash, imported records and the version history. The profile itself, its name, its export name and its users stay. A full backup (Before clearing profile) is taken first; if it fails nothing is deleted. Use this to empty a profile before restoring from a Word file.</p>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Record type</th><th>Rows that would be deleted</th></tr></thead>
+  <tbody>
+  {% for name, number in rows %}
+    <tr><td>{{ name }}</td><td>{{ number }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% if total %}
+<form method="post">
+  {% csrf_token %}
+  <p class="error">{{ total }} row{{ total|pluralize }} will be deleted for good. This cannot be undone except from the backup.</p>
+  <p><label>Type the profile name <strong>{{ target.name }}</strong> to confirm: <input type="text" name="confirm" autocomplete="off"></label></p>
+  <button type="submit" class="danger">Delete all data</button>
+  <a href="{% url 'profile_list' %}">Cancel</a>
+</form>
+{% else %}
+<p>This profile has no diary data, so there is nothing to delete.</p>
+<p><a href="{% url 'profile_list' %}">Back to Profiles</a></p>
+{% endif %}
+{% endblock %}

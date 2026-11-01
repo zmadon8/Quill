@@ -13,7 +13,7 @@
       <td>{{ p.name }}</td>
       <td>{{ p.member_count }}</td>
       <td>{{ p.subject_count }}</td>
-      <td><a href="{% url 'profile_edit' p.pk %}">Rename</a> | <a href="{% url 'profile_delete' p.pk %}">Delete</a></td>
+      <td><a href="{% url 'profile_edit' p.pk %}">Rename</a> | <a href="{% url 'profile_clear' p.pk %}">Delete all data</a> | <a href="{% url 'profile_delete' p.pk %}">Delete</a></td>
     </tr>
   {% empty %}
     <tr><td colspan="4">No profiles yet.</td></tr>
@@ -27,7 +27,7 @@
 {% if deleted_profiles %}
 <div class="table-wrap">
 <table>
-  <thead><tr><th>Name</th><th>Program</th><th>Deleted</th><th>Deleted by</th><th>Users</th><th>Days left</th><th></th></tr></thead>
+  <thead><tr><th>Name</th><th>Program</th><th>Deleted (IST)</th><th>Deleted by</th><th>Users</th><th>Days left</th><th></th></tr></thead>
   <tbody>
   {% for p in deleted_profiles %}
     <tr>
@@ -56,7 +56,7 @@
 {% if purge_logs %}
 <div class="table-wrap">
 <table>
-  <thead><tr><th>When</th><th>Result</th><th>Details</th></tr></thead>
+  <thead><tr><th>Time (IST)</th><th>Result</th><th>Details</th></tr></thead>
   <tbody>
   {% for log in purge_logs %}
     <tr>

@@ -20,6 +20,7 @@ urlpatterns = [
     path("profiles/new/", views.profile_create, name="profile_create"),
     path("profiles/<int:pk>/edit/", views.profile_edit, name="profile_edit"),
     path("profiles/<int:pk>/delete/", views.profile_delete, name="profile_delete"),
+    path("profiles/<int:pk>/clear/", views.profile_clear, name="profile_clear"),
     path("profiles/<int:pk>/restore/", views.profile_restore, name="profile_restore"),
     path("users/", views.user_list, name="user_list"),
     path("users/new/", views.user_create, name="user_create"),

@@ -139,7 +139,7 @@ def create_backup(kind, user=None, use_applied_state=False):
                     cursor.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
             document, counts = _build_document(started, app_registry)
             raw = gzip.compress(json.dumps(document).encode("utf-8"))
-            filename = f"judgment-diary-backup-{started:%Y%m%d-%H%M%S}-{kind}.json.gz"
+            filename = f"judgment-diary-backup-{timezone.localtime(started):%Y%m%d-%H%M%S}-{kind}.json.gz"
             backup = BackupFile.objects.create(
                 created_at=started,
                 kind=kind,
@@ -167,9 +167,9 @@ def create_backup(kind, user=None, use_applied_state=False):
 
 
 def prune_old_backups(now=None, retention_days=None):
-    """Delete backups past the retention period (never the newest one, never an import backup).
+    """Delete backups past the retention period (never the newest one, never an import or clear backup).
 
-    Backups made around a Word import ("Before import" / "After import") stay until an Admin deletes them.
+    Backups made around a Word import ("Before import" / "After import") or before clearing a profile stay until an Admin deletes them.
 
     Never raises: a failure is written to the log instead. Returns the number removed.
     """
