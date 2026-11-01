@@ -372,7 +372,8 @@ class ImportScreenTests(TestCase):
         resp = self.post(action="dry_run")
         self.assertContains(resp, "DRY RUN")
         self.assertContains(resp, file_digest(self.data)[:12])
-        self.assertContains(resp, "Import into Main")
+        self.assertContains(resp, "python manage.py import_docx --profile &#x27;Main&#x27; --import")
+        self.assertNotContains(resp, "Import into Main")
         self.assertEqual(Subject.objects.count(), 0)
 
     def test_dry_run_download_is_a_text_file(self):
