@@ -1,7 +1,10 @@
 from datetime import timedelta
 
+from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.db.models import Q
+from django.db.models.functions import Lower
 from django.utils import timezone
 
 ROLE_ADMIN = "admin"
@@ -79,6 +82,68 @@ class SuiteName(models.Model):
 
     def __str__(self):
         return f"{self.key}: {self.display_name}"
+
+
+class Profile(models.Model):
+    """A separate data space inside one program, like a separate notebook.
+
+    For example "Madon - Case Law" and "Junior - Case Law" are two profiles of the Case Law Diary
+    (program key ``diary``). Each holds its own Subjects and Items; nothing is shared between
+    profiles. Names are unique per program among profiles that are not deleted, ignoring case.
+    Deleting only sets ``deleted_at``.
+    """
+
+    program = models.CharField(max_length=30)
+    name = models.CharField(max_length=60)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(condition=~Q(name=""), name="profile_name_not_blank"),
+            models.UniqueConstraint(
+                Lower("name"),
+                "program",
+                condition=Q(deleted_at__isnull=True),
+                name="profile_name_unique_live",
+            ),
+        ]
+
+    @property
+    def is_deleted(self):
+        return self.deleted_at is not None
+
+    def __str__(self):
+        return self.name
+
+
+class ProfileMembership(models.Model):
+    """Gives one user access to one profile. A user has at most one profile per program.
+
+    ``program`` is copied from the profile on save so the database can enforce the rule
+    "one profile per user per program". Several users may share a profile.
+    """
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="profile_memberships")
+    profile = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name="memberships")
+    program = models.CharField(max_length=30)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["user", "program"], name="membership_one_profile_per_program"),
+        ]
+
+    def save(self, *args, **kwargs):
+        self.program = self.profile.program
+        update_fields = kwargs.get("update_fields")
+        if update_fields is not None:
+            kwargs["update_fields"] = set(update_fields) | {"program"}
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.user_id} in {self.profile_id} ({self.program})"
 
 
 class FailedLogin(models.Model):

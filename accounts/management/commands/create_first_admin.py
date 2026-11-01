@@ -7,6 +7,9 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.core.management.base import BaseCommand, CommandError
 
+from accounts.models import ProfileMembership
+from accounts.profiles import ensure_default_profile
+
 
 class Command(BaseCommand):
     help = (
@@ -40,4 +43,6 @@ class Command(BaseCommand):
             raise CommandError("; ".join(exc.messages)) from exc
         user.set_password(password)
         user.save()
-        self.stdout.write(self.style.SUCCESS(f"Admin {username} created."))
+        profile = ensure_default_profile()
+        ProfileMembership.objects.create(user=user, profile=profile)
+        self.stdout.write(self.style.SUCCESS(f"Admin {username} created (profile: {profile.name})."))

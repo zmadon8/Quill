@@ -7,6 +7,7 @@ from django.contrib.auth.models import AnonymousUser
 from django.core.exceptions import PermissionDenied
 from django.core.management import call_command
 from django.core.management.base import CommandError
+from django.db import IntegrityError, transaction
 from django.http import HttpResponse
 from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
@@ -14,7 +15,8 @@ from django.utils import timezone
 
 from accounts.forms import THROTTLE_MESSAGE
 from accounts import suite
-from accounts.models import FailedLogin, SuiteName
+from accounts.models import FailedLogin, Profile, ProfileMembership, SuiteName
+from accounts.profiles import assign_unassigned_users, ensure_default_profile, get_profile_for
 from accounts.permissions import admin_required, editor_required, reader_required
 
 User = get_user_model()
@@ -446,3 +448,89 @@ class RoleTests(BaseCase):
         self.assertContains(self.client.post(url, {"username": "boss", "role": "admin"}), "cannot disable your own")
         self.admin.refresh_from_db()
         self.assertEqual(self.admin.role, "admin")
+
+
+class ProfileModelTests(TestCase):
+    def setUp(self):
+        self.alice = User.objects.create_user("alice", password=PASSWORD)
+        self.main = ensure_default_profile()
+
+    def test_main_profile_exists_from_migration(self):
+        self.assertEqual(self.main.name, "Main")
+        self.assertEqual(self.main.program, "diary")
+
+    def test_name_unique_per_program_ignoring_case_among_live_profiles(self):
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                Profile.objects.create(program="diary", name="main")
+        Profile.objects.create(program="other", name="Main")
+
+    def test_deleted_profile_does_not_block_name(self):
+        Profile.objects.filter(pk=self.main.pk).update(deleted_at=timezone.now())
+        again = Profile.objects.create(program="diary", name="Main")
+        self.assertIsNone(again.deleted_at)
+
+    def test_blank_name_refused(self):
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                Profile.objects.create(program="diary", name="")
+
+    def test_membership_program_follows_profile(self):
+        membership = ProfileMembership.objects.create(user=self.alice, profile=self.main, program="wrong")
+        self.assertEqual(membership.program, "diary")
+
+    def test_one_profile_per_user_per_program(self):
+        second = Profile.objects.create(program="diary", name="Junior")
+        ProfileMembership.objects.create(user=self.alice, profile=self.main)
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                ProfileMembership.objects.create(user=self.alice, profile=second)
+        other_program = Profile.objects.create(program="other", name="Anything")
+        ProfileMembership.objects.create(user=self.alice, profile=other_program)
+
+    def test_several_users_may_share_a_profile(self):
+        bob = User.objects.create_user("bob", password=PASSWORD)
+        ProfileMembership.objects.create(user=self.alice, profile=self.main)
+        ProfileMembership.objects.create(user=bob, profile=self.main)
+        self.assertEqual(self.main.memberships.count(), 2)
+
+    def test_get_profile_for(self):
+        self.assertIsNone(get_profile_for(self.alice))
+        self.assertIsNone(get_profile_for(AnonymousUser()))
+        ProfileMembership.objects.create(user=self.alice, profile=self.main)
+        self.assertEqual(get_profile_for(self.alice), self.main)
+        self.assertIsNone(get_profile_for(self.alice, "other"))
+        Profile.objects.filter(pk=self.main.pk).update(deleted_at=timezone.now())
+        self.assertIsNone(get_profile_for(self.alice))
+
+
+class DefaultProfileLogicTests(TestCase):
+    """The logic the data migration uses (run here on the real models)."""
+
+    def test_ensure_default_profile_reuses_existing_main(self):
+        first = ensure_default_profile()
+        self.assertEqual(ensure_default_profile(Profile, "diary", "MAIN"), first)
+        self.assertEqual(Profile.objects.filter(program="diary", name__iexact="main").count(), 1)
+
+    def test_ensure_default_profile_creates_when_missing(self):
+        Profile.objects.all().delete()
+        created = ensure_default_profile()
+        self.assertEqual((created.program, created.name), ("diary", "Main"))
+
+    def test_assign_unassigned_users_respects_one_per_program(self):
+        main = ensure_default_profile()
+        junior = Profile.objects.create(program="diary", name="Junior")
+        alice = User.objects.create_user("alice", password=PASSWORD)
+        bob = User.objects.create_user("bob", password=PASSWORD)
+        ProfileMembership.objects.create(user=alice, profile=junior)
+        assigned = assign_unassigned_users(User, ProfileMembership, main)
+        self.assertEqual(assigned, User.objects.count() - 1)
+        self.assertEqual(get_profile_for(alice), junior)
+        self.assertEqual(get_profile_for(bob), main)
+        self.assertEqual(assign_unassigned_users(User, ProfileMembership, main), 0)
+
+    def test_create_first_admin_joins_main(self):
+        User.objects.all().delete()
+        with mock.patch.dict("os.environ", {"DJANGO_SUPERUSER_USERNAME": "boss", "DJANGO_SUPERUSER_PASSWORD": PASSWORD}):
+            call_command("create_first_admin", stdout=StringIO())
+        self.assertEqual(get_profile_for(User.objects.get(username="boss")).name, "Main")
