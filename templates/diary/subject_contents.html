@@ -2,32 +2,24 @@
 {% block title %}{{ subject.name }}{% endblock %}
 {% block crumb_nav %}{% include "diary/_crumbs.html" %}{% endblock %}
 {% block content %}
-<h1>{{ subject.name }}</h1>
-<div class="actions">
-  <a class="button" href="{% url 'read_subject' subject.pk %}">View whole Subject</a>
-</div>
-{% if toc %}
-<ul class="toc">
-  {% for entry in toc %}
-  <li>
-    <a class="row-link" href="{% url 'read_topic' entry.topic.pk %}"><span class="num">{{ entry.label }}</span> {{ entry.topic.name }}</a>
-    {% if entry.subtopics %}
-    <ul>
-      {% for sub in entry.subtopics %}
-      <li><a class="row-link" href="{% url 'read_subtopic' sub.subtopic.pk %}"><span class="num">{{ sub.label }}</span> {{ sub.subtopic.name }}</a></li>
-      {% endfor %}
-    </ul>
+{# Same layout as the reading view: Contents in the left panel. On phones the panel is shown in the page, full width. #}
+<div class="reader-layout reader-layout--page{% if not toc and not direct_toc %} no-contents{% endif %}">
+  {% if toc or direct_toc %}
+  <aside class="contents-panel contents-panel--page" id="contents-panel" aria-label="Contents">
+    <h2>Contents</h2>
+    {% include "diary/_toc.html" with toc_default="all" toc_current_topic=None %}
+  </aside>
+  {% endif %}
+  <article class="reading">
+    <h1>{{ subject.name }}</h1>
+    <div class="actions">
+      <a class="button" href="{% url 'read_subject' subject.pk %}">View whole Subject</a>
+    </div>
+    {% if toc or direct_toc %}
+    <p class="hint">Choose a Topic or Sub-topic from Contents.</p>
+    {% else %}
+    <p>This Subject has no Topics or Sub-topics. Use <strong>View whole Subject</strong> to see its Items.</p>
     {% endif %}
-  </li>
-  {% endfor %}
-</ul>
-{% endif %}
-{% if direct_toc %}
-<ul class="toc">
-  {% for sub in direct_toc %}
-  <li><a class="row-link" href="{% url 'read_subtopic' sub.subtopic.pk %}"><span class="num">{{ sub.label }}</span> {{ sub.subtopic.name }}</a></li>
-  {% endfor %}
-</ul>
-{% endif %}
-{% if not toc and not direct_toc %}<p>This Subject has no Topics or Sub-topics. Use <strong>View whole Subject</strong> to see its Items.</p>{% endif %}
+  </article>
+</div>
 {% endblock %}

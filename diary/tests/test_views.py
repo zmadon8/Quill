@@ -239,6 +239,42 @@ class ReadingScreenTests(TestCase):
         self.assertContains(resp, "Formation")
         self.assertContains(resp, "Acceptance")
 
+    def test_contents_page_uses_side_panel_layout(self):
+        self.client.force_login(self.users["reader"])
+        resp = self.client.get(reverse("subject_contents", args=[self.contract.pk]))
+        self.assertContains(resp, 'class="reader-layout reader-layout--page"')
+        self.assertContains(resp, 'id="contents-panel"')
+        self.assertContains(resp, "Choose a Topic or Sub-topic from Contents.")
+        self.assertNotContains(resp, "data-contents-toggle")
+        self.assertContains(resp, 'data-toc-default="all"')
+        self.assertContains(resp, "data-toc-expand-all")
+        self.assertContains(resp, "data-toc-collapse-all")
+        self.assertContains(resp, 'aria-expanded="true"')
+
+    def test_contents_page_empty_subject_message(self):
+        empty = Subject.objects.create(name="Empty Subject", show_on_landing=True)
+        self.client.force_login(self.users["reader"])
+        resp = self.client.get(reverse("subject_contents", args=[empty.pk]))
+        self.assertContains(resp, "This Subject has no Topics or Sub-topics.")
+        self.assertNotContains(resp, 'id="contents-panel"')
+
+    def test_reader_toc_marks_current_topic_and_defaults_to_current(self):
+        self.client.force_login(self.users["reader"])
+        topic = Topic.objects.get(name="Remedies")
+        resp = self.client.get(reverse("read_topic", args=[topic.pk]))
+        self.assertContains(resp, 'data-toc-default="current"')
+        self.assertContains(resp, 'data-toc-node="%d" data-toc-current' % topic.pk)
+        resp = self.client.get(reverse("read_subtopic", args=[self.offer.pk]))
+        self.assertContains(resp, 'data-toc-node="%d" data-toc-current' % self.offer.topic_id)
+        resp = self.client.get(reverse("read_subject", args=[self.contract.pk]))
+        self.assertNotContains(resp, "data-toc-current")
+
+    def test_other_subject_toc_has_nothing_to_expand(self):
+        self.client.force_login(self.users["reader"])
+        resp = self.client.get(reverse("subject_contents", args=[self.other.pk]))
+        self.assertNotContains(resp, "data-toc-toggle")
+        self.assertNotContains(resp, "data-toc-expand-all")
+
     def test_other_subject_lists_subtopics_directly(self):
         self.client.force_login(self.users["reader"])
         resp = self.client.get(reverse("subject_contents", args=[self.other.pk]))

@@ -94,7 +94,8 @@ def subject_contents(request, pk):
 
 def _render_reading(request, subject, scope, target, crumbs):
     context = reading.build_reading(subject, request.user, scope, target)
-    context.update(subject=subject, scope=scope, target=target, crumbs=crumbs)
+    current_topic = target.pk if scope == "topic" else (target.topic_id if scope == "subtopic" else None)
+    context.update(subject=subject, scope=scope, target=target, crumbs=crumbs, toc_current_topic=current_topic)
     return render(request, "diary/reader.html", context)
 
 

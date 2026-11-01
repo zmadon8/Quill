@@ -6,7 +6,7 @@
   <aside class="contents-panel" id="contents-panel" aria-label="Contents">
     <h2>Contents</h2>
     <p><a href="{% url 'subject_contents' subject.pk %}">{{ subject.name }}</a></p>
-    {% include "diary/_toc.html" %}
+    {% include "diary/_toc.html" with toc_default="current" %}
   </aside>
   <article class="reading">
     <div class="actions">
