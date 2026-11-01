@@ -27,6 +27,19 @@
   </tbody>
 </table>
 </div>
+{% if profiles %}
+<h2>Profiles in the file</h2>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Profile</th><th>Program</th><th>Users</th><th>Records</th></tr></thead>
+  <tbody>
+  {% for p in profiles %}
+    <tr><td>{{ p.name }}{% if p.deleted %} (deleted){% endif %}</td><td>{{ p.program }}</td><td>{{ p.users }}</td><td>{{ p.records }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
 <form method="post">
   {% csrf_token %}
   <p><label for="confirm">To go ahead, type the word <strong>{{ confirm_word }}</strong>:</label><br>

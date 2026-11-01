@@ -19,6 +19,8 @@ from django.db.migrations.loader import MigrationLoader
 from django.utils import timezone
 
 from accounts.models import normalise_role
+from accounts.profiles import DEFAULT_PROFILE_NAME
+from accounts.suite import KEY_DIARY as DEFAULT_PROGRAM
 
 from . import policy, registry
 from .models import BackupFile, BackupLog
@@ -72,11 +74,15 @@ def _build_document(now, app_registry=None):
     models_out = {}
     counts = {}
     # Registry models missing from the historical state have no table yet: record them as empty.
+    # Optional models stay out of the file then, so an older state is read as an older backup.
     for label in registry.BACKUP_MODELS:
+        if label in registry.OPTIONAL_MODELS and app_registry is not None:
+            continue
         models_out[label] = []
         counts[label] = 0
     for model in registry.get_models(app_registry):
         label = model._meta.label
+        models_out.setdefault(label, [])
         text = serializers.serialize(
             "json",
             model._default_manager.order_by("pk"),
@@ -245,7 +251,76 @@ def parse_backup(raw, max_bytes):
             ):
                 raise BackupError(f"This backup file is damaged (bad record in {label}).")
     _normalise_user_records(models_in_file.get("accounts.User", []))
+    upgrade_old_document(document)
     return document
+
+
+def upgrade_old_document(document, now=None):
+    """Give a backup made before profiles existed a default "Main" profile.
+
+    If the file has no profiles (no ``accounts.Profile`` section, or an empty one as written by
+    a pre-migration backup taken before profiles existed), a "Main" Case Law Diary profile is added,
+    every user in the file is given access to it, and every diary record without a ``profile``
+    is put into it. A file that already has profiles is left untouched. Returns True if changed.
+    """
+    models_in_file = document["models"]
+    if models_in_file.get("accounts.Profile"):
+        return False
+    stamp = (now or timezone.now()).isoformat()
+    profile_pk = 1
+    models_in_file["accounts.Profile"] = [
+        {
+            "model": "accounts.profile",
+            "pk": profile_pk,
+            "fields": {
+                "program": DEFAULT_PROGRAM,
+                "name": DEFAULT_PROFILE_NAME,
+                "deleted_at": None,
+                "created_at": stamp,
+                "updated_at": stamp,
+            },
+        }
+    ]
+    models_in_file["accounts.ProfileMembership"] = [
+        {
+            "model": "accounts.profilemembership",
+            "pk": number,
+            "fields": {"user": user["pk"], "profile": profile_pk, "program": DEFAULT_PROGRAM, "created_at": stamp},
+        }
+        for number, user in enumerate(models_in_file.get("accounts.User", []), start=1)
+    ]
+    for label in registry.PROFILE_MODELS:
+        for record in models_in_file.get(label, []):
+            record["fields"].setdefault("profile", profile_pk)
+    document.setdefault("counts", {})
+    document["counts"]["accounts.Profile"] = 1
+    document["counts"]["accounts.ProfileMembership"] = len(models_in_file["accounts.ProfileMembership"])
+    return True
+
+
+def profile_summary(document):
+    """Per profile in the file: its name, program, how many users have it and how many diary records."""
+    models_in_file = document["models"]
+    users = {}
+    for record in models_in_file.get("accounts.ProfileMembership", []):
+        users[record["fields"].get("profile")] = users.get(record["fields"].get("profile"), 0) + 1
+    records = {}
+    for label in registry.PROFILE_MODELS:
+        for record in models_in_file.get(label, []):
+            key = record["fields"].get("profile")
+            records[key] = records.get(key, 0) + 1
+    rows = []
+    for record in models_in_file.get("accounts.Profile", []):
+        rows.append(
+            {
+                "name": record["fields"].get("name", "?"),
+                "program": record["fields"].get("program", ""),
+                "deleted": bool(record["fields"].get("deleted_at")),
+                "users": users.get(record["pk"], 0),
+                "records": records.get(record["pk"], 0),
+            }
+        )
+    return sorted(rows, key=lambda row: (row["program"], row["name"].lower()))
 
 
 def _normalise_user_records(records):

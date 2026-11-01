@@ -19,6 +19,8 @@ from django.apps import apps
 BACKUP_MODELS = [
     "accounts.User",
     "accounts.SuiteName",
+    "accounts.Profile",
+    "accounts.ProfileMembership",
     "diary.Subject",
     "diary.Topic",
     "diary.Subtopic",
@@ -32,8 +34,23 @@ BACKUP_MODELS = [
 ]
 
 #: Models an older backup file may lack. Restoring such a file empties the table, so the built-in
-#: defaults apply (a backup made before the Settings page existed has no display names).
-OPTIONAL_MODELS = {"accounts.SuiteName"}
+#: defaults apply (a backup made before the Settings page existed has no display names). Profiles and
+#: memberships are optional too: see ``services.upgrade_old_document`` for how an older file is
+#: given a default "Main" profile.
+OPTIONAL_MODELS = {"accounts.SuiteName", "accounts.Profile", "accounts.ProfileMembership"}
+
+#: Diary models that carry a ``profile`` column. An older backup lacks it; such rows go into "Main".
+PROFILE_MODELS = [
+    "diary.Subject",
+    "diary.Topic",
+    "diary.Subtopic",
+    "diary.Section",
+    "diary.Item",
+    "diary.Case",
+    "diary.Note",
+    "diary.NoteLink",
+    "diary.VersionHistory",
+]
 
 
 def get_models(app_registry=None):

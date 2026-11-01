@@ -13,7 +13,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from accounts.models import SuiteName
+from accounts.models import Profile, ProfileMembership, SuiteName
 from backups import registry, services
 from backups.management.commands import migrate_with_backup
 from backups.models import BackupFile, BackupLog
@@ -29,6 +29,7 @@ from diary.models import (
     UserSettings,
     VersionHistory,
 )
+from diary.tests.helpers import main_profile
 
 User = get_user_model()
 PASSWORD = "correct-horse-battery-9"
@@ -309,23 +310,27 @@ class DiaryRoundTripTests(BackupBase):
 
     def build(self):
         user = self.alice
-        subject = Subject.objects.create(name="Contract", created_by=user)
-        topic = Topic.objects.create(subject=subject, name="Formation", position=1)
-        subtopic = Subtopic.objects.create(topic=topic, name="Offer", position=1)
-        other = Subject.objects.create(name="Companies Act", position=2)
-        Subtopic.objects.create(subject=other, name="Directors")
-        section = Section.objects.create(subtopic=subtopic, name="Ex Parte", needs_review=True, review_note="check")
-        item = Item.objects.create(subtopic=subtopic, text="<p>Rule <b>one</b></p>", citation="A v B", position=1)
-        nested = Item.objects.create(subject=other, kind="nested", text="Parent", citation="C v D")
-        Item.objects.create(parent_item=nested, text="Child")
-        multi = Item.objects.create(topic=topic, kind="multi", text="Multi")
-        Case.objects.create(item=multi, citation="E v F", comment="<i>c</i>", position=1)
-        note = Note.objects.create(item=item, text="See also")
-        NoteLink.objects.create(note=note, section=section)
-        NoteLink.objects.create(note=note, subject=other)
+        subject = Subject.objects.create(profile=main_profile(), name="Contract", created_by=user)
+        topic = Topic.objects.create(profile=main_profile(), subject=subject, name="Formation", position=1)
+        subtopic = Subtopic.objects.create(profile=main_profile(), topic=topic, name="Offer", position=1)
+        other = Subject.objects.create(profile=main_profile(), name="Companies Act", position=2)
+        Subtopic.objects.create(profile=main_profile(), subject=other, name="Directors")
+        section = Section.objects.create(profile=main_profile(), subtopic=subtopic, name="Ex Parte", needs_review=True, review_note="check")
+        item = Item.objects.create(profile=main_profile(), subtopic=subtopic, text="<p>Rule <b>one</b></p>", citation="A v B", position=1)
+        nested = Item.objects.create(profile=main_profile(), subject=other, kind="nested", text="Parent", citation="C v D")
+        Item.objects.create(profile=main_profile(), parent_item=nested, text="Child")
+        multi = Item.objects.create(profile=main_profile(), topic=topic, kind="multi", text="Multi")
+        Case.objects.create(profile=main_profile(), item=multi, citation="E v F", comment="<i>c</i>", position=1)
+        note = Note.objects.create(profile=main_profile(), item=item, text="See also")
+        NoteLink.objects.create(profile=main_profile(), note=note, section=section)
+        NoteLink.objects.create(profile=main_profile(), note=note, subject=other)
+        junior = Profile.objects.create(program="diary", name="Junior")
+        Subject.objects.create(profile=junior, name="Junior notes")
+        ProfileMembership.objects.create(user=user, profile=main_profile())
+        ProfileMembership.objects.create(user=self.admin, profile=junior)
         SuiteName.objects.create(key="diary", display_name="Case Law Diary (custom)")
         UserSettings.objects.create(user=user, section_format="section_n", opening_subject=subject)
-        VersionHistory.objects.create(
+        VersionHistory.objects.create(profile=main_profile(),
             record_type="item", record_id=item.pk, version=1, snapshot={"text": "x"}, change_kind="create"
         )
 
@@ -361,7 +366,7 @@ class DiaryRoundTripTests(BackupBase):
         doc = services.parse_backup(services.create_backup("manual").data, MAX)
         self.assertEqual(doc["counts"]["diary.NoteLink"], 2)
 
-        Subject.objects.create(name="Extra")
+        Subject.objects.create(profile=main_profile(), name="Extra")
         Item.objects.filter(text_plain="Parent").update(citation="changed")
         NoteLink.objects.all().delete()
         Subject.objects.filter(name="Contract").delete()
@@ -385,6 +390,54 @@ class DiaryRoundTripTests(BackupBase):
         services.restore_backup(doc, self.admin)
         self.assertTrue(all(sub.created_at.microsecond == 123000 for sub in Subject.objects.all()))
         self.assertTrue(Subject.objects.exists())
+
+
+class OldFileWithoutProfilesTests(BackupBase):
+    """A backup made before profiles existed restores into a default "Main" profile."""
+
+    build = DiaryRoundTripTests.build
+
+    def old_file(self):
+        doc = services.parse_backup(services.create_backup("manual").data, MAX)
+        del doc["models"]["accounts.Profile"]
+        del doc["models"]["accounts.ProfileMembership"]
+        doc["models"]["diary.Subject"] = [
+            record for record in doc["models"]["diary.Subject"] if record["fields"]["name"] != "Junior notes"
+        ]
+        for label in registry.PROFILE_MODELS:
+            for record in doc["models"][label]:
+                del record["fields"]["profile"]
+        return json.dumps(doc).encode("utf-8")
+
+    def test_old_file_gets_main_profile(self):
+        self.build()
+        doc = services.parse_backup(self.old_file(), MAX)
+        self.assertEqual([r["fields"]["name"] for r in doc["models"]["accounts.Profile"]], ["Main"])
+        users = len(doc["models"]["accounts.User"])
+        self.assertEqual(len(doc["models"]["accounts.ProfileMembership"]), users)
+        summary = services.profile_summary(doc)
+        self.assertEqual([(row["name"], row["users"]) for row in summary], [("Main", users)])
+        self.assertGreater(summary[0]["records"], 0)
+
+    def test_old_file_restores_everything_into_main(self):
+        self.build()
+        doc = services.parse_backup(self.old_file(), MAX)
+        services.restore_backup(doc, self.admin)
+        self.assertEqual(list(Profile.objects.values_list("name", flat=True)), ["Main"])
+        main = Profile.objects.get(name="Main")
+        self.assertTrue(Subject.objects.exists())
+        self.assertFalse(Subject.objects.exclude(profile=main).exists())
+        self.assertFalse(Item.objects.exclude(profile=main).exists())
+        self.assertFalse(VersionHistory.objects.exclude(profile=main).exists())
+        self.assertEqual(ProfileMembership.objects.filter(profile=main).count(), User.objects.count())
+
+    def test_file_with_profiles_is_not_changed(self):
+        self.build()
+        doc = services.parse_backup(services.create_backup("manual").data, MAX)
+        self.assertFalse(services.upgrade_old_document(doc))
+        self.assertEqual(
+            sorted(r["fields"]["name"] for r in doc["models"]["accounts.Profile"]), ["Junior", "Main"]
+        )
 
 
 class ViewTests(BackupBase):

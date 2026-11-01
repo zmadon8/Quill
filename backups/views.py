@@ -121,5 +121,10 @@ def restore_preview(request, pk):
     return render(
         request,
         "backups/restore_preview.html",
-        {"backup": backup, "rows": rows, "confirm_word": CONFIRM_WORD},
+        {
+            "backup": backup,
+            "rows": rows,
+            "profiles": services.profile_summary(document),
+            "confirm_word": CONFIRM_WORD,
+        },
     )
