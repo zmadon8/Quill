@@ -23,6 +23,8 @@ Note: the technology (Django, PostgreSQL) is confirmed for a **standalone app** 
 
 ## Milestone 1: Data model, reading view, numbering
 
+**Status: built (models, numbering, rich text, sample data, read-only screens); code written, not yet run against Django or a phone, see `README.md`. Reordering of landing tiles is NOT in this milestone: tiles follow the stored order (name as tie-break) and the reorder controls arrive with edit mode in Milestone 3. Moving or deleting a Section with a renumbering preview also belongs to the edit milestone; Milestone 1 tests the renumbering rules themselves.**
+
 **Deliverable:** All record types and database rules exist. Test data (not yours yet) can be loaded. Screens: landing page with Subject tiles and the Other Subjects tile, Subject contents (TOC), the reading view with Items, Citations in italics, Multi-Items, Nested Items, Sections, flags in red, with automatic numbering and the three View buttons. Phone layout from the start. Role rules apply from the first screen: Readers, Editors and Admins can all read; the app is built with the `reader_required`, `editor_required` and `admin_required` checks from `accounts/permissions.py` (`docs/DESIGN.md` section 9.6).
 
 **How you check it:**

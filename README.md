@@ -42,6 +42,26 @@ You need an email address, a payment card and your GitHub account. Cost is about
 5. If Render asks for `DJANGO_ALLOWED_HOSTS`, leave it empty unless you own a domain name. Then press **Apply** (or **Deploy Blueprint**).
 6. Wait for the first deploy to finish. Render shows "Live" and gives you an address ending in `onrender.com`. Open it. You should see the login page.
 
+### Look at sample data (Milestone 1) and remove it again
+
+Until your real Word file is imported, you can load a clearly named TEST set to look at the screens. Every sample Subject starts with `TEST SAMPLE:`.
+
+In the Render Shell tab:
+
+```
+python manage.py load_sample_data
+```
+
+(Running it twice changes nothing the second time.) Then open the site: you will see the sample Subjects on the Home page and a sample under **Other Subjects**.
+
+**Before the real import, remove the sample data:**
+
+```
+python manage.py remove_sample_data
+```
+
+This deletes only Subjects whose name starts with `TEST SAMPLE:` and what sits under them. Your own Subjects are never touched. Take a backup first if you have added anything of your own beneath a sample Subject.
+
 ### Create the first Admin account
 
 There are no users at first, so you create the first Admin from Render:
