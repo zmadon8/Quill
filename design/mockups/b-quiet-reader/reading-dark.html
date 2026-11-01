@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>B Quiet Reader - Reading, dark sepia (intended viewport 1280px)</title>
+<style>
+
+*{box-sizing:border-box}body{margin:0}a{text-decoration:none}
+ol.items{list-style:none;margin:0;padding:0;counter-reset:it}
+li.item{counter-increment:it;display:flex;position:relative}
+li.item .num::before{content:"(" counter(it) ")"}
+.cites .sep{margin:0 .25em}
+cite{font-style:italic}
+ul.kids{margin:.4em 0 .2em;padding-left:1.2em}
+.pill{display:inline-block;font-family:-apple-system,'Helvetica Neue',Arial,sans-serif;font-size:.7em;letter-spacing:.04em;padding:.1em .6em;border-radius:99px;vertical-align:.1em;white-space:nowrap}
+.acts{display:none}
+h2,h3,h4{margin:0}
+.crumb .sp{margin:0 .5em}
+
+/* intended web font: Inter / IBM Plex Sans */
+:root{--bg:#f6f7f8;--card:#fff;--ink:#23272e;--mut:#6c737d;--line:#e5e8ec;--acc:#3d5a80;--cite:#5b6470}
+body.dark{--bg:#2b2620;--card:#332d25;--ink:#e8dcc5;--mut:#a89c85;--line:#463e33;--acc:#d4a96a;--cite:#bfb299}
+body{background:var(--bg);color:var(--ink);font:17px/1.7 -apple-system,'Helvetica Neue',Arial,sans-serif}
+a{color:var(--acc)}
+.tool{display:flex;align-items:center;gap:6px;max-width:980px;margin:0 auto;padding:10px 24px;font-size:14px;color:var(--mut)}
+.tool a{color:var(--mut);padding:6px 12px;border-radius:8px}.tool a:hover{background:var(--line)}
+.tool .grow{flex:1}
+.tool{border-bottom:1px solid var(--line);max-width:none;background:var(--card)}
+.tool>div{display:flex;gap:6px;align-items:center;width:100%;max-width:980px;margin:0 auto}
+.crumb{max-width:680px;margin:28px auto 0;font-size:14px;color:var(--mut);padding:0 20px}
+.crumb a{color:var(--mut)}.crumb b{color:var(--ink);font-weight:500}
+.col{max-width:680px;margin:0 auto;padding:12px 20px 90px}
+h1{font-size:32px;font-weight:600;letter-spacing:-.01em;margin:16px 0 4px}
+.sup{color:var(--mut);font-size:14px;margin-bottom:24px}
+h2.topic{font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut);font-weight:600;margin:56px 0 4px}
+h3.sub{font-size:20px;font-weight:600;margin:20px 0 8px}
+h4.section{font-size:15px;font-weight:600;color:var(--acc);margin:28px 0 6px}
+h2 .lt,h3 .lt,h4 .lt{margin-right:.5em;color:var(--mut);font-weight:500}
+li.item{padding:10px 0;gap:6px}
+li.item .num{flex:0 0 2.3em;color:var(--mut);font-size:15px}
+cite{color:var(--cite)}
+.pill.red{background:#f6e1e1;color:#9a4141}
+.pill.amber{background:#fbeccb;color:#8a6410}
+body.dark .pill.red{background:#4a2a28;color:#e7a39b}body.dark .pill.amber{background:#4d3f1c;color:#e8c677}
+.note{margin:20px 0 0 2.4em;padding:12px 16px;background:var(--card);border:1px solid var(--line);border-radius:10px;font-size:15px;color:var(--mut)}
+.menu{display:none}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;max-width:980px;margin:30px auto 0;padding:0 24px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px}
+.card b{display:block;font-size:18px;font-weight:600;color:var(--ink)}.card span{color:var(--mut);font-size:14px}
+.card.o{background:transparent;border-style:dashed}
+.hero{max-width:980px;margin:56px auto 0;padding:0 24px}.hero h1{font-size:36px}
+ul.kids{color:var(--ink)}
+@media(max-width:600px){
+ body{font-size:16px}.tool{padding:6px 8px}.tool a{min-height:44px;display:flex;align-items:center;padding:0 10px}
+ .menu{display:flex;align-items:center;min-height:44px;margin:8px 0;padding:0 16px;background:var(--card);border:1px solid var(--line);border-radius:10px;color:var(--ink);font-size:15px}
+ h1{font-size:26px}.cards{grid-template-columns:1fr 1fr;padding:0 16px}li.item .num{flex-basis:2.2em}.note{margin-left:0}.crumb{font-size:13px}
+}
+
+</style></head>
+<body class="dark">
+<div class="tool"><div><a href="#">&larr; Back</a><a href="#">Home</a><a href="#">Search</a><span class="grow"></span><span>Judgment Diary</span></div></div><nav class="crumb" aria-label="Breadcrumb"><a href="#">Arbitration</a><span class="sp">&rsaquo;</span><a href="#">Arbitrability</a><span class="sp">&rsaquo;</span><b>Fraud</b></nav><div class="col"><a class="menu" href="#">&#9776;&nbsp; Contents</a><h1>Arbitration</h1><div class="sup">157 items</div><div class="topic-block"><h2 class="topic"><span class="lt">A.</span> Arbitrability</h2><h3 class="sub"><span class="lt">1.</span> Fraud</h3><ol class="items"><li class="item"><span class="num"></span><div class="body"><span class="prop">Mere, but not serious, allegations of fraud arbitrable</span> <span class="dash">-</span> <span class="cites"><span class="c">(a) <cite>A. Ayyasamy [(2016) 10 SCC 386]</cite></span> <span class="sep">;</span> <span class="c">(b) <cite>Ameet Lalchand Shah [(2018) 15 SCC 678]</cite></span></span><span class="acts" aria-hidden="true"><i title="Copy citation">&#9112;</i><i title="Open">&#8599;</i></span></div></li><li class="item"><span class="num"></span><div class="body"><span class="prop">Serious issue of fraud involving criminal wrongdoing not arbitrable</span> <span class="dash">-</span> <cite>N. Radhakrishnan [(2010) 1 SCC 72]</cite><span class="acts" aria-hidden="true"><i title="Copy citation">&#9112;</i><i title="Open">&#8599;</i></span></div></li><li class="item"><span class="num"></span><div class="body"><span class="prop">Cannot file S. 11 when allegation that agreement procured by fraud</span> <span class="dash">-</span> <cite>India Household [(2007) 5 SCC 510]</cite> <span class="pill amber">For review</span><span class="acts" aria-hidden="true"><i title="Copy citation">&#9112;</i><i title="Open">&#8599;</i></span></div></li></ol><h3 class="sub"><span class="lt">2.</span> General</h3><ol class="items"><li class="item"><span class="num"></span><div class="body"><span class="prop">Rights in rem not arbitrable. Provides non-exhaustive list</span> <span class="dash">-</span> <cite>Booz Allen [(2011) 5 SCC 532]</cite><span class="acts" aria-hidden="true"><i title="Copy citation">&#9112;</i><i title="Open">&#8599;</i></span></div></li><li class="item"><span class="num"></span><div class="body"><span class="prop">Trust Deed not arbitrable</span> <span class="dash">-</span> <cite>Vimal Kishor Shah v. Jayesh Dinesh Shah [(2016) 8 SCC 788]</cite><span class="acts" aria-hidden="true"><i title="Copy citation">&#9112;</i><i title="Open">&#8599;</i></span></div></li><li class="item flag"><span class="num"></span><div class="body"><span class="prop">Issue of Limitation of the claim can be decided by the arbitrator</span> <span class="dash">-</span> <cite>BSNL v. Nortel Networks (2021) 5 SCC 738 @ paras 40-47 &amp; 53</cite> <span class="pill red">Overruled</span><span class="acts" aria-hidden="true"><i title="Copy citation">&#9112;</i><i title="Open">&#8599;</i></span></div></li><li class="item"><span class="num"></span><div class="body"><span class="prop">Categories of disputes held non-arbitrable</span><ul class="kids"><li>Criminal offences of a public nature</li><li>Matrimonial disputes and guardianship</li><li>Insolvency and winding-up</li></ul><span class="acts" aria-hidden="true"><i title="Copy citation">&#9112;</i><i title="Open">&#8599;</i></span></div></li></ol><div class="note"><span class="see">See also:</span> <a href="#">Limitation &gt; Amendment</a>, for amendment to introduce a time-barred claim</div></div><div class="topic-block"><h2 class="topic"><span class="lt">B.</span> Letters Patent &amp; OS Rules</h2><h3 class="sub"><span class="lt">1.</span> Clause 12: Leave to Sue</h3><h4 class="section"><span class="lt">(a)</span> Ex Parte / Without Notice</h4><ol class="items"><li class="item"><span class="num"></span><div class="body"><span class="prop">Leave under Clause 12 may be granted ex parte, but the defendant may apply to revoke it</span> <span class="dash">-</span> <cite>Indian Mineral &amp; Chemicals Co. v. Deutsche Bank (2004) 12 SCC 376</cite><span class="acts" aria-hidden="true"><i title="Copy citation">&#9112;</i><i title="Open">&#8599;</i></span></div></li><li class="item"><span class="num"></span><div class="body"><span class="prop">Plaint must disclose all facts bearing on jurisdiction at the time of seeking leave</span> <span class="dash">-</span> <cite>Sharda Devi v. Mohan Lal (1989) 2 Cal LJ 41</cite><span class="acts" aria-hidden="true"><i title="Copy citation">&#9112;</i><i title="Open">&#8599;</i></span></div></li></ol><h4 class="section"><span class="lt">(b)</span> Determining Jurisdiction</h4><ol class="items"><li class="item"><span class="num"></span><div class="body"><span class="prop">Part of cause of action within local limits is enough to found jurisdiction</span> <span class="dash">-</span> <cite>Oil &amp; Natural Gas Commission v. Utpal Kumar Basu (1994) 4 SCC 711</cite><span class="acts" aria-hidden="true"><i title="Copy citation">&#9112;</i><i title="Open">&#8599;</i></span></div></li><li class="item"><span class="num"></span><div class="body"><span class="prop">Cause of action means every fact necessary for the plaintiff to prove to obtain a decree</span> <span class="dash">-</span> <cite>Rajasthan High Court Advocates Assn. v. Union of India (2001) 2 SCC 294</cite> <span class="pill amber">For review</span><span class="acts" aria-hidden="true"><i title="Copy citation">&#9112;</i><i title="Open">&#8599;</i></span></div></li><li class="item"><span class="num"></span><div class="body"><span class="prop">Leave is not a mere formality; the court must be satisfied on the pleadings</span> <span class="dash">-</span> <cite>Kusum Ingots v. Union of India (2004) 6 SCC 254</cite><span class="acts" aria-hidden="true"><i title="Copy citation">&#9112;</i><i title="Open">&#8599;</i></span></div></li></ol></div></div>
+</body></html>

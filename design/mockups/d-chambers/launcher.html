@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D Chambers - Suite launcher (intended viewport 1280px)</title>
+<style>
+
+*{box-sizing:border-box}body{margin:0}a{text-decoration:none}
+ol.items{list-style:none;margin:0;padding:0;counter-reset:it}
+li.item{counter-increment:it;display:flex;position:relative}
+li.item .num::before{content:"(" counter(it) ")"}
+.cites .sep{margin:0 .25em}
+cite{font-style:italic}
+ul.kids{margin:.4em 0 .2em;padding-left:1.2em}
+.pill{display:inline-block;font-family:-apple-system,'Helvetica Neue',Arial,sans-serif;font-size:.7em;letter-spacing:.04em;padding:.1em .6em;border-radius:99px;vertical-align:.1em;white-space:nowrap}
+.acts{display:none}
+h2,h3,h4{margin:0}
+.crumb .sp{margin:0 .5em}
+
+/* intended web fonts: Source Serif 4 / Cormorant (serif), Inter (sans) */
+:root{--ox:#7a1f2b;--ink:#1e1c19;--mut:#7a746a;--hair:#d9d3c5;--bg:#f8f6f1;--card:#fcfbf8}
+body{background:var(--bg);color:var(--ink);font:17px/1.6 -apple-system,'Helvetica Neue',Arial,sans-serif}
+a{color:inherit}
+.page{max-width:1180px;margin:0 auto;padding:0 40px 80px}
+header.h{display:flex;align-items:flex-end;justify-content:space-between;padding:28px 0 0;border-bottom:1px solid var(--ink)}
+.brand{font:italic 28px/1 Georgia,'Iowan Old Style','Times New Roman',serif;padding-bottom:16px}
+.brand small{font:11px -apple-system,'Helvetica Neue',Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:var(--mut);font-style:normal;margin-left:14px;border:1px solid var(--hair);padding:3px 8px;border-radius:2px}
+nav.m{display:flex;gap:26px;font-size:13.5px}
+nav.m a{padding:0 0 16px;color:var(--mut);border-bottom:2px solid transparent;margin-bottom:-1px}
+nav.m a.on{color:var(--ink);border-bottom-color:var(--ox)}
+.titlebar{display:flex;justify-content:space-between;align-items:baseline;padding:38px 0 14px;border-bottom:3px double var(--ink)}
+h1.t{font:400 44px/1.1 Georgia,'Iowan Old Style','Times New Roman',serif;margin:0}
+.meta{font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--mut)}
+.stats{display:flex;margin:30px 0 40px;background:var(--card);border:1px solid var(--hair)}
+.stat{flex:1;padding:22px 28px;border-left:1px solid var(--hair)}.stat:first-child{border-left:0}
+.lab{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--mut)}
+.fig{font:400 38px/1.2 Georgia,'Iowan Old Style','Times New Roman',serif;margin-top:6px}
+.stat.ox .lab,.stat.ox .fig{color:var(--ox)}
+.sec{display:flex;justify-content:space-between;align-items:baseline;margin:10px 0 12px}
+.sec h2{font:400 26px Georgia,'Iowan Old Style','Times New Roman',serif}
+.sec a{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--mut)}
+table{width:100%;border-collapse:collapse}
+th{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--mut);font-weight:500;text-align:left;padding:10px 8px;border-bottom:1px solid var(--ink)}
+td{padding:14px 8px;border-bottom:1px solid var(--hair);font-size:14.5px;color:#4a463f}
+td.s{font:19px Georgia,'Iowan Old Style','Times New Roman',serif;color:var(--ink)}
+th.r,td.r{text-align:right}
+tr.tot td{border-top:3px double var(--ink);border-bottom:0;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--mut);padding-top:14px}
+tr.tot td.r{font:20px Georgia,'Iowan Old Style','Times New Roman',serif;color:var(--ink);letter-spacing:0}
+.btn{display:inline-block;font-size:12px;padding:5px 12px;border:1px solid var(--ink);border-radius:2px;margin-left:6px}
+.btn.p{background:var(--ox);border-color:var(--ox);color:#fff}
+/* reading */
+.crumb{font-size:13px;color:var(--mut);padding:16px 0 0}.crumb a{color:var(--mut)}.crumb b{color:var(--ink);font-weight:500}
+.toolrow{display:flex;gap:8px;margin:18px 0 0}
+.toolrow a{font-size:12.5px;padding:6px 14px;border:1px solid var(--hair);background:var(--card);border-radius:2px}
+.read{display:flex;gap:56px;margin-top:20px}
+.read aside{width:220px;flex:none;padding-top:26px}
+.read aside .lab{margin-bottom:10px}
+.toc,.toc ul{list-style:none;margin:0;padding:0}.toc ul{padding-left:14px}
+.toc a{display:block;padding:4px 0;font-size:14px;color:var(--mut)}.toc a.t{font-family:Georgia,'Iowan Old Style','Times New Roman',serif;font-size:16px;color:var(--ink);margin-top:8px}
+.toc a.cur{color:var(--ink);box-shadow:inset 2px 0 var(--ox);padding-left:10px;margin-left:-10px}
+.read main{flex:1;max-width:720px}
+h2.topic{font:400 26px Georgia,'Iowan Old Style','Times New Roman',serif;border-bottom:1px solid var(--ink);padding-bottom:6px;margin:44px 0 12px}
+.read main>.topic-block:first-child h2.topic{margin-top:26px}
+h3.sub{font:600 14px -apple-system,'Helvetica Neue',Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:var(--mut);margin:26px 0 6px}
+h4.section{font:italic 19px Georgia,'Iowan Old Style','Times New Roman',serif;margin:22px 0 4px}
+h2 .lt,h3 .lt,h4 .lt{margin-right:.5em}
+li.item{padding:11px 0;border-bottom:1px solid var(--hair);gap:6px}
+li.item .num{flex:0 0 2.4em;color:var(--mut);font:16px Georgia,'Iowan Old Style','Times New Roman',serif}
+.prop{font:19px/1.5 Georgia,'Iowan Old Style','Times New Roman',serif}
+cite{font-family:Georgia,'Iowan Old Style','Times New Roman',serif;font-size:16px;color:var(--mut)}
+.flag .prop{color:var(--ox)}
+.pill.red{border:1px solid var(--ox);color:var(--ox);border-radius:2px;letter-spacing:.12em;text-transform:uppercase;font-size:10.5px}
+.pill.amber{border:1px solid #c9a24d;background:#f4ead0;color:#7d5f1c;border-radius:2px;letter-spacing:.12em;text-transform:uppercase;font-size:10.5px}
+.note{margin:18px 0 0 2.4em;font-size:14.5px;color:var(--mut);border-top:1px solid var(--hair);padding-top:10px}
+.note a{color:var(--ox);text-decoration:underline}
+.menu{display:none}
+.launch{max-width:760px;margin:0 auto}
+.prog{display:flex;justify-content:space-between;align-items:center;padding:28px 0;border-bottom:1px solid var(--hair)}
+.prog h2{font:400 30px Georgia,'Iowan Old Style','Times New Roman',serif;margin:0}.prog p{margin:4px 0 0;color:var(--mut);font-size:14px}
+.prog .ph{opacity:.55}
+@media(max-width:600px){
+ body{font-size:16px}.page{padding:0 16px 60px}
+ header.h{flex-wrap:wrap;padding-top:16px}.brand{font-size:22px;padding-bottom:10px}
+ nav.m{overflow:hidden;gap:0;width:100%;justify-content:space-between;font-size:14px}nav.m a{min-height:44px;display:flex;align-items:center;padding:0 6px 0}
+ .titlebar{flex-direction:column;gap:8px;padding-top:20px}h1.t{font-size:32px}
+ .read{display:block}.read aside{display:none}.menu{display:flex;align-items:center;min-height:44px;border:1px solid var(--ink);border-radius:2px;padding:0 16px;margin:14px 0 0;font-size:13px;letter-spacing:.14em;text-transform:uppercase}
+ .toolrow a{min-height:44px;display:flex;align-items:center}
+ .prop{font-size:18px}li.item .num{flex-basis:2.3em}.note{margin-left:0}
+ .stats{flex-wrap:wrap}.stat{flex:1 1 40%;padding:14px}.fig{font-size:28px}
+}
+
+</style></head>
+<body class="">
+<div class="page"><header class="h"><div class="brand">Chambers</div><nav class="m"><a href="#" class="on">Programs</a><a href="#">Settings</a><a href="#">Sign out</a></nav></header><div class="titlebar"><h1 class="t">Programs</h1><div class="meta">Adv. Office &middot; 1 November 2026</div></div><div class="launch" style="margin-top:20px"><div class="prog"><div><h2>Judgment Diary</h2><p>Case-law notes by subject and topic &middot; 950 items &middot; 259 for review</p></div><a class="btn p" href="#">Open</a></div><div class="prog ph"><div><h2>Fee Register</h2><p>Memos, billing and outstanding fees &middot; placeholder</p></div><a class="btn" href="#">Open</a></div><div class="prog ph"><div><h2><i>Next program</i></h2><p>Room for further programs, same header and style</p></div><a class="btn" href="#">Add</a></div></div></div>
+</body></html>

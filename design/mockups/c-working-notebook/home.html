@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C Working Notebook - Home (intended viewport 1280px)</title>
+<style>
+
+*{box-sizing:border-box}body{margin:0}a{text-decoration:none}
+ol.items{list-style:none;margin:0;padding:0;counter-reset:it}
+li.item{counter-increment:it;display:flex;position:relative}
+li.item .num::before{content:"(" counter(it) ")"}
+.cites .sep{margin:0 .25em}
+cite{font-style:italic}
+ul.kids{margin:.4em 0 .2em;padding-left:1.2em}
+.pill{display:inline-block;font-family:-apple-system,'Helvetica Neue',Arial,sans-serif;font-size:.7em;letter-spacing:.04em;padding:.1em .6em;border-radius:99px;vertical-align:.1em;white-space:nowrap}
+.acts{display:none}
+h2,h3,h4{margin:0}
+.crumb .sp{margin:0 .5em}
+
+/* intended web font: system UI / Inter */
+:root{--ink:#1f2933;--mut:#66727f;--line:#e3e7eb;--acc:#1b5e8c;--cite:#0b6b4f}
+body{font:16.5px/1.55 -apple-system,'Helvetica Neue',Arial,sans-serif;color:var(--ink);background:#fafbfc}
+a{color:var(--acc)}
+.top{display:flex;gap:8px;align-items:center;padding:8px 16px;background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+.top a{padding:6px 12px;border:1px solid var(--line);border-radius:6px;color:var(--ink);font-size:14px;background:#fff}
+.top .s{flex:1;max-width:420px;margin-left:12px;border:1px solid var(--line);border-radius:6px;padding:6px 12px;color:var(--mut);font-size:14px;background:#f3f5f7}
+.top .grow{flex:1}
+.layout{display:flex;min-height:900px}
+aside{width:290px;flex:none;border-right:1px solid var(--line);background:#fff;padding:16px 12px;overflow:auto}
+aside h5{margin:0 8px 8px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut)}
+.toc,.toc ul{list-style:none;margin:0;padding:0}.toc ul{padding-left:14px}
+.toc a{display:block;padding:5px 8px;border-radius:5px;color:var(--ink);font-size:14.5px}
+.toc a.cur{background:#e4effa;color:var(--acc);font-weight:600}
+main{flex:1;max-width:900px;padding:0 32px 80px}
+.crumb{font-size:13.5px;color:var(--mut);padding:14px 0 4px}.crumb a{color:var(--mut)}
+h1{font-size:26px;margin:4px 0 14px}
+h2.topic{position:sticky;top:50px;background:#fafbfcf2;z-index:3;font-size:18px;padding:10px 0 8px;border-bottom:2px solid var(--acc);margin:24px 0 8px;color:var(--acc)}
+h3.sub{font-size:16.5px;margin:18px 0 4px}
+h4.section{font-size:14px;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);margin:20px 0 2px}
+h2 .lt,h3 .lt,h4 .lt{margin-right:.5em}
+li.item{padding:9px 6px;border-bottom:1px solid var(--line);gap:6px}
+li.item:hover{background:#f1f5f9}
+li.item .num{flex:0 0 2.4em;color:var(--mut);font-size:14px}
+li.item .body{flex:1;padding-right:70px;position:relative}
+cite{color:var(--cite);font-weight:500}
+.acts{display:flex;gap:4px;position:absolute;right:0;top:0}
+.acts i{font-style:normal;width:26px;height:26px;border:1px solid var(--line);border-radius:5px;display:grid;place-items:center;color:var(--mut);font-size:14px;background:#fff}
+.pill.red{background:#fde8e8;color:#b42318;border:1px solid #f5b5b0}.flag .prop{color:#b42318}
+.pill.amber{background:#fff3d6;color:#92600a;border:1px solid #f0d28a}
+.note{margin:14px 0 0 2.6em;font-size:14.5px;background:#eef5fb;border-radius:6px;padding:8px 12px}
+.menu{display:none}
+.hero{max-width:760px;margin:70px auto 30px;text-align:center}.hero h1{font-size:32px}
+.bigsearch{border:2px solid var(--acc);border-radius:10px;padding:16px 20px;font-size:19px;color:var(--mut);background:#fff;text-align:left}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;max-width:1100px;margin:20px auto;padding:0 20px}
+.tile{background:#fff;border:1px solid var(--line);border-radius:8px;padding:14px 16px}
+.tile b{display:block;color:var(--ink)}.tile span{color:var(--mut);font-size:13.5px}
+.tile.o{background:#f3f5f7}
+@media(max-width:600px){
+ body{font-size:16px}aside{display:none}main{padding:0 14px 60px}.top{padding:4px 6px}.top a{min-height:44px;min-width:44px;display:flex;align-items:center;justify-content:center}.top .s{display:none}
+ .menu{display:flex;align-items:center;min-height:44px;border:1px solid var(--line);border-radius:6px;padding:0 14px;background:#fff;margin:6px 0}
+ li.item .body{padding-right:0}.acts{position:static;margin-top:6px}.acts i{width:44px;height:44px}.note{margin-left:0}
+ li.item .num{flex-basis:2.3em}.grid{grid-template-columns:1fr 1fr}h2.topic{top:54px}
+}
+
+</style></head>
+<body class="">
+<div class="top"><a href="#">&larr; Back</a><a href="#">Home</a><a href="#">Search</a><span class="s">Search all items&hellip;</span><span class="grow"></span></div><div class="hero"><h1>Judgment Diary</h1><div class="bigsearch">Search 950 items by proposition or citation&hellip;</div></div><div class="grid"><a class="tile" href="#"><b>Arbitration</b><span>157 items</span></a><a class="tile" href="#"><b>Contracts</b><span>93 items</span></a><a class="tile" href="#"><b>Evidence</b><span>50 items</span></a><a class="tile" href="#"><b>Jurisprudence</b><span>112 items</span></a><a class="tile" href="#"><b>Limitation</b><span>64 items</span></a><a class="tile" href="#"><b>Procedure</b><span>202 items</span></a><a class="tile" href="#"><b>Transfer of Property</b><span>7 items</span></a><a class="tile" href="#"><b>Testamentary</b><span>19 items</span></a><a class="tile" href="#"><b>Writ Petitions</b><span>34 items</span></a><a class="tile" href="#"><b>Interesting Cases</b><span>15 items</span></a><a class="tile o" href="#"><b>Other Subjects</b><span>31 subjects</span></a></div>
+</body></html>
