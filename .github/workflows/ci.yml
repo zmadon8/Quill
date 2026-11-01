@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: quill
+          POSTGRES_PASSWORD: quill-test-password
+          POSTGRES_DB: quill_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U quill -d quill_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DJANGO_SECRET_KEY: ci-only-throwaway-key-not-a-secret
+      DATABASE_URL: postgres://quill:quill-test-password@localhost:5432/quill_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install ruff
+      - name: Lint
+        run: ruff check --select F,E9 .
+      - name: Django system check
+        run: python manage.py check
+      - name: Migrations are up to date
+        run: python manage.py makemigrations --check --dry-run
+      - name: Tests
+        run: python manage.py test
