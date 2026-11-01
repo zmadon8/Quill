@@ -1,0 +1,338 @@
+"""Create, edit, validation, conflicts, history restore, profile isolation and atomicity (service layer)."""
+from diary import services as svc
+from diary.models import Item, Subject, Topic, VersionHistory
+from diary.tests.service_helpers import ServiceTestCase
+
+
+class CreateTests(ServiceTestCase):
+    def test_subjects_are_placed_last_and_history_is_written(self):
+        a = self.make("subject", name="Alpha")
+        b = self.make("subject", name="Beta")
+        self.assertEqual((self.get(a).landing_position, self.get(b).landing_position), (1, 2))
+        self.assertEqual(self.get(a).version, 1)
+        self.assertEqual(self.history_kinds(a), ["create"])
+        self.assertEqual(self.history(a)[0].snapshot["name"], "Alpha")
+        self.assertEqual(self.history(a)[0].changed_by, self.user)
+        self.assertEqual(self.get(a).created_by, self.user)
+
+    def test_other_subjects_have_their_own_order(self):
+        main = self.make("subject", name="Main one")
+        other = self.make("subject", name="Other one", show_on_landing=False)
+        self.assertEqual(self.get(main).landing_position, 1)
+        self.assertEqual(self.get(other).other_acts_position, 1)
+
+    def test_insert_at_index_shifts_siblings_and_records_it(self):
+        subject = self.make("subject", name="S")
+        t1 = self.make("topic", ("subject", subject.pk), name="T1")
+        t2 = self.make("topic", ("subject", subject.pk), name="T2")
+        t0 = self.make("topic", ("subject", subject.pk), index=0, name="T0")
+        self.assertEqual(self.positions([t0, t1, t2]), [1, 2, 3])
+        self.assertEqual(self.get(t1).version, 2)
+        self.assertEqual(self.history_kinds(t1), ["create", "reorder"])
+        self.assertEqual(self.get(t0).version, 1)
+
+    def test_subject_name_unique_ignoring_case(self):
+        self.make("subject", name="Contract")
+        with self.assertRaises(svc.ValidationFailed):
+            self.make("subject", name="contract")
+        self.assertEqual(Subject.objects.count(), 1)
+
+    def test_same_subject_name_allowed_in_another_profile(self):
+        self.make("subject", name="Contract")
+        again = self.make("subject", profile=self.other_profile, name="Contract")
+        self.assertEqual(again.profile_id, self.other_profile.pk)
+
+    def test_blank_names_refused(self):
+        subject = self.make("subject", name="S")
+        for kind, parent in (("subject", None), ("topic", ("subject", subject.pk))):
+            with self.assertRaises(svc.ValidationFailed):
+                self.make(kind, parent, name="   ")
+        self.assertEqual(Topic.objects.count(), 0)
+
+    def test_name_whitespace_is_tidied(self):
+        subject = self.make("subject", name="  Law   of  Tort ")
+        self.assertEqual(self.get(subject).name, "Law of Tort")
+
+    def test_item_needs_a_place_and_a_valid_one(self):
+        subject = self.make("subject", name="S")
+        with self.assertRaises(svc.Refused):
+            self.make("item", None, text="x")
+        with self.assertRaises(svc.Refused):
+            self.make("topic", ("topic", self.make("topic", ("subject", subject.pk), name="T").pk), name="X")
+        with self.assertRaises(svc.Refused):
+            self.make("subject", ("subject", subject.pk), name="Y")
+
+    def test_item_beneath_a_plain_item_refused(self):
+        subject = self.make("subject", name="S")
+        plain = self.make("item", ("subject", subject.pk), text="p")
+        with self.assertRaises(svc.Refused):
+            self.make("item", ("item", plain.pk), text="child")
+
+    def test_item_beneath_a_nested_item_allowed_and_numbered_separately(self):
+        subject = self.make("subject", name="S")
+        nested = self.make("item", ("subject", subject.pk), kind="nested", text="n")
+        child = self.make("item", ("item", nested.pk), text="c")
+        self.assertEqual(self.get(child).parent_item_id, nested.pk)
+        self.assertEqual(self.get(child).position, 1)
+
+    def test_topic_and_direct_subtopics_do_not_mix(self):
+        subject = self.make("subject", name="S")
+        self.make("topic", ("subject", subject.pk), name="T")
+        with self.assertRaises(svc.Refused):
+            self.make("subtopic", ("subject", subject.pk), name="Direct")
+        other = self.make("subject", name="O")
+        self.make("subtopic", ("subject", other.pk), name="Direct")
+        with self.assertRaises(svc.Refused):
+            self.make("topic", ("subject", other.pk), name="T")
+
+    def test_cases_only_under_multi_items(self):
+        subject = self.make("subject", name="S")
+        plain = self.make("item", ("subject", subject.pk), text="p")
+        with self.assertRaises(svc.Refused):
+            self.make("case", ("item", plain.pk), citation="A v B")
+        multi = self.make("item", ("subject", subject.pk), kind="multi", text="m")
+        case = self.make("case", ("item", multi.pk), citation="A v B")
+        self.assertEqual(self.get(case).position, 1)
+
+    def test_parent_in_trash_refused(self):
+        subject = self.make("subject", name="S")
+        topic = self.make("topic", ("subject", subject.pk), name="T")
+        svc.delete(self.profile, self.user, "topic", topic.pk)
+        with self.assertRaises(svc.Refused):
+            self.make("item", ("topic", topic.pk), text="x")
+
+
+class EditTests(ServiceTestCase):
+    def setUp(self):
+        super().setUp()
+        self.build_topic()
+
+    def test_edit_bumps_version_and_writes_a_full_snapshot(self):
+        result = svc.edit(self.profile, self.user2, "item", self.one.pk, {"text": "uno", "citation": "A v B"}, 1)
+        self.assertTrue(result.changed)
+        item = self.get(self.one)
+        self.assertEqual((item.version, item.text, item.citation, item.updated_by), (2, "uno", "A v B", self.user2))
+        row = self.history(self.one)[-1]
+        self.assertEqual((row.version, row.change_kind, row.changed_by), (2, "edit", self.user2))
+        self.assertEqual(row.snapshot["text"], "uno")
+        self.assertEqual(row.snapshot["topic_id"], self.topic.pk)
+        self.assertEqual(row.snapshot["position"], 1)
+        self.assertEqual(row.group, result.group)
+
+    def test_repeating_the_same_edit_changes_nothing(self):
+        svc.edit(self.profile, self.user, "item", self.one.pk, {"text": "uno"}, 1)
+        before = VersionHistory.objects.count()
+        again = svc.edit(self.profile, self.user, "item", self.one.pk, {"text": "uno"}, 1)
+        self.assertFalse(again.changed)
+        self.assertIsNone(again.group)
+        self.assertEqual(self.get(self.one).version, 2)
+        self.assertEqual(VersionHistory.objects.count(), before)
+
+    def test_sanitised_value_counts_as_the_same(self):
+        svc.edit(self.profile, self.user, "item", self.one.pk, {"text": "<strong>x</strong>"})
+        again = svc.edit(self.profile, self.user, "item", self.one.pk, {"text": "<b>x</b>"})
+        self.assertFalse(again.changed)
+        self.assertEqual(self.get(self.one).text, "<b>x</b>")
+
+    def test_rich_text_is_sanitised_on_edit(self):
+        svc.edit(self.profile, self.user, "item", self.one.pk, {"text": "<script>bad()</script><b>ok</b>"})
+        self.assertEqual(self.get(self.one).text, "<b>ok</b>")
+        self.assertEqual(self.get(self.one).text_plain, "ok")
+
+    def test_stale_save_is_a_conflict_with_both_versions(self):
+        svc.edit(self.profile, self.user, "item", self.one.pk, {"text": "theirs"}, 1)
+        with self.assertRaises(svc.Conflict) as caught:
+            svc.edit(self.profile, self.user2, "item", self.one.pk, {"text": "mine"}, 1)
+        conflict = caught.exception
+        self.assertEqual((conflict.expected_version, conflict.current_version), (1, 2))
+        self.assertEqual(conflict.theirs["text"], "theirs")
+        self.assertEqual(conflict.mine, {"text": "mine"})
+        self.assertEqual((conflict.record_type, conflict.record_id), ("item", self.one.pk))
+        self.assertEqual(self.get(self.one).text, "theirs")
+        self.assertEqual(self.get(self.one).version, 2)
+
+    def test_stale_delete_move_and_convert_are_conflicts_too(self):
+        svc.edit(self.profile, self.user, "item", self.one.pk, {"text": "theirs"}, 1)
+        with self.assertRaises(svc.Conflict):
+            svc.delete(self.profile, self.user2, "item", self.one.pk, 1)
+        with self.assertRaises(svc.Conflict):
+            svc.move(self.profile, self.user2, "item", self.one.pk, index=3, expected_version=1)
+        with self.assertRaises(svc.Conflict):
+            svc.convert_item(self.profile, self.user2, self.one.pk, "nested", 1)
+        self.assertIsNone(self.get(self.one).deleted_at)
+        self.assertEqual(self.get(self.one).kind, "plain")
+
+    def test_only_content_fields_can_be_edited(self):
+        with self.assertRaises(svc.Refused):
+            svc.edit(self.profile, self.user, "item", self.one.pk, {"position": 9})
+        with self.assertRaises(svc.Refused):
+            svc.edit(self.profile, self.user, "item", self.one.pk, {"kind": "multi"})
+        with self.assertRaises(svc.Refused):
+            svc.edit(self.profile, self.user, "notelink", 1, {})
+
+    def test_bad_values_refused_and_nothing_written(self):
+        for changes in ({"citation": "line one\nline two"}, {"flag": "nonsense"}):
+            with self.assertRaises(svc.ValidationFailed):
+                svc.edit(self.profile, self.user, "item", self.one.pk, changes)
+        multi = self.make("item", ("topic", self.topic.pk), kind="multi", text="m")
+        with self.assertRaises(svc.ValidationFailed):
+            svc.edit(self.profile, self.user, "item", multi.pk, {"citation": "A v B"})
+        self.assertEqual(self.get(self.one).version, 1)
+        self.assertEqual(self.get(multi).citation, "")
+
+    def test_rename_subject_keeps_name_unique(self):
+        other = self.make("subject", name="Torts")
+        with self.assertRaises(svc.ValidationFailed):
+            svc.edit(self.profile, self.user, "subject", other.pk, {"name": "CONTRACT"})
+        svc.edit(self.profile, self.user, "subject", other.pk, {"name": "Torts II"})
+        self.assertEqual(self.get(other).name, "Torts II")
+
+    def test_edit_section_review_marker(self):
+        svc.edit(self.profile, self.user, "section", self.sec.pk, {"needs_review": True, "review_note": "check"})
+        sec = self.get(self.sec)
+        self.assertTrue(sec.needs_review)
+        self.assertEqual(self.history(self.sec)[-1].snapshot["review_note"], "check")
+
+    def test_a_record_in_trash_cannot_be_edited(self):
+        svc.delete(self.profile, self.user, "item", self.one.pk)
+        with self.assertRaises(svc.Refused):
+            svc.edit(self.profile, self.user, "item", self.one.pk, {"text": "x"})
+
+
+class ProfileIsolationTests(ServiceTestCase):
+    def setUp(self):
+        super().setUp()
+        self.build_topic()
+        self.foreign = self.make("subject", profile=self.other_profile, name="Foreign")
+        self.foreign_topic = self.make("topic", ("subject", self.foreign.pk), profile=self.other_profile, name="FT")
+        self.foreign_item = self.make("item", ("topic", self.foreign_topic.pk), profile=self.other_profile, text="f")
+
+    def assertUntouched(self):
+        self.assertEqual(self.get(self.foreign_item).version, 1)
+        self.assertIsNone(self.get(self.foreign_item).deleted_at)
+        self.assertEqual(self.get(self.one).version, 1)
+
+    def test_every_function_treats_another_profiles_id_as_missing(self):
+        p, u = self.profile, self.user
+        fi = self.foreign_item.pk
+        calls = [
+            lambda: svc.edit(p, u, "item", fi, {"text": "x"}),
+            lambda: svc.delete(p, u, "item", fi),
+            lambda: svc.restore(p, u, "item", fi),
+            lambda: svc.permanent_delete(p, u, "item", fi),
+            lambda: svc.move(p, u, "item", fi, index=0),
+            lambda: svc.shift(p, u, "item", fi, 1),
+            lambda: svc.convert_item(p, u, fi, "nested"),
+            lambda: svc.preview_conversion(p, u, fi, "nested"),
+            lambda: svc.preview_move(p, u, "item", fi),
+            lambda: svc.preview_delete(p, u, "item", fi),
+            lambda: svc.restore_version(p, u, "item", fi, 1),
+            lambda: svc.create(p, u, "item", ("topic", self.foreign_topic.pk), text="x"),
+            lambda: svc.create(p, u, "topic", ("subject", self.foreign.pk), name="x"),
+            lambda: svc.add_link(p, u, self.make("note", ("topic", self.topic.pk), text="n").pk, ("item", fi)),
+        ]
+        for call in calls:
+            with self.assertRaises(svc.NotFound):
+                call()
+        self.assertUntouched()
+
+    def test_move_to_a_parent_in_another_profile_refused(self):
+        with self.assertRaises(svc.NotFound):
+            svc.move(self.profile, self.user, "item", self.one.pk, ("topic", self.foreign_topic.pk))
+        self.assertEqual(self.get(self.one).topic_id, self.topic.pk)
+        self.assertEqual(self.get(self.one).version, 1)
+
+    def test_history_and_undo_of_another_profile_are_not_reachable(self):
+        group = VersionHistory.objects.filter(profile=self.other_profile).first().group
+        with self.assertRaises(svc.NotFound):
+            svc.undo_group(self.profile, self.user, group)
+        self.assertEqual(svc.history_for(self.profile, "item", self.foreign_item.pk).count(), 0)
+        self.assertEqual(svc.history_for(self.other_profile, "item", self.foreign_item.pk).count(), 1)
+
+
+class AtomicityTests(ServiceTestCase):
+    def setUp(self):
+        super().setUp()
+        self.build_topic()
+
+    def snapshot(self):
+        return (
+            list(Item.objects.order_by("pk").values_list("pk", "position", "version", "deleted_at", "topic_id")),
+            VersionHistory.objects.count(),
+        )
+
+    def test_create_that_fails_half_way_changes_nothing(self):
+        before = self.snapshot()
+        with self.failing_history(after=1):
+            with self.assertRaises(RuntimeError):
+                self.make("item", ("topic", self.topic.pk), index=0, text="new")
+        self.assertEqual(self.snapshot(), before)
+
+    def test_delete_that_fails_half_way_changes_nothing(self):
+        before = self.snapshot()
+        with self.failing_history(after=1):
+            with self.assertRaises(RuntimeError):
+                svc.delete(self.profile, self.user, "topic", self.topic.pk)
+        self.assertEqual(self.snapshot(), before)
+        self.assertIsNone(Topic.objects.get(pk=self.topic.pk).deleted_at)
+        from diary.models import TrashBatch
+
+        self.assertEqual(TrashBatch.objects.count(), 0)
+
+    def test_move_that_fails_half_way_changes_nothing(self):
+        before = self.snapshot()
+        with self.failing_history(after=1):
+            with self.assertRaises(RuntimeError):
+                svc.move(self.profile, self.user, "item", self.four.pk, index=0)
+        self.assertEqual(self.snapshot(), before)
+
+    def test_edit_that_fails_changes_nothing(self):
+        before = self.snapshot()
+        with self.failing_history(after=0):
+            with self.assertRaises(RuntimeError):
+                svc.edit(self.profile, self.user, "item", self.one.pk, {"text": "changed"})
+        self.assertEqual(self.snapshot(), before)
+        self.assertEqual(self.get(self.one).text, "one")
+
+
+class HistoryRestoreTests(ServiceTestCase):
+    def setUp(self):
+        super().setUp()
+        self.build_topic()
+        for number, text in enumerate(("v2", "v3", "v4"), start=1):
+            svc.edit(self.profile, self.user, "item", self.one.pk, {"text": text}, number)
+
+    def test_history_lists_every_version_newest_first(self):
+        rows = list(svc.history_for(self.profile, "item", self.one.pk))
+        self.assertEqual([r.version for r in rows], [4, 3, 2, 1])
+
+    def test_restore_version_creates_a_new_version_and_keeps_history(self):
+        result = svc.restore_version(self.profile, self.user, "item", self.one.pk, 2, expected_version=4)
+        self.assertTrue(result.changed)
+        item = self.get(self.one)
+        self.assertEqual((item.text, item.version), ("v2", 5))
+        self.assertEqual(self.history_kinds(self.one), ["create", "edit", "edit", "edit", "restore"])
+        self.assertEqual([r.snapshot["text"] for r in self.history(self.one)], ["one", "v2", "v3", "v4", "v2"])
+
+    def test_restore_of_the_current_content_changes_nothing(self):
+        result = svc.restore_version(self.profile, self.user, "item", self.one.pk, 4)
+        self.assertFalse(result.changed)
+        self.assertEqual(self.get(self.one).version, 4)
+
+    def test_restore_version_checks_the_version_and_the_number(self):
+        with self.assertRaises(svc.Conflict):
+            svc.restore_version(self.profile, self.user, "item", self.one.pk, 2, expected_version=2)
+        with self.assertRaises(svc.NotFound):
+            svc.restore_version(self.profile, self.user, "item", self.one.pk, 99)
+
+    def test_restore_version_does_not_move_the_item(self):
+        svc.move(self.profile, self.user, "item", self.one.pk, index=3)
+        moved_to = self.get(self.one).position
+        svc.restore_version(self.profile, self.user, "item", self.one.pk, 1)
+        self.assertEqual(self.get(self.one).position, moved_to)
+        self.assertEqual(self.get(self.one).text, "one")
+
+    def test_restore_version_refused_across_a_conversion(self):
+        svc.convert_item(self.profile, self.user, self.one.pk, "nested")
+        with self.assertRaises(svc.Refused):
+            svc.restore_version(self.profile, self.user, "item", self.one.pk, 2)
