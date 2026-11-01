@@ -681,3 +681,8 @@ Owner words are quoted exactly. Details marked DEFAULT are mine and pending owne
 - **Open questions (defaults apply).** 1. Should the Word export also print the full stops? Default: no. 2. Should "View in context" start ticked? Default: yes (as briefed); say so if you would rather it start unticked. 3. Is 280px a good starting width? Default: yes.
 
 - **Round 4 review fixes.** The panel's resize handle sits on a fixed outer box and only the inner list scrolls, so the handle stays in place. Case labels such as (i) end in a bracket, so they take no full stop by design.
+
+### Round 4 follow-ups
+
+- "See also" links to an Item or Section point at the whole-Subject page with the item anchor, so the "View in context" redirect no longer drops the target.
+- The "View in context" checkbox stays hidden when scripts are off.

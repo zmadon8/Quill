@@ -312,6 +312,7 @@ class ReadingScreenTests(TestCase):
     def test_every_role_can_read_every_screen(self):
         for role, user in self.users.items():
             self.client.force_login(user)
+            self.client.cookies["quill_in_context"] = "0"  # logout() below clears the jar
             for url in self.urls():
                 self.assertEqual(self.client.get(url).status_code, 200, f"{role} {url}")
             self.client.logout()
@@ -458,6 +459,26 @@ class ReadingScreenTests(TestCase):
         self.assertNotContains(resp, "data-in-context checked")
         self.assertContains(resp, 'href="%s"' % reverse("read_topic", args=[topic.pk]))
         self.assertContains(resp, 'href="%s"' % reverse("read_subtopic", args=[self.clause.pk]))
+
+    def test_login_page_has_no_diary_name(self):
+        from django.test import Client
+
+        resp = Client().get(reverse("login"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertNotContains(resp, "Case Law Diary")
+
+    def test_username_hidden_inside_program_but_shown_on_suite_pages(self):
+        self.client.force_login(self.users["reader"])
+        self.assertNotContains(self.client.get(reverse("read_subject", args=[self.contract.pk])), 'class="who"')
+        self.assertContains(self.client.get(reverse("home")), "reader")
+
+    def test_cross_reference_links_survive_in_context_redirect(self):
+        item = Item.objects.filter(subtopic=self.offer, deleted_at=None).first()
+        note = Note.objects.filter(deleted_at=None).first()
+        link = NoteLink.objects.create(profile=main_profile(), note=note, item=item)
+        _, url = reading.note_target(link)
+        subject_id = self.offer.subject_id or self.offer.topic.subject_id
+        self.assertEqual(url, "%s#n-item-%d" % (reverse("read_subject", args=[subject_id]), item.pk))
 
     def test_contents_page_in_context_links_go_to_whole_subject(self):
         self.client.force_login(self.users["reader"])

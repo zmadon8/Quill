@@ -128,6 +128,10 @@ def note_target(link):
     if target.deleted_at is not None or container is None:
         return " > ".join(path) + " (deleted)", None
     kind, obj = container
+    if anchor and kind != "subject":
+        # The whole-Subject page holds every anchor and survives the "View in context" redirect.
+        subject = obj.subject if kind == "topic" else (obj.subject if obj.subject_id else obj.topic.subject)
+        kind, obj = "subject", subject
     url = reverse(READ_URL_NAMES[kind], args=[obj.pk])
     return " > ".join(path), f"{url}#{anchor}" if anchor else url
 
