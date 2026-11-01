@@ -216,8 +216,8 @@ def main():
     # ---- structure checks and proposed import rules
     print()
     print('== Structure checks')
-    items_before_sub = 0; mixed = 0; sub_without_items = 0; two_item_lists_in_row = 0
-    cur_topic = None; seen_sub = False; prev = None; prev_item_num = None
+    sub_without_items = 0; two_item_lists_in_row = 0
+    seen_sub = False; prev = None; prev_item_num = None
     for i, r in enumerate(rows):
         lv = r['level']
         if lv == 'topic':
@@ -236,7 +236,6 @@ def main():
     print('Item list switching numId inside one sub-topic or topic (possible split list):', two_item_lists_in_row)
     # items sitting before the first sub-topic in a topic that also has sub-topics
     first_item_before_sub = 0
-    t_items = t_sub = None
     seq = []
     for r in rows:
         if r['level'] == 'topic':
