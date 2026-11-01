@@ -28,11 +28,17 @@ Only Editors (and Admins whose own role is Editor) can edit. Open a Subject, the
 - **Subjects**: **Move to Other Subjects** / **Show on landing page** switches the list; Up, Down and drag reorder each list.
 - **Edit** (on an Item): opens the Item editor with the text (Bold, Italic, Underline, or Ctrl+B, I, U), the Citation, a Flag (none, overruled, doubted, other plus a short text), the For review switch and note, and for a Multi-Item the Cases (add, remove, Up, Down, each with a citation and a comment). **Save** saves everything or nothing. It also shows when and by whom the Item was created and last edited (IST) and, for imported Items, the original Word line. **Change to** turns it into an Item, Multi-Item or Nested Item after a preview, with warnings and refusals explained.
 - **Mark for review / Clear review**: one click on any Item or Section; **Review note** adds a reason.
-- If someone else changed the same record first, you get a page saying nothing was saved; go back, reload and repeat the change.
+- **History** (button on every record in Edit mode, and in the Item editor): every saved version with time (IST) and who. **View** shows the whole record at that version; **Restore this version** brings its text back as a new version (nothing is removed from the history; where the record sits is not changed).
+- **Undo**: in Edit mode the **Undo: ...** button at the bottom of the page reverses your latest action in this browser session, whole (deleting a Topic with 30 Items is one step; saving an Item with its Cases is one step). If the record changed since, you are warned and can choose **Undo anyway**. Undo never reverses someone else's change. Undoing can itself be undone.
+- If someone else changed the same record first, nothing is saved and you see both versions side by side with three choices: **Keep mine** (do it again over theirs; theirs stays in History), **Keep theirs** (change nothing) or **Edit and merge** (the editor reopens with everything you typed, next to the saved version). This also applies to moves and deletes.
+
+## Trash
+
+**Trash** is in the menu for Editors (Readers do not see it and get a 403 page). It lists what was deleted, with the full path, when and by whom. **Restore** brings a record back with what was deleted with it, in its old place (restore a Topic and all its Items and Sections return). If the place it was in is also in the Trash you are asked whether to restore that too; if a Subject or Topic with the same name exists now, you are asked for a new name. Only the Admin sees **Delete permanently...**: it names what will be lost, needs a second press, and is refused (with the list of links) while other Notes link to it. Version history is kept even after a permanent delete.
 
 ## What is NOT built yet
 
-- The Trash, History and Undo screens and the choice screen for edit clashes (Milestone 3d). The rules behind them exist already as a tested service layer (Milestone 3a, `diary/services/`). Edit mode, the Item editor and conversions are built (see "How to edit" below). The Word import (Milestone 2) is built but has not been run on the real file yet.
+- Edit mode, Trash, History, Undo and the edit-clash screen are built (Milestone 3, not yet run against Django; GitHub CI is the first run). The rules behind them are a tested service layer (`diary/services/`). Edit mode, the Item editor and conversions are built (see "How to edit" below). The Word import (Milestone 2) is built but has not been run on the real file yet.
 - The off-site copy of backups (to Backblaze or Cloudflare). This is planned.
 - Password reset by email. An Admin sets a new password for a person in the Users screen.
 
@@ -219,6 +225,7 @@ Layout:
 - `diary/`: the diary data model (Subjects, Topics, Sub-topics, Sections, Items, Cases, Notes, links, settings, version history), its database rules and migration, plus the Home page and `/healthz/` (in `root_urls.py`, with the permanent redirects from the old diary URLs). All Case Law Diary pages are under `/caselaw/` (for example `/caselaw/subjects/`); Home, Users, Profiles, Settings, Backups, login and logout stay at the root.
 - `diary/services/`: the editing rules (Milestone 3a): create and edit, move and reorder with numbering previews, delete to Trash in batches, restore, permanent delete, version history restore, Undo by action group and Item conversions. Each function takes the profile and user first, runs in one transaction and writes version history. Tests: `diary/tests/test_services_*.py`.
 - `diary/views_edit.py`, `static/js/edit-mode.js`: Edit mode (Milestone 3b). Tests: `diary/tests/test_views_edit.py`.
+- `diary/views_trash.py`, `diary/views_history.py`, `diary/undo_session.py`, `diary/conflicts.py`: Trash, permanent delete, History, Undo and the edit-clash screen (Milestone 3d). Tests: `diary/tests/test_views_trash_history.py`.
 - `render.yaml`, `build.sh`: Render deployment.
 
 When a later milestone adds diary models, append them to `BACKUP_MODELS` in `backups/registry.py` (parents before children) so they are included in backups and restores. Many-to-many fields are not backed up by the current design.
