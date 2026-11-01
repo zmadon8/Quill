@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load diary_tags %}
 {% block title %}{{ subject.name }}{% endblock %}
-{% block crumb_nav %}<div class="crumb-row">{% include "diary/_crumbs.html" %}</div>{% endblock %}
+{% block crumb_nav %}<div class="crumb-row">{% include "diary/_crumbs.html" with panel_switch=True %}<label class="in-context" data-in-context-label hidden><input type="checkbox" data-in-context{% if in_context %} checked{% endif %}> View in context</label></div>{% endblock %}
 {% block content %}
 <div class="reader-layout">
   <aside class="contents-panel" id="contents-panel" aria-label="Contents">

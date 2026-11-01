@@ -165,14 +165,15 @@ You normally do not touch these; the Blueprint sets them.
 ## Addresses, Back and Forward, and times
 
 - The Case Law Diary is under `/caselaw/` (for example `/caselaw/subjects/`, `/caselaw/search/`, `/caselaw/review/`, `/caselaw/import/`). Old addresses without `/caselaw/` are redirected. Home, Users, Profiles, Settings, Backups, login and logout stay at the top level. Fees and Investments will later be `/fees/` and `/investments/`.
-- **Back** and **Forward** buttons sit right of the program name. They only move between pages of this site (never to another website or the browser's start page). Each browser tab has its own list; a new tab starts fresh. With no earlier page, Back goes to Home.
+- **Back** and **Forward** buttons (arrow icons only, no text) sit right of the program name. They only move between pages of this site (never to another website or the browser's start page). Each browser tab has its own list; a new tab starts fresh. With no earlier page, Back goes to Home.
 - All times shown (Backups, logs, reports, backup file names) are in **IST**. They are stored in UTC and converted for display.
 
 ## Contents panel (Round 4)
 
 - On wide screens the Contents panel stays on screen while you scroll, with its own scrollbar; the current entry is brought into view.
 - Topics start collapsed. Your open/close choices are remembered per Subject in this browser; the inward-arrows button (Collapse all) goes back to the default.
-- **View in context** ticked: choosing an entry opens the whole Subject and jumps to it. Unticked: you see only the Topic or Sub-topic you chose. The choice is remembered in this browser. It starts ticked. The tick appears only when JavaScript is on.
+- **View in context** ticked: choosing an entry opens the whole Subject and jumps to it. Unticked: you see only the Topic or Sub-topic you chose. The choice is remembered in this browser. It starts ticked. The tick sits on the breadcrumb row, at the far right, and appears only when JavaScript is on.
+- Clicking **Subjects** in the breadcrumb shows the list of every Subject in the Contents panel (on phones it opens the panel with that list) without leaving the page. Without JavaScript it goes to the Subjects page. The panel has no "Subjects" heading.
 - Numbers in the text now have full stops after them, as in the panel.
 
 ## Everyday use

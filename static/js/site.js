@@ -104,21 +104,34 @@
     });
   }
 
-  // Panel heading "Subjects": switch between this Subject's Topic tree and the list of every Subject.
+  // Breadcrumb "Subjects" link: switch the side panel between this Subject's Topic tree and the list of every Subject.
+  // On phones the panel is a slide-over, so the link opens it showing the list. Without JavaScript it just goes to the Subjects page.
   var switcher = document.querySelector("[data-panel-switch]");
   var topicsView = document.querySelector("[data-panel-topics]");
   var subjectsView = document.querySelector("[data-panel-subjects]");
   if (switcher && topicsView && subjectsView) {
+    var slideOver = function () { return !!(toggle && toggle.offsetParent !== null); };
+    var openSlideOver = function (open) {
+      if (!panel || !toggle || !slideOver()) { return; }
+      panel.classList.toggle("open", open);
+      toggle.setAttribute("aria-expanded", open ? "true" : "false");
+    };
     var showSubjects = function (on) {
       subjectsView.hidden = !on;
       topicsView.hidden = on;
       switcher.setAttribute("aria-expanded", on ? "true" : "false");
       if (on) {
+        openSlideOver(true);
         var cur = subjectsView.querySelector("a.current") || subjectsView.querySelector("a");
         if (cur) { cur.focus(); }
-      } else { switcher.focus(); }
+      } else if (!slideOver()) { switcher.focus(); }
     };
-    switcher.addEventListener("click", function (e) { e.preventDefault(); showSubjects(subjectsView.hidden); });
+    switcher.addEventListener("click", function (e) {
+      e.preventDefault();
+      // On a phone with the slide-over closed the list may already be selected: open it rather than switch back.
+      var closedSlideOver = slideOver() && panel && !panel.classList.contains("open");
+      showSubjects(closedSlideOver ? true : subjectsView.hidden);
+    });
     var topicsLink = subjectsView.querySelector("[data-panel-topics-link]");
     if (topicsLink) { topicsLink.addEventListener("click", function () { showSubjects(false); }); }
   }

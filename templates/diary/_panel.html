@@ -1,10 +1,8 @@
-{# Left panel shared by the reading view and the Subject contents page. Heading "Subjects" switches between this Subject's Topic tree and the list of every Subject. #}
+{# Left panel shared by the reading view and the Subject contents page. The "Subjects" link in the breadcrumb switches between this Subject's Topic tree and the list of every Subject. #}
 {# Context: subject, toc, direct_toc, toc_current_topic, panel_main, panel_other. #}
 <div class="toc-resizer" data-toc-resizer role="separator" aria-orientation="vertical" tabindex="0" aria-label="Resize the Subjects panel. Use the left and right arrow keys. Double-click or press Home to reset." title="Drag to resize. Double-click to reset."></div>
 <div class="panel-scroll">
-<h2 class="panel-heading"><a href="{% url 'subjects' %}" data-panel-switch aria-expanded="false" aria-controls="panel-subjects" title="Show all Subjects">Subjects</a></h2>
 <div data-panel-topics>
-  <label class="in-context" data-in-context-label hidden><input type="checkbox" data-in-context{% if in_context %} checked{% endif %}> View in context</label>
   <div class="toc-subject-row">
     <p class="toc-subject"><a href="{% url 'read_subject' subject.pk %}" title="Read the whole Subject">{{ subject.name }}</a></p>
     {% if toc %}

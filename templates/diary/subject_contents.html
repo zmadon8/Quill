@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ subject.name }}{% endblock %}
-{% block crumb_nav %}<div class="crumb-row">{% include "diary/_crumbs.html" %}</div>{% endblock %}
+{% block crumb_nav %}<div class="crumb-row">{% if toc or direct_toc %}{% include "diary/_crumbs.html" with panel_switch=True %}<label class="in-context" data-in-context-label hidden><input type="checkbox" data-in-context{% if in_context %} checked{% endif %}> View in context</label>{% else %}{% include "diary/_crumbs.html" %}{% endif %}</div>{% endblock %}
 {% block content %}
 {# Same layout as the reading view: the panel on the left. On phones the panel is shown in the page, full width. #}
 <div class="reader-layout reader-layout--page{% if not toc and not direct_toc %} no-contents{% endif %}">

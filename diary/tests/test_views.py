@@ -233,6 +233,9 @@ class HomeIndexTests(TestCase):
             self.assertLess(forward, header.index('class="program-nav"'), name)
             self.assertIn('aria-label="Back"', header)
             self.assertIn('aria-label="Forward"', header)
+            self.assertNotIn("Back</button>", header)
+            self.assertNotIn("Forward</button>", header)
+            self.assertEqual(header.count("<svg"), 2, name)
             self.assertIn('data-fallback="%s"' % reverse("home"), header)
 
     def test_review_in_diary_nav_for_anyone_with_a_profile(self):
@@ -380,14 +383,27 @@ class ReadingScreenTests(TestCase):
         self.assertContains(resp, "data-toc-collapse-all")
         self.assertContains(resp, 'aria-expanded="true"')
 
-    def test_panel_heading_is_subjects_and_lists_every_subject(self):
+    def test_breadcrumb_subjects_link_switches_panel_and_checkbox_sits_in_crumb_row(self):
+        self.client.force_login(self.users["reader"])
+        for url in (reverse("subject_contents", args=[self.contract.pk]), reverse("read_subject", args=[self.contract.pk])):
+            html = self.client.get(url).content.decode()
+            crumb = html.split('class="crumb-row"')[1].split("</div>")[0]
+            self.assertIn('href="%s" data-panel-switch aria-controls="panel-subjects" aria-expanded="false"' % reverse("subjects"), crumb, url)
+            self.assertIn("data-in-context", crumb, url)
+            self.assertIn("View in context", crumb, url)
+            panel = html.split('id="contents-panel"')[1].split("</aside>")[0]
+            self.assertNotIn("data-in-context", panel, url)
+            self.assertNotIn("panel-heading", html, url)
+            self.assertIn('id="panel-subjects"', panel, url)
+            self.assertIn("data-toc-expand-all", panel, url)
+
+    def test_panel_lists_every_subject(self):
         self.client.force_login(self.users["reader"])
         for url in (reverse("subject_contents", args=[self.contract.pk]), reverse("read_subject", args=[self.contract.pk]),
                     reverse("read_topic", args=[Topic.objects.get(name="Remedies").pk])):
             html = self.client.get(url).content.decode()
             self.assertIn("data-panel-switch", html, url)
             self.assertNotIn("<h2>Contents</h2>", html, url)
-            self.assertIn(">Subjects</a></h2>", html, url)
             panel = html.split("data-panel-subjects")[1]
             for subject in (self.contract, self.longs, self.other):
                 self.assertIn('href="%s"' % reverse("subject_contents", args=[subject.pk]), panel, url)
