@@ -1,5 +1,8 @@
+from datetime import timedelta
+
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.utils import timezone
 
 
 class User(AbstractUser):
@@ -23,3 +26,10 @@ class FailedLogin(models.Model):
 
     def __str__(self):
         return f"{self.username_lower} at {self.at:%Y-%m-%d %H:%M:%S}"
+
+
+def prune_failed_logins(now=None, max_age=timedelta(days=1)):
+    """Delete failed-login rows older than ``max_age``. Returns the number removed."""
+    now = now or timezone.now()
+    deleted, _ = FailedLogin.objects.filter(at__lt=now - max_age).delete()
+    return deleted

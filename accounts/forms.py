@@ -7,11 +7,13 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 
-from .models import FailedLogin
+from .models import FailedLogin, prune_failed_logins
 
 User = get_user_model()
 
-MAX_FAILED_ATTEMPTS = 5
+MAX_FAILED_ATTEMPTS = 5  # per username from one IP address
+MAX_FAILED_PER_IP = 20  # from one IP address, any username
+MAX_USERNAME_LENGTH = 150  # longer strings cannot be real usernames and are not recorded
 LOCKOUT_MINUTES = 15
 THROTTLE_MESSAGE = "Too many failed attempts. Try again in 15 minutes."
 
@@ -25,23 +27,25 @@ def _client_ip(request):
 
 
 class ThrottledAuthenticationForm(AuthenticationForm):
-    def _recent_failures(self, username_lower):
+    def _is_throttled(self, username_lower, ip):
+        """Keyed on username plus IP, so a stranger elsewhere cannot lock the owner out."""
         since = timezone.now() - timedelta(minutes=LOCKOUT_MINUTES)
-        return FailedLogin.objects.filter(username_lower=username_lower, at__gte=since)
+        recent = FailedLogin.objects.filter(ip=ip, at__gte=since)
+        if recent.count() >= MAX_FAILED_PER_IP:
+            return True
+        return bool(username_lower) and recent.filter(username_lower=username_lower).count() >= MAX_FAILED_ATTEMPTS
 
     def clean(self):
         username = (self.cleaned_data.get("username") or "").strip().lower()
-        if username and self._recent_failures(username).count() >= MAX_FAILED_ATTEMPTS:
+        ip = _client_ip(self.request)
+        if self._is_throttled(username, ip):
             raise ValidationError(THROTTLE_MESSAGE, code="throttled")
         try:
             cleaned = super().clean()
         except ValidationError:
-            if username:
-                FailedLogin.objects.create(
-                    username_lower=username,
-                    ip=_client_ip(self.request),
-                    at=timezone.now(),
-                )
+            prune_failed_logins()
+            if username and len(username) <= MAX_USERNAME_LENGTH:
+                FailedLogin.objects.create(username_lower=username, ip=ip, at=timezone.now())
             raise
         if username:
             FailedLogin.objects.filter(username_lower=username).delete()

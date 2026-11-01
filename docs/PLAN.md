@@ -134,4 +134,4 @@ Note: the technology (Django, PostgreSQL) is confirmed for a **standalone app** 
 
 ## Order and dependencies
 
-0, 1, then 2 (so real data can be seen), then 3, 4, 5, 6, 7. Milestones 4 and 5 can swap if you need Notes sooner. All questions in `docs/DESIGN.md` section 14 are answered. Only the new question N1 (numbering after a Section) remains, and it should be answered before Milestone 1.
+0, 1, then 2 (so real data can be seen), then 3, 4, 5, 6, 7. Milestones 4 and 5 can swap if you need Notes sooner. All questions in `docs/DESIGN.md` section 14 are answered. Only the two new questions remain: N1 (numbering after a Section), which must be answered before Milestone 1, and N2 (whether to flag the two Sections for review).

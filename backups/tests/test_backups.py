@@ -79,6 +79,14 @@ class CreateBackupTests(BackupBase):
 
 
 class RunBackupCommandTests(BackupBase):
+    def test_run_backup_prunes_old_failed_logins(self):
+        from accounts.models import FailedLogin
+
+        FailedLogin.objects.create(username_lower="stale", ip="1.1.1.1", at=timezone.now() - timedelta(days=2))
+        FailedLogin.objects.create(username_lower="fresh", ip="1.1.1.1", at=timezone.now())
+        call_command("run_backup", stdout=StringIO())
+        self.assertEqual(list(FailedLogin.objects.values_list("username_lower", flat=True)), ["fresh"])
+
     def test_run_backup_creates_daily_backup(self):
         out = StringIO()
         call_command("run_backup", stdout=out)
@@ -160,6 +168,8 @@ class RestoreServiceTests(BackupBase):
         self.assertEqual(row["removed_names"], ["carol"])
 
     def test_round_trip(self):
+        # Note: the sequence reset after a restore (connection.ops.sequence_reset_sql) is a no-op
+        # on SQLite, so this test cannot verify it. Only PostgreSQL does (README rehearsal step 5).
         self.alice.is_active = False
         self.alice.save()
         original = {u.username: (u.password, u.is_superuser, u.is_active) for u in User.objects.all()}
@@ -271,6 +281,9 @@ class ViewTests(BackupBase):
         self.assertRedirects(resp, reverse("backup_list"))
         self.assertEqual(self.usernames(), {"boss", "alice", "bob"})
         self.assertTrue(BackupFile.objects.filter(kind="pre_restore").exists())
+        # The success log is written after the commit, with request.user (a lazy object).
+        log = BackupLog.objects.get(kind="restore", success=True)
+        self.assertEqual(log.created_by.username, "boss")
 
     def test_upload_valid_file_goes_to_preview(self):
         raw = bytes(services.create_backup("daily").data)
@@ -365,6 +378,36 @@ class MigrateWithBackupTests(BackupBase):
             with self.assertRaises(CommandError):
                 call_command("migrate_with_backup", stdout=StringIO())
         migrate.assert_not_called()
+
+    def test_pre_migration_backup_uses_applied_state_models(self):
+        with mock.patch(f"{self.CMD}.has_pending_migrations", return_value=True), mock.patch(
+            f"{self.CMD}.call_command"
+        ), mock.patch(f"{self.CMD}.services.create_backup", wraps=services.create_backup) as create:
+            call_command("migrate_with_backup", stdout=StringIO())
+        create.assert_called_once_with("pre_migration", use_applied_state=True)
+
+    def test_applied_state_backup_tolerates_model_not_yet_migrated(self):
+        # Simulates a pending migration that adds a backed-up model: the registry (new code)
+        # lists a model the applied state does not have, and the backup must still succeed.
+        # NOT a real schema change: only a real PostgreSQL deploy proves the end-to-end case.
+        class FakeApps:
+            def get_model(self, label):
+                if label == "accounts.User":
+                    return User
+                raise LookupError(label)
+
+        labels = ["accounts.User", "diary.Subject"]
+        with mock.patch("backups.registry.BACKUP_MODELS", labels), mock.patch(
+            "backups.services.applied_state_apps", return_value=FakeApps()
+        ):
+            backup = services.create_backup("pre_migration", use_applied_state=True)
+        document = gunzip_json(backup.data)
+        self.assertEqual(document["counts"], {"accounts.User": 3, "diary.Subject": 0})
+        self.assertEqual(document["models"]["diary.Subject"], [])
+
+    def test_applied_state_apps_has_user_model(self):
+        historical = services.applied_state_apps().get_model("accounts.User")
+        self.assertEqual(historical._default_manager.count(), 3)
 
     def test_real_pending_check_runs(self):
         # Test database is fully migrated, so nothing is pending.

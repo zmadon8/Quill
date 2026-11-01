@@ -1,5 +1,6 @@
 from django.core.management.base import BaseCommand, CommandError
 
+from accounts.models import prune_failed_logins
 from backups import services
 
 
@@ -13,6 +14,10 @@ class Command(BaseCommand):
             # Non-zero exit so the host (Render cron job) marks the run as failed.
             raise CommandError(f"Daily backup FAILED: {exc}")
         removed = services.prune_old_backups()
+        try:
+            prune_failed_logins()
+        except Exception as exc:  # housekeeping must not fail a successful backup
+            self.stderr.write(f"Could not clean old failed-login records: {exc}")
         self.stdout.write(
             self.style.SUCCESS(
                 f"Daily backup OK: {backup.filename} ({backup.size_bytes} bytes). "

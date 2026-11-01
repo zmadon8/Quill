@@ -21,9 +21,21 @@ BACKUP_MODELS = [
 ]
 
 
-def get_models():
-    """The registry models, in backup order (parents first)."""
-    return [apps.get_model(label) for label in BACKUP_MODELS]
+def get_models(app_registry=None):
+    """The registry models, in backup order (parents first).
+
+    ``app_registry`` may be the ``apps`` of a historical migration state; a model
+    that does not exist in that state yet is left out of the result.
+    """
+    app_registry = app_registry or apps
+    found = []
+    for label in BACKUP_MODELS:
+        try:
+            found.append(app_registry.get_model(label))
+        except LookupError:
+            if app_registry is apps:
+                raise
+    return found
 
 
 def field_names(model):

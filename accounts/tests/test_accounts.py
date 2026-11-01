@@ -62,6 +62,34 @@ class LoginTests(BaseCase):
         self.assertContains(resp, THROTTLE_MESSAGE)
         self.assertNotIn("_auth_user_id", self.client.session)
 
+    def test_other_ip_cannot_lock_out_the_real_user(self):
+        for _ in range(5):
+            self.client.post(
+                reverse("login"), {"username": "alice", "password": "wrong"}, REMOTE_ADDR="9.9.9.9"
+            )
+        resp = self.client.post(
+            reverse("login"), {"username": "alice", "password": PASSWORD}, REMOTE_ADDR="5.5.5.5"
+        )
+        self.assertRedirects(resp, reverse("home"))
+
+    def test_same_ip_is_blocked_after_20_failures_for_any_username(self):
+        now = timezone.now()
+        for i in range(20):
+            FailedLogin.objects.create(username_lower=f"user{i}", ip="9.9.9.9", at=now)
+        resp = self.client.post(
+            reverse("login"), {"username": "alice", "password": PASSWORD}, REMOTE_ADDR="9.9.9.9"
+        )
+        self.assertContains(resp, THROTTLE_MESSAGE)
+
+    def test_failed_login_prunes_rows_older_than_a_day(self):
+        FailedLogin.objects.create(username_lower="stale", ip="1.1.1.1", at=timezone.now() - timedelta(days=2))
+        self.client.post(reverse("login"), {"username": "alice", "password": "wrong"})
+        self.assertFalse(FailedLogin.objects.filter(username_lower="stale").exists())
+
+    def test_overlong_username_is_not_recorded(self):
+        self.client.post(reverse("login"), {"username": "x" * 300, "password": "wrong"})
+        self.assertFalse(FailedLogin.objects.exists())
+
     def test_throttle_resets_after_15_minutes(self):
         old = timezone.now() - timedelta(minutes=16)
         for _ in range(5):
@@ -176,12 +204,18 @@ class UserAdminTests(BaseCase):
         self.admin.refresh_from_db()
         self.assertTrue(self.admin.is_superuser)
 
-    def test_cannot_disable_or_delete_last_active_admin_via_another_admin(self):
-        # A second Admin who is disabled does not count as an active Admin.
+    def test_cannot_delete_self_even_if_other_admin_is_disabled(self):
+        # The only active Admin can never be deleted: self-delete is refused, and no other
+        # active Admin exists to do it. A disabled Admin does not change that.
         inactive = self.make_user("old", admin=True, active=False)
         self.client.post(reverse("user_delete", args=[self.admin.pk]))
         self.assertTrue(User.objects.filter(pk=self.admin.pk).exists())
         self.assertTrue(User.objects.filter(pk=inactive.pk).exists())
+
+    def test_admin_can_delete_a_disabled_admin(self):
+        inactive = self.make_user("old", admin=True, active=False)
+        self.client.post(reverse("user_delete", args=[inactive.pk]))
+        self.assertFalse(User.objects.filter(pk=inactive.pk).exists())
 
     def test_can_remove_admin_rights_from_one_of_two(self):
         second = self.make_user("second", admin=True)

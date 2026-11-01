@@ -9,9 +9,11 @@ import logging
 import zlib
 
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.core import serializers
 from django.core.management.color import no_style
 from django.db import connection, transaction
+from django.db.migrations.loader import MigrationLoader
 from django.utils import timezone
 
 from . import policy, registry
@@ -31,10 +33,25 @@ def _label_key(label):
     return label.lower()
 
 
-def _build_document(now):
+def applied_state_apps():
+    """Historical models for the migrations that are APPLIED in the database right now.
+
+    Used for the pre-migration backup: the code's models may already describe
+    tables or columns that the pending migrations have not created yet.
+    """
+    loader = MigrationLoader(connection)
+    nodes = [key for key in loader.applied_migrations if key in loader.graph.nodes]
+    return loader.project_state(nodes).apps
+
+
+def _build_document(now, app_registry=None):
     models_out = {}
     counts = {}
-    for model in registry.get_models():
+    # Registry models missing from the historical state have no table yet: record them as empty.
+    for label in registry.BACKUP_MODELS:
+        models_out[label] = []
+        counts[label] = 0
+    for model in registry.get_models(app_registry):
         label = model._meta.label
         text = serializers.serialize(
             "json",
@@ -72,15 +89,24 @@ def _log_failure(kind, started, exc, user):
         logger.exception("Could not write the backup failure log")
 
 
-def create_backup(kind, user=None):
+def create_backup(kind, user=None, use_applied_state=False):
     """Make a full backup and store it. Returns the BackupFile.
 
-    On any error a failed BackupLog row is written and the error is re-raised.
+    With ``use_applied_state`` the data is read through the historical models of
+    the currently applied migrations (used before migrating), so a pending schema
+    change cannot break the backup. On any error a failed BackupLog row is written
+    and the error is re-raised.
     """
     started = timezone.now()
     try:
+        app_registry = applied_state_apps() if use_applied_state else None
+        outermost = not connection.in_atomic_block
         with transaction.atomic():
-            document, counts = _build_document(started)
+            if outermost and connection.vendor == "postgresql":
+                # One consistent snapshot for every model (needs to be the first statement).
+                with connection.cursor() as cursor:
+                    cursor.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
+            document, counts = _build_document(started, app_registry)
             raw = gzip.compress(json.dumps(document).encode("utf-8"))
             filename = f"judgment-diary-backup-{started:%Y%m%d-%H%M%S}-{kind}.json.gz"
             backup = BackupFile.objects.create(
@@ -265,8 +291,9 @@ def restore_backup(document, user):
         raise BackupError(f"The restore failed and nothing was changed. ({exc})")
 
     counts = {m._meta.label: len(objs) for m, objs in batches}
+    # ``user`` may be a request.user SimpleLazyObject, so do not use type(user).
     survivor = None
-    if user is not None and user.pk and type(user)._default_manager.filter(pk=user.pk).exists():
+    if user is not None and user.pk and get_user_model()._default_manager.filter(pk=user.pk).exists():
         survivor = user
     BackupLog.objects.create(
         started_at=started,

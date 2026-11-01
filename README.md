@@ -27,6 +27,8 @@ This code was written in an environment where Django and PostgreSQL could not be
 1. Run the tests (see "For developers" below) and fix anything that fails.
 2. Do the first-time setup on Render and walk through the checklist below, including the restore rehearsal.
 
+Specifically, these can only be checked on a real PostgreSQL database and are not covered by the automated tests (which run on SQLite): the reset of the database numbering after a restore (the rehearsal step 5 "create a new user" checks it), the consistent snapshot (REPEATABLE READ) used while a backup is read, and a backup taken before a real schema change.
+
 Only the plain-Python rules for how long backups are kept (`backups/tests/test_policy.py`) have been run.
 
 ## First-time setup on Render (done once)
@@ -66,6 +68,7 @@ There are no users at first, so you create the first Admin from Render:
 3. Open **Backups** and press **Backup now**. A new line appears in the list. Press **Download** to save the file to your computer. Keep it somewhere safe.
 4. The next morning, open Backups again. A new "Daily" backup should be there, made by the nightly job (it runs at 02:00 India time). If not, look at the `judgment-diary-daily-backup` job in Render and tell Kiro.
 5. **Restore rehearsal.** Do this while there is only practice data, before real data goes in. Add a test user, then in Backups press **Restore** on an earlier backup. You will see a preview of what would be added and removed, and a note that a safety backup is taken first. Type `RESTORE` and press **Restore now**. The test user should be gone. A "Before restore" backup now exists, so even a mistaken restore can be undone.
+   After the restore, **create a new user** (Users, New user). This must work: it proves the database numbering was reset correctly after the restore. A failure here (an "already exists" or duplicate key error) means the reset did not work, so tell Kiro before real data goes in. The automated tests cannot check this, because the numbering reset only exists on PostgreSQL.
 6. You can also restore from a file on your computer: Backups, then "Restore from a file on my computer".
 
 Settings you can change later are in Render, on the web service, under **Environment**.

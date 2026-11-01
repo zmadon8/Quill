@@ -18,7 +18,9 @@ def needs_safety_backup():
     User = get_user_model()
     if "backups_backupfile" not in tables or User._meta.db_table not in tables:
         return False
-    if not User.objects.exists():
+    # Historical User model: the real one may have columns that do not exist yet.
+    HistoricalUser = services.applied_state_apps().get_model(User._meta.label)
+    if not HistoricalUser._default_manager.exists():
         return False
     return has_pending_migrations()
 
@@ -29,7 +31,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         if needs_safety_backup():
             try:
-                backup = services.create_backup("pre_migration")
+                backup = services.create_backup("pre_migration", use_applied_state=True)
             except Exception as exc:
                 raise CommandError(
                     f"Safety backup before the database update FAILED, so the update was NOT run: {exc}"

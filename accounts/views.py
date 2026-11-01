@@ -49,10 +49,9 @@ def user_delete(request, pk):
     problem = None
     if target.pk == request.user.pk:
         problem = "You cannot delete your own account."
-    elif target.is_superuser and target.is_active:
-        others = User.objects.filter(is_superuser=True, is_active=True).exclude(pk=target.pk)
-        if not others.exists():
-            problem = "This is the last active Admin and cannot be deleted."
+    # No separate "last active Admin" rule is needed here: only an active Admin can reach this
+    # view, so deleting any other account always leaves that Admin, and deleting yourself is
+    # refused above. (The edit form does need the rule, because there the target may be yourself.)
     if request.method == "POST":
         if problem:
             messages.error(request, problem)
