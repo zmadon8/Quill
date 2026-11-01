@@ -67,6 +67,7 @@ Every record in every table carries:
 | `deleted_at` | Empty normally; filled when moved to Trash |
 | `version` | Whole number, goes up by one on every change; used to detect clashes (section 9.2) |
 | `created_by`, `updated_by` | Which user |
+| `profile` | Which profile (data space) the record lives in (section 3.5) |
 
 ### 3.1 Parents: separate columns, not "parent_type / parent_id"
 
@@ -124,6 +125,23 @@ Imported text has no formatting in the analysis findings that needs preserving b
 ### 3.4 Soft delete and IDs
 
 Deleting sets `deleted_at`. Nothing is physically removed except by the "Delete permanently" action in Trash. Because IDs come from a database sequence and are not recycled, an old ID (in a link, a history entry or a backup) never ends up pointing at a different record.
+
+### 3.5 Profiles (separate data spaces)
+
+The owner chose option "B": a **profile** is a separate data space inside one program, like a separate notebook (for example "Madon - Case Law" and "Junior - Case Law"). Each profile has its own Subjects and Items; nothing is shared between profiles. The owner added: "Users will only have access to 1 profile per sub-progeam (such as the Judgment Doary)." So each user has at most **one** profile per program (the Case Law Diary is the program with key `diary`).
+
+Everything below that is marked **DEFAULT** is a choice made without the owner's answer yet; it is used unless the owner says otherwise and each one is listed in the owner questions (section 14, P1 to P12).
+
+- **Tables.** `accounts.Profile` (program key, name, `deleted_at`, timestamps) and `accounts.ProfileMembership` (user, profile, and the program copied from the profile so the database can enforce "one profile per user per program": unique on user and program). Several users may share a profile. A profile name is unique per program among profiles that are not deleted, ignoring case. (DEFAULT, P2 and P3.)
+- **Profile column on diary data.** Subject, Topic, Sub-topic, Section, Item, Case, Note, Note link and Version history each carry a `profile` (protected: a profile that still has data cannot be removed). A record's profile must equal the profile of its parent; a Note link must be in the same profile as its Note and its target. The model refuses a mismatch when saving; the database cannot compare two rows, so that part is a code rule, not a database rule. A Subject name is unique per profile among live Subjects (it may be reused in another profile). (DEFAULT, P7.)
+- **Who does what.** The role (Admin, Editor, Reader) stays on the user and decides what they may do inside their profile. Admin stays suite-wide but also has at most one profile per program and does not see other profiles' data; the Admin can change someone's profile from the Users screen. A per-profile role is a possible later option. (DEFAULT, P4 and P5.)
+- **Managing profiles.** Only the Admin creates, renames and soft-deletes profiles, from a Profiles screen on Home next to Users and Settings. Deleting a profile that still has data or members is refused unless explicitly confirmed, never silently. (DEFAULT, P1.)
+- **A user with no profile** in a program sees that program's card on Home disabled with "No profile assigned - ask the Admin", and the program's pages show the same message instead of any data. (DEFAULT, P6.)
+- **Settings.** Display names (Home, Case Law Diary) stay global. Per-user settings stay per user (question: should they be per profile?). A user's opening Subject must belong to their profile. (DEFAULT, P8.)
+- **Existing data.** A profile called "Main" in the Case Law Diary is created by the migration; all existing diary records and all existing users are put into it. The first Admin created later also joins "Main". The sample-data commands take `--profile` (default "Main"; loading creates it if missing; removing only acts inside that profile). (DEFAULT, P9.)
+- **Backups** stay whole-database: profiles and memberships are in the backup file. A file made before profiles existed restores with its diary records and its users put into a "Main" profile, and the restore preview lists each profile with its users and records. Restoring or exporting a single profile is a possible later feature. (DEFAULT, P10.)
+- **Screens.** The diary page header shows the profile name unobtrusively, "Case Law Diary · Main". Every diary page, search, import, export, Trash and History (later milestones) works inside the user's profile only; another profile's record numbers give "not found". (DEFAULT, P7 and P11.)
+- **Import (Milestone 2)** imports into a chosen profile. (DEFAULT, P12.)
 
 ## 4. Numbering (generated, never stored)
 
@@ -337,7 +355,7 @@ A new Item group starts whenever the Word list changes. The importer uses this o
 
 ### 9.3 Backups
 - **Automatic daily backup**, kept at least **30 days**, downloadable from the Backups screen.
-- Two kinds: the host's database backups (section 3 of the hosting guide) and the app's own **machine-readable file** (all tables, including Trash, history and settings, in one file).
+- Two kinds: the host's database backups (section 3 of the hosting guide) and the app's own **machine-readable file** (all tables, including Trash, history, settings and profiles, in one file).
 - **Restore** from a backup file shows a **preview first** (counts of each record type and Subjects that would change, compared with now) and requires confirmation. A safety backup of the current state is taken before restoring.
 - The in-app backup can be copied off-site (see the hosting guide).
 - "Backup" button on the export screen produces the same file on demand.
@@ -574,3 +592,20 @@ Confirmed earlier: each Heading 1 is a Subject; Miscellaneous holds Other Subjec
 3. **Long file names.** Default: if a Current View name would exceed 120 characters, each part is cut to 30 characters and, if still too long, middle parts are replaced by `-`. The full path is always inside the document.
 4. **Current View of a Topic or Sub-topic.** Default: the Topic or Sub-topic heading becomes the top heading (Heading 1) and keeps its on-screen letter or number.
 5. **What a Reader may do.** Default (section 9.6): a Reader can read, search, see the Review list and export the Current View, but cannot see Trash or History, cannot do the two Full exports, and cannot edit. Editors can do everything except permanent delete from Trash and Import, which only an Admin can do.
+
+**Profiles: decisions and open questions** (the owner's words kept verbatim; section 3.5)
+
+- **Owner's choice.** Profiles are separate data spaces, "B". [Answer: I meant B. Users will only have access to 1 profile per sub-progeam (such as the Judgment Doary).] **Decision:** separate data space per profile, one profile per user per program.
+- Every point below is a **DEFAULT** used unless the owner says otherwise:
+  1. **P1.** Only the Admin creates, renames and soft-deletes profiles (Profiles screen on Home); deleting a profile with data or members needs explicit confirmation.
+  2. **P2.** Profile name unique per program among live profiles, ignoring case.
+  3. **P3.** One membership per user per program; several users may share a profile.
+  4. **P4.** The role stays on the user (not per profile). Later option: a role per membership.
+  5. **P5.** The Admin also has one profile per program and does not see other profiles' data.
+  6. **P6.** A user with no profile sees a disabled program card, "No profile assigned - ask the Admin".
+  7. **P7.** Every diary record carries its profile; a Subject name may repeat across profiles; links never cross profiles.
+  8. **P8.** Per-user settings stay per user (should they be per profile?); display names stay global.
+  9. **P9.** Existing data and users go into a profile called "Main".
+  10. **P10.** Backups stay whole-database; an old backup restores into "Main"; per-profile backup is a possible later feature.
+  11. **P11.** The diary header shows "Case Law Diary · Main".
+  12. **P12.** The Milestone 2 import goes into a chosen profile.

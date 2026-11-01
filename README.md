@@ -10,6 +10,7 @@ The longer plans are in `docs/PLAN.md` (what is built when), `docs/DESIGN.md` (h
 - Three roles: **Admin** (everything, including users and backups), **Editor** (reads and edits the diary) and **Reader** (reads only). New accounts are Readers. Your role is shown next to the Log out link. See `docs/DESIGN.md` section 9.6 for what each role may do (the diary screens come in later milestones).
 - A Settings screen (Admin only, linked from the Home page next to Users): rename the Home page and the case law diary (shown as "Case Law Diary" by default). Only the displayed names change; the app, address names and code keep their internal names, and the names are saved in backups.
 - A Users screen (Admin only, linked from the Home page): add a person, change a password, disable or delete a person, and choose or change their role. The app will not let you delete or disable yourself, or remove the last Admin.
+- Profiles: separate data spaces (like separate notebooks) inside a program. Each user has access to one profile per program. Existing data lives in a profile called "Main". The Admin screens for profiles come next; see `docs/DESIGN.md` section 3.5. The sample-data commands take `--profile`.
 - A Backups screen (Admin only): "Backup now", a list of saved backups with Download and Restore, and a history of what happened.
 - A nightly backup, made by a scheduled job, kept for at least 30 days.
 - A yellow warning bar at the top of every page (Admins only) if the last backup failed or there has been none for 36 hours.

@@ -1,7 +1,7 @@
 
 # Import Analysis of "Case Law Diary.docx"
 
-This note explains what is actually inside your Word file, so the import into the Judgment Diary can be planned on facts and not guesses. Every number below was produced by the read-only script `tools/analyze_docx.py` (run `python3 tools/analyze_docx.py` from the project folder to see the same figures). The Word file itself was only read, never changed.
+This note explains what is actually inside your Word file, so the import into the Judgment Diary (into one chosen profile, `docs/DESIGN.md` section 3.5) can be planned on facts and not guesses. Every number below was produced by the read-only script `tools/analyze_docx.py` (run `python3 tools/analyze_docx.py` from the project folder to see the same figures). The Word file itself was only read, never changed.
 
 ## 1. The short version
 

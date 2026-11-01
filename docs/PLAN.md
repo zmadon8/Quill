@@ -43,7 +43,7 @@ Note: the technology (Django, PostgreSQL) is confirmed for a **standalone app** 
 
 ## Milestone 2: Import prototype, dry run, reconciliation
 
-**Deliverable:** A supervised importer reading `Case Law Diary.docx` (never modifying it). A dry-run report (page and downloadable file). Then the real import into a test copy of the database, with a reconciliation report.
+**Deliverable:** A supervised importer reading `Case Law Diary.docx` (never modifying it). A dry-run report (page and downloadable file). Then the real import, **into a profile chosen by the Admin** (profiles are separate data spaces, `docs/DESIGN.md` section 3.5), into a test copy of the database, with a reconciliation report.
 
 **How you check it:**
 - Read the dry-run report: 41 Subjects (10 main plus 31 Other Subjects), 178 Topics, 323 Sub-topics, 2 Sections, 950 Items; 693 clean and 257 flagged Items with reasons, and the 2 Sections listed as flagged with their reason. Review-marked records in all: 259 (257 Items + 2 Sections).
