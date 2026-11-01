@@ -18,7 +18,7 @@ The longer plans are in `docs/PLAN.md` (what is built when), `docs/DESIGN.md` (h
 
 ## What is NOT built yet
 
-- Editing screens and the rest of the diary (Milestones 3 onwards). The Word import (Milestone 2) is built but has not been run on the real file yet.
+- Editing screens and the rest of the diary (Milestones 3b onwards). The rules behind editing, Trash, history, Undo and conversions exist already as a tested service layer (Milestone 3a, `diary/services/`) but no screen uses them yet. The Word import (Milestone 2) is built but has not been run on the real file yet.
 - The off-site copy of backups (to Backblaze or Cloudflare). This is planned.
 - Password reset by email. An Admin sets a new password for a person in the Users screen.
 
@@ -203,6 +203,7 @@ Layout:
 - `accounts/`: custom `User` (a `role` of admin, editor or reader; Admin is kept in step with Django's `is_superuser`; role checks in `permissions.py`), throttled login, Users screens, `create_first_admin`.
 - `backups/`: backup models (stored in the database), `policy.py` (pure Python rules), `registry.py` (which models are backed up), `services.py`, views, and the commands `run_backup` and `migrate_with_backup`.
 - `diary/`: the diary data model (Subjects, Topics, Sub-topics, Sections, Items, Cases, Notes, links, settings, version history), its database rules and migration, plus the Home page and `/healthz/` (in `root_urls.py`, with the permanent redirects from the old diary URLs). All Case Law Diary pages are under `/caselaw/` (for example `/caselaw/subjects/`); Home, Users, Profiles, Settings, Backups, login and logout stay at the root.
+- `diary/services/`: the editing rules (Milestone 3a): create and edit, move and reorder with numbering previews, delete to Trash in batches, restore, permanent delete, version history restore, Undo by action group and Item conversions. Each function takes the profile and user first, runs in one transaction and writes version history. Tests: `diary/tests/test_services_*.py`.
 - `render.yaml`, `build.sh`: Render deployment.
 
 When a later milestone adds diary models, append them to `BACKUP_MODELS` in `backups/registry.py` (parents before children) so they are included in backups and restores. Many-to-many fields are not backed up by the current design.
