@@ -1,21 +1,76 @@
 from django.db import connection
+from django.db.models import Count, Q
+from django.db.models.functions import Coalesce
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, render
 
 from accounts.permissions import reader_required
 
 from . import reading
-from .models import Subject, Subtopic, Topic
+from .models import Item, Subject, Subtopic, Topic
 
 
 def _subjects(**filters):
     return Subject.objects.filter(deleted_at__isnull=True, **filters)
 
 
+def item_counts_by_subject():
+    """One aggregate query: {subject_id: (items, items_for_review)} for live Items at any depth.
+
+    An Item belongs to a Subject through its Topic, Sub-topic or Nested-Item parent, so the owning
+    Subject is the first non-null of those paths (a Nested Item's children go one level further).
+    Items whose own Topic, Sub-topic or Nested-Item parent is deleted are not counted.
+    """
+    owner = Coalesce(
+        "subject_id",
+        "topic__subject_id",
+        "subtopic__subject_id",
+        "subtopic__topic__subject_id",
+        "parent_item__subject_id",
+        "parent_item__topic__subject_id",
+        "parent_item__subtopic__subject_id",
+        "parent_item__subtopic__topic__subject_id",
+    )
+    rows = (
+        Item.objects.filter(deleted_at__isnull=True)
+        .exclude(
+            Q(topic__deleted_at__isnull=False)
+            | Q(subtopic__deleted_at__isnull=False)
+            | Q(subtopic__topic__deleted_at__isnull=False)
+            | Q(parent_item__deleted_at__isnull=False)
+        )
+        .annotate(owner=owner)
+        .values("owner")
+        .annotate(items=Count("pk"), review=Count("pk", filter=Q(needs_review=True)))
+        .order_by()
+    )
+    return {r["owner"]: (r["items"], r["review"]) for r in rows}
+
+
 @reader_required
 def home(request):
-    tiles = _subjects(show_on_landing=True).order_by("landing_position", "name", "pk")
-    return render(request, "diary/home.html", {"subjects": tiles})
+    """Option A index: Subjects on the landing page with item counts, then Other Subjects."""
+    counts = item_counts_by_subject()
+    landing = list(_subjects(show_on_landing=True).order_by("landing_position", "name", "pk"))
+    for subject in landing:
+        subject.item_count = counts.get(subject.pk, (0, 0))[0]
+    other_count = _subjects(show_on_landing=False).count()
+    live_ids = set(_subjects().values_list("pk", flat=True))
+    total_items = sum(n for pk, (n, _) in counts.items() if pk in live_ids)
+    total_review = sum(r for pk, (_, r) in counts.items() if pk in live_ids)
+    return render(request, "diary/home.html", {
+        "subjects": landing,
+        "other_count": other_count,
+        "subject_total": len(live_ids),
+        "item_total": total_items,
+        "review_total": total_review,
+    })
+
+
+@reader_required
+def programs(request):
+    """Switch program: lists the programs in this suite (only Judgment Diary today)."""
+    return render(request, "diary/programs.html")
 
 
 @reader_required

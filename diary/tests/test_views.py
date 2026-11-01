@@ -1,5 +1,7 @@
 from django.contrib.auth import get_user_model
+from django.db import connection
 from django.test import TestCase, override_settings
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 from accounts.models import User
@@ -29,6 +31,97 @@ class DiaryTests(TestCase):
 
 
 PASSWORD = "x-long-pass-123"
+
+
+@override_settings(SECURE_SSL_REDIRECT=False)
+class HomeIndexTests(TestCase):
+    """Option A index: per-Subject item counts, Other Subjects count, and role-based nav."""
+
+    @classmethod
+    def setUpTestData(cls):
+        from django.utils import timezone
+
+        cls.reader = User.objects.create_user("rita", password=PASSWORD, role="reader")
+        cls.admin = User.objects.create_user("adam", password=PASSWORD, role="admin")
+        cls.arb = Subject.objects.create(name="Arbitration", landing_position=1)
+        cls.con = Subject.objects.create(name="Contracts", landing_position=2)
+        cls.empty = Subject.objects.create(name="Empty Subject", landing_position=3)
+        Subject.objects.create(name="Other One", show_on_landing=False, other_acts_position=1)
+        Subject.objects.create(name="Other Two", show_on_landing=False, other_acts_position=2)
+        Subject.objects.create(name="Gone", show_on_landing=False, deleted_at=timezone.now())
+        topic = Topic.objects.create(subject=cls.arb, name="Fraud")
+        sub = Subtopic.objects.create(topic=topic, name="Ex parte")
+        Item.objects.create(subject=cls.arb, text="<p>direct</p>")
+        Item.objects.create(topic=topic, text="<p>in topic</p>", needs_review=True)
+        Item.objects.create(subtopic=sub, text="<p>in subtopic</p>")
+        nested = Item.objects.create(subtopic=sub, text="<p>nested</p>", kind="nested")
+        Item.objects.create(parent_item=nested, text="<p>child</p>")
+        Item.objects.create(subject=cls.arb, text="<p>deleted</p>", deleted_at=timezone.now())
+        direct_sub = Subtopic.objects.create(subject=cls.con, name="Direct")
+        Item.objects.create(subtopic=direct_sub, text="<p>c1</p>")
+
+    def counts(self, resp):
+        import re
+
+        return dict(re.findall(r'<span class="name">(?:<em>)?([^<]+)(?:</em>)?</span><span class="count">([^<]+)</span>',
+                               resp.content.decode()))
+
+    def test_item_counts_per_subject_at_any_depth(self):
+        self.client.force_login(self.reader)
+        counts = self.counts(self.client.get(reverse("home")))
+        self.assertEqual(counts["Arbitration"], "5")
+        self.assertEqual(counts["Contracts"], "1")
+        self.assertEqual(counts["Empty Subject"], "0")
+
+    def test_other_subjects_entry_counts_live_other_subjects(self):
+        self.client.force_login(self.reader)
+        resp = self.client.get(reverse("home"))
+        self.assertEqual(self.counts(resp)["Other Subjects"], "2 subjects")
+        self.assertNotContains(resp, "Other One")
+
+    def test_meta_line_totals(self):
+        self.client.force_login(self.reader)
+        resp = self.client.get(reverse("home"))
+        self.assertContains(resp, "5 subjects &middot; 6 items &middot; 1 for review")
+
+    def test_counts_use_a_fixed_number_of_queries(self):
+        self.client.force_login(self.reader)
+        self.client.get(reverse("home"))
+        with CaptureQueriesContext(connection) as ctx:
+            self.client.get(reverse("home"))
+        # session, user, landing Subjects, one item aggregate, Other count, live Subject ids
+        self.assertLessEqual(len(ctx), 8)
+
+    def test_search_box_leads_to_search_page(self):
+        self.client.force_login(self.reader)
+        resp = self.client.get(reverse("home"))
+        self.assertContains(resp, 'action="%s"' % reverse("search"))
+        self.assertContains(resp, "Search the diary")
+
+    def test_nav_hides_admin_items_from_reader(self):
+        self.client.force_login(self.reader)
+        resp = self.client.get(reverse("home"))
+        self.assertContains(resp, reverse("search"))
+        self.assertNotContains(resp, 'href="%s"' % reverse("user_list"))
+        self.assertNotContains(resp, 'href="%s"' % reverse("backup_list"))
+
+    def test_nav_shows_admin_items_to_admin(self):
+        self.client.force_login(self.admin)
+        resp = self.client.get(reverse("home"))
+        self.assertContains(resp, 'href="%s"' % reverse("user_list"))
+        self.assertContains(resp, 'href="%s"' % reverse("backup_list"))
+
+    def test_nav_marks_current_page(self):
+        self.client.force_login(self.admin)
+        resp = self.client.get(reverse("user_list"))
+        self.assertContains(resp, 'class="on" aria-current="page">Users</a>')
+        self.assertNotContains(resp, 'class="on" aria-current="page">Home</a>')
+
+    def test_programs_page_lists_only_judgment_diary(self):
+        self.client.force_login(self.reader)
+        resp = self.client.get(reverse("programs"))
+        self.assertContains(resp, "Judgment Diary")
+        self.assertContains(resp, "Switch program")
 
 
 @override_settings(SECURE_SSL_REDIRECT=False)

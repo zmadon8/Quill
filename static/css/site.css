@@ -146,3 +146,4 @@ td a { display: inline-block; min-height: var(--tap); line-height: var(--tap); p
   .toolbar-buttons { width: 100%; }
   .toolbar-buttons .button { flex: 1 1 auto; }
 }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
