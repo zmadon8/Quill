@@ -134,7 +134,7 @@ Counts below were produced by the script over 952 lines, which is the 950 "(i)" 
 | 16 | Very short lines (under 12 characters) | 1 | `NN Global` | Import whole, needs_review. |
 | 17 | Blank paragraphs | 11 | none to show | Skipped. They carry no text. They are listed in the report so nothing is lost silently. |
 | 18 | A Sub-topic directly after a Sub-topic (no Items between) | 2 | `Without Reasons` (under `Leaving question of Law Open`) and `Solicitors` (under `Professional Liability`) | Decided (I9): two separate Sub-topics in order. Not flagged; a Sub-topic may have no Items at present. |
-| 19 | A group of Items that restarts inside the same Topic or Sub-topic | 3 | e.g. under `Unlawful Subletting / Eviction` | Document order is kept. The Items stay under the same parent; needs_review note "list restarted". |
+| 19 | A group of Items that restarts inside the same Topic or Sub-topic | 3 | e.g. under `Unlawful Subletting / Eviction` | Document order is kept. The Items stay under the same parent. **Built as:** the importer finds 2 such restarts (the third in the script's count is the normal restart after Section (b)); they are listed in the dry run and reconciliation but not flagged, so the review count stays at the approved 259. |
 | 20 | "(a)", "(b)" lines sitting between a "1." Sub-topic and its Items | 2 | `Ex Parte / Without Notice` and `Determining Jurisdiction` (under `Clause 12: Leave to Sue`, Topic `Letters Patent & OS Rules`) | Decided (I3, I10): imported as **Sections** (not Sub-topics, not counted as Items), flagged for review. See section 5.1 for how Items after them are numbered. |
 
 Not found at all: any other Sections, bullets, nested Items, tables, images, footnotes, headings with their own sub-numbering, Heading 2 lines without numbering, and Items deeper than level 0.
@@ -180,14 +180,14 @@ The file has this shape (Topic `Letters Patent & OS Rules`, Sub-topic `Clause 12
        (ii) No need for prior notice ...
    (b) Determining Jurisdiction
        (i)  Must assume that the assertions ...   (a different Word list, B: restarts at (i))
-       ... 8 Items in all
+       ... 10 Items in all
 ```
 
-That is 2 Sections and 10 Items (2 under the first Section, 8 under the second), with no Item before the first Section.
+That is 2 Sections and 12 Items (2 under the first Section, 10 under the second; an earlier version of this note said 8, which the importer found to be wrong), with no Item before the first Section.
 
 How the importer builds it: the two small-letter lines become **Sections**; they are not counted as Items and not Sub-topics. A Section has no children, so it sits in the Sub-topic's shared order, at the position where it appears, and the Items that follow it (until the next Section, Sub-topic or Topic) are ordinary Items of the same Sub-topic placed after it. Membership is by position only. Both Sections are imported with **needs_review = Yes** and the note "imported from a small-letter (a)/(b) list; confirm these are Sections" (your decision I10).
 
-How it will be numbered in the Diary (decision D9): Sections have their own numbering format, default (a), (b), (c) (owner decision D13), and each Section restarts the Item numbering at (1). The Items are shown as (1), (2), ... in the Diary (D13), while the Word file uses (i), (ii), ... (the importer recognises Items by that). The Sub-topic reads: Section (a) `Ex Parte / Without Notice`, Items (1) and (2); Section (b) `Determining Jurisdiction`, Items (1) to (8). The grouping and counts match Word's lists, so **there is no renumbering difference to report**.
+How it will be numbered in the Diary (decision D9): Sections have their own numbering format, default (a), (b), (c) (owner decision D13), and each Section restarts the Item numbering at (1). The Items are shown as (1), (2), ... in the Diary (D13), while the Word file uses (i), (ii), ... (the importer recognises Items by that). The Sub-topic reads: Section (a) `Ex Parte / Without Notice`, Items (1) and (2); Section (b) `Determining Jurisdiction`, Items (1) to (10). The grouping and counts match Word's lists, so **there is no renumbering difference to report**.
 
 ## 6. How the import will be checked
 

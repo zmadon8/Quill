@@ -18,7 +18,7 @@ The longer plans are in `docs/PLAN.md` (what is built when), `docs/DESIGN.md` (h
 
 ## What is NOT built yet
 
-- All the diary content and screens, and the Word import.
+- Editing screens and the rest of the diary (Milestones 3 onwards). The Word import (Milestone 2) is built but has not been run on the real file yet.
 - The off-site copy of backups (to Backblaze or Cloudflare). This is planned.
 - Password reset by email. An Admin sets a new password for a person in the Users screen.
 
@@ -57,6 +57,20 @@ You need an email address, a payment card and your GitHub account. Cost is about
 Deleted profiles are kept for 30 days (`PROFILE_RETENTION_DAYS`). On the Profiles screen, under **Deleted profiles**, you see the days left and a **Restore** button. Restoring gives the users their access back; it is refused, naming the users, if one of them has since been given another profile in that program, or if the name is now taken. After the window a nightly job removes the profile and its data for good, but only if today's backup succeeded. Each run is recorded in the purge log.
 
 Backups are of the whole database and include all profiles. A backup made before profiles existed restores into "Main".
+
+### Import the Word file (Milestone 2, Admin)
+
+The importer reads `Case Law Diary.docx` and never changes it. It always shows a **dry run** first. Use a **test copy of the database** and a profile of your choice (for example a new profile "Import test"); load the real data only after you approve the reconciliation.
+
+1. Remove the sample data from the target profile first (`python manage.py remove_sample_data --profile "Name"`), because the sample Subjects and the real ones must not clash.
+2. On Home press **Import**. Choose the profile and the Word file, press **Dry run**, and read it. You can also press **Download dry run** to keep it as a text file. It lists the totals against the figures you approved (41 Subjects, 178 Topics, 323 Sub-topics, 2 Sections, 950 Items; 693 clean and 257 flagged Items; 259 review-marked records), the counts per Subject, why each flagged line is flagged, the 19 colon changes, the blank lines skipped, and the first lines of each Topic.
+3. If the dry run says there are no problems and the profile is ready, choose the same file again at the bottom of the dry run page, type `IMPORT` and press the Import button. A backup is made just before and just after. Everything is imported in one step or not at all. Running it again changes nothing.
+4. Read the **reconciliation** shown after the import (you can ask for it again at any time with **Reconcile with profile**, or **Download reconciliation**). It must end with `RESULT: MATCH`. Any difference is listed, never hidden.
+5. The **Review list** (the "for review" link on the Subjects page) shows the 259 review-marked records with their path and reason.
+
+The same can be done in the Render Shell: `python manage.py import_docx --profile "Name"` (dry run), then `--import`, and `--reconcile`. Add `--output report.txt` to save the report as a file.
+
+Two things you should know. The file has 10 Items under Section (b) `Determining Jurisdiction` (Word shows (i) to (x)), not 8 as an earlier note said; the importer counts what is in the file and the earlier figure has been corrected in the documents. The two places where Word's own list restarts inside the same Sub-topic are reported in the dry run but not flagged, so the review count stays at the 259 you approved.
 
 ### Look at sample data (Milestone 1) and remove it again
 

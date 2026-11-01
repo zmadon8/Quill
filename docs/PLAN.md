@@ -28,7 +28,7 @@ Note: the technology (Django, PostgreSQL) is confirmed for a **standalone app** 
 **Deliverable:** All record types and database rules exist. Test data (not yours yet) can be loaded. Screens: landing page with Subject tiles and the Other Subjects tile, Subject contents (TOC), the reading view with Items, Citations in italics, Multi-Items, Nested Items, Sections, flags in red, with automatic numbering and the three View buttons. Phone layout from the start. Role rules apply from the first screen: Readers, Editors and Admins can all read; the app is built with the `reader_required`, `editor_required` and `admin_required` checks from `accounts/permissions.py` (`docs/DESIGN.md` section 9.6).
 
 **How you check it:**
-- Look at a small sample Subject; confirm Topics are A, B, C; Sub-topics 1, 2, 3; Items (1), (2), (3); Nested Item bullets; Sections with their own numbering (default (a), (b)) and Item numbering restarting at (1) after each Section (the Clause 12 example: Section (a) with Items (1), (2); Section (b) with Items (1) to (8)). Moving or deleting a Section shows a preview of the Items that will renumber.
+- Look at a small sample Subject; confirm Topics are A, B, C; Sub-topics 1, 2, 3; Items (1), (2), (3); Nested Item bullets; Sections with their own numbering (default (a), (b)) and Item numbering restarting at (1) after each Section (the Clause 12 example: Section (a) with Items (1), (2); Section (b) with Items (1) to (10)). Moving or deleting a Section shows a preview of the Items that will renumber.
 - Open a sample Other Subject and confirm it shows Sub-topics and Items directly.
 - Sign in as a Reader and as an Editor and confirm both can read everything they are meant to see (Milestone 1 screens are read-only for everyone).
 - Open on your phone: no sideways scrolling, text is easy to read, Contents button works.
@@ -49,7 +49,7 @@ Note: the technology (Django, PostgreSQL) is confirmed for a **standalone app** 
 
 **How you check it:**
 - Read the dry-run report: 41 Subjects (10 main plus 31 Other Subjects), 178 Topics, 323 Sub-topics, 2 Sections, 950 Items; 693 clean and 257 flagged Items with reasons, and the 2 Sections listed as flagged with their reason. Review-marked records in all: 259 (257 Items + 2 Sections).
-- After the import, the Review list shows 259 records, and under `Clause 12: Leave to Sue` you see Section (a) with Items (1), (2) and Section (b) with Items (1) to (8), matching Word's grouping.
+- After the import, the Review list shows 259 records, and under `Clause 12: Leave to Sue` you see Section (a) with Items (1), (2) and Section (b) with Items (1) to (10), matching Word's grouping.
 - After the import, open ten Subjects of your choice and compare with Word.
 - Read the reconciliation report: counts match (including 259 review-marked records), and the text comparison reports only the expected differences: the 19 names with the trailing colon removed (your instruction). There is no Item renumbering difference to explain. Any other difference is listed and explained, never hidden.
 - Spot check the "original Word line" shown against what is displayed, for ten flagged and ten clean items.
@@ -59,6 +59,8 @@ Note: the technology (Django, PostgreSQL) is confirmed for a **standalone app** 
 - Hidden formatting in Word (bold/italic runs) imported wrongly (mitigation: formatted lines listed in the dry run).
 - Answers to the import questions arrive late (mitigation: safe defaults flag instead of guess).
 - Real data first goes to a test copy; the live database is only loaded after you approve the reconciliation.
+
+**Status (branch `profiles`):** built, not yet run on the real file or in CI. Pieces: `diary/importer/` (`docx_reader`, `plan`, `report`, `loader`, `service`), the `import_docx` command, the Admin **Import** screen (dry run, download, import, reconcile) and the **Review list**. Migration `0007_import_columns` adds `original_line` and `import_ref` to Subjects, Topics, Sub-topics and Sections (Items already had them), so that every Word line and its colon-free name can be traced. Run against the real file, the plan reproduces every figure above (41 / 178 / 323 / 2 / 950, 693 + 257, 259 review-marked, 11 blanks, 19 colon changes). Corrections found by the importer: Section (b) holds 10 Items, not 8; and Word's list restarts inside one Sub-topic are reported, not flagged.
 
 ## Milestone 3: Edit mode, Trash, history, Undo, conversions
 
@@ -120,7 +122,7 @@ Note: the technology (Django, PostgreSQL) is confirmed for a **standalone app** 
 **Deliverable:** Three types of Word export following `docs/DESIGN.md` section 12: (i) Full, one document; (ii) Full, one document per Subject with all Other Subjects together, delivered as one .zip with a manifest; (iii) Current View (Subject, Topic or Sub-topic on screen, focused pane in split screen). Contents page, page headers, numbering per Settings (including Sections and the restart of Items after each Section), "See also" Notes, date and record count. File names built from the Custom Name, the part and the date. A "Backup" button for the restore file. **Profiles:** every export covers the user's profile only, and file names start with the profile's export name (default "Case Law Diary Main", editable in the profile's settings; `accounts.profiles.export_file_name` builds the cleaned name).
 
 **How you check it:**
-- Export (i) and open in Word: Subject names as headings, Topics lettered, Sub-topics numbered, Items (1), Citations in italic after " - ". Under `Clause 12: Leave to Sue` Section (a) has Items (1), (2) and Section (b) has Items (1) to (8), restarting correctly in Word.
+- Export (i) and open in Word: Subject names as headings, Topics lettered, Sub-topics numbered, Items (1), Citations in italic after " - ". Under `Clause 12: Leave to Sue` Section (a) has Items (1), (2) and Section (b) has Items (1) to (10), restarting correctly in Word.
 - Check the Other Subjects section (Heading 1 / 2 / 3) and a single Other Subject export (Heading 1 alone, confirmed).
 - **File names**: (i) `Case Law Diary Full 2026-11-01.docx` (with your Custom Name, which defaults to the program's display name, and the date); (ii) the zip `... Full - by Subject <date>.zip` holding one `... <Subject name> <date>.docx` per Subject, one `... Other Subjects <date>.docx`, and `manifest.txt`; (iii) `... <on-screen path joined by ", "> <date>.docx`. Illegal characters are replaced by a hyphen; over-long paths are shortened by the documented rule; duplicates in the zip get " (2)".
 - **Zip contents and counts**: each document's record count matches the screen for that Subject, and the grand total in `manifest.txt` equals the count on the Full export.

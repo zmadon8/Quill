@@ -166,7 +166,7 @@ Numbers are computed whenever a page or export is built, from the order of recor
 6. Every level **restarts under its parent**.
 7. **Multi-Item citations**: (a), (b), (c) inside the item.
 
-**Worked example** (Topic `Letters Patent & OS Rules`, Sub-topic `Clause 12: Leave to Sue`; 10 Items and 2 Sections in the Word file, no Item before the first Section). The Diary shows, with the default Section format:
+**Worked example** (Topic `Letters Patent & OS Rules`, Sub-topic `Clause 12: Leave to Sue`; 12 Items and 2 Sections in the Word file, no Item before the first Section). The Diary shows, with the default Section format:
 
 ```
 Clause 12: Leave to Sue                     (a Sub-topic; its own number comes from its position)
@@ -174,14 +174,14 @@ Clause 12: Leave to Sue                     (a Sub-topic; its own number comes f
        (1) ...                              (2 Items)
        (2) ...
    (b) Determining Jurisdiction             (Section, flagged for review at import)
-       (1) ...                              (8 Items, numbering restarted)
+       (1) ...                              (10 Items, numbering restarted)
        ...
-       (8) ...
+       (10) ...
 ```
 
 If an Item were added before `Ex Parte / Without Notice`, it would read (1), and the Items under (a) would still start at (1). The Diary's labels differ from Word's (i), (ii) style by design (decision D13), but the grouping and the count of each run are the same as in Word, so there is no renumbering difference to report at import.
 
-**Moving or deleting a Section changes the numbers of Items.** The Items after a Section belong to its run by position, so removing or moving the Section merges them into the run before it (or moves the boundary). Before a move or delete the app shows a **preview** of the affected Items, before and after numbers (for example "these 8 Items will be numbered (3) to (10) instead of (1) to (8)"), and asks for confirmation. Undo works as for any other change (section 9.1). Because numbers are generated and never stored, there is nothing to repair afterwards.
+**Moving or deleting a Section changes the numbers of Items.** The Items after a Section belong to its run by position, so removing or moving the Section merges them into the run before it (or moves the boundary). Before a move or delete the app shows a **preview** of the affected Items, before and after numbers (for example "these 10 Items will be numbered (3) to (12) instead of (1) to (10)"), and asks for confirmation. Undo works as for any other change (section 9.1). Because numbers are generated and never stored, there is nothing to repair afterwards.
 
 Formats come from Settings (section 5.11). Format choices for Topics, Sub-topics, Items and Nested Items: A,B,C; a,b,c; 1,2,3; I,II,III; i,ii,iii; (A); (i); (a); (1); bullet; none. Sections use the same list plus one more style, **Section 1, Section 2**. Defaults: Topics A, B, C; Sub-topics 1, 2, 3; Sections (a), (b), (c); Items and Nested Items (1), (2), (3); Multi-Item citations (a), (b), (c).
 
@@ -336,6 +336,14 @@ A new Item group starts whenever the Word list changes. The importer uses this o
 - The 38 lines with typed (i), (ii) citations stay as one Item with one long Citation or Text as the split rule decides, flagged For review (I4).
 - Two Sub-topics in a row are two separate Sub-topics; one may have no Items for now (I9). They are not flagged.
 
+### 8.2a How it is built (Milestone 2)
+
+- Code in `diary/importer/`: `docx_reader` (standard library only; reads runs, list formats and styles), `plan` (levels, parents, positions, the split rule, colon rule), `report` (text reports), `loader` (the only database code) and `service` (backup, import, reconcile). Command: `import_docx`. Screen: Admin only, `/import/`.
+- `original_line` and `import_ref` (`para-NNNN`, the 0-based paragraph number) exist on Subject, Topic, Sub-topic, Section and Item, so each line and each colon change is traceable. Item Text keeps b, i, u runs; the Citation is plain text.
+- Safety: the import refuses if the file has structural problems, if the profile holds an incomplete earlier import, or if live Subject names clash. If every record is already there it does nothing. The screen imports only a file whose SHA-256 matches the dry run that was shown, and requires typing IMPORT. A backup is taken before (the import does not start without it) and after.
+- Reconciliation compares counts per Subject, every line (rebuilt Item text is exact, not trimmed), the stored `original_line`, the listing order, the Section groupings and the review markers. Differences are listed; the 19 colon removals are the only expected ones.
+- Word's list restarts inside one Sub-topic are reported but do not set the review marker (they would otherwise change the approved count of 259).
+
 ### 8.3 Dry run and reconciliation
 1. **Dry run**: a preview (page and downloadable file) shows counts per Subject and level, clean versus flagged with reasons, the two Sections listed as flagged with their reason, and the first lines of each Topic. Nothing is saved. You approve before the real import.
 2. **Real import** is wrapped in a single database transaction: it fully succeeds or leaves nothing. Running it twice does not duplicate (each record carries its `import_ref`).
@@ -343,7 +351,7 @@ A new Item group starts whenever the Word list changes. The importer uses this o
    - counts per level and Subject versus the file (expected: 41 Subjects, 178 Topics under main Subjects, 323 Sub-topics, 2 Sections, 950 Items, 1,495 text paragraphs, 11 blanks skipped; 693 clean and 257 flagged Items; 2 flagged Sections; **259 review-marked records in all = 257 Items + 2 Sections**);
    - a **full-text round trip**: rebuild text from the database in order and compare with the Word file line by line; target is zero differences;
    - the list of every flagged line and why;
-   - the list of the 19 names changed by colon removal (original and stored form side by side), and a check that the count of generated Items under the two Sections (2 and 8) equals the count in Word's own lists ((i), (ii) and (i) to (viii) in Word; (1), (2) and (1) to (8) in the Diary). No renumbering difference is expected.
+   - the list of the 19 names changed by colon removal (original and stored form side by side), and a check that the count of generated Items under the two Sections (2 and 10) equals the count in Word's own lists ((i), (ii) and (i) to (x) in Word; (1), (2) and (1) to (10) in the Diary; the first version of this document wrongly said 8, found by the importer when it read the file). No renumbering difference is expected.
 4. A backup is taken immediately before and after import.
 5. The imported data is marked in history as `import`, so it can be seen what came from Word.
 
