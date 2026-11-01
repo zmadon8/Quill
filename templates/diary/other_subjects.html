@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Other Subjects{% endblock %}
+{% block breadcrumb %}<a href="{% url 'home' %}">Home</a> <span class="sep">&rsaquo;</span> <span aria-current="page">Other Subjects</span>{% endblock %}
+{% block content %}
+<h1>Other Subjects</h1>
+{% if subjects %}
+<ul class="plain-list">
+  {% for subject in subjects %}
+  <li><a class="row-link" href="{% url 'subject_contents' subject.pk %}">{{ subject.name }}</a></li>
+  {% endfor %}
+</ul>
+{% else %}
+<p>There are no Other Subjects yet.</p>
+{% endif %}
+{% endblock %}

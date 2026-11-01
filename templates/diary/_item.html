@@ -1,0 +1,14 @@
+<div class="item{% if b.indent %} under-section{% endif %}{% if b.flag %} flagged{% endif %}{% if b.needs_review %} review{% endif %}" id="{{ b.anchor }}">
+  <span class="num">{{ b.label }}</span>
+  <div class="item-body">
+    <span class="item-text">{% if b.has_text %}{{ b.text }}{% endif %}</span>{% if b.is_multi %}{% if b.has_text %} - {% endif %}{% for case in b.cases %}<span class="case"><span class="num">{{ case.label }}</span> <em class="citation">{{ case.citation }}</em>{% if case.has_comment %} <span class="case-comment">{{ case.comment }}</span>{% endif %}</span>{% if not forloop.last %} ; {% endif %}{% endfor %}{% elif b.citation %}{% if b.has_text %} - {% endif %}<em class="citation">{{ b.citation }}</em>{% endif %}
+    {% if b.flag %}<span class="flag-text">[{{ b.flag_label }}]</span>{% endif %}
+    {% if b.needs_review %}<span class="review-marker">For review{% if b.review_note %}: {{ b.review_note }}{% endif %}</span>{% endif %}
+    {% for note in b.notes %}{% include "diary/_note.html" with b=note %}{% endfor %}
+    {% if b.children %}
+    <div class="nested">
+      {% for child in b.children %}{% include "diary/_item.html" with b=child %}{% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</div>

@@ -1,0 +1,6 @@
+<div class="note{% if b.indent %} under-section{% endif %}">
+  <span class="note-text">{{ b.text }}</span>
+  {% for link in b.links %}
+  <span class="see-also">&#128279; See also: {% if link.url %}<a href="{{ link.url }}">{{ link.path }}</a>{% else %}{{ link.path }}{% endif %}</span>
+  {% endfor %}
+</div>

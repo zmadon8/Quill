@@ -21,6 +21,14 @@
     </nav>
     {% endif %}
   </header>
+  {% if user.is_authenticated %}
+  <div class="toolbar">
+    <button type="button" class="back-button" data-back data-fallback="{% url 'home' %}">&larr; Back</button>
+    <a class="button" href="{% url 'home' %}" title="Home (Alt+H)">Home</a>
+    <a class="button" href="{% url 'search' %}" title="Search (Alt+G)">Search</a>
+    <nav class="breadcrumb" aria-label="You are here">{% block breadcrumb %}{% endblock %}</nav>
+  </div>
+  {% endif %}
   {% if backup_warning %}<div class="banner-warning" role="alert"><a href="{% url 'backup_list' %}">{{ backup_warning }}</a></div>{% endif %}
   <main>
     {% if messages %}
@@ -30,5 +38,6 @@
     {% endif %}
     {% block content %}{% endblock %}
   </main>
+  <script src="{% static 'js/site.js' %}" data-home="{% url 'home' %}" data-search="{% url 'search' %}"></script>
 </body>
 </html>

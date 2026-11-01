@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}{{ subject.name }}{% endblock %}
+{% block breadcrumb %}{% include "diary/_crumbs.html" %}{% endblock %}
+{% block content %}
+<div class="reader-layout">
+  <aside class="contents-panel" id="contents-panel" aria-label="Contents">
+    <h2>Contents</h2>
+    <p><a href="{% url 'subject_contents' subject.pk %}">{{ subject.name }}</a></p>
+    {% include "diary/_toc.html" %}
+  </aside>
+  <article class="reading">
+    <div class="actions">
+      <button type="button" class="contents-button" data-contents-toggle aria-controls="contents-panel" aria-expanded="false">Contents</button>
+      <a class="button" href="{% url 'read_subject' subject.pk %}">View whole Subject</a>
+      {% if scope == "topic" %}
+      <a class="button" href="{% url 'read_topic' target.pk %}" aria-current="true">View this Topic</a>
+      {% elif scope == "subtopic" %}
+      {% if target.topic_id %}<a class="button" href="{% url 'read_topic' target.topic_id %}">View this Topic</a>{% endif %}
+      <a class="button" href="{% url 'read_subtopic' target.pk %}" aria-current="true">View this Sub-topic</a>
+      {% endif %}
+    </div>
+    {% for b in blocks %}
+      {% if b.kind == "heading" %}
+        {% if b.level == "subject" %}<h1 id="{{ b.anchor }}">{{ b.name }}</h1>
+        {% elif b.level == "topic" %}<h2 id="{{ b.anchor }}" class="topic-heading"><span class="num">{{ b.label }}</span> {{ b.name }}</h2>
+        {% else %}<h3 id="{{ b.anchor }}" class="subtopic-heading"><span class="num">{{ b.label }}</span> {{ b.name }}</h3>{% endif %}
+      {% elif b.kind == "section" %}
+        <div class="section-header{% if b.needs_review %} review{% endif %}" id="{{ b.anchor }}"><strong><span class="num">{{ b.label }}</span>{% if b.name %} {{ b.name }}{% endif %}</strong>{% if b.needs_review %} <span class="review-marker">For review{% if b.review_note %}: {{ b.review_note }}{% endif %}</span>{% endif %}</div>
+      {% elif b.kind == "item" %}
+        {% include "diary/_item.html" %}
+      {% elif b.kind == "note" %}
+        {% include "diary/_note.html" %}
+      {% endif %}
+    {% endfor %}
+  </article>
+</div>
+{% endblock %}

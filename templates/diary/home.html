@@ -1,6 +1,13 @@
 {% extends "base.html" %}
+{% block breadcrumb %}<span aria-current="page">Home</span>{% endblock %}
 {% block content %}
 <h1>Judgment Diary</h1>
 <p>Welcome, {{ user.username }}.</p>
-<p>The data screens for judgments and summaries arrive in later milestones.</p>
+<ul class="tiles">
+  {% for subject in subjects %}
+  <li><a class="tile" href="{% url 'subject_contents' subject.pk %}">{{ subject.name }}</a></li>
+  {% endfor %}
+  <li><a class="tile tile-other" href="{% url 'other_subjects' %}">Other Subjects</a></li>
+</ul>
+{% if not subjects %}<p>There are no Subjects on the landing page yet.</p>{% endif %}
 {% endblock %}

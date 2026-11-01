@@ -1,0 +1,11 @@
+<ul>
+  {% for entry in toc %}
+  <li>
+    <a href="{% url 'read_topic' entry.topic.pk %}"><span class="num">{{ entry.label }}</span> {{ entry.topic.name }}</a>
+    {% if entry.subtopics %}<ul>{% for sub in entry.subtopics %}<li><a href="{% url 'read_subtopic' sub.subtopic.pk %}"><span class="num">{{ sub.label }}</span> {{ sub.subtopic.name }}</a></li>{% endfor %}</ul>{% endif %}
+  </li>
+  {% endfor %}
+  {% for sub in direct_toc %}
+  <li><a href="{% url 'read_subtopic' sub.subtopic.pk %}"><span class="num">{{ sub.label }}</span> {{ sub.subtopic.name }}</a></li>
+  {% endfor %}
+</ul>
