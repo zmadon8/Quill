@@ -266,8 +266,9 @@ class Item(RichTextMixin, Record):
 
 
 class Case(RichTextMixin, Record):
-    profile_parents = ("item",)
     """One citation of a Multi-Item, with an optional rich-text comment."""
+
+    profile_parents = ("item",)
 
     rich_fields = {"comment": "comment_plain"}
 
@@ -314,8 +315,9 @@ class Note(RichTextMixin, Record):
 
 
 class NoteLink(Record):
-    profile_parents = ("note", "subject", "topic", "subtopic", "section", "item")
     """A cross-reference from a Note to one target. Never removed by the system (section 7)."""
+
+    profile_parents = ("note", "subject", "topic", "subtopic", "section", "item")
 
     note = models.ForeignKey(Note, on_delete=models.CASCADE, related_name="links")
     subject = models.ForeignKey(

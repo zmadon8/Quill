@@ -4,6 +4,8 @@ Each user has at most one profile per program. The "default profile" helpers tak
 classes as arguments so the data migrations (which use historical models) and the tests share
 exactly the same logic.
 """
+from django.db import transaction
+
 from .models import Profile, ProfileMembership
 from .suite import KEY_DIARY
 
@@ -57,9 +59,10 @@ def set_user_profile(user, profile, program=KEY_DIARY):
 
     Replaces any existing membership, so the one-per-program rule is never broken.
     """
-    ProfileMembership.objects.filter(user=user, program=program).exclude(profile=profile).delete()
-    if profile is not None:
-        ProfileMembership.objects.get_or_create(user=user, profile=profile, defaults={"program": program})
+    with transaction.atomic():
+        ProfileMembership.objects.filter(user=user, program=program).exclude(profile=profile).delete()
+        if profile is not None:
+            ProfileMembership.objects.get_or_create(user=user, profile=profile, defaults={"program": program})
 
 
 def profile_usage(profile):

@@ -615,6 +615,9 @@ Confirmed earlier: each Heading 1 is a Subject; Miscellaneous holds Other Subjec
   10. **P10.** Backups stay whole-database; an old backup restores into "Main"; per-profile backup is a possible later feature.
   11. **P11.** The diary header shows "Case Law Diary · Main".
   12. **P12.** The Milestone 2 import goes into a chosen profile.
+  13. **P13.** Backup files are trusted Admin input: restore uses raw saves, so the cross-profile link check and the membership `program` copy are not re-run on file contents (uploads are Admin-only). Revisit if files ever come from untrusted sources.
+  14. **P14.** A soft-deleted profile cannot be recovered from the UI in v1; its rows stay in the database and a developer can restore it. A trash listing for profiles is a possible later feature.
+  15. **P15.** `check_profile` reads each parent on every save (one query per uncached parent). Acceptable for the UI; the Milestone 2 import should set parents from objects it already holds, or bulk-create after validating once.
 
 **Questions for the owner (profiles).** Each has a default that is used unless you say otherwise:
 

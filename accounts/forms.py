@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.utils import timezone
 
 from . import suite
@@ -96,8 +97,9 @@ class UserCreateForm(UserCreationForm):
         user = super().save(commit=False)
         user.set_role(self.cleaned_data["role"])
         if commit:
-            user.save()
-            set_user_profile(user, self.cleaned_data.get("profile"))
+            with transaction.atomic():
+                user.save()
+                set_user_profile(user, self.cleaned_data.get("profile"))
         return user
 
 
@@ -158,8 +160,9 @@ class UserEditForm(forms.ModelForm):
         if self.cleaned_data.get("new_password"):
             user.set_password(self.cleaned_data["new_password"])
         if commit:
-            user.save()
-            set_user_profile(user, self.cleaned_data.get("profile"))
+            with transaction.atomic():
+                user.save()
+                set_user_profile(user, self.cleaned_data.get("profile"))
         return user
 
 
