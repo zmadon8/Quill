@@ -1,0 +1,22 @@
+* { box-sizing: border-box; }
+body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; line-height: 1.5; color: #1a1a1a; background: #f6f6f4; }
+.site-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; padding: .75rem 1rem; background: #22304a; color: #fff; }
+.site-header a, .site-header button.link { color: #fff; margin-right: 1rem; }
+.brand { font-weight: 700; }
+nav { display: flex; flex-wrap: wrap; align-items: center; }
+main { max-width: 60rem; margin: 1rem auto; padding: 0 1rem; }
+form.inline { display: inline; }
+button, .button { display: inline-block; padding: .5rem 1rem; border: 1px solid #22304a; background: #22304a; color: #fff; border-radius: 4px; font-size: 1rem; cursor: pointer; text-decoration: none; }
+button.link { background: none; border: none; padding: 0; text-decoration: underline; }
+button.danger { background: #a12a2a; border-color: #a12a2a; }
+input[type=text], input[type=password] { width: 100%; max-width: 24rem; padding: .4rem; font-size: 1rem; }
+.stack p { margin: 0 0 1rem; }
+.table-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; background: #fff; }
+th, td { text-align: left; padding: .5rem; border-bottom: 1px solid #ddd; }
+.messages { list-style: none; padding: 0; }
+.messages li { padding: .5rem .75rem; margin-bottom: .5rem; border-radius: 4px; background: #e6f2e6; }
+.messages li.error, .error, .errorlist { color: #a12a2a; }
+.messages li.error { background: #f8e3e3; }
+.errorlist { padding-left: 1rem; }
+.helptext { display: block; font-size: .85rem; color: #555; }
