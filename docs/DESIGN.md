@@ -1,6 +1,6 @@
 # Judgment Diary: Design
 
-Status: design, with the owner's answers recorded (section 14). Milestone 0 (login, backup and restore skeleton) is built in the `quill/` project; nothing else is built yet. The Word file has not been changed.
+Status: design, with the owner's answers recorded (section 14). Milestone 0 (login, backup and restore skeleton) is built; the code lives at the repository root (`config/`, `accounts/`, `backups/`, `diary/`); nothing else is built yet. The Word file has not been changed.
 
 This document turns your specification into a buildable design. Parts addressed to you are in plain language. Technical parts are kept so a developer (or Kiro in a later phase) can build without guessing. The facts about your Word file come from `docs/IMPORT_ANALYSIS.md`.
 

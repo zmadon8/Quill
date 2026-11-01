@@ -1,0 +1,122 @@
+# Judgment Diary
+
+A private website for keeping your case law diary. This is **Milestone 0**: the foundation only. You can log in, manage users, and make, download and restore backups. The diary screens themselves (Subjects, Topics, Items, Notes, Word import) come in later milestones.
+
+The longer plans are in `docs/PLAN.md` (what is built when), `docs/DESIGN.md` (how it will work) and `docs/HOSTING_AND_DEPLOY.md` (hosting, cost and everyday habits).
+
+## What works in Milestone 0
+
+- A login page. After 5 wrong passwords for a username, that username is blocked for 15 minutes.
+- Two kinds of people: **Admin** (can manage users and backups) and ordinary users.
+- A Users screen (Admin only): add a person, change a password, disable or delete a person. The app will not let you delete or disable yourself, or remove the last Admin.
+- A Backups screen (Admin only): "Backup now", a list of saved backups with Download and Restore, and a history of what happened.
+- A nightly backup, made by a scheduled job, kept for at least 30 days.
+- A yellow warning bar at the top of every page (Admins only) if the last backup failed or there has been none for 36 hours.
+- A health check address (`/healthz/`) that Render uses to see that the site is up.
+
+## What is NOT built yet
+
+- All the diary content and screens, and the Word import.
+- The off-site copy of backups (to Backblaze or Cloudflare). This is planned.
+- Password reset by email. An Admin sets a new password for a person in the Users screen.
+
+## What has not been tested
+
+This code was written in an environment where Django and PostgreSQL could not be installed, so **none of the automated tests have been run yet**, and the app has not been started. The files `render.yaml` and `build.sh` have not been tried on Render. Before relying on it:
+
+1. Run the tests (see "For developers" below) and fix anything that fails.
+2. Do the first-time setup on Render and walk through the checklist below, including the restore rehearsal.
+
+Only the plain-Python rules for how long backups are kept (`backups/tests/test_policy.py`) have been run.
+
+## First-time setup on Render (done once)
+
+You need an email address, a payment card and your GitHub account. Cost is about US$15 to $20 a month (see section 7 of `docs/HOSTING_AND_DEPLOY.md`).
+
+1. Go to [render.com](https://render.com), create an account with your email, and add a payment card.
+2. Connect Render to GitHub when it asks. Give it access to this project only.
+3. In Render press **New**, then **Blueprint**. Pick this project and the branch you want to run.
+4. Render reads `render.yaml` and lists three things it will create: a database (`judgment-diary-db`), a website (`judgment-diary`) and a nightly backup job (`judgment-diary-daily-backup`). All are on paid plans. Do not change any of them to Free, because free databases get deleted.
+5. If Render asks for `DJANGO_ALLOWED_HOSTS`, leave it empty unless you own a domain name. Then press **Apply** (or **Deploy Blueprint**).
+6. Wait for the first deploy to finish. Render shows "Live" and gives you an address ending in `onrender.com`. Open it. You should see the login page.
+
+### Create the first Admin account
+
+There are no users at first, so you create the first Admin from Render:
+
+1. In Render open the `judgment-diary` web service and open its **Shell** tab.
+2. Type this, using your own name and a long password (keep the quotes), and press Enter:
+
+   ```
+   DJANGO_SUPERUSER_USERNAME=yourname DJANGO_SUPERUSER_PASSWORD='a long password here' python manage.py create_first_admin
+   ```
+
+   Or, to be asked for the password instead of typing it in the command, type only:
+
+   ```
+   DJANGO_SUPERUSER_USERNAME=yourname python manage.py create_first_admin
+   ```
+3. You should see "Admin yourname created." This command refuses to run once any user exists, so it cannot be misused later.
+4. Save the password in a password manager.
+
+### Check that everything works
+
+1. Open the address and **log in** as your Admin.
+2. Open **Users**, press **New user**, make a second user, then try logging in as that user in a private window. Ordinary users do not see the Users or Backups links. Delete the test user when done.
+3. Open **Backups** and press **Backup now**. A new line appears in the list. Press **Download** to save the file to your computer. Keep it somewhere safe.
+4. The next morning, open Backups again. A new "Daily" backup should be there, made by the nightly job (it runs at 02:00 India time). If not, look at the `judgment-diary-daily-backup` job in Render and tell Kiro.
+5. **Restore rehearsal.** Do this while there is only practice data, before real data goes in. Add a test user, then in Backups press **Restore** on an earlier backup. You will see a preview of what would be added and removed, and a note that a safety backup is taken first. Type `RESTORE` and press **Restore now**. The test user should be gone. A "Before restore" backup now exists, so even a mistaken restore can be undone.
+6. You can also restore from a file on your computer: Backups, then "Restore from a file on my computer".
+
+Settings you can change later are in Render, on the web service, under **Environment**.
+
+## Settings (environment variables)
+
+You normally do not touch these; the Blueprint sets them.
+
+| Name | What it does | Who sets it |
+|---|---|---|
+| `DJANGO_SECRET_KEY` | Private key that protects logins. Never share it or put it in GitHub. | Render generates it |
+| `DATABASE_URL` | Address of the database | Render fills it in from the database |
+| `PYTHON_VERSION` | Python version used to build | `render.yaml` |
+| `DJANGO_ALLOWED_HOSTS` | Extra web addresses (your own domain), separated by commas. Render's own address is added automatically. | You, only if you use your own domain |
+| `CSRF_TRUSTED_ORIGINS` | Extra full addresses such as `https://diary.example.com`, separated by commas. Render's own address is added automatically. | You, only if you use your own domain |
+| `BACKUP_RETENTION_DAYS` | How many days to keep backups. Never less than 30. Default 35. | `render.yaml` (35) |
+| `BACKUP_STALE_HOURS` | Show the warning bar if there has been no good backup for this many hours. Default 36. | Default |
+| `MAX_BACKUP_UPLOAD_MB` | Largest backup file you can upload for a restore. Default 100. | Default |
+| `DJANGO_DEBUG` | `1` turns on developer mode. Never set this on Render. | Developers only, on their own computer |
+| `DJANGO_ALLOW_SQLITE` | `1` lets the app use a throwaway local database. Never set this on Render. | Developers only |
+| `DJANGO_SUPERUSER_USERNAME`, `DJANGO_SUPERUSER_PASSWORD` | Used once, typed in the Shell, to create the first Admin | You, once |
+
+## Everyday use
+
+See `docs/HOSTING_AND_DEPLOY.md`: how to deploy a change, how to roll back, and the safety habits (password manager, two-step login, download a backup once a month).
+
+## For developers
+
+Requires Python 3.12 (3.11 also works locally).
+
+```
+python3 -m venv .venv && . .venv/bin/activate
+pip install -r requirements.txt
+export DJANGO_ALLOW_SQLITE=1            # throwaway local SQLite database
+python manage.py migrate
+python manage.py check
+python manage.py makemigrations --check --dry-run   # should report no changes
+python manage.py test -v 2
+python -m unittest backups.tests.test_policy -v     # works even without Django
+```
+
+To run it locally: `DJANGO_DEBUG=1 python manage.py migrate`, then `DJANGO_DEBUG=1 python manage.py create_first_admin` (with the two `DJANGO_SUPERUSER_*` variables), then `DJANGO_DEBUG=1 python manage.py runserver`.
+
+Layout:
+
+- `config/`: settings (all from environment variables), URLs.
+- `accounts/`: custom `User` (the Admin flag is Django's `is_superuser`), throttled login, Users screens, `create_first_admin`.
+- `backups/`: backup models (stored in the database), `policy.py` (pure Python rules), `registry.py` (which models are backed up), `services.py`, views, and the commands `run_backup` and `migrate_with_backup`.
+- `diary/`: placeholder home page and `/healthz/`.
+- `render.yaml`, `build.sh`: Render deployment.
+
+When a later milestone adds diary models, append them to `BACKUP_MODELS` in `backups/registry.py` (parents before children) so they are included in backups and restores. Many-to-many fields are not backed up by the current design.
+
+Notes: the Django admin site is deliberately not installed; users are managed in the app's own Users screen. Restoring replaces all rows of the backed-up models, which clears the "created by" link on earlier backup and log lines.

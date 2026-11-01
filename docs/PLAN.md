@@ -6,7 +6,7 @@ Note: the technology (Django, PostgreSQL) is confirmed for a **standalone app** 
 
 ## Milestone 0: Skeleton, deploy, login, backup and restore
 
-**Status: built in the `quill/` folder (code written; see `README.md` for what was and was not tested).**
+**Status: built at the repository root (`config/`, `accounts/`, `backups/`, `diary/`); code written, see `README.md` for what was and was not tested.**
 
 **Deliverable:** A live website at a real address, behind a password. An Admin account (yours) can create other users. A daily automatic backup runs, can be downloaded, and a backup file can be restored with a preview. Deploying a change works end to end (see `docs/HOSTING_AND_DEPLOY.md`).
 
