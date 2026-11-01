@@ -115,6 +115,22 @@ class ClearProfileTests(TestCase):
         self.assertEqual(Subject.objects.filter(profile=self.profile).count(), 3)
         self.assertEqual(PurgeLog.objects.count(), 0)
 
+    def test_change_between_backup_and_delete_aborts_with_nothing_deleted(self):
+        real = services.create_backup
+
+        def backup_then_write(*args, **kwargs):
+            result = real(*args, **kwargs)
+            Subject.objects.create(name="Late arrival", profile=self.profile)
+            return result
+
+        with mock.patch("accounts.clear.services.create_backup", side_effect=backup_then_write):
+            with self.assertRaises(clear.ClearRefused) as caught:
+                clear.clear_profile(self.profile, self.admin)
+        self.assertIn("changed while the backup was being taken", str(caught.exception))
+        self.assertEqual(Subject.objects.filter(profile=self.profile).count(), 4)
+        self.assertEqual(Item.objects.filter(profile=self.profile).count(), 1)
+        self.assertEqual(PurgeLog.objects.count(), 0)
+
     def test_blocked_while_an_import_holds_the_profile(self):
         with mock.patch("accounts.clear.Profile.objects.select_for_update", side_effect=DatabaseError("locked")):
             with self.assertRaises(clear.ClearRefused) as caught:

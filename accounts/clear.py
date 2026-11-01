@@ -5,6 +5,7 @@ deleted. The deletion is one transaction with the Profile row locked, the same l
 takes, so it cannot overlap an import into that profile.
 """
 from django.db import DatabaseError, transaction
+from django.db.models import Max
 from django.utils import timezone
 
 from backups import registry, services
@@ -28,8 +29,21 @@ def clear_preview(profile):
     return rows
 
 
+def _fingerprint(profile):
+    """Per record type: row count and newest updated_at (when the type has one)."""
+    result = {}
+    for model in _models():
+        qs = model._base_manager.filter(profile=profile)
+        newest = None
+        if any(f.name == "updated_at" for f in model._meta.get_fields()):
+            newest = qs.aggregate(m=Max("updated_at"))["m"]
+        result[model._meta.label] = (qs.count(), newest)
+    return result
+
+
 def clear_profile(profile, user):
     """Back up, then delete every diary row of ``profile``. Returns {model label: rows deleted}."""
+    before = _fingerprint(profile)
     try:
         backup = services.create_backup("pre_clear", user)
     except Exception as exc:
@@ -40,6 +54,10 @@ def clear_profile(profile, user):
                 Profile.objects.select_for_update(nowait=True).get(pk=profile.pk)
             except DatabaseError:
                 raise ClearRefused("An import into this profile is running. Wait for it to finish. Nothing was deleted.")
+            if _fingerprint(profile) != before:
+                raise ClearRefused(
+                    "The profile changed while the backup was being taken; nothing was deleted. Please try again."
+                )
             counts = {}
             for model in reversed(_models()):
                 _total, per_label = model._base_manager.filter(profile=profile).delete()
