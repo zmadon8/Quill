@@ -1,3 +1,5 @@
+from functools import wraps
+
 from django.db import connection
 from django.db.models import Count, Q
 from django.db.models.functions import Coalesce
@@ -5,16 +7,47 @@ from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, render
 
 from accounts.permissions import reader_required
+from accounts.profiles import request_profile
 
 from . import reading
 from .models import Item, Subject, Subtopic, Topic
 
-
-def _subjects(**filters):
-    return Subject.objects.filter(deleted_at__isnull=True, **filters)
+NO_PROFILE_MESSAGE = "No profile assigned - ask the Admin"
 
 
-def item_counts_by_subject():
+def profile_required(view):
+    """Signed-in users only, and only those with a Case Law Diary profile.
+
+    A user with no profile gets a 403 page saying so (decision P6: a clear page, not a redirect).
+    The profile is passed to the view as ``request.profile``; every query must use it.
+    """
+
+    @reader_required
+    @wraps(view)
+    def wrapper(request, *args, **kwargs):
+        profile = request_profile(request)
+        if profile is None:
+            return render(request, "diary/no_profile.html", {"message": NO_PROFILE_MESSAGE}, status=403)
+        request.profile = profile
+        return view(request, *args, **kwargs)
+
+    return wrapper
+
+
+def _subjects(profile, **filters):
+    return Subject.objects.filter(profile=profile, deleted_at__isnull=True, **filters)
+
+
+def opening_subject_for(user, profile):
+    """The user's chosen opening Subject, only if it is live and in ``profile`` (else None)."""
+    settings = getattr(user, "diary_settings", None)
+    subject = settings.opening_subject if settings else None
+    if subject is None or subject.profile_id != profile.pk or subject.deleted_at is not None:
+        return None
+    return subject
+
+
+def item_counts_by_subject(profile):
     """One aggregate query: {subject_id: (items, items_for_review)} for live Items at any depth.
 
     An Item belongs to a Subject through its Topic, Sub-topic or Nested-Item parent, so the owning
@@ -32,7 +65,7 @@ def item_counts_by_subject():
         "parent_item__subtopic__topic__subject_id",
     )
     rows = (
-        Item.objects.filter(deleted_at__isnull=True)
+        Item.objects.filter(profile=profile, deleted_at__isnull=True)
         .exclude(
             Q(topic__deleted_at__isnull=False)
             | Q(subtopic__deleted_at__isnull=False)
@@ -47,15 +80,16 @@ def item_counts_by_subject():
     return {r["owner"]: (r["items"], r["review"]) for r in rows}
 
 
-@reader_required
+@profile_required
 def subjects(request):
     """Option A index: Subjects on the landing page with item counts, then Other Subjects."""
-    counts = item_counts_by_subject()
-    landing = list(_subjects(show_on_landing=True).order_by("landing_position", "name", "pk"))
+    profile = request.profile
+    counts = item_counts_by_subject(profile)
+    landing = list(_subjects(profile, show_on_landing=True).order_by("landing_position", "name", "pk"))
     for subject in landing:
         subject.item_count = counts.get(subject.pk, (0, 0))[0]
-    other_count = _subjects(show_on_landing=False).count()
-    live_ids = set(_subjects().values_list("pk", flat=True))
+    other_count = _subjects(profile, show_on_landing=False).count()
+    live_ids = set(_subjects(profile).values_list("pk", flat=True))
     total_items = sum(n for pk, (n, _) in counts.items() if pk in live_ids)
     total_review = sum(r for pk, (_, r) in counts.items() if pk in live_ids)
     return render(request, "diary/subjects.html", {
@@ -70,23 +104,23 @@ def subjects(request):
 @reader_required
 def home(request):
     """Suite Home: the program picker (only the case law diary today)."""
-    return render(request, "diary/home.html")
+    return render(request, "diary/home.html", {"diary_profile": request_profile(request)})
 
 
-@reader_required
+@profile_required
 def other_subjects(request):
-    subjects = _subjects(show_on_landing=False).order_by("other_acts_position", "name", "pk")
+    subjects = _subjects(request.profile, show_on_landing=False).order_by("other_acts_position", "name", "pk")
     return render(request, "diary/other_subjects.html", {"subjects": subjects})
 
 
-@reader_required
+@profile_required
 def search(request):
     return render(request, "diary/search.html")
 
 
-@reader_required
+@profile_required
 def subject_contents(request, pk):
-    subject = get_object_or_404(_subjects(), pk=pk)
+    subject = get_object_or_404(_subjects(request.profile), pk=pk)
     context = reading.build_reading(subject, request.user)
     context.update(subject=subject, crumbs=_crumbs(subject))
     return render(request, "diary/subject_contents.html", context)
@@ -107,24 +141,24 @@ def _crumbs(subject):
     return crumbs
 
 
-@reader_required
+@profile_required
 def read_subject(request, pk):
-    subject = get_object_or_404(_subjects(), pk=pk)
+    subject = get_object_or_404(_subjects(request.profile), pk=pk)
     return _render_reading(request, subject, "subject", None, _crumbs(subject))
 
 
-@reader_required
+@profile_required
 def read_topic(request, pk):
-    topic = get_object_or_404(Topic.objects.select_related("subject"), pk=pk, deleted_at__isnull=True,
-                              subject__deleted_at__isnull=True)
+    topic = get_object_or_404(Topic.objects.select_related("subject"), pk=pk, profile=request.profile,
+                              deleted_at__isnull=True, subject__deleted_at__isnull=True)
     crumbs = _crumbs(topic.subject) + [(topic.pk, topic.name, None)]
     return _render_reading(request, topic.subject, "topic", topic, crumbs)
 
 
-@reader_required
+@profile_required
 def read_subtopic(request, pk):
     subtopic = get_object_or_404(Subtopic.objects.select_related("subject", "topic__subject"), pk=pk,
-                                 deleted_at__isnull=True)
+                                 profile=request.profile, deleted_at__isnull=True)
     topic = subtopic.topic
     subject = topic.subject if topic else subtopic.subject
     if subject.deleted_at is not None or (topic is not None and topic.deleted_at is not None):

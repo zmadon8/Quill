@@ -83,6 +83,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "accounts.context_processors.suite_names",
+                "accounts.context_processors.current_profile",
                 "backups.context_processors.backup_banner",
             ],
         },

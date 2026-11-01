@@ -5,7 +5,12 @@
   <h1>Programs</h1>
   <div class="program">
     <div><h2>{{ diary_name }}</h2><p>Case law, by Subject, Topic and Item.</p></div>
+    {% if diary_profile %}
     <a class="button primary" href="{% url 'subjects' %}">Open</a>
+    {% else %}
+    <p class="muted program-disabled">No profile assigned - ask the Admin</p>
+    <span class="button primary disabled" aria-disabled="true">Open</span>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

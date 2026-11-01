@@ -13,8 +13,10 @@ from .models import (
     ROLE_CHOICES,
     ROLE_READER,
     FailedLogin,
+    Profile,
     prune_failed_logins,
 )
+from .profiles import get_profile_for, set_user_profile
 
 User = get_user_model()
 
@@ -59,6 +61,20 @@ class ThrottledAuthenticationForm(AuthenticationForm):
         return cleaned
 
 
+def _profile_field():
+    return forms.ModelChoiceField(
+        queryset=Profile.objects.none(),
+        required=False,
+        empty_label="(no profile)",
+        label="Case law diary profile",
+        help_text="A user has at most one profile per program. Choosing another replaces the current one.",
+    )
+
+
+def _live_diary_profiles():
+    return Profile.objects.filter(program=suite.KEY_DIARY, deleted_at__isnull=True).order_by("name")
+
+
 class UserCreateForm(UserCreationForm):
     role = forms.ChoiceField(
         choices=ROLE_CHOICES,
@@ -66,16 +82,22 @@ class UserCreateForm(UserCreationForm):
         label="Role",
         help_text="Reader: view only. Editor: view and edit. Admin: everything, including users and backups.",
     )
+    profile = _profile_field()
 
     class Meta:
         model = User
         fields = ("username",)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["profile"].queryset = _live_diary_profiles()
 
     def save(self, commit=True):
         user = super().save(commit=False)
         user.set_role(self.cleaned_data["role"])
         if commit:
             user.save()
+            set_user_profile(user, self.cleaned_data.get("profile"))
         return user
 
 
@@ -92,6 +114,8 @@ class UserEditForm(forms.ModelForm):
         label="New password (leave blank to keep the current one)",
     )
 
+    profile = _profile_field()
+
     class Meta:
         model = User
         fields = ("username", "is_active")
@@ -100,6 +124,8 @@ class UserEditForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.editing_user = editing_user
         self.fields["role"].initial = self.instance.role
+        self.fields["profile"].queryset = _live_diary_profiles()
+        self.fields["profile"].initial = get_profile_for(self.instance)
 
     def clean_new_password(self):
         password = self.cleaned_data.get("new_password")
@@ -133,7 +159,34 @@ class UserEditForm(forms.ModelForm):
             user.set_password(self.cleaned_data["new_password"])
         if commit:
             user.save()
+            set_user_profile(user, self.cleaned_data.get("profile"))
         return user
+
+
+class ProfileForm(forms.ModelForm):
+    """Create or rename a Case Law Diary profile. Names are unique among live profiles, ignoring case."""
+
+    class Meta:
+        model = Profile
+        fields = ("name",)
+
+    def clean_name(self):
+        name = " ".join((self.cleaned_data.get("name") or "").split())
+        if not name:
+            raise ValidationError("Enter a name.")
+        clash = Profile.objects.filter(program=suite.KEY_DIARY, name__iexact=name, deleted_at__isnull=True)
+        if self.instance.pk:
+            clash = clash.exclude(pk=self.instance.pk)
+        if clash.exists():
+            raise ValidationError("A profile with this name already exists.")
+        return name
+
+    def save(self, commit=True):
+        profile = super().save(commit=False)
+        profile.program = suite.KEY_DIARY
+        if commit:
+            profile.save()
+        return profile
 
 
 class SuiteNamesForm(forms.Form):

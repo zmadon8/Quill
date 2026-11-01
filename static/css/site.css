@@ -16,6 +16,9 @@ a { color: inherit; }
 .brand a:hover, .brand a:focus-visible { color: var(--oxblood); border-bottom-color: var(--oxblood); }
 .back-button { font-size: var(--small-size); padding: 0 .8rem; min-width: var(--tap); }
 .brand { font-family: var(--font-serif); font-style: italic; font-size: 1.75rem; line-height: 1.1; }
+.profile-name { font-size: var(--small-size); font-style: normal; opacity: .7; }
+.button.disabled, .button[aria-disabled=true] { opacity: .45; cursor: not-allowed; pointer-events: none; }
+.program-disabled { margin: 0; }
 .program-nav { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0 1.25rem; font-size: var(--small-size); }
 .program-nav a, .program-nav button.link { display: inline-flex; align-items: center; min-height: var(--tap); color: var(--muted); text-decoration: none; border-bottom: 2px solid transparent; margin-bottom: -1px; }
 .program-nav a:hover, .program-nav button.link:hover { color: var(--ink); }

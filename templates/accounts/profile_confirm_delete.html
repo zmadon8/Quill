@@ -1,0 +1,15 @@
+{% extends "base_suite_home.html" %}
+{% block title %}Delete profile - {{ diary_name }}{% endblock %}
+{% block content %}
+<h1>Delete profile</h1>
+<p>Delete profile <strong>{{ target.name }}</strong>?</p>
+<form method="post">
+  {% csrf_token %}
+  {% if in_use %}
+  <p class="error">This profile is still in use: {{ members }} user{{ members|pluralize }} and {{ subjects }} Subject{{ subjects|pluralize }}. Deleting it removes those users' access, and its data is no longer reachable from the app.</p>
+  <p><label><input type="checkbox" name="confirm" value="yes"> I understand, delete it anyway</label></p>
+  {% endif %}
+  <button type="submit" class="danger">Delete</button>
+  <a href="{% url 'profile_list' %}">Cancel</a>
+</form>
+{% endblock %}

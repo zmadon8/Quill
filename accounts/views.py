@@ -1,18 +1,27 @@
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from . import suite
-from .forms import SuiteNamesForm, UserCreateForm, UserEditForm
+from .forms import ProfileForm, SuiteNamesForm, UserCreateForm, UserEditForm
+from .models import Profile, ProfileMembership
 from .permissions import admin_required
+from .profiles import profile_usage
 
 User = get_user_model()
 
 
 @admin_required
 def user_list(request):
-    users = User.objects.order_by("username")
+    users = list(User.objects.order_by("username"))
+    names = dict(
+        ProfileMembership.objects.filter(program=suite.KEY_DIARY, profile__deleted_at__isnull=True)
+        .values_list("user_id", "profile__name")
+    )
+    for u in users:
+        u.diary_profile_name = names.get(u.pk, "")
     return render(request, "accounts/user_list.html", {"users": users})
 
 
@@ -76,3 +85,62 @@ def suite_settings(request):
         messages.success(request, "Names saved.")
         return redirect("settings")
     return render(request, "accounts/settings.html", {"form": form})
+
+
+def _live_profiles():
+    return Profile.objects.filter(program=suite.KEY_DIARY, deleted_at__isnull=True)
+
+
+@admin_required
+def profile_list(request):
+    profiles = list(_live_profiles().order_by("name"))
+    for p in profiles:
+        p.member_count, p.subject_count = profile_usage(p)
+    return render(request, "accounts/profile_list.html", {"profiles": profiles})
+
+
+@admin_required
+@require_http_methods(["GET", "POST"])
+def profile_create(request):
+    form = ProfileForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        profile = form.save()
+        messages.success(request, f"Profile {profile.name} created.")
+        return redirect("profile_list")
+    return render(request, "accounts/profile_form.html", {"form": form, "title": "New profile"})
+
+
+@admin_required
+@require_http_methods(["GET", "POST"])
+def profile_edit(request, pk):
+    target = get_object_or_404(_live_profiles(), pk=pk)
+    form = ProfileForm(request.POST or None, instance=target)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, f"Profile renamed to {target.name}.")
+        return redirect("profile_list")
+    return render(request, "accounts/profile_form.html", {"form": form, "title": f"Rename {target.name}"})
+
+
+@admin_required
+@require_http_methods(["GET", "POST"])
+def profile_delete(request, pk):
+    """Soft delete. Refused while the profile has members or live data, unless explicitly confirmed."""
+    target = get_object_or_404(_live_profiles(), pk=pk)
+    members, subjects = profile_usage(target)
+    in_use = bool(members or subjects)
+    if request.method == "POST":
+        if in_use and request.POST.get("confirm") != "yes":
+            messages.error(request, f"Profile {target.name} is in use. Tick the box to confirm, or cancel.")
+            return redirect("profile_delete", pk=target.pk)
+        name = target.name
+        ProfileMembership.objects.filter(profile=target).delete()
+        target.deleted_at = timezone.now()
+        target.save(update_fields=["deleted_at", "updated_at"])
+        messages.success(request, f"Profile {name} deleted.")
+        return redirect("profile_list")
+    return render(
+        request,
+        "accounts/profile_confirm_delete.html",
+        {"target": target, "members": members, "subjects": subjects, "in_use": in_use},
+    )

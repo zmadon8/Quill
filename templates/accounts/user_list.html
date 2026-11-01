@@ -5,12 +5,13 @@
 <p><a class="button" href="{% url 'user_create' %}">New user</a></p>
 <div class="table-wrap">
 <table>
-  <thead><tr><th>Username</th><th>Role</th><th>Active</th><th>Last login</th><th></th></tr></thead>
+  <thead><tr><th>Username</th><th>Role</th><th>Profile</th><th>Active</th><th>Last login</th><th></th></tr></thead>
   <tbody>
   {% for u in users %}
     <tr>
       <td>{{ u.username }}</td>
       <td>{{ u.role_label }}</td>
+      <td>{{ u.diary_profile_name|default:"None" }}</td>
       <td>{{ u.is_active|yesno:"Yes,No" }}</td>
       <td>{{ u.last_login|default:"Never" }}</td>
       <td><a href="{% url 'user_edit' u.pk %}">Edit</a> | <a href="{% url 'user_delete' u.pk %}">Delete</a></td>

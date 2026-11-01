@@ -8,7 +8,8 @@ from accounts.models import User
 from diary import reading
 from diary.models import Item, Note, NoteLink, Section, Subject, Subtopic, Topic
 from diary.sample_data import SAMPLE_PREFIX, load_sample_data, remove_sample_data
-from diary.tests.helpers import main_profile
+from accounts.models import Profile
+from diary.tests.helpers import join_main, main_profile
 
 
 @override_settings(SECURE_SSL_REDIRECT=False)
@@ -42,8 +43,8 @@ class HomeIndexTests(TestCase):
     def setUpTestData(cls):
         from django.utils import timezone
 
-        cls.reader = User.objects.create_user("rita", password=PASSWORD, role="reader")
-        cls.admin = User.objects.create_user("adam", password=PASSWORD, role="admin")
+        cls.reader = join_main(User.objects.create_user("rita", password=PASSWORD, role="reader"))
+        cls.admin = join_main(User.objects.create_user("adam", password=PASSWORD, role="admin"))
         cls.arb = Subject.objects.create(profile=main_profile(), name="Arbitration", landing_position=1)
         cls.con = Subject.objects.create(profile=main_profile(), name="Contracts", landing_position=2)
         cls.empty = Subject.objects.create(profile=main_profile(), name="Empty Subject", landing_position=3)
@@ -188,7 +189,7 @@ class ReadingScreenTests(TestCase):
     def setUpTestData(cls):
         load_sample_data(main_profile())
         cls.users = {
-            role: User.objects.create_user(role, password=PASSWORD, role=role)
+            role: join_main(User.objects.create_user(role, password=PASSWORD, role=role))
             for role in ("reader", "editor", "admin")
         }
         cls.contract = Subject.objects.get(name=SAMPLE_PREFIX + "Contract Law")
@@ -439,3 +440,120 @@ class SampleDataTests(TestCase):
         self.assertIn("already loaded", out.getvalue())
         call_command("remove_sample_data", stdout=out)
         self.assertEqual(Subject.objects.count(), 0)
+
+
+@override_settings(SECURE_SSL_REDIRECT=False)
+class ProfileScopingTests(TestCase):
+    """Profiles are separate data spaces: nothing from profile B is visible to a user in profile A."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.a = main_profile()
+        cls.b = Profile.objects.create(program="diary", name="Junior")
+        cls.user_a = join_main(User.objects.create_user("ann", password=PASSWORD, role="editor"))
+        cls.admin_a = join_main(User.objects.create_user("adm", password=PASSWORD, role="admin"))
+        cls.user_b = User.objects.create_user("bea", password=PASSWORD, role="reader")
+        from accounts.profiles import set_user_profile
+
+        set_user_profile(cls.user_b, cls.b)
+        cls.loner = User.objects.create_user("lou", password=PASSWORD, role="reader")
+        cls.sub_a = Subject.objects.create(profile=cls.a, name="Alpha Subject", landing_position=1)
+        cls.top_a = Topic.objects.create(profile=cls.a, subject=cls.sub_a, name="Alpha Topic")
+        cls.st_a = Subtopic.objects.create(profile=cls.a, topic=cls.top_a, name="Alpha Subtopic")
+        Item.objects.create(profile=cls.a, topic=cls.top_a, text="<p>a1</p>")
+        cls.sub_b = Subject.objects.create(profile=cls.b, name="Beta Subject", landing_position=1)
+        cls.oth_b = Subject.objects.create(profile=cls.b, name="Beta Other", show_on_landing=False, other_acts_position=1)
+        cls.top_b = Topic.objects.create(profile=cls.b, subject=cls.sub_b, name="Beta Topic")
+        cls.st_b = Subtopic.objects.create(profile=cls.b, topic=cls.top_b, name="Beta Subtopic")
+        Item.objects.create(profile=cls.b, topic=cls.top_b, text="<p>b1</p>")
+        Item.objects.create(profile=cls.b, topic=cls.top_b, text="<p>b2</p>")
+
+    def test_index_lists_only_own_profile(self):
+        self.client.force_login(self.user_a)
+        resp = self.client.get(reverse("subjects"))
+        self.assertContains(resp, "Alpha Subject")
+        self.assertNotContains(resp, "Beta Subject")
+        self.assertEqual(resp.context["subject_total"], 1)
+        self.assertEqual(resp.context["item_total"], 1)
+        self.assertEqual(resp.context["other_count"], 0)
+
+    def test_other_profile_sees_its_own_counts(self):
+        self.client.force_login(self.user_b)
+        resp = self.client.get(reverse("subjects"))
+        self.assertContains(resp, "Beta Subject")
+        self.assertNotContains(resp, "Alpha Subject")
+        self.assertEqual(resp.context["item_total"], 2)
+        self.assertEqual(resp.context["other_count"], 1)
+
+    def test_other_subjects_scoped(self):
+        self.client.force_login(self.user_a)
+        self.assertNotContains(self.client.get(reverse("other_subjects")), "Beta Other")
+        self.client.force_login(self.user_b)
+        self.assertContains(self.client.get(reverse("other_subjects")), "Beta Other")
+
+    def test_cross_profile_ids_404(self):
+        self.client.force_login(self.user_a)
+        for url in (
+            reverse("subject_contents", args=[self.sub_b.pk]),
+            reverse("read_subject", args=[self.sub_b.pk]),
+            reverse("read_subject", args=[self.oth_b.pk]),
+            reverse("read_topic", args=[self.top_b.pk]),
+            reverse("read_subtopic", args=[self.st_b.pk]),
+        ):
+            self.assertEqual(self.client.get(url).status_code, 404, url)
+        for url in (
+            reverse("subject_contents", args=[self.sub_a.pk]),
+            reverse("read_subject", args=[self.sub_a.pk]),
+            reverse("read_topic", args=[self.top_a.pk]),
+            reverse("read_subtopic", args=[self.st_a.pk]),
+        ):
+            self.assertEqual(self.client.get(url).status_code, 200, url)
+
+    def test_admin_sees_only_own_profile(self):
+        self.client.force_login(self.admin_a)
+        self.assertNotContains(self.client.get(reverse("subjects")), "Beta Subject")
+        self.assertEqual(self.client.get(reverse("read_subject", args=[self.sub_b.pk])).status_code, 404)
+
+    def test_header_shows_profile_name(self):
+        self.client.force_login(self.user_a)
+        self.assertContains(self.client.get(reverse("subjects")), 'class="profile-name">&middot; Main</span>')
+        self.client.force_login(self.user_b)
+        self.assertContains(self.client.get(reverse("subjects")), "Junior")
+
+    def test_user_without_profile_gets_403_with_message(self):
+        self.client.force_login(self.loner)
+        for name in ("subjects", "other_subjects", "search"):
+            resp = self.client.get(reverse(name))
+            self.assertEqual(resp.status_code, 403, name)
+            self.assertContains(resp, "No profile assigned - ask the Admin", status_code=403)
+        resp = self.client.get(reverse("read_subject", args=[self.sub_a.pk]))
+        self.assertEqual(resp.status_code, 403)
+
+    def test_home_disables_program_without_profile(self):
+        self.client.force_login(self.loner)
+        resp = self.client.get(reverse("home"))
+        self.assertContains(resp, "No profile assigned - ask the Admin")
+        self.assertNotContains(resp, 'href="%s"' % reverse("subjects"))
+        self.client.force_login(self.user_a)
+        resp = self.client.get(reverse("home"))
+        self.assertNotContains(resp, "No profile assigned")
+        self.assertContains(resp, 'href="%s"' % reverse("subjects"))
+
+    def test_deleted_profile_means_no_access(self):
+        from django.utils import timezone
+
+        self.b.deleted_at = timezone.now()
+        self.b.save()
+        self.client.force_login(self.user_b)
+        self.assertEqual(self.client.get(reverse("subjects")).status_code, 403)
+
+    def test_opening_subject_must_belong_to_users_profile(self):
+        from diary.models import UserSettings
+        from diary.views import opening_subject_for
+
+        settings = UserSettings.objects.create(user=self.user_a, opening_subject=self.sub_b)
+        self.assertIsNone(opening_subject_for(self.user_a, self.a))
+        settings.opening_subject = self.sub_a
+        settings.save()
+        self.user_a = User.objects.get(pk=self.user_a.pk)
+        self.assertEqual(opening_subject_for(self.user_a, self.a), self.sub_a)

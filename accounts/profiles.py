@@ -42,3 +42,30 @@ def assign_unassigned_users(user_model, membership_model, profile):
         membership_model.objects.create(user_id=user_id, profile=profile, program=profile.program)
         count += 1
     return count
+
+
+def request_profile(request, program=KEY_DIARY):
+    """The signed-in user's profile for ``program``, looked up once per request (None if none)."""
+    attr = f"_profile_{program}"
+    if not hasattr(request, attr):
+        setattr(request, attr, get_profile_for(getattr(request, "user", None), program))
+    return getattr(request, attr)
+
+
+def set_user_profile(user, profile, program=KEY_DIARY):
+    """Make ``profile`` the user's only profile in ``program``; None removes access.
+
+    Replaces any existing membership, so the one-per-program rule is never broken.
+    """
+    ProfileMembership.objects.filter(user=user, program=program).exclude(profile=profile).delete()
+    if profile is not None:
+        ProfileMembership.objects.get_or_create(user=user, profile=profile, defaults={"program": program})
+
+
+def profile_usage(profile):
+    """(members, live diary subjects) counts, used to refuse deleting a profile in use."""
+    from diary.models import Subject
+
+    members = ProfileMembership.objects.filter(profile=profile).count()
+    subjects = Subject.objects.filter(profile=profile, deleted_at__isnull=True).count()
+    return members, subjects

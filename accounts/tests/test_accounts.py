@@ -38,6 +38,8 @@ class BaseCase(TestCase):
     def setUp(self):
         self.admin = self.make_user("boss", admin=True)
         self.user = self.make_user("alice")
+        for member in (self.admin, self.user):
+            ProfileMembership.objects.create(user=member, profile=ensure_default_profile())
 
 
 class LoginTests(BaseCase):
@@ -534,3 +536,137 @@ class DefaultProfileLogicTests(TestCase):
         with mock.patch.dict("os.environ", {"DJANGO_SUPERUSER_USERNAME": "boss", "DJANGO_SUPERUSER_PASSWORD": PASSWORD}):
             call_command("create_first_admin", stdout=StringIO())
         self.assertEqual(get_profile_for(User.objects.get(username="boss")).name, "Main")
+
+
+@override_settings(SECURE_SSL_REDIRECT=False)
+class ProfileScreenTests(BaseCase):
+    def test_non_admins_cannot_reach_profile_screens(self):
+        editor = self.make_user("ed", role="editor")
+        main = ensure_default_profile()
+        urls = [
+            reverse("profile_list"),
+            reverse("profile_create"),
+            reverse("profile_edit", args=[main.pk]),
+            reverse("profile_delete", args=[main.pk]),
+        ]
+        for who in (self.user, editor):
+            self.client.force_login(who)
+            for url in urls:
+                self.assertEqual(self.client.get(url).status_code, 403, url)
+                self.assertEqual(self.client.post(url, {"name": "X", "confirm": "yes"}).status_code, 403, url)
+        self.assertFalse(Profile.objects.filter(name="X").exists())
+        self.client.logout()
+        self.assertEqual(self.client.get(reverse("profile_list")).status_code, 302)
+
+    def test_profiles_link_only_for_admin_on_home(self):
+        self.client.force_login(self.admin)
+        self.assertContains(self.client.get(reverse("home")), 'href="%s"' % reverse("profile_list"))
+        self.client.force_login(self.user)
+        self.assertNotContains(self.client.get(reverse("home")), 'href="%s"' % reverse("profile_list"))
+
+    def test_admin_creates_and_renames(self):
+        self.client.force_login(self.admin)
+        resp = self.client.post(reverse("profile_create"), {"name": "  Madon   Case Law "})
+        self.assertRedirects(resp, reverse("profile_list"))
+        profile = Profile.objects.get(name="Madon Case Law")
+        self.assertEqual(profile.program, "diary")
+        resp = self.client.post(reverse("profile_edit", args=[profile.pk]), {"name": "Madon"})
+        self.assertRedirects(resp, reverse("profile_list"))
+        profile.refresh_from_db()
+        self.assertEqual(profile.name, "Madon")
+        self.assertContains(self.client.get(reverse("profile_list")), "Madon")
+
+    def test_duplicate_name_refused_ignoring_case(self):
+        self.client.force_login(self.admin)
+        resp = self.client.post(reverse("profile_create"), {"name": "main"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "already exists")
+        self.assertEqual(Profile.objects.filter(name__iexact="main", deleted_at__isnull=True).count(), 1)
+
+    def test_delete_unused_profile(self):
+        junior = Profile.objects.create(program="diary", name="Junior")
+        self.client.force_login(self.admin)
+        resp = self.client.post(reverse("profile_delete", args=[junior.pk]))
+        self.assertRedirects(resp, reverse("profile_list"))
+        junior.refresh_from_db()
+        self.assertIsNotNone(junior.deleted_at)
+
+    def test_delete_in_use_refused_without_confirm(self):
+        main = ensure_default_profile()
+        self.client.force_login(self.admin)
+        page = self.client.get(reverse("profile_delete", args=[main.pk]))
+        self.assertContains(page, "still in use")
+        resp = self.client.post(reverse("profile_delete", args=[main.pk]))
+        self.assertRedirects(resp, reverse("profile_delete", args=[main.pk]))
+        main.refresh_from_db()
+        self.assertIsNone(main.deleted_at)
+        self.assertEqual(get_profile_for(self.user), main)
+
+    def test_delete_in_use_with_confirm_removes_access(self):
+        main = ensure_default_profile()
+        self.client.force_login(self.admin)
+        resp = self.client.post(reverse("profile_delete", args=[main.pk]), {"confirm": "yes"})
+        self.assertRedirects(resp, reverse("profile_list"))
+        main.refresh_from_db()
+        self.assertIsNotNone(main.deleted_at)
+        self.assertIsNone(get_profile_for(self.user))
+        self.assertEqual(ProfileMembership.objects.filter(profile=main).count(), 0)
+
+    def test_deleted_profile_name_can_be_reused(self):
+        junior = Profile.objects.create(program="diary", name="Junior")
+        self.client.force_login(self.admin)
+        self.client.post(reverse("profile_delete", args=[junior.pk]))
+        resp = self.client.post(reverse("profile_create"), {"name": "junior"})
+        self.assertRedirects(resp, reverse("profile_list"))
+
+
+@override_settings(SECURE_SSL_REDIRECT=False)
+class UserProfileAssignmentTests(BaseCase):
+    def test_user_list_shows_profile(self):
+        self.client.force_login(self.admin)
+        self.assertContains(self.client.get(reverse("user_list")), "Main")
+
+    def test_edit_form_preselects_current_profile(self):
+        self.client.force_login(self.admin)
+        resp = self.client.get(reverse("user_edit", args=[self.user.pk]))
+        self.assertEqual(resp.context["form"].fields["profile"].initial, ensure_default_profile())
+
+    def test_assignment_is_replaced_not_duplicated(self):
+        junior = Profile.objects.create(program="diary", name="Junior")
+        self.client.force_login(self.admin)
+        resp = self.client.post(
+            reverse("user_edit", args=[self.user.pk]),
+            {"username": "alice", "is_active": "on", "role": "reader", "profile": junior.pk},
+        )
+        self.assertRedirects(resp, reverse("user_list"))
+        self.assertEqual(ProfileMembership.objects.filter(user=self.user).count(), 1)
+        self.assertEqual(get_profile_for(self.user), junior)
+
+    def test_blank_profile_removes_access(self):
+        self.client.force_login(self.admin)
+        self.client.post(
+            reverse("user_edit", args=[self.user.pk]),
+            {"username": "alice", "is_active": "on", "role": "reader", "profile": ""},
+        )
+        self.assertIsNone(get_profile_for(self.user))
+
+    def test_deleted_profile_not_offered_or_accepted(self):
+        gone = Profile.objects.create(program="diary", name="Gone", deleted_at=timezone.now())
+        self.client.force_login(self.admin)
+        resp = self.client.post(
+            reverse("user_edit", args=[self.user.pk]),
+            {"username": "alice", "is_active": "on", "role": "reader", "profile": gone.pk},
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(get_profile_for(self.user), ensure_default_profile())
+
+    def test_create_user_with_profile(self):
+        junior = Profile.objects.create(program="diary", name="Junior")
+        self.client.force_login(self.admin)
+        resp = self.client.post(
+            reverse("user_create"),
+            {"username": "newbie", "password1": PASSWORD, "password2": PASSWORD, "role": "reader",
+             "profile": junior.pk},
+        )
+        self.assertRedirects(resp, reverse("user_list"))
+        self.assertEqual(get_profile_for(User.objects.get(username="newbie")), junior)
