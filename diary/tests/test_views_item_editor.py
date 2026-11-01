@@ -488,4 +488,4 @@ class CreateItemKindTests(ItemEditorTestCase):
             self.post("edit_add", {"what": what, "parent_type": "topic", "parent_id": self.topic.pk,
                                    "text": what, "citation": "A v B"})
         made = {i.text: i.kind for i in Item.objects.exclude(pk__in=before)}
-        self.assertEqual(made, {"nested": "nested", "item": "plain"})
+        self.assertEqual(made, {"<p>nested</p>": "nested", "<p>item</p>": "plain"})
