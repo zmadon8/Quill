@@ -1,21 +1,11 @@
-{% extends "base.html" %}
-{% block breadcrumb %}<span aria-current="page">Home</span>{% endblock %}
+{% extends "base_suite_home.html" %}
+{% block title %}Home - Judgment Diary{% endblock %}
 {% block content %}
-<div class="home-column">
-  <h1>Judgment Diary</h1>
-  <p class="home-subtitle">Index of Subjects</p>
-  <p class="meta home-meta">{{ subject_total }} subject{{ subject_total|pluralize }} &middot; {{ item_total }} item{{ item_total|pluralize }} &middot; {{ review_total }} for review</p>
-  <form class="home-search" role="search" method="get" action="{% url 'search' %}">
-    <label class="visually-hidden" for="home-q">Search the diary</label>
-    <input type="search" id="home-q" name="q" placeholder="Search the diary&hellip;" autocomplete="off">
-    <button type="submit" class="primary">Search</button>
-  </form>
-  <ul class="subject-index">
-    {% for subject in subjects %}
-    <li><a href="{% url 'subject_contents' subject.pk %}"><span class="name">{{ subject.name }}</span><span class="count">{{ subject.item_count }}</span></a></li>
-    {% endfor %}
-    <li><a href="{% url 'other_subjects' %}"><span class="name"><em>Other Subjects</em></span><span class="count">{{ other_count }} subject{{ other_count|pluralize }}</span></a></li>
-  </ul>
-  {% if not subjects %}<p class="empty">There are no Subjects on the landing page yet.</p>{% endif %}
+<div class="launcher">
+  <h1>Programs</h1>
+  <div class="program">
+    <div><h2>Judgment Diary</h2><p>Case law, by Subject, Topic and Item.</p></div>
+    <a class="button primary" href="{% url 'subjects' %}">Open</a>
+  </div>
 </div>
 {% endblock %}

@@ -324,13 +324,11 @@ class RoleTests(BaseCase):
         with self.assertRaises(PermissionDenied):
             call(editor_required, self.user)
 
-    def test_role_shown_in_header_and_user_list(self):
+    def test_header_shows_username_only_and_user_list_shows_role(self):
         self.client.force_login(self.user)
-        self.assertContains(
-            self.client.get(reverse("home")),
-            '<span class="who">alice &middot; Reader</span>',
-            html=True,
-        )
+        resp = self.client.get(reverse("home"))
+        self.assertContains(resp, '<span class="who">alice</span>', html=True)
+        self.assertNotContains(resp, "Reader")
         self.client.force_login(self.admin)
         self.assertContains(self.client.get(reverse("user_list")), "Reader")
 

@@ -68,46 +68,46 @@ class HomeIndexTests(TestCase):
 
     def test_item_counts_per_subject_at_any_depth(self):
         self.client.force_login(self.reader)
-        counts = self.counts(self.client.get(reverse("home")))
+        counts = self.counts(self.client.get(reverse("subjects")))
         self.assertEqual(counts["Arbitration"], "5")
         self.assertEqual(counts["Contracts"], "1")
         self.assertEqual(counts["Empty Subject"], "0")
 
     def test_other_subjects_entry_counts_live_other_subjects(self):
         self.client.force_login(self.reader)
-        resp = self.client.get(reverse("home"))
+        resp = self.client.get(reverse("subjects"))
         self.assertEqual(self.counts(resp)["Other Subjects"], "2 subjects")
         self.assertNotContains(resp, "Other One")
 
     def test_meta_line_totals(self):
         self.client.force_login(self.reader)
-        resp = self.client.get(reverse("home"))
+        resp = self.client.get(reverse("subjects"))
         self.assertContains(resp, "5 subjects &middot; 6 items &middot; 1 for review")
 
     def test_counts_use_a_fixed_number_of_queries(self):
         self.client.force_login(self.reader)
-        self.client.get(reverse("home"))
+        self.client.get(reverse("subjects"))
         with CaptureQueriesContext(connection) as ctx:
-            self.client.get(reverse("home"))
+            self.client.get(reverse("subjects"))
         # session, user, landing Subjects, one item aggregate, Other count, live Subject ids
         self.assertLessEqual(len(ctx), 8)
 
     def test_search_box_leads_to_search_page(self):
         self.client.force_login(self.reader)
-        resp = self.client.get(reverse("home"))
+        resp = self.client.get(reverse("subjects"))
         self.assertContains(resp, 'action="%s"' % reverse("search"))
         self.assertContains(resp, "Search the diary")
 
     def test_nav_hides_admin_items_from_reader(self):
         self.client.force_login(self.reader)
-        resp = self.client.get(reverse("home"))
+        resp = self.client.get(reverse("subjects"))
         self.assertContains(resp, reverse("search"))
         self.assertNotContains(resp, 'href="%s"' % reverse("user_list"))
         self.assertNotContains(resp, 'href="%s"' % reverse("backup_list"))
 
     def test_nav_shows_admin_items_to_admin(self):
         self.client.force_login(self.admin)
-        resp = self.client.get(reverse("home"))
+        resp = self.client.get(reverse("subjects"))
         self.assertContains(resp, 'href="%s"' % reverse("user_list"))
         self.assertContains(resp, 'href="%s"' % reverse("backup_list"))
 
@@ -115,13 +115,53 @@ class HomeIndexTests(TestCase):
         self.client.force_login(self.admin)
         resp = self.client.get(reverse("user_list"))
         self.assertContains(resp, 'class="on" aria-current="page">Users</a>')
-        self.assertNotContains(resp, 'class="on" aria-current="page">Home</a>')
+        self.assertNotContains(resp, 'class="on" aria-current="page">Subjects</a>')
 
-    def test_programs_page_lists_only_judgment_diary(self):
+    def test_home_is_program_picker(self):
         self.client.force_login(self.reader)
-        resp = self.client.get(reverse("programs"))
+        resp = self.client.get(reverse("home"))
+        self.assertEqual(reverse("home"), "/")
         self.assertContains(resp, "Judgment Diary")
-        self.assertContains(resp, "Switch program")
+        self.assertContains(resp, 'href="%s"' % reverse("subjects"))
+        self.assertNotContains(resp, "Switch program")
+
+    def test_legacy_programs_url_redirects_home(self):
+        self.client.force_login(self.reader)
+        self.assertRedirects(self.client.get("/programs/"), reverse("home"))
+
+    def test_subjects_index_nav_has_no_other_subjects_or_users(self):
+        self.client.force_login(self.admin)
+        resp = self.client.get(reverse("subjects"))
+        nav = resp.content.decode().split('class="program-nav"')[1].split("</nav>")[0]
+        self.assertNotIn(reverse("other_subjects"), nav)
+        self.assertNotIn(reverse("user_list"), nav)
+        self.assertIn(reverse("backup_list"), nav)
+        self.assertContains(resp, 'href="%s"' % reverse("other_subjects"))  # still reachable from the index
+
+    def test_picker_top_row_is_users_name_logout_only(self):
+        self.client.force_login(self.admin)
+        nav = self.client.get(reverse("home")).content.decode().split('class="program-nav"')[1].split("</nav>")[0]
+        self.assertIn(reverse("user_list"), nav)
+        self.assertIn("adam", nav)
+        self.assertIn("Log out", nav)
+        for gone in (reverse("search"), reverse("subjects"), reverse("backup_list")):
+            self.assertNotIn(gone, nav)
+        self.assertNotIn("Admin", nav)
+        self.client.force_login(self.reader)
+        nav = self.client.get(reverse("home")).content.decode().split('class="program-nav"')[1].split("</nav>")[0]
+        self.assertNotIn(reverse("user_list"), nav)
+
+    def test_users_screen_uses_suite_header_without_toolbar(self):
+        self.client.force_login(self.admin)
+        html = self.client.get(reverse("user_list")).content.decode()
+        self.assertNotIn('class="toolbar"', html)
+        self.assertNotIn('class="breadcrumb"', html)
+        self.assertNotIn(reverse("search"), html.split('class="program-nav"')[1].split("</nav>")[0])
+
+    def test_breadcrumb_only_on_judgment_lists(self):
+        self.client.force_login(self.admin)
+        for name in ("home", "subjects", "other_subjects", "search", "user_list", "backup_list"):
+            self.assertNotContains(self.client.get(reverse(name)), 'class="breadcrumb"', msg_prefix=name)
 
 
 @override_settings(SECURE_SSL_REDIRECT=False)
@@ -141,7 +181,7 @@ class ReadingScreenTests(TestCase):
 
     def urls(self):
         return [
-            reverse("home"),
+            reverse("subjects"),
             reverse("other_subjects"),
             reverse("search"),
             reverse("subject_contents", args=[self.contract.pk]),
@@ -176,13 +216,21 @@ class ReadingScreenTests(TestCase):
 
     def test_landing_respects_show_on_landing(self):
         self.client.force_login(self.users["reader"])
-        resp = self.client.get(reverse("home"))
+        resp = self.client.get(reverse("subjects"))
         self.assertContains(resp, "Contract Law")
         self.assertContains(resp, "Other Subjects")
         self.assertNotContains(resp, "Sample Act")
         resp = self.client.get(reverse("other_subjects"))
         self.assertContains(resp, "Sample Act")
         self.assertNotContains(resp, "Contract Law")
+
+    def test_breadcrumb_shown_on_judgment_lists_with_subjects_root(self):
+        self.client.force_login(self.users["reader"])
+        for url in (reverse("subject_contents", args=[self.contract.pk]), reverse("read_subject", args=[self.contract.pk]),
+                    reverse("read_subtopic", args=[self.clause.pk])):
+            resp = self.client.get(url)
+            self.assertContains(resp, 'class="breadcrumb"')
+            self.assertContains(resp, '<a href="%s">Subjects</a>' % reverse("subjects"))
 
     def test_contents_lists_topics_and_subtopics(self):
         self.client.force_login(self.users["reader"])

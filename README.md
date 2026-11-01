@@ -8,7 +8,7 @@ The longer plans are in `docs/PLAN.md` (what is built when), `docs/DESIGN.md` (h
 
 - A login page. After 5 wrong passwords for a username, that username is blocked for 15 minutes.
 - Three roles: **Admin** (everything, including users and backups), **Editor** (reads and edits the diary) and **Reader** (reads only). New accounts are Readers. Your role is shown next to the Log out link. See `docs/DESIGN.md` section 9.6 for what each role may do (the diary screens come in later milestones).
-- A Users screen (Admin only): add a person, change a password, disable or delete a person, and choose or change their role. The app will not let you delete or disable yourself, or remove the last Admin.
+- A Users screen (Admin only, linked from the Home page): add a person, change a password, disable or delete a person, and choose or change their role. The app will not let you delete or disable yourself, or remove the last Admin.
 - A Backups screen (Admin only): "Backup now", a list of saved backups with Download and Restore, and a history of what happened.
 - A nightly backup, made by a scheduled job, kept for at least 30 days.
 - A yellow warning bar at the top of every page (Admins only) if the last backup failed or there has been none for 36 hours.
@@ -52,7 +52,7 @@ In the Render Shell tab:
 python manage.py load_sample_data
 ```
 
-(Running it twice changes nothing the second time.) Then open the site: you will see the sample Subjects on the Home page and a sample under **Other Subjects**.
+(Running it twice changes nothing the second time.) Then open the site: you will see the sample Subjects under **Subjects** (press **Open** on the Home page) and a sample under **Other Subjects** (last entry of the Subjects index).
 
 **Before the real import, remove the sample data:**
 
@@ -84,7 +84,7 @@ There are no users at first, so you create the first Admin from Render:
 ### Check that everything works
 
 1. Open the address and **log in** as your Admin.
-2. Open **Users**, press **New user**, make a second user, then try logging in as that user in a private window. Ordinary users do not see the Users or Backups links. Delete the test user when done.
+2. On **Home**, open **Users**, press **New user**, make a second user, then try logging in as that user in a private window. Ordinary users do not see the Users link on Home or the Backups link. Delete the test user when done.
 3. Open **Backups** and press **Backup now**. A new line appears in the list. Press **Download** to save the file to your computer. Keep it somewhere safe.
 4. The next morning, open Backups again. A new "Daily" backup should be there, made by the nightly job (it runs at 02:00 India time). If not, look at the `judgment-diary-daily-backup` job in Render and tell Kiro.
 5. **Restore rehearsal.** Do this while there is only practice data, before real data goes in. Add a test user, then in Backups press **Restore** on an earlier backup. You will see a preview of what would be added and removed, and a note that a safety backup is taken first. Type `RESTORE` and press **Restore now**. The test user should be gone. A "Before restore" backup now exists, so even a mistaken restore can be undone.
@@ -113,7 +113,7 @@ You normally do not touch these; the Blueprint sets them.
 
 ## Giving someone a role
 
-1. Log in as an Admin and open **Users**.
+1. Log in as an Admin and open **Users** (on the Home page).
 2. **New user**: type a name and password and pick the **Role** (Reader is pre-selected). **Edit** next to an existing person changes their role the same way.
 3. Only an Admin can change roles. The last active Admin cannot be disabled, deleted or changed to another role. The first account made with `create_first_admin` is an Admin.
 4. People who already existed before roles were added become Admin if they were Admins, otherwise Reader.

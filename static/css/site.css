@@ -9,9 +9,10 @@ a { color: inherit; }
 
 .page { max-width: var(--page-width); margin: 0 auto; padding: 0 1rem 4rem; }
 
-/* Header: italic serif program name, Switch program, nav on the right, hairline under. */
+/* Header: italic serif program name, Home link, nav on the right, hairline under. */
 .site-header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: .25rem 1.5rem; padding-top: 1.25rem; border-bottom: 1px solid var(--ink); }
 .brand-row { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .9rem; padding-bottom: .6rem; }
+.brand a { text-decoration: none; }
 .brand { font-family: var(--font-serif); font-style: italic; font-size: 1.75rem; line-height: 1.1; }
 .switch-program { display: inline-flex; align-items: center; min-height: var(--tap); padding: 0 .6rem; font-size: var(--small-size); color: var(--muted); border: 1px solid var(--hair); border-radius: 2px; text-decoration: none; }
 .program-nav { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0 1.25rem; font-size: var(--small-size); }
@@ -28,7 +29,7 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
 .breadcrumb a { display: inline-block; min-height: var(--tap); line-height: var(--tap); color: var(--muted); }
 .breadcrumb [aria-current] { color: var(--ink); font-weight: 600; }
 .breadcrumb .sep { margin: 0 .35rem; }
-.toolbar-buttons { display: flex; flex-wrap: wrap; gap: .5rem; }
+.toolbar-buttons { display: flex; flex-wrap: wrap; gap: .5rem; margin-left: auto; }
 
 /* Buttons: outlined secondary, filled oxblood primary (class "primary"). */
 button, .button { display: inline-flex; align-items: center; justify-content: center; min-height: var(--tap); padding: 0 1rem; border: 1px solid var(--ink); background: var(--panel); color: var(--ink); border-radius: 2px; font: inherit; line-height: 1.2; cursor: pointer; text-decoration: none; }
@@ -91,7 +92,7 @@ td a { display: inline-block; min-height: var(--tap); line-height: var(--tap); p
 .subject-index .count { font-family: var(--font-sans); font-size: var(--small-size); color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .empty { color: var(--muted); font-style: italic; }
 
-/* Launcher / Switch program */
+/* Launcher (suite Home) */
 .launcher { max-width: 46rem; margin: 0 auto; }
 .program { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 1.25rem 0; border-bottom: 1px solid var(--hair); }
 .program h2 { margin: 0; }

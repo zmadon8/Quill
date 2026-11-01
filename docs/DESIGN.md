@@ -221,19 +221,19 @@ Numbers appear in two places only: on screen and in the Word export. Searching a
 - Undo never touches changes made by someone else, and warns if the record has since changed.
 
 ### 5.8 Back button (4.8)
-Always visible, returns to the previous page; sensible fallback to Home.
+Always visible, returns to the previous page; sensible fallback to Subjects (the Subject index).
 
 ### 5.9 Split screen (4.9)
 Two independent panes side by side, each with its own location. Only on wide screens (about 1100 pixels and above). On narrower screens the option is hidden. Last milestone (7), so it can be refined without risk to the core.
 
 ### 5.10 Shortcuts (4.10)
-- **Both sets of shortcuts are kept** (decision D13): Alt+G opens Global Search and Alt+H goes Home; Ctrl+Alt+G and Ctrl+Alt+H do the same. On a Mac, Option replaces Alt (Option+G, Option+H, Ctrl+Option+G, Ctrl+Option+H).
+- **Both sets of shortcuts are kept** (decision D13): Alt+G opens Global Search and Alt+H goes to the suite Home (the program picker); Ctrl+Alt+G and Ctrl+Alt+H do the same. On a Mac, Option replaces Alt (Option+G, Option+H, Ctrl+Option+G, Ctrl+Option+H).
 - Cmd+G and Cmd+H are deliberately not used, as the browser needs them.
-- A visible **Search** button and **Home** button appear on every page.
+- A visible **Search** button and **Subjects** button appear on every diary page; the suite **Home** link is beside the program name (decision D15).
 
 ### 5.11 Settings (4.11)
 Per user:
-- **Opening page**: Home, Other Subjects, Global Search, last page viewed, or a chosen Subject.
+- **Opening page** (overrides the login landing on Home, decision D15): Home, Subjects, Other Subjects, Global Search, last page viewed, or a chosen Subject.
 - **Number formats** for Topics, Sub-topics, **Sections**, Items, Nested Items and Multi-Item citations, each with a live preview (the Sections preview shows a Section followed by Items restarting at (1)). Changing formats changes display and Word export only, never the stored data.
 - **Custom Name** (decision D11): the text that starts every exported Word file name. Default `Judgment Diary`. Rules: trimmed; 1 to 60 characters; not empty after cleaning; no leading or trailing dots or spaces. Characters not allowed in file names ( \ / : * ? " < > | and control characters ) are replaced with a hyphen `-`, and repeated spaces are collapsed. A **live preview** shows the resulting file name for each export type, with a note of any replacement made (for example "':' was replaced with '-'").
 - **Date format** for file names and the export date line: `YYYY-MM-DD` (default, needs owner confirmation), `DD-MM-YYYY`, or `D Month YYYY`.
@@ -242,7 +242,7 @@ Per user:
 ### 5.12 Phone (4.12)
 - One column, no sideways scrolling, text at least 16 px, tap targets at least 44 px.
 - TOC becomes a full-width list or a slide-over opened by a **Contents** button.
-- A sticky breadcrumb shows where you are. Home, Search and Back stay reachable.
+- A sticky breadcrumb shows where you are on judgment-list pages (decision D15). Home, Subjects, Search and Back stay reachable.
 - Touch editing uses the move up/down buttons rather than dragging.
 - Written mobile-first so the phone layout is the base and wider screens add to it.
 
@@ -493,13 +493,13 @@ If the combined app uses a different technology, the data rules in sections 2 to
 
 **Decision (owner, after reviewing four static mockups in `design/mockups/`):** Option D, "Chambers", for the whole app, with the Home page laid out like Option A, "Law Report".
 
-- **Shell (Option D).** Warm off-white page, italic serif program name at top left, a "Switch program" control beside it, a small sans nav at right (the current page is dark with an oxblood underline), one hairline rule under the header, a large serif page title with a double rule under it, letter-spaced uppercase small labels, hairline row dividers, outlined secondary buttons and filled oxblood primary buttons.
+- **Shell (Option D).** Warm off-white page, italic serif program name at top left, a "Home" link (the program picker) beside it, a small sans nav at right (the current page is dark with an oxblood underline), one hairline rule under the header, a large serif page title with a double rule under it, letter-spaced uppercase small labels, hairline row dividers, outlined secondary buttons and filled oxblood primary buttons.
 - **Oxblood is used only for** primary actions, overruled or flagged items, and alerts. "For review" is a muted amber pill.
-- **Reading pages (Option D).** Breadcrumb under the header, Back/Home/Search small buttons, Contents column at left on wide screens, serif Topic headings with a rule, letter-spaced uppercase Sub-topic headings, italic Section headings, the Item number in its own hanging column, citations in italic grey, hairline dividers, Notes as "See also: link".
+- **Reading pages (Option D).** Breadcrumb under the header (judgment-list pages only), Back/Subjects/Search small buttons, Contents column at left on wide screens, serif Topic headings with a rule, letter-spaced uppercase Sub-topic headings, italic Section headings, the Item number in its own hanging column, citations in italic grey, hairline dividers, Notes as "See also: link".
 - **Home (Option A layout, Option D palette and type).** A centred narrow column: program name as the title, small-caps "Index of Subjects", a full-width search box that leads to Search, then Subjects as a two-column index (name at left, item count at right, hairline under each row; one column on phones). "Other Subjects" is the last entry, in italics, with its count of Other Subjects. A small meta line shows "N SUBJECTS · N ITEMS · N FOR REVIEW" instead of D's stat panels.
-- **Design tokens.** All colours, font stacks and sizes are CSS custom properties in `static/css/tokens.css`. The shared header lives in `templates/base_suite.html` (blocks `program_name`, `program_switch`, `program_nav`, `breadcrumb`, `content`); `templates/base.html` fills it for the Judgment Diary. Another program in the suite extends `base_suite.html` with its own name and nav.
-- **Nav by role.** Home, Other Subjects and Search for everyone; Users and Backups for Admin only. Review, Trash and Settings are omitted until those milestones exist.
-- **Switch program.** `/programs/` lists only Judgment Diary today. The suite name is undecided; "Chambers" appears only in the mockups and is not used in the app.
+- **Design tokens.** All colours, font stacks and sizes are CSS custom properties in `static/css/tokens.css`. The shared header lives in `templates/base_suite.html` (blocks `program_name`, `program_switch`, `program_nav`, `toolbar`, `crumb_nav`, `content`, `extra_js`); `templates/base_suite_home.html` is the slim suite-level variant used by the Home picker and the Users screens; `templates/base.html` fills it for the Judgment Diary. Another program in the suite extends `base_suite.html` with its own name and nav.
+- **Nav by role.** Subjects and Search for everyone; Backups for Admin only. Users is on the suite Home page, Admin only (D15). Review, Trash and Settings are omitted until those milestones exist.
+- **Home (program picker).** `/` lists only Judgment Diary today; `/programs/` redirects to it. The suite name is undecided; "Chambers" appears only in the mockups and is not used in the app.
 - **Font plan.** No web fonts are loaded (none could be downloaded). The CSS uses system serif and sans stacks. To self-host a font such as Source Serif 4, put the file in `static/fonts/` and add one `@font-face` block at the top of `static/css/tokens.css`, then name it first in `--font-serif`. Nothing else changes.
 - **Accessibility.** Text is at least 16 px (reading text 18 px), tap targets at least 44 px, one column on phones with no sideways scrolling, visible focus outlines, muted text kept at AA contrast.
 
@@ -544,6 +544,16 @@ Confirmed earlier: each Heading 1 is a Subject; Miscellaneous holds Other Subjec
 - **D12. Three roles: Admin, Editor, Reader.** The owner asked whether the Admin can use the diary like a regular user (yes: Admin is an ordinary user plus the Users, Backups and Restore screens). The spec does not say whether other users may edit, so three roles were proposed: Admin (everything), Editor (read and edit), Reader (read only, the safe default for new accounts). [Answer: Yes, do that.] **Decision:** built in Milestone 0 (section 9.6). The permissions table in section 9.6 is a set of defaults: what Readers may export, whether Readers see the Trash, History and Review list, and that permanent delete and Import are Admin only are proposals needing owner confirmation (question 5).
 - **D13. Section and Item numbering; shortcuts.** (Answers open question 1 and the shortcut question.) [Answer: "Make section headers (a) Name. Change the numbering for Items to (1), (2)... Keep both shortcuts."] **Decision:** the default Section format is (a), (b), (c) (small letter in brackets, no full stop, e.g. "(a) Name"). The default Item and Nested Item format is (1), (2), (3). Existing Settings rows still holding the old defaults are updated by a data migration; rows where a format was chosen deliberately are untouched. Multi-Item citations stay (a), (b), (c) per the spec, which now matches the Section style. The Word file's own (i), (ii) numbering is unchanged, and the importer still recognises Items by it. Both shortcut sets are kept: Alt+G / Alt+H and Ctrl+Alt+G / Ctrl+Alt+H (Option on a Mac); section 5.10.
 - **D14. Visual design.** [Answer: "I like Option D. But, redesign the Home page to be formatted like Option A."] **Decision:** Option D "Chambers" everywhere, Home laid out like Option A (section 13a).
+- **D15. Chambers follow-up (owner's review of PR #5).** Owner's words, item by item, with the defaults chosen:
+  - (2) "Other Subjects should NOT be on the top bar." Removed from the nav; still the last entry of the Subjects index.
+  - (4) "Move 'Users' to the 'Switch Program' Page - rename 'Switch Programs to 'Home'. Rename the existing 'Home' to 'Subjects'." The picker is the suite Home at `/` (URL name `home`); the Subject index is at `/subjects/` (name `subjects`); `/programs/` redirects to `/`. "Subjects" replaces "Home" in the diary nav, toolbar button, breadcrumb root, page title, Back fallback and docs. Login lands on Home; the Milestone 4 per-user Opening page setting will override this. Alt+H and Ctrl+Alt+H go to the suite Home; the in-diary button is "Subjects". Users is on Home (Admin only). Default: Backups stay in the diary nav for Admin only, because backups currently cover diary data.
+  - (5) "The user name on the top row should only display the User Name, not its role." Header shows the username only; the Users screen still shows roles.
+  - (6) "When in the 'Home' screen (i.e. the program picker), display the following in the top row - Users, Name of User, and Log Out." Home uses `base_suite_home.html`: Users (Admin only), name, Log out; no diary nav and no toolbar. Default: the Users screens use the same slim header, and the program name links to Home.
+  - (7) "Do NOT show the directory path at all times (i.e., on the Search page, etc), only show it when viewing the Judgment lists." The breadcrumb appears only on Subject contents and the reading views; the whole element is omitted elsewhere (block `crumb_nav`). Its root reads "Subjects". Default: Other Subjects list has no breadcrumb.
+  - (8) "When viewing the table of contents, allow me to expand / contract all or individual Subjects / Topics / etc." Each Topic with Sub-topics can be expanded or collapsed, plus Expand all / Collapse all. Defaults: on reading pages the current Topic is open and others closed; on the Subject contents page all open; the choice is remembered per Subject in the browser. The Subjects index is flat so it has nothing to expand.
+  - (9) "When clicking on a subject for the first time, and when the program only shows the Table of Contents, format it in such a manner that it is already arranged in the Side Panel (in the same manner as if Text was open)." Subject contents uses the reading layout: Contents in the left panel, the Subject title, "View whole Subject" and a hint on the right. Default: on phones the Contents list is shown full width on that page and the Contents button is hidden.
+  - (3) "In Backups, allow me to resize the column widths." Drag the column border (or focus the handle and use the arrow keys); widths are remembered per table in the browser; "Reset column widths" restores them. Tables scroll sideways inside their own box on phones.
+  - (1) Excel backup and (10) Split View are answered separately; Split View stays in Milestone 7 (section 5.9).
 
 **Open questions for the owner** (each has a default that is used unless you say otherwise)
 

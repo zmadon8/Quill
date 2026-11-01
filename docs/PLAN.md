@@ -81,7 +81,7 @@ Note: the technology (Django, PostgreSQL) is confirmed for a **standalone app** 
 
 ## Milestone 4: Search, Review list, Settings
 
-**Deliverable:** Global Search page with the shortcuts (Alt+G, Alt+H and Ctrl+Alt+G, Ctrl+Alt+H; Option on a Mac) and visible Search and Home buttons; filters; highlighted snippets; open in context. The Review list screen. Settings: opening page, number formats with preview (including the new Sections format), Custom Name for exported file names with a live file-name preview, and the date format (with time zone).
+**Deliverable:** Global Search page with the shortcuts (Alt+G, Alt+H and Ctrl+Alt+G, Ctrl+Alt+H; Option on a Mac) and visible Search and Subjects buttons, with Home (the program picker) beside the program name; filters; highlighted snippets; open in context. The Review list screen. Settings: opening page (overrides login landing on Home), number formats with preview (including the new Sections format), Custom Name for exported file names with a live file-name preview, and the date format (with time zone).
 
 **How you check it:**
 - Search `2018 9 SCC 49` and find `(2018) 9 SCC 49`.

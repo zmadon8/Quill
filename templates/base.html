@@ -1,12 +1,10 @@
 {% extends "base_suite.html" %}
 {# Judgment Diary: fills the shared shell with this program's name and navigation. #}
-{# Nav by role: Users and Backups are Admin only. Review, Trash and Settings arrive in later milestones and are omitted for now. #}
+{# Nav: Subjects and Search for everyone; Backups for Admin only (Users lives on the suite Home page). Review, Trash and Settings arrive in later milestones. #}
 {% block program_title %}Judgment Diary{% endblock %}
 {% block program_name %}Judgment Diary{% endblock %}
 {% block program_nav %}{% with current=request.resolver_match.url_name %}
-  <a href="{% url 'home' %}"{% if current == 'home' %} class="on" aria-current="page"{% endif %}>Home</a>
-  <a href="{% url 'other_subjects' %}"{% if current == 'other_subjects' %} class="on" aria-current="page"{% endif %}>Other Subjects</a>
+  <a href="{% url 'subjects' %}"{% if current == 'subjects' %} class="on" aria-current="page"{% endif %}>Subjects</a>
   <a href="{% url 'search' %}"{% if current == 'search' %} class="on" aria-current="page"{% endif %}>Search</a>
-  {% if user.is_admin %}<a href="{% url 'user_list' %}"{% if current|slice:":5" == 'user_' %} class="on" aria-current="page"{% endif %}>Users</a>
-  <a href="{% url 'backup_list' %}"{% if current|slice:":7" == 'backup_' or current|slice:":8" == 'restore_' %} class="on" aria-current="page"{% endif %}>Backups</a>{% endif %}
+  {% if user.is_admin %}<a href="{% url 'backup_list' %}"{% if current|slice:":7" == 'backup_' or current|slice:":8" == 'restore_' %} class="on" aria-current="page"{% endif %}>Backups</a>{% endif %}
 {% endwith %}{% endblock %}

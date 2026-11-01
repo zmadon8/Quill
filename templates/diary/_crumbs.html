@@ -1,7 +1,9 @@
-<a href="{% url 'home' %}">Home</a>
+<nav class="breadcrumb" aria-label="You are here">
+<a href="{% url 'subjects' %}">Subjects</a>
 {% for pk, name, url_name in crumbs %}
 <span class="sep">&rsaquo;</span>
 {% if url_name == "other_subjects" %}<a href="{% url 'other_subjects' %}">{{ name }}</a>
 {% elif url_name %}<a href="{% url url_name pk %}">{{ name }}</a>
 {% else %}<span aria-current="page">{{ name }}</span>{% endif %}
 {% endfor %}
+</nav>

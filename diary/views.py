@@ -48,7 +48,7 @@ def item_counts_by_subject():
 
 
 @reader_required
-def home(request):
+def subjects(request):
     """Option A index: Subjects on the landing page with item counts, then Other Subjects."""
     counts = item_counts_by_subject()
     landing = list(_subjects(show_on_landing=True).order_by("landing_position", "name", "pk"))
@@ -58,7 +58,7 @@ def home(request):
     live_ids = set(_subjects().values_list("pk", flat=True))
     total_items = sum(n for pk, (n, _) in counts.items() if pk in live_ids)
     total_review = sum(r for pk, (_, r) in counts.items() if pk in live_ids)
-    return render(request, "diary/home.html", {
+    return render(request, "diary/subjects.html", {
         "subjects": landing,
         "other_count": other_count,
         "subject_total": len(live_ids),
@@ -68,9 +68,9 @@ def home(request):
 
 
 @reader_required
-def programs(request):
-    """Switch program: lists the programs in this suite (only Judgment Diary today)."""
-    return render(request, "diary/programs.html")
+def home(request):
+    """Suite Home: the program picker (only Judgment Diary today)."""
+    return render(request, "diary/home.html")
 
 
 @reader_required

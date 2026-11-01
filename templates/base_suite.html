@@ -1,6 +1,6 @@
 {% load static %}<!DOCTYPE html>
 {# Shared shell for every program in the suite (Option D "Chambers"). A program extends this and fills: #}
-{# program_name, program_home_url (via with-less block), program_nav, page_title. See docs/DESIGN.md "Visual design". #}
+{# program_name, program_nav, page_title; and crumb_nav (the breadcrumb, only on judgment-list pages). See docs/DESIGN.md "Visual design". #}
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -15,12 +15,12 @@
     <header class="site-header">
       <div class="brand-row">
         <span class="brand">{% block program_name %}Judgment Diary{% endblock %}</span>
-        {% block program_switch %}{% if user.is_authenticated %}<a class="switch-program" href="{% url 'programs' %}">&#8644; Switch program</a>{% endif %}{% endblock %}
+        {% block program_switch %}{% if user.is_authenticated %}<a class="switch-program" href="{% url 'home' %}" title="Home (Alt+H)">Home</a>{% endif %}{% endblock %}
       </div>
       {% if user.is_authenticated %}
       <nav class="program-nav" aria-label="Main">
         {% block program_nav %}{% endblock %}
-        <span class="who">{{ user.username }} &middot; {{ user.role_label }}</span>
+        <span class="who">{{ user.username }}</span>
         <form method="post" action="{% url 'logout' %}" class="inline">
           {% csrf_token %}
           <button type="submit" class="link">Log out</button>
@@ -28,16 +28,16 @@
       </nav>
       {% endif %}
     </header>
-    {% if user.is_authenticated %}
+    {% block toolbar %}{% if user.is_authenticated %}
     <div class="toolbar">
-      <nav class="breadcrumb" aria-label="You are here">{% block breadcrumb %}{% endblock %}</nav>
+      {% block crumb_nav %}{% endblock %}
       <div class="toolbar-buttons">
-        <button type="button" class="button small back-button" data-back data-fallback="{% url 'home' %}">&larr; Back</button>
-        <a class="button small" href="{% url 'home' %}" title="Home (Alt+H)">Home</a>
+        <button type="button" class="button small back-button" data-back data-fallback="{% url 'subjects' %}">&larr; Back</button>
+        <a class="button small" href="{% url 'subjects' %}" title="Subjects">Subjects</a>
         <a class="button small" href="{% url 'search' %}" title="Search (Alt+G)">Search</a>
       </div>
     </div>
-    {% endif %}
+    {% endif %}{% endblock %}
     {% if backup_warning %}<div class="banner-warning" role="alert"><a href="{% url 'backup_list' %}">{{ backup_warning }}</a></div>{% endif %}
     <main id="main">
       {% if messages %}
@@ -48,6 +48,7 @@
       {% block content %}{% endblock %}
     </main>
   </div>
+  {% block extra_js %}{% endblock %}
   <script src="{% static 'js/site.js' %}" data-home="{% url 'home' %}" data-search="{% url 'search' %}"></script>
 </body>
 </html>
