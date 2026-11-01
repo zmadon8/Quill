@@ -53,6 +53,21 @@ def trash_entries(profile):
         for rec in MODELS[kind]._base_manager.filter(profile=profile, deleted_at__isnull=False):
             trashed[(kind, rec.pk)] = rec
     batches = {b.id: b for b in TrashBatch.objects.filter(profile=profile).select_related("created_by")}
+    # Members of each batch under each trashed record, from the rows already loaded (no further walking).
+    kids = {}
+    for key, rec in trashed.items():
+        parent = _parent_key(rec)
+        above = trashed.get(parent)
+        if above is not None and above.delete_batch == rec.delete_batch:
+            kids.setdefault(parent, []).append(key)
+
+    def batch_size(key):
+        total, stack = 0, [key]
+        while stack:
+            total += 1
+            stack.extend(kids.get(stack.pop(), ()))
+        return total
+
     entries = []
     for (kind, pk), rec in trashed.items():
         above = trashed.get(_parent_key(rec))
@@ -60,7 +75,6 @@ def trash_entries(profile):
             continue
         batch = batches.get(rec.delete_batch)
         chain = ancestors(rec)
-        below = [d for d in descendants(rec) if d.deleted_at is not None and d.delete_batch == rec.delete_batch]
         entries.append(
             {
                 "type": kind,
@@ -70,7 +84,7 @@ def trash_entries(profile):
                 "kind_name": NICE[kind],
                 "path": " > ".join(label(a) for _, a in chain),
                 "parent_in_trash": any(a.deleted_at is not None for _, a in chain),
-                "count": 1 + len(below),
+                "count": batch_size((kind, pk)),
                 "deleted_at": rec.deleted_at,
                 "deleted_by": _person(batch.created_by) if batch else "unknown",
                 "batch_label": batch.label if batch else "",

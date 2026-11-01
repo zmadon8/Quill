@@ -310,44 +310,53 @@ def ancestors(obj):
     return chain
 
 
+#: For each parent type, the (child type, column on the child) pairs that structurally belong to it.
+CHILD_LINKS = {
+    "subject": (("topic", "subject"), ("subtopic", "subject"), ("section", "subject"), ("item", "subject"),
+                ("note", "subject")),
+    "topic": (("subtopic", "topic"), ("section", "topic"), ("item", "topic"), ("note", "topic")),
+    "subtopic": (("section", "subtopic"), ("item", "subtopic"), ("note", "subtopic")),
+    "section": (("note", "section"),),
+    "item": (("item", "parent_item"), ("case", "item"), ("note", "item")),
+    "note": (("notelink", "note"),),
+}
+
+
+def children_of_many(parents, live_only=False, lock=False):
+    """Children of several records of any types, one query per (parent type, child type) pair.
+
+    Returns a list of (parent, child); the walk below uses it one level at a time.
+    """
+    by_type = {}
+    for parent in parents:
+        by_type.setdefault(record_type(parent), {})[parent.pk] = parent
+    found = []
+    for kind, owners in by_type.items():
+        for child_kind, column in CHILD_LINKS.get(kind, ()):
+            qs = MODELS[child_kind]._base_manager.filter(
+                profile_id=next(iter(owners.values())).profile_id, **{f"{column}__in": list(owners)}
+            )
+            if live_only:
+                qs = qs.filter(deleted_at__isnull=True)
+            if lock:
+                qs = qs.select_for_update()
+            for child in qs.order_by("pk"):
+                found.append((owners[getattr(child, f"{column}_id")], child))
+    return found
+
+
 def children_of(obj, live_only=False, lock=False):
     """Records that structurally belong to ``obj`` (Items sit in their container, not under a Section)."""
-    kind = record_type(obj)
-    pid = obj.profile_id
-
-    def rows(model, **where):
-        qs = model._base_manager.filter(profile_id=pid, **where)
-        if live_only:
-            qs = qs.filter(deleted_at__isnull=True)
-        if lock:
-            qs = qs.select_for_update()
-        return list(qs.order_by("pk"))
-
-    if kind == "subject":
-        return (rows(Topic, subject=obj) + rows(Subtopic, subject=obj) + rows(Section, subject=obj)
-                + rows(Item, subject=obj) + rows(Note, subject=obj))
-    if kind == "topic":
-        return rows(Subtopic, topic=obj) + rows(Section, topic=obj) + rows(Item, topic=obj) + rows(Note, topic=obj)
-    if kind == "subtopic":
-        return rows(Section, subtopic=obj) + rows(Item, subtopic=obj) + rows(Note, subtopic=obj)
-    if kind == "section":
-        return rows(Note, section=obj)
-    if kind == "item":
-        return rows(Item, parent_item=obj) + rows(Case, item=obj) + rows(Note, item=obj)
-    if kind == "note":
-        return rows(NoteLink, note=obj)
-    return []
+    return [child for _, child in children_of_many([obj], live_only, lock)]
 
 
 def descendants(obj, live_only=False, lock=False):
-    """Every record below ``obj``, parents before their children."""
+    """Every record below ``obj``, parents before their children (one query per model per level)."""
     found = []
-    queue = [obj]
-    while queue:
-        current = queue.pop(0)
-        for child in children_of(current, live_only, lock):
-            found.append(child)
-            queue.append(child)
+    level = [obj]
+    while level:
+        level = [child for _, child in children_of_many(level, live_only, lock)]
+        found.extend(level)
     return found
 
 

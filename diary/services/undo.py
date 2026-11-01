@@ -10,7 +10,7 @@ from django.db import transaction
 from ..models import VersionHistory
 from .core import Ctx, apply_snapshot, commit, get_record, label, make_result, next_free_name, parent_of, record_type
 from .errors import NameClash, NotFound, Refused, UndoWarning
-from .trash import _name_taken, trash_subtree
+from .trash import _name_taken, check_restorable, prune_batches, trash_subtree
 
 
 def group_summary(profile, group):
@@ -76,9 +76,11 @@ def undo_group(profile, user, group, force=False):
                 )
         if changed and not force:
             raise UndoWarning(changed)
+        revived = []
         for key in keys:
             obj = records[key]
             obj.refresh_from_db()
+            was_deleted = obj.deleted_at is not None
             before = (
                 VersionHistory.objects.filter(
                     profile=profile, record_type=key[0], record_id=key[1], version__lt=first[key].version
@@ -98,4 +100,11 @@ def undo_group(profile, user, group, force=False):
                 raise NameClash(kind, obj.pk, obj.name, next_free_name(type(obj), obj.profile_id, obj.name, **scope))
             _check_place_is_live(obj, set(keys))
             commit(ctx, obj, "restore", check=False)
+            if was_deleted and obj.deleted_at is None:
+                revived.append(key)
+        # Records coming back to life obey the same placement rules as Restore. Checked after the whole
+        # action is applied (an action may change a parent and its children together); a refusal rolls it back.
+        for key in revived:
+            check_restorable(get_record(ctx, key[0], key[1], include_deleted=True, lock=False))
+        prune_batches(ctx.profile_id)
         return make_result(ctx, None)

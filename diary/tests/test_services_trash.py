@@ -332,3 +332,38 @@ class NoteLinkPreservationTests(TrashTestCase):
         with self.assertRaises(svc.NotFound):
             svc.add_link(self.profile, self.user, self.other_note.pk, ("subject", foreign.pk))
         self.assertEqual(NoteLink.objects.filter(subject=foreign).count(), 0)
+
+
+class BatchCleanupAndRenameTests(TrashTestCase):
+    def test_restore_removes_the_batch_row_when_nothing_carries_it(self):
+        svc.delete(self.profile, self.user, "topic", self.t2.pk)
+        self.assertEqual(TrashBatch.objects.count(), 1)
+        svc.restore(self.profile, self.user, "topic", self.t2.pk)
+        self.assertEqual(TrashBatch.objects.count(), 0)
+
+    def test_partial_restore_keeps_the_batch_row(self):
+        svc.delete(self.profile, self.user, "topic", self.t1.pk)
+        svc.restore(self.profile, self.user, "item", self.i1.pk, restore_parents=True)
+        self.assertEqual(TrashBatch.objects.count(), 1)
+
+    def test_permanent_delete_prunes_batches_of_earlier_deletes(self):
+        svc.delete(self.profile, self.user, "item", self.i2.pk)
+        svc.delete(self.profile, self.user, "topic", self.t1.pk)
+        self.assertEqual(TrashBatch.objects.count(), 2)
+        svc.permanent_delete(self.profile, self.user, "topic", self.t1.pk)
+        self.assertEqual(TrashBatch.objects.count(), 0)
+
+    def test_long_rename_is_refused(self):
+        svc.delete(self.profile, self.user, "topic", self.t2.pk)
+        with self.assertRaises(svc.ValidationFailed):
+            svc.restore(self.profile, self.user, "topic", self.t2.pk, new_name="x" * 301)
+        self.assertIsNotNone(self.get(self.t2).deleted_at)
+
+    def test_rename_of_a_record_type_that_cannot_be_renamed_is_refused(self):
+        svc.delete(self.profile, self.user, "topic", self.t1.pk)
+        with self.assertRaises(svc.ValidationFailed):
+            svc.restore(
+                self.profile, self.user, "topic", self.t1.pk, new_names={("item", self.i1.pk): "renamed"}
+            )
+        self.assertEqual(self.get(self.i1).text, "i1")
+        self.assertIsNotNone(self.get(self.t1).deleted_at)

@@ -2,7 +2,7 @@
 import uuid
 
 from diary import services as svc
-from diary.models import Item, Section, Subtopic, Topic, VersionHistory
+from diary.models import Item, Section, Subtopic, Topic, TrashBatch, VersionHistory
 from diary.tests.service_helpers import ServiceTestCase
 
 BASE = [("(1)", "one"), ("(2)", "two"), ("(a)", "S"), ("(1)", "three"), ("(2)", "four")]
@@ -169,3 +169,34 @@ class UndoTests(ServiceTestCase):
             row.group for row in VersionHistory.objects.filter(record_type__in=["item", "section"], version=2)
         }
         self.assertEqual(groups, {result.group})
+
+
+class UndoStructuralRuleTests(ServiceTestCase):
+    def test_undo_of_a_topic_delete_is_refused_once_the_subject_holds_subtopics(self):
+        subject = self.make("subject", name="Contract")
+        topic = self.make("topic", ("subject", subject.pk), name="Formation")
+        deleted = svc.delete(self.profile, self.user, "topic", topic.pk)
+        self.make("subtopic", ("subject", subject.pk), name="Direct")
+        with self.assertRaises(svc.Refused):
+            svc.undo_group(self.profile, self.user, deleted.group)
+        self.assertIsNotNone(self.get(topic).deleted_at)
+        self.assertIsNotNone(self.get(topic).delete_batch)
+
+    def test_undo_of_a_case_delete_is_refused_once_the_item_is_plain(self):
+        subject = self.make("subject", name="Contract")
+        topic = self.make("topic", ("subject", subject.pk), name="Formation")
+        multi = self.make("item", ("topic", topic.pk), kind="multi", text="m")
+        case = self.make("case", ("item", multi.pk), citation="A v B")
+        deleted = svc.delete(self.profile, self.user, "case", case.pk)
+        svc.convert_item(self.profile, self.user, multi.pk, "plain")
+        with self.assertRaises(svc.Refused):
+            svc.undo_group(self.profile, self.user, deleted.group)
+        self.assertIsNotNone(self.get(case).deleted_at)
+
+    def test_undo_still_works_when_the_rules_hold(self):
+        subject = self.make("subject", name="Contract")
+        topic = self.make("topic", ("subject", subject.pk), name="Formation")
+        deleted = svc.delete(self.profile, self.user, "topic", topic.pk)
+        svc.undo_group(self.profile, self.user, deleted.group)
+        self.assertIsNone(self.get(topic).deleted_at)
+        self.assertEqual(TrashBatch.objects.count(), 0)

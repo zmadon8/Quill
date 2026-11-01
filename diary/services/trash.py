@@ -11,6 +11,7 @@ from django.db.models.functions import Lower
 
 from ..models import NoteLink, Topic, TrashBatch
 from .core import (
+    MODELS,
     Ctx,
     ActionResult,
     ancestors,
@@ -25,6 +26,7 @@ from .core import (
     next_free_name,
     now,
     record_type,
+    validate,
 )
 from .errors import NameClash, ParentInTrash, PermanentDeleteRefused, Refused, ValidationFailed
 from .moves import check_heading_mix
@@ -91,7 +93,26 @@ def _suggest(rec):
     return next_free_name(type(rec), rec.profile_id, rec.name, subject_id=rec.subject_id)
 
 
-def _check_restorable(rec, targets):
+RENAMABLE = ("subject", "topic", "subtopic")
+
+
+def prune_batches(profile_id):
+    """Delete the Trash batch rows of the profile that no record carries any more."""
+    used = set()
+    for model in MODELS.values():
+        used.update(
+            model._base_manager.filter(profile_id=profile_id, delete_batch__isnull=False)
+            .values_list("delete_batch", flat=True)
+            .distinct()
+        )
+    TrashBatch.objects.filter(profile_id=profile_id).exclude(id__in=used).delete()
+
+
+def check_restorable(rec):
+    """Raise Refused unless ``rec`` may live again where it is (Case under Multi, child Item under Nested, heading mix).
+
+    Shared by Restore and Undo, which both bring records back to life.
+    """
     kind = record_type(rec)
     if kind == "case":
         parent = rec.item
@@ -137,13 +158,16 @@ def restore(
             names[(kind, obj.pk)] = new_name
         targets = chain + [obj] + below
         for rec in targets:
-            _check_restorable(rec, targets)
+            check_restorable(rec)
             wanted = names.get(ident(rec))
             if wanted is not None:
+                if record_type(rec) not in RENAMABLE:
+                    raise ValidationFailed("Only a Subject, Topic or Sub-topic can be renamed while restoring.")
                 wanted = clean_name(wanted)
+                rec.name = wanted
+                validate(ctx, rec)
                 if _name_taken(rec, wanted):
                     raise ValidationFailed(f"The name {wanted!r} is already used. Choose another.")
-                rec.name = wanted
             elif record_type(rec) in ("subject", "topic") and _name_taken(rec, rec.name):
                 raise NameClash(record_type(rec), rec.pk, rec.name, _suggest(rec))
         anchored = chain + [obj]
@@ -162,6 +186,7 @@ def restore(
             commit(ctx, rec, "restore", check=False)
         for key in dict.fromkeys(sequence_key(rec) for rec in below):
             normalize(ctx, key)
+        prune_batches(ctx.profile_id)
         return make_result(ctx, obj, count=len(targets))
 
 
@@ -222,5 +247,5 @@ def permanent_delete(profile, user, kind, record_id):
         for rec in members:
             counts[record_type(rec)] = counts.get(record_type(rec), 0) + 1
         obj.delete()
-        TrashBatch.objects.filter(profile_id=ctx.profile_id, root_type=kind, root_id=record_id).delete()
+        prune_batches(ctx.profile_id)
         return ActionResult(record=None, changed=True, group=None, touched=[], info={"deleted": counts})
