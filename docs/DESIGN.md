@@ -105,7 +105,7 @@ The database check is: "exactly one parent column is not empty". Linked records 
 
 **NoteLink**: `note_id`, and exactly one target column: `subject_id`, `topic_id`, `subtopic_id`, `section_id`, `item_id` (a Nested Item is an Item). Links are never removed by the system, not even when the target is in Trash.
 
-**UserSettings**: `user_id`, `opening_page`, `opening_subject_id`, the number formats for Topics, Sub-topics, **Sections**, Items, Nested Items and Multi-Item citations, `export_custom_name` (text, default `Judgment Diary`), `export_date_format`, and the time zone used for dates (section 5.11).
+**UserSettings**: `user_id`, `opening_page`, `opening_subject_id`, the number formats for Topics, Sub-topics, **Sections**, Items, Nested Items and Multi-Item citations, `export_custom_name` (text, default `Case Law Diary`, the program's display name; D17), `export_date_format`, and the time zone used for dates (section 5.11).
 
 **User**: login name, password (stored only as a secure hash), `role` (Admin, Editor or Reader; default Reader; Admin is tied to `is_superuser`, exposed as `is_admin`), `is_active`. Section 9.6 has the roles.
 
@@ -235,7 +235,7 @@ Two independent panes side by side, each with its own location. Only on wide scr
 Per user:
 - **Opening page** (overrides the login landing on Home, decision D15): Home, Subjects, Other Subjects, Global Search, last page viewed, or a chosen Subject.
 - **Number formats** for Topics, Sub-topics, **Sections**, Items, Nested Items and Multi-Item citations, each with a live preview (the Sections preview shows a Section followed by Items restarting at (1)). Changing formats changes display and Word export only, never the stored data.
-- **Custom Name** (decision D11): the text that starts every exported Word file name. Default `Judgment Diary`. Rules: trimmed; 1 to 60 characters; not empty after cleaning; no leading or trailing dots or spaces. Characters not allowed in file names ( \ / : * ? " < > | and control characters ) are replaced with a hyphen `-`, and repeated spaces are collapsed. A **live preview** shows the resulting file name for each export type, with a note of any replacement made (for example "':' was replaced with '-'").
+- **Custom Name** (decision D11): the text that starts every exported Word file name. Default `Case Law Diary`, following the program's display name (D17). Rules: trimmed; 1 to 60 characters; not empty after cleaning; no leading or trailing dots or spaces. Characters not allowed in file names ( \ / : * ? " < > | and control characters ) are replaced with a hyphen `-`, and repeated spaces are collapsed. A **live preview** shows the resulting file name for each export type, with a note of any replacement made (for example "':' was replaced with '-'").
 - **Date format** for file names and the export date line: `YYYY-MM-DD` (default, needs owner confirmation), `DD-MM-YYYY`, or `D Month YYYY`.
 - **Time zone** for "today's date" in file names: default Asia/Kolkata (default, needs owner confirmation). The server itself stores times in UTC.
 
@@ -447,13 +447,13 @@ Format, space-separated: `[Custom Name] [Part] [Date].docx`
 
 | Type | Part | Example |
 |---|---|---|
-| (i) Full | `Full` | `Judgment Diary Full 2026-11-01.docx` |
-| (ii) per Subject | the Subject's name; the combined document is `Other Subjects` | `Judgment Diary Arbitration 2026-11-01.docx`, `Judgment Diary Other Subjects 2026-11-01.docx` |
-| (ii) the zip | `Full - by Subject` | `Judgment Diary Full - by Subject 2026-11-01.zip` |
-| (iii) Current View | the on-screen path, names joined by `, ` | `Judgment Diary Arbitration, Fraud 2026-11-01.docx` |
+| (i) Full | `Full` | `Case Law Diary Full 2026-11-01.docx` |
+| (ii) per Subject | the Subject's name; the combined document is `Other Subjects` | `Case Law Diary Arbitration 2026-11-01.docx`, `Case Law Diary Other Subjects 2026-11-01.docx` |
+| (ii) the zip | `Full - by Subject` | `Case Law Diary Full - by Subject 2026-11-01.zip` |
+| (iii) Current View | the on-screen path, names joined by `, ` | `Case Law Diary Arbitration, Fraud 2026-11-01.docx` |
 
 Rules:
-- **Custom Name** comes from Settings (section 5.11): default `Judgment Diary`, 1 to 60 characters.
+- **Custom Name** comes from Settings (section 5.11): default `Case Law Diary` (the program's display name, D17), 1 to 60 characters.
 - **Cleaning.** Every name that goes into a file name (Custom Name, Subject, Topic, Sub-topic) has these characters replaced by a hyphen `-`: `\ / : * ? " < > |` and control characters. Repeated spaces are collapsed to one, and leading or trailing spaces and dots are removed. The Settings preview tells you which replacements were made.
 - **Date.** Today's date in the Settings date format, default `YYYY-MM-DD` (default, needs owner confirmation), in the Settings time zone (default Asia/Kolkata, default, needs owner confirmation).
 - **Length (default, needs owner confirmation).** If the whole name without the extension would exceed 120 characters, the path in a Current View name is shortened: each segment is cut to 30 characters (at a word boundary if there is one after the 15th character, otherwise at the 30th), and if the name is still too long the middle segments are dropped and replaced by a single `-`, keeping the first and the last segment (for example `Arbitration, -, Fraud`). The full on-screen path is always printed in the document's page header, so nothing is lost from the document itself.
@@ -499,7 +499,7 @@ If the combined app uses a different technology, the data rules in sections 2 to
 - **Home (Option A layout, Option D palette and type).** A centred narrow column: program name as the title, small-caps "Index of Subjects", a full-width search box that leads to Search, then Subjects as a two-column index (name at left, item count at right, hairline under each row; one column on phones). "Other Subjects" is the last entry, in italics, with its count of Other Subjects. A small meta line shows "N SUBJECTS · N ITEMS · N FOR REVIEW" instead of D's stat panels.
 - **Design tokens.** All colours, font stacks and sizes are CSS custom properties in `static/css/tokens.css`. The shared header lives in `templates/base_suite.html` (blocks `program_name`, `program_switch`, `program_nav`, `toolbar`, `crumb_nav`, `content`, `extra_js`); `templates/base_suite_home.html` is the slim suite-level variant used by the Home picker and the Users screens; `templates/base.html` fills it for the Judgment Diary. Another program in the suite extends `base_suite.html` with its own name and nav.
 - **Nav by role.** Subjects and Search for everyone; Backups for Admin only. Users is on the suite Home page, Admin only (D15). Review, Trash and Settings are omitted until those milestones exist.
-- **Home (program picker).** `/` lists only Judgment Diary today; `/programs/` redirects to it. The suite name is undecided; "Chambers" appears only in the mockups and is not used in the app.
+- **Home (program picker).** `/` lists only the case law diary today (shown under its display name, D17); `/programs/` redirects to it. The suite name is undecided; "Chambers" appears only in the mockups and is not used in the app.
 - **Font plan.** No web fonts are loaded (none could be downloaded). The CSS uses system serif and sans stacks. To self-host a font such as Source Serif 4, put the file in `static/fonts/` and add one `@font-face` block at the top of `static/css/tokens.css`, then name it first in `--font-serif`. Nothing else changes.
 - **Accessibility.** Text is at least 16 px (reading text 18 px), tap targets at least 44 px, one column on phones with no sideways scrolling, visible focus outlines, muted text kept at AA contrast.
 
@@ -558,6 +558,14 @@ Confirmed earlier: each Heading 1 is a Subject; Miscellaneous holds Other Subjec
   - (1) "Move 'Back' to the top row." A small "&larr; Back" button (44px tap target) sits at the left of the top row, before the program name, on every signed-in page including Home, Users and Backups. Default: the separate toolbar row is removed; Subjects and Search remain in the program nav, and the breadcrumb row appears only on Subject contents and the reading views.
   - (2) "Remove the buttons for view whole subject, view, this topic, and View this Sub-Topic, as they are redundant on account of the directory view." The three buttons are gone from the reading views and the Subject contents page. Defaults: the Subject name in the breadcrumb and at the top of the Contents panel opens the whole-Subject view; Topic and Sub-topic links in Contents open those scopes; the hint reads "Choose a Topic or Sub-topic from Contents, or click the Subject name to read the whole Subject."; the phone Contents button stays.
   - (3) "Remove the 'Home' Button. Let me click the program name to go to Home." The Home link is removed; the program name is a link to Home (title and label "Go to Home"), underlined and in oxblood on hover or focus. Alt+H and Ctrl+Alt+H still go to Home.
+- **D17. Renameable program and Home names (owner's second review of PR #5, items 4 and 5).** Owner's words: (4) "When on the home page, display 'Home' in place of a program name'. In Settings," (the message was cut off after "In Settings,"; the default is that nothing more is required than item 5) and (5) "In 'Home' also add a 'Settings page. In 'Settings, allow me to rename the individual sub-programs, as also the 'Home' page - for now, rename 'Judgment Diary' as 'Case Law Diary'". Defaults chosen:
+  - On Home, Users and Settings the name in the top row shows the Home page name (default `Home`); inside the case law diary it shows the program name (default `Case Law Diary`, renamed from `Judgment Diary`).
+  - **Settings** (URL name `settings`, `/settings/`) is a suite-level page linked next to Users on the Home top row. It is **Admin only**, because the names are shared by every user (the per-user Settings in section 5.11 are separate and come later). It lets the Admin rename the Home page and the case law diary.
+  - Rules: required; surrounding and repeated spaces are removed; at most 60 characters; the Home page and each program must have different names (compared ignoring capitals).
+  - Names are stored in a small table (`accounts.SuiteName`: `key`, `display_name`, created and updated times) with keys `home` and `diary`. A missing row means the built-in default, so nothing needs seeding. The table is part of every backup; an older backup file that lacks it still restores, and the names then return to the defaults.
+  - **Only display names change.** The internal identifiers stay as they are: the `diary` app and modules, URL names, the repository name and the backup file format marker.
+  - The names appear in the program header, the Home program list, and every page title.
+  - **Export Custom Name default.** The per-user default (section 5.11, Milestones 4 and 6) was `Judgment Diary` and is now `Case Law Diary`, following the program's display name. Existing settings that still hold the old default are updated; a Custom Name a person has typed is left alone. Renaming the program later does not change Custom Names already saved.
 
 **Open questions for the owner** (each has a default that is used unless you say otherwise)
 

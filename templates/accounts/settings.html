@@ -1,0 +1,12 @@
+{% extends "base_suite_home.html" %}
+{% block title %}Settings - {{ home_name }}{% endblock %}
+{% block content %}
+<h1>Settings</h1>
+<p>Rename the Home page and the programs. These names are shown to everyone who uses the suite. Only the displayed names change; nothing else is affected.</p>
+<form method="post" class="stack">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <button type="submit">Save</button>
+  <a href="{% url 'home' %}">Cancel</a>
+</form>
+{% endblock %}

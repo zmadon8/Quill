@@ -1,8 +1,8 @@
 {% extends "base_suite.html" %}
-{# Judgment Diary: fills the shared shell with this program's name and navigation. #}
+{# Case law diary program: fills the shared shell with this program's name and navigation. #}
 {# Nav: Subjects and Search for everyone; Backups for Admin only (Users lives on the suite Home page). Review, Trash and Settings arrive in later milestones. #}
-{% block program_title %}Judgment Diary{% endblock %}
-{% block program_name %}<a href="{% url 'home' %}" title="Go to Home (Alt+H)" aria-label="Go to Home">Judgment Diary</a>{% endblock %}
+{% block program_title %}{{ diary_name }}{% endblock %}
+{% block program_name %}<a href="{% url 'home' %}" title="Go to Home (Alt+H)" aria-label="Go to Home">{{ diary_name }}</a>{% endblock %}
 {% block program_nav %}{% with current=request.resolver_match.url_name %}
   <a href="{% url 'subjects' %}"{% if current == 'subjects' %} class="on" aria-current="page"{% endif %}>Subjects</a>
   <a href="{% url 'search' %}"{% if current == 'search' %} class="on" aria-current="page"{% endif %}>Search</a>

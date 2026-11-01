@@ -7,6 +7,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 
+from . import suite
 from .models import (
     ROLE_ADMIN,
     ROLE_CHOICES,
@@ -133,3 +134,31 @@ class UserEditForm(forms.ModelForm):
         if commit:
             user.save()
         return user
+
+
+class SuiteNamesForm(forms.Form):
+    """Rename the Home page and each program. Names are shared by every user."""
+
+    home_name = forms.CharField(label="Home page name", max_length=suite.MAX_NAME_LENGTH)
+    diary_name = forms.CharField(label="Case law diary name", max_length=suite.MAX_NAME_LENGTH)
+
+    FIELD_KEYS = {"home_name": suite.KEY_HOME, "diary_name": suite.KEY_DIARY}
+
+    def clean(self):
+        cleaned = super().clean()
+        seen = {}
+        for field, label in (("home_name", "Home page"), ("diary_name", "Case law diary")):
+            value = cleaned.get(field)
+            if not value:
+                continue
+            folded = " ".join(value.split()).casefold()
+            if folded in seen:
+                self.add_error(field, f"{label} cannot have the same name as {seen[folded]}.")
+            else:
+                seen[folded] = label
+        return cleaned
+
+    def save(self):
+        suite.set_names(
+            {key: " ".join(self.cleaned_data[field].split()) for field, key in self.FIELD_KEYS.items()}
+        )

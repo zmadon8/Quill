@@ -1,10 +1,10 @@
 {% extends "base_suite_home.html" %}
-{% block title %}Home - Judgment Diary{% endblock %}
+{% block title %}{{ home_name }}{% endblock %}
 {% block content %}
 <div class="launcher">
   <h1>Programs</h1>
   <div class="program">
-    <div><h2>Judgment Diary</h2><p>Case law, by Subject, Topic and Item.</p></div>
+    <div><h2>{{ diary_name }}</h2><p>Case law, by Subject, Topic and Item.</p></div>
     <a class="button primary" href="{% url 'subjects' %}">Open</a>
   </div>
 </div>

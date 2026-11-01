@@ -3,7 +3,8 @@ from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_http_methods
 
-from .forms import UserCreateForm, UserEditForm
+from . import suite
+from .forms import SuiteNamesForm, UserCreateForm, UserEditForm
 from .permissions import admin_required
 
 User = get_user_model()
@@ -61,3 +62,17 @@ def user_delete(request, pk):
         messages.success(request, f"User {name} deleted.")
         return redirect("user_list")
     return render(request, "accounts/user_confirm_delete.html", {"target": target, "problem": problem})
+
+
+@admin_required
+@require_http_methods(["GET", "POST"])
+def suite_settings(request):
+    """Rename the Home page and the programs (Admin only; the names are shared by all users)."""
+    names = suite.get_names()
+    initial = {"home_name": names[suite.KEY_HOME], "diary_name": names[suite.KEY_DIARY]}
+    form = SuiteNamesForm(request.POST or None, initial=initial)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Names saved.")
+        return redirect("settings")
+    return render(request, "accounts/settings.html", {"form": form})

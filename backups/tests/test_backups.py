@@ -13,6 +13,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
+from accounts.models import SuiteName
 from backups import registry, services
 from backups.management.commands import migrate_with_backup
 from backups.models import BackupFile, BackupLog
@@ -264,6 +265,23 @@ class RestoreServiceTests(BackupBase):
         )
         self.assertTrue(User.objects.get(username="boss").is_superuser)
 
+    def test_restore_old_backup_without_display_names_uses_defaults(self):
+        SuiteName.objects.create(key="diary", display_name="Renamed")
+        doc = services.parse_backup(services.create_backup("manual").data, MAX)
+        del doc["models"]["accounts.SuiteName"]
+        old = services.parse_backup(gzip.compress(json.dumps(doc).encode("utf-8")), MAX)
+        services.restore_backup(old, self.admin)
+        self.assertEqual(SuiteName.objects.count(), 0)
+        from accounts import suite
+
+        self.assertEqual(suite.get_names(), suite.DEFAULT_NAMES)
+
+    def test_file_missing_other_models_is_still_refused(self):
+        doc = services.parse_backup(services.create_backup("manual").data, MAX)
+        del doc["models"]["diary.Subject"]
+        with self.assertRaises(services.BackupError):
+            services.parse_backup(gzip.compress(json.dumps(doc).encode("utf-8")), MAX)
+
     def test_restore_refused_without_active_admin(self):
         doc = services.parse_backup(services.create_backup("manual").data, MAX)
         for record in doc["models"]["accounts.User"]:
@@ -305,6 +323,7 @@ class DiaryRoundTripTests(BackupBase):
         note = Note.objects.create(item=item, text="See also")
         NoteLink.objects.create(note=note, section=section)
         NoteLink.objects.create(note=note, subject=other)
+        SuiteName.objects.create(key="diary", display_name="Case Law Diary (custom)")
         UserSettings.objects.create(user=user, section_format="section_n", opening_subject=subject)
         VersionHistory.objects.create(
             record_type="item", record_id=item.pk, version=1, snapshot={"text": "x"}, change_kind="create"

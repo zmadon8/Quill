@@ -21,7 +21,7 @@ class DiaryTests(TestCase):
         user = get_user_model().objects.create_user("alice", password="x-long-pass-123")
         self.client.force_login(user)
         resp = self.client.get(reverse("home"))
-        self.assertContains(resp, "Judgment Diary")
+        self.assertContains(resp, "Case Law Diary")
         self.assertContains(resp, "alice")
 
     def test_healthz_without_login(self):
@@ -123,7 +123,7 @@ class HomeIndexTests(TestCase):
         self.client.force_login(self.reader)
         resp = self.client.get(reverse("home"))
         self.assertEqual(reverse("home"), "/")
-        self.assertContains(resp, "Judgment Diary")
+        self.assertContains(resp, "Case Law Diary")
         self.assertContains(resp, 'href="%s"' % reverse("subjects"))
         self.assertNotContains(resp, "Switch program")
 

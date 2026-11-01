@@ -1,4 +1,4 @@
-# Judgment Diary
+# Case Law Diary
 
 A private website for keeping your case law diary. This is **Milestone 0**: the foundation only. You can log in, manage users, and make, download and restore backups. The diary screens themselves (Subjects, Topics, Items, Notes, Word import) come in later milestones.
 
@@ -8,6 +8,7 @@ The longer plans are in `docs/PLAN.md` (what is built when), `docs/DESIGN.md` (h
 
 - A login page. After 5 wrong passwords for a username, that username is blocked for 15 minutes.
 - Three roles: **Admin** (everything, including users and backups), **Editor** (reads and edits the diary) and **Reader** (reads only). New accounts are Readers. Your role is shown next to the Log out link. See `docs/DESIGN.md` section 9.6 for what each role may do (the diary screens come in later milestones).
+- A Settings screen (Admin only, linked from the Home page next to Users): rename the Home page and the case law diary (shown as "Case Law Diary" by default). Only the displayed names change; the app, address names and code keep their internal names, and the names are saved in backups.
 - A Users screen (Admin only, linked from the Home page): add a person, change a password, disable or delete a person, and choose or change their role. The app will not let you delete or disable yourself, or remove the last Admin.
 - A Backups screen (Admin only): "Backup now", a list of saved backups with Download and Restore, and a history of what happened.
 - A nightly backup, made by a scheduled job, kept for at least 30 days.

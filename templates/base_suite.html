@@ -5,7 +5,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}{% block program_title %}Judgment Diary{% endblock %}{% endblock %}</title>
+  <title>{% block title %}{% block program_title %}{{ diary_name }}{% endblock %}{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
   <link rel="stylesheet" href="{% static 'css/site.css' %}">
 </head>
@@ -15,7 +15,7 @@
     <header class="site-header">
       <div class="brand-row">
         {% if user.is_authenticated %}<button type="button" class="back-button" data-back data-fallback="{% url 'subjects' %}" title="Back" aria-label="Back">&larr; Back</button>{% endif %}
-        <span class="brand">{% block program_name %}<a href="{% url 'home' %}" title="Go to Home (Alt+H)" aria-label="Go to Home">Judgment Diary</a>{% endblock %}</span>
+        <span class="brand">{% block program_name %}<a href="{% url 'home' %}" title="Go to Home (Alt+H)" aria-label="Go to Home">{{ diary_name }}</a>{% endblock %}</span>
       </div>
       {% if user.is_authenticated %}
       <nav class="program-nav" aria-label="Main">

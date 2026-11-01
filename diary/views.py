@@ -69,7 +69,7 @@ def subjects(request):
 
 @reader_required
 def home(request):
-    """Suite Home: the program picker (only Judgment Diary today)."""
+    """Suite Home: the program picker (only the case law diary today)."""
     return render(request, "diary/home.html")
 
 

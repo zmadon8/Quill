@@ -65,6 +65,22 @@ class User(AbstractUser):
         return dict(ROLE_CHOICES).get(self.role, self.role)
 
 
+class SuiteName(models.Model):
+    """A display name shared by every user: the Home page or one program in the suite.
+
+    Only the name people see is stored. Internal identifiers (the ``diary`` app, URL names)
+    never change. A missing row means the built-in default from ``accounts.suite`` is used.
+    """
+
+    key = models.CharField(max_length=30, unique=True)
+    display_name = models.CharField(max_length=60)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.key}: {self.display_name}"
+
+
 class FailedLogin(models.Model):
     """One failed login attempt, used to rate limit logins per username."""
 

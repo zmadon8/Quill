@@ -13,7 +13,8 @@ from django.urls import reverse
 from django.utils import timezone
 
 from accounts.forms import THROTTLE_MESSAGE
-from accounts.models import FailedLogin
+from accounts import suite
+from accounts.models import FailedLogin, SuiteName
 from accounts.permissions import admin_required, editor_required, reader_required
 
 User = get_user_model()
@@ -127,6 +128,75 @@ class AccessTests(BaseCase):
             self.assertEqual(self.client.get(url).status_code, 403, url)
         self.assertEqual(self.client.post(urls[3]).status_code, 403)
         self.assertTrue(User.objects.filter(pk=self.admin.pk).exists())
+
+
+class SuiteSettingsTests(BaseCase):
+    def post(self, home="Home", diary="Case Law Diary"):
+        return self.client.post(reverse("settings"), {"home_name": home, "diary_name": diary})
+
+    def test_defaults_without_rows(self):
+        self.assertEqual(SuiteName.objects.count(), 0)
+        self.assertEqual(suite.get_names(), {"home": "Home", "diary": "Case Law Diary"})
+        self.client.force_login(self.admin)
+        resp = self.client.get(reverse("home"))
+        self.assertContains(resp, ">Home</a>")
+        self.assertContains(resp, "<title>Home</title>")
+        self.assertContains(resp, "Case Law Diary")
+        self.assertNotContains(resp, "Judgment Diary")
+
+    def test_program_header_uses_program_name(self):
+        self.client.force_login(self.admin)
+        resp = self.client.get(reverse("subjects"))
+        self.assertContains(resp, 'aria-label="Go to Home">Case Law Diary</a>')
+
+    def test_admin_only(self):
+        editor = self.make_user("ed", role="editor")
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.get(reverse("settings")).status_code, 403)
+        self.assertEqual(self.post(diary="Hacked").status_code, 403)
+        self.client.force_login(editor)
+        self.assertEqual(self.client.get(reverse("settings")).status_code, 403)
+        self.assertEqual(SuiteName.objects.count(), 0)
+        self.client.logout()
+        self.assertEqual(self.client.get(reverse("settings")).status_code, 302)
+
+    def test_settings_link_only_for_admin(self):
+        self.client.force_login(self.admin)
+        self.assertContains(self.client.get(reverse("home")), 'href="%s"' % reverse("settings"))
+        self.client.force_login(self.user)
+        self.assertNotContains(self.client.get(reverse("home")), 'href="%s"' % reverse("settings"))
+
+    def test_rename_shows_everywhere(self):
+        self.client.force_login(self.admin)
+        resp = self.post(home="  Start   Page ", diary="Judgments")
+        self.assertRedirects(resp, reverse("settings"))
+        self.assertEqual(suite.get_names(), {"home": "Start Page", "diary": "Judgments"})
+        home = self.client.get(reverse("home"))
+        self.assertContains(home, ">Start Page</a>")
+        self.assertContains(home, "<h2>Judgments</h2>", html=True)
+        self.assertContains(self.client.get(reverse("subjects")), 'aria-label="Go to Home">Judgments</a>')
+        self.client.force_login(self.user)
+        self.assertContains(self.client.get(reverse("home")), ">Start Page</a>")
+
+    def test_form_shows_current_names(self):
+        suite.set_names({"diary": "Judgments"})
+        self.client.force_login(self.admin)
+        self.assertContains(self.client.get(reverse("settings")), 'value="Judgments"')
+
+    def test_validation(self):
+        self.client.force_login(self.admin)
+        for home, diary in (("", "X"), ("   ", "X"), ("H", ""), ("x" * 61, "X"), ("Same", " same "), ("Home", "HOME")):
+            resp = self.post(home=home, diary=diary)
+            self.assertEqual(resp.status_code, 200, (home, diary))
+            self.assertTrue(resp.context["form"].errors, (home, diary))
+        self.assertEqual(SuiteName.objects.count(), 0)
+
+    def test_saving_twice_updates_rows(self):
+        self.client.force_login(self.admin)
+        self.post(diary="One")
+        self.post(diary="Two")
+        self.assertEqual(SuiteName.objects.filter(key="diary").count(), 1)
+        self.assertEqual(suite.get_names()["diary"], "Two")
 
 
 class UserAdminTests(BaseCase):

@@ -226,7 +226,11 @@ def parse_backup(raw, max_bytes):
     unknown = [label for label in models_in_file if label not in known]
     if unknown:
         raise BackupError("This backup contains data this version does not know: " + ", ".join(unknown))
-    missing = [label for label in registry.BACKUP_MODELS if label not in models_in_file]
+    missing = [
+        label
+        for label in registry.BACKUP_MODELS
+        if label not in models_in_file and label not in registry.OPTIONAL_MODELS
+    ]
     if missing:
         raise BackupError("This backup file is missing data: " + ", ".join(missing))
     for label, records in models_in_file.items():

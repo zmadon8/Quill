@@ -18,6 +18,7 @@ from django.apps import apps
 
 BACKUP_MODELS = [
     "accounts.User",
+    "accounts.SuiteName",
     "diary.Subject",
     "diary.Topic",
     "diary.Subtopic",
@@ -29,6 +30,10 @@ BACKUP_MODELS = [
     "diary.UserSettings",
     "diary.VersionHistory",
 ]
+
+#: Models an older backup file may lack. Restoring such a file empties the table, so the built-in
+#: defaults apply (a backup made before the Settings page existed has no display names).
+OPTIONAL_MODELS = {"accounts.SuiteName"}
 
 
 def get_models(app_registry=None):
