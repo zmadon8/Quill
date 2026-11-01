@@ -13,9 +13,21 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from backups import services
+from backups import registry, services
 from backups.management.commands import migrate_with_backup
 from backups.models import BackupFile, BackupLog
+from diary.models import (
+    Case,
+    Item,
+    Note,
+    NoteLink,
+    Section,
+    Subject,
+    Subtopic,
+    Topic,
+    UserSettings,
+    VersionHistory,
+)
 
 User = get_user_model()
 PASSWORD = "correct-horse-battery-9"
@@ -62,7 +74,9 @@ class CreateBackupTests(BackupBase):
         doc = gunzip_json(backup.data)
         self.assertEqual(doc["format"], "judgment-diary-backup")
         self.assertEqual(doc["format_version"], 1)
-        self.assertEqual(doc["counts"], {"accounts.User": 3})
+        expected = {label: 0 for label in registry.BACKUP_MODELS}
+        expected["accounts.User"] = 3
+        self.assertEqual(doc["counts"], expected)
         names = {r["fields"]["username"] for r in doc["models"]["accounts.User"]}
         self.assertEqual(names, {"boss", "alice", "bob"})
         self.assertTrue(backup.filename.startswith("judgment-diary-backup-"))
@@ -78,7 +92,8 @@ class CreateBackupTests(BackupBase):
         services.create_backup("daily")
         second = services.create_backup("daily")
         doc = gunzip_json(second.data)
-        self.assertEqual(list(doc["models"]), ["accounts.User"])
+        self.assertEqual(list(doc["models"]), registry.BACKUP_MODELS)
+        self.assertNotIn("backups.BackupFile", doc["models"])
 
     def test_failure_writes_failed_log_and_reraises(self):
         with mock.patch("backups.services.serializers.serialize", side_effect=RuntimeError("boom")):
@@ -186,7 +201,7 @@ class RestoreServiceTests(BackupBase):
         doc = services.parse_backup(raw, MAX)
         User.objects.create_user("carol", password=PASSWORD)
         User.objects.filter(pk=self.bob.pk).delete()
-        (row,) = services.preview_restore(doc)
+        row = {r["label"]: r for r in services.preview_restore(doc)}["accounts.User"]
         self.assertEqual(row["label"], "accounts.User")
         self.assertEqual(row["in_file"], 3)
         self.assertEqual(row["in_database_now"], 3)
@@ -269,6 +284,72 @@ class RestoreServiceTests(BackupBase):
                 services.restore_backup(doc, self.admin)
         self.assertEqual(self.usernames(), before)
         self.assertTrue(BackupLog.objects.filter(kind="restore", success=False).exists())
+
+
+class DiaryRoundTripTests(BackupBase):
+    """Every diary model is in the registry and survives backup and restore."""
+
+    def build(self):
+        user = self.alice
+        subject = Subject.objects.create(name="Contract", created_by=user)
+        topic = Topic.objects.create(subject=subject, name="Formation", position=1)
+        subtopic = Subtopic.objects.create(topic=topic, name="Offer", position=1)
+        other = Subject.objects.create(name="Companies Act", position=2)
+        Subtopic.objects.create(subject=other, name="Directors")
+        section = Section.objects.create(subtopic=subtopic, name="Ex Parte", needs_review=True, review_note="check")
+        item = Item.objects.create(subtopic=subtopic, text="<p>Rule <b>one</b></p>", citation="A v B", position=1)
+        nested = Item.objects.create(subject=other, kind="nested", text="Parent", citation="C v D")
+        Item.objects.create(parent_item=nested, text="Child")
+        multi = Item.objects.create(topic=topic, kind="multi", text="Multi")
+        Case.objects.create(item=multi, citation="E v F", comment="<i>c</i>", position=1)
+        note = Note.objects.create(item=item, text="See also")
+        NoteLink.objects.create(note=note, section=section)
+        NoteLink.objects.create(note=note, subject=other)
+        UserSettings.objects.create(user=user, section_format="section_n", opening_subject=subject)
+        VersionHistory.objects.create(
+            record_type="item", record_id=item.pk, version=1, snapshot={"text": "x"}, change_kind="create"
+        )
+
+    def snapshot(self):
+        out = {}
+        for model in registry.get_models():
+            rows = [
+                {f.attname: getattr(obj, f.attname) for f in model._meta.concrete_fields}
+                for obj in model._default_manager.order_by("pk")
+            ]
+            out[model._meta.label] = rows
+        return out
+
+    def test_registry_lists_every_diary_model(self):
+        from django.apps import apps
+
+        listed = set(registry.BACKUP_MODELS)
+        for model in apps.get_app_config("diary").get_models():
+            self.assertIn(model._meta.label, listed)
+
+    def test_registry_parents_come_first(self):
+        order = [m for m in registry.get_models()]
+        for position, model in enumerate(order):
+            for field in model._meta.concrete_fields:
+                target = field.related_model
+                if target is not None and target is not model:
+                    self.assertIn(target, order[:position], (model, field.name))
+
+    def test_round_trip_restores_everything(self):
+        self.build()
+        before = self.snapshot()
+        self.assertTrue(all(before[label] for label in registry.BACKUP_MODELS))
+        doc = services.parse_backup(services.create_backup("manual").data, MAX)
+        self.assertEqual(doc["counts"]["diary.NoteLink"], 2)
+
+        Subject.objects.create(name="Extra")
+        Item.objects.filter(text_plain="Parent").update(citation="changed")
+        NoteLink.objects.all().delete()
+        Subject.objects.filter(name="Contract").delete()
+        self.assertNotEqual(self.snapshot(), before)
+
+        services.restore_backup(doc, self.admin)
+        self.assertEqual(self.snapshot(), before)
 
 
 class ViewTests(BackupBase):

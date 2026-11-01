@@ -1,8 +1,8 @@
 """Which models are included in backup files.
 
 BACKUP_MODELS is ordered parents first (a model must come after every model it
-points to). Later milestones append the diary models here (Subjects, Topics,
-Items, Notes, and so on), keeping parents before children. Restore deletes in
+points to). The diary models come after accounts.User (they point to it) and
+keep parents before children; any new model must be appended here. Restore deletes in
 reverse order and loads in this order.
 
 Deliberately NOT in a backup file:
@@ -18,6 +18,16 @@ from django.apps import apps
 
 BACKUP_MODELS = [
     "accounts.User",
+    "diary.Subject",
+    "diary.Topic",
+    "diary.Subtopic",
+    "diary.Section",
+    "diary.Item",
+    "diary.Case",
+    "diary.Note",
+    "diary.NoteLink",
+    "diary.UserSettings",
+    "diary.VersionHistory",
 ]
 
 
