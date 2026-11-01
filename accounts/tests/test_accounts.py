@@ -326,7 +326,11 @@ class RoleTests(BaseCase):
 
     def test_role_shown_in_header_and_user_list(self):
         self.client.force_login(self.user)
-        self.assertContains(self.client.get(reverse("home")), "alice, Reader")
+        self.assertContains(
+            self.client.get(reverse("home")),
+            '<span class="who">alice &middot; Reader</span>',
+            html=True,
+        )
         self.client.force_login(self.admin)
         self.assertContains(self.client.get(reverse("user_list")), "Reader")
 
