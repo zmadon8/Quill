@@ -7,65 +7,36 @@ from django.db.models import Q
 from django.db.models.functions import Lower
 from django.utils import timezone
 
-ROLE_ADMIN = "admin"
 ROLE_EDITOR = "editor"
 ROLE_READER = "reader"
+#: A role belongs to a user's membership of one profile (not to the user). Admin is a separate,
+#: suite-wide flag on the user (``is_superuser``).
 ROLE_CHOICES = [
-    (ROLE_ADMIN, "Admin"),
     (ROLE_EDITOR, "Editor"),
     (ROLE_READER, "Reader"),
 ]
 ROLE_VALUES = [value for value, _label in ROLE_CHOICES]
 
 
-def normalise_role(role, is_superuser):
-    """Return a consistent ``(role, is_superuser)`` pair.
-
-    The Admin role and Django's ``is_superuser`` flag always go together. If
-    either says Admin, the result is Admin. An unknown or missing role becomes
-    Reader (the safe default).
-    """
-    if is_superuser or role == ROLE_ADMIN:
-        return ROLE_ADMIN, True
-    if role not in ROLE_VALUES:
-        return ROLE_READER, False
-    return role, False
-
-
 class User(AbstractUser):
-    """Application user with one of three roles: Admin, Editor or Reader.
+    """Application user. Admin is a suite-wide flag; Editor or Reader is set per profile.
 
-    Admin is tied to Django's ``is_superuser`` flag, and ``save()`` keeps the two
-    in step (``is_staff`` follows too). To change someone's role, call
-    ``set_role()``; it moves both. New accounts are Readers unless told otherwise.
+    Admin is tied to Django's ``is_superuser`` flag, and ``save()`` keeps ``is_staff`` in step.
+    Admins manage users, profiles, settings and backups. What anyone may do inside a program
+    (change data or only read it) comes from the role on their ``ProfileMembership`` for that
+    program, Admins included. New accounts are not Admins.
     """
-
-    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default=ROLE_READER)
-
-    def set_role(self, role):
-        self.role, self.is_superuser = normalise_role(role, False)
-        self.is_staff = self.is_superuser
 
     def save(self, *args, **kwargs):
-        self.role, self.is_superuser = normalise_role(self.role, self.is_superuser)
         self.is_staff = self.is_superuser
         update_fields = kwargs.get("update_fields")
         if update_fields is not None:
-            kwargs["update_fields"] = set(update_fields) | {"role", "is_superuser", "is_staff"}
+            kwargs["update_fields"] = set(update_fields) | {"is_staff"}
         super().save(*args, **kwargs)
 
     @property
     def is_admin(self):
         return self.is_superuser
-
-    @property
-    def is_editor(self):
-        """True for Editors and Admins (anyone who may change diary data)."""
-        return self.is_superuser or self.role == ROLE_EDITOR
-
-    @property
-    def role_label(self):
-        return dict(ROLE_CHOICES).get(self.role, self.role)
 
 
 class SuiteName(models.Model):
@@ -119,7 +90,7 @@ class Profile(models.Model):
 
 
 class ProfileMembership(models.Model):
-    """Gives one user access to one profile. A user has at most one profile per program.
+    """Gives one user access to one profile, as Editor or Reader (``role``). One profile per program.
 
     ``program`` is copied from the profile on save so the database can enforce the rule
     "one profile per user per program". Several users may share a profile.
@@ -128,6 +99,7 @@ class ProfileMembership(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="profile_memberships")
     profile = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name="memberships")
     program = models.CharField(max_length=30)
+    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default=ROLE_READER)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

@@ -43,8 +43,8 @@ class HomeIndexTests(TestCase):
     def setUpTestData(cls):
         from django.utils import timezone
 
-        cls.reader = join_main(User.objects.create_user("rita", password=PASSWORD, role="reader"))
-        cls.admin = join_main(User.objects.create_user("adam", password=PASSWORD, role="admin"))
+        cls.reader = join_main(User.objects.create_user("rita", password=PASSWORD))
+        cls.admin = join_main(User.objects.create_user("adam", password=PASSWORD, is_superuser=True), "editor")
         cls.arb = Subject.objects.create(profile=main_profile(), name="Arbitration", landing_position=1)
         cls.con = Subject.objects.create(profile=main_profile(), name="Contracts", landing_position=2)
         cls.empty = Subject.objects.create(profile=main_profile(), name="Empty Subject", landing_position=3)
@@ -189,7 +189,10 @@ class ReadingScreenTests(TestCase):
     def setUpTestData(cls):
         load_sample_data(main_profile())
         cls.users = {
-            role: join_main(User.objects.create_user(role, password=PASSWORD, role=role))
+            role: join_main(
+                User.objects.create_user(role, password=PASSWORD, is_superuser=(role == "admin")),
+                "reader" if role == "reader" else "editor",
+            )
             for role in ("reader", "editor", "admin")
         }
         cls.contract = Subject.objects.get(name=SAMPLE_PREFIX + "Contract Law")
@@ -450,13 +453,13 @@ class ProfileScopingTests(TestCase):
     def setUpTestData(cls):
         cls.a = main_profile()
         cls.b = Profile.objects.create(program="diary", name="Junior")
-        cls.user_a = join_main(User.objects.create_user("ann", password=PASSWORD, role="editor"))
-        cls.admin_a = join_main(User.objects.create_user("adm", password=PASSWORD, role="admin"))
-        cls.user_b = User.objects.create_user("bea", password=PASSWORD, role="reader")
+        cls.user_a = join_main(User.objects.create_user("ann", password=PASSWORD), "editor")
+        cls.admin_a = join_main(User.objects.create_user("adm", password=PASSWORD, is_superuser=True), "editor")
+        cls.user_b = User.objects.create_user("bea", password=PASSWORD)
         from accounts.profiles import set_user_profile
 
         set_user_profile(cls.user_b, cls.b)
-        cls.loner = User.objects.create_user("lou", password=PASSWORD, role="reader")
+        cls.loner = User.objects.create_user("lou", password=PASSWORD)
         cls.sub_a = Subject.objects.create(profile=cls.a, name="Alpha Subject", landing_position=1)
         cls.top_a = Topic.objects.create(profile=cls.a, subject=cls.sub_a, name="Alpha Topic")
         cls.st_a = Subtopic.objects.create(profile=cls.a, topic=cls.top_a, name="Alpha Subtopic")
@@ -529,15 +532,26 @@ class ProfileScopingTests(TestCase):
         resp = self.client.get(reverse("read_subject", args=[self.sub_a.pk]))
         self.assertEqual(resp.status_code, 403)
 
-    def test_home_disables_program_without_profile(self):
+    def test_home_hides_program_without_profile(self):
         self.client.force_login(self.loner)
         resp = self.client.get(reverse("home"))
-        self.assertContains(resp, "No profile assigned - ask the Admin")
+        self.assertContains(resp, "No programs are available to you yet.")
+        self.assertNotContains(resp, "No profile assigned")
         self.assertNotContains(resp, 'href="%s"' % reverse("subjects"))
+        self.assertNotContains(resp, "Case Law Diary")
         self.client.force_login(self.user_a)
         resp = self.client.get(reverse("home"))
-        self.assertNotContains(resp, "No profile assigned")
+        self.assertNotContains(resp, "No programs are available")
         self.assertContains(resp, 'href="%s"' % reverse("subjects"))
+
+    def test_home_hides_program_for_admin_without_profile(self):
+        admin = User.objects.create_user("rootless", password=PASSWORD, is_superuser=True)
+        self.client.force_login(admin)
+        resp = self.client.get(reverse("home"))
+        self.assertContains(resp, "No programs are available to you yet.")
+        self.assertNotContains(resp, 'href="%s"' % reverse("subjects"))
+        self.assertContains(resp, 'href="%s"' % reverse("user_list"))
+        self.assertEqual(self.client.get(reverse("subjects")).status_code, 403)
 
     def test_deleted_profile_means_no_access(self):
         from django.utils import timezone

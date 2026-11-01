@@ -10,14 +10,13 @@ from django.utils import timezone
 
 from . import suite
 from .models import (
-    ROLE_ADMIN,
     ROLE_CHOICES,
     ROLE_READER,
     FailedLogin,
     Profile,
     prune_failed_logins,
 )
-from .profiles import get_profile_for, set_user_profile
+from .profiles import get_membership_for, set_user_profile
 
 User = get_user_model()
 
@@ -68,7 +67,28 @@ def _profile_field():
         required=False,
         empty_label="(no profile)",
         label="Case law diary profile",
-        help_text="A user has at most one profile per program. Choosing another replaces the current one.",
+        help_text=(
+            "A user has at most one profile per program. Choosing another replaces the current one. "
+            "With no profile the user does not see the program at all."
+        ),
+    )
+
+
+def _profile_role_field():
+    return forms.ChoiceField(
+        choices=ROLE_CHOICES,
+        initial=ROLE_READER,
+        required=False,
+        label="Role in that profile",
+        help_text="Reader: view only. Editor: view and edit. Ignored when there is no profile.",
+    )
+
+
+def _admin_field():
+    return forms.BooleanField(
+        required=False,
+        label="Admin",
+        help_text="Admins manage users, profiles, settings and backups. Their role inside a profile is set above.",
     )
 
 
@@ -76,14 +96,18 @@ def _live_diary_profiles():
     return Profile.objects.filter(program=suite.KEY_DIARY, deleted_at__isnull=True).order_by("name")
 
 
+def _clean_profile_role(form):
+    """Reader unless a valid role was chosen; the role only matters together with a profile."""
+    role = form.cleaned_data.get("profile_role") or ROLE_READER
+    if role not in dict(ROLE_CHOICES):
+        role = ROLE_READER
+    return role
+
+
 class UserCreateForm(UserCreationForm):
-    role = forms.ChoiceField(
-        choices=ROLE_CHOICES,
-        initial=ROLE_READER,
-        label="Role",
-        help_text="Reader: view only. Editor: view and edit. Admin: everything, including users and backups.",
-    )
+    is_admin = _admin_field()
     profile = _profile_field()
+    profile_role = _profile_role_field()
 
     class Meta:
         model = User
@@ -93,22 +117,20 @@ class UserCreateForm(UserCreationForm):
         super().__init__(*args, **kwargs)
         self.fields["profile"].queryset = _live_diary_profiles()
 
+    def clean_profile_role(self):
+        return _clean_profile_role(self)
+
     def save(self, commit=True):
         user = super().save(commit=False)
-        user.set_role(self.cleaned_data["role"])
+        user.is_superuser = bool(self.cleaned_data.get("is_admin"))
         if commit:
             with transaction.atomic():
                 user.save()
-                set_user_profile(user, self.cleaned_data.get("profile"))
+                set_user_profile(user, self.cleaned_data.get("profile"), self.cleaned_data["profile_role"])
         return user
 
 
 class UserEditForm(forms.ModelForm):
-    role = forms.ChoiceField(
-        choices=ROLE_CHOICES,
-        label="Role",
-        help_text="Reader: view only. Editor: view and edit. Admin: everything, including users and backups.",
-    )
     new_password = forms.CharField(
         required=False,
         strip=False,
@@ -116,7 +138,9 @@ class UserEditForm(forms.ModelForm):
         label="New password (leave blank to keep the current one)",
     )
 
+    is_admin = _admin_field()
     profile = _profile_field()
+    profile_role = _profile_role_field()
 
     class Meta:
         model = User
@@ -125,9 +149,15 @@ class UserEditForm(forms.ModelForm):
     def __init__(self, *args, editing_user=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.editing_user = editing_user
-        self.fields["role"].initial = self.instance.role
+        self.fields["is_admin"].initial = self.instance.is_superuser
         self.fields["profile"].queryset = _live_diary_profiles()
-        self.fields["profile"].initial = get_profile_for(self.instance)
+        membership = get_membership_for(self.instance)
+        if membership:
+            self.fields["profile"].initial = membership.profile
+            self.fields["profile_role"].initial = membership.role
+
+    def clean_profile_role(self):
+        return _clean_profile_role(self)
 
     def clean_new_password(self):
         password = self.cleaned_data.get("new_password")
@@ -140,7 +170,7 @@ class UserEditForm(forms.ModelForm):
         if "is_active" not in cleaned:
             return cleaned
         is_active = cleaned["is_active"]
-        is_admin = cleaned.get("role") == ROLE_ADMIN
+        is_admin = bool(cleaned.get("is_admin"))
         target = self.instance
         if self.editing_user is not None and target.pk == self.editing_user.pk and not is_active:
             raise ValidationError("You cannot disable your own account.")
@@ -150,19 +180,19 @@ class UserEditForm(forms.ModelForm):
             others = User.objects.filter(is_superuser=True, is_active=True).exclude(pk=target.pk)
             if not others.exists():
                 raise ValidationError(
-                    "This is the last active Admin. It cannot be disabled or lose the Admin role."
+                    "This is the last active Admin. It cannot be disabled or lose the Admin flag."
                 )
         return cleaned
 
     def save(self, commit=True):
         user = super().save(commit=False)
-        user.set_role(self.cleaned_data["role"])
+        user.is_superuser = bool(self.cleaned_data.get("is_admin"))
         if self.cleaned_data.get("new_password"):
             user.set_password(self.cleaned_data["new_password"])
         if commit:
             with transaction.atomic():
                 user.save()
-                set_user_profile(user, self.cleaned_data.get("profile"))
+                set_user_profile(user, self.cleaned_data.get("profile"), self.cleaned_data["profile_role"])
         return user
 
 

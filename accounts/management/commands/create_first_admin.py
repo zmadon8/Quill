@@ -7,7 +7,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.core.management.base import BaseCommand, CommandError
 
-from accounts.models import ProfileMembership
+from accounts.models import ROLE_EDITOR, ProfileMembership
 from accounts.profiles import ensure_default_profile
 
 
@@ -35,7 +35,7 @@ class Command(BaseCommand):
             else:
                 raise CommandError("DJANGO_SUPERUSER_PASSWORD must be set.")
 
-        user = User(username=username, role="admin", is_staff=True, is_superuser=True)
+        user = User(username=username, is_staff=True, is_superuser=True)
         try:
             user.full_clean(exclude=["password"])
             validate_password(password, user)
@@ -44,5 +44,5 @@ class Command(BaseCommand):
         user.set_password(password)
         user.save()
         profile = ensure_default_profile()
-        ProfileMembership.objects.create(user=user, profile=profile)
+        ProfileMembership.objects.create(user=user, profile=profile, role=ROLE_EDITOR)
         self.stdout.write(self.style.SUCCESS(f"Admin {username} created (profile: {profile.name})."))

@@ -16,12 +16,16 @@ User = get_user_model()
 @admin_required
 def user_list(request):
     users = list(User.objects.order_by("username"))
-    names = dict(
-        ProfileMembership.objects.filter(program=suite.KEY_DIARY, profile__deleted_at__isnull=True)
-        .values_list("user_id", "profile__name")
-    )
+    memberships = {
+        m.user_id: m
+        for m in ProfileMembership.objects.filter(
+            program=suite.KEY_DIARY, profile__deleted_at__isnull=True
+        ).select_related("profile")
+    }
     for u in users:
-        u.diary_profile_name = names.get(u.pk, "")
+        m = memberships.get(u.pk)
+        u.diary_profile_name = m.profile.name if m else ""
+        u.diary_role_label = m.get_role_display() if m else ""
     return render(request, "accounts/user_list.html", {"users": users})
 
 

@@ -7,7 +7,7 @@ def main_profile():
     return Profile.objects.get(program="diary", name="Main", deleted_at__isnull=True)
 
 
-def join_main(user):
-    """Give ``user`` access to the "Main" profile (test users created after the migration have none)."""
-    set_user_profile(user, main_profile())
+def join_main(user, role="reader"):
+    """Give ``user`` access to the "Main" profile as ``role`` (test users created after the migration have none)."""
+    set_user_profile(user, main_profile(), role)
     return user

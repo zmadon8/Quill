@@ -7,9 +7,10 @@ from django.contrib.auth.models import AnonymousUser
 from django.core.exceptions import PermissionDenied
 from django.core.management import call_command
 from django.core.management.base import CommandError
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, connection, transaction
+from django.db.migrations.executor import MigrationExecutor
 from django.http import HttpResponse
-from django.test import RequestFactory, TestCase, override_settings
+from django.test import RequestFactory, TestCase, TransactionTestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -17,7 +18,13 @@ from accounts.forms import THROTTLE_MESSAGE
 from accounts import suite
 from accounts.models import FailedLogin, Profile, ProfileMembership, SuiteName
 from accounts.profiles import assign_unassigned_users, ensure_default_profile, get_profile_for
-from accounts.permissions import admin_required, editor_required, reader_required
+from accounts.permissions import (
+    admin_required,
+    program_editor_required,
+    program_reader_required,
+    program_role,
+    reader_required,
+)
 
 User = get_user_model()
 PASSWORD = "correct-horse-battery-9"
@@ -26,20 +33,22 @@ PASSWORD = "correct-horse-battery-9"
 @override_settings(SECURE_SSL_REDIRECT=False)
 class BaseCase(TestCase):
     def make_user(self, username, admin=False, active=True, role=None):
-        if role is None:
-            role = "admin" if admin else "reader"
-        return User.objects.create_user(
+        """A user; with ``role`` ("editor" or "reader") they also join Main with that role."""
+        user = User.objects.create_user(
             username=username,
             password=PASSWORD,
-            role=role,
+            is_superuser=admin,
             is_active=active,
         )
+        if role is not None:
+            ProfileMembership.objects.create(user=user, profile=ensure_default_profile(), role=role)
+        return user
 
     def setUp(self):
         self.admin = self.make_user("boss", admin=True)
         self.user = self.make_user("alice")
-        for member in (self.admin, self.user):
-            ProfileMembership.objects.create(user=member, profile=ensure_default_profile())
+        for member, role in ((self.admin, "editor"), (self.user, "reader")):
+            ProfileMembership.objects.create(user=member, profile=ensure_default_profile(), role=role)
 
 
 class LoginTests(BaseCase):
@@ -215,7 +224,7 @@ class UserAdminTests(BaseCase):
     def test_create(self):
         resp = self.client.post(
             reverse("user_create"),
-            {"username": "bob", "password1": PASSWORD, "password2": PASSWORD, "role": "admin"},
+            {"username": "bob", "password1": PASSWORD, "password2": PASSWORD, "is_admin": "on"},
         )
         self.assertRedirects(resp, reverse("user_list"))
         bob = User.objects.get(username="bob")
@@ -233,7 +242,7 @@ class UserAdminTests(BaseCase):
     def test_edit_disable_and_password(self):
         resp = self.client.post(
             reverse("user_edit", args=[self.user.pk]),
-            {"username": "alice2", "role": "reader", "new_password": "another-good-pass-77"},
+            {"username": "alice2", "new_password": "another-good-pass-77"},
         )
         self.assertRedirects(resp, reverse("user_list"))
         self.user.refresh_from_db()
@@ -244,7 +253,7 @@ class UserAdminTests(BaseCase):
     def test_edit_promote_to_admin(self):
         self.client.post(
             reverse("user_edit", args=[self.user.pk]),
-            {"username": "alice", "is_active": "on", "role": "admin"},
+            {"username": "alice", "is_active": "on", "is_admin": "on"},
         )
         self.user.refresh_from_db()
         self.assertTrue(self.user.is_superuser)
@@ -266,7 +275,7 @@ class UserAdminTests(BaseCase):
         self.make_user("second", admin=True)
         resp = self.client.post(
             reverse("user_edit", args=[self.admin.pk]),
-            {"username": "boss", "role": "admin"},
+            {"username": "boss", "is_admin": "on"},
         )
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "cannot disable your own account")
@@ -276,7 +285,7 @@ class UserAdminTests(BaseCase):
     def test_cannot_remove_last_admin_rights(self):
         resp = self.client.post(
             reverse("user_edit", args=[self.admin.pk]),
-            {"username": "boss", "is_active": "on", "role": "editor"},
+            {"username": "boss", "is_active": "on"},
         )
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "last active Admin")
@@ -300,7 +309,7 @@ class UserAdminTests(BaseCase):
         second = self.make_user("second", admin=True)
         resp = self.client.post(
             reverse("user_edit", args=[second.pk]),
-            {"username": "second", "is_active": "on", "role": "reader"},
+            {"username": "second", "is_active": "on"},
         )
         self.assertRedirects(resp, reverse("user_list"))
         second.refresh_from_db()
@@ -338,42 +347,58 @@ class CreateFirstAdminTests(TestCase):
 
 
 class RoleTests(BaseCase):
-    def test_new_user_defaults_to_reader(self):
+    def test_new_user_is_not_admin_and_has_no_role(self):
         user = User.objects.create_user("plain", password=PASSWORD)
-        self.assertEqual(user.role, "reader")
         self.assertFalse(user.is_superuser)
-        self.assertFalse(user.is_editor)
+        self.assertFalse(hasattr(user, "role"))
+        self.assertIsNone(program_role(user, "diary"))
 
-    def test_create_form_defaults_to_reader(self):
+    def test_create_form_defaults_to_reader_and_not_admin(self):
         self.client.force_login(self.admin)
-        resp = self.client.get(reverse("user_create"))
-        self.assertEqual(resp.context["form"].fields["role"].initial, "reader")
+        form = self.client.get(reverse("user_create")).context["form"]
+        self.assertEqual(form.fields["profile_role"].initial, "reader")
+        self.assertFalse(form.fields["is_admin"].initial)
 
-    def test_superuser_flag_and_admin_role_stay_in_step(self):
+    def test_is_staff_follows_superuser_flag(self):
         a = User.objects.create_user("a", password=PASSWORD, is_superuser=True)
-        self.assertEqual(a.role, "admin")
         self.assertTrue(a.is_staff)
-        b = User.objects.create_user("b", password=PASSWORD, role="admin")
-        self.assertTrue(b.is_superuser)
-        b.set_role("editor")
-        b.save()
-        b.refresh_from_db()
-        self.assertEqual((b.role, b.is_superuser, b.is_staff), ("editor", False, False))
+        a.is_superuser = False
+        a.save()
+        a.refresh_from_db()
+        self.assertEqual((a.is_superuser, a.is_staff), (False, False))
 
-    def test_role_helpers(self):
+    def test_program_role_is_per_membership(self):
         ed = self.make_user("ed", role="editor")
-        self.assertTrue(ed.is_editor)
-        self.assertFalse(ed.is_admin)
-        self.assertTrue(self.admin.is_editor)
+        self.assertEqual(program_role(ed, "diary"), "editor")
+        self.assertEqual(program_role(self.user, "diary"), "reader")
+        # Admin is suite-wide; inside a program the membership role applies.
+        self.assertEqual(program_role(self.admin, "diary"), "editor")
         self.assertTrue(self.admin.is_admin)
-        self.assertFalse(self.user.is_editor)
+        self.assertFalse(ed.is_admin)
+        self.assertIsNone(program_role(self.make_user("none"), "diary"))
+        self.assertIsNone(program_role(AnonymousUser(), "diary"))
+
+    def test_role_differs_per_profile(self):
+        junior = Profile.objects.create(program="diary", name="Junior")
+        ProfileMembership.objects.filter(user=self.user).delete()
+        ProfileMembership.objects.create(user=self.user, profile=junior, role="editor")
+        self.assertEqual(program_role(self.user, "diary"), "editor")
+        self.assertEqual(get_profile_for(self.user), junior)
+
+    def test_deleted_profile_gives_no_role(self):
+        gone = Profile.objects.create(program="diary", name="Gone", deleted_at=timezone.now())
+        member = User.objects.create_user("gm", password=PASSWORD)
+        ProfileMembership.objects.create(user=member, profile=gone, role="editor")
+        self.assertIsNone(program_role(member, "diary"))
 
     def test_create_first_admin_makes_admin_role(self):
         env = {"DJANGO_SUPERUSER_USERNAME": "root2", "DJANGO_SUPERUSER_PASSWORD": PASSWORD}
         with mock.patch.dict("os.environ", env):
             User.objects.all().delete()
             call_command("create_first_admin", stdout=StringIO())
-        self.assertEqual(User.objects.get(username="root2").role, "admin")
+        root = User.objects.get(username="root2")
+        self.assertTrue(root.is_superuser)
+        self.assertEqual(program_role(root, "diary"), "editor")
 
     def test_decorators(self):
         def view(request):
@@ -387,16 +412,29 @@ class RoleTests(BaseCase):
             return decorator(view)(request)
 
         editor = self.make_user("ed", role="editor")
-        for decorator in (admin_required, editor_required, reader_required):
+        editor_view = program_editor_required("diary")
+        reader_view = program_reader_required("diary")
+        outsider = self.make_user("outsider")
+        for decorator in (admin_required, editor_view, reader_view, reader_required):
             self.assertEqual(call(decorator, AnonymousUser()).status_code, 302)
         self.assertEqual(call(admin_required, self.admin).status_code, 200)
-        self.assertEqual(call(editor_required, self.admin).status_code, 200)
-        self.assertEqual(call(editor_required, editor).status_code, 200)
+        self.assertEqual(call(editor_view, self.admin).status_code, 200)  # Admin with Editor membership
+        self.assertEqual(call(editor_view, editor).status_code, 200)
+        self.assertEqual(call(reader_view, self.user).status_code, 200)
+        self.assertEqual(call(reader_view, editor).status_code, 200)
         self.assertEqual(call(reader_required, self.user).status_code, 200)
         with self.assertRaises(PermissionDenied):
             call(admin_required, editor)
         with self.assertRaises(PermissionDenied):
-            call(editor_required, self.user)
+            call(editor_view, self.user)  # Reader refused
+        with self.assertRaises(PermissionDenied):
+            call(editor_view, outsider)
+        with self.assertRaises(PermissionDenied):
+            call(reader_view, outsider)
+        # An Admin whose own membership is Reader may not use editor-only views.
+        ProfileMembership.objects.filter(user=self.admin).update(role="reader")
+        with self.assertRaises(PermissionDenied):
+            call(editor_view, self.admin)
 
     def test_header_shows_username_only_and_user_list_shows_role(self):
         self.client.force_login(self.user)
@@ -405,6 +443,7 @@ class RoleTests(BaseCase):
         self.assertNotContains(resp, "Reader")
         self.client.force_login(self.admin)
         self.assertContains(self.client.get(reverse("user_list")), "Reader")
+
 
     def test_editor_and_reader_refused_on_admin_screens(self):
         editor = self.make_user("ed", role="editor")
@@ -418,38 +457,69 @@ class RoleTests(BaseCase):
             self.client.force_login(who)
             for url in urls:
                 self.assertEqual(self.client.get(url).status_code, 403, (who.username, url))
-            resp = self.client.post(target, {"username": "alice", "is_active": "on", "role": "admin"})
+            resp = self.client.post(target, {"username": "alice", "is_active": "on", "is_admin": "on"})
             self.assertEqual(resp.status_code, 403)
         self.user.refresh_from_db()
-        self.assertEqual(self.user.role, "reader")
+        self.assertFalse(self.user.is_superuser)
 
-    def test_admin_changes_role(self):
+    def test_admin_changes_role_in_profile(self):
         self.client.force_login(self.admin)
+        main = ensure_default_profile()
         self.client.post(
             reverse("user_edit", args=[self.user.pk]),
-            {"username": "alice", "is_active": "on", "role": "editor"},
+            {"username": "alice", "is_active": "on", "profile": main.pk, "profile_role": "editor"},
         )
         self.user.refresh_from_db()
-        self.assertEqual(self.user.role, "editor")
+        self.assertEqual(program_role(self.user, "diary"), "editor")
         self.assertFalse(self.user.is_superuser)
+        self.assertEqual(ProfileMembership.objects.filter(user=self.user).count(), 1)
+
+    def test_role_follows_the_profile_chosen(self):
+        self.client.force_login(self.admin)
+        junior = Profile.objects.create(program="diary", name="Junior")
+        self.client.post(
+            reverse("user_edit", args=[self.user.pk]),
+            {"username": "alice", "is_active": "on", "profile": junior.pk, "profile_role": "editor"},
+        )
+        membership = ProfileMembership.objects.get(user=self.user)
+        self.assertEqual((membership.profile, membership.role), (junior, "editor"))
 
     def test_invalid_role_rejected(self):
         self.client.force_login(self.admin)
         resp = self.client.post(
             reverse("user_edit", args=[self.user.pk]),
-            {"username": "alice", "is_active": "on", "role": "root"},
+            {"username": "alice", "is_active": "on", "profile": ensure_default_profile().pk, "profile_role": "root"},
         )
         self.assertEqual(resp.status_code, 200)
+        self.assertEqual(program_role(self.user, "diary"), "reader")
+
+    def test_blank_role_defaults_to_reader(self):
+        self.client.force_login(self.admin)
+        ProfileMembership.objects.filter(user=self.user).update(role="editor")
+        self.client.post(
+            reverse("user_edit", args=[self.user.pk]),
+            {"username": "alice", "is_active": "on", "profile": ensure_default_profile().pk},
+        )
+        self.assertEqual(program_role(self.user, "diary"), "reader")
+
+    def test_admin_flag_is_independent_of_profile_role(self):
+        self.client.force_login(self.admin)
+        self.client.post(
+            reverse("user_edit", args=[self.user.pk]),
+            {"username": "alice", "is_active": "on", "is_admin": "on",
+             "profile": ensure_default_profile().pk, "profile_role": "reader"},
+        )
         self.user.refresh_from_db()
-        self.assertEqual(self.user.role, "reader")
+        self.assertTrue(self.user.is_superuser)
+        self.assertEqual(program_role(self.user, "diary"), "reader")
 
     def test_last_admin_cannot_become_editor_or_be_disabled(self):
         self.client.force_login(self.admin)
         url = reverse("user_edit", args=[self.admin.pk])
-        self.assertContains(self.client.post(url, {"username": "boss", "is_active": "on", "role": "editor"}), "last active Admin")
-        self.assertContains(self.client.post(url, {"username": "boss", "role": "admin"}), "cannot disable your own")
+        self.assertContains(self.client.post(url, {"username": "boss", "is_active": "on"}), "last active Admin")
+        self.assertContains(self.client.post(url, {"username": "boss", "is_admin": "on"}), "cannot disable your own")
         self.admin.refresh_from_db()
-        self.assertEqual(self.admin.role, "admin")
+        self.assertTrue(self.admin.is_superuser)
 
 
 class ProfileModelTests(TestCase):
@@ -636,7 +706,7 @@ class UserProfileAssignmentTests(BaseCase):
         self.client.force_login(self.admin)
         resp = self.client.post(
             reverse("user_edit", args=[self.user.pk]),
-            {"username": "alice", "is_active": "on", "role": "reader", "profile": junior.pk},
+            {"username": "alice", "is_active": "on", "profile_role": "reader", "profile": junior.pk},
         )
         self.assertRedirects(resp, reverse("user_list"))
         self.assertEqual(ProfileMembership.objects.filter(user=self.user).count(), 1)
@@ -646,7 +716,7 @@ class UserProfileAssignmentTests(BaseCase):
         self.client.force_login(self.admin)
         self.client.post(
             reverse("user_edit", args=[self.user.pk]),
-            {"username": "alice", "is_active": "on", "role": "reader", "profile": ""},
+            {"username": "alice", "is_active": "on", "profile_role": "reader", "profile": ""},
         )
         self.assertIsNone(get_profile_for(self.user))
 
@@ -655,7 +725,7 @@ class UserProfileAssignmentTests(BaseCase):
         self.client.force_login(self.admin)
         resp = self.client.post(
             reverse("user_edit", args=[self.user.pk]),
-            {"username": "alice", "is_active": "on", "role": "reader", "profile": gone.pk},
+            {"username": "alice", "is_active": "on", "profile_role": "reader", "profile": gone.pk},
         )
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(get_profile_for(self.user), ensure_default_profile())
@@ -665,8 +735,47 @@ class UserProfileAssignmentTests(BaseCase):
         self.client.force_login(self.admin)
         resp = self.client.post(
             reverse("user_create"),
-            {"username": "newbie", "password1": PASSWORD, "password2": PASSWORD, "role": "reader",
+            {"username": "newbie", "password1": PASSWORD, "password2": PASSWORD, "profile_role": "reader",
              "profile": junior.pk},
         )
         self.assertRedirects(resp, reverse("user_list"))
         self.assertEqual(get_profile_for(User.objects.get(username="newbie")), junior)
+
+
+class RoleMigrationTests(TransactionTestCase):
+    """0006 copies User.role onto the profile membership; 0007 drops the column."""
+
+    serialized_rollback = True  # keep the "Main" profile that the data migration created
+    before = [("accounts", "0005_default_profile")]
+    after = [("accounts", "0006_profilemembership_role")]
+
+    def migrate(self, targets):
+        executor = MigrationExecutor(connection)
+        executor.migrate(targets)
+        return executor.loader.project_state(targets).apps
+
+    def tearDown(self):
+        executor = MigrationExecutor(connection)
+        executor.migrate(executor.loader.graph.leaf_nodes())
+
+    def test_user_role_moves_to_membership_role(self):
+        apps = self.migrate(self.before)
+        OldUser = apps.get_model("accounts", "User")
+        Profile_ = apps.get_model("accounts", "Profile")
+        Membership = apps.get_model("accounts", "ProfileMembership")
+        main, _ = Profile_.objects.get_or_create(program="diary", name="Main")
+        for name, role, superuser in (
+            ("adm", "admin", True),
+            ("edi", "editor", False),
+            ("rea", "reader", False),
+            ("odd", "admin", False),
+        ):
+            user = OldUser.objects.create(username=name, role=role, is_superuser=superuser)
+            Membership.objects.create(user=user, profile=main, program="diary")
+        apps = self.migrate(self.after)
+        Membership = apps.get_model("accounts", "ProfileMembership")
+        roles = dict(Membership.objects.values_list("user__username", "role"))
+        self.assertEqual(roles, {"adm": "editor", "edi": "editor", "rea": "reader", "odd": "editor"})
+        apps = self.migrate([("accounts", "0007_remove_user_role")])
+        self.assertNotIn("role", [f.name for f in apps.get_model("accounts", "User")._meta.get_fields()])
+        self.assertTrue(apps.get_model("accounts", "User").objects.get(username="adm").is_superuser)

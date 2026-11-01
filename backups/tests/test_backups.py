@@ -60,8 +60,7 @@ class BackupBase(TestCase):
 
 class BackupRoleAccessTests(BackupBase):
     def test_editor_and_reader_refused(self):
-        self.alice.set_role("editor")
-        self.alice.save()
+        ProfileMembership.objects.create(user=self.alice, profile=main_profile(), role="editor")
         for name in ("alice", "bob"):
             self.client.login(username=name, password=PASSWORD)
             for url in ("backup_list", "restore_upload"):
@@ -220,7 +219,7 @@ class RestoreServiceTests(BackupBase):
         # on SQLite, so this test cannot verify it. Only PostgreSQL does (README rehearsal step 5).
         self.alice.is_active = False
         self.alice.save()
-        original = {u.username: (u.password, u.is_superuser, u.is_active, u.role) for u in User.objects.all()}
+        original = {u.username: (u.password, u.is_superuser, u.is_active) for u in User.objects.all()}
         doc = services.parse_backup(services.create_backup("manual").data, MAX)
 
         User.objects.create_user("carol", password=PASSWORD)
@@ -230,7 +229,7 @@ class RestoreServiceTests(BackupBase):
 
         services.restore_backup(doc, self.admin)
 
-        restored = {u.username: (u.password, u.is_superuser, u.is_active, u.role) for u in User.objects.all()}
+        restored = {u.username: (u.password, u.is_superuser, u.is_active) for u in User.objects.all()}
         self.assertEqual(restored, original)
         self.assertNotIn("carol", self.usernames())
         self.assertEqual(BackupFile.objects.filter(kind="pre_restore").count(), 1)
@@ -240,33 +239,72 @@ class RestoreServiceTests(BackupBase):
         safety_names = {r["fields"]["username"] for r in safety["models"]["accounts.User"]}
         self.assertEqual(safety_names, {"boss", "bob", "carol"})
 
-    def test_round_trip_keeps_roles(self):
-        self.alice.set_role("editor")
-        self.alice.save()
-        doc = services.parse_backup(services.create_backup("manual").data, MAX)
-        roles = {r["fields"]["username"]: r["fields"]["role"] for r in doc["models"]["accounts.User"]}
-        self.assertEqual(roles, {"boss": "admin", "alice": "editor", "bob": "reader"})
-        User.objects.filter(username="alice").update(role="reader")
-        services.restore_backup(doc, self.admin)
-        self.assertEqual(
-            dict(User.objects.values_list("username", "role")),
-            {"boss": "admin", "alice": "editor", "bob": "reader"},
-        )
+    def membership_roles(self):
+        return dict(ProfileMembership.objects.values_list("user__username", "role"))
 
-    def test_restore_old_backup_without_role_field(self):
+    def test_round_trip_keeps_roles(self):
+        main = main_profile()
+        ProfileMembership.objects.create(user=self.admin, profile=main, role="editor")
+        ProfileMembership.objects.create(user=self.alice, profile=main, role="editor")
+        ProfileMembership.objects.create(user=self.bob, profile=main, role="reader")
+        doc = services.parse_backup(services.create_backup("manual").data, MAX)
+        users = doc["models"]["accounts.User"]
+        self.assertTrue(all("role" not in r["fields"] for r in users))
+        expected = {"boss": "editor", "alice": "editor", "bob": "reader"}
+        self.assertEqual(self.membership_roles(), expected)
+        ProfileMembership.objects.all().update(role="reader")
+        services.restore_backup(doc, self.admin)
+        self.assertEqual(self.membership_roles(), expected)
+        self.assertTrue(User.objects.get(username="boss").is_superuser)
+
+    def old_user_backup(self, roles):
+        """A backup as written before roles moved: ``role`` on users, no ``role`` on memberships."""
         doc = services.parse_backup(services.create_backup("manual").data, MAX)
         for record in doc["models"]["accounts.User"]:
+            record["fields"]["role"] = roles[record["fields"]["username"]]
+        for record in doc["models"].get("accounts.ProfileMembership", []):
             del record["fields"]["role"]
-        # Re-pack as an older file would be: parse again from bytes without the field.
-        raw = gzip.compress(json.dumps(doc).encode("utf-8"))
-        old = services.parse_backup(raw, MAX)
-        User.objects.all().update(role="editor")
+        return services.parse_backup(gzip.compress(json.dumps(doc).encode("utf-8")), MAX)
+
+    def test_restore_old_backup_with_user_role_maps_to_membership_role(self):
+        main = main_profile()
+        for user in (self.admin, self.alice, self.bob):
+            ProfileMembership.objects.create(user=user, profile=main)
+        old = self.old_user_backup({"boss": "admin", "alice": "editor", "bob": "reader"})
+        ProfileMembership.objects.all().update(role="reader")
         services.restore_backup(old, self.admin)
-        self.assertEqual(
-            dict(User.objects.values_list("username", "role")),
-            {"boss": "admin", "alice": "reader", "bob": "reader"},
-        )
+        self.assertEqual(self.membership_roles(), {"boss": "editor", "alice": "editor", "bob": "reader"})
         self.assertTrue(User.objects.get(username="boss").is_superuser)
+        self.assertFalse(User.objects.get(username="alice").is_superuser)
+
+    def test_restore_old_backup_with_admin_role_but_no_superuser_flag(self):
+        old = self.old_user_backup({"boss": "admin", "alice": "reader", "bob": "reader"})
+        for record in old["models"]["accounts.User"]:
+            record["fields"]["is_superuser"] = False
+            record["fields"]["role"] = {"boss": "admin"}.get(record["fields"]["username"], "reader")
+        old = services.parse_backup(gzip.compress(json.dumps(old).encode("utf-8")), MAX)
+        services.restore_backup(old, self.admin)
+        self.assertTrue(User.objects.get(username="boss").is_superuser)
+
+    def test_restore_old_backup_without_memberships_defaults_to_reader_and_maps_roles(self):
+        doc = services.parse_backup(services.create_backup("manual").data, MAX)
+        del doc["models"]["accounts.ProfileMembership"]
+        del doc["models"]["accounts.Profile"]
+        for record in doc["models"]["accounts.User"]:
+            record["fields"]["role"] = "editor" if record["fields"]["username"] == "alice" else "reader"
+        old = services.parse_backup(gzip.compress(json.dumps(doc).encode("utf-8")), MAX)
+        services.restore_backup(old, self.admin)
+        self.assertEqual(self.membership_roles(), {"boss": "editor", "alice": "editor", "bob": "reader"})
+
+    def test_restore_old_backup_without_any_role_defaults_to_reader(self):
+        main = main_profile()
+        ProfileMembership.objects.create(user=self.alice, profile=main, role="editor")
+        doc = services.parse_backup(services.create_backup("manual").data, MAX)
+        for record in doc["models"]["accounts.ProfileMembership"]:
+            del record["fields"]["role"]
+        old = services.parse_backup(gzip.compress(json.dumps(doc).encode("utf-8")), MAX)
+        services.restore_backup(old, self.admin)
+        self.assertEqual(self.membership_roles(), {"alice": "reader"})
 
     def test_restore_old_backup_without_display_names_uses_defaults(self):
         SuiteName.objects.create(key="diary", display_name="Renamed")

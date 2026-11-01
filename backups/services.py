@@ -18,7 +18,7 @@ from django.db import connection, transaction
 from django.db.migrations.loader import MigrationLoader
 from django.utils import timezone
 
-from accounts.models import normalise_role
+from accounts.models import ROLE_EDITOR, ROLE_READER
 from accounts.profiles import DEFAULT_PROFILE_NAME
 from accounts.suite import KEY_DIARY as DEFAULT_PROGRAM
 
@@ -250,18 +250,20 @@ def parse_backup(raw, max_bytes):
                 or not isinstance(record.get("fields"), dict)
             ):
                 raise BackupError(f"This backup file is damaged (bad record in {label}).")
-    _normalise_user_records(models_in_file.get("accounts.User", []))
-    upgrade_old_document(document)
+    old_roles = _normalise_user_records(models_in_file.get("accounts.User", []))
+    upgrade_old_document(document, roles=old_roles)
+    _fill_membership_roles(models_in_file.get("accounts.ProfileMembership", []), old_roles)
     return document
 
 
-def upgrade_old_document(document, now=None):
+def upgrade_old_document(document, now=None, roles=None):
     """Give a backup made before profiles existed a default "Main" profile.
 
     If the file has no profiles (no ``accounts.Profile`` section, or an empty one as written by
     a pre-migration backup taken before profiles existed), a "Main" Case Law Diary profile is added,
     every user in the file is given access to it, and every diary record without a ``profile``
     is put into it. A file that already has profiles is left untouched. Returns True if changed.
+    ``roles`` maps user pk to the membership role (from an old ``User.role``); missing means Reader.
     """
     models_in_file = document["models"]
     if models_in_file.get("accounts.Profile"):
@@ -285,7 +287,13 @@ def upgrade_old_document(document, now=None):
         {
             "model": "accounts.profilemembership",
             "pk": number,
-            "fields": {"user": user["pk"], "profile": profile_pk, "program": DEFAULT_PROGRAM, "created_at": stamp},
+            "fields": {
+                "user": user["pk"],
+                "profile": profile_pk,
+                "program": DEFAULT_PROGRAM,
+                "role": (roles or {}).get(user["pk"], ROLE_READER),
+                "created_at": stamp,
+            },
         }
         for number, user in enumerate(models_in_file.get("accounts.User", []), start=1)
     ]
@@ -324,17 +332,31 @@ def profile_summary(document):
 
 
 def _normalise_user_records(records):
-    """Fill in ``role`` for users in the file, so older backups (made before roles) still restore.
+    """Make user records match the current User model, so older backups still restore.
 
-    A missing or unknown role becomes Reader, and Admin if the user is a superuser. This is done
-    here because restoring writes rows without calling ``User.save()``.
+    Older files have a ``role`` on each user (Admin, Editor or Reader); it now lives on the profile
+    membership. The column is removed from the record, a user who was an Admin by role is a
+    superuser, and the old role is returned as ``{user pk: "editor" or "reader"}`` (Editor and Admin
+    map to Editor, anything else to Reader) for memberships that lack a role. ``is_staff`` follows
+    ``is_superuser``. This is done here because restoring writes rows without calling ``User.save()``.
     """
+    roles = {}
     for record in records:
         fields = record["fields"]
-        role, is_superuser = normalise_role(fields.get("role"), bool(fields.get("is_superuser")))
-        fields["role"] = role
+        old_role = fields.pop("role", None)
+        is_superuser = bool(fields.get("is_superuser")) or old_role == "admin"
         fields["is_superuser"] = is_superuser
         fields["is_staff"] = is_superuser
+        roles[record["pk"]] = ROLE_EDITOR if is_superuser or old_role == "editor" else ROLE_READER
+    return roles
+
+
+def _fill_membership_roles(records, roles):
+    """Give memberships without a valid role the role mapped from the user's old role (else Reader)."""
+    for record in records:
+        fields = record["fields"]
+        if fields.get("role") not in (ROLE_EDITOR, ROLE_READER):
+            fields["role"] = roles.get(fields.get("user"), ROLE_READER)
 
 
 def _file_has_active_admin(document):
