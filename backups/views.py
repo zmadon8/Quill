@@ -12,7 +12,7 @@ from django.views.decorators.http import require_http_methods, require_POST
 from accounts.permissions import admin_required
 
 from . import services
-from .models import BackupFile, BackupLog
+from .models import KEEP_KINDS, BackupFile, BackupLog
 
 CONFIRM_WORD = "RESTORE"
 
@@ -85,6 +85,20 @@ def restore_upload(request):
         )
         return redirect("restore_preview", pk=backup.pk)
     return render(request, "backups/restore_upload.html", {"max_mb": settings.MAX_BACKUP_UPLOAD_MB})
+
+
+@admin_required
+@require_http_methods(["GET", "POST"])
+def backup_delete(request, pk):
+    """Delete one import backup ("Before import" / "After import") after a confirmation. Other kinds are
+    removed by the automatic clean-up only."""
+    backup = get_object_or_404(BackupFile.objects.defer("data"), pk=pk, kind__in=KEEP_KINDS)
+    if request.method == "POST":
+        name = backup.filename
+        backup.delete()
+        messages.success(request, f"Deleted the backup {name}.")
+        return redirect("backup_list")
+    return render(request, "backups/backup_confirm_delete.html", {"backup": backup})
 
 
 def _load_document(backup):

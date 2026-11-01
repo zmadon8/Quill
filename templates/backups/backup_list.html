@@ -3,7 +3,7 @@
 {% block title %}Backups - {{ diary_name }}{% endblock %}
 {% block content %}
 <h1>Backups</h1>
-<p>Backups are kept inside the database for at least 30 days. A new one is made every night by the scheduled job.</p>
+<p>Backups are kept inside the database for at least 30 days. A new one is made every night by the scheduled job. Backups marked "Before import" and "After import" are never cleaned up automatically; they stay until an Admin deletes them.</p>
 <div class="actions">
   <form method="post" action="{% url 'backup_now' %}" class="inline">
     {% csrf_token %}
@@ -24,7 +24,7 @@
       <td>{{ b.get_kind_display }}</td>
       <td>{{ b.size_bytes|filesizeformat }}</td>
       <td>{% for label, n in b.record_counts.items %}{{ label }}: {{ n }}{% if not forloop.last %}, {% endif %}{% endfor %}</td>
-      <td><a href="{% url 'backup_download' b.pk %}">Download</a> | <a href="{% url 'restore_preview' b.pk %}">Restore</a></td>
+      <td><a href="{% url 'backup_download' b.pk %}">Download</a> | <a href="{% url 'restore_preview' b.pk %}">Restore</a>{% if b.kind == "pre_import" or b.kind == "post_import" %} | <a href="{% url 'backup_delete' b.pk %}">Delete</a>{% endif %}</td>
     </tr>
   {% endfor %}
   </tbody>

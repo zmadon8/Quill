@@ -23,7 +23,7 @@ from accounts.profiles import DEFAULT_PROFILE_NAME
 from accounts.suite import KEY_DIARY as DEFAULT_PROGRAM
 
 from . import policy, registry
-from .models import BackupFile, BackupLog
+from .models import KEEP_KINDS, BackupFile, BackupLog
 
 logger = logging.getLogger(__name__)
 
@@ -167,7 +167,9 @@ def create_backup(kind, user=None, use_applied_state=False):
 
 
 def prune_old_backups(now=None, retention_days=None):
-    """Delete backups past the retention period (never the newest one).
+    """Delete backups past the retention period (never the newest one, never an import backup).
+
+    Backups made around a Word import ("Before import" / "After import") stay until an Admin deletes them.
 
     Never raises: a failure is written to the log instead. Returns the number removed.
     """
@@ -178,7 +180,8 @@ def prune_old_backups(now=None, retention_days=None):
     try:
         with transaction.atomic():
             entries = list(BackupFile.objects.values_list("id", "created_at"))
-            expired = policy.select_expired(entries, now, retention_days)
+            kept = set(BackupFile.objects.filter(kind__in=KEEP_KINDS).values_list("id", flat=True))
+            expired = [i for i in policy.select_expired(entries, now, retention_days) if i not in kept]
             if expired:
                 BackupFile.objects.filter(id__in=expired).delete()
             BackupLog.objects.create(

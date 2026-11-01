@@ -8,13 +8,20 @@ BACKUP_KINDS = [
     ("pre_restore", "Before restore"),
     ("pre_migration", "Before update"),
     ("uploaded", "Uploaded"),
+    ("pre_import", "Before import"),
+    ("post_import", "After import"),
 ]
+
+#: Kept until an Admin deletes them; automatic retention pruning never removes these.
+KEEP_KINDS = ("pre_import", "post_import")
 
 LOG_KINDS = [
     ("daily", "Daily"),
     ("manual", "Manual"),
     ("pre_restore", "Before restore"),
     ("pre_migration", "Before update"),
+    ("pre_import", "Before import"),
+    ("post_import", "After import"),
     ("restore", "Restore"),
     ("prune", "Clean-up"),
 ]

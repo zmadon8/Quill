@@ -8,4 +8,5 @@ urlpatterns = [
     path("backups/restore/", views.restore_upload, name="restore_upload"),
     path("backups/<int:pk>/download/", views.backup_download, name="backup_download"),
     path("backups/<int:pk>/restore/", views.restore_preview, name="restore_preview"),
+    path("backups/<int:pk>/delete/", views.backup_delete, name="backup_delete"),
 ]

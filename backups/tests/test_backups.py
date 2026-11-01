@@ -149,6 +149,17 @@ class RetentionTests(BackupBase):
         self.assertEqual(services.prune_old_backups(), 0)
         self.assertEqual(BackupFile.objects.count(), 1)
 
+    def test_prune_never_removes_import_backups(self):
+        old_daily = services.create_backup("daily")
+        before = services.create_backup("pre_import")
+        after = services.create_backup("post_import")
+        newest = services.create_backup("daily")
+        for backup in (old_daily, before, after):
+            set_age(backup, 400)
+        self.assertEqual(services.prune_old_backups(), 1)
+        remaining = set(BackupFile.objects.values_list("pk", flat=True))
+        self.assertEqual(remaining, {before.pk, after.pk, newest.pk})
+
     def test_prune_failure_is_logged_not_raised(self):
         services.create_backup("daily")
         with mock.patch("backups.services.policy.select_expired", side_effect=RuntimeError("bad")):
@@ -514,6 +525,28 @@ class ViewTests(BackupBase):
         page = self.client.get(reverse("backup_list"))
         self.assertContains(page, "Download")
         self.assertContains(page, "accounts.User: 3")
+
+    def test_import_backups_are_labelled_and_can_be_deleted_by_an_admin(self):
+        self.login_admin()
+        before = services.create_backup("pre_import", self.admin)
+        manual = services.create_backup("manual", self.admin)
+        page = self.client.get(reverse("backup_list"))
+        self.assertContains(page, "Before import")
+        self.assertContains(page, reverse("backup_delete", args=[before.pk]))
+        self.assertNotContains(page, reverse("backup_delete", args=[manual.pk]))
+        self.assertContains(self.client.get(reverse("backup_delete", args=[before.pk])), before.filename)
+        self.assertTrue(BackupFile.objects.filter(pk=before.pk).exists())  # asking does not delete
+        self.client.post(reverse("backup_delete", args=[before.pk]))
+        self.assertFalse(BackupFile.objects.filter(pk=before.pk).exists())
+        # other kinds cannot be deleted this way
+        self.assertEqual(self.client.post(reverse("backup_delete", args=[manual.pk])).status_code, 404)
+        self.assertTrue(BackupFile.objects.filter(pk=manual.pk).exists())
+
+    def test_delete_backup_is_admin_only(self):
+        before = services.create_backup("pre_import", self.admin)
+        self.client.login(username="alice", password=PASSWORD)
+        self.assertEqual(self.client.post(reverse("backup_delete", args=[before.pk])).status_code, 403)
+        self.assertTrue(BackupFile.objects.filter(pk=before.pk).exists())
 
     def test_backup_now_requires_post(self):
         self.login_admin()
