@@ -351,6 +351,22 @@ class DiaryRoundTripTests(BackupBase):
         services.restore_backup(doc, self.admin)
         self.assertEqual(self.snapshot(), before)
 
+    def test_datetimes_keep_microseconds_in_the_file(self):
+        self.build()
+        doc = services.parse_backup(services.create_backup("manual").data, MAX)
+        stamp = doc["models"]["diary.Subject"][0]["fields"]["created_at"]
+        self.assertRegex(stamp, r"\.\d{6}(Z|\+|-|$)")
+
+    def test_older_millisecond_file_still_restores(self):
+        self.build()
+        doc = services.parse_backup(services.create_backup("manual").data, MAX)
+        for record in doc["models"]["diary.Subject"]:
+            record["fields"]["created_at"] = "2024-01-02T03:04:05.123Z"
+        self.assertEqual(doc["format_version"], 1)
+        services.restore_backup(doc, self.admin)
+        self.assertTrue(all(sub.created_at.microsecond == 123000 for sub in Subject.objects.all()))
+        self.assertTrue(Subject.objects.exists())
+
 
 class ViewTests(BackupBase):
     def test_non_admin_gets_403_everywhere(self):

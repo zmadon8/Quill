@@ -4,6 +4,7 @@ Every sample Subject name starts with ``SAMPLE_PREFIX``. Removal deletes only
 Subjects with that prefix (and what sits under them), never anything else.
 """
 from django.db import transaction
+from django.db.models import Q
 
 from .models import (
     KIND_MULTI,
@@ -124,15 +125,55 @@ def load_sample_data():
     return True
 
 
+class SampleDataError(Exception):
+    """Sample data cannot be removed without touching real records."""
+
+
 @transaction.atomic
 def remove_sample_data():
     """Delete only the sample Subjects and everything under them. Returns how many Subjects.
 
-    Cross-reference links from sample Notes go with their Notes. A link from a real
-    Note into the sample is protected by the database and stops the removal with an
-    error rather than being deleted silently.
+    Links and Notes inside the sample are deleted first (links are PROTECTed targets).
+    A Note outside the sample that links into it stops the removal with SampleDataError;
+    nothing is deleted in that case.
     """
     ids = list(sample_subjects().values_list("pk", flat=True))
-    if ids:
-        Subject.objects.filter(pk__in=ids).delete()
+    if not ids:
+        return 0
+    topics = set(Topic.objects.filter(subject__in=ids).values_list("pk", flat=True))
+    subtopics = set(
+        Subtopic.objects.filter(Q(subject__in=ids) | Q(topic__in=topics)).values_list("pk", flat=True)
+    )
+    sections = set(
+        Section.objects.filter(Q(subject__in=ids) | Q(topic__in=topics) | Q(subtopic__in=subtopics))
+        .values_list("pk", flat=True)
+    )
+    items = set(
+        Item.objects.filter(Q(subject__in=ids) | Q(topic__in=topics) | Q(subtopic__in=subtopics))
+        .values_list("pk", flat=True)
+    )
+    while True:  # nested child Items, at any depth
+        more = set(Item.objects.filter(parent_item__in=items).values_list("pk", flat=True)) - items
+        if not more:
+            break
+        items |= more
+
+    sample_notes = Note.objects.filter(
+        Q(subject__in=ids) | Q(topic__in=topics) | Q(subtopic__in=subtopics)
+        | Q(section__in=sections) | Q(item__in=items)
+    )
+    incoming = NoteLink.objects.filter(
+        Q(subject__in=ids) | Q(topic__in=topics) | Q(subtopic__in=subtopics)
+        | Q(section__in=sections) | Q(item__in=items)
+    )
+    outside = incoming.exclude(note__in=sample_notes)
+    if outside.exists():
+        raise SampleDataError(
+            "Sample data was not removed: a Note that is not part of the sample links into it. "
+            "Remove that link first."
+        )
+    NoteLink.objects.filter(note__in=sample_notes).delete()
+    incoming.delete()
+    sample_notes.delete()
+    Subject.objects.filter(pk__in=ids).delete()
     return len(ids)

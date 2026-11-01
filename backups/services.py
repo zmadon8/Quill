@@ -2,6 +2,7 @@
 
 Backups are stored inside the database (BackupFile.data), never on disk.
 """
+import datetime
 import gzip
 import hashlib
 import json
@@ -11,6 +12,7 @@ import zlib
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core import serializers
+from django.core.serializers.json import DjangoJSONEncoder
 from django.core.management.color import no_style
 from django.db import connection, transaction
 from django.db.migrations.loader import MigrationLoader
@@ -25,6 +27,25 @@ logger = logging.getLogger(__name__)
 
 FORMAT_MARKER = "judgment-diary-backup"
 FORMAT_VERSION = 1
+
+
+class _ExactJSONEncoder(DjangoJSONEncoder):
+    """Like Django's encoder, but keeps full microseconds on datetimes and times.
+
+    DjangoJSONEncoder cuts them to milliseconds, which would change stored values on
+    restore. The file layout is unchanged, so FORMAT_VERSION stays 1 and older files
+    (millisecond values) still load.
+    """
+
+    def default(self, o):
+        if isinstance(o, datetime.datetime):
+            value = o.isoformat()
+            return value[:-6] + "Z" if value.endswith("+00:00") else value
+        if isinstance(o, datetime.time):
+            if o.utcoffset() is not None:
+                raise ValueError("JSON can't represent timezone-aware times.")
+            return o.isoformat()
+        return super().default(o)
 GZIP_MAGIC = b"\x1f\x8b"
 
 
@@ -62,6 +83,7 @@ def _build_document(now, app_registry=None):
             fields=registry.field_names(model),
             use_natural_foreign_keys=False,
             use_natural_primary_keys=False,
+            cls=_ExactJSONEncoder,
         )
         records = json.loads(text)
         models_out[label] = records
