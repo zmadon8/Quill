@@ -108,8 +108,10 @@ class HomeIndexTests(TestCase):
     def test_nav_shows_admin_items_to_admin(self):
         self.client.force_login(self.admin)
         resp = self.client.get(reverse("subjects"))
-        self.assertContains(resp, 'href="%s"' % reverse("user_list"))
+        self.assertNotContains(resp, 'href="%s"' % reverse("user_list"))
         self.assertContains(resp, 'href="%s"' % reverse("backup_list"))
+        resp = self.client.get(reverse("home"))
+        self.assertContains(resp, 'href="%s"' % reverse("user_list"))
 
     def test_nav_marks_current_page(self):
         self.client.force_login(self.admin)
