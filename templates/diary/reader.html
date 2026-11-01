@@ -1,23 +1,16 @@
 {% extends "base.html" %}
 {% block title %}{{ subject.name }}{% endblock %}
-{% block crumb_nav %}{% include "diary/_crumbs.html" %}{% endblock %}
+{% block crumb_nav %}<div class="crumb-row">{% include "diary/_crumbs.html" %}</div>{% endblock %}
 {% block content %}
 <div class="reader-layout">
   <aside class="contents-panel" id="contents-panel" aria-label="Contents">
     <h2>Contents</h2>
-    <p><a href="{% url 'subject_contents' subject.pk %}">{{ subject.name }}</a></p>
+    <p class="toc-subject"><a href="{% url 'read_subject' subject.pk %}" title="Read the whole Subject">{{ subject.name }}</a></p>
     {% include "diary/_toc.html" with toc_default="current" %}
   </aside>
   <article class="reading">
     <div class="actions">
       <button type="button" class="button small contents-button" data-contents-toggle aria-controls="contents-panel" aria-expanded="false">Contents</button>
-      <a class="button" href="{% url 'read_subject' subject.pk %}">View whole Subject</a>
-      {% if scope == "topic" %}
-      <a class="button" href="{% url 'read_topic' target.pk %}" aria-current="true">View this Topic</a>
-      {% elif scope == "subtopic" %}
-      {% if target.topic_id %}<a class="button" href="{% url 'read_topic' target.topic_id %}">View this Topic</a>{% endif %}
-      <a class="button" href="{% url 'read_subtopic' target.pk %}" aria-current="true">View this Sub-topic</a>
-      {% endif %}
     </div>
     {% for b in blocks %}
       {% if b.kind == "heading" %}

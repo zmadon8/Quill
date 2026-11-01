@@ -153,6 +153,17 @@ class HomeIndexTests(TestCase):
         nav = self.client.get(reverse("home")).content.decode().split('class="program-nav"')[1].split("</nav>")[0]
         self.assertNotIn(reverse("user_list"), nav)
 
+    def test_back_in_top_row_and_program_name_links_home(self):
+        self.client.force_login(self.admin)
+        for name in ("home", "subjects", "search", "user_list", "backup_list"):
+            html = self.client.get(reverse(name)).content.decode()
+            header = html.split('<header class="site-header">')[1].split("</header>")[0]
+            self.assertIn("data-back", header, name)
+            self.assertIn('<a href="%s" title="Go to Home (Alt+H)" aria-label="Go to Home">' % reverse("home"), header, name)
+            self.assertNotIn("switch-program", html, name)
+            self.assertNotIn('class="toolbar', html, name)
+            self.assertNotIn(">Home</a>", header, name)
+
     def test_users_screen_uses_suite_header_without_toolbar(self):
         self.client.force_login(self.admin)
         html = self.client.get(reverse("user_list")).content.decode()
@@ -234,10 +245,21 @@ class ReadingScreenTests(TestCase):
             self.assertContains(resp, 'class="breadcrumb"')
             self.assertContains(resp, '<a href="%s">Subjects</a>' % reverse("subjects"))
 
+    def test_subject_links_open_whole_subject_view(self):
+        self.client.force_login(self.users["reader"])
+        whole = reverse("read_subject", args=[self.contract.pk])
+        for url in (reverse("subject_contents", args=[self.contract.pk]), reverse("read_topic", args=[self.clause.topic_id]),
+                    reverse("read_subtopic", args=[self.clause.pk])):
+            html = self.client.get(url).content.decode()
+            self.assertIn('<p class="toc-subject"><a href="%s"' % whole, html, url)
+            self.assertIn('<a href="%s">%s</a>' % (whole, self.contract.name), html.split('class="breadcrumb"')[1], url)
+        html = self.client.get(reverse("read_topic", args=[self.clause.topic_id])).content.decode()
+        self.assertIn(reverse("read_subtopic", args=[self.clause.pk]), html.split('class="toc-box"')[1])
+
     def test_contents_lists_topics_and_subtopics(self):
         self.client.force_login(self.users["reader"])
         resp = self.client.get(reverse("subject_contents", args=[self.contract.pk]))
-        self.assertContains(resp, "View whole Subject")
+        self.assertNotContains(resp, "View whole Subject")
         self.assertContains(resp, "Formation")
         self.assertContains(resp, "Acceptance")
 
@@ -246,7 +268,7 @@ class ReadingScreenTests(TestCase):
         resp = self.client.get(reverse("subject_contents", args=[self.contract.pk]))
         self.assertContains(resp, 'class="reader-layout reader-layout--page"')
         self.assertContains(resp, 'id="contents-panel"')
-        self.assertContains(resp, "Choose a Topic or Sub-topic from Contents.")
+        self.assertContains(resp, "Choose a Topic or Sub-topic from Contents, or click the Subject name to read the whole Subject.")
         self.assertNotContains(resp, "data-contents-toggle")
         self.assertContains(resp, 'data-toc-default="all"')
         self.assertContains(resp, "data-toc-expand-all")
@@ -293,13 +315,12 @@ class ReadingScreenTests(TestCase):
         self.assertContains(resp, "See also: ")
         self.assertContains(resp, "Carlill v. Carbolic Smoke Ball Co")
         self.assertContains(resp, " ; ")
-        self.assertContains(resp, "View whole Subject")
 
     def test_topic_and_subtopic_views_show_correct_buttons_and_numbers(self):
         self.client.force_login(self.users["reader"])
         resp = self.client.get(reverse("read_subtopic", args=[self.clause.pk]))
-        self.assertContains(resp, "View this Topic")
-        self.assertContains(resp, "View this Sub-topic")
+        for gone in ("View whole Subject", "View this Topic", "View this Sub-topic"):
+            self.assertNotContains(resp, gone)
         self.assertContains(resp, "Clause 12: Leave to Sue")
         # Remedies is the second Topic and Clause 12 the first Sub-topic, even when read alone.
         self.assertContains(resp, '<span class="num">(b)</span> Leave to sue: procedure')

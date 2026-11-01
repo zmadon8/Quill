@@ -32,7 +32,7 @@ Note: the technology (Django, PostgreSQL) is confirmed for a **standalone app** 
 - Open a sample Other Subject and confirm it shows Sub-topics and Items directly.
 - Sign in as a Reader and as an Editor and confirm both can read everything they are meant to see (Milestone 1 screens are read-only for everyone).
 - Open on your phone: no sideways scrolling, text is easy to read, Contents button works.
-- Use "View whole Subject" and press Ctrl/Cmd + F in the browser: it finds text anywhere in the Subject.
+- Open the whole Subject (click its name) and press Ctrl/Cmd + F in the browser: it finds text anywhere in the Subject.
 - Test numbering with a long list (past 26 items, and past (39)) to see that it carries on correctly.
 - Automatic numbering tests (required) cover: the Section restart rule (Items after each Section start at (1)); Items before the first Section numbered (1), (2) as usual; Section numbers restarting under each parent; Nested Items counting in the Item run with bullets unchanged; moving a Section and deleting a Section renumbering the Items that follow it (and Undo restoring the numbers); the Section format choices including "Section 1" and letters past z.
 

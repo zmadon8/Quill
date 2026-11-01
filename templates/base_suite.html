@@ -1,6 +1,6 @@
 {% load static %}<!DOCTYPE html>
 {# Shared shell for every program in the suite (Option D "Chambers"). A program extends this and fills: #}
-{# program_name, program_nav, page_title; and crumb_nav (the breadcrumb, only on judgment-list pages). See docs/DESIGN.md "Visual design". #}
+{# program_name, program_nav, page_title; and crumb_nav (the breadcrumb row, only on judgment-list pages). See docs/DESIGN.md "Visual design". #}
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -14,8 +14,8 @@
   <div class="page">
     <header class="site-header">
       <div class="brand-row">
-        <span class="brand">{% block program_name %}Judgment Diary{% endblock %}</span>
-        {% block program_switch %}{% if user.is_authenticated %}<a class="switch-program" href="{% url 'home' %}" title="Home (Alt+H)">Home</a>{% endif %}{% endblock %}
+        {% if user.is_authenticated %}<button type="button" class="back-button" data-back data-fallback="{% url 'subjects' %}" title="Back" aria-label="Back">&larr; Back</button>{% endif %}
+        <span class="brand">{% block program_name %}<a href="{% url 'home' %}" title="Go to Home (Alt+H)" aria-label="Go to Home">Judgment Diary</a>{% endblock %}</span>
       </div>
       {% if user.is_authenticated %}
       <nav class="program-nav" aria-label="Main">
@@ -28,16 +28,7 @@
       </nav>
       {% endif %}
     </header>
-    {% block toolbar %}{% if user.is_authenticated %}
-    <div class="toolbar">
-      {% block crumb_nav %}{% endblock %}
-      <div class="toolbar-buttons">
-        <button type="button" class="button small back-button" data-back data-fallback="{% url 'subjects' %}">&larr; Back</button>
-        <a class="button small" href="{% url 'subjects' %}" title="Subjects">Subjects</a>
-        <a class="button small" href="{% url 'search' %}" title="Search (Alt+G)">Search</a>
-      </div>
-    </div>
-    {% endif %}{% endblock %}
+    {% block crumb_nav %}{% endblock %}
     {% if backup_warning %}<div class="banner-warning" role="alert"><a href="{% url 'backup_list' %}">{{ backup_warning }}</a></div>{% endif %}
     <main id="main">
       {% if messages %}

@@ -179,7 +179,7 @@ Numbers appear in two places only: on screen and in the Word export. Searching a
 ### 5.2 Subject contents (4.2)
 - Topics are listed as a table of contents (TOC). Clicking a Topic shows its Sub-topics. For Other Subjects the Sub-topics are listed directly.
 - No TOC entries for Nested Items or Sections.
-- Three buttons: **View whole Subject**, **View this Topic**, **View this Sub-topic**.
+- ~~Three buttons (View whole Subject, View this Topic, View this Sub-topic)~~ removed by D16; the Subject name, Topics and Sub-topics in Contents open those scopes.
 - The TOC can stay visible at the side while reading.
 - **View whole Subject renders the entire Subject in one page with no lazy loading.** This is so that the browser's own find (Ctrl or Cmd + F) works across everything. Largest Subject: Procedure at 202 Items, which is light for one page. This stays safe up to several thousand Items.
 
@@ -554,6 +554,10 @@ Confirmed earlier: each Heading 1 is a Subject; Miscellaneous holds Other Subjec
   - (9) "When clicking on a subject for the first time, and when the program only shows the Table of Contents, format it in such a manner that it is already arranged in the Side Panel (in the same manner as if Text was open)." Subject contents uses the reading layout: Contents in the left panel, the Subject title, "View whole Subject" and a hint on the right. Default: on phones the Contents list is shown full width on that page and the Contents button is hidden.
   - (3) "In Backups, allow me to resize the column widths." Drag the column border (or focus the handle and use the arrow keys); widths are remembered per table in the browser; "Reset column widths" restores them. Tables scroll sideways inside their own box on phones.
   - (1) Excel backup and (10) Split View are answered separately; Split View stays in Milestone 7 (section 5.9).
+- **D16. Header and navigation tidy-up (owner's second review of PR #5).** Owner's words, with the defaults chosen:
+  - (1) "Move 'Back' to the top row." A small "&larr; Back" button (44px tap target) sits at the left of the top row, before the program name, on every signed-in page including Home, Users and Backups. Default: the separate toolbar row is removed; Subjects and Search remain in the program nav, and the breadcrumb row appears only on Subject contents and the reading views.
+  - (2) "Remove the buttons for view whole subject, view, this topic, and View this Sub-Topic, as they are redundant on account of the directory view." The three buttons are gone from the reading views and the Subject contents page. Defaults: the Subject name in the breadcrumb and at the top of the Contents panel opens the whole-Subject view; Topic and Sub-topic links in Contents open those scopes; the hint reads "Choose a Topic or Sub-topic from Contents, or click the Subject name to read the whole Subject."; the phone Contents button stays.
+  - (3) "Remove the 'Home' Button. Let me click the program name to go to Home." The Home link is removed; the program name is a link to Home (title and label "Go to Home"), underlined and in oxblood on hover or focus. Alt+H and Ctrl+Alt+H still go to Home.
 
 **Open questions for the owner** (each has a default that is used unless you say otherwise)
 

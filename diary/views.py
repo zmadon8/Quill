@@ -103,7 +103,7 @@ def _crumbs(subject):
     crumbs = []
     if not subject.show_on_landing:
         crumbs.append((None, "Other Subjects", "other_subjects"))
-    crumbs.append((subject.pk, subject.name, "subject_contents"))
+    crumbs.append((subject.pk, subject.name, "read_subject"))
     return crumbs
 
 

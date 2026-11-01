@@ -9,12 +9,13 @@ a { color: inherit; }
 
 .page { max-width: var(--page-width); margin: 0 auto; padding: 0 1rem 4rem; }
 
-/* Header: italic serif program name, Home link, nav on the right, hairline under. */
+/* Header: Back, italic serif program name (links to Home), nav on the right, hairline under. */
 .site-header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: .25rem 1.5rem; padding-top: 1.25rem; border-bottom: 1px solid var(--ink); }
 .brand-row { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .9rem; padding-bottom: .6rem; }
-.brand a { text-decoration: none; }
+.brand a { text-decoration: none; color: inherit; border-bottom: 1px solid transparent; }
+.brand a:hover, .brand a:focus-visible { color: var(--oxblood); border-bottom-color: var(--oxblood); }
+.back-button { font-size: var(--small-size); padding: 0 .8rem; min-width: var(--tap); }
 .brand { font-family: var(--font-serif); font-style: italic; font-size: 1.75rem; line-height: 1.1; }
-.switch-program { display: inline-flex; align-items: center; min-height: var(--tap); padding: 0 .6rem; font-size: var(--small-size); color: var(--muted); border: 1px solid var(--hair); border-radius: 2px; text-decoration: none; }
 .program-nav { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0 1.25rem; font-size: var(--small-size); }
 .program-nav a, .program-nav button.link { display: inline-flex; align-items: center; min-height: var(--tap); color: var(--muted); text-decoration: none; border-bottom: 2px solid transparent; margin-bottom: -1px; }
 .program-nav a:hover, .program-nav button.link:hover { color: var(--ink); }
@@ -23,13 +24,13 @@ a { color: inherit; }
 form.inline { display: inline; }
 button.link { background: none; border: 0; padding: 0; font: inherit; cursor: pointer; }
 
-/* Toolbar: breadcrumb under the header, small outlined buttons. */
-.toolbar { position: sticky; top: 0; z-index: 20; background: var(--bg); border-bottom: 1px solid var(--hair); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .25rem 1rem; padding-top: .25rem; }
+/* Breadcrumb row under the header (judgment-list pages only). */
+.crumb-row { position: sticky; top: 0; z-index: 20; background: var(--bg); border-bottom: 1px solid var(--hair); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .25rem 1rem; padding-top: .25rem; }
 .breadcrumb { color: var(--muted); }
 .breadcrumb a { display: inline-block; min-height: var(--tap); line-height: var(--tap); color: var(--muted); }
 .breadcrumb [aria-current] { color: var(--ink); font-weight: 600; }
 .breadcrumb .sep { margin: 0 .35rem; }
-.toolbar-buttons { display: flex; flex-wrap: wrap; gap: .5rem; margin-left: auto; }
+.toc-subject { margin: 0 0 .5rem; font-weight: 600; }
 
 /* Buttons: outlined secondary, filled oxblood primary (class "primary"). */
 button, .button { display: inline-flex; align-items: center; justify-content: center; min-height: var(--tap); padding: 0 1rem; border: 1px solid var(--ink); background: var(--panel); color: var(--ink); border-radius: 2px; font: inherit; line-height: 1.2; cursor: pointer; text-decoration: none; }
@@ -38,7 +39,7 @@ button.small, .button.small { padding: 0 .9rem; }
 button.primary, .button.primary, button[type=submit]:not(.link):not(.danger):not(.secondary) { background: var(--oxblood); border-color: var(--oxblood); color: var(--oxblood-ink); }
 button.danger { background: var(--oxblood); border-color: var(--oxblood); color: var(--oxblood-ink); }
 button.link { min-height: var(--tap); border: 0; background: none; }
-.toolbar .button, .actions .button, .actions button { font-size: var(--small-size); }
+.actions .button, .actions button { font-size: var(--small-size); }
 
 main { padding-top: 1.5rem; }
 .page-title, main h1 { font-family: var(--font-serif); font-weight: 400; font-size: 2rem; line-height: 1.15; margin: 0 0 1.25rem; padding-bottom: .75rem; border-bottom: 3px double var(--ink); }
@@ -171,7 +172,5 @@ table[data-resizable-columns] th { position: relative; overflow-wrap: anywhere; 
   .program-nav { gap: 0 .9rem; }
   main h1, .page-title { font-size: 1.75rem; }
   .home-column h1 { font-size: 2rem; }
-  .toolbar-buttons { width: 100%; }
-  .toolbar-buttons .button { flex: 1 1 auto; }
 }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
