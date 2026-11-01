@@ -21,16 +21,18 @@ The longer plans are in `docs/PLAN.md` (what is built when), `docs/DESIGN.md` (h
 Only Editors (and Admins whose own role is Editor) can edit. Open a Subject, then press **Edit mode** (the address gets `?edit=1`); **Done editing** switches it off. Readers never see these buttons and the addresses answer 403 for them.
 
 - **Add**: under a Subject, Topic or Sub-topic the **Add...** box adds a Topic, Sub-topic, Section, Item or Nested Item at the end; under a Nested Item it adds an Item. On the Subjects and Other Subjects pages use **Add a Subject...**.
-- **Rename**: headings and Sections. Items are changed in the Item editor (later).
+- **Rename**: headings and Sections. Items are changed in the Item editor (below).
 - **Reorder**: **Up** and **Down**, or drag the dotted handle (works with a finger too). Numbers follow the new order at once.
 - **Move to...**: pick the new place in the tree. A page lists the numbers that will change before anything moves.
 - **Delete**: a page says what will go to the Trash and which numbers change; nothing is deleted until you press **Move to Trash**.
 - **Subjects**: **Move to Other Subjects** / **Show on landing page** switches the list; Up, Down and drag reorder each list.
+- **Edit** (on an Item): opens the Item editor with the text (Bold, Italic, Underline, or Ctrl+B, I, U), the Citation, a Flag (none, overruled, doubted, other plus a short text), the For review switch and note, and for a Multi-Item the Cases (add, remove, Up, Down, each with a citation and a comment). **Save** saves everything or nothing. It also shows when and by whom the Item was created and last edited (IST) and, for imported Items, the original Word line. **Change to** turns it into an Item, Multi-Item or Nested Item after a preview, with warnings and refusals explained.
+- **Mark for review / Clear review**: one click on any Item or Section; **Review note** adds a reason.
 - If someone else changed the same record first, you get a page saying nothing was saved; go back, reload and repeat the change.
 
 ## What is NOT built yet
 
-- The Item editor, Trash, History and Undo screens and conversions (Milestones 3c and 3d). The rules behind them exist already as a tested service layer (Milestone 3a, `diary/services/`). Edit mode for headings and Items is built (see "How to edit" below). The Word import (Milestone 2) is built but has not been run on the real file yet.
+- The Trash, History and Undo screens and the choice screen for edit clashes (Milestone 3d). The rules behind them exist already as a tested service layer (Milestone 3a, `diary/services/`). Edit mode, the Item editor and conversions are built (see "How to edit" below). The Word import (Milestone 2) is built but has not been run on the real file yet.
 - The off-site copy of backups (to Backblaze or Cloudflare). This is planned.
 - Password reset by email. An Admin sets a new password for a person in the Users screen.
 
