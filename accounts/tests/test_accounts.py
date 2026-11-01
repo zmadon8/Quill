@@ -963,7 +963,9 @@ class ExportNameTests(BaseCase):
         self.client.force_login(self.user)
         resp = self.client.get(reverse("profile_settings"))
         self.assertContains(resp, "Case Law Diary Main")
-        self.assertNotContains(resp, "<form")
+        self.assertNotContains(resp, 'name="export_name"')
+        self.assertNotContains(resp, "Save")
+        self.assertContains(resp, "Only Editors of this profile can change it.")
         self.assertEqual(self.client.post(reverse("profile_settings"), {"export_name": "X"}).status_code, 403)
         self.assertEqual(self.main().export_name, "")
 
