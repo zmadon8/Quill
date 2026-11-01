@@ -3,14 +3,18 @@ from io import StringIO
 from unittest import mock
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AnonymousUser
+from django.core.exceptions import PermissionDenied
 from django.core.management import call_command
 from django.core.management.base import CommandError
-from django.test import TestCase, override_settings
+from django.http import HttpResponse
+from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
 from accounts.forms import THROTTLE_MESSAGE
 from accounts.models import FailedLogin
+from accounts.permissions import admin_required, editor_required, reader_required
 
 User = get_user_model()
 PASSWORD = "correct-horse-battery-9"
@@ -18,12 +22,13 @@ PASSWORD = "correct-horse-battery-9"
 
 @override_settings(SECURE_SSL_REDIRECT=False)
 class BaseCase(TestCase):
-    def make_user(self, username, admin=False, active=True):
+    def make_user(self, username, admin=False, active=True, role=None):
+        if role is None:
+            role = "admin" if admin else "reader"
         return User.objects.create_user(
             username=username,
             password=PASSWORD,
-            is_superuser=admin,
-            is_staff=admin,
+            role=role,
             is_active=active,
         )
 
@@ -136,7 +141,7 @@ class UserAdminTests(BaseCase):
     def test_create(self):
         resp = self.client.post(
             reverse("user_create"),
-            {"username": "bob", "password1": PASSWORD, "password2": PASSWORD, "is_admin": "on"},
+            {"username": "bob", "password1": PASSWORD, "password2": PASSWORD, "role": "admin"},
         )
         self.assertRedirects(resp, reverse("user_list"))
         bob = User.objects.get(username="bob")
@@ -154,7 +159,7 @@ class UserAdminTests(BaseCase):
     def test_edit_disable_and_password(self):
         resp = self.client.post(
             reverse("user_edit", args=[self.user.pk]),
-            {"username": "alice2", "new_password": "another-good-pass-77"},
+            {"username": "alice2", "role": "reader", "new_password": "another-good-pass-77"},
         )
         self.assertRedirects(resp, reverse("user_list"))
         self.user.refresh_from_db()
@@ -165,7 +170,7 @@ class UserAdminTests(BaseCase):
     def test_edit_promote_to_admin(self):
         self.client.post(
             reverse("user_edit", args=[self.user.pk]),
-            {"username": "alice", "is_active": "on", "is_admin": "on"},
+            {"username": "alice", "is_active": "on", "role": "admin"},
         )
         self.user.refresh_from_db()
         self.assertTrue(self.user.is_superuser)
@@ -187,7 +192,7 @@ class UserAdminTests(BaseCase):
         self.make_user("second", admin=True)
         resp = self.client.post(
             reverse("user_edit", args=[self.admin.pk]),
-            {"username": "boss", "is_admin": "on"},
+            {"username": "boss", "role": "admin"},
         )
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "cannot disable your own account")
@@ -197,7 +202,7 @@ class UserAdminTests(BaseCase):
     def test_cannot_remove_last_admin_rights(self):
         resp = self.client.post(
             reverse("user_edit", args=[self.admin.pk]),
-            {"username": "boss", "is_active": "on"},
+            {"username": "boss", "is_active": "on", "role": "editor"},
         )
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "last active Admin")
@@ -221,7 +226,7 @@ class UserAdminTests(BaseCase):
         second = self.make_user("second", admin=True)
         resp = self.client.post(
             reverse("user_edit", args=[second.pk]),
-            {"username": "second", "is_active": "on"},
+            {"username": "second", "is_active": "on", "role": "reader"},
         )
         self.assertRedirects(resp, reverse("user_list"))
         second.refresh_from_db()
@@ -256,3 +261,116 @@ class CreateFirstAdminTests(TestCase):
         with mock.patch.dict("os.environ", env):
             with self.assertRaises(CommandError):
                 self.run_command()
+
+
+class RoleTests(BaseCase):
+    def test_new_user_defaults_to_reader(self):
+        user = User.objects.create_user("plain", password=PASSWORD)
+        self.assertEqual(user.role, "reader")
+        self.assertFalse(user.is_superuser)
+        self.assertFalse(user.is_editor)
+
+    def test_create_form_defaults_to_reader(self):
+        self.client.force_login(self.admin)
+        resp = self.client.get(reverse("user_create"))
+        self.assertEqual(resp.context["form"].fields["role"].initial, "reader")
+
+    def test_superuser_flag_and_admin_role_stay_in_step(self):
+        a = User.objects.create_user("a", password=PASSWORD, is_superuser=True)
+        self.assertEqual(a.role, "admin")
+        self.assertTrue(a.is_staff)
+        b = User.objects.create_user("b", password=PASSWORD, role="admin")
+        self.assertTrue(b.is_superuser)
+        b.set_role("editor")
+        b.save()
+        b.refresh_from_db()
+        self.assertEqual((b.role, b.is_superuser, b.is_staff), ("editor", False, False))
+
+    def test_role_helpers(self):
+        ed = self.make_user("ed", role="editor")
+        self.assertTrue(ed.is_editor)
+        self.assertFalse(ed.is_admin)
+        self.assertTrue(self.admin.is_editor)
+        self.assertTrue(self.admin.is_admin)
+        self.assertFalse(self.user.is_editor)
+
+    def test_create_first_admin_makes_admin_role(self):
+        env = {"DJANGO_SUPERUSER_USERNAME": "root2", "DJANGO_SUPERUSER_PASSWORD": PASSWORD}
+        with mock.patch.dict("os.environ", env):
+            User.objects.all().delete()
+            call_command("create_first_admin", stdout=StringIO())
+        self.assertEqual(User.objects.get(username="root2").role, "admin")
+
+    def test_decorators(self):
+        def view(request):
+            return HttpResponse("ok")
+
+        rf = RequestFactory()
+
+        def call(decorator, user):
+            request = rf.get("/x/")
+            request.user = user
+            return decorator(view)(request)
+
+        editor = self.make_user("ed", role="editor")
+        for decorator in (admin_required, editor_required, reader_required):
+            self.assertEqual(call(decorator, AnonymousUser()).status_code, 302)
+        self.assertEqual(call(admin_required, self.admin).status_code, 200)
+        self.assertEqual(call(editor_required, self.admin).status_code, 200)
+        self.assertEqual(call(editor_required, editor).status_code, 200)
+        self.assertEqual(call(reader_required, self.user).status_code, 200)
+        with self.assertRaises(PermissionDenied):
+            call(admin_required, editor)
+        with self.assertRaises(PermissionDenied):
+            call(editor_required, self.user)
+
+    def test_role_shown_in_header_and_user_list(self):
+        self.client.force_login(self.user)
+        self.assertContains(self.client.get(reverse("home")), "alice, Reader")
+        self.client.force_login(self.admin)
+        self.assertContains(self.client.get(reverse("user_list")), "Reader")
+
+    def test_editor_and_reader_refused_on_admin_screens(self):
+        editor = self.make_user("ed", role="editor")
+        target = reverse("user_edit", args=[self.user.pk])
+        urls = [
+            reverse("user_list"), reverse("user_create"), target,
+            reverse("user_delete", args=[self.user.pk]),
+            reverse("backup_list"), reverse("restore_upload"),
+        ]
+        for who in (editor, self.user):
+            self.client.force_login(who)
+            for url in urls:
+                self.assertEqual(self.client.get(url).status_code, 403, (who.username, url))
+            resp = self.client.post(target, {"username": "alice", "is_active": "on", "role": "admin"})
+            self.assertEqual(resp.status_code, 403)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.role, "reader")
+
+    def test_admin_changes_role(self):
+        self.client.force_login(self.admin)
+        self.client.post(
+            reverse("user_edit", args=[self.user.pk]),
+            {"username": "alice", "is_active": "on", "role": "editor"},
+        )
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.role, "editor")
+        self.assertFalse(self.user.is_superuser)
+
+    def test_invalid_role_rejected(self):
+        self.client.force_login(self.admin)
+        resp = self.client.post(
+            reverse("user_edit", args=[self.user.pk]),
+            {"username": "alice", "is_active": "on", "role": "root"},
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.role, "reader")
+
+    def test_last_admin_cannot_become_editor_or_be_disabled(self):
+        self.client.force_login(self.admin)
+        url = reverse("user_edit", args=[self.admin.pk])
+        self.assertContains(self.client.post(url, {"username": "boss", "is_active": "on", "role": "editor"}), "last active Admin")
+        self.assertContains(self.client.post(url, {"username": "boss", "role": "admin"}), "cannot disable your own")
+        self.admin.refresh_from_db()
+        self.assertEqual(self.admin.role, "admin")

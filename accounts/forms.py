@@ -7,7 +7,13 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 
-from .models import FailedLogin, prune_failed_logins
+from .models import (
+    ROLE_ADMIN,
+    ROLE_CHOICES,
+    ROLE_READER,
+    FailedLogin,
+    prune_failed_logins,
+)
 
 User = get_user_model()
 
@@ -53,7 +59,12 @@ class ThrottledAuthenticationForm(AuthenticationForm):
 
 
 class UserCreateForm(UserCreationForm):
-    is_admin = forms.BooleanField(required=False, label="Admin")
+    role = forms.ChoiceField(
+        choices=ROLE_CHOICES,
+        initial=ROLE_READER,
+        label="Role",
+        help_text="Reader: view only. Editor: view and edit. Admin: everything, including users and backups.",
+    )
 
     class Meta:
         model = User
@@ -61,15 +72,18 @@ class UserCreateForm(UserCreationForm):
 
     def save(self, commit=True):
         user = super().save(commit=False)
-        user.is_superuser = self.cleaned_data["is_admin"]
-        user.is_staff = user.is_superuser
+        user.set_role(self.cleaned_data["role"])
         if commit:
             user.save()
         return user
 
 
 class UserEditForm(forms.ModelForm):
-    is_admin = forms.BooleanField(required=False, label="Admin")
+    role = forms.ChoiceField(
+        choices=ROLE_CHOICES,
+        label="Role",
+        help_text="Reader: view only. Editor: view and edit. Admin: everything, including users and backups.",
+    )
     new_password = forms.CharField(
         required=False,
         strip=False,
@@ -84,7 +98,7 @@ class UserEditForm(forms.ModelForm):
     def __init__(self, *args, editing_user=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.editing_user = editing_user
-        self.fields["is_admin"].initial = self.instance.is_superuser
+        self.fields["role"].initial = self.instance.role
 
     def clean_new_password(self):
         password = self.cleaned_data.get("new_password")
@@ -97,7 +111,7 @@ class UserEditForm(forms.ModelForm):
         if "is_active" not in cleaned:
             return cleaned
         is_active = cleaned["is_active"]
-        is_admin = cleaned.get("is_admin", False)
+        is_admin = cleaned.get("role") == ROLE_ADMIN
         target = self.instance
         if self.editing_user is not None and target.pk == self.editing_user.pk and not is_active:
             raise ValidationError("You cannot disable your own account.")
@@ -107,14 +121,13 @@ class UserEditForm(forms.ModelForm):
             others = User.objects.filter(is_superuser=True, is_active=True).exclude(pk=target.pk)
             if not others.exists():
                 raise ValidationError(
-                    "This is the last active Admin. It cannot be disabled or lose Admin rights."
+                    "This is the last active Admin. It cannot be disabled or lose the Admin role."
                 )
         return cleaned
 
     def save(self, commit=True):
         user = super().save(commit=False)
-        user.is_superuser = self.cleaned_data["is_admin"]
-        user.is_staff = user.is_superuser
+        user.set_role(self.cleaned_data["role"])
         if self.cleaned_data.get("new_password"):
             user.set_password(self.cleaned_data["new_password"])
         if commit:

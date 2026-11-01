@@ -10,7 +10,7 @@ BACKUP_KINDS = ["daily", "manual", "pre_restore", "pre_migration"]
 def backup_banner(request):
     """Warn Admins at the top of every page if backups are failing or old."""
     user = getattr(request, "user", None)
-    if user is None or not user.is_authenticated or not user.is_superuser:
+    if user is None or not user.is_authenticated or not user.is_admin:
         return {"backup_warning": None}
 
     logs = BackupLog.objects.filter(kind__in=BACKUP_KINDS)

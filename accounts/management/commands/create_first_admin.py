@@ -32,7 +32,7 @@ class Command(BaseCommand):
             else:
                 raise CommandError("DJANGO_SUPERUSER_PASSWORD must be set.")
 
-        user = User(username=username, is_staff=True, is_superuser=True)
+        user = User(username=username, role="admin", is_staff=True, is_superuser=True)
         try:
             user.full_clean(exclude=["password"])
             validate_password(password, user)
