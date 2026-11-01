@@ -7,8 +7,8 @@ The longer plans are in `docs/PLAN.md` (what is built when), `docs/DESIGN.md` (h
 ## What works in Milestone 0
 
 - A login page. After 5 wrong passwords for a username, that username is blocked for 15 minutes.
-- Two kinds of people: **Admin** (can manage users and backups) and ordinary users.
-- A Users screen (Admin only): add a person, change a password, disable or delete a person. The app will not let you delete or disable yourself, or remove the last Admin.
+- Three roles: **Admin** (everything, including users and backups), **Editor** (reads and edits the diary) and **Reader** (reads only). New accounts are Readers. Your role is shown next to the Log out link. See `docs/DESIGN.md` section 9.6 for what each role may do (the diary screens come in later milestones).
+- A Users screen (Admin only): add a person, change a password, disable or delete a person, and choose or change their role. The app will not let you delete or disable yourself, or remove the last Admin.
 - A Backups screen (Admin only): "Backup now", a list of saved backups with Download and Restore, and a history of what happened.
 - A nightly backup, made by a scheduled job, kept for at least 30 days.
 - A yellow warning bar at the top of every page (Admins only) if the last backup failed or there has been none for 36 hours.
@@ -91,6 +91,13 @@ You normally do not touch these; the Blueprint sets them.
 | `DJANGO_ALLOW_SQLITE` | `1` lets the app use a throwaway local database. Never set this on Render. | Developers only |
 | `DJANGO_SUPERUSER_USERNAME`, `DJANGO_SUPERUSER_PASSWORD` | Used once, typed in the Shell, to create the first Admin | You, once |
 
+## Giving someone a role
+
+1. Log in as an Admin and open **Users**.
+2. **New user**: type a name and password and pick the **Role** (Reader is pre-selected). **Edit** next to an existing person changes their role the same way.
+3. Only an Admin can change roles. The last active Admin cannot be disabled, deleted or changed to another role. The first account made with `create_first_admin` is an Admin.
+4. People who already existed before roles were added become Admin if they were Admins, otherwise Reader.
+
 ## Everyday use
 
 See `docs/HOSTING_AND_DEPLOY.md`: how to deploy a change, how to roll back, and the safety habits (password manager, two-step login, download a backup once a month).
@@ -115,7 +122,7 @@ To run it locally: `DJANGO_DEBUG=1 python manage.py migrate`, then `DJANGO_DEBUG
 Layout:
 
 - `config/`: settings (all from environment variables), URLs.
-- `accounts/`: custom `User` (the Admin flag is Django's `is_superuser`), throttled login, Users screens, `create_first_admin`.
+- `accounts/`: custom `User` (a `role` of admin, editor or reader; Admin is kept in step with Django's `is_superuser`; role checks in `permissions.py`), throttled login, Users screens, `create_first_admin`.
 - `backups/`: backup models (stored in the database), `policy.py` (pure Python rules), `registry.py` (which models are backed up), `services.py`, views, and the commands `run_backup` and `migrate_with_backup`.
 - `diary/`: placeholder home page and `/healthz/`.
 - `render.yaml`, `build.sh`: Render deployment.

@@ -107,7 +107,7 @@ The database check is: "exactly one parent column is not empty". Linked records 
 
 **UserSettings**: `user_id`, `opening_page`, `opening_subject_id`, the number formats for Topics, Sub-topics, **Sections**, Items, Nested Items and Multi-Item citations, `export_custom_name` (text, default `Judgment Diary`), `export_date_format`, and the time zone used for dates (section 5.11).
 
-**User**: login name, password (stored only as a secure hash), `is_admin`, `is_active`.
+**User**: login name, password (stored only as a secure hash), `role` (Admin, Editor or Reader; default Reader; Admin is tied to `is_superuser`, exposed as `is_admin`), `is_active`. Section 9.6 has the roles.
 
 **VersionHistory** (new, one table for all record types): `record_type`, `record_id`, `version`, `snapshot` (the full record contents as of that version, including its parent and position), `changed_at`, `changed_by`, `change_kind` (create, edit, move, reorder, delete, restore, convert, import). A Section's snapshot includes its `needs_review` and `review_note`. Details in section 9.
 
@@ -248,7 +248,7 @@ Per user:
 
 ### 5.13 Other screens
 - **Review list**: every Item and Section marked For review across all Subjects, with path and note. A Section appears as a header row with its number and its parent path.
-- **Trash**, **History**, **Backups**, **Users (Admin only)**, **Import report** (during import only).
+- **Trash**, **History**, **Backups (Admin only)**, **Users (Admin only)**, **Import report** (during import only).
 
 ## 6. Conversions: Item, Multi-Item, Nested Item (4.13)
 
@@ -351,11 +351,37 @@ A new Item group starts whenever the Word list changes. The importer uses this o
 
 ### 9.5 Security
 - Password login (passwords stored as secure hashes, never readable). Failed attempts are rate-limited.
-- An **Admin** can create, edit, disable and delete accounts. Only Admin sees the Users screen.
+- An **Admin** can create, edit, disable and delete accounts and change anyone's role. Only Admin sees the Users screen. See section 9.6 for roles.
 - The site only works over https. Session cookies are secure. Standard protection against forged requests is on.
 - Rich text is sanitised on the server (not only in the browser) so pasted content cannot run scripts.
 - Search and all queries use parameter binding (no injected SQL).
 - No data lives on the server's disk: the database is a managed, persistent service (hosting guide).
+
+### 9.6 Roles and permissions (decision D12)
+
+Every account has exactly one role. A new account is a **Reader** unless the Admin picks another role. The role is shown next to the sign-out link.
+
+- **Admin**: everything, including Users, Backups and Restore. Admin is the existing superuser flag; the app keeps the two in step. At least one active Admin must always exist: the last active Admin cannot be disabled, deleted or given another role, and nobody can disable or delete their own account.
+- **Editor**: reads and edits the diary.
+- **Reader**: reads only.
+
+Only an Admin can change a role. Code checks use `admin_required`, `editor_required` (Editor or Admin) and `reader_required` (any signed-in user) from `accounts/permissions.py`. Anyone not allowed gets a "403 forbidden" page; a signed-out visitor is sent to the login page.
+
+Permissions for the planned features. **Everything except the Admin-only account and backup screens is a proposed default and needs owner confirmation.**
+
+| Feature | Reader | Editor | Admin |
+|---|---|---|---|
+| Landing page, Subject contents, reading view, three View buttons | Yes | Yes | Yes |
+| Search, own Settings (including Custom Name) | Yes | Yes | Yes |
+| Review list (see flagged lines and notes) | Yes (proposed) | Yes | Yes |
+| Export to Word: Current View | Yes (proposed) | Yes | Yes |
+| Export to Word: Full (one file, per Subject) | No (proposed) | Yes | Yes |
+| Trash list and History (view only) | No (proposed) | Yes | Yes |
+| Edit mode: add, rename, move, reorder, convert, flag, Notes | No | Yes | Yes |
+| Delete to Trash, Restore from Trash, Undo, restore an earlier version, conflict handling | No | Yes | Yes |
+| Permanent delete from Trash | No | No (proposed) | Yes |
+| Import from Word | No | No (proposed) | Yes |
+| Users, Backups, Restore | No | No | Yes |
 
 ## 10. Search (spec section 5)
 
@@ -501,6 +527,7 @@ Confirmed earlier: each Heading 1 is a Subject; Miscellaneous holds Other Subjec
 - **D9. Numbering of Sections and the Items after them.** (This answers N1, now closed.) [Answer: Your modification is correct. Perhaps, instead, give 'Sections' their own numbering system as well, and restart the numbering of items within them.] **Decision:** Sections have their own numbering format (Settings; default (A), (B), (C), default, needs owner confirmation) and each Section restarts the Item numbering at (i). Items before the first Section number as before. Section 4 has the full rules.
 - **D10. Three types of Word export.** [Answer: I want three types of export to Word - (i) Full as 1 word document, (ii) Full, as separate word documents per Subject (though 'Other Subjects' will be kept together as a single subject), and (iii) Current View. The name of the word document will be as follows: [Custom Name, as modified in Settings] [(i) 'Full' if full, (ii) 'Name of Subject' if split subject wise, and (iii) 'Name of Subject, Topic, etc currently on screen', if for current view] [Today's Date].] **Decision:** section 12. The details not stated by the owner (zip delivery, manifest, file-name cleaning and length, date format, scope headings for Current View) are defaults, marked as needing owner confirmation.
 - **D11. Custom Name setting.** [Answer: [Custom Name, as modified in Settings]] (part of the D10 answer). **Decision:** a per-user Settings text, default `Judgment Diary`, with the rules and live file-name preview in section 5.11.
+- **D12. Three roles: Admin, Editor, Reader.** The owner asked whether the Admin can use the diary like a regular user (yes: Admin is an ordinary user plus the Users, Backups and Restore screens). The spec does not say whether other users may edit, so three roles were proposed: Admin (everything), Editor (read and edit), Reader (read only, the safe default for new accounts). [Answer: Yes, do that.] **Decision:** built in Milestone 0 (section 9.6). The permissions table in section 9.6 is a set of defaults: what Readers may export, whether Readers see the Trash, History and Review list, and that permanent delete and Import are Admin only are proposals needing owner confirmation (question 5).
 
 **Open questions for the owner** (each has a default that is used unless you say otherwise)
 
@@ -508,3 +535,4 @@ Confirmed earlier: each Heading 1 is a Subject; Miscellaneous holds Other Subjec
 2. **Date in file names.** Default: 2026-11-01 style (year-month-day), in Asia/Kolkata time. Other choices: 01-11-2026 or 1 November 2026.
 3. **Long file names.** Default: if a Current View name would exceed 120 characters, each part is cut to 30 characters and, if still too long, middle parts are replaced by `-`. The full path is always inside the document.
 4. **Current View of a Topic or Sub-topic.** Default: the Topic or Sub-topic heading becomes the top heading (Heading 1) and keeps its on-screen letter or number.
+5. **What a Reader may do.** Default (section 9.6): a Reader can read, search, see the Review list and export the Current View, but cannot see Trash or History, cannot do the two Full exports, and cannot edit. Editors can do everything except permanent delete from Trash and Import, which only an Admin can do.

@@ -23,11 +23,12 @@ Note: the technology (Django, PostgreSQL) is confirmed for a **standalone app** 
 
 ## Milestone 1: Data model, reading view, numbering
 
-**Deliverable:** All record types and database rules exist. Test data (not yours yet) can be loaded. Screens: landing page with Subject tiles and the Other Subjects tile, Subject contents (TOC), the reading view with Items, Citations in italics, Multi-Items, Nested Items, Sections, flags in red, with automatic numbering and the three View buttons. Phone layout from the start.
+**Deliverable:** All record types and database rules exist. Test data (not yours yet) can be loaded. Screens: landing page with Subject tiles and the Other Subjects tile, Subject contents (TOC), the reading view with Items, Citations in italics, Multi-Items, Nested Items, Sections, flags in red, with automatic numbering and the three View buttons. Phone layout from the start. Role rules apply from the first screen: Readers, Editors and Admins can all read; the app is built with the `reader_required`, `editor_required` and `admin_required` checks from `accounts/permissions.py` (`docs/DESIGN.md` section 9.6).
 
 **How you check it:**
 - Look at a small sample Subject; confirm Topics are A, B, C; Sub-topics 1, 2, 3; Items (i), (ii), (iii); Nested Item bullets; Sections with their own numbering (default (A), (B)) and Item numbering restarting at (i) after each Section (the Clause 12 example: Section (A) with Items (i), (ii); Section (B) with Items (i) to (viii)). Moving or deleting a Section shows a preview of the Items that will renumber.
 - Open a sample Other Subject and confirm it shows Sub-topics and Items directly.
+- Sign in as a Reader and as an Editor and confirm both can read everything they are meant to see (Milestone 1 screens are read-only for everyone).
 - Open on your phone: no sideways scrolling, text is easy to read, Contents button works.
 - Use "View whole Subject" and press Ctrl/Cmd + F in the browser: it finds text anywhere in the Subject.
 - Test numbering with a long list (past 26 items, and past (xxxix)) to see that it carries on correctly.
@@ -57,11 +58,12 @@ Note: the technology (Django, PostgreSQL) is confirmed for a **standalone app** 
 
 ## Milestone 3: Edit mode, Trash, history, Undo, conversions
 
-**Deliverable:** Everything for changing data: edit mode toggle, add, rename, delete, move up/down, drag reorder, move via tree, the Item editor (rich text, Citation box, flags, For review, Cases), Trash with cascade and restore, permanent delete with double confirmation, version history (20 or more per Item), Undo, clash detection (both versions shown), and conversions with preview and refusal rules.
+**Deliverable:** Everything for changing data: edit mode toggle, add, rename, delete, move up/down, drag reorder, move via tree, the Item editor (rich text, Citation box, flags, For review, Cases), Trash with cascade and restore, permanent delete with double confirmation, version history (20 or more per Item), Undo, clash detection (both versions shown), and conversions with preview and refusal rules. **Role enforcement:** edit mode, delete, restore from Trash, Undo, history restore, conversions and conflict handling need Editor or Admin (server-side, not only hidden buttons); permanent delete needs Admin; Readers see no edit controls (`docs/DESIGN.md` section 9.6).
 
 **How you check it:**
 - Edit an item with bold and italic; paste from Word and see only bold, italic, underline survive.
 - Delete a whole Topic, see it in Trash with its path, restore it, and see everything return in place.
+- Sign in as a Reader: no edit mode is offered, and typing an edit address directly gives a 403 page. Sign in as an Editor: edit and Trash restore work, permanent delete does not.
 - Try permanent delete: it needs a second confirmation and only works from Trash.
 - Move and delete a Section: a preview lists the Items whose numbers will change; Undo brings the old numbers back.
 - Move and delete a Section: a preview lists the Items whose numbers will change; Undo brings the old numbers back.
