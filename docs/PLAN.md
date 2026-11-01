@@ -2,9 +2,11 @@
 
 Each milestone ends with something you can open and check, and it is deployed before the next begins. Nothing moves on until you are satisfied. The overriding rule applies at every step: no data is altered, lost or merged silently.
 
-Note: the technology (Django, PostgreSQL) is a proposal pending the open questions in `docs/DESIGN.md`, section 14. Milestone 0 should not start until question 1 (the combined app) is answered.
+Note: the technology (Django, PostgreSQL) is confirmed for a **standalone app** that can be plugged into a combined app later (decision D1, `docs/DESIGN.md` section 14). All earlier open questions are answered. Two new questions (N1 numbering after a Section, N2 flagging the Sections) are listed in section 14; N1 should be answered before Milestone 1.
 
 ## Milestone 0: Skeleton, deploy, login, backup and restore
+
+**Status: built in the `quill/` folder (code written; see `README.md` for what was and was not tested).**
 
 **Deliverable:** A live website at a real address, behind a password. An Admin account (yours) can create other users. A daily automatic backup runs, can be downloaded, and a backup file can be restored with a preview. Deploying a change works end to end (see `docs/HOSTING_AND_DEPLOY.md`).
 
@@ -16,7 +18,7 @@ Note: the technology (Django, PostgreSQL) is a proposal pending the open questio
 
 **Risks:**
 - Choice of host and database settings made wrongly (mitigation: paid database from day one, no free tier).
-- Combined-app question unanswered, causing rework.
+- A combined app appearing later may require rework (mitigation: standalone design with a clear boundary).
 - Restore is the riskiest feature to get wrong, so it is built and tested first, with test data only.
 
 ## Milestone 1: Data model, reading view, numbering
@@ -24,7 +26,7 @@ Note: the technology (Django, PostgreSQL) is a proposal pending the open questio
 **Deliverable:** All record types and database rules exist. Test data (not yours yet) can be loaded. Screens: landing page with Subject tiles and the Other Acts tile, Subject contents (TOC), the reading view with Items, Citations in italics, Multi-Items, Nested Items, Sections, flags in red, with automatic numbering and the three View buttons. Phone layout from the start.
 
 **How you check it:**
-- Look at a small sample Subject; confirm Topics are A, B, C; Sub-topics 1, 2, 3; Items (i), (ii), (iii); Nested Item bullets; Sections unnumbered and not breaking numbering.
+- Look at a small sample Subject; confirm Topics are A, B, C; Sub-topics 1, 2, 3; Items (i), (ii), (iii); Nested Item bullets; Sections unnumbered and not breaking numbering (the Clause 12 example: (i), (ii), Section, (iii) to (x)).
 - Open a sample Other Act and confirm it shows Sub-topics and Items directly.
 - Open on your phone: no sideways scrolling, text is easy to read, Contents button works.
 - Use "View whole Subject" and press Ctrl/Cmd + F in the browser: it finds text anywhere in the Subject.
@@ -32,7 +34,7 @@ Note: the technology (Django, PostgreSQL) is a proposal pending the open questio
 
 **Risks:**
 - Numbering mistakes (mitigation: many automatic tests for the numbering rules, including letters beyond z).
-- Other Acts structure decision (question 2) changing the model; resolved before this milestone.
+- Numbering rule after a Section (new question N1) must be settled before this milestone.
 - Phone layout needs repeated real-phone checks.
 
 ## Milestone 2: Import prototype, dry run, reconciliation
@@ -40,9 +42,9 @@ Note: the technology (Django, PostgreSQL) is a proposal pending the open questio
 **Deliverable:** A supervised importer reading `Case Law Diary.docx` (never modifying it). A dry-run report (page and downloadable file). Then the real import into a test copy of the database, with a reconciliation report.
 
 **How you check it:**
-- Read the dry-run report: 41 Subjects (10 main plus 31 Other Acts), 178 Topics, 323 Sub-topics, 950 Items, plus the 2 odd lines; about 693 clean and 259 flagged lines with reasons.
+- Read the dry-run report: 41 Subjects (10 main plus 31 Other Acts), 178 Topics, 323 Sub-topics, 2 Sections, 950 Items; 693 clean and 257 flagged Items with reasons.
 - After the import, open ten Subjects of your choice and compare with Word.
-- Read the reconciliation report: counts match, and the text comparison reports zero differences. Any difference is listed and explained, never hidden.
+- Read the reconciliation report: counts match, and the text comparison reports only the expected differences: the 19 names with the trailing colon removed (your instruction). Any other difference is listed and explained, never hidden.
 - Spot check the "original Word line" shown against what is displayed, for ten flagged and ten clean items.
 - Run the import twice and see that nothing is duplicated.
 
@@ -99,7 +101,7 @@ Note: the technology (Django, PostgreSQL) is a proposal pending the open questio
 
 **Risks:**
 - Links across Trash and restore are subtle (mitigation: tests for each case).
-- Notes ordering assumption (question 5).
+- Notes ordering is confirmed (D5): after Items, before child headings.
 
 ## Milestone 6: Word export and round-trip check
 
@@ -107,7 +109,7 @@ Note: the technology (Django, PostgreSQL) is a proposal pending the open questio
 
 **How you check it:**
 - Export the whole database and open in Word: Subject names as headings, Topics lettered, Sub-topics numbered, Items (i), Citations in italic after " - ".
-- Check the Other Acts section and a single-Other-Act export (heading level to be confirmed by you).
+- Check the Other Acts section and a single-Other-Act export (Heading 1 alone, confirmed).
 - The record count on the export matches the screen count.
 - **Round trip:** a comparison report of the export against your original Word file; differences should be only the deliberate ones (formatting), listed one by one.
 - Export with and without the review markers.
@@ -132,4 +134,4 @@ Note: the technology (Django, PostgreSQL) is a proposal pending the open questio
 
 ## Order and dependencies
 
-0, 1, then 2 (so real data can be seen), then 3, 4, 5, 6, 7. Milestones 4 and 5 can swap if you need Notes sooner. Questions in `docs/DESIGN.md` section 14 should be answered before the milestone that needs them: questions 1 and 2 before Milestone 0 and 1; import questions before Milestone 2; question 3 before Milestone 6.
+0, 1, then 2 (so real data can be seen), then 3, 4, 5, 6, 7. Milestones 4 and 5 can swap if you need Notes sooner. All questions in `docs/DESIGN.md` section 14 are answered. Only the new question N1 (numbering after a Section) remains, and it should be answered before Milestone 1.

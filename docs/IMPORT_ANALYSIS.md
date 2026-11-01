@@ -7,9 +7,9 @@ This note explains what is actually inside your Word file, so the import into th
 
 - The file has **1,506 paragraphs**. 1,495 carry text and 11 are blank.
 - There are **no tables, no images and no footnotes** (the footnote part exists inside the file, but it holds zero real footnotes and nothing in the text points to one). This matches what you told me.
-- There are **no "Sections"** anywhere, as you expected.
+- There are **2 lines that become "Sections"**: the small-letter (a)/(b) lines `Ex Parte / Without Notice` and `Determining Jurisdiction` (your decision, section 7, Q3). There are no other Sections.
 - The real **Subject count is 41**, which matches your "about 41" (see section 3).
-- The structure is regular and can be read reliably from Word's own list formats. About **73% of item lines (693 of 952)** can be split safely into Text and Citation. The other **259 lines** will be imported whole and flagged for your review. Nothing is ever rewritten.
+- The structure is regular and can be read reliably from Word's own list formats. About **73% of the 950 Item lines (693 of 950)** can be split safely into Text and Citation. The other **257 lines** will be imported whole, as Text with no Citation, and flagged for your review. Nothing is ever rewritten.
 
 ## 2. How the levels are recognised
 
@@ -21,10 +21,10 @@ Word stores every list entry at the same indent depth here (all 1,495 numbered p
 | Topic | Heading 2 | A., B., C. (capital letters) | 209 |
 | Sub-topic | List Paragraph | 1., 2., 3. (plain numbers) | 323 |
 | Item | List Paragraph | (i), (ii), (iii) (small Roman) | 950 |
-| Other (see below) | List Paragraph | (a), (b) (small letters) | 2 |
+| Section | List Paragraph | (a), (b) (small letters) | 2 |
 | Blank lines | Normal | none | 11 |
 
-Total with text: 11 + 209 + 323 + 950 + 2 = 1,495.
+Total with text: 11 + 209 + 323 + 950 + 2 = 1,495. (The 209 Heading 2 lines are 178 Topics of the main Subjects plus 31 Other Acts, which become Subjects.)
 
 What this tells us:
 
@@ -47,7 +47,7 @@ So the number you remembered is exactly right. The 31 Other Acts Subjects will b
 
 ### 4.1 The 10 main Subjects
 
-| Subject | Topics | Sub-topics | Items | Other | Blank |
+| Subject | Topics | Sub-topics | Items | Sections | Blank |
 |---|---:|---:|---:|---:|---:|
 | Arbitration | 32 | 49 | 157 | 0 | 1 |
 | Contracts | 17 | 32 | 93 | 0 | 1 |
@@ -102,7 +102,7 @@ In the new system each of these Topics becomes a Subject, so "Topics" in the tab
 | Valuation | 2 | 2 |
 | **Total** | **97** | **197** |
 
-Grand totals across the file: 41 Subjects, 178 Topics under the 10 main Subjects, 323 Sub-topics, 950 Items, 2 "(a)/(b)" lines.
+Grand totals across the file (these are the reconciliation targets): 41 Subjects, 178 Topics under the 10 main Subjects, 323 Sub-topics, 950 Items, 2 Sections, 1,495 text paragraphs, 11 blanks skipped.
 
 ## 5. Messy patterns found, with counts, examples and proposed rules
 
@@ -112,18 +112,18 @@ The golden rules for the importer:
 2. **Split a line into Text and Citation only when it is unambiguous.**
 3. **Anything doubtful is imported whole**, marked `needs_review = Yes`, with a short `review_note` saying why. You can then fix it in the screen at your own pace.
 
-Counts below are numbers of Item lines (952 lines = the 950 "(i)" Items plus the 2 "(a)/(b)" lines). A line can fall under more than one pattern, so the counts overlap.
+Counts below were produced by the script over 952 lines, which is the 950 "(i)" Items plus the 2 "(a)/(b)" lines. Because the 2 "(a)/(b)" lines are now Sections, they are not Items and are no longer counted as Item lines; where they affected a count, the corrected figure is given. A line can fall under more than one pattern, so the counts overlap.
 
 | # | Pattern | Count | Verbatim example | Proposed rule |
 |---|---|---:|---|---|
-| 1 | Several citations in one line, marked (i), (ii) | 38 | `Leave & License not arbitrable - (i) Central Warehousing Corp. v Fortpoint Automotive [(2010) 1 MahLJ 658(FB)] ; (ii) Bafna Motors [2022 SCC OnLine Bom 994]` | Import whole, needs_review. Note: "(i)" typed inside the line, not a Word list entry. |
+| 1 | Several citations in one line, marked (i), (ii) | 38 | `Leave & License not arbitrable - (i) Central Warehousing Corp. v Fortpoint Automotive [(2010) 1 MahLJ 658(FB)] ; (ii) Bafna Motors [2022 SCC OnLine Bom 994]` | Import whole as one long Citation or Text as the split rule decides (decided, Q4), needs_review. Note: "(i)" typed inside the line, not a Word list entry. |
 | 2 | Unbalanced brackets (an opening `[` or `(` without its closing one, or the reverse) | 49 | `Limited scope - Goqii Technologies [(2025) 2 SCC 192` and `Arbitrator can implead third parties - (i) Cardinal (Bom HC, Chagla], (ii) ASF Buildtech [2025 SCC OnLine SC 1016]` | Import whole, needs_review, note "brackets do not match". |
 | 3 | More than one " - " in a line | 85 | `Incorporation of arbitration agreement by reference - General reference to an earlier contract insufficient, but to a standard form of contract sufficient. Purchase Order - Inox Wind [(2018) 2 SCC 519 @ para 18]` | Import whole, needs_review. We cannot tell which dash separates Text from Citation. |
-| 4 | No " - " at all | 78 | `Associate Builders` and `Incorporation by reference to standard form agreement - (2019) 5 SCC 192` (the second has a dash but no `[ ]` brackets, so it falls under pattern 12) | Lines with no dash are imported whole, needs_review. Often these are only a case name, or only a citation. |
+| 4 | No " - " at all | 76 (78 in the script, minus the 2 Sections) | `Associate Builders` and `Incorporation by reference to standard form agreement - (2019) 5 SCC 192` (the second has a dash but no `[ ]` brackets, so it falls under pattern 12) | Decided (Q2): in doubt, store the whole line as **Text with no Citation** and mark needs_review. Often these are only a case name, or only a citation. |
 | 5 | Whole line inside square brackets (a remark) | 2 | `[Question of whether 2 Indian parties can contract out of Part I of Arbitration Act not decided in Sasan Power [(2016) 10 SCC 813]]` and `[(2019) SCC OnLine Bom 1244]` | Import whole, needs_review, note "whole line is a bracketed remark". The brackets stay. |
-| 6 | Inline flag `[NO LONGER GOOD LAW]` | 1 | `Issue of Limitation of the claim can be decided by the arbitrator, though court can decide when clearly barred by limitation - BSNL v. Nortel Networks (2021) 5 SCC 738 @ paras 40-47 & 53 [NO LONGER GOOD LAW]` | Preserved exactly, as it sits in the line. The importer never removes it. Import whole with needs_review, note "contains a flag". Later the system can offer a proper "No longer good law" marker, but the original text stays. No other capital-letter flags exist. |
-| 7 | Heading-like lines ending in a colon | 0 among Items; **6 Topics** and **13 Sub-topics** end in a colon | Topic: `Non-signatories / 3rd Parties:` | Keep the colon exactly as typed; it is only part of the name. No review needed. |
-| 8 | Sub-topics that contain " - " or an unbalanced bracket | 18 contain " - " (31 Sub-topics in all need a look) | (shown in the Sub-topic list when the script is run) | Import the Sub-topic name whole; needs_review. A Sub-topic is a heading and is never split. |
+| 6 | Inline flag `[NO LONGER GOOD LAW]` | 1 | `Issue of Limitation of the claim can be decided by the arbitrator, though court can decide when clearly barred by limitation - BSNL v. Nortel Networks (2021) 5 SCC 738 @ paras 40-47 & 53 [NO LONGER GOOD LAW]` | Preserved exactly, as it sits in the line. The importer never removes it. Import whole with needs_review, note "contains a flag". Decided (Q5): no coloured badge is wanted; the wording stays in the text. No other capital-letter flags exist. |
+| 7 | Heading-like lines ending in a colon | 0 among Items; **6 Topics** and **13 Sub-topics** end in a colon | Topic: `Non-signatories / 3rd Parties:` | **Decided (Q8): remove the trailing colon.** The stored name has no colon; the exact Word text stays in `original_line`; all 19 changes (6 + 13) are listed in the reconciliation report. This is a deliberate, reported exception to "never alter". No review needed. |
+| 8 | Sub-topics that contain " - " or an unbalanced bracket | 18 contain " - " (the script's figure of 31 Sub-topics "needing a look" also counts the 13 colon endings, which are now handled by the colon rule) | (shown in the Sub-topic list when the script is run) | Import the Sub-topic name whole; needs_review. A Sub-topic is a heading and is never split. |
 | 9 | Semicolon between citations | 142 lines have a semicolon (many are normal sentence punctuation) | `Exclusive Jurisdiction clause must be honoured - Emkay Global [(2018) 9 SCC 49] ; Indus Mobile [(2017) 7 SCC 678 @ paras 2-4 & 19]` | A single dash plus balanced brackets is still split at the dash; the whole right-hand side, with all its citations, becomes the Citation. Semicolons are not split in the first version. |
 | 10 | Curly quotes | 26 | `Can’t bind non-signatory without establishing his intention to consent - Reckitt Benckiser [(2019) 7 SCC 62]` | Stored as is. Straight quotes (46 lines) are also left as is. Searching will treat both kinds as equal so you find either. |
 | 11 | Ampersands (&) | 105 | `L&T Finance Ltd v. Manoj Pathak [2020 SCC OnLine 177]` | Stored as is. The pages must display "&" correctly (a normal Django concern). |
@@ -133,11 +133,11 @@ Counts below are numbers of Item lines (952 lines = the 950 "(i)" Items plus the
 | 15 | Very long lines (over 400 characters) | 12 | `Attachment before judgment in S. 9 - Essar House [(2022) 20 SCC 178] Nimbus Communications ...` | Import whole, needs_review (long, several citations, likely mixed content). |
 | 16 | Very short lines (under 12 characters) | 1 | `NN Global` | Import whole, needs_review. |
 | 17 | Blank paragraphs | 11 | none to show | Skipped. They carry no text. They are listed in the report so nothing is lost silently. |
-| 18 | A Sub-topic directly after a Sub-topic (no Items between) | 2 | `Without Reasons` (under `Leaving question of Law Open`) and `Solicitors` (under `Professional Liability`) | Imported as two Sub-topics in order; flagged for review because it may be a two-line heading. |
+| 18 | A Sub-topic directly after a Sub-topic (no Items between) | 2 | `Without Reasons` (under `Leaving question of Law Open`) and `Solicitors` (under `Professional Liability`) | Decided (Q9): two separate Sub-topics in order. Not flagged; a Sub-topic may have no Items at present. |
 | 19 | A group of Items that restarts inside the same Topic or Sub-topic | 3 | e.g. under `Unlawful Subletting / Eviction` | Document order is kept. The Items stay under the same parent; needs_review note "list restarted". |
-| 20 | "(a)", "(b)" lines sitting between a "1." Sub-topic and its Items | 2 | `Ex Parte / Without Notice` and `Determining Jurisdiction` (under `Clause 12: Leave to Sue`, Topic `Letters Patent & OS Rules`) | See Question 3. Until you decide, they are imported as Sub-topics with needs_review. |
+| 20 | "(a)", "(b)" lines sitting between a "1." Sub-topic and its Items | 2 | `Ex Parte / Without Notice` and `Determining Jurisdiction` (under `Clause 12: Leave to Sue`, Topic `Letters Patent & OS Rules`) | Decided (Q3): imported as **Sections** (not Sub-topics, not counted as Items). Not flagged. See section 5.1 for how Items after them are numbered. |
 
-Not found at all: Sections, bullets, nested Items, tables, images, footnotes, headings with their own sub-numbering, Heading 2 lines without numbering, and Items deeper than level 0.
+Not found at all: any other Sections, bullets, nested Items, tables, images, footnotes, headings with their own sub-numbering, Heading 2 lines without numbering, and Items deeper than level 0.
 
 ### The rule for splitting Text and Citation
 
@@ -150,11 +150,11 @@ An Item line is split into **Text** (before the dash) and **Citation** (after it
 - no double spaces and no leading or trailing spaces;
 - the right-hand side contains a bracketed citation or something that clearly looks like a year and report name.
 
-Result on your file: **693 lines split cleanly, 259 imported whole with needs_review = Yes.** The 259 break down (a line can have several reasons; the first matching reason is counted):
+Result on your file: **693 Items split cleanly, 257 imported whole (as Text with no Citation) with needs_review = Yes.** (The script reported 259 of 952 lines; the 2 extra are the (a)/(b) lines, which are now Sections.) The 257 break down (a line can have several reasons; the first matching reason is counted):
 
 | Reason | Lines |
 |---|---:|
-| No " - " separator | 72 |
+| No " - " separator | 70 |
 | More than one " - " | 70 |
 | Unbalanced brackets | 49 |
 | Several citations marked (i), (ii) | 32 |
@@ -163,8 +163,27 @@ Result on your file: **693 lines split cleanly, 259 imported whole with needs_re
 | Whole line in brackets | 2 |
 | Carries a flag | 1 |
 | Leading or trailing spaces | 1 |
+| **Total** | **257** |
 
-The review screen would let you correct these one at a time, or sort them by reason. Reviewing about 260 lines is a manageable job, and the application stays fully usable while you do it.
+Every one of these lines is stored whole in the Text field with an empty Citation, so no characters are moved or lost. The review screen would let you correct these one at a time, or sort them by reason. Reviewing about 260 lines is a manageable job, and the application stays fully usable while you do it.
+
+### 5.1 Sections and the numbering of the Items after them
+
+The file has this shape (Topic `Letters Patent & OS Rules`, Sub-topic `Clause 12: Leave to Sue`):
+
+```
+1. Clause 12: Leave to Sue          (Sub-topic)
+   (a) Ex Parte / Without Notice    (Word list: small letters)
+       (i)  Ordinarily ex parte ...         (Word list A)
+       (ii) No need for prior notice ...
+   (b) Determining Jurisdiction
+       (i)  Must assume that the assertions ...   (a different Word list, B: restarts at (i))
+       ... 8 Items in all
+```
+
+How the importer builds it: the two small-letter lines become **Sections**; they are not counted as Items and not Sub-topics. A Section has no children, so it sits in the Sub-topic's shared order, at the position where it appears, and the Items that follow it (until the next Section, Sub-topic or Topic) are ordinary Items of the same Sub-topic placed after it. Membership is by position only.
+
+How it will be numbered in the Diary: Sections never interrupt the (i), (ii) run, so the Sub-topic reads: Section `Ex Parte / Without Notice`, (i), (ii), Section `Determining Jurisdiction`, then (iii) to (x). In Word the second group restarts at (i) to (viii). This is a difference in the printed number only; the text and order are identical. It is listed in the reconciliation report. **This is new question N1 (section 7).**
 
 ## 6. How the import will be checked
 
@@ -172,18 +191,26 @@ The review screen would let you correct these one at a time, or sort them by rea
 
 **Reconciliation report.** After the import, a report confirms nothing was lost or invented:
 
-1. Counts per level per Subject from the file against the counts in the database. They must match exactly (for example, 41 Subjects, 178 + 0 Topics under main Subjects, 323 Sub-topics, 950 Items and 2 "(a)/(b)" lines, 1,495 text paragraphs).
-2. A **full-text comparison**: all text is rebuilt from the database in the original order and compared line by line with the Word file. Any difference is listed. The target is zero differences.
-3. A list of every line flagged needs_review with its reason.
+1. Counts per level per Subject from the file against the counts in the database. They must match exactly (for example, 41 Subjects, 178 Topics under main Subjects, 323 Sub-topics, 2 Sections, 950 Items, 1,495 text paragraphs, 11 blank paragraphs skipped; 693 clean and 257 flagged Items).
+2. A **full-text comparison**: all text is rebuilt from the database in the original order and compared line by line with the Word file. Any difference is listed. The target is zero unexpected differences. The only expected differences are the **19 names with the trailing colon removed** (Q8), which are listed with the original beside the stored name, and the Item numbers after `Determining Jurisdiction` (section 5.1), which are numbers and not text.
+3. The list of the 19 colon removals.
+4. A list of every line flagged needs_review with its reason.
 
-## 7. Questions for the owner
+## 7. Decisions
 
-1. **Other Acts Subjects and Topics.** In Miscellaneous the file has Topic, then Sub-topic, then Items. When a Topic becomes an Other Acts Subject, it has no Topic level left. Should the Sub-topics (the 1, 2, 3 lines) of an Other Act appear directly under that Act, with Items directly under the Act when there is no Sub-topic (for example Income Tax has 0 Sub-topics and 1 Item)? This is how I plan it, unless you want a single default Topic named "General" under each Act. [Answer: Yes]
-2. **Lines that are only a case name or only a citation** (for example `Associate Builders`, or `Incorporation by reference to standard form agreement - (2019) 5 SCC 192`). Are these a "Text with no Citation" and a "Citation with no Text", or are they unfinished notes you want to look at one by one? I have assumed the second and flagged them. [Answer: When in doubt, put as 'Text with no Citation', and flag for my later review]
-3. **The two "(a)/(b)" lines** (`Ex Parte / Without Notice`, `Determining Jurisdiction`). They look like small headings inside Sub-topic "Clause 12: Leave to Sue", with Items under each. Should they become Sub-topics of their own, or a lower heading inside that Sub-topic? There are only 2, so I can also leave them as flagged Sub-topics. [Answer: These should be Sections]
-4. **Lines with several citations marked (i), (ii).** There are 38. Do you want the system to keep them as one Item with the long citation (my plan for now), or later split each (i), (ii) into separate Items? [Answer: Keep them as one long citation, and flag for review]
-5. **"[NO LONGER GOOD LAW]".** Only one line has it. Should future versions show it as a coloured badge (while the original wording stays in the text)? Are there other flags you use or plan to use? [Answer: I do not need any coloured badge. Keep the wording in the text.]
-6. **Search wording.** Should a search treat straight and curly quotes as the same, and "&" and "and" as the same? I propose yes for quotes and no for "&". [Answer: Ok]
-7. **Blank paragraphs.** The 11 blank lines are to be skipped. Please confirm they hold no meaning (for example marking the end of a group). [Answer: Ok]
-8. **Sub-topics that end in a colon** (13) and **Topics that end in a colon** (6). I keep the colon exactly. Is that acceptable? [Answer: Remove the colons]
-9. **Two Sub-topics in a row** (`Leaving question of Law Open` / `Without Reasons`, and `Professional Liability` / `Solicitors`). Are these two separate Sub-topics, or one heading broken over two lines? [Answer: These are separate sub-topics, some of which may not have any items at present]
+The owner's answers, kept verbatim in `[Answer: ...]`. Numbered as before (the Design document refers to them as I1 to I9).
+
+1. **Other Acts Subjects and Topics.** Sub-topics and Items sit directly under the Act (no default "General" Topic). [Answer: Yes] **Decision: direct, as planned.**
+2. **Lines that are only a case name or only a citation** (for example `Associate Builders`). [Answer: When in doubt, put as 'Text with no Citation', and flag for my later review] **Decision:** any doubtful line is stored whole as Text with no Citation and marked needs_review with a reason.
+3. **The two "(a)/(b)" lines** (`Ex Parte / Without Notice`, `Determining Jurisdiction`). [Answer: These should be Sections] **Decision:** Sections (section 5.1).
+4. **Lines with several citations marked (i), (ii).** There are 38. [Answer: Keep them as one long citation, and flag for review] **Decision:** one Item, flagged.
+5. **"[NO LONGER GOOD LAW]".** [Answer: I do not need any coloured badge. Keep the wording in the text.] **Decision:** wording stays; no badge.
+6. **Search wording.** [Answer: Ok] **Decision:** straight and curly quotes alike; "&" is not the same as "and".
+7. **Blank paragraphs.** [Answer: Ok] **Decision:** the 11 blank lines are skipped and listed in the report.
+8. **Sub-topics (13) and Topics (6) that end in a colon.** [Answer: Remove the colons] **Decision:** colons removed from the stored name; original kept in `original_line`; all 19 listed in the reconciliation report.
+9. **Two Sub-topics in a row.** [Answer: These are separate sub-topics, some of which may not have any items at present] **Decision:** separate Sub-topics, not flagged.
+
+### New questions arising from these decisions
+
+- **N1. Numbering after a Section.** Word restarts the Items at (i) after `Determining Jurisdiction`; the Diary will continue the run, so those 8 Items read (iii) to (x). Keep that (default), or restart numbering after each Section? See section 5.1 and `docs/DESIGN.md` section 4.
+- **N2. Review flag on the Sections.** The two Sections are not flagged. Tell me if you want them flagged.
