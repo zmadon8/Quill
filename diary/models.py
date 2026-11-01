@@ -147,6 +147,10 @@ class Subject(Record):
 
     class Meta:
         constraints = [
+            # One Word paragraph is imported once per profile (a blank import_ref is a record not from the import).
+            models.UniqueConstraint(
+                fields=["profile", "import_ref"], condition=~Q(import_ref=""), name="subject_import_ref_unique"
+            ),
             models.CheckConstraint(condition=not_blank("name"), name="subject_name_not_blank"),
             models.UniqueConstraint(
                 Lower("name"),
@@ -171,6 +175,10 @@ class Topic(Record):
 
     class Meta:
         constraints = [
+            # One Word paragraph is imported once per profile (a blank import_ref is a record not from the import).
+            models.UniqueConstraint(
+                fields=["profile", "import_ref"], condition=~Q(import_ref=""), name="topic_import_ref_unique"
+            ),
             models.CheckConstraint(condition=not_blank("name"), name="topic_name_not_blank"),
         ]
 
@@ -192,6 +200,10 @@ class Subtopic(Record):
 
     class Meta:
         constraints = [
+            # One Word paragraph is imported once per profile (a blank import_ref is a record not from the import).
+            models.UniqueConstraint(
+                fields=["profile", "import_ref"], condition=~Q(import_ref=""), name="subtopic_import_ref_unique"
+            ),
             models.CheckConstraint(condition=not_blank("name"), name="subtopic_name_not_blank"),
             models.CheckConstraint(
                 condition=exactly_one(["topic", "subject"]), name="subtopic_exactly_one_parent"
@@ -217,6 +229,10 @@ class Section(Record):
 
     class Meta:
         constraints = [
+            # One Word paragraph is imported once per profile (a blank import_ref is a record not from the import).
+            models.UniqueConstraint(
+                fields=["profile", "import_ref"], condition=~Q(import_ref=""), name="section_import_ref_unique"
+            ),
             models.CheckConstraint(
                 condition=exactly_one(["subject", "topic", "subtopic"]), name="section_exactly_one_parent"
             ),
@@ -250,6 +266,10 @@ class Item(RichTextMixin, Record):
 
     class Meta:
         constraints = [
+            # One Word paragraph is imported once per profile (a blank import_ref is a record not from the import).
+            models.UniqueConstraint(
+                fields=["profile", "import_ref"], condition=~Q(import_ref=""), name="item_import_ref_unique"
+            ),
             models.CheckConstraint(
                 condition=exactly_one(["subject", "topic", "subtopic", "parent_item"]),
                 name="item_exactly_one_parent",

@@ -25,6 +25,7 @@ class Run:
     bold: bool = False
     italic: bool = False
     underline: bool = False
+    other: tuple = ()  # names of any other run properties (colour, size, strike ...) on this run
 
 
 @dataclass
@@ -36,7 +37,8 @@ class Paragraph:
     text: str
     runs: list = field(default_factory=list)
     other_formatting: list = field(default_factory=list)  # e.g. ["color", "sz"] on any run
-    odd_parts: list = field(default_factory=list)  # tabs, line breaks, fields and so on inside runs
+    odd_parts: list = field(default_factory=list)  # tabs and line breaks: kept in the text as typed
+    dropped_parts: list = field(default_factory=list)  # symbols, fields, deleted text ...: NOT in the text
 
 
 def _on(element):
@@ -93,14 +95,17 @@ def read_docx(data):
         for r in p.iter(W + "r"):
             props = r.find(W + "rPr")
             bold = italic = underline = False
+            run_other = []
             if props is not None:
                 bold = _on(props.find(W + "b"))
                 italic = _on(props.find(W + "i"))
                 underline = _on(props.find(W + "u"))
                 for prop in props:
                     name = prop.tag.replace(W, "")
-                    if name not in ignored and name not in para.other_formatting:
-                        para.other_formatting.append(name)
+                    if name not in ignored:
+                        run_other.append(name)
+                        if name not in para.other_formatting:
+                            para.other_formatting.append(name)
             text = ""
             for part in r:
                 name = part.tag.replace(W, "")
@@ -113,9 +118,9 @@ def read_docx(data):
                     text += "\n"
                     para.odd_parts.append("line break")
                 elif name not in _RUN_PARTS_OK:
-                    para.odd_parts.append(name)
+                    para.dropped_parts.append(name)
             if text:
-                pieces.append(Run(text, bold, italic, underline))
+                pieces.append(Run(text, bold, italic, underline, tuple(run_other)))
         para.runs = pieces
         para.text = "".join(run.text for run in pieces)
         paragraphs.append(para)

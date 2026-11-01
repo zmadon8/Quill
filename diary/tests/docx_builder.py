@@ -17,14 +17,15 @@ KINDS = {
 }
 
 
-def _run(text, bold=False, italic=False, extra=""):
+def _run(text, bold=False, italic=False, extra="", part=""):
+    """``extra`` is raw run-property XML (e.g. underline); ``part`` is raw XML put after the text inside the run."""
     props = ("<w:b/>" if bold else "") + ("<w:i/>" if italic else "") + extra
     rpr = f"<w:rPr>{props}</w:rPr>" if props else ""
-    return f'<w:r>{rpr}<w:t xml:space="preserve">{escape(text)}</w:t></w:r>'
+    return f'<w:r>{rpr}<w:t xml:space="preserve">{escape(text)}</w:t>{part}</w:r>'
 
 
 def make_docx(lines):
-    """``lines`` is a list of (kind, text) or (kind, text, list_key) or (kind, [(text, bold, italic), ...]).
+    """``lines`` is a list of (kind, text) or (kind, text, list_key) or (kind, [(text, bold, italic[, extra props[, extra part]]), ...]).
 
     Lines of one kind with the same ``list_key`` (default: the kind) share one Word list.
     """

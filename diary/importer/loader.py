@@ -7,12 +7,14 @@ import re
 from collections import Counter
 from html import unescape
 
-from django.db import transaction
+from django.core.exceptions import ValidationError
+from django.db import DatabaseError, transaction
 
-from diary.models import Item, Section, Subject, Subtopic, Topic, VersionHistory
+from accounts.models import Profile
+from diary.models import Case, Item, Note, NoteLink, Section, Subject, Subtopic, Topic, VersionHistory
 from diary.richtext import sanitise_html
 
-from .plan import ITEM, SECTION, SUBJECT, SUBTOPIC, TOPIC
+from .plan import ITEM, SECTION, SUBJECT, SUBTOPIC, TOPIC, html_signature
 
 MODELS = {SUBJECT: Subject, TOPIC: Topic, SUBTOPIC: Subtopic, SECTION: Section, ITEM: Item}
 STATE_FRESH = "fresh"
@@ -27,6 +29,25 @@ class ImportRefused(Exception):
 def exact_text(html):
     """Item Text as typed: tags removed, entities decoded, spaces untouched (plain_text trims lines)."""
     return unescape(re.sub(r"<[^>]+>", "", sanitise_html(html)))
+
+
+REMOVE_HINT = (
+    "If these are the TEST SAMPLE Subjects, remove them with: python manage.py remove_sample_data --profile "
+)
+LIVE_MODELS = (
+    ("Subjects", Subject), ("Topics", Topic), ("Sub-topics", Subtopic), ("Sections", Section),
+    ("Items", Item), ("Cases", Case), ("Notes", Note), ("Note links", NoteLink),
+)
+
+
+def live_records(profile):
+    """[(label, count)] of live (not deleted) diary records in ``profile``; they are in the way of an import."""
+    found = []
+    for label, model in LIVE_MODELS:
+        count = model.objects.filter(profile=profile, deleted_at__isnull=True).count()
+        if count:
+            found.append((label, count))
+    return found
 
 
 def _refs(profile):
@@ -51,15 +72,17 @@ def check_state(plan, profile):
             f"{len(planned - present)} are missing. An incomplete earlier import needs the Admin to look at it; "
             "nothing was changed."
         ]
-    names = {n.name.lower() for n in plan.of(SUBJECT)}
-    clash = sorted(
-        s for s in Subject.objects.filter(profile=profile, deleted_at__isnull=True).values_list("name", flat=True)
-        if s.lower() in names
-    )
-    if clash:
+    in_the_way = live_records(profile)
+    if in_the_way:
+        subjects = list(
+            Subject.objects.filter(profile=profile, deleted_at__isnull=True).order_by("name").values_list("name", flat=True)[:8]
+        )
+        shown = (" Subjects include: " + ", ".join(subjects) + ".") if subjects else ""
         return STATE_BLOCKED, [
-            "These Subjects already exist in this profile, so the import would clash with them: " + ", ".join(clash)
-            + ". Remove the sample data (python manage.py remove_sample_data) or choose another profile."
+            f"Profile '{profile.name}' already holds live diary records that are not from an import of this file "
+            "(" + ", ".join(f"{count} {label}" for label, count in in_the_way) + f").{shown} "
+            "The import only runs into a profile with no live diary records, so nothing is merged. "
+            + REMOVE_HINT + f"'{profile.name}'. Otherwise choose an empty profile. Nothing was changed."
         ]
     return STATE_FRESH, ["Ready to import."]
 
@@ -72,12 +95,26 @@ def _snapshot(obj):
     return data
 
 
-@transaction.atomic
 def import_plan(plan, profile, user=None):
-    """Create every record of ``plan`` in ``profile``, all or nothing. Returns the number created."""
-    state, messages = check_state(plan, profile)
-    if state != STATE_FRESH:
-        raise ImportRefused(" ".join(messages))
+    """Create every record of ``plan`` in ``profile``, all or nothing. Returns the number created.
+
+    The Profile row is locked and the state is checked again inside the lock, so two imports at once
+    cannot both pass. A database refusal late in the run is rolled back and reported as ImportRefused.
+    """
+    try:
+        with transaction.atomic():
+            Profile.objects.select_for_update().get(pk=profile.pk)
+            state, messages = check_state(plan, profile)
+            if state != STATE_FRESH:
+                raise ImportRefused(" ".join(messages))
+            return _create_all(plan, profile, user)
+    except (DatabaseError, ValidationError) as exc:
+        raise ImportRefused(
+            f"The database refused part of the import, so everything was rolled back and nothing was saved. ({exc})"
+        ) from exc
+
+
+def _create_all(plan, profile, user):
     made = {}
     created = []
     common = {"profile": profile, "created_by": user, "updated_by": user}
@@ -136,18 +173,33 @@ def _subject_of(obj, topics, subtopics):
 
 
 def read_back(profile):
-    """What the database now holds for the imported records of ``profile`` (live and deleted)."""
-    subjects = {s.pk: s for s in Subject.objects.filter(profile=profile).exclude(import_ref="")}
-    topics = {t.pk: t for t in Topic.objects.filter(profile=profile).exclude(import_ref="")}
-    subtopics = {s.pk: s for s in Subtopic.objects.filter(profile=profile).exclude(import_ref="")}
-    sections = list(Section.objects.filter(profile=profile).exclude(import_ref=""))
-    items = list(Item.objects.filter(profile=profile).exclude(import_ref=""))
+    """What the database now holds for the imported records of ``profile``.
+
+    Only live records are compared; imported records in the Trash are listed apart under ``deleted``.
+    """
+    def imported(model):
+        return model.objects.filter(profile=profile).exclude(import_ref="")
+
+    deleted = sorted(
+        ref for model in MODELS.values()
+        for ref in imported(model).filter(deleted_at__isnull=False).values_list("import_ref", flat=True)
+    )
+    # Parents are looked up among all imported records (a live child of a trashed parent must not crash);
+    # only live records are compared.
+    all_subjects = {s.pk: s for s in imported(Subject)}
+    all_topics = {t.pk: t for t in imported(Topic)}
+    all_subtopics = {s.pk: s for s in imported(Subtopic)}
+    subjects = {k: v for k, v in all_subjects.items() if v.deleted_at is None}
+    topics = {k: v for k, v in all_topics.items() if v.deleted_at is None}
+    subtopics = {k: v for k, v in all_subtopics.items() if v.deleted_at is None}
+    sections = list(imported(Section).filter(deleted_at__isnull=True))
+    items = list(imported(Item).filter(deleted_at__isnull=True))
 
     rows = {}
     per_subject = {}
 
     def bump(subject_id, key):
-        per_subject.setdefault(subjects[subject_id].import_ref, Counter())[key] += 1
+        per_subject.setdefault(all_subjects[subject_id].import_ref, Counter())[key] += 1
 
     for s in subjects.values():
         rows[s.import_ref] = dict(kind=SUBJECT, rebuilt=s.name, original_line=s.original_line, name=s.name,
@@ -160,18 +212,19 @@ def read_back(profile):
     for s in subtopics.values():
         rows[s.import_ref] = dict(kind=SUBTOPIC, rebuilt=s.name, original_line=s.original_line, name=s.name,
                                   needs_review=False, review_note="")
-        bump(_subject_of(s, topics, subtopics), "subtopics")
+        bump(_subject_of(s, all_topics, all_subtopics), "subtopics")
     for s in sections:
         rows[s.import_ref] = dict(kind=SECTION, rebuilt=s.name, original_line=s.original_line, name=s.name,
                                   needs_review=s.needs_review, review_note=s.review_note)
-        bump(_subject_of(s, topics, subtopics), "sections")
+        bump(_subject_of(s, all_topics, all_subtopics), "sections")
     for i in items:
         rebuilt = exact_text(i.text) + (f" - {i.citation}" if i.citation else "")
         rows[i.import_ref] = dict(kind=ITEM, rebuilt=rebuilt, original_line=i.original_line, name="",
-                                  needs_review=i.needs_review, review_note=i.review_note)
-        bump(_subject_of(i, topics, subtopics), "items")
+                                  needs_review=i.needs_review, review_note=i.review_note,
+                                  signature=html_signature(i.text))
+        bump(_subject_of(i, all_topics, all_subtopics), "items")
         if i.needs_review:
-            bump(_subject_of(i, topics, subtopics), "flagged")
+            bump(_subject_of(i, all_topics, all_subtopics), "flagged")
 
     main = sorted((s for s in subjects.values() if s.show_on_landing), key=lambda s: (s.landing_position, s.pk))
     other = sorted((s for s in subjects.values() if not s.show_on_landing), key=lambda s: (s.other_acts_position, s.pk))
@@ -210,7 +263,7 @@ def read_back(profile):
     }
     counts["items_clean"] = counts["items"] - counts["items_flagged"]
     return {"rows": rows, "order": order, "groups": groups, "counts": counts, "per_subject": per_subject,
-            "review_list": flagged}
+            "review_list": flagged, "deleted": deleted}
 
 
 def _walk(subject, order, topics, subtopics, sections, items):

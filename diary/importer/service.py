@@ -21,10 +21,18 @@ def _prepare(data):
     return build_plan(paragraphs, notes)
 
 
-def dry_run(data, filename):
-    """Read the file and describe what an import would do. Saves nothing. Returns (plan, text)."""
+def dry_run(data, filename, profile=None):
+    """Read the file and describe what an import would do. Saves nothing. Returns (plan, text).
+
+    With a ``profile`` the report also says whether the import could run there and, if not, why not.
+    """
     plan = _prepare(data)
-    return plan, report.dry_run_report(plan, filename, file_digest(data), len(data), _now())
+    if profile is None:
+        return plan, report.dry_run_report(plan, filename, file_digest(data), len(data), _now())
+    state, state_lines = loader.check_state(plan, profile)
+    return plan, report.dry_run_report(plan, filename, file_digest(data), len(data), _now(),
+                                       state_lines=state_lines, profile_name=profile.name,
+                                       ready=state == loader.STATE_FRESH)
 
 
 def reconcile(data, filename, profile):
@@ -53,14 +61,17 @@ def run_import(data, filename, profile, user=None, expected_sha256=None):
         raise ImportRefused(" ".join(messages))
     notes = []
     try:
-        before = backup_services.create_backup("manual", user)
+        before = backup_services.create_backup("pre_import", user)
     except Exception as exc:  # the import must not start without a safety copy
         raise ImportRefused(f"The backup before the import could not be made, so nothing was changed. ({exc})")
-    notes.append(f"Backup before the import: {before.filename}.")
+    notes.append(
+        f"Backup before the import: {before.filename}. Download it from the Backups screen and keep it; it is "
+        "kept until an Admin deletes it."
+    )
     created = loader.import_plan(plan, profile, user)
     notes.append(f"{created} records imported into profile '{profile.name}'.")
     try:
-        after = backup_services.create_backup("manual", user)
+        after = backup_services.create_backup("post_import", user)
         notes.append(f"Backup after the import: {after.filename}.")
     except Exception as exc:
         notes.append(f"WARNING: the import is saved, but the backup after it failed ({exc}). Make one by hand.")

@@ -1,7 +1,20 @@
 """Plain-text dry-run and reconciliation reports (pure Python). Every difference is listed, none hidden."""
 from collections import Counter, OrderedDict
 
-from .plan import EXPECTED, ITEM, REASONS, SECTION, SUBJECT, SUBTOPIC, TOPIC, strip_colon, summary_counts
+from .plan import (
+    CAUSES,
+    EXPECTED,
+    ITEM,
+    REASONS,
+    SECTION,
+    SUBJECT,
+    SUBTOPIC,
+    TOPIC,
+    completeness,
+    section_item_counts,
+    strip_colon,
+    summary_counts,
+)
 
 LINE = "=" * 78
 FIRST_LINES_PER_TOPIC = 3
@@ -14,12 +27,15 @@ COUNT_LABELS = OrderedDict([
     ("subtopics", "Sub-topics"),
     ("sections", "Sections"),
     ("items", "Items"),
-    ("items_clean", "  clean Items (Text and Citation split)"),
-    ("items_flagged", "  flagged Items (whole line as Text)"),
+    ("items_clean", "  clean Items (no review flag)"),
+    ("items_flagged", "  flagged Items (for review)"),
     ("review_marked", "Review-marked records (flagged Items + Sections)"),
     ("text_paragraphs", "Paragraphs with text"),
     ("blank_paragraphs", "Blank paragraphs (skipped)"),
     ("colon_changes", "Names with the trailing colon removed"),
+    ("paragraphs_total", "All paragraphs in the file"),
+    ("skipped_headings", "Skipped headings ('Miscellaneous')"),
+    ("problem_paragraphs", "Paragraphs with a problem"),
 ])
 
 
@@ -68,23 +84,11 @@ def _table(headers, rows):
 
 
 def section_groups(plan):
-    """For each Section: the number of Items that follow it (by position) before the next Section."""
-    groups = []
-    for section in plan.of(SECTION):
-        siblings = [n for n in plan.nodes if n.parent is section.parent and n.kind in (ITEM, SECTION)]
-        siblings.sort(key=lambda n: n.position)
-        count = 0
-        for n in siblings:
-            if n.position <= section.position:
-                continue
-            if n.kind == SECTION:
-                break
-            count += 1
-        groups.append((section.ref, section.name, count))
-    return groups
+    """For each Section: (ref, name, number of Items that follow it by position before the next Section)."""
+    return section_item_counts(plan)
 
 
-def dry_run_report(plan, filename, sha256, size, generated):
+def dry_run_report(plan, filename, sha256, size, generated, state_lines=None, profile_name=None, ready=True):
     counts = summary_counts(plan)
     out = [LINE, "DRY RUN: import of the Word file (nothing has been saved)", LINE]
     out += [f"File: {filename}", f"Size: {size} bytes", f"SHA-256: {sha256}", f"Made: {generated}", ""]
@@ -105,6 +109,8 @@ def dry_run_report(plan, filename, sha256, size, generated):
     for key, label in COUNT_LABELS.items():
         rows.append((label, counts[key], EXPECTED[key], "same" if counts[key] == EXPECTED[key] else "DIFFERENT"))
     out += _table(("", "In file", "Expected", ""), rows)
+    done = completeness(plan)
+    out.append(f"  Completeness: {done['equation']} -> {'OK' if done['ok'] else 'NOT ACCOUNTED FOR'}")
     out.append("")
 
     out += ["2. COUNTS PER SUBJECT", "-" * 78]
@@ -120,13 +126,21 @@ def dry_run_report(plan, filename, sha256, size, generated):
     out += ["3. WHY ITEM LINES ARE FLAGGED (first matching reason; imported whole as Text, no Citation)", "-" * 78]
     reasons = Counter(n.reason for n in plan.of(ITEM) if n.reason)
     rows = [(REASONS[k], reasons[k]) for k in REASONS if reasons[k]]
-    rows.append(("Total flagged Items", sum(reasons.values())))
+    rows.append(("Total imported whole", sum(reasons.values())))
     out += _table(("Reason", "Lines"), rows)
+    out.append("  Other causes that flag a record (an Item is split normally; a record can have several causes):")
+    for key, label in CAUSES.items():
+        out.append(f"    {label}: {sum(1 for n in plan.nodes if key in n.causes)}")
+    out.append(f"  Items flagged in all: {sum(1 for n in plan.of(ITEM) if n.needs_review)}")
     out.append("")
 
     out += ["4. SECTIONS (flagged for review, decision I10)", "-" * 78]
-    for ref, name, count in section_groups(plan):
-        out.append(f"  {ref}: {name!r} with {count} Item(s) after it, up to the next Section")
+    for (ref, name, count), (_ref, word_count, ids) in zip(section_groups(plan), plan.word_groups):
+        out.append(
+            f"  {ref}: {name!r} with {count} Item(s) after it, up to the next Section "
+            f"(Word's own lists {', '.join(ids) or 'none'} hold {word_count}: "
+            f"{'same' if word_count == count else 'DIFFERENT'})"
+        )
     for node in plan.of(SECTION):
         out.append(f"    reason: {node.review_note}")
     if not plan.of(SECTION):
@@ -147,9 +161,21 @@ def dry_run_report(plan, filename, sha256, size, generated):
     out.append(f"  {len(formatted)} Item lines have bold, italic or underline runs; these are kept as b, i, u in Text.")
     split_formatted = [n for n in formatted if n.citation]
     out.append(
-        f"  On {len(split_formatted)} split lines the Citation is stored as plain text (it is shown in italics by "
-        "the display), so formatting on the citation side is not stored."
+        f"  On {len(split_formatted)} split lines the Citation is stored as plain text and shown in italics by the "
+        "display, so italics on the citation side are expected and are not listed."
     )
+    strong = [n for n in items if "citation_format" in n.causes]
+    other_cit = [n for n in items if "citation_other" in n.causes]
+    out.append(f"  Lines whose Citation had bold or underline in Word (FLAGGED for review): {len(strong)}")
+    for n in strong:
+        out.append(f"    {n.ref}: {_short(n.original_line)}")
+    out.append(f"  Lines whose Citation had other formatting in Word (FLAGGED for review): {len(other_cit)}")
+    for n in other_cit:
+        out.append(f"    {n.ref}: {_short(n.original_line)}")
+    named = [n for n in plan.nodes if n.kind != ITEM and n.name_formatting]
+    out.append(f"  Names with italic or underline in Word, which a plain name cannot hold: {len(named)}")
+    for n in named:
+        out.append(f"    {n.ref} [{n.kind}] {', '.join(n.name_formatting)}: {_short(n.original_line)}")
     other = [n for n in plan.nodes if n.other_formatting and n.kind in (ITEM, SECTION)]
     out.append(f"  Lines with other formatting (colour, size and so on), which is dropped: {len(other)}")
     for n in other:
@@ -162,8 +188,8 @@ def dry_run_report(plan, filename, sha256, size, generated):
         out.append(f"    paragraph {index + 1}, after {_short(previous, 60)!r}")
     restarted = [n for n in items if n.list_restarted]
     out.append(
-        f"  Item groups where Word's list restarted inside the same Sub-topic or Topic (kept in document order, "
-        f"not flagged): {len(restarted)}"
+        f"  Items where Word's list restarted inside the same Sub-topic or Topic (FLAGGED for review; the Diary "
+        f"numbers the group continuously, so Word's numbering changes there): {len(restarted)}"
     )
     for n in restarted:
         out.append(f"    {n.ref}: {_short(n.original_line, 100)}")
@@ -172,6 +198,10 @@ def dry_run_report(plan, filename, sha256, size, generated):
     for w in plan.warnings:
         out.append(f"  Warning: {w}")
     out.append("")
+    if state_lines is not None:
+        out += [f"7b. THE PROFILE {profile_name!r} (can the import run there?)", "-" * 78]
+        out += [f"  {line}" for line in state_lines]
+        out.append("")
 
     out += [f"8. THE FIRST {FIRST_LINES_PER_TOPIC} LINES OF EACH TOPIC (or Other Subject)", "-" * 78]
     shown = Counter()
@@ -195,7 +225,12 @@ def dry_run_report(plan, filename, sha256, size, generated):
             out.append(f"      {_short(node.original_line)}")
     out.append("")
     out.append(LINE)
-    out.append("STOPPED: fix the problems above first." if plan.problems else "No problems found. Approve this report before running the import.")
+    if plan.problems:
+        out.append("STOPPED: fix the problems above first.")
+    elif not ready:
+        out.append("NOT READY: the profile is not in a state the import can run in (see section 7b).")
+    else:
+        out.append("No problems found. Approve this report before running the import.")
     return "\n".join(out) + "\n"
 
 
@@ -206,13 +241,19 @@ def compare_with_database(plan, db):
     ``order`` [refs in database listing order], ``groups`` [(ref, name, items after it)].
     Returns a dict of findings.
     """
-    found = {"missing": [], "extra": [], "expected_diff": [], "unexpected": [], "original_mismatch": [], "review_diff": []}
+    found = {"missing": [], "extra": [], "expected_diff": [], "unexpected": [], "original_mismatch": [],
+             "review_diff": [], "format_diff": [], "in_trash": []}
     rows = db["rows"]
+    trash = set(db.get("deleted", []))
     for node in plan.nodes:
         row = rows.get(node.ref)
         if row is None:
             found["missing"].append(node.ref)
+            if node.ref in trash:
+                found["in_trash"].append(node.ref)
             continue
+        if node.kind == ITEM and row.get("signature") is not None and row["signature"] != node.signature:
+            found["format_diff"].append((node.ref, node.signature, row["signature"]))
         if row["original_line"] != node.original_line:
             found["original_mismatch"].append((node.ref, node.original_line, row["original_line"]))
         if row["rebuilt"] != node.original_line:
@@ -225,7 +266,9 @@ def compare_with_database(plan, db):
     planned = {n.ref for n in plan.nodes}
     found["extra"] = sorted(r for r in rows if r not in planned)
     found["order_ok"] = db["order"] == [r for r in plan.expected_order if r in planned]
-    found["groups_ok"] = [tuple(g) for g in db["groups"]] == [tuple(g) for g in section_groups(plan)]
+    # Word's own list groups (read from the file's list ids), not the plan's positions.
+    word = [(ref, count) for ref, count, _ids in plan.word_groups]
+    found["groups_ok"] = [(g[0], g[2]) for g in db["groups"]] == word
     return found
 
 
@@ -247,6 +290,10 @@ def reconciliation_report(plan, db, filename, sha256, generated, profile_name):
     out += _table(("", "File", "Database", ""), rows)
     out.append(f"  Text paragraphs in the file: {counts['text_paragraphs']}; blank paragraphs skipped: "
                f"{counts['blank_paragraphs']}.")
+    done = completeness(plan)
+    out.append(f"  Completeness: {done['equation']} -> {'OK' if done['ok'] else 'NOT ACCOUNTED FOR'}")
+    if not done["ok"]:
+        problems += 1
     out.append("")
 
     out += ["2. COUNTS PER SUBJECT (file against database)", "-" * 78]
@@ -279,12 +326,22 @@ def reconciliation_report(plan, db, filename, sha256, generated, profile_name):
         out.append(f"    {ref} [{kind}]")
         out.append(f"      file:     {_short(was, 200)!r}")
         out.append(f"      database: {_short(now, 200)!r}")
+    out.append(f"  Records in the Trash (deleted since the import; counted as missing above): {len(found['in_trash'])}")
+    for ref in found["in_trash"]:
+        out.append(f"    {ref}")
+    out.append(f"  Formatting (bold/italic/underline runs) differs between the file and the database: "
+               f"{len(found['format_diff'])}")
+    for ref, was, now in found["format_diff"]:
+        out.append(f"    {ref}")
+        out.append(f"      file:     {_short(repr(was), 200)}")
+        out.append(f"      database: {_short(repr(now), 200)}")
     out.append(f"  Order of records in the database matches the file: {'yes' if found['order_ok'] else 'NO'}")
     out.append(f"  Review marker differs between file plan and database: {len(found['review_diff'])}")
     for ref, planned, stored in found["review_diff"]:
         out.append(f"    {ref}: expected {planned}, stored {stored}")
     problems += (len(found["missing"]) + len(found["extra"]) + len(found["original_mismatch"])
-                 + len(found["unexpected"]) + len(found["review_diff"]) + (0 if found["order_ok"] else 1))
+                 + len(found["unexpected"]) + len(found["review_diff"]) + len(found["format_diff"])
+                 + (0 if found["order_ok"] else 1))
     out.append("")
 
     out += ["4. NAMES WITH THE TRAILING COLON REMOVED (original beside stored)", "-" * 78]
@@ -297,10 +354,13 @@ def reconciliation_report(plan, db, filename, sha256, generated, profile_name):
         problems += 1
     out.append("")
 
-    out += ["5. SECTIONS AND THE ITEMS AFTER THEM (Word's grouping against the Diary's)", "-" * 78]
+    out += ["5. SECTIONS AND THE ITEMS AFTER THEM (Word's own list groups against the Diary's)", "-" * 78]
     wanted = section_groups(plan)
-    for (ref, name, in_file), (_, _, in_db) in zip(wanted, db["groups"] or [(None, None, "missing")] * len(wanted)):
-        out.append(f"  {ref} {name!r}: {in_file} Item(s) in the file, {in_db} in the database")
+    for (ref, name, in_plan), (_, in_word, ids), (_, _, in_db) in zip(
+        wanted, plan.word_groups, db["groups"] or [(None, None, "missing")] * len(wanted)
+    ):
+        out.append(f"  {ref} {name!r}: Word's lists {', '.join(ids)} hold {in_word} Item(s); "
+                   f"the plan has {in_plan}; the database has {in_db}")
     if not wanted:
         out.append("  no Sections")
     out.append(f"  Same grouping: {'yes' if found['groups_ok'] else 'NO'}")

@@ -8,6 +8,7 @@ import re
 from collections import Counter
 from dataclasses import dataclass, field
 from html import escape
+from html.parser import HTMLParser
 
 SUBJECT = "subject"
 TOPIC = "topic"
@@ -17,12 +18,28 @@ ITEM = "item"
 
 MISC_NAME = "miscellaneous"
 SECTION_REVIEW_NOTE = "imported from a small-letter (a)/(b) list; confirm these are Sections"
+#: DEFAULT pending owner confirmation (docs/DESIGN.md decision D-a): a restarted Word list is flagged.
+RESTART_NOTE = "Word list restarted here; the Diary numbers this group continuously."
+#: DEFAULT pending owner confirmation (decision D-c): a plain Citation cannot hold bold or underline.
+CITATION_FORMAT_NOTE = "Citation had bold/underline in Word that a plain Citation cannot hold."
+CITATION_OTHER_FORMAT_NOTE = "Citation had other formatting in Word (colour, size and so on) that a plain Citation cannot hold."
+NAME_FORMAT_NOTE = "Section name had italic/underline in Word that a plain name cannot hold."
+DROPPED_NOTE = "This Word line contained parts that cannot be imported and were left out: "
+#: Causes that flag a record without changing how it is split (a record can have several).
+CAUSES = {
+    "list_restart": "Word list restarted here",
+    "citation_format": "bold/underline on the citation side",
+    "citation_other": "other formatting on the citation side",
+    "dropped": "parts of the Word line left out",
+    "name_format": "italic/underline on a Section name",
+}
 MAX_CITATION = 1000
 NAME_LIMITS = {SUBJECT: 300, TOPIC: 300, SUBTOPIC: 300, SECTION: 500}
 
 #: Reasons an Item line is imported whole (key -> wording used in review notes and reports).
 REASONS = {
     "spaces": "leading or trailing spaces",
+    "line_break": "contains a line break",
     "unbalanced": "brackets do not match",
     "bracketed": "whole line is a bracketed remark",
     "multi_marker": "several citations marked (i), (ii)",
@@ -44,12 +61,15 @@ EXPECTED = {
     "subtopics": 323,
     "sections": 2,
     "items": 950,
-    "items_clean": 693,
-    "items_flagged": 257,
-    "review_marked": 259,
+    "items_clean": 691,
+    "items_flagged": 259,
+    "review_marked": 261,
     "text_paragraphs": 1495,
     "blank_paragraphs": 11,
     "colon_changes": 19,
+    "paragraphs_total": 1506,
+    "skipped_headings": 1,
+    "problem_paragraphs": 0,
 }
 
 
@@ -68,6 +88,8 @@ def classify_item(text):
     """
     if text != text.strip():
         return "spaces", text, ""
+    if "\n" in text:
+        return "line_break", text, ""
     if text.count("[") != text.count("]") or text.count("(") != text.count(")"):
         return "unbalanced", text, ""
     if text.startswith("[") and text.endswith("]"):
@@ -118,6 +140,75 @@ def runs_to_html(runs, start=0, end=None):
     return f"<p>{out}</p>"
 
 
+def runs_signature(runs, start=0, end=None):
+    """Formatting fingerprint of characters ``start:end``: [(text, bold, italic, underline)], neighbours merged."""
+    total = sum(len(r.text) for r in runs)
+    end = total if end is None else end
+    out = []
+    pos = 0
+    for run in runs:
+        lo, hi = max(start, pos), min(end, pos + len(run.text))
+        base = pos
+        pos += len(run.text)
+        if lo >= hi:
+            continue
+        piece = run.text[lo - base: hi - base]
+        key = (run.bold, run.italic, run.underline)
+        if out and out[-1][1:] == key:
+            out[-1] = (out[-1][0] + piece,) + key
+        else:
+            out.append((piece,) + key)
+    return out
+
+
+class _SignatureParser(HTMLParser):
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.depth = {"b": 0, "i": 0, "u": 0}
+        self.out = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag in self.depth:
+            self.depth[tag] += 1
+
+    def handle_endtag(self, tag):
+        if tag in self.depth:
+            self.depth[tag] = max(0, self.depth[tag] - 1)
+
+    def handle_data(self, data):
+        key = (self.depth["b"] > 0, self.depth["i"] > 0, self.depth["u"] > 0)
+        if self.out and self.out[-1][1:] == key:
+            self.out[-1] = (self.out[-1][0] + data,) + key
+        else:
+            self.out.append((data,) + key)
+
+
+def html_signature(html):
+    """The same fingerprint, read back from stored Text HTML (tags p, b, i, u)."""
+    parser = _SignatureParser()
+    parser.feed(html or "")
+    parser.close()
+    return [seg for seg in parser.out if seg[0]]
+
+
+def citation_side_formatting(runs, start):
+    """Formatting on characters from ``start`` on that a plain Citation cannot hold (italic is expected).
+
+    Returns (bold_or_underline: bool, other: sorted list of property names).
+    """
+    pos = 0
+    strong = False
+    other = set()
+    for run in runs:
+        lo, hi = pos, pos + len(run.text)
+        pos = hi
+        if hi <= start or not run.text[max(start, lo) - lo:].strip():
+            continue
+        strong = strong or run.bold or run.underline
+        other.update(run.other)
+    return strong, sorted(other)
+
+
 @dataclass
 class Node:
     kind: str
@@ -136,8 +227,13 @@ class Node:
     other_position: int = 0
     # facts for the reports
     formatted: bool = False  # item line with bold/italic/underline runs
+    signature: list = field(default_factory=list)  # Item: formatting fingerprint of the Text as Word has it
+    citation_format: list = field(default_factory=list)  # Item: "bold/underline" and/or "other" on the citation side
+    name_formatting: list = field(default_factory=list)  # names: formats Word had that a plain name cannot keep
     other_formatting: list = field(default_factory=list)
     list_restarted: bool = False
+    dropped_parts: list = field(default_factory=list)  # parts of the Word line that are not in the text
+    causes: list = field(default_factory=list)  # keys of every cause that flags this record (see CAUSES)
     block: int = 0  # index of the Heading 1 block the paragraph sits in
     para_index: int = 0
     _num_id: str = ""
@@ -161,9 +257,18 @@ class Plan:
     file_notes: dict = field(default_factory=dict)
     expected_order: list = field(default_factory=list)  # refs in the order the database will list them
     skipped_headings: list = field(default_factory=list)  # (ref, text): "Miscellaneous" is not stored
+    total_paragraphs: int = 0  # every paragraph in the file, blank or not
+    problem_paragraphs: int = 0  # paragraphs the plan could not place (each is also a problem)
+    word_groups: list = field(default_factory=list)  # (ref, items after it, sorted list ids) read from Word's lists
 
     def of(self, kind):
         return [n for n in self.nodes if n.kind == kind]
+
+
+def _flag(node, cause, note):
+    """Mark a record for review for ``cause``; several causes add their notes together."""
+    node.causes.append(cause)
+    node.review_note = f"{node.review_note} {note}".strip()
 
 
 def _level(para):
@@ -196,6 +301,9 @@ def build_plan(paragraphs, file_notes=None):
     def make(kind, para, parent, **kw):
         node = Node(kind=kind, ref=ref_of(para), original_line=para.text, parent=parent, para_index=para.index,
                     block=block, **kw)
+        node.name_formatting = sorted(
+            {"italic" for r in para.runs if r.italic} | {"underline" for r in para.runs if r.underline}
+        ) if kind != ITEM else []
         plan.nodes.append(node)
         block_refs.setdefault(block, []).append(node.ref)
         return node
@@ -205,6 +313,7 @@ def build_plan(paragraphs, file_notes=None):
         node.position = counters[(id(parent), category)]
 
     def stop(para, message):
+        plan.problem_paragraphs += 1
         plan.problems.append(f"Paragraph {para.index + 1}: {message} ({para.text[:80]!r})")
 
     for para in paragraphs:
@@ -219,7 +328,12 @@ def build_plan(paragraphs, file_notes=None):
         if para.odd_parts:
             plan.warnings.append(
                 f"Paragraph {para.index + 1} contains {', '.join(sorted(set(para.odd_parts)))} inside the text; "
-                "it is kept as it is."
+                "these are kept in the text as typed."
+            )
+        if para.dropped_parts:
+            plan.warnings.append(
+                f"Paragraph {para.index + 1} contains {', '.join(sorted(set(para.dropped_parts)))} that cannot be "
+                "imported; it is NOT in the stored text (an Item or Section with this is flagged for review)."
             )
 
         if level == SUBJECT:
@@ -275,6 +389,11 @@ def build_plan(paragraphs, file_notes=None):
         if level == SECTION:
             node = make(SECTION, para, container, name=para.text, review_note=SECTION_REVIEW_NOTE,
                         reason="section")
+            if node.name_formatting:
+                _flag(node, "name_format", NAME_FORMAT_NOTE + " (" + ", ".join(node.name_formatting) + ")")
+            if para.dropped_parts:
+                _flag(node, "dropped", DROPPED_NOTE + ", ".join(sorted(set(para.dropped_parts))) + ".")
+                node.dropped_parts = sorted(set(para.dropped_parts))
             place(node, container, "content")
             last_content[id(container)] = node
             continue
@@ -286,14 +405,25 @@ def build_plan(paragraphs, file_notes=None):
                 node.text_html = runs_to_html(para.runs, 0, len(left))
             else:
                 node.text_html = runs_to_html(para.runs)
+            node.signature = runs_signature(para.runs, 0, len(left)) if reason is None else runs_signature(para.runs)
             node.formatted = any(r.bold or r.italic or r.underline for r in para.runs)
             node.other_formatting = list(para.other_formatting)
             node._num_id = para.num_id
             if reason:
                 node.review_note = f"Imported whole as Text with no Citation: {REASONS[reason]}."
+            else:
+                strong, other = citation_side_formatting(para.runs, len(left) + 3)
+                if strong:
+                    _flag(node, "citation_format", CITATION_FORMAT_NOTE)
+                if other:
+                    _flag(node, "citation_other", CITATION_OTHER_FORMAT_NOTE + " (" + ", ".join(other) + ")")
             previous = last_content.get(id(container))
             if previous is not None and previous.kind == ITEM and previous._num_id != para.num_id:
                 node.list_restarted = True
+                _flag(node, "list_restart", RESTART_NOTE)
+            if para.dropped_parts:
+                node.dropped_parts = sorted(set(para.dropped_parts))
+                _flag(node, "dropped", DROPPED_NOTE + ", ".join(node.dropped_parts) + ".")
             place(node, container, "content")
             last_content[id(container)] = node
             continue
@@ -309,6 +439,24 @@ def build_plan(paragraphs, file_notes=None):
         if count > 1:
             plan.problems.append(f"Two Subjects would be called {name!r}; Subject names must be unique in a profile.")
 
+    plan.total_paragraphs = len(paragraphs)
+    for node in plan.nodes:
+        if node.kind in (SUBJECT, TOPIC, SUBTOPIC) and not node.name.strip():
+            plan.problems.append(
+                f"{node.ref}: the {node.kind} name is empty (nothing is left after the trailing colon is removed): "
+                f"{node.original_line!r}."
+            )
+    plan.word_groups = word_list_groups(paragraphs)
+    wanted = [(ref, count) for ref, count, _ids in plan.word_groups]
+    from_plan = [(ref, count) for ref, _name, count in section_item_counts(plan)]
+    if wanted != from_plan:
+        plan.problems.append(
+            f"The Items under each Section differ between Word's own lists {wanted} and the plan {from_plan}."
+        )
+    done = completeness(plan)
+    if not done["ok"]:
+        plan.problems.append("Not every paragraph of the file is accounted for: " + done["equation"] + ".")
+
     # The order the database lists things in: main Subjects as in the file, then the Other Subjects.
     order = []
     for b in sorted(block_refs):
@@ -319,6 +467,56 @@ def build_plan(paragraphs, file_notes=None):
             order.extend(block_refs[b])
     plan.expected_order = order
     return plan
+
+
+def section_item_counts(plan):
+    """For each Section: (ref, name, Items after it up to the next Section), from the plan's positions."""
+    groups = []
+    for section in plan.of(SECTION):
+        siblings = [n for n in plan.nodes if n.parent is section.parent and n.kind in (ITEM, SECTION)]
+        siblings.sort(key=lambda n: n.position)
+        count = 0
+        for n in siblings:
+            if n.position <= section.position:
+                continue
+            if n.kind == SECTION:
+                break
+            count += 1
+        groups.append((section.ref, section.name, count))
+    return groups
+
+
+def word_list_groups(paragraphs):
+    """Word's own grouping, read straight from the paragraphs (not from the plan).
+
+    For every small-letter (a)/(b) Section line: (ref, Items that follow it before the next numbered line
+    that is not an Item or the next heading, sorted list ids those Items belong to).
+    """
+    groups = []
+    for i, para in enumerate(paragraphs):
+        if _level(para) != SECTION:
+            continue
+        count = 0
+        ids = set()
+        for later in paragraphs[i + 1:]:
+            level = _level(later)
+            if level == "blank":
+                continue
+            if level != ITEM:
+                break
+            count += 1
+            ids.add(later.num_id)
+        groups.append((f"para-{para.index:04d}", count, sorted(ids)))
+    return groups
+
+
+def completeness(plan):
+    """Every paragraph is a planned record, the skipped 'Miscellaneous' heading, blank, or a problem."""
+    parts = (len(plan.nodes), len(plan.skipped_headings), len(plan.blank_paragraphs), plan.problem_paragraphs)
+    total = plan.total_paragraphs
+    equation = (f"{parts[0]} planned records + {parts[1]} skipped heading(s) + {parts[2]} blank + "
+                f"{parts[3]} problem(s) = {sum(parts)}; paragraphs in the file = {total}")
+    return {"ok": sum(parts) == total, "equation": equation, "parts": parts, "total": total}
 
 
 def summary_counts(plan):
@@ -341,4 +539,7 @@ def summary_counts(plan):
         "text_paragraphs": plan.text_paragraphs,
         "blank_paragraphs": len(plan.blank_paragraphs),
         "colon_changes": sum(1 for n in plan.nodes if n.colon_removed),
+        "paragraphs_total": plan.total_paragraphs,
+        "skipped_headings": len(plan.skipped_headings),
+        "problem_paragraphs": plan.problem_paragraphs,
     }

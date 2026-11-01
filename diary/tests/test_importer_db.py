@@ -1,21 +1,28 @@
 """Database and screen tests of the Word import (Milestone 2)."""
 from io import StringIO
+from pathlib import Path
+from unittest import mock, skipUnless
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.core.management.base import CommandError
+from django.db import IntegrityError, transaction
 from django.test import TestCase, override_settings
+from django.utils import timezone
 from django.urls import reverse
 
 from accounts.models import Profile, User
+from backups import services as backup_services
 from backups.models import BackupFile
 from diary.importer import loader, service
 from diary.importer.docx_reader import file_digest
+from diary.importer.plan import EXPECTED, REASONS
 from diary.models import Item, Section, Subject, Subtopic, Topic, VersionHistory
 from diary.tests.docx_builder import SMALL, make_docx
 from diary.tests.helpers import join_main, main_profile
 
 PASSWORD = "x-long-pass-123"
+REAL_FILE = Path(__file__).resolve().parents[2] / "Case Law Diary.docx"
 
 
 def other_profile(name="Junior"):
@@ -83,8 +90,35 @@ class ImportIntoProfileTests(TestCase):
         before = BackupFile.objects.count()
         _, notes = self.do_import()
         self.assertEqual(BackupFile.objects.count(), before + 2)
-        self.assertTrue(any(n.startswith("Backup before") for n in notes))
+        self.assertEqual(BackupFile.objects.filter(kind="pre_import").count(), 1)
+        self.assertEqual(BackupFile.objects.filter(kind="post_import").count(), 1)
+        self.assertTrue(any(n.startswith("Backup before") and "Download it" in n for n in notes))
         self.assertTrue(any(n.startswith("Backup after") for n in notes))
+
+    def test_failed_backup_before_the_import_aborts_with_nothing_written(self):
+        with mock.patch("diary.importer.service.backup_services.create_backup", side_effect=RuntimeError("disk full")):
+            with self.assertRaises(service.ImportRefused) as caught:
+                self.do_import()
+        self.assertIn("nothing was changed", str(caught.exception))
+        self.assertEqual(Subject.objects.count(), 0)
+        self.assertEqual(Item.objects.count(), 0)
+        self.assertEqual(VersionHistory.objects.filter(change_kind="import").count(), 0)
+
+    def test_failed_backup_after_the_import_is_a_visible_warning_and_the_data_stays(self):
+        real = backup_services.create_backup
+
+        def fail_after(kind, *args, **kwargs):
+            if kind == "post_import":
+                raise RuntimeError("disk full")
+            return real(kind, *args, **kwargs)
+
+        with mock.patch("diary.importer.service.backup_services.create_backup", side_effect=fail_after):
+            text, notes = self.do_import()
+        self.assertTrue(any(n.startswith("WARNING") and "backup after it failed" in n for n in notes))
+        self.assertEqual(Subject.objects.filter(profile=self.profile).count(), 4)
+        self.assertIn("RESULT: MATCH", text)
+        self.assertEqual(BackupFile.objects.filter(kind="pre_import").count(), 1)
+        self.assertEqual(BackupFile.objects.filter(kind="post_import").count(), 0)
 
     def test_running_twice_changes_nothing(self):
         self.do_import()
@@ -110,6 +144,14 @@ class ImportIntoProfileTests(TestCase):
         self.assertIn("RESULT:", text)
         self.assertNotIn("RESULT: MATCH", text)
         self.assertIn("UNEXPECTED differences: 1", text)
+
+    def test_a_trashed_record_is_not_present_and_is_reported_apart(self):
+        self.do_import()
+        Item.objects.filter(original_line="Only a case name").update(deleted_at=timezone.now())
+        _, text = service.reconcile(self.data, "small.docx", self.profile)
+        self.assertNotIn("RESULT: MATCH", text)
+        self.assertIn("Records in the Trash", text)
+        self.assertIn("Lines missing from the database: 1", text)
 
     def test_reconciliation_reports_a_missing_record(self):
         self.do_import()
@@ -138,6 +180,46 @@ class ImportIntoProfileTests(TestCase):
         self.assertEqual(Subject.objects.filter(profile=self.profile).count(), 1)
         self.assertEqual(BackupFile.objects.count(), backups)
 
+    def test_other_live_data_with_a_different_name_is_refused_and_says_how_to_remove_it(self):
+        Subject.objects.create(profile=self.profile, name="TEST SAMPLE: Something else", landing_position=1)
+        backups = BackupFile.objects.count()
+        with self.assertRaises(service.ImportRefused) as caught:
+            self.do_import()
+        message = str(caught.exception)
+        self.assertIn("remove_sample_data --profile", message)
+        self.assertIn("TEST SAMPLE: Something else", message)
+        self.assertEqual(Subject.objects.filter(profile=self.profile).count(), 1)
+        self.assertEqual(Item.objects.count(), 0)
+        self.assertEqual(BackupFile.objects.count(), backups)  # refused before any backup
+        _, text = service.dry_run(self.data, "small.docx", self.profile)
+        self.assertIn("NOT READY", text)
+        self.assertNotIn("Ready to import.", text)
+
+    def test_a_trashed_subject_does_not_block_the_import(self):
+        Subject.objects.create(profile=self.profile, name="Old", deleted_at=timezone.now())
+        self.do_import()
+        self.assertEqual(Subject.objects.filter(profile=self.profile, deleted_at__isnull=True).count(), 4)
+
+    def test_other_live_data_in_another_profile_does_not_matter(self):
+        Subject.objects.create(profile=other_profile(), name="Elsewhere", landing_position=1)
+        self.do_import()
+        self.assertEqual(Subject.objects.filter(profile=self.profile).count(), 4)
+
+    def test_the_same_paragraph_cannot_be_stored_twice_in_one_profile(self):
+        Subject.objects.create(profile=self.profile, name="One", import_ref="para-0001")
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            Subject.objects.create(profile=self.profile, name="Two", import_ref="para-0001")
+        Subject.objects.create(profile=other_profile(), name="Three", import_ref="para-0001")
+        Subject.objects.create(profile=self.profile, name="Four")
+        Subject.objects.create(profile=self.profile, name="Five")  # blank import_ref is not restricted
+
+    def test_a_blank_name_is_a_plan_problem_not_a_database_error(self):
+        data = make_docx([("subject", "Contracts"), ("topic", ":"), ("item", "x - Case [(2010) 1 SCC 1]")])
+        with self.assertRaises(service.ImportRefused) as caught:
+            service.run_import(data, "bad.docx", self.profile)
+        self.assertIn("name is empty", str(caught.exception))
+        self.assertEqual(Subject.objects.count(), 0)
+
     def test_partial_earlier_import_is_refused(self):
         self.do_import()
         Item.objects.get(original_line="Only a case name").delete()
@@ -158,10 +240,108 @@ class ImportIntoProfileTests(TestCase):
     def test_failure_part_way_leaves_nothing(self):
         plan = service._prepare(self.data)
         plan.of("subtopic")[-1].name = ""  # the database refuses a blank Sub-topic name, late in the run
-        with self.assertRaises(Exception):
+        with self.assertRaises(service.ImportRefused) as caught:
             loader.import_plan(plan, self.profile)
+        self.assertIn("rolled back", str(caught.exception))
         self.assertEqual(Subject.objects.count(), 0)
         self.assertEqual(Item.objects.count(), 0)
+
+
+FORMATTED = [
+    ("subject", "Contracts"),
+    ("topic", "Scope"),
+    ("item", [("Bold ", True, False), ("start - ", False, False), ("Case [(2010) 1 SCC 1]", False, True)]),
+    ("item", [("Plain ", False, False), ("bold", True, False), (" - Other [(2011) 2 SCC 2]", False, True)]),
+]
+
+
+class FormattingRoundTripTests(TestCase):
+    def setUp(self):
+        self.data = make_docx(FORMATTED)
+        self.profile = main_profile()
+        service.run_import(self.data, "f.docx", self.profile)
+
+    def test_formatting_is_stored_and_matches(self):
+        first = Item.objects.get(original_line__startswith="Bold ")
+        self.assertEqual(first.text, "<p><b>Bold </b>start</p>")
+        _, text = service.reconcile(self.data, "f.docx", self.profile)
+        self.assertIn("RESULT: MATCH", text)
+        self.assertIn("Formatting (bold/italic/underline runs) differs between the file and the database: 0", text)
+
+    def test_lost_bold_is_detected_even_though_the_words_are_the_same(self):
+        item = Item.objects.get(original_line__startswith="Bold ")
+        item.text = "<p>Bold start</p>"
+        item.save()
+        _, text = service.reconcile(self.data, "f.docx", self.profile)
+        self.assertNotIn("RESULT: MATCH", text)
+        self.assertIn("UNEXPECTED differences: 0", text)  # the words are the same ...
+        self.assertIn("differs between the file and the database: 1", text)  # ... the formatting is not
+
+    def test_shifted_bold_is_detected(self):
+        item = Item.objects.get(original_line__startswith="Plain ")
+        item.text = "<p><b>Plain</b> bold</p>"
+        item.save()
+        _, text = service.reconcile(self.data, "f.docx", self.profile)
+        self.assertNotIn("RESULT: MATCH", text)
+        self.assertIn("differs between the file and the database: 1", text)
+
+
+@skipUnless(REAL_FILE.exists(), "Case Law Diary.docx is not in the project folder")
+class RealFileThroughTheDatabaseTests(TestCase):
+    """The real 950-Item file, imported into a fresh profile and read back (Postgres constraints, order, MATCH)."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.data = REAL_FILE.read_bytes()
+        cls.profile = other_profile("Real file")
+        cls.text, cls.notes = service.run_import(cls.data, REAL_FILE.name, cls.profile)
+
+    def test_every_figure_and_a_clean_match(self):
+        p = self.profile
+        self.assertEqual(Subject.objects.filter(profile=p).count(), EXPECTED["subjects"])
+        self.assertEqual(Subject.objects.filter(profile=p, show_on_landing=True).count(), EXPECTED["main_subjects"])
+        self.assertEqual(Topic.objects.filter(profile=p).count(), EXPECTED["topics"])
+        self.assertEqual(Subtopic.objects.filter(profile=p).count(), EXPECTED["subtopics"])
+        self.assertEqual(Section.objects.filter(profile=p).count(), EXPECTED["sections"])
+        self.assertEqual(Item.objects.filter(profile=p).count(), EXPECTED["items"])
+        self.assertEqual(Item.objects.filter(profile=p, needs_review=False).count(), EXPECTED["items_clean"])
+        self.assertEqual(Item.objects.filter(profile=p, needs_review=True).count(), EXPECTED["items_flagged"])
+        marked = (Item.objects.filter(profile=p, needs_review=True).count()
+                  + Section.objects.filter(profile=p, needs_review=True).count())
+        self.assertEqual(marked, EXPECTED["review_marked"])
+        self.assertIn("RESULT: MATCH. Nothing lost, nothing invented.", self.text)
+        self.assertIn("UNEXPECTED differences: 0", self.text)
+        self.assertIn("Expected 19; found 19.", self.text)
+        self.assertIn("Completeness: 1494 planned records + 1 skipped heading(s) + 11 blank + 0 problem(s) = 1506", self.text)
+        _, again = service.reconcile(self.data, REAL_FILE.name, p)
+        self.assertIn("RESULT: MATCH", again)
+
+    def test_per_reason_counts_in_the_database(self):
+        expected = {"no_dash": 70, "many_dash": 70, "unbalanced": 49, "multi_marker": 32, "not_citation": 26,
+                    "double_space": 6, "bracketed": 2, "flag": 1, "spaces": 1}
+        for key, count in expected.items():
+            note = f"Imported whole as Text with no Citation: {REASONS[key]}."
+            with self.subTest(reason=key):
+                self.assertEqual(Item.objects.filter(profile=self.profile, review_note=note).count(), count)
+        restarts = Item.objects.filter(profile=self.profile, review_note__contains="Word list restarted here")
+        self.assertEqual(sorted(restarts.values_list("import_ref", flat=True)), ["para-1033", "para-1356"])
+        self.assertEqual(restarts.filter(citation="").count(), 0)  # split normally, only flagged
+
+    def test_sections_hold_two_and_ten_items(self):
+        a = Section.objects.get(profile=self.profile, name__startswith="Ex Parte")
+        b = Section.objects.get(profile=self.profile, name__startswith="Determining")
+        after_a = Item.objects.filter(profile=self.profile, subtopic=a.subtopic, position__gt=a.position,
+                                      position__lt=b.position).count()
+        after_b = Item.objects.filter(profile=self.profile, subtopic=b.subtopic, position__gt=b.position).count()
+        self.assertEqual((after_a, after_b), (2, 10))
+
+    def test_both_backups_exist_and_import_is_a_no_op_second_time(self):
+        self.assertEqual(BackupFile.objects.filter(kind="pre_import").count(), 1)
+        self.assertEqual(BackupFile.objects.filter(kind="post_import").count(), 1)
+        before = Item.objects.count()
+        text, notes = service.run_import(self.data, REAL_FILE.name, self.profile)
+        self.assertEqual(Item.objects.count(), before)
+        self.assertIn("RESULT: MATCH", text)
 
 
 @override_settings(SECURE_SSL_REDIRECT=False)
@@ -202,17 +382,28 @@ class ImportScreenTests(TestCase):
         self.assertIn("attachment", resp["Content-Disposition"])
         self.assertIn(b"DRY RUN", resp.content)
 
-    def test_import_needs_the_word_and_the_approved_fingerprint(self):
-        self.client.force_login(self.admin)
-        sha = file_digest(self.data)
-        self.assertContains(self.post(action="import", sha256=sha, confirm_word="no"), "Type IMPORT")
-        self.assertContains(self.post(action="import", confirm_word="IMPORT"), "Run the dry run first")
-        self.assertContains(self.post(action="import", sha256="0" * 64, confirm_word="IMPORT"), "not the same file")
-        self.assertEqual(Subject.objects.count(), 0)
-
-    def test_import_then_reconciliation_then_review_list(self):
+    def test_the_import_is_not_run_from_the_screen_the_shell_command_is_shown(self):
         self.client.force_login(self.admin)
         resp = self.post(action="import", sha256=file_digest(self.data), confirm_word="IMPORT")
+        self.assertContains(resp, "not run from this screen")
+        self.assertContains(resp, "python manage.py import_docx --profile")
+        self.assertEqual(Subject.objects.count(), 0)
+        ready = self.post(action="dry_run")
+        self.assertContains(ready, "python manage.py import_docx --profile &#x27;Main&#x27; --import")
+
+    def test_dry_run_says_what_is_in_the_way_and_offers_no_command(self):
+        Subject.objects.create(profile=main_profile(), name="TEST SAMPLE: Other", landing_position=1)
+        self.client.force_login(self.admin)
+        resp = self.post(action="dry_run")
+        self.assertContains(resp, "remove_sample_data --profile")
+        self.assertContains(resp, "NOT READY")
+        self.assertNotContains(resp, "Ready to import.")
+        self.assertNotContains(resp, "--import")
+
+    def test_reconciliation_after_an_import_and_the_review_list(self):
+        self.client.force_login(self.admin)
+        service.run_import(self.data, "small.docx", main_profile(), self.admin)
+        resp = self.post(action="reconcile")
         self.assertContains(resp, "RESULT: MATCH")
         self.assertEqual(Subject.objects.filter(profile=main_profile()).count(), 4)
         resp = self.post(action="reconcile_download")
@@ -220,6 +411,13 @@ class ImportScreenTests(TestCase):
         listing = self.client.get(reverse("review_list"))
         self.assertContains(listing, "Only a case name")
         self.assertContains(listing, "Ex Parte")
+
+    def test_an_unexpected_error_is_a_plain_message_not_a_server_error(self):
+        self.client.force_login(self.admin)
+        with mock.patch("diary.views.import_service.dry_run", side_effect=RuntimeError("boom")):
+            resp = self.post(action="dry_run")
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Something unexpected went wrong")
 
     def test_a_non_word_file_gives_a_message(self):
         self.client.force_login(self.admin)
@@ -256,6 +454,22 @@ class ReviewListTests(TestCase):
         self.assertNotContains(resp, "Fine")
         self.assertContains(resp, "2 records")
 
+    def test_order_follows_the_real_position_inside_each_parent(self):
+        reader = join_main(User.objects.create_user("rita", password=PASSWORD))
+        main = main_profile()
+        subject = Subject.objects.create(profile=main, name="Arbitration", landing_position=1)
+        late = Topic.objects.create(profile=main, subject=subject, name="Late", position=2)
+        early = Topic.objects.create(profile=main, subject=subject, name="Early", position=1)
+        # created in the "wrong" order on purpose: primary keys must not decide the order
+        Item.objects.create(profile=main, topic=late, text="<p>zzitemL2</p>", position=2, needs_review=True)
+        Section.objects.create(profile=main, topic=late, name="zzsectionL1", position=1, needs_review=True)
+        Item.objects.create(profile=main, topic=early, text="<p>zzitemE1</p>", position=1, needs_review=True)
+        Section.objects.create(profile=main, topic=early, name="zzsectionE2", position=2, needs_review=True)
+        self.client.force_login(reader)
+        body = self.client.get(reverse("review_list")).content.decode()
+        positions = [body.index(x) for x in ("zzitemE1", "zzsectionE2", "zzsectionL1", "zzitemL2")]
+        self.assertEqual(positions, sorted(positions))
+
     def test_requires_a_profile(self):
         user = User.objects.create_user("nobody", password=PASSWORD)
         self.client.force_login(user)
@@ -286,6 +500,20 @@ class ImportCommandTests(TestCase):
         out = self.run_command("--profile", "Main", "--import")
         self.assertIn("RESULT: MATCH", out)
         self.assertIn("RESULT: MATCH", self.run_command("--profile", "Main", "--reconcile"))
+
+    def test_dry_run_and_import_refuse_a_profile_with_other_live_data(self):
+        Subject.objects.create(profile=main_profile(), name="TEST SAMPLE: Other", landing_position=1)
+        self.assertIn("NOT READY", self.run_command("--profile", "Main"))
+        with self.assertRaises(CommandError) as caught:
+            self.run_command("--profile", "Main", "--import")
+        self.assertIn("remove_sample_data --profile", str(caught.exception))
+        self.assertEqual(Item.objects.count(), 0)
+
+    def test_an_unexpected_error_is_a_plain_message(self):
+        with mock.patch("diary.importer.service.run_import", side_effect=RuntimeError("boom")):
+            with self.assertRaises(CommandError) as caught:
+                self.run_command("--profile", "Main", "--import")
+        self.assertIn("unexpected error: boom", str(caught.exception))
 
     def test_unknown_profile_and_missing_file(self):
         with self.assertRaises(CommandError):

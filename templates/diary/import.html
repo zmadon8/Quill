@@ -2,7 +2,7 @@
 {% block title %}Import from Word - {{ diary_name }}{% endblock %}
 {% block content %}
 <h1>Import from Word</h1>
-<p>One-time, supervised import of <em>Case Law Diary.docx</em> into one profile. The Word file is only read, never changed. Step 1: run the <strong>dry run</strong> and read it. Step 2: import from the dry run page. Step 3: read the <strong>reconciliation</strong>. A backup is made just before and just after the import. Running the import again changes nothing.</p>
+<p>One-time, supervised import of <em>Case Law Diary.docx</em> into one profile. The Word file is only read, never changed. Step 1: run the <strong>dry run</strong> and read it. Step 2: import from the Render Shell with the command shown after a ready dry run. Step 3: read the <strong>reconciliation</strong> here. A "Before import" and an "After import" backup are made; they are kept until an Admin deletes them. Running the import again changes nothing.</p>
 
 <form method="post" enctype="multipart/form-data" class="stack">
   {% csrf_token %}
@@ -25,16 +25,11 @@
 <h2>{{ report_title }}{% if file_name %}: {{ file_name }}{% endif %}</h2>
 {% if state_messages %}<ul>{% for m in state_messages %}<li>{{ m }}</li>{% endfor %}</ul>{% endif %}
 {% if can_import %}
-<form method="post" enctype="multipart/form-data" class="stack">
-  {% csrf_token %}
-  <input type="hidden" name="action" value="import">
-  <input type="hidden" name="profile" value="{{ chosen.pk }}">
-  <input type="hidden" name="sha256" value="{{ sha256 }}">
-  <p>To import into <strong>{{ chosen.name }}</strong>, choose the same file again (it must be exactly the file in this dry run, checked by its fingerprint {{ sha256|slice:":12" }}), and type IMPORT.</p>
-  <p><input type="file" name="file" accept=".docx" required>
-  <input type="text" name="confirm_word" autocomplete="off" placeholder="IMPORT" size="10" required>
-  <button type="submit" class="primary">Import into {{ chosen.name }}</button></p>
-</form>
+<div class="stack">
+  <p><strong>The dry run says this profile is ready.</strong> After you have read and approved the dry run, import from the Render Shell (the import is not run from this screen because it can take longer than the web request limit):</p>
+  <pre>{{ command }}</pre>
+  <p>It takes a backup ("Before import") first and stops if that fails, imports everything in one step, takes a second backup ("After import") and prints the reconciliation. Download the "Before import" backup from the Backups screen and keep it. Afterwards come back here and press <strong>Reconcile with profile</strong>.</p>
+</div>
 {% endif %}
 <pre class="report" style="overflow:auto; white-space:pre; max-height:70vh; padding:.75rem; border:1px solid #ccc;">{{ report }}</pre>
 {% endif %}

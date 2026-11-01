@@ -1,3 +1,4 @@
+import logging
 from functools import wraps
 
 from django.core.exceptions import PermissionDenied
@@ -20,7 +21,6 @@ from . import reading
 from .forms import ProfileSettingsForm
 from .importer import loader as import_loader
 from .importer import service as import_service
-from .importer.docx_reader import file_digest
 from .models import Item, Section, Subject, Subtopic, Topic
 
 NO_PROFILE_MESSAGE = "No profile assigned - ask the Admin"
@@ -231,6 +231,14 @@ def _review_rows(profile):
             link = ("read_subtopic", subtopic.pk) if subtopic else (
                 ("read_topic", topic.pk) if topic else ("read_subject", subject.pk))
             text = obj.text_plain if kind == "Item" else obj.name
+            # Real position in the Diary: content directly under the Subject, then its Sub-topics, then each
+            # Topic with its own content and Sub-topics. Items and Sections share one position sequence.
+            if topic is not None:
+                place = (2, topic.position, subtopic.position if subtopic else 0)
+            elif subtopic is not None:
+                place = (1, 0, subtopic.position)
+            else:
+                place = (0, 0, 0)
             rows.append({
                 "kind": kind,
                 "path": " > ".join(x.name for x in chain),
@@ -238,7 +246,7 @@ def _review_rows(profile):
                 "note": obj.review_note,
                 "url": reverse(link[0], args=[link[1]]),
                 "order": (subject.show_on_landing is False, subject.landing_position or subject.other_acts_position,
-                          subject.pk, obj.pk),
+                          subject.pk, place, obj.position, obj.pk),
             })
     rows.sort(key=lambda r: r["order"])
     return rows
@@ -250,6 +258,8 @@ def review_list(request):
     rows = _review_rows(request.profile)
     return render(request, "diary/review_list.html", {"rows": rows, "total": len(rows)})
 
+
+logger = logging.getLogger(__name__)
 
 MAX_IMPORT_MB = 25
 
@@ -263,12 +273,16 @@ def _import_context(extra=None):
     return context
 
 
+IMPORT_COMMAND = "python manage.py import_docx --profile {name!r} --import"
+
+
 @admin_required
 def import_word(request):
-    """Admin only: dry run, import and reconciliation of the Word file into a chosen profile (Milestone 2).
+    """Admin only: dry run and reconciliation of the Word file against a chosen profile (Milestone 2).
 
-    Nothing is kept between requests: each button sends the file again. The import only runs with the
-    SHA-256 of the file that was shown in a dry run, so what is imported is what was approved.
+    The import itself is NOT run from this screen (decision D-e in docs/DESIGN.md): it makes about 2,500 saves
+    and two backups, which can outlast the 60-second web request limit on Render. It is run from the Render Shell
+    with the ``import_docx`` command, which has no such limit. This screen shows the exact command.
     """
     if request.method != "POST":
         return render(request, "diary/import.html", _import_context())
@@ -282,13 +296,19 @@ def import_word(request):
         messages.error(request, message)
         return render(request, "diary/import.html", _import_context({"chosen": profile}))
 
+    if action == "import":
+        return again(
+            "The import is not run from this screen (it can take longer than the web request limit). Run the dry "
+            "run here, then in the Render Shell run: "
+            + IMPORT_COMMAND.format(name=profile.name if profile else "<profile name>")
+        )
     if upload is None:
         return again("Choose the Word file first.")
     if upload.size > MAX_IMPORT_MB * 1024 * 1024:
         return again(f"That file is larger than {MAX_IMPORT_MB} MB.")
     data = upload.read()
-    if action != "dry_run" and action != "dry_run_download" and profile is None:
-        return again("Choose the profile to import into.")
+    if action not in ("dry_run", "dry_run_download") and profile is None:
+        return again("Choose the profile to check against.")
     stamp = timezone.now().strftime("%Y%m%d-%H%M%S")
 
     def download(text, name):
@@ -298,19 +318,18 @@ def import_word(request):
 
     try:
         if action in ("dry_run", "dry_run_download"):
-            plan, text = import_service.dry_run(data, upload.name)
+            plan, text = import_service.dry_run(data, upload.name, profile)
             if action == "dry_run_download":
                 return download(text, "dry-run-report")
-            state = None
             if profile is not None:
                 state, state_messages = import_loader.check_state(plan, profile)
             else:
-                state_messages = ["Choose a profile to see whether the import could run there."]
+                state, state_messages = None, ["Choose a profile to see whether the import could run there."]
             ready = state == import_loader.STATE_FRESH
             return render(request, "diary/import.html", _import_context({
                 "chosen": profile, "report": text, "report_title": "Dry run (nothing saved)",
-                "sha256": file_digest(data) if ready else "",
                 "state_messages": state_messages, "file_name": upload.name, "can_import": ready,
+                "command": IMPORT_COMMAND.format(name=profile.name) if ready else "",
             }))
         if action in ("reconcile", "reconcile_download"):
             _, text = import_service.reconcile(data, upload.name, profile)
@@ -319,20 +338,9 @@ def import_word(request):
             return render(request, "diary/import.html", _import_context({
                 "chosen": profile, "report": text, "report_title": "Reconciliation", "file_name": upload.name,
             }))
-        if action == "import":
-            if request.POST.get("confirm_word", "").strip() != "IMPORT":
-                return again('Type IMPORT in the box to confirm.')
-            if not request.POST.get("sha256"):
-                return again("Run the dry run first and import from its page.")
-            text, notes = import_service.run_import(
-                data, upload.name, profile, request.user, expected_sha256=request.POST["sha256"]
-            )
-            for note in notes:
-                messages.info(request, note)
-            return render(request, "diary/import.html", _import_context({
-                "chosen": profile, "report": text, "report_title": "Reconciliation after the import",
-                "file_name": upload.name,
-            }))
     except (import_service.DocxError, import_service.ImportRefused) as exc:
         return again(str(exc))
+    except Exception:  # never a server error page; nothing is saved by a dry run or a reconciliation
+        logger.exception("Word import screen failed")
+        return again("Something unexpected went wrong while reading the file. Nothing was saved. Try the Render Shell command or ask for help.")
     return again("Unknown action.")

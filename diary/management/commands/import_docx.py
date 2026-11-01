@@ -41,9 +41,14 @@ class Command(BaseCommand):
             elif options["reconcile"]:
                 _, text = service.reconcile(data, path.name, profile)
             else:
-                _, text = service.dry_run(data, path.name)
+                _, text = service.dry_run(data, path.name, profile)
         except (service.DocxError, service.ImportRefused) as exc:
             raise CommandError(str(exc))
+        except Exception as exc:  # never a stack trace for the Admin; a failed import was rolled back
+            raise CommandError(
+                f"The {'import' if options['do_import'] else 'step'} stopped with an unexpected error: {exc}. "
+                "An import that had not finished was rolled back. Run --reconcile to see what the profile holds."
+            )
         if options["output"]:
             Path(options["output"]).write_text(text, encoding="utf-8")
             self.stdout.write(f"Report written to {options['output']}")

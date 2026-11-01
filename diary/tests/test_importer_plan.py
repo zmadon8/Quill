@@ -4,7 +4,20 @@ from pathlib import Path
 
 from diary.importer import plan as plan_module
 from diary.importer.docx_reader import DocxError, read_docx
-from diary.importer.plan import EXPECTED, build_plan, classify_item, runs_to_html, strip_colon, summary_counts
+from collections import Counter
+
+from diary.importer.plan import (
+    EXPECTED,
+    REASONS,
+    build_plan,
+    classify_item,
+    completeness,
+    html_signature,
+    runs_signature,
+    runs_to_html,
+    strip_colon,
+    summary_counts,
+)
 from diary.importer.report import dry_run_report, section_groups
 from diary.importer.docx_reader import Run
 from diary.tests.docx_builder import SMALL, make_docx
@@ -124,9 +137,24 @@ class SmallFilePlanTests(unittest.TestCase):
         self.assertEqual(a.review_note, plan_module.SECTION_REVIEW_NOTE)
         self.assertEqual([g[2] for g in section_groups(self.plan)], [1, 2])
 
-    def test_list_restart_is_reported_but_not_after_a_section(self):
-        restarted = [n.original_line for n in self.plan.nodes if n.list_restarted]
-        self.assertEqual(restarted, ["Direct two - Zeta [(2014) 5 SCC 5]"])
+    def test_list_restart_is_flagged_but_not_after_a_section(self):
+        restarted = [n for n in self.plan.nodes if n.list_restarted]
+        self.assertEqual([n.original_line for n in restarted], ["Direct two - Zeta [(2014) 5 SCC 5]"])
+        self.assertTrue(restarted[0].needs_review)
+        self.assertEqual(restarted[0].review_note, plan_module.RESTART_NOTE)
+        self.assertEqual(restarted[0].citation, "Zeta [(2014) 5 SCC 5]")  # still split normally
+        self.assertIn("FLAGGED", dry_run_report(self.plan, "small.docx", "abc123", 10, "now"))
+
+    def test_every_paragraph_is_accounted_for(self):
+        done = completeness(self.plan)
+        self.assertTrue(done["ok"], done["equation"])
+        self.assertEqual(done["parts"], (len(self.plan.nodes), 1, 1, 0))
+        self.assertIn("Completeness:", dry_run_report(self.plan, "small.docx", "abc123", 10, "now"))
+
+    def test_word_list_groups_are_read_from_word_not_from_positions(self):
+        self.assertEqual([(ref, count) for ref, count, _ in self.plan.word_groups],
+                         [(g[0], g[2]) for g in section_groups(self.plan)])
+        self.assertEqual([count for _, count, _ in self.plan.word_groups], [1, 2])
 
     def test_expected_order_puts_other_subjects_after_main_ones(self):
         order = self.plan.expected_order
@@ -162,6 +190,43 @@ class StructureProblemTests(unittest.TestCase):
         plan = small_plan([("subject", "Contracts"), ("topic", "T"), ("subject", "contracts"), ("topic", "U")])
         self.assertTrue(any("must be unique" in p for p in plan.problems))
 
+    def test_a_name_that_is_only_a_colon_is_a_plan_problem(self):
+        plan = small_plan([("subject", "Contracts"), ("topic", ":"), ("subtopic", " : ")])
+        self.assertEqual(len([p for p in plan.problems if "name is empty" in p]), 2)
+
+    def test_bold_or_underline_on_the_citation_side_flags_the_item(self):
+        plan = small_plan([
+            ("subject", "Contracts"), ("topic", "T"),
+            ("item", [("Prop - ", False, False), ("Case [(2010) 1 SCC 1]", True, True)]),
+            ("item", [("Prop two - ", False, False), ("Case [(2011) 2 SCC 2]", False, True, '<w:u w:val="single"/>')]),
+            ("item", [("Prop three - ", False, False), ("Case [(2012) 3 SCC 3]", False, True)]),
+            ("item", [("Prop four - ", False, False), ("Case [(2013) 4 SCC 4]", False, True, "<w:color w:val=\"FF0000\"/>")]),
+        ])
+        notes = [n.review_note for n in plan.of("item")]
+        self.assertEqual(notes[0], plan_module.CITATION_FORMAT_NOTE)
+        self.assertEqual(notes[1], plan_module.CITATION_FORMAT_NOTE)
+        self.assertEqual(notes[2], "")  # italic only is expected
+        self.assertIn("other formatting", notes[3])
+        text = dry_run_report(plan, "x.docx", "y", 1, "now")
+        self.assertIn("Citation had bold or underline in Word (FLAGGED for review): 2", text)
+
+    def test_parts_that_cannot_be_imported_are_reported_and_flag_the_line(self):
+        plan = small_plan([
+            ("subject", "Contracts"), ("topic", "T"),
+            ("item", [("Prop - Case [(2010) 1 SCC 1]", False, False, "", "<w:sym w:char=\"F0A7\"/>")]),
+        ])
+        item = plan.of("item")[0]
+        self.assertTrue(item.needs_review)
+        self.assertIn("left out", item.review_note)
+        self.assertTrue(any("NOT in the stored text" in w for w in plan.warnings))
+
+    def test_run_signature_matches_the_stored_html_and_sees_lost_formatting(self):
+        runs = [Run("Bold ", bold=True), Run("plain "), Run("both", bold=True, italic=True)]
+        html = runs_to_html(runs)
+        self.assertEqual(html_signature(html), runs_signature(runs))
+        self.assertNotEqual(html_signature("<p>Bold plain both</p>"), runs_signature(runs))
+        self.assertNotEqual(html_signature("<p>Bold <b>plain</b> <b><i>both</i></b></p>"), runs_signature(runs))
+
     def test_not_a_word_file(self):
         with self.assertRaises(DocxError):
             read_docx(b"this is not a zip file")
@@ -182,8 +247,31 @@ class RealFileTests(unittest.TestCase):
 
     def test_only_the_two_sections_and_the_flagged_items_are_review_marked(self):
         marked = [n for n in self.plan.nodes if n.needs_review]
-        self.assertEqual(len(marked), 259)
+        self.assertEqual(len(marked), 261)
         self.assertEqual(sum(1 for n in marked if n.kind == "section"), 2)
+
+    def test_per_reason_counts_are_pinned(self):
+        # The nine whole-line reasons of IMPORT_ANALYSIS (257 lines) are unchanged. The two list restarts
+        # (D-a) are clean split lines that are now also flagged: 257 + 2 = 259 flagged Items. No Citation
+        # had bold/underline (D-c), so that cause adds none.
+        reasons = Counter(n.reason for n in self.plan.of("item") if n.reason)
+        self.assertEqual(reasons, Counter({
+            "no_dash": 70, "many_dash": 70, "unbalanced": 49, "multi_marker": 32, "not_citation": 26,
+            "double_space": 6, "bracketed": 2, "flag": 1, "spaces": 1,
+        }))
+        self.assertEqual(set(reasons) <= set(REASONS), True)
+        causes = Counter(c for n in self.plan.nodes for c in n.causes)
+        self.assertEqual(causes, Counter({"list_restart": 2}))
+        self.assertEqual([n.ref for n in self.plan.of("item") if n.list_restarted], ["para-1033", "para-1356"])
+
+    def test_every_paragraph_is_accounted_for(self):
+        done = completeness(self.plan)
+        self.assertTrue(done["ok"], done["equation"])
+        self.assertEqual(done["parts"], (1494, 1, 11, 0))
+        self.assertEqual(done["total"], 1506)
+
+    def test_word_list_groups_are_the_two_lists_of_two_and_ten(self):
+        self.assertEqual(self.plan.word_groups, [("para-1204", 2, ["439"]), ("para-1207", 10, ["563"])])
 
     def test_sections_hold_two_and_ten_items(self):
         self.assertEqual([g[2] for g in section_groups(self.plan)], [2, 10])
