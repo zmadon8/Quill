@@ -155,14 +155,18 @@ class HomeIndexTests(TestCase):
 
     def test_back_in_top_row_and_program_name_links_home(self):
         self.client.force_login(self.admin)
-        for name in ("home", "subjects", "search", "user_list", "backup_list"):
+        for name in ("home", "subjects", "search", "user_list", "backup_list", "settings"):
             html = self.client.get(reverse(name)).content.decode()
             header = html.split('<header class="site-header">')[1].split("</header>")[0]
             self.assertIn("data-back", header, name)
             self.assertIn('<a href="%s" title="Go to Home (Alt+H)" aria-label="Go to Home">' % reverse("home"), header, name)
             self.assertNotIn("switch-program", html, name)
             self.assertNotIn('class="toolbar', html, name)
-            self.assertNotIn(">Home</a>", header, name)
+            if name in ("home", "user_list", "settings"):
+                self.assertEqual(header.count(">Home</a>"), 1, name)  # brand only, no extra Home button
+            else:
+                self.assertNotIn(">Home</a>", header, name)
+                self.assertIn(">Case Law Diary</a>", header, name)
 
     def test_users_screen_uses_suite_header_without_toolbar(self):
         self.client.force_login(self.admin)
