@@ -6,5 +6,6 @@
 {% block program_nav %}{% with current=request.resolver_match.url_name %}
   <a href="{% url 'subjects' %}"{% if current == 'subjects' %} class="on" aria-current="page"{% endif %}>Subjects</a>
   <a href="{% url 'search' %}"{% if current == 'search' %} class="on" aria-current="page"{% endif %}>Search</a>
+  <a href="{% url 'profile_settings' %}"{% if current == 'profile_settings' %} class="on" aria-current="page"{% endif %}>Profile settings</a>
   {% if user.is_admin %}<a href="{% url 'backup_list' %}"{% if current|slice:":7" == 'backup_' or current|slice:":8" == 'restore_' %} class="on" aria-current="page"{% endif %}>Backups</a>{% endif %}
 {% endwith %}{% endblock %}

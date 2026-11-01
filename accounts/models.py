@@ -63,10 +63,13 @@ class Profile(models.Model):
     profiles. Names are unique per program among profiles that are not deleted, ignoring case.
     Deleting only sets ``deleted_at`` (and ``deleted_by``); the profile can be restored until the
     purge job removes it for good after the retention period (``PROFILE_RETENTION_DAYS``).
+    ``export_name`` is the name this profile's exported files start with; blank means the default
+    "<program name> <profile name>" (see ``accounts.profiles.effective_export_name``).
     """
 
     program = models.CharField(max_length=30)
     name = models.CharField(max_length=60)
+    export_name = models.CharField(max_length=100, blank=True, default="")
     deleted_at = models.DateTimeField(null=True, blank=True)
     deleted_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"

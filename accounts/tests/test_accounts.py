@@ -930,3 +930,51 @@ class RoleMigrationTests(TransactionTestCase):
         apps = self.migrate([("accounts", "0007_remove_user_role")])
         self.assertNotIn("role", [f.name for f in apps.get_model("accounts", "User")._meta.get_fields()])
         self.assertTrue(apps.get_model("accounts", "User").objects.get(username="adm").is_superuser)
+
+
+class ExportNameTests(BaseCase):
+    def main(self):
+        return ensure_default_profile()
+
+    def test_default_name_uses_program_and_profile_name(self):
+        from accounts.profiles import effective_export_name
+
+        self.assertEqual(effective_export_name(self.main()), "Case Law Diary Main")
+
+    def test_custom_name_trimmed_and_illegal_characters_removed(self):
+        from accounts.profiles import effective_export_name, export_file_name, safe_file_name
+
+        profile = self.main()
+        profile.export_name = '  Madon:  Case/Law *"Diary"?  '
+        self.assertEqual(effective_export_name(profile), 'Madon: Case/Law *"Diary"?')
+        self.assertEqual(export_file_name(profile), "Madon CaseLaw Diary")
+        self.assertEqual(safe_file_name('a\\b<c>d|e\x01f.'), "abcdef")
+        profile.export_name = '???'
+        self.assertEqual(export_file_name(profile), "Main")
+
+    def test_editor_can_change_name(self):
+        self.client.force_login(self.admin)  # Editor of Main through the membership
+        resp = self.client.post(reverse("profile_settings"), {"export_name": "  My: Diary "})
+        self.assertRedirects(resp, reverse("profile_settings"))
+        self.assertEqual(Profile.objects.get(pk=self.main().pk).export_name, "My: Diary")
+        self.assertContains(self.client.get(reverse("profile_settings")), "My Diary")
+
+    def test_reader_can_view_but_not_change(self):
+        self.client.force_login(self.user)
+        resp = self.client.get(reverse("profile_settings"))
+        self.assertContains(resp, "Case Law Diary Main")
+        self.assertNotContains(resp, "<form")
+        self.assertEqual(self.client.post(reverse("profile_settings"), {"export_name": "X"}).status_code, 403)
+        self.assertEqual(self.main().export_name, "")
+
+    def test_user_without_profile_refused(self):
+        other = self.make_user("nobody")
+        self.client.force_login(other)
+        self.assertEqual(self.client.get(reverse("profile_settings")).status_code, 403)
+
+    def test_only_own_profile_changes(self):
+        junior = Profile.objects.create(program="diary", name="Junior")
+        self.client.force_login(self.admin)
+        self.client.post(reverse("profile_settings"), {"export_name": "Mine"})
+        junior.refresh_from_db()
+        self.assertEqual(junior.export_name, "")

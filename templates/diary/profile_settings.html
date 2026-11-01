@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Profile settings{% endblock %}
+{% block content %}
+<h1>Profile settings</h1>
+<p>Profile: <strong>{{ request.profile.name }}</strong></p>
+{% if can_edit %}
+<form method="post" class="stack">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <p>Files will start with: <strong>{{ preview }}</strong></p>
+  <button type="submit">Save</button>
+</form>
+{% else %}
+<p>Export file name: <strong>{{ preview }}</strong></p>
+<p class="muted">Only Editors of this profile can change it.</p>
+{% endif %}
+{% endblock %}

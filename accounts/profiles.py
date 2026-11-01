@@ -5,6 +5,7 @@ classes as arguments so the data migrations (which use historical models) and th
 exactly the same logic.
 """
 import math
+import re
 from datetime import timedelta
 
 from django.conf import settings
@@ -12,7 +13,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from .models import ROLE_READER, Profile, ProfileMembership
-from .suite import KEY_DIARY
+from .suite import KEY_DIARY, get_names
 
 DEFAULT_PROFILE_NAME = "Main"
 
@@ -143,3 +144,28 @@ def restore_profile(profile):
         profile.deleted_at = None
         profile.deleted_by = None
         profile.save(update_fields=["deleted_at", "deleted_by", "updated_at"])
+
+
+_ILLEGAL_FILENAME_CHARS = re.compile(r'[\\/:*?"<>|\x00-\x1f\x7f]')
+
+
+def effective_export_name(profile):
+    """The name this profile's exported files start with: its own ``export_name`` or the default.
+
+    The default is "<program display name> <profile name>", for example "Case Law Diary Main".
+    """
+    custom = " ".join((profile.export_name or "").split())
+    if custom:
+        return custom
+    return f"{get_names().get(profile.program, profile.program)} {profile.name}"
+
+
+def safe_file_name(name):
+    """``name`` made safe as a file name: illegal characters removed, spaces tidied, no edge dots."""
+    cleaned = _ILLEGAL_FILENAME_CHARS.sub("", name or "")
+    return " ".join(cleaned.split()).strip(". ")
+
+
+def export_file_name(profile):
+    """File-name-safe version of the profile's effective export name (never empty)."""
+    return safe_file_name(effective_export_name(profile)) or safe_file_name(profile.name) or "Export"

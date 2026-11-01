@@ -1,15 +1,19 @@
 from functools import wraps
 
+from django.core.exceptions import PermissionDenied
 from django.db import connection
 from django.db.models import Count, Q
 from django.db.models.functions import Coalesce
 from django.http import Http404, HttpResponse
-from django.shortcuts import get_object_or_404, render
+from django.contrib import messages
+from django.shortcuts import get_object_or_404, redirect, render
 
-from accounts.permissions import reader_required
-from accounts.profiles import request_profile
+from accounts.models import ROLE_EDITOR
+from accounts.permissions import program_role, reader_required
+from accounts.profiles import export_file_name, request_profile
 
 from . import reading
+from .forms import ProfileSettingsForm
 from .models import Item, Subject, Subtopic, Topic
 
 NO_PROFILE_MESSAGE = "No profile assigned - ask the Admin"
@@ -105,6 +109,26 @@ def subjects(request):
 def home(request):
     """Suite Home: the program picker (only the case law diary today)."""
     return render(request, "diary/home.html", {"diary_profile": request_profile(request)})
+
+
+@profile_required
+def profile_settings(request):
+    """Settings of the user's profile. Editors can change the export name; Readers only view it."""
+    profile = request.profile
+    can_edit = program_role(request.user, profile.program) == ROLE_EDITOR
+    form = ProfileSettingsForm(request.POST or None, instance=profile)
+    if request.method == "POST":
+        if not can_edit:
+            raise PermissionDenied
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Profile settings saved.")
+            return redirect("profile_settings")
+    return render(
+        request,
+        "diary/profile_settings.html",
+        {"form": form, "can_edit": can_edit, "preview": export_file_name(form.instance)},
+    )
 
 
 @profile_required
