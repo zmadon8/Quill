@@ -16,9 +16,21 @@ The longer plans are in `docs/PLAN.md` (what is built when), `docs/DESIGN.md` (h
 - A yellow warning bar at the top of every page (Admins only) if the last backup failed or there has been none for 36 hours.
 - A health check address (`/healthz/`) that Render uses to see that the site is up.
 
+## How to edit
+
+Only Editors (and Admins whose own role is Editor) can edit. Open a Subject, then press **Edit mode** (the address gets `?edit=1`); **Done editing** switches it off. Readers never see these buttons and the addresses answer 403 for them.
+
+- **Add**: under a Subject, Topic or Sub-topic the **Add...** box adds a Topic, Sub-topic, Section, Item or Nested Item at the end; under a Nested Item it adds an Item. On the Subjects and Other Subjects pages use **Add a Subject...**.
+- **Rename**: headings and Sections. Items are changed in the Item editor (later).
+- **Reorder**: **Up** and **Down**, or drag the dotted handle (works with a finger too). Numbers follow the new order at once.
+- **Move to...**: pick the new place in the tree. A page lists the numbers that will change before anything moves.
+- **Delete**: a page says what will go to the Trash and which numbers change; nothing is deleted until you press **Move to Trash**.
+- **Subjects**: **Move to Other Subjects** / **Show on landing page** switches the list; Up, Down and drag reorder each list.
+- If someone else changed the same record first, you get a page saying nothing was saved; go back, reload and repeat the change.
+
 ## What is NOT built yet
 
-- Editing screens and the rest of the diary (Milestones 3b onwards). The rules behind editing, Trash, history, Undo and conversions exist already as a tested service layer (Milestone 3a, `diary/services/`) but no screen uses them yet. The Word import (Milestone 2) is built but has not been run on the real file yet.
+- The Item editor, Trash, History and Undo screens and conversions (Milestones 3c and 3d). The rules behind them exist already as a tested service layer (Milestone 3a, `diary/services/`). Edit mode for headings and Items is built (see "How to edit" below). The Word import (Milestone 2) is built but has not been run on the real file yet.
 - The off-site copy of backups (to Backblaze or Cloudflare). This is planned.
 - Password reset by email. An Admin sets a new password for a person in the Users screen.
 
@@ -204,6 +216,7 @@ Layout:
 - `backups/`: backup models (stored in the database), `policy.py` (pure Python rules), `registry.py` (which models are backed up), `services.py`, views, and the commands `run_backup` and `migrate_with_backup`.
 - `diary/`: the diary data model (Subjects, Topics, Sub-topics, Sections, Items, Cases, Notes, links, settings, version history), its database rules and migration, plus the Home page and `/healthz/` (in `root_urls.py`, with the permanent redirects from the old diary URLs). All Case Law Diary pages are under `/caselaw/` (for example `/caselaw/subjects/`); Home, Users, Profiles, Settings, Backups, login and logout stay at the root.
 - `diary/services/`: the editing rules (Milestone 3a): create and edit, move and reorder with numbering previews, delete to Trash in batches, restore, permanent delete, version history restore, Undo by action group and Item conversions. Each function takes the profile and user first, runs in one transaction and writes version history. Tests: `diary/tests/test_services_*.py`.
+- `diary/views_edit.py`, `static/js/edit-mode.js`: Edit mode (Milestone 3b). Tests: `diary/tests/test_views_edit.py`.
 - `render.yaml`, `build.sh`: Render deployment.
 
 When a later milestone adds diary models, append them to `BACKUP_MODELS` in `backups/registry.py` (parents before children) so they are included in backups and restores. Many-to-many fields are not backed up by the current design.
