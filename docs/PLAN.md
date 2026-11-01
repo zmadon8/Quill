@@ -155,6 +155,10 @@ Note: the technology (Django, PostgreSQL) is confirmed for a **standalone app** 
 
 Done: Case Law Diary pages under `/caselaw/` (old URLs redirect); in-site Back and Forward buttons; resizable Subjects panel with the Subject list and full stops; no-wrap buttons; Review link and Subject filter; all times shown in IST; Admin-only "Delete all data in a profile" (with a "Before clearing profile" backup). Details and owner words: `docs/DESIGN.md`, "Round 3". Fees (`/fees/`) and Investments (`/investments/`) are not built.
 
+## Round 4 (Contents panel, login, top bar)
+
+Done: tighter wrapped lines, hanging-indent numbers, two 44px arrow buttons beside the Subject name, a divider before "Other Subjects", a "View in context" tick, everything collapsed by default (your choices kept per Subject; Collapse all resets), full stops after body numbers, a sticky Contents panel with its own scrollbar, a plain "Log in" page, and no user name in the Case Law Diary top bar. Decision recorded: programs are separate modules in one website. Details and owner words: `docs/DESIGN.md`, "Round 4".
+
 ## Order and dependencies
 
 0, 1, then 2 (so real data can be seen), then 3, 4, 5, 6, 7. Milestones 4 and 5 can swap if you need Notes sooner. All questions in `docs/DESIGN.md` section 14 are answered (N1 and N2 are closed by D9 and I10). Only four small questions remain, each with a default that is used unless you say otherwise: the Section number style, the date format in file names, the long file name rule, and the Current View heading level for a Topic.

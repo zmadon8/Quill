@@ -168,6 +168,13 @@ You normally do not touch these; the Blueprint sets them.
 - **Back** and **Forward** buttons sit right of the program name. They only move between pages of this site (never to another website or the browser's start page). Each browser tab has its own list; a new tab starts fresh. With no earlier page, Back goes to Home.
 - All times shown (Backups, logs, reports, backup file names) are in **IST**. They are stored in UTC and converted for display.
 
+## Contents panel (Round 4)
+
+- On wide screens the Contents panel stays on screen while you scroll, with its own scrollbar; the current entry is brought into view.
+- Topics start collapsed. Your open/close choices are remembered per Subject in this browser; the inward-arrows button (Collapse all) goes back to the default.
+- **View in context** ticked: choosing an entry opens the whole Subject and jumps to it. Unticked: you see only the Topic or Sub-topic you chose. The choice is remembered in this browser.
+- Numbers in the text now have full stops after them, as in the panel.
+
 ## Everyday use
 
 See `docs/HOSTING_AND_DEPLOY.md`: how to deploy a change, how to roll back, and the safety habits (password manager, two-step login, download a backup once a month).

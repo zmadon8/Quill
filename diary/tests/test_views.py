@@ -431,6 +431,31 @@ class ReadingScreenTests(TestCase):
         self.assertContains(resp, "data-in-context checked")
         self.assertContains(resp, 'href="%s#n-topic-%d"' % (reverse("read_subject", args=[self.contract.pk]), topic.pk))
 
+    def test_contents_page_in_context_links_go_to_whole_subject(self):
+        self.client.force_login(self.users["reader"])
+        self.client.cookies["quill_in_context"] = "1"
+        resp = self.client.get(reverse("subject_contents", args=[self.contract.pk]))
+        self.assertContains(resp, "data-in-context checked")
+        self.assertContains(resp, 'href="%s#n-topic-' % reverse("read_subject", args=[self.contract.pk]))
+
+    def test_icon_buttons_are_labelled_and_other_subjects_group_is_marked(self):
+        self.client.force_login(self.users["reader"])
+        resp = self.client.get(reverse("subject_contents", args=[self.contract.pk]))
+        self.assertContains(resp, 'title="Expand all" aria-label="Expand all"')
+        self.assertContains(resp, 'title="Collapse all" aria-label="Collapse all"')
+        self.assertContains(resp, 'class="panel-label panel-label--other">Other Subjects')
+
+    def test_panel_css_and_js_rules(self):
+        from pathlib import Path
+        root = Path(__file__).resolve().parents[2] / "static"
+        css = (root / "css" / "site.css").read_text()
+        js = (root / "js" / "site.js").read_text()
+        self.assertIn("position: sticky; top: 4rem; inset: auto; width: auto; max-height: calc(100vh - 5rem); overflow-y: auto;", css)
+        self.assertIn("align-items: start", css)
+        self.assertIn("width: var(--tap)", css)
+        self.assertIn("quill.incontext", js)
+        self.assertIn("removeItem(storeKey)", js)
+
     def test_other_subject_toc_has_nothing_to_expand(self):
         self.client.force_login(self.users["reader"])
         resp = self.client.get(reverse("subject_contents", args=[self.other.pk]))

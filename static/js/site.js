@@ -128,7 +128,7 @@
   var layout = document.querySelector(".reader-layout");
   if (handle && layout) {
     var WIDTH_KEY = "quill.panelwidth";
-    var W_MIN = 192, W_MAX = 640, W_DEFAULT = 256, W_STEP = 16;
+    var W_MIN = 192, W_MAX = 640, W_DEFAULT = 280, W_STEP = 16;
     var current = W_DEFAULT;
     var clamp = function (w) { return Math.max(W_MIN, Math.min(W_MAX, Math.round(w))); };
     var apply = function (w) {
@@ -213,14 +213,39 @@
     var expand = document.querySelector("[data-toc-expand-all]");
     var collapse = document.querySelector("[data-toc-collapse-all]");
     if (expand) { expand.addEventListener("click", function () { nodes.forEach(function (n) { setOpen(n, true); }); save(); }); }
-    if (collapse) { collapse.addEventListener("click", function () { nodes.forEach(function (n) { setOpen(n, false); }); save(); }); }
+    // Collapse all returns to the default view and forgets this Subject's saved choices.
+    if (collapse) {
+      collapse.addEventListener("click", function () {
+        nodes.forEach(function (n) { setOpen(n, false); });
+        try { window.localStorage.removeItem(storeKey); } catch (err) { /* private mode */ }
+      });
+    }
+    // Keep the current entry in view inside the panel's own scrollbar (the page is not scrolled).
+    var scroller = box.closest(".contents-panel");
+    var hashId = window.location.hash.replace(/^#/, "");
+    var target = box.querySelector("[data-toc-current] > .toc-row") || (hashId && box.querySelector('a[data-anchor="' + hashId + '"]'));
+    if (scroller && target) {
+      var offset = target.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
+      scroller.scrollTop = Math.max(0, offset - scroller.clientHeight / 3);
+    }
   });
 
   // "View in context": remembered in a cookie so the server shows the whole Subject; Contents links then jump within it.
+  // The choice is also kept in localStorage; if the cookie is missing but localStorage has it, the cookie is restored once.
   var contextBox = document.querySelector("[data-in-context]");
   if (contextBox) {
+    var CTX_KEY = "quill.incontext";
+    var setCookie = function (on) { document.cookie = "quill_in_context=" + (on ? "1" : "0") + "; path=/; max-age=31536000; SameSite=Lax"; };
+    var storedCtx = null;
+    try { storedCtx = window.localStorage.getItem(CTX_KEY); } catch (err) { storedCtx = null; }
+    if (storedCtx !== null && (storedCtx === "1") !== contextBox.checked) {
+      setCookie(storedCtx === "1");
+      window.location.reload();
+      return;
+    }
     contextBox.addEventListener("change", function () {
-      document.cookie = "quill_in_context=" + (contextBox.checked ? "1" : "0") + "; path=/; max-age=31536000; SameSite=Lax";
+      try { window.localStorage.setItem(CTX_KEY, contextBox.checked ? "1" : "0"); } catch (err) { /* private mode */ }
+      setCookie(contextBox.checked);
       if (!contextBox.checked) {
         // Leave the whole-Subject view for the Topic or Sub-topic that was being read, if the page is at one.
         var hash = window.location.hash.replace(/^#/, "");
