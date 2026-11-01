@@ -123,7 +123,9 @@ class ReadingScreenTests(TestCase):
         self.assertContains(resp, "View this Sub-topic")
         self.assertContains(resp, "Clause 12: Leave to Sue")
         # Remedies is the second Topic and Clause 12 the first Sub-topic, even when read alone.
-        self.assertContains(resp, "(viii)")
+        self.assertContains(resp, '<span class="num">(b)</span> Leave to sue: procedure')
+        self.assertContains(resp, '<span class="num">(8)</span>')
+        self.assertNotContains(resp, '<span class="num">(viii)</span>')
 
     def test_user_formats_are_used(self):
         from diary.models import UserSettings
