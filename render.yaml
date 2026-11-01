@@ -1,0 +1,64 @@
+# Render Blueprint for the Judgment Diary.
+# In Render: New > Blueprint > pick this repository and branch.
+# Paid plans only. Never change a plan to "free": free databases are deleted.
+services:
+  # The website.
+  - type: web
+    name: judgment-diary
+    runtime: python
+    plan: starter
+    region: singapore
+    buildCommand: ./build.sh
+    # Runs before each new version goes live. Takes a safety backup first if the
+    # update changes how data is stored, then applies the database changes.
+    preDeployCommand: python manage.py migrate_with_backup
+    startCommand: gunicorn config.wsgi:application --workers 2 --timeout 60 --access-logfile -
+    healthCheckPath: /healthz/
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: judgment-diary-db
+          property: connectionString
+      - key: BACKUP_RETENTION_DAYS
+        value: "35"
+      # Optional: only needed if you add your own domain name (comma separated).
+      # Render's own address is allowed automatically.
+      - key: DJANGO_ALLOWED_HOSTS
+        sync: false
+
+  # The nightly backup: 20:30 UTC is 02:00 in India (IST).
+  - type: cron
+    name: judgment-diary-daily-backup
+    runtime: python
+    plan: starter
+    region: singapore
+    schedule: "30 20 * * *"
+    buildCommand: ./build.sh
+    startCommand: python manage.py run_backup
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      - key: DJANGO_SECRET_KEY
+        fromService:
+          type: web
+          name: judgment-diary
+          envVarKey: DJANGO_SECRET_KEY
+      - key: DATABASE_URL
+        fromDatabase:
+          name: judgment-diary-db
+          property: connectionString
+      - key: BACKUP_RETENTION_DAYS
+        value: "35"
+
+databases:
+  - name: judgment-diary-db
+    plan: basic-256mb
+    region: singapore
+    postgresMajorVersion: "16"
+    # An empty list means the database accepts connections only from inside
+    # Render, never from the open internet.
+    ipAllowList: []
