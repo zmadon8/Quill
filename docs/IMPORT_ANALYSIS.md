@@ -9,7 +9,7 @@ This note explains what is actually inside your Word file, so the import into th
 - There are **no tables, no images and no footnotes** (the footnote part exists inside the file, but it holds zero real footnotes and nothing in the text points to one). This matches what you told me.
 - There are **2 lines that become "Sections"**: the small-letter (a)/(b) lines `Ex Parte / Without Notice` and `Determining Jurisdiction` (your decision, section 7, I3), flagged for review (I10). They are numbered with their own Section format (default (a), (b)) and restart the Item numbering (D9, D13). There are no other Sections.
 - The real **Subject count is 41**, which matches your "about 41" (see section 3).
-- The structure is regular and can be read reliably from Word's own list formats. About **73% of the 950 Item lines (693 of 950)** can be split safely into Text and Citation. The other **257 lines** will be imported whole, as Text with no Citation, and flagged for your review. The 2 Sections are also flagged for your review, so **259 records** (257 Items + 2 Sections) carry a review marker after import. Nothing is ever rewritten.
+- The structure is regular and can be read reliably from Word's own list formats. About **73% of the 950 Item lines (693 of 950)** can be split safely into Text and Citation. The other **257 lines** will be imported whole, as Text with no Citation, and flagged for your review. Two of the 693 split lines are also flagged because Word's list restarts there (pattern 19), so **259 Items** are flagged and 691 are clean. The 2 Sections are also flagged for your review, so **261 records** (259 Items + 2 Sections) carry a review marker after import. Nothing is ever rewritten.
 
 ## 2. How the levels are recognised
 
@@ -134,7 +134,7 @@ Counts below were produced by the script over 952 lines, which is the 950 "(i)" 
 | 16 | Very short lines (under 12 characters) | 1 | `NN Global` | Import whole, needs_review. |
 | 17 | Blank paragraphs | 11 | none to show | Skipped. They carry no text. They are listed in the report so nothing is lost silently. |
 | 18 | A Sub-topic directly after a Sub-topic (no Items between) | 2 | `Without Reasons` (under `Leaving question of Law Open`) and `Solicitors` (under `Professional Liability`) | Decided (I9): two separate Sub-topics in order. Not flagged; a Sub-topic may have no Items at present. |
-| 19 | A group of Items that restarts inside the same Topic or Sub-topic | 3 | e.g. under `Unlawful Subletting / Eviction` | Document order is kept. The Items stay under the same parent. **Built as:** the importer finds 2 such restarts (the third in the script's count is the normal restart after Section (b)); they are listed in the dry run and reconciliation but not flagged, so the review count stays at the approved 259. |
+| 19 | A group of Items that restarts inside the same Topic or Sub-topic | 3 | e.g. under `Unlawful Subletting / Eviction` | Document order is kept. The Items stay under the same parent. **Built as:** the importer finds 2 such restarts (`para-1033` and `para-1356`; the third in the script's count is the normal restart after Section (b)). They are **flagged** `needs_review = Yes` with the note "Word list restarted here; the Diary numbers this group continuously.", as originally agreed (default D-a, pending your confirmation). This takes the totals to 259 flagged Items and 261 review-marked records. |
 | 20 | "(a)", "(b)" lines sitting between a "1." Sub-topic and its Items | 2 | `Ex Parte / Without Notice` and `Determining Jurisdiction` (under `Clause 12: Leave to Sue`, Topic `Letters Patent & OS Rules`) | Decided (I3, I10): imported as **Sections** (not Sub-topics, not counted as Items), flagged for review. See section 5.1 for how Items after them are numbered. |
 
 Not found at all: any other Sections, bullets, nested Items, tables, images, footnotes, headings with their own sub-numbering, Heading 2 lines without numbering, and Items deeper than level 0.
@@ -150,7 +150,7 @@ An Item line is split into **Text** (before the dash) and **Citation** (after it
 - no double spaces and no leading or trailing spaces;
 - the right-hand side contains a bracketed citation or something that clearly looks like a year and report name.
 
-Result on your file: **693 Items split cleanly, 257 imported whole (as Text with no Citation) with needs_review = Yes.** (The script reported 259 of 952 lines; the 2 extra are the (a)/(b) lines, which are now Sections.) The per-reason table below covers the **257 Items only**. The 2 Sections are flagged separately (reason: imported from a small-letter (a)/(b) list; confirm these are Sections), which makes **259 review-marked records in all** (257 Items + 2 Sections). The 257 break down (a line can have several reasons; the first matching reason is counted):
+Result on your file: **693 Items split cleanly, 257 imported whole (as Text with no Citation) with needs_review = Yes; 2 of the 693 are also flagged for a Word list restart (pattern 19), so 691 are clean and 259 flagged.** (The script reported 259 of 952 lines; the 2 extra are the (a)/(b) lines, which are now Sections.) The per-reason table below covers the **257 whole-line Items**, then adds the 2 list restarts. The 2 Sections are flagged separately (reason: imported from a small-letter (a)/(b) list; confirm these are Sections), which makes **261 review-marked records in all** (259 Items + 2 Sections). The 257 break down (a line can have several reasons; the first matching reason is counted):
 
 | Reason | Lines |
 |---|---:|
@@ -163,9 +163,12 @@ Result on your file: **693 Items split cleanly, 257 imported whole (as Text with
 | Whole line in brackets | 2 |
 | Carries a flag | 1 |
 | Leading or trailing spaces | 1 |
-| **Total (Items)** | **257** |
+| **Total imported whole (Items)** | **257** |
+| Split Items flagged because Word's list restarted (pattern 19, `para-1033`, `para-1356`) | 2 |
+| **Flagged Items** | **259** |
 | Sections flagged (separate from the Items above) | 2 |
-| **All review-marked records at import** | **259** |
+| **All review-marked records at import** | **261** |
+| Split Items whose Citation had bold/underline in Word (flagged, default D-c) | 0 |
 
 Every one of these lines is stored whole in the Text field with an empty Citation, so no characters are moved or lost. The review screen would let you correct these one at a time, or sort them by reason. Reviewing about 260 lines is a manageable job, and the application stays fully usable while you do it.
 
@@ -187,7 +190,7 @@ That is 2 Sections and 12 Items (2 under the first Section, 10 under the second;
 
 How the importer builds it: the two small-letter lines become **Sections**; they are not counted as Items and not Sub-topics. A Section has no children, so it sits in the Sub-topic's shared order, at the position where it appears, and the Items that follow it (until the next Section, Sub-topic or Topic) are ordinary Items of the same Sub-topic placed after it. Membership is by position only. Both Sections are imported with **needs_review = Yes** and the note "imported from a small-letter (a)/(b) list; confirm these are Sections" (your decision I10).
 
-How it will be numbered in the Diary (decision D9): Sections have their own numbering format, default (a), (b), (c) (owner decision D13), and each Section restarts the Item numbering at (1). The Items are shown as (1), (2), ... in the Diary (D13), while the Word file uses (i), (ii), ... (the importer recognises Items by that). The Sub-topic reads: Section (a) `Ex Parte / Without Notice`, Items (1) and (2); Section (b) `Determining Jurisdiction`, Items (1) to (10). The grouping and counts match Word's lists, so **there is no renumbering difference to report**.
+How it will be numbered in the Diary (decision D9): Sections have their own numbering format, default (a), (b), (c) (owner decision D13), and each Section restarts the Item numbering at (1). The Items are shown as (1), (2), ... in the Diary (D13), while the Word file uses (i), (ii), ... (the importer recognises Items by that). The Sub-topic reads: Section (a) `Ex Parte / Without Notice`, Items (1) and (2); Section (b) `Determining Jurisdiction`, Items (1) to (10). The grouping and counts under the two Sections match Word's own lists (compared by Word's list ids 439 and 563), so those two need no renumbering note. **There are two other places where numbering does differ:** Word restarts a list inside one Sub-topic at `para-1033` (a second list, id 369, after an earlier group, id 368) and at `para-1356` (list 560 after list 483). Word shows (i) again there; the Diary numbers the whole run continuously, (1), (2), (3). Those two Items are flagged (pattern 19, default D-a, pending your confirmation).
 
 ## 6. How the import will be checked
 
@@ -195,10 +198,10 @@ How it will be numbered in the Diary (decision D9): Sections have their own numb
 
 **Reconciliation report.** After the import, a report confirms nothing was lost or invented:
 
-1. Counts per level per Subject from the file against the counts in the database. They must match exactly (for example, 41 Subjects, 178 Topics under main Subjects, 323 Sub-topics, 2 Sections (both flagged), 950 Items, 1,495 text paragraphs, 11 blank paragraphs skipped; 693 clean and 257 flagged Items).
-2. A **full-text comparison**: all text is rebuilt from the database in the original order and compared line by line with the Word file. Any difference is listed. The target is zero unexpected differences. The only expected differences are the **19 names with the trailing colon removed** (I8), which are listed with the original beside the stored name. The Section numbers and the restarted Item numbers under the two Sections are checked against Word's own numbering and are expected to agree.
+1. Counts per level per Subject from the file against the counts in the database. They must match exactly (for example, 41 Subjects, 178 Topics under main Subjects, 323 Sub-topics, 2 Sections (both flagged), 950 Items, 1,495 text paragraphs, 11 blank paragraphs skipped; 691 clean and 259 flagged Items). The completeness equation must hold: planned records + skipped headings + blank paragraphs + problem paragraphs = all paragraphs (1,494 + 1 + 11 + 0 = 1,506).
+2. A **full-text comparison**: all text is rebuilt from the database in the original order and compared line by line with the Word file. Any difference is listed. The target is zero unexpected differences. The only expected differences are the **19 names with the trailing colon removed** (I8), which are listed with the original beside the stored name. The Item counts under the two Sections are checked against Word's own list groups (by list id) and are expected to agree; the two list restarts of pattern 19 are the known exceptions and are flagged. Formatting is compared too: every Item Text is compared with the file as text plus bold/italic/underline spans, so a lost or shifted b/i/u run is reported.
 3. The list of the 19 colon removals.
-4. A list of every record flagged needs_review with its reason: 257 Items and 2 Sections, 259 in all.
+4. A list of every record flagged needs_review with its reason: 259 Items and 2 Sections, 261 in all.
 
 ## 7. Decisions
 
