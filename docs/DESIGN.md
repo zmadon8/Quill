@@ -489,6 +489,20 @@ Rules:
 
 If the combined app uses a different technology, the data rules in sections 2 to 4 and 8 to 12 still apply unchanged.
 
+## 13a. Visual design
+
+**Decision (owner, after reviewing four static mockups in `design/mockups/`):** Option D, "Chambers", for the whole app, with the Home page laid out like Option A, "Law Report".
+
+- **Shell (Option D).** Warm off-white page, italic serif program name at top left, a "Switch program" control beside it, a small sans nav at right (the current page is dark with an oxblood underline), one hairline rule under the header, a large serif page title with a double rule under it, letter-spaced uppercase small labels, hairline row dividers, outlined secondary buttons and filled oxblood primary buttons.
+- **Oxblood is used only for** primary actions, overruled or flagged items, and alerts. "For review" is a muted amber pill.
+- **Reading pages (Option D).** Breadcrumb under the header, Back/Home/Search small buttons, Contents column at left on wide screens, serif Topic headings with a rule, letter-spaced uppercase Sub-topic headings, italic Section headings, the Item number in its own hanging column, citations in italic grey, hairline dividers, Notes as "See also: link".
+- **Home (Option A layout, Option D palette and type).** A centred narrow column: program name as the title, small-caps "Index of Subjects", a full-width search box that leads to Search, then Subjects as a two-column index (name at left, item count at right, hairline under each row; one column on phones). "Other Subjects" is the last entry, in italics, with its count of Other Subjects. A small meta line shows "N SUBJECTS · N ITEMS · N FOR REVIEW" instead of D's stat panels.
+- **Design tokens.** All colours, font stacks and sizes are CSS custom properties in `static/css/tokens.css`. The shared header lives in `templates/base_suite.html` (blocks `program_name`, `program_switch`, `program_nav`, `breadcrumb`, `content`); `templates/base.html` fills it for the Judgment Diary. Another program in the suite extends `base_suite.html` with its own name and nav.
+- **Nav by role.** Home, Other Subjects and Search for everyone; Users and Backups for Admin only. Review, Trash and Settings are omitted until those milestones exist.
+- **Switch program.** `/programs/` lists only Judgment Diary today. The suite name is undecided; "Chambers" appears only in the mockups and is not used in the app.
+- **Font plan.** No web fonts are loaded (none could be downloaded). The CSS uses system serif and sans stacks. To self-host a font such as Source Serif 4, put the file in `static/fonts/` and add one `@font-face` block at the top of `static/css/tokens.css`, then name it first in `--font-serif`. Nothing else changes.
+- **Accessibility.** Text is at least 16 px (reading text 18 px), tap targets at least 44 px, one column on phones with no sideways scrolling, visible focus outlines, muted text kept at AA contrast.
+
 ## 14. Decisions
 
 All earlier open questions have been answered by the owner (N1 and N2 are closed by D9 and I10). They are recorded here with the owner's exact answers kept in `[Answer: ...]` form. Import questions are in `docs/IMPORT_ANALYSIS.md`, section 7, with the same numbering (shown below as "I1" to "I10").
@@ -529,6 +543,7 @@ Confirmed earlier: each Heading 1 is a Subject; Miscellaneous holds Other Subjec
 - **D11. Custom Name setting.** [Answer: [Custom Name, as modified in Settings]] (part of the D10 answer). **Decision:** a per-user Settings text, default `Judgment Diary`, with the rules and live file-name preview in section 5.11.
 - **D12. Three roles: Admin, Editor, Reader.** The owner asked whether the Admin can use the diary like a regular user (yes: Admin is an ordinary user plus the Users, Backups and Restore screens). The spec does not say whether other users may edit, so three roles were proposed: Admin (everything), Editor (read and edit), Reader (read only, the safe default for new accounts). [Answer: Yes, do that.] **Decision:** built in Milestone 0 (section 9.6). The permissions table in section 9.6 is a set of defaults: what Readers may export, whether Readers see the Trash, History and Review list, and that permanent delete and Import are Admin only are proposals needing owner confirmation (question 5).
 - **D13. Section and Item numbering; shortcuts.** (Answers open question 1 and the shortcut question.) [Answer: "Make section headers (a) Name. Change the numbering for Items to (1), (2)... Keep both shortcuts."] **Decision:** the default Section format is (a), (b), (c) (small letter in brackets, no full stop, e.g. "(a) Name"). The default Item and Nested Item format is (1), (2), (3). Existing Settings rows still holding the old defaults are updated by a data migration; rows where a format was chosen deliberately are untouched. Multi-Item citations stay (a), (b), (c) per the spec, which now matches the Section style. The Word file's own (i), (ii) numbering is unchanged, and the importer still recognises Items by it. Both shortcut sets are kept: Alt+G / Alt+H and Ctrl+Alt+G / Ctrl+Alt+H (Option on a Mac); section 5.10.
+- **D14. Visual design.** [Answer: "I like Option D. But, redesign the Home page to be formatted like Option A."] **Decision:** Option D "Chambers" everywhere, Home laid out like Option A (section 13a).
 
 **Open questions for the owner** (each has a default that is used unless you say otherwise)
 
