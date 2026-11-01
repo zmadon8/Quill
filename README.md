@@ -68,6 +68,15 @@ The importer reads `Case Law Diary.docx` and never changes it. It always shows a
 4. Read the **reconciliation** the command prints, and ask for it again at any time on the Import screen with **Reconcile with profile** (or **Download reconciliation**), or in the Shell with `--reconcile`. It must end with `RESULT: MATCH`. Any difference is listed, never hidden.
 5. The **Review list** (the "Review" link in the diary menu, or the "for review" link on the Subjects page, with a Subject filter) shows the 261 review-marked records with their path and reason, in the order they appear in the Diary.
 
+### Delete all data in a profile (Admin)
+
+Use this to empty a profile before importing a Word file into it (the import only runs into a profile with no live diary records).
+
+1. On Home press **Profiles**, then **Delete all data** on the profile's row.
+2. Read the preview: it counts every kind of record that will be deleted for good (trashed and imported records and the version history included). Nothing else is touched: other profiles, the profile itself, its name, export name and users stay.
+3. Type the profile's name exactly and press **Delete all data**. A "Before clearing profile" backup is taken first; if it cannot be made, nothing is deleted. Download it from the Backups screen if you want to keep a copy (it is never removed automatically). It is refused while an import into that profile is running.
+4. The counts are written to the Permanent removal log on the Profiles screen. Then run the dry run and the import as above.
+
 In the Render Shell, `python manage.py import_docx --profile "Name"` (no option) is the dry run, `--import` imports and `--reconcile` compares. Add `--output report.txt` to save the report as a file.
 
 Two things you should know. The file has 10 Items under Section (b) `Determining Jurisdiction` (Word shows (i) to (x)), not 8 as an earlier note said; the importer counts what is in the file and the earlier figure has been corrected in the documents. The two places where Word's own list restarts inside the same Sub-topic (`para-1033`, `para-1356`) are flagged for your review ("Word list restarted here; the Diary numbers this group continuously"), as originally agreed, so the review count is 261 (259 Items + 2 Sections) instead of 259, and the Diary numbers those groups (1), (2), (3) where Word shows (i) / (i), (ii). This, the import backup kinds, the formatting rule for citations, the rule that the profile must be empty and running the import from the Render Shell are defaults recorded in `docs/DESIGN.md` (section 14, "Milestone 2 review round") for you to confirm.
@@ -152,6 +161,12 @@ You normally do not touch these; the Blueprint sets them.
 2. **New user**: type a name and password and pick the **Role** (Reader is pre-selected). **Edit** next to an existing person changes their role the same way.
 3. Only an Admin can change roles. The last active Admin cannot be disabled, deleted or changed to another role. The first account made with `create_first_admin` is an Admin.
 4. People who already existed before roles were added become Admin if they were Admins, otherwise Reader.
+
+## Addresses, Back and Forward, and times
+
+- The Case Law Diary is under `/caselaw/` (for example `/caselaw/subjects/`, `/caselaw/search/`, `/caselaw/review/`, `/caselaw/import/`). Old addresses without `/caselaw/` are redirected. Home, Users, Profiles, Settings, Backups, login and logout stay at the top level. Fees and Investments will later be `/fees/` and `/investments/`.
+- **Back** and **Forward** buttons sit right of the program name. They only move between pages of this site (never to another website or the browser's start page). Each browser tab has its own list; a new tab starts fresh. With no earlier page, Back goes to Home.
+- All times shown (Backups, logs, reports, backup file names) are in **IST**. They are stored in UTC and converted for display.
 
 ## Everyday use
 
