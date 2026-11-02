@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}{% if purpose == "move" %}Move Note{% else %}Choose a place{% endif %}{% endblock %}
+{# The tree picker for Notes (Milestone 5): drill down through Subjects, Topics, Sub-topics, Nested Items; every Subject, Topic, Sub-topic, Section and Item can be chosen. #}
+{% block content %}
+<div class="home-column note-pick">
+  <h1>{% if purpose == "move" %}Move the Note to&hellip;{% elif purpose == "retarget" %}Point the link at&hellip;{% else %}Link the Note to&hellip;{% endif %}</h1>
+  <p class="hint">Note: {{ note_label }}. Open a Subject, Topic or Sub-topic to see what is inside it, then choose the place.</p>
+  <nav class="pick-crumbs" aria-label="Where you are">
+    <a href="{{ base }}">All Subjects</a>{% for c in crumbs %} &rsaquo; <a href="{{ base }}&amp;at={{ c.at|urlencode }}">{{ c.label }}</a>{% endfor %}{% if here %} &rsaquo; <strong>{{ here.label }}</strong>{% endif %}
+  </nav>
+  <ul class="pick-list">
+    {% if here %}
+    <li class="pick-row pick-here">
+      <span class="pick-label"><small>{{ here.kind_name }}</small> {{ here.label }}</span>
+      {% include "diary/_pick_button.html" with entry=here %}
+    </li>
+    {% endif %}
+    {% for e in entries %}
+    <li class="pick-row">
+      <span class="pick-label"><small>{{ e.kind_name }}</small> {% if e.opens %}<a href="{{ base }}&amp;at={{ e.type }}:{{ e.id }}">{{ e.label }}</a>{% else %}{{ e.label }}{% endif %}</span>
+      {% include "diary/_pick_button.html" with entry=e %}
+    </li>
+    {% empty %}
+    <li class="hint">Nothing is inside here.</li>
+    {% endfor %}
+  </ul>
+  <p><a class="button" href="{% if note or owner_note %}{{ editor_url }}{% else %}{{ back }}{% endif %}">Cancel</a></p>
+</div>
+{% endblock %}

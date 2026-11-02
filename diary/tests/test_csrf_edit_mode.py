@@ -11,6 +11,7 @@ from django.conf import settings
 from django.test import Client, override_settings
 from django.urls import reverse
 
+from diary import services as svc
 from diary.tests.helpers import join_main
 from diary.tests.service_helpers import ServiceTestCase
 
@@ -31,6 +32,8 @@ class CsrfEditModeTests(ServiceTestCase):
         self.user.is_superuser = True  # the permanent delete is Admin only
         self.user.save()
         self.build_topic()
+        self.note = self.make("note", ("topic", self.topic.pk), text="<p>csrf note</p>")
+        self.note_link = svc.add_link(self.profile, self.user, self.note.pk, ("item", self.one.pk)).record
         self.strict = Client(enforce_csrf_checks=True)
         self.strict.force_login(self.user)
         self.next = reverse("read_subject", args=[self.subject.pk]) + "?edit=1"
@@ -58,6 +61,19 @@ class CsrfEditModeTests(ServiceTestCase):
             ("edit_landing", {**self.rec("subject", self.subject), "show": "0"}),
             ("edit_item", {**self.rec("item", self.two), "text": "two!", "citation": ""}, self.two.pk),
             ("edit_item_convert", {**self.rec("item", self.two), "to_kind": "nested"}, self.two.pk),
+            # Milestone 5: Notes and their links.
+            ("edit_add", {"what": "note", "parent_type": "topic", "parent_id": self.topic.pk, "text": "new note"}),
+            ("edit_note", {"text": "<p>edited</p>", "version": self.note.version, "next": self.next}, self.note.pk),
+            ("edit_note_link", {"op": "add", "note": self.note.pk, "target": f"item:{self.two.pk}", "next": self.next}),
+            ("edit_note_link", {"op": f"up:{self.note_link.pk}", "note": self.note.pk, "next": self.next}),
+            ("edit_note_link", {"op": "retarget", "link": self.note_link.pk, "target": f"item:{self.three.pk}",
+                                "next": self.next}),
+            ("edit_note_link", {"op": f"remove:{self.note_link.pk}", "note": self.note.pk, "next": self.next}),
+            ("edit_note_link", {"op": "purge", "link": self.note_link.pk, "next": self.next}),
+            ("edit_note_pick", {"purpose": "link", "note": self.note.pk, "next": self.next}),
+            ("edit_move_to", self.rec("note", self.note)),
+            ("edit_move", {**self.rec("note", self.note), "direction": "down"}),
+            ("edit_delete", {**self.rec("note", self.note), "confirmed": "1"}),
             ("edit_review", {**self.rec("item", self.two)}),
             ("edit_undo", {"next": self.next}),
             ("history_restore", {**self.rec("item", self.one), "restore_version": "x"}),
@@ -101,6 +117,34 @@ class CsrfEditModeTests(ServiceTestCase):
             found = TOKEN.search(markup)
             self.assertIsNotNone(found)
             self.assertGreater(len(found.group(1)), 20)
+
+    def test_the_note_pages_carry_a_token_on_every_form(self):
+        editor = self.strict.get(reverse("edit_note", args=[self.note.pk]), {"next": self.next}).content.decode()
+        picker = self.strict.get(reverse("edit_note_pick"), {"purpose": "link", "note": self.note.pk,
+                                                             "at": f"topic:{self.topic.pk}", "next": self.next}).content.decode()
+        for markup in (editor, picker):
+            tokens = TOKEN.findall(markup)
+            self.assertGreater(len(tokens), 0)
+            self.assertGreaterEqual(len(tokens), markup.count("<form method=\"post\""))
+
+    def test_the_whole_note_link_flow_works_with_the_check_on(self):
+        # 1. The editor's Add a link button posts the whole form (token included) and saves the typed text.
+        editor = self.strict.get(reverse("edit_note", args=[self.note.pk]), {"next": self.next}).content.decode()
+        sent = fields_of(editor)
+        self.assertIn("csrfmiddlewaretoken", sent)
+        sent.update(purpose="link", text="<p>typed</p>")
+        step = self.strict.post(reverse("edit_note_pick"), sent)
+        self.assertEqual(step.status_code, 302)
+        self.assertEqual(self.get(self.note).text_plain, "typed")
+        # 2. The picker page: choose a Section. Its form has its own token.
+        picker = self.strict.get(step["Location"]).content.decode()
+        self.assertEqual(self.strict.get(step["Location"]).status_code, 200)
+        form = re.search(r'<form method="post" action="[^"]*note-link/" class="pick-form">(.*?)</form>', picker, re.S)
+        choose = fields_of(form.group(1))
+        self.assertIn("csrfmiddlewaretoken", choose)
+        done = self.strict.post(reverse("edit_note_link"), choose)
+        self.assertEqual(done.status_code, 302)
+        self.assertEqual(self.note.links.filter(deleted_at__isnull=True).count(), 2)
 
     def test_the_whole_move_to_flow_works_with_the_check_on(self):
         other = self.make("topic", ("subject", self.subject.pk), name="Other")

@@ -831,7 +831,7 @@ class ReadingNumberingTests(TestCase):
         link = NoteLink.objects.get(subtopic=acceptance)
         path, url = reading.note_target(NoteLink.objects.select_related("subtopic").get(pk=link.pk))
         self.assertIsNone(url)
-        self.assertIn("(deleted)", path)
+        self.assertIn("target deleted", path)
 
 
 class ReadingCitationTests(TestCase):

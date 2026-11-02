@@ -1,0 +1,2 @@
+{# "Linked from: <path>", one line per live Note that links here; each is a link back to that Note in context. Context: b (a heading, Section or Item block with linked_from). #}
+{% if b.linked_from %}<div class="linked-from">{% for l in b.linked_from %}<span class="linked-line">&#8617; Linked from: <a href="{{ l.url }}">{{ l.path }}</a></span>{% endfor %}</div>{% endif %}

@@ -201,22 +201,20 @@ def _records(profile, tree, citations_only, review_only):
             if info is None:
                 continue  # its Item is deleted
             place, tail, in_nested, parent_label = info
-            yield _Record("note", label, place, f"n-item-{row['item_id']}", [("note", row["text_plain"])],
+            yield _Record("note", label, place, f"n-note-{row['pk']}", [("note", row["text_plain"])],
                           tail + own, extra_path=[(parent_label, None)], in_nested=in_nested)
         elif row["section_id"]:
             info = section_info.get(row["section_id"])
             if info is None:
                 continue
             place, tail, parent_label = info
-            yield _Record("note", label, place, f"n-section-{row['section_id']}", [("note", row["text_plain"])],
+            yield _Record("note", label, place, f"n-note-{row['pk']}", [("note", row["text_plain"])],
                           tail + own, extra_path=[(parent_label, None)])
         else:
             place = tree.place(row["subject_id"], row["topic_id"], row["subtopic_id"])
             if place is None:
                 continue
-            heading = place.subtopic or place.topic or place.subject
-            anchor = f"n-{heading.kind}-{heading.pk}"
-            yield _Record("note", label, place, anchor, [("note", row["text_plain"])], (2, row["position"], row["pk"]),
+            yield _Record("note", label, place, f"n-note-{row['pk']}", [("note", row["text_plain"])], (2, row["position"], row["pk"]),
                           extra_path=[])
 
 

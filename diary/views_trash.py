@@ -18,7 +18,7 @@ from .services.moves import NICE
 from .services.trash import incoming_links
 from .views_edit import _next, _record_id, _version, edit_endpoint, editor_get
 
-TRASH_KINDS = ("subject", "topic", "subtopic", "section", "item", "case", "note")
+TRASH_KINDS = ("subject", "topic", "subtopic", "section", "item", "case", "note", "notelink")
 
 
 def _kind(request):

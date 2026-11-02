@@ -66,37 +66,39 @@ class InlineAccessTests(InlineTestCase):
 
 class AddFormTests(InlineTestCase):
     def test_after_an_item_or_a_section_the_choices_are_item_nested_item_section(self):
-        self.assertEqual(self.choices("item:%d" % self.one.pk), ["after:item", "after:nested", "after:section"])
-        self.assertEqual(self.choices("section:%d" % self.sec.pk), ["after:item", "after:nested", "after:section"])
+        self.assertEqual(self.choices("item:%d" % self.one.pk), ["after:item", "after:nested", "after:section", "inside:note"])
+        self.assertEqual(self.choices("section:%d" % self.sec.pk),
+                         ["after:item", "after:nested", "after:section", "inside:note"])
 
     def test_after_a_topic_the_choices_are_item_inside_subtopic_topic(self):
         body = self.form("topic:%d" % self.topic.pk).json()
         self.assertEqual([(c["value"], c["label"]) for c in body["choices"]],
-                         [("inside:item", "Item inside"), ("inside:subtopic", "Sub-topic"), ("after:topic", "Topic")])
+                         [("inside:item", "Item inside"), ("inside:subtopic", "Sub-topic"), ("inside:note", "Note"),
+                          ("after:topic", "Topic")])
 
     def test_after_a_subtopic_the_choices_are_item_inside_and_subtopic(self):
         sub = self.make("subtopic", ("topic", self.topic.pk), name="General")
         body = self.form("subtopic:%d" % sub.pk).json()
         self.assertEqual([(c["value"], c["label"]) for c in body["choices"]],
-                         [("inside:item", "Item inside"), ("after:subtopic", "Sub-topic")])
+                         [("inside:item", "Item inside"), ("inside:note", "Note"), ("after:subtopic", "Sub-topic")])
 
     def test_on_a_nested_item_the_only_choice_is_an_item_beneath_it(self):
         nested = self.make("item", ("topic", self.topic.pk), kind="nested", text="nested")
         body = self.form("item:%d" % nested.pk).json()
-        self.assertEqual([(c["value"], c["label"]) for c in body["choices"]], [("inside:item", "Item beneath it")])
+        self.assertEqual([(c["value"], c["label"]) for c in body["choices"]], [("inside:item", "Item beneath it"), ("inside:note", "Note")])
 
     def test_after_an_item_inside_a_nested_item_the_only_choice_is_an_item(self):
         nested = self.make("item", ("topic", self.topic.pk), kind="nested", text="nested")
         child = self.make("item", ("item", nested.pk), text="child")
-        self.assertEqual(self.choices("item:%d" % child.pk), ["after:item"])
+        self.assertEqual(self.choices("item:%d" % child.pk), ["after:item", "inside:note"])
 
     def test_a_subject_offers_the_kind_of_heading_it_already_holds(self):
-        self.assertEqual(self.choices("subject:%d" % self.subject.pk), ["inside:item", "inside:topic"])
+        self.assertEqual(self.choices("subject:%d" % self.subject.pk), ["inside:item", "inside:topic", "inside:note"])
         other = self.make("subject", name="Other Acts", show_on_landing=False)
         self.make("subtopic", ("subject", other.pk), name="Direct")
-        self.assertEqual(self.choices("subject:%d" % other.pk), ["inside:item", "inside:subtopic"])
+        self.assertEqual(self.choices("subject:%d" % other.pk), ["inside:item", "inside:subtopic", "inside:note"])
         empty = self.make("subject", name="Empty")
-        self.assertEqual(self.choices("subject:%d" % empty.pk), ["inside:item", "inside:topic", "inside:subtopic"])
+        self.assertEqual(self.choices("subject:%d" % empty.pk), ["inside:item", "inside:topic", "inside:subtopic", "inside:note"])
 
     def test_the_form_has_segmented_choices_citations_and_the_no_javascript_link(self):
         body = self.form("item:%d" % self.one.pk).json()

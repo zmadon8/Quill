@@ -24,6 +24,7 @@ CHOICE_LABELS = {
     "inside:item": "Item inside",
     "inside:topic": "Topic",
     "inside:subtopic": "Sub-topic",
+    "inside:note": "Note",
 }
 #: What can carry a citation (the others get a greyed-out citation box).
 CITATION_WHATS = ("item", "nested")
@@ -32,21 +33,21 @@ CITATION_WHATS = ("item", "nested")
 def add_choices(profile, kind, record):
     """[(choice, label)] that "+ Add" offers on a row of ``kind`` ('subject', 'topic', 'subtopic', 'section', 'item').
 
-    After an Item or Section: Item, Nested Item, Section. After a Topic: Item inside, Sub-topic, Topic. After a
+    After an Item or Section: Item, Nested Item, Section. Every row also offers Note ("inside:note": a Note on that Subject, Topic, Sub-topic, Section or Item, shown beneath it). After a Topic: Item inside, Sub-topic, Topic. After a
     Sub-topic: Item inside, Sub-topic. On a Nested Item: Item beneath it. An Item inside a Nested Item can only be
     followed by an Item. A Subject offers Item inside plus the kind of heading it already holds (Topic, or direct
     Sub-topic; both while it holds neither). Headings always land in their alphabetical place.
     """
     if kind in ("item", "section"):
         if kind == "item" and record.kind == KIND_NESTED:
-            return [("inside:item", "Item beneath it")]
+            return [("inside:item", "Item beneath it"), ("inside:note", "Note")]
         if kind == "item" and record.parent_item_id:
-            return [("after:item", "Item")]
-        return [(c, CHOICE_LABELS[c]) for c in ("after:item", "after:nested", "after:section")]
+            return [("after:item", "Item"), ("inside:note", "Note")]
+        return [(c, CHOICE_LABELS[c]) for c in ("after:item", "after:nested", "after:section", "inside:note")]
     if kind == "topic":
-        return [(c, CHOICE_LABELS[c]) for c in ("inside:item", "inside:subtopic", "after:topic")]
+        return [(c, CHOICE_LABELS[c]) for c in ("inside:item", "inside:subtopic", "inside:note", "after:topic")]
     if kind == "subtopic":
-        return [(c, CHOICE_LABELS[c]) for c in ("inside:item", "after:subtopic")]
+        return [(c, CHOICE_LABELS[c]) for c in ("inside:item", "inside:note", "after:subtopic")]
     if kind == "subject":
         has_topics = Topic._base_manager.filter(subject=record, deleted_at__isnull=True, profile=profile).exists()
         has_subs = Subtopic._base_manager.filter(subject=record, deleted_at__isnull=True, profile=profile).exists()
@@ -55,6 +56,7 @@ def add_choices(profile, kind, record):
             wanted.append("inside:topic")
         if not has_topics:
             wanted.append("inside:subtopic")
+        wanted.append("inside:note")
         return [(c, CHOICE_LABELS[c]) for c in wanted]
     return []
 

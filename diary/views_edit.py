@@ -6,6 +6,7 @@ service layer in diary/services and send the browser back with a message. Nothin
 without going through the services, which do the renumbering, history and rules.
 """
 from functools import wraps
+from urllib.parse import urlencode
 
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
@@ -29,7 +30,7 @@ from .services.sequences import COLUMN_TYPE, ident, members, sequence_key
 from .sorting import sort_headings
 from .views import profile_required, user_can_edit
 
-EDIT_KINDS = ("subject", "topic", "subtopic", "section", "item")
+EDIT_KINDS = ("subject", "topic", "subtopic", "section", "item", "note")
 RENAMEABLE = ("subject", "topic", "subtopic", "section")
 
 #: What the Add form can create: choice -> (record type, extra fields).
@@ -40,6 +41,7 @@ ADDABLE = {
     "section": ("section", {}),
     "item": ("item", {"kind": "plain"}),
     "nested": ("item", {"kind": "nested"}),
+    "note": ("note", {}),
 }
 ADD_NICE = {"nested": "Nested Item"}
 #: Longest name the Add form accepts for each kind that has a name (the model field lengths).
@@ -261,11 +263,13 @@ def _add_page(request):
     else:
         value = request.GET.get("parent", "")
         kind, _, pk = value.partition(":")
-        if kind not in ("subject", "topic", "subtopic", "item") or not pk.isdigit():
+        if kind not in ("subject", "topic", "subtopic", "section", "item") or not pk.isdigit():
             raise Http404("Unknown place.")
         record = get_record(Ctx(request.profile, request.user), kind, int(pk), lock=False)
-        choices = {"subject": ("topic", "section", "item", "nested"), "topic": ("subtopic", "section", "item", "nested"),
-                   "subtopic": ("section", "item", "nested"), "item": ("item",)}[kind]
+        choices = {"subject": ("topic", "section", "item", "nested", "note"),
+                   "topic": ("subtopic", "section", "item", "nested", "note"),
+                   "subtopic": ("section", "item", "nested", "note"), "section": ("note",),
+                   "item": ("item", "note")}[kind]
         where = f"at the top of the {NICE[kind]} \u201c{label(record)}\u201d"
         parent, version = (kind, record.pk), None
     options = [{"value": c, "label": ADD_NICE.get(c) or NICE[ADDABLE[c][0]]} for c in choices]
@@ -297,7 +301,8 @@ def add(request):
     parent, index = None, None
     after = choice["after"] if choice else _after(post)
     if choice and choice["parent"]:
-        parent, index = choice["parent"], 0
+        # A Note goes after the Items and Sections of its parent (the service keeps that order), so it is added last.
+        parent, index = choice["parent"], (None if kind == "note" else 0)
     elif after:
         allowed = AFTER_CHOICES[after[0]]
         if what not in allowed or (after[0] == "item" and what != "item" and _is_nested_child(request, after)):
@@ -306,7 +311,7 @@ def add(request):
     elif not choice:
         if post.get("parent_type"):
             parent = (post.get("parent_type"), _record_id(request, "parent_id"))
-        if parent and post.get("first") == "1":
+        if parent and post.get("first") == "1" and kind != "note":
             index = 0
     # One "Text" box: the name of a heading or Section, the text of an Item or Nested Item.
     # (An older form that posts "name" for a heading still works.)
@@ -322,6 +327,11 @@ def add(request):
     if kind == "subject":
         fields["show_on_landing"] = post.get("landing", "1") == "1"
     cases = []
+    if kind == "note":
+        text = sanitise_html(typed) if post.get("text_format") == "html" else _html(typed)
+        if not plain_text(text).strip():
+            raise ServiceError("Type the Note text first. Links are added when you edit the Note.")
+        fields["text"] = text
     if kind == "item":
         # The script sends cleaned HTML (text_format=html); without it the box is plain typed text.
         text = sanitise_html(typed) if post.get("text_format") == "html" else _html(typed)
@@ -344,6 +354,9 @@ def add(request):
         record = result.record
         payload = inline.row_payload(request, kind, record.pk, _next(request)) if kind in ("item", "section") else {"reload": True}
         return inline.ok(request, kind=kind, id=record.pk, version=record.version, after=f"{kind}:{record.pk}", **payload)
+    if kind == "note":
+        messages.success(request, "Added the Note. Add its links below, or press Back to reading.")
+        return redirect(f"{reverse('edit_note', args=[result.record.pk])}?{urlencode({'next': _next(request)})}")
     messages.success(request, f"Added the {ADD_NICE.get(what, NICE[kind])}.")
     return redirect(_next(request))
 
@@ -545,6 +558,8 @@ def move_to(request):
         messages.error(request, f"A {NICE[kind]} cannot be moved.")
         return redirect(_next(request))
     obj = get_record(Ctx(request.profile, request.user), kind, record_id, lock=False)
+    if kind == "note":
+        return redirect(f"{reverse('edit_note_pick')}?{urlencode({'purpose': 'move', 'note': obj.pk, 'next': _next(request)})}")
     return render(
         request,
         "diary/edit_move_to.html",

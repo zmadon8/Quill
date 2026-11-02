@@ -94,6 +94,20 @@ class _Data:
         for link in live(NoteLink.objects.filter(note__in=notes)).order_by("pk"):
             self.links.setdefault(link.note_id, []).append(link)
 
+        # Links INTO this Subject from live Notes anywhere (Linked from). A Note in Trash, or under something in Trash, shows nothing.
+        self.incoming = {}
+        targets = Q(subject=subject) | Q(topic_id__in=topic_ids) | Q(subtopic_id__in=subtopic_ids)
+        targets |= Q(section_id__in=section_ids) | Q(item_id__in=item_ids)
+        found = live(NoteLink.objects.filter(targets, note__deleted_at__isnull=True)).select_related("note").order_by("note_id", "pk")
+        for link in found:
+            if in_trash(link.note):
+                continue
+            kind = next(name for name in LINK_COLUMNS if getattr(link, f"{name}_id") is not None)
+            path, url = note_place(link.note)
+            entry = {"note_id": link.note_id, "path": " > ".join(path), "url": url}
+            if entry not in self.incoming.setdefault((kind, getattr(link, f"{kind}_id")), []):
+                self.incoming[(kind, getattr(link, f"{kind}_id"))].append(entry)
+
         self.subtopics_by = {}
         for sub in self.subtopics:
             key = ("topic", sub.topic_id) if sub.topic_id else ("subject", sub.subject_id)
@@ -120,22 +134,58 @@ class _Data:
         raise ValueError("record has no parent")
 
 
-def note_target(link):
-    """(path text, url or None) for one cross-reference link."""
-    for name in ("subject", "topic", "subtopic", "section", "item"):
-        target = getattr(link, name)
-        if target is not None:
-            break
-    path, container, anchor = _locate(target)
-    if target.deleted_at is not None or container is None:
-        return " > ".join(path) + " (deleted)", None
+LINK_COLUMNS = ("subject", "topic", "subtopic", "section", "item")
+PARENT_COLUMNS = ("parent_item", "item", "section", "subtopic", "topic", "subject")
+
+
+def _up(obj):
+    """The record directly above ``obj`` (any kind), or None for a Subject."""
+    for name in PARENT_COLUMNS:
+        if getattr(obj, f"{name}_id", None) is not None:
+            return getattr(obj, name)
+    return None
+
+
+def in_trash(obj):
+    """True if ``obj`` or anything above it is in Trash (such a record is hidden from every page)."""
+    while obj is not None:
+        if obj.deleted_at is not None:
+            return True
+        obj = _up(obj)
+    return False
+
+
+def _subject_page(container):
+    """The Subject (a record) whose whole-Subject page holds every anchor of ``container`` ('subject'|'topic'|'subtopic', record)."""
     kind, obj = container
-    if anchor and kind != "subject":
-        # The whole-Subject page holds every anchor and is the target of the heading links in single-scope pages.
-        subject = obj.subject if kind == "topic" else (obj.subject if obj.subject_id else obj.topic.subject)
-        kind, obj = "subject", subject
-    url = reverse(READ_URL_NAMES[kind], args=[obj.pk])
-    return " > ".join(path), f"{url}#{anchor}" if anchor else url
+    if kind == "subject":
+        return obj
+    if kind == "topic":
+        return obj.subject
+    return obj.subject if obj.subject_id else obj.topic.subject
+
+
+def _anchor_url(container, anchor):
+    return f"{reverse('read_subject', args=[_subject_page(container).pk])}#{anchor}"
+
+
+def note_link_info(link):
+    """{'path', 'url', 'deleted'} for one cross-reference link.
+
+    ``url`` goes to the target in context (the whole-Subject page at the target's anchor). A target in Trash, or inside
+    something in Trash, gives ``deleted`` True and no url; the link itself is kept and works again when the target is restored.
+    """
+    target = next(getattr(link, name) for name in LINK_COLUMNS if getattr(link, name) is not None)
+    path, container, anchor = _locate(target)
+    if in_trash(target):
+        return {"path": " > ".join(path), "url": None, "deleted": True}
+    return {"path": " > ".join(path), "url": _anchor_url(container, anchor), "deleted": False}
+
+
+def note_target(link):
+    """(path text, url or None) for one cross-reference link; a deleted target gives '... (target deleted)' and no url."""
+    info = note_link_info(link)
+    return (info["path"] + " (target deleted)" if info["deleted"] else info["path"]), info["url"]
 
 
 def _chain(obj):
@@ -149,22 +199,42 @@ def _chain(obj):
     return [obj.name], ("subject", obj)
 
 
+def _short(text, fallback):
+    return text.strip()[:40] or fallback
+
+
 def _locate(target):
-    if isinstance(target, (Topic, Subtopic)) or hasattr(target, "show_on_landing"):
+    """(path names, (kind, heading container), anchor id) of any Subject, Topic, Sub-topic, Section or Item."""
+    if isinstance(target, Subtopic):
         path, container = _chain(target)
-        return path, container, ""
-    anchor = None
+        return path, container, f"n-subtopic-{target.pk}"
+    if isinstance(target, Topic):
+        path, container = _chain(target)
+        return path, container, f"n-topic-{target.pk}"
+    if not isinstance(target, (Item, Section)):
+        path, container = _chain(target)
+        return path, container, f"n-subject-{target.pk}"
+    names = []
+    top = target
     if isinstance(target, Item):
-        while target.parent_item_id:
-            target = target.parent_item
+        while top.parent_item_id:
+            names.insert(0, _short(top.text_plain, "Item"))
+            top = top.parent_item
+        names.insert(0, _short(top.text_plain, "Item"))
         anchor = f"n-item-{target.pk}"
-        label = target.text_plain[:40] or "Item"
     else:
+        names.append(target.name or "Section")
         anchor = f"n-section-{target.pk}"
-        label = target.name or "Section"
-    parent = target.subtopic or target.topic or target.subject
+    parent = top.subtopic or top.topic or top.subject
     path, container = _chain(parent)
-    return path + [label], container, anchor
+    return path + names, container, anchor
+
+
+def note_place(note):
+    """(path names, url) of a Note: where it sits, and the whole-Subject page at the Note's own anchor."""
+    parent = next(getattr(note, name) for name in ("item", "section", "subtopic", "topic", "subject") if getattr(note, f"{name}_id"))
+    path, container, _ = _locate(parent)
+    return path, _anchor_url(container, f"n-note-{note.pk}")
 
 
 def run_of(obj):
@@ -210,15 +280,14 @@ def _item_block(item, data, fmts, label, depth, under_section, is_child=False):
         "review_note": item.review_note,
         "children": children,
         "notes": [_note_block(n, data) for n in data.notes_by.get(("item", item.pk), [])],
+        "linked_from": data.incoming.get(("item", item.pk), []),
     }
 
 
 def _note_block(note, data):
-    links = []
-    for link in data.links.get(note.pk, []):
-        path, url = note_target(link)
-        links.append({"path": path, "url": url})
-    return {"kind": "note", "id": note.pk, "text": _html(note.text), "links": links}
+    links = [note_link_info(link) for link in data.links.get(note.pk, [])]
+    return {"kind": "note", "id": note.pk, "version": note.version, "anchor": f"n-note-{note.pk}",
+            "text": _html(note.text), "links": links, "linked_from": []}
 
 
 def _container_blocks(key, depth, data, fmts):
@@ -243,6 +312,7 @@ def _container_blocks(key, depth, data, fmts):
                 "depth": depth,
                 "needs_review": obj.needs_review,
                 "review_note": obj.review_note,
+                "linked_from": data.incoming.get(("section", obj.pk), []),
             })
             blocks.extend(_note_block(n, data) | {"depth": depth, "indent": True}
                           for n in data.notes_by.get(("section", obj.pk), []))
@@ -252,19 +322,20 @@ def _container_blocks(key, depth, data, fmts):
     return blocks
 
 
-def _heading(kind, obj, label, depth):
+def _heading(kind, obj, label, depth, data):
     # No "run": headings are alphabetical and have no drag or Up/Down controls.
     run = ""
     return {"kind": "heading", "level": kind, "id": obj.pk, "version": obj.version, "run": run,
-            "anchor": f"n-{kind}-{obj.pk}", "label": label, "name": obj.name, "depth": depth}
+            "anchor": f"n-{kind}-{obj.pk}", "label": label, "name": obj.name, "depth": depth,
+            "linked_from": data.incoming.get((kind, obj.pk), [])}
 
 
 def _subtopic_blocks(sub, label, data, fmts, depth):
-    return [_heading("subtopic", sub, label, depth)] + _container_blocks(("subtopic", sub.pk), depth, data, fmts)
+    return [_heading("subtopic", sub, label, depth, data)] + _container_blocks(("subtopic", sub.pk), depth, data, fmts)
 
 
 def _topic_blocks(topic, label, data, fmts, depth):
-    blocks = [_heading("topic", topic, label, depth)] + _container_blocks(("topic", topic.pk), depth, data, fmts)
+    blocks = [_heading("topic", topic, label, depth, data)] + _container_blocks(("topic", topic.pk), depth, data, fmts)
     subs = data.subtopics_by.get(("topic", topic.pk), [])
     for sub, sub_label in zip(subs, numbering.number_siblings(len(subs), fmts["subtopic_format"])):
         blocks.extend(_subtopic_blocks(sub, sub_label, data, fmts, depth + 1))
@@ -296,7 +367,7 @@ def build_reading(subject, user, scope="subject", target=None):
     direct_toc = [{"subtopic": s, "label": direct_labels[s.pk]} for s in direct]
 
     if scope == "subject":
-        blocks = [_heading("subject", subject, "", 0)] + _container_blocks(("subject", subject.pk), 0, data, fmts)
+        blocks = [_heading("subject", subject, "", 0, data)] + _container_blocks(("subject", subject.pk), 0, data, fmts)
         for topic in data.topics:
             blocks.extend(_topic_blocks(topic, topic_labels[topic.pk], data, fmts, 1))
         for sub in direct:

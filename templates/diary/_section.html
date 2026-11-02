@@ -1,5 +1,5 @@
 {% load diary_tags %}<div class="section-row{% if edit_mode %} hrow sec{% endif %}" id="row-{{ b.anchor }}"{% if edit_mode %} data-edit-row data-kind="section" data-id="{{ b.id }}" data-version="{{ b.version }}" data-run="{{ b.run }}"{% endif %}>
 {% if edit_mode and b.run %}{% include "diary/_grip.html" %}{% endif %}
-<div class="section-header{% if b.needs_review %} review{% endif %}" id="{{ b.anchor }}"><strong><span class="num">{{ b.label|dotted }}</span>{% if b.name %} {{ b.name }}{% endif %}</strong>{% if b.needs_review %} <span class="review-marker">For review{% if b.review_note %}: {{ b.review_note }}{% endif %}</span>{% endif %}</div>
+<div class="section-header{% if b.needs_review %} review{% endif %}" id="{{ b.anchor }}"><strong><span class="num">{{ b.label|dotted }}</span>{% if b.name %} {{ b.name }}{% endif %}</strong>{% if b.needs_review %} <span class="review-marker">For review{% if b.review_note %}: {{ b.review_note }}{% endif %}</span>{% endif %}{% include "diary/_linked_from.html" %}</div>
 {% include "diary/_row_actions.html" with ekind="section" eid=b.id eword="Section" %}
 </div>

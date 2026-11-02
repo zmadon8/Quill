@@ -1,6 +1,8 @@
-<div class="note{% if b.indent %} under-section{% endif %}">
+<div class="note{% if b.indent %} under-section{% endif %}" id="{{ b.anchor }}">
   <span class="note-text">{{ b.text }}</span>
   {% for link in b.links %}
-  <span class="see-also">&#128279; See also: {% if link.url %}<a href="{{ link.url }}">{{ link.path }}</a>{% else %}{{ link.path }}{% endif %}</span>
+  <span class="see-also">&#128279; See also: {% if link.url %}<a href="{{ link.url }}">{{ link.path }}</a>{% else %}<span class="target-gone">{{ link.path }} <em>(target deleted)</em></span>{% endif %}</span>
   {% endfor %}
+  {% include "diary/_linked_from.html" %}
+  {% if edit_mode %}<a class="ra note-edit" href="{% url 'edit_note' b.id %}?next={{ next_url|add:'#'|add:b.anchor|urlencode }}" title="Edit this Note" aria-label="Edit this Note">{% include "diary/_pencil.html" %}<span>Edit</span></a>{% endif %}
 </div>

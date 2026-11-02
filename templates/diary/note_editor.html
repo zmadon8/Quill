@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% load static diary_tags %}
+{% block title %}Edit Note{% endblock %}
+{# The Note editor (Milestone 5, docs/DESIGN.md D33 to D40): text, links (add, remove, reorder with the tree picker) and More. Every button posts this whole form, so the text typed so far is saved first. #}
+{% block content %}
+<div class="home-column item-editor note-editor">
+  <h1>Edit Note</h1>
+  <p><a href="{{ back }}">Back to reading</a>{% if where %} &middot; On: {{ where }}{% endif %}</p>
+  {% if theirs %}
+  <details class="saved-version" open>
+    <summary>The saved version (version {{ note.version }}), for comparison</summary>
+    <p><strong>Text:</strong> {{ note.text|richhtml }}</p>
+  </details>
+  {% endif %}
+
+  <form method="post" action="{% url 'edit_note' note.pk %}" class="editor-form" data-note-editor novalidate>
+    {% csrf_token %}
+    <input type="hidden" name="version" value="{{ note.version }}">
+    <input type="hidden" name="next" value="{{ back }}">
+    <input type="hidden" name="note" value="{{ note.pk }}">
+    <input type="hidden" name="kind" value="note">
+    <input type="hidden" name="id" value="{{ note.pk }}">
+    <button type="submit" class="visually-hidden" tabindex="-1" aria-hidden="true">Save</button>
+
+    <div class="field">
+      <div class="field-label">Text</div>
+      <p class="hint">Bold, italic and underline only. Press Enter for a new paragraph, Shift+Enter for a line break.</p>
+      {% include "diary/_richtext_field.html" with rname="text" rvalue=values.text rlabel="Note text" rrows=6 %}
+    </div>
+
+    <fieldset class="field note-links">
+      <legend class="field-label">Links (See also)</legend>
+      <p class="hint">Each link shows under the Note as &ldquo;See also&rdquo; and takes the reader to that place. The place it points to shows &ldquo;Linked from&rdquo; this Note.</p>
+      {% if links %}
+      <ol class="link-rows">
+        {% for l in links %}
+        <li class="link-row">
+          <input type="hidden" name="lv_{{ l.id }}" value="{{ l.version }}">
+          <span class="link-path">{% if l.url %}<a href="{{ l.url }}">{{ l.path }}</a>{% else %}{{ l.path }} <em>(target deleted)</em>{% endif %}</span>
+          <span class="link-buttons">
+            <button type="submit" class="small" formaction="{% url 'edit_note_link' %}" name="op" value="up:{{ l.id }}" aria-label="Move this link up"{% if forloop.first %} disabled{% endif %}>Up</button>
+            <button type="submit" class="small" formaction="{% url 'edit_note_link' %}" name="op" value="down:{{ l.id }}" aria-label="Move this link down"{% if forloop.last %} disabled{% endif %}>Down</button>
+            <a class="button small" href="{% url 'edit_note_pick' %}?purpose=retarget&amp;link={{ l.id }}&amp;note={{ note.pk }}&amp;next={{ back|urlencode }}">Change</a>
+            <button type="submit" class="small danger" formaction="{% url 'edit_note_link' %}" name="op" value="remove:{{ l.id }}" aria-label="Remove this link">Remove</button>
+          </span>
+        </li>
+        {% endfor %}
+      </ol>
+      {% else %}
+      <p class="hint">This Note has no links yet.</p>
+      {% endif %}
+      <button type="submit" formaction="{% url 'edit_note_pick' %}" name="purpose" value="link">Add a link&hellip;</button>
+    </fieldset>
+
+    <div class="editor-actions card-bar">
+      <button type="submit" class="primary">Save</button>
+      <a class="button" href="{{ back }}">Cancel</a>
+      <span class="spacer"></span>
+      <details class="more-wrap" data-more>
+        <summary class="edit-btn" title="More actions">More</summary>
+        <div class="menu up" role="menu">
+          <button type="submit" role="menuitem" formaction="{% url 'edit_move_to' %}">Move to&hellip;</button>
+          {% if can_shift %}<button type="submit" role="menuitem" formaction="{% url 'edit_move' %}" name="direction" value="up">Move up</button>
+          <button type="submit" role="menuitem" formaction="{% url 'edit_move' %}" name="direction" value="down">Move down</button>{% endif %}
+          <a role="menuitem" class="menu-link" href="{% url 'history' 'note' note.pk %}?next={{ back|urlencode }}">History</a>
+          <hr>
+          <button type="submit" role="menuitem" class="danger-item" formaction="{% url 'edit_delete' %}"><span>Delete</span><small>goes to Trash with its links &middot; Undo available</small></button>
+        </div>
+      </details>
+    </div>
+    <p class="hint">Move to, Move up, Move down and Delete do not keep unsaved text: press Save first.</p>
+  </form>
+
+  <section class="field record-info" aria-labelledby="about">
+    <h2 id="about">About this record</h2>
+    <dl>
+      <dt>Created</dt><dd>{{ note.created_at|date:"j M Y, H:i" }} IST by {{ created_by }}</dd>
+      <dt>Last edited</dt><dd>{{ note.updated_at|date:"j M Y, H:i" }} IST by {{ updated_by }}</dd>
+      <dt>Version</dt><dd>{{ note.version }}</dd>
+    </dl>
+  </section>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script src="{% static 'js/richtext-editor.js' %}"></script>
+{% endblock %}

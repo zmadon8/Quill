@@ -5,6 +5,7 @@
     <span class="item-text">{% if b.has_text %}{{ b.text }}{% endif %}</span>{% if b.cases %}{% if b.has_text %} - {% endif %}{% for case in b.cases %}<span class="case">{% if case.label %}<span class="num">{{ case.label }}</span> {% endif %}<em class="citation">{{ case.citation }}</em>{% if case.has_comment %} <span class="case-comment">{{ case.comment }}</span>{% endif %}</span>{% if not forloop.last %} ; {% endif %}{% endfor %}{% elif b.citation %}{% if b.has_text %} - {% endif %}<em class="citation">{{ b.citation }}</em>{% endif %}
     {% if b.flag %}<span class="flag-text">[{{ b.flag_label }}]</span>{% endif %}
     {% if b.needs_review %}<span class="review-marker">For review{% if b.review_note %}: {{ b.review_note }}{% endif %}</span>{% endif %}
+    {% include "diary/_linked_from.html" %}
     {% for note in b.notes %}{% include "diary/_note.html" with b=note %}{% endfor %}
     {% if b.children %}
     <div class="nested">

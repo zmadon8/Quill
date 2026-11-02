@@ -61,8 +61,8 @@ def edit_card(request):
     """The editing card for one Item, Section, Subject, Topic or Sub-topic (``kind`` and ``id`` in the address)."""
     kind = request.GET.get("kind", "")
     pk = request.GET.get("id", "")
-    if kind not in EDIT_KINDS or not pk.isdigit():
-        raise Http404("Unknown record.")
+    if kind not in EDIT_KINDS or kind == "note" or not pk.isdigit():
+        raise Http404("Unknown record.")  # a Note is edited on its own page (views_note), not in an inline card
     record = get_record(Ctx(request.profile, request.user), kind, int(pk), lock=False)
     back = _next(request)
     context = {

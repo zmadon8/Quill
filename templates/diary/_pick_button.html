@@ -1,0 +1,18 @@
+{# One "Choose" button of the Note picker. Context: entry, purpose, note, link, version, link_version, back, owner_note. #}
+<form method="post" action="{% if purpose == 'move' %}{% url 'edit_move' %}{% else %}{% url 'edit_note_link' %}{% endif %}" class="pick-form">
+  {% csrf_token %}
+  <input type="hidden" name="next" value="{{ back }}">
+  {% if purpose == "move" %}
+  <input type="hidden" name="kind" value="note"><input type="hidden" name="id" value="{{ note.pk }}">
+  <input type="hidden" name="version" value="{{ version }}"><input type="hidden" name="confirmed" value="1">
+  <input type="hidden" name="parent" value="{{ entry.type }}:{{ entry.id }}">
+  {% elif purpose == "retarget" %}
+  <input type="hidden" name="op" value="retarget"><input type="hidden" name="link" value="{{ link.pk }}">
+  {% if owner_note %}<input type="hidden" name="note" value="{{ owner_note }}">{% endif %}
+  <input type="hidden" name="target" value="{{ entry.type }}:{{ entry.id }}">
+  {% else %}
+  <input type="hidden" name="op" value="add"><input type="hidden" name="note" value="{{ note.pk }}">
+  <input type="hidden" name="target" value="{{ entry.type }}:{{ entry.id }}">
+  {% endif %}
+  <button type="submit" class="edit-btn">Choose</button>
+</form>

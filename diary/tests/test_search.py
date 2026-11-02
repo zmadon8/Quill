@@ -104,25 +104,23 @@ class MatchEachRecordTypeTests(SearchTestBase):
 
     def test_note_text_locates_at_parent_item(self):
         item = self.item("Parent item")
-        Note.objects.create(profile=self.profile, item=item, text=para("Gnu remark"))
+        note = Note.objects.create(profile=self.profile, item=item, text=para("Gnu remark"))
         results = self.search("gnu")
         self.assertEqual([(r.kind, r.label) for r in results], [("Note", "Gnu remark")])
-        self.assertTrue(results[0].url.endswith("#n-item-%d" % item.pk))
+        self.assertTrue(results[0].url.endswith("#n-note-%d" % note.pk))
         self.assertEqual(results[0].path[-1], ("Parent item", None))
 
     def test_note_on_section_and_headings(self):
         section = Section.objects.create(profile=self.profile, topic=self.topic, name="Sec")
-        Note.objects.create(profile=self.profile, section=section, text=para("Heron on section"))
-        Note.objects.create(profile=self.profile, topic=self.topic, text=para("Heron on topic"))
-        Note.objects.create(profile=self.profile, subtopic=self.subtopic, text=para("Heron on subtopic"))
-        Note.objects.create(profile=self.profile, subject=self.subject, text=para("Heron on subject"))
+        notes = {
+            "Heron on section": Note.objects.create(profile=self.profile, section=section, text=para("Heron on section")),
+            "Heron on topic": Note.objects.create(profile=self.profile, topic=self.topic, text=para("Heron on topic")),
+            "Heron on subtopic": Note.objects.create(profile=self.profile, subtopic=self.subtopic, text=para("Heron on subtopic")),
+            "Heron on subject": Note.objects.create(profile=self.profile, subject=self.subject, text=para("Heron on subject")),
+        }
         urls = {r.label: r.url.split("#", 1)[1] for r in self.search("heron")}
-        self.assertEqual(urls, {
-            "Heron on section": "n-section-%d" % section.pk,
-            "Heron on topic": "n-topic-%d" % self.topic.pk,
-            "Heron on subtopic": "n-subtopic-%d" % self.subtopic.pk,
-            "Heron on subject": "n-subject-%d" % self.subject.pk,
-        })
+        # Every Note hit opens the Note itself in context, whatever it sits on (D36).
+        self.assertEqual(urls, {name: "n-note-%d" % note.pk for name, note in notes.items()})
 
     def test_item_inside_nested_item(self):
         nested = self.item("Group", kind="nested", citation="Group cite")
@@ -391,8 +389,8 @@ class ResultUrlTests(SearchTestBase):
         self.case(item, "Link marker cite")
         nested = self.item("Link marker nested", kind="nested", citation="Link marker nested cite")
         child = Item.objects.create(profile=self.profile, parent_item=nested, text=para("Link marker child"))
-        Note.objects.create(profile=self.profile, item=item, text=para("Link marker note"))
-        Note.objects.create(profile=self.profile, topic=self.topic, text=para("Link marker topic note"))
+        note_on_item = Note.objects.create(profile=self.profile, item=item, text=para("Link marker note"))
+        note_on_topic = Note.objects.create(profile=self.profile, topic=self.topic, text=para("Link marker topic note"))
         Topic.objects.filter(pk=self.topic.pk).update(name="Link marker topic")
         Subtopic.objects.filter(pk=self.subtopic.pk).update(name="Link marker subtopic")
         Subject.objects.filter(pk=self.subject.pk).update(name="Link marker subject")
@@ -410,6 +408,7 @@ class ResultUrlTests(SearchTestBase):
         self.assertTrue({
             "n-section-%d" % section.pk, "n-item-%d" % item.pk, "n-item-%d" % nested.pk, "n-item-%d" % child.pk,
             "n-topic-%d" % self.topic.pk, "n-subtopic-%d" % self.subtopic.pk,
+            "n-note-%d" % note_on_item.pk, "n-note-%d" % note_on_topic.pk,
         } <= seen)
 
 

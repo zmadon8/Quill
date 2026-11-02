@@ -28,6 +28,7 @@ OPERATIONS = {
     "edit_landing": "Change where the Subject is listed",
     "edit_item_convert": "Change the type of the Item",
     "edit_item": "Save the Item",
+    "edit_note": "Save the Note",
     "trash_restore": "Restore from the Trash",
     "history_restore": "Restore an earlier version",
 }
@@ -60,7 +61,7 @@ def _current_version(profile, kind, pk):
 def _main_record(request):
     pk = request.resolver_match.kwargs.get("pk")
     if pk is not None:
-        return "item", pk
+        return ("note" if request.resolver_match.url_name == "edit_note" else "item"), pk
     return request.POST.get("kind", ""), request.POST.get("id", "")
 
 
@@ -142,7 +143,7 @@ def conflict_page(request, exc, next_url):
     name = request.resolver_match.url_name
     pairs = fresh_fields(request)
     merge = {}
-    if name == "edit_item":
+    if name in ("edit_item", "edit_note"):
         merge = {"type": "editor"}
     elif name in MERGEABLE and MERGEABLE[name][0] in request.POST:
         field, label_, multiline = MERGEABLE[name]

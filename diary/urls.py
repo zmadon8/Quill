@@ -1,7 +1,7 @@
 from django.urls import path
 from django.views.generic import RedirectView
 
-from . import views, views_edit, views_history, views_inline, views_item, views_trash
+from . import views, views_edit, views_history, views_inline, views_item, views_note, views_trash
 
 # Mounted at /caselaw/ by config/urls.py. No app namespace: URL names stay global so every {% url %} and reverse() is unchanged.
 urlpatterns = [
@@ -26,6 +26,9 @@ urlpatterns = [
     path("edit/landing/", views_edit.landing, name="edit_landing"),
     path("edit/item/<int:pk>/", views_item.item_editor, name="edit_item"),
     path("edit/item/<int:pk>/convert/", views_item.item_convert, name="edit_item_convert"),
+    path("edit/note/<int:pk>/", views_note.note_editor, name="edit_note"),
+    path("edit/note-link/", views_note.note_link, name="edit_note_link"),
+    path("edit/note-pick/", views_note.note_pick, name="edit_note_pick"),
     path("edit/review/", views_item.review, name="edit_review"),
     path("edit/undo/", views_history.undo, name="edit_undo"),
     path("trash/", views_trash.trash, name="trash"),
