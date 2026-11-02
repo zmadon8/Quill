@@ -202,7 +202,8 @@ class MoveToNewHeadingFlowTests(ServiceTestCase):
         page = picker.content.decode()
         self.assertIn("New Topic in this Subject", page)
         self.assertIn("New Sub-topic in this Topic", page)
-        self.assertLess(page.index("New Topic in this Subject"), page.index("picker-choice\">Contract"))
+        self.assertIn("picker-choice", page)
+        self.assertLess(page.index("New Topic in this Subject"), page.index("picker-choice"))
         sent = fields_of(page)
         sent.update(csrfmiddlewaretoken=TOKEN.search(page).group(1), new_heading="topic")
         # Step 1: the name form (a token on it). Step 2: the preview. Step 3: done.

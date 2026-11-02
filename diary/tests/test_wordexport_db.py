@@ -371,7 +371,7 @@ class ViewTests(ExportCase):
             client = self.login(user)
             for page, query in pages.items():
                 body = client.get(page).content.decode()
-                self.assertIn(">Export</a>", body)
+                self.assertRegex(body, r'class="button export-link"[^>]*>Export</a>')
                 self.assertNotIn("Export this view", body)
                 self.assertIn(query, body)
 

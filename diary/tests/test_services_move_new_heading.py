@@ -139,7 +139,7 @@ class NewHeadingViewTests(ServiceTestCase):
     def test_name_form_then_validation_error_then_preview_then_done(self):
         self.assertContains(self.post(), 'name="name"')
         empty = self.post(name_given="1", name="  ")
-        self.assertContains(empty, "required")
+        self.assertRegex(empty.content.decode(), r'(?s)<p class="error" role="alert">[^<]*required[^<]*</p>')
         self.assertContains(empty, 'name="name"')
         clash = self.post(name_given="1", name="formation")
         self.assertContains(clash, "already exists")
