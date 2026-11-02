@@ -212,6 +212,8 @@ def note_pick(request):
     purpose = source.get("purpose", "link" if request.method == "POST" else "")
     if purpose not in PURPOSES:
         raise Http404("Unknown purpose.")
+    if request.method == "POST" and purpose == "retarget":
+        raise Http404("Unknown purpose.")
     note = None
     link = None
     if purpose == "retarget":

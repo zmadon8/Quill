@@ -82,6 +82,10 @@ class AccessTests(NoteViewCase):
                        {"purpose": "link", "note": self.note.pk, "at": "item:999999"}):
             self.assertEqual(self.client.get(url, params).status_code, 404, params)
 
+    def test_the_picker_rejects_a_retarget_post(self):
+        resp = self.client.post(reverse("edit_note_pick"), {"purpose": "retarget", "note": self.note.pk})
+        self.assertEqual(resp.status_code, 404)
+
 
 class AddNoteTests(NoteViewCase):
     def add(self, ref, obj, text="<p>typed</p>", **extra):
