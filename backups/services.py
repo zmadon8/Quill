@@ -22,6 +22,8 @@ from accounts.models import ROLE_EDITOR, ROLE_READER
 from accounts.profiles import DEFAULT_PROFILE_NAME
 from accounts.suite import KEY_DIARY as DEFAULT_PROGRAM
 
+from diary.services import legacy
+
 from . import policy, registry
 from .models import KEEP_KINDS, BackupFile, BackupLog
 
@@ -256,7 +258,28 @@ def parse_backup(raw, max_bytes):
     old_roles = _normalise_user_records(models_in_file.get("accounts.User", []))
     upgrade_old_document(document, roles=old_roles)
     _fill_membership_roles(models_in_file.get("accounts.ProfileMembership", []), old_roles)
+    upgrade_old_items(document)
     return document
+
+
+def upgrade_old_items(document, now=None):
+    """Map a backup made before the Multi-Item merge (10d) to the current Item shape.
+
+    Items with kind "multi" or an own ``citation`` are mapped by ``diary.services.legacy``, the very code
+    the data migration uses: citations move into a new first Case, Multi-Items become Items, and "migrate"
+    history rows record each change. A file already in the new shape is left alone. The statistics are
+    kept in ``document["legacy_mapping"]`` so the restore preview and log can say what was mapped.
+    """
+    try:
+        stats = legacy.upgrade_document_items(document["models"], (now or timezone.now()).isoformat())
+    except legacy.LegacyConflict as exc:
+        raise BackupError(f"This backup holds data that cannot be mapped to the current format. {exc}")
+    document["legacy_mapping"] = stats
+    if stats["items_changed"]:
+        counts = document.setdefault("counts", {})
+        for label in ("diary.Item", "diary.Case", "diary.VersionHistory"):
+            counts[label] = len(document["models"].get(label, []))
+    return stats
 
 
 def upgrade_old_document(document, now=None, roles=None):
@@ -450,7 +473,9 @@ def restore_backup(document, user):
         finished_at=timezone.now(),
         kind="restore",
         success=True,
-        message="Restored: " + ", ".join(f"{label} {n}" for label, n in counts.items()),
+        message="Restored: "
+        + ", ".join(f"{label} {n}" for label, n in counts.items())
+        + (" " + legacy.describe(document.get("legacy_mapping") or legacy.new_stats())).rstrip(),
         created_by=survivor,
     )
     return counts

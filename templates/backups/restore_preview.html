@@ -8,6 +8,7 @@
   <p>A safety backup of the current data is taken first, so this step can be undone by restoring that safety backup.</p>
   <p>Anyone whose account is not in the file will be signed out and removed.</p>
 </div>
+{% if legacy_note %}<div class="warning-box"><p><strong>This is an older backup.</strong> {{ legacy_note }} The counts below already include these changes.</p></div>{% endif %}
 <div class="table-wrap">
 <table>
   <thead><tr><th>Record type</th><th>In file</th><th>In database now</th><th>Would be added</th><th>Would be removed</th><th>Unchanged or overwritten</th></tr></thead>

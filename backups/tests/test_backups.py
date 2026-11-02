@@ -369,10 +369,11 @@ class DiaryRoundTripTests(BackupBase):
         other = Subject.objects.create(profile=main_profile(), name="Companies Act", position=2)
         Subtopic.objects.create(profile=main_profile(), subject=other, name="Directors")
         section = Section.objects.create(profile=main_profile(), subtopic=subtopic, name="Ex Parte", needs_review=True, review_note="check")
-        item = Item.objects.create(profile=main_profile(), subtopic=subtopic, text="<p>Rule <b>one</b></p>", citation="A v B", position=1)
+        item = Item.objects.create(profile=main_profile(), subtopic=subtopic, text="<p>Rule <b>one</b></p>", position=1)
+        Case.objects.create(profile=main_profile(), item=item, citation="A v B", position=1)
         nested = Item.objects.create(profile=main_profile(), subject=other, kind="nested", text="Parent", citation="C v D")
         Item.objects.create(profile=main_profile(), parent_item=nested, text="Child")
-        multi = Item.objects.create(profile=main_profile(), topic=topic, kind="multi", text="Multi")
+        multi = Item.objects.create(profile=main_profile(), topic=topic, text="Multi")
         Case.objects.create(profile=main_profile(), item=multi, citation="E v F", comment="<i>c</i>", position=1)
         note = Note.objects.create(profile=main_profile(), item=item, text="See also")
         NoteLink.objects.create(profile=main_profile(), note=note, section=section)
@@ -870,3 +871,105 @@ class FriendlyErrorTests(TestCase):
         with mock.patch("backups.context_processors._backup_banner", side_effect=RuntimeError("x")):
             resp = self.client.get(reverse("backup_list"))
         self.assertEqual(resp.status_code, 200)
+
+
+class OldFormatItemsTests(BackupBase):
+    """10d: a backup made before Multi-Item was merged into Item is mapped exactly as migration 0010 maps the
+    live database (diary/services/legacy.py)."""
+
+    def build_old(self):
+        """Old-format rows written straight to the tables: citations on Items, kind 'multi'."""
+        profile = main_profile()
+        subject = Subject.objects.create(profile=profile, name="Contract")
+        sub = Subtopic.objects.create(profile=profile, subject=subject, name="Offer")
+        make = lambda **kw: Item.objects.create(profile=profile, subtopic=sub, **kw)  # noqa: E731
+        self.plain = make(text="p", citation="A v B", position=1)
+        self.bare = make(text="b", position=2)
+        self.multi = make(text="m", position=3)
+        Item.objects.filter(pk=self.multi.pk).update(kind="multi")
+        Case.objects.create(profile=profile, item=self.multi, citation="C1", comment="<i>c</i>", position=1)
+        Case.objects.create(profile=profile, item=self.multi, citation="C2", position=2)
+        self.nested = make(text="n", kind="nested", citation="N v M", position=4)
+        make(text="t", citation="T v U", position=5, deleted_at=timezone.now())
+        make(text="s", citation="  ", position=6)
+        return gunzip_json(services.create_backup("manual").data)
+
+    def shape(self):
+        items = list(Item.objects.order_by("pk").values_list("pk", "kind", "citation", "version", "deleted_at"))
+        cases = sorted(
+            Case.objects.values_list("item_id", "position", "citation", "comment", "version", "deleted_at", "delete_batch")
+        )
+        history = sorted(
+            VersionHistory.objects.filter(change_kind="migrate").values_list("record_type", "version", "change_kind")
+        )
+        return items, cases, history
+
+    def test_restoring_an_old_file_maps_like_the_migration(self):
+        from django.apps import apps
+
+        from diary.services import legacy
+
+        old = self.build_old()
+        legacy.migrate_items(apps)
+        migrated = self.shape()
+
+        doc = services.parse_backup(json.dumps(old).encode("utf-8"), MAX)
+        self.assertEqual(doc["legacy_mapping"]["cases_created"], 3)
+        services.restore_backup(doc, self.admin)
+        self.assertEqual(self.shape(), migrated)
+
+    def test_mapped_result(self):
+        old = self.build_old()
+        doc = services.parse_backup(json.dumps(old).encode("utf-8"), MAX)
+        stats = doc["legacy_mapping"]
+        self.assertEqual(
+            (stats["items_changed"], stats["cases_created"], stats["multi_to_plain"], stats["whitespace_only"],
+             stats["nested_with_citation_kept"]),
+            (4, 3, 1, 1, 1),
+        )
+        self.assertEqual(doc["counts"]["diary.Case"], 5)
+        services.restore_backup(doc, self.admin)
+        self.assertFalse(Item.objects.exclude(kind="nested").exclude(citation="").exists())
+        self.assertFalse(Item.objects.filter(kind="multi").exists())
+        self.assertEqual(Item.objects.get(pk=self.nested.pk).citation, "N v M")
+        self.assertEqual(self.plain.cases.get().citation, "A v B")
+        self.assertEqual(Case.objects.get(citation="  ").item.text_plain, "s")
+        trashed = Case.objects.get(citation="T v U")
+        self.assertIsNotNone(trashed.deleted_at)
+        self.assertEqual(VersionHistory.objects.filter(change_kind="migrate", record_type="case").count(), 3)
+        # Primary keys of new rows do not collide, and the sequences continue after them.
+        extra = Case.objects.create(profile=main_profile(), item=self.plain, citation="Later", position=5)
+        self.assertGreater(extra.pk, max(Case.objects.exclude(pk=extra.pk).values_list("pk", flat=True)))
+
+    def test_preview_says_the_file_is_old_and_counts_include_the_mapping(self):
+        old = self.build_old()
+        doc = services.parse_backup(json.dumps(old).encode("utf-8"), MAX)
+        rows = {r["label"]: r for r in services.preview_restore(doc)}
+        self.assertEqual(rows["diary.Case"]["in_file"], 5)
+        self.assertIn("3 citation(s) moved into Case (a)", services.legacy.describe(doc["legacy_mapping"]))
+
+    def test_restore_log_mentions_the_mapping(self):
+        old = self.build_old()
+        doc = services.parse_backup(json.dumps(old).encode("utf-8"), MAX)
+        services.restore_backup(doc, self.admin)
+        self.assertIn("moved into Case (a)", BackupLog.objects.filter(kind="restore").latest("pk").message)
+
+    def test_a_new_format_file_is_not_changed(self):
+        self.build_old()
+        from django.apps import apps
+
+        from diary.services import legacy
+
+        legacy.migrate_items(apps)
+        doc = services.parse_backup(services.create_backup("manual").data, MAX)
+        self.assertEqual(doc["legacy_mapping"]["items_changed"], 0)
+        self.assertEqual(doc["counts"]["diary.Case"], 5)
+
+    def test_unmappable_data_is_refused_with_a_message(self):
+        old = self.build_old()
+        for record in old["models"]["diary.Case"]:
+            if record["fields"]["citation"] == "C1":
+                record["fields"]["item"] = self.plain.pk
+                record["fields"]["position"] = 0
+        with self.assertRaises(services.BackupError):
+            services.parse_backup(json.dumps(old).encode("utf-8"), MAX)
