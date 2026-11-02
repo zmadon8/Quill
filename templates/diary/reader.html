@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load diary_tags static %}
 {% block title %}{{ subject.name }}{% endblock %}
-{% block crumb_nav %}<div class="crumb-row"><button type="button" class="header-toggle" data-header-toggle hidden aria-expanded="false" aria-controls="site-header" title="Show header" aria-label="Show header"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M4 6h16M4 12h16M4 18h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>{% include "diary/_crumbs.html" with panel_switch=True %}</div>{% endblock %}
+{% block crumb_nav %}<div class="crumb-row"><button type="button" class="header-toggle" data-header-toggle hidden aria-expanded="false" aria-controls="site-header" title="Show header" aria-label="Show header"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M4 6h16M4 12h16M4 18h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>{% include "diary/_crumbs.html" with panel_switch=True %}<button type="button" class="contents-button contents-icon" data-contents-toggle aria-controls="contents-panel" aria-expanded="false" aria-label="Contents" title="Contents"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false"><g fill="currentColor"><circle cx="5" cy="6" r="1.6"/><circle cx="5" cy="12" r="1.6"/><circle cx="5" cy="18" r="1.6"/></g><path d="M10 6h11M10 12h11M10 18h11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></div>{% endblock %}
 {% block content %}
 <div class="reader-layout">
   <aside class="contents-panel" id="contents-panel" aria-label="Contents">
@@ -9,7 +9,6 @@
   </aside>
   <article class="reading{% if edit_mode %} editing{% endif %}" data-reading-view="{% if scope == 'subject' %}all{% else %}scope{% endif %}"{% if edit_mode %} data-edit-mode data-move-url="{% url 'edit_move' %}"{% endif %}>
     <div class="actions">
-      <button type="button" class="button small contents-button" data-contents-toggle aria-controls="contents-panel" aria-expanded="false">Subjects</button>
       {% if can_edit %}<a class="button small{% if edit_mode %} primary{% endif %}" href="{{ toggle_url }}" data-edit-toggle{% if edit_mode %} aria-pressed="true"{% endif %}>{% if edit_mode %}Done editing{% else %}Edit mode{% endif %}</a>{% endif %}
     </div>
     {% for b in blocks %}

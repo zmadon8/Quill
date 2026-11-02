@@ -104,6 +104,16 @@
     panel.addEventListener("click", function (e) {
       if (e.target.closest && e.target.closest("a")) { panel.classList.remove("open"); toggle.setAttribute("aria-expanded", "false"); }
     });
+    // The slide-over also closes with Esc (focus returns to the Contents button) and with a click or tap outside it.
+    var closeSlideOver = function () { panel.classList.remove("open"); toggle.setAttribute("aria-expanded", "false"); };
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && panel.classList.contains("open") && toggle.offsetParent !== null) { closeSlideOver(); toggle.focus(); }
+    });
+    document.addEventListener("click", function (e) {
+      if (!panel.classList.contains("open") || toggle.offsetParent === null || !e.target.closest) { return; }
+      if (e.target.closest("#contents-panel") || e.target.closest("[data-contents-toggle]") || e.target.closest("[data-panel-switch]")) { return; }
+      closeSlideOver();
+    });
   }
 
   // Breadcrumb "Subjects" link: switch the side panel between this Subject's Topic tree and the list of every Subject.

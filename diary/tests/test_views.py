@@ -520,11 +520,30 @@ class ReadingScreenTests(TestCase):
             self.assertIn('role="separator"', html)
             self.assertIn("data-toc-reset", html)
 
-    def test_phone_button_is_called_subjects(self):
+    def test_phone_contents_icon_button_sits_in_the_header_row_of_pages_with_a_panel(self):
         self.client.force_login(self.users["reader"])
-        html = self.client.get(reverse("read_subject", args=[self.contract.pk])).content.decode()
-        self.assertIn('aria-expanded="false">Subjects</button>', html)
-        self.assertNotIn('aria-expanded="false">Contents</button>', html)
+        topic = Topic.objects.get(name="Remedies")
+        for url in (reverse("read_subject", args=[self.contract.pk]), reverse("read_topic", args=[topic.pk])):
+            html = self.client.get(url).content.decode()
+            crumb = html.split('class="crumb-row"')[1].split("</div>")[0]
+            self.assertEqual(html.count("data-contents-toggle"), 1, url)
+            self.assertIn("data-contents-toggle", crumb, url)
+            self.assertIn('aria-controls="contents-panel" aria-expanded="false" aria-label="Contents"', crumb, url)
+            button = crumb.split("<button")[2]  # the first button is Show header
+            self.assertEqual(button.count("<circle"), 3, url)  # three dots
+            self.assertEqual(button.count("<path"), 1, url)  # and three lines
+            self.assertIn("M10 6h11M10 12h11M10 18h11", button, url)
+            self.assertNotIn('aria-expanded="false">Subjects</button>', html, url)
+            self.assertIn('data-panel-switch', crumb, url)  # the breadcrumb Subjects link stays
+            self.assertIn("M4 6h16M4 12h16M4 18h16", crumb, url)  # and so does the plain three-line Show header icon
+            self.assertIn('id="contents-panel"', html, url)
+
+    def test_pages_without_the_slide_over_panel_have_no_contents_button(self):
+        self.client.force_login(self.users["reader"])
+        for url in (reverse("subjects"), reverse("search"), reverse("subject_contents", args=[self.contract.pk])):
+            html = self.client.get(url).content.decode()
+            self.assertNotIn("data-contents-toggle", html, url)
+            self.assertNotIn('title="Contents"', html, url)
 
     def test_panel_and_reading_labels_both_have_a_full_stop(self):
         import re

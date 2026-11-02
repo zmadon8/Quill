@@ -192,6 +192,12 @@ The All checkbox is gone. Topic and Sub-topic names in the reading text are link
 
 Owner question (default stands unless you say otherwise): in Edit mode, should a heading stay clickable while its rename or note form is open? Default: no, it does not switch then.
 
+### Round 7, item 4: Contents button on phones
+
+A button with three dots, each followed by a line, sits at the right end of the sticky breadcrumb row on phones and opens or closes the Contents side panel. It replaces the old "Subjects" button in the page body. Decision D21 in `docs/DESIGN.md`. Checked on a static mock page in headless Chromium; Django tests await CI.
+
+Owner question (default stands unless you say otherwise): should the Contents button also appear on the Subject contents page? Default: no, there the Contents list is already shown in the page on a phone.
+
 ## Order and dependencies
 
 0, 1, then 2 (so real data can be seen), then 3, 4, 5, 6, 7. Milestones 4 and 5 can swap if you need Notes sooner. All questions in `docs/DESIGN.md` section 14 are answered (N1 and N2 are closed by D9 and I10). Only four small questions remain, each with a default that is used unless you say otherwise: the Section number style, the date format in file names, the long file name rule, and the Current View heading level for a Topic.

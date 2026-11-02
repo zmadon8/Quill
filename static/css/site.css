@@ -154,6 +154,9 @@ td a { display: inline-block; min-height: var(--tap); line-height: var(--tap); p
 .header-spacer { visibility: hidden; }
 /* Jump targets stop below the sticky breadcrumb row (--sticky-offset is measured by site.js). */
 .reading [id] { scroll-margin-top: calc(var(--sticky-offset, 0px) + .75rem); }
+/* Phone only: the Contents button at the right end of the sticky row opens the side panel. Dots plus lines, unlike the three plain lines of the Show header button at the left. */
+.contents-icon { display: inline-flex; align-items: center; justify-content: center; width: var(--tap); min-width: var(--tap); height: var(--tap); padding: 0; margin-left: auto; color: var(--ink); border: 1px solid var(--hair); border-radius: 3px; background: var(--bg); cursor: pointer; }
+.contents-icon[aria-expanded="true"] { background: var(--panel); border-color: var(--ink); }
 /* Topic and Sub-topic headings are links that look like headings; only a quiet underline on hover or focus shows they can be clicked. */
 .heading-link { color: inherit; text-decoration: none; cursor: pointer; }
 .heading-link:hover, .heading-link:focus-visible { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: .2em; }
