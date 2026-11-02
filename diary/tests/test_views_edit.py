@@ -7,6 +7,7 @@ from diary import services as svc
 from diary.models import Item, Section, Subject, Subtopic, Topic
 from diary.tests.helpers import join_main
 from diary.tests.service_helpers import ServiceTestCase
+from diary.undo_session import SESSION_KEY
 
 ENDPOINTS = ["edit_add", "edit_rename", "edit_delete", "edit_move", "edit_move_to", "edit_landing"]
 
@@ -308,6 +309,182 @@ class AddTests(EditViewTestCase):
         resp = self.post("edit_add", {"what": "", "parent_type": "topic", "parent_id": self.topic.pk})
         self.assertEqual(resp.status_code, 302)
         self.assertTrue(self.msgs(resp))
+
+
+FETCH = {"HTTP_X_REQUESTED_WITH": "fetch"}
+
+
+class AddAfterTests(EditViewTestCase):
+    """Add after a record (R5-10b quick-add, R5-10c add after): placement, numbering, Undo, roles, JSON, the Add page."""
+
+    def add_after(self, obj, what="item", client=None, **fields):
+        data = {"what": what, "after": "%s:%d" % self.ref(obj), "after_version": self.get(obj).version, **fields}
+        return self.post("edit_add", data, client=client)
+
+    def test_add_after_an_item_shifts_the_later_siblings_and_the_numbers(self):
+        self.add_after(self.three, text="new")
+        self.assertEqual(self.order(), ["one", "two", "S", "three", "new", "four"])
+        self.assertEqual(self.numbered(self.topic)[-3:], [("(1)", "three"), ("(2)", "new"), ("(3)", "four")])
+        self.assertEqual(self.positions([self.one, self.two, self.sec, self.three, self.four]), [1, 2, 3, 4, 6])
+        self.assertEqual(Item.objects.get(topic=self.topic, text_plain="new").position, 5)
+
+    def test_add_after_the_last_item_goes_last(self):
+        self.add_after(self.four, text="end")
+        self.assertEqual(self.order()[-2:], ["four", "end"])
+
+    def test_add_after_a_section_goes_directly_after_the_section(self):
+        self.add_after(self.sec, text="first under S")
+        self.assertEqual(self.order(), ["one", "two", "S", "first under S", "three", "four"])
+
+    def test_add_a_section_after_an_item(self):
+        self.add_after(self.one, what="section", name="Early")
+        self.assertEqual(self.order(), ["one", "Early", "two", "S", "three", "four"])
+
+    def test_add_after_a_nested_child_stays_inside_the_nested_item(self):
+        nested = self.make("item", ("topic", self.topic.pk), kind="nested", text="nested")
+        child = self.make("item", ("item", nested.pk), text="child one")
+        self.make("item", ("item", nested.pk), text="child two")
+        self.add_after(child, text="between")
+        kids = list(Item.objects.filter(parent_item=nested).order_by("position").values_list("text_plain", "position"))
+        self.assertEqual(kids, [("child one", 1), ("between", 2), ("child two", 3)])
+
+    def test_add_a_topic_after_a_topic(self):
+        later = self.make("topic", ("subject", self.subject.pk), name="Later")
+        self.add_after(self.topic, what="topic", name="Between")
+        names = list(Topic.objects.filter(subject=self.subject).order_by("position").values_list("name", flat=True))
+        self.assertEqual(names, ["Formation", "Between", "Later"])
+        self.assertEqual(self.get(later).position, 3)
+
+    def test_add_inside_a_heading_at_the_end_or_first(self):
+        self.post("edit_add", {"what": "item", "parent_type": "topic", "parent_id": self.topic.pk, "text": "last"})
+        self.post("edit_add", {"what": "item", "parent_type": "topic", "parent_id": self.topic.pk, "text": "top", "first": "1"})
+        self.assertEqual(self.order(), ["top", "one", "two", "S", "three", "four", "last"])
+
+    def test_the_new_entry_has_history_and_the_siblings_are_reordered_in_the_same_step(self):
+        self.add_after(self.one, text="new")
+        new = Item.objects.get(topic=self.topic, text_plain="new")
+        self.assertEqual(self.history_kinds(new), ["create"])
+        self.assertIn("reorder", self.history_kinds(self.two))
+
+    def test_undo_removes_an_entry_added_after_and_restores_the_numbers(self):
+        self.add_after(self.two, text="new")
+        self.assertEqual(self.order(), ["one", "two", "new", "S", "three", "four"])
+        group = self.client.session[SESSION_KEY][-1]["group"]
+        resp = self.client.post(reverse("edit_undo"), {"group": group, "next": self.next})
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(self.order(), ["one", "two", "S", "three", "four"])
+        self.assertEqual(self.positions([self.one, self.two, self.sec, self.three, self.four]), [1, 2, 3, 4, 5])
+
+    def test_readers_get_403_for_add_and_add_after(self):
+        resp = self.add_after(self.one, text="sneaky", client=self.reader_client)
+        self.assertEqual(resp.status_code, 403)
+        resp = self.reader_client.post(reverse("edit_add"), {"what": "item", "after": "item:%d" % self.one.pk, "text": "x"}, **FETCH)
+        self.assertEqual(resp.status_code, 403)
+        self.assertEqual(self.reader_client.get(reverse("edit_add") + "?after=item:%d" % self.one.pk).status_code, 403)
+        self.assertEqual(self.order(), ["one", "two", "S", "three", "four"])
+
+    def test_a_missing_or_invalid_after_is_rejected(self):
+        for bad in ("item:999999", "item:x", "bogus:1", "item", "subject:%d" % self.subject.pk):
+            resp = self.post("edit_add", {"what": "item", "after": bad, "text": "x"})
+            self.assertEqual(resp.status_code, 404, bad)
+        self.assertEqual(self.order(), ["one", "two", "S", "three", "four"])
+
+    def test_after_in_another_profile_is_404(self):
+        subject = self.make("subject", profile=self.other_profile, name="Elsewhere")
+        topic = self.make("topic", ("subject", subject.pk), profile=self.other_profile, name="T")
+        foreign = self.make("item", ("topic", topic.pk), profile=self.other_profile, text="foreign")
+        resp = self.post("edit_add", {"what": "item", "after": "item:%d" % foreign.pk, "text": "sneaky"})
+        self.assertEqual(resp.status_code, 404)
+        self.assertEqual(Item.objects.filter(topic=topic).count(), 1)
+
+    def test_after_a_trashed_record_is_refused(self):
+        svc.delete(self.profile, self.user, "item", self.two.pk)
+        resp = self.add_after(self.two, text="x")
+        self.assertEqual(resp.status_code, 302)
+        self.assertTrue(self.msgs(resp))
+        self.assertFalse(Item.objects.filter(text_plain="x").exists())
+
+    def test_a_kind_that_cannot_sit_there_is_refused(self):
+        resp = self.add_after(self.one, what="topic", name="Nope")
+        self.assertEqual(resp.status_code, 302)
+        self.assertTrue(self.msgs(resp))
+        self.assertFalse(Topic.objects.filter(name="Nope").exists())
+
+    def test_a_stale_after_version_shows_the_conflict_page_and_adds_nothing(self):
+        stale = self.get(self.one).version
+        svc.edit(self.profile, self.user2, "item", self.one.pk, {"text": "changed elsewhere"})
+        resp = self.post("edit_add", {"what": "item", "after": "item:%d" % self.one.pk, "after_version": stale, "text": "new"})
+        self.assertEqual(resp.status_code, 409)
+        self.assertFalse(Item.objects.filter(text_plain="new").exists())
+
+    def test_json_success_gives_the_new_id_and_the_place_for_the_next_add(self):
+        resp = self.client.post(reverse("edit_add"), {
+            "what": "item", "after": "item:%d" % self.two.pk, "after_version": self.get(self.two).version, "text": "typed"}, **FETCH)
+        self.assertEqual(resp.status_code, 200)
+        body = resp.json()
+        new = Item.objects.get(topic=self.topic, text_plain="typed")
+        self.assertEqual((body["ok"], body["id"], body["kind"], body["after"]), (True, new.pk, "item", "item:%d" % new.pk))
+        self.assertEqual(body["version"], new.version)
+        self.assertEqual(self.order(), ["one", "two", "typed", "S", "three", "four"])
+
+    def test_json_errors_for_blank_text_and_nothing_is_added(self):
+        for what, extra in (("item", {"text": "  ", "text_format": "html"}), ("section", {"text": " "})):
+            resp = self.client.post(reverse("edit_add"), {"what": what, "after": "item:%d" % self.two.pk, **extra}, **FETCH)
+            self.assertEqual(resp.status_code, 400)
+            body = resp.json()
+            self.assertFalse(body["ok"])
+            self.assertTrue(body["errors"])
+        self.assertEqual(self.order(), ["one", "two", "S", "three", "four"])
+
+    def test_json_conflict_and_refusals_are_json_too(self):
+        stale = self.get(self.one).version
+        svc.edit(self.profile, self.user2, "item", self.one.pk, {"text": "changed elsewhere"})
+        resp = self.client.post(reverse("edit_add"), {"what": "item", "after": "item:%d" % self.one.pk, "after_version": stale, "text": "n"}, **FETCH)
+        self.assertEqual(resp.status_code, 409)
+        self.assertFalse(resp.json()["ok"])
+        resp = self.client.post(reverse("edit_add"), {"what": "topic", "after": "item:%d" % self.one.pk, "text": "n"}, **FETCH)
+        self.assertEqual(resp.status_code, 400)
+        self.assertTrue(resp.json()["errors"])
+
+    def test_the_add_page_preselects_the_place_without_javascript(self):
+        resp = self.client.get(reverse("edit_add") + "?after=item:%d&next=%s" % (self.two.pk, self.next))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'name="after" value="item:%d"' % self.two.pk)
+        self.assertContains(resp, "directly after")
+        self.assertContains(resp, '<option value="item">')
+        self.assertContains(resp, 'name="next"')
+        resp = self.client.get(reverse("edit_add") + "?parent=topic:%d" % self.topic.pk)
+        self.assertContains(resp, 'name="parent_type" value="topic"')
+        self.assertContains(resp, '<option value="subtopic">')
+
+    def test_the_add_page_form_posts_to_the_same_add(self):
+        self.client.get(reverse("edit_add") + "?after=item:%d" % self.one.pk)
+        self.add_after(self.one, text="from the page")
+        self.assertEqual(self.order()[:3], ["one", "from the page", "two"])
+
+    def test_the_add_page_rejects_bad_places(self):
+        for query in ("?after=item:999999", "?after=bogus:1", "?parent=item:x", ""):
+            self.assertEqual(self.client.get(reverse("edit_add") + query).status_code, 404, query)
+
+    def test_the_reading_view_shows_the_plus_to_editors_and_not_to_readers(self):
+        url = reverse("read_subject", args=[self.subject.pk])
+        page = self.client.get(url)
+        self.assertContains(page, "data-add-here")
+        self.assertContains(page, 'data-ref="item:%d"' % self.one.pk)
+        self.assertContains(page, 'data-ref="section:%d"' % self.sec.pk)
+        self.assertContains(page, 'data-ref="topic:%d"' % self.topic.pk)
+        self.assertContains(page, 'aria-label="Add entry here"')
+        self.assertContains(page, "quick-add")
+        reader = self.reader_client.get(url)
+        self.assertNotContains(reader, "data-add-here")
+        self.assertNotContains(reader, "quick-add")
+        self.assertNotContains(reader, "data-quick-add-config")
+
+    def test_edit_mode_has_the_plus_on_items_and_sections_as_a_link_to_the_add_page(self):
+        page = self.client.get(self.next)
+        self.assertContains(page, "?after=item:%d" % self.one.pk)
+        self.assertContains(page, "?after=section:%d" % self.sec.pk)
+        self.assertContains(page, "?parent=topic:%d" % self.topic.pk)
 
 
 class RenameTests(EditViewTestCase):
