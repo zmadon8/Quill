@@ -63,6 +63,7 @@ EXPECTED = {
     "items": 950,
     "items_clean": 691,
     "items_flagged": 259,
+    "citations": 693,  # not in IMPORT_ANALYSIS: the split lines (691 clean + 2 flagged list restarts), one Case each
     "review_marked": 261,
     "text_paragraphs": 1495,
     "blank_paragraphs": 11,

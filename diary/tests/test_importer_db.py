@@ -17,7 +17,7 @@ from backups.models import BackupFile
 from diary.importer import loader, service
 from diary.importer.docx_reader import file_digest
 from diary.importer.plan import EXPECTED, REASONS
-from diary.models import Item, Section, Subject, Subtopic, Topic, VersionHistory
+from diary.models import Case, Item, Section, Subject, Subtopic, Topic, VersionHistory
 from diary.tests.docx_builder import SMALL, make_docx
 from diary.tests.helpers import join_main, main_profile
 
@@ -63,11 +63,14 @@ class ImportIntoProfileTests(TestCase):
     def test_clean_item_is_split_and_flagged_item_is_whole(self):
         self.do_import()
         clean = Item.objects.get(original_line__startswith="Clean proposition")
-        self.assertEqual(clean.citation, "Alpha v Beta [(2010) 1 SCC 1]")
+        self.assertEqual(clean.citation, "")  # the citation is the Item's first Case
+        self.assertEqual([(c.citation, c.position, c.comment) for c in clean.cases.all()],
+                         [("Alpha v Beta [(2010) 1 SCC 1]", 1, "")])
         self.assertEqual(clean.text_plain, "Clean proposition")
         self.assertFalse(clean.needs_review)
         whole = Item.objects.get(original_line="Only a case name")
         self.assertEqual((whole.citation, whole.text_plain), ("", "Only a case name"))
+        self.assertFalse(whole.cases.exists())  # a line imported whole has no citation, so no Case
         self.assertTrue(whole.needs_review)
         self.assertTrue(whole.review_note)
 
@@ -81,10 +84,11 @@ class ImportIntoProfileTests(TestCase):
 
     def test_history_marks_everything_as_imported(self):
         self.do_import()
-        total = sum(m.objects.filter(profile=self.profile).count() for m in (Subject, Topic, Subtopic, Section, Item))
+        total = sum(m.objects.filter(profile=self.profile).count() for m in (Subject, Topic, Subtopic, Section, Item, Case))
         history = VersionHistory.objects.filter(profile=self.profile, change_kind="import")
         self.assertEqual(history.count(), total)
         self.assertTrue(history.filter(record_type="item").exists())
+        self.assertTrue(history.filter(record_type="case").exists())
 
     def test_backups_are_made_before_and_after(self):
         before = BackupFile.objects.count()
@@ -137,9 +141,9 @@ class ImportIntoProfileTests(TestCase):
 
     def test_reconciliation_reports_a_changed_record_never_hides_it(self):
         self.do_import()
-        item = Item.objects.get(original_line__startswith="Clean proposition")
-        item.citation = "Changed"
-        item.save()
+        case = Case.objects.get(item__original_line__startswith="Clean proposition")
+        case.citation = "Changed"
+        case.save()
         _, text = service.reconcile(self.data, "small.docx", self.profile)
         self.assertIn("RESULT:", text)
         self.assertNotIn("RESULT: MATCH", text)
@@ -309,6 +313,11 @@ class RealFileThroughTheDatabaseTests(TestCase):
         marked = (Item.objects.filter(profile=p, needs_review=True).count()
                   + Section.objects.filter(profile=p, needs_review=True).count())
         self.assertEqual(marked, EXPECTED["review_marked"])
+        # One Case per split line (691 clean + 2 flagged lines that were still split); none for whole lines.
+        self.assertEqual(Case.objects.filter(profile=p).count(), 693)
+        self.assertEqual(Item.objects.filter(profile=p).exclude(citation="").count(), 0)
+        self.assertEqual(Item.objects.filter(profile=p, cases__isnull=True).count(), EXPECTED["items"] - 693)
+        self.assertIn("Citations (Cases, one per split line)", self.text)
         self.assertIn("RESULT: MATCH. Nothing lost, nothing invented.", self.text)
         self.assertIn("UNEXPECTED differences: 0", self.text)
         self.assertIn("Expected 19; found 19.", self.text)
@@ -325,7 +334,7 @@ class RealFileThroughTheDatabaseTests(TestCase):
                 self.assertEqual(Item.objects.filter(profile=self.profile, review_note=note).count(), count)
         restarts = Item.objects.filter(profile=self.profile, review_note__contains="Word list restarted here")
         self.assertEqual(sorted(restarts.values_list("import_ref", flat=True)), ["para-1033", "para-1356"])
-        self.assertEqual(restarts.filter(citation="").count(), 0)  # split normally, only flagged
+        self.assertEqual(restarts.filter(cases__isnull=True).count(), 0)  # split normally, only flagged
 
     def test_sections_hold_two_and_ten_items(self):
         a = Section.objects.get(profile=self.profile, name__startswith="Ex Parte")

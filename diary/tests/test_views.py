@@ -803,7 +803,7 @@ class SampleDataTests(TestCase):
     def test_remove_deletes_only_sample_records(self):
         real = Subject.objects.create(profile=main_profile(), name="Real Subject")
         real_topic = Topic.objects.create(profile=main_profile(), subject=real, name="Real Topic")
-        real_item = Item.objects.create(profile=main_profile(), topic=real_topic, text="<p>Mine</p>", citation="X")
+        real_item = Item.objects.create(profile=main_profile(), topic=real_topic, text="<p>Mine</p>")
         real_section = Section.objects.create(profile=main_profile(), topic=real_topic, name="S")
         real_note = Note.objects.create(profile=main_profile(), topic=real_topic, text="<p>n</p>")
         load_sample_data(main_profile())
