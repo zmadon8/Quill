@@ -36,7 +36,7 @@ def _max_bytes():
 def backup_list(request):
     backups = BackupFile.objects.defer("data").order_by("-created_at", "-id")
     logs = BackupLog.objects.select_related("created_by").order_by("-started_at", "-id")[:30]
-    return render(request, "backups/backup_list.html", {"backups": backups, "logs": logs})
+    return render(request, "backups/backup_list.html", {"backups": backups, "logs": logs, "offsite": services.offsite_status()})
 
 
 @admin_required

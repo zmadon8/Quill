@@ -150,6 +150,8 @@ BACKUP_STALE_HOURS = _int("BACKUP_STALE_HOURS", 36)
 # Days a deleted profile can be restored before the purge job removes it for good.
 PROFILE_RETENTION_DAYS = max(1, _int("PROFILE_RETENTION_DAYS", 30))
 MAX_BACKUP_UPLOAD_MB = _int("MAX_BACKUP_UPLOAD_MB", 100)
+# Off-site copies: how many days to keep them (the storage itself is chosen by OFFSITE_BACKUP_* env vars).
+OFFSITE_BACKUP_RETENTION_DAYS = max(30, _int("OFFSITE_BACKUP_RETENTION_DAYS", 90))
 
 if not DEBUG:
     SECURE_SSL_REDIRECT = True

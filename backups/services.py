@@ -24,7 +24,7 @@ from accounts.suite import KEY_DIARY as DEFAULT_PROGRAM
 
 from diary import legacy_merge as legacy
 
-from . import policy, registry
+from . import policy, registry, storage as offsite_storage
 from .models import KEEP_KINDS, BackupFile, BackupLog
 
 logger = logging.getLogger(__name__)
@@ -479,3 +479,88 @@ def restore_backup(document, user):
         created_by=survivor,
     )
     return counts
+
+
+def upload_offsite(backup, storage=None, user=None):
+    """Copy one stored backup to the off-site storage and record the attempt.
+
+    Does nothing (and writes no log row) when off-site backup is not set up.
+    Never raises: a failure is logged as a failed "Off-site copy" row, which the warning banner shows.
+    Returns True (copied), False (failed) or None (not set up).
+    """
+    storage = storage if storage is not None else offsite_storage.get_storage()
+    if not storage.configured:
+        return None
+    started = timezone.now()
+    try:
+        raw = bytes(backup.data)
+        storage.put(backup.filename, raw)
+    except Exception as exc:
+        # Only the safe message of our own error type is kept; anything else is reduced to its class name.
+        detail = str(exc) if isinstance(exc, offsite_storage.StorageError) else exc.__class__.__name__
+        logger.warning("Off-site copy of %s failed: %s", backup.filename, detail)
+        _log_failure_offsite(started, f"Off-site copy FAILED to {storage.destination}: {detail}", user)
+        return False
+    BackupLog.objects.create(
+        started_at=started,
+        finished_at=timezone.now(),
+        kind="offsite",
+        success=True,
+        message=f"Copied {backup.filename} to {storage.destination}.",
+        size_bytes=len(raw),
+        backup=backup,
+        created_by=user if user is not None and user.pk else None,
+    )
+    return True
+
+
+def _log_failure_offsite(started, message, user):
+    try:
+        with transaction.atomic():
+            BackupLog.objects.create(
+                started_at=started,
+                finished_at=timezone.now(),
+                kind="offsite",
+                success=False,
+                message=message,
+                created_by=user if user is not None and user.pk else None,
+            )
+    except Exception:  # pragma: no cover
+        logger.exception("Could not write the off-site failure log")
+
+
+def prune_offsite(storage=None, now=None, retention_days=None):
+    """Delete off-site copies older than the retention period (never the newest one). Never raises.
+
+    Returns the number removed (0 when not set up).
+    """
+    storage = storage if storage is not None else offsite_storage.get_storage()
+    if not storage.configured:
+        return 0
+    now = now or timezone.now()
+    if retention_days is None:
+        retention_days = settings.OFFSITE_BACKUP_RETENTION_DAYS
+    try:
+        objects = sorted(storage.list(), key=lambda o: o.last_modified, reverse=True)
+        cutoff = now - datetime.timedelta(days=retention_days)
+        removed = 0
+        for obj in objects[1:]:
+            if obj.last_modified < cutoff:
+                storage.delete(obj.key)
+                removed += 1
+        return removed
+    except Exception as exc:
+        detail = str(exc) if isinstance(exc, offsite_storage.StorageError) else exc.__class__.__name__
+        logger.warning("Off-site clean-up failed: %s", detail)
+        _log_failure_offsite(timezone.now(), f"Off-site clean-up FAILED: {detail}", None)
+        return 0
+
+
+def offsite_status():
+    """Read-only facts for the Backups screen."""
+    storage = offsite_storage.get_storage()
+    if not storage.configured:
+        return {"configured": False}
+    last = BackupLog.objects.filter(kind="offsite").order_by("-started_at", "-id").first()
+    last_ok = BackupLog.objects.filter(kind="offsite", success=True).order_by("-started_at", "-id").first()
+    return {"configured": True, "destination": storage.destination, "last": last, "last_ok": last_ok}

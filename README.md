@@ -64,7 +64,7 @@ The Word file is written with the Python standard library only (no extra package
 ## What is NOT built yet
 
 - Edit mode, Trash, History, Undo and the edit-clash screen are built (Milestone 3, not yet run against Django; GitHub CI is the first run). The rules behind them are a tested service layer (`diary/services/`). Edit mode, the Item editor and conversions are built (see "How to edit" below). The Word import (Milestone 2) is built but has not been run on the real file yet.
-- The off-site copy of backups (to Backblaze or Cloudflare). This is planned.
+- Off-site copy of backups (Backblaze B2 or Cloudflare R2), optional and off until configured. See docs/HOSTING_AND_DEPLOY.md section 6a.
 - Password reset by email. An Admin sets a new password for a person in the Users screen.
 
 ## What has not been tested

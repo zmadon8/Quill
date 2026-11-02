@@ -31,6 +31,11 @@ def _backup_banner(request):
         when = timezone.localtime(latest.started_at).strftime("%Y-%m-%d %H:%M")
         return {"backup_warning": f"The last backup FAILED ({when} IST). Open Backups."}
 
+    offsite = BackupLog.objects.filter(kind="offsite").order_by("-started_at", "-id").first()
+    if offsite is not None and not offsite.success:
+        when = timezone.localtime(offsite.started_at).strftime("%Y-%m-%d %H:%M")
+        return {"backup_warning": f"The off-site backup copy FAILED ({when} IST). Open Backups."}
+
     last_ok = logs.filter(success=True).order_by("-started_at", "-id").first()
     last_ok_at = last_ok.started_at if last_ok else None
     hours = settings.BACKUP_STALE_HOURS

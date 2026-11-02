@@ -60,6 +60,29 @@ You do not touch code. The steps are:
 - Look at the Backups screen once a week: the date of the last backup should be recent.
 - Keep a monthly download on your own computer (section 3).
 
+## 6a. Off-site copy of the backups (optional)
+
+By default backups live inside the database. If the database host has a serious problem, they could be lost with it. An off-site copy puts each nightly backup in a separate storage account as well. It is off until you set the values below, and the app behaves exactly as before while they are empty.
+
+1. Create a storage account with Backblaze B2 or Cloudflare R2. Both are S3-compatible and the first 10 GB is free on both; a diary of this size costs well under $1 a month.
+2. Create a private bucket (never public). Create an access key that can only use that bucket, and note its key ID, its secret and the service address (for example `https://s3.us-west-004.backblazeb2.com`; R2 shows `https://<account>.r2.cloudflarestorage.com`).
+3. On Render, add these environment variables to both the web service and the nightly cron job. Keep the secret only there, never in the code, an email or the repository.
+
+| Variable | Meaning |
+|---|---|
+| `OFFSITE_BACKUP_ENDPOINT` | The service address, starting with https:// |
+| `OFFSITE_BACKUP_BUCKET` | The bucket name |
+| `OFFSITE_BACKUP_ACCESS_KEY_ID` | The access key ID |
+| `OFFSITE_BACKUP_SECRET_ACCESS_KEY` | The access key secret |
+| `OFFSITE_BACKUP_REGION` | Optional. Use `auto` for R2, or the region shown by Backblaze (for example `us-west-004`) |
+| `OFFSITE_BACKUP_PREFIX` | Optional folder name inside the bucket |
+| `OFFSITE_BACKUP_RETENTION_DAYS` | Optional. How long off-site copies are kept (at least 30, default 90). The newest copy is never removed |
+
+4. After the next nightly run, the Backups screen shows "Off-site copy" with the last successful time. To test straight away, run `python manage.py backup_offsite` in the Render shell.
+5. If a copy fails, every Admin sees a red warning at the top of each page and the Backups history shows the reason. A failed off-site copy never stops the normal backup.
+
+Keep a bucket lifecycle or versioning rule off unless you want extra copies kept; the app removes old copies itself.
+
 ## 7. Costs at a glance (approximate; verify before signing up)
 
 | Item | About per month |
@@ -67,7 +90,7 @@ You do not touch code. The steps are:
 | Render Web Service (paid starter) | $7 |
 | Render PostgreSQL (smallest paid) | $6 to $8 |
 | Render Cron Job for the nightly backup (a separate paid service, billed for the minutes it runs, with a small monthly minimum) | $1 to $3 |
-| Off-site backup storage (planned, not built yet) | under $1 |
+| Off-site backup storage (optional, section 6a; Backblaze B2 or Cloudflare R2) | under $1 |
 | Domain name (optional) | $1 to $2 (billed yearly) |
 | **Total** | **about $15 to $20** |
 

@@ -12,6 +12,15 @@
   <a href="{% url 'restore_upload' %}">Restore from a file on my computer</a>
 </div>
 
+<h2>Off-site copy</h2>
+{% if offsite.configured %}
+<p>Each nightly backup is also copied to <strong>{{ offsite.destination }}</strong>.
+{% if offsite.last_ok %}Last successful copy: {{ offsite.last_ok.started_at|date:"Y-m-d H:i" }} IST.{% else %}No successful copy yet.{% endif %}
+{% if offsite.last and not offsite.last.success %}<span class="error">The latest attempt FAILED ({{ offsite.last.started_at|date:"Y-m-d H:i" }} IST).</span>{% endif %}</p>
+{% else %}
+<p>Off-site copy is not set up. Backups are kept only inside the database. See the hosting guide to switch it on.</p>
+{% endif %}
+
 <h2>Saved backups</h2>
 {% if backups %}
 <div class="table-wrap">

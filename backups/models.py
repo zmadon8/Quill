@@ -26,6 +26,7 @@ LOG_KINDS = [
     ("pre_clear", "Before clearing profile"),
     ("restore", "Restore"),
     ("prune", "Clean-up"),
+    ("offsite", "Off-site copy"),
 ]
 
 
