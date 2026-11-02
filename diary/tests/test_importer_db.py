@@ -341,6 +341,21 @@ class RealFileThroughTheDatabaseTests(TestCase):
         _, again = service.reconcile(self.data, REAL_FILE.name, p)
         self.assertIn("RESULT: MATCH", again)
 
+    def test_housing_the_loose_items_in_topic_1_keeps_the_reconciliation_a_match(self):
+        """D61: the file puts 17 Items directly under 9 Subjects; housed in Topic "1" they still reconcile."""
+        from django.apps import apps
+
+        from diary import topic_one
+
+        stats = topic_one.migrate_loose(apps)
+        self.assertEqual((stats["subjects_housed"], stats["topics_made"], stats["items_moved"],
+                          stats["left_under_subjects_with_subtopics"]), (9, 9, 17, 0))
+        self.assertEqual(Topic.objects.filter(profile=self.profile, import_ref="", name="1").count(), 9)
+        self.assertEqual(Item.objects.filter(profile=self.profile, subject__isnull=False).count(), 0)
+        _, again = service.reconcile(self.data, REAL_FILE.name, self.profile)
+        self.assertIn("RESULT: MATCH", again)
+        self.assertIn("UNEXPECTED differences: 0", again)
+
     def test_per_reason_counts_in_the_database(self):
         expected = {"no_dash": 70, "many_dash": 70, "unbalanced": 49, "multi_marker": 32, "not_citation": 26,
                     "double_space": 6, "bracketed": 2, "flag": 1, "spaces": 1}

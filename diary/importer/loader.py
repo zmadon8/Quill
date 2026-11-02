@@ -202,6 +202,12 @@ def read_back(profile):
     subtopics = {k: v for k, v in all_subtopics.items() if v.deleted_at is None}
     sections = list(imported(Section).filter(deleted_at__isnull=True))
     items = list(imported(Item).filter(deleted_at__isnull=True))
+    # D61: an Item or Section the file put directly under a Subject may since have been housed in the Subject's own
+    # Topic "1" (made by the app, not in the file). For the comparison it still counts as sitting under the Subject.
+    housing = {t.pk: t for t in Topic.objects.filter(profile=profile, import_ref="", name="1", deleted_at__isnull=True)}
+    for record in sections + items:
+        if record.topic_id in housing:
+            record.subject_id, record.topic_id = housing[record.topic_id].subject_id, None
     citations = {}
     for case in Case.objects.filter(
         profile=profile, item__in=[i.pk for i in items], deleted_at__isnull=True

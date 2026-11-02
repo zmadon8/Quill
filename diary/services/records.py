@@ -13,6 +13,7 @@ from .core import (
     get_record,
     make_result,
 )
+from . import housing
 from .errors import Refused, ValidationFailed
 from .moves import ALLOWED_PARENTS, NICE, check_move_allowed, parent_column
 from .sequences import lock_sequence, make_room, normalize, place, sequence_key
@@ -103,6 +104,8 @@ def create(profile, user, record_type, parent=None, index=None, **fields):
                 raise Refused(f"A {NICE[record_type]} needs a place to go.")
             if parent[0] not in ALLOWED_PARENTS[record_type]:
                 raise Refused(f"A {NICE[record_type]} cannot be placed under a {NICE.get(parent[0], parent[0])}.")
+            if record_type in housing.HOUSED:
+                parent = housing.house_parent(ctx, parent)  # under a Subject: into its Topic "1" (D61)
             target = get_record(ctx, parent[0], parent[1])
             columns = {f"{parent_column(record_type, parent[0])}_id": target.pk}
             draft = model(profile_id=ctx.profile_id, **columns, **values)

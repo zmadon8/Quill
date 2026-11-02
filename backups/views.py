@@ -149,6 +149,7 @@ def restore_preview(request, pk):
                 services.legacy.describe(document.get("legacy_mapping") or services.legacy.new_stats()),
                 services.nested_conversion.describe(
                     document.get("nested_mapping") or services.nested_conversion.new_stats()),
+                services.topic_one.describe(document.get("housing_mapping") or services.topic_one.new_stats()),
             ])),
             "confirm_word": CONFIRM_WORD,
         },

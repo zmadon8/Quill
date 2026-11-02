@@ -342,7 +342,10 @@ def add(request):
             svc.create(request.profile, request.user, "case", parent=("item", result.record.pk), index=number, **case)
     if is_fetch(request):
         record = result.record
-        payload = inline.row_payload(request, kind, record.pk, _next(request)) if kind in ("item", "section") else {"reload": True}
+        # An Item or Section added under a Subject is housed in its Topic "1" (D61), which may be new: the page reloads.
+        housed = kind in ("item", "section") and parent is not None and parent[0] == "subject" and bool(record.topic_id)
+        payload = (inline.row_payload(request, kind, record.pk, _next(request))
+                   if kind in ("item", "section") and not housed else {"reload": True})
         return inline.ok(request, kind=kind, id=record.pk, version=record.version, after=f"{kind}:{record.pk}", **payload)
     if kind == "note":
         messages.success(request, "Added the Note. Add its links below, or press Back to reading.")

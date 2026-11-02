@@ -24,7 +24,7 @@ from accounts.profiles import DEFAULT_PROFILE_NAME
 from accounts.suite import KEY_DIARY as DEFAULT_PROGRAM
 
 from diary import legacy_merge as legacy
-from diary import nested_conversion
+from diary import nested_conversion, topic_one
 
 from . import policy, registry, storage as offsite_storage
 from .models import KEEP_KINDS, BackupFile, BackupLog
@@ -279,12 +279,15 @@ def upgrade_old_items(document, now=None):
         raise BackupError(f"This backup holds data that cannot be mapped to the current format. {exc}")
     # Then Nested Items (round 10): sub-items become citations with comments, via diary.nested_conversion.
     nested = nested_conversion.upgrade_document_nested(document["models"], stamp)
+    # Last: Items and Sections directly under a Subject go into its Topic "1" (D61).
+    housed = topic_one.house_document(document["models"], stamp)
     document["legacy_mapping"] = stats
     document["nested_mapping"] = nested
-    if stats["items_changed"] or nested["nested_items"]:
+    document["housing_mapping"] = housed
+    if stats["items_changed"] or nested["nested_items"] or housed["subjects_housed"]:
         counts = document.setdefault("counts", {})
-        for label in ("diary.Item", "diary.Case", "diary.Note", "diary.NoteLink", "diary.TrashBatch",
-                      "diary.VersionHistory"):
+        for label in ("diary.Item", "diary.Section", "diary.Topic", "diary.Case", "diary.Note", "diary.NoteLink",
+                      "diary.TrashBatch", "diary.VersionHistory"):
             if label in document["models"]:
                 counts[label] = len(document["models"][label])
     return stats
@@ -484,7 +487,8 @@ def restore_backup(document, user):
         message="Restored: "
         + ", ".join(f"{label} {n}" for label, n in counts.items())
         + (" " + legacy.describe(document.get("legacy_mapping") or legacy.new_stats())).rstrip()
-        + (" " + nested_conversion.describe(document.get("nested_mapping") or nested_conversion.new_stats())).rstrip(),
+        + (" " + nested_conversion.describe(document.get("nested_mapping") or nested_conversion.new_stats())).rstrip()
+        + (" " + topic_one.describe(document.get("housing_mapping") or topic_one.new_stats())).rstrip(),
         created_by=survivor,
     )
     return counts

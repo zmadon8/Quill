@@ -17,6 +17,7 @@ from .core import (
     make_result,
     record_type,
 )
+from . import housing
 from .errors import Refused
 from ..sorting import sort_headings
 from .sequences import ident, is_alphabetical, labels, lock_sequence, members, normalize, place, sequence_key
@@ -132,6 +133,10 @@ def move(profile, user, kind, record_id, parent=None, index=None, expected_versi
         if kind == "subject" and parent is not None:
             raise Refused("A Subject cannot be placed under anything.")
         old_key = sequence_key(obj)
+        if kind in housing.HOUSED and parent is not None and (parent[0], int(parent[1])) != (
+            "subject", getattr(obj, "subject_id", None)
+        ):
+            parent = housing.house_parent(ctx, parent)  # under a Subject: into its Topic "1" (D61)
         target = _target(ctx, obj, parent)
         if target is None:
             if parent is not None and is_alphabetical(old_key):
@@ -197,6 +202,10 @@ def preview_move(profile, user, kind, record_id, parent=None, index=None):
     old_key = sequence_key(obj)
     if old_key is None:
         raise Refused(f"A {NICE.get(kind, kind)} has no position.")
+    if kind in housing.HOUSED and parent is not None and (parent[0], int(parent[1])) != (
+        "subject", getattr(obj, "subject_id", None)
+    ):
+        parent = housing.house_parent(ctx, parent, create=False)  # a preview never writes: Topic "1" only if it exists
     target = _target(ctx, obj, parent, lock=False)
     old_members = members(ctx.profile_id, old_key)
     objs = {ident(m): m for m in old_members}

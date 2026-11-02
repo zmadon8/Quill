@@ -1164,3 +1164,40 @@ class OldNestedFileTests(BackupBase):
         nested = [r for r in doc["models"]["diary.Item"] if r["fields"].get("kind") == "nested"]
         self.assertEqual(nested, [])
         self.assertTrue(all("parent_item" not in r["fields"] for r in doc["models"]["diary.Item"]))
+
+
+class OldLooseItemsFileTests(BackupBase):
+    """Round 10 (D61): Items directly under a Subject go into its Topic "1" when an older backup file is restored,
+    exactly as migration 0017 does for the live database (diary/topic_one.py)."""
+
+    def make_file(self):
+        profile = main_profile()
+        self.plain = Subject.objects.create(profile=profile, name="Plain")
+        self.holder = Subject.objects.create(profile=profile, name="Holder")
+        Subtopic.objects.create(profile=profile, subject=self.holder, name="Direct")
+        self.a = Item.objects.create(profile=profile, subject=self.plain, text="<p>a</p>", position=1)
+        self.b = Item.objects.create(profile=profile, subject=self.plain, text="<p>b</p>", position=2)
+        self.kept = Item.objects.create(profile=profile, subject=self.holder, text="<p>k</p>", position=1)
+        return gunzip_json(services.create_backup("manual").data)
+
+    def test_loose_items_are_housed_before_anything_is_inserted(self):
+        doc = services.parse_backup(json.dumps(self.make_file()).encode("utf-8"), MAX)
+        stats = doc["housing_mapping"]
+        self.assertEqual((stats["subjects_housed"], stats["topics_made"], stats["items_moved"],
+                          stats["left_under_subjects_with_subtopics"]), (1, 1, 2, 1))
+        self.assertEqual(doc["counts"]["diary.Topic"], len(doc["models"]["diary.Topic"]))
+        services.restore_backup(doc, self.admin)
+        topic = Topic.objects.get(subject=self.plain)
+        self.assertEqual(topic.name, "1")
+        self.assertEqual(list(Item.objects.filter(topic=topic).order_by("position").values_list("pk", "position")),
+                         [(self.a.pk, 1), (self.b.pk, 2)])
+        self.assertIsNone(Item.objects.get(pk=self.a.pk).subject_id)
+        self.assertEqual(Item.objects.get(pk=self.kept.pk).subject_id, self.holder.pk)
+        self.assertIn("now in a Topic called", BackupLog.objects.filter(kind="restore").latest("pk").message)
+        self.assertTrue(VersionHistory.objects.filter(change_kind="migrate", record_type="topic").exists())
+
+    def test_a_housed_file_is_not_changed_again(self):
+        doc = services.parse_backup(json.dumps(self.make_file()).encode("utf-8"), MAX)
+        services.restore_backup(doc, self.admin)
+        again = services.parse_backup(services.create_backup("manual").data, MAX)
+        self.assertEqual(again["housing_mapping"]["items_moved"], 0)

@@ -29,6 +29,7 @@ from .core import (
     validate,
 )
 from .errors import NameClash, ParentInTrash, PermanentDeleteRefused, Refused, ValidationFailed
+from . import housing
 from .moves import check_heading_mix
 from .sequences import get_pos, ident, index_for_position, lock_sequence, normalize, place, sequence_key
 
@@ -166,6 +167,11 @@ def restore(
                 raise NameClash(record_type(rec), rec.pk, rec.name, _suggest(rec))
         anchored = chain + [obj]
         for rec in anchored:
+            if record_type(rec) in housing.HOUSED and rec.subject_id is not None:
+                # An Item or Section trashed while it sat directly under a Subject comes back into Topic "1" (D61).
+                kind_, topic_id = housing.house_parent(ctx, ("subject", rec.subject_id))
+                if kind_ == "topic":
+                    rec.subject_id, rec.topic_id = None, topic_id
             key = sequence_key(rec)
             rec.deleted_at = None
             rec.delete_batch = None
