@@ -1,0 +1,49 @@
+/* Edit button mockups. Loaded AFTER tokens.css, site.css. Mock-only; nothing here is used by the app. */
+body { background: var(--bg); }
+.page { padding-bottom: 6rem; }
+.crumb-row { min-height: 52px; }
+.crumb-row .breadcrumb { font-size: var(--small-size); }
+.mock-note { color: var(--muted); font-size: .95rem; margin: 0 0 1rem; }
+.fake-row { padding: .7rem .25rem; border-bottom: 1px solid var(--hair); font-family: var(--font-serif); font-size: 1.1rem; }
+.fake-row small { display: block; font-family: var(--font-sans); font-size: .9rem; color: var(--muted); }
+.edit-foot { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--hair); display: flex; justify-content: flex-end; align-items: center; gap: .75rem; }
+svg.pen { flex: 0 0 auto; }
+
+/* ---- A: quiet text link, becomes an oxblood pill ---- */
+.a-edit { border: 0; background: none; color: var(--muted); gap: .4rem; padding: 0 .6rem; text-decoration: underline; text-decoration-color: var(--hair); text-underline-offset: .25em; }
+.a-edit:hover { background: none; color: var(--ink); }
+.a-pill { border-radius: 999px; background: var(--oxblood); border-color: var(--oxblood); color: var(--oxblood-ink); padding: 0 1.1rem; gap: .5rem; font-weight: 600; }
+.a-pill:hover { background: #8d2633; }
+.a-pill .dot { opacity: .7; }
+
+/* ---- B: segmented control Read | Edit ---- */
+.seg { display: inline-flex; border: 1px solid var(--ink); border-radius: 2px; overflow: hidden; background: var(--panel); }
+.seg button { border: 0; border-radius: 0; min-height: 40px; padding: 0 1.1rem; background: transparent; gap: .4rem; }
+.seg button + button { border-left: 1px solid var(--ink); }
+.seg button[aria-pressed=true] { background: var(--ink); color: #fff; font-weight: 600; }
+.seg.on button[aria-pressed=true] { background: var(--oxblood); }
+
+/* ---- C: outlined button, banner when on ---- */
+.c-edit { gap: .5rem; border-color: var(--ink); background: transparent; }
+.c-edit:hover { background: var(--panel); }
+.c-edit[disabled] { opacity: .55; cursor: default; }
+.edit-banner { position: sticky; top: 0; z-index: 30; background: var(--oxblood); color: var(--oxblood-ink); display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: .25rem .9rem; padding: .35rem 1rem; font-size: .95rem; }
+.edit-banner b { font-weight: 600; letter-spacing: .02em; }
+.edit-banner button { min-height: 32px; padding: 0 .8rem; background: transparent; border: 1px solid rgba(255,255,255,.7); color: #fff; }
+.edit-banner button:hover { background: rgba(255,255,255,.15); }
+.edit-banner button.solid { background: #fff; color: var(--oxblood); border-color: #fff; font-weight: 600; }
+.has-banner .crumb-row { top: 44px; }
+
+/* ---- D: floating round button ---- */
+.fab { position: fixed; right: 1.1rem; bottom: 1.1rem; z-index: 40; width: 56px; height: 56px; padding: 0; border-radius: 50%; background: var(--ink); border-color: var(--ink); color: #fff; box-shadow: 0 3px 10px rgba(30,28,25,.35); }
+.fab:hover { background: #3a3631; }
+.fab.on { width: auto; min-width: 56px; padding: 0 1.3rem; border-radius: 999px; background: var(--oxblood); border-color: var(--oxblood); gap: .5rem; font-weight: 600; }
+
+/* ---- E: icon-only with tooltip and badge ---- */
+.e-wrap { position: relative; display: inline-flex; align-items: center; gap: .6rem; }
+.e-icon { width: var(--tap); padding: 0; border-radius: 50%; border-color: var(--hair); background: transparent; color: var(--ink); }
+.e-icon:hover { background: var(--panel); border-color: var(--ink); }
+.e-icon.on { background: var(--oxblood); border-color: var(--oxblood); color: #fff; }
+.e-badge { font-size: .8rem; letter-spacing: .12em; text-transform: uppercase; color: var(--oxblood); border: 1px solid var(--oxblood); border-radius: 999px; padding: .1rem .6rem; }
+.tip { position: absolute; top: calc(100% + 6px); right: 0; background: var(--ink); color: #fff; font-size: .85rem; padding: .25rem .6rem; border-radius: 3px; white-space: nowrap; z-index: 50; }
+.tip.up { top: auto; bottom: calc(100% + 6px); }
