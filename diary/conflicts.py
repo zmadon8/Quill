@@ -24,6 +24,7 @@ from .services.moves import NICE
 OPERATIONS = {
     "edit_delete": "Move to the Trash",
     "edit_move": "Move to another place",
+    "edit_add": "Add the entry after that one",
     "edit_landing": "Change where the Subject is listed",
     "edit_item_convert": "Change the type of the Item",
     "edit_item": "Save the Item",
@@ -84,6 +85,11 @@ def fresh_fields(request):
         for value in values:
             if name == "version" and current is not None:
                 value = current
+            elif name == "after_version":
+                after_kind, _, after_pk = request.POST.get("after", "").partition(":")
+                live = _current_version(profile, after_kind, after_pk)
+                if live is not None:
+                    value = live
             elif name == "case_version":
                 case_id = next(cases, "")
                 if case_id.isdigit() and int(case_id) in case_versions:

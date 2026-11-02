@@ -9,7 +9,7 @@ from functools import wraps
 
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
-from django.http import Http404, HttpResponseNotAllowed
+from django.http import Http404, HttpResponseNotAllowed, JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils.html import escape, strip_tags
@@ -20,10 +20,10 @@ from . import undo_session
 from .conflicts import conflict_page
 from .models import Item, Section, Subject, Subtopic, Topic
 from .richtext import sanitise_html
-from .services.core import Ctx, descendants, get_record, label
+from .services.core import Ctx, check_version, descendants, get_record, label
 from .services.errors import Conflict, NotFound, ServiceError
 from .services.moves import ALLOWED_PARENTS, NICE
-from .services.sequences import ident
+from .services.sequences import COLUMN_TYPE, ident, members, sequence_key
 from .views import profile_required, user_can_edit
 
 EDIT_KINDS = ("subject", "topic", "subtopic", "section", "item")
@@ -64,6 +64,15 @@ def _conflict(request, exc):
     return conflict_page(request, exc, _next(request))
 
 
+def is_fetch(request):
+    """True for a request made by the quick-add script, which wants JSON back instead of a page."""
+    return request.headers.get("X-Requested-With") == "fetch"
+
+
+def _json_error(message, status=400, **extra):
+    return JsonResponse({"ok": False, "errors": [message], **extra}, status=status)
+
+
 def _guarded(methods):
     """Decorator: signed in, has a profile, is an Editor of it, only ``methods``; service errors become messages or pages.
 
@@ -85,10 +94,16 @@ def _guarded(methods):
                 except NotFound as exc:
                     raise Http404(exc.message)
                 except Conflict as exc:
-                    response = _conflict(request, exc)
+                    if is_fetch(request):
+                        response = _json_error("Someone else changed this just now. Reload the page and try again.", 409)
+                    else:
+                        response = _conflict(request, exc)
                 except ServiceError as exc:
-                    messages.error(request, exc.message or "That could not be done.")
-                    response = redirect(_next(request))
+                    if is_fetch(request):
+                        response = _json_error(exc.message or "That could not be done.")
+                    else:
+                        messages.error(request, exc.message or "That could not be done.")
+                        response = redirect(_next(request))
             if request.method == "POST":
                 undo_session.remember(request, group)
             return response
@@ -150,18 +165,111 @@ def _single_line(value):
     return " ".join(value.split())
 
 
-@edit_endpoint
+#: Records an entry can be added after (they share a position sequence with what is added).
+AFTER_KINDS = ("topic", "subtopic", "section", "item")
+#: What the Add page offers when adding after a record: the kinds that can sit beside it.
+AFTER_CHOICES = {
+    "topic": ("topic",),
+    "subtopic": ("subtopic",),
+    "section": ("item", "nested", "section"),
+    "item": ("item", "nested", "section"),
+}
+
+
+def _after(source):
+    """('item', 5) from 'item:5' in ``source`` (the form or the address), or None when there is none."""
+    value = source.get("after", "")
+    if not value:
+        return None
+    kind, _, pk = value.partition(":")
+    if kind not in AFTER_KINDS or not pk.isdigit():
+        raise Http404("Unknown place.")
+    return kind, int(pk)
+
+
+def _place_after(request, after, expected=None):
+    """(record, parent, index) for a new entry placed directly after ``after``.
+
+    The parent is the record's own parent and the index counts the live siblings up to and
+    including it, so everything later is shifted down by the create service (the same numbering,
+    History and Undo as any other add). ``expected`` is the version of the record the Editor saw.
+    """
+    record = get_record(Ctx(request.profile, request.user), after[0], after[1], lock=False)
+    check_version(record, expected)
+    key = sequence_key(record)
+    if key is None:
+        raise Http404("Unknown place.")
+    parent = (COLUMN_TYPE[key[1]], key[2])
+    siblings = [ident(m) for m in members(request.profile.pk, key)]
+    if ident(record) not in siblings:
+        raise Http404("That record is not in the list any more.")
+    return record, parent, siblings.index(ident(record)) + 1
+
+
+def _expected(request, name):
+    value = request.POST.get(name, "")
+    return int(value) if value.isdigit() else None
+
+
+def _add_page(request):
+    """The normal Add page: the same form as Edit mode, with the place chosen from the address.
+
+    ``?after=item:5`` adds directly after that record; ``?parent=topic:3`` adds inside it (at the
+    end). It needs no JavaScript and is what a phone gets (the inline form is for desktops).
+    """
+    after = _after(request.GET)
+    parent = None
+    if after:
+        record, parent, _ = _place_after(request, after)
+        choices = AFTER_CHOICES[after[0]]
+        if after[0] == "item" and record.parent_item_id:
+            choices = ("item",)
+        where = f"directly after the {NICE[after[0]]} \u201c{label(record)}\u201d"
+        version = record.version
+    else:
+        value = request.GET.get("parent", "")
+        kind, _, pk = value.partition(":")
+        if kind not in ("subject", "topic", "subtopic", "item") or not pk.isdigit():
+            raise Http404("Unknown place.")
+        record = get_record(Ctx(request.profile, request.user), kind, int(pk), lock=False)
+        choices = {"subject": ("topic", "section", "item", "nested"), "topic": ("subtopic", "section", "item", "nested"),
+                   "subtopic": ("section", "item", "nested"), "item": ("item",)}[kind]
+        where = f"at the end of the {NICE[kind]} \u201c{label(record)}\u201d"
+        parent, version = (kind, record.pk), None
+    options = [{"value": c, "label": ADD_NICE.get(c) or NICE[ADDABLE[c][0]]} for c in choices]
+    return render(request, "diary/add_page.html", {
+        "options": options, "where": where, "after": f"{after[0]}:{after[1]}" if after else "",
+        "after_version": version if after else "", "parent": parent, "next_url": _next(request),
+        "kind_key": "after" if after else "parent",
+    })
+
+
+@editor_page
 def add(request):
-    """Add a Subject, heading, Section, Item or Nested Item at the end of its parent."""
+    """Add a Subject, heading, Section, Item or Nested Item.
+
+    It goes at the end of its parent, or directly after the record named by ``after`` ('item:5';
+    ``after_version`` is the version of that record the Editor saw). The quick-add script sends
+    ``first=1`` with a parent to put the new entry first inside it, so it appears right below the
+    heading it was added from. A request with the header X-Requested-With: fetch gets JSON back
+    (``ok``, and the new ``kind``, ``id``, ``version`` or the ``errors``) instead of a redirect.
+    """
+    if request.method == "GET":
+        return _add_page(request)
     post = request.POST
     what = post.get("what", "")
     if what not in ADDABLE:
-        messages.error(request, "Choose what to add.")
-        return redirect(_next(request))
+        raise ServiceError("Choose what to add.")
     kind, extra = ADDABLE[what]
-    parent = None
-    if post.get("parent_type"):
-        parent = (post.get("parent_type"), _record_id(request, "parent_id"))
+    parent, index = None, None
+    after = _after(post)
+    if after:
+        _, parent, index = _place_after(request, after, _expected(request, "after_version"))
+    else:
+        if post.get("parent_type"):
+            parent = (post.get("parent_type"), _record_id(request, "parent_id"))
+        if parent and post.get("first") == "1":
+            index = 0
     # One "Text" box: the name of a heading or Section, the text of an Item or Nested Item.
     # (An older form that posts "name" for a heading still works.)
     typed = post.get("text", "") if "text" in post else post.get("name", "")
@@ -169,11 +277,9 @@ def add(request):
     if kind in HEADING_LIMITS:
         name = _single_line(strip_tags(typed))
         if not name:
-            messages.error(request, f"Type the {NICE[kind]} name first.")
-            return redirect(_next(request))
+            raise ServiceError(f"Type the {NICE[kind]} name first.")
         if len(name) > HEADING_LIMITS[kind]:
-            messages.error(request, f"The {NICE[kind]} name is too long (at most {HEADING_LIMITS[kind]} characters).")
-            return redirect(_next(request))
+            raise ServiceError(f"The {NICE[kind]} name is too long (at most {HEADING_LIMITS[kind]} characters).")
         fields["name"] = name
     if kind == "subject":
         fields["show_on_landing"] = post.get("landing", "1") == "1"
@@ -183,10 +289,13 @@ def add(request):
         # A citation belongs to Items and Nested Items only; it is ignored for anything else.
         citation = _single_line(post.get("citation", ""))
         if not text and not citation:
-            messages.error(request, "Type the Item text (or a citation) first.")
-            return redirect(_next(request))
+            raise ServiceError("Type the Item text (or a citation) first.")
         fields.update(text=text, citation=citation)
-    svc.create(request.profile, request.user, kind, parent=parent, index=_index(request), **fields)
+    result = svc.create(request.profile, request.user, kind, parent=parent, index=index if index is not None else _index(request), **fields)
+    if is_fetch(request):
+        record = result.record
+        return JsonResponse({"ok": True, "kind": kind, "id": record.pk, "version": record.version,
+                             "after": f"{kind}:{record.pk}"})
     messages.success(request, f"Added the {ADD_NICE.get(what, NICE[kind])}.")
     return redirect(_next(request))
 

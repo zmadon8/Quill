@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Add an entry{% endblock %}
+{% block content %}
+<div class="home-column">
+  <h1>Add an entry</h1>
+  <p>It will be added {{ where }}.</p>
+  <form method="post" action="{% url 'edit_add' %}" class="edit-form" data-add-form>
+    {% csrf_token %}
+    {% if after %}
+    <input type="hidden" name="after" value="{{ after }}">
+    <input type="hidden" name="after_version" value="{{ after_version }}">
+    {% else %}
+    <input type="hidden" name="parent_type" value="{{ parent.0 }}">
+    <input type="hidden" name="parent_id" value="{{ parent.1 }}">
+    {% endif %}
+    <input type="hidden" name="next" value="{{ next_url }}">
+    <label>Add a
+      <select name="what" data-add-what>
+        {% for o in options %}<option value="{{ o.value }}">{{ o.label }}</option>{% endfor %}
+      </select>
+    </label>
+    {% include "diary/_add_fields.html" with ekind="page" eid="add" %}
+    <div class="edit-confirm">
+      <button type="submit" class="button primary">Add</button>
+      <a class="button" href="{{ next_url }}">Cancel</a>
+    </div>
+  </form>
+</div>
+<script src="{% static 'js/richtext-editor.js' %}"></script>
+<script src="{% static 'js/add-form.js' %}"></script>
+{% endblock %}

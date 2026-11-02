@@ -59,7 +59,9 @@ class AccessTests(EditViewTestCase):
 
     def test_every_endpoint_is_post_only_for_editors(self):
         for name in ENDPOINTS:
-            self.assertEqual(self.client.get(reverse(name)).status_code, 405, name)
+            if name != "edit_add":  # the Add page answers GET (it needs a place: ?after= or ?parent=)
+                self.assertEqual(self.client.get(reverse(name)).status_code, 405, name)
+        self.assertEqual(self.client.get(reverse("edit_add")).status_code, 404)
 
     def test_csrf_token_is_required(self):
         strict = Client(enforce_csrf_checks=True)
