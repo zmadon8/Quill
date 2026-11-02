@@ -341,6 +341,8 @@ def preview_move_to_new_heading(profile, user, kind, record_id, new_kind, name):
     """Read-only: the numbers that change if the record moved into a new heading of this name (nothing is kept)."""
     ctx = Ctx(profile, user)
     fmts = formats_for(user)
+    # NOTE: this really creates the heading and rolls it back, so ``create`` must only have
+    # side effects that a database rollback undoes (no files, caches or signals).
     with transaction.atomic():
         savepoint = transaction.savepoint()
         try:
