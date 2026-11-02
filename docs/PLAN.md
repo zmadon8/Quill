@@ -123,20 +123,34 @@ Note: the technology (Django, PostgreSQL) is confirmed for a **standalone app** 
 - Try to permanently delete a target that has a Note linking to it: it should stop and tell you.
 - Search for words in a Note.
 
+**Status: built, CI pending.** Notes at every level and on an Item (shown directly beneath it), one or more links per Note, the Note editor page with the tree picker, "See also" and "Linked from" at both ends, "target deleted", link recovery on restore, permanent delete refusal with remove or point-elsewhere for each link, Notes in Trash, History and Undo, search hits that open the Note itself (`#n-note-<id>`). Decisions and defaults are D33 to D40 in `docs/DESIGN.md`. The pure tests pass locally; the Django tests could not be run where the code was written, so GitHub CI is their first run.
+
+**Owner check list (Milestone 5):**
+1. Edit mode: "+ Add" on a Subject, Topic, Sub-topic, Section and Item offers **Note**. Add one, then press its Edit button.
+2. In the Note editor add three links (one to an Item, one to a Section, one to a Topic in another Subject) with "Add a link..."; reorder them with Up and Down; remove one and press Undo.
+3. Read the Subject: each Note shows "See also: ..." per link; click one and land on the target with a brief highlight. The target shows "Linked from: ..."; click it to come back to the Note.
+4. Delete a target: the Note says "(target deleted)" and the link is not clickable. Restore the target: the link works again.
+5. As Admin, delete a linked target, then Delete permanently in the Trash: it must refuse and list each link with "Point it somewhere else" and "Remove this link for good".
+6. Search for a word in a Note: the result opens the Note.
+7. Log in as a Reader: Notes, See also and Linked from show; no Edit buttons; typing an edit address gives 403.
+8. On a phone: the Note editor fills the screen; Up, Down, Change, Remove, Choose and Save are easy to tap.
+
 **Risks:**
 - Links across Trash and restore are subtle (mitigation: tests for each case).
-- Notes ordering is confirmed (D5): after Items, before child headings. Whether Notes can be reordered by hand is a Milestone 5 question (D18).
+- Notes ordering is confirmed (D5): after Items, before child headings. Notes can be reordered by hand among the Notes of the same parent (D18, D36).
 
 ## Milestone 6: Word export and round-trip check
 
-**Deliverable:** Three types of Word export following `docs/DESIGN.md` section 12: (i) Full, one document; (ii) Full, one document per Subject with all Other Subjects together, delivered as one .zip with a manifest; (iii) Current View (Subject, Topic or Sub-topic on screen, focused pane in split screen). Contents page, page headers, numbering per Settings (including Sections and the restart of Items after each Section), "See also" Notes, date and record count. File names built from the Custom Name, the part and the date. A "Backup" button for the restore file. **Profiles:** every export covers the user's profile only, and file names start with the profile's export name (default "Case Law Diary Main", editable in the profile's settings; `accounts.profiles.export_file_name` builds the cleaned name).
+**Owner decision: no Excel copy** (the Excel version of the backup is not wanted in this milestone or later; the restore file stays the only backup format).
+
+**Deliverable:** Three types of Word export following `docs/DESIGN.md` section 12: (i) Full, one document; (ii) Full, one document per Subject with all Other Subjects together, delivered as one .zip with a manifest; (iii) Current View (Subject, Topic or Sub-topic on screen). Contents page, page headers, numbering per Settings (including Sections and the restart of Items after each Section), "See also" Notes, date and record count. File names built from the Custom Name, the part and the date. A "Backup" button for the restore file. **Profiles:** every export covers the user's profile only, and file names start with the profile's export name (default "Case Law Diary Main", editable in the profile's settings; `accounts.profiles.export_file_name` builds the cleaned name).
 
 **How you check it:**
 - Export (i) and open in Word: Subject names as headings, Topics lettered, Sub-topics numbered, Items (1), Citations in italic after " - ". Under `Clause 12: Leave to Sue` Section (a) has Items (1), (2) and Section (b) has Items (1) to (10), restarting correctly in Word.
 - Check the Other Subjects section (Heading 1 / 2 / 3) and a single Other Subject export (Heading 1 alone, confirmed).
 - **File names**: (i) `Case Law Diary Full 2026-11-01.docx` (with your Custom Name, which defaults to the program's display name, and the date); (ii) the zip `... Full - by Subject <date>.zip` holding one `... <Subject name> <date>.docx` per Subject, one `... Other Subjects <date>.docx`, and `manifest.txt`; (iii) `... <on-screen path joined by ", "> <date>.docx`. Illegal characters are replaced by a hyphen; over-long paths are shortened by the documented rule; duplicates in the zip get " (2)".
 - **Zip contents and counts**: each document's record count matches the screen for that Subject, and the grand total in `manifest.txt` equals the count on the Full export.
-- **Current View**: exported from a Subject, a Topic and a Sub-topic (the heading becomes Heading 1, the on-screen letter or number is kept, the whole subtree is included, Trash is not). In split screen the focused pane is exported and the button names it. On Search results, the Review list, Trash and History the button is disabled with a tooltip.
+- **Current View**: exported from a Subject, a Topic and a Sub-topic (the heading becomes Heading 1, the on-screen letter or number is kept, the whole subtree is included, Trash is not). On Search results, the Review list, Trash and History the button is disabled with a tooltip.
 - Exporting twice on the same day gives the same file name (the browser adds (1)); the app never overwrites or adds counters.
 - The record count on each export matches the screen count.
 - **Round trip:** a comparison report of the export against your original Word file; differences should be only the deliberate ones (formatting), listed one by one.
@@ -148,17 +162,17 @@ Note: the technology (Django, PostgreSQL) is confirmed for a **standalone app** 
 - File names containing characters or lengths that Windows or macOS refuse (mitigation: the cleaning and length rules, tested).
 - The comparison needs your judgment on which differences are acceptable.
 
-## Milestone 7: Split screen and polish
+## Milestone 7: Polish
 
-**Deliverable:** Two-pane split screen on wide screens, performance tuning, accessibility and phone improvements, error messages, help text, Admin user management polish, final backup and restore rehearsal, and off-site backup copy if chosen.
+**Owner decision: no split screen.** The split screen idea is dropped from the plan.
+
+**Deliverable:** Performance tuning, accessibility and phone improvements, error messages, help text, Admin user management polish, final backup and restore rehearsal, and off-site backup copy if chosen.
 
 **How you check it:**
-- Open two Subjects side by side on a wide screen; scroll them independently; it is unavailable on a phone.
 - Do a full rehearsal: take a backup, change some data, restore, and confirm the data is back as it was.
 - Use the app for a week of real work, listing anything that annoys you.
 
 **Risks:**
-- Split screen adds layout complexity (it is last so it cannot harm the core).
 - Late discovery of workflow gaps (mitigation: the week of real use before sign-off).
 
 ## Round 3 (UI changes, after Milestone 2)

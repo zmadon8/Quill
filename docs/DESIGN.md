@@ -247,8 +247,8 @@ Numbers appear in two places only: on screen and in the Word export. Searching a
 ### 5.8 Back button (4.8)
 Always visible, returns to the previous page; sensible fallback to Subjects (the Subject index).
 
-### 5.9 Split screen (4.9)
-Two independent panes side by side, each with its own location. Only on wide screens (about 1100 pixels and above). On narrower screens the option is hidden. Last milestone (7), so it can be refined without risk to the core.
+### 5.9 Split screen (4.9): dropped
+**The owner removed the split screen concept** (Milestone 7 instruction). It is not built and not planned; the Word export has no "focused pane".
 
 ### 5.10 Shortcuts (4.10)
 - **Both sets of shortcuts are kept** (decision D13): Alt+G opens Global Search and Alt+H goes to the suite Home (the program picker); Ctrl+Alt+G and Ctrl+Alt+H do the same. On a Mac, Option replaces Alt (Option+G, Option+H, Ctrl+Option+G, Ctrl+Option+H).
@@ -300,7 +300,8 @@ Either can become the other. The record **keeps its ID**. A **preview is shown b
 - Click a link to jump to the target. The target shows **"Linked from: <path>"**, so links are visible at both ends.
 - If a target is in Trash, the Note shows **"target deleted"**. The link is kept, and works again if the target is restored.
 - **Links are never silently removed.** Permanent deletion of a target that has incoming links is refused until you decide what to do with each Note (shown in a list).
-- Notes are searchable.
+- Notes are searchable; a hit opens the Note itself in context (`#n-note-<id>`, D36).
+- **As built in Milestone 5: see D33 to D40 at the end of the decision log.**
 - **Ordering:** a Note appears after the Items/Sections/Nested Items of its parent and before child headings (decided, D5). A Note on an Item shows directly beneath that Item.
 - Word export prints a Note as "See also: Subject > Topic > ...".
 
@@ -485,7 +486,6 @@ There are **three types of export** (decision D10). All three follow the same ma
 - The scope is a Subject, a Topic or a Sub-topic. An Other Subject is a Subject scope; a single Other Subject exports with its name at **Heading 1 alone** (D3).
 - The scope heading becomes **Heading 1** and the levels below step down. Numbering starts as on screen: a Topic keeps its on-screen letter and a Sub-topic its on-screen number (default, needs owner confirmation).
 - The scope's whole subtree is exported (Trash excluded), not only the part scrolled into view.
-- **Split screen**: the export applies to the **focused pane**, shown by a highlighted pane border. The button label says which pane it will export (for example "Export current view: Arbitration, Fraud").
 - **Not offered** on search results, the Review list, Trash and History: the Current View button is disabled with a tooltip saying why. The Full exports and the review-marker option stay available.
 
 ### 12.2 File names
@@ -600,7 +600,7 @@ Confirmed earlier: each Heading 1 is a Subject; Miscellaneous holds Other Subjec
   - (8) "When viewing the table of contents, allow me to expand / contract all or individual Subjects / Topics / etc." Each Topic with Sub-topics can be expanded or collapsed, plus Expand all / Collapse all. Defaults: on reading pages the current Topic is open and others closed; on the Subject contents page all open; the choice is remembered per Subject in the browser. The Subjects index is flat so it has nothing to expand.
   - (9) "When clicking on a subject for the first time, and when the program only shows the Table of Contents, format it in such a manner that it is already arranged in the Side Panel (in the same manner as if Text was open)." Subject contents uses the reading layout: Contents in the left panel, the Subject title, "View whole Subject" and a hint on the right. Default: on phones the Contents list is shown full width on that page and the Contents button is hidden.
   - (3) "In Backups, allow me to resize the column widths." Drag the column border (or focus the handle and use the arrow keys); widths are remembered per table in the browser; "Reset column widths" restores them. Tables scroll sideways inside their own box on phones.
-  - (1) Excel backup and (10) Split View are answered separately; Split View stays in Milestone 7 (section 5.9).
+  - (1) Excel backup and (10) Split View are answered separately. **Later owner instruction: no Excel copy in Milestone 6, and the split screen concept is removed from Milestone 7 (D41).**
 - **D16. Header and navigation tidy-up (owner's second review of PR #5).** Owner's words, with the defaults chosen:
   - (1) "Move 'Back' to the top row." A small "&larr; Back" button (44px tap target) sits at the left of the top row, before the program name, on every signed-in page including Home, Users and Backups. Default: the separate toolbar row is removed; Subjects and Search remain in the program nav, and the breadcrumb row appears only on Subject contents and the reading views.
   - (2) "Remove the buttons for view whole subject, view, this topic, and View this Sub-Topic, as they are redundant on account of the directory view." The three buttons are gone from the reading views and the Subject contents page. Defaults: the Subject name in the breadcrumb and at the top of the Contents panel opens the whole-Subject view; Topic and Sub-topic links in Contents open those scopes; the hint reads "Choose a Topic or Sub-topic from Contents, or click the Subject name to read the whole Subject."; the phone Contents button stays.
@@ -1004,3 +1004,17 @@ Owner's round 6 answers: "Yes to 1 and 2. Yes to 3, and also add a setting to de
   7. Should the Review list include Items inside Nested Items? *Default: yes.*
   8. Is it fine that a search for a word in a Note opens its parent Item rather than a Note page? *Default: yes (Notes arrive properly in Milestone 5).*
 - **Tests.** `diary/tests/test_searchtext.py` (pure; 42 tests, with 45 real citations from the Word file), `test_search.py`, `test_views_search.py`, `test_preview.py`, `test_my_settings.py`, review tests in `test_importer_db.py`. The pure ones pass locally; the Django ones have not been run (Django cannot be installed in the build environment), so GitHub CI is their first run.
+
+## Milestone 5: Notes and cross-references
+
+- **D33. Note editing is a full page, not an inline card.** A Note has a text box and a list of links, which does not fit the small inline card. Its Edit button (Edit mode only) opens `/edit/note/<id>/`: rich text B/I/U, the links (Up, Down, Change, Remove, "Add a link..."), and More (Move to..., Move up/down, History, Delete). On a phone the page is the whole screen with a Save bar fixed at the bottom, and every button is at least 44px. Every button on the page posts the whole form, so typed text is saved first in the same Undo step. Default; the owner can ask for an inline card instead.
+- **D34. "+ Add" offers Note on every row** (Subject, Topic, Sub-topic, Section, Item, Nested Item and an Item inside one) as "inside:note". It goes last among the Notes of that parent. The inline form takes the text only; the editor page opens for links (without JavaScript the add redirects there).
+- **D35. Display.** Each link is "See also: Subject > Topic > ..." with a link icon, going to the target in the whole-Subject page at its anchor (`scroll-margin` keeps it clear of the sticky bar). The target (heading, Section or Item) shows one line "Linked from: <path>" per live incoming Note, each going back to the Note. A target in Trash, or below something in Trash, shows "(target deleted)" and is not clickable; the link row is never touched, so it works again when the target is restored. A Note in Trash (or below something in Trash) shows no "Linked from" at the other end.
+- **D36. Order and search.** Notes come after the Items and Sections of their parent and before child headings (D5). They can be reordered by hand among the Notes of the same parent (Move up/down, D18). Links of a Note have their own order (new column `NoteLink.position`, migration 0013, existing links numbered in creation order). A search hit on a Note opens `#n-note-<id>`.
+- **D37. Picker.** The tree picker for links and for Move to on a Note drills down (All Subjects, then a Subject, Topic, Sub-topic or Nested Item) and lists the Items and Sections inside, each with a Choose button; the place being viewed can also be chosen. Only live records of the same profile are offered, and the server refuses anything else (another profile's record is "not found").
+- **D38. Trash, History, Undo.** A removed link goes to the Trash (Link to ...), can be restored and Undone. Deleting a Note takes its links with it; restoring the Note brings them back in order. Every link change writes History (create, edit for a change of target, reorder, delete, restore).
+- **D39. Permanent delete.** Refused while any link (live, or in Trash) points at the record; the refusal screen lists each link with "Point it somewhere else..." (retarget) and "Remove this link for good" (Admin only; the link's History is kept). After that the delete can be repeated.
+- **D40. Readers** see Notes, See also and Linked from, never an Edit button; every Note address and POST gives 403 to a Reader.
+- **D41. Owner exclusions for the remaining milestones.** Milestone 6: **no Excel copy**. Milestone 7: **no split screen** (sections 5.9 and 12 and the plan updated).
+
+**Defaults the owner can change (Milestone 5):** D33 (full page editor), D34 (a Note needs text when added), D37 (drill-down picker), D39 (remove-for-good is Admin only).
