@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Edit card on a phone (full screen)</title>
+<link rel="stylesheet" href="../../../static/css/tokens.css">
+<link rel="stylesheet" href="../../../static/css/site.css">
+<link rel="stylesheet" href="edit-mode.css">
+</head>
+<body class="edit-on full">
+<div class="fullcard" role="dialog" aria-label="Editing Item (1)">
+  <div class="fullcard-top"><button type="button" title="Close without saving">Cancel</button><div class="ttl">Editing Item (1)<small>A. Arbitrability &rsaquo; 1. Fraud</small></div><button type="button" class="primary" title="Save">Save</button></div>
+  <div class="fullcard-body">
+  <div class="fld"><span class="field-label">Text</span><div class="rtbar" role="toolbar" aria-label="Formatting"><button type="button" class="b" title="Bold" aria-label="Bold">B</button><button type="button" class="i" title="Italic" aria-label="Italic">I</button><button type="button" class="u" title="Underline" aria-label="Underline">U</button></div><div class="rt-area" role="textbox" aria-label="Text">Mere, but not serious, allegations of fraud arbitrable</div></div>
+  <div class="fld"><span class="field-label">Citations</span>
+    <div class="cite-head"><span></span><span>Citation</span><span>Comment (optional)</span><span></span></div>
+    <ul class="cite-list"><li class="cite-row"><span class="grip" title="Drag to reorder" aria-label="Drag to reorder"><svg viewBox="0 0 10 16" width="12" height="18" aria-hidden="true" fill="currentColor"><circle cx="2.5" cy="3" r="1.4"/><circle cx="7.5" cy="3" r="1.4"/><circle cx="2.5" cy="8" r="1.4"/><circle cx="7.5" cy="8" r="1.4"/><circle cx="2.5" cy="13" r="1.4"/><circle cx="7.5" cy="13" r="1.4"/></svg></span><input type="text" value="A. Ayyasamy [(2016) 10 SCC 386]" aria-label="Citation"><input type="text" class="c2" value="" placeholder="Comment (optional)" aria-label="Comment (optional)"><button type="button" class="x-btn" title="Remove this citation" aria-label="Remove this citation">&times;</button></li><li class="cite-row"><span class="grip" title="Drag to reorder" aria-label="Drag to reorder"><svg viewBox="0 0 10 16" width="12" height="18" aria-hidden="true" fill="currentColor"><circle cx="2.5" cy="3" r="1.4"/><circle cx="7.5" cy="3" r="1.4"/><circle cx="2.5" cy="8" r="1.4"/><circle cx="7.5" cy="8" r="1.4"/><circle cx="2.5" cy="13" r="1.4"/><circle cx="7.5" cy="13" r="1.4"/></svg></span><input type="text" value="Ameet Lalchand Shah [(2018) 15 SCC 678]" aria-label="Citation"><input type="text" class="c2" value="@ para 22" placeholder="Comment (optional)" aria-label="Comment (optional)"><button type="button" class="x-btn" title="Remove this citation" aria-label="Remove this citation">&times;</button></li></ul>
+    <button type="button" class="linkish">+ another citation</button>
+  </div>
+  <div class="fld"><span class="field-label">Flag</span>
+    <div class="flag-line"><div class="seg" role="radiogroup" aria-label="Flag"><button type="button" role="radio" aria-checked="true">None</button><button type="button" role="radio" aria-checked="false">Overruled</button><button type="button" role="radio" aria-checked="false">Doubted</button><button type="button" role="radio" aria-checked="false">Other</button></div><input type="text" disabled placeholder="Short text (used for Other)" aria-label="Flag text"></div>
+  </div>
+  <div class="fld"><span class="field-label">For review</span>
+    <div class="switch-line"><button type="button" class="edit-switch" role="switch" aria-checked="false"><span>For review</span><span class="track"><span class="knob"></span></span></button><input type="text" disabled placeholder="Note for review (optional)" aria-label="Review note"></div>
+  </div>
+
+  </div>
+  <div class="fullcard-bottom"><button type="button" class="primary">Save</button><button type="button">Cancel</button>
+    <div class="more-wrap"><button type="button" aria-haspopup="menu" aria-expanded="true" title="More actions">More <svg viewBox="0 0 12 8" width="12" height="8" aria-hidden="true" style="margin-left:.4rem"><path d="M1 1l5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="menu up" role="menu"><button type="button">Move to…</button><button type="button">Move up</button><button type="button">Move down</button><button type="button">Change to Nested Item</button><button type="button">History</button><hr><button type="button" class="danger-item"><span>Delete</span><small>goes to Trash &middot; Undo available</small></button></div></div></div>
+</div>
+</body>
+</html>
