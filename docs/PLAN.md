@@ -275,4 +275,4 @@ Owner questions (defaults stand unless you say otherwise): see the "open questio
 
 ## Round 11 (part 2)
 
-Status: in progress, CI pending. Header (Home icon at far right, Log out only on Home, search icon with pop-up bar, Mac-style shortcut labels): built. Export cleanup, Move to new Topic/Sub-topic, and search-results mockups follow; see the decision log (D62 onwards).
+Status: in progress, CI pending. Header (Home icon at far right, Log out only on Home, search icon with pop-up bar, Mac-style shortcut labels): built. Export cleanup and its mockups: built. Move to a new Topic or Sub-topic: built. Search-results mockups follow; see the decision log (D62 onwards).

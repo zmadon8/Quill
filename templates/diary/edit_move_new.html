@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}New {{ new_name }}{% endblock %}
+{% block content %}
+<div class="home-column">
+  <h1>Move to a new {{ new_name }}</h1>
+  <p>The {{ kind_name }} &ldquo;{{ record_label }}&rdquo; will move into a new {{ new_name }} in the {{ parent_kind }} &ldquo;{{ parent_name }}&rdquo;. Type the name of the new {{ new_name }}. You will see which numbers change before anything moves.</p>
+  {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+  <form method="post" action="{% url 'edit_move_new' %}" class="edit-form">
+    {% csrf_token %}
+    {% for name, value in fields %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+    <input type="hidden" name="name_given" value="1">
+    <label>Name of the new {{ new_name }} <input type="text" name="name" value="{{ name }}" maxlength="{{ max_length }}" required autofocus></label>
+    <button type="submit">Continue</button>
+    <a class="button" href="{{ next_url }}">Cancel</a>
+  </form>
+</div>
+{% endblock %}

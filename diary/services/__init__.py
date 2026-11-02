@@ -18,7 +18,7 @@ from .errors import (
     ValidationFailed,
 )
 from .history import history_for, restore_version
-from .moves import move, preview_delete, preview_move, shift
+from .moves import move, move_to_new_heading, new_heading_options, preview_delete, preview_move, preview_move_to_new_heading, shift
 from .links import add_link, purge_link, retarget_link, shift_link
 from .records import create, edit, set_landing
 from .trash import delete, permanent_delete, restore
@@ -28,6 +28,7 @@ __all__ = [
     "ActionResult", "Conflict", "ConfirmationRequired", "Ctx", "NameClash", "NotFound", "ParentInTrash",
     "PermanentDeleteRefused", "Refused", "ServiceError", "UndoWarning", "ValidationFailed",
     "action_group", "add_link", "create", "delete", "edit", "group_summary", "history_for",
-    "move", "permanent_delete", "preview_delete", "preview_move",
+    "move", "move_to_new_heading", "new_heading_options", "permanent_delete", "preview_delete", "preview_move",
+    "preview_move_to_new_heading",
     "purge_link", "restore", "restore_version", "retarget_link", "set_landing", "shift", "shift_link", "snapshot", "undo_group",
 ]

@@ -58,6 +58,7 @@ class CsrfEditModeTests(ServiceTestCase):
             ("edit_move", {**self.rec("item", self.three), "direction": "up"}),
             ("edit_move", {**self.rec("item", self.three), "index": "0", "confirmed": "1"}),
             ("edit_move_to", self.rec("item", self.one)),
+            ("edit_move_new", {**self.rec("item", self.one), "new_heading": "topic"}),
             ("edit_landing", {**self.rec("subject", self.subject), "show": "0"}),
             ("edit_item", {**self.rec("item", self.two), "text": "two!", "citation": ""}, self.two.pk),
             # Milestone 5: Notes and their links.
@@ -176,3 +177,53 @@ class CsrfEditModeTests(ServiceTestCase):
         source = (Path(settings.BASE_DIR) / "static" / "js" / "edit-mode.js").read_text(encoding="utf-8")
         self.assertNotIn("forEach.call(new FormData", source)
         self.assertIn("new FormData(form).forEach(", source)
+
+
+@override_settings(SECURE_SSL_REDIRECT=False)
+class MoveToNewHeadingFlowTests(ServiceTestCase):
+    """The whole Move to > New Topic flow with the real CSRF check on, then Undo as one step."""
+
+    def setUp(self):
+        super().setUp()
+        join_main(self.user, "editor")
+        self.build_topic()
+        self.strict = Client(enforce_csrf_checks=True)
+        self.strict.force_login(self.user)
+        self.next = reverse("read_subject", args=[self.subject.pk]) + "?edit=1"
+
+    def test_picker_to_new_topic_and_undo_in_one_step(self):
+        from diary.models import Topic
+
+        rec = {"kind": "item", "id": self.one.pk, "version": self.get(self.one).version, "next": self.next}
+        # The Edit card gives the first token; the picker page then carries its own.
+        card = self.strict.get(reverse("edit_inline_card"), {"kind": "item", "id": self.one.pk, "next": self.next}).json()["html"]
+        picker = self.strict.post(reverse("edit_move_to"), {**rec, "csrfmiddlewaretoken": TOKEN.search(card).group(1)})
+        self.assertEqual(picker.status_code, 200)
+        page = picker.content.decode()
+        self.assertIn("New Topic in this Subject", page)
+        self.assertIn("New Sub-topic in this Topic", page)
+        self.assertLess(page.index("New Topic in this Subject"), page.index("picker-choice\">Contract"))
+        sent = fields_of(page)
+        sent.update(csrfmiddlewaretoken=TOKEN.search(page).group(1), new_heading="topic")
+        # Step 1: the name form (a token on it). Step 2: the preview. Step 3: done.
+        ask = self.strict.post(reverse("edit_move_new"), sent)
+        self.assertEqual(ask.status_code, 200)
+        self.assertIn('name="name"', ask.content.decode())
+        form = fields_of(ask.content.decode())
+        form.update(csrfmiddlewaretoken=TOKEN.search(ask.content.decode()).group(1), name="Zed")
+        preview = self.strict.post(reverse("edit_move_new"), form)
+        self.assertEqual(preview.status_code, 200)
+        self.assertIn("Zed", preview.content.decode())
+        self.assertEqual(self.get(self.one).topic_id, self.topic.pk)  # a preview moves nothing
+        confirm = fields_of(preview.content.decode())
+        confirm.update(csrfmiddlewaretoken=TOKEN.search(preview.content.decode()).group(1))
+        done = self.strict.post(reverse("edit_move_new"), confirm)
+        self.assertEqual(done.status_code, 302)
+        new = Topic.objects.get(subject=self.subject, name="Zed")
+        self.assertEqual(self.get(self.one).topic_id, new.pk)
+        # One Undo puts the Item back and removes the new Topic.
+        token = TOKEN.search(card).group(1)
+        undo = self.strict.post(reverse("edit_undo"), {"next": self.next, "csrfmiddlewaretoken": token})
+        self.assertNotEqual(undo.status_code, 403)
+        self.assertEqual(self.get(self.one).topic_id, self.topic.pk)
+        self.assertFalse(Topic._base_manager.filter(subject=self.subject, name="Zed", deleted_at__isnull=True).exists())

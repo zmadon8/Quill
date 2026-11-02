@@ -23,6 +23,7 @@ urlpatterns = [
     path("edit/delete/", views_edit.delete, name="edit_delete"),
     path("edit/move/", views_edit.move, name="edit_move"),
     path("edit/move-to/", views_edit.move_to, name="edit_move_to"),
+    path("edit/move-new/", views_edit.move_new, name="edit_move_new"),
     path("edit/landing/", views_edit.landing, name="edit_landing"),
     path("edit/item/<int:pk>/", views_item.item_editor, name="edit_item"),
     path("edit/note/<int:pk>/", views_note.note_editor, name="edit_note"),

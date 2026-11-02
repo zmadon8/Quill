@@ -542,6 +542,53 @@ def move_to(request):
     return render(
         request,
         "diary/edit_move_to.html",
-        {"entries": picker_entries(request.profile, kind, obj), "fields": sorted(_fields(request).items()),
+        {"entries": picker_entries(request.profile, kind, obj), "new_options": svc.new_heading_options(request.profile, request.user, obj),
+         "fields": sorted(_fields(request).items()),
          "kind_name": NICE[kind], "record_label": label(obj), "next_url": _next(request)},
     )
+
+
+@edit_endpoint
+def move_new(request):
+    """Move to a NEW Topic (in the record's Subject) or Sub-topic (in its Topic), from the top of the Move to picker.
+
+    Three steps on one address: ask for the name, show the numbers that change (preview), then do it. The new heading
+    and the move are one Undo step. Name problems (empty, already used among its siblings) show the name form again.
+    """
+    kind, record_id = _kind(request), _record_id(request)
+    new_kind = request.POST.get("new_heading", "")
+    if new_kind not in ("topic", "subtopic"):
+        raise Http404("Unknown heading type.")
+    name = request.POST.get("name", "")
+    obj = get_record(Ctx(request.profile, request.user), kind, record_id, lock=False)
+    options = {o["kind"]: o for o in svc.new_heading_options(request.profile, request.user, obj)}
+    if new_kind not in options:
+        messages.error(request, f"A new {NICE[new_kind]} cannot be made for this {NICE[kind]}.")
+        return redirect(_next(request))
+    where = options[new_kind]
+    base_fields = _fields(request, new_heading=new_kind)
+
+    def ask(error=""):
+        return render(request, "diary/edit_move_new.html", {
+            "fields": sorted(base_fields.items()), "kind_name": NICE[kind], "record_label": label(obj),
+            "new_name": NICE[new_kind], "parent_name": where["parent"].name, "parent_kind": NICE[where["parent_kind"]],
+            "name": name, "error": error, "next_url": _next(request),
+            "max_length": HEADING_LIMITS[new_kind],
+        })
+
+    if not request.POST.get("name_given"):
+        return ask()
+    try:
+        if not request.POST.get("confirmed"):
+            preview = svc.preview_move_to_new_heading(request.profile, request.user, kind, record_id, new_kind, name)
+            lead = (f"Make the new {NICE[new_kind]} \u201c{preview['heading']}\u201d in {where['parent'].name} and move the "
+                    f"{NICE[kind]} \u201c{label(obj)}\u201d into it?")
+            if not preview["changes"]:
+                lead += " No numbers change."
+            fields = _fields(request, new_heading=new_kind, name_given="1", name=preview["heading"], confirmed="1")
+            return _changes_page(request, "Move to a new " + NICE[new_kind], reverse("edit_move_new"), fields, preview, lead, "Make it and move")
+        svc.move_to_new_heading(request.profile, request.user, kind, record_id, new_kind, name, _version(request))
+    except svc.ValidationFailed as exc:
+        return ask(exc.message)
+    messages.success(request, f"Moved into the new {NICE[new_kind]}.")
+    return redirect(_next(request))

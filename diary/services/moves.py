@@ -4,7 +4,10 @@ Rules: same profile only, one level of nesting, a Subject holds Topics or direct
 not both, a heading cannot go inside itself. Items and Sections share one position
 sequence per parent, kept as 1..n among the live siblings.
 """
+import contextlib
+
 from django.db import transaction
+from django.db.models.functions import Lower
 
 from ..models import Subtopic, Topic
 from ..reading import formats_for
@@ -15,8 +18,10 @@ from .core import (
     get_record,
     label,
     make_result,
+    parent_of,
     record_type,
 )
+from . import core
 from . import housing
 from .errors import Refused
 from ..sorting import sort_headings
@@ -253,3 +258,100 @@ def preview_delete(profile, user, kind, record_id):
     after = labels(key, [m for m in current if ident(m) != ident(obj)], fmts)
     return {"changes": _changes(before, after, objs), "count": 1 + len(below)}
 
+
+
+# ------------------------------------------------------------------ move to a new heading (round 11)
+
+#: Which kinds of record are offered "New Topic in this Subject" / "New Sub-topic in this Topic" in the Move to picker.
+NEW_TOPIC_FOR = ("item", "section", "subtopic")
+NEW_SUBTOPIC_FOR = ("item", "section")
+
+
+def _place_of(obj):
+    """(Subject, Topic or None) the record sits in now, found by walking up its parents."""
+    subject = topic = None
+    rec = obj
+    while rec is not None:
+        found = parent_of(rec)
+        if found is None:
+            break
+        kind, rec = found
+        if kind == "subject":
+            subject = rec
+        elif kind == "topic":
+            topic = rec
+    return subject, topic
+
+
+def new_heading_options(profile, user, obj):
+    """The new headings the Move to picker offers for ``obj``: a list of dicts {kind, parent_kind, parent, label}.
+
+    "New Topic in this Subject" (Items, Sections and Sub-topics inside a Topic) is not offered when the Subject holds
+    Sub-topics directly (a Subject holds Topics or Sub-topics, not both). "New Sub-topic in this Topic" (Items and
+    Sections only) is offered only when the record sits in a Topic (directly or through a Sub-topic). Topics get neither.
+    """
+    kind = record_type(obj)
+    subject, topic = _place_of(obj)
+    ctx = Ctx(profile, user)
+    options = []
+    if kind in NEW_TOPIC_FOR and subject is not None and housing.accepts_topics(ctx, subject.pk):
+        options.append({"kind": "topic", "parent_kind": "subject", "parent": subject, "label": "New Topic in this Subject"})
+    if kind in NEW_SUBTOPIC_FOR and topic is not None:
+        options.append({"kind": "subtopic", "parent_kind": "topic", "parent": topic, "label": "New Sub-topic in this Topic"})
+    return options
+
+
+def _new_heading(ctx, obj, new_kind, name):
+    """Create the heading (name checked) in the right place; returns it. Raises Refused or ValidationFailed."""
+    from .errors import ValidationFailed
+    from .records import create
+
+    wanted = {o["kind"]: o for o in new_heading_options(ctx.profile, ctx.user, obj)}
+    if new_kind not in wanted:
+        raise Refused(f"A new {NICE.get(new_kind, new_kind)} is not offered for this {NICE[record_type(obj)]}.")
+    option = wanted[new_kind]
+    name = core.clean_name(name)
+    model = Topic if new_kind == "topic" else Subtopic
+    column = f"{option['parent_kind']}_id"
+    clash = (
+        model._base_manager.filter(profile_id=ctx.profile_id, deleted_at__isnull=True, **{column: option["parent"].pk})
+        .annotate(lowered=Lower("name"))
+        .filter(lowered=name.lower())
+        .exists()
+    )
+    if clash:
+        raise ValidationFailed(f"A {NICE[new_kind]} called {name!r} already exists in {option['parent'].name!r}.")
+    return create(ctx.profile, ctx.user, new_kind, parent=(option["parent_kind"], option["parent"].pk), name=name).record
+
+
+def move_to_new_heading(profile, user, kind, record_id, new_kind, name, expected_version=None):
+    """Make a new Topic (in the record's Subject) or Sub-topic (in its Topic) and move the record into it, as ONE Undo step."""
+    cm = contextlib.nullcontext() if core._shared_group.get() else core.action_group()
+    with cm, transaction.atomic():
+        ctx = Ctx(profile, user)
+        obj = get_record(ctx, kind, record_id)
+        check_version(obj, expected_version)
+        heading = _new_heading(ctx, obj, new_kind, name)
+        result = move(profile, user, kind, record_id, (new_kind, heading.pk), None, expected_version)
+        result.info["heading"] = heading
+        return result
+
+
+def preview_move_to_new_heading(profile, user, kind, record_id, new_kind, name):
+    """Read-only: the numbers that change if the record moved into a new heading of this name (nothing is kept)."""
+    ctx = Ctx(profile, user)
+    fmts = formats_for(user)
+    with transaction.atomic():
+        savepoint = transaction.savepoint()
+        try:
+            obj = get_record(ctx, kind, record_id, lock=False)
+            heading = _new_heading(ctx, obj, new_kind, name)
+            key = sequence_key(heading)
+            current = members(ctx.profile_id, key)
+            others = [m for m in current if ident(m) != ident(heading)]
+            objs = {ident(m): m for m in current}
+            changes = _changes(labels(key, others, fmts), labels(key, current, fmts), objs)
+            changes += preview_move(profile, user, kind, record_id, (new_kind, heading.pk))["changes"]
+            return {"changes": changes, "heading": heading.name}
+        finally:
+            transaction.savepoint_rollback(savepoint)
