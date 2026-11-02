@@ -1,4 +1,3 @@
-import os
 PEN='<svg class="pen" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l1-5L16 4l4 4L9 19z"/><path d="M14 6l4 4"/></svg>'
 def ctl(opt,on,ctx):
     up=' up' if ctx=='index' else ''
