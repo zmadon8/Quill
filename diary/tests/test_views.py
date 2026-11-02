@@ -1,3 +1,4 @@
+import re
 from django.contrib.auth import get_user_model
 from django.db import connection
 from django.test import TestCase, override_settings
@@ -285,7 +286,13 @@ class HomeIndexTests(TestCase):
             self.assertIn('aria-label="Forward"', header)
             self.assertNotIn("Back</button>", header)
             self.assertNotIn("Forward</button>", header)
-            self.assertEqual(header.count("<svg"), 2, name)
+            for attr in ("data-back", "data-forward"):
+                start = header.rindex("<button", 0, header.index(attr))
+                button = header[start : header.index("</button>", start) + len("</button>")]
+                self.assertEqual(button.count("<svg"), 1, name)
+                inner = button.split(">", 1)[1].rsplit("</button>", 1)[0]
+                self.assertEqual(re.sub(r"<svg.*?</svg>", "", inner, flags=re.S).strip(), "", name)
+            self.assertEqual(header.count("<svg") - 2, 1 if name == "subjects" else 0, name)  # Home icon: programs only
             self.assertIn('data-fallback="%s"' % reverse("home"), header)
 
     def test_review_in_diary_nav_for_anyone_with_a_profile(self):
