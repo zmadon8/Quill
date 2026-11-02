@@ -43,7 +43,13 @@ def house_parent(ctx, parent, create=True):
     if topic is None:
         if not create:
             return parent
-        from .records import create as create_record  # same Undo group: the Topic is part of the same action
+        from . import core
+        from .records import create as create_record
 
-        topic = create_record(ctx.profile, ctx.user, "topic", parent=("subject", parent[1]), name=TOPIC_ONE).record
+        # The Topic is part of the same action as the Item, so it joins the same Undo group.
+        token = core._shared_group.set(ctx.group)
+        try:
+            topic = create_record(ctx.profile, ctx.user, "topic", parent=("subject", parent[1]), name=TOPIC_ONE).record
+        finally:
+            core._shared_group.reset(token)
     return ("topic", topic.pk)
