@@ -165,6 +165,22 @@ Done: Case Law Diary pages under `/caselaw/` (old URLs redirect); in-site Back a
 Done: tighter wrapped lines, hanging-indent numbers, two 44px arrow buttons beside the Subject name, a divider before "Other Subjects", a "All" tick (on by default), everything collapsed by default (your choices kept per Subject; Collapse all resets), full stops after body numbers, a sticky Contents panel with its own scrollbar, a plain "Log in" page, and no user name in the Case Law Diary top bar. Decision recorded: programs are separate modules in one website. Details and owner words: `docs/DESIGN.md`, "Round 4".
 Done (follow-up): Back and Forward are arrow-only icon buttons; "All" moved to the right end of the breadcrumb row; the panel's "Subjects" heading is gone and the breadcrumb "Subjects" link opens the all-Subjects list in the panel; the sticky panel is fixed (CSS bug). See `docs/DESIGN.md`, "Round 4 follow-ups".
 
+## Round 5 (navigation, All, landing program, quick-add)
+
+**Status: items 1 to 9, 10a, 10b and 10c are built (code written and reviewed, not yet run against Django; GitHub CI is the first real run). Item 10d (merge Multi-Item into Item) is a proposal only and is NOT implemented, awaiting your approval.** Decisions R5-1 to R5-10c and the questions with defaults are in `docs/DESIGN.md`, "UI round 5".
+
+**Owner check list:**
+
+1. Click "Case Law Diary" in the header: it opens Subjects. The Home icon is on its left.
+2. On Home the "Case Law Diary" text is one large button.
+3. Edit a User: profile and role sit on one line, no descriptions.
+4. Subjects page shows "Other Subjects" below a line.
+5. Scroll down in a Subject: the small menu icon brings the full header back; jumping to a heading keeps its header visible.
+6. The tick says "All"; Settings has "Show All ticked by default" per profile.
+7. Set a user's landing program, sign out and in: you land there.
+8. In Edit mode (desktop) use the + beside a heading, Section or Item to add; on an Item it adds after it.
+9. Read the 10d proposal and answer the questions in DESIGN.md.
+
 ## Order and dependencies
 
 0, 1, then 2 (so real data can be seen), then 3, 4, 5, 6, 7. Milestones 4 and 5 can swap if you need Notes sooner. All questions in `docs/DESIGN.md` section 14 are answered (N1 and N2 are closed by D9 and I10). Only four small questions remain, each with a default that is used unless you say otherwise: the Section number style, the date format in file names, the long file name rule, and the Current View heading level for a Topic.

@@ -768,3 +768,72 @@ Questions for the owner: (1) Should the Home icon also show on suite pages? (2) 
 ### Editing redesign (plain description for the owner)
 
 Adding is now quicker in three ways. First, the edit buttons are small icons instead of words; hover or tab to a record to see them, and each has a hover label. Second, there is a **+** next to every heading, Section and Item. On a computer with a mouse, click it and a small box opens right under that line; type the text (and a citation for an Item), press **Enter**, and the entry is added directly after that Item or Section (or first inside that heading). The box stays open under the new entry so you can keep typing the next one; **Shift+Enter** starts a new line, **Esc** closes the box. Third, the same + works on a phone or tablet in Edit mode, but there it opens the ordinary Add page with the place already chosen, because a small screen has no room for the inline box. People who can only read never see the + and the server refuses them even if they try. Everything you add this way is numbered correctly, appears in History, and can be reversed with **Undo** (one step per entry). If someone else changed the Item you were adding after, nothing is added and you get the usual two versions screen.
+
+### Questions for the owner (round 5, consolidated)
+
+Each has a default that stands unless you say otherwise.
+
+1. Should the Home icon also show on suite pages (Users, Settings)? Default: no, only inside a program.
+2. Should the Admin checkbox help text on the User form go too? Default: no, it stays.
+3. Should the Other Subjects list be collapsible? Default: no, always visible under the divider.
+4. Should the landing program setting also apply when someone opens the bare site address while already signed in? Default: no, only straight after sign-in.
+5. Should "All" be remembered per browser (as now) or follow the profile default every visit? Default: per browser after the first visit, profile default on the first.
+6. Should the quick-add "+" also appear for Editors on phones as an inline box? Default: no, phones use the Add page.
+7. 10d (below): approve merging Multi-Item into Item? Default: not approved, nothing is built.
+8. 10d: should an Item with several citations keep the single Item-level Citation box as "first citation"? Default: yes in the UI, stored as Case (a).
+9. 10d: when several citations exist, show comments after each citation, in smaller grey type? Default: yes, same style as Case comments now.
+10. 10d: after the merge, may the "Multi-Item" choice stay in the Add menu as a shortcut? Default: no, the Add menu has only Item and Nested Item.
+
+## Proposal for 10d: merge Multi-Item into Item
+
+**STATUS: NOT IMPLEMENTED. This is a proposal only. No code, migration or data has changed. It waits for the owner's approval.**
+
+[Owner: "Perhaps 'multi-item' can be merged with 'item', and all items can allow me to add multiple citations, with a little optional 'comment' displayed after it?"]
+
+### How it would work
+
+- Every Item may hold zero, one or more citations. Each citation is a **Case** (citation line plus an optional rich-text comment), exactly as a Multi-Item's Cases are today.
+- Display: one citation shows as before, ` - Citation` after the text, with its comment (if any) after it. Several citations show as `(a) ... ; (b) ...` with each comment after its citation.
+- The `kind` value `multi` becomes derived: an Item is "multi" when it has two or more live Cases. It is no longer chosen or stored (the choice list keeps `plain` and `nested`).
+- The Item editor keeps one Citation box and an "Add another citation" button; each citation row has an optional Comment box and Up/Down/Remove.
+- Numbering: the Multi-Item number format (a), (b) is reused for the citation letters.
+
+### What exists today (from the code)
+
+- `Item.kind` is plain, multi or nested; `Item.citation` is one single line. A database check (`item_multi_has_no_citation`) forces a Multi-Item's own citation to be empty.
+- `Case` (item, citation, comment, comment_plain, position) is only allowed when `item.kind == multi` (`Case.clean`).
+- `diary/services/conversions.py` converts between the three kinds (Item to Multi makes Case (a) from the Citation; Multi to Item joins Cases into one line).
+- `diary/reading.py` builds `is_multi` and the (a), (b) labels from Cases. `diary/importer` creates Multi-Items from paragraphs marked (i), (ii) (`multi_marker`). `backups/registry.py` lists `diary.Case` in both the backup and optional model lists.
+
+### Migration path for existing data
+
+1. Stage A (additive): allow Cases under any non-nested Item (relax `Case.clean`); keep `Item.citation` and the check constraint untouched. Nothing is converted yet.
+2. Stage B (data migration, reversible): for every live plain Item with a non-empty `citation`, create Case (a) with that citation and an empty comment, then blank `Item.citation`. Existing Multi-Items already have Cases and are left alone. A backup is taken first (the same "Before ..." habit as the import).
+3. Stage C (cleanup): drop `item_multi_has_no_citation`, make `kind` accept only plain and nested, convert stored `multi` rows to `plain`, and derive "multi" from the Case count. Remove `Item.citation` only after at least one release with both in place, so a restore of an older backup still works.
+4. Older backups (with `Item.citation` and kind `multi`) must still restore: the restore path applies the same Stage B/C transformation on load.
+
+### Effects by area
+
+- **Word importer (`diary/importer`):** a single trailing citation becomes Case (a) instead of `Item.citation`; (i), (ii) paragraphs already make Cases and now yield an ordinary Item. The import reports, the idempotent `import_ref` and the reconciliation counts need updating (citations are counted from Cases). Re-importing must still change nothing.
+- **Conversions:** the Item/Multi pair disappears. Remaining are Item to/from Nested. Nested folding (child text to Case comment, child citation to Case citation) and its refusals stay, and now target any Item. The conversion preview must show the new citation list.
+- **Export (Word):** a one-citation Item exports exactly as now (` - Citation`). Several export as `(a) ... ; (b) ...`, with comments after each. The round-trip check must treat both forms as equal.
+- **History and Undo:** a Case already has its own history. Saving an Item with its citations should remain one Undo step, so the Item save must snapshot Cases together (as the Multi-Item save does today). Restoring an old version that predates the merge must map the old `citation` into Case (a).
+- **Backups:** the data is the same models, so the registry needs no new model. Round-trip tests must cover old-format backups. Restore replaces all rows, so there is no mixed state.
+- **Trash:** deleting an Item sends its Cases with it, and restoring brings them back. The Trash rule that refuses restoring a Case under a non-Multi parent is replaced by "parent must not be Nested-only".
+- **Review and search:** For-review, flags and Notes stay on the Item. Search must index citations from Cases (today it also indexes `Item.citation`). Citation counts in the Review list change to count Cases.
+
+### Risks
+
+- Largest: a data migration across every Item with a citation. Mitigation: staged plan, backup first, reversible step, keep the old column for a release.
+- More rows: one extra Case row per cited Item, so reading pages need the existing prefetch of Cases (already done in `reading.py`) to avoid extra queries.
+- Version history and Undo of older records refer to `citation`; the restore mapping must be tested.
+- Importer idempotence and the dry-run report change; the owner's real Word file must be re-checked.
+- Anything that compares `kind == "multi"` (templates, trash, conversions, export, tests) must be found and changed together.
+
+### Staged plan (each stage is separate, tested and approved)
+
+1. Stage A: allow Cases under plain Items; Item editor shows "Add another citation"; reading view displays both. No data change.
+2. Stage B: data migration of `Item.citation` into Case (a), importer and export switched, old-backup handling.
+3. Stage C: `multi` derived, conversions reduced, constraint and column cleanup, docs and README updated.
+
+Each stage ends with CI green and your check before the next begins.
