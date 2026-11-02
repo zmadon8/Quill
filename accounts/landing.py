@@ -25,7 +25,13 @@ def programs_for(user):
 def landing_url(user):
     """The page to open after sign-in: the chosen program if the user still has a profile in it, else Home."""
     key = getattr(user, "landing_program", "")
-    if key in PROGRAM_LANDING_URLS and get_profile_for(user, key) is not None:
-        return reverse(PROGRAM_LANDING_URLS[key])
+    if key in PROGRAM_LANDING_URLS:
+        profile = get_profile_for(user, key)
+        if profile is not None:
+            if key == suite.KEY_DIARY:
+                from diary.opening import opening_url  # lazy: diary imports accounts
+
+                return opening_url(user, profile)
+            return reverse(PROGRAM_LANDING_URLS[key])
     return reverse("home")
 

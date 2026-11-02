@@ -21,6 +21,7 @@ from accounts.profiles import export_file_name, request_profile, request_role
 from accounts.suite import KEY_DIARY
 
 from . import reading, undo_session
+from .opening import remember_page
 from . import search as search_module
 from .forms import ProfileSettingsForm
 from .importer import loader as import_loader
@@ -124,6 +125,7 @@ def item_counts_by_subject(profile):
 
 
 @profile_required
+@remember_page
 def subjects(request):
     """Index: Subjects on the landing page with item counts, then the Other Subjects below a divider."""
     profile = request.profile
@@ -231,6 +233,7 @@ def _in_context(request, scope=None):
 
 
 @profile_required
+@remember_page
 def subject_contents(request, pk):
     subject = get_object_or_404(_subjects(request.profile), pk=pk)
     context = reading.build_reading(subject, request.user)
@@ -256,12 +259,14 @@ def _crumbs(subject):
 
 
 @profile_required
+@remember_page
 def read_subject(request, pk):
     subject = get_object_or_404(_subjects(request.profile), pk=pk)
     return _render_reading(request, subject, "subject", None, _crumbs(subject))
 
 
 @profile_required
+@remember_page
 def read_topic(request, pk):
     topic = get_object_or_404(Topic.objects.select_related("subject"), pk=pk, profile=request.profile,
                               deleted_at__isnull=True, subject__deleted_at__isnull=True)
@@ -270,6 +275,7 @@ def read_topic(request, pk):
 
 
 @profile_required
+@remember_page
 def read_subtopic(request, pk):
     subtopic = get_object_or_404(Subtopic.objects.select_related("subject", "topic__subject"), pk=pk,
                                  profile=request.profile, deleted_at__isnull=True)
@@ -316,6 +322,7 @@ def _review_rows(profile):
 
 
 @profile_required
+@remember_page
 def review_list(request):
     """Docs/DESIGN.md section 5.12: everything marked For review, with path and note."""
     rows = _review_rows(request.profile)
@@ -341,6 +348,7 @@ SEARCH_MAX = 1000
 
 
 @profile_required
+@remember_page
 def search(request):
     """Global Search (docs/DESIGN.md section 10). Everything is in the address, so Back and bookmarks work."""
     profile = request.profile
