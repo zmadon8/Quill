@@ -1,6 +1,6 @@
 """Move, reorder, positions and generated numbers after moves and deletes (service layer)."""
 from diary import services as svc
-from diary.models import NoteLink, VersionHistory
+from diary.models import Case, NoteLink, VersionHistory
 from diary.tests.service_helpers import ServiceTestCase
 
 BASE = [("(1)", "one"), ("(2)", "two"), ("(a)", "S"), ("(1)", "three"), ("(2)", "four")]
@@ -101,7 +101,7 @@ class ReorderTests(ServiceTestCase):
         self.assertEqual(self.get(foreign).version, 1)
 
     def test_cases_reorder(self):
-        multi = self.make("item", ("topic", self.topic.pk), kind="multi", text="m")
+        multi = self.make("item", ("topic", self.topic.pk), text="m")
         c1, c2, c3 = (self.make("case", ("item", multi.pk), citation=f"C{n}") for n in (1, 2, 3))
         svc.shift(self.profile, self.user, "case", c3.pk, -1)
         self.assertEqual(self.positions([c1, c2, c3]), [1, 3, 2])
@@ -165,12 +165,25 @@ class MoveBetweenParentsTests(ServiceTestCase):
     def test_one_level_of_nesting_is_enforced(self):
         nested = self.make("item", ("topic", self.topic.pk), kind="nested", text="n")
         other_nested = self.make("item", ("topic", self.topic.pk), kind="nested", text="n2")
-        multi = self.make("item", ("topic", self.topic.pk), kind="multi", text="m")
-        for moved, parent in ((other_nested, nested), (multi, nested), (nested, nested), (self.one, self.two)):
+        for moved, parent in ((other_nested, nested), (nested, nested), (self.one, self.two)):
             with self.assertRaises(svc.Refused):
                 svc.move(self.profile, self.user, "item", moved.pk, ("item", parent.pk))
         self.assertEqual(self.get(other_nested).topic_id, self.topic.pk)
         self.assertEqual(self.get(self.one).version, 1)
+
+    def test_an_item_with_citations_can_sit_beneath_a_nested_item(self):
+        nested = self.make("item", ("topic", self.topic.pk), kind="nested", text="n")
+        cited = self.make("item", ("topic", self.topic.pk), text="m", citation="A v B")
+        svc.move(self.profile, self.user, "item", cited.pk, ("item", nested.pk))
+        self.assertEqual(self.get(cited).parent_item_id, nested.pk)
+        self.assertEqual(Case.objects.filter(item=cited, deleted_at__isnull=True).count(), 1)
+
+    def test_a_case_moves_to_another_plain_item(self):
+        first = self.make("item", ("topic", self.topic.pk), text="a", citation="A v B")
+        second = self.make("item", ("topic", self.topic.pk), text="b")
+        case = Case.objects.get(item=first)
+        svc.move(self.profile, self.user, "case", case.pk, ("item", second.pk))
+        self.assertEqual(self.get(case).item_id, second.pk)
 
     def test_impossible_moves_are_refused_with_a_reason(self):
         with self.assertRaises(svc.Refused):
@@ -179,10 +192,11 @@ class MoveBetweenParentsTests(ServiceTestCase):
             svc.move(self.profile, self.user, "section", self.sec.pk, ("item", self.one.pk))
         with self.assertRaises(svc.Refused):
             svc.move(self.profile, self.user, "subject", self.subject.pk, ("topic", self.topic.pk))
+        nested = self.make("item", ("topic", self.topic.pk), kind="nested", text="n")
         with self.assertRaises(svc.Refused):
             svc.move(self.profile, self.user, "case", self.make("case", ("item", self.make(
-                "item", ("topic", self.topic.pk), kind="multi", text="m").pk), citation="c").pk,
-                ("item", self.one.pk))
+                "item", ("topic", self.topic.pk), text="m").pk), citation="c").pk,
+                ("item", nested.pk))
         self.assertEqual(self.get(self.sec).subtopic_id, None)
         self.assertEqual(self.get(self.sec).topic_id, self.topic.pk)
 
