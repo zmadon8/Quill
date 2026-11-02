@@ -25,7 +25,11 @@ class User(AbstractUser):
     Admins manage users, profiles, settings and backups. What anyone may do inside a program
     (change data or only read it) comes from the role on their ``ProfileMembership`` for that
     program, Admins included. New accounts are not Admins.
+    ``landing_program`` is the program key (see ``accounts.suite``) the user lands in after signing in;
+    blank means the Home page.
     """
+
+    landing_program = models.CharField(max_length=30, blank=True, default="")
 
     def save(self, *args, **kwargs):
         self.is_staff = self.is_superuser

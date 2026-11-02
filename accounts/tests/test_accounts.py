@@ -122,6 +122,129 @@ class LoginTests(BaseCase):
         self.assertFalse(FailedLogin.objects.filter(username_lower="alice").exists())
 
 
+class LandingProgramTests(BaseCase):
+    def login(self, next_url=None, username="alice"):
+        data = {"username": username, "password": PASSWORD}
+        if next_url is not None:
+            data["next"] = next_url
+        return self.client.post(reverse("login"), data)
+
+    def choose(self, user, key="diary"):
+        User.objects.filter(pk=user.pk).update(landing_program=key)
+
+    def test_default_is_home(self):
+        self.assertEqual(self.user.landing_program, "")
+        self.assertRedirects(self.login(), reverse("home"))
+
+    def test_chosen_program_is_the_landing_page(self):
+        self.choose(self.user)
+        self.assertRedirects(self.login(), reverse("subjects"))
+
+    def test_safe_next_wins(self):
+        self.choose(self.user)
+        resp = self.login(next_url=reverse("my_settings"))
+        self.assertRedirects(resp, reverse("my_settings"))
+
+    def test_unsafe_next_is_ignored(self):
+        self.choose(self.user)
+        resp = self.login(next_url="https://evil.example.com/x")
+        self.assertRedirects(resp, reverse("subjects"))
+
+    def test_no_profile_falls_back_to_home(self):
+        loner = self.make_user("loner")
+        self.choose(loner)
+        self.assertRedirects(self.login(username="loner"), reverse("home"))
+
+    def test_unknown_stored_value_falls_back_to_home(self):
+        self.choose(self.user, "nonsense")
+        self.assertRedirects(self.login(), reverse("home"))
+
+    def test_already_signed_in_visit_to_login_uses_the_landing_page(self):
+        self.choose(self.user)
+        self.client.force_login(self.user)
+        resp = self.client.get(reverse("login"))
+        self.assertRedirects(resp, reverse("subjects"))
+
+    def test_login_redirect_setting_stays_home(self):
+        from django.conf import settings
+
+        self.assertEqual(settings.LOGIN_REDIRECT_URL, "home")
+
+    def test_user_sets_own_landing_program(self):
+        self.client.force_login(self.user)
+        resp = self.client.get(reverse("my_settings"))
+        self.assertContains(resp, "Open after login")
+        self.assertContains(resp, 'value="diary"')
+        resp = self.client.post(reverse("my_settings"), {"landing_program": "diary"})
+        self.assertRedirects(resp, reverse("my_settings"))
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.landing_program, "diary")
+        self.client.post(reverse("my_settings"), {"landing_program": ""})
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.landing_program, "")
+
+    def test_my_settings_needs_sign_in_and_is_linked_from_home(self):
+        self.assertEqual(self.client.get(reverse("my_settings")).status_code, 302)
+        self.client.force_login(self.user)
+        self.assertContains(self.client.get(reverse("home")), reverse("my_settings"))
+
+    def test_user_without_profile_only_sees_home_choice(self):
+        loner = self.make_user("loner")
+        self.client.force_login(loner)
+        self.assertNotContains(self.client.get(reverse("my_settings")), 'value="diary"')
+        resp = self.client.post(reverse("my_settings"), {"landing_program": "diary"})
+        self.assertEqual(resp.status_code, 200)
+        loner.refresh_from_db()
+        self.assertEqual(loner.landing_program, "")
+
+    def test_invalid_value_is_rejected(self):
+        self.client.force_login(self.user)
+        resp = self.client.post(reverse("my_settings"), {"landing_program": "nonsense"})
+        self.assertEqual(resp.status_code, 200)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.landing_program, "")
+
+    def test_user_cannot_change_another_users_setting(self):
+        self.client.force_login(self.user)
+        self.client.post(reverse("my_settings"), {"landing_program": "diary", "id": self.admin.pk})
+        self.admin.refresh_from_db()
+        self.assertEqual(self.admin.landing_program, "")
+        resp = self.client.post(
+            reverse("user_edit", args=[self.admin.pk]), {"username": "boss", "landing_program": "diary"}
+        )
+        self.assertEqual(resp.status_code, 403)
+        self.admin.refresh_from_db()
+        self.assertEqual(self.admin.landing_program, "")
+
+    def test_admin_sets_it_on_user_edit(self):
+        self.client.force_login(self.admin)
+        url = reverse("user_edit", args=[self.user.pk])
+        self.assertContains(self.client.get(url), "Open after login")
+        resp = self.client.post(
+            url,
+            {
+                "username": "alice",
+                "is_active": "on",
+                "profile": ensure_default_profile().pk,
+                "profile_role": "reader",
+                "landing_program": "diary",
+            },
+        )
+        self.assertRedirects(resp, reverse("user_list"))
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.landing_program, "diary")
+
+    def test_admin_edit_rejects_invalid_value(self):
+        self.client.force_login(self.admin)
+        resp = self.client.post(
+            reverse("user_edit", args=[self.user.pk]),
+            {"username": "alice", "is_active": "on", "profile_role": "reader", "landing_program": "nonsense"},
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.landing_program, "")
+
+
 class AccessTests(BaseCase):
     def test_anonymous_redirected_to_login(self):
         for url in ["/", "/users/", "/users/new/"]:

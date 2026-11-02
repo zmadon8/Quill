@@ -572,6 +572,25 @@ class ReadingAllDefaultBackupTests(BackupBase):
         self.assertTrue(Profile.objects.get(name="Main").reading_all_default)
 
 
+class LandingProgramBackupTests(BackupBase):
+    def test_setting_round_trips(self):
+        User.objects.filter(pk=self.alice.pk).update(landing_program="diary")
+        doc = services.parse_backup(services.create_backup("manual").data, MAX)
+        rows = {r["fields"]["username"]: r["fields"] for r in doc["models"]["accounts.User"]}
+        self.assertEqual(rows["alice"]["landing_program"], "diary")
+        User.objects.filter(pk=self.alice.pk).update(landing_program="")
+        services.restore_backup(doc, self.admin)
+        self.assertEqual(User.objects.get(username="alice").landing_program, "diary")
+
+    def test_backup_made_before_the_setting_restores_as_home(self):
+        User.objects.filter(pk=self.alice.pk).update(landing_program="diary")
+        doc = services.parse_backup(services.create_backup("manual").data, MAX)
+        for record in doc["models"]["accounts.User"]:
+            del record["fields"]["landing_program"]
+        services.restore_backup(doc, self.admin)
+        self.assertEqual(User.objects.get(username="alice").landing_program, "")
+
+
 class ViewTests(BackupBase):
     def test_non_admin_gets_403_everywhere(self):
         backup = services.create_backup("daily")

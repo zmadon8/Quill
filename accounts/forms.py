@@ -8,7 +8,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
-from . import suite
+from . import landing, suite
 from .models import (
     ROLE_CHOICES,
     ROLE_READER,
@@ -87,6 +87,14 @@ def _admin_field():
     )
 
 
+def _landing_field(programs=None):
+    return forms.ChoiceField(
+        choices=landing.program_choices(programs),
+        required=False,
+        label="Open after login",
+    )
+
+
 def _live_diary_profiles():
     return Profile.objects.filter(program=suite.KEY_DIARY, deleted_at__isnull=True).order_by("name")
 
@@ -136,13 +144,15 @@ class UserEditForm(forms.ModelForm):
     is_admin = _admin_field()
     profile = _profile_field()
     profile_role = _profile_role_field()
+    landing_program = _landing_field()
 
     class Meta:
         model = User
-        fields = ("username", "is_active")
+        fields = ("username", "is_active", "landing_program")
 
     def __init__(self, *args, editing_user=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["landing_program"].choices = landing.program_choices()
         self.editing_user = editing_user
         self.fields["is_admin"].initial = self.instance.is_superuser
         self.fields["profile"].queryset = _live_diary_profiles()
@@ -189,6 +199,20 @@ class UserEditForm(forms.ModelForm):
                 user.save()
                 set_user_profile(user, self.cleaned_data.get("profile"), self.cleaned_data["profile_role"])
         return user
+
+
+class MySettingsForm(forms.ModelForm):
+    """What a signed-in user may change about themselves: where to land after login."""
+
+    landing_program = forms.ChoiceField(required=False, label="Open after login")
+
+    class Meta:
+        model = User
+        fields = ("landing_program",)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["landing_program"].choices = landing.program_choices(landing.programs_for(self.instance))
 
 
 class ProfileForm(forms.ModelForm):

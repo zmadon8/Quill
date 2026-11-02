@@ -7,7 +7,7 @@ from .forms import ThrottledAuthenticationForm
 urlpatterns = [
     path(
         "login/",
-        auth_views.LoginView.as_view(
+        views.LandingLoginView.as_view(
             template_name="registration/login.html",
             authentication_form=ThrottledAuthenticationForm,
             redirect_authenticated_user=True,
@@ -15,6 +15,7 @@ urlpatterns = [
         name="login",
     ),
     path("logout/", auth_views.LogoutView.as_view(), name="logout"),
+    path("my-settings/", views.my_settings, name="my_settings"),
     path("settings/", views.suite_settings, name="settings"),
     path("profiles/", views.profile_list, name="profile_list"),
     path("profiles/new/", views.profile_create, name="profile_create"),

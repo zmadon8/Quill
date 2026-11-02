@@ -1,11 +1,13 @@
 from django.contrib import messages
 from django.contrib.auth import get_user_model
+from django.contrib.auth import views as auth_views
+from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_http_methods
 
-from . import suite
+from . import landing, suite
 from .clear import ClearRefused, clear_preview, clear_profile
-from .forms import ProfileForm, SuiteNamesForm, UserCreateForm, UserEditForm
+from .forms import MySettingsForm, ProfileForm, SuiteNamesForm, UserCreateForm, UserEditForm
 from .models import Profile, ProfileMembership, PurgeLog
 from .permissions import admin_required
 from .profiles import (
@@ -19,6 +21,27 @@ from .profiles import (
 )
 
 User = get_user_model()
+
+
+class LandingLoginView(auth_views.LoginView):
+    """Sign in, then open a safe ``next`` if there is one, else the user's chosen program, else Home."""
+
+    def get_default_redirect_url(self):
+        return landing.landing_url(self.request.user)
+
+    # LoginView.get_success_url uses a safe ``next`` first (host and scheme checked), then this default.
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def my_settings(request):
+    """Every signed-in user: choose the page to open after login."""
+    form = MySettingsForm(request.POST or None, instance=request.user)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Settings saved.")
+        return redirect("my_settings")
+    return render(request, "accounts/my_settings.html", {"form": form})
 
 
 @admin_required
