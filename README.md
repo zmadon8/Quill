@@ -192,8 +192,10 @@ You normally do not touch these; the Blueprint sets them.
 
 - On wide screens the Contents panel stays on screen while you scroll, with its own scrollbar; the current entry is brought into view.
 - Topics start collapsed. Your open/close choices are remembered per Subject in this browser; the inward-arrows button (Collapse all) goes back to the default.
-- **View in context** ticked: choosing an entry opens the whole Subject and jumps to it. Unticked: you see only the Topic or Sub-topic you chose. The choice is remembered in this browser. It starts ticked. The tick sits on the breadcrumb row, at the far right, and appears only when JavaScript is on.
+- **All** ticked: choosing an entry opens the whole Subject and jumps to it. Unticked: you see only the Topic or Sub-topic you chose. The choice is remembered in this browser. It starts ticked unless an Editor turns that off for the profile in Profile settings ("Show All ticked by default"); a choice made in a browser by ticking or unticking All wins over the profile setting. The tick sits on the breadcrumb row, at the far right, and appears only when JavaScript is on.
 - Clicking **Subjects** in the breadcrumb shows the list of every Subject in the Contents panel (on phones it opens the panel with that list) without leaving the page. Without JavaScript it goes to the Subjects page. The panel has no "Subjects" heading.
+- A small three-line **Show header** button at the left end of the breadcrumb row appears once you have scrolled past the header; it drops the whole header down over the page (Escape or a click elsewhere closes it). It needs JavaScript.
+- Jumping to a Topic, Sub-topic, Section or Item stops with its heading just below the sticky breadcrumb row, so the heading is visible.
 - Numbers in the text now have full stops after them, as in the panel.
 
 ## Everyday use

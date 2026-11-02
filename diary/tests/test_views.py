@@ -347,7 +347,7 @@ class ReadingScreenTests(TestCase):
         cls.offer = Subtopic.objects.get(name="Offer")
 
     def setUp(self):
-        # View in context is on by default; most tests read single Topics, so start unticked.
+        # "All" is on by default; most tests read single Topics, so start unticked.
         self.client.cookies["quill_in_context"] = "0"
 
     def urls(self):
@@ -446,7 +446,13 @@ class ReadingScreenTests(TestCase):
             crumb = html.split('class="crumb-row"')[1].split("</div>")[0]
             self.assertIn('href="%s" data-panel-switch aria-controls="panel-subjects" aria-expanded="false"' % reverse("subjects"), crumb, url)
             self.assertIn("data-in-context", crumb, url)
-            self.assertIn("View in context", crumb, url)
+            self.assertIn("> All</label>", crumb, url)
+            self.assertNotIn("View in context", html, url)
+            self.assertIn('data-header-toggle hidden aria-expanded="false" aria-controls="site-header"', crumb, url)
+            self.assertIn('aria-label="Show header"', crumb, url)
+            self.assertIn('title="Show header"', crumb, url)
+            self.assertLess(crumb.index("data-header-toggle"), crumb.index("<nav"), url)
+            self.assertIn('id="site-header"', html, url)
             panel = html.split('id="contents-panel"')[1].split("</aside>")[0]
             self.assertNotIn("data-in-context", panel, url)
             self.assertNotIn("panel-heading", html, url)
@@ -507,7 +513,7 @@ class ReadingScreenTests(TestCase):
         resp = self.client.get(reverse("read_subject", args=[self.contract.pk]))
         self.assertNotContains(resp, "data-toc-current")
 
-    def test_view_in_context_is_on_by_default_and_jumps(self):
+    def test_all_is_on_by_default_and_jumps(self):
         self.client.force_login(self.users["reader"])
         topic = Topic.objects.get(name="Remedies")
         whole = reverse("read_subject", args=[self.contract.pk])
@@ -531,6 +537,34 @@ class ReadingScreenTests(TestCase):
         self.assertNotContains(resp, "data-in-context checked")
         self.assertContains(resp, 'href="%s"' % reverse("read_topic", args=[topic.pk]))
         self.assertContains(resp, 'href="%s"' % reverse("read_subtopic", args=[self.clause.pk]))
+
+    def test_no_cookie_follows_profile_default(self):
+        self.client.force_login(self.users["reader"])
+        topic = Topic.objects.get(name="Remedies")
+        whole = reverse("read_subject", args=[self.contract.pk])
+        del self.client.cookies["quill_in_context"]
+        Profile.objects.filter(pk=main_profile().pk).update(reading_all_default=False)
+        self.assertEqual(self.client.get(reverse("read_topic", args=[topic.pk])).status_code, 200)
+        resp = self.client.get(whole)
+        self.assertNotContains(resp, "data-in-context checked")
+        self.assertContains(resp, "data-in-context")
+        resp = self.client.get(reverse("subject_contents", args=[self.contract.pk]))
+        self.assertNotContains(resp, "data-in-context checked")
+        Profile.objects.filter(pk=main_profile().pk).update(reading_all_default=True)
+        resp = self.client.get(reverse("read_topic", args=[topic.pk]))
+        self.assertRedirects(resp, "%s#n-topic-%d" % (whole, topic.pk), fetch_redirect_response=False)
+
+    def test_explicit_cookie_beats_profile_default(self):
+        self.client.force_login(self.users["reader"])
+        topic = Topic.objects.get(name="Remedies")
+        whole = reverse("read_subject", args=[self.contract.pk])
+        Profile.objects.filter(pk=main_profile().pk).update(reading_all_default=False)
+        self.client.cookies["quill_in_context"] = "1"
+        resp = self.client.get(reverse("read_topic", args=[topic.pk]))
+        self.assertRedirects(resp, "%s#n-topic-%d" % (whole, topic.pk), fetch_redirect_response=False)
+        Profile.objects.filter(pk=main_profile().pk).update(reading_all_default=True)
+        self.client.cookies["quill_in_context"] = "0"
+        self.assertEqual(self.client.get(reverse("read_topic", args=[topic.pk])).status_code, 200)
 
     def test_login_page_has_no_diary_name(self):
         from django.test import Client
@@ -747,7 +781,7 @@ class ProfileScopingTests(TestCase):
         Item.objects.create(profile=cls.b, topic=cls.top_b, text="<p>b2</p>")
 
     def setUp(self):
-        self.client.cookies["quill_in_context"] = "0"  # View in context is on by default; read single pages here
+        self.client.cookies["quill_in_context"] = "0"  # "All" is on by default; read single pages here
 
     def test_index_lists_only_own_profile(self):
         self.client.force_login(self.user_a)

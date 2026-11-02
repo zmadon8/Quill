@@ -972,6 +972,27 @@ class ExportNameTests(BaseCase):
         self.assertEqual(Profile.objects.get(pk=self.main().pk).export_name, "My: Diary")
         self.assertContains(self.client.get(reverse("profile_settings")), "My Diary")
 
+    def test_all_default_is_on_and_editor_can_switch_it_off_and_on(self):
+        self.assertTrue(self.main().reading_all_default)
+        self.client.force_login(self.admin)
+        resp = self.client.get(reverse("profile_settings"))
+        self.assertContains(resp, 'name="reading_all_default"')
+        self.assertContains(resp, "Show &quot;All&quot; ticked by default")
+        self.client.post(reverse("profile_settings"), {"export_name": ""})  # unticked box sends nothing
+        self.assertFalse(Profile.objects.get(pk=self.main().pk).reading_all_default)
+        self.client.post(reverse("profile_settings"), {"export_name": "", "reading_all_default": "on"})
+        self.assertTrue(Profile.objects.get(pk=self.main().pk).reading_all_default)
+
+    def test_reader_cannot_change_all_default(self):
+        self.client.force_login(self.user)
+        resp = self.client.post(reverse("profile_settings"), {"export_name": "", "reading_all_default": "on"})
+        self.assertEqual(resp.status_code, 403)
+        Profile.objects.filter(pk=self.main().pk).update(reading_all_default=False)
+        resp = self.client.get(reverse("profile_settings"))
+        self.assertNotContains(resp, 'name="reading_all_default"')
+        self.assertContains(resp, "starts ticked")
+        self.assertFalse(Profile.objects.get(pk=self.main().pk).reading_all_default)
+
     def test_reader_can_view_but_not_change(self):
         self.client.force_login(self.user)
         resp = self.client.get(reverse("profile_settings"))

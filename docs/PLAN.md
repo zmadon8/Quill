@@ -162,8 +162,8 @@ Done: Case Law Diary pages under `/caselaw/` (old URLs redirect); in-site Back a
 
 ## Round 4 (Contents panel, login, top bar)
 
-Done: tighter wrapped lines, hanging-indent numbers, two 44px arrow buttons beside the Subject name, a divider before "Other Subjects", a "View in context" tick (on by default), everything collapsed by default (your choices kept per Subject; Collapse all resets), full stops after body numbers, a sticky Contents panel with its own scrollbar, a plain "Log in" page, and no user name in the Case Law Diary top bar. Decision recorded: programs are separate modules in one website. Details and owner words: `docs/DESIGN.md`, "Round 4".
-Done (follow-up): Back and Forward are arrow-only icon buttons; "View in context" moved to the right end of the breadcrumb row; the panel's "Subjects" heading is gone and the breadcrumb "Subjects" link opens the all-Subjects list in the panel; the sticky panel is fixed (CSS bug). See `docs/DESIGN.md`, "Round 4 follow-ups".
+Done: tighter wrapped lines, hanging-indent numbers, two 44px arrow buttons beside the Subject name, a divider before "Other Subjects", a "All" tick (on by default), everything collapsed by default (your choices kept per Subject; Collapse all resets), full stops after body numbers, a sticky Contents panel with its own scrollbar, a plain "Log in" page, and no user name in the Case Law Diary top bar. Decision recorded: programs are separate modules in one website. Details and owner words: `docs/DESIGN.md`, "Round 4".
+Done (follow-up): Back and Forward are arrow-only icon buttons; "All" moved to the right end of the breadcrumb row; the panel's "Subjects" heading is gone and the breadcrumb "Subjects" link opens the all-Subjects list in the panel; the sticky panel is fixed (CSS bug). See `docs/DESIGN.md`, "Round 4 follow-ups".
 
 ## Order and dependencies
 

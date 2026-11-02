@@ -256,8 +256,80 @@
     if (sc) { sc.scrollTop = Math.max(0, link.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop - sc.clientHeight / 3); }
   });
 
-  // "View in context": remembered in a cookie so the server shows the whole Subject; Contents links then jump within it.
+  // Sticky breadcrumb row: measure its height into --sticky-offset so jump targets stop below it (see scroll-margin-top in site.css).
+  // The "Show header" button (three lines) drops the whole header down over the page once it has scrolled out of view.
+  var crumbRow = document.querySelector(".crumb-row");
+  if (crumbRow) {
+    var rootStyle = document.documentElement.style;
+    var measure = function () {
+      rootStyle.setProperty("--sticky-offset", crumbRow.getBoundingClientRect().height + "px");
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    if (window.ResizeObserver) { new ResizeObserver(measure).observe(crumbRow); }
+    // A hash in the address (from the All redirect) was jumped to before the offset was known: jump again, now and after layout/fonts.
+    var userMoved = false;
+    var markMoved = function () { userMoved = true; };
+    window.addEventListener("wheel", markMoved, { passive: true });
+    window.addEventListener("touchmove", markMoved, { passive: true });
+    window.addEventListener("keydown", markMoved);
+    var jumpToHash = function () {
+      var id = window.location.hash.replace(/^#/, "");
+      var el = id ? document.getElementById(decodeURIComponent(id)) : null;
+      if (el) { measure(); el.scrollIntoView(); }
+    };
+    jumpToHash();
+    window.addEventListener("load", function () { if (!userMoved) { jumpToHash(); } });
+
+    var headerBtn = crumbRow.querySelector("[data-header-toggle]");
+    var siteHeader = document.getElementById("site-header");
+    if (headerBtn && siteHeader) {
+      var spacer = null;
+      var isOpen = function () { return !!spacer; };
+      var closeHeader = function (refocus) {
+        if (!isOpen()) { return; }
+        siteHeader.classList.remove("header-open");
+        siteHeader.style.top = siteHeader.style.left = siteHeader.style.width = "";
+        spacer.parentNode.removeChild(spacer);
+        spacer = null;
+        headerBtn.setAttribute("aria-expanded", "false");
+        if (refocus) { headerBtn.focus(); }
+      };
+      var openHeader = function () {
+        if (isOpen()) { return; }
+        var rect = siteHeader.getBoundingClientRect();
+        spacer = document.createElement("div");
+        spacer.className = "header-spacer";
+        spacer.setAttribute("aria-hidden", "true");
+        spacer.style.height = rect.height + "px";
+        siteHeader.parentNode.insertBefore(spacer, siteHeader);
+        var top = crumbRow.getBoundingClientRect().bottom;
+        rootStyle.setProperty("--header-top", top + "px");
+        siteHeader.style.top = top + "px";
+        siteHeader.style.left = rect.left + "px";
+        siteHeader.style.width = rect.width + "px";
+        siteHeader.classList.add("header-open");
+        headerBtn.setAttribute("aria-expanded", "true");
+      };
+      var syncButton = function () {
+        var gone = (spacer || siteHeader).getBoundingClientRect().bottom <= 0;
+        headerBtn.hidden = !gone;
+        if (!gone) { closeHeader(false); }
+      };
+      headerBtn.addEventListener("click", function () { if (isOpen()) { closeHeader(true); } else { openHeader(); } });
+      document.addEventListener("keydown", function (e) { if (e.key === "Escape" && isOpen()) { closeHeader(true); } });
+      document.addEventListener("click", function (e) {
+        if (isOpen() && !siteHeader.contains(e.target) && !headerBtn.contains(e.target)) { closeHeader(false); }
+      });
+      window.addEventListener("scroll", syncButton, { passive: true });
+      window.addEventListener("resize", function () { closeHeader(false); syncButton(); });
+      syncButton();
+    }
+  }
+
+  // "All": remembered in a cookie so the server shows the whole Subject; Contents links then jump within it.
   // The choice is also kept in localStorage; if the cookie is missing but localStorage has it, the cookie is restored once.
+  // With no cookie and nothing in localStorage there is no choice yet: the server's checkbox state (the profile's default) stands and no cookie is written until the box is toggled.
   var contextBox = document.querySelector("[data-in-context]");
   if (contextBox) {
     var CTX_KEY = "quill.incontext";

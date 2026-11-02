@@ -12,6 +12,7 @@
 </form>
 {% else %}
 <p>Export file name: <strong>{{ preview }}</strong></p>
+<p>"All" starts ticked: <strong>{% if request.profile.reading_all_default %}Yes{% else %}No{% endif %}</strong></p>
 <p class="muted">Only Editors of this profile can change it.</p>
 {% endif %}
 {% endblock %}

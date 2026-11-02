@@ -554,6 +554,24 @@ class OldFileWithoutProfilesTests(BackupBase):
         )
 
 
+class ReadingAllDefaultBackupTests(BackupBase):
+    def test_setting_round_trips(self):
+        Profile.objects.filter(pk=main_profile().pk).update(reading_all_default=False)
+        doc = services.parse_backup(services.create_backup("manual").data, MAX)
+        self.assertIs(doc["models"]["accounts.Profile"][0]["fields"]["reading_all_default"], False)
+        Profile.objects.filter(pk=main_profile().pk).update(reading_all_default=True)
+        services.restore_backup(doc, self.admin)
+        self.assertFalse(Profile.objects.get(name="Main").reading_all_default)
+
+    def test_backup_made_before_the_setting_restores_as_on(self):
+        Profile.objects.filter(pk=main_profile().pk).update(reading_all_default=False)
+        doc = services.parse_backup(services.create_backup("manual").data, MAX)
+        for record in doc["models"]["accounts.Profile"]:
+            del record["fields"]["reading_all_default"]
+        services.restore_backup(doc, self.admin)
+        self.assertTrue(Profile.objects.get(name="Main").reading_all_default)
+
+
 class ViewTests(BackupBase):
     def test_non_admin_gets_403_everywhere(self):
         backup = services.create_backup("daily")

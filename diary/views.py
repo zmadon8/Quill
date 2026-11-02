@@ -145,7 +145,7 @@ def home(request):
 
 @profile_required
 def profile_settings(request):
-    """Settings of the user's profile. Editors can change the export name; Readers only view it."""
+    """Settings of the user's profile. Editors can change the export name and the "All" default; Readers only view them."""
     profile = request.profile
     can_edit = user_can_edit(request)
     form = ProfileSettingsForm(request.POST or None, instance=profile)
@@ -187,10 +187,14 @@ IN_CONTEXT_COOKIE = "quill_in_context"
 
 
 def _in_context(request):
-    """The "View in context" tick, remembered in a cookie so the server can show the whole Subject.
+    """The "All" tick, remembered in a cookie so the server can show the whole Subject.
 
-    On unless the cookie says "0" (unticked)."""
-    return request.COOKIES.get(IN_CONTEXT_COOKIE) != "0"
+    With a cookie, "0" is unticked and anything else is ticked. With no cookie (no choice made yet) the
+    profile's ``reading_all_default`` decides."""
+    cookie = request.COOKIES.get(IN_CONTEXT_COOKIE)
+    if cookie is None:
+        return bool(request.profile.reading_all_default)
+    return cookie != "0"
 
 
 @profile_required
@@ -204,7 +208,7 @@ def subject_contents(request, pk):
 
 def _render_reading(request, subject, scope, target, crumbs):
     if scope != "subject" and _in_context(request):
-        # View in context: the whole Subject is shown and the browser jumps to the chosen entry.
+        # All view: the whole Subject is shown and the browser jumps to the chosen entry.
         keep = "?edit=1" if edit_context(request)["edit_mode"] else ""
         return redirect(f"{reverse('read_subject', args=[subject.pk])}{keep}#n-{scope}-{target.pk}")
     context = reading.build_reading(subject, request.user, scope, target)

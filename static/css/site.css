@@ -147,6 +147,12 @@ td a { display: inline-block; min-height: var(--tap); line-height: var(--tap); p
 .contents-panel ul { list-style: none; padding-left: 2.75rem; margin: 0; }
 .contents-panel > ul, .contents-panel .toc-list { padding-left: 0; }
 .contents-panel li li { border-bottom: 1px solid var(--hair); }
+.header-toggle { padding: 0; width: var(--tap); min-width: var(--tap); border-color: var(--hair); margin-right: .5rem; }
+.header-toggle[hidden] { display: none; }
+.site-header.header-open { position: fixed; z-index: 40; background: var(--bg); box-shadow: 0 4px 10px rgba(0,0,0,.25); max-height: calc(100vh - var(--header-top, 0px)); overflow-y: auto; padding-left: 1rem; padding-right: 1rem; }
+.header-spacer { visibility: hidden; }
+/* Jump targets stop below the sticky breadcrumb row (--sticky-offset is measured by site.js). */
+.reading [id] { scroll-margin-top: calc(var(--sticky-offset, 0px) + .75rem); }
 .in-context { display: flex; align-items: center; gap: .5rem; min-height: var(--tap); margin: 0 0 0 auto; cursor: pointer; }
 .in-context[hidden] { display: none; }
 .in-context input { width: 1.1rem; height: 1.1rem; margin: 0; }
