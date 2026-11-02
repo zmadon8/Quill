@@ -103,15 +103,21 @@ class OffsiteTests(TestCase):
     def test_retention_keeps_newest_and_recent(self):
         fake = FakeStorage()
         now = timezone.now()
-        for name, age in (("old", 200), ("older", 300), ("new", 1)):
-            fake.items[name] = (b"x", now - timedelta(days=age))
+        names = {
+            "old": "judgment-diary-backup-20240101-020000-daily.json.gz",
+            "older": "judgment-diary-backup-20230101-020000-daily.json.gz",
+            "new": "judgment-diary-backup-20250101-020000-daily.json.gz",
+        }
+        for label, age in (("old", 200), ("older", 300), ("new", 1)):
+            fake.items[names[label]] = (b"x", now - timedelta(days=age))
         self.assertEqual(services.prune_offsite(fake, now=now, retention_days=90), 2)
-        self.assertEqual([o.key for o in fake.list()], ["new"])
+        self.assertEqual([o.key for o in fake.list()], [names["new"]])
 
     def test_retention_never_removes_the_only_copy(self):
         fake = FakeStorage()
-        fake.items["only"] = (b"x", timezone.now() - timedelta(days=500))
+        fake.items["judgment-diary-backup-20230101-020000-daily.json.gz"] = (b"x", timezone.now() - timedelta(days=500))
         self.assertEqual(services.prune_offsite(fake, retention_days=90), 0)
+        self.assertEqual(len(fake.items), 1)
 
     def test_run_backup_uploads_and_unconfigured_is_unchanged(self):
         with mock.patch("backups.storage.get_storage", return_value=storage.NoOpStorage()):
