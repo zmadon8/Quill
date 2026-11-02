@@ -278,6 +278,25 @@ table[data-resizable-columns] th { position: relative; overflow-wrap: anywhere; 
   .edit-bar { flex-direction: row; flex-wrap: wrap; align-items: flex-start; }
 }
 
+/* Quick add (R5-10b, R5-10c): the "+" button and the inline form. In reading view the "+" exists only on a desktop (wide screen, mouse) and is shown on hover or keyboard focus; in Edit mode it is one of the icon buttons everywhere. */
+.add-here-read { display: none; }
+@media (min-width: 900px) and (hover: hover) and (pointer: fine) {
+  .add-here-read { display: inline-flex; width: 26px; height: 26px; min-width: 0; min-height: 0; margin-left: .4rem; vertical-align: middle; opacity: 0; transition: opacity .12s; font-family: var(--font-sans); font-size: var(--small-size); }
+  :is(h1, h2, h3, .section-header):hover > .add-here-read, .item:hover > .item-body > .add-here-read, .add-here-read:focus-visible, .add-here-read:hover { opacity: 1; }
+}
+.quick-add { margin: .5rem 0 1rem; padding: .6rem .75rem; border: 1px solid var(--hair); background: var(--panel); font-family: var(--font-sans); font-size: var(--small-size); }
+.quick-add .rt-area { min-height: 3em; }
+.quick-add .rt-btn { min-width: 30px; min-height: 30px; font-size: 1rem; }
+.quick-add .quick-kind { flex-direction: row; align-items: center; gap: .5rem; }
+.quick-add .quick-kind select { width: auto; min-height: 30px; padding: .15rem .4rem; }
+.quick-add input[type=text] { min-height: 32px; }
+.quick-add .is-disabled { color: var(--muted); }
+.quick-buttons { display: flex; gap: .5rem; }
+.quick-status { color: var(--muted); }
+.quick-status:empty, .quick-errors:empty { display: none; }
+.quick-errors { color: var(--oxblood); font-weight: 600; }
+.quick-errors p { margin: 0; }
+
 /* Item editor (Milestone 3c). One column; every control at least 44px high. */
 .item-editor { max-width: 46rem; }
 .item-editor h1 { font-size: 1.9rem; }

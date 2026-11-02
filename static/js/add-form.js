@@ -58,5 +58,11 @@
     apply();
   }
 
-  Array.prototype.forEach.call(document.querySelectorAll("form[data-add-form]"), setup);
+  function initAll(scope) {
+    Array.prototype.forEach.call((scope || document).querySelectorAll("form[data-add-form]"), setup);
+  }
+
+  /* quick-add.js calls initAll again after it swaps the page content for the fresh copy. */
+  window.QuillAddForm = { initAll: initAll };
+  initAll();
 })();

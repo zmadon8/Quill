@@ -60,6 +60,7 @@
     clearMarks();
     state.handle.classList.remove("active");
     if (!commit || state.at === state.start) { return; }
+    form = document.getElementById("edit-drag-form") || form; // the page content can be swapped by quick-add.js
     form.elements.kind.value = state.bar.getAttribute("data-kind");
     form.elements.id.value = state.bar.getAttribute("data-id");
     form.elements.version.value = state.bar.getAttribute("data-version");

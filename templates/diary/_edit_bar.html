@@ -7,6 +7,7 @@
     <input type="hidden" name="id" value="{{ eid }}">
     <input type="hidden" name="version" value="{{ eversion }}">
     <input type="hidden" name="next" value="{{ next_url }}">
+    {% if ekind == "item" or ekind == "section" or eadd %}{% include "diary/_add_here.html" with ahkind=ekind ahid=eid ahversion=eversion ahrun=erun ahclass="add-here-edit" %}{% endif %}
     {% if erun %}
     <button type="button" data-drag-handle class="edit-btn icon-btn drag-handle" aria-label="Drag to reorder. The Up and Down buttons do the same." title="Drag to reorder">{% include "diary/_icon.html" with icon="drag" %}<span class="visually-hidden">Drag to reorder</span></button>
     <button type="submit" name="direction" value="up" class="edit-btn icon-btn" aria-label="Move up" title="Move up">{% include "diary/_icon.html" with icon="up" %}<span class="visually-hidden">Move up</span></button>
