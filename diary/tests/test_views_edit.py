@@ -86,12 +86,14 @@ class AccessTests(EditViewTestCase):
         self.assertContains(editing, "edit-mode.js")
 
     def test_subject_lists_show_controls_only_to_editors_in_edit_mode(self):
-        for name in ("subjects", "other_subjects"):
-            self.assertNotContains(self.reader_client.get(reverse(name) + "?edit=1"), "data-edit-bar")
-            self.assertNotContains(self.client.get(reverse(name)), "data-edit-bar")
+        self.assertNotContains(self.reader_client.get(reverse("subjects") + "?edit=1"), "data-edit-bar")
+        self.assertNotContains(self.client.get(reverse("subjects")), "data-edit-bar")
         self.assertContains(self.client.get(reverse("subjects") + "?edit=1"), "data-edit-bar")
         self.make("subject", name="Elsewhere", show_on_landing=False)
-        self.assertContains(self.client.get(reverse("other_subjects") + "?edit=1"), "data-edit-bar")
+        # Both lists are on the one page, each its own reorder run.
+        resp = self.client.get(reverse("subjects") + "?edit=1")
+        self.assertContains(resp, 'data-run="subject-show-1"')
+        self.assertContains(resp, 'data-run="subject-show-0"')
 
     def test_next_address_must_stay_on_this_site(self):
         for bad in ("https://evil.example/", "//evil.example/x", "javascript:alert(1)"):

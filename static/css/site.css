@@ -14,6 +14,8 @@ a { color: inherit; }
 .brand-row { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .9rem; padding-bottom: .6rem; }
 .brand a { text-decoration: none; color: inherit; border-bottom: 1px solid transparent; }
 .brand a:hover, .brand a:focus-visible { color: var(--oxblood); border-bottom-color: var(--oxblood); }
+.home-button { display: inline-flex; align-items: center; justify-content: center; width: var(--tap); min-width: var(--tap); height: var(--tap); color: var(--ink); border: 1px solid var(--hair); border-radius: 3px; text-decoration: none; }
+.home-button:hover, .home-button:focus-visible { color: var(--oxblood); border-color: var(--oxblood); }
 .history-buttons { display: inline-flex; gap: .4rem; }
 .back-button, .forward-button { padding: 0; width: var(--tap); min-width: var(--tap); }
 .back-button:disabled, .forward-button:disabled { opacity: .45; cursor: not-allowed; }
@@ -101,9 +103,19 @@ td a { display: inline-block; min-height: var(--tap); line-height: var(--tap); p
 
 /* Launcher (suite Home) */
 .launcher { max-width: 46rem; margin: 0 auto; }
-.program { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 1.25rem 0; border-bottom: 1px solid var(--hair); }
-.program h2 { margin: 0; }
-.program p { margin: .25rem 0 0; color: var(--muted); }
+.program-link { display: block; margin-bottom: 1.5rem; padding: 1.5rem 1rem; border: 1px solid var(--hair); border-bottom: 2px solid var(--ink); font-family: var(--font-serif); font-style: italic; font-size: 1.75rem; color: var(--ink); text-decoration: none; }
+.program-link:hover { background: var(--panel); color: var(--oxblood); border-bottom-color: var(--oxblood); }
+.program-link:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+/* Users form: profile and role on one line */
+.profile-row { display: flex; gap: 1rem; align-items: flex-end; flex-wrap: nowrap; }
+.profile-row p { flex: 1 1 0; min-width: 0; margin: 0 0 1rem; }
+.profile-row select { width: 100%; }
+@media (max-width: 480px) { .profile-row { flex-wrap: wrap; } .profile-row p { flex-basis: 100%; } }
+
+/* Subjects page: Other Subjects below the main list */
+.other-divider { border: 0; border-top: 1px solid var(--ink); margin: 2.5rem 0 1.5rem; }
+.other-title { margin: 0; }
 
 /* Reading screens. Phone first: one column, 16px+ text, 44px+ tap targets. */
 .reading { min-width: 0; font-size: var(--text-size); }

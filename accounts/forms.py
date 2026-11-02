@@ -67,10 +67,6 @@ def _profile_field():
         required=False,
         empty_label="(no profile)",
         label="Case law diary profile",
-        help_text=(
-            "A user has at most one profile per program. Choosing another replaces the current one. "
-            "With no profile the user does not see the program at all."
-        ),
     )
 
 
@@ -80,7 +76,6 @@ def _profile_role_field():
         initial=ROLE_READER,
         required=False,
         label="Role in that profile",
-        help_text="Reader: view only. Editor: view and edit. Ignored when there is no profile.",
     )
 
 

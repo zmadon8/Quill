@@ -4,7 +4,16 @@
 <h1>{{ title }}</h1>
 <form method="post" class="stack">
   {% csrf_token %}
-  {{ form.as_p }}
+  {% for field in form %}
+  {% if field.name == "profile" %}
+  <div class="profile-row">
+    <p>{{ field.label_tag }} {{ field }}{{ field.errors }}</p>
+    <p>{{ form.profile_role.label_tag }} {{ form.profile_role }}{{ form.profile_role.errors }}</p>
+  </div>
+  {% elif field.name != "profile_role" %}
+  {{ field.as_field_group }}
+  {% endif %}
+  {% endfor %}
   <button type="submit">Save</button>
   <a href="{% url 'user_list' %}">Cancel</a>
 </form>

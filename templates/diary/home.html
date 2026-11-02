@@ -4,8 +4,7 @@
 <div class="launcher">
   <h1>Programs</h1>
   {% if diary_profile %}
-  <div class="program">
-    <div><h2>{{ diary_name }}</h2><p>Case law, by Subject, Topic and Item.</p></div>
+  <a class="program-link" href="{% url 'subjects' %}">{{ diary_name }}</a>
     <a class="button primary" href="{% url 'subjects' %}">Open</a>
   </div>
   {% else %}

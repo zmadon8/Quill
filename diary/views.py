@@ -115,20 +115,22 @@ def item_counts_by_subject(profile):
 
 @profile_required
 def subjects(request):
-    """Option A index: Subjects on the landing page with item counts, then Other Subjects."""
+    """Index: Subjects on the landing page with item counts, then the Other Subjects below a divider."""
     profile = request.profile
     counts = item_counts_by_subject(profile)
     landing = list(_subjects(profile, show_on_landing=True).order_by("landing_position", "name", "pk"))
     for subject in landing:
         subject.item_count = counts.get(subject.pk, (0, 0))[0]
-    other_count = _subjects(profile, show_on_landing=False).count()
+    other = list(_subjects(profile, show_on_landing=False).order_by("other_acts_position", "name", "pk"))
+    for subject in other:
+        subject.item_count = counts.get(subject.pk, (0, 0))[0]
     live_ids = set(_subjects(profile).values_list("pk", flat=True))
     total_items = sum(n for pk, (n, _) in counts.items() if pk in live_ids)
     total_review = sum(r for pk, (_, r) in counts.items() if pk in live_ids)
     return render(request, "diary/subjects.html", {
         **edit_context(request),
         "subjects": landing,
-        "other_count": other_count,
+        "other_subjects": other,
         "subject_total": len(live_ids),
         "item_total": total_items,
         "review_total": total_review,
@@ -163,8 +165,9 @@ def profile_settings(request):
 
 @profile_required
 def other_subjects(request):
-    subjects = _subjects(request.profile, show_on_landing=False).order_by("other_acts_position", "name", "pk")
-    return render(request, "diary/other_subjects.html", {**edit_context(request), "subjects": subjects})
+    """Other Subjects now sit on the Subjects page; the old address redirects there (keeping Edit mode)."""
+    keep = "?edit=1" if edit_context(request)["edit_mode"] else ""
+    return redirect(f"{reverse('subjects')}{keep}#other-subjects")
 
 
 @profile_required

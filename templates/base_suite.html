@@ -14,6 +14,7 @@
   <div class="page">
     <header class="site-header">
       <div class="brand-row">
+        {% if user.is_authenticated %}{% block home_button %}{% endblock %}{% endif %}
         <span class="brand">{% block program_name %}<a href="{% url 'home' %}" title="Go to Home (Alt+H)" aria-label="Go to Home">{{ diary_name }}</a>{% endblock %}</span>
         {% if user.is_authenticated %}
         <span class="history-buttons">

@@ -16,7 +16,6 @@
     <li><a href="{% url 'subject_contents' subject.pk %}"><span class="name">{{ subject.name }}</span><span class="count">{{ subject.item_count }}</span></a>
       {% include "diary/_edit_bar.html" with ekind="subject" eid=subject.pk eversion=subject.version ename=subject.name eanchor="" erun="subject-show-1" erename=True eadd=False elanding=True %}</li>
     {% endfor %}
-    <li><a href="{% url 'other_subjects' %}"><span class="name"><em>Other Subjects</em></span><span class="count">{{ other_count }} subject{{ other_count|pluralize }}</span></a></li>
   </ul>
   {% if edit_mode %}
   <details class="edit-more">
@@ -32,6 +31,28 @@
   </details>
   {% endif %}
   {% if not subjects %}<p class="empty">There are no Subjects on the landing page yet.</p>{% endif %}
+  <hr class="other-divider">
+  <h2 id="other-subjects" class="other-title">Other Subjects</h2>
+  <ul class="subject-index">
+    {% for subject in other_subjects %}
+    <li><a href="{% url 'subject_contents' subject.pk %}"><span class="name">{{ subject.name }}</span><span class="count">{{ subject.item_count }}</span></a>
+      {% include "diary/_edit_bar.html" with ekind="subject" eid=subject.pk eversion=subject.version ename=subject.name eanchor="" erun="subject-show-0" erename=True eadd=False elanding=False %}</li>
+    {% endfor %}
+  </ul>
+  {% if edit_mode %}
+  <details class="edit-more" id="add-other-subject">
+    <summary class="edit-btn">Add a Subject&hellip;</summary>
+    <form method="post" action="{% url 'edit_add' %}" class="edit-form">
+      {% csrf_token %}
+      <input type="hidden" name="what" value="subject">
+      <input type="hidden" name="landing" value="0">
+      <input type="hidden" name="next" value="{{ next_url }}">
+      <label>Subject name <input type="text" name="name" maxlength="300" required></label>
+      <button type="submit">Add at the end</button>
+    </form>
+  </details>
+  {% endif %}
+  {% if not other_subjects %}<p class="empty">There are no Other Subjects yet.</p>{% endif %}
 </div>
 {% include "diary/_edit_tail.html" %}
 {% endblock %}

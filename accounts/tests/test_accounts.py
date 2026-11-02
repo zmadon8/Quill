@@ -160,7 +160,7 @@ class SuiteSettingsTests(BaseCase):
     def test_program_header_uses_program_name(self):
         self.client.force_login(self.admin)
         resp = self.client.get(reverse("subjects"))
-        self.assertContains(resp, 'aria-label="Go to Home">Case Law Diary</a>')
+        self.assertContains(resp, 'aria-label="Case Law Diary: Subjects">Case Law Diary</a>')
 
     def test_admin_only(self):
         editor = self.make_user("ed", role="editor")
@@ -186,8 +186,8 @@ class SuiteSettingsTests(BaseCase):
         self.assertEqual(suite.get_names(), {"home": "Start Page", "diary": "Judgments"})
         home = self.client.get(reverse("home"))
         self.assertContains(home, ">Start Page</a>")
-        self.assertContains(home, "<h2>Judgments</h2>", html=True)
-        self.assertContains(self.client.get(reverse("subjects")), 'aria-label="Go to Home">Judgments</a>')
+        self.assertContains(home, 'class="program-link" href="%s">Judgments</a>' % reverse("subjects"))
+        self.assertContains(self.client.get(reverse("subjects")), 'aria-label="Judgments: Subjects">Judgments</a>')
         self.client.force_login(self.user)
         self.assertContains(self.client.get(reverse("home")), ">Start Page</a>")
 
@@ -358,6 +358,19 @@ class RoleTests(BaseCase):
         form = self.client.get(reverse("user_create")).context["form"]
         self.assertEqual(form.fields["profile_role"].initial, "reader")
         self.assertFalse(form.fields["is_admin"].initial)
+
+    def test_user_form_has_profile_and_role_on_one_line_without_help_text(self):
+        self.client.force_login(self.admin)
+        for url in (reverse("user_create"), reverse("user_edit", args=[self.user.pk])):
+            resp = self.client.get(url)
+            html = resp.content.decode()
+            row = html.split('class="profile-row"')[1].split("</div>")[0]
+            self.assertIn('name="profile"', row, url)
+            self.assertIn('name="profile_role"', row, url)
+            self.assertIn("Case law diary profile", row, url)
+            self.assertIn("Role in that profile", row, url)
+            self.assertNotContains(resp, "at most one profile per program")
+            self.assertNotContains(resp, "Reader: view only. Editor: view and edit.")
 
     def test_is_staff_follows_superuser_flag(self):
         a = User.objects.create_user("a", password=PASSWORD, is_superuser=True)
