@@ -122,6 +122,17 @@ class GatherTests(ExportCase):
         ])
 
 
+    def test_links_follow_their_set_order_not_their_creation_order(self):
+        note = Note.objects.create(profile=self.profile, topic=self.zed, text="<p>Ordered links</p>", position=1)
+        NoteLink.objects.create(profile=self.profile, note=note, item=self.in_fraud, position=2)  # created first, shown second
+        NoteLink.objects.create(profile=self.profile, note=note, item=self.after, position=1)
+        zed = next(t for t in gather.load(self.profile).main[0].topics if t.name == "Zed")
+        self.assertEqual([link.path for link in zed.container.notes[0].links],
+                         ["Arbitration > Arbitrability > After section", "Arbitration > Arbitrability > Fraud > Fraud item"])
+        page = self.login(self.reader).get(reverse("read_subject", args=[self.arb.pk])).content.decode()
+        self.assertLess(page.index("After section</a>", page.index("Ordered links")), page.index("Fraud item</a>", page.index("Ordered links")))
+
+
 class FullExportTests(ExportCase):
     def test_file_name_and_content_type(self):
         result = self.full()
@@ -174,6 +185,11 @@ class FullExportTests(ExportCase):
         UserSettings.objects.filter(user=self.editor).update(export_date_format="DD-MM-YYYY")
         fresh = User.objects.get(pk=self.editor.pk)  # the first user object still holds the earlier settings
         self.assertEqual(service.full(self.profile, fresh, now=late).name, "Case Law Diary Main Full 02-11-2026.docx")
+
+    def test_a_name_that_cleans_to_nothing_uses_the_profile_name_like_the_preview(self):
+        self.profile.export_name = " . "
+        self.profile.save()
+        self.assertEqual(self.full().name, "Main Full 2026-11-01.docx")
 
     def test_profile_export_name_and_cleaning(self):
         self.profile.export_name = 'Madon: "Law"/Diary'

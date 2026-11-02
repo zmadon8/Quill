@@ -9,7 +9,7 @@ from dataclasses import dataclass
 
 from django.utils import timezone
 
-from accounts.profiles import effective_export_name
+from accounts.profiles import effective_export_name, export_file_name
 
 from .. import reading
 from . import gather, naming
@@ -52,7 +52,9 @@ def _context(profile, user, now):
     now = now or timezone.now()
     return {
         "fmts": fmts,
+        # The title is the name as typed; file names use the cleaned name with the same fallbacks as the Profile settings preview.
         "export_name": effective_export_name(profile),
+        "file_export_name": export_file_name(profile),
         "date_text": naming.format_date(naming.today(now, zone), date_format),
         "created": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
     }
@@ -66,7 +68,7 @@ def _input(ctx, part, include_review, **kw):
 def file_name_preview(profile, user, now=None):
     """Example file names for the Export page and the settings preview: {kind: name}."""
     ctx = _context(profile, user, now)
-    name = ctx["export_name"]
+    name = ctx["file_export_name"]
     date = ctx["date_text"]
     return {
         FULL: naming.build_name(name, ["Full"], date, "docx"),
@@ -79,7 +81,7 @@ def file_name_preview(profile, user, now=None):
 def view_file_name(profile, user, path, now=None):
     """The file name of a Current View of ``path`` (Subject, Topic, Sub-topic names), for the Export page."""
     ctx = _context(profile, user, now)
-    return naming.build_name(ctx["export_name"], path, ctx["date_text"], "docx")
+    return naming.build_name(ctx["file_export_name"], path, ctx["date_text"], "docx")
 
 
 def full(profile, user, include_review=False, now=None, snapshot=None):
@@ -87,7 +89,7 @@ def full(profile, user, include_review=False, now=None, snapshot=None):
     ctx = _context(profile, user, now)
     snap = snapshot or gather.load(profile)
     data = _input(ctx, "Full", include_review, main=snap.main, others=snap.others)
-    name = naming.build_name(ctx["export_name"], ["Full"], ctx["date_text"], "docx")
+    name = naming.build_name(ctx["file_export_name"], ["Full"], ctx["date_text"], "docx")
     return ExportFile(name, render(data), DOCX_TYPE, m.count_items(data))
 
 
@@ -99,11 +101,11 @@ def by_subject(profile, user, include_review=False, now=None, snapshot=None):
     files = []  # (name, bytes, items, label)
     for subject in snap.main:
         data = _input(ctx, subject.name, include_review, main=[subject])
-        name = naming.build_name(ctx["export_name"], [subject.name], ctx["date_text"], "docx", taken)
+        name = naming.build_name(ctx["file_export_name"], [subject.name], ctx["date_text"], "docx", taken)
         files.append((name, render(data), m.count_items(data), subject.name))
     if snap.others:
         data = _input(ctx, OTHER_SUBJECTS, include_review, others=snap.others)
-        name = naming.build_name(ctx["export_name"], [OTHER_SUBJECTS], ctx["date_text"], "docx", taken)
+        name = naming.build_name(ctx["file_export_name"], [OTHER_SUBJECTS], ctx["date_text"], "docx", taken)
         files.append((name, render(data), m.count_items(data), OTHER_SUBJECTS))
     total = sum(f[2] for f in files)
     lines = [
@@ -121,7 +123,7 @@ def by_subject(profile, user, include_review=False, now=None, snapshot=None):
             info = zipfile.ZipInfo(name, date_time=(2000, 1, 1, 0, 0, 0))
             archive.writestr(info, data)
         archive.writestr(zipfile.ZipInfo("manifest.txt", date_time=(2000, 1, 1, 0, 0, 0)), manifest.encode("utf-8"))
-    zip_name = naming.build_name(ctx["export_name"], ["Full - by Subject"], ctx["date_text"], "zip")
+    zip_name = naming.build_name(ctx["file_export_name"], ["Full - by Subject"], ctx["date_text"], "zip")
     return ExportFile(zip_name, buffer.getvalue(), ZIP_TYPE, total, documents=len(files))
 
 
