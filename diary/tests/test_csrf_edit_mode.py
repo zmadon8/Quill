@@ -14,6 +14,7 @@ from django.urls import reverse
 from diary import services as svc
 from diary.tests.helpers import join_main
 from diary.tests.service_helpers import ServiceTestCase
+from diary.undo_session import SESSION_KEY
 
 TOKEN = re.compile(r'name="csrfmiddlewaretoken" value="([^"]+)"')
 HIDDEN = re.compile(r'<input type="hidden" name="([^"]*)" value="([^"]*)">')
@@ -224,7 +225,9 @@ class MoveToNewHeadingFlowTests(ServiceTestCase):
         self.assertEqual(self.get(self.one).topic_id, new.pk)
         # One Undo puts the Item back and removes the new Topic.
         token = TOKEN.search(card).group(1)
-        undo = self.strict.post(reverse("edit_undo"), {"next": self.next, "csrfmiddlewaretoken": token})
+        group = self.strict.session[SESSION_KEY][-1]["group"]  # the Undo view acts on the group it is told, not "the latest"
+        undo = self.strict.post(reverse("edit_undo"), {"group": group, "next": self.next, "csrfmiddlewaretoken": token})
+        self.assertEqual(undo.status_code, 302)
         self.assertNotEqual(undo.status_code, 403)
         self.assertEqual(self.get(self.one).topic_id, self.topic.pk)
         self.assertFalse(Topic._base_manager.filter(subject=self.subject, name="Zed", deleted_at__isnull=True).exists())

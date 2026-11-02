@@ -352,7 +352,10 @@ class HomeIndexTests(TestCase):
                 self.assertEqual(button.count("<svg"), 1, name)
                 inner = button.split(">", 1)[1].rsplit("</button>", 1)[0]
                 self.assertEqual(re.sub(r"<svg.*?</svg>", "", inner, flags=re.S).strip(), "", name)
-            self.assertEqual(header.count("<svg") - 2, 0 if name == "home" else 1, name)  # the Home icon is on every page except the suite Home
+            # The Home icon is on every page except the suite Home; the Search magnifier only on program (diary) pages.
+            self.assertEqual(header.count('class="home-button"'), 0 if name == "home" else 1, name)
+            self.assertEqual(header.count("data-search-toggle"), 1 if name == "diary_home" else 0, name)
+            self.assertEqual(header.count("<svg") - 2, header.count('class="home-button"') + header.count("data-search-toggle"), name)
             self.assertIn('data-fallback="%s"' % reverse("home"), header)
 
     def test_review_in_diary_nav_for_anyone_with_a_profile(self):
