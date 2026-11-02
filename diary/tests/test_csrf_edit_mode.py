@@ -93,8 +93,7 @@ class CsrfEditModeTests(ServiceTestCase):
         pages = [
             self.card("item", self.one), self.card("topic", self.topic), self.card("section", self.sec),
             self.card("subject", self.subject),
-            self.strict.get(reverse("edit_inline_add"), {"parent_type": "topic", "parent_id": self.topic.pk,
-                                                         "next": self.next}).json()["html"],
+            self.strict.get(reverse("edit_inline_add"), {"ref": f"topic:{self.topic.pk}", "next": self.next}).json()["html"],
             self.strict.post(reverse("edit_move_to"),
                              {**self.rec("item", self.one), "csrfmiddlewaretoken": self.token()}).content.decode(),
         ]

@@ -283,7 +283,7 @@ class SuiteSettingsTests(BaseCase):
     def test_program_header_uses_program_name(self):
         self.client.force_login(self.admin)
         resp = self.client.get(reverse("diary_home"))
-        self.assertContains(resp, 'aria-label="Case Law Diary: Subjects">Case Law Diary</a>')
+        self.assertContains(resp, 'aria-label="Case Law Diary: Home">Case Law Diary</a>')
 
     def test_admin_only(self):
         editor = self.make_user("ed", role="editor")
@@ -310,7 +310,7 @@ class SuiteSettingsTests(BaseCase):
         home = self.client.get(reverse("home"))
         self.assertContains(home, ">Start Page</a>")
         self.assertContains(home, 'class="program-link" href="%s">Judgments</a>' % reverse("diary_home"))
-        self.assertContains(self.client.get(reverse("diary_home")), 'aria-label="Judgments: Subjects">Judgments</a>')
+        self.assertContains(self.client.get(reverse("diary_home")), 'aria-label="Judgments: Home">Judgments</a>')
         self.client.force_login(self.user)
         self.assertContains(self.client.get(reverse("home")), ">Start Page</a>")
 
