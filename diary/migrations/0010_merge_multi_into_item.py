@@ -15,12 +15,19 @@ def merge_forwards(apps, schema_editor):
 
 
 def merge_backwards(apps, schema_editor):
-    """Not reversible: refuse rather than guess which Cases came from a citation and which were typed."""
-    raise IrreversibleError(
-        "Migration diary.0010 (Multi-Item merged into Item) cannot be reversed automatically, because "
-        "after it nothing records which Cases were once a single citation and which Items were Multi-Items "
-        "without guessing. Restore the 'pre_migration' backup taken before the update instead."
-    )
+    """Reverse only when there is nothing to un-merge (no Item or Case rows, trashed ones included).
+
+    With data present, nothing records which Cases were once a single citation and which Items were
+    Multi-Items, so reversing would be a guess: refuse. An empty database (such as a test database
+    rolling migrations back) reverses cleanly because only the schema operations remain.
+    """
+    if apps.get_model("diary", "Item").objects.exists() or apps.get_model("diary", "Case").objects.exists():
+        raise IrreversibleError(
+            "Migration diary.0010 (Multi-Item merged into Item) cannot be reversed while any Item or Case "
+            "exists, because after it nothing records which Cases were once a single citation and which "
+            "Items were Multi-Items without guessing. Restore the 'pre_migration' backup taken before the "
+            "update instead."
+        )
 
 
 class Migration(migrations.Migration):

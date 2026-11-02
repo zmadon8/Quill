@@ -297,7 +297,7 @@ class HomeIndexTests(TestCase):
             header = html.split('<header class="site-header"')[1].split("</header>")[0]
             self.assertIn("data-back", header, name)
             if name in ("home", "user_list", "backup_list", "settings"):
-                self.assertIn('<a href="%s" title="Go to Home (Alt+H)" aria-label="Go to Home">' % reverse("home"), header, name)
+                self.assertIn('<a href="%s?home=1" title="Go to Home (Alt+H)" aria-label="Go to Home">' % reverse("home"), header, name)
             else:
                 self.assertIn('<a href="%s" title="Subjects"' % reverse("subjects"), header, name)
             self.assertNotIn("switch-program", html, name)
@@ -328,7 +328,7 @@ class HomeIndexTests(TestCase):
                 self.assertEqual(button.count("<svg"), 1, name)
                 inner = button.split(">", 1)[1].rsplit("</button>", 1)[0]
                 self.assertEqual(re.sub(r"<svg.*?</svg>", "", inner, flags=re.S).strip(), "", name)
-            self.assertEqual(header.count("<svg") - 2, 1 if name == "subjects" else 0, name)  # Home icon: programs only
+            self.assertEqual(header.count("<svg") - 2, 1, name)  # the Home icon is on every page, Home included
             self.assertIn('data-fallback="%s"' % reverse("home"), header)
 
     def test_review_in_diary_nav_for_anyone_with_a_profile(self):
@@ -567,7 +567,7 @@ class ReadingScreenTests(TestCase):
         self.assertRedirects(resp, "%s#n-subtopic-%d" % (whole, self.clause.pk), fetch_redirect_response=False)
         resp = self.client.get(whole)  # no redirect loop
         self.assertEqual(resp.status_code, 200)
-        self.assertContains(resp, "data-in-context checked")
+        self.assertRegex(resp.content.decode(), r"data-in-context[^>]*? checked>")
         self.assertContains(resp, 'href="%s#n-topic-%d"' % (whole, topic.pk))
 
     def test_unticked_cookie_zero_keeps_topic_pages_and_own_links(self):
@@ -665,7 +665,7 @@ class ReadingScreenTests(TestCase):
         self.client.force_login(self.users["reader"])
         del self.client.cookies["quill_in_context"]
         resp = self.client.get(reverse("subject_contents", args=[self.contract.pk]))
-        self.assertContains(resp, "data-in-context checked")
+        self.assertRegex(resp.content.decode(), r"data-in-context[^>]*? checked>")
         self.assertContains(resp, 'href="%s#n-topic-' % reverse("read_subject", args=[self.contract.pk]))
 
     def test_icon_buttons_are_labelled_and_other_subjects_group_is_marked(self):
@@ -823,6 +823,8 @@ class ReadingCitationTests(TestCase):
         self.assertEqual([c["has_comment"] for c in block["cases"]], [True, False, True])
 
     def test_an_item_without_a_citation_has_no_cases(self):
+        item = Item.objects.get(text__contains="placed directly under the Subject")
+        item.cases.all().delete()  # the sample gives this Item one citation; take it away
         block = self.block("placed directly under the Subject")
         self.assertEqual(block["cases"], [])
 
