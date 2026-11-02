@@ -1,6 +1,49 @@
 {% extends "base.html" %}
-{% block title %}Search{% endblock %}
+{% block title %}Search - {{ program_label }}{% endblock %}
 {% block content %}
-<h1>Search</h1>
-<p>Search arrives in a later milestone. In the meantime, open a Subject, read the whole Subject (click its name) and use your browser's own find (Ctrl or Cmd + F).</p>
+<div class="home-column search-page">
+  <h1>Search</h1>
+  <form class="search-form" role="search" method="get" action="{% url 'search' %}">
+    <div class="search-row">
+      <label class="visually-hidden" for="search-q">Search the diary</label>
+      <input type="search" id="search-q" name="q" value="{{ q }}" placeholder="Search the diary&hellip;" autocomplete="off" autofocus data-search-input>
+      <button type="submit" class="primary">Search</button>
+    </div>
+    <div class="search-filters">
+      <label for="search-subject">Subject</label>
+      <select id="search-subject" name="subject">
+        <option value="">All Subjects</option>
+        {% for s in main_subjects %}<option value="{{ s.pk }}"{% if s.pk == chosen_subject %} selected{% endif %}>{{ s.name }}</option>{% endfor %}
+        {% if other_subjects %}<optgroup label="Other Subjects">
+          {% for s in other_subjects %}<option value="{{ s.pk }}"{% if s.pk == chosen_subject %} selected{% endif %}>{{ s.name }}</option>{% endfor %}
+        </optgroup>{% endif %}
+      </select>
+      <label class="search-check"><input type="checkbox" name="citations" value="1"{% if citations_only %} checked{% endif %}> Citations only</label>
+      <label class="search-check"><input type="checkbox" name="review" value="1"{% if review_only %} checked{% endif %}> For review only</label>
+    </div>
+  </form>
+  {% if not searched %}
+  <p class="meta search-help">Type words to find in names, text, citations, comments, flags, review notes and notes. Every word must appear (parts of words count), so <em>2018 9 SCC 49</em> finds (2018) 9 SCC 49. Put words in &ldquo;double quotes&rdquo; to find them together as a phrase. Brackets, full stops and quote marks are ignored. Alt+G jumps to the search box.</p>
+  {% elif results %}
+  <p class="meta search-count">{{ total }} result{{ total|pluralize }}</p>
+  <ol class="search-results">
+    {% for r in results %}
+    <li class="search-result">
+      <div class="search-meta">
+        <span class="search-kind">{{ r.kind }}</span>
+        {% if r.needs_review %}<span class="review-marker">For review</span>{% endif %}
+        {% if r.flag_text %}<span class="flag-text">{{ r.flag_text }}</span>{% endif %}
+        {% if r.in_nested %}<span class="search-kind">inside a Nested Item</span>{% endif %}
+      </div>
+      <a class="search-link" href="{{ r.url }}" title="Open in context">{{ r.label }}</a>
+      {% if r.path %}<div class="search-path">{% for name, url in r.path %}{% if not forloop.first %} &gt; {% endif %}{{ name }}{% endfor %}</div>{% endif %}
+      {% if r.segments %}<p class="search-snippet"><span class="search-field">{{ r.field_label }}:</span> {% for seg in r.segments %}{% if seg.1 %}<mark>{{ seg.0 }}</mark>{% else %}{{ seg.0 }}{% endif %}{% endfor %}</p>{% endif %}
+    </li>
+    {% endfor %}
+  </ol>
+  {% if has_more %}<p class="search-more"><a class="button" href="{% url 'search' %}?{{ more_query }}">Show more</a> <span class="meta">Showing {{ results|length }} of {{ total }}</span></p>{% endif %}
+  {% else %}
+  <p class="empty search-none">No results{% if q %} for &ldquo;{{ q }}&rdquo;{% endif %}.</p>
+  {% endif %}
+</div>
 {% endblock %}

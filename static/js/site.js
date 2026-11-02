@@ -9,8 +9,32 @@
   document.addEventListener("keydown", function (e) {
     if (!e.altKey || e.metaKey) { return; }
     if (e.code === "KeyH" && home) { e.preventDefault(); window.location.href = home; }
-    if (e.code === "KeyG" && search) { e.preventDefault(); window.location.href = search; }
+    if (e.code === "KeyG") {
+      // Where a search box exists, Alt+G focuses it; elsewhere it opens the Search page.
+      var box = document.querySelector("[data-search-input]");
+      if (box) { e.preventDefault(); box.focus(); box.select(); }
+      else if (search) { e.preventDefault(); window.location.href = search; }
+    }
   });
+
+  // Jump flash: landing on #n-... (from a Search result, the Review list or a Contents link) briefly highlights the target.
+  var flashTimer = null;
+  var flashed = null;
+  var jumpFlash = function () {
+    var id = window.location.hash.replace(/^#/, "");
+    if (flashed) { flashed.classList.remove("jump-flash"); flashed = null; }
+    if (flashTimer) { window.clearTimeout(flashTimer); flashTimer = null; }
+    if (id.indexOf("n-") !== 0) { return; }
+    var el;
+    try { el = document.getElementById(decodeURIComponent(id)); } catch (err) { return; }
+    if (!el) { return; }
+    void el.offsetWidth; // restart the animation if the same target is flashed twice
+    el.classList.add("jump-flash");
+    flashed = el;
+    flashTimer = window.setTimeout(function () { el.classList.remove("jump-flash"); if (flashed === el) { flashed = null; } }, 2500);
+  };
+  jumpFlash();
+  window.addEventListener("hashchange", jumpFlash);
 
   // Back and Forward stay inside this site. Each tab keeps its own list of the site pages it has shown
   // (sessionStorage, so a new tab starts fresh). Only same-origin paths are ever stored or followed, so

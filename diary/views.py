@@ -1,7 +1,7 @@
 import copy
 import logging
 from functools import wraps
-from urllib.parse import urlsplit
+from urllib.parse import urlencode, urlsplit
 
 from django.core.exceptions import PermissionDenied
 from django.db import connection
@@ -21,6 +21,7 @@ from accounts.profiles import export_file_name, request_profile, request_role
 from accounts.suite import KEY_DIARY
 
 from . import locate, reading, undo_session
+from . import search as search_module
 from .forms import ProfileSettingsForm
 from .importer import loader as import_loader
 from .importer import service as import_service
@@ -195,11 +196,6 @@ def other_subjects(request):
     return redirect(f"{reverse('diary_home')}{keep}#other-subjects")
 
 
-@profile_required
-def search(request):
-    return render(request, "diary/search.html")
-
-
 def _panel_subjects(profile):
     """Every live Subject of the profile for the Subjects view of the Contents panel: main first, then Other, in order."""
     return {
@@ -349,6 +345,44 @@ def review_list(request):
     return render(request, "diary/review_list.html", {
         "rows": rows, "total": len(rows), "all_total": sum(subject_counts.values()),
         "subject_choices": choices, "chosen_subject": chosen,
+    })
+
+
+SEARCH_PAGE = 50
+SEARCH_MAX = 1000
+
+
+@profile_required
+def search(request):
+    """Global Search (docs/DESIGN.md section 10). Everything is in the address, so Back and bookmarks work."""
+    profile = request.profile
+    query = request.GET.get("q", "").strip()[:500]
+    panel = _panel_subjects(profile)
+    live = {s.pk for s in panel["panel_main"] + panel["panel_other"]}
+    raw = request.GET.get("subject", "")
+    subject_id = int(raw) if raw.isdigit() and int(raw) in live else None
+    citations_only = request.GET.get("citations") == "1"
+    review_only = request.GET.get("review") == "1"
+    raw_limit = request.GET.get("limit", "")
+    limit = int(raw_limit) if raw_limit.isdigit() and int(raw_limit) > 0 else SEARCH_PAGE
+    limit = min(limit, SEARCH_MAX)
+    searched = bool(query) or citations_only or review_only
+    results = search_module.run_search(
+        profile, query, subject_id=subject_id, citations_only=citations_only, review_only=review_only
+    ) if searched else []
+    more_params = {"q": query, "limit": min(limit + SEARCH_PAGE, SEARCH_MAX)}
+    if subject_id:
+        more_params["subject"] = subject_id
+    if citations_only:
+        more_params["citations"] = 1
+    if review_only:
+        more_params["review"] = 1
+    return render(request, "diary/search.html", {
+        "q": query, "searched": searched, "results": results[:limit], "total": len(results),
+        "has_more": len(results) > limit and limit < SEARCH_MAX,
+        "more_query": urlencode(more_params),
+        "main_subjects": panel["panel_main"], "other_subjects": panel["panel_other"],
+        "chosen_subject": subject_id, "citations_only": citations_only, "review_only": review_only,
     })
 
 

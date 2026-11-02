@@ -195,6 +195,35 @@ td a { display: inline-block; min-height: var(--tap); line-height: var(--tap); p
 .review-filter { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin: 1rem 0; }
 .review-filter select { max-width: 22rem; }
 
+/* Search (Milestone 4b): header box, page form, results. */
+.program-nav .nav-search { display: inline-flex; align-items: center; gap: .35rem; align-self: center; margin: 0; }
+.nav-search input[type=search] { width: 9rem; min-height: 36px; padding: 0 .5rem; font-size: var(--small-size); }
+.nav-search button { min-height: 36px; padding: 0 .7rem; font-size: var(--small-size); }
+.search-row { display: flex; gap: .5rem; margin: 1rem 0 .5rem; }
+.search-row input[type=search] { flex: 1 1 auto; max-width: none; min-height: 48px; font-size: 1.1rem; }
+.search-row button { min-height: 48px; min-width: 6rem; flex: 0 0 auto; }
+.search-filters { display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; align-items: center; margin: 0 0 1rem; }
+.search-filters select { max-width: 20rem; }
+.search-check { display: inline-flex; align-items: center; gap: .4rem; min-height: var(--tap); }
+.search-help { max-width: 42rem; }
+.search-results { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--hair); }
+.search-result { padding: .75rem 0; border-bottom: 1px solid var(--hair); }
+.search-meta { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; font-family: var(--font-sans); font-size: var(--small-size); color: var(--muted); }
+.search-kind { letter-spacing: .06em; text-transform: uppercase; }
+.search-link { display: inline-block; margin-top: .15rem; font-weight: 600; overflow-wrap: anywhere; }
+.search-path { color: var(--muted); font-size: var(--small-size); overflow-wrap: anywhere; }
+.search-snippet { margin: .25rem 0 0; overflow-wrap: anywhere; }
+.search-field { font-family: var(--font-sans); font-size: var(--small-size); color: var(--muted); }
+.search-snippet mark { background: var(--amber-bg); color: var(--ink); box-shadow: 0 0 0 1px var(--amber-line); border-radius: 2px; padding: 0 .05em; }
+.search-more { margin: 1rem 0; }
+
+/* Jump flash: the target of a jump (#n-...) is briefly highlighted. */
+.jump-flash { animation: jump-flash 2.5s ease-out; }
+@keyframes jump-flash { 0% { background-color: var(--amber-line); } 100% { background-color: transparent; } }
+@media (prefers-reduced-motion: reduce) {
+  .jump-flash { animation: none; outline: 3px solid var(--amber-line); outline-offset: 2px; }
+}
+
 /* Subject contents page: Contents shown in the page on phones (no slide-over), side panel on wide screens. */
 .contents-panel--page { display: block; position: static; width: auto; box-shadow: none; padding: 0; background: none; }
 .reader-layout--page { display: flex; flex-direction: column; }

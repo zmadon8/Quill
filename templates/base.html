@@ -13,6 +13,7 @@
 {% block program_nav %}{% with current=request.resolver_match.url_name %}
   {% if current_profile %}<a href="{% url 'review_list' %}"{% if current == 'review_list' %} class="on" aria-current="page"{% endif %}>Review</a>{% endif %}
   {% if diary_editor %}<a href="{% url 'trash' %}"{% if current == 'trash' %} class="on" aria-current="page"{% endif %}>Trash</a>{% endif %}
+  {% if current_profile and current != 'search' and current != 'diary_home' %}<form class="nav-search" role="search" method="get" action="{% url 'search' %}"><label class="visually-hidden" for="nav-q">Search the diary</label><input type="search" id="nav-q" name="q" placeholder="Search" autocomplete="off" data-search-input><button type="submit">Search</button></form>{% endif %}
   <a href="{% url 'search' %}"{% if current == 'search' %} class="on" aria-current="page"{% endif %}>Search</a>
   <a href="{% url 'profile_settings' %}"{% if current == 'profile_settings' %} class="on" aria-current="page"{% endif %}>Profile settings</a>
 {% endwith %}{% endblock %}
