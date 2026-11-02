@@ -96,10 +96,12 @@ class SearchViewTests(TestCase):
         self.assertEqual(self.client.get(reverse("review_list"), {"subject": "\u00b2"}).status_code, 200)
 
     def test_subject_level_note_link_target_exists(self):
-        Note.objects.create(profile=self.profile, subject=self.subject, text="<p>Ostrich remark</p>")
+        note = Note.objects.create(profile=self.profile, subject=self.subject, text="<p>Ostrich remark</p>")
         resp = self.get(q="ostrich")
-        self.assertContains(resp, "#n-subject-%d" % self.subject.pk)
+        # A Note hit opens the Note itself (Milestone 5), so the link must land on the Note's own anchor.
+        self.assertContains(resp, "#n-note-%d" % note.pk)
         page = self.client.get(reverse("read_subject", args=[self.subject.pk]))
+        self.assertContains(page, 'id="n-note-%d"' % note.pk)
         self.assertContains(page, 'id="n-subject-%d"' % self.subject.pk)
 
     def test_show_more_link_keeps_params(self):

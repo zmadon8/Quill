@@ -182,7 +182,10 @@ class OtherProfileTests(EditViewTestCase):
         self.assertEqual(self.get(self.one).topic_id, self.topic.pk)
 
     def test_unknown_kinds_and_bad_ids_give_404(self):
-        self.assertEqual(self.post("edit_rename", {"kind": "note", "id": self.one.pk, "name": "x"}).status_code, 404)
+        self.assertEqual(self.post("edit_rename", {"kind": "widget", "id": self.one.pk, "name": "x"}).status_code, 404)
+        # "note" is a known kind since Milestone 5, but a Note has no name: it is refused like an Item, not renamed.
+        resp = self.post("edit_rename", {"kind": "note", "id": self.one.pk, "name": "x"})
+        self.assertRedirects(resp, self.next, fetch_redirect_response=False)
         self.assertEqual(self.post("edit_rename", {"kind": "topic", "id": "abc", "name": "x"}).status_code, 404)
         self.assertEqual(self.post("edit_rename", {"kind": "topic", "name": "x"}).status_code, 404)
         self.assertEqual(self.post("edit_rename", {"kind": "topic", "id": 999999, "name": "x"}).status_code, 404)
