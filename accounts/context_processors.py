@@ -11,6 +11,7 @@ def suite_names(request):
     """Expose the display names to every template as ``home_name`` and ``diary_name``."""
     try:
         names = suite.get_names()
+        request._suite_names = names  # reused by program_label so the page does not query twice
     except Exception:
         logger.exception("Could not read the suite display names")
         names = dict(suite.DEFAULT_NAMES)
@@ -26,7 +27,8 @@ def program_label(request):
         name = (profile.display_name or "").strip() if profile is not None else ""
         if name:
             return {"program_label": name}
-        return {"program_label": suite.get_names()[suite.KEY_DIARY]}
+        names = getattr(request, "_suite_names", None) or suite.get_names()
+        return {"program_label": names[suite.KEY_DIARY]}
     except Exception:
         logger.exception("Could not work out the program label")
         return {"program_label": suite.DEFAULT_NAMES[suite.KEY_DIARY]}
