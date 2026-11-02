@@ -1,6 +1,10 @@
 {# One citation row of the editing card. Context: row (id, version, citation, comment; None for a blank row). #}
 <li class="cite-row" data-case-row>
-  <span class="grip" data-case-grip title="Drag to change the order" aria-label="Drag to change the order"><svg viewBox="0 0 10 16" width="12" height="18" aria-hidden="true" fill="currentColor"><circle cx="2.5" cy="3" r="1.4"/><circle cx="7.5" cy="3" r="1.4"/><circle cx="2.5" cy="8" r="1.4"/><circle cx="7.5" cy="8" r="1.4"/><circle cx="2.5" cy="13" r="1.4"/><circle cx="7.5" cy="13" r="1.4"/></svg></span>
+  <div class="case-move">
+    <button type="button" class="mv-btn" data-case-up title="Move this citation up" aria-label="Move this citation up">&#9650;</button>
+    <span class="grip" data-case-grip title="Drag to change the order" aria-label="Drag to change the order"><svg viewBox="0 0 10 16" width="12" height="18" aria-hidden="true" fill="currentColor"><circle cx="2.5" cy="3" r="1.4"/><circle cx="7.5" cy="3" r="1.4"/><circle cx="2.5" cy="8" r="1.4"/><circle cx="7.5" cy="8" r="1.4"/><circle cx="2.5" cy="13" r="1.4"/><circle cx="7.5" cy="13" r="1.4"/></svg></span>
+    <button type="button" class="mv-btn" data-case-down title="Move this citation down" aria-label="Move this citation down">&#9660;</button>
+  </div>
   <input type="hidden" name="case_id" value="{{ row.id|default_if_none:'' }}">
   <input type="hidden" name="case_version" value="{{ row.version|default_if_none:'' }}">
   <input type="text" name="case_citation" maxlength="1000" value="{{ row.citation }}" aria-label="Citation">

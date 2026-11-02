@@ -416,6 +416,15 @@
         card.setAttribute("data-dirty", "1");
         return;
       }
+      var step = e.target.closest("[data-case-up], [data-case-down]");
+      if (step) {
+        var mine = step.closest("[data-case-row]");
+        if (step.hasAttribute("data-case-up") && mine.previousElementSibling) { list.insertBefore(mine, mine.previousElementSibling); }
+        else if (step.hasAttribute("data-case-down") && mine.nextElementSibling) { list.insertBefore(mine.nextElementSibling, mine); }
+        step.focus();
+        card.setAttribute("data-dirty", "1");
+        return;
+      }
       var remove = e.target.closest("[data-case-remove]");
       if (remove) {
         var li = remove.closest("[data-case-row]");
@@ -436,7 +445,7 @@
         e.preventDefault();
         var li = grip.closest("[data-case-row]");
         li.classList.add("dragging-row");
-        if (grip.setPointerCapture) { grip.setPointerCapture(e.pointerId); }
+        // Listen on the document, not the grip: moving the row in the page would otherwise drop the pointer capture after the first step.
         function move(ev) {
           var others = Array.prototype.filter.call(list.querySelectorAll("[data-case-row]"), function (r) { return r !== li; });
           var target = null;
@@ -448,14 +457,14 @@
         }
         function end() {
           li.classList.remove("dragging-row");
-          grip.removeEventListener("pointermove", move);
-          grip.removeEventListener("pointerup", end);
-          grip.removeEventListener("pointercancel", end);
+          document.removeEventListener("pointermove", move);
+          document.removeEventListener("pointerup", end);
+          document.removeEventListener("pointercancel", end);
           card.setAttribute("data-dirty", "1");
         }
-        grip.addEventListener("pointermove", move);
-        grip.addEventListener("pointerup", end);
-        grip.addEventListener("pointercancel", end);
+        document.addEventListener("pointermove", move);
+        document.addEventListener("pointerup", end);
+        document.addEventListener("pointercancel", end);
       });
     }
 

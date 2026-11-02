@@ -545,3 +545,63 @@ class CreateItemKindTests(ItemEditorTestCase):
         self.assertEqual(made["<p>item</p>"].citation, "")
         self.assertEqual([(c.citation, c.position) for c in Case.objects.filter(item=made["<p>item</p>"])], [("A v B", 1)])
         self.assertFalse(Case.objects.filter(item=made["<p>nested</p>"]).exists())
+
+
+class ReorderCitationsRealPostTests(ItemEditorTestCase):
+    """Re-ordering citations through a real POST with the CSRF check switched on (round 10, item 2)."""
+
+    def setUp(self):
+        super().setUp()
+        self.strict = Client(enforce_csrf_checks=True)
+        self.strict.force_login(self.user)
+
+    def token_from_editor_page(self, item):
+        import re
+
+        page = self.strict.get(self.editor_url(item), {"next": self.next})
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, "data-case-up")
+        return re.search(r'name="csrfmiddlewaretoken" value="([^"]+)"', page.content.decode()).group(1)
+
+    def post_order(self, item, cases):
+        token = self.token_from_editor_page(item)
+        data = {"version": self.get(item).version, "text": item.text, "flag": "none", "next": self.next,
+                "csrfmiddlewaretoken": token, **self.case_rows([(c, c.citation, c.comment) for c in cases])}
+        return self.strict.post(self.editor_url(item), data)
+
+    def test_two_citations_swap(self):
+        item, first, second = self.cited()
+        resp = self.post_order(item, [second, first])
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual([c for c, _ in self.live_cases(item)], ["C v D", "A v B"])
+        self.assertEqual((self.get(second).position, self.get(first).position), (1, 2))
+
+    def test_three_citations_rotate_and_reverse(self):
+        item, first, second = self.cited()
+        third = self.make("case", ("item", item.pk), citation="E v F", comment="")
+        self.assertEqual(self.post_order(item, [third, first, second]).status_code, 302)
+        self.assertEqual([c for c, _ in self.live_cases(item)], ["E v F", "A v B", "C v D"])
+        self.assertEqual(self.post_order(item, [second, first, third]).status_code, 302)
+        self.assertEqual([c for c, _ in self.live_cases(item)], ["C v D", "A v B", "E v F"])
+
+    def test_a_reorder_is_one_undo_step(self):
+        from diary.models import VersionHistory
+
+        item, first, second = self.cited()
+        third = self.make("case", ("item", item.pk), citation="E v F", comment="")
+        seen = set(VersionHistory.objects.values_list("pk", flat=True))
+        self.post_order(item, [third, second, first])
+        new = VersionHistory.objects.exclude(pk__in=seen)
+        self.assertTrue(new.exists())
+        groups = set(new.values_list("group", flat=True))
+        self.assertEqual(len(groups), 1)
+        self.assertNotIn(None, groups)
+        self.assertEqual({row.record_type for row in new}, {"case"})
+
+    def test_the_card_has_move_buttons(self):
+        item, first, second = self.cited()
+        resp = self.strict.get(reverse("edit_inline_card"), {"kind": "item", "id": item.pk, "next": self.next})
+        self.assertEqual(resp.status_code, 200)
+        html = resp.json()["html"]
+        self.assertEqual(html.count("data-case-up"), 3)  # two rows and the blank template
+        self.assertEqual(html.count("data-case-down"), 3)
