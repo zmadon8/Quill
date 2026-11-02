@@ -1009,7 +1009,7 @@ class OldFormatItemsTests(BackupBase):
         self.assertEqual(Case.objects.get(citation="  ").item.text_plain, "s")
         trashed = Case.objects.get(citation="T v U")
         self.assertIsNotNone(trashed.deleted_at)
-        self.assertEqual(VersionHistory.objects.filter(change_kind="migrate", record_type="case").count(), 3)
+        self.assertEqual(VersionHistory.objects.filter(change_kind="migrate", record_type="case").count(), 4)  # 3 moved citations + the Nested Item's own
         # Primary keys of new rows do not collide, and the sequences continue after them.
         extra = Case.objects.create(profile=main_profile(), item=self.plain, citation="Later", position=5)
         self.assertGreater(extra.pk, max(Case.objects.exclude(pk=extra.pk).values_list("pk", flat=True)))

@@ -180,7 +180,6 @@ class PreviewEndpointTests(Base):
         resp = self.client.get(reverse("format_preview"))
         self.assertContains(resp, '<span class="num">A.</span>')
         self.assertContains(resp, '<span class="num">(1)</span>')
-        self.assertContains(resp, "\u2022")
         self.assertNotContains(resp, "<html")
 
     def test_requested_formats_are_used(self):

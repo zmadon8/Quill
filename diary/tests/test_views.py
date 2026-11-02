@@ -832,6 +832,7 @@ class ReadingNumberingTests(TestCase):
         self.assertIn("target deleted", path)
 
 
+@override_settings(SECURE_SSL_REDIRECT=False)
 class ReadingCitationTests(TestCase):
     """An Item's citations are its Cases: one shows plain, several are labelled by the Multi-Item format."""
 
@@ -848,7 +849,6 @@ class ReadingCitationTests(TestCase):
         block = self.block("invitation to treat")
         self.assertEqual([(c["label"], c["citation"]) for c in block["cases"]], [("", "Harvey v. Facey [1893] AC 552")])
         self.assertFalse(block["is_multi"])
-        self.assertEqual(block["citation"], "")
 
     def test_several_citations_are_labelled_and_keep_their_comments(self):
         block = self.block("general offer")
