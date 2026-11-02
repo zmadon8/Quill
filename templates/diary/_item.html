@@ -1,7 +1,7 @@
 {% load diary_tags %}<div class="item{% if b.indent %} under-section{% endif %}{% if b.flag %} flagged{% endif %}{% if b.needs_review %} review{% endif %}" id="{{ b.anchor }}">
   <span class="num">{{ b.label|dotted }}</span>
   <div class="item-body">
-    <span class="item-text">{% if b.has_text %}{{ b.text }}{% endif %}</span>{% if b.is_multi %}{% if b.has_text %} - {% endif %}{% for case in b.cases %}<span class="case"><span class="num">{{ case.label }}</span> <em class="citation">{{ case.citation }}</em>{% if case.has_comment %} <span class="case-comment">{{ case.comment }}</span>{% endif %}</span>{% if not forloop.last %} ; {% endif %}{% endfor %}{% elif b.citation %}{% if b.has_text %} - {% endif %}<em class="citation">{{ b.citation }}</em>{% endif %}
+    <span class="item-text">{% if b.has_text %}{{ b.text }}{% endif %}</span>{% if b.cases %}{% if b.has_text %} - {% endif %}{% for case in b.cases %}<span class="case">{% if case.label %}<span class="num">{{ case.label }}</span> {% endif %}<em class="citation">{{ case.citation }}</em>{% if case.has_comment %} <span class="case-comment">{{ case.comment }}</span>{% endif %}</span>{% if not forloop.last %} ; {% endif %}{% endfor %}{% elif b.citation %}{% if b.has_text %} - {% endif %}<em class="citation">{{ b.citation }}</em>{% endif %}
     {% if b.flag %}<span class="flag-text">[{{ b.flag_label }}]</span>{% endif %}
     {% if b.needs_review %}<span class="review-marker">For review{% if b.review_note %}: {{ b.review_note }}{% endif %}</span>{% endif %}
     {% if can_edit and not edit_mode %}{% include "diary/_add_here.html" with ahkind="item" ahid=b.id ahversion=b.version ahrun=b.run ahclass="add-here-read" %}{% endif %}

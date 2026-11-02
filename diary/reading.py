@@ -177,7 +177,8 @@ def run_of(obj):
 
 def _item_block(item, data, fmts, label, depth, under_section, is_child=False):
     cases = data.cases_by_item.get(item.pk, [])
-    case_labels = numbering.multi_item_labels(len(cases))
+    # One citation shows without a label; two or more are labelled with the Multi-Item citation format.
+    case_labels = numbering.number_siblings(len(cases), fmts["multi_citation_format"]) if len(cases) > 1 else [""] * len(cases)
     children = []
     if not is_child:
         kids = sorted(data.items_by.get(("parent_item", item.pk), []), key=lambda i: (i.position, i.pk))
@@ -192,11 +193,11 @@ def _item_block(item, data, fmts, label, depth, under_section, is_child=False):
         "label": label,
         "depth": depth,
         "indent": under_section,
-        "is_multi": item.kind == "multi",
+        "is_multi": len(cases) > 1,
         "is_nested": item.kind == "nested",
         "text": _html(item.text),
         "has_text": bool(item.text_plain.strip()),
-        "citation": item.citation,
+        "citation": item.citation if item.kind == "nested" else "",
         "cases": [
             {"label": lab, "citation": c.citation, "comment": _html(c.comment), "has_comment": bool(c.comment_plain.strip())}
             for lab, c in zip(case_labels, cases)
