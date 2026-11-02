@@ -1,10 +1,11 @@
-"""The 404 handler: a browser that asks for an address that matches no route is sent Home with a permanent (301)
-redirect, as the owner asked (docs/DESIGN.md, Round 8). A real address whose record is missing gets a temporary
-(302) redirect instead, because the record can come back from the Trash. Everything that is not a plain page request in a
+"""The 404 handler: a browser that asks for an address that matches no route was sent Home with a permanent (301)
+redirect in Round 8; in Round 9 the owner asked for "temporary 301 redirects", read as temporary (302) because a 301 is
+permanent by definition (docs/DESIGN.md, Round 9). A real address whose record is missing gets a 302 too, because the
+record can come back from the Trash. Everything that is not a plain page request in a
 browser (forms, fetch calls, assets, health checks) still gets a real 404."""
 from django.contrib import messages
 from django.contrib.messages.api import MessageFailure
-from django.http import Http404, HttpResponsePermanentRedirect, HttpResponseRedirect
+from django.http import Http404, HttpResponseRedirect
 from django.urls import Resolver404, reverse
 from django.views.defaults import page_not_found
 
@@ -39,7 +40,7 @@ def _destination(request):
 
 
 def not_found(request, exception=None, template_name="404.html"):
-    """handler404: 301 to Home for unmatched addresses, 302 for a missing record, a plain 404 for everything else."""
+    """handler404: 302 to Home for unmatched addresses and for a missing record, a plain 404 for everything else."""
     if not _is_browser_page_request(request):
         return page_not_found(request, exception, template_name)
     if isinstance(exception, Http404) and not isinstance(exception, Resolver404):
@@ -50,4 +51,5 @@ def not_found(request, exception=None, template_name="404.html"):
         except MessageFailure:
             pass
         return HttpResponseRedirect(_destination(request))
-    return HttpResponsePermanentRedirect(_destination(request))
+    # Temporary (302): the owner asked for temporary redirects for mistyped addresses, so browsers must not cache them.
+    return HttpResponseRedirect(_destination(request))

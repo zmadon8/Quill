@@ -1,4 +1,4 @@
-"""Round 8, item 1: the 301 redirects (unknown pages, /caselaw, /caselaw/home/ alias)."""
+"""Round 8 and 9: 301 for renamed addresses (/caselaw, /caselaw/home/ alias, old root URLs); 302 for unknown pages (Round 9)."""
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
@@ -49,22 +49,23 @@ class RedirectTests(TestCase):
     def test_unknown_root_page_in_a_browser_goes_to_suite_home(self):
         for path in ("/nope/", "/nope"):
             resp = self.client.get(path, **HTML)
-            self.assertEqual(resp.status_code, 301, path)
+            self.assertEqual(resp.status_code, 302, path)
             self.assertEqual(resp["Location"], "/?home=1", path)
+            self.assertNotIn("max-age", resp.get("Cache-Control", ""))
 
     def test_unknown_caselaw_page_goes_to_subjects_with_a_profile(self):
         self.client.force_login(self.reader)
         resp = self.client.get("/caselaw/nope/", **HTML)
-        self.assertEqual(resp.status_code, 301)
+        self.assertEqual(resp.status_code, 302)
         self.assertEqual(resp["Location"], "/caselaw/subjects/")
 
     def test_unknown_caselaw_page_goes_to_suite_home_without_a_profile(self):
         self.client.force_login(self.no_profile)
         resp = self.client.get("/caselaw/nope/", **HTML)
-        self.assertEqual((resp.status_code, resp["Location"]), (301, "/?home=1"))
+        self.assertEqual((resp.status_code, resp["Location"]), (302, "/?home=1"))
         self.client.logout()
         resp = self.client.get("/caselaw/nope/", **HTML)
-        self.assertEqual((resp.status_code, resp["Location"]), (301, "/?home=1"))
+        self.assertEqual((resp.status_code, resp["Location"]), (302, "/?home=1"))
 
     def test_only_browser_page_requests_are_redirected(self):
         self.client.force_login(self.reader)
