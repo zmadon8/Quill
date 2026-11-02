@@ -1,5 +1,6 @@
 import logging
 from functools import wraps
+from urllib.parse import urlsplit
 
 from django.core.exceptions import PermissionDenied
 from django.db import connection
@@ -11,6 +12,7 @@ from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
+from accounts import landing as account_landing
 from accounts.models import ROLE_EDITOR
 from accounts.models import Profile
 from accounts.permissions import admin_required, reader_required
@@ -137,9 +139,25 @@ def subjects(request):
     })
 
 
+def _referred_from_this_site(request):
+    """True when the request came from a page of this site (same host in the Referer header)."""
+    referer = request.META.get("HTTP_REFERER", "")
+    return bool(referer) and urlsplit(referer).netloc == request.get_host()
+
+
 @reader_required
 def home(request):
-    """Suite Home: the program picker (only the case law diary today)."""
+    """Suite Home: the program picker (only the case law diary today).
+
+    An entry visit (bare ``/`` with no same-origin Referer and no ``?home=1``) by a user who chose a landing
+    program in My settings, and still has a profile there, goes straight to that program. Every deliberate
+    Home link (icon, Alt+H, brand, Cancel, Back fallback) carries ``?home=1``, and in-site navigation sends a
+    same-origin Referer, so Home itself stays reachable. See docs/DESIGN.md.
+    """
+    if request.method == "GET" and not request.GET.get("home") and not _referred_from_this_site(request):
+        target = account_landing.landing_url(request.user)
+        if target != reverse("home"):
+            return redirect(target)
     return render(request, "diary/home.html", {"diary_profile": request_profile(request)})
 
 

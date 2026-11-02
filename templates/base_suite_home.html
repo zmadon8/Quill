@@ -1,6 +1,6 @@
 {% extends "base_suite.html" %}
 {# Suite level pages (the Home program picker and the Users screens): slim top row with Profiles, Users and Settings (Admin only), the user name and Log out. No diary nav and no breadcrumb. Back sits in the top row, as everywhere. #}
-{% block program_name %}<a href="{% url 'home' %}" title="Go to Home (Alt+H)" aria-label="Go to Home">{{ home_name }}</a>{% endblock %}
+{% block program_name %}<a href="{% url 'home' %}?home=1" title="Go to Home (Alt+H)" aria-label="Go to Home">{{ home_name }}</a>{% endblock %}
 {% block program_nav %}{% with current=request.resolver_match.url_name %}
   {% if user.is_admin %}<a href="{% url 'profile_list' %}"{% if current|slice:":8" == 'profile_' %} class="on" aria-current="page"{% endif %}>Profiles</a>{% endif %}
   {% if user.is_admin %}<a href="{% url 'user_list' %}"{% if current|slice:":5" == 'user_' %} class="on" aria-current="page"{% endif %}>Users</a>{% endif %}

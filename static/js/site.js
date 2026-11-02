@@ -22,7 +22,9 @@
     var NAV_KEY = "quill.nav";
     var NAV_MAX = 50;
     var here = window.location.pathname + window.location.search;
-    var homePath = (back && back.dataset.fallback) || home || "/";
+    var homePath = (back && back.dataset.fallback) || (home && home.split("?")[0]) || "/";
+    var homeGo = homePath + "?home=1";
+    var atHome = function () { return here === homePath || here === homeGo; };
     var nav = { stack: [], i: -1 };
 
     var isSitePath = function (u) { return typeof u === "string" && u.charAt(0) === "/" && u.charAt(1) !== "/" && u.charAt(1) !== "\\"; };
@@ -60,7 +62,7 @@
       btn.setAttribute("aria-disabled", off ? "true" : "false");
     };
     // Back is disabled only on the first page of the tab when that page is already Home.
-    if (back) { setDisabled(back, nav.i <= 0 && here === homePath); }
+    if (back) { setDisabled(back, nav.i <= 0 && atHome()); }
     if (forward) { setDisabled(forward, nav.i >= nav.stack.length - 1); }
 
     var go = function (index) {
@@ -72,7 +74,7 @@
     };
     if (back) {
       back.addEventListener("click", function () {
-        if (nav.i > 0) { go(nav.i - 1); } else if (here !== homePath && isSitePath(homePath)) { window.location.assign(homePath); }
+        if (nav.i > 0) { go(nav.i - 1); } else if (!atHome() && isSitePath(homePath)) { window.location.assign(homeGo); }
       });
     }
     if (forward) {
@@ -87,7 +89,7 @@
       } catch (err) { /* keep what we have */ }
       var at = nav.stack.lastIndexOf(here);
       if (at >= 0) { nav.i = at; saveNav(); }
-      if (back) { setDisabled(back, nav.i <= 0 && here === homePath); }
+      if (back) { setDisabled(back, nav.i <= 0 && atHome()); }
       if (forward) { setDisabled(forward, nav.i >= nav.stack.length - 1); }
     });
   }

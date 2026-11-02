@@ -213,16 +213,52 @@ class HomeIndexTests(TestCase):
         self.assertIn('<a href="%s" title="Subjects"' % reverse("subjects"), header)
         self.assertIn("Log out", nav)
 
-    def test_home_icon_button_precedes_program_name_inside_programs_only(self):
+    def test_home_icon_button_precedes_program_name_in_programs_and_suite_pages(self):
         self.client.force_login(self.reader)
         header = self.client.get(reverse("subjects")).content.decode().split('<header class="site-header"')[1].split("</header>")[0]
-        self.assertIn('class="home-button" href="%s"' % reverse("home"), header)
+        self.assertIn('class="home-button" href="%s?home=1"' % reverse("home"), header)
         self.assertIn('aria-label="Home (Alt+H)"', header)
         self.assertLess(header.index("home-button"), header.index('class="brand"'))
         self.assertLess(header.index('class="brand"'), header.index("data-back"))
         self.assertLess(header.index("data-back"), header.index("data-forward"))
-        suite_header = self.client.get(reverse("home")).content.decode().split('<header class="site-header"')[1].split("</header>")[0]
-        self.assertNotIn("home-button", suite_header)
+        self.client.force_login(self.admin)
+        for name in ("home", "user_list", "settings"):
+            suite_header = self.client.get(reverse(name)).content.decode().split('<header class="site-header"')[1].split("</header>")[0]
+            self.assertIn('class="home-button" href="%s?home=1"' % reverse("home"), suite_header, name)
+            self.assertLess(suite_header.index("home-button"), suite_header.index('class="brand"'), name)
+
+    def _choose_landing(self, user, key="diary"):
+        User.objects.filter(pk=user.pk).update(landing_program=key)
+
+    def test_entry_visit_to_home_redirects_to_chosen_landing_program(self):
+        self._choose_landing(self.reader)
+        self.client.force_login(self.reader)
+        resp = self.client.get(reverse("home"))
+        self.assertRedirects(resp, reverse("subjects"), fetch_redirect_response=False)
+        resp = self.client.get(reverse("home"), HTTP_REFERER="https://elsewhere.example/page")
+        self.assertRedirects(resp, reverse("subjects"), fetch_redirect_response=False)
+
+    def test_entry_visit_shows_home_without_landing_program(self):
+        self.client.force_login(self.reader)
+        self.assertEqual(self.client.get(reverse("home")).status_code, 200)
+
+    def test_entry_visit_shows_home_when_the_landing_profile_is_gone(self):
+        from accounts.models import ProfileMembership
+
+        self._choose_landing(self.reader)
+        ProfileMembership.objects.filter(user=self.reader).delete()
+        self.client.force_login(self.reader)
+        self.assertEqual(self.client.get(reverse("home")).status_code, 200)
+
+    def test_deliberate_home_visits_are_not_redirected(self):
+        self._choose_landing(self.reader)
+        self.client.force_login(self.reader)
+        self.assertEqual(self.client.get(reverse("home") + "?home=1").status_code, 200)
+        resp = self.client.get(reverse("home"), HTTP_REFERER="http://testserver" + reverse("subjects"))
+        self.assertEqual(resp.status_code, 200)
+        html = self.client.get(reverse("subjects")).content.decode()
+        self.assertIn('class="home-button" href="%s?home=1"' % reverse("home"), html)
+        self.assertIn('data-home="%s?home=1"' % reverse("home"), html)
 
     def test_home_picker_is_one_link_with_only_the_program_name(self):
         self.client.force_login(self.reader)
