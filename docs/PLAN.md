@@ -218,3 +218,5 @@ Owner questions (default stands unless you say otherwise):
 ## Order and dependencies
 
 0, 1, then 2 (so real data can be seen), then 3, 4, 5, 6, 7. Milestones 4 and 5 can swap if you need Notes sooner. All questions in `docs/DESIGN.md` section 14 are answered (N1 and N2 are closed by D9 and I10). Only four small questions remain, each with a default that is used unless you say otherwise: the Section number style, the date format in file names, the long file name rule, and the Current View heading level for a Topic.
+
+Round 8 item 2 a and b (D25 in `docs/DESIGN.md`): the Subjects page is now "Home", titled "Index of Subjects", and the Edit switch is at the bottom of the Home page (on the bar on reading pages). Owner question: move it to the bottom on reading pages too? Default: no.

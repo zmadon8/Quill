@@ -201,3 +201,7 @@ summary.ra::-webkit-details-marker { display: none; }
 @keyframes row-flash { from { background: var(--amber-bg); } to { background: transparent; } }
 .cite-row .rt-toolbar { display: none; }
 .card-top .ttl small { display: block; font-weight: 400; color: var(--muted); font-size: .9rem; }
+
+/* The Edit switch at the bottom of the program Home page (docs/DESIGN.md D25). */
+.edit-switch-bottom { margin: 2.5rem 0 1.5rem; padding-top: 1rem; border-top: 1px solid var(--hair); display: flex; justify-content: center; }
+.edit-switch-bottom .bar-tools { margin-left: 0; justify-content: center; }

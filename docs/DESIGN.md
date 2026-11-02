@@ -945,3 +945,10 @@ Owner's round 6 answers: "Yes to 1 and 2. Yes to 3, and also add a setting to de
   - **DEFAULT: destination.** Under `/caselaw/` and signed in with a profile: the program Home. Everything else: Home (`/?home=1`, which also skips the landing-program redirect).
   - **DEFAULT: a missing record also redirects, with a message.** An address that exists but whose record is gone (deleted, or another profile's) redirects the same way and shows "That page no longer exists." on the page it lands on. An address that matches nothing redirects silently.
   - **Tests.** `diary/tests/test_redirects.py`.
+
+- **D25. Home page rename, heading and Edit switch at the bottom (round 8, item 2 a and b).** [Owner: "Rename the \u2018Subjects\u2019 page as \u2018Home\u2019. Rename the \u2018Subjects\u2019 at the top as \u2018Index of Subjects\u2019, and remove the (now-duplicated \u2018Index of Subjects\u2019 text on line 2. Move the \u2018Edit\u2019 button to the bottom of the page."]
+  - **Built.** The page title is "Home - Case Law Diary"; the one heading is "Index of Subjects"; the small-caps second line and its CSS are removed. The program name link is titled "Home". The Edit switch (with Undo and Done when on) sits in a centred block at the bottom of the Home page, after Other Subjects (`.edit-switch-bottom` in `edit.css`).
+  - **DEFAULT: breadcrumb root.** On reading pages the breadcrumb root, which opens the side panel's list of every Subject, now reads "Index of Subjects".
+  - **DEFAULT: Edit switch placement.** It moves to the bottom on the program Home page only. On reading pages it stays on the sticky directory bar, where it is needed while scrolling. Owner question: should reading pages move it too?
+  - **Not renamed.** "Subjects" where it means the records (Other Subjects, Add a Subject, Show on the Subjects page).
+  - **Tests.** `diary/tests/test_views.py` (title, single heading, switch after Other Subjects, absent for Readers, breadcrumb root).

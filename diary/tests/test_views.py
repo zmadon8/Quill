@@ -202,6 +202,20 @@ class HomeIndexTests(TestCase):
         resp = self.client.get("/search/?q=abc")
         self.assertEqual(resp["Location"], "/caselaw/search/?q=abc")
 
+    def test_home_page_title_single_heading_and_edit_switch_at_bottom(self):
+        self.client.force_login(self.admin)
+        html = self.client.get(reverse("diary_home")).content.decode()
+        self.assertIn("<title>Home - ", html)
+        self.assertEqual(html.count("<h1>"), 1)
+        self.assertIn("<h1>Index of Subjects</h1>", html)
+        self.assertNotIn("home-subtitle", html)
+        self.assertGreater(html.index("data-edit-switch"), html.index('id="other-subjects"'))
+        self.assertIn('class="edit-switch-bottom"', html)
+
+    def test_home_page_has_no_edit_switch_for_readers(self):
+        self.client.force_login(self.reader)
+        self.assertNotContains(self.client.get(reverse("diary_home")), "data-edit-switch")
+
     def test_nav_lacks_a_subjects_link_and_brand_links_to_subjects(self):
         self.client.force_login(self.reader)
         html = self.client.get(reverse("search")).content.decode()
@@ -210,7 +224,7 @@ class HomeIndexTests(TestCase):
         self.assertNotIn('href="%s"' % reverse("diary_home"), nav)
         self.assertIn(reverse("search"), nav)
         header = html.split('<header class="site-header"')[1].split("</header>")[0]
-        self.assertIn('<a href="%s" title="Subjects"' % reverse("diary_home"), header)
+        self.assertIn('<a href="%s" title="Home"' % reverse("diary_home"), header)
         self.assertIn("Log out", nav)
 
     def test_home_icon_button_precedes_program_name_in_programs_and_suite_pages(self):
@@ -299,7 +313,7 @@ class HomeIndexTests(TestCase):
             if name in ("home", "user_list", "backup_list", "settings"):
                 self.assertIn('<a href="%s?home=1" title="Go to Home (Alt+H)" aria-label="Go to Home">' % reverse("home"), header, name)
             else:
-                self.assertIn('<a href="%s" title="Subjects"' % reverse("diary_home"), header, name)
+                self.assertIn('<a href="%s" title="Home"' % reverse("diary_home"), header, name)
             self.assertNotIn("switch-program", html, name)
             self.assertNotIn('class="toolbar', html, name)
             if name in ("home", "user_list", "backup_list", "settings"):
@@ -451,7 +465,7 @@ class ReadingScreenTests(TestCase):
             resp = self.client.get(url)
             self.assertContains(resp, 'class="breadcrumb"')
             self.assertContains(resp, '<a href="%s"' % reverse("diary_home"))
-            self.assertContains(resp, ">Subjects</a>")
+            self.assertContains(resp, ">Index of Subjects</a>")
 
     def test_subject_links_open_whole_subject_view(self):
         self.client.force_login(self.users["reader"])

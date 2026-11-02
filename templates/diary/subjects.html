@@ -1,16 +1,14 @@
 {% extends "base.html" %}
-{% block title %}Subjects - {{ diary_name }}{% endblock %}
+{% block title %}Home - {{ diary_name }}{% endblock %}
 {% block content %}
 <div class="home-column">
-  <h1>Subjects</h1>
-  <p class="home-subtitle">Index of Subjects</p>
+  <h1>Index of Subjects</h1>
   <p class="meta home-meta">{{ subject_total }} subject{{ subject_total|pluralize }} &middot; {{ item_total }} item{{ item_total|pluralize }} &middot; <a href="{% url 'review_list' %}">{{ review_total }} for review</a></p>
   <form class="home-search" role="search" method="get" action="{% url 'search' %}">
     <label class="visually-hidden" for="home-q">Search the diary</label>
     <input type="search" id="home-q" name="q" placeholder="Search the diary&hellip;" autocomplete="off">
     <button type="submit" class="primary">Search</button>
   </form>
-  {% include "diary/_edit_switch.html" %}
   <div{% if edit_mode %} data-edit-root data-add-url="{% url 'edit_inline_add' %}" data-card-url="{% url 'edit_inline_card' %}" data-move-url="{% url 'edit_move' %}" data-next="{{ next_url }}"{% endif %}>
   <ul class="subject-index">
     {% for subject in subjects %}
@@ -55,6 +53,7 @@
   {% endif %}
   {% if not other_subjects %}<p class="empty">There are no Other Subjects yet.</p>{% endif %}
   </div>
+  {% if can_edit %}<div class="edit-switch-bottom">{% include "diary/_edit_switch.html" %}</div>{% endif %}
 </div>
 {% endblock %}
 {% block extra_js %}{% include "diary/_edit_scripts.html" %}{% endblock %}
