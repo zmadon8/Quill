@@ -182,13 +182,13 @@ class UndoStructuralRuleTests(ServiceTestCase):
         self.assertIsNotNone(self.get(topic).deleted_at)
         self.assertIsNotNone(self.get(topic).delete_batch)
 
-    def test_undo_of_a_case_delete_is_refused_once_the_item_is_plain(self):
+    def test_undo_of_a_case_delete_is_refused_once_the_item_is_nested(self):
         subject = self.make("subject", name="Contract")
         topic = self.make("topic", ("subject", subject.pk), name="Formation")
-        multi = self.make("item", ("topic", topic.pk), kind="multi", text="m")
+        multi = self.make("item", ("topic", topic.pk), text="m")
         case = self.make("case", ("item", multi.pk), citation="A v B")
         deleted = svc.delete(self.profile, self.user, "case", case.pk)
-        svc.convert_item(self.profile, self.user, multi.pk, "plain")
+        svc.convert_item(self.profile, self.user, multi.pk, "nested")
         with self.assertRaises(svc.Refused):
             svc.undo_group(self.profile, self.user, deleted.group)
         self.assertIsNotNone(self.get(case).deleted_at)

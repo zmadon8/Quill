@@ -18,7 +18,7 @@ class TrashTestCase(ServiceTestCase):
         self.i2 = self.make("item", parent, text="i2")
         self.sec = self.make("section", parent, name="Sec")
         self.i3 = self.make("item", parent, text="i3")
-        self.multi = self.make("item", ("topic", self.t1.pk), kind="multi", text="m")
+        self.multi = self.make("item", ("topic", self.t1.pk), text="m")
         self.case = self.make("case", ("item", self.multi.pk), citation="A v B")
         self.note = self.make("note", ("item", self.i1.pk), text="see")
         self.t1_tree = [self.t1, self.st, self.i1, self.i2, self.sec, self.i3, self.multi, self.case, self.note]
@@ -62,7 +62,7 @@ class DeleteTests(TrashTestCase):
         self.assertNotEqual(self.get(self.i1).delete_batch, first)
         self.assertEqual(TrashBatch.objects.count(), 2)
 
-    def test_deleting_a_nested_item_takes_its_children_and_a_multi_item_its_cases(self):
+    def test_deleting_a_nested_item_takes_its_children_and_an_item_its_citations(self):
         nested = self.make("item", ("topic", self.t2.pk), kind="nested", text="n")
         child = self.make("item", ("item", nested.pk), text="child")
         svc.delete(self.profile, self.user, "item", nested.pk)
@@ -195,9 +195,9 @@ class RestoreTests(TrashTestCase):
         with self.assertRaises(svc.Conflict):
             svc.restore(self.profile, self.user, "item", self.i1.pk, expected_version=1)
 
-    def test_a_case_cannot_come_back_under_an_item_that_is_no_longer_multi(self):
+    def test_a_case_cannot_come_back_under_an_item_that_is_now_a_nested_item(self):
         svc.delete(self.profile, self.user, "case", self.case.pk)
-        Item.objects.filter(pk=self.multi.pk).update(kind="plain")
+        Item.objects.filter(pk=self.multi.pk).update(kind="nested")
         with self.assertRaises(svc.Refused):
             svc.restore(self.profile, self.user, "case", self.case.pk)
 
