@@ -148,7 +148,7 @@ def _save(request, item, back):
         raise
     except Refused as exc:
         messages.error(request, exc.message)
-        return _render(request, item, back, values=values, rows=rows, status=400)
+        return _render(request, item, back, values=values, rows=rows if with_cases else None, status=400)
     messages.success(request, "Saved.")
     return redirect(back)
 
