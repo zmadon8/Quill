@@ -9,14 +9,27 @@ body.edit-on .crumb-row { background: var(--bg); }
 
 /* ---- Directory bar: the Edit switch, Undo, Done, All ---- */
 .bar-tools { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .6rem; margin-left: auto; }
-.edit-switch { text-decoration: none; gap: .5rem; padding: 0 .75rem 0 .65rem; border-color: var(--muted); background: var(--panel); }
-.edit-switch .track { position: relative; width: 2.4rem; height: 1.3rem; border-radius: 1rem; background: var(--hair); border: 1px solid var(--muted); flex: 0 0 auto; }
-.edit-switch .knob { position: absolute; top: 1px; left: 1px; width: calc(1.3rem - 4px); height: calc(1.3rem - 4px); border-radius: 50%; background: #fff; border: 1px solid var(--muted); }
-.edit-switch[aria-checked=true] { border-color: var(--ink); background: #fff; font-weight: 600; }
-.edit-switch[aria-checked=true] .track { background: var(--ink); border-color: var(--ink); }
-.edit-switch[aria-checked=true] .knob { left: calc(100% - 1.3rem + 3px); border-color: var(--ink); }
+/* The Edit button (Round 9, mockup option A): a quiet link when off, an oxblood pill "Editing · Done" when on. */
+.edit-switch { text-decoration: none; gap: .4rem; }
+.edit-switch.edit-link { border: 0; background: none; color: var(--muted); padding: 0 .6rem; text-decoration: underline; text-decoration-color: var(--hair); text-underline-offset: .25em; }
+.edit-switch.edit-link:hover { background: none; color: var(--ink); }
+.edit-switch.edit-pill { border-radius: 999px; background: var(--oxblood); border-color: var(--oxblood); color: var(--oxblood-ink); padding: 0 1.1rem; gap: .5rem; font-weight: 600; }
+.edit-switch.edit-pill:hover { background: #8d2633; }
+.edit-switch .dot { opacity: .7; }
+/* The strip across the very top while editing (mockup option C): "Editing · Undo · Done". The crumb row sticks below it. */
+.edit-strip { position: sticky; top: 0; z-index: 30; box-sizing: border-box; height: var(--strip-h); background: var(--oxblood); color: var(--oxblood-ink); display: flex; align-items: center; justify-content: center; flex-wrap: nowrap; gap: .25rem .75rem; padding: 0 1rem; font-size: .95rem; }
+.edit-strip b { font-weight: 600; letter-spacing: .02em; }
+.edit-strip .dot { opacity: .7; }
+.edit-strip .undo-form { display: inline-flex; margin: 0; }
+.edit-strip button, .edit-strip .button { min-height: 32px; padding: 0 .8rem; background: transparent; border: 1px solid rgba(255,255,255,.7); color: #fff; }
+.edit-strip button:hover, .edit-strip .button:hover { background: rgba(255,255,255,.15); }
+.edit-strip .button.solid { background: #fff; color: var(--oxblood); border-color: #fff; font-weight: 600; }
+.edit-strip .button.solid:hover { background: #f4eaec; }
+.edit-strip button:disabled { opacity: .55; cursor: not-allowed; }
+.edit-strip a:focus-visible, .edit-strip button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+:root { --strip-h: 44px; }
+.edit-on .crumb-row { top: var(--strip-h); }
 .bar-tools .in-context { margin: 0 0 0 .4rem; }
-.bar-tools button.small { padding: 0 .9rem; }
 .bar-sep { width: 1px; height: 1.6rem; background: var(--hair); }
 
 /* ---- Rows in Edit mode ---- */
@@ -108,7 +121,6 @@ body.edit-on .crumb-row { background: var(--bg); }
   .hrow .row-actions { gap: .4rem; }
   .bar-tools { margin-left: 0; width: 100%; padding-bottom: .4rem; }
   .bar-tools .in-context { margin-left: auto; }
-  .edit-switch { padding: 0 .6rem; }
   .seg button { min-height: 44px; padding: 0 .4rem; }
   .rtbar button { min-width: 44px; min-height: 44px; }
   .addform { padding: .8rem; }
@@ -162,7 +174,6 @@ body.edit-on .crumb-row { background: var(--bg); }
 .editcard .field-label { font-weight: 600; }
 .editcard label.fld { display: block; }
 .undo-form { display: inline; margin: 0; }
-.bar-tools .undo-form button:disabled { opacity: .45; cursor: not-allowed; }
 
 @media (max-width: 599px) {
   .seg-option span { min-height: 44px; padding: 0 .5rem; }

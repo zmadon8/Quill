@@ -1,0 +1,13 @@
+{# The slim oxblood strip across the very top of the page while Edit is on: "Editing · Undo · Done" (Round 9, mockup option C). #}
+{# Editors only (the caller checks edit_mode, which is true only for Editors). Undo is the same form edit-mode.js updates after each change. #}
+<div class="edit-strip" role="region" aria-label="Editing">
+  <b>Editing</b><span class="dot" aria-hidden="true">&middot;</span>
+  <form method="post" action="{% url 'edit_undo' %}" class="undo-form" data-undo-form>
+    {% csrf_token %}
+    <input type="hidden" name="group" value="{{ undo.group }}">
+    <input type="hidden" name="next" value="{{ next_url }}">
+    <button type="submit" data-undo-button title="{% if undo %}Undo: {{ undo.text }}{% else %}Nothing to undo in this session{% endif %}"{% if not undo %} disabled{% endif %}>Undo</button>
+  </form>
+  <span class="dot" aria-hidden="true">&middot;</span>
+  <a class="button solid" href="{{ toggle_url }}" data-edit-done title="Finish editing">Done</a>
+</div>

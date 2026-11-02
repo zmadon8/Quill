@@ -274,7 +274,8 @@
   if (crumbRow) {
     var rootStyle = document.documentElement.style;
     var measure = function () {
-      rootStyle.setProperty("--sticky-offset", crumbRow.getBoundingClientRect().height + "px");
+      var strip = document.querySelector(".edit-strip"); // the Editing strip is sticky above the row
+      rootStyle.setProperty("--sticky-offset", crumbRow.getBoundingClientRect().height + (strip ? strip.getBoundingClientRect().height : 0) + "px");
     };
     measure();
     window.addEventListener("resize", measure);

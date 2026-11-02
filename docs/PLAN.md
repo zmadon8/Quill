@@ -222,3 +222,5 @@ Owner questions (default stands unless you say otherwise):
 Round 8 item 2 a and b (D25 in `docs/DESIGN.md`): the Subjects page is now "Home", titled "Index of Subjects", and the Edit switch is at the bottom of the Home page (on the bar on reading pages). Owner question: move it to the bottom on reading pages too? Default: no.
 
 Round 8 manual test needed: the Move to... flow (`postPlain` in `static/js/edit-mode.js`) has only a source-text test and the server-side strict-CSRF tests, no behavioural JS test. Before release, try Move to... once in a real browser (card, picker, confirm) and check it no longer shows "security check did not pass".
+
+Round 9 (D26 to D29 in `docs/DESIGN.md`): Read Whole Subject link; Profile Display Name; unknown addresses redirect with 302 ("temporary 301" read as temporary); Edit button redesigned (quiet link, pill, top strip). Owner questions with defaults: Display Name on the Home button (yes); also make the renamed-address redirects temporary (no). Needs a real-browser look: the strip and pill at desktop and phone widths, and that Undo in the strip updates after an inline edit.

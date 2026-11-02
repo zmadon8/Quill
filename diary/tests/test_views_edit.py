@@ -100,12 +100,37 @@ class AccessTests(EditViewTestCase):
         self.assertContains(editing, "data-drag-handle")
         self.assertContains(editing, "data-edit-done")
         self.assertContains(editing, "data-undo-form")
+        # Round 9: the pill "Editing · Done" in the bar, and the strip "Editing · Undo · Done" across the very top.
+        self.assertContains(editing, 'class="button edit-switch edit-pill"', count=1)
+        self.assertContains(editing, 'class="edit-strip"', count=1)
+        self.assertContains(editing, "data-undo-form", count=1)
+        self.assertContains(editing, "data-edit-done", count=1)
+        self.assertNotContains(editing, 'class="track"')
+        self.assertContains(plain, 'class="button edit-switch edit-link"')
+        self.assertNotContains(plain, "edit-strip")
+        self.assertNotContains(plain, "edit-pill")
         self.assertContains(editing, "edit-mode.js")
         self.assertContains(editing, "css/edit.css")
         self.assertContains(editing, 'class="edit-on"')
         # The old icon edit bars are gone.
         for old in ("data-edit-bar", "Edit mode", "Done editing", "quick-add"):
             self.assertNotContains(editing, old)
+
+    def test_the_strip_and_pill_also_appear_on_the_index_of_subjects(self):
+        index = reverse("diary_home")
+        off = self.client.get(index)
+        self.assertContains(off, "edit-link")
+        self.assertNotContains(off, "edit-strip")
+        on = self.client.get(index + "?edit=1")
+        self.assertContains(on, "edit-pill", count=1)
+        self.assertContains(on, 'class="edit-strip"', count=1)
+        self.assertContains(on, "Nothing to undo in this session")
+        self.assertContains(on, 'href="%s"' % index)  # Done leaves Edit mode
+        for query in ("", "?edit=1"):
+            resp = self.reader_client.get(index + query)
+            self.assertNotContains(resp, "edit-strip")
+            self.assertNotContains(resp, "edit-pill")
+            self.assertNotContains(resp, "edit-link")
 
     def test_subject_lists_show_controls_only_to_editors_in_edit_mode(self):
         self.assertNotContains(self.reader_client.get(reverse("diary_home") + "?edit=1"), "data-row-actions")
