@@ -67,6 +67,32 @@ class OffsiteTests(TestCase):
         self.assertIn("FAILED", log.message)
         self.assertNotIn(SECRET, log.message + "".join(captured.output))
 
+    def test_bad_endpoint_does_not_raise(self):
+        env = {
+            "OFFSITE_BACKUP_ENDPOINT": "http://plain.example",
+            "OFFSITE_BACKUP_BUCKET": "b",
+            "OFFSITE_BACKUP_ACCESS_KEY_ID": "k",
+            "OFFSITE_BACKUP_SECRET_ACCESS_KEY": SECRET,
+        }
+        backup = services.create_backup("daily")
+        with mock.patch.dict("os.environ", env), self.assertLogs("backups.services", level="WARNING"):
+            self.assertFalse(services.upload_offsite(backup))
+            self.assertEqual(services.prune_offsite(), 0)
+            status = services.offsite_status()
+        self.assertTrue(status["configured"])
+        self.assertFalse(BackupLog.objects.filter(kind="offsite", success=True).exists())
+        self.assertNotIn(SECRET, "".join(BackupLog.objects.values_list("message", flat=True)))
+
+    def test_prune_ignores_foreign_files(self):
+        fake = FakeStorage()
+        old = timezone.now() - timedelta(days=400)
+        fake.items["other/file.txt"] = (b"x", old)
+        fake.items["judgment-diary-backup-20200101-000000-daily.json.gz"] = (b"x", old)
+        fake.items["judgment-diary-backup-20250101-000000-daily.json.gz"] = (b"x", timezone.now())
+        services.prune_offsite(fake)
+        self.assertIn("other/file.txt", fake.items)
+        self.assertEqual(len(fake.items), 2)
+
     def test_unexpected_error_reduced_to_class_name(self):
         backup = services.create_backup("daily")
         fake = FakeStorage()

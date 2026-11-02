@@ -11,9 +11,9 @@ from diary.tests.helpers import join_main, main_profile
 PASSWORD = "x-long-pass-123"
 
 
-def build_subject(profile, topics, items_per_container):
+def build_subject(profile, topics, items_per_container, name="Big Subject"):
     """One Subject with ``topics`` Topics, each with a Sub-topic, Section, Items, nested Items, Notes and links."""
-    subject = Subject.objects.create(profile=profile, name="Big Subject", landing_position=1)
+    subject = Subject.objects.create(profile=profile, name=name, landing_position=1)
     first_item = Item.objects.create(profile=profile, subject=subject, text="<p>first</p>", text_plain="first")
     for t in range(topics):
         topic = Topic.objects.create(profile=profile, subject=subject, name=f"Topic {t}")
@@ -48,13 +48,14 @@ class QueryCountTests(TestCase):
         with CaptureQueriesContext(connection) as ctx:
             response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
+        self.last_response = response
         return len(ctx)
 
     def test_whole_subject_view_is_bounded(self):
         subject = build_subject(main_profile(), topics=2, items_per_container=3)
         small = self.count(reverse("read_subject", args=[subject.pk]))
         self.assertLessEqual(small, self.CEILING)
-        bigger = build_subject(main_profile(), topics=8, items_per_container=25)  # about 200 Items
+        bigger = build_subject(main_profile(), topics=8, items_per_container=25, name="Bigger Subject")  # about 200 Items
         large = self.count(reverse("read_subject", args=[bigger.pk]))
         self.assertLessEqual(large, self.CEILING)
         self.assertLessEqual(large, small + 2, "query count grew with the amount of data")
@@ -62,7 +63,8 @@ class QueryCountTests(TestCase):
     def test_review_list_is_bounded(self):
         build_subject(main_profile(), topics=2, items_per_container=3)
         small = self.count(reverse("review_list"))
-        build_subject(main_profile(), topics=8, items_per_container=25)
+        self.assertContains(self.last_response, "check")
+        build_subject(main_profile(), topics=8, items_per_container=25, name="Bigger Subject")
         large = self.count(reverse("review_list"))
         self.assertLessEqual(large, self.CEILING)
         self.assertLessEqual(large, small + 2, "query count grew with the amount of data")
@@ -70,7 +72,8 @@ class QueryCountTests(TestCase):
     def test_search_is_bounded(self):
         build_subject(main_profile(), topics=2, items_per_container=3)
         small = self.count(reverse("search") + "?q=item")
-        build_subject(main_profile(), topics=8, items_per_container=25)
+        self.assertContains(self.last_response, "item 0-0")
+        build_subject(main_profile(), topics=8, items_per_container=25, name="Bigger Subject")
         large = self.count(reverse("search") + "?q=item")
         self.assertLessEqual(large, self.CEILING)
         self.assertLessEqual(large, small + 2, "query count grew with the amount of data")

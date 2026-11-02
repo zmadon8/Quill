@@ -27,7 +27,7 @@ def rehearse(user=None):
 class Command(BaseCommand):
     help = (
         "Final backup rehearsal: take a backup, read it back and compare the record counts per model with the live "
-        "database. Nothing is restored and no diary data is changed."
+        "database. Nothing is restored and no diary data is changed. Run it when the site is quiet, since edits made meanwhile show as count differences."
     )
 
     def handle(self, *args, **options):

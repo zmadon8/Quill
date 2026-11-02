@@ -7,6 +7,7 @@ import gzip
 import hashlib
 import json
 import logging
+import re
 import zlib
 
 from django.conf import settings
@@ -488,10 +489,15 @@ def upload_offsite(backup, storage=None, user=None):
     Never raises: a failure is logged as a failed "Off-site copy" row, which the warning banner shows.
     Returns True (copied), False (failed) or None (not set up).
     """
-    storage = storage if storage is not None else offsite_storage.get_storage()
+    started = timezone.now()
+    try:
+        storage = storage if storage is not None else offsite_storage.get_storage()
+    except offsite_storage.StorageError as exc:
+        logger.warning("Off-site storage is misconfigured: %s", exc)
+        _log_failure_offsite(started, f"Off-site copy FAILED: {exc}", user)
+        return False
     if not storage.configured:
         return None
-    started = timezone.now()
     try:
         raw = bytes(backup.data)
         storage.put(backup.filename, raw)
@@ -529,19 +535,33 @@ def _log_failure_offsite(started, message, user):
         logger.exception("Could not write the off-site failure log")
 
 
+_BACKUP_NAME_RE = re.compile(r"judgment-diary-backup-\d{8}-\d{6}-[A-Za-z0-9_-]+\.json\.gz$")
+
+
+def _is_our_backup_key(key):
+    return bool(_BACKUP_NAME_RE.search(key.rsplit("/", 1)[-1]))
+
+
 def prune_offsite(storage=None, now=None, retention_days=None):
     """Delete off-site copies older than the retention period (never the newest one). Never raises.
 
     Returns the number removed (0 when not set up).
     """
-    storage = storage if storage is not None else offsite_storage.get_storage()
+    try:
+        storage = storage if storage is not None else offsite_storage.get_storage()
+    except offsite_storage.StorageError as exc:
+        logger.warning("Off-site storage is misconfigured: %s", exc)
+        _log_failure_offsite(timezone.now(), f"Off-site clean-up FAILED: {exc}", None)
+        return 0
     if not storage.configured:
         return 0
     now = now or timezone.now()
     if retention_days is None:
         retention_days = settings.OFFSITE_BACKUP_RETENTION_DAYS
     try:
-        objects = sorted(storage.list(), key=lambda o: o.last_modified, reverse=True)
+        # Only this app's own backup files are ever deleted, even in a shared bucket or prefix.
+        ours = [o for o in storage.list() if _is_our_backup_key(o.key)]
+        objects = sorted(ours, key=lambda o: o.last_modified, reverse=True)
         cutoff = now - datetime.timedelta(days=retention_days)
         removed = 0
         for obj in objects[1:]:
@@ -558,7 +578,11 @@ def prune_offsite(storage=None, now=None, retention_days=None):
 
 def offsite_status():
     """Read-only facts for the Backups screen."""
-    storage = offsite_storage.get_storage()
+    try:
+        storage = offsite_storage.get_storage()
+    except offsite_storage.StorageError as exc:
+        last = BackupLog.objects.filter(kind="offsite").order_by("-started_at", "-id").first()
+        return {"configured": True, "destination": f"(not usable: {exc})", "last": last, "last_ok": None}
     if not storage.configured:
         return {"configured": False}
     last = BackupLog.objects.filter(kind="offsite").order_by("-started_at", "-id").first()
