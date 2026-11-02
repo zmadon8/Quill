@@ -1100,7 +1100,7 @@ class ExportNameTests(BaseCase):
         self.client.force_login(self.admin)
         resp = self.client.get(reverse("profile_settings"))
         self.assertContains(resp, 'name="reading_all_default"')
-        self.assertContains(resp, "First-time &quot;All&quot; is ticked")
+        self.assertContains(resp, "If there is no last view yet, Contents links open the whole Subject")
         self.client.post(reverse("profile_settings"), {"export_name": "", "reading_all_mode": "remember"})
         self.assertFalse(Profile.objects.get(pk=self.main().pk).reading_all_default)
         self.client.post(
@@ -1134,7 +1134,7 @@ class ExportNameTests(BaseCase):
         resp = self.client.get(reverse("profile_settings"))
         self.assertNotContains(resp, 'name="reading_all_default"')
         self.assertNotContains(resp, 'name="reading_all_mode"')
-        self.assertContains(resp, "First-time")
+        self.assertContains(resp, "With no last view yet, Contents links open the whole Subject")
         self.assertEqual(Profile.objects.get(pk=self.main().pk).reading_all_mode, "remember")
         self.assertFalse(Profile.objects.get(pk=self.main().pk).reading_all_default)
 

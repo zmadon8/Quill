@@ -52,8 +52,14 @@ def describe(profile, group):
     """A short sentence for the Undo button, such as "Deleted 3 records"."""
     summary = group_summary(profile, group)
     kind = summary["kinds"][0] if summary["kinds"] else "edit"
-    words = KIND_WORDS.get(kind, "Changed")
     records = summary["records"]
+    if "create" in summary["kinds"]:
+        # Adding in the middle first shifts the later siblings; the action is still an add of what was created.
+        kind = "create"
+        made = VersionHistory.objects.filter(profile=profile, group=group, change_kind="create")
+        created = set(made.values_list("record_type", "record_id"))
+        records = [r for r in records if r in created]
+    words = KIND_WORDS.get(kind, "Changed")
     if len(records) == 1:
         return f"{words} 1 {RECORD_WORDS.get(records[0][0], 'record')}"
     return f"{words} {len(records)} records"

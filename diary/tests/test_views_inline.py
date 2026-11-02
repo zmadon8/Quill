@@ -297,7 +297,9 @@ class SaveTests(InlineTestCase):
         data = self.save_data(self.one, case_id=[a.pk], case_version=[self.get(a).version],
                               case_citation=["first"], case_comment=[""], case_gone=["%d:%d" % (b.pk, self.get(b).version)])
         self.assertEqual(self.fetch("edit_item", data, args=[self.one.pk]).status_code, 200)
-        self.assertEqual(list(Case.objects.filter(item=self.one).values_list("citation", flat=True)), ["first"])
+        live = Case.objects.filter(item=self.one, deleted_at__isnull=True)
+        self.assertEqual(list(live.values_list("citation", flat=True)), ["first"])
+        self.assertIsNotNone(self.get(b).deleted_at)  # the removed citation is in the Trash, not gone
 
     def test_a_stale_item_save_is_a_json_conflict_and_the_same_form_reaches_the_conflict_screen(self):
         from diary import services as svc
