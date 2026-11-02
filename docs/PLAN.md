@@ -186,6 +186,12 @@ Done (follow-up): Back and Forward are arrow-only icon buttons; "All" moved to t
 
 Subjects, Topics and Sub-topics are always shown alphabetically; reordering by hand is kept for Sections, Items and Nested Items only. The Word order stays stored and unused so it can be switched back. Decision D18 in `docs/DESIGN.md`. Built and tested by reading only; the Django tests await CI.
 
+### Round 7, item 3: click a heading instead of the All tick
+
+The All checkbox is gone. Topic and Sub-topic names in the reading text are links: not in the whole-Subject view they open it at that heading, and in the whole-Subject view they show only that Topic or Sub-topic. The server no longer redirects direct Topic or Sub-topic addresses. The Profile setting is relabelled "Contents links open" and now only affects the side-panel Contents links. Decision D20 in `docs/DESIGN.md`. Built and checked on a static mock page in headless Chromium; the Django tests await CI.
+
+Owner question (default stands unless you say otherwise): in Edit mode, should a heading stay clickable while its rename or note form is open? Default: no, it does not switch then.
+
 ## Order and dependencies
 
 0, 1, then 2 (so real data can be seen), then 3, 4, 5, 6, 7. Milestones 4 and 5 can swap if you need Notes sooner. All questions in `docs/DESIGN.md` section 14 are answered (N1 and N2 are closed by D9 and I10). Only four small questions remain, each with a default that is used unless you say otherwise: the Section number style, the date format in file names, the long file name rule, and the Current View heading level for a Topic.

@@ -208,21 +208,18 @@ def _panel_subjects(profile):
 
 
 IN_CONTEXT_COOKIE = "quill_in_context"
-IN_CONTEXT_ONCE_COOKIE = "quill_in_context_once"
 
 
 def _in_context(request):
-    """The "All" tick, remembered in a cookie so the server can show the whole Subject.
+    """Whether the side-panel Contents links open the whole Subject (at the heading) or just that Topic or Sub-topic.
 
-    In "remember" mode a cookie wins ("0" is unticked, anything else ticked); with no cookie (no choice made
-    yet) the profile's ``reading_all_default`` decides. In the always modes the remembered cookie is ignored
-    and the page starts as configured; only the one-shot cookie written by a toggle (and cleared by the script
-    on the next load) changes this one page view."""
+    The profile's ``reading_all_mode`` decides: always the whole Subject, always only that Topic or Sub-topic, or,
+    in "remember" mode, the view this browser used last (cookie ``quill_in_context``, written by site.js when a
+    reading page loads: "0" is a single Topic or Sub-topic, anything else the whole Subject). With no cookie yet
+    the profile's ``reading_all_default`` decides. Clicking a Topic or Sub-topic heading in the reading body
+    never depends on this: that link always carries its own target."""
     mode = request.profile.reading_all_mode
     if mode != Profile.READING_ALL_REMEMBER:
-        once = request.COOKIES.get(IN_CONTEXT_ONCE_COOKIE)
-        if once is not None:
-            return once != "0"
         return mode == Profile.READING_ALL_ALWAYS_ON
     cookie = request.COOKIES.get(IN_CONTEXT_COOKIE)
     if cookie is None:
@@ -234,20 +231,16 @@ def _in_context(request):
 def subject_contents(request, pk):
     subject = get_object_or_404(_subjects(request.profile), pk=pk)
     context = reading.build_reading(subject, request.user)
-    context.update(subject=subject, crumbs=_crumbs(subject), in_context=_in_context(request), in_context_mode=request.profile.reading_all_mode,
+    context.update(subject=subject, crumbs=_crumbs(subject), in_context=_in_context(request),
                    **edit_context(request), **_panel_subjects(request.profile))
     return render(request, "diary/subject_contents.html", context)
 
 
 def _render_reading(request, subject, scope, target, crumbs):
-    if scope != "subject" and _in_context(request):
-        # All view: the whole Subject is shown and the browser jumps to the chosen entry.
-        keep = "?edit=1" if edit_context(request)["edit_mode"] else ""
-        return redirect(f"{reverse('read_subject', args=[subject.pk])}{keep}#n-{scope}-{target.pk}")
     context = reading.build_reading(subject, request.user, scope, target)
     current_topic = target.pk if scope == "topic" else (target.topic_id if scope == "subtopic" else None)
     context.update(subject=subject, scope=scope, target=target, crumbs=crumbs, toc_current_topic=current_topic,
-                   in_context=_in_context(request), in_context_mode=request.profile.reading_all_mode, **edit_context(request), **_panel_subjects(request.profile))
+                   in_context=_in_context(request), **edit_context(request), **_panel_subjects(request.profile))
     return render(request, "diary/reader.html", context)
 
 

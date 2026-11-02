@@ -12,8 +12,8 @@
 </form>
 {% else %}
 <p>Export file name: <strong>{{ preview }}</strong></p>
-<p>"All" starts: <strong>{{ request.profile.get_reading_all_mode_display }}</strong></p>
-<p>First-time "All" is ticked (used only when each user's choice is remembered): <strong>{% if request.profile.reading_all_default %}Yes{% else %}No{% endif %}</strong></p>
+<p>Contents links open: <strong>{{ request.profile.get_reading_all_mode_display }}</strong></p>
+<p>With no last view yet, Contents links open the whole Subject (used only with "The view I used last"): <strong>{% if request.profile.reading_all_default %}Yes{% else %}No{% endif %}</strong></p>
 <p class="muted">Only Editors of this profile can change it.</p>
 {% endif %}
 {% endblock %}

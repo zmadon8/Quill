@@ -390,7 +390,7 @@ class ReadingScreenTests(TestCase):
         cls.offer = Subtopic.objects.get(name="Offer")
 
     def setUp(self):
-        # "All" is on by default; most tests read single Topics, so start unticked.
+        # The last-used view defaults to the whole Subject; most tests read single Topics, so start there.
         self.client.cookies["quill_in_context"] = "0"
 
     def urls(self):
@@ -482,14 +482,14 @@ class ReadingScreenTests(TestCase):
         self.assertContains(resp, "data-toc-collapse-all")
         self.assertContains(resp, 'aria-expanded="true"')
 
-    def test_breadcrumb_subjects_link_switches_panel_and_checkbox_sits_in_crumb_row(self):
+    def test_breadcrumb_subjects_link_switches_panel_and_there_is_no_all_checkbox(self):
         self.client.force_login(self.users["reader"])
         for url in (reverse("subject_contents", args=[self.contract.pk]), reverse("read_subject", args=[self.contract.pk])):
             html = self.client.get(url).content.decode()
             crumb = html.split('class="crumb-row"')[1].split("</div>")[0]
             self.assertIn('href="%s" data-panel-switch aria-controls="panel-subjects" aria-expanded="false"' % reverse("subjects"), crumb, url)
-            self.assertIn("data-in-context", crumb, url)
-            self.assertIn("> All</label>", crumb, url)
+            self.assertNotIn("data-in-context", html, url)
+            self.assertNotIn("> All</label>", html, url)
             self.assertNotIn("View in context", html, url)
             self.assertIn('data-header-toggle hidden aria-expanded="false" aria-controls="site-header"', crumb, url)
             self.assertIn('aria-label="Show header"', crumb, url)
@@ -556,90 +556,80 @@ class ReadingScreenTests(TestCase):
         resp = self.client.get(reverse("read_subject", args=[self.contract.pk]))
         self.assertNotContains(resp, "data-toc-current")
 
-    def test_all_is_on_by_default_and_jumps(self):
+    def test_direct_topic_and_subtopic_pages_never_redirect(self):
+        self.client.force_login(self.users["reader"])
+        topic = Topic.objects.get(name="Remedies")
+        for cookie in ("1", "0"):
+            self.client.cookies["quill_in_context"] = cookie
+            self.assertEqual(self.client.get(reverse("read_topic", args=[topic.pk])).status_code, 200)
+            self.assertEqual(self.client.get(reverse("read_subtopic", args=[self.clause.pk])).status_code, 200)
+        Profile.objects.filter(pk=main_profile().pk).update(reading_all_mode="always_on")
+        self.assertEqual(self.client.get(reverse("read_topic", args=[topic.pk])).status_code, 200)
+
+    def test_heading_links_in_whole_subject_view_open_only_that_topic_or_subtopic(self):
+        self.client.force_login(self.users["reader"])
+        topic = Topic.objects.get(name="Remedies")
+        resp = self.client.get(reverse("read_subject", args=[self.contract.pk]))
+        html = resp.content.decode()
+        self.assertIn('data-reading-view="all"', html)
+        self.assertRegex(html, r'<h2 id="n-topic-%d" class="topic-heading"><a class="heading-link" data-heading-toggle href="%s" title="Show only this Topic">' % (topic.pk, reverse("read_topic", args=[topic.pk])))
+        self.assertRegex(html, r'<h3 id="n-subtopic-%d" class="subtopic-heading"><a class="heading-link" data-heading-toggle href="%s" title="Show only this Sub-topic">' % (self.clause.pk, reverse("read_subtopic", args=[self.clause.pk])))
+
+    def test_heading_links_in_single_scope_view_open_the_whole_subject_at_the_heading(self):
+        self.client.force_login(self.users["reader"])
+        topic = Topic.objects.get(name="Remedies")
+        whole = reverse("read_subject", args=[self.contract.pk])
+        html = self.client.get(reverse("read_topic", args=[topic.pk])).content.decode()
+        self.assertIn('data-reading-view="scope"', html)
+        self.assertIn('<a class="heading-link" data-heading-toggle href="%s#n-topic-%d" title="Show the whole Subject, at this Topic">' % (whole, topic.pk), html)
+        html = self.client.get(reverse("read_subtopic", args=[self.clause.pk])).content.decode()
+        self.assertIn('<a class="heading-link" data-heading-toggle href="%s#n-subtopic-%d" title="Show the whole Subject, at this Sub-topic">' % (whole, self.clause.pk), html)
+
+    def test_heading_links_keep_edit_mode(self):
+        self.client.force_login(self.users["editor"])
+        topic = Topic.objects.get(name="Remedies")
+        whole = reverse("read_subject", args=[self.contract.pk])
+        html = self.client.get(reverse("read_topic", args=[topic.pk]) + "?edit=1").content.decode()
+        self.assertIn('href="%s?edit=1#n-topic-%d"' % (whole, topic.pk), html)
+        html = self.client.get(whole + "?edit=1").content.decode()
+        self.assertIn('href="%s?edit=1" title="Show only this Topic"' % reverse("read_topic", args=[topic.pk]), html)
+
+    def test_no_cookie_follows_profile_default_for_contents_links(self):
         self.client.force_login(self.users["reader"])
         topic = Topic.objects.get(name="Remedies")
         whole = reverse("read_subject", args=[self.contract.pk])
         del self.client.cookies["quill_in_context"]
-        resp = self.client.get(reverse("read_topic", args=[topic.pk]))
-        self.assertRedirects(resp, "%s#n-topic-%d" % (whole, topic.pk), fetch_redirect_response=False)
-        resp = self.client.get(reverse("read_subtopic", args=[self.clause.pk]))
-        self.assertRedirects(resp, "%s#n-subtopic-%d" % (whole, self.clause.pk), fetch_redirect_response=False)
-        resp = self.client.get(whole)  # no redirect loop
-        self.assertEqual(resp.status_code, 200)
-        self.assertRegex(resp.content.decode(), r"data-in-context[^>]*? checked>")
+        Profile.objects.filter(pk=main_profile().pk).update(reading_all_default=False)
+        resp = self.client.get(reverse("subject_contents", args=[self.contract.pk]))
+        self.assertContains(resp, 'data-own-url="%s"' % reverse("read_topic", args=[topic.pk]))
+        self.assertNotContains(resp, 'href="%s#n-topic-' % whole)
+        Profile.objects.filter(pk=main_profile().pk).update(reading_all_default=True)
+        resp = self.client.get(reverse("subject_contents", args=[self.contract.pk]))
         self.assertContains(resp, 'href="%s#n-topic-%d"' % (whole, topic.pk))
 
-    def test_unticked_cookie_zero_keeps_topic_pages_and_own_links(self):
-        self.client.force_login(self.users["reader"])
-        topic = Topic.objects.get(name="Remedies")
-        self.client.cookies["quill_in_context"] = "0"
-        self.assertEqual(self.client.get(reverse("read_topic", args=[topic.pk])).status_code, 200)
-        self.assertEqual(self.client.get(reverse("read_subtopic", args=[self.clause.pk])).status_code, 200)
-        resp = self.client.get(reverse("read_subject", args=[self.contract.pk]))
-        self.assertNotContains(resp, "data-in-context checked")
-        self.assertContains(resp, 'href="%s"' % reverse("read_topic", args=[topic.pk]))
-        self.assertContains(resp, 'href="%s"' % reverse("read_subtopic", args=[self.clause.pk]))
-
-    def test_no_cookie_follows_profile_default(self):
-        self.client.force_login(self.users["reader"])
-        topic = Topic.objects.get(name="Remedies")
-        whole = reverse("read_subject", args=[self.contract.pk])
-        del self.client.cookies["quill_in_context"]
-        Profile.objects.filter(pk=main_profile().pk).update(reading_all_default=False)
-        self.assertEqual(self.client.get(reverse("read_topic", args=[topic.pk])).status_code, 200)
-        resp = self.client.get(whole)
-        self.assertNotContains(resp, "data-in-context checked")
-        self.assertContains(resp, "data-in-context")
-        resp = self.client.get(reverse("subject_contents", args=[self.contract.pk]))
-        self.assertNotContains(resp, "data-in-context checked")
-        Profile.objects.filter(pk=main_profile().pk).update(reading_all_default=True)
-        resp = self.client.get(reverse("read_topic", args=[topic.pk]))
-        self.assertRedirects(resp, "%s#n-topic-%d" % (whole, topic.pk), fetch_redirect_response=False)
-
-    def test_explicit_cookie_beats_profile_default(self):
+    def test_remembered_view_cookie_beats_profile_default_for_contents_links(self):
         self.client.force_login(self.users["reader"])
         topic = Topic.objects.get(name="Remedies")
         whole = reverse("read_subject", args=[self.contract.pk])
         Profile.objects.filter(pk=main_profile().pk).update(reading_all_default=False)
         self.client.cookies["quill_in_context"] = "1"
-        resp = self.client.get(reverse("read_topic", args=[topic.pk]))
-        self.assertRedirects(resp, "%s#n-topic-%d" % (whole, topic.pk), fetch_redirect_response=False)
+        self.assertContains(self.client.get(reverse("read_topic", args=[topic.pk])), 'href="%s#n-topic-%d"' % (whole, topic.pk))
         Profile.objects.filter(pk=main_profile().pk).update(reading_all_default=True)
         self.client.cookies["quill_in_context"] = "0"
-        self.assertEqual(self.client.get(reverse("read_topic", args=[topic.pk])).status_code, 200)
+        self.assertNotContains(self.client.get(reverse("read_topic", args=[topic.pk])), '<a href="%s#n-topic-%d" data-own-url' % (whole, topic.pk))
 
-    def test_always_on_ignores_cookie_and_once_cookie_toggles_one_load(self):
+    def test_always_modes_ignore_cookie_for_contents_links(self):
         self.client.force_login(self.users["reader"])
         topic = Topic.objects.get(name="Remedies")
         whole = reverse("read_subject", args=[self.contract.pk])
+        toc_whole = '<a href="%s#n-topic-%d" data-own-url' % (whole, topic.pk)
         Profile.objects.filter(pk=main_profile().pk).update(reading_all_mode="always_on", reading_all_default=False)
         self.client.cookies["quill_in_context"] = "0"
-        resp = self.client.get(reverse("read_topic", args=[topic.pk]))
-        self.assertRedirects(resp, "%s#n-topic-%d" % (whole, topic.pk), fetch_redirect_response=False)
-        self.assertContains(self.client.get(whole), 'data-in-context-mode="always_on" checked')
-        self.client.cookies["quill_in_context_once"] = "0"
-        self.assertEqual(self.client.get(reverse("read_topic", args=[topic.pk])).status_code, 200)
-        self.assertNotContains(self.client.get(whole), "data-in-context-mode=\"always_on\" checked")
-
-    def test_always_off_ignores_cookie_and_once_cookie_toggles_one_load(self):
-        self.client.force_login(self.users["reader"])
-        topic = Topic.objects.get(name="Remedies")
-        whole = reverse("read_subject", args=[self.contract.pk])
+        self.assertContains(self.client.get(reverse("read_topic", args=[topic.pk])), toc_whole)
         Profile.objects.filter(pk=main_profile().pk).update(reading_all_mode="always_off", reading_all_default=True)
         self.client.cookies["quill_in_context"] = "1"
-        self.assertEqual(self.client.get(reverse("read_topic", args=[topic.pk])).status_code, 200)
-        self.assertNotContains(self.client.get(whole), "data-in-context-mode=\"always_off\" checked")
-        self.client.cookies["quill_in_context_once"] = "1"
-        resp = self.client.get(reverse("read_topic", args=[topic.pk]))
-        self.assertRedirects(resp, "%s#n-topic-%d" % (whole, topic.pk), fetch_redirect_response=False)
-
-    def test_remember_mode_ignores_once_cookie(self):
-        self.client.force_login(self.users["reader"])
-        topic = Topic.objects.get(name="Remedies")
-        self.client.cookies["quill_in_context"] = "0"
-        self.client.cookies["quill_in_context_once"] = "1"
-        self.assertEqual(self.client.get(reverse("read_topic", args=[topic.pk])).status_code, 200)
+        self.assertNotContains(self.client.get(reverse("read_topic", args=[topic.pk])), toc_whole)
+        self.assertContains(self.client.get(reverse("read_topic", args=[topic.pk])), '<a href="%s" data-own-url' % reverse("read_topic", args=[topic.pk]))
 
     def test_login_page_has_no_diary_name(self):
         from django.test import Client
@@ -653,7 +643,7 @@ class ReadingScreenTests(TestCase):
         self.assertNotContains(self.client.get(reverse("read_subject", args=[self.contract.pk])), 'class="who"')
         self.assertContains(self.client.get(reverse("home")), "reader")
 
-    def test_cross_reference_links_survive_in_context_redirect(self):
+    def test_cross_reference_links_point_into_the_whole_subject_page(self):
         item = Item.objects.filter(subtopic=self.offer, deleted_at=None).first()
         note = Note.objects.filter(deleted_at=None).first()
         link = NoteLink.objects.create(profile=main_profile(), note=note, item=item)
@@ -665,7 +655,7 @@ class ReadingScreenTests(TestCase):
         self.client.force_login(self.users["reader"])
         del self.client.cookies["quill_in_context"]
         resp = self.client.get(reverse("subject_contents", args=[self.contract.pk]))
-        self.assertRegex(resp.content.decode(), r"data-in-context[^>]*? checked>")
+        self.assertNotContains(resp, "data-in-context")
         self.assertContains(resp, 'href="%s#n-topic-' % reverse("read_subject", args=[self.contract.pk]))
 
     def test_icon_buttons_are_labelled_and_other_subjects_group_is_marked(self):
@@ -908,7 +898,7 @@ class ProfileScopingTests(TestCase):
         Item.objects.create(profile=cls.b, topic=cls.top_b, text="<p>b2</p>")
 
     def setUp(self):
-        self.client.cookies["quill_in_context"] = "0"  # "All" is on by default; read single pages here
+        self.client.cookies["quill_in_context"] = "0"  # last-used view: single pages
 
     def test_index_lists_only_own_profile(self):
         self.client.force_login(self.user_a)

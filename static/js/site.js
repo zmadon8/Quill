@@ -329,55 +329,21 @@
     }
   }
 
-  // "All": remembered in a cookie so the server shows the whole Subject; Contents links then jump within it.
-  // The choice is also kept in localStorage; if the cookie is missing but localStorage has it, the cookie is restored once.
-  // With no cookie and nothing in localStorage there is no choice yet: the server's checkbox state (the profile's default) stands and no cookie is written until the box is toggled.
-  var contextBox = document.querySelector("[data-in-context]");
-  if (contextBox) {
-    var CTX_KEY = "quill.incontext";
-    var setCookie = function (on) { document.cookie = "quill_in_context=" + (on ? "1" : "0") + "; path=/; max-age=31536000; SameSite=Lax"; };
-    var contextLabel = document.querySelector("[data-in-context-label]");
-    if (contextLabel) { contextLabel.hidden = false; }
-    // Always ticked / Always unticked: the server starts every page as configured and ignores the remembered cookie.
-    // A toggle only writes a one-shot cookie for the reload it causes; it is cleared here on load and never touches the remembered choice.
-    var onceMode = contextBox.getAttribute("data-in-context-mode") !== "remember";
-    if (onceMode) {
-      document.cookie = "quill_in_context_once=; path=/; max-age=0; SameSite=Lax";
-      contextBox.addEventListener("change", function () {
-        document.cookie = "quill_in_context_once=" + (contextBox.checked ? "1" : "0") + "; path=/; max-age=60; SameSite=Lax";
-        if (!contextBox.checked) {
-          var onceHash = window.location.hash.replace(/^#/, "");
-          var onceLinks = document.querySelectorAll("[data-toc] a[data-anchor]");
-          for (var j = 0; j < onceLinks.length; j++) {
-            if (onceHash && onceLinks[j].dataset.anchor === onceHash) { window.location.href = onceLinks[j].dataset.ownUrl; return; }
-          }
-        }
-        window.location.reload();
-      });
-      return;
-    }
-    var storedCtx = null;
-    var triedRestore = null;
-    try { storedCtx = window.localStorage.getItem(CTX_KEY); } catch (err) { storedCtx = null; }
-    try { triedRestore = window.sessionStorage.getItem("quill.incontext.tried"); } catch (err) { triedRestore = null; }
-    if (storedCtx !== null && (storedCtx === "1") !== contextBox.checked && triedRestore === null) {
-      // One attempt per tab session: if cookies are blocked the page must not reload forever.
-      try { window.sessionStorage.setItem("quill.incontext.tried", "1"); } catch (err) { /* private mode */ }
-      setCookie(storedCtx === "1");
-      if (document.cookie.indexOf("quill_in_context=") !== -1) { window.location.reload(); return; }
-    }
-    contextBox.addEventListener("change", function () {
-      try { window.localStorage.setItem(CTX_KEY, contextBox.checked ? "1" : "0"); } catch (err) { /* private mode */ }
-      setCookie(contextBox.checked);
-      if (!contextBox.checked) {
-        // Leave the whole-Subject view for the Topic or Sub-topic that was being read, if the page is at one.
-        var hash = window.location.hash.replace(/^#/, "");
-        var links = document.querySelectorAll("[data-toc] a[data-anchor]");
-        for (var i = 0; i < links.length; i++) {
-          if (hash && links[i].dataset.anchor === hash) { window.location.href = links[i].dataset.ownUrl; return; }
-        }
-      }
-      window.location.reload();
-    });
+  // Reading view: remembered per browser in a cookie so the server can make the Contents links open the whole Subject
+  // or only that Topic or Sub-topic, as the browser used last (the profile's "view I used last" setting; other settings ignore it).
+  var reading = document.querySelector("[data-reading-view]");
+  if (reading) {
+    var wholeView = reading.getAttribute("data-reading-view") === "all";
+    document.cookie = "quill_in_context=" + (wholeView ? "1" : "0") + "; path=/; max-age=31536000; SameSite=Lax";
   }
+
+  // Topic and Sub-topic headings in the reading body are links that switch between the whole Subject and one Topic or Sub-topic.
+  // In Edit mode a heading whose edit card is open (its rename or review note form) does not switch, so a click cannot lose unsaved work.
+  document.addEventListener("click", function (event) {
+    var link = event.target.closest ? event.target.closest("a[data-heading-toggle]") : null;
+    if (!link) { return; }
+    var heading = link.parentNode;
+    var bar = heading ? heading.nextElementSibling : null;
+    if (bar && bar.hasAttribute("data-edit-bar") && bar.querySelector("details[open]")) { event.preventDefault(); }
+  });
 })();

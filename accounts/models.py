@@ -69,18 +69,19 @@ class Profile(models.Model):
     purge job removes it for good after the retention period (``PROFILE_RETENTION_DAYS``).
     ``export_name`` is the name this profile's exported files start with; blank means the default
     "<program name> <profile name>" (see ``accounts.profiles.effective_export_name``).
-    ``reading_all_default`` is whether the "All" tick on the reading pages starts ticked for this profile
-    when the browser has no choice yet (no cookie and no saved value) and ``reading_all_mode`` is "remember".
-    ``reading_all_mode`` decides how "All" starts: always ticked, always unticked, or as each browser last left it.
+    ``reading_all_mode`` decides what the side-panel Contents links open: the whole Subject (``always_on``), only
+    that Topic or Sub-topic (``always_off``), or the view each browser used last (``remember``).
+    ``reading_all_default`` is whether the whole Subject is what those links open for a browser that has no
+    remembered view yet, when ``reading_all_mode`` is "remember".
     """
 
     READING_ALL_ALWAYS_ON = "always_on"
     READING_ALL_ALWAYS_OFF = "always_off"
     READING_ALL_REMEMBER = "remember"
     READING_ALL_MODE_CHOICES = [
-        (READING_ALL_ALWAYS_ON, "Always ticked"),
-        (READING_ALL_ALWAYS_OFF, "Always unticked"),
-        (READING_ALL_REMEMBER, "Remember each user's choice"),
+        (READING_ALL_ALWAYS_ON, "The whole Subject"),
+        (READING_ALL_ALWAYS_OFF, "Only that Topic or Sub-topic"),
+        (READING_ALL_REMEMBER, "The view I used last"),
     ]
 
     program = models.CharField(max_length=30)

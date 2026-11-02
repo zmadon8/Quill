@@ -1114,7 +1114,7 @@ class ExportNameTests(BaseCase):
         self.client.force_login(self.admin)
         resp = self.client.get(reverse("profile_settings"))
         self.assertContains(resp, 'name="reading_all_mode"')
-        for label in ("Always ticked", "Always unticked", "Remember each user&#x27;s choice"):
+        for label in ("The whole Subject", "Only that Topic or Sub-topic", "The view I used last"):
             self.assertContains(resp, label)
         for mode in ("always_on", "always_off", "remember"):
             self.client.post(reverse("profile_settings"), {"export_name": "", "reading_all_mode": mode})
