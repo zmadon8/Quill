@@ -3,6 +3,7 @@
 Editors of the profile only (Readers get 403). History is read inside ``request.profile``: a record of
 another profile has no history here (404). Restoring a version and Undo are POSTs with the CSRF token.
 """
+from django.conf import settings
 from django.contrib import messages
 from django.http import Http404
 from django.shortcuts import redirect, render
@@ -76,6 +77,7 @@ def history(request, kind, pk):
             "gone": record is None,
             "can_restore": record is not None and record.deleted_at is None and kind in EDITABLE,
             "back": back,
+            "history_days": settings.HISTORY_RETENTION_DAYS,
         },
     )
 

@@ -5,6 +5,7 @@ always in a fresh backup before it is gone for good.
 """
 from datetime import timedelta
 
+from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
@@ -71,4 +72,59 @@ def purge_expired_profiles(now=None):
         success=True,
         message=f"Removed {len(profiles)} deleted profile(s): {names}.",
         counts=totals,
+    )
+
+
+def purgeable_history(now=None):
+    """VersionHistory rows that may go: older than the window, not the newest version of their record, and not
+    part of an Undo group that still has a row inside the window (so a recent Undo keeps working)."""
+    from django.db.models import F, OuterRef, Q, Subquery
+
+    from diary.models import VersionHistory
+
+    cutoff = (now or timezone.now()) - timedelta(days=settings.HISTORY_RETENTION_DAYS)
+    newest = (
+        VersionHistory.objects.filter(
+            profile=OuterRef("profile"), record_type=OuterRef("record_type"), record_id=OuterRef("record_id")
+        )
+        .order_by("-version")
+        .values("version")[:1]
+    )
+    recent_groups = VersionHistory.objects.filter(changed_at__gte=cutoff, group__isnull=False).values("group")
+    return (
+        VersionHistory.objects.filter(changed_at__lt=cutoff)
+        .annotate(newest_version=Subquery(newest))
+        .exclude(version=F("newest_version"))
+        .filter(Q(group__isnull=True) | ~Q(group__in=recent_groups))
+    )
+
+
+def purge_old_history(now=None, chunk=1000):
+    """Delete edit history past ``HISTORY_RETENTION_DAYS``. Returns the PurgeLog row, or None if nothing is due.
+
+    Same safety rule as the profile purge: refuses (and logs) unless a backup taken today succeeded, so the
+    history is always in a fresh backup before it goes.
+    """
+    from diary.models import VersionHistory
+
+    now = now or timezone.now()
+    ids = list(purgeable_history(now).values_list("pk", flat=True))
+    if not ids:
+        return None
+    days = settings.HISTORY_RETENTION_DAYS
+    if not todays_backup_ok(now):
+        return PurgeLog.objects.create(
+            ran_at=now,
+            success=False,
+            message=f"Edit history not trimmed: no successful backup was taken today. {len(ids)} old version(s) are waiting.",
+        )
+    removed = 0
+    with transaction.atomic():
+        for start in range(0, len(ids), chunk):
+            removed += VersionHistory.objects.filter(pk__in=ids[start:start + chunk]).delete()[0]
+    return PurgeLog.objects.create(
+        ran_at=now,
+        success=True,
+        message=f"Edit history older than {days} days trimmed (the newest version of every record is kept).",
+        counts={"diary.VersionHistory": removed},
     )
