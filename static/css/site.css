@@ -418,7 +418,7 @@ table[data-resizable-columns] th { position: relative; overflow-wrap: anywhere; 
 }
 
 /* Word export (Milestone 6) */
-.export-link { min-height: 2rem; font-size: var(--small-size); }
+.export-link { min-height: var(--tap); font-size: var(--small-size); }
 .export-page .settings-section { margin-bottom: 1.25rem; }
 
 /* Help page, first-run hint and small-screen polish (Milestone 7). */

@@ -47,13 +47,12 @@ def export_page(request):
     subjects = Subject.objects.filter(profile=request.profile, deleted_at__isnull=True)
     main = sort_headings(subjects.filter(show_on_landing=True))
     other = sort_headings(subjects.filter(show_on_landing=False))
-    names = service.file_name_preview(request.profile, request.user)
-    view_name = service.view_file_name(request.profile, request.user, path) if kind else ""
     return render(request, "diary/export.html", {
         "can_full": can_export_full(request),
-        "scope_kind": kind, "scope_pk": pk, "scope_path": path, "view_name": view_name,
-        "names": names, "main_subjects": main, "other_subjects": other,
-        "include_review": request.GET.get("review") == "1",
+        "scope_kind": kind, "scope_pk": pk, "scope_path": path,
+        "main_subjects": main, "other_subjects": other,
+        # Review markers are on unless the page is opened with review=0 (round 11: checked by default).
+        "include_review": request.GET.get("review") != "0",
     })
 
 
@@ -67,9 +66,10 @@ def export_download(request):
             raise PermissionDenied  # a Reader may export the Current View only
         make = service.full if which == service.FULL else service.by_subject
         result = make(request.profile, request.user, include_review)
-    elif which == service.VIEW:
-        kind = request.GET.get("kind", "")
-        pk = safe_int(request.GET.get("pk", ""))
+    elif which in (service.VIEW, "subject"):
+        # "subject" is the Subject picker on the Export page: the same as a Current View of that Subject.
+        kind, pk = ("subject", safe_int(request.GET.get("subject_pk", ""))) if which == "subject" else (
+            request.GET.get("kind", ""), safe_int(request.GET.get("pk", "")))
         if kind not in KINDS or pk is None:
             raise Http404
         try:

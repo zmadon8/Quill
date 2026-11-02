@@ -371,7 +371,8 @@ class ViewTests(ExportCase):
             client = self.login(user)
             for page, query in pages.items():
                 body = client.get(page).content.decode()
-                self.assertIn("Export this view", body)
+                self.assertIn(">Export</a>", body)
+                self.assertNotIn("Export this view", body)
                 self.assertIn(query, body)
 
     def test_current_view_is_not_offered_on_search_review_trash_or_history(self):
@@ -382,13 +383,35 @@ class ViewTests(ExportCase):
         client = self.login(self.editor)
         for url in (reverse("search"), reverse("review_list"), reverse("trash"),
                     reverse("history", args=["item", self.first.pk])):
-            self.assertNotContains(client.get(url), "Export this view")
+            self.assertNotContains(client.get(url), 'class="button export-link"')
 
-    def test_the_export_page_with_a_view_shows_its_path_and_file_name(self):
+    def test_the_export_page_with_a_view_shows_its_path(self):
         body = self.login(self.reader).get(f"{reverse('export')}?kind=subtopic&pk={self.fraud.pk}").content.decode()
         self.assertIn("Arbitration > Arbitrability > Fraud", body)
-        self.assertIn("Arbitration, Arbitrability, Fraud", body)
+        self.assertNotIn("File name", body)
         self.assertIn('value="view"', body)
+
+    def test_export_page_is_tidied_and_review_markers_are_checked_by_default(self):
+        body = self.login(self.editor).get(reverse("export")).content.decode()
+        self.assertEqual(body.count('type="checkbox"'), 1)
+        self.assertIn('name="review" value="1" checked> Include review markers</label>', body)
+        self.assertNotIn("amber", body)
+        self.assertNotIn("A whole Subject", body)
+        self.assertNotIn("File names", body)
+        self.assertNotIn("File name:", body)
+        self.assertIn("<h2>Subject</h2>", body)
+        self.assertEqual(body.count(">Subject</label>"), 1)  # the hidden label for the picker, not a visible second heading
+        self.assertIn('class="visually-hidden" for="export-subject">Subject</label>', body)
+        unchecked = self.login(self.editor).get(reverse("export") + "?review=0").content.decode()
+        self.assertNotIn("checked>", unchecked)
+
+    def test_subject_picker_downloads_a_subject_with_the_single_checkbox(self):
+        client = self.login(self.reader)
+        marked = texts(client.get(self.url(type="subject", subject_pk=self.arb.pk, review=1)).content)
+        plain = texts(client.get(self.url(type="subject", subject_pk=self.arb.pk)).content)
+        self.assertTrue(any("[For review" in t for t in marked))
+        self.assertFalse(any("[For review" in t for t in plain))
+        self.assertEqual(client.get(self.url(type="subject", subject_pk="x")).status_code, 404)
 
     def test_nav_has_an_export_link(self):
         self.assertContains(self.login(self.reader).get(reverse("diary_home")), f'href="{reverse("export")}"')
