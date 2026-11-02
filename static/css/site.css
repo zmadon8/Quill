@@ -356,3 +356,26 @@ table[data-resizable-columns] th { position: relative; overflow-wrap: anywhere; 
 @media (min-width: 900px) {
   .conflict-choices { grid-template-columns: repeat(3, 1fr); }
 }
+
+/* My settings: number formats with a live preview. */
+.settings-section { margin: 0 0 1.75rem; padding-bottom: 1rem; border-bottom: 1px solid var(--hair); }
+.settings-section h2 { margin: 0 0 .75rem; }
+.settings-form fieldset { margin: 0 0 1rem; padding: .5rem 1rem 0; border: 1px solid var(--hair); }
+.settings-form legend { padding: 0 .4rem; font-size: var(--small-size); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.field-help { display: block; font-size: var(--small-size); color: var(--muted); margin-top: .25rem; }
+.format-layout { display: grid; gap: 1.5rem; }
+.format-preview-box { padding: .75rem 1rem 1rem; border: 1px solid var(--hair); background: var(--panel); align-self: start; }
+.format-preview-box h3 { margin: 0 0 .5rem; font-size: var(--small-size); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 400; }
+.format-preview { font-family: var(--font-serif); font-size: var(--text-size); }
+.pv { padding: .1rem 0; }
+.pv .num { display: inline-block; min-width: 2.6em; margin: 0; color: var(--muted); }
+.pv-subject, .pv-topic { font-weight: 600; }
+.pv-section { font-weight: 600; }
+.pv-citation .pv-text { font-style: italic; }
+.pv-i1 { padding-left: .75rem; }
+.pv-i2 { padding-left: 1.5rem; }
+.pv-i3 { padding-left: 2.25rem; }
+.pv-i4 { padding-left: 3rem; }
+@media (min-width: 900px) {
+  .format-layout { grid-template-columns: minmax(0, 24rem) minmax(0, 1fr); }
+}

@@ -1,0 +1,4 @@
+<div class="format-preview" role="group" aria-label="Preview of the number formats">
+  {% for row in preview %}<div class="pv pv-{{ row.kind }} pv-i{{ row.indent }}">{% if row.label %}<span class="num">{{ row.label }}</span> {% endif %}<span class="pv-text">{{ row.text }}</span></div>
+  {% endfor %}
+</div>

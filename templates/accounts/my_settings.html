@@ -1,11 +1,64 @@
 {% extends "base_suite_home.html" %}
+{% load static %}
 {% block title %}My settings - {{ diary_name }}{% endblock %}
 {% block content %}
 <h1>My settings</h1>
-<form method="post" class="stack">
+<form method="post" class="stack settings-form" data-preview-url="{% url 'format_preview' %}">
   {% csrf_token %}
-  {{ form.as_p }}
+  {% if form.non_field_errors %}{{ form.non_field_errors }}{% endif %}
+  <section class="settings-section">
+    <h2>Open after login</h2>
+    <p>
+      {{ form.landing_program.errors }}
+      <label for="{{ form.landing_program.id_for_label }}">{{ form.landing_program.label }}</label>
+      {{ form.landing_program }}
+    </p>
+    {% if diary_form %}
+    <div data-opening>
+      <p>
+        {{ diary_form.opening_page.errors }}
+        <label for="{{ diary_form.opening_page.id_for_label }}">Page inside {{ diary_name }}</label>
+        {{ diary_form.opening_page }}
+        <span class="field-help">Used when {{ diary_name }} is chosen above.</span>
+      </p>
+      <p data-opening-subject>
+        {{ diary_form.opening_subject.errors }}
+        <label for="{{ diary_form.opening_subject.id_for_label }}">Subject to open</label>
+        {{ diary_form.opening_subject }}
+      </p>
+    </div>
+    {% endif %}
+  </section>
+  {% if diary_form %}
+  <section class="settings-section">
+    <h2>Number formats</h2>
+    <p class="field-help">Changing formats changes how numbers are shown (and later in Word) but never your stored data.</p>
+    <div class="format-layout">
+      <div class="format-fields">
+        <fieldset>
+          <legend>Headings</legend>
+          {% include "accounts/_field_row.html" with f=diary_form.topic_format %}
+          {% include "accounts/_field_row.html" with f=diary_form.subtopic_format %}
+        </fieldset>
+        <fieldset>
+          <legend>Sections and Items</legend>
+          {% include "accounts/_field_row.html" with f=diary_form.section_format %}
+          {% include "accounts/_field_row.html" with f=diary_form.item_format %}
+          {% include "accounts/_field_row.html" with f=diary_form.nested_item_format %}
+          {% include "accounts/_field_row.html" with f=diary_form.multi_citation_format %}
+        </fieldset>
+        <p><button type="button" class="secondary" data-standard-formats>Use the standard formats</button></p>
+      </div>
+      <div class="format-preview-box" aria-live="polite">
+        <h3>Preview</h3>
+        <div data-preview>{% include "accounts/_format_preview.html" %}</div>
+        <p class="field-help">Updates as you choose. Without JavaScript it updates after you save.</p>
+      </div>
+    </div>
+  </section>
+  {% endif %}
   <button type="submit">Save</button>
   <a href="{% url 'home' %}?home=1">Cancel</a>
 </form>
 {% endblock %}
+{% block extra_js %}<script src="{% static 'js/my-settings.js' %}"></script>{% endblock %}

@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
-from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_GET, require_http_methods
 
 from . import landing, suite
 from .clear import ClearRefused, clear_preview, clear_profile
@@ -13,6 +13,7 @@ from .permissions import admin_required
 from .profiles import (
     days_left,
     delete_profile,
+    get_profile_for,
     name_clash,
     profile_usage,
     restore_conflicts,
@@ -35,13 +36,50 @@ class LandingLoginView(auth_views.LoginView):
 @login_required
 @require_http_methods(["GET", "POST"])
 def my_settings(request):
-    """Every signed-in user: choose the page to open after login."""
+    """Every signed-in user: the page to open after login, and (with a diary profile) the number formats."""
+    from diary.forms import DiarySettingsForm, preview_rows  # lazy: diary imports accounts
+
     form = MySettingsForm(request.POST or None, instance=request.user)
-    if request.method == "POST" and form.is_valid():
-        form.save()
-        messages.success(request, "Settings saved.")
-        return redirect("my_settings")
-    return render(request, "accounts/my_settings.html", {"form": form})
+    profile = get_profile_for(request.user, suite.KEY_DIARY)
+    diary_form = DiarySettingsForm(request.POST or None, user=request.user, profile=profile) if profile else None
+    if request.method == "POST":
+        # Both forms are checked so that every error is shown at once; nothing is saved unless both are fine.
+        valid = form.is_valid()
+        if diary_form is not None:
+            valid = diary_form.is_valid() and valid
+        if valid:
+            form.save()
+            if diary_form is not None:
+                diary_form.save()
+            messages.success(request, "Settings saved.")
+            return redirect("my_settings")
+    return render(
+        request,
+        "accounts/my_settings.html",
+        {
+            "form": form,
+            "diary_form": diary_form,
+            "preview": preview_rows(diary_form.effective()) if diary_form is not None else [],
+        },
+    )
+
+
+@login_required
+@require_GET
+def format_preview(request):
+    """The sample for the formats in the query string (the settings page fetches this as you choose)."""
+    from diary.forms import FORMAT_FIELDS, DiarySettingsForm, preview_rows
+
+    chosen = {}
+    profile = get_profile_for(request.user, suite.KEY_DIARY)
+    if profile:
+        chosen = DiarySettingsForm(user=request.user, profile=profile).current()
+    chosen = {name: chosen.get(name) for name in FORMAT_FIELDS}
+    for name in FORMAT_FIELDS:
+        value = request.GET.get(name, "")
+        if value:
+            chosen[name] = value
+    return render(request, "accounts/_format_preview.html", {"preview": preview_rows(chosen)})
 
 
 @admin_required
