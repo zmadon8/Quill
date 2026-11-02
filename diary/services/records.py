@@ -1,7 +1,7 @@
 """Create and edit records (docs/DESIGN.md sections 5.4 and 5.5). Moves are in moves.py, deletes in trash.py."""
 from django.db import transaction
 
-from ..models import FLAG_CHOICES, KIND_CHOICES, NoteLink
+from ..models import FLAG_CHOICES, KIND_CHOICES
 from ..richtext import sanitise_html
 from .core import (
     MODELS,
@@ -145,22 +145,3 @@ def set_landing(profile, user, subject_id, show, expected_version=None):
         place(ctx, obj, sequence_key(obj), None, "move")
         normalize(ctx, old_key)
         return make_result(ctx, obj)
-
-
-def add_link(profile, user, note_id, target):
-    """Link a Note to one target ((type, id)) in the same profile. Adding the same link twice does nothing."""
-    ctx = Ctx(profile, user)
-    with transaction.atomic():
-        note = get_record(ctx, "note", note_id)
-        if target[0] not in ("subject", "topic", "subtopic", "section", "item"):
-            raise Refused("A Note can link to a Subject, Topic, Sub-topic, Section or Item.")
-        destination = get_record(ctx, target[0], target[1])
-        column = f"{target[0]}_id"
-        existing = NoteLink._base_manager.filter(
-            profile_id=ctx.profile_id, note=note, deleted_at__isnull=True, **{column: destination.pk}
-        ).first()
-        if existing is not None:
-            return make_result(ctx, existing)
-        link = create_row(ctx, NoteLink, note=note, **{column: destination.pk})
-        return make_result(ctx, link)
-

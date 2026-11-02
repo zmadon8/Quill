@@ -240,6 +240,12 @@ def label(obj):
         return obj.citation[:60] or f"Case {obj.pk}"
     if kind == "note":
         return obj.text_plain.strip()[:60] or f"Note {obj.pk}"
+    for target_kind in ("subject", "topic", "subtopic", "section", "item"):
+        target_id = getattr(obj, f"{target_kind}_id", None)
+        if target_id is not None:
+            target = MODELS[target_kind]._base_manager.filter(pk=target_id, profile_id=obj.profile_id).first()
+            if target is not None:
+                return f"Link to {label(target)}"
     return f"Link {obj.pk}"
 
 

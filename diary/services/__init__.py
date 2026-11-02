@@ -20,7 +20,8 @@ from .errors import (
 )
 from .history import history_for, restore_version
 from .moves import move, preview_delete, preview_move, shift
-from .records import add_link, create, edit, set_landing
+from .links import add_link, purge_link, retarget_link, shift_link
+from .records import create, edit, set_landing
 from .trash import delete, permanent_delete, restore
 from .undo import group_summary, undo_group
 
@@ -29,5 +30,5 @@ __all__ = [
     "PermanentDeleteRefused", "Refused", "ServiceError", "UndoWarning", "ValidationFailed",
     "action_group", "add_link", "build_plan", "convert_item", "create", "delete", "edit", "group_summary", "history_for",
     "move", "permanent_delete", "preview_conversion", "preview_delete", "preview_move",
-    "restore", "restore_version", "set_landing", "shift", "snapshot", "undo_group",
+    "purge_link", "restore", "restore_version", "retarget_link", "set_landing", "shift", "shift_link", "snapshot", "undo_group",
 ]

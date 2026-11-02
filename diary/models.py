@@ -377,6 +377,8 @@ class NoteLink(Record):
         Section, null=True, blank=True, on_delete=models.PROTECT, related_name="incoming_links"
     )
     item = models.ForeignKey(Item, null=True, blank=True, on_delete=models.PROTECT, related_name="incoming_links")
+    # The order of the links of one Note (1..n among its live links), set by hand in the Note editor.
+    position = models.PositiveIntegerField(default=0)
 
     class Meta:
         constraints = [

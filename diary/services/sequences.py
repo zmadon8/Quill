@@ -15,7 +15,7 @@ from accounts.models import Profile
 
 from .. import numbering
 from ..sorting import sort_headings
-from ..models import Case, Item, Note, Section, Subject, Subtopic, Topic
+from ..models import Case, Item, Note, NoteLink, Section, Subject, Subtopic, Topic
 from .core import MODELS, commit, record_type
 
 #: Sequence kinds that are always alphabetical and cannot be reordered by hand.
@@ -34,6 +34,7 @@ COLUMN_TYPE = {
     "section": "section",
     "item": "item",
     "parent_item": "item",
+    "note": "note",
 }
 
 
@@ -42,7 +43,7 @@ def ident(obj):
 
 
 def sequence_key(obj):
-    """The sequence ``obj`` sits in, or None for records without a position (Note links)."""
+    """The sequence ``obj`` sits in, or None for records without a position."""
     kind = record_type(obj)
     if kind == "subject":
         return ("subject", "show", bool(obj.show_on_landing))
@@ -63,6 +64,8 @@ def sequence_key(obj):
                 return ("note", column, getattr(obj, f"{column}_id"))
     if kind == "case":
         return ("case", "item", obj.item_id)
+    if kind == "notelink":
+        return ("link", "note", obj.note_id)
     return None
 
 
@@ -102,6 +105,8 @@ def members(profile_id, key):
         rows = Note._base_manager.filter(**{f"{column}_id": value}, **live)
     elif kind == "case":
         rows = Case._base_manager.filter(item_id=value, **live)
+    elif kind == "link":
+        rows = NoteLink._base_manager.filter(note_id=value, **live)
     else:
         return []
     return sorted(rows, key=lambda o: (o.position, o.pk))
