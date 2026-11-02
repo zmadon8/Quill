@@ -216,7 +216,7 @@ class Node:
     original_line: str
     name: str = ""  # Subject, Topic, Sub-topic and Section
     text_html: str = ""  # Item
-    citation: str = ""  # Item
+    citation: str = ""  # Item: becomes its one Case (a); a line imported whole has none and gets no Case
     review_note: str = ""
     reason: str = ""  # reason key when flagged
     parent: "Node | None" = None
@@ -535,6 +535,7 @@ def summary_counts(plan):
         "items": len(items),
         "items_clean": len(items) - len(flagged_items),
         "items_flagged": len(flagged_items),
+        "citations": sum(1 for n in items if n.citation),  # one Case per split line
         "review_marked": len(flagged_items) + sum(1 for s in sections if s.needs_review),
         "text_paragraphs": plan.text_paragraphs,
         "blank_paragraphs": len(plan.blank_paragraphs),

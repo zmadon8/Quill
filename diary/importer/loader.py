@@ -139,11 +139,16 @@ def _create_all(plan, profile, user):
                 obj = Section(name=node.name, needs_review=True, review_note=node.review_note,
                               **{parent_field: parent}, **extra, **common)
             else:
-                obj = Item(text=node.text_html, citation=node.citation, needs_review=node.needs_review,
+                obj = Item(text=node.text_html, needs_review=node.needs_review,
                            review_note=node.review_note, **{parent_field: parent}, **extra, **common)
         obj.save()
         made[id(node)] = obj
         created.append(obj)
+        if node.kind == ITEM and node.citation:
+            # The citation of an Item is its first Case (10d). A line imported whole has no citation, so no Case.
+            case = Case(item=obj, citation=node.citation, position=1, **common)
+            case.save()
+            created.append(case)
     VersionHistory.objects.bulk_create(
         [
             VersionHistory(record_type=type(o).__name__.lower(), record_id=o.pk, version=o.version,
@@ -152,7 +157,7 @@ def _create_all(plan, profile, user):
         ],
         batch_size=500,
     )
-    return len(created)
+    return len(made)  # the records of the Word file; the Cases made from split citations come on top
 
 
 def plan_main_count(plan):
@@ -194,6 +199,11 @@ def read_back(profile):
     subtopics = {k: v for k, v in all_subtopics.items() if v.deleted_at is None}
     sections = list(imported(Section).filter(deleted_at__isnull=True))
     items = list(imported(Item).filter(deleted_at__isnull=True))
+    citations = {}
+    for case in Case.objects.filter(
+        profile=profile, item__in=[i.pk for i in items], deleted_at__isnull=True
+    ).order_by("position", "pk"):
+        citations.setdefault(case.item_id, []).append(case.citation)
 
     rows = {}
     per_subject = {}
@@ -218,7 +228,9 @@ def read_back(profile):
                                   needs_review=s.needs_review, review_note=s.review_note)
         bump(_subject_of(s, all_topics, all_subtopics), "sections")
     for i in items:
-        rebuilt = exact_text(i.text) + (f" - {i.citation}" if i.citation else "")
+        # Item text + " - " + its citations (Cases in order), exactly as the Word line was written.
+        joined = "; ".join(citations.get(i.pk, [])) or i.citation
+        rebuilt = exact_text(i.text) + (f" - {joined}" if joined else "")
         rows[i.import_ref] = dict(kind=ITEM, rebuilt=rebuilt, original_line=i.original_line, name="",
                                   needs_review=i.needs_review, review_note=i.review_note,
                                   signature=html_signature(i.text))
@@ -259,6 +271,7 @@ def read_back(profile):
         "sections": len(sections),
         "items": len(items),
         "items_flagged": sum(1 for i in items if i.needs_review),
+        "citations": sum(len(v) for v in citations.values()),
         "review_marked": len(flagged),
     }
     counts["items_clean"] = counts["items"] - counts["items_flagged"]

@@ -283,10 +283,11 @@ def reconciliation_report(plan, db, filename, sha256, generated, profile_name):
     rows = []
     db_counts = db["counts"]
     for key in ("subjects", "main_subjects", "other_subjects", "topics", "subtopics", "sections", "items",
-                "items_clean", "items_flagged", "review_marked"):
+                "items_clean", "items_flagged", "citations", "review_marked"):
         same = counts[key] == db_counts[key]
         problems += 0 if same else 1
-        rows.append((COUNT_LABELS[key], counts[key], db_counts[key], "same" if same else "DIFFERENT"))
+        label = "Citations (Cases, one per split line)" if key == "citations" else COUNT_LABELS[key]
+        rows.append((label, counts[key], db_counts[key], "same" if same else "DIFFERENT"))
     out += _table(("", "File", "Database", ""), rows)
     out.append(f"  Text paragraphs in the file: {counts['text_paragraphs']}; blank paragraphs skipped: "
                f"{counts['blank_paragraphs']}.")
