@@ -9,7 +9,7 @@
   <details class="saved-version" open>
     <summary>The saved version (version {{ item.version }}), for comparison</summary>
     <p><strong>Text:</strong> {{ item.text|richhtml }}</p>
-    {% if not is_multi %}<p><strong>Citation:</strong> {{ item.citation }}</p>{% endif %}
+    {% if not has_cases %}<p><strong>Citation:</strong> {{ item.citation }}</p>{% endif %}
     <p><strong>Flag:</strong> {{ item.flag }} {{ item.flag_text }} &middot; <strong>For review:</strong> {{ item.needs_review|yesno }} {{ item.review_note }}</p>
   </details>
   {% endif %}
@@ -25,43 +25,43 @@
       {% include "diary/_richtext_field.html" with rname="text" rvalue=values.text rlabel="Item text" rrows=6 %}
     </div>
 
-    {% if is_multi %}
+    {% if has_cases %}
     <fieldset class="field cases" data-cases>
-      <legend class="field-label">Cases</legend>
-      <p class="hint">Each Case has its own citation and an optional comment. A Multi-Item has no citation of its own.</p>
+      <legend class="field-label">Citations</legend>
+      <p class="hint">The first citation is the main one. Add more if the Item rests on several; each has an optional comment, shown in smaller grey text after its citation.</p>
       <ol class="case-list" data-case-list>
         {% for row in rows %}
         <li class="case-row" data-case-row>
           <input type="hidden" name="case_id" value="{{ row.id|default_if_none:'' }}">
           <input type="hidden" name="case_version" value="{{ row.version|default_if_none:'' }}">
-          <div class="case-head"><strong data-case-number>Case {{ forloop.counter }}</strong>
+          <div class="case-head"><strong data-case-number>Citation {{ forloop.counter }}</strong>
             <span class="case-buttons">
-              <button type="button" class="small" data-case-up aria-label="Move this Case up">Up</button>
-              <button type="button" class="small" data-case-down aria-label="Move this Case down">Down</button>
-              <button type="button" class="small danger" data-case-remove aria-label="Remove this Case">Remove</button>
+              <button type="button" class="small" data-case-up aria-label="Move this citation up">Up</button>
+              <button type="button" class="small" data-case-down aria-label="Move this citation down">Down</button>
+              <button type="button" class="small danger" data-case-remove aria-label="Remove this citation">Remove</button>
             </span>
           </div>
           <label>Citation <input type="text" name="case_citation" value="{{ row.citation }}" maxlength="1000"></label>
           <div class="field-label">Comment (optional)</div>
-          {% include "diary/_richtext_field.html" with rname="case_comment" rvalue=row.comment rlabel="Case comment" rrows=3 %}
+          {% include "diary/_richtext_field.html" with rname="case_comment" rvalue=row.comment rlabel="Citation comment" rrows=3 %}
         </li>
         {% endfor %}
       </ol>
-      <button type="button" data-case-add>Add a Case</button>
+      <button type="button" data-case-add>Add a citation</button>
       <template data-case-template>
         <li class="case-row" data-case-row>
           <input type="hidden" name="case_id" value="">
           <input type="hidden" name="case_version" value="">
-          <div class="case-head"><strong data-case-number>Case</strong>
+          <div class="case-head"><strong data-case-number>Citation</strong>
             <span class="case-buttons">
-              <button type="button" class="small" data-case-up aria-label="Move this Case up">Up</button>
-              <button type="button" class="small" data-case-down aria-label="Move this Case down">Down</button>
-              <button type="button" class="small danger" data-case-remove aria-label="Remove this Case">Remove</button>
+              <button type="button" class="small" data-case-up aria-label="Move this citation up">Up</button>
+              <button type="button" class="small" data-case-down aria-label="Move this citation down">Down</button>
+              <button type="button" class="small danger" data-case-remove aria-label="Remove this citation">Remove</button>
             </span>
           </div>
           <label>Citation <input type="text" name="case_citation" value="" maxlength="1000"></label>
           <div class="field-label">Comment (optional)</div>
-          <div class="rt" data-richtext><textarea class="rt-source" name="case_comment" rows="3" aria-label="Case comment"></textarea></div>
+          <div class="rt" data-richtext><textarea class="rt-source" name="case_comment" rows="3" aria-label="Citation comment"></textarea></div>
         </li>
       </template>
     </fieldset>

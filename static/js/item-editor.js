@@ -1,4 +1,4 @@
-/* Item editor: the Cases list of a Multi-Item (docs/DESIGN.md section 5.5).
+/* Item editor: the citations (Cases) list of an Item (docs/DESIGN.md section 5.5).
    Add, remove, move up and move down only change the page; one Save sends the whole list in the order
    shown, with the version of each Case. A removed Case that was already saved is sent as case_gone
    ("id:version") so the server can check nobody changed it meanwhile. */
@@ -13,7 +13,7 @@
 
     var renumber = function () {
       Array.prototype.forEach.call(list.querySelectorAll("[data-case-row]"), function (row, i) {
-        row.querySelector("[data-case-number]").textContent = "Case " + (i + 1);
+        row.querySelector("[data-case-number]").textContent = "Citation " + (i + 1);
       });
     };
 

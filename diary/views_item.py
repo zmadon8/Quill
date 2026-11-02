@@ -14,7 +14,7 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 
 from . import services as svc
-from .models import FLAG_CHOICES, KIND_CHOICES, KIND_MULTI, Case, Item
+from .models import FLAG_CHOICES, KIND_CHOICES, KIND_NESTED, Case, Item
 from .services.core import ancestors, label
 from .services.errors import Conflict, Refused, ValidationFailed
 from .views_edit import _next, _record_id, _single_line, _version, edit_endpoint, editor_page
@@ -91,7 +91,11 @@ def _values(post):
 # ------------------------------------------------------------------ saving
 
 def _save_cases(request, item, rows, gone):
-    """Edit, add, remove and reorder the Cases of a Multi-Item so they end up exactly as posted."""
+    """Edit, add, remove and reorder the citations (Cases) of an Item so they end up exactly as posted.
+
+    A saved citation whose citation and comment were both emptied is removed (to the Trash, with the
+    version check), never kept as an empty Case and never dropped without that record.
+    """
     profile, user = request.profile, request.user
     live = {c.pk: c for c in Case._base_manager.filter(item=item, deleted_at__isnull=True, profile=profile)}
     posted = {row["id"] for row in rows if row["id"]}
@@ -103,7 +107,9 @@ def _save_cases(request, item, rows, gone):
             svc.delete(profile, user, "case", pk, gone.get(pk))
     order = []
     for row in rows:
-        if row["id"]:
+        if row["id"] and not row["citation"] and not row["comment"].strip():
+            svc.delete(profile, user, "case", row["id"], row["version"])
+        elif row["id"]:
             svc.edit(profile, user, "case", row["id"], {"citation": row["citation"], "comment": row["comment"]},
                      row["version"])
             order.append(row["id"])
@@ -118,17 +124,17 @@ def _save_cases(request, item, rows, gone):
 def _save(request, item, back):
     post = request.POST
     values = _values(post)
-    rows = _case_rows(post) if item.kind == KIND_MULTI else []
+    rows = _case_rows(post) if item.kind != KIND_NESTED else []
     gone = _gone_versions(post)
     try:
         with transaction.atomic():
             if len(values["flag_text"]) > FLAG_TEXT_MAX:
                 raise ValidationFailed(f"The flag text is too long ({FLAG_TEXT_MAX} characters at most).")
             changes = {name: values[name] for name in ("text", "flag", "flag_text", "needs_review", "review_note")}
-            if item.kind != KIND_MULTI:
+            if item.kind == KIND_NESTED:
                 changes["citation"] = values["citation"]
             svc.edit(request.profile, request.user, "item", item.pk, changes, _version(request))
-            if item.kind == KIND_MULTI:
+            if item.kind != KIND_NESTED:
                 _save_cases(request, item, rows, gone)
     except Conflict as exc:
         # Show everything that was typed, not only the part that clashed, so nothing is lost.
@@ -144,11 +150,11 @@ def _save(request, item, back):
 def _everything_typed(values, rows, kind):
     shown = {"Text": values["text"], "Flag": values["flag"], "Flag text": values["flag_text"],
              "For review": "yes" if values["needs_review"] else "no", "Review note": values["review_note"]}
-    if kind != KIND_MULTI:
+    if kind == KIND_NESTED:
         shown["Citation"] = values["citation"]
     for number, row in enumerate(rows, start=1):
-        shown[f"Case {number} citation"] = row["citation"]
-        shown[f"Case {number} comment"] = row["comment"]
+        shown[f"Citation {number}"] = row["citation"]
+        shown[f"Citation {number} comment"] = row["comment"]
     return shown
 
 
@@ -168,11 +174,14 @@ def _render(request, item, back, values=None, rows=None, status=200, theirs=Fals
         cases = Case._base_manager.filter(item=item, deleted_at__isnull=True, profile=request.profile)
         rows = [{"id": c.pk, "version": c.version, "citation": c.citation, "comment": c.comment}
                 for c in cases.order_by("position", "pk")]
+    if item.kind != KIND_NESTED and not rows:
+        # The first row is the main citation box; it is always there, empty if the Item has no citation yet.
+        rows = [{"id": None, "version": None, "citation": "", "comment": ""}]
     convertible = [] if item.parent_item_id else [(key, name) for key, name in KIND_CHOICES if key != item.kind]
     context = {
         "item": item,
         "kind_name": KIND_NAMES[item.kind],
-        "is_multi": item.kind == KIND_MULTI,
+        "has_cases": item.kind != KIND_NESTED,
         "values": values,
         "rows": rows,
         "flag_choices": FLAG_CHOICES,
@@ -204,7 +213,7 @@ def _merge(request, item, back):
     Nothing is saved. The saved values are shown above the form for comparison.
     """
     values = _values(request.POST)
-    rows = _case_rows(request.POST) if item.kind == KIND_MULTI else []
+    rows = _case_rows(request.POST) if item.kind != KIND_NESTED else []
     messages.info(request, "Someone else changed this Item. Your text is below; compare it with the saved version, then Save.")
     return _render(request, item, back, values=values, rows=rows, theirs=True)
 
@@ -213,7 +222,7 @@ def _merge(request, item, back):
 
 @edit_endpoint
 def item_convert(request, pk):
-    """Change to Item / Multi-Item / Nested Item. The first POST shows the preview; confirmed=1 does it."""
+    """Change to Item / Nested Item. The first POST shows the preview; confirmed=1 does it."""
     item = _load_item(request, pk)
     post = request.POST
     back = _next(request, _default_back(item))
