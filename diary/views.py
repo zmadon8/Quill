@@ -17,7 +17,7 @@ from accounts import landing as account_landing
 from accounts.models import ROLE_EDITOR
 from accounts.models import Profile
 from accounts.permissions import admin_required, reader_required
-from accounts.profiles import export_file_name, request_profile, request_role
+from accounts.profiles import effective_export_name, export_file_name, request_profile, request_role
 from accounts.suite import KEY_DIARY
 
 from . import reading, undo_session
@@ -29,6 +29,7 @@ from .importer import loader as import_loader
 from .importer import service as import_service
 from .models import Item, Subject, Subtopic, Topic
 from .sorting import sort_headings
+from .wordexport import naming
 
 NO_PROFILE_MESSAGE = "No profile assigned - ask the Admin"
 
@@ -188,7 +189,8 @@ def profile_settings(request):
     return render(
         request,
         "diary/profile_settings.html",
-        {"form": form, "can_edit": can_edit, "preview": export_file_name(form.instance)},
+        {"form": form, "can_edit": can_edit, "preview": export_file_name(form.instance),
+         "replaced": naming.replacements(effective_export_name(form.instance))},
     )
 
 

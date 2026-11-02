@@ -2,7 +2,7 @@ from django import forms
 
 from accounts.models import Profile
 
-from .models import FORMAT_CHOICES, SECTION_FORMAT_CHOICES, Subject, UserSettings
+from .models import DATE_FORMAT_CHOICES, FORMAT_CHOICES, SECTION_FORMAT_CHOICES, Subject, UserSettings
 
 
 class ProfileSettingsForm(forms.ModelForm):
@@ -67,6 +67,9 @@ class DiarySettingsForm(forms.Form):
     multi_citation_format = forms.ChoiceField(
         choices=FORMAT_CHOICES, required=False, label="Citations of an Item with several"
     )
+    export_date_format = forms.ChoiceField(
+        choices=DATE_FORMAT_CHOICES, required=False, label="Date in Word file names"
+    )
 
     def __init__(self, *args, user, profile, **kwargs):
         super().__init__(*args, **kwargs)
@@ -88,6 +91,7 @@ class DiarySettingsForm(forms.Form):
         values = {name: getattr(row, name) for name in FORMAT_FIELDS}
         values["opening_page"] = "home" if row.opening_page == "other_subjects" else row.opening_page
         values["opening_subject"] = row.opening_subject_id
+        values["export_date_format"] = row.export_date_format
         return values
 
     def _posted(self, name):
@@ -96,7 +100,7 @@ class DiarySettingsForm(forms.Form):
     def clean(self):
         cleaned = super().clean()
         row = self.settings
-        for name in ("opening_page",) + FORMAT_FIELDS:
+        for name in ("opening_page", "export_date_format") + FORMAT_FIELDS:
             if name in self.errors:
                 continue
             if not self._posted(name):
@@ -131,6 +135,7 @@ class DiarySettingsForm(forms.Form):
         if not (page == "home" and row.opening_page == "other_subjects"):
             row.opening_page = page  # a stored legacy "other_subjects" stays unless another page is chosen
         row.opening_subject = self.cleaned_data["opening_subject"]
+        row.export_date_format = self.cleaned_data["export_date_format"]
         row.save()
         return row
 

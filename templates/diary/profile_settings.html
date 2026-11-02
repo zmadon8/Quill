@@ -7,12 +7,12 @@
 <form method="post" class="stack">
   {% csrf_token %}
   {{ form.as_p }}
-  <p>Files will start with: <strong>{{ preview }}</strong></p>
+  <p>Files will start with: <strong>{{ preview }}</strong>{% for note in replaced %}<br><span class="meta">{{ note }}</span>{% endfor %}</p>
   <button type="submit">Save</button>
 </form>
 {% else %}
 <p>Display Name: <strong>{% if request.profile.display_name %}{{ request.profile.display_name }}{% else %}(none: the header shows {{ diary_name }} &middot; {{ request.profile.name }}){% endif %}</strong></p>
-<p>Export file name: <strong>{{ preview }}</strong></p>
+<p>Export file name: <strong>{{ preview }}</strong>{% for note in replaced %}<br><span class="meta">{{ note }}</span>{% endfor %}</p>
 <p>Contents links open: <strong>{{ request.profile.get_reading_all_mode_display }}</strong></p>
 <p>With no last view yet, Contents links open the whole Subject (used only with "The view I used last"): <strong>{% if request.profile.reading_all_default %}Yes{% else %}No{% endif %}</strong></p>
 <p class="muted">Only Editors of this profile can change it.</p>

@@ -1,0 +1,2 @@
+{# "Export this view" (Milestone 6): opens the Export page with this Subject, Topic or Sub-topic as the Current View. Offered to everyone, Readers included. Needs: subject, and scope/target on a Topic or Sub-topic page. #}
+{% url 'export' as export_url %}<a class="button export-link" href="{{ export_url }}?kind={% if scope == 'topic' or scope == 'subtopic' %}{{ scope }}&amp;pk={{ target.pk }}{% else %}subject&amp;pk={{ subject.pk }}{% endif %}" title="Download what is on this page as a Word file">Export this view</a>

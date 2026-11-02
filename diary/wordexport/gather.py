@@ -1,0 +1,205 @@
+"""Reads one profile's live records into the export's neutral tree (docs/DESIGN.md section 12).
+
+The whole profile is read in a fixed number of queries (about ten), whatever its size, and walked in Python, so a
+Full export of thousands of Items costs the same few queries as a small one. Only records reachable from a live
+Subject through live parents are included: Trash, and anything below something in Trash, is left out. Order is the
+Diary's: Subjects, Topics and Sub-topics alphabetical (``diary.sorting``); Items and Sections by position.
+"""
+from dataclasses import dataclass, field
+
+from ..models import Case, Item, Note, NoteLink, Section, Subject, Subtopic, Topic
+from ..sorting import sort_headings
+from . import model as m
+
+
+@dataclass
+class Snapshot:
+    main: list = field(default_factory=list)  # XSubject, alphabetical
+    others: list = field(default_factory=list)  # XSubject (Other Subjects), alphabetical
+    subjects: dict = field(default_factory=dict)  # Subject id -> XSubject
+    topics: dict = field(default_factory=dict)  # Topic id -> (XTopic, XSubject)
+    subtopics: dict = field(default_factory=dict)  # Sub-topic id -> (XSubtopic, Topic id or None, XSubject)
+
+
+def _short(text, fallback):
+    return (text or "").strip()[:40] or fallback
+
+
+def _live(model, profile, *fields):
+    queryset = model.objects.filter(profile=profile, deleted_at__isnull=True)
+    return queryset.only(*fields) if fields else queryset
+
+
+def _by(rows, columns):
+    """Group rows by their first filled parent column: {(column, id): [rows]}."""
+    grouped = {}
+    for row in rows:
+        for name in columns:
+            value = getattr(row, f"{name}_id")
+            if value is not None:
+                grouped.setdefault((name, value), []).append(row)
+                break
+    return grouped
+
+
+def load(profile):
+    """Build the Snapshot of ``profile``'s live diary."""
+    base = ("id", "profile", "deleted_at", "position")
+    subjects = list(_live(Subject, profile, *base, "name", "show_on_landing"))
+    live_subject_ids = {s.pk for s in subjects}
+    topics = [t for t in _live(Topic, profile, *base, "subject", "name") if t.subject_id in live_subject_ids]
+    topics_by_id = {t.pk: t for t in topics}
+    subtopics = [
+        s for s in _live(Subtopic, profile, *base, "subject", "topic", "name")
+        if (s.topic_id in topics_by_id if s.topic_id else s.subject_id in live_subject_ids)
+    ]
+    subtopics_by_id = {s.pk: s for s in subtopics}
+
+    def container_live(row):
+        if row.subtopic_id:
+            return row.subtopic_id in subtopics_by_id
+        if row.topic_id:
+            return row.topic_id in topics_by_id
+        return row.subject_id in live_subject_ids
+
+    item_fields = base + ("subject", "topic", "subtopic", "parent_item", "kind", "text", "text_plain", "citation",
+                          "flag", "flag_text", "needs_review", "review_note")
+    all_items = list(_live(Item, profile, *item_fields))
+    top_items = [i for i in all_items if i.parent_item_id is None and container_live(i)]
+    top_ids = {i.pk for i in top_items}
+    child_items = [i for i in all_items if i.parent_item_id in top_ids]
+    items = top_items + child_items
+    item_ids = {i.pk for i in items}
+    sections = [s for s in _live(Section, profile, *base, "subject", "topic", "subtopic", "name", "needs_review",
+                                 "review_note") if container_live(s)]
+    section_ids = {s.pk for s in sections}
+    cases = [c for c in _live(Case, profile, *base, "item", "citation", "comment") if c.item_id in item_ids]
+    notes = [
+        n for n in _live(Note, profile, *base, "subject", "topic", "subtopic", "item", "section", "text")
+        if (n.item_id in item_ids if n.item_id else n.section_id in section_ids if n.section_id else container_live(n))
+    ]
+    note_ids = {n.pk for n in notes}
+    links = [
+        link for link in _live(NoteLink, profile).order_by("position", "pk") if link.note_id in note_ids
+    ]
+
+    items_by = _by(items, ("parent_item", "subtopic", "topic", "subject"))
+    sections_by = _by(sections, ("subtopic", "topic", "subject"))
+    notes_by = _by(notes, ("item", "section", "subtopic", "topic", "subject"))
+    cases_by = {}
+    for case in sorted(cases, key=lambda c: (c.position, c.pk)):
+        cases_by.setdefault(case.item_id, []).append(case)
+    links_by = {}
+    for link in links:
+        links_by.setdefault(link.note_id, []).append(link)
+
+    # -- where a link points: the same "Subject > Topic > ..." text the reading page shows -------------------
+    items_by_id = {i.pk: i for i in items}
+    sections_by_id = {s.pk: s for s in sections}
+    subjects_by_id = {s.pk: s for s in subjects}
+
+    def heading_path(kind, row):
+        if kind == "subject":
+            return [row.name]
+        if kind == "topic":
+            return [subjects_by_id[row.subject_id].name, row.name]
+        if row.topic_id:
+            topic = topics_by_id[row.topic_id]
+            return [subjects_by_id[topic.subject_id].name, topic.name, row.name]
+        return [subjects_by_id[row.subject_id].name, row.name]
+
+    def container_path(row):
+        if row.subtopic_id:
+            return heading_path("subtopic", subtopics_by_id[row.subtopic_id])
+        if row.topic_id:
+            return heading_path("topic", topics_by_id[row.topic_id])
+        return heading_path("subject", subjects_by_id[row.subject_id])
+
+    reachable = {"subject": subjects_by_id, "topic": topics_by_id, "subtopic": subtopics_by_id,
+                 "section": sections_by_id, "item": items_by_id}
+
+    def link_of(link):
+        from ..reading import note_link_info  # a target in Trash: the reading page's own code finds its path
+
+        for kind in ("subject", "topic", "subtopic", "section", "item"):
+            target_id = getattr(link, f"{kind}_id")
+            if target_id is None:
+                continue
+            row = reachable[kind].get(target_id)
+            if row is None:
+                info = note_link_info(link)
+                return m.XLink(info["path"], True)
+            if kind == "item":
+                names, top = [], row
+                while top.parent_item_id:
+                    names.insert(0, _short(top.text_plain, "Item"))
+                    top = items_by_id[top.parent_item_id]
+                names.insert(0, _short(top.text_plain, "Item"))
+                return m.XLink(" > ".join(container_path(top) + names))
+            if kind == "section":
+                return m.XLink(" > ".join(container_path(row) + [row.name or "Section"]))
+            return m.XLink(" > ".join(heading_path(kind, row)))
+        return m.XLink("", True)
+
+    # -- the tree ---------------------------------------------------------------------------------
+    def x_notes(key):
+        return [m.XNote(n.text, [link_of(link) for link in links_by.get(n.pk, [])]) for n in notes_by.get(key, [])]
+
+    def x_item(item, is_child=False):
+        flag = (item.flag_text or item.get_flag_display()) if item.flag != "none" else ""
+        kids = []
+        if not is_child:
+            kids = [x_item(k, True) for k in sorted(items_by.get(("parent_item", item.pk), []),
+                                                    key=lambda i: (i.position, i.pk))]
+        return m.XItem(
+            html=item.text,
+            cases=[m.XCase(c.citation, c.comment) for c in cases_by.get(item.pk, [])],
+            citation=item.citation if item.kind == "nested" else "",
+            is_nested=item.kind == "nested", flag_label=flag, needs_review=item.needs_review,
+            review_note=item.review_note, children=kids, notes=x_notes(("item", item.pk)),
+        )
+
+    def x_container(kind, pk):
+        key = (kind, pk)
+        rows = [("item", i) for i in items_by.get(key, [])] + [("section", s) for s in sections_by.get(key, [])]
+        rows.sort(key=lambda e: (e[1].position, 0 if e[0] == "section" else 1, e[1].pk))
+        entries = []
+        for what, row in rows:
+            if what == "section":
+                entries.append(m.XSection(row.name, row.needs_review, row.review_note, x_notes(("section", row.pk))))
+            else:
+                entries.append(x_item(row))
+        return m.XContainer(entries, x_notes(key))
+
+    snapshot = Snapshot()
+    topics_of, direct_subtopics_of, subtopics_of = {}, {}, {}
+    for topic in topics:
+        topics_of.setdefault(topic.subject_id, []).append(topic)
+    for sub in subtopics:
+        if sub.topic_id:
+            subtopics_of.setdefault(sub.topic_id, []).append(sub)
+        else:
+            direct_subtopics_of.setdefault(sub.subject_id, []).append(sub)
+
+    def build_subject(subject):
+        xs = m.XSubject(subject.name, x_container("subject", subject.pk))
+        snapshot.subjects[subject.pk] = xs
+        for index, topic in enumerate(sort_headings(topics_of.get(subject.pk, [])), 1):
+            xt = m.XTopic(topic.name, index, x_container("topic", topic.pk))
+            for sindex, sub in enumerate(sort_headings(subtopics_of.get(topic.pk, [])), 1):
+                xsub = m.XSubtopic(sub.name, sindex, x_container("subtopic", sub.pk))
+                xt.subtopics.append(xsub)
+                snapshot.subtopics[sub.pk] = (xsub, topic.pk, xs)
+            xs.topics.append(xt)
+            snapshot.topics[topic.pk] = (xt, xs)
+        for sindex, sub in enumerate(sort_headings(direct_subtopics_of.get(subject.pk, [])), 1):
+            xsub = m.XSubtopic(sub.name, sindex, x_container("subtopic", sub.pk))
+            xs.subtopics.append(xsub)
+            snapshot.subtopics[sub.pk] = (xsub, None, xs)
+        return xs
+
+    for subject in sort_headings([s for s in subjects if s.show_on_landing]):
+        snapshot.main.append(build_subject(subject))
+    for subject in sort_headings([s for s in subjects if not s.show_on_landing]):
+        snapshot.others.append(build_subject(subject))
+    return snapshot

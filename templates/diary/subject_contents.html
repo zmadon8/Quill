@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ subject.name }}{% endblock %}
-{% block crumb_nav %}<div class="crumb-row"><button type="button" class="header-toggle" data-header-toggle hidden aria-expanded="false" aria-controls="site-header" title="Show header" aria-label="Show header"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M4 6h16M4 12h16M4 18h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>{% if toc or direct_toc %}{% include "diary/_crumbs.html" with panel_switch=True %}{% else %}{% include "diary/_crumbs.html" %}{% endif %}</div>{% endblock %}
+{% block crumb_nav %}<div class="crumb-row"><button type="button" class="header-toggle" data-header-toggle hidden aria-expanded="false" aria-controls="site-header" title="Show header" aria-label="Show header"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M4 6h16M4 12h16M4 18h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>{% if toc or direct_toc %}{% include "diary/_crumbs.html" with panel_switch=True %}{% else %}{% include "diary/_crumbs.html" %}{% endif %}{% include "diary/_export_link.html" %}</div>{% endblock %}
 {% block content %}
 {# Same layout as the reading view: the panel on the left. On phones the panel is shown in the page, full width. #}
 <div class="reader-layout reader-layout--page{% if not toc and not direct_toc %} no-contents{% endif %}">

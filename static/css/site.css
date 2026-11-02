@@ -409,3 +409,7 @@ table[data-resizable-columns] th { position: relative; overflow-wrap: anywhere; 
   .note-editor .editor-actions { position: sticky; bottom: 0; margin: 1rem -1rem 0; padding: .6rem 1rem; border-top: 1px solid var(--ink); background: var(--bg); }
   .menu-link { min-height: 48px; }
 }
+
+/* Word export (Milestone 6) */
+.export-link { min-height: 2rem; font-size: var(--small-size); }
+.export-page .settings-section { margin-bottom: 1.25rem; }

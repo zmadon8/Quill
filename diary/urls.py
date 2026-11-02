@@ -1,7 +1,7 @@
 from django.urls import path
 from django.views.generic import RedirectView
 
-from . import views, views_edit, views_history, views_inline, views_item, views_note, views_trash
+from . import views, views_edit, views_export, views_history, views_inline, views_item, views_note, views_trash
 
 # Mounted at /caselaw/ by config/urls.py. No app namespace: URL names stay global so every {% url %} and reverse() is unchanged.
 urlpatterns = [
@@ -37,5 +37,7 @@ urlpatterns = [
     path("history/<str:kind>/<int:pk>/", views_history.history, name="history"),
     path("history/<str:kind>/<int:pk>/<int:version>/", views_history.history_version, name="history_version"),
     path("history/restore/", views_history.history_restore, name="history_restore"),
+    path("export/", views_export.export_page, name="export"),
+    path("export/download/", views_export.export_download, name="export_download"),
     path("profile-settings/", views.profile_settings, name="profile_settings"),
 ]

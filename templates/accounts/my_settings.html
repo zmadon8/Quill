@@ -32,7 +32,7 @@
   {% if diary_form %}
   <section class="settings-section">
     <h2>Number formats</h2>
-    <p class="field-help">Changing formats changes how numbers are shown (and later in Word) but never your stored data.</p>
+    <p class="field-help">Changing formats changes how numbers are shown (on screen and in the Word export) but never your stored data.</p>
     <div class="format-layout">
       <div class="format-fields">
         <fieldset>
@@ -55,6 +55,11 @@
         <p class="field-help">Updates as you choose. Without JavaScript it updates after you save.</p>
       </div>
     </div>
+  </section>
+  <section class="settings-section">
+    <h2>Word export</h2>
+    {% include "accounts/_field_row.html" with f=diary_form.export_date_format %}
+    <p class="field-help">The date at the end of every exported file name and on its front page. The time zone is India (Asia/Kolkata, IST). The start of the file name is the profile&rsquo;s export name, set in Profile settings. Numbers in the Word file follow the formats above.</p>
   </section>
   {% endif %}
   <button type="submit">Save</button>
