@@ -117,6 +117,13 @@ class RestoreTests(TrashTestCase):
         self.assertEqual([self.get(x).position for x in (self.t1, extra)], stored)
         self.assertEqual(self.history_kinds(self.t1), ["create"])
 
+    def test_a_new_heading_never_reuses_the_stored_position_of_a_trashed_one(self):
+        svc.delete(self.profile, self.user, "topic", self.t2.pk)  # t2 held stored position 2
+        extra = self.make("topic", ("subject", self.subject.pk), name="Capacity")
+        svc.restore(self.profile, self.user, "topic", self.t2.pk)
+        stored = [self.get(x).position for x in (self.t1, self.t2, extra)]
+        self.assertEqual(len(set(stored)), 3)
+
     def test_restore_writes_history_and_bumps_versions(self):
         svc.delete(self.profile, self.user, "topic", self.t1.pk)
         result = svc.restore(self.profile, self.user, "topic", self.t1.pk)

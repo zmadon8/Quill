@@ -7,7 +7,8 @@ that Restore can put them back where they were.
 Subjects, Topics and Sub-topics are the exception (docs/DESIGN.md, "Alphabetical headings"): they are
 always shown in alphabetical order (diary/sorting.py), computed here on every read. Their stored
 position columns (position, landing_position, other_acts_position) still hold the original Word order
-and are never renumbered: a new or moved heading just gets the next free number, so the Word order
+and are never renumbered: a new or moved heading just gets the next free number (above every
+sibling, trashed ones included, so Restore cannot duplicate a number), so the Word order
 could be switched back on later. Nothing in this module reorders them by hand.
 """
 from accounts.models import Profile
@@ -106,6 +107,29 @@ def members(profile_id, key):
     return sorted(rows, key=lambda o: (o.position, o.pk))
 
 
+def next_stored_position(profile_id, key, exclude=None):
+    """The next free stored (Word order) number of an alphabetical sequence.
+
+    Counts ALL siblings, live and trashed, so a number held by a trashed heading is never reissued
+    (restoring it later would otherwise duplicate the number). ``exclude`` is an ``ident`` to skip.
+    """
+    kind, column, value = key
+    base = {"profile_id": profile_id}
+    if kind == "subject":
+        rows = Subject._base_manager.filter(show_on_landing=value, **base)
+        field = "landing_position" if value else "other_acts_position"
+    elif kind == "topic":
+        rows = Topic._base_manager.filter(subject_id=value, **base)
+        field = "position"
+    else:
+        rows = Subtopic._base_manager.filter(**{f"{column}_id": value}, **base)
+        field = "position"
+    numbers = [
+        getattr(r, field) or 0 for r in rows if exclude is None or ident(r) != exclude
+    ]
+    return max(numbers, default=0) + 1
+
+
 def lock_sequence(ctx, key):
     """Lock the parent row (or the profile row for Subjects) so two edits cannot interleave."""
     kind, column, value = key
@@ -128,7 +152,7 @@ def place(ctx, obj, key, index=None, kind="reorder"):
     if is_alphabetical(key):
         others = [m for m in members(ctx.profile_id, key) if ident(m) != ident(obj)]
         if kind == "move":
-            set_pos(obj, max([get_pos(m) for m in others], default=0) + 1)
+            set_pos(obj, next_stored_position(ctx.profile_id, key, exclude=ident(obj)))
         commit(ctx, obj, kind, check=False)
         return [ident(m) for m in sort_headings(others + [obj])].index(ident(obj))
     others = [m for m in members(ctx.profile_id, key) if ident(m) != ident(obj)]
@@ -162,7 +186,7 @@ def make_room(ctx, key, index=None):
     """
     others = members(ctx.profile_id, key)
     if is_alphabetical(key):
-        return max([get_pos(m) for m in others], default=0) + 1  # next free stored (Word order) number; nothing shifts
+        return next_stored_position(ctx.profile_id, key)  # next free stored (Word order) number; nothing shifts
     at = len(others) if index is None else max(0, min(int(index), len(others)))
     for i, member in enumerate(others):
         number = i + 1 if i < at else i + 2
