@@ -231,9 +231,15 @@ class MigrateItemsTests(TestCase):
         from django.db.migrations.exceptions import IrreversibleError
 
         module = importlib.import_module("diary.migrations.0010_merge_multi_into_item")
+        self.assertIsNone(module.merge_backwards(django_apps, None))  # nothing to un-merge: reverses cleanly
+        trashed = self.item(position=1, deleted_at=timezone.now())
         with self.assertRaises(IrreversibleError):
             module.merge_backwards(django_apps, None)
+        self.assertEqual(list(Item.objects.values_list("pk", flat=True)), [trashed.pk])
+        trashed.delete()
         self.build()
+        with self.assertRaises(IrreversibleError):
+            module.merge_backwards(django_apps, None)
         module.merge_forwards(django_apps, None)
         self.assertFalse(Item.objects.exclude(kind="nested").exclude(citation="").exists())
 
