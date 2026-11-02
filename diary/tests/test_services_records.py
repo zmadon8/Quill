@@ -32,7 +32,7 @@ class CreateTests(ServiceTestCase):
         self.assertEqual(self.get(t1).version, 1)
         self.assertEqual(self.history_kinds(t1), ["create"])
         self.assertEqual(self.history_kinds(t2), ["create"])
-        self.assertEqual([t.name for t in members(self.profile.pk, ("topic", subject.pk))], ["T0", "T1", "T2"])
+        self.assertEqual([t.name for t in members(self.profile.pk, ("topic", "subject", subject.pk))], ["T0", "T1", "T2"])
 
     def test_insert_at_index_still_shifts_items(self):
         subject = self.make("subject", name="S")

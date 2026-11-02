@@ -860,7 +860,9 @@ class AlphabeticalHeadingTests(EditViewTestCase):
         self.make("subtopic", ("topic", t2.pk), name="Ddd")
         mine = self.make("subtopic", ("topic", self.topic.pk), name="Ccc")
         preview = svc.preview_move(self.profile, self.user, "subtopic", mine.pk, ("topic", t2.pk))
-        self.assertEqual([(c["label"], c["before"], c["after"]) for c in preview["changes"]], [("Ddd", "2", "3")])
+        self.assertEqual([(c["label"], c["before"], c["after"]) for c in preview["changes"]],
+            [("Ccc", "1", "2"), ("Ddd", "2", "3")],  # the moved one is listed too: 1st of its old topic, 2nd of the new
+        )
         svc.move(self.profile, self.user, "subtopic", mine.pk, ("topic", t2.pk))
         from diary.services.sequences import members
 

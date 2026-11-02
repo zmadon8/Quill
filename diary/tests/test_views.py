@@ -773,7 +773,8 @@ class ReadingNumberingTests(TestCase):
         headings = [(b["level"], b["label"], b["name"]) for b in ctx["blocks"] if b["kind"] == "heading"]
         self.assertIn(("topic", "A", "Formation"), headings)
         self.assertIn(("topic", "B", "Remedies"), headings)
-        self.assertIn(("subtopic", "2", "Acceptance"), headings)
+        self.assertIn(("subtopic", "1", "Acceptance"), headings)  # alphabetical: before Offer
+        self.assertIn(("subtopic", "2", "Offer"), headings)
         nested = [b for b in ctx["blocks"] if b["kind"] == "item" and b["is_nested"]][0]
         self.assertEqual([c["label"] for c in nested["children"]], ["\u2022", "\u2022"])
         self.assertEqual(nested["label"], "(4)")
