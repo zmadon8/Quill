@@ -5,11 +5,6 @@
   <h1>Index of Subjects</h1>
   <p class="meta home-meta">{{ subject_total }} subject{{ subject_total|pluralize }} &middot; {{ item_total }} item{{ item_total|pluralize }} &middot; <a href="{% url 'review_list' %}">{{ review_total }} for review</a></p>
   {% if not subjects and not other_subjects %}<p class="notice first-run" role="note">This diary is empty. {% if can_edit %}Press <strong>Edit</strong> at the bottom of this page, then <strong>Add a Subject</strong> to start. {% else %}An Editor can add the first Subject. {% endif %}<a href="{% url 'help' %}">Read the Help page</a> for the steps.</p>{% endif %}
-  <form class="home-search" role="search" method="get" action="{% url 'search' %}">
-    <label class="visually-hidden" for="home-q">Search the diary</label>
-    <input type="search" id="home-q" name="q" placeholder="Search the diary&hellip;" autocomplete="off" data-search-input>
-    <button type="submit" class="primary">Search</button>
-  </form>
   <div{% if edit_mode %} data-edit-root data-add-url="{% url 'edit_inline_add' %}" data-card-url="{% url 'edit_inline_card' %}" data-move-url="{% url 'edit_move' %}" data-next="{{ next_url }}"{% endif %}>
   <ul class="subject-index">
     {% for subject in subjects %}

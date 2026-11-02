@@ -113,11 +113,14 @@ class HomeIndexTests(TestCase):
         # session, user, landing Subjects, one item aggregate, Other Subjects, live Subject ids
         self.assertLessEqual(len(ctx), 8)
 
-    def test_search_box_leads_to_search_page(self):
+    def test_search_icon_opens_a_bar_that_leads_to_search_page(self):
         self.client.force_login(self.reader)
         resp = self.client.get(reverse("diary_home"))
         self.assertContains(resp, 'action="%s"' % reverse("search"))
-        self.assertContains(resp, "Search the diary")
+        self.assertContains(resp, 'aria-label="Search"')
+        self.assertContains(resp, 'title="Search (&#8997;G)"')
+        self.assertContains(resp, 'id="search-pop" hidden')
+        self.assertNotContains(resp, "home-search")
 
     def test_nav_hides_admin_items_from_reader(self):
         self.client.force_login(self.reader)
@@ -223,21 +226,30 @@ class HomeIndexTests(TestCase):
         self.assertIn(reverse("search"), nav)
         header = html.split('<header class="site-header"')[1].split("</header>")[0]
         self.assertIn('<a href="%s" title="Home"' % reverse("diary_home"), header)
-        self.assertIn("Log out", nav)
+        self.assertNotIn("Log out", nav)
 
-    def test_home_icon_button_precedes_program_name_in_programs_and_suite_pages(self):
+    def test_home_icon_is_last_in_the_header_and_log_out_only_on_suite_home(self):
         self.client.force_login(self.reader)
         header = self.client.get(reverse("diary_home")).content.decode().split('<header class="site-header"')[1].split("</header>")[0]
         self.assertIn('class="home-button" href="%s?home=1"' % reverse("home"), header)
-        self.assertIn('aria-label="Home (Alt+H)"', header)
-        self.assertLess(header.index("home-button"), header.index('class="brand"'))
+        self.assertIn('aria-label="Home"', header)
+        self.assertIn('title="Home (&#8997;H)"', header)
         self.assertLess(header.index('class="brand"'), header.index("data-back"))
         self.assertLess(header.index("data-back"), header.index("data-forward"))
+        self.assertLess(header.index("data-forward"), header.index("home-button"))
+        self.assertGreater(header.index("search-toggle"), header.index("Help"))
+        self.assertLess(header.index("search-toggle"), header.index("home-button"))
+        self.assertNotIn("Log out", header)
+        self.assertNotIn("<input", header)
         self.client.force_login(self.admin)
-        for name in ("home", "user_list", "settings"):
+        for name in ("user_list", "settings", "backup_list"):
             suite_header = self.client.get(reverse(name)).content.decode().split('<header class="site-header"')[1].split("</header>")[0]
             self.assertIn('class="home-button" href="%s?home=1"' % reverse("home"), suite_header, name)
-            self.assertLess(suite_header.index("home-button"), suite_header.index('class="brand"'), name)
+            self.assertLess(suite_header.index("data-forward"), suite_header.index("home-button"), name)
+            self.assertNotIn("Log out", suite_header, name)
+        home_header = self.client.get(reverse("home") + "?home=1").content.decode().split('<header class="site-header"')[1].split("</header>")[0]
+        self.assertIn("Log out", home_header)
+        self.assertNotIn("home-button", home_header)
 
     def _choose_landing(self, user, key="diary"):
         User.objects.filter(pk=user.pk).update(landing_program=key)
@@ -309,7 +321,7 @@ class HomeIndexTests(TestCase):
             header = html.split('<header class="site-header"')[1].split("</header>")[0]
             self.assertIn("data-back", header, name)
             if name in ("home", "user_list", "backup_list", "settings"):
-                self.assertIn('<a href="%s?home=1" title="Go to Home (Alt+H)" aria-label="Go to Home">' % reverse("home"), header, name)
+                self.assertIn('<a href="%s?home=1" title="Go to Home (&#8997;H)" aria-label="Go to Home">' % reverse("home"), header, name)
             else:
                 self.assertIn('<a href="%s" title="Home"' % reverse("diary_home"), header, name)
             self.assertNotIn("switch-program", html, name)
@@ -368,7 +380,7 @@ class HomeIndexTests(TestCase):
 
         css = (Path(__file__).resolve().parents[2] / "static" / "css" / "site.css").read_text()
         self.assertIn("button, .button { white-space: nowrap;", css)
-        self.assertIn(".home-search button { min-height: 52px; min-width: 6rem;", css)
+        self.assertIn(".search-pop-form button { min-height: var(--tap); min-width: 6rem; }", css)
 
     def test_users_screen_uses_suite_header_without_toolbar(self):
         self.client.force_login(self.admin)

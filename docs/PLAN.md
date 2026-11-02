@@ -272,3 +272,7 @@ Status: built; code written, not run against Django here. GitHub CI is the first
 6. After deploying, download a backup and keep it: the update takes a "pre_migration" backup first, and the three data steps (0015, 0017 and the schema change 0016) cannot be reversed while data exists.
 
 Owner questions (defaults stand unless you say otherwise): see the "open question" lines under D56, D60 and D61.
+
+## Round 11 (part 2)
+
+Status: in progress, CI pending. Header (Home icon at far right, Log out only on Home, search icon with pop-up bar, Mac-style shortcut labels): built. Export cleanup, Move to new Topic/Sub-topic, and search-results mockups follow; see the decision log (D62 onwards).

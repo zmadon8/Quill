@@ -4,15 +4,41 @@
   var home = script && script.dataset.home;
   var search = script && script.dataset.search;
 
-  // Alt+H goes Home, Alt+G opens Search. Ctrl+Alt (Ctrl+Option on a Mac) works too.
+  // Alt+H (shown as Option-H on a Mac) goes Home, Alt+G (Option-G) opens Search. Ctrl+Alt works too.
   // event.code is used because Option changes the typed letter on a Mac. Cmd is left alone.
+  // On the Search page Alt+G focuses that page's own box; on other program pages it opens the search bar under the header.
+  var toggleBtn = document.querySelector("[data-search-toggle]");
+  var pop = document.getElementById("search-pop");
+  var popInput = document.querySelector("[data-search-popup-input]");
+  var openPop = function () {
+    if (!pop) { return; }
+    pop.hidden = false;
+    if (toggleBtn) { toggleBtn.setAttribute("aria-expanded", "true"); }
+    if (popInput) { popInput.focus(); popInput.select(); }
+  };
+  var closePop = function (refocus) {
+    if (!pop || pop.hidden) { return; }
+    pop.hidden = true;
+    if (toggleBtn) { toggleBtn.setAttribute("aria-expanded", "false"); if (refocus) { toggleBtn.focus(); } }
+  };
+  if (toggleBtn && pop) {
+    toggleBtn.addEventListener("click", function () { if (pop.hidden) { openPop(); } else { closePop(true); } });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !pop.hidden) { closePop(true); }
+    });
+    document.addEventListener("click", function (e) {
+      if (pop.hidden || !e.target.closest) { return; }
+      if (e.target.closest("#search-pop") || e.target.closest("[data-search-toggle]")) { return; }
+      closePop(false);
+    });
+  }
   document.addEventListener("keydown", function (e) {
     if (!e.altKey || e.metaKey) { return; }
     if (e.code === "KeyH" && home) { e.preventDefault(); window.location.href = home; }
     if (e.code === "KeyG") {
-      // Where a search box exists, Alt+G focuses it; elsewhere it opens the Search page.
       var box = document.querySelector("[data-search-input]");
       if (box) { e.preventDefault(); box.focus(); box.select(); }
+      else if (pop) { e.preventDefault(); openPop(); }
       else if (search) { e.preventDefault(); window.location.href = search; }
     }
   });

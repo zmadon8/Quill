@@ -113,11 +113,15 @@ class SearchViewTests(TestCase):
         self.assertContains(resp, "q=bulk")
         self.assertNotContains(self.get(q="bulk", limit=100), "Show more")
 
-    def test_header_box_on_reading_page_not_on_search_page(self):
+    def test_search_icon_on_reading_page_not_on_search_page(self):
         self.client.force_login(self.reader)
         reading_page = self.client.get(reverse("read_subject", args=[self.subject.pk]))
-        self.assertContains(reading_page, 'class="nav-search"')
-        self.assertNotContains(self.client.get(reverse("search")), 'class="nav-search"')
+        self.assertContains(reading_page, 'data-search-toggle')
+        self.assertContains(reading_page, 'data-search-popup-input')
+        self.assertNotContains(reading_page, 'class="nav-search"')
+        search_page = self.client.get(reverse("search"))
+        self.assertNotContains(search_page, 'data-search-toggle')
+        self.assertContains(search_page, 'data-search-input')
 
     def test_result_link_target_exists_on_reading_page(self):
         resp = self.get(q="damages")

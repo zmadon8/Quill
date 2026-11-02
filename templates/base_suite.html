@@ -16,8 +16,7 @@
   <div class="page">
     <header class="site-header" id="site-header">
       <div class="brand-row">
-        {% if user.is_authenticated %}{% block home_button %}<a class="home-button" href="{% url 'home' %}?home=1" title="Home (Alt+H)" aria-label="Home (Alt+H)"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><path d="M3 11.5L12 4l9 7.5M5.5 10v10h13V10M10 20v-6h4v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></a>{% endblock %}{% endif %}
-        <span class="brand">{% block program_name %}<a href="{% url 'home' %}?home=1" title="Go to Home (Alt+H)" aria-label="Go to Home">{{ diary_name }}</a>{% endblock %}</span>
+        <span class="brand">{% block program_name %}<a href="{% url 'home' %}?home=1" title="Go to Home (&#8997;H)" aria-label="Go to Home">{{ diary_name }}</a>{% endblock %}</span>
         {% if user.is_authenticated %}
         <span class="history-buttons">
           <button type="button" class="back-button" data-back data-fallback="{% url 'home' %}" title="Back (within this site)" aria-label="Back"><svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true" focusable="false"><path d="M14 8H2M7 3L2 8l5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
@@ -29,13 +28,12 @@
       <nav class="program-nav" aria-label="Main">
         {% block program_nav %}{% endblock %}
         {% block who %}<span class="who">{{ user.username }}</span>{% endblock %}
-        <form method="post" action="{% url 'logout' %}" class="inline">
-          {% csrf_token %}
-          <button type="submit" class="link">Log out</button>
-        </form>
+        {% block search_tool %}{% endblock %}
+        {% block nav_end %}{% include "_home_button.html" %}{% endblock %}
       </nav>
       {% endif %}
     </header>
+    {% block search_panel %}{% endblock %}
     {% block crumb_nav %}{% endblock %}
     {% if backup_warning %}<div class="banner-warning" role="alert"><a href="{% url 'backup_list' %}">{{ backup_warning }}</a></div>{% endif %}
     <main id="main">

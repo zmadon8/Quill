@@ -26,13 +26,14 @@ class AccessibilityTests(TestCase):
 
     def test_icon_only_buttons_have_labels(self):
         resp = self.client.get(reverse("diary_home"))
-        self.assertContains(resp, 'aria-label="Home (Alt+H)"')
+        self.assertContains(resp, 'aria-label="Home"')
+        self.assertContains(resp, 'aria-label="Search"')
         self.assertContains(resp, 'aria-label="Back"')
         self.assertContains(resp, 'aria-label="Forward"')
 
     def test_search_input_has_a_label(self):
         resp = self.client.get(reverse("diary_home"))
-        self.assertContains(resp, '<label class="visually-hidden" for="home-q">')
+        self.assertContains(resp, '<label class="visually-hidden" for="search-pop-q">')
 
     def test_html_declares_language_and_viewport(self):
         resp = self.client.get(reverse("diary_home"))
