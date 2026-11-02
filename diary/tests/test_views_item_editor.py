@@ -6,7 +6,6 @@ from django.urls import reverse
 
 from diary import services as svc
 from diary.models import Case, Item
-from diary.services.conversions import FLATTEN_WARNING
 from diary.tests.test_views_edit import EditViewTestCase
 
 
@@ -29,11 +28,12 @@ class ItemEditorTestCase(EditViewTestCase):
         data.update(fields)
         return (client or self.client).post(self.editor_url(item), data)
 
-    def multi(self, comments=("<b>note</b>", "")):
-        multi = self.make("item", ("topic", self.topic.pk), kind="multi", text="m")
-        first = self.make("case", ("item", multi.pk), citation="A v B", comment=comments[0])
-        second = self.make("case", ("item", multi.pk), citation="C v D", comment=comments[1])
-        return multi, first, second
+    def cited(self, comments=("<b>note</b>", "")):
+        """An Item with two citations (Cases), each with an optional comment."""
+        item = self.make("item", ("topic", self.topic.pk), text="m")
+        first = self.make("case", ("item", item.pk), citation="A v B", comment=comments[0])
+        second = self.make("case", ("item", item.pk), citation="C v D", comment=comments[1])
+        return item, first, second
 
     def nested(self, **kid_fields):
         nested = self.make("item", ("topic", self.topic.pk), kind="nested", text="n", citation="N v M")
@@ -49,8 +49,8 @@ class ItemEditorTestCase(EditViewTestCase):
             "case_comment": [comment for _, _, comment in rows],
         }
 
-    def live_cases(self, multi):
-        rows = Case._base_manager.filter(item=multi, deleted_at__isnull=True).order_by("position", "pk")
+    def live_cases(self, item):
+        rows = Case._base_manager.filter(item=item, deleted_at__isnull=True).order_by("position", "pk")
         return [(c.citation, c.comment) for c in rows]
 
 
@@ -103,10 +103,12 @@ class EditorPageTests(ItemEditorTestCase):
     def test_the_editor_shows_the_fields_and_the_record_info(self):
         resp = self.client.get(self.editor_url(self.one), {"next": self.next})
         self.assertEqual(resp.status_code, 200)
-        for needle in ("Edit Item", 'name="text"', 'name="citation"', 'name="flag"', 'name="flag_text"',
+        for needle in ("Edit Item", 'name="text"', 'name="case_citation"', 'name="flag"', 'name="flag_text"',
                        'name="needs_review"', 'name="review_note"', "data-richtext", "richtext-editor.js",
-                       "IST by editor", "Change to Multi-Item", "Change to Nested Item"):
+                       "IST by editor", "Change to Nested Item", "data-case-list", "Add a citation"):
             self.assertContains(resp, needle)
+        self.assertNotContains(resp, "Multi-Item")
+        self.assertNotContains(resp, 'id="id-citation"')
         self.assertContains(resp, 'name="version" value="%d"' % self.get(self.one).version)
         self.assertContains(resp, 'name="next" value="%s"' % self.next)
         self.assertNotContains(resp, "Change to Item")
@@ -119,13 +121,29 @@ class EditorPageTests(ItemEditorTestCase):
         self.assertContains(resp, "(1) The original Word line")
         self.assertNotContains(resp, 'name="original_line"')
 
-    def test_a_multi_item_shows_cases_and_no_citation_box(self):
-        multi, _, _ = self.multi()
-        resp = self.client.get(self.editor_url(multi))
+    def test_an_item_with_citations_lists_them_in_order(self):
+        item, _, _ = self.cited()
+        resp = self.client.get(self.editor_url(item))
         self.assertContains(resp, "data-case-list")
         self.assertContains(resp, 'name="case_citation" value="A v B"')
         self.assertContains(resp, 'name="case_citation" value="C v D"')
+        self.assertContains(resp, "Citation 1")
+        self.assertContains(resp, "Citation 2")
         self.assertNotContains(resp, 'name="citation"')
+
+    def test_an_item_without_a_citation_still_shows_the_first_citation_box(self):
+        resp = self.client.get(self.editor_url(self.one))
+        self.assertContains(resp, 'name="case_citation" value=""')
+        self.assertContains(resp, 'data-case-row', count=2)  # the one shown and the template for new ones
+        self.assertContains(resp, "Citation 1")
+
+    def test_a_nested_item_shows_its_own_citation_box_and_no_list(self):
+        nested, _ = self.nested()
+        resp = self.client.get(self.editor_url(nested))
+        self.assertContains(resp, 'id="id-citation"')
+        self.assertContains(resp, 'value="N v M"')
+        self.assertNotContains(resp, "data-case-list")
+        self.assertContains(resp, "Change to Item")
 
     def test_an_item_under_a_nested_item_cannot_be_changed_to_another_type(self):
         _, kid = self.nested()
@@ -154,9 +172,16 @@ class SaveTests(ItemEditorTestCase):
         self.save(self.one, text="<p><u>under</u><br>line</p><p>two</p>")
         self.assertEqual(self.get(self.one).text, "<p><u>under</u><br>line</p><p>two</p>")
 
-    def test_citation_is_one_line(self):
-        self.save(self.one, citation="  AIR 1950\n SC   27  ")
-        self.assertEqual(self.get(self.one).citation, "AIR 1950 SC 27")
+    def test_citation_is_one_line_and_becomes_case_a(self):
+        self.save(self.one, **self.case_rows([(None, "  AIR 1950\n SC   27  ", "")]))
+        self.assertEqual(self.get(self.one).citation, "")
+        self.assertEqual(self.live_cases(self.one), [("AIR 1950 SC 27", "")])
+        self.assertEqual(self.get(self.one).kind, "plain")
+
+    def test_a_nested_items_citation_is_one_line(self):
+        nested, _ = self.nested()
+        self.save(nested, citation="  AIR 1950\n SC   27  ")
+        self.assertEqual(self.get(nested).citation, "AIR 1950 SC 27")
 
     def test_flag_and_its_text_are_saved_and_cleared(self):
         self.save(self.one, flag="overruled", flag_text="Overruled by X v Y")
@@ -189,10 +214,11 @@ class SaveTests(ItemEditorTestCase):
         self.assertEqual(self.get(self.one).text, "one")
 
     def test_a_too_long_citation_is_refused_and_nothing_is_saved(self):
-        resp = self.save(self.one, citation="x" * 1001, text="<p>changed</p>")
+        resp = self.save(self.one, text="<p>changed</p>", **self.case_rows([(None, "x" * 1001, "")]))
         self.assertEqual(resp.status_code, 400)
         self.assertContains(resp, "too long", status_code=400)
         self.assertEqual(self.get(self.one).text, "one")
+        self.assertEqual(self.live_cases(self.one), [])
 
     def test_a_too_long_flag_text_is_refused(self):
         resp = self.save(self.one, flag="other", flag_text="x" * 301)
@@ -210,17 +236,18 @@ class StaleSaveTests(ItemEditorTestCase):
         opened = self.get(self.one).version
         svc.edit(self.profile, self.user2, "item", self.one.pk, {"text": "<p>theirs</p>"})
         resp = self.client.post(self.editor_url(self.one), {
-            "version": opened, "text": "<p>My typed words</p>", "citation": "My citation", "flag": "none",
-            "flag_text": "", "review_note": "", "next": self.next})
+            "version": opened, "text": "<p>My typed words</p>", "flag": "none",
+            "flag_text": "", "review_note": "", "next": self.next, **self.case_rows([(None, "My citation", "")])})
         self.assertEqual(resp.status_code, 409)
         self.assertContains(resp, "has changed", status_code=409)
         self.assertContains(resp, "My typed words", status_code=409)
         self.assertContains(resp, "My citation", status_code=409)
         item = self.get(self.one)
         self.assertEqual((item.text, item.citation, item.version), ("<p>theirs</p>", "", opened + 1))
+        self.assertEqual(self.live_cases(self.one), [])
 
     def test_a_stale_case_rolls_back_the_whole_save(self):
-        multi, first, second = self.multi()
+        multi, first, second = self.cited()
         rows = self.case_rows([(first, "A v B", ""), (second, "C v D", "")])
         svc.edit(self.profile, self.user2, "case", first.pk, {"citation": "Changed"})
         resp = self.client.post(self.editor_url(multi), {
@@ -239,55 +266,93 @@ class CaseTests(ItemEditorTestCase):
         return self.client.post(self.editor_url(multi), data)
 
     def test_edit_a_case_citation_and_comment(self):
-        multi, first, second = self.multi()
+        multi, first, second = self.cited()
         resp = self.post_cases(multi, [(first, "E v F", "<p><em>why</em><script>x</script></p>"), (second, "C v D", "")])
         self.assertRedirects(resp, self.next, fetch_redirect_response=False)
         self.assertEqual(self.live_cases(multi), [("E v F", "<p><i>why</i></p>"), ("C v D", "")])
 
     def test_add_a_case(self):
-        multi, first, second = self.multi()
+        multi, first, second = self.cited()
         self.post_cases(multi, [(first, "A v B", "<b>note</b>"), (second, "C v D", ""), (None, "G v H", "<p>new</p>"),
                                 (None, "", "  ")])
         self.assertEqual(self.live_cases(multi), [("A v B", "<b>note</b>"), ("C v D", ""), ("G v H", "<p>new</p>")])
 
     def test_delete_a_case_moves_it_to_the_trash(self):
-        multi, first, second = self.multi()
+        multi, first, second = self.cited()
         self.post_cases(multi, [(first, "A v B", "<b>note</b>")], case_gone="%d:%d" % (second.pk, self.get(second).version))
         self.assertEqual(self.live_cases(multi), [("A v B", "<b>note</b>")])
         self.assertIsNotNone(self.get(second).deleted_at)
 
     def test_reorder_cases(self):
-        multi, first, second = self.multi()
+        multi, first, second = self.cited()
         self.post_cases(multi, [(second, "C v D", ""), (first, "A v B", "<b>note</b>")])
         self.assertEqual(self.live_cases(multi), [("C v D", ""), ("A v B", "<b>note</b>")])
         self.assertEqual((self.get(second).position, self.get(first).position), (1, 2))
 
     def test_add_delete_and_reorder_in_one_save(self):
-        multi, first, second = self.multi()
+        multi, first, second = self.cited()
         self.post_cases(multi, [(None, "N v O", ""), (second, "C v D", "")])
         self.assertEqual(self.live_cases(multi), [("N v O", ""), ("C v D", "")])
         self.assertIsNotNone(self.get(first).deleted_at)
 
-    def test_a_multi_item_keeps_no_citation_of_its_own(self):
-        multi, first, second = self.multi()
+    def test_an_item_with_cases_keeps_no_citation_of_its_own(self):
+        multi, first, second = self.cited()
         resp = self.post_cases(multi, [(first, "A v B", "<b>note</b>"), (second, "C v D", "")], citation="Ignored")
         self.assertEqual(resp.status_code, 302)
         self.assertEqual(self.get(multi).citation, "")
 
     def test_a_case_of_another_item_is_404(self):
-        multi, first, _ = self.multi()
-        other, other_case, _ = self.multi()
+        multi, first, _ = self.cited()
+        other, other_case, _ = self.cited()
         resp = self.post_cases(multi, [(other_case, "A v B", "")])
         self.assertEqual(resp.status_code, 404)
         self.assertEqual(self.get(other_case).item_id, other.pk)
         self.assertIsNone(self.get(first).deleted_at)
 
-    def test_cases_are_ignored_for_a_plain_item(self):
-        resp = self.client.post(self.editor_url(self.one), {
-            "version": self.get(self.one).version, "text": "one", "citation": "", "flag": "none", "next": self.next,
+    def test_the_first_citation_of_an_item_without_any_is_case_a(self):
+        resp = self.post_cases(self.one, [(None, "X v Y", "")])
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(self.live_cases(self.one), [("X v Y", "")])
+        self.assertEqual(Case.objects.get(item=self.one).position, 1)
+
+    def test_one_save_is_one_undo_step_for_the_item_and_its_citations(self):
+        item, first, second = self.cited()
+        before = len(self.history(first))
+        self.post_cases(item, [(first, "E v F", "<b>note</b>"), (second, "C v D", ""), (None, "G v H", "")],
+                        text="<p>new text</p>")
+        edited = self.history(item)[-1]
+        self.assertEqual(self.history(first)[-1].group, edited.group)
+        self.assertEqual(len(self.history(first)), before + 1)
+        made = Case.objects.get(item=item, citation="G v H")
+        self.assertEqual(self.history(made)[0].group, edited.group)
+
+    def test_a_citation_with_a_comment_only_is_kept(self):
+        item, first, second = self.cited()
+        self.post_cases(item, [(first, "", "<b>note</b>"), (second, "C v D", "")])
+        self.assertEqual(self.live_cases(item), [("", "<b>note</b>"), ("C v D", "")])
+
+    def test_emptying_both_boxes_of_a_saved_citation_moves_it_to_the_trash(self):
+        item, first, second = self.cited()
+        self.post_cases(item, [(first, "", ""), (second, "C v D", "")])
+        self.assertEqual(self.live_cases(item), [("C v D", "")])
+        self.assertIsNotNone(self.get(first).deleted_at)
+        self.assertIsNotNone(self.get(first).delete_batch)
+
+    def test_cases_are_ignored_for_a_nested_item(self):
+        nested, _ = self.nested()
+        resp = self.client.post(self.editor_url(nested), {
+            "version": self.get(nested).version, "text": "n", "citation": "New v Own", "flag": "none", "next": self.next,
             "case_citation": ["X v Y"], "case_comment": [""], "case_id": [""], "case_version": [""]})
         self.assertEqual(resp.status_code, 302)
-        self.assertEqual(Case._base_manager.count(), 0)
+        self.assertEqual(Case._base_manager.filter(item=nested).count(), 0)
+        self.assertEqual(self.get(nested).citation, "New v Own")
+
+    def test_a_save_without_the_citations_list_leaves_the_citations_alone(self):
+        item, first, second = self.cited()
+        resp = self.client.post(self.editor_url(item), {
+            "version": self.get(item).version, "text": "<p>only text</p>", "flag": "none", "next": self.next})
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(self.live_cases(item), [("A v B", "<b>note</b>"), ("C v D", "")])
 
 
 class ConvertScreenTests(ItemEditorTestCase):
@@ -296,55 +361,39 @@ class ConvertScreenTests(ItemEditorTestCase):
         data.update(fields)
         return (client or self.client).post(self.convert_url(item), data)
 
-    def test_item_to_multi_shows_a_preview_first(self):
-        resp = self.convert(self.one, "multi")
+    def test_item_to_nested_shows_a_preview_first(self):
+        resp = self.convert(self.one, "nested")
         self.assertEqual(resp.status_code, 200)
-        self.assertContains(resp, "Change to Multi-Item")
+        self.assertContains(resp, "Change to Nested Item")
         self.assertContains(resp, 'name="confirmed" value="1"')
         self.assertEqual(self.get(self.one).kind, "plain")
-        self.assertEqual(Case._base_manager.count(), 0)
 
-    def test_confirming_item_to_multi_converts_and_goes_to_the_editor(self):
-        self.save(self.one, citation="A v B")
-        resp = self.convert(self.one, "multi", confirmed="1")
-        self.assertRedirects(resp, self.editor_url(self.one) + "?" + urlencode({"next": self.next}),
+    def test_confirming_item_to_nested_moves_a_single_citation_to_the_nested_item(self):
+        item = self.make("item", ("topic", self.topic.pk), text="m", citation="A v B")
+        resp = self.convert(item, "nested", confirmed="1")
+        self.assertRedirects(resp, self.editor_url(item) + "?" + urlencode({"next": self.next}),
                              fetch_redirect_response=False)
-        item = self.get(self.one)
-        self.assertEqual((item.kind, item.citation), ("multi", ""))
-        self.assertEqual(self.live_cases(item), [("A v B", "")])
+        after = self.get(item)
+        self.assertEqual((after.kind, after.citation), ("nested", "A v B"))
+        self.assertEqual(self.live_cases(after), [])
 
-    def test_multi_to_item_warns_that_comment_formatting_is_lost(self):
-        multi, _, _ = self.multi()
-        resp = self.convert(multi, "plain")
-        self.assertContains(resp, FLATTEN_WARNING)
-        self.assertContains(resp, "I understand")
-        self.assertEqual(self.get(multi).kind, "multi")
-
-    def test_multi_to_item_is_not_done_without_accepting_the_warning(self):
-        multi, _, _ = self.multi()
-        resp = self.convert(multi, "plain", confirmed="1")
-        self.assertEqual(resp.status_code, 200)
-        self.assertContains(resp, FLATTEN_WARNING)
-        self.assertEqual(self.get(multi).kind, "multi")
-        self.assertEqual(len(self.live_cases(multi)), 2)
-
-    def test_multi_to_item_with_the_warning_accepted_joins_the_citations(self):
-        multi, first, second = self.multi()
-        resp = self.convert(multi, "plain", confirmed="1", accept="1")
-        self.assertEqual(resp.status_code, 302)
-        item = self.get(multi)
-        self.assertEqual(item.kind, "plain")
-        self.assertIn("A v B", item.citation)
-        self.assertIn("C v D", item.citation)
-        self.assertEqual(self.live_cases(item), [])
+    def test_several_citations_become_items_beneath_without_any_warning(self):
+        item, first, second = self.cited()
+        resp = self.convert(item, "nested")
+        self.assertNotContains(resp, "I understand")
+        self.assertNotContains(resp, "Warning.")
+        self.assertEqual(self.convert(item, "nested", confirmed="1").status_code, 302)
+        after = self.get(item)
+        self.assertEqual(after.kind, "nested")
+        kids = list(Item.objects.filter(parent_item=item).order_by("position"))
+        self.assertEqual([k.text for k in kids], ["<b>note</b>", ""])
+        self.assertEqual([c.citation for c in Case.objects.filter(item__in=kids).order_by("item__position")], ["A v B", "C v D"])
         self.assertIsNotNone(self.get(first).deleted_at)
 
-    def test_multi_without_comments_needs_no_warning(self):
-        multi, _, _ = self.multi(comments=("", ""))
-        resp = self.convert(multi, "plain")
-        self.assertNotContains(resp, FLATTEN_WARNING)
-        self.assertEqual(self.convert(multi, "plain", confirmed="1").status_code, 302)
-        self.assertEqual(self.get(multi).kind, "plain")
+    def test_multi_item_is_no_longer_offered(self):
+        resp = self.convert(self.one, "multi")
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(self.get(self.one).kind, "plain")
 
     def test_nested_with_children_asks_what_to_do_first(self):
         nested, kid = self.nested()
@@ -360,6 +409,7 @@ class ConvertScreenTests(ItemEditorTestCase):
         resp = self.convert(nested, "plain", option="keep", confirmed="1")
         self.assertEqual(resp.status_code, 302)
         self.assertEqual(self.get(nested).kind, "plain")
+        self.assertEqual(self.live_cases(nested), [("N v M", "")])
         self.assertIsNone(self.get(kid).parent_item_id)
         self.assertEqual(self.get(kid).topic_id, self.topic.pk)
 
@@ -378,17 +428,18 @@ class ConvertScreenTests(ItemEditorTestCase):
         self.assertEqual(self.get(kid).parent_item_id, nested.pk)
         self.assertIsNone(self.get(kid).deleted_at)
 
-    def test_folding_children_without_problems_turns_them_into_cases(self):
+    def test_folding_children_without_problems_turns_them_into_citations(self):
         nested, kid = self.nested()
-        self.assertEqual(self.convert(nested, "multi", option="fold", confirmed="1").status_code, 302)
+        self.assertEqual(self.convert(nested, "plain", option="fold", confirmed="1").status_code, 302)
         item = self.get(nested)
-        self.assertEqual(item.kind, "multi")
+        self.assertEqual((item.kind, item.citation), ("plain", ""))
         self.assertEqual([c for c, _ in self.live_cases(item)], ["N v M", "K v L"])
+        self.assertEqual([c for _, c in self.live_cases(item)], ["", "k"])
         self.assertIsNotNone(self.get(kid).deleted_at)
 
     def test_an_item_under_a_nested_item_is_refused(self):
         _, kid = self.nested()
-        resp = self.convert(kid, "multi")
+        resp = self.convert(kid, "nested")
         self.assertContains(resp, "This cannot be done.")
         self.assertContains(resp, "one level of nesting")
         self.assertEqual(self.get(kid).kind, "plain")
@@ -402,7 +453,7 @@ class ConvertScreenTests(ItemEditorTestCase):
     def test_a_stale_conversion_shows_the_conflict_page(self):
         opened = self.get(self.one).version
         svc.edit(self.profile, self.user2, "item", self.one.pk, {"text": "<p>theirs</p>"})
-        resp = self.convert(self.one, "multi", confirmed="1", version=opened)
+        resp = self.convert(self.one, "nested", confirmed="1", version=opened)
         self.assertEqual(resp.status_code, 409)
         self.assertEqual(self.get(self.one).kind, "plain")
 
@@ -476,16 +527,21 @@ class ReviewMarkerTests(ItemEditorTestCase):
 
 
 class CreateItemKindTests(ItemEditorTestCase):
-    def test_the_service_creates_a_nested_and_a_multi_item(self):
+    def test_the_service_creates_a_nested_item_and_no_multi_item(self):
         nested = self.make("item", ("topic", self.topic.pk), kind="nested", text="n", citation="N v M")
-        multi = self.make("item", ("topic", self.topic.pk), kind="multi", text="m")
         self.assertEqual(self.get(nested).kind, "nested")
-        self.assertEqual(self.get(multi).kind, "multi")
+        with self.assertRaises(svc.ValidationFailed):
+            self.make("item", ("topic", self.topic.pk), kind="multi", text="m")
 
     def test_the_add_view_creates_a_nested_item_and_a_plain_item(self):
         before = set(Item.objects.values_list("pk", flat=True))
         for what in ("nested", "item"):
             self.post("edit_add", {"what": what, "parent_type": "topic", "parent_id": self.topic.pk,
                                    "text": what, "citation": "A v B"})
-        made = {i.text: i.kind for i in Item.objects.exclude(pk__in=before)}
-        self.assertEqual(made, {"<p>nested</p>": "nested", "<p>item</p>": "plain"})
+        made = {i.text: i for i in Item.objects.exclude(pk__in=before)}
+        self.assertEqual({t: i.kind for t, i in made.items()}, {"<p>nested</p>": "nested", "<p>item</p>": "plain"})
+        # The one Citation box: a Nested Item keeps it, an Item stores it as Case (a).
+        self.assertEqual(made["<p>nested</p>"].citation, "A v B")
+        self.assertEqual(made["<p>item</p>"].citation, "")
+        self.assertEqual([(c.citation, c.position) for c in Case.objects.filter(item=made["<p>item</p>"])], [("A v B", 1)])
+        self.assertFalse(Case.objects.filter(item=made["<p>nested</p>"]).exists())

@@ -66,6 +66,11 @@ def _case_rows(post):
     return rows
 
 
+def _has_case_fields(post):
+    """True if the form carried the citations list at all (a post without it must not wipe the citations)."""
+    return any(name in post for name in ("case_id", "case_citation", "case_gone"))
+
+
 def _gone_versions(post):
     """{case id: version} of the Cases the Editor removed, from 'id:version' values."""
     found = {}
@@ -124,7 +129,8 @@ def _save_cases(request, item, rows, gone):
 def _save(request, item, back):
     post = request.POST
     values = _values(post)
-    rows = _case_rows(post) if item.kind != KIND_NESTED else []
+    with_cases = item.kind != KIND_NESTED and _has_case_fields(post)
+    rows = _case_rows(post) if with_cases else []
     gone = _gone_versions(post)
     try:
         with transaction.atomic():
@@ -134,7 +140,7 @@ def _save(request, item, back):
             if item.kind == KIND_NESTED:
                 changes["citation"] = values["citation"]
             svc.edit(request.profile, request.user, "item", item.pk, changes, _version(request))
-            if item.kind != KIND_NESTED:
+            if with_cases:
                 _save_cases(request, item, rows, gone)
     except Conflict as exc:
         # Show everything that was typed, not only the part that clashed, so nothing is lost.
@@ -213,7 +219,7 @@ def _merge(request, item, back):
     Nothing is saved. The saved values are shown above the form for comparison.
     """
     values = _values(request.POST)
-    rows = _case_rows(request.POST) if item.kind != KIND_NESTED else []
+    rows = _case_rows(request.POST) if item.kind != KIND_NESTED and _has_case_fields(request.POST) else None
     messages.info(request, "Someone else changed this Item. Your text is below; compare it with the saved version, then Save.")
     return _render(request, item, back, values=values, rows=rows, theirs=True)
 
