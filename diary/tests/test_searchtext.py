@@ -200,6 +200,11 @@ class MatchTests(unittest.TestCase):
         self.assertEqual(spans, [(1, 15)])
         self.assertEqual(text[spans[0][0]:spans[0][1]], "2018) 9 SCC 49")
 
+    def test_words_of_a_query_that_sit_together_highlight_as_one(self):
+        text = "(2018) 9 SCC 49"
+        spans = hit([("c", text)], "2018 9 scc 49")["c"]
+        self.assertEqual([text[s:e] for s, e in spans], ["2018) 9 SCC 49"])
+
     def test_highlight_partial_word(self):
         text = "The Arbitration Act"
         spans = hit([("c", text)], "arbitr")["c"]
@@ -208,7 +213,9 @@ class MatchTests(unittest.TestCase):
     def test_highlight_every_occurrence_and_merge(self):
         text = "scc scc"
         spans = hit([("c", text)], "scc")["c"]
-        self.assertEqual(spans, [(0, 3), (4, 7)])
+        self.assertEqual(spans, [(0, 7)])  # neighbours separated by one space are one highlight
+        spans = hit([("c", "scc x scc")], "scc")["c"]
+        self.assertEqual(spans, [(0, 3), (6, 9)])
         spans = hit([("c", "abcd")], "ab bc")["c"]
         self.assertEqual(spans, [(0, 3)])  # overlapping matches merge
 

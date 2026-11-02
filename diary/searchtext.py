@@ -133,6 +133,17 @@ def original_spans(idx_map, spans):
     return merged
 
 
+def _join_neighbours(norm, spans):
+    """Merge spans that overlap or are separated by just one space, so "2018 9 scc 49" is one highlight."""
+    joined = []
+    for s, e in sorted(spans):
+        if joined and (s <= joined[-1][1] or (s == joined[-1][1] + 1 and norm[joined[-1][1]] == " ")):
+            joined[-1] = (joined[-1][0], max(e, joined[-1][1]))
+        else:
+            joined.append((s, e))
+    return joined
+
+
 def match_fields(fields, terms):
     """Match ``terms`` against ``fields`` (a list of (key, text)).
 
@@ -161,7 +172,7 @@ def match_fields(fields, terms):
         for term in terms:
             spans.extend(term_spans(mapped_norm, term))
         if spans:
-            result[key] = original_spans(idx_map, spans)
+            result[key] = original_spans(idx_map, _join_neighbours(mapped_norm, spans))
     return result
 
 
