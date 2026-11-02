@@ -573,6 +573,18 @@ class ReadingAllDefaultBackupTests(BackupBase):
         self.assertTrue(Profile.objects.get(name="Main").reading_all_default)
         self.assertEqual(Profile.objects.get(name="Main").reading_all_mode, "remember")
 
+    def test_display_name_round_trips_and_an_old_backup_restores_it_blank(self):
+        Profile.objects.filter(pk=main_profile().pk).update(display_name="Madon's Case Law")
+        doc = services.parse_backup(services.create_backup("manual").data, MAX)
+        self.assertEqual(doc["models"]["accounts.Profile"][0]["fields"]["display_name"], "Madon's Case Law")
+        Profile.objects.filter(pk=main_profile().pk).update(display_name="changed")
+        services.restore_backup(doc, self.admin)
+        self.assertEqual(Profile.objects.get(name="Main").display_name, "Madon's Case Law")
+        for record in doc["models"]["accounts.Profile"]:
+            del record["fields"]["display_name"]
+        services.restore_backup(doc, self.admin)
+        self.assertEqual(Profile.objects.get(name="Main").display_name, "")
+
     def test_mode_round_trips(self):
         Profile.objects.filter(pk=main_profile().pk).update(reading_all_mode="always_off")
         doc = services.parse_backup(services.create_backup("manual").data, MAX)

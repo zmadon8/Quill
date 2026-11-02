@@ -17,6 +17,21 @@ def suite_names(request):
     return {"home_name": names[suite.KEY_HOME], "diary_name": names[suite.KEY_DIARY]}
 
 
+def program_label(request):
+    """``program_label``: the signed-in user's profile Display Name if it has one, else the program name.
+
+    Used in the page title and the Home program button. Never raises: a failure falls back to the program name."""
+    try:
+        profile = request_profile(request) if getattr(request, "user", None) and request.user.is_authenticated else None
+        name = (profile.display_name or "").strip() if profile is not None else ""
+        if name:
+            return {"program_label": name}
+        return {"program_label": suite.get_names()[suite.KEY_DIARY]}
+    except Exception:
+        logger.exception("Could not work out the program label")
+        return {"program_label": suite.DEFAULT_NAMES[suite.KEY_DIARY]}
+
+
 def current_profile(request):
     """Expose the signed-in user's Case Law Diary profile to templates as ``current_profile``."""
     if not getattr(request, "user", None) or not request.user.is_authenticated:

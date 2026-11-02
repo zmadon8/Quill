@@ -59,6 +59,10 @@ class SuiteName(models.Model):
         return f"{self.key}: {self.display_name}"
 
 
+#: Longest Profile.display_name.
+DISPLAY_NAME_MAX_LENGTH = 80
+
+
 class Profile(models.Model):
     """A separate data space inside one program, like a separate notebook.
 
@@ -69,6 +73,8 @@ class Profile(models.Model):
     purge job removes it for good after the retention period (``PROFILE_RETENTION_DAYS``).
     ``export_name`` is the name this profile's exported files start with; blank means the default
     "<program name> <profile name>" (see ``accounts.profiles.effective_export_name``).
+    ``display_name`` is an optional name shown at the top of the program's pages instead of "<program name> · <profile
+    name>" (and on the Home program button); blank means the program name is shown as before.
     ``reading_all_mode`` decides what the side-panel Contents links open: the whole Subject (``always_on``), only
     that Topic or Sub-topic (``always_off``), or the view each browser used last (``remember``).
     ``reading_all_default`` is whether the whole Subject is what those links open for a browser that has no
@@ -87,6 +93,7 @@ class Profile(models.Model):
     program = models.CharField(max_length=30)
     name = models.CharField(max_length=60)
     export_name = models.CharField(max_length=100, blank=True, default="")
+    display_name = models.CharField(max_length=DISPLAY_NAME_MAX_LENGTH, blank=True, default="")
     reading_all_default = models.BooleanField(default=True)
     reading_all_mode = models.CharField(
         max_length=10, choices=READING_ALL_MODE_CHOICES, default=READING_ALL_REMEMBER

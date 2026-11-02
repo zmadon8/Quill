@@ -216,11 +216,18 @@ class MySettingsForm(forms.ModelForm):
 
 
 class ProfileForm(forms.ModelForm):
-    """Create or rename a Case Law Diary profile. Names are unique among live profiles, ignoring case."""
+    """Create or rename a Case Law Diary profile, and set its Display Name. Names are unique among live profiles, ignoring case."""
 
     class Meta:
         model = Profile
-        fields = ("name",)
+        fields = ("name", "display_name")
+        labels = {"display_name": "Display Name"}
+        help_texts = {
+            "display_name": "Optional. Shown at the top of the program's pages instead of the program name. Leave blank to show the program name and this profile's name."
+        }
+
+    def clean_display_name(self):
+        return " ".join((self.cleaned_data.get("display_name") or "").split())
 
     def clean_name(self):
         name = " ".join((self.cleaned_data.get("name") or "").split())

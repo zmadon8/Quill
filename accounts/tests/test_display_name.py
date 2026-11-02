@@ -1,0 +1,103 @@
+"""Round 9, item 2: Profile.display_name (header brand, page title, Home button, settings, Admin screen)."""
+from django.test import override_settings
+from django.urls import reverse
+
+from accounts.models import Profile
+from accounts.profiles import ensure_default_profile
+from accounts.tests.test_accounts import BaseCase
+
+
+@override_settings(SECURE_SSL_REDIRECT=False)
+class DisplayNameTests(BaseCase):
+    def main(self):
+        return Profile.objects.get(pk=ensure_default_profile().pk)
+
+    def set_name(self, value):
+        Profile.objects.filter(pk=self.main().pk).update(display_name=value)
+
+    def test_blank_by_default_and_the_header_keeps_program_and_profile_name(self):
+        self.assertEqual(self.main().display_name, "")
+        self.client.force_login(self.user)
+        resp = self.client.get(reverse("diary_home"))
+        self.assertContains(resp, 'class="profile-name">&middot; Main</span>')
+        self.assertContains(resp, "<title>Home - Case Law Diary</title>")
+
+    def test_display_name_replaces_the_header_brand_title_and_aria_label(self):
+        self.set_name("Madon's Case Law")
+        self.client.force_login(self.user)
+        for name in ("diary_home", "review_list", "profile_settings"):
+            resp = self.client.get(reverse(name))
+            self.assertContains(resp, 'aria-label="Madon&#x27;s Case Law: Home">Madon&#x27;s Case Law</a>', msg_prefix=name)
+            self.assertNotContains(resp, 'class="profile-name"', msg_prefix=name)
+            self.assertNotContains(resp, "Case Law Diary: Home", msg_prefix=name)
+        self.assertContains(self.client.get(reverse("diary_home")), "<title>Home - Madon&#x27;s Case Law</title>")
+
+    def test_header_brand_still_links_to_the_program_index(self):
+        self.set_name("Mine")
+        self.client.force_login(self.user)
+        self.assertContains(self.client.get(reverse("review_list")), 'href="%s" title="Home" aria-label="Mine: Home"' % reverse("diary_home"))
+
+    def test_home_picker_button_shows_display_name_else_program_name(self):
+        self.client.force_login(self.user)
+        self.assertContains(self.client.get(reverse("home") + "?home=1"), 'class="program-link" href="/caselaw/subjects/">Case Law Diary</a>')
+        self.set_name("Mine")
+        self.assertContains(self.client.get(reverse("home") + "?home=1"), 'class="program-link" href="/caselaw/subjects/">Mine</a>')
+
+    def test_editor_sets_it_trimmed_and_clearing_falls_back(self):
+        self.client.force_login(self.admin)  # Editor of Main
+        resp = self.client.post(reverse("profile_settings"), {"display_name": "  Madon's   Cases ", "reading_all_mode": "remember"})
+        self.assertRedirects(resp, reverse("profile_settings"))
+        self.assertEqual(self.main().display_name, "Madon's Cases")
+        self.assertEqual(self.main().export_name, "")  # export_name is unchanged
+        self.client.post(reverse("profile_settings"), {"display_name": "", "reading_all_mode": "remember"})
+        self.assertEqual(self.main().display_name, "")
+        self.assertContains(self.client.get(reverse("diary_home")), 'class="profile-name">&middot; Main</span>')
+
+    def test_too_long_is_refused_and_the_header_is_not_changed(self):
+        self.client.force_login(self.admin)
+        resp = self.client.post(reverse("profile_settings"), {"display_name": "x" * 81, "reading_all_mode": "remember"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertNotContains(resp, 'aria-label="%s: Home"' % ("x" * 81))
+        self.assertEqual(self.main().display_name, "")
+
+    def test_reader_sees_it_but_cannot_change_it(self):
+        self.set_name("Mine")
+        self.client.force_login(self.user)
+        resp = self.client.get(reverse("profile_settings"))
+        self.assertContains(resp, "Display Name: <strong>Mine</strong>")
+        self.assertNotContains(resp, 'name="display_name"')
+        self.assertEqual(self.client.post(reverse("profile_settings"), {"display_name": "Hacked"}).status_code, 403)
+        self.assertEqual(self.main().display_name, "Mine")
+
+    def test_editor_form_shows_the_field(self):
+        self.client.force_login(self.admin)
+        resp = self.client.get(reverse("profile_settings"))
+        self.assertContains(resp, 'name="display_name"')
+        self.assertContains(resp, "Display Name")
+
+    def test_profiles_are_isolated(self):
+        junior = Profile.objects.create(program="diary", name="Junior")
+        self.client.force_login(self.admin)
+        self.client.post(reverse("profile_settings"), {"display_name": "Mine", "reading_all_mode": "remember"})
+        junior.refresh_from_db()
+        self.assertEqual(junior.display_name, "")
+
+    def test_admin_sets_it_on_the_profiles_screen(self):
+        profile = Profile.objects.create(program="diary", name="Junior")
+        self.client.force_login(self.admin)
+        resp = self.client.post(reverse("profile_edit", args=[profile.pk]), {"name": "Junior", "display_name": " Junior's Law "})
+        self.assertRedirects(resp, reverse("profile_list"))
+        profile.refresh_from_db()
+        self.assertEqual(profile.display_name, "Junior's Law")
+        self.assertContains(self.client.get(reverse("profile_list")), "Junior&#x27;s Law")
+        self.assertContains(self.client.get(reverse("profile_edit", args=[profile.pk])), 'name="display_name"')
+
+    def test_admin_can_create_a_profile_with_a_display_name(self):
+        self.client.force_login(self.admin)
+        self.client.post(reverse("profile_create"), {"name": "Third", "display_name": "The Third"})
+        self.assertEqual(Profile.objects.get(name="Third").display_name, "The Third")
+
+    def test_non_admin_cannot_use_the_profiles_screen(self):
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.post(reverse("profile_edit", args=[self.main().pk]), {"name": "Main", "display_name": "X"}).status_code, 403)
+        self.assertEqual(self.main().display_name, "")

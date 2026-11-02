@@ -1,3 +1,4 @@
+import copy
 import logging
 from functools import wraps
 from urllib.parse import urlsplit
@@ -169,10 +170,10 @@ def home(request):
 
 @profile_required
 def profile_settings(request):
-    """Settings of the user's profile. Editors can change the export name and the "All" default; Readers only view them."""
+    """Settings of the user's profile. Editors can change the Display Name, the export name and the "All" default; Readers only view them."""
     profile = request.profile
     can_edit = user_can_edit(request)
-    form = ProfileSettingsForm(request.POST or None, instance=profile)
+    form = ProfileSettingsForm(request.POST or None, instance=copy.copy(profile))  # a copy: an invalid POST must not change the header
     if request.method == "POST":
         if not can_edit:
             raise PermissionDenied
