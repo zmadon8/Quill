@@ -91,7 +91,7 @@ class _Data:
             ).order_by("position", "pk")
         )
         self.links = {}
-        for link in live(NoteLink.objects.filter(note__in=notes)).order_by("pk"):
+        for link in live(NoteLink.objects.filter(note__in=notes)).order_by("position", "pk"):
             self.links.setdefault(link.note_id, []).append(link)
 
         # Links INTO this Subject from live Notes anywhere (Linked from). A Note in Trash, or under something in Trash, shows nothing.

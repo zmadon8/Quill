@@ -170,8 +170,8 @@ def effective_export_name(profile):
 
 
 def safe_file_name(name):
-    """``name`` made safe as a file name: illegal characters removed, spaces tidied, no edge dots."""
-    cleaned = _ILLEGAL_FILENAME_CHARS.sub("", name or "")
+    """``name`` made safe as a file name: each illegal character becomes '-' (DESIGN 12.2), spaces tidied, no edge dots."""
+    cleaned = _ILLEGAL_FILENAME_CHARS.sub("-", name or "")
     return " ".join(cleaned.split()).strip(". ")
 
 

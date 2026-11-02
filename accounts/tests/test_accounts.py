@@ -1077,15 +1077,17 @@ class ExportNameTests(BaseCase):
 
         self.assertEqual(effective_export_name(self.main()), "Case Law Diary Main")
 
-    def test_custom_name_trimmed_and_illegal_characters_removed(self):
+    def test_custom_name_trimmed_and_illegal_characters_replaced_with_a_hyphen(self):
         from accounts.profiles import effective_export_name, export_file_name, safe_file_name
 
         profile = self.main()
         profile.export_name = '  Madon:  Case/Law *"Diary"?  '
         self.assertEqual(effective_export_name(profile), 'Madon: Case/Law *"Diary"?')
-        self.assertEqual(export_file_name(profile), "Madon CaseLaw Diary")
-        self.assertEqual(safe_file_name('a\\b<c>d|e\x01f.'), "abcdef")
+        self.assertEqual(export_file_name(profile), "Madon- Case-Law --Diary--")
+        self.assertEqual(safe_file_name('a\\b<c>d|e\x01f.'), "a-b-c-d-e-f")
         profile.export_name = '???'
+        self.assertEqual(export_file_name(profile), "---")
+        profile.export_name = "  . "  # nothing usable is left, so the profile's own name is used
         self.assertEqual(export_file_name(profile), "Main")
 
     def test_editor_can_change_name(self):
