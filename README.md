@@ -21,6 +21,7 @@ The longer plans are in `docs/PLAN.md` (what is built when), `docs/DESIGN.md` (h
 Only Editors (and Admins whose own role is Editor) can edit. Open a Subject, then press **Edit mode** (the address gets `?edit=1`); **Done editing** switches it off. Readers never see these buttons and the addresses answer 403 for them.
 
 - **Add**: under a Subject, Topic or Sub-topic the **Add...** box adds a Topic, Sub-topic, Section, Item or Nested Item at the end; under a Nested Item it adds an Item. On the Subjects and Other Subjects pages use **Add a Subject...**.
+- **Add quickly (the + button)**: on a computer with a mouse, every heading, Section and Item has a **+** (visible when you hover over it, and in Edit mode with the other icons). Click it, type the Text (and Citation for an Item), press **Enter**. An Item or Section gets the new entry directly after it; a heading gets it as its first entry. Pick another kind (Item, Nested Item, Section, ...) with the small box on the left. **Shift+Enter** is a new line, **Esc** cancels, and the box stays open for the next entry. On a phone the + (Edit mode only) opens the normal Add page with the place already chosen. Only Editors see it.
 - **Rename**: headings and Sections. Items are changed in the Item editor (below).
 - **Reorder**: **Up** and **Down**, or drag the dotted handle (works with a finger too). Numbers follow the new order at once.
 - **Move to...**: pick the new place in the tree. A page lists the numbers that will change before anything moves.
