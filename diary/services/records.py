@@ -75,6 +75,8 @@ def edit(profile, user, kind, record_id, changes, expected_version=None):
         if not actual:
             return make_result(ctx, obj)
         check_version(obj, expected_version, mine=actual)
+        if kind == "item" and "citation" in actual and obj.kind != "nested":
+            raise Refused("The citations of an Item are kept as Cases: edit the Case, not the Item.")
         for name, value in actual.items():
             setattr(obj, name, value)
         commit(ctx, obj, "edit")
@@ -113,7 +115,14 @@ def create(profile, user, record_type, parent=None, index=None, **fields):
             position = {"landing_position" if draft.show_on_landing else "other_acts_position": number}
         else:
             position = {"position": number}
+        # The citations of an Item are Cases (10d). A citation given with a new Item becomes its first
+        # Case; a Nested Item cannot own Cases and keeps its own citation.
+        first_citation = ""
+        if record_type == "item" and values.get("kind", "plain") != "nested":
+            first_citation = values.pop("citation", "") or ""
         obj = create_row(ctx, model, **columns, **values, **position)
+        if first_citation:
+            create_row(ctx, MODELS["case"], item=obj, citation=first_citation, position=1)
         return make_result(ctx, obj)
 
 

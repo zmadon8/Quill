@@ -4,7 +4,7 @@ Every function takes ``profile`` and ``user`` first, works only inside that prof
 transaction, bumps record versions and writes VersionHistory. See docs/DESIGN.md sections 5.4 to
 5.7, 6 and 9.
 """
-from .conversions import build_plan, convert_item, join_cases, preview_conversion
+from .conversions import build_plan, convert_item, preview_conversion
 from .core import ActionResult, Ctx, action_group, snapshot
 from .errors import (
     Conflict,
@@ -28,6 +28,6 @@ __all__ = [
     "ActionResult", "Conflict", "ConfirmationRequired", "Ctx", "NameClash", "NotFound", "ParentInTrash",
     "PermanentDeleteRefused", "Refused", "ServiceError", "UndoWarning", "ValidationFailed",
     "action_group", "add_link", "build_plan", "convert_item", "create", "delete", "edit", "group_summary", "history_for",
-    "join_cases", "move", "permanent_delete", "preview_conversion", "preview_delete", "preview_move",
+    "move", "permanent_delete", "preview_conversion", "preview_delete", "preview_move",
     "restore", "restore_version", "set_landing", "shift", "snapshot", "undo_group",
 ]

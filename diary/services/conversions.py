@@ -1,4 +1,4 @@
-"""Conversions between Item, Multi-Item and Nested Item (docs/DESIGN.md section 6, spec 4.13).
+"""Conversions between Item and Nested Item (docs/DESIGN.md section 6, spec 4.13; Multi-Item is gone since 10d).
 
 The record keeps its id. ``preview_conversion`` shows before and after and every warning or
 refusal without writing anything; ``convert_item`` does the same plan in one transaction. All
@@ -9,13 +9,12 @@ from dataclasses import dataclass, field
 from django.db import transaction
 
 from .. import numbering
-from ..models import KIND_CHOICES, KIND_MULTI, KIND_NESTED, KIND_PLAIN, Case, Item, Note, TrashBatch
+from ..models import KIND_CHOICES, KIND_NESTED, KIND_PLAIN, Case, Item, Note, TrashBatch
 from .core import Ctx, check_version, commit, create, get_record, label, make_result, now
 from .errors import ConfirmationRequired, Refused
 from .sequences import ident, lock_sequence, members, place, sequence_key
 
 KIND_NAMES = dict(KIND_CHOICES)
-FLATTEN_WARNING = "Formatting and line breaks in comments will be lost."
 OPTIONS = ("keep", "fold")
 
 
@@ -38,18 +37,6 @@ class Plan:
     trash_kids: bool = False
 
 
-def join_cases(entries):
-    """One single-line citation from [(citation, comment text)]: ``(a) X - note; (b) Y``."""
-    marks = numbering.multi_item_labels(len(entries))
-    parts = []
-    for mark, (citation, comment) in zip(marks, entries):
-        citation = " ".join(citation.split())
-        comment = " ".join(comment.split())
-        piece = f"{citation} - {comment}" if citation and comment else (citation or comment)
-        parts.append(piece if len(entries) == 1 else f"{mark} {piece}".strip())
-    return "; ".join(parts)
-
-
 def live_cases(item):
     return list(Case._base_manager.filter(item=item, deleted_at__isnull=True).order_by("position", "pk"))
 
@@ -58,17 +45,23 @@ def live_kids(item):
     return list(Item._base_manager.filter(parent_item=item, deleted_at__isnull=True).order_by("position", "pk"))
 
 
+def kid_citation(kid, cases):
+    """The one citation a child Item carries into a fold: its only Case (or its legacy own citation)."""
+    return cases[0].citation if cases else kid.citation
+
+
 def fold_problems(kids):
     """Reasons why the Items beneath a Nested Item cannot be folded into Cases (spec 4.13, rule 2)."""
     reasons = []
     for kid in kids:
         name = label(kid)
-        if kid.kind == KIND_MULTI:
-            reasons.append(f"{name!r} is a Multi-Item.")
-        elif kid.kind == KIND_NESTED:
+        if kid.kind == KIND_NESTED:
             reasons.append(f"{name!r} is a Nested Item.")
-        if Case._base_manager.filter(item=kid, deleted_at__isnull=True).count() > 1:
-            reasons.append(f"{name!r} has several Cases.")
+        cases = live_cases(kid)
+        if len(cases) > 1:
+            reasons.append(f"{name!r} has several citations.")
+        if cases and kid.citation:
+            reasons.append(f"{name!r} has a citation of its own as well as a Case.")
         if kid.flag != "none":
             reasons.append(f"{name!r} has a flag.")
         if kid.needs_review:
@@ -89,29 +82,21 @@ def build_plan(item, to_kind, option=None):
     if item.parent_item_id is not None:
         return _refuse(plan, "An Item beneath a Nested Item must stay a plain Item (one level of nesting).")
     plan.new_citation = item.citation
-    if item.kind == KIND_PLAIN and to_kind == KIND_MULTI:
-        plan.new_citation = ""
-        plan.make_cases = [{"citation": item.citation, "comment": ""}]
-    elif item.kind == KIND_PLAIN and to_kind == KIND_NESTED:
-        pass
-    elif item.kind == KIND_MULTI:
+    if item.kind == KIND_PLAIN:
+        # A Nested Item cannot own Cases: one plain citation moves to the Nested Item's own citation,
+        # anything more (several citations, or a comment) becomes Items beneath it. Nothing is dropped.
         plan.cases = live_cases(item)
-        if to_kind == KIND_PLAIN:
-            entries = [(c.citation, c.comment_plain) for c in plan.cases]
-            plan.new_citation = join_cases(entries)
-            if any(c.comment_plain.strip() for c in plan.cases):
-                plan.warnings.append(FLATTEN_WARNING)
-            if len(plan.new_citation) > 1000:
-                return _refuse(plan, "The joined citation would be longer than 1000 characters.")
+        plan.new_citation = ""
+        if len(plan.cases) == 1 and not plan.cases[0].comment_plain.strip():
+            plan.new_citation = plan.cases[0].citation
         else:
-            plan.new_citation = ""
             plan.make_children = [{"text": c.comment, "citation": c.citation} for c in plan.cases]
-    else:  # from Nested to Item or Multi
+    else:  # from Nested to Item
         plan.kids = live_kids(item)
+        if item.citation:
+            plan.make_cases = [{"citation": item.citation, "comment": ""}]
+        plan.new_citation = ""
         if not plan.kids:
-            if to_kind == KIND_MULTI:
-                plan.new_citation = ""
-                plan.make_cases = [{"citation": item.citation, "comment": ""}]
             return plan
         plan.fold_reasons = fold_problems(plan.kids)
         if option not in OPTIONS:
@@ -119,9 +104,6 @@ def build_plan(item, to_kind, option=None):
             return plan
         if option == "keep":
             plan.release_kids = True
-            if to_kind == KIND_MULTI:
-                plan.new_citation = ""
-                plan.make_cases = [{"citation": item.citation, "comment": ""}]
         else:
             if plan.fold_reasons:
                 return _refuse(
@@ -131,25 +113,10 @@ def build_plan(item, to_kind, option=None):
                     plan.fold_reasons,
                 )
             plan.trash_kids = True
-            folded = [{"citation": item.citation, "comment": ""}] + [
-                {"citation": k.citation, "comment": k.text} for k in plan.kids
+            plan.make_cases += [
+                {"citation": kid_citation(k, live_cases(k)), "comment": k.text} for k in plan.kids
             ]
-            if to_kind == KIND_MULTI:
-                plan.new_citation = ""
-                plan.make_cases = folded
-            else:
-                plan.new_citation = join_cases([(f["citation"], _plain(f["comment"])) for f in folded])
-                if any(k.text_plain.strip() for k in plan.kids):
-                    plan.warnings.append(FLATTEN_WARNING)
-                if len(plan.new_citation) > 1000:
-                    return _refuse(plan, "The joined citation would be longer than 1000 characters.")
     return plan
-
-
-def _plain(html):
-    from ..richtext import plain_text
-
-    return plain_text(html)
 
 
 def _refuse(plan, message, reasons=None):
@@ -158,20 +125,25 @@ def _refuse(plan, message, reasons=None):
     return plan
 
 
+def _marks(count):
+    """(a), (b) ... when there are several citations, no label for a single one (as in the reading view)."""
+    return numbering.multi_item_labels(count) if count > 1 else [""] * count
+
+
 def _describe_before(item, plan):
-    cases = plan.cases if plan.from_kind == KIND_MULTI else []
-    marks = numbering.multi_item_labels(len(cases))
+    cases = plan.cases
+    marks = _marks(len(cases))
     return {
         "kind": item.kind,
         "kind_label": KIND_NAMES[item.kind],
         "citation": item.citation,
         "cases": [{"label": m, "citation": c.citation, "comment": c.comment} for m, c in zip(marks, cases)],
-        "children": [{"label": numbering.BULLET, "text": k.text, "citation": k.citation} for k in plan.kids],
+        "children": [{"label": numbering.BULLET, "text": k.text, "citation": kid_citation(k, live_cases(k))} for k in plan.kids],
     }
 
 
 def _describe_after(item, plan):
-    marks = numbering.multi_item_labels(len(plan.make_cases))
+    marks = _marks(len(plan.make_cases))
     children = [{"label": numbering.BULLET, "text": c["text"], "citation": c["citation"]} for c in plan.make_children]
     return {
         "kind": plan.to_kind,
@@ -179,7 +151,7 @@ def _describe_after(item, plan):
         "citation": plan.new_citation,
         "cases": [{"label": m, "citation": c["citation"], "comment": c["comment"]} for m, c in zip(marks, plan.make_cases)],
         "children": children,
-        "released": [{"text": k.text, "citation": k.citation} for k in plan.kids] if plan.release_kids else [],
+        "released": [{"text": k.text, "citation": kid_citation(k, live_cases(k))} for k in plan.kids] if plan.release_kids else [],
     }
 
 
@@ -232,6 +204,7 @@ def convert_item(profile, user, item_id, to_kind, expected_version=None, option=
         lock_sequence(ctx, key)
         stamp = now()
         batch = None
+        kid_cases = [c for k in plan.kids for c in live_cases(k)] if plan.trash_kids else []
         if plan.cases or plan.trash_kids:
             batch = TrashBatch.objects.create(
                 profile_id=ctx.profile_id,
@@ -247,6 +220,9 @@ def convert_item(profile, user, item_id, to_kind, expected_version=None, option=
             for kid in plan.kids:
                 kid.deleted_at, kid.delete_batch = stamp, batch.id
                 commit(ctx, kid, "convert", check=False)
+            for case in kid_cases:
+                case.deleted_at, case.delete_batch = stamp, batch.id
+                commit(ctx, case, "convert", check=False)
         if plan.release_kids:
             column, value = key[1], key[2]
             for offset, kid in enumerate(plan.kids, start=1):
@@ -260,8 +236,9 @@ def convert_item(profile, user, item_id, to_kind, expected_version=None, option=
         for number, spec in enumerate(plan.make_cases, start=1):
             create(ctx, Case, "convert", item=item, citation=spec["citation"], comment=spec["comment"], position=number)
         for number, spec in enumerate(plan.make_children, start=1):
-            create(
-                ctx, Item, "convert", parent_item=item, kind=KIND_PLAIN, text=spec["text"],
-                citation=spec["citation"], position=number,
+            child = create(
+                ctx, Item, "convert", parent_item=item, kind=KIND_PLAIN, text=spec["text"], position=number,
             )
+            if spec["citation"]:
+                create(ctx, Case, "convert", item=child, citation=spec["citation"], position=1)
         return make_result(ctx, item)

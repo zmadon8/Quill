@@ -231,7 +231,11 @@ def label(obj):
     if kind == "section":
         return obj.name or "Section"
     if kind == "item":
-        return (obj.text_plain.strip()[:60] or obj.citation[:60] or f"Item {obj.pk}")
+        text = obj.text_plain.strip()[:60] or obj.citation[:60]
+        if not text and obj.pk:
+            first = Case._base_manager.filter(item_id=obj.pk, profile_id=obj.profile_id).order_by("position", "pk").first()
+            text = first.citation[:60] if first else ""
+        return text or f"Item {obj.pk}"
     if kind == "case":
         return obj.citation[:60] or f"Case {obj.pk}"
     if kind == "note":
@@ -271,8 +275,6 @@ def validate(ctx, obj):
     if kind == "item":
         if len(obj.citation) > 1000:
             raise ValidationFailed("The citation is too long (1000 characters at most).")
-        if obj.kind == "multi" and obj.citation:
-            raise ValidationFailed("A Multi-Item has no citation of its own; its Cases hold the citations.")
         if obj.parent_item_id is not None and obj.kind != "plain":
             raise ValidationFailed("An Item beneath a Nested Item must stay a plain Item (one level of nesting).")
     if kind == "case" and len(obj.citation) > 1000:

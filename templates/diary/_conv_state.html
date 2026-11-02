@@ -4,7 +4,7 @@
   {% if text %}<div class="conv-text">{{ text|richhtml }}</div>{% endif %}
   {% if state.citation %}<p><span class="hint">Citation:</span> <em class="citation">{{ state.citation }}</em></p>{% endif %}
   {% if state.cases %}
-  <ul class="conv-list">{% for case in state.cases %}<li><span class="num">{{ case.label }}</span> <em class="citation">{{ case.citation }}</em>{% if case.comment %} <span class="case-comment">{{ case.comment|richhtml }}</span>{% endif %}</li>{% endfor %}</ul>
+  <ul class="conv-list">{% for case in state.cases %}<li>{% if case.label %}<span class="num">{{ case.label }}</span> {% endif %}<em class="citation">{{ case.citation }}</em>{% if case.comment %} <span class="case-comment">{{ case.comment|richhtml }}</span>{% endif %}</li>{% endfor %}</ul>
   {% endif %}
   {% if state.children %}
   <p class="hint">Items beneath it:</p>
