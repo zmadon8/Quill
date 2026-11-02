@@ -1,6 +1,6 @@
 """Create, edit, validation, conflicts, history restore, profile isolation and atomicity (service layer)."""
 from diary import services as svc
-from diary.models import Item, Subject, Topic, VersionHistory
+from diary.models import Case, Item, Subject, Topic, VersionHistory
 from diary.tests.service_helpers import ServiceTestCase
 
 
@@ -85,14 +85,33 @@ class CreateTests(ServiceTestCase):
         with self.assertRaises(svc.Refused):
             self.make("topic", ("subject", other.pk), name="T")
 
-    def test_cases_only_under_multi_items(self):
+    def test_cases_under_any_item_but_not_a_nested_item(self):
         subject = self.make("subject", name="S")
         plain = self.make("item", ("subject", subject.pk), text="p")
-        with self.assertRaises(svc.Refused):
-            self.make("case", ("item", plain.pk), citation="A v B")
-        multi = self.make("item", ("subject", subject.pk), kind="multi", text="m")
-        case = self.make("case", ("item", multi.pk), citation="A v B")
+        case = self.make("case", ("item", plain.pk), citation="A v B")
         self.assertEqual(self.get(case).position, 1)
+        second = self.make("case", ("item", plain.pk), citation="C v D")
+        self.assertEqual(self.get(second).position, 2)
+        nested = self.make("item", ("subject", subject.pk), kind="nested", text="n")
+        with self.assertRaises(svc.Refused):
+            self.make("case", ("item", nested.pk), citation="A v B")
+
+    def test_a_new_item_with_a_citation_gets_it_as_case_a(self):
+        subject = self.make("subject", name="S")
+        item = self.make("item", ("subject", subject.pk), text="p", citation="A v B")
+        self.assertEqual(self.get(item).citation, "")
+        cases = list(Case.objects.filter(item=item))
+        self.assertEqual([(c.citation, c.position, c.comment) for c in cases], [("A v B", 1, "")])
+        self.assertEqual(self.history_kinds(cases[0]), ["create"])
+        self.assertEqual(self.history(cases[0])[0].group, self.history(item)[0].group)
+        bare = self.make("item", ("subject", subject.pk), text="q")
+        self.assertFalse(Case.objects.filter(item=bare).exists())
+
+    def test_a_nested_item_keeps_its_own_citation_and_makes_no_case(self):
+        subject = self.make("subject", name="S")
+        nested = self.make("item", ("subject", subject.pk), kind="nested", text="n", citation="N v M")
+        self.assertEqual(self.get(nested).citation, "N v M")
+        self.assertFalse(Case.objects.filter(item=nested).exists())
 
     def test_parent_in_trash_refused(self):
         subject = self.make("subject", name="S")
@@ -108,10 +127,10 @@ class EditTests(ServiceTestCase):
         self.build_topic()
 
     def test_edit_bumps_version_and_writes_a_full_snapshot(self):
-        result = svc.edit(self.profile, self.user2, "item", self.one.pk, {"text": "uno", "citation": "A v B"}, 1)
+        result = svc.edit(self.profile, self.user2, "item", self.one.pk, {"text": "uno", "flag_text": "x"}, 1)
         self.assertTrue(result.changed)
         item = self.get(self.one)
-        self.assertEqual((item.version, item.text, item.citation, item.updated_by), (2, "uno", "A v B", self.user2))
+        self.assertEqual((item.version, item.text, item.flag_text, item.updated_by), (2, "uno", "x", self.user2))
         row = self.history(self.one)[-1]
         self.assertEqual((row.version, row.change_kind, row.changed_by), (2, "edit", self.user2))
         self.assertEqual(row.snapshot["text"], "uno")
@@ -166,7 +185,7 @@ class EditTests(ServiceTestCase):
         with self.assertRaises(svc.Refused):
             svc.edit(self.profile, self.user, "item", self.one.pk, {"position": 9})
         with self.assertRaises(svc.Refused):
-            svc.edit(self.profile, self.user, "item", self.one.pk, {"kind": "multi"})
+            svc.edit(self.profile, self.user, "item", self.one.pk, {"kind": "nested"})
         with self.assertRaises(svc.Refused):
             svc.edit(self.profile, self.user, "notelink", 1, {})
 
@@ -174,11 +193,14 @@ class EditTests(ServiceTestCase):
         for changes in ({"citation": "line one\nline two"}, {"flag": "nonsense"}):
             with self.assertRaises(svc.ValidationFailed):
                 svc.edit(self.profile, self.user, "item", self.one.pk, changes)
-        multi = self.make("item", ("topic", self.topic.pk), kind="multi", text="m")
+        # The citations of an Item are Cases: its own citation column cannot be edited (a Nested Item's can).
         with self.assertRaises(svc.ValidationFailed):
-            svc.edit(self.profile, self.user, "item", multi.pk, {"citation": "A v B"})
+            svc.edit(self.profile, self.user, "item", self.one.pk, {"citation": "A v B"})
+        nested = self.make("item", ("topic", self.topic.pk), kind="nested", text="n")
+        svc.edit(self.profile, self.user, "item", nested.pk, {"citation": "A v B"})
+        self.assertEqual(self.get(nested).citation, "A v B")
         self.assertEqual(self.get(self.one).version, 1)
-        self.assertEqual(self.get(multi).citation, "")
+        self.assertEqual(self.get(self.one).citation, "")
 
     def test_rename_subject_keeps_name_unique(self):
         other = self.make("subject", name="Torts")

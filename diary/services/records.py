@@ -76,7 +76,7 @@ def edit(profile, user, kind, record_id, changes, expected_version=None):
             return make_result(ctx, obj)
         check_version(obj, expected_version, mine=actual)
         if kind == "item" and "citation" in actual and obj.kind != "nested":
-            raise Refused("The citations of an Item are kept as Cases: edit the Case, not the Item.")
+            raise ValidationFailed("The citations of an Item are kept as Cases: edit the Case, not the Item.")
         for name, value in actual.items():
             setattr(obj, name, value)
         commit(ctx, obj, "edit")
