@@ -167,10 +167,10 @@
   /* Send the form's fields to a page (not fetch), for the screens that are whole pages: the conflict screen, Move to... */
   function postPlain(form, action, name, value) {
     var plain = el("form", { method: "post", action: action });
-    Array.prototype.forEach.call(new FormData(form).entries(), function (pair) {
-      if (typeof pair[1] !== "string") { return; }
-      var input = el("input", { type: "hidden", name: pair[0] });
-      input.value = pair[1];
+    new FormData(form).forEach(function (value, key) {
+      if (typeof value !== "string") { return; }
+      var input = el("input", { type: "hidden", name: key });
+      input.value = value;
       plain.appendChild(input);
     });
     if (name) {
