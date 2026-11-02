@@ -109,15 +109,15 @@ def prune_batches(profile_id):
 
 
 def check_restorable(rec):
-    """Raise Refused unless ``rec`` may live again where it is (Case under Multi, child Item under Nested, heading mix).
+    """Raise Refused unless ``rec`` may live again where it is (Case not under a Nested Item, child Item under Nested, heading mix).
 
     Shared by Restore and Undo, which both bring records back to life.
     """
     kind = record_type(rec)
     if kind == "case":
         parent = rec.item
-        if parent.kind != "multi":
-            raise Refused("This Case belonged to a Multi-Item that is no longer a Multi-Item, so it cannot be restored here.")
+        if parent.kind == "nested":
+            raise Refused("This Case belonged to an Item that is now a Nested Item, so it cannot be restored here.")
     if kind == "item" and rec.parent_item_id is not None and rec.parent_item.kind != "nested":
         raise Refused("This Item belonged to a Nested Item that is no longer a Nested Item, so it cannot be restored here.")
     if kind == "topic":

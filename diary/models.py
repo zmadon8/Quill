@@ -33,11 +33,14 @@ FORMAT_CHOICES = [
 SECTION_FORMAT_CHOICES = FORMAT_CHOICES + [("section_n", "Section 1, Section 2")]
 
 KIND_PLAIN = "plain"
+# LEGACY (10d): "multi" is no longer a stored or chosen kind. Every non-nested Item holds its citations
+# as Cases; an Item with two or more live Cases is "multi" only in the sense of being displayed as
+# (a), (b). The constant stays so old code paths and old backup files can still name the old value;
+# diary/services/legacy.py maps it to "plain".
 KIND_MULTI = "multi"
 KIND_NESTED = "nested"
 KIND_CHOICES = [
     (KIND_PLAIN, "Item"),
-    (KIND_MULTI, "Multi-Item"),
     (KIND_NESTED, "Nested Item"),
 ]
 
@@ -72,6 +75,8 @@ CHANGE_KIND_CHOICES = [
     ("restore", "Restore"),
     ("convert", "Convert"),
     ("import", "Import"),
+    # Written once by data migration diary 0010 (merge of Multi-Item into Item), never by a user action.
+    ("migrate", "Migrate"),
 ]
 
 
@@ -259,6 +264,10 @@ class Item(RichTextMixin, Record):
     kind = models.CharField(max_length=10, choices=KIND_CHOICES, default=KIND_PLAIN)
     text = models.TextField(blank=True)
     text_plain = models.TextField(blank=True, editable=False)
+    # LEGACY (10d): for plain Items the citations now live in Cases (Case position order), and this column is
+    # always empty after migration diary 0010. It is kept so that old backup files and old history
+    # snapshots (which carry it) can still be read and mapped (diary/services/legacy.py). A Nested Item
+    # cannot own Cases, so a Nested Item's own citation stays here, unchanged.
     citation = models.CharField(max_length=1000, blank=True)
     flag = models.CharField(max_length=10, choices=FLAG_CHOICES, default=FLAG_NONE)
     flag_text = models.CharField(max_length=300, blank=True)
@@ -283,11 +292,6 @@ class Item(RichTextMixin, Record):
                 condition=Q(parent_item__isnull=True) | Q(kind=KIND_PLAIN),
                 name="item_child_of_nested_is_plain",
             ),
-            # A Multi-Item has no citation of its own; its Cases hold the citations (section 3.2).
-            models.CheckConstraint(
-                condition=~Q(kind=KIND_MULTI) | Q(citation=""),
-                name="item_multi_has_no_citation",
-            ),
         ]
 
     def clean(self):
@@ -302,7 +306,7 @@ class Item(RichTextMixin, Record):
 
 
 class Case(RichTextMixin, Record):
-    """One citation of a Multi-Item, with an optional rich-text comment."""
+    """One citation of an Item (any Item except a Nested Item), with an optional rich-text comment."""
 
     profile_parents = ("item",)
 
@@ -316,8 +320,8 @@ class Case(RichTextMixin, Record):
 
     def clean(self):
         super().clean()
-        if self.item_id is not None and self.item.kind != KIND_MULTI:
-            raise ValidationError({"item": "Cases are only allowed under a Multi-Item."})
+        if self.item_id is not None and self.item.kind == KIND_NESTED:
+            raise ValidationError({"item": "Cases are not allowed under a Nested Item."})
         if self.citation and ("\n" in self.citation or "\r" in self.citation):
             raise ValidationError({"citation": "A citation must be a single line."})
 

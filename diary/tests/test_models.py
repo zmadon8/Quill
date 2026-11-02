@@ -118,9 +118,14 @@ class ItemRuleTests(Base):
         self.assertRefused(Item, parent_item=nested, kind="nested")
         self.assertRefused(Item, parent_item=nested, kind="multi")
 
-    def test_multi_item_has_no_own_citation(self):
-        self.assertRefused(Item, subtopic=self.subtopic, kind="multi", citation="A v B")
-        Item.objects.create(profile=main_profile(), subtopic=self.subtopic, kind="multi")
+    def test_multi_is_no_longer_a_kind_choice(self):
+        from diary.models import KIND_CHOICES
+
+        self.assertEqual([value for value, _label in KIND_CHOICES], ["plain", "nested"])
+
+    def test_item_with_cases_may_also_be_stored_with_a_citation_column_value(self):
+        # item_multi_has_no_citation was dropped in 10d; the legacy column is not constrained any more.
+        Item.objects.create(profile=main_profile(), subtopic=self.subtopic, kind="plain", citation="A v B")
 
     def test_plain_item_keeps_citation(self):
         item = Item.objects.create(profile=main_profile(), subtopic=self.subtopic, citation="A v B (2001) 1 SCC 1")
@@ -163,7 +168,7 @@ class RichTextTests(Base):
         self.assertEqual(item.text_plain, "new")
 
     def test_case_comment_and_note_text(self):
-        multi = Item.objects.create(profile=main_profile(), subtopic=self.subtopic, kind="multi")
+        multi = Item.objects.create(profile=main_profile(), subtopic=self.subtopic)
         case = Case.objects.create(profile=main_profile(), item=multi, citation="A v B", comment="<em>why</em>")
         self.assertEqual(case.comment, "<i>why</i>")
         self.assertEqual(case.comment_plain, "why")
@@ -171,10 +176,12 @@ class RichTextTests(Base):
         self.assertEqual(note.text, "<u>see</u> this")
         self.assertEqual(note.text_plain, "see this")
 
-    def test_case_only_under_multi_item(self):
+    def test_case_allowed_under_any_item_except_nested(self):
         plain = Item.objects.create(profile=main_profile(), subtopic=self.subtopic)
+        Case(item=plain, citation="A v B").clean()
+        nested = Item.objects.create(profile=main_profile(), subtopic=self.subtopic, kind="nested")
         with self.assertRaises(ValidationError):
-            Case(item=plain, citation="A v B").clean()
+            Case(item=nested, citation="A v B").clean()
 
 
 class UserSettingsTests(Base):
@@ -215,7 +222,7 @@ class ProfileIsolationTests(Base):
             Section.objects.create(profile=self.other_profile, subtopic=self.subtopic)
 
     def test_case_and_note_must_match_parent_profile(self):
-        multi = Item.objects.create(profile=main_profile(), subtopic=self.subtopic, kind="multi")
+        multi = Item.objects.create(profile=main_profile(), subtopic=self.subtopic)
         with self.assertRaises(ValidationError):
             Case.objects.create(profile=self.other_profile, item=multi, citation="A v B")
         with self.assertRaises(ValidationError):

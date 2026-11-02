@@ -81,8 +81,8 @@ def check_move_allowed(obj, parent_kind, parent):
             raise Refused("Items can only be placed beneath a Nested Item. Convert it to a Nested Item first.")
         if obj.kind != "plain":
             raise Refused("Only plain Items can sit beneath a Nested Item (one level of nesting).")
-    if kind == "case" and parent.kind != "multi":
-        raise Refused("Cases can only sit under a Multi-Item.")
+    if kind == "case" and parent.kind == "nested":
+        raise Refused("Cases cannot sit under a Nested Item.")
     if kind == "topic":
         check_heading_mix(parent, "topic")
     if kind == "subtopic" and parent_kind == "subject":

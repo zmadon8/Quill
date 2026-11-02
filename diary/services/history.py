@@ -6,10 +6,12 @@ and what type of Item it is are not touched here: Undo reverses moves and conver
 """
 from django.db import transaction
 
-from ..models import VersionHistory
-from .core import Ctx, check_version, commit, get_record, make_result
+from ..models import Case, VersionHistory
+from . import legacy
+from .core import Ctx, check_version, commit, create, get_record, make_result
 from .errors import NotFound, Refused
 from .records import EDITABLE
+from .sequences import make_room
 
 
 def history_for(profile, kind, record_id):
@@ -30,16 +32,41 @@ def restore_version(profile, user, kind, record_id, version, expected_version=No
         if row is None:
             raise NotFound("That version does not exist for this record.")
         snap = row.snapshot
-        if kind == "item" and snap.get("kind", obj.kind) != obj.kind:
+        # A version from before the Multi-Item merge (10d) may say "multi": that is a plain Item now.
+        if kind == "item" and legacy.map_kind(snap.get("kind", obj.kind)) != obj.kind:
             raise Refused(
                 "That version was a different type of Item. Use Undo or convert the Item back, "
                 "then restore the version."
             )
         changes = {name: snap[name] for name in EDITABLE[kind] if name in snap and snap[name] != getattr(obj, name)}
-        if not changes:
+        old_citation = None
+        if kind == "item" and obj.kind != "nested":
+            # Citations of a non-nested Item live in its Cases now; Item.citation stays empty (10d).
+            changes.pop("citation", None)
+            old_citation = legacy.legacy_snapshot_citation(snap, obj.kind)
+        if not changes and old_citation is None:
             return make_result(ctx, obj)
         check_version(obj, expected_version, mine=changes)
-        for name, value in changes.items():
-            setattr(obj, name, value)
-        commit(ctx, obj, "restore")
+        if changes:
+            for name, value in changes.items():
+                setattr(obj, name, value)
+            commit(ctx, obj, "restore")
+        if old_citation is not None:
+            _restore_first_citation(ctx, obj, old_citation)
         return make_result(ctx, obj)
+
+
+def _restore_first_citation(ctx, item, citation):
+    """An old version's single ``citation`` becomes Case (a): the first live Case is set to it, or made."""
+    first = (
+        Case._base_manager.select_for_update()
+        .filter(item=item, profile_id=ctx.profile_id, deleted_at__isnull=True)
+        .order_by("position", "pk")
+        .first()
+    )
+    if first is None:
+        position = make_room(ctx, ("case", "item", item.pk), 0)
+        create(ctx, Case, "restore", item=item, citation=citation, position=position)
+    elif first.citation != citation:
+        first.citation = citation
+        commit(ctx, first, "restore")
