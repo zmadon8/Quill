@@ -697,6 +697,12 @@ class ReadingScreenTests(TestCase):
         self.assertContains(resp, "See also: ")
         self.assertContains(resp, "Carlill v. Carbolic Smoke Ball Co")
         self.assertContains(resp, " ; ")
+        # Several citations are labelled (a), (b); a single citation shows without a label.
+        self.assertContains(
+            resp, '<span class="num">(a)</span> <em class="citation">Carlill v. Carbolic Smoke Ball Co [1893] 1 QB 256</em>',
+            html=False)
+        self.assertNotContains(resp, '<span class="num">(a)</span> <em class="citation">Harvey', html=False)
+        self.assertContains(resp, '<span class="case-comment">', html=False)
 
     def test_topic_and_subtopic_views_show_correct_buttons_and_numbers(self):
         self.client.force_login(self.users["reader"])
@@ -790,6 +796,49 @@ class ReadingNumberingTests(TestCase):
         path, url = reading.note_target(NoteLink.objects.select_related("subtopic").get(pk=link.pk))
         self.assertIsNone(url)
         self.assertIn("(deleted)", path)
+
+
+class ReadingCitationTests(TestCase):
+    """An Item's citations are its Cases: one shows plain, several are labelled by the Multi-Item format."""
+
+    @classmethod
+    def setUpTestData(cls):
+        load_sample_data(main_profile())
+
+    def block(self, text, user=None):
+        subject = Subject.objects.get(name=SAMPLE_PREFIX + "Contract Law")
+        ctx = reading.build_reading(subject, user)
+        return next(b for b in ctx["blocks"] if b["kind"] == "item" and text in b["text"])
+
+    def test_one_citation_has_no_label_and_is_not_multi(self):
+        block = self.block("invitation to treat")
+        self.assertEqual([(c["label"], c["citation"]) for c in block["cases"]], [("", "Harvey v. Facey [1893] AC 552")])
+        self.assertFalse(block["is_multi"])
+        self.assertEqual(block["citation"], "")
+
+    def test_several_citations_are_labelled_and_keep_their_comments(self):
+        block = self.block("general offer")
+        self.assertTrue(block["is_multi"])
+        self.assertEqual([c["label"] for c in block["cases"]], ["(a)", "(b)", "(c)"])
+        self.assertEqual([c["has_comment"] for c in block["cases"]], [True, False, True])
+
+    def test_an_item_without_a_citation_has_no_cases(self):
+        block = self.block("placed directly under the Subject")
+        self.assertEqual(block["cases"], [])
+
+    def test_the_label_follows_the_users_multi_item_citation_format(self):
+        user = get_user_model().objects.create_user("fmt", password="x-long-pass-123")
+        from diary.models import UserSettings
+
+        UserSettings.objects.create(user=user, multi_citation_format="paren_decimal")
+        block = self.block("general offer", user)
+        self.assertEqual([c["label"] for c in block["cases"]], ["(1)", "(2)", "(3)"])
+
+    def test_a_nested_item_still_shows_its_own_citation(self):
+        subject = Subject.objects.get(name=SAMPLE_PREFIX + "Contract Law")
+        nested = next(b for b in reading.build_reading(subject, None)["blocks"] if b["kind"] == "item" and b["is_nested"])
+        self.assertEqual(nested["citation"], "Sample v. Nested (2010) 1 SCC 1")
+        self.assertEqual(nested["cases"], [])
 
 
 class SampleDataTests(TestCase):
