@@ -569,7 +569,7 @@ All earlier open questions have been answered by the owner (N1 and N2 are closed
 **Behaviour**
 
 - **D6. Restoring a deleted Subject whose name is now taken.** The app asks for a new name at that moment. [Answer: Yes] **Decision: rename-on-restore.**
-- **D7. Edit history length.** At least 20 versions required; keep all. [Answer: Yes] **Decision: keep all history.**
+- **D7. Edit history length.** At least 20 versions required; keep all. [Answer: Yes] **Decision: keep all history.** (Superseded by D56: 30 days.)
 
 **From the import analysis** (wording in `docs/IMPORT_ANALYSIS.md`, section 7):
 
