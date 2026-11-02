@@ -30,7 +30,8 @@ What this tells us:
 
 1. **Sub-topics are the "1, 2, 3" lines**, as you said. A Topic that has Sub-topics has exactly one 1-2-3 list (76 Topics do). The other 133 Topics have no Sub-topics, and their Items sit directly under the Topic.
 2. **Items are the "(i), (ii), (iii)" lines.** Each group of Items is its own separate Word list (457 of them), so the numbering restarts at (i) under each Sub-topic or Topic. The importer therefore starts a new group of Items whenever the list changes.
-3. **There are no Nested Items and no bullets.** All 950 Items are at one single depth. The design still allows Nested Items and bullets for future use, but the first import will create none.
+3. **There are no Nested Items and no bullets.** All 950 Items are at one single depth. (Round 10 removed Nested Items from the design altogether, D58; the import figures below are unchanged: 41 Subjects, 178 Topics, 323 Sub-topics, 2 Sections, 950 Items of which 691 clean and 259 flagged, 261 review-marked, 693 citations.)
+3a. **17 Items sit directly under a Subject** (in 9 Subjects, none of them a Subject that holds Sub-topics directly). The importer places them exactly where the file does; the app houses them in a Topic called "1" afterwards (D61, migration 0017 or `python manage.py house_loose_items`), and the reconciliation still matches.
 4. In every Topic that has Sub-topics, the Sub-topics come first. No Item sits before the first Sub-topic. No Topic is empty.
 5. No Topic name is repeated inside one Subject.
 
@@ -137,7 +138,7 @@ Counts below were produced by the script over 952 lines, which is the 950 "(i)" 
 | 19 | A group of Items that restarts inside the same Topic or Sub-topic | 3 | e.g. under `Unlawful Subletting / Eviction` | Document order is kept. The Items stay under the same parent. **Built as:** the importer finds 2 such restarts (`para-1033` and `para-1356`; the third in the script's count is the normal restart after Section (b)). They are **flagged** `needs_review = Yes` with the note "Word list restarted here; the Diary numbers this group continuously.", as originally agreed (default D-a, pending your confirmation). This takes the totals to 259 flagged Items and 261 review-marked records. |
 | 20 | "(a)", "(b)" lines sitting between a "1." Sub-topic and its Items | 2 | `Ex Parte / Without Notice` and `Determining Jurisdiction` (under `Clause 12: Leave to Sue`, Topic `Letters Patent & OS Rules`) | Decided (I3, I10): imported as **Sections** (not Sub-topics, not counted as Items), flagged for review. See section 5.1 for how Items after them are numbered. |
 
-Not found at all: any other Sections, bullets, nested Items, tables, images, footnotes, headings with their own sub-numbering, Heading 2 lines without numbering, and Items deeper than level 0.
+Not found at all: any other Sections, bullets, nested Items (there is no such thing any more), tables, images, footnotes, headings with their own sub-numbering, Heading 2 lines without numbering, and Items deeper than level 0.
 
 ### The rule for splitting Text and Citation
 

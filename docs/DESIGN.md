@@ -14,9 +14,9 @@ Your instructions and the analysis agree:
 
 - Each **Heading 1** is a **Subject**, except **Miscellaneous**. Miscellaneous contains the Other Subjects: each Topic inside it is really a Subject and is treated as an **Other Subject** (renamed from "Other Acts" by decision D8).
 - **Sub-topics** are the numbered lists 1, 2, 3.
-- In the Word file, **Items** are numbered (i), (ii), (iii). In the Diary, Items (and Nested Items) are numbered (1), (2), (3) by default (decision D13); the importer still recognises Items by the Word file's own (i), (ii) numbering.
+- In the Word file, **Items** are numbered (i), (ii), (iii). In the Diary, Items are numbered (1), (2), (3) by default (decision D13); the importer still recognises Items by the Word file's own (i), (ii) numbering.
 - There are **no footnotes**. Footnotes are not part of the model. There are **two Sections** in the file: the two small headings `Ex Parte / Without Notice` and `Determining Jurisdiction`, which Word shows as (a) and (b) (decision I3, section 14).
-- Real counts: 41 Subjects (10 main plus 31 Other Subjects), 178 Topics under the 10 main Subjects, 323 Sub-topics, 2 Sections, 950 Items, no Nested Items, no bullets. Total text paragraphs: 11 + 209 + 323 + 2 + 950 = 1,495 (209 Heading 2 lines = 178 Topics + 31 Other Subjects).
+- Real counts: 41 Subjects (10 main plus 31 Other Subjects), 178 Topics under the 10 main Subjects, 323 Sub-topics, 2 Sections, 950 Items, no bullets (and, since round 10, no Nested Items at all). Total text paragraphs: 11 + 209 + 323 + 2 + 950 = 1,495 (209 Heading 2 lines = 178 Topics + 31 Other Subjects).
 
 ## 2. Hierarchy
 
@@ -24,7 +24,7 @@ Your instructions and the analysis agree:
 Subject            (Heading 1 in Word; Other Subjects live in the Other Subjects group)
   Topic            A, B, C
     Sub-topic      1, 2, 3
-      Item / Nested Item     (1), (2), (3)      (one shared run; restarts at (1) after each Section)
+      Item                   (1), (2), (3)      (one shared run; restarts at (1) after each Section)
       Section                bold header with its own number, e.g. (a), (b)   (no children)
       Note                   cross-reference
 ```
@@ -32,11 +32,11 @@ Subject            (Heading 1 in Word; Other Subjects live in the Other Subjects
 Rules from the specification:
 
 1. An **Item** is one proposition of law: rich text plus one single-line **Citation**.
-2. A **Nested Item** is an Item that has Items beneath it. It has its own text and Citation and is numbered like an Item. Items beneath it show **bullets only**.
+2. ~~A Nested Item is an Item that has Items beneath it.~~ **Removed in round 10 (D58).** An Item with several citations can show them on separate lines instead (section 5.3).
 3. A **Section** is a bold header line between Items. It has its own number (its own format, section 4) and no children. It acts as a grouping header **by position**: the Items that follow it, up to the next Section, are numbered afresh from (1). A Section can be marked For review like an Item (section 11).
 4. An Item may hold one or more citations (10d: the former **Multi-Item** is merged into Item). Each citation is a **Case** with its own Citation line and an optional rich-text comment. One citation shows with no label; two or more show as (a), (b), (c). "Multi-Item" is no longer a type: it is just an Item with two or more Cases.
-5. Items may sit at any level: directly under a Subject, Topic, Sub-topic or Nested Item.
-6. A container shows its **own Items, Sections and Nested Items first** (one shared order that you can change), then its **Notes**, then its **child headings** (always alphabetical, D18).
+5. Items sit under a Topic or Sub-topic (D61: an Item that would sit directly under a Subject is housed in a Topic called "1"). An Item never sits beneath another Item.
+6. A container shows its **own Items and Sections first** (one shared order that you can change), then its **Notes**, then its **child headings** (always alphabetical, D18).
 7. Numbering is **generated from position and never stored** (section 5).
 
 ### 2.1 Other Subjects: no Topic level (decided, D2; renamed by D8)
@@ -52,9 +52,9 @@ The design allows this in the simplest way:
 
 Decided: Sub-topics and Items sit directly under the Other Subject. (The alternative, a default Topic called "General", was rejected because it would show a heading you never wrote.)
 
-### 2.2 One level of nesting
+### 2.2 No nesting
 
-Nested Items go **one level deep only** (a Nested Item contains plain Items, which show bullets; an Item inside a Nested Item cannot itself be Nested or Multi). Your file has none, and this confirms the simple reading of the specification. One level is confirmed as enough (D4). If you ever need deeper nesting, it is a deliberate later change.
+~~Nested Items go one level deep only.~~ **Removed in round 10 (D58).** There are no Nested Items and no Items beneath Items. D4 (one level of nesting) is superseded.
 
 ## 3. Data model
 
@@ -77,7 +77,7 @@ The specification sketched a generic `parent_type` plus `parent_id`. A generic p
 |---|---|
 | Subtopic | `topic_id` or `subject_id` |
 | Section | `subject_id`, `topic_id`, `subtopic_id` |
-| Item | `subject_id`, `topic_id`, `subtopic_id`, `parent_item_id` (a Nested Item) |
+| Item | `subject_id`, `topic_id`, `subtopic_id` |
 | Note | `subject_id`, `topic_id`, `subtopic_id`, `item_id`, `section_id` |
 
 The database check is: "exactly one parent column is not empty". Linked records are protected by foreign keys, so nothing can point to a missing record. The screens and numbering still behave as if there were a generic parent.
@@ -96,17 +96,17 @@ The database check is: "exactly one parent column is not empty". Linked records 
 **Section**: parent (3.1), `name`, `position`, `needs_review` (Yes/No, default No), `review_note`. A Section has no children and shares one `position` sequence with the Items and Nested Items of its parent. Its number is generated, never stored (section 4). The two imported Sections are created with `needs_review = Yes` (decision I10).
 
 **Item**:
-- parent (3.1), `kind` (plain, multi, nested), `text` (rich), `text_plain` (derived), `citation` (single-line plain text), `flag` (none, overruled, doubted, other), `flag_text`, `needs_review`, `review_note`, `position`.
+- parent (3.1), `kind` (only `plain` now), `citation_layout` (`inline` or `lines`, default `inline`), `text` (rich), `text_plain` (derived), `citation` (single-line plain text), `flag` (none, overruled, doubted, other), `flag_text`, `needs_review`, `review_note`, `position`.
 - `original_line` (the exact Word paragraph, set at import, never edited) and `import_ref` (where it came from: paragraph number in the file). Both are empty for items you create by hand.
-- Rules in the database: a Nested Item's children must be plain Items (one level); the citations of a non-nested Item are held by its Cases (`Item.citation` is empty for them; a Nested Item cannot own Cases and keeps its own `citation`). `Item.kind` is only plain or nested.
+- Rules in the database: the citations of an Item are held by its Cases (`Item.citation` is empty for every Item; the column stays only so that old backups and old history can be read). `citation_layout` says how an Item with two or more citations shows them (section 5.3).
 
-**Case**: `item_id`, `citation`, `comment` (rich, optional), `position`. Allowed under any Item except a Nested Item.
+**Case**: `item_id`, `citation`, `comment` (rich, optional), `position`. Allowed under any Item. A Case may have a comment and no citation (that is how the text of an old sub-item survives).
 
 **Note**: parent (3.1), `text` (rich), `position`.
 
-**NoteLink**: `note_id`, and exactly one target column: `subject_id`, `topic_id`, `subtopic_id`, `section_id`, `item_id` (a Nested Item is an Item). Links are never removed by the system, not even when the target is in Trash.
+**NoteLink**: `note_id`, and exactly one target column: `subject_id`, `topic_id`, `subtopic_id`, `section_id`, `item_id`. Links are never removed by the system, not even when the target is in Trash.
 
-**UserSettings**: `user_id`, `opening_page`, `opening_subject_id`, the number formats for Topics, Sub-topics, **Sections**, Items, Nested Items and the citation letters (the Multi-Item citation format), `export_custom_name` (text, default `Case Law Diary`, the program's display name; D17), `export_date_format`, and the time zone used for dates (section 5.11).
+**UserSettings**: `user_id`, `opening_page`, `opening_subject_id`, the number formats for Topics, Sub-topics, **Sections**, Items and the citation letters (the Multi-Item citation format), `export_custom_name` (text, default `Case Law Diary`, the program's display name; D17), `export_date_format`, and the time zone used for dates (section 5.11).
 
 **User**: login name, password (stored only as a secure hash), `role` (Admin, Editor or Reader; default Reader; Admin is tied to `is_superuser`, exposed as `is_admin`), `is_active`. Section 9.6 has the roles.
 
@@ -155,14 +155,13 @@ Numbers are computed whenever a page or export is built, from the order of recor
 
 1. **Topics**: A, B, C within a Subject, in alphabetical order of their names (D18). Renaming a Topic can therefore change its letter.
 2. **Sub-topics**: 1, 2, 3 within a Topic (or within a Subject for Other Subjects), in alphabetical order of their names (D18). Renaming a Sub-topic can change its number.
-3. **Sections** have their own numbering format (Settings, section 5.11). **Default (owner decision D13): (a), (b), (c)**, small letters in brackets, no full stop. The brackets keep them visibly different from Topics (A, B, C without brackets) and Sub-topics (1, 2, 3). Sections are numbered in order within their parent container (a Subject, Topic, Sub-topic or Nested Item) and **restart under each parent**.
-4. **Items and Nested Items**: one shared run (1), (2), (3) within their parent (owner decision D13), **restarting at (1) after each Section**.
+3. **Sections** have their own numbering format (Settings, section 5.11). **Default (owner decision D13): (a), (b), (c)**, small letters in brackets, no full stop. The brackets keep them visibly different from Topics (A, B, C without brackets) and Sub-topics (1, 2, 3). Sections are numbered in order within their parent container (a Subject, Topic or Sub-topic) and **restart under each parent**.
+4. **Items**: one shared run (1), (2), (3) within their parent (owner decision D13), **restarting at (1) after each Section**.
    - Items that come before the first Section of a container are numbered (1), (2), ... as usual.
    - Each Section restarts the Item numbering at (1) for the Items that follow it, up to the next Section (or the end of the container).
-   - Nested Items count as Items in this run. Bullets inside Nested Items are unchanged.
    - **Notes are not counted** and come after the shared sequence.
    - The Section number, the Item numbers and the restart are all generated from position. Nothing is stored.
-5. **Items inside a Nested Item**: bullets, no numbers.
+5. ~~Items inside a Nested Item: bullets~~ (removed in round 10, D58).
 6. Every level **restarts under its parent**.
 7. **Citation letters** (the Multi-Item citation format): (a), (b), (c) when an Item has two or more citations.
 
@@ -183,7 +182,7 @@ If an Item were added before `Ex Parte / Without Notice`, it would read (1), and
 
 **Moving or deleting a Section changes the numbers of Items.** The Items after a Section belong to its run by position, so removing or moving the Section merges them into the run before it (or moves the boundary). Before a move or delete the app shows a **preview** of the affected Items, before and after numbers (for example "these 10 Items will be numbered (3) to (12) instead of (1) to (10)"), and asks for confirmation. Undo works as for any other change (section 9.1). Because numbers are generated and never stored, there is nothing to repair afterwards.
 
-Formats come from Settings (section 5.11). Format choices for Topics, Sub-topics, Items and Nested Items: A,B,C; a,b,c; 1,2,3; I,II,III; i,ii,iii; (A); (i); (a); (1); bullet; none. Sections use the same list plus one more style, **Section 1, Section 2**. Defaults: Topics A, B, C; Sub-topics 1, 2, 3; Sections (a), (b), (c); Items and Nested Items (1), (2), (3); Multi-Item citations (a), (b), (c).
+Formats come from Settings (section 5.11). Format choices for Topics, Sub-topics and Items: A,B,C; a,b,c; 1,2,3; I,II,III; i,ii,iii; (A); (i); (a); (1); bullet; none. Sections use the same list plus one more style, **Section 1, Section 2**. Defaults: Topics A, B, C; Sub-topics 1, 2, 3; Sections (a), (b), (c); Items (1), (2), (3); Multi-Item citations (a), (b), (c).
 
 **Counting past the end of the alphabet.** Letters continue the way spreadsheets do: a to z, then aa, ab, ac... az, ba, and so on (A to Z, AA, AB for capitals). This never fails.
 
@@ -202,23 +201,24 @@ Numbers appear in two places only: on screen and in the Word export. Searching a
 
 ### 5.2 Subject contents (4.2)
 - Topics are listed as a table of contents (TOC). Clicking a Topic shows its Sub-topics. For Other Subjects the Sub-topics are listed directly.
-- No TOC entries for Nested Items or Sections.
+- No TOC entries for Sections.
 - ~~Three buttons (View whole Subject, View this Topic, View this Sub-topic)~~ removed by D16; the Subject name, Topics and Sub-topics in Contents open those scopes.
 - The TOC can stay visible at the side while reading.
 - **View whole Subject renders the entire Subject in one page with no lazy loading.** This is so that the browser's own find (Ctrl or Cmd + F) works across everything. Largest Subject: Procedure at 202 Items, which is light for one page. This stays safe up to several thousand Items.
 
 ### 5.3 Reading view (4.3)
-- Item: text, then " - ", then the Citation in italics. With one citation it is shown as "Text - *Citation*" (no label). With several (10d: an Item holds one or more citations, each a Case): "Text - (a) *Citation* comment ; (b) *Citation* comment", the labels following the Multi-Item citation format setting, each Case comment (smaller, grey) following its citation. An Item with no citation shows just its text. A Nested Item keeps its own citation.
+- Item: text, then " - ", then the Citation in italics. With one citation it is shown as "Text - *Citation*" (no label). With several (10d: an Item holds one or more citations, each a Case): "Text - (a) *Citation* comment ; (b) *Citation* comment", the labels following the Multi-Item citation format setting, each Case comment (smaller, grey) following its citation. An Item with no citation shows just its text.
+- **Citations on separate lines (round 10, D59).** An Item with two or more citations has a choice, "Show citations": **Inline** (the default, as above) or **On separate lines**. On separate lines the Item's text comes first, then one line per citation, each labelled (a), (b), (c) with the same citation-letter format as inline, the comment before the citation: "(a) <comment> - *<citation>*" (no comment: "(a) *<citation>*"; no citation: the comment alone). The wrapped lines hang under the text, not under the label. A single citation always shows inline. The Word export prints the same lines (literal "(a)" text, a hanging indent).
 - A **Section** shows as a bold header line with its number (default (a), (b)); the Items below it restart at (1) and are indented under it. A Section marked For review shows the same **amber** marker and its note.
 - Items with a flag are **red** with the flag text. Items marked "For review" show an **amber** marker.
 - Notes show a link icon and "See also: Subject > Topic > ..." and are clickable.
-- Order inside any container: Items, Sections and Nested Items (one shared order), then Notes, then child headings.
+- Order inside any container: Items and Sections (one shared order), then Notes, then child headings.
 
 ### 5.4 Edit mode (4.4)
 - One toggle switches edit mode on. Reading is the default so nothing changes by accident.
 - Moving or deleting a Section first shows a preview of the Items whose numbers will change (section 4).
-- In edit mode: edit, delete, move up/down buttons and drag-to-reorder (for Sections, Items and Nested Items only; Subjects, Topics and Sub-topics are alphabetical, D18), "move via tree" (pick a new place from a tree), add Item / Nested Item / Section / child heading, rename anything.
-- Drag handles use SortableJS; **move up/down buttons always exist too** for everything that can be reordered (Sections, Items, Nested Items, and later Notes), because dragging is poor on phones and for some users.
+- In edit mode: edit, delete, move up/down buttons and drag-to-reorder (for Sections and Items only; Subjects, Topics and Sub-topics are alphabetical, D18), "move via tree" (pick a new place from a tree), add Item / Section / child heading, rename anything.
+- Drag handles use SortableJS; **move up/down buttons always exist too** for everything that can be reordered (Sections, Items and Notes), because dragging is poor on phones and for some users.
 - Rules refuse impossible moves (for example moving a Topic under an Item) and say why.
 
 ### 5.5 Item editor (4.5)
@@ -226,8 +226,7 @@ Numbers appear in two places only: on screen and in the Word export. Searching a
 - Separate single-line **Citation** box.
 - Flag selector (none, overruled, doubted, other plus short text).
 - **For review** switch with an optional note.
-- Citations: always one citation row (the main Citation box, first citation), plus "Add another citation"; each row has an optional Comment and Up, Down and Remove. Not shown for a Nested Item, which has its own single Citation.
-- **Change to** button for conversion (section 7).
+- Citations: always one citation row (the main Citation box, first citation), plus "Add another citation"; each row has an optional Comment and Up, Down and Remove. Each row has Up and Down buttons beside the drag grip (D58a). With two or more citations a "Show citations" choice (Inline / On separate lines) appears.
 - Shows **created** and **last edited** times and who.
 - Shows **History** (section 9).
 - Paste from Word keeps only bold, italic, underline.
@@ -259,7 +258,7 @@ Always visible, returns to the previous page; sensible fallback to Subjects (the
 ### 5.11 Settings (4.11)
 Per user. **As built in Milestone 4 (D30), the My settings page has: Open after login, the page to open inside the Case Law Diary, and Number formats with a Preview. The Date format is built in Milestone 6 (D49); the Custom Name is replaced by the profile's export name and the Time zone is fixed to India (D49).**
 - **Opening page** (overrides the login landing on Home, decision D15). Built as two settings: "Open after login" (`User.landing_program`: Home or Case Law Diary) and, when the Case Law Diary is chosen, "Page inside the Case Law Diary" (`UserSettings.opening_page`): Subjects (Index of Subjects), Global Search, the last page viewed, or a chosen Subject (`UserSettings.opening_subject`). The earlier idea of a separate "Other Subjects" choice is no longer offered; a stored `other_subjects` still opens the Subjects page at `#other-subjects` and is shown as Subjects. The last page is stored in `accounts.User.last_diary_path` (see D30). Code: `diary/opening.py`, `accounts/landing.py`, `DiarySettingsForm` in `diary/forms.py`.
-- **Number formats** for Topics, Sub-topics, **Sections**, Items, Items inside a Nested Item and citation letters (for an Item with several citations), each with a live preview. Built: six dropdowns (Sections also offer "Section 1, Section 2"); the Preview is a small sample Subject made by `diary/preview.py` (pure Python, uses `diary/numbering.py` and the same full stop rule `numbering.display_label` as the reading page), so it cannot drift from the real screens. It shows a Section followed by Items restarting at the first number, an Item with two citations, and a Nested Item with two children. `static/js/my-settings.js` fetches `/my-settings/preview/` when a dropdown changes; without JavaScript the Preview updates after Save. Changing formats changes display (and later Word export) only, never the stored data. **Nested Item children:** the `nested_item_format` setting is the format of the Items inside a Nested Item (default bullet); the Nested Item itself stays in the shared Items run and uses the Items format.
+- **Number formats** for Topics, Sub-topics, **Sections**, Items and citation letters (for an Item with several citations), each with a live preview. Built: six dropdowns (Sections also offer "Section 1, Section 2"); the Preview is a small sample Subject made by `diary/preview.py` (pure Python, uses `diary/numbering.py` and the same full stop rule `numbering.display_label` as the reading page), so it cannot drift from the real screens. It shows a Section followed by Items restarting at the first number, an Item with two citations. `static/js/my-settings.js` fetches `/my-settings/preview/` when a dropdown changes; without JavaScript the Preview updates after Save. Changing formats changes display (and later Word export) only, never the stored data. The `nested_item_format` setting (the format of Items inside a Nested Item) was removed in round 10 (migration 0016); the number formats are now five.
 - **Custom Name** (decision D11), **not built as a personal setting; replaced by the profile's export name (answer 8, D49)**: the text that starts every exported Word file name. Default `Case Law Diary`, following the program's display name (D17). Rules: trimmed; 1 to 60 characters; not empty after cleaning; no leading or trailing dots or spaces. Characters not allowed in file names ( \ / : * ? " < > | and control characters ) are replaced with a hyphen `-`, and repeated spaces are collapsed. A **live preview** shows the resulting file name for each export type, with a note of any replacement made (for example "':' was replaced with '-'").
 - **Date format** for file names and the export date line, **built in Milestone 6 (My settings, "Date in Word file names")**: `YYYY-MM-DD` (default, needs owner confirmation), `DD-MM-YYYY`, or `D Month YYYY`.
 - **Time zone** for "today's date" in file names: Asia/Kolkata (India, IST), fixed, not a screen choice (default, needs owner confirmation; the column `UserSettings.time_zone` exists and is used). The server itself stores times in UTC; every time shown on a screen or in a report is in IST (round 3, item 4).
@@ -275,34 +274,19 @@ Per user. **As built in Milestone 4 (D30), the My settings page has: Open after 
 - **Review list**: every Item and Section marked For review across all Subjects, with path and note. A Section appears as a header row with its number and its parent path.
 - **Trash**, **History**, **Backups (Admin only)**, **Users (Admin only)**, **Import report** (during import only).
 
-## 6. Conversions: Item and Nested Item (4.13)
+## 6. Conversions (4.13) - removed
 
-(10d: the Multi-Item type is gone, so only Item and Nested Item convert. The rows below describe the implemented behaviour.)
-
-Either can become the other. The record **keeps its ID**. A **preview is shown before every conversion** (before and after side by side), the change is recorded in history, and **Undo and history restore** bring the old form back exactly.
-
-| From | To | What happens |
-|---|---|---|
-| Item | Nested | Text stays. A single Case with no comment moves to the Nested Item's own Citation (the Case goes to Trash in a "Removed by conversion" batch). Several Cases, or any comment, become Items beneath it (comment as that Item's text, citation as that Item's Case (a)). Nothing is lost, so there is no flatten warning. |
-| Nested | Item | The Nested Item's own citation, if any, becomes Case (a). You choose: **(a) keep**: the children move to sit directly after it, keeping their own Cases; or **(b) fold**: each child becomes a Case (child text as the comment, the child's only citation as the citation); the children and their Cases go to the same Trash batch. |
-
-**Warnings and refusals (these are the resolved design points):**
-
-1. **No information is lost in a conversion any more**, so the old warning about flattening comments was removed. The old form stays in history for restore.
-2. **Nested to Item option (b), "folding", is refused** and option (a) is offered instead when any child: is a Nested Item, has a flag or For-review marker, has a Note, has several citations, or has a citation of its own as well as a Case; or when the Nested Item has Sections beside its children. (Folding would lose structure, so the app declines rather than guess.)
-3. Because only one level of nesting exists (2.2), a Nested Item with Nested children cannot arise.
-4. Converting an Item with several citations or comments to Nested: each comment becomes the child's text with its formatting preserved (rich text to rich text, no loss).
-5. A conversion that would put something in an illegal place is refused with an explanation.
+~~Conversions between Item and Nested Item.~~ **Removed in round 10 (D58).** There are no types to convert between: every Item holds its citations as Cases and chooses between the two ways of showing them (section 5.3). The old conversion screens, the "Change to" buttons, the "fold or keep" choice and the `edit_item_convert` address are gone. Old Nested Items were converted once by migration 0015 (D60).
 
 ## 7. Notes and cross-references
 
-- A Note can sit at any level or on an Item, has its own rich text, and has one or more links to Subjects, Topics, Sub-topics, Sections or Items (including Nested Items).
+- A Note can sit at any level or on an Item, has its own rich text, and has one or more links to Subjects, Topics, Sub-topics, Sections or Items.
 - Click a link to jump to the target. The target shows **"Linked from: <path>"**, so links are visible at both ends.
 - If a target is in Trash, the Note shows **"target deleted"**. The link is kept, and works again if the target is restored.
 - **Links are never silently removed.** Permanent deletion of a target that has incoming links is refused until you decide what to do with each Note (shown in a list).
 - Notes are searchable; a hit opens the Note itself in context (`#n-note-<id>`, D36).
 - **As built in Milestone 5: see D33 to D40 at the end of the decision log.**
-- **Ordering:** a Note appears after the Items/Sections/Nested Items of its parent and before child headings (decided, D5). A Note on an Item shows directly beneath that Item.
+- **Ordering:** a Note appears after the Items and Sections of its parent and before child headings (decided, D5). A Note on an Item shows directly beneath that Item.
 - Word export prints a Note as "See also: Subject > Topic > ...".
 
 ## 8. Import from Word (spec section 8)
@@ -413,7 +397,7 @@ Permissions for the planned features. **Everything except the Admin-only account
 | Export to Word: Current View | Yes (built, D48) | Yes | Yes |
 | Export to Word: Full (one file, per Subject) | No (built, D48) | Yes | Yes (even when the Admin's own role in the profile is Reader) |
 | Trash list and History (view only) | No (proposed) | Yes | Yes |
-| Edit mode: add, rename, move, reorder (Sections, Items, Nested Items), convert, flag, Notes | No | Yes | Yes |
+| Edit mode: add, rename, move, reorder (Sections, Items), flag, Notes | No | Yes | Yes |
 | Delete to Trash, Restore from Trash, Undo, restore an earlier version, conflict handling | No | Yes | Yes |
 | Permanent delete from Trash | No | No (proposed) | Yes |
 | Import from Word | No | No (proposed) | Yes |
@@ -435,7 +419,7 @@ Profiles (section 3.5) narrow every row above: a role applies only inside the us
 - **Why not normalised columns and pg_trgm** (a decision, D31, the owner can change it): there is nothing to keep in step. Every way of writing text (the editing services, the Word import, conversions, the legacy merge, backup restore, Undo, bulk creation) stays correct automatically, no database extension is needed on Render, no migration is at risk, and the whole engine is unit-tested without a database. **Upgrade path:** if the diary ever grows past about 50,000 records, add normalised columns and pg_trgm indexes behind the same `diary/search.py` interface; the screens and tests would not change.
 - **Query semantics**: the unquoted words are all required (AND); each is matched as a piece of a word. A phrase in double quotes (straight or curly) must match as whole words in sequence inside one field, so `"scc 49"` does not match `scc 490` and does not run across two fields. A record matches when every term is found in at least one of its fields (so a word in the citation and a word in the comment can satisfy one query). An unterminated quote is a phrase to the end. A query of only punctuation matches nothing.
 - **Ranking**: results where all the words are found together in one field come first, then the other matches, each group in diary order (Subjects in their sorted order, headings before content, Sections before Items at the same position, Notes after their parent, children after their Nested Item). Default; the owner can ask for something else.
-- **Filters**: Subject, Citations only (Case citations and Nested Item citations only), For review only (flagged Items and flagged Sections, including Items inside Nested Items). A filter alone with no words lists everything it selects (For review only with no words is exactly the Review list, and the Review list now uses the same code). A Subject filter alone with no words shows nothing. Section names are searchable like headings.
+- **Filters**: Subject, Citations only (Case citations only), For review only (flagged Items and flagged Sections, including Items inside Nested Items). A filter alone with no words lists everything it selects (For review only with no words is exactly the Review list, and the Review list now uses the same code). A Subject filter alone with no words shows nothing. Section names are searchable like headings.
 - **Results** show the kind of record, the full path (Subject > Topic > Sub-topic), a highlighted snippet (about 90 characters each side), the flag text in red, the review marker in amber, and the total count. Text is escaped before highlighting. Clicking opens the Subject's reading view **in context, at the record** (`read_subject` plus `#n-item-<id>`, `#n-section-<id>`, `#n-topic-<id>`, `#n-subtopic-<id>`) and the target is briefly highlighted (5.10).
 - **Paging**: the first 50 results show; "Show more" adds 50 each time, up to 1,000 (`limit` in the address). Default; the owner can change it. The search terms and filters are in the address, so Back and bookmarks work.
 - **Speed (measured)**: the unit test `diary/tests/test_searchtext.py` normalises and matches 5,000 generated records of 3 fields each in about 0.35 s on the development machine (the test asserts under 1.0 s; this was the closest to the limit, so watch it on CI). The Django test `diary/tests/test_search.py` runs `run_search` over 5,000 Items and asserts under 1.0 s, and a second test checks that the number of queries is the same for 10 and 100 Items. The whole real database is about 950 Items, so a search is expected to take a few tens of milliseconds. These figures were measured without Django or PostgreSQL; the Django test timing is first measured by GitHub CI.
@@ -457,15 +441,14 @@ There are **three types of export** (decision D10). All three follow the same ma
 | Subject | Heading 1, each on its own page, name in the page header |
 | Topic | Heading 2, lettered per Settings |
 | Sub-topic | Bold numbered line |
-| Items and Nested Items | Numbered, one shared run that **restarts at (1) after each Section** |
+| Items | Numbered, one shared run that **restarts at (1) after each Section** |
 | Sections | Bold header line carrying the Section number per Settings (default (a), (b)) |
-| Items in a Nested Item | Bullets |
 | Citation | Italic, preceded by " - " |
 | Item with several citations (formerly Multi-Item) | Text, then (a), (b) citations on the same line, comments after each; one citation has no label |
 | Note | "See also: Subject > Topic > ..." |
 | Rich text | b, i, u kept |
 | Items under a heading | Precede its child headings |
-| Order of Subjects, Topics and Sub-topics | Alphabetical, exactly as on screen (D18); Sections, Items and Nested Items keep their manual order |
+| Order of Subjects, Topics and Sub-topics | Alphabetical, exactly as on screen (D18); Sections and Items keep their manual order |
 
 **Section numbering in Word.** *As built (D43) this differs from the first plan:* the Section number **and every Item number** are written as literal text (a label, a tab, then the line, with a hanging indent), not as Word auto-numbering. The numbers are computed by `diary/numbering.py`, exactly as on screen, so the file matches the screen, cannot drift, and the restart at (1) after each Section needs no Word list overrides (which some Word versions get wrong). The cost: if you add an Item by hand in Word, Word does not renumber. The first plan (Word lists with restart overrides) is not used.
 
@@ -533,7 +516,7 @@ The export is built; the decisions are D42 to D52 at the end of this file. In sh
 | Database | PostgreSQL | Reliable, real full-text and trigram search, transactions |
 | Pages | Server-rendered, with HTMX and small amounts of JavaScript | Few moving parts; easier to keep reliable than a large front-end framework |
 | Rich text editor | TipTap, restricted to p, br, b, i, u | Matches the allowed formats exactly |
-| Drag reorder (Sections, Items, Nested Items) | SortableJS, plus move up/down buttons | Buttons guarantee phone use; headings are alphabetical (D18) |
+| Drag reorder (Sections, Items) | SortableJS, plus move up/down buttons | Buttons guarantee phone use; headings are alphabetical (D18) |
 | Word import/export | python-docx | Reads and writes .docx |
 | Search | PostgreSQL full-text plus pg_trgm on a normalised column | No extra server needed |
 | Locking | Version numbers (optimistic concurrency) | Section 9.2 |
@@ -563,7 +546,7 @@ All earlier open questions have been answered by the owner (N1 and N2 are closed
 - **D1. The combined app.** Does the entry screen with other programs already exist? *Default: build the Judgment Diary as a standalone app that can be plugged in later.* [Answer: Yes, do the Default for now] **Decision: standalone app now.**
 - **D2. Other Subjects structure** (named "Other Acts" when the owner answered; renamed by D8). Sub-topics (1, 2, 3) and Items sit directly under the Subject (no "General" Topic); an Other Subject holds either Topics or Sub-topics, not both. [Answer: Yes] **Decision: direct (section 2.1).**
 - **D3. Exporting one Other Subject on its own.** Heading 1 alone. [Answer: Yes] **Decision: confirmed.**
-- **D4. Nesting depth.** One level of Nested Items is enough. [Answer: Yes] **Decision: confirmed.**
+- **D4. Nesting depth.** One level of Nested Items is enough. [Answer: Yes] **Decision: confirmed.** (Superseded by D58: there are no Nested Items any more. Every other entry below that mentions a Nested Item, a conversion or `nested_item_format` is history and is superseded by D58 to D60.)
 - **D5. Notes ordering.** Notes after the Items of their parent and before the child headings. [Answer: Yes] **Decision: confirmed.**
 
 **Behaviour**
@@ -1062,3 +1045,11 @@ Owner's round 6 answers: "Yes to 1 and 2. Yes to 3, and also add a setting to de
 - **D56. Edit history is kept for 30 days.** [Owner: "With respect to edit history, perhaps I can only keep edit history for, say, 1 month?"] **Decision (default for the details, pending owner confirmation):** this replaces D7 and the Milestone 3 "keep all history" rule, and the original specification line "at least 20 versions". Every night, after the backup has succeeded (the same safety rule as the deleted-profile purge: it refuses if today's backup is missing or failed), `python manage.py purge_old_history` removes version rows whose change is older than `HISTORY_RETENTION_DAYS` (default 30, set in `render.yaml`). It always keeps (a) the newest version of every record, so the History page and Restore never lose the current state, and (b) every row that shares an Undo group with a row inside the window, so a recent Undo still works. The count removed is written to the Permanent removal log (a `PurgeLog` row). The History page says "Edit history is kept for 30 days" (the number follows the setting). Versions older than the window cannot be viewed or restored, but they remain in the nightly backups for their 30-plus days of retention.
 - **D56 open question for the owner.** Should the 30 days be counted from the change itself (what is built), or should the app also keep a minimum number of versions per record whatever their age? *Default: counted from the change, no minimum (apart from the newest version).*
 - **D57. Efficiency settings.** WhiteNoise hashed static file names, Gunicorn 2 workers x 2 threads recycled every 500 requests, and `clearsessions` in the nightly job (a failure there never hides a backup failure). See docs/HOSTING_AND_DEPLOY.md section 5a.
+
+- **D58. Nested Items are removed.** [Owner (round 10, item 3): "I am not able to change ‘Nested Items’ back into multi-citation items. I am getting an error asking me “Choose what happens to the Items beneath it: keep them as Items or fold them into Cases.” I think, the Nested Item concept is a mistake. Instead, let it simply be a design choice. So, remove the concept of ‘Nested Items’ all existing ‘Nested Items’ will be converted into regular Items, with multiple citations. The text for each sub-item in a nested item will simply be the ‘Comment’ alongside each citation. In edit, for multi-citation items, I will simply be given a choice as to whether I want to view the citations inline (which is the default), or in separate lines (similar to how nested items were to be, but with the same a, b, c… numbering as inline multiple citations, and, the ‘comment’ listed before the citation itself)"] **Decision:** supersedes D4, section 6 (conversions), M3-10, M3-19 and the Nested Item parts of 10d, D30 and D34. `Item.parent_item`, the kind "nested", the Nested Item add choice (Add form: Item | Section only; quick-add and add-after likewise), the "Change to" buttons and screen, the "More" menu entry, Items as "Move to" targets, and the `nested_item_format` setting (My settings and its preview) are all gone (migration 0016). `Item.kind` stays as a column that can only be `plain`. The importer is unchanged (your file never had a Nested Item): 41 Subjects, 178 Topics, 323 Sub-topics, 2 Sections, 950 Items (691 clean, 259 flagged), 261 review-marked, 693 citations.
+- **D58a. Re-ordering citations (round 10, item 2).** [Owner: "Multi-citation items - I am not able to re-order the citations."] **Cause and fix:** the editing card moved a row by dragging with the pointer captured on the grip; moving the row in the page releases the capture after the first step, so a drag could not finish. The drag now listens on the document. Each citation row in the card also has **Up and Down buttons** (keyboard and touch), like the Item editor page already had. The server saves the order exactly as posted, in one Undo step; tests post a swap and a three-way rotation through a client that enforces the CSRF token and check the positions and the single Undo group.
+- **D59. Citations on separate lines.** Part of the owner's words above. **Decision (defaults for the details, pending owner confirmation):** `Item.citation_layout` is `inline` (default) or `lines`. The "Show citations" choice appears in the editing card and on the Item editor page only when the Item has more than one citation (it appears as soon as a second row is added). Lines look like "(a) <comment> - *<citation>*" with the same label format as inline (the citation-letter format of My settings), hanging indent, comment first; no comment: "(a) *<citation>*"; no citation: the comment only. One citation always shows inline whatever the choice. The Word export prints the same lines as literal text (style "DiaryBullet", renamed in code to the citation line style) and the round-trip check still compares 950 of 950 Items because it ignores those lines.
+- **D60. How the old Nested Items were converted (migrations 0014 to 0016; `diary/nested_conversion.py`).** **Decision (defaults, pending owner confirmation):** the Nested Item N keeps its id, flag, review marker, Notes, links and history, and becomes a plain Item whose citations are Cases, shown on separate lines. (1) N's own citation becomes Case (a) with no comment. (2) Each sub-item in order: its own Cases move to N (same rows) and the sub-item's text is put in front of the first one's comment, "<text> - <comment>", paragraphs kept; a sub-item with no citation becomes a Case with an empty citation and the text as comment. (3) A sub-item's flag and For-review marker are written in square brackets after that comment, "[Overruled: reason]", "[For review: note]", so nothing disappears. (4) The sub-item's Notes move to N and Note links to it now point at N. (5) N is marked For review with a note saying what was folded, so you can look at each one. (6) The sub-items are not deleted: they go to Trash in a Trash batch labelled "Nested Item conversion: ...", where they can be read. A sub-item that was already in Trash stays there on its own. (7) Every changed record gets a "migrate" history row. **Safety:** all in one transaction; record counts (Items, Notes, links, Cases created) are checked before and after and any mismatch rolls everything back; the data move is a separate migration (0015) from the schema changes (0014 before, 0016 after); the reverse of 0015 is refused while any Item or Case exists (restore the "pre_migration" backup the update takes first). The same code maps an **old backup file** when it is restored (a file with Nested Items is converted before anything is written, with its Notes and links), and an **old version in History** (a Nested Item's citation becomes Case (a) on restore).
+- **D60 open question for the owner.** Is it right that the text of a sub-item that has several citations goes only on the first of them? *Default: yes.* Should the "For review" mark stay on each converted Item until you clear it? *Default: yes, so each can be checked.*
+- **D61. Items live in a Topic called "1" when they have none.** [Owner (round 10, item 6): "Any items which are not housed in a Topic will automatically be housed in a topic called \u201c1\u201d"] **Decision (defaults for the details, pending owner confirmation):** an Item or Section that is added to (the Add form, quick "+ Add", add-after), moved to ("Move to", dragging) or restored from Trash under a Subject goes into that Subject's Topic named "1" instead. The Topic is made on demand, as part of the same Undo step, and reused if it exists (a live Topic called "1" in any letter case). Topics are always alphabetical, so "1" sorts first and takes the letter A. **Data migration 0017** did the same once for the stored data: every Item and Section directly under a Subject moved into Topic "1" in the same order (after anything already in it); records in Trash move too and keep their trash state; a Subject in Trash gets a Topic "1" in Trash with it; every moved record has a "migrate" history row and a version bump; counts are checked inside the transaction and any mismatch rolls it back; the reverse is refused while any Item or Section exists. An old backup file is mapped the same way when restored (`diary/topic_one.py`). **Left as it is:** a Subject that holds Sub-topics directly (the Other Subjects) cannot also hold Topics (section 2.1), so its Items stay directly under it. In the real Word file (checked with the import plan, no database): 17 Items sit directly under 9 Subjects, none of them Subjects with Sub-topics, so all 17 are housed (in 9 new Topics "1"); 22 Subjects hold Sub-topics directly and have no loose Item. Notes are not moved: a Note on a Subject is a note about the Subject itself. A fresh Word import still puts Items exactly where the file does (the import figures are unchanged); run `python manage.py house_loose_items` after such an import, and the import reconciliation keeps matching because it counts a housed Item as sitting under its Subject. There is no special display for Topic "1": it is an ordinary Topic.
+- **D61 open questions for the owner.** (1) Should Notes that sit on a Subject also go into Topic "1"? *Default: no, they stay on the Subject.* (2) Should the Word import house the loose Items itself? *Default: no, so the import stays a faithful copy of the file; use the command.* (3) The Subjects that hold Sub-topics directly keep loose Items under the Subject. *Default: none exist in your file.*

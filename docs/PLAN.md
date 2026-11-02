@@ -1,5 +1,7 @@
 # Judgment Diary: Milestone Plan
 
+> **Round 10 note:** every mention of Nested Items, conversions or `nested_item_format` in the milestone notes below is history. Nested Items were removed (D58 in `docs/DESIGN.md`); see "Round 10 (part 1)" at the end.
+
 Each milestone ends with something you can open and check, and it is deployed before the next begins. Nothing moves on until you are satisfied. The overriding rule applies at every step: no data is altered, lost or merged silently.
 
 Note: the technology (Django, PostgreSQL) is confirmed for a **standalone app** that can be plugged into a combined app later (decision D1, `docs/DESIGN.md` section 14). All earlier open questions are answered, including N1 (Sections now have their own numbering and restart the Items, D9) and N2 (the two Sections are flagged for review, I10). Four small open questions with defaults are listed at the end of `docs/DESIGN.md` section 14.
@@ -28,7 +30,7 @@ Note: the technology (Django, PostgreSQL) is confirmed for a **standalone app** 
 **Deliverable:** All record types and database rules exist. Test data (not yours yet) can be loaded. Screens: landing page with Subject tiles and the Other Subjects tile, Subject contents (TOC), the reading view with Items, Citations in italics, Multi-Items, Nested Items, Sections, flags in red, with automatic numbering and the three View buttons. Phone layout from the start. Role rules apply from the first screen: Readers, Editors and Admins can all read; the app is built with the `reader_required`, `editor_required` and `admin_required` checks from `accounts/permissions.py` (`docs/DESIGN.md` section 9.6).
 
 **How you check it:**
-- Look at a small sample Subject; confirm Topics are A, B, C; Sub-topics 1, 2, 3; Items (1), (2), (3); Nested Item bullets; Sections with their own numbering (default (a), (b)) and Item numbering restarting at (1) after each Section (the Clause 12 example: Section (a) with Items (1), (2); Section (b) with Items (1) to (10)). Moving or deleting a Section shows a preview of the Items that will renumber.
+- Look at a small sample Subject; confirm Topics are A, B, C; Sub-topics 1, 2, 3; Items (1), (2), (3); Sections with their own numbering (default (a), (b)) and Item numbering restarting at (1) after each Section (the Clause 12 example: Section (a) with Items (1), (2); Section (b) with Items (1) to (10)). Moving or deleting a Section shows a preview of the Items that will renumber.
 - Open a sample Other Subject and confirm it shows Sub-topics and Items directly.
 - Sign in as a Reader and as an Editor and confirm both can read everything they are meant to see (Milestone 1 screens are read-only for everyone).
 - Open on your phone: no sideways scrolling, text is easy to read, Contents button works.
@@ -66,7 +68,7 @@ Note: the technology (Django, PostgreSQL) is confirmed for a **standalone app** 
 
 **Status: sub-releases 3a to 3d are built; code written and reviewed, the JavaScript checked in headless Chromium on mock pages, not yet run against Django (GitHub CI is the first real run). 3a: service layer (`diary/services/`, migration `0009_trash_batches_undo_groups`, backup registry, `diary/tests/test_services_*.py`). 3b: Edit mode for Subjects, headings, Sections, Items and Nested Items (`diary/views_edit.py`, `static/js/edit-mode.js`). 3c: Item editor with a vanilla rich text box, Cases, flags, For review, Change to with preview, one-click review marker (`diary/views_item.py`, `static/js/richtext-editor.js`, `static/js/item-editor.js`). 3d: Trash with restore and permanent delete (`diary/views_trash.py`), version History for every record type and Undo (`diary/views_history.py`, `diary/undo_session.py`), and the conflict screen with keep mine / keep theirs / edit and merge (`diary/conflicts.py`); tests in `diary/tests/test_views_trash_history.py`. Deviation: TipTap and SortableJS could not be installed, so both are vanilla JavaScript. Decisions M3-1 to M3-26 in `docs/DESIGN.md` are defaults, not confirmed by the owner.**
 
-**Deliverable:** Everything for changing data: edit mode toggle, add, rename, delete, move up/down and drag reorder (Sections, Items and Nested Items only; Subjects, Topics and Sub-topics are alphabetical, D18), move via tree, the Item editor (rich text, Citation box, flags, For review, Cases), Trash with cascade and restore, permanent delete with double confirmation, version history (20 or more per Item), Undo, clash detection (both versions shown), and conversions with preview and refusal rules. **Role enforcement:** edit mode, delete, restore from Trash, Undo, history restore, conversions and conflict handling need Editor or Admin (server-side, not only hidden buttons); permanent delete needs Admin; Readers see no edit controls (`docs/DESIGN.md` section 9.6). **Profiles:** edits, Trash, history and Undo act only inside the user's profile; moves and links never cross profiles.
+**Deliverable:** Everything for changing data: edit mode toggle, add, rename, delete, move up/down and drag reorder (Sections and Items only; Subjects, Topics and Sub-topics are alphabetical, D18), move via tree, the Item editor (rich text, Citation box, flags, For review, Cases), Trash with cascade and restore, permanent delete with double confirmation, version history (20 or more per Item), Undo, clash detection (both versions shown), and conversions with preview and refusal rules. **Role enforcement:** edit mode, delete, restore from Trash, Undo, history restore, conversions and conflict handling need Editor or Admin (server-side, not only hidden buttons); permanent delete needs Admin; Readers see no edit controls (`docs/DESIGN.md` section 9.6). **Profiles:** edits, Trash, history and Undo act only inside the user's profile; moves and links never cross profiles.
 
 **How you check it:**
 - Edit an item with bold and italic; paste from Word and see only bold, italic, underline survive.
@@ -81,8 +83,7 @@ Note: the technology (Django, PostgreSQL) is confirmed for a **standalone app** 
 - Sign in as a Reader: there is no Trash entry in the menu and the Trash and History addresses give a 403 page.
 - Trash: delete a Topic, delete one of its Items first (before the Topic), then restore only that Item: the page offers to restore the Topic too. Create a new Topic with the same name as a deleted one and restore the deleted one: you are asked for a new name.
 - Add a second citation to an Item (Add another citation), give one a comment, save, and check the reading view shows (a), (b) with the comment after its citation in smaller grey text.
-- Convert an Item to Nested and back; see the preview each time (nothing is lost, so there is no flattening warning).
-- Try to fold a Nested Item that has a child with several citations: it should refuse and offer the other choice.
+- (Removed in round 10: there are no Nested Items and no conversions.)
 
 **Risks:**
 - Biggest milestone and where data loss bugs would hide. Mitigation: split into sub-releases (edit, then Trash, then history and Undo, then conversions), each tested with a backup beforehand.
@@ -103,7 +104,7 @@ Note: the technology (Django, PostgreSQL) is confirmed for a **standalone app** 
 - Click a result: you land on the record in the reading view and it flashes briefly. Press Alt+G on any page: the search box is focused.
 - The header search box appears on reading pages (not on the Search or Index of Subjects pages) and wraps cleanly on a phone.
 - Time it: results should appear in under a second.
-- Mark an Item For review with one click; see it in the Review list. Do the same for a Section and for an Item inside a Nested Item; each appears in the Review list, and "Search within these" shows the same records.
+- Mark an Item For review with one click; see it in the Review list. Do the same for a Section; each appears in the Review list, and "Search within these" shows the same records.
 - My settings: choose each opening page (Subjects, Global Search, the last page I viewed, a chosen Subject), sign in again and also visit `/` directly; `?home=1` still reaches Home.
 - Change Items to (a), (b), (c) (the default is (1), (2), (3)) and watch the Preview, then Save and check the reading page: the screens change, the stored data does not. Change the Sections format (for example "Section 1, Section 2"). Check Items inside a Nested Item (bullets by default). "Use the standard formats" resets the dropdowns. Try it on a phone.
 - There is no Custom Name or date format screen yet (Milestone 6).
@@ -218,7 +219,7 @@ Done (follow-up): Back and Forward are arrow-only icon buttons; "All" moved to t
 
 ## Round 7 (alphabetical headings)
 
-Subjects, Topics and Sub-topics are always shown alphabetically; reordering by hand is kept for Sections, Items and Nested Items only. The Word order stays stored and unused so it can be switched back. Decision D18 in `docs/DESIGN.md`. Built and tested by reading only; the Django tests await CI.
+Subjects, Topics and Sub-topics are always shown alphabetically; reordering by hand is kept for Sections and Items only. The Word order stays stored and unused so it can be switched back. Decision D18 in `docs/DESIGN.md`. Built and tested by reading only; the Django tests await CI.
 
 ### Round 7, item 3: click a heading instead of the All tick
 
@@ -239,8 +240,8 @@ Owner question (default stands unless you say otherwise): should the Contents bu
 Owner check list (try on the real site):
 1. Switch Edit on from the bar; move to another page and back: it should stay on in the same tab. Done turns it off.
 2. Every row has just "+ Add" and "Edit". On a phone they are big enough to tap.
-3. "+ Add" under an Item: add an Item, press Enter, the next blank form opens. Try a Nested Item, a Section, a Topic and a Sub-topic.
-4. "Edit" on an Item: change the text, citations (drag a grip), flag, For review, then Save; also More: Move up, Change to Nested Item, History, Delete then Undo.
+3. "+ Add" under an Item: add an Item, press Enter, the next blank form opens. Try a Section, a Topic and a Sub-topic.
+4. "Edit" on an Item: change the text, citations (drag a grip), flag, For review, then Save; also More: Move up, History, Delete then Undo.
 5. "Edit" on a Topic: only the name (no explanatory text) and More.
 6. Open the same Item in two windows and save in both: the second should show the clash message and link.
 
@@ -258,3 +259,16 @@ Round 8 item 2 a and b (D25 in `docs/DESIGN.md`): the Subjects page is now "Home
 Round 8 manual test needed: the Move to... flow (`postPlain` in `static/js/edit-mode.js`) has only a source-text test and the server-side strict-CSRF tests, no behavioural JS test. Before release, try Move to... once in a real browser (card, picker, confirm) and check it no longer shows "security check did not pass".
 
 Round 9 (D26 to D29 in `docs/DESIGN.md`): Read Whole Subject link; Profile Display Name; unknown addresses redirect with 302 ("temporary 301" read as temporary); Edit button redesigned (quiet link, pill, top strip). Owner questions with defaults: Display Name on the Home button (yes); also make the renamed-address redirects temporary (no). Needs a real-browser look: the strip and pill at desktop and phone widths, and that Undo in the strip updates after an inline edit.
+
+## Round 10 (part 1): what to check on the real site
+
+Status: built; code written, not run against Django here. GitHub CI is the first run. Decisions D56 to D61 in `docs/DESIGN.md`.
+
+1. **Efficiency (D57).** After the deploy, pages should still load their styles and scripts (the files now have hashed names). The nightly job still shows a good backup; a failed `clearsessions` never hides a failed backup.
+2. **Edit history is kept for 30 days (D56).** The History page says so. The nightly job trims older versions only after a successful backup; the newest version of every record is always kept.
+3. **Re-ordering citations (D58a).** Open an Item with two or three citations, press Edit, use the small up and down arrows (or drag the grip), Save; the order should stay. Undo should put it back in one step.
+4. **Nested Items are gone (D58 to D60).** Every old Nested Item is now an ordinary Item with several citations, shown on separate lines, marked For review with a note saying what was folded. Check a few: the sub-item text should be the comment before each citation, flags in square brackets. The old sub-items wait in the Trash under "Nested Item conversion". In the card, **Show citations: Inline / On separate lines** appears when an Item has two or more citations.
+5. **Topic "1" (D61).** Any Item that sat directly under a Subject is now in that Subject's Topic called "1".
+6. After deploying, download a backup and keep it: the update takes a "pre_migration" backup first, and the three data steps (0015, 0017 and the schema change 0016) cannot be reversed while data exists.
+
+Owner questions (defaults stand unless you say otherwise): see the "open question" lines under D56, D60 and D61.
