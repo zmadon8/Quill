@@ -20,6 +20,7 @@
       </select>
       <label class="search-check"><input type="checkbox" name="citations" value="1"{% if citations_only %} checked{% endif %}> Citations only</label>
       <label class="search-check"><input type="checkbox" name="review" value="1"{% if review_only %} checked{% endif %}> For review only</label>
+      <a class="meta" href="{% url 'review_list' %}{% if chosen_subject %}?subject={{ chosen_subject }}{% endif %}">Review list</a>
     </div>
   </form>
   {% if not searched %}

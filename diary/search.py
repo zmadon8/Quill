@@ -44,6 +44,7 @@ class SearchResult:
     needs_review: bool = False
     review_note: str = ""
     in_nested: bool = False
+    text: str = ""  # the record's whole own text (an Item's plain text, a Section's name); the Review list shortens it
     subject_id: int = 0
     score: int = 0
     order: tuple = field(default_factory=tuple)
@@ -53,11 +54,12 @@ class _Record:
     """One searchable record, before matching."""
 
     __slots__ = ("kind", "label", "place", "extra_path", "anchor", "fields", "tail", "in_nested", "flag_text",
-                 "needs_review", "review_note", "self_heading")
+                 "needs_review", "review_note", "self_heading", "text")
 
     def __init__(self, kind, label, place, anchor, fields, tail, extra_path=(), in_nested=False, flag_text="",
-                 needs_review=False, review_note="", self_heading=None):
+                 needs_review=False, review_note="", self_heading=None, text=""):
         self.kind = kind
+        self.text = text
         self.label = label
         self.place = place
         self.anchor = anchor
@@ -168,7 +170,7 @@ def _records(profile, tree, citations_only, review_only):
         record = _Record(
             "item", label, place, f"n-item-{pk}", fields, tail, in_nested=parent is not None,
             flag_text=row["flag_text"] or (_FLAG_NAMES[row["flag"]] if row["flag"] != FLAG_NONE else ""),
-            needs_review=row["needs_review"], review_note=row["review_note"])
+            needs_review=row["needs_review"], review_note=row["review_note"], text=row["text_plain"])
         record.kind = "nested" if row["kind"] == KIND_NESTED else "item"
         if citations_only and not record.fields:
             continue
@@ -186,7 +188,7 @@ def _records(profile, tree, citations_only, review_only):
             continue
         yield _Record("section", label, place, f"n-section-{row['pk']}",
                       [("section", row["name"]), ("review_note", row["review_note"])], tail,
-                      needs_review=row["needs_review"], review_note=row["review_note"])
+                      needs_review=row["needs_review"], review_note=row["review_note"], text=row["name"])
 
     if not with_notes_and_headings:
         return
@@ -258,6 +260,7 @@ def run_search(profile, query, subject_id=None, citations_only=False, review_onl
             needs_review=rec.needs_review,
             review_note=rec.review_note,
             in_nested=rec.in_nested,
+            text=rec.text,
             subject_id=place.subject.pk,
             score=score,
             order=place.order + rec.tail,

@@ -512,7 +512,9 @@ class ReviewListTests(TestCase):
         self.assertContains(resp, "Contracts (1)")
         self.assertContains(resp, "Arbitration &gt; Fraud")
         self.assertContains(resp, "whynote")
-        self.assertContains(resp, 'href="%s"' % reverse("read_topic", args=[topic.pk]))
+        item = Item.objects.get(topic=topic)
+        self.assertContains(resp, 'href="%s#n-item-%d"' % (reverse("read_subject", args=[one.pk]), item.pk))
+        self.assertContains(resp, "Open in context")
         self.assertContains(resp, 'class="col-kind"')
         resp = self.client.get(reverse("review_list"), {"subject": one.pk})
         self.assertContains(resp, "1 record ")
@@ -526,6 +528,61 @@ class ReviewListTests(TestCase):
         user = User.objects.create_user("nobody", password=PASSWORD)
         self.client.force_login(user)
         self.assertEqual(self.client.get(reverse("review_list")).status_code, 403)
+
+    def test_nested_child_section_and_anchors_are_listed_and_trash_is_not(self):
+        reader = join_main(User.objects.create_user("rita", password=PASSWORD))
+        main = main_profile()
+        subject = Subject.objects.create(profile=main, name="Arbitration", landing_position=1)
+        topic = Topic.objects.create(profile=main, subject=subject, name="Fraud")
+        nested = Item.objects.create(profile=main, topic=topic, kind="nested", text="<p>Group</p>")
+        child = Item.objects.create(profile=main, parent_item=nested, text="<p>zzchild</p>", needs_review=True)
+        section = Section.objects.create(profile=main, topic=topic, name="zzsection", needs_review=True)
+        gone = Item.objects.create(profile=main, topic=topic, text="<p>zzgone</p>", needs_review=True,
+                                   deleted_at=timezone.now())
+        dead_topic = Topic.objects.create(profile=main, subject=subject, name="Dead", deleted_at=timezone.now())
+        Item.objects.create(profile=main, topic=dead_topic, text="<p>zzunder</p>", needs_review=True)
+        dead_nested = Item.objects.create(profile=main, topic=topic, kind="nested", text="<p>Dead group</p>",
+                                          deleted_at=timezone.now())
+        Item.objects.create(profile=main, parent_item=dead_nested, text="<p>zzorphan</p>", needs_review=True)
+        self.client.force_login(reader)
+        resp = self.client.get(reverse("review_list"))
+        whole = reverse("read_subject", args=[subject.pk])
+        self.assertContains(resp, "zzchild")
+        self.assertContains(resp, "inside a Nested Item")
+        self.assertContains(resp, 'href="%s#n-item-%d"' % (whole, child.pk))
+        self.assertContains(resp, 'href="%s#n-section-%d"' % (whole, section.pk))
+        self.assertContains(resp, "2 records")
+        for text in ("zzgone", "zzunder", "zzorphan"):
+            self.assertNotContains(resp, text)
+        self.assertNotEqual(gone.pk, child.pk)
+
+    def test_review_list_and_search_for_review_only_return_the_same_records(self):
+        from diary.search import run_search
+        from diary.views import _review_rows
+
+        main = main_profile()
+        subject = Subject.objects.create(profile=main, name="Arbitration", landing_position=1)
+        topic = Topic.objects.create(profile=main, subject=subject, name="Fraud")
+        nested = Item.objects.create(profile=main, topic=topic, kind="nested", text="<p>Group</p>")
+        Item.objects.create(profile=main, parent_item=nested, text="<p>c</p>", needs_review=True)
+        Item.objects.create(profile=main, subject=subject, text="<p>i</p>", needs_review=True)
+        Section.objects.create(profile=main, topic=topic, name="s", needs_review=True)
+        Item.objects.create(profile=main, topic=topic, text="<p>not marked</p>")
+        rows = _review_rows(main)
+        results = run_search(main, "", review_only=True)
+        self.assertEqual(len(rows), 3)
+        self.assertEqual([r["url"] for r in rows], [r.url for r in results])
+
+    def test_links_between_review_list_and_search(self):
+        reader = join_main(User.objects.create_user("rita", password=PASSWORD))
+        main = main_profile()
+        subject = Subject.objects.create(profile=main, name="Arbitration", landing_position=1)
+        Item.objects.create(profile=main, subject=subject, text="<p>x</p>", needs_review=True)
+        self.client.force_login(reader)
+        resp = self.client.get(reverse("review_list"), {"subject": subject.pk})
+        self.assertContains(resp, 'href="%s?review=1&amp;subject=%d"' % (reverse("search"), subject.pk))
+        resp = self.client.get(reverse("review_list"))
+        self.assertContains(resp, 'href="%s?review=1"' % reverse("search"))
 
 
 class ImportCommandTests(TestCase):

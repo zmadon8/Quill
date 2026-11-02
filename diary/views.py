@@ -20,12 +20,12 @@ from accounts.permissions import admin_required, reader_required
 from accounts.profiles import export_file_name, request_profile, request_role
 from accounts.suite import KEY_DIARY
 
-from . import locate, reading, undo_session
+from . import reading, undo_session
 from . import search as search_module
 from .forms import ProfileSettingsForm
 from .importer import loader as import_loader
 from .importer import service as import_service
-from .models import Item, Section, Subject, Subtopic, Topic
+from .models import Item, Subject, Subtopic, Topic
 from .sorting import sort_headings
 
 NO_PROFILE_MESSAGE = "No profile assigned - ask the Admin"
@@ -295,36 +295,24 @@ def healthz(request):
 
 
 def _review_rows(profile):
-    """Every live Item and Section marked For review in ``profile``, with its path (document order after import)."""
-    tree = locate.Tree.load(profile)
+    """Every live Item and Section marked For review in ``profile``, with its path (document order after import).
+
+    This is Search's "For review only" with an empty query (diary/search.py, which locates records with
+    diary/locate.py), so the two always list the same records, Items inside Nested Items included.
+    """
     rows = []
-    items = Item.objects.filter(profile=profile, needs_review=True, deleted_at__isnull=True, parent_item__isnull=True)
-    sections = Section.objects.filter(profile=profile, needs_review=True, deleted_at__isnull=True)
-    for kind, queryset, text_field in (("Item", items, "text_plain"), ("Section", sections, "name")):
-        fields = ("pk", "subject_id", "topic_id", "subtopic_id", "position", "review_note", text_field)
-        for obj in queryset.values(*fields):
-            # The one locate-record-in-tree implementation (diary/locate.py), shared with Search.
-            place = tree.place(obj["subject_id"], obj["topic_id"], obj["subtopic_id"])
-            if place is None:
-                continue  # inside a deleted parent
-            if place.subtopic is not None:
-                link = ("read_subtopic", place.subtopic.pk)
-            elif place.topic is not None:
-                link = ("read_topic", place.topic.pk)
-            else:
-                link = ("read_subject", place.subject.pk)
-            text = obj[text_field]
-            rows.append({
-                "kind": kind,
-                "subject_id": place.subject.pk,
-                "path": " > ".join(place.names),
-                "text": text if len(text) <= 160 else text[:157] + "...",
-                "note": obj["review_note"],
-                "url": reverse(link[0], args=[link[1]]),
-                "order": place.order + (obj["position"], obj["pk"]),
-            })
-    rows.sort(key=lambda r: r["order"])
-    return rows
+    for r in search_module.run_search(profile, "", review_only=True):
+        text = r.text
+        rows.append({
+            "kind": "Item, inside a Nested Item" if r.in_nested else r.kind,
+            "subject_id": r.subject_id,
+            "path": " > ".join(name for name, _url in r.path),
+            "text": text if len(text) <= 160 else text[:157] + "...",
+            "note": r.review_note,
+            "url": r.url,
+            "order": r.order,
+        })
+    return rows  # run_search already returns them in Diary order
 
 
 @profile_required
