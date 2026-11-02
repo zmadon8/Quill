@@ -13,11 +13,12 @@ from django.http import Http404
 from django.shortcuts import redirect, render
 from django.urls import reverse
 
+from . import inline
 from . import services as svc
 from .models import FLAG_CHOICES, KIND_CHOICES, KIND_NESTED, Case, Item
 from .services.core import ancestors, label
 from .services.errors import Conflict, Refused, ValidationFailed
-from .views_edit import _next, _record_id, _single_line, _version, edit_endpoint, editor_page
+from .views_edit import _json_error, _next, _record_id, _single_line, _version, edit_endpoint, editor_page, is_fetch
 
 FLAG_TEXT_MAX = 300
 KIND_NAMES = dict(KIND_CHOICES)
@@ -147,8 +148,12 @@ def _save(request, item, back):
         exc.mine = _everything_typed(values, rows, item.kind)
         raise
     except Refused as exc:
+        if is_fetch(request):
+            raise  # the guard turns it into JSON (400)
         messages.error(request, exc.message)
         return _render(request, item, back, values=values, rows=rows if with_cases else None, status=400)
+    if is_fetch(request):
+        return inline.ok(request, **inline.row_payload(request, "item", item.pk, back))
     messages.success(request, "Saved.")
     return redirect(back)
 
@@ -235,6 +240,15 @@ def item_convert(request, pk):
     to_kind = post.get("to_kind", "")
     option = post.get("option") or None
     editor = _editor_url(item, back)
+    if is_fetch(request):
+        # No preview step inline: it converts, or says why not. A conversion that needs a choice or a confirmation
+        # answers with ``needs_page`` and ``convert_url`` so the script can open the existing preview page.
+        try:
+            result = svc.convert_item(request.profile, request.user, item.pk, to_kind, _version(request), option,
+                                      accept_warnings=post.get("accept") == "1")
+        except svc.ConfirmationRequired as exc:
+            return _json_error(exc.message, 409, needs_page=True, convert_url=request.path)
+        return inline.ok(request, changed=result.changed, reload=True)
     if post.get("confirmed"):
         try:
             result = svc.convert_item(request.profile, request.user, item.pk, to_kind, _version(request), option,
@@ -285,6 +299,8 @@ def review(request):
     elif "note" in request.POST:
         changes["review_note"] = request.POST.get("note", "").strip()
     result = svc.edit(request.profile, request.user, kind, _record_id(request), changes, _version(request))
+    if is_fetch(request):
+        return inline.ok(request, changed=result.changed, **inline.row_payload(request, kind, _record_id(request), _next(request)))
     if not result.changed:
         messages.info(request, "No change.")
     else:

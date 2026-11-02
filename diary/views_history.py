@@ -8,7 +8,7 @@ from django.http import Http404
 from django.shortcuts import redirect, render
 from django.urls import reverse
 
-from . import legacy_merge
+from . import inline, legacy_merge
 from . import services as svc
 from . import undo_session
 from .conflicts import plain
@@ -16,7 +16,7 @@ from .services.core import MODELS, Ctx, get_record, label
 from .services.errors import NameClash, NotFound, UndoWarning
 from .services.moves import NICE
 from .services.records import EDITABLE
-from .views_edit import _next, _record_id, _version, edit_endpoint, editor_get
+from .views_edit import _json_error, _next, _record_id, _version, edit_endpoint, editor_get, is_fetch
 
 #: Columns that say where a record is or how it was made, not what it says: shown last in a snapshot.
 BOOKKEEPING = ("id", "profile_id", "version", "created_at", "updated_at", "created_by_id", "updated_by_id",
@@ -151,15 +151,24 @@ def undo(request):
     """Undo one action of this session (the newest unless ``group`` says which). A changed record asks first."""
     wanted = undo_session.parse(request.POST.get("group", ""))
     if wanted is None or str(wanted) not in undo_session.groups(request):
+        if is_fetch(request):
+            return _json_error("There is nothing to undo.")
         messages.error(request, "There is nothing to undo.")
         return redirect(_next(request))
     try:
         svc.undo_group(request.profile, request.user, wanted, force=request.POST.get("force") == "1")
     except UndoWarning as exc:
+        if is_fetch(request):
+            # Records changed since: the script sends the same form without the fetch header to get the confirm page.
+            return _json_error(exc.message, 409, needs_page=True, undo_url=request.path)
         return _undo_page(request, exc, wanted)
     except NameClash as exc:
+        if is_fetch(request):
+            return _json_error(f"Undo stopped: the name {exc.name!r} is used by another record now. Nothing was changed.")
         messages.error(request, f"Undo stopped: the name {exc.name!r} is used by another record now. Nothing was changed.")
         return redirect(_next(request))
     undo_session.forget(request, wanted)
+    if is_fetch(request):
+        return inline.ok(request, undone=True, reload=True)
     messages.success(request, "Undone.")
     return redirect(_next(request))

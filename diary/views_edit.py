@@ -15,6 +15,7 @@ from django.urls import reverse
 from django.utils.html import escape, strip_tags
 from django.utils.http import url_has_allowed_host_and_scheme
 
+from . import inline
 from . import services as svc
 from . import undo_session
 from .conflicts import conflict_page
@@ -90,13 +91,17 @@ def _guarded(methods):
             if request.method not in methods:
                 return HttpResponseNotAllowed(list(methods))
             with svc.action_group() as group:
+                request.undo_group = group
                 try:
                     response = view(request, *args, **kwargs)
                 except NotFound as exc:
                     raise Http404(exc.message)
                 except Conflict as exc:
                     if is_fetch(request):
-                        response = _json_error("Someone else changed this just now. Reload the page and try again.", 409)
+                        # ``conflict_url``: send the same form again to it without the fetch header and the existing
+                        # conflict screen (keep mine / keep theirs / edit and merge) is the answer.
+                        response = _json_error("Someone else changed this just now.", 409, conflict=True,
+                                               conflict_url=request.path)
                     else:
                         response = _conflict(request, exc)
                 except ServiceError as exc:
@@ -177,13 +182,13 @@ AFTER_CHOICES = {
 }
 
 
-def _after(source):
+def _after(source, name="after", kinds=AFTER_KINDS):
     """('item', 5) from 'item:5' in ``source`` (the form or the address), or None when there is none."""
-    value = source.get("after", "")
+    value = source.get(name, "")
     if not value:
         return None
     kind, _, pk = value.partition(":")
-    if kind not in AFTER_KINDS or not pk.isdigit():
+    if kind not in kinds or not pk.isdigit():
         raise Http404("Unknown place.")
     return kind, int(pk)
 
@@ -211,6 +216,25 @@ def _is_nested_child(request, after):
     """True when the Item named by ``after`` sits inside a Nested Item (only Items may follow it)."""
     record = get_record(Ctx(request.profile, request.user), after[0], after[1], lock=False)
     return bool(getattr(record, "parent_item_id", None))
+
+
+def _choice(request):
+    """The inline form's choice: {'what', 'after', 'parent'} from ``ref`` ('item:5') and ``choice`` ('after:nested'), or None.
+
+    The choice must be one the row offers (``inline.add_choices``), so the server, not the browser, decides what can be
+    added where. ``inside`` choices go first inside the row; ``after`` choices go directly after it.
+    """
+    value = request.POST.get("choice", "")
+    if not value:
+        return None
+    ref = _after(request.POST, "ref", kinds=EDIT_KINDS)
+    if ref is None:
+        raise Http404("Unknown place.")
+    record = get_record(Ctx(request.profile, request.user), ref[0], ref[1], lock=False)
+    if value not in dict(inline.add_choices(request.profile, ref[0], record)):
+        raise ServiceError("That cannot be added in that place.")
+    mode, _, what = value.partition(":")
+    return {"what": what, "after": ref if mode == "after" else None, "parent": ref if mode == "inside" else None}
 
 
 def _expected(request, name):
@@ -264,18 +288,21 @@ def add(request):
     if request.method == "GET":
         return _add_page(request)
     post = request.POST
-    what = post.get("what", "")
+    choice = _choice(request)
+    what = choice["what"] if choice else post.get("what", "")
     if what not in ADDABLE:
         raise ServiceError("Choose what to add.")
     kind, extra = ADDABLE[what]
     parent, index = None, None
-    after = _after(post)
-    if after:
+    after = choice["after"] if choice else _after(post)
+    if choice and choice["parent"]:
+        parent, index = choice["parent"], 0
+    elif after:
         allowed = AFTER_CHOICES[after[0]]
         if what not in allowed or (after[0] == "item" and what != "item" and _is_nested_child(request, after)):
             raise ServiceError("That cannot be added in that place.")
         _, parent, index = _place_after(request, after, _expected(request, "after_version"))
-    else:
+    elif not choice:
         if post.get("parent_type"):
             parent = (post.get("parent_type"), _record_id(request, "parent_id"))
         if parent and post.get("first") == "1":
@@ -293,21 +320,41 @@ def add(request):
         fields["name"] = name
     if kind == "subject":
         fields["show_on_landing"] = post.get("landing", "1") == "1"
+    cases = []
     if kind == "item":
         # The script sends cleaned HTML (text_format=html); without it the box is plain typed text.
         text = sanitise_html(typed) if post.get("text_format") == "html" else _html(typed)
         # A citation belongs to Items and Nested Items only; it is ignored for anything else.
         citation = _single_line(post.get("citation", ""))
-        if not plain_text(text).strip() and not citation:
+        if extra.get("kind") != "nested":
+            # The inline form can send several citations (case_citation / case_comment, in order); they become the Cases of the new Item.
+            cases = _new_cases(post)
+            if cases:
+                citation = ""
+        if not plain_text(text).strip() and not citation and not cases:
             raise ServiceError("Type the Item text (or a citation) first.")
         fields.update(text=text, citation=citation)
     result = svc.create(request.profile, request.user, kind, parent=parent, index=index if index is not None else _index(request), **fields)
+    for number, case in enumerate(cases):
+        svc.create(request.profile, request.user, "case", parent=("item", result.record.pk), index=number, **case)
     if is_fetch(request):
         record = result.record
-        return JsonResponse({"ok": True, "kind": kind, "id": record.pk, "version": record.version,
-                             "after": f"{kind}:{record.pk}"})
+        payload = inline.row_payload(request, kind, record.pk, _next(request)) if kind in ("item", "section") else {"reload": True}
+        return inline.ok(request, kind=kind, id=record.pk, version=record.version, after=f"{kind}:{record.pk}", **payload)
     messages.success(request, f"Added the {ADD_NICE.get(what, NICE[kind])}.")
     return redirect(_next(request))
+
+
+def _new_cases(post):
+    """[{'citation', 'comment'}] from the parallel lists case_citation / case_comment; rows with neither are dropped."""
+    comments = post.getlist("case_comment")
+    rows = []
+    for number, citation in enumerate(post.getlist("case_citation")):
+        citation = _single_line(citation)
+        comment = comments[number] if number < len(comments) else ""
+        if citation or comment.strip():
+            rows.append({"citation": citation, "comment": comment})
+    return rows
 
 
 @edit_endpoint
@@ -317,7 +364,17 @@ def rename(request):
         messages.error(request, "Items are changed in the Item editor, not renamed here.")
         return redirect(_next(request))
     name = _single_line(request.POST.get("name", ""))
-    result = svc.edit(request.profile, request.user, kind, _record_id(request), {"name": name}, _version(request))
+    changes = {"name": name}
+    if kind == "section" and request.POST.get("review_form") == "1":
+        # The Section card has the For review switch and note next to the name: one save, one Undo step.
+        marked = request.POST.get("needs_review") == "1"
+        changes.update(needs_review=marked, review_note=request.POST.get("review_note", "").strip() if marked else "")
+    result = svc.edit(request.profile, request.user, kind, _record_id(request), changes, _version(request))
+    if is_fetch(request):
+        # A new name can change the alphabetical place and the Contents panel, so the script reloads the page.
+        if kind == "section":
+            return inline.ok(request, changed=result.changed, **inline.row_payload(request, kind, result.record.pk, _next(request)))
+        return inline.ok(request, changed=result.changed, reload=True)
     messages.success(request, "Renamed." if result.changed else "The name was already that.")
     return redirect(_next(request))
 
@@ -345,6 +402,17 @@ def _changes_page(request, title, action, fields, preview, lead, confirm_label, 
 def delete(request):
     """Move to Trash. The first POST shows what will happen; the second (confirmed=1) does it."""
     kind, record_id = _kind(request), _record_id(request)
+    if is_fetch(request):
+        # The inline Edit card says "goes to Trash, Undo available", so there is no second step: the answer carries the
+        # Undo step. Items and Sections are removed from the page by the script (``element``) and the numbers refreshed.
+        result = svc.delete(request.profile, request.user, kind, record_id, _version(request))
+        payload = {"deleted": result.changed, "count": result.info.get("count", 1)}
+        if kind in ("item", "section"):
+            payload["element"] = f"row-n-section-{record_id}" if kind == "section" else f"n-item-{record_id}"
+            payload.update(inline.labels_payload(request, kind, record_id))
+        else:
+            payload["reload"] = True
+        return inline.ok(request, **payload)
     if not request.POST.get("confirmed"):
         preview = svc.preview_delete(request.profile, request.user, kind, record_id)
         obj = get_record(Ctx(request.profile, request.user), kind, record_id, lock=False)
@@ -385,10 +453,12 @@ def move(request):
     direction = request.POST.get("direction", "")
     if direction in ("up", "down"):
         result = svc.shift(request.profile, request.user, kind, record_id, -1 if direction == "up" else 1, version)
+        if is_fetch(request):
+            return inline.ok(request, changed=result.changed, reload=True)
         messages.success(request, "Moved." if result.changed else "It is already at the end of the list.")
         return redirect(_next(request))
     parent, index = _parent(request), _index(request)
-    if not request.POST.get("confirmed"):
+    if not request.POST.get("confirmed") and not is_fetch(request):
         preview = svc.preview_move(request.profile, request.user, kind, record_id, parent, index)
         obj = get_record(Ctx(request.profile, request.user), kind, record_id, lock=False)
         extra = {"confirmed": "1", "parent": request.POST.get("parent", ""), "index": request.POST.get("index", "")}
@@ -397,6 +467,8 @@ def move(request):
             lead += " No numbers change."
         return _changes_page(request, "Move", reverse("edit_move"), _fields(request, **extra), preview, lead, "Move")
     result = svc.move(request.profile, request.user, kind, record_id, parent, index, version)
+    if is_fetch(request):
+        return inline.ok(request, changed=result.changed, **inline.labels_payload(request, kind, record_id))
     messages.success(request, "Moved." if result.changed else "It is already there.")
     return redirect(_next(request))
 

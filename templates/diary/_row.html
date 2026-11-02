@@ -1,0 +1,2 @@
+{# One Item (with the Items inside it and its Notes) or one Section, as the reading page draws it. Used for the HTML the inline Edit endpoints send back (diary/inline.py row_payload). #}
+{% if b.kind == "section" %}{% include "diary/_section.html" %}{% else %}{% include "diary/_item.html" %}{% endif %}

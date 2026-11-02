@@ -1,0 +1,3 @@
+{% load diary_tags %}<div class="section-row" id="row-{{ b.anchor }}"><div class="section-header{% if b.needs_review %} review{% endif %}" id="{{ b.anchor }}"><strong><span class="num">{{ b.label|dotted }}</span>{% if b.name %} {{ b.name }}{% endif %}</strong>{% if b.needs_review %} <span class="review-marker">For review{% if b.review_note %}: {{ b.review_note }}{% endif %}</span>{% endif %}{% if can_edit and not edit_mode %} {% include "diary/_add_here.html" with ahkind="section" ahid=b.id ahversion=b.version ahrun=b.run ahclass="add-here-read" %}{% endif %}</div>
+{% include "diary/_edit_bar.html" with ekind="section" eid=b.id eversion=b.version ename=b.name eanchor=b.anchor erun=b.run erename=True eadd=False ereview=b.needs_review enote=b.review_note %}
+</div>

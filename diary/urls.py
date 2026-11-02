@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views, views_edit, views_history, views_item, views_trash
+from . import views, views_edit, views_history, views_inline, views_item, views_trash
 
 # Mounted at /caselaw/ by config/urls.py. No app namespace: URL names stay global so every {% url %} and reverse() is unchanged.
 urlpatterns = [
@@ -14,6 +14,8 @@ urlpatterns = [
     path("review/", views.review_list, name="review_list"),
     path("import/", views.import_word, name="import_word"),
     path("edit/add/", views_edit.add, name="edit_add"),
+    path("edit/inline/add/", views_inline.add_form, name="edit_inline_add"),
+    path("edit/inline/card/", views_inline.edit_card, name="edit_inline_card"),
     path("edit/rename/", views_edit.rename, name="edit_rename"),
     path("edit/delete/", views_edit.delete, name="edit_delete"),
     path("edit/move/", views_edit.move, name="edit_move"),

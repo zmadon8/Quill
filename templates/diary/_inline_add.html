@@ -1,0 +1,34 @@
+{# The "+ Add" form that opens under a row in Edit mode (docs/DESIGN.md Edit mode, mockups 3 and 3b). Context: ref ("item:5"), ref_version, title, choices [(value, label)], default, citation_whats, fallback (address of the full Add page), next_url. The script posts the form to edit_add with the header X-Requested-With: fetch; without the script the button is the link to the full Add page. #}
+<form method="post" action="{% url 'edit_add' %}" class="addform" role="group" aria-label="{{ title }}" data-inline-add data-fallback="{{ fallback }}" data-citation-whats="{{ citation_whats }}">
+  {% csrf_token %}
+  <input type="hidden" name="ref" value="{{ ref }}">
+  <input type="hidden" name="after_version" value="{{ ref_version }}">
+  <input type="hidden" name="next" value="{{ next_url }}">
+  <input type="hidden" name="text_format" value="html" data-add-format>
+  <p class="form-title">{{ title }}</p>
+  <div class="fld">
+    <span class="field-label">What are you adding?</span>
+    <div class="seg" role="radiogroup" aria-label="Type">
+      {% for value, text in choices %}<label class="seg-option"><input type="radio" name="choice" value="{{ value }}" data-what="{{ value|cut:'after:'|cut:'inside:' }}"{% if value == default %} checked{% endif %}><span>{{ text }}</span></label>{% endfor %}
+    </div>
+  </div>
+  <div class="fld" data-add-text>
+    <span class="field-label" id="add-text-label-{{ ref }}">Text</span>
+    <div class="rt" data-richtext data-add-rich>
+      <textarea class="rt-source" name="text" rows="3" aria-labelledby="add-text-label-{{ ref }}"></textarea>
+    </div>
+  </div>
+  <div class="fld" data-add-citations>
+    <span class="field-label">Citation</span>
+    <ul class="cite-list" data-cite-list>
+      <li class="cite-row" data-cite-row>
+        <input type="text" name="case_citation" maxlength="1000" placeholder="Case name [(2020) 1 SCC 1]" aria-label="Citation" data-add-citation>
+        <input type="text" name="case_comment" class="c2" placeholder="Comment (optional)" aria-label="Comment (optional)" data-add-comment>
+      </li>
+    </ul>
+    <button type="button" class="linkish" data-cite-add>+ another citation</button>
+  </div>
+  <div class="form-buttons"><button type="submit" class="primary">Save</button><button type="button" data-inline-cancel>Cancel</button></div>
+  <p class="kbd-hint">Enter saves and opens the next one &middot; Shift+Enter new line &middot; Esc closes</p>
+  <p class="form-error" role="alert" data-form-error hidden></p>
+</form>
