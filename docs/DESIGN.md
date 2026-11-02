@@ -36,7 +36,7 @@ Rules from the specification:
 3. A **Section** is a bold header line between Items. It has its own number (its own format, section 4) and no children. It acts as a grouping header **by position**: the Items that follow it, up to the next Section, are numbered afresh from (1). A Section can be marked For review like an Item (section 11).
 4. An Item may hold one or more citations (10d: the former **Multi-Item** is merged into Item). Each citation is a **Case** with its own Citation line and an optional rich-text comment. One citation shows with no label; two or more show as (a), (b), (c). "Multi-Item" is no longer a type: it is just an Item with two or more Cases.
 5. Items may sit at any level: directly under a Subject, Topic, Sub-topic or Nested Item.
-6. A container shows its **own Items, Sections and Nested Items first** (one shared order), then its **Notes**, then its **child headings**.
+6. A container shows its **own Items, Sections and Nested Items first** (one shared order that you can change), then its **Notes**, then its **child headings** (always alphabetical, D18).
 7. Numbering is **generated from position and never stored** (section 5).
 
 ### 2.1 Other Subjects: no Topic level (decided, D2; renamed by D8)
@@ -84,14 +84,14 @@ The database check is: "exactly one parent column is not empty". Linked records 
 
 ### 3.2 Tables
 
-**Subject**: `name`, `position`, `show_on_landing` (Yes/No), plus `landing_position` and `other_acts_position` so both lists reorder independently.
+**Subject**: `name`, `position`, `show_on_landing` (Yes/No), plus `landing_position` and `other_acts_position` (the Word order of the two lists). Subjects are always shown alphabetically (D18); these stored numbers are kept but unused for display.
 - Name must not be empty.
 - **Name is unique among non-deleted Subjects**, case-insensitive. (A partial unique index: unique where `deleted_at` is empty.)
 - Restore conflict (decided, D6): if a deleted Subject is restored and a live Subject now has its name, the app does not guess. It asks you to enter a new name for the restored one (rename-on-restore), then restores. The same prompt applies if you restore a Topic whose name now duplicates a sibling (Topic names are also unique within their Subject, as the file has no repeats).
 
-**Topic**: `subject_id`, `name`, `position`. Name required.
+**Topic**: `subject_id`, `name`, `position` (the Word order, kept but unused for display; Topics are shown alphabetically, D18). Name required.
 
-**Subtopic**: `topic_id` or `subject_id` (see 3.1), `name`, `position`.
+**Subtopic**: `topic_id` or `subject_id` (see 3.1), `name`, `position` (the Word order, kept but unused for display; Sub-topics are shown alphabetically, D18).
 
 **Section**: parent (3.1), `name`, `position`, `needs_review` (Yes/No, default No), `review_note`. A Section has no children and shares one `position` sequence with the Items and Nested Items of its parent. Its number is generated, never stored (section 4). The two imported Sections are created with `needs_review = Yes` (decision I10).
 
@@ -153,8 +153,8 @@ Everything below that is marked **DEFAULT** is a choice made without the owner's
 
 Numbers are computed whenever a page or export is built, from the order of records, so moving or inserting something renumbers automatically with no stale numbers.
 
-1. **Topics**: A, B, C within a Subject.
-2. **Sub-topics**: 1, 2, 3 within a Topic (or within a Subject for Other Subjects).
+1. **Topics**: A, B, C within a Subject, in alphabetical order of their names (D18). Renaming a Topic can therefore change its letter.
+2. **Sub-topics**: 1, 2, 3 within a Topic (or within a Subject for Other Subjects), in alphabetical order of their names (D18). Renaming a Sub-topic can change its number.
 3. **Sections** have their own numbering format (Settings, section 5.11). **Default (owner decision D13): (a), (b), (c)**, small letters in brackets, no full stop. The brackets keep them visibly different from Topics (A, B, C without brackets) and Sub-topics (1, 2, 3). Sections are numbered in order within their parent container (a Subject, Topic, Sub-topic or Nested Item) and **restart under each parent**.
 4. **Items and Nested Items**: one shared run (1), (2), (3) within their parent (owner decision D13), **restarting at (1) after each Section**.
    - Items that come before the first Section of a container are numbered (1), (2), ... as usual.
@@ -195,7 +195,7 @@ Numbers appear in two places only: on screen and in the Word export. Searching a
 
 ### 5.1 Landing page (4.1)
 - Shows Subjects with `show_on_landing = Yes` as tiles, in your chosen order.
-- A fixed tile **Other Subjects** opens a list of Subjects with `show_on_landing = No`, also reorderable.
+- A fixed tile **Other Subjects** opens a list of Subjects with `show_on_landing = No`, listed alphabetically like the main list (D18).
 - Each Subject has a switch (Yes/No) to move it between the two lists.
 - The app opens on the page chosen in Settings.
 - After import: 10 Subjects on the landing page and 31 under Other Subjects.
@@ -217,8 +217,8 @@ Numbers appear in two places only: on screen and in the Word export. Searching a
 ### 5.4 Edit mode (4.4)
 - One toggle switches edit mode on. Reading is the default so nothing changes by accident.
 - Moving or deleting a Section first shows a preview of the Items whose numbers will change (section 4).
-- In edit mode: edit, delete, move up/down buttons, drag-to-reorder, "move via tree" (pick a new place from a tree), add Item / Nested Item / Section / child heading, rename anything.
-- Drag handles use SortableJS; **move up/down buttons always exist too**, because dragging is poor on phones and for some users.
+- In edit mode: edit, delete, move up/down buttons and drag-to-reorder (for Sections, Items and Nested Items only; Subjects, Topics and Sub-topics are alphabetical, D18), "move via tree" (pick a new place from a tree), add Item / Nested Item / Section / child heading, rename anything.
+- Drag handles use SortableJS; **move up/down buttons always exist too** for everything that can be reordered (Sections, Items, Nested Items, and later Notes), because dragging is poor on phones and for some users.
 - Rules refuse impossible moves (for example moving a Topic under an Item) and say why.
 
 ### 5.5 Item editor (4.5)
@@ -267,7 +267,7 @@ Per user:
 - One column, no sideways scrolling, text at least 16 px, tap targets at least 44 px.
 - TOC becomes a full-width list or a slide-over opened by a **Contents** button.
 - A sticky breadcrumb shows where you are on judgment-list pages (decision D15). Home, Subjects, Search and Back stay reachable.
-- Touch editing uses the move up/down buttons rather than dragging.
+- Touch editing uses the move up/down buttons rather than dragging (where reordering exists at all: not for headings, D18).
 - Written mobile-first so the phone layout is the base and wider screens add to it.
 
 ### 5.13 Other screens
@@ -349,8 +349,9 @@ A new Item group starts whenever the Word list changes. The importer uses this o
 1. **Dry run**: a preview (page and downloadable file) shows counts per Subject and level, clean versus flagged with reasons, the two Sections listed as flagged with their reason, and the first lines of each Topic. Nothing is saved. You approve before the real import.
 2. **Real import** is wrapped in a single database transaction: it fully succeeds or leaves nothing. Running it twice does not duplicate (each record carries its `import_ref`).
 3. **Reconciliation report** after import:
+   - a check that the **stored Word order** of records (their saved `position` numbers, not the alphabetical display order, D18) matches the file;
    - counts per level and Subject versus the file (expected: 41 Subjects, 178 Topics under main Subjects, 323 Sub-topics, 2 Sections, 950 Items, 1,495 text paragraphs, 11 blanks skipped; 691 clean and 259 flagged Items (257 imported whole + 2 list restarts); 2 flagged Sections; **261 review-marked records in all = 259 Items + 2 Sections**);
-   - a **full-text round trip**: rebuild text from the database in order and compare with the Word file line by line; target is zero differences;
+   - a **full-text round trip**: rebuild text from the database in its stored Word order and compare with the Word file line by line; target is zero differences;
    - the list of every flagged line and why;
    - the list of the 19 names changed by colon removal (original and stored form side by side), and a check that the count of generated Items under the two Sections (2 and 10) equals the count in Word's own lists (compared by Word's list ids 439 and 563, not by the importer's positions; (i), (ii) and (i) to (x) in Word; (1), (2) and (1) to (10) in the Diary; the first version of this document wrongly said 8, found by the importer when it read the file). The two list restarts (`para-1033`, `para-1356`) are the only places where the Diary's numbering differs from Word's; they are flagged.
 4. A backup ("Before import") is taken immediately before and one ("After import") immediately after; neither is removed by the automatic clean-up.
@@ -410,7 +411,7 @@ Permissions for the planned features. **Everything except the Admin-only account
 | Export to Word: Current View | Yes (proposed) | Yes | Yes |
 | Export to Word: Full (one file, per Subject) | No (proposed) | Yes | Yes |
 | Trash list and History (view only) | No (proposed) | Yes | Yes |
-| Edit mode: add, rename, move, reorder, convert, flag, Notes | No | Yes | Yes |
+| Edit mode: add, rename, move, reorder (Sections, Items, Nested Items), convert, flag, Notes | No | Yes | Yes |
 | Delete to Trash, Restore from Trash, Undo, restore an earlier version, conflict handling | No | Yes | Yes |
 | Permanent delete from Trash | No | No (proposed) | Yes |
 | Import from Word | No | No (proposed) | Yes |
@@ -456,6 +457,7 @@ There are **three types of export** (decision D10). All three follow the same ma
 | Note | "See also: Subject > Topic > ..." |
 | Rich text | b, i, u kept |
 | Items under a heading | Precede its child headings |
+| Order of Subjects, Topics and Sub-topics | Alphabetical, exactly as on screen (D18); Sections, Items and Nested Items keep their manual order |
 
 **Section numbering in Word.** The Section number is written as text in the bold header (so it cannot drift). The Items of each run (the Items before the first Section, then the Items after each Section) use their **own Word list instance with a restart override** (a separate numbering definition starting at 1 for each run), so Word restarts the numbers at (1) correctly after every Section. If any Word version is found to continue the numbers instead, the fallback is to write the Item numbers as text as well; this is checked in milestone 6.
 
@@ -520,7 +522,7 @@ Rules:
 | Database | PostgreSQL | Reliable, real full-text and trigram search, transactions |
 | Pages | Server-rendered, with HTMX and small amounts of JavaScript | Few moving parts; easier to keep reliable than a large front-end framework |
 | Rich text editor | TipTap, restricted to p, br, b, i, u | Matches the allowed formats exactly |
-| Drag reorder | SortableJS, plus move up/down buttons | Buttons guarantee phone use |
+| Drag reorder (Sections, Items, Nested Items) | SortableJS, plus move up/down buttons | Buttons guarantee phone use; headings are alphabetical (D18) |
 | Word import/export | python-docx | Reads and writes .docx |
 | Search | PostgreSQL full-text plus pg_trgm on a normalised column | No extra server needed |
 | Locking | Version numbers (optimistic concurrency) | Section 9.2 |
@@ -702,7 +704,7 @@ Everything below is a **DEFAULT, not confirmed by the owner**. The code is in `d
 - **M3-3. Trash batches.** New table `diary.TrashBatch` (id, profile, root type and id, label, created by and at) and a `delete_batch` column on every record table. Deleting a record trashes it and all its live descendants under one new batch id. Records already in Trash keep their earlier batch. Restoring a record restores that record and the part of its batch below it; an Item restored alone also brings back its own Cases and Notes. The live siblings keep their positions when something is deleted (numbers come from the order, so gaps never show); restore puts the record back before the first live sibling with a higher position and then renumbers the sequence 1 to n.
 - **M3-4. Restore edge cases.** Parent or any ancestor in Trash: `ParentInTrash` lists the chain; with `restore_parents=True` each ancestor is restored on its own (not the rest of its batch). A Subject (per profile) or Topic (per Subject) name already used by a live record: `NameClash` with a suggestion ("Name (restored)"); the caller then passes `new_name`. A Case cannot come back under an Item that is no longer a Multi-Item, nor an Item under a Nested Item that is no longer nested. A Topic cannot come back into a Subject that now holds direct Sub-topics (and the reverse).
 - **M3-5. Permanent delete.** Only for records in Trash. It is refused while any Note link from outside the deleted tree points at something in it, whether that link is live or itself in Trash; the refusal lists each link (link, Note, target, live or not). Links inside the tree go with it. The version history is never deleted. IDs are not reused (database sequences).
-- **M3-6. Positions.** Items, Nested Items and Sections of one parent share one sequence; Sections sort before Items on a tie. Notes, Cases, Topics, Sub-topics and the children of a Nested Item each have their own sequence, and Subjects use `landing_position` or `other_acts_position` by group. Create, move, reorder and restore renumber their sequence 1 to n (siblings that shift get a "reorder" history row). Moves are refused with a reason when they cross profiles, put a heading inside itself or its own contents, put a Topic or Sub-topic where the Subject holds the other kind, nest more than one level, or put a Multi-Item or Nested Item under a Nested Item.
+- **M3-6. Positions.** Items, Nested Items and Sections of one parent share one sequence; Sections sort before Items on a tie. Notes, Cases, Topics, Sub-topics and the children of a Nested Item each have their own sequence, and Subjects use `landing_position` or `other_acts_position` by group. Create, move, reorder and restore renumber their sequence 1 to n (siblings that shift get a "reorder" history row). **Exception (D18):** Subjects, Topics and Sub-topics are shown alphabetically; their stored positions are never renumbered and no sibling gets a "reorder" row for them. Moves are refused with a reason when they cross profiles, put a heading inside itself or its own contents, put a Topic or Sub-topic where the Subject holds the other kind, nest more than one level, or put a Multi-Item or Nested Item under a Nested Item.
 - **M3-7. Previews.** `preview_move` and `preview_delete` list the Items, Sections, Topics or Cases whose generated number changes (before and after, using the user's number formats), and `preview_delete` also says how many records go to Trash. Previews write nothing.
 - **M3-8. Undo groups.** Every action stamps its history rows with one `group` id (new column on VersionHistory). `undo_group` reverses the whole action by restoring each record to the version before the action (a record the action created is moved to Trash). It only reverses the user's own actions; the view layer keeps the list of group ids for the session. If a record changed after the action it raises `UndoWarning` (list of records) unless `force=True`; if another user changed it, it is refused. The undo is itself an action with its own group, so undoing it is a redo. Names are not silently changed: if the old name is taken by another live Subject or Topic, Undo stops with `NameClash` and changes nothing.
 - **M3-9. History restore.** `restore_version` copies back only the content fields (name, text, citation, flag, review marker, comment). Where a record sits and what type of Item it is are not changed; restoring a version from before a conversion is refused with an explanation (use Undo, or convert back first).
@@ -715,7 +717,7 @@ Everything below is a **DEFAULT, not confirmed by the owner**. The code is in `d
 All defaults, not confirmed by the owner.
 
 - **M3-13. Edit mode.** Edit mode is a page state, not a setting: it is on when the address has `?edit=1` and the user is an Editor of the profile (Admins follow their membership role). The reading view, the Subjects page and the Other Subjects page show an "Edit mode" / "Done editing" link only to Editors. Readers never get the controls, and every edit address returns 403 for them (also for GET), 405 for an Editor's GET, and 404 for another profile's ids or an unknown record type. Every edit is a POST with the CSRF token; the views in `diary/views_edit.py` only read the form, call `diary/services/` and redirect back to a `next` address that must be on this site (otherwise the Subjects page).
-- **M3-14. What the controls do.** Each heading, Section, Item and Subject has an edit bar: drag handle, Up, Down, "Move to...", Delete, and where they apply Rename, Add and "Move to Other Subjects / Show on landing page". Up and Down work without JavaScript; the drag handle (`static/js/edit-mode.js`, pointer events, no library) is an extra. Dropping sends the 0-based index among the other records of the same run (Items, Nested Items and Sections of one parent share a run; Topics, Sub-topics and each Subject list have their own) and the server does the renumbering. Delete and "Move to..." always show a preview page first (the numbers that change, and for Delete how many records go to Trash) and need a second press; Up, Down and drop do not, because they are small and can be undone by moving back. The tree picker lists every Subject, Topic, Sub-topic and Nested Item of the profile; places that would break a rule (itself, something below it, wrong type) are shown greyed out, and the service still refuses anything else with a message. Adding an Item here takes plain text (turned into paragraphs) and a citation; the full Item editor is sub-release 3c. Items are not renamed here.
+- **M3-14. What the controls do.** (Changed by D18: Subjects, Topics and Sub-topics no longer have the drag handle, Up or Down, and the server refuses to reorder them.) Each heading, Section, Item and Subject has an edit bar: drag handle, Up, Down, "Move to...", Delete, and where they apply Rename, Add and "Move to Other Subjects / Show on landing page". Up and Down work without JavaScript; the drag handle (`static/js/edit-mode.js`, pointer events, no library) is an extra. Dropping sends the 0-based index among the other records of the same run (Items, Nested Items and Sections of one parent share a run; Topics, Sub-topics and each Subject list have their own) and the server does the renumbering. Delete and "Move to..." always show a preview page first (the numbers that change, and for Delete how many records go to Trash) and need a second press; Up, Down and drop do not, because they are small and can be undone by moving back. The tree picker lists every Subject, Topic, Sub-topic and Nested Item of the profile; places that would break a rule (itself, something below it, wrong type) are shown greyed out, and the service still refuses anything else with a message. Adding an Item here takes plain text (turned into paragraphs) and a citation; the full Item editor is sub-release 3c. Items are not renamed here.
 - **M3-15. Stale pages.** Every edit form carries the record's version. A stale version shows a plain conflict page (HTTP 409) that says what was not saved and links back to reload; it shows what the Editor tried to save but does not offer a merge. The two-versions screen with a choice arrives with 3c/3d.
 - **M3-16. Subjects between lists.** `set_landing` in `diary/services/records.py` moves a Subject between the landing page list and Other Subjects: it goes to the end of the other list, the list it left closes up, and repeating the choice changes nothing.
 
@@ -888,3 +890,17 @@ Owner's round 6 answers: "Yes to 1 and 2. Yes to 3, and also add a setting to de
 - **`label()` query for textless Items (review 6).** Not changed: one small query per textless, citationless Item in Trash, History and Undo lists is rare and cheap; a prefetch would add code paths for no measurable gain.
 - **One-shot cookie scope (review 7).** Not changed: the cookie must be sent to the page that redirects to the Subject view, so scoping it to a path would break the "All" redirect; it lives 60 seconds and is cleared on the next load, and the worst case is one page opening ticked or unticked in another tab or profile. Revisit if it is ever seen.
 - **Verification status:** compileall, ruff (F, E9) and node syntax checks only; Django is not installable here, so the new and changed tests have not been run and must be confirmed by CI.
+
+## Round 7: alphabetical headings
+
+- **D18. Subjects, Topics and Sub-topics are always alphabetical.** [Owner: "Sort all Subjects, Topics and Sub-Topics alphabetically. Only let me re-order Sections, Items and Nested Items. Perhaps Notes too." Answers to the follow-up questions: "Yes to all."]
+  - **The rule** (`diary/sorting.py`): names are compared ignoring capitals (casefold) and accents; leading quotes, brackets, punctuation and spaces are ignored; runs of digits compare as numbers, so "S. 9" comes before "S. 11". Names that are equal after that are ordered by the full original name, then by id, so the order never flickers.
+  - **Where it applies:** the Subjects page (the main list and Other Subjects are each sorted on their own), the Contents panel, the reading views, the Move to picker and the Review list. The Word export (not built yet) must use the same order (section 12), so the on-screen order and the exported order are the same.
+  - **How it is built:** the order is computed in Python on every read. There is no sort column and no migration; with about 2,000 records it is cheap. A new, renamed, moved or restored heading simply appears where the alphabet puts it.
+  - **Stored positions are kept.** `position`, `landing_position` and `other_acts_position` of Subjects, Topics and Sub-topics keep the original Word order and are not used for display. Creating, moving, deleting and restoring never rewrite a sibling's number (a new or moved heading takes the next free number), and a heading change writes no "reorder" history rows. The importer still writes the Word positions. This keeps the way open to switch the Word order back on later.
+  - **Reordering is removed for headings.** The edit bars of Subjects, Topics and Sub-topics have no drag handle, Up or Down, and the server refuses to reorder them (Up, Down, or a drop at a place) with a message. **Move to another parent is still allowed** (a Topic to another Subject, a Sub-topic to another Topic or Subject); it lands in alphabetical order, and the preview page shows the letters or numbers that change. Choosing the parent it already has changes nothing.
+  - **Sections, Items and Nested Items keep their manual order.** Notes are also reorderable today; whether they stay so is a Milestone 5 question, since the owner wrote "Perhaps Notes too".
+  - **Numbers follow the alphabet.** Topic letters (A, B, C) and Sub-topic numbers (1, 2, 3) are generated from the alphabetical order, so renaming a Topic or Sub-topic can give it a different letter or number. History restore and Undo of a rename bring back the old name and so the old letter.
+  - **Import reconciliation** compares the stored Word order (saved positions) with the file, not the displayed order; the report line reads "Stored Word order of records (their saved positions) matches the file". The figures are unchanged: 41 Subjects, 178 Topics, 323 Sub-topics, 2 Sections, 950 Items (691 clean, 259 flagged), 261 review-marked, 693 citations.
+  - **Names that look odd on the real file** (checked by running the sort over every name in the Word file): "(a): Freedom of Expression" and "(g): Freedom of Trade and Commerce" sort under A and G because the leading bracket is ignored; "Commercial Contracts" and "Commercial contracts" are two Sub-topics of one Topic that are equal after normalising and are ordered by their full names; "Section 37" sorts after "Section 36" and before "Section 45", and "Sections 9 & 17" sorts after all the "Section N" names. No Subject starts with "The" or "Re:".
+  - **Verification status:** compileall, ruff (F, E9), node syntax checks and the Django-free unit tests (`diary.tests.test_sorting`, `test_numbering`) were run; the Django tests could not be run here (Django is not installable) and must be confirmed by CI.

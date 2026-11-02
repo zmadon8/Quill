@@ -23,7 +23,7 @@ Note: the technology (Django, PostgreSQL) is confirmed for a **standalone app** 
 
 ## Milestone 1: Data model, reading view, numbering
 
-**Status: built (models, numbering, rich text, sample data, read-only screens); code written, not yet run against Django or a phone, see `README.md`. Reordering of landing tiles is NOT in this milestone: tiles follow the stored order (name as tie-break) and the reorder controls arrive with edit mode in Milestone 3. Moving or deleting a Section with a renumbering preview also belongs to the edit milestone; Milestone 1 tests the renumbering rules themselves.**
+**Status: built (models, numbering, rich text, sample data, read-only screens); code written, not yet run against Django or a phone, see `README.md`. Reordering of landing tiles is NOT in this milestone, and now never will be: since Round 7 (D18 in `docs/DESIGN.md`) Subjects, Topics and Sub-topics are always alphabetical; only Sections, Items and Nested Items (perhaps Notes, Milestone 5) are reordered by hand. Moving or deleting a Section with a renumbering preview also belongs to the edit milestone; Milestone 1 tests the renumbering rules themselves.**
 
 **Deliverable:** All record types and database rules exist. Test data (not yours yet) can be loaded. Screens: landing page with Subject tiles and the Other Subjects tile, Subject contents (TOC), the reading view with Items, Citations in italics, Multi-Items, Nested Items, Sections, flags in red, with automatic numbering and the three View buttons. Phone layout from the start. Role rules apply from the first screen: Readers, Editors and Admins can all read; the app is built with the `reader_required`, `editor_required` and `admin_required` checks from `accounts/permissions.py` (`docs/DESIGN.md` section 9.6).
 
@@ -66,7 +66,7 @@ Note: the technology (Django, PostgreSQL) is confirmed for a **standalone app** 
 
 **Status: sub-releases 3a to 3d are built; code written and reviewed, the JavaScript checked in headless Chromium on mock pages, not yet run against Django (GitHub CI is the first real run). 3a: service layer (`diary/services/`, migration `0009_trash_batches_undo_groups`, backup registry, `diary/tests/test_services_*.py`). 3b: Edit mode for Subjects, headings, Sections, Items and Nested Items (`diary/views_edit.py`, `static/js/edit-mode.js`). 3c: Item editor with a vanilla rich text box, Cases, flags, For review, Change to with preview, one-click review marker (`diary/views_item.py`, `static/js/richtext-editor.js`, `static/js/item-editor.js`). 3d: Trash with restore and permanent delete (`diary/views_trash.py`), version History for every record type and Undo (`diary/views_history.py`, `diary/undo_session.py`), and the conflict screen with keep mine / keep theirs / edit and merge (`diary/conflicts.py`); tests in `diary/tests/test_views_trash_history.py`. Deviation: TipTap and SortableJS could not be installed, so both are vanilla JavaScript. Decisions M3-1 to M3-26 in `docs/DESIGN.md` are defaults, not confirmed by the owner.**
 
-**Deliverable:** Everything for changing data: edit mode toggle, add, rename, delete, move up/down, drag reorder, move via tree, the Item editor (rich text, Citation box, flags, For review, Cases), Trash with cascade and restore, permanent delete with double confirmation, version history (20 or more per Item), Undo, clash detection (both versions shown), and conversions with preview and refusal rules. **Role enforcement:** edit mode, delete, restore from Trash, Undo, history restore, conversions and conflict handling need Editor or Admin (server-side, not only hidden buttons); permanent delete needs Admin; Readers see no edit controls (`docs/DESIGN.md` section 9.6). **Profiles:** edits, Trash, history and Undo act only inside the user's profile; moves and links never cross profiles.
+**Deliverable:** Everything for changing data: edit mode toggle, add, rename, delete, move up/down and drag reorder (Sections, Items and Nested Items only; Subjects, Topics and Sub-topics are alphabetical, D18), move via tree, the Item editor (rich text, Citation box, flags, For review, Cases), Trash with cascade and restore, permanent delete with double confirmation, version history (20 or more per Item), Undo, clash detection (both versions shown), and conversions with preview and refusal rules. **Role enforcement:** edit mode, delete, restore from Trash, Undo, history restore, conversions and conflict handling need Editor or Admin (server-side, not only hidden buttons); permanent delete needs Admin; Readers see no edit controls (`docs/DESIGN.md` section 9.6). **Profiles:** edits, Trash, history and Undo act only inside the user's profile; moves and links never cross profiles.
 
 **How you check it:**
 - Edit an item with bold and italic; paste from Word and see only bold, italic, underline survive.
@@ -121,7 +121,7 @@ Note: the technology (Django, PostgreSQL) is confirmed for a **standalone app** 
 
 **Risks:**
 - Links across Trash and restore are subtle (mitigation: tests for each case).
-- Notes ordering is confirmed (D5): after Items, before child headings.
+- Notes ordering is confirmed (D5): after Items, before child headings. Whether Notes can be reordered by hand is a Milestone 5 question (D18).
 
 ## Milestone 6: Word export and round-trip check
 
@@ -181,6 +181,10 @@ Done (follow-up): Back and Forward are arrow-only icon buttons; "All" moved to t
 7. Set a user's landing program, sign out and in: you land there.
 8. In Edit mode (desktop) use the + beside a heading, Section or Item to add; on an Item it adds after it.
 9. Read the 10d proposal and answer the questions in DESIGN.md.
+
+## Round 7 (alphabetical headings)
+
+Subjects, Topics and Sub-topics are always shown alphabetically; reordering by hand is kept for Sections, Items and Nested Items only. The Word order stays stored and unused so it can be switched back. Decision D18 in `docs/DESIGN.md`. Built and tested by reading only; the Django tests await CI.
 
 ## Order and dependencies
 
