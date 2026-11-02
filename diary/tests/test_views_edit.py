@@ -1,10 +1,13 @@
 """Edit mode endpoints (Milestone 3b): roles, profile isolation, POST only, CSRF, each action and its renumbering."""
+import re
+
 from django.contrib.messages import get_messages
 from django.test import Client, override_settings
 from django.urls import reverse
 
 from diary import services as svc
 from diary.models import Case, Item, Section, Subject, Subtopic, Topic
+from diary.services.sequences import members
 from diary.tests.helpers import join_main
 from diary.tests.service_helpers import ServiceTestCase
 from diary.undo_session import SESSION_KEY
@@ -100,10 +103,13 @@ class AccessTests(EditViewTestCase):
         self.assertNotContains(self.client.get(reverse("subjects")), "data-edit-bar")
         self.assertContains(self.client.get(reverse("subjects") + "?edit=1"), "data-edit-bar")
         self.make("subject", name="Elsewhere", show_on_landing=False)
-        # Both lists are on the one page, each its own reorder run.
+        # Both lists are on the one page, but Subjects are alphabetical: no reorder run, no drag handle.
         resp = self.client.get(reverse("subjects") + "?edit=1")
-        self.assertContains(resp, 'data-run="subject-show-1"')
-        self.assertContains(resp, 'data-run="subject-show-0"')
+        self.assertNotContains(resp, 'data-run="subject-show-1"')
+        self.assertNotContains(resp, 'data-run="subject-show-0"')
+        self.assertNotContains(resp, "Drag to reorder")
+        self.assertNotContains(resp, 'aria-label="Move up"')
+        self.assertContains(resp, 'aria-label="Rename"')
 
     def test_next_address_must_stay_on_this_site(self):
         for bad in ("https://evil.example/", "//evil.example/x", "javascript:alert(1)"):
@@ -198,7 +204,7 @@ class AddTests(EditViewTestCase):
     def test_add_topic_and_subtopic(self):
         self.add("topic", ("subject", self.subject.pk), name="Performance")
         topic = Topic.objects.get(subject=self.subject, name="Performance")
-        self.assertEqual(topic.position, 2)
+        self.assertEqual(topic.position, 2)  # next free stored number; shown alphabetically
         self.add("subtopic", ("topic", topic.pk), name="Time")
         sub = Subtopic.objects.get(topic=topic)
         self.assertEqual((sub.name, sub.position), ("Time", 1))
@@ -361,9 +367,11 @@ class AddAfterTests(EditViewTestCase):
     def test_add_a_topic_after_a_topic(self):
         later = self.make("topic", ("subject", self.subject.pk), name="Later")
         self.add_after(self.topic, what="topic", name="Between")
-        names = list(Topic.objects.filter(subject=self.subject).order_by("position").values_list("name", flat=True))
-        self.assertEqual(names, ["Formation", "Between", "Later"])
-        self.assertEqual(self.get(later).position, 3)
+        names = [t.name for t in members(self.profile.pk, ("topic", "subject", self.subject.pk))]
+        self.assertEqual(names, ["Between", "Formation", "Later"])  # alphabetical wherever it was added after
+        self.assertEqual((self.get(self.topic).position, self.get(later).position), (1, 2))
+        self.assertEqual(Topic.objects.get(name="Between").position, 3)
+        self.assertEqual((self.get(later).version, self.get(self.topic).version), (1, 1))
 
     def test_add_inside_a_heading_at_the_end_or_first(self):
         self.post("edit_add", {"what": "item", "parent_type": "topic", "parent_id": self.topic.pk, "text": "last"})
@@ -614,13 +622,21 @@ class MoveTests(EditViewTestCase):
         self.assertEqual(self.get(self.one).version, 1)
         self.assertEqual(self.order(), ["one", "two", "S", "three", "four"])
 
-    def test_up_and_down_for_headings_and_subjects(self):
+    def test_headings_and_subjects_cannot_be_moved_up_down_or_to_an_index(self):
         topic2 = self.make("topic", ("subject", self.subject.pk), name="Second")
-        self.post("edit_move", {**self.rec(topic2), "direction": "up"})
-        self.assertEqual(self.positions([topic2, self.topic]), [1, 2])
+        sub1 = self.make("subtopic", ("topic", topic2.pk), name="Alpha")
+        sub2 = self.make("subtopic", ("topic", topic2.pk), name="Beta")
         other = self.make("subject", name="Tort")
-        self.post("edit_move", {**self.rec(other), "direction": "up"})
-        self.assertEqual((self.get(other).landing_position, self.get(self.subject).landing_position), (1, 2))
+        for obj in (topic2, sub2, other):
+            for extra in ({"direction": "up"}, {"direction": "down"}, {"index": "0", "confirmed": "1"}, {"index": "0"}):
+                resp = self.post("edit_move", {**self.rec(obj), **extra})
+                self.assertEqual(resp.status_code, 302)
+                self.assertTrue(any("alphabetically" in m for m in self.msgs(resp)), (obj, extra))
+        self.assertEqual(self.positions([self.topic, topic2]), [1, 2])
+        self.assertEqual(self.positions([sub1, sub2]), [1, 2])
+        self.assertEqual((self.get(other).landing_position, self.get(self.subject).landing_position), (2, 1))
+        for obj in (topic2, sub2, other):
+            self.assertEqual(self.get(obj).version, 1)
 
     def test_drop_at_an_index_moves_without_asking(self):
         resp = self.post("edit_move", {**self.rec(self.four), "index": "0", "confirmed": "1"})
@@ -731,10 +747,11 @@ class LandingTests(EditViewTestCase):
         self.assertRedirects(resp, self.next, fetch_redirect_response=False)
         moved = self.get(self.subject)
         self.assertEqual((moved.show_on_landing, moved.other_acts_position), (False, 1))
-        self.assertEqual(self.get(tort).landing_position, 1)
+        self.assertEqual(self.get(tort).landing_position, 2)
         self.post("edit_landing", {**self.rec(self.subject), "show": "1"})
         back = self.get(self.subject)
-        self.assertEqual((back.show_on_landing, back.landing_position), (True, 2))
+        self.assertEqual((back.show_on_landing, back.landing_position), (True, 3))  # next free stored number
+        self.assertEqual(self.get(tort).landing_position, 2)  # the list it left is not renumbered
 
     def test_stale_version_is_a_conflict(self):
         stale = self.rec(self.subject)
@@ -742,3 +759,137 @@ class LandingTests(EditViewTestCase):
         resp = self.post("edit_landing", {**stale, "show": "0"})
         self.assertEqual(resp.status_code, 409)
         self.assertTrue(self.get(self.subject).show_on_landing)
+
+
+class AlphabeticalHeadingTests(EditViewTestCase):
+    """Subjects, Topics and Sub-topics are listed alphabetically everywhere; only Sections and Items can be reordered."""
+
+    def order_in(self, html, names):
+        spots = [html.index(n) for n in names]
+        self.assertEqual(spots, sorted(spots), names)
+
+    def test_subjects_index_lists_each_group_alphabetically_with_numbers_as_numbers(self):
+        for name in ("S. 11", "S. 9", "Banana", "apple"):
+            self.make("subject", name=name)
+        for name in ("Zz 10", "Zz 2", "Mm"):
+            self.make("subject", name=name, show_on_landing=False)
+        html = self.client.get(reverse("subjects")).content.decode()
+        self.order_in(html, [">apple<", ">Banana<", ">Contract<", ">S. 9<", ">S. 11<"])
+        self.order_in(html, [">Mm<", ">Zz 2<", ">Zz 10<"])
+        self.assertLess(html.index(">S. 11<"), html.index('class="other-divider"'))
+        self.assertLess(html.index('class="other-divider"'), html.index(">Mm<"))
+
+    def test_topics_and_subtopics_are_read_alphabetically_and_lettered_in_that_order(self):
+        zed = self.make("topic", ("subject", self.subject.pk), name="Zed")
+        apple = self.make("topic", ("subject", self.subject.pk), name="Apple")
+        self.make("subtopic", ("topic", apple.pk), name="Time 10")
+        self.make("subtopic", ("topic", apple.pk), name="Time 9")
+        html = self.client.get(reverse("read_subject", args=[self.subject.pk])).content.decode()
+        self.order_in(html, ["Apple", "Formation", "Zed"])
+        self.order_in(html, ["Time 9", "Time 10"])
+        # Letters follow the alphabet: Apple is A, Formation B, Zed C.
+        from diary.services.sequences import ident, labels, members
+
+        key = ("topic", "subject", self.subject.pk)
+        objs = members(self.profile.pk, key)
+        gen = labels(key, objs, {"topic_format": "A"})
+        self.assertEqual([(gen[ident(o)], o.name) for o in objs], [("A", "Apple"), ("B", "Formation"), ("C", "Zed")])
+        self.assertEqual(self.get(zed).position, 2)
+
+    def test_adding_headings_never_touches_their_siblings(self):
+        zed = self.make("topic", ("subject", self.subject.pk), name="Zed")
+        self.add_heading("topic", name="Alpha", first="1")
+        self.add_heading("topic", name="Mid")
+        after = {"what": "topic", "name": "Beta", "after": "%s:%d" % self.ref(zed), "after_version": 1}
+        self.post("edit_add", after)
+        for obj, pos in ((self.topic, 1), (zed, 2)):
+            row = self.get(obj)
+            self.assertEqual((row.position, row.version), (pos, 1))
+            self.assertEqual(self.history_kinds(obj), ["create"])
+        names = [t.name for t in Topic.objects.filter(subject=self.subject).order_by("position")]
+        self.assertEqual(names, ["Formation", "Zed", "Alpha", "Mid", "Beta"])  # stored order = creation order
+        from diary.services.sequences import members
+
+        shown = [t.name for t in members(self.profile.pk, ("topic", "subject", self.subject.pk))]
+        self.assertEqual(shown, ["Alpha", "Beta", "Formation", "Mid", "Zed"])
+
+    def add_heading(self, what, **fields):
+        return self.post("edit_add", {"what": what, "parent_type": "subject", "parent_id": self.subject.pk, **fields})
+
+    def test_heading_edit_bars_have_no_reorder_controls_but_sections_and_items_do(self):
+        self.make("topic", ("subject", self.subject.pk), name="Second")
+        self.make("subtopic", ("topic", self.topic.pk), name="Sub")
+        html = self.client.get(self.next).content.decode()
+        found = list(re.finditer(r'data-edit-bar data-kind="(\w+)"[^>]*?data-run="([^"]*)"', html))
+        by_kind = {}
+        for i, m in enumerate(found):
+            end = found[i + 1].start() if i + 1 < len(found) else len(html)
+            by_kind.setdefault(m.group(1), []).append((m.group(2), html[m.end():end]))
+        for kind in ("subject", "topic", "subtopic"):
+            self.assertTrue(by_kind[kind], kind)
+            for run, bar in by_kind[kind]:
+                self.assertEqual(run, "", kind)
+                for text in ("Drag to reorder", "Move up", "Move down"):
+                    self.assertNotIn(text, bar, kind)
+        for kind in ("item", "section"):
+            for run, bar in by_kind[kind]:
+                self.assertNotEqual(run, "", kind)
+                for text in ("Drag to reorder", "Move up", "Move down"):
+                    self.assertIn(text, bar, kind)
+
+    def test_move_to_another_parent_lands_alphabetically_and_previews_the_new_letters(self):
+        s2 = self.make("subject", name="Torts")
+        self.make("topic", ("subject", s2.pk), name="Aaa")
+        self.make("topic", ("subject", s2.pk), name="Zzz")
+        data = {**self.rec(self.topic), "parent": f"subject:{s2.pk}"}
+        resp = self.post("edit_move", data)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.context["title"], "Move")
+        self.assertTrue(resp.context["changes"])  # Zzz goes from B to C
+        self.assertEqual(self.get(self.topic).subject_id, self.subject.pk)
+        self.post("edit_move", {**data, "confirmed": "1"})
+        from diary.services.sequences import members
+
+        shown = [t.name for t in members(self.profile.pk, ("topic", "subject", s2.pk))]
+        self.assertEqual(shown, ["Aaa", "Formation", "Zzz"])
+        self.assertEqual(self.get(self.topic).position, 3)
+
+    def test_moving_a_subtopic_to_another_topic_lands_alphabetically(self):
+        t2 = self.make("topic", ("subject", self.subject.pk), name="Second")
+        self.make("subtopic", ("topic", t2.pk), name="Bbb")
+        self.make("subtopic", ("topic", t2.pk), name="Ddd")
+        mine = self.make("subtopic", ("topic", self.topic.pk), name="Ccc")
+        preview = svc.preview_move(self.profile, self.user, "subtopic", mine.pk, ("topic", t2.pk))
+        self.assertEqual([(c["label"], c["before"], c["after"]) for c in preview["changes"]], [("Ddd", "2", "3")])
+        svc.move(self.profile, self.user, "subtopic", mine.pk, ("topic", t2.pk))
+        from diary.services.sequences import members
+
+        self.assertEqual([s.name for s in members(self.profile.pk, ("subtopic", "topic", t2.pk))], ["Bbb", "Ccc", "Ddd"])
+
+    def test_a_move_to_the_parent_it_already_has_changes_nothing(self):
+        result = svc.move(self.profile, self.user, "topic", self.topic.pk, ("subject", self.subject.pk))
+        self.assertFalse(result.changed)
+        self.assertEqual(self.get(self.topic).version, 1)
+
+    def test_the_move_to_picker_lists_headings_alphabetically(self):
+        self.make("subject", name="Aardvark")
+        self.make("subject", name="Other act", show_on_landing=False)
+        self.make("topic", ("subject", self.subject.pk), name="Abc")
+        resp = self.post("edit_move_to", self.rec(self.one))
+        names = [e["label"] for e in resp.context["entries"] if e["type"] in ("subject", "topic")]
+        self.assertEqual(names, ["Aardvark", "Contract", "Abc", "Formation", "Other act"])
+
+    def test_restoring_a_heading_from_the_trash_puts_it_back_in_the_alphabet(self):
+        a = self.make("topic", ("subject", self.subject.pk), name="Alpha")
+        svc.delete(self.profile, self.user, "topic", a.pk)
+        svc.restore(self.profile, self.user, "topic", a.pk)
+        from diary.services.sequences import members
+
+        shown = [t.name for t in members(self.profile.pk, ("topic", "subject", self.subject.pk))]
+        self.assertEqual(shown, ["Alpha", "Formation"])
+        self.assertEqual(self.get(self.topic).version, 1)
+
+    def test_the_reading_page_and_its_side_panel_use_the_alphabet(self):
+        self.make("topic", ("subject", self.subject.pk), name="Aaa")
+        resp = self.client.get(reverse("read_subject", args=[self.subject.pk]))
+        self.order_in(resp.content.decode(), ["Aaa", "Formation"])

@@ -139,6 +139,22 @@ class ImportIntoProfileTests(TestCase):
         self.assertIn("'Scope:' -> 'Scope'", text)
         self.assertIn("Expected 2; found 2.", text)
 
+    def test_stored_positions_are_the_word_order_while_the_display_order_is_alphabetical(self):
+        from diary.services.sequences import members
+
+        text, _ = self.do_import()
+        arbitration = Subject.objects.get(profile=self.profile, name="Arbitration")
+        topics = list(Topic.objects.filter(subject=arbitration).order_by("position"))
+        self.assertEqual([(t.name, t.position) for t in topics], [("Scope", 1), ("Direct items", 2)])  # Word order
+        shown = members(self.profile.pk, ("topic", "subject", arbitration.pk))
+        self.assertEqual([t.name for t in shown], ["Direct items", "Scope"])  # alphabetical
+        self.assertIn("Stored Word order of records (their saved positions) matches the file: yes", text)
+        self.assertIn("RESULT: MATCH", text)
+        self.assertIn("UNEXPECTED differences: 0", text)
+        self.assertEqual(Topic.objects.get(pk=topics[0].pk).version, 1)
+        _, again = service.reconcile(self.data, "small.docx", self.profile)
+        self.assertIn("UNEXPECTED differences: 0", again)
+
     def test_reconciliation_reports_a_changed_record_never_hides_it(self):
         self.do_import()
         case = Case.objects.get(item__original_line__startswith="Clean proposition")
@@ -464,12 +480,13 @@ class ReviewListTests(TestCase):
         self.assertNotContains(resp, "Fine")
         self.assertContains(resp, "2 records")
 
-    def test_order_follows_the_real_position_inside_each_parent(self):
+    def test_order_is_alphabetical_for_headings_and_by_position_for_items_inside_each_parent(self):
         reader = join_main(User.objects.create_user("rita", password=PASSWORD))
         main = main_profile()
         subject = Subject.objects.create(profile=main, name="Arbitration", landing_position=1)
-        late = Topic.objects.create(profile=main, subject=subject, name="Late", position=2)
-        early = Topic.objects.create(profile=main, subject=subject, name="Early", position=1)
+        # stored (Word) positions say Zeta first; the alphabet says Alpha first
+        late = Topic.objects.create(profile=main, subject=subject, name="Zeta", position=1)
+        early = Topic.objects.create(profile=main, subject=subject, name="Alpha", position=2)
         # created in the "wrong" order on purpose: primary keys must not decide the order
         Item.objects.create(profile=main, topic=late, text="<p>zzitemL2</p>", position=2, needs_review=True)
         Section.objects.create(profile=main, topic=late, name="zzsectionL1", position=1, needs_review=True)

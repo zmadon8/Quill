@@ -210,3 +210,22 @@ class UndoStructuralRuleTests(ServiceTestCase):
         svc.undo_group(self.profile, self.user, deleted.group)
         self.assertIsNone(self.get(topic).deleted_at)
         self.assertEqual(TrashBatch.objects.count(), 0)
+
+    def test_undo_of_a_topic_rename_restores_its_name_and_its_letter(self):
+        from diary.reading import formats_for
+        from diary.services.sequences import ident, labels, members
+
+        subject = self.make("subject", name="Tort")
+        apple = self.make("topic", ("subject", subject.pk), name="Apple")
+        self.make("topic", ("subject", subject.pk), name="Pear")
+        key = ("topic", "subject", subject.pk)
+
+        def lettered():
+            objs = members(self.profile.pk, key)
+            gen = labels(key, objs, formats_for(None))
+            return [(gen[ident(o)], o.name) for o in objs]
+
+        renamed = svc.edit(self.profile, self.user, "topic", apple.pk, {"name": "Zulu"})
+        self.assertEqual(lettered(), [("A", "Pear"), ("B", "Zulu")])
+        svc.undo_group(self.profile, self.user, renamed.group)
+        self.assertEqual(lettered(), [("A", "Apple"), ("B", "Pear")])

@@ -1,6 +1,8 @@
 """Create, edit, validation, conflicts, history restore, profile isolation and atomicity (service layer)."""
 from diary import services as svc
 from diary.models import Case, Item, Subject, Topic, VersionHistory
+from diary.reading import formats_for
+from diary.services.sequences import ident, labels, members
 from diary.tests.service_helpers import ServiceTestCase
 
 
@@ -21,15 +23,61 @@ class CreateTests(ServiceTestCase):
         self.assertEqual(self.get(main).landing_position, 1)
         self.assertEqual(self.get(other).other_acts_position, 1)
 
-    def test_insert_at_index_shifts_siblings_and_records_it(self):
+    def test_insert_at_index_is_ignored_for_headings_and_shifts_no_sibling(self):
         subject = self.make("subject", name="S")
         t1 = self.make("topic", ("subject", subject.pk), name="T1")
         t2 = self.make("topic", ("subject", subject.pk), name="T2")
         t0 = self.make("topic", ("subject", subject.pk), index=0, name="T0")
-        self.assertEqual(self.positions([t0, t1, t2]), [1, 2, 3])
-        self.assertEqual(self.get(t1).version, 2)
-        self.assertEqual(self.history_kinds(t1), ["create", "reorder"])
-        self.assertEqual(self.get(t0).version, 1)
+        self.assertEqual(self.positions([t1, t2, t0]), [1, 2, 3])  # stored Word order untouched
+        self.assertEqual(self.get(t1).version, 1)
+        self.assertEqual(self.history_kinds(t1), ["create"])
+        self.assertEqual(self.history_kinds(t2), ["create"])
+        self.assertEqual([t.name for t in members(self.profile.pk, ("topic", subject.pk))], ["T0", "T1", "T2"])
+
+    def test_insert_at_index_still_shifts_items(self):
+        subject = self.make("subject", name="S")
+        i1 = self.make("item", ("subject", subject.pk), text="1")
+        i0 = self.make("item", ("subject", subject.pk), index=0, text="0")
+        self.assertEqual(self.positions([i0, i1]), [1, 2])
+        self.assertEqual(self.history_kinds(i1), ["create", "reorder"])
+
+    def test_headings_are_shown_alphabetically_with_numbers_as_numbers(self):
+        for name in ("S. 11", "s. 9", "Zebra", "\u201cApple\u201d", "banana"):
+            self.make("subject", name=name)
+        names = [s.name for s in members(self.profile.pk, ("subject", "show", True))]
+        self.assertEqual(names, ["\u201cApple\u201d", "banana", "s. 9", "S. 11", "Zebra"])
+        other = self.make("subject", name="Aardvark", show_on_landing=False)
+        self.assertEqual([s.name for s in members(self.profile.pk, ("subject", "show", False))], ["Aardvark"])
+        self.assertEqual(self.get(other).other_acts_position, 1)
+
+    def test_names_equal_after_normalising_list_deterministically(self):
+        subject = self.make("subject", name="S")
+        t = ("subject", subject.pk)
+        a = self.make("subtopic", t, name="Commercial contracts")
+        b = self.make("subtopic", t, name="Commercial Contracts")
+        first = [x.pk for x in members(self.profile.pk, ("subtopic", "subject", subject.pk))]
+        second = [x.pk for x in members(self.profile.pk, ("subtopic", "subject", subject.pk))]
+        self.assertEqual(first, second)
+        self.assertEqual(sorted(first), sorted([a.pk, b.pk]))
+
+    def test_renaming_a_topic_relettered_it_and_undo_restores_name_and_letter(self):
+        subject = self.make("subject", name="S")
+        t = ("subject", subject.pk)
+        apple = self.make("topic", t, name="Apple")
+        pear = self.make("topic", t, name="Pear")
+        key = ("topic", "subject", subject.pk)
+
+        def lettered():
+            objs = members(self.profile.pk, key)
+            gen = labels(key, objs, formats_for(None))
+            return [(gen[ident(o)], o.name) for o in objs]
+
+        self.assertEqual(lettered(), [("A", "Apple"), ("B", "Pear")])
+        svc.edit(self.profile, self.user, "topic", apple.pk, {"name": "Zulu"})
+        self.assertEqual(lettered(), [("A", "Pear"), ("B", "Zulu")])
+        svc.restore_version(self.profile, self.user, "topic", apple.pk, 1)
+        self.assertEqual(lettered(), [("A", "Apple"), ("B", "Pear")])
+        self.assertEqual(self.positions([apple, pear]), [1, 2])
 
     def test_subject_name_unique_ignoring_case(self):
         self.make("subject", name="Contract")
@@ -361,7 +409,7 @@ class HistoryRestoreTests(ServiceTestCase):
 
 
 class LandingTests(ServiceTestCase):
-    def test_a_subject_moves_between_the_two_lists_and_the_old_list_closes_up(self):
+    def test_a_subject_moves_between_the_two_lists_and_takes_the_next_free_number(self):
         a = self.make("subject", name="A")
         b = self.make("subject", name="B")
         c = self.make("subject", name="C")
@@ -371,10 +419,13 @@ class LandingTests(ServiceTestCase):
         self.assertFalse(self.get(a).show_on_landing)
         self.assertEqual(self.get(a).other_acts_position, 2)
         self.assertEqual(self.get(other).other_acts_position, 1)
-        self.assertEqual((self.get(b).landing_position, self.get(c).landing_position), (1, 2))
+        # the list it left is not renumbered (stored Word order kept)
+        self.assertEqual((self.get(b).landing_position, self.get(c).landing_position), (2, 3))
+        self.assertEqual(self.get(b).version, 1)
         self.assertEqual(self.history_kinds(a), ["create", "move"])
         svc.set_landing(self.profile, self.user, a.pk, True)
-        self.assertEqual((self.get(b).landing_position, self.get(c).landing_position, self.get(a).landing_position), (1, 2, 3))
+        self.assertEqual((self.get(b).landing_position, self.get(c).landing_position, self.get(a).landing_position), (2, 3, 4))
+        self.assertEqual([x.name for x in members(self.profile.pk, ("subject", "show", True))], ["A", "B", "C"])
 
     def test_repeating_the_same_choice_changes_nothing(self):
         a = self.make("subject", name="A")

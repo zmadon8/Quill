@@ -1,6 +1,7 @@
 """Move, reorder, positions and generated numbers after moves and deletes (service layer)."""
 from diary import services as svc
 from diary.models import Case, NoteLink, VersionHistory
+from diary.services.sequences import members
 from diary.tests.service_helpers import ServiceTestCase
 
 BASE = [("(1)", "one"), ("(2)", "two"), ("(a)", "S"), ("(1)", "three"), ("(2)", "four")]
@@ -88,17 +89,33 @@ class ReorderTests(ServiceTestCase):
         with self.assertRaises(svc.Conflict):
             svc.shift(self.profile, self.user, "item", self.one.pk, 1, expected_version=1)
 
-    def test_subjects_reorder_within_their_group_and_profile(self):
+    def test_subjects_cannot_be_reordered_by_hand(self):
         a = self.make("subject", name="A")
         b = self.make("subject", name="B")
         c = self.make("subject", name="C")
         other_group = self.make("subject", name="Other act", show_on_landing=False)
-        foreign = self.make("subject", profile=self.other_profile, name="Foreign")
-        svc.shift(self.profile, self.user, "subject", c.pk, -2)
-        names = [s.name for s in sorted([self.get(x) for x in (a, b, c)], key=lambda s: s.landing_position)]
-        self.assertEqual(names, ["C", "A", "B"])
+        before = [self.get(x).landing_position for x in (a, b, c)]
+        with self.assertRaises(svc.Refused):
+            svc.shift(self.profile, self.user, "subject", c.pk, -2)
+        with self.assertRaises(svc.Refused):
+            svc.move(self.profile, self.user, "subject", c.pk, index=0)
+        self.assertEqual([self.get(x).landing_position for x in (a, b, c)], before)
         self.assertEqual(self.get(other_group).other_acts_position, 1)
-        self.assertEqual(self.get(foreign).version, 1)
+        self.assertEqual(self.get(c).version, 1)
+
+    def test_topics_and_subtopics_cannot_be_reordered_by_hand(self):
+        self.topic2 = self.make("topic", ("subject", self.subject.pk), name="Other")
+        sub1 = self.make("subtopic", ("topic", self.topic.pk), name="Alpha")
+        sub2 = self.make("subtopic", ("topic", self.topic.pk), name="Beta")
+        for kind, rec in (("topic", self.topic2), ("subtopic", sub2)):
+            with self.assertRaises(svc.Refused):
+                svc.shift(self.profile, self.user, kind, rec.pk, -1)
+            with self.assertRaises(svc.Refused):
+                svc.move(self.profile, self.user, kind, rec.pk, index=0)
+            with self.assertRaises(svc.Refused):
+                svc.preview_move(self.profile, self.user, kind, rec.pk, index=0)
+        self.assertEqual(self.positions([self.topic, self.topic2]), [1, 2])
+        self.assertEqual(self.positions([sub1, sub2]), [1, 2])
 
     def test_cases_reorder(self):
         multi = self.make("item", ("topic", self.topic.pk), text="m")
@@ -216,8 +233,10 @@ class MoveBetweenParentsTests(ServiceTestCase):
         x = self.make("topic", ("subject", s2.pk), name="X")
         sub = self.make("subtopic", ("topic", self.topic.pk), name="Child")
         svc.move(self.profile, self.user, "topic", self.topic.pk, ("subject", s2.pk), index=0)
-        self.assertEqual(self.positions([self.topic, x]), [1, 2])
-        self.assertEqual(self.get(self.topic2).position, 1)
+        # alphabetical: "Formation" then "X"; the moved Topic takes the next free stored position
+        self.assertEqual([t.name for t in members(self.profile.pk, ("topic", s2.pk))], ["Formation", "X"])
+        self.assertEqual(self.positions([x, self.topic]), [1, 2])
+        self.assertEqual(self.get(self.topic2).position, 2)  # the list it left is not renumbered
         self.assertEqual(self.get(sub).topic_id, self.topic.pk)
         self.assertEqual(self.get(self.topic).subject_id, s2.pk)
 

@@ -3,6 +3,7 @@ from unittest import mock
 
 from diary import services as svc
 from diary.models import Case, Item, Note, NoteLink, Section, Subject, Subtopic, Topic, TrashBatch, VersionHistory
+from diary.services.sequences import members
 from diary.tests.service_helpers import ServiceTestCase
 
 
@@ -105,6 +106,17 @@ class RestoreTests(TrashTestCase):
         )
         self.assertEqual(self.positions([self.i1, self.i2, self.sec, self.i3]), [1, 2, 3, 4])
 
+    def test_a_restored_heading_returns_to_its_alphabetical_place_and_keeps_its_stored_position(self):
+        extra = self.make("topic", ("subject", self.subject.pk), name="Capacity")
+        svc.delete(self.profile, self.user, "topic", self.t2.pk)
+        stored = [self.get(x).position for x in (self.t1, extra)]
+        svc.restore(self.profile, self.user, "topic", self.t2.pk)
+        names = [t.name for t in members(self.profile.pk, ("topic", "subject", self.subject.pk))]
+        self.assertEqual(names, ["Breach", "Capacity", "Formation"])
+        self.assertEqual(self.get(self.t2).position, 2)
+        self.assertEqual([self.get(x).position for x in (self.t1, extra)], stored)
+        self.assertEqual(self.history_kinds(self.t1), ["create"])
+
     def test_restore_writes_history_and_bumps_versions(self):
         svc.delete(self.profile, self.user, "topic", self.t1.pk)
         result = svc.restore(self.profile, self.user, "topic", self.t1.pk)
@@ -141,8 +153,8 @@ class RestoreTests(TrashTestCase):
         self.assertFalse(any(self.deleted([self.t1, self.st, self.i1, self.note])))
         self.assertTrue(all(self.deleted([self.i2, self.sec, self.i3, self.multi, self.case])))
         self.assertEqual(self.numbered(self.st), [("(1)", "i1")])
-        topics = [t.name for t in sorted(Topic.objects.filter(deleted_at=None), key=lambda t: t.position)]
-        self.assertEqual(topics, ["Formation", "Breach"])
+        topics = [t.name for t in members(self.profile.pk, ("topic", "subject", self.subject.pk))]
+        self.assertEqual(topics, ["Breach", "Formation"])  # alphabetical, not stored (Word) order
         # The rest of the batch can still be restored one by one.
         svc.restore(self.profile, self.user, "item", self.i3.pk)
         self.assertEqual(self.numbered(self.st), [("(1)", "i1"), ("(2)", "i3")])

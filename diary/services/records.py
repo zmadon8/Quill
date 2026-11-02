@@ -129,8 +129,8 @@ def create(profile, user, record_type, parent=None, index=None, **fields):
 def set_landing(profile, user, subject_id, show, expected_version=None):
     """Show a Subject on the landing page (True) or list it under Other Subjects (False).
 
-    It goes to the end of the other list and the list it left is renumbered 1..n. Repeating the
-    same choice changes nothing.
+    It takes the next free stored number in the other list (it is shown alphabetically there) and the
+    list it left is not renumbered. Repeating the same choice changes nothing.
     """
     ctx = Ctx(profile, user)
     show = bool(show)
