@@ -12,7 +12,8 @@
   <article class="reading">
     <h1>{{ subject.name }}</h1>
     {% if toc or direct_toc %}
-    <p class="hint">Choose a Topic or Sub-topic from the list, or click the Subject name to read the whole Subject.</p>
+    {# Round 9: one link to the whole-Subject reading view. On phones it sits above the full-width Contents list. #}
+    <p class="read-whole"><a class="button" href="{% url 'read_subject' subject.pk %}" data-read-whole-subject>Read Whole Subject</a></p>
     {% else %}
     <p>This Subject has no Topics or Sub-topics. Click the Subject name in the breadcrumb to see its Items.</p>
     {% endif %}
