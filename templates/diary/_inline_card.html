@@ -1,4 +1,4 @@
-{# The editing card that replaces a row in Edit mode (docs/DESIGN.md Edit mode, mockups 4 and 5). Context: kind, record, title, where, values/rows/flag_choices (Items), name (headings and Sections), convert_to [(kind, label)], can_shift, can_move, back. #}
+{# The editing card that replaces a row in Edit mode (docs/DESIGN.md Edit mode, mockups 4 and 5). Context: kind, record, title, where, values/rows/flag_choices (Items), name (headings and Sections), layout_choices, can_shift, can_move, back. #}
 {# The Item fields are the same names as the full Item editor page (version, text, case_*, flag, flag_text, needs_review, review_note), so a stale save can be sent to the existing conflict screen as it is. A heading card is the name and More only. #}
 <form method="post" action="{% if kind == 'item' %}{% url 'edit_item' record.pk %}{% else %}{% url 'edit_rename' %}{% endif %}" class="editcard" data-inline-card data-kind="{{ kind }}" data-id="{{ record.pk }}" novalidate>
   {% csrf_token %}
@@ -13,9 +13,6 @@
     <span class="field-label" id="card-text-label-{{ record.pk }}">Text</span>
     {% include "diary/_richtext_field.html" with rname="text" rvalue=values.text rlabel="Text" rrows=3 %}
   </div>
-  {% if record.kind == "nested" %}
-  <label class="fld"><span class="field-label">Citation</span><input type="text" name="citation" maxlength="1000" value="{{ values.citation }}"></label>
-  {% else %}
   <div class="fld" data-cases>
     <span class="field-label">Citations</span>
     <ul class="cite-list" data-case-list>
@@ -24,7 +21,12 @@
     <template data-case-template>{% include "diary/_inline_case_row.html" with row=None %}</template>
     <button type="button" class="linkish" data-case-add>+ another citation</button>
   </div>
-  {% endif %}
+  <div class="fld" data-layout-control{% if rows|length < 2 %} hidden{% endif %}>
+    <span class="field-label">Show citations</span>
+    <div class="seg wide" role="radiogroup" aria-label="Show citations">
+      {% for key, text in layout_choices %}<label class="seg-option"><input type="radio" name="citation_layout" value="{{ key }}"{% if values.citation_layout == key %} checked{% endif %}><span>{{ text }}</span></label>{% endfor %}
+    </div>
+  </div>
   <div class="fld">
     <span class="field-label">Flag</span>
     <div class="flag-line">
@@ -52,7 +54,6 @@
         {% if can_move %}<button type="submit" role="menuitem" formaction="{% url 'edit_move_to' %}" data-more-action="move_to">Move to&hellip;</button>{% endif %}
         {% if can_shift %}<button type="submit" role="menuitem" formaction="{% url 'edit_move' %}" name="direction" value="up" data-more-action="up">Move up</button>
         <button type="submit" role="menuitem" formaction="{% url 'edit_move' %}" name="direction" value="down" data-more-action="down">Move down</button>{% endif %}
-        {% for to_kind, text in convert_to %}<button type="submit" role="menuitem" formaction="{% url 'edit_item_convert' record.pk %}" name="to_kind" value="{{ to_kind }}" data-more-action="convert">Change to {{ text }}</button>{% endfor %}
         {% if kind == "subject" %}<button type="submit" role="menuitem" formaction="{% url 'edit_landing' %}" name="show" value="{% if landing %}0{% else %}1{% endif %}" data-more-action="landing">{% if landing %}Put under Other Subjects{% else %}Show on the Subjects page{% endif %}</button>{% endif %}
         <a role="menuitem" href="{% url 'history' kind record.pk %}?next={{ back|urlencode }}" data-more-action="history">History</a>
         <hr>

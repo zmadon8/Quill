@@ -25,7 +25,6 @@ urlpatterns = [
     path("edit/move-to/", views_edit.move_to, name="edit_move_to"),
     path("edit/landing/", views_edit.landing, name="edit_landing"),
     path("edit/item/<int:pk>/", views_item.item_editor, name="edit_item"),
-    path("edit/item/<int:pk>/convert/", views_item.item_convert, name="edit_item_convert"),
     path("edit/note/<int:pk>/", views_note.note_editor, name="edit_note"),
     path("edit/note-link/", views_note.note_link, name="edit_note_link"),
     path("edit/note-pick/", views_note.note_pick, name="edit_note_pick"),

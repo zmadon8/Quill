@@ -13,7 +13,6 @@ DEFAULT_FMTS = {
     "subtopic_format": "1",
     "section_format": "(a)",
     "item_format": "(1)",
-    "nested_item_format": "bullet",
     "multi_citation_format": "(a)",
 }
 

@@ -27,10 +27,6 @@ class TrashTestCase(ItemEditorTestCase):
         data.setdefault("next", self.trash_url)
         return (client or self.client).post(reverse(name), data)
 
-    def convert(self, item, kind, **fields):
-        data = {"to_kind": kind, "version": self.get(item).version, "next": self.next, **fields}
-        return self.client.post(self.convert_url(item), data)
-
     def delete_topic(self):
         svc.delete(self.profile, self.user, "topic", self.topic.pk)
 
@@ -196,16 +192,6 @@ class RestoreTests(TrashTestCase):
         self.assertIsNotNone(self.get(self.one).deleted_at)
         self.assertEqual(self.resend(resp).status_code, 302)
         self.assertIsNone(self.get(self.one).deleted_at)
-
-    def test_a_case_cannot_come_back_under_an_item_that_is_now_a_nested_item(self):
-        multi, first, _ = self.cited()
-        svc.delete(self.profile, self.user, "case", first.pk)
-        svc.convert_item(self.profile, self.user, multi.pk, "nested", None)
-        resp = self.trash_post("trash_restore", self.rec(first))
-        self.assertEqual(resp.status_code, 302)
-        self.assertIsNotNone(self.get(first).deleted_at)
-        self.assertTrue(self.msgs(resp))
-
 
 class PermanentDeleteTests(TrashTestCase):
     def perm(self, obj, client=None, **extra):
@@ -604,14 +590,6 @@ class ConflictScreenTests(TrashTestCase):
         self.assertEqual(resp.status_code, 409)
         for text in ("Typed one", "typed comment", "Typed two", "typed text", "Elsewhere"):
             self.assertContains(resp, text, status_code=409)
-
-    def test_a_stale_conversion_shows_the_screen_with_what_was_asked(self):
-        opened = self.get(self.one).version
-        svc.edit(self.profile, self.user2, "item", self.one.pk, {"text": "<p>theirs</p>"})
-        resp = self.convert(self.one, "nested", confirmed="1", version=opened)
-        self.assertEqual(resp.status_code, 409)
-        self.assertEqual(resp.context["rows"][0][1], "Change the type of the Item")
-        self.assertEqual(self.get(self.one).kind, "plain")
 
     def test_the_review_note_can_be_merged(self):
         stale = self.rec(self.one)

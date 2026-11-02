@@ -1,7 +1,7 @@
 """Move and reorder (docs/DESIGN.md section 5.4) and the numbering previews for Items and Sections.
 
 Rules: same profile only, one level of nesting, a Subject holds Topics or direct Sub-topics but
-not both, a heading cannot go inside itself. Items, Nested Items and Sections share one position
+not both, a heading cannot go inside itself. Items and Sections share one position
 sequence per parent, kept as 1..n among the live siblings.
 """
 from django.db import transaction
@@ -25,7 +25,7 @@ ALLOWED_PARENTS = {
     "topic": ("subject",),
     "subtopic": ("topic", "subject"),
     "section": ("subject", "topic", "subtopic"),
-    "item": ("subject", "topic", "subtopic", "item"),
+    "item": ("subject", "topic", "subtopic"),
     "note": ("subject", "topic", "subtopic", "item", "section"),
     "case": ("item",),
 }
@@ -35,7 +35,7 @@ NICE = {
     "item": "Item", "case": "Case", "note": "Note", "notelink": "Note link",
 }
 
-PARENT_COLUMNS = ("subject", "topic", "subtopic", "parent_item", "item", "section", "note")
+PARENT_COLUMNS = ("subject", "topic", "subtopic", "item", "section", "note")
 
 
 def refuse_heading_reorder(obj):
@@ -49,7 +49,7 @@ def refuse_heading_reorder(obj):
 
 
 def parent_column(child_kind, parent_kind):
-    return "parent_item" if (child_kind == "item" and parent_kind == "item") else parent_kind
+    return parent_kind
 
 
 def check_heading_mix(subject, wanted):
@@ -87,13 +87,6 @@ def check_move_allowed(obj, parent_kind, parent):
         ident(d) for d in descendants(obj)
     }:
         raise Refused(f"A {NICE[kind]} cannot be placed inside something that sits beneath it.")
-    if kind == "item" and parent_kind == "item":
-        if parent.kind != "nested":
-            raise Refused("Items can only be placed beneath a Nested Item. Convert it to a Nested Item first.")
-        if obj.kind != "plain":
-            raise Refused("Only plain Items can sit beneath a Nested Item (one level of nesting).")
-    if kind == "case" and parent.kind == "nested":
-        raise Refused("Cases cannot sit under a Nested Item.")
     if kind == "topic":
         check_heading_mix(parent, "topic")
     if kind == "subtopic" and parent_kind == "subject":

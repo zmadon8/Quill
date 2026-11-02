@@ -21,7 +21,7 @@ from . import inline
 from . import services as svc
 from . import undo_session
 from .conflicts import conflict_page
-from .models import Item, Section, Subject, Subtopic, Topic
+from .models import Section, Subject, Subtopic, Topic
 from .richtext import plain_text, sanitise_html
 from .services.core import Ctx, check_version, descendants, get_record, label
 from .services.errors import Conflict, NotFound, ServiceError
@@ -39,11 +39,10 @@ ADDABLE = {
     "topic": ("topic", {}),
     "subtopic": ("subtopic", {}),
     "section": ("section", {}),
-    "item": ("item", {"kind": "plain"}),
-    "nested": ("item", {"kind": "nested"}),
+    "item": ("item", {}),
     "note": ("note", {}),
 }
-ADD_NICE = {"nested": "Nested Item"}
+ADD_NICE = {}
 #: Longest name the Add form accepts for each kind that has a name (the model field lengths).
 HEADING_LIMITS = {
     "subject": Subject._meta.get_field("name").max_length,
@@ -180,8 +179,8 @@ AFTER_KINDS = ("topic", "subtopic", "section", "item")
 AFTER_CHOICES = {
     "topic": ("topic",),
     "subtopic": ("subtopic",),
-    "section": ("item", "nested", "section"),
-    "item": ("item", "nested", "section"),
+    "section": ("item", "section"),
+    "item": ("item", "section"),
 }
 
 
@@ -213,12 +212,6 @@ def _place_after(request, after, expected=None):
     if ident(record) not in siblings:
         raise Http404("That record is not in the list any more.")
     return record, parent, siblings.index(ident(record)) + 1
-
-
-def _is_nested_child(request, after):
-    """True when the Item named by ``after`` sits inside a Nested Item (only Items may follow it)."""
-    record = get_record(Ctx(request.profile, request.user), after[0], after[1], lock=False)
-    return bool(getattr(record, "parent_item_id", None))
 
 
 def _choice(request):
@@ -256,8 +249,6 @@ def _add_page(request):
     if after:
         record, parent, _ = _place_after(request, after)
         choices = AFTER_CHOICES[after[0]]
-        if after[0] == "item" and record.parent_item_id:
-            choices = ("item",)
         where = f"directly after the {NICE[after[0]]} \u201c{label(record)}\u201d"
         version = record.version
     else:
@@ -266,10 +257,10 @@ def _add_page(request):
         if kind not in ("subject", "topic", "subtopic", "section", "item") or not pk.isdigit():
             raise Http404("Unknown place.")
         record = get_record(Ctx(request.profile, request.user), kind, int(pk), lock=False)
-        choices = {"subject": ("topic", "section", "item", "nested", "note"),
-                   "topic": ("subtopic", "section", "item", "nested", "note"),
-                   "subtopic": ("section", "item", "nested", "note"), "section": ("note",),
-                   "item": ("item", "note")}[kind]
+        choices = {"subject": ("topic", "section", "item", "note"),
+                   "topic": ("subtopic", "section", "item", "note"),
+                   "subtopic": ("section", "item", "note"), "section": ("note",),
+                   "item": ("note",)}[kind]
         where = f"at the top of the {NICE[kind]} \u201c{label(record)}\u201d"
         parent, version = (kind, record.pk), None
     options = [{"value": c, "label": ADD_NICE.get(c) or NICE[ADDABLE[c][0]]} for c in choices]
@@ -282,7 +273,7 @@ def _add_page(request):
 
 @editor_page
 def add(request):
-    """Add a Subject, heading, Section, Item or Nested Item.
+    """Add a Subject, heading, Section or Item.
 
     It goes at the end of its parent, or directly after the record named by ``after`` ('item:5';
     ``after_version`` is the version of that record the Editor saw). The Edit mode script sends
@@ -305,7 +296,7 @@ def add(request):
         parent, index = choice["parent"], (None if kind == "note" else 0)
     elif after:
         allowed = AFTER_CHOICES[after[0]]
-        if what not in allowed or (after[0] == "item" and what != "item" and _is_nested_child(request, after)):
+        if what not in allowed:
             raise ServiceError("That cannot be added in that place.")
         _, parent, index = _place_after(request, after, _expected(request, "after_version"))
     elif not choice:
@@ -313,7 +304,7 @@ def add(request):
             parent = (post.get("parent_type"), _record_id(request, "parent_id"))
         if parent and post.get("first") == "1" and kind != "note":
             index = 0
-    # One "Text" box: the name of a heading or Section, the text of an Item or Nested Item.
+    # One "Text" box: the name of a heading or Section, the text of an Item.
     # (An older form that posts "name" for a heading still works.)
     typed = post.get("text", "") if "text" in post else post.get("name", "")
     fields = dict(extra)
@@ -335,13 +326,12 @@ def add(request):
     if kind == "item":
         # The script sends cleaned HTML (text_format=html); without it the box is plain typed text.
         text = sanitise_html(typed) if post.get("text_format") == "html" else _html(typed)
-        # A citation belongs to Items and Nested Items only; it is ignored for anything else.
+        # A citation belongs to Items only; it is ignored for anything else.
         citation = _single_line(post.get("citation", ""))
-        if extra.get("kind") != "nested":
-            # The inline form can send several citations (case_citation / case_comment, in order); they become the Cases of the new Item.
-            cases = _new_cases(post)
-            if cases:
-                citation = ""
+        # The inline form can send several citations (case_citation / case_comment, in order); they become the Cases of the new Item.
+        cases = _new_cases(post)
+        if cases:
+            citation = ""
         if not plain_text(text).strip() and not citation and not cases:
             raise ServiceError("Type the Item text (or a citation) first.")
         fields.update(text=text, citation=citation)
@@ -502,27 +492,21 @@ def landing(request):
 
 
 def picker_entries(profile, kind, obj):
-    """The tree of every Subject, Topic, Sub-topic and Nested Item of the profile, flat, with depth.
+    """The tree of every Subject, Topic and Sub-topic of the profile, flat, with depth.
 
     ``pick`` says whether ``obj`` may be moved under that entry (right type, not inside itself).
     """
     allowed = set(ALLOWED_PARENTS[kind])
-    if kind == "item" and obj.kind != "plain":
-        allowed.discard("item")
     banned = {ident(d) for d in descendants(obj)} | {(kind, obj.pk)}
     live = {"profile": profile, "deleted_at__isnull": True}
     # Headings are listed alphabetically (diary/sorting.py), main Subjects first, then Other Subjects.
     subjects = sort_headings(Subject.objects.filter(show_on_landing=True, **live))
     subjects += sort_headings(Subject.objects.filter(show_on_landing=False, **live))
-    topics, subs, nested = {}, {}, {}
+    topics, subs = {}, {}
     for topic in sort_headings(Topic.objects.filter(**live)):
         topics.setdefault(topic.subject_id, []).append(topic)
     for sub in sort_headings(Subtopic.objects.filter(**live)):
         subs.setdefault(("topic", sub.topic_id) if sub.topic_id else ("subject", sub.subject_id), []).append(sub)
-    for item in Item.objects.filter(kind="nested", parent_item__isnull=True, **live).order_by("position", "pk"):
-        for column in ("subject", "topic", "subtopic"):
-            if getattr(item, f"{column}_id"):
-                nested.setdefault((column, getattr(item, f"{column}_id")), []).append(item)
     entries = []
 
     def add(rec, depth, kind_name):
@@ -531,22 +515,14 @@ def picker_entries(profile, kind, obj):
             "pick": kind_name in allowed and (kind_name, rec.pk) not in banned,
         })
 
-    def add_nested(column, pk, depth):
-        for item in nested.get((column, pk), []):
-            add(item, depth, "item")
-
     for subject in subjects:
         add(subject, 0, "subject")
-        add_nested("subject", subject.pk, 1)
         for topic in topics.get(subject.pk, []):
             add(topic, 1, "topic")
-            add_nested("topic", topic.pk, 2)
             for sub in subs.get(("topic", topic.pk), []):
                 add(sub, 2, "subtopic")
-                add_nested("subtopic", sub.pk, 3)
         for sub in subs.get(("subject", subject.pk), []):
             add(sub, 1, "subtopic")
-            add_nested("subtopic", sub.pk, 2)
     return entries
 
 

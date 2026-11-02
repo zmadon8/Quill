@@ -103,13 +103,12 @@ class AddNoteTests(NoteViewCase):
             note = Note.objects.get(text_plain=f"on {kind}")
             self.assertEqual(getattr(note, f"{kind}_id"), obj.pk)
 
-    def test_a_note_on_a_nested_item_child_and_a_nested_item(self):
-        nested = self.make("item", ("topic", self.topic.pk), kind="nested", text="group")
-        child = self.make("item", ("item", nested.pk), text="child")
-        self.assertEqual(self.add(f"item:{nested.pk}", nested, text="<p>n1</p>").status_code, 200)
-        self.assertEqual(self.add(f"item:{child.pk}", child, text="<p>n2</p>").status_code, 200)
-        self.assertEqual(Note.objects.get(text_plain="n1").item_id, nested.pk)
-        self.assertEqual(Note.objects.get(text_plain="n2").item_id, child.pk)
+    def test_a_note_on_an_item_with_several_citations(self):
+        item = self.make("item", ("topic", self.topic.pk), text="group")
+        self.make("case", ("item", item.pk), citation="A v B")
+        self.make("case", ("item", item.pk), citation="C v D")
+        self.assertEqual(self.add(f"item:{item.pk}", item, text="<p>n1</p>").status_code, 200)
+        self.assertEqual(Note.objects.get(text_plain="n1").item_id, item.pk)
 
     def test_new_notes_go_last_among_the_notes_of_their_parent(self):
         self.add(f"topic:{self.topic.pk}", self.topic, text="<p>second</p>")
@@ -264,12 +263,10 @@ class PickerTests(NoteViewCase):
         self.assertContains(topic, f'value="section:{self.sec.pk}"')
         self.assertContains(topic, f'value="topic:{self.topic.pk}"')  # the place itself can be chosen too
 
-    def test_nested_items_open_to_their_items(self):
-        nested = self.make("item", ("topic", self.topic.pk), kind="nested", text="group")
-        self.make("item", ("item", nested.pk), text="child text")
-        page = self.pick(at=f"item:{nested.pk}")
-        self.assertContains(page, "child text")
-        self.assertContains(self.pick(at=f"topic:{self.topic.pk}"), f"&amp;at=item:{nested.pk}", html=False)
+    def test_items_are_chosen_but_do_not_open(self):
+        page = self.pick(at=f"topic:{self.topic.pk}")
+        self.assertContains(page, f'value="item:{self.one.pk}"')
+        self.assertNotContains(page, f"&amp;at=item:{self.one.pk}", html=False)
 
     def test_trashed_places_are_not_offered(self):
         svc.delete(self.profile, self.user, "item", self.two.pk)

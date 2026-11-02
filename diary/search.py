@@ -5,8 +5,7 @@ Cases and Notes), turned into in-memory records and matched with the pure rules 
 is stored for search, so every way of changing data (editing, import, conversions, restore, Undo) stays correct
 without extra work.
 
-Trash is excluded: a deleted record, and anything below a deleted Subject, Topic or Sub-topic, below a deleted
-Nested Item (its children), a Case of a deleted Item, a Note on a deleted Item or Section. Where a record sits
+Trash is excluded: a deleted record, and anything below a deleted Subject, Topic or Sub-topic, a Case of a deleted Item, a Note on a deleted Item or Section. Where a record sits
 in the Diary comes from diary/locate.py, the same code the Review list uses.
 """
 from dataclasses import dataclass, field
@@ -15,7 +14,7 @@ from django.urls import reverse
 
 from . import searchtext
 from .locate import Tree
-from .models import FLAG_CHOICES, FLAG_NONE, KIND_NESTED, Case, Item, Note, Section
+from .models import FLAG_CHOICES, FLAG_NONE, Case, Item, Note, Section
 
 FIELD_LABELS = {
     "name": "Name",
@@ -34,7 +33,7 @@ _LABEL_LENGTH = 100
 
 @dataclass
 class SearchResult:
-    kind: str  # Subject, Topic, Sub-topic, Section, Item, Nested Item or Note
+    kind: str  # Subject, Topic, Sub-topic, Section, Item or Note
     label: str  # the record's own name or a short form of its text
     path: list  # [(name, url or None)] of the headings above it (for a Note on an Item: the Item's label too)
     url: str  # read_subject url + "#" + anchor of the element
@@ -43,7 +42,6 @@ class SearchResult:
     flag_text: str = ""
     needs_review: bool = False
     review_note: str = ""
-    in_nested: bool = False
     text: str = ""  # the record's whole own text (an Item's plain text, a Section's name); the Review list shortens it
     subject_id: int = 0
     score: int = 0
@@ -53,10 +51,10 @@ class SearchResult:
 class _Record:
     """One searchable record, before matching."""
 
-    __slots__ = ("kind", "label", "place", "extra_path", "anchor", "fields", "tail", "in_nested", "flag_text",
+    __slots__ = ("kind", "label", "place", "extra_path", "anchor", "fields", "tail", "flag_text",
                  "needs_review", "review_note", "self_heading", "text")
 
-    def __init__(self, kind, label, place, anchor, fields, tail, extra_path=(), in_nested=False, flag_text="",
+    def __init__(self, kind, label, place, anchor, fields, tail, extra_path=(), flag_text="",
                  needs_review=False, review_note="", self_heading=None, text=""):
         self.kind = kind
         self.text = text
@@ -66,7 +64,6 @@ class _Record:
         self.fields = [(key, text) for key, text in fields if text and text.strip()]
         self.tail = tail
         self.extra_path = list(extra_path)
-        self.in_nested = in_nested
         self.flag_text = flag_text
         self.needs_review = needs_review
         self.review_note = review_note
@@ -96,7 +93,7 @@ class _Urls:
 
 
 def _item_label(row, cases):
-    return _short(row["text_plain"]) or _short(row["citation"]) or next(
+    return _short(row["text_plain"]) or next(
         (_short(c["citation"]) for c in cases if c["citation"]), "") or "Item"
 
 
@@ -127,7 +124,7 @@ def _records(profile, tree, citations_only, review_only):
     sections = list(Section.objects.filter(profile=profile, deleted_at__isnull=True).values(
         "pk", "subject_id", "topic_id", "subtopic_id", "name", "position", "needs_review", "review_note"))
     items = {row["pk"]: row for row in Item.objects.filter(profile=profile, deleted_at__isnull=True).values(
-        "pk", "subject_id", "topic_id", "subtopic_id", "parent_item_id", "kind", "text_plain", "citation", "flag",
+        "pk", "subject_id", "topic_id", "subtopic_id", "text_plain", "flag",
         "flag_text", "needs_review", "review_note", "position")}
     cases = {}
     for row in Case.objects.filter(profile=profile, deleted_at__isnull=True).order_by("position", "pk").values(
@@ -135,31 +132,21 @@ def _records(profile, tree, citations_only, review_only):
         cases.setdefault(row["item_id"], []).append(row)
 
     # Items first (a Note on an Item needs its place), then Sections.
-    item_info = {}  # pk -> (place, tail, in_nested, label)
+    item_info = {}  # pk -> (place, tail, label)
     for pk, row in items.items():
-        parent = None
-        if row["parent_item_id"]:
-            parent = items.get(row["parent_item_id"])
-            if parent is None:
-                continue  # its Nested Item is deleted
-            place = tree.place(parent["subject_id"], parent["topic_id"], parent["subtopic_id"])
-            tail = (1, parent["position"], 1, parent["pk"], 0, row["position"], pk)
-        else:
-            place = tree.place(row["subject_id"], row["topic_id"], row["subtopic_id"])
-            tail = (1, row["position"], 1, pk)
+        place = tree.place(row["subject_id"], row["topic_id"], row["subtopic_id"])
+        tail = (1, row["position"], 1, pk)
         if place is None:
             continue
         item_cases = cases.get(pk, [])
         label = _item_label(row, item_cases)
-        item_info[pk] = (place, tail, parent is not None, label)
+        item_info[pk] = (place, tail, label)
 
         if review_only and not row["needs_review"]:
             continue
         fields = []
         if not citations_only:
             fields.append(("text", row["text_plain"]))
-        if row["kind"] == KIND_NESTED:
-            fields.append(("citation", row["citation"]))
         for case in item_cases:
             fields.append((f"citation#{case['pk']}", case["citation"]))
             if not citations_only:
@@ -168,10 +155,9 @@ def _records(profile, tree, citations_only, review_only):
             fields.append(("flag", row["flag_text"]))
             fields.append(("review_note", row["review_note"]))
         record = _Record(
-            "item", label, place, f"n-item-{pk}", fields, tail, in_nested=parent is not None,
+            "item", label, place, f"n-item-{pk}", fields, tail,
             flag_text=row["flag_text"] or (_FLAG_NAMES[row["flag"]] if row["flag"] != FLAG_NONE else ""),
             needs_review=row["needs_review"], review_note=row["review_note"], text=row["text_plain"])
-        record.kind = "nested" if row["kind"] == KIND_NESTED else "item"
         if citations_only and not record.fields:
             continue
         yield record
@@ -200,9 +186,9 @@ def _records(profile, tree, citations_only, review_only):
             info = item_info.get(row["item_id"])
             if info is None:
                 continue  # its Item is deleted
-            place, tail, in_nested, parent_label = info
+            place, tail, parent_label = info
             yield _Record("note", label, place, f"n-note-{row['pk']}", [("note", row["text_plain"])],
-                          tail + own, extra_path=[(parent_label, None)], in_nested=in_nested)
+                          tail + own, extra_path=[(parent_label, None)])
         elif row["section_id"]:
             info = section_info.get(row["section_id"])
             if info is None:
@@ -248,7 +234,7 @@ def run_search(profile, query, subject_id=None, citations_only=False, review_onl
         path = [(h.name, urls.of(h.kind, h.pk)) for h in headings] + rec.extra_path
         subject_url = urls.of("subject", place.subject.pk)
         results.append(SearchResult(
-            kind="Nested Item" if rec.kind == "nested" else KIND_LABELS.get(rec.kind, rec.kind.capitalize()),
+            kind=KIND_LABELS.get(rec.kind, rec.kind.capitalize()),
             label=rec.label,
             path=path,
             url=subject_url + (f"#{rec.anchor}" if rec.anchor else ""),
@@ -257,7 +243,6 @@ def run_search(profile, query, subject_id=None, citations_only=False, review_onl
             flag_text=rec.flag_text,
             needs_review=rec.needs_review,
             review_note=rec.review_note,
-            in_nested=rec.in_nested,
             text=rec.text,
             subject_id=place.subject.pk,
             score=score,

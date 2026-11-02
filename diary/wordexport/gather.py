@@ -62,13 +62,10 @@ def load(profile):
             return row.topic_id in topics_by_id
         return row.subject_id in live_subject_ids
 
-    item_fields = base + ("subject", "topic", "subtopic", "parent_item", "kind", "text", "text_plain", "citation",
+    item_fields = base + ("subject", "topic", "subtopic", "text", "text_plain", "citation_layout",
                           "flag", "flag_text", "needs_review", "review_note")
     all_items = list(_live(Item, profile, *item_fields))
-    top_items = [i for i in all_items if i.parent_item_id is None and container_live(i)]
-    top_ids = {i.pk for i in top_items}
-    child_items = [i for i in all_items if i.parent_item_id in top_ids]
-    items = top_items + child_items
+    items = [i for i in all_items if container_live(i)]
     item_ids = {i.pk for i in items}
     sections = [s for s in _live(Section, profile, *base, "subject", "topic", "subtopic", "name", "needs_review",
                                  "review_note") if container_live(s)]
@@ -83,7 +80,7 @@ def load(profile):
         link for link in _live(NoteLink, profile).order_by("position", "pk") if link.note_id in note_ids
     ]
 
-    items_by = _by(items, ("parent_item", "subtopic", "topic", "subject"))
+    items_by = _by(items, ("subtopic", "topic", "subject"))
     sections_by = _by(sections, ("subtopic", "topic", "subject"))
     notes_by = _by(notes, ("item", "section", "subtopic", "topic", "subject"))
     cases_by = {}
@@ -130,12 +127,7 @@ def load(profile):
                 info = note_link_info(link)
                 return m.XLink(info["path"], True)
             if kind == "item":
-                names, top = [], row
-                while top.parent_item_id:
-                    names.insert(0, _short(top.text_plain, "Item"))
-                    top = items_by_id[top.parent_item_id]
-                names.insert(0, _short(top.text_plain, "Item"))
-                return m.XLink(" > ".join(container_path(top) + names))
+                return m.XLink(" > ".join(container_path(row) + [_short(row.text_plain, "Item")]))
             if kind == "section":
                 return m.XLink(" > ".join(container_path(row) + [row.name or "Section"]))
             return m.XLink(" > ".join(heading_path(kind, row)))
@@ -145,18 +137,15 @@ def load(profile):
     def x_notes(key):
         return [m.XNote(n.text, [link_of(link) for link in links_by.get(n.pk, [])]) for n in notes_by.get(key, [])]
 
-    def x_item(item, is_child=False):
+    def x_item(item):
         flag = (item.flag_text or item.get_flag_display()) if item.flag != "none" else ""
-        kids = []
-        if not is_child:
-            kids = [x_item(k, True) for k in sorted(items_by.get(("parent_item", item.pk), []),
-                                                    key=lambda i: (i.position, i.pk))]
+        item_cases = cases_by.get(item.pk, [])
         return m.XItem(
             html=item.text,
-            cases=[m.XCase(c.citation, c.comment) for c in cases_by.get(item.pk, [])],
-            citation=item.citation if item.kind == "nested" else "",
-            is_nested=item.kind == "nested", flag_label=flag, needs_review=item.needs_review,
-            review_note=item.review_note, children=kids, notes=x_notes(("item", item.pk)),
+            cases=[m.XCase(c.citation, c.comment) for c in item_cases],
+            layout=item.citation_layout if len(item_cases) > 1 else "inline",
+            flag_label=flag, needs_review=item.needs_review,
+            review_note=item.review_note, notes=x_notes(("item", item.pk)),
         )
 
     def x_container(kind, pk):

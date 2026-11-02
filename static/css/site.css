@@ -130,10 +130,15 @@ td a { display: inline-block; min-height: var(--tap); line-height: var(--tap); p
 .item-text p + p { display: block; margin-top: .4rem; }
 .citation { font-style: italic; color: var(--muted); }
 .case-comment { font-size: .9em; color: var(--muted); }
+/* Citations on separate lines: "(a) <comment> - <citation>", the wrapped lines hang under the text, not the label. */
+.case-lines { margin-top: .35rem; }
+.case-line { display: flex; gap: .5rem; margin: .15rem 0; }
+.case-line .num { flex: 0 0 2.2em; color: var(--muted); }
+.case-line-body { min-width: 0; }
+.case-line-comment p { display: inline; margin: 0; }
+.case-line-comment p + p { display: block; margin-top: .3rem; }
 .case-comment p { display: inline; margin: 0; }
 .under-section { margin-left: 1.5rem; }
-.nested { margin-top: .4rem; padding-left: .5rem; border-left: 2px solid var(--hair); }
-.nested .item:last-child { border-bottom: 0; }
 .item.flagged > .item-body, .flag-text { color: var(--oxblood); }
 .flag-text { display: inline-block; font-family: var(--font-sans); font-size: var(--small-size); letter-spacing: .08em; text-transform: uppercase; border: 1px solid var(--oxblood); border-radius: 2px; padding: 0 .4rem; }
 .review-marker { display: inline-block; font-family: var(--font-sans); font-size: var(--small-size); letter-spacing: .06em; text-transform: uppercase; padding: 0 .5rem; background: var(--amber-bg); border: 1px solid var(--amber-line); border-radius: 2px; color: var(--amber-ink); }

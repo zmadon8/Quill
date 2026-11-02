@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{% if purpose == "move" %}Move Note{% else %}Choose a place{% endif %}{% endblock %}
-{# The tree picker for Notes (Milestone 5): drill down through Subjects, Topics, Sub-topics, Nested Items; every Subject, Topic, Sub-topic, Section and Item can be chosen. #}
+{# The tree picker for Notes (Milestone 5): drill down through Subjects, Topics, Sub-topics; every Subject, Topic, Sub-topic, Section and Item can be chosen. #}
 {% block content %}
 <div class="home-column note-pick">
   <h1>{% if purpose == "move" %}Move the Note to&hellip;{% elif purpose == "retarget" %}Point the link at&hellip;{% else %}Link the Note to&hellip;{% endif %}</h1>

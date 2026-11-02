@@ -39,9 +39,9 @@ OPENING_PAGE_OFFERED = [
     ("subject", "A chosen Subject"),
 ]
 
-#: Form field -> UserSettings column, for the six number formats.
+#: Form field -> UserSettings column, for the five number formats.
 FORMAT_FIELDS = (
-    "topic_format", "subtopic_format", "section_format", "item_format", "nested_item_format", "multi_citation_format",
+    "topic_format", "subtopic_format", "section_format", "item_format", "multi_citation_format",
 )
 
 
@@ -61,9 +61,6 @@ class DiarySettingsForm(forms.Form):
     subtopic_format = forms.ChoiceField(choices=FORMAT_CHOICES, required=False, label="Sub-topics")
     section_format = forms.ChoiceField(choices=SECTION_FORMAT_CHOICES, required=False, label="Sections")
     item_format = forms.ChoiceField(choices=FORMAT_CHOICES, required=False, label="Items")
-    nested_item_format = forms.ChoiceField(
-        choices=FORMAT_CHOICES, required=False, label="Items inside a Nested Item"
-    )
     multi_citation_format = forms.ChoiceField(
         choices=FORMAT_CHOICES, required=False, label="Citations of an Item with several"
     )

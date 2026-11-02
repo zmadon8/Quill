@@ -65,10 +65,9 @@ class InlineAccessTests(InlineTestCase):
 
 
 class AddFormTests(InlineTestCase):
-    def test_after_an_item_or_a_section_the_choices_are_item_nested_item_section(self):
-        self.assertEqual(self.choices("item:%d" % self.one.pk), ["after:item", "after:nested", "after:section", "inside:note"])
-        self.assertEqual(self.choices("section:%d" % self.sec.pk),
-                         ["after:item", "after:nested", "after:section", "inside:note"])
+    def test_after_an_item_or_a_section_the_choices_are_item_section(self):
+        self.assertEqual(self.choices("item:%d" % self.one.pk), ["after:item", "after:section", "inside:note"])
+        self.assertEqual(self.choices("section:%d" % self.sec.pk), ["after:item", "after:section", "inside:note"])
 
     def test_after_a_topic_the_choices_are_item_inside_subtopic_topic(self):
         body = self.form("topic:%d" % self.topic.pk).json()
@@ -81,16 +80,6 @@ class AddFormTests(InlineTestCase):
         body = self.form("subtopic:%d" % sub.pk).json()
         self.assertEqual([(c["value"], c["label"]) for c in body["choices"]],
                          [("inside:item", "Item inside"), ("inside:note", "Note"), ("after:subtopic", "Sub-topic")])
-
-    def test_on_a_nested_item_the_only_choice_is_an_item_beneath_it(self):
-        nested = self.make("item", ("topic", self.topic.pk), kind="nested", text="nested")
-        body = self.form("item:%d" % nested.pk).json()
-        self.assertEqual([(c["value"], c["label"]) for c in body["choices"]], [("inside:item", "Item beneath it"), ("inside:note", "Note")])
-
-    def test_after_an_item_inside_a_nested_item_the_only_choice_is_an_item(self):
-        nested = self.make("item", ("topic", self.topic.pk), kind="nested", text="nested")
-        child = self.make("item", ("item", nested.pk), text="child")
-        self.assertEqual(self.choices("item:%d" % child.pk), ["after:item", "inside:note"])
 
     def test_a_subject_offers_the_kind_of_heading_it_already_holds(self):
         self.assertEqual(self.choices("subject:%d" % self.subject.pk), ["inside:item", "inside:topic", "inside:note"])
@@ -125,28 +114,18 @@ class AddTests(InlineTestCase):
         self.assertEqual(self.order(), ["one", "two", "typed", "S", "three", "four"])
         self.assertTrue(body["undo"]["text"].startswith("Added"))
 
-    def test_nested_item_and_section_after_an_item(self):
-        body = self.add("item:%d" % self.one.pk, "after:nested", self.one, text="a nested", citation="N v M").json()
-        nested = Item.objects.get(topic=self.topic, text_plain="a nested")
-        self.assertEqual((nested.kind, nested.citation), ("nested", "N v M"))
-        self.assertEqual(body["element"], "n-item-%d" % nested.pk)
+    def test_nested_item_is_not_a_choice_and_a_section_goes_after_an_item(self):
+        resp = self.add("item:%d" % self.one.pk, "after:nested", self.one, text="a nested", citation="N v M")
+        self.assertEqual(resp.status_code, 400)
+        self.assertFalse(Item.objects.filter(text_plain="a nested").exists())
         body = self.add("item:%d" % self.one.pk, "after:section", self.one, text="Early").json()
-        self.assertEqual(self.order()[:3], ["one", "Early", "a nested"])
+        self.assertEqual(self.order()[:2], ["one", "Early"])
         self.assertTrue(body["element"].startswith("row-n-section-"))
         self.assertEqual(body["after_anchor"], "n-item-%d" % self.one.pk)
 
     def test_item_inside_a_topic_goes_first(self):
         self.add("topic:%d" % self.topic.pk, "inside:item", self.topic, text="top")
         self.assertEqual(self.order()[:2], ["top", "one"])
-
-    def test_item_beneath_a_nested_item_comes_back_as_the_whole_nested_item(self):
-        nested = self.make("item", ("topic", self.topic.pk), kind="nested", text="nested")
-        self.make("item", ("item", nested.pk), text="old child")
-        body = self.add("item:%d" % nested.pk, "inside:item", nested, text="new child").json()
-        kids = list(Item.objects.filter(parent_item=nested).order_by("position").values_list("text_plain", flat=True))
-        self.assertEqual(kids, ["new child", "old child"])
-        self.assertEqual(body["element"], "n-item-%d" % nested.pk)
-        self.assertIn("new child", body["html"])
 
     def test_several_citations_with_comments_become_cases_in_order(self):
         body = self.add("item:%d" % self.one.pk, "after:item", self.one, text="with cases",
@@ -213,26 +192,35 @@ class CardTests(InlineTestCase):
         self.assertEqual(body["version"], self.get(self.one).version)
         for needle in ('name="text"', 'name="case_citation"', 'value="A v B"', "@ para 22", 'name="case_id"',
                        'name="flag"', 'name="flag_text"', 'name="needs_review"', 'name="review_note"',
-                       "+ another citation", "Move to", "Move up", "Move down", "Change to Nested Item", "History",
+                       "+ another citation", "Move to", "Move up", "Move down", "History",
                        "Delete", "goes to Trash"):
             self.assertIn(needle, html, needle)
+        self.assertNotIn("Change to", html)
+        self.assertNotIn("Nested", html)
         self.assertIn('action="%s"' % reverse("edit_item", args=[self.one.pk]), html)
         for text in ("None", "Overruled", "Doubted", "Other"):
             self.assertIn(text, html)
 
-    def test_nested_item_card_offers_change_to_item_and_a_single_citation(self):
-        nested = self.make("item", ("topic", self.topic.pk), kind="nested", text="nested", citation="N v M")
-        html = self.card("item", nested).json()["html"]
-        self.assertIn("Change to Item", html)
-        self.assertNotIn("Change to Nested Item", html)
-        self.assertIn('name="citation"', html)
-        self.assertNotIn('name="case_citation"', html)
+    def test_show_citations_control_is_hidden_until_there_are_two_citations(self):
+        self.make("case", ("item", self.one.pk), citation="A v B")
+        self.assertIn("data-layout-control hidden", self.card("item", self.one).json()["html"])
+        self.make("case", ("item", self.one.pk), citation="C v D")
+        html = self.card("item", self.one).json()["html"]
+        self.assertNotIn("data-layout-control hidden", html)
+        self.assertIn('name="citation_layout" value="inline" checked', html)
+        self.assertIn('name="citation_layout" value="lines"', html)
+        self.assertIn("On separate lines", html)
 
-    def test_an_item_inside_a_nested_item_cannot_be_converted(self):
-        nested = self.make("item", ("topic", self.topic.pk), kind="nested", text="nested")
-        child = self.make("item", ("item", nested.pk), text="child")
-        html = self.card("item", child).json()["html"]
-        self.assertNotIn("Change to", html)
+    def test_saving_the_card_sets_the_citation_layout(self):
+        first = self.make("case", ("item", self.one.pk), citation="A v B")
+        second = self.make("case", ("item", self.one.pk), citation="C v D")
+        data = {"version": self.get(self.one).version, "text": "<p>one</p>", "flag": "none", "citation_layout": "lines",
+                "case_id": [first.pk, second.pk], "case_version": [self.get(first).version, self.get(second).version],
+                "case_citation": ["A v B", "C v D"], "case_comment": ["", ""]}
+        body = self.fetch("edit_item", data, args=[self.one.pk]).json()
+        self.assertTrue(body["ok"])
+        self.assertEqual(self.get(self.one).citation_layout, "lines")
+        self.assertIn("case-lines", body["html"])
 
     def test_heading_card_is_the_name_and_more_only_with_no_explanatory_text(self):
         for kind, obj in (("topic", self.topic), ("subject", self.subject)):
@@ -406,27 +394,6 @@ class MoreMenuTests(InlineTestCase):
         self.assertEqual(self.order()[0], "four")
         self.assertTrue(body["reload"])
 
-    def test_change_to_nested_item_and_back(self):
-        body = self.fetch("edit_item_convert", {"to_kind": "nested", "version": self.get(self.one).version},
-                          args=[self.one.pk]).json()
-        self.assertTrue(body["ok"])
-        self.assertEqual(self.get(self.one).kind, "nested")
-        self.fetch("edit_item_convert", {"to_kind": "plain", "version": self.get(self.one).version}, args=[self.one.pk])
-        self.assertEqual(self.get(self.one).kind, "plain")
-
-    def test_a_conversion_that_needs_confirmation_points_to_the_preview_page(self):
-        self.make("case", ("item", self.one.pk), citation="A v B", comment="note")
-        self.make("case", ("item", self.one.pk), citation="C v D")
-        resp = self.fetch("edit_item_convert", {"to_kind": "nested", "version": self.get(self.one).version}, args=[self.one.pk])
-        body = resp.json()
-        if body["ok"]:
-            self.assertEqual(self.get(self.one).kind, "nested")
-        else:  # nothing changed; a confirmation sends the script to the preview page, a refusal says why
-            self.assertEqual(self.get(self.one).kind, "plain")
-            self.assertTrue(body.get("needs_page") or body["errors"])
-            if body.get("needs_page"):
-                self.assertEqual(body["convert_url"], reverse("edit_item_convert", args=[self.one.pk]))
-
     def test_the_non_javascript_actions_still_work(self):
         resp = self.post("edit_delete", {"kind": "item", "id": self.one.pk, "version": self.get(self.one).version})
         self.assertEqual(resp.status_code, 200)  # the confirmation page, nothing deleted yet
@@ -436,12 +403,15 @@ class MoreMenuTests(InlineTestCase):
 
 
 class ReadingTests(InlineTestCase):
-    def test_items_inside_a_nested_item_show_bullets_not_numbers(self):
-        nested = self.make("item", ("topic", self.topic.pk), kind="nested", text="nested parent")
-        self.make("item", ("item", nested.pk), text="child text")
-        resp = self.client.get(reverse("read_subject", args=[self.subject.pk]) + "?edit=1")
-        html = resp.content.decode()
-        start = html.index('id="n-item-%d"' % nested.pk)
-        chunk = html[start:html.index("child text", start)]
-        self.assertIn("\u2022", chunk)
-        self.assertNotIn("(i)", chunk)
+    def test_a_lines_item_shows_each_citation_on_its_own_line_in_the_reading_row(self):
+        item = self.make("item", ("topic", self.topic.pk), text="lines parent")
+        self.make("case", ("item", item.pk), citation="A v B", comment="<p>first point</p>")
+        self.make("case", ("item", item.pk), citation="C v D")
+        Item.objects.filter(pk=item.pk).update(citation_layout="lines")
+        html = self.client.get(reverse("read_subject", args=[self.subject.pk]) + "?edit=1").content.decode()
+        start = html.index('id="n-item-%d"' % item.pk)
+        chunk = html[start:start + 1500]
+        self.assertIn('class="case-lines"', chunk)
+        self.assertLess(chunk.index("first point"), chunk.index("A v B"))
+        self.assertIn("(a)", chunk)
+        self.assertIn("(b)", chunk)

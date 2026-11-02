@@ -2,16 +2,13 @@
   {% if edit_mode and b.run %}{% include "diary/_grip.html" %}{% endif %}
   <span class="num">{{ b.label|dotted }}</span>
   <div class="item-body">
-    <span class="item-text">{% if b.has_text %}{{ b.text }}{% endif %}</span>{% if b.cases %}{% if b.has_text %} - {% endif %}{% for case in b.cases %}<span class="case">{% if case.label %}<span class="num">{{ case.label }}</span> {% endif %}<em class="citation">{{ case.citation }}</em>{% if case.has_comment %} <span class="case-comment">{{ case.comment }}</span>{% endif %}</span>{% if not forloop.last %} ; {% endif %}{% endfor %}{% elif b.citation %}{% if b.has_text %} - {% endif %}<em class="citation">{{ b.citation }}</em>{% endif %}
+    <span class="item-text">{% if b.has_text %}{{ b.text }}{% endif %}</span>{% if b.cases and b.layout == "lines" %}
+    <div class="case-lines">{% for case in b.cases %}<div class="case-line"><span class="num">{{ case.label }}</span><span class="case-line-body">{% if case.has_comment %}<span class="case-line-comment">{{ case.comment }}</span>{% if case.citation %} - {% endif %}{% endif %}{% if case.citation %}<em class="citation">{{ case.citation }}</em>{% endif %}</span></div>{% endfor %}</div>
+    {% elif b.cases %}{% if b.has_text %} - {% endif %}{% for case in b.cases %}<span class="case">{% if case.label %}<span class="num">{{ case.label }}</span> {% endif %}<em class="citation">{{ case.citation }}</em>{% if case.has_comment %} <span class="case-comment">{{ case.comment }}</span>{% endif %}</span>{% if not forloop.last %} ; {% endif %}{% endfor %}{% endif %}
     {% if b.flag %}<span class="flag-text">[{{ b.flag_label }}]</span>{% endif %}
     {% if b.needs_review %}<span class="review-marker">For review{% if b.review_note %}: {{ b.review_note }}{% endif %}</span>{% endif %}
     {% include "diary/_linked_from.html" %}
     {% for note in b.notes %}{% include "diary/_note.html" with b=note %}{% endfor %}
-    {% if b.children %}
-    <div class="nested">
-      {% for child in b.children %}{% include "diary/_item.html" with b=child %}{% endfor %}
-    </div>
-    {% endif %}
   </div>
   {% include "diary/_row_actions.html" with ekind="item" eid=b.id eword="Item" %}
 </div>

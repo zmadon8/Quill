@@ -26,7 +26,6 @@ OPERATIONS = {
     "edit_move": "Move to another place",
     "edit_add": "Add the entry after that one",
     "edit_landing": "Change where the Subject is listed",
-    "edit_item_convert": "Change the type of the Item",
     "edit_item": "Save the Item",
     "edit_note": "Save the Note",
     "trash_restore": "Restore from the Trash",

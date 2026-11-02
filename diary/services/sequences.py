@@ -1,6 +1,6 @@
 """Position sequences: which siblings share one run, how they are kept contiguous, and their numbers.
 
-Items, Nested Items and Sections of one parent share ONE sequence (docs/DESIGN.md section 2).
+Items and Sections of one parent share ONE sequence (docs/DESIGN.md section 2).
 Positions are kept as 1..n among the live siblings; records in Trash keep their old position so
 that Restore can put them back where they were.
 
@@ -33,7 +33,6 @@ COLUMN_TYPE = {
     "subtopic": "subtopic",
     "section": "section",
     "item": "item",
-    "parent_item": "item",
     "note": "note",
 }
 
@@ -53,8 +52,6 @@ def sequence_key(obj):
         column = "topic" if obj.topic_id else "subject"
         return ("subtopic", column, getattr(obj, f"{column}_id"))
     if kind in ("section", "item"):
-        if kind == "item" and obj.parent_item_id:
-            return ("kids", "parent_item", obj.parent_item_id)
         for column in ("subtopic", "topic", "subject"):
             if getattr(obj, f"{column}_id"):
                 return ("run", column, getattr(obj, f"{column}_id"))
@@ -94,9 +91,7 @@ def members(profile_id, key):
         return sort_headings(Topic._base_manager.filter(subject_id=value, **live))
     if kind == "subtopic":
         return sort_headings(Subtopic._base_manager.filter(**{f"{column}_id": value}, **live))
-    if kind == "kids":
-        rows = Item._base_manager.filter(parent_item_id=value, **live)
-    elif kind == "run":
+    if kind == "run":
         rows = list(Item._base_manager.filter(**{f"{column}_id": value}, **live)) + list(
             Section._base_manager.filter(**{f"{column}_id": value}, **live)
         )
@@ -215,13 +210,8 @@ def labels(key, objs, fmts):
     """{(type, pk): generated number} for ``objs`` (the live members, in order) of sequence ``key``."""
     kind = key[0]
     if kind == "run":
-        kinds = [
-            numbering.SECTION if isinstance(o, Section) else (numbering.NESTED if o.kind == "nested" else numbering.ITEM)
-            for o in objs
-        ]
+        kinds = [numbering.SECTION if isinstance(o, Section) else numbering.ITEM for o in objs]
         values = numbering.number_children(kinds, fmts["item_format"], fmts["section_format"])
-    elif kind == "kids":
-        values = numbering.number_siblings(len(objs), fmts["nested_item_format"])
     elif kind == "topic":
         values = numbering.number_siblings(len(objs), fmts["topic_format"])
     elif kind == "subtopic":

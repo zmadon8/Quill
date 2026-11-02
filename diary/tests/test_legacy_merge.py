@@ -1,4 +1,4 @@
-"""10d: Multi-Item merged into Item. The mapping (diary/legacy_merge.py), data migration 0010 logic and
+"""10d: Multi-Item merged into Item (the live-database parts run on the current models, so a "nested" Item here is just a row with that kind value). The mapping (diary/legacy_merge.py), data migration 0010 logic and
 History restore of a version that predates the merge (docs/DESIGN.md, Proposal for 10d)."""
 from unittest import mock
 
@@ -97,7 +97,6 @@ class MigrateItemsTests(TestCase):
         self.case1 = Case.objects.create(profile=self.profile, item=self.multi, citation="C1", comment="<i>x</i>", position=1)
         self.case2 = Case.objects.create(profile=self.profile, item=self.multi, citation="C2", position=2)
         self.nested = self.item(kind="nested", citation="N v M", position=4)
-        self.child = Item.objects.create(profile=self.profile, parent_item=self.nested, text="kid")
         self.trashed = self.item(citation="T v U", position=5, deleted_at=timezone.now())
         self.space = self.item(citation="   ", position=6)
 

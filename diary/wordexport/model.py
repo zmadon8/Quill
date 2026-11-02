@@ -27,13 +27,11 @@ class XCase:
 @dataclass
 class XItem:
     html: str = ""  # the Item's text, rich (p, br, b, i, u)
-    cases: list = field(default_factory=list)  # XCase, in order (not for a Nested Item)
-    citation: str = ""  # a Nested Item's own citation
-    is_nested: bool = False
+    cases: list = field(default_factory=list)  # XCase, in order
+    layout: str = "inline"  # "lines": each citation on its own line, "(a) <comment> - <citation>"
     flag_label: str = ""  # "" when the Item has no flag
     needs_review: bool = False
     review_note: str = ""
-    children: list = field(default_factory=list)  # XItem, only for a Nested Item
     notes: list = field(default_factory=list)  # XNote
 
 
@@ -99,9 +97,9 @@ class ExportInput:
 
 
 def count_items(thing):
-    """Items at every depth (a Nested Item and each Item inside it count): the figure the screens show as the Item count."""
+    """Items in the tree: the figure the screens show as the Item count."""
     if isinstance(thing, XItem):
-        return 1 + sum(count_items(c) for c in thing.children)
+        return 1
     if isinstance(thing, XSection):
         return 0
     if isinstance(thing, XContainer):

@@ -110,18 +110,11 @@ class CreateTests(ServiceTestCase):
         with self.assertRaises(svc.Refused):
             self.make("subject", ("subject", subject.pk), name="Y")
 
-    def test_item_beneath_a_plain_item_refused(self):
+    def test_item_beneath_an_item_refused(self):
         subject = self.make("subject", name="S")
         plain = self.make("item", ("subject", subject.pk), text="p")
         with self.assertRaises(svc.Refused):
             self.make("item", ("item", plain.pk), text="child")
-
-    def test_item_beneath_a_nested_item_allowed_and_numbered_separately(self):
-        subject = self.make("subject", name="S")
-        nested = self.make("item", ("subject", subject.pk), kind="nested", text="n")
-        child = self.make("item", ("item", nested.pk), text="c")
-        self.assertEqual(self.get(child).parent_item_id, nested.pk)
-        self.assertEqual(self.get(child).position, 1)
 
     def test_topic_and_direct_subtopics_do_not_mix(self):
         subject = self.make("subject", name="S")
@@ -133,16 +126,13 @@ class CreateTests(ServiceTestCase):
         with self.assertRaises(svc.Refused):
             self.make("topic", ("subject", other.pk), name="T")
 
-    def test_cases_under_any_item_but_not_a_nested_item(self):
+    def test_cases_under_any_item(self):
         subject = self.make("subject", name="S")
         plain = self.make("item", ("subject", subject.pk), text="p")
         case = self.make("case", ("item", plain.pk), citation="A v B")
         self.assertEqual(self.get(case).position, 1)
         second = self.make("case", ("item", plain.pk), citation="C v D")
         self.assertEqual(self.get(second).position, 2)
-        nested = self.make("item", ("subject", subject.pk), kind="nested", text="n")
-        with self.assertRaises(svc.Refused):
-            self.make("case", ("item", nested.pk), citation="A v B")
 
     def test_a_new_item_with_a_citation_gets_it_as_case_a(self):
         subject = self.make("subject", name="S")
@@ -155,11 +145,19 @@ class CreateTests(ServiceTestCase):
         bare = self.make("item", ("subject", subject.pk), text="q")
         self.assertFalse(Case.objects.filter(item=bare).exists())
 
-    def test_a_nested_item_keeps_its_own_citation_and_makes_no_case(self):
+    def test_a_kind_cannot_be_given_to_a_new_item(self):
         subject = self.make("subject", name="S")
-        nested = self.make("item", ("subject", subject.pk), kind="nested", text="n", citation="N v M")
-        self.assertEqual(self.get(nested).citation, "N v M")
-        self.assertFalse(Case.objects.filter(item=nested).exists())
+        with self.assertRaises(svc.Refused):
+            self.make("item", ("subject", subject.pk), kind="nested", text="n")
+
+    def test_the_citation_layout_can_be_set_on_creation_and_edit(self):
+        subject = self.make("subject", name="S")
+        item = self.make("item", ("subject", subject.pk), text="n", citation_layout="lines")
+        self.assertEqual(self.get(item).citation_layout, "lines")
+        svc.edit(self.profile, self.user, "item", item.pk, {"citation_layout": "inline"})
+        self.assertEqual(self.get(item).citation_layout, "inline")
+        with self.assertRaises(svc.ValidationFailed):
+            svc.edit(self.profile, self.user, "item", item.pk, {"citation_layout": "sideways"})
 
     def test_parent_in_trash_refused(self):
         subject = self.make("subject", name="S")
@@ -218,14 +216,12 @@ class EditTests(ServiceTestCase):
         self.assertEqual(self.get(self.one).text, "theirs")
         self.assertEqual(self.get(self.one).version, 2)
 
-    def test_stale_delete_move_and_convert_are_conflicts_too(self):
+    def test_stale_delete_and_move_are_conflicts_too(self):
         svc.edit(self.profile, self.user, "item", self.one.pk, {"text": "theirs"}, 1)
         with self.assertRaises(svc.Conflict):
             svc.delete(self.profile, self.user2, "item", self.one.pk, 1)
         with self.assertRaises(svc.Conflict):
             svc.move(self.profile, self.user2, "item", self.one.pk, index=3, expected_version=1)
-        with self.assertRaises(svc.Conflict):
-            svc.convert_item(self.profile, self.user2, self.one.pk, "nested", 1)
         self.assertIsNone(self.get(self.one).deleted_at)
         self.assertEqual(self.get(self.one).kind, "plain")
 
@@ -233,7 +229,7 @@ class EditTests(ServiceTestCase):
         with self.assertRaises(svc.Refused):
             svc.edit(self.profile, self.user, "item", self.one.pk, {"position": 9})
         with self.assertRaises(svc.Refused):
-            svc.edit(self.profile, self.user, "item", self.one.pk, {"kind": "nested"})
+            svc.edit(self.profile, self.user, "item", self.one.pk, {"kind": "plain"})
         with self.assertRaises(svc.Refused):
             svc.edit(self.profile, self.user, "notelink", 1, {})
 
@@ -241,12 +237,9 @@ class EditTests(ServiceTestCase):
         for changes in ({"citation": "line one\nline two"}, {"flag": "nonsense"}):
             with self.assertRaises(svc.ValidationFailed):
                 svc.edit(self.profile, self.user, "item", self.one.pk, changes)
-        # The citations of an Item are Cases: its own citation column cannot be edited (a Nested Item's can).
+        # The citations of an Item are Cases: its own citation column cannot be edited.
         with self.assertRaises(svc.ValidationFailed):
             svc.edit(self.profile, self.user, "item", self.one.pk, {"citation": "A v B"})
-        nested = self.make("item", ("topic", self.topic.pk), kind="nested", text="n")
-        svc.edit(self.profile, self.user, "item", nested.pk, {"citation": "A v B"})
-        self.assertEqual(self.get(nested).citation, "A v B")
         self.assertEqual(self.get(self.one).version, 1)
         self.assertEqual(self.get(self.one).citation, "")
 
@@ -292,8 +285,6 @@ class ProfileIsolationTests(ServiceTestCase):
             lambda: svc.permanent_delete(p, u, "item", fi),
             lambda: svc.move(p, u, "item", fi, index=0),
             lambda: svc.shift(p, u, "item", fi, 1),
-            lambda: svc.convert_item(p, u, fi, "nested"),
-            lambda: svc.preview_conversion(p, u, fi, "nested"),
             lambda: svc.preview_move(p, u, "item", fi),
             lambda: svc.preview_delete(p, u, "item", fi),
             lambda: svc.restore_version(p, u, "item", fi, 1),
@@ -402,10 +393,16 @@ class HistoryRestoreTests(ServiceTestCase):
         self.assertEqual(self.get(self.one).position, moved_to)
         self.assertEqual(self.get(self.one).text, "one")
 
-    def test_restore_version_refused_across_a_conversion(self):
-        svc.convert_item(self.profile, self.user, self.one.pk, "nested")
-        with self.assertRaises(svc.Refused):
-            svc.restore_version(self.profile, self.user, "item", self.one.pk, 2)
+    def test_restore_of_an_old_nested_version_maps_its_citation_to_case_a(self):
+        # A version saved before round 10 may say kind "nested" and carry the Item's own citation.
+        row = VersionHistory.objects.get(record_type="item", record_id=self.one.pk, version=1)
+        row.snapshot = {**row.snapshot, "kind": "nested", "citation": "N v M"}
+        row.save()
+        svc.edit(self.profile, self.user, "item", self.one.pk, {"text": "<p>newer words</p>"})
+        svc.restore_version(self.profile, self.user, "item", self.one.pk, 1)
+        item = self.get(self.one)
+        self.assertEqual((item.kind, item.citation), ("plain", ""))
+        self.assertEqual([c.citation for c in Case.objects.filter(item=item, deleted_at__isnull=True)], ["N v M"])
 
 
 class LandingTests(ServiceTestCase):

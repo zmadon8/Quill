@@ -63,12 +63,9 @@ class DeleteTests(TrashTestCase):
         self.assertNotEqual(self.get(self.i1).delete_batch, first)
         self.assertEqual(TrashBatch.objects.count(), 2)
 
-    def test_deleting_a_nested_item_takes_its_children_and_an_item_its_citations(self):
-        nested = self.make("item", ("topic", self.t2.pk), kind="nested", text="n")
-        child = self.make("item", ("item", nested.pk), text="child")
-        svc.delete(self.profile, self.user, "item", nested.pk)
+    def test_deleting_an_item_takes_its_citations(self):
         svc.delete(self.profile, self.user, "item", self.multi.pk)
-        self.assertTrue(all(self.deleted([nested, child, self.multi, self.case])))
+        self.assertTrue(all(self.deleted([self.multi, self.case])))
 
     def test_deleting_a_note_takes_its_links_and_never_deletes_the_target(self):
         link = svc.add_link(self.profile, self.user, self.note.pk, ("item", self.i3.pk)).record
@@ -214,11 +211,6 @@ class RestoreTests(TrashTestCase):
         with self.assertRaises(svc.Conflict):
             svc.restore(self.profile, self.user, "item", self.i1.pk, expected_version=1)
 
-    def test_a_case_cannot_come_back_under_an_item_that_is_now_a_nested_item(self):
-        svc.delete(self.profile, self.user, "case", self.case.pk)
-        Item.objects.filter(pk=self.multi.pk).update(kind="nested")
-        with self.assertRaises(svc.Refused):
-            svc.restore(self.profile, self.user, "case", self.case.pk)
 
 
 class PermanentDeleteTests(TrashTestCase):
@@ -341,9 +333,8 @@ class NoteLinkPreservationTests(TrashTestCase):
         self.assertEqual(again.record.pk, self.link.pk)
         self.assertEqual(NoteLink.objects.filter(note=self.other_note).count(), 1)
 
-    def test_links_survive_moves_and_conversions(self):
+    def test_links_survive_moves(self):
         svc.move(self.profile, self.user, "item", self.i1.pk, ("topic", self.t2.pk))
-        svc.convert_item(self.profile, self.user, self.i1.pk, "nested")
         self.assertEqual(self.link_state(), (self.i1.pk, self.other_note.pk, None, 1))
 
     def test_link_targets_in_another_profile_are_refused(self):

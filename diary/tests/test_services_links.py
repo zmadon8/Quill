@@ -22,16 +22,15 @@ class LinkTestCase(ServiceTestCase):
 
 class CreateTests(LinkTestCase):
     def test_a_note_can_have_several_links_of_every_kind_in_order(self):
-        nested = self.make("item", ("topic", self.topic.pk), kind="nested", text="group")
-        child = self.make("item", ("item", nested.pk), text="child")
+        another = self.make("item", ("topic", self.topic.pk), text="another")
         sub = self.make("subtopic", ("topic", self.topic.pk), name="Offer")
         wanted = [("subject", self.subject), ("topic", self.topic), ("subtopic", sub), ("section", self.section),
-                  ("item", self.one), ("item", nested), ("item", child)]
+                  ("item", self.one), ("item", another)]
         for kind, obj in wanted:
             self.link(kind, obj)
         self.assertEqual(self.live_targets(), [(kind, obj.pk) for kind, obj in wanted])
         positions = list(NoteLink.objects.filter(note=self.note).order_by("pk").values_list("position", flat=True))
-        self.assertEqual(positions, [1, 2, 3, 4, 5, 6, 7])
+        self.assertEqual(positions, [1, 2, 3, 4, 5, 6])
 
     def test_adding_the_same_link_twice_does_nothing(self):
         first = self.link("item", self.one)

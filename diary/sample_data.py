@@ -8,7 +8,6 @@ from django.db import transaction
 from django.db.models import Q
 
 from .models import (
-    KIND_NESTED,
     Case,
     Item,
     Note,
@@ -27,9 +26,7 @@ def sample_subjects(profile):
 
 
 def _item(profile, citation="", **fields):
-    """An Item; its citation is its first Case (a Nested Item cannot own Cases and keeps its own)."""
-    if fields.get("kind") == KIND_NESTED:
-        return Item.objects.create(profile=profile, citation=citation, **fields)
+    """An Item; its citation is its first Case."""
     item = Item.objects.create(profile=profile, **fields)
     if citation:
         Case.objects.create(profile=profile, item=item, citation=citation, position=1)
@@ -79,12 +76,14 @@ def load_sample_data(profile):
     Case.objects.create(profile=profile, item=several, citation="Harbhajan Lal v. Union of India AIR 1996 SC 1", position=2)
     Case.objects.create(profile=profile, item=several, citation="Third sample case (2001) 2 SCC 2",
                         comment="<p>Followed in <u>later</u> cases.</p>", position=3)
-    nested = _item(profile,
-        subtopic=offer, kind=KIND_NESTED, position=4,
-        text="<p>Revocation of an offer:</p>", citation="Sample v. Nested (2010) 1 SCC 1",
+    lines = _item(profile,
+        subtopic=offer, position=4, citation_layout="lines",
+        text="<p>Revocation of an offer:</p>",
     )
-    for n, text in enumerate(("before acceptance only", "by notice to the offeree"), start=1):
-        _item(profile, parent_item=nested, text=f"<p>Revocation is effective {text}.</p>", position=n)
+    for n, (text, citation) in enumerate((("effective before acceptance only", "Sample v. Revocation (2010) 1 SCC 1"),
+                                          ("effective by notice to the offeree", "Example v. Notice (2011) 2 SCC 2")), start=1):
+        Case.objects.create(profile=profile, item=lines, citation=citation,
+                            comment=f"<p>Revocation is {text}.</p>", position=n)
     _item(profile,
         subtopic=offer, text="<p>This sample proposition was overruled.</p>", citation="Old v. Law (1950) 1 SCC 1",
         flag="overruled", flag_text="Overruled by New v. Law (1990)", position=5,
@@ -163,11 +162,6 @@ def remove_sample_data(profile):
         Item.objects.filter(Q(subject__in=ids) | Q(topic__in=topics) | Q(subtopic__in=subtopics))
         .values_list("pk", flat=True)
     )
-    while True:  # nested child Items, at any depth
-        more = set(Item.objects.filter(parent_item__in=items).values_list("pk", flat=True)) - items
-        if not more:
-            break
-        items |= more
 
     sample_notes = Note.objects.filter(
         Q(subject__in=ids) | Q(topic__in=topics) | Q(subtopic__in=subtopics)

@@ -11,10 +11,14 @@
     var list = wrap.querySelector("[data-case-list]");
     var template = wrap.querySelector("[data-case-template]");
 
+    var layout = form.querySelector("[data-layout-control]");
     var renumber = function () {
-      Array.prototype.forEach.call(list.querySelectorAll("[data-case-row]"), function (row, i) {
+      var rows = list.querySelectorAll("[data-case-row]");
+      Array.prototype.forEach.call(rows, function (row, i) {
         row.querySelector("[data-case-number]").textContent = "Citation " + (i + 1);
       });
+      // "Show citations" only makes sense with two or more citations.
+      if (layout) { layout.hidden = rows.length < 2; }
     };
 
     wrap.addEventListener("click", function (e) {

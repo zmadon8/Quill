@@ -1,12 +1,10 @@
-"""The Item editor, conversions and the review marker switch (Milestone 3c, docs/DESIGN.md sections 5.5, 6 and 11).
+"""The Item editor and the review marker switch (Milestone 3c, docs/DESIGN.md sections 5.5 and 11).
 
 Same rules as ``views_edit``: Editors of the signed-in user's profile only (Readers get 403, another
 profile's ids give 404), POST with the CSRF token for every change, and every change goes through the
 service layer. The editor page itself is a GET; saving is a POST of the whole form carrying the
 version of the Item (and of each Case), so a stale save shows the conflict page and nothing is saved.
 """
-from urllib.parse import urlencode
-
 from django.contrib import messages
 from django.db import transaction
 from django.http import Http404
@@ -15,13 +13,12 @@ from django.urls import reverse
 
 from . import inline
 from . import services as svc
-from .models import FLAG_CHOICES, KIND_CHOICES, KIND_NESTED, Case, Item
+from .models import CITATION_LAYOUT_CHOICES, FLAG_CHOICES, Case, Item
 from .services.core import ancestors, label
 from .services.errors import Conflict, Refused, ValidationFailed
-from .views_edit import _json_error, _next, _record_id, _single_line, _version, edit_endpoint, editor_page, is_fetch
+from .views_edit import _next, _record_id, _single_line, _version, edit_endpoint, editor_page, is_fetch
 
 FLAG_TEXT_MAX = 300
-KIND_NAMES = dict(KIND_CHOICES)
 
 
 def _load_item(request, pk):
@@ -37,10 +34,6 @@ def _default_back(item):
     if chain and chain[0][0] == "subject":
         return f"{reverse('read_subject', args=[chain[0][1].pk])}?edit=1#n-item-{item.pk}"
     return reverse("diary_home")
-
-
-def _editor_url(item, back):
-    return f"{reverse('edit_item', args=[item.pk])}?{urlencode({'next': back})}"
 
 
 # ------------------------------------------------------------------ reading the form
@@ -82,11 +75,17 @@ def _gone_versions(post):
     return found
 
 
+def _layout(post):
+    """The posted way to show citations ("inline" or "lines"), or None when the form did not send one."""
+    value = post.get("citation_layout", "")
+    return value if value in dict(CITATION_LAYOUT_CHOICES) else None
+
+
 def _values(post):
     flag = post.get("flag", "none")
     return {
         "text": post.get("text", ""),
-        "citation": _single_line(post.get("citation", "")),
+        "citation_layout": _layout(post),
         "flag": flag,
         "flag_text": "" if flag == "none" else _single_line(post.get("flag_text", "")),
         "needs_review": post.get("needs_review") == "1",
@@ -130,7 +129,7 @@ def _save_cases(request, item, rows, gone):
 def _save(request, item, back):
     post = request.POST
     values = _values(post)
-    with_cases = item.kind != KIND_NESTED and _has_case_fields(post)
+    with_cases = _has_case_fields(post)
     rows = _case_rows(post) if with_cases else []
     gone = _gone_versions(post)
     try:
@@ -138,14 +137,14 @@ def _save(request, item, back):
             if len(values["flag_text"]) > FLAG_TEXT_MAX:
                 raise ValidationFailed(f"The flag text is too long ({FLAG_TEXT_MAX} characters at most).")
             changes = {name: values[name] for name in ("text", "flag", "flag_text", "needs_review", "review_note")}
-            if item.kind == KIND_NESTED:
-                changes["citation"] = values["citation"]
+            if values["citation_layout"] is not None:
+                changes["citation_layout"] = values["citation_layout"]
             svc.edit(request.profile, request.user, "item", item.pk, changes, _version(request))
             if with_cases:
                 _save_cases(request, item, rows, gone)
     except Conflict as exc:
         # Show everything that was typed, not only the part that clashed, so nothing is lost.
-        exc.mine = _everything_typed(values, rows, item.kind)
+        exc.mine = _everything_typed(values, rows)
         raise
     except Refused as exc:
         if is_fetch(request):
@@ -158,11 +157,9 @@ def _save(request, item, back):
     return redirect(back)
 
 
-def _everything_typed(values, rows, kind):
+def _everything_typed(values, rows):
     shown = {"Text": values["text"], "Flag": values["flag"], "Flag text": values["flag_text"],
              "For review": "yes" if values["needs_review"] else "no", "Review note": values["review_note"]}
-    if kind == KIND_NESTED:
-        shown["Citation"] = values["citation"]
     for number, row in enumerate(rows, start=1):
         shown[f"Citation {number}"] = row["citation"]
         shown[f"Citation {number} comment"] = row["comment"]
@@ -179,24 +176,24 @@ def _person(user):
 
 def _render(request, item, back, values=None, rows=None, status=200, theirs=False):
     if values is None:
-        values = {"text": item.text, "citation": item.citation, "flag": item.flag, "flag_text": item.flag_text,
-                  "needs_review": item.needs_review, "review_note": item.review_note}
+        values = {"text": item.text, "citation_layout": item.citation_layout, "flag": item.flag,
+                  "flag_text": item.flag_text, "needs_review": item.needs_review, "review_note": item.review_note}
+    if values.get("citation_layout") is None:
+        values = {**values, "citation_layout": item.citation_layout}
     if rows is None:
         cases = Case._base_manager.filter(item=item, deleted_at__isnull=True, profile=request.profile)
         rows = [{"id": c.pk, "version": c.version, "citation": c.citation, "comment": c.comment}
                 for c in cases.order_by("position", "pk")]
-    if item.kind != KIND_NESTED and not rows:
+    if not rows:
         # The first row is the main citation box; it is always there, empty if the Item has no citation yet.
         rows = [{"id": None, "version": None, "citation": "", "comment": ""}]
-    convertible = [] if item.parent_item_id else [(key, name) for key, name in KIND_CHOICES if key != item.kind]
     context = {
         "item": item,
-        "kind_name": KIND_NAMES[item.kind],
-        "has_cases": item.kind != KIND_NESTED,
+        "kind_name": "Item",
         "values": values,
         "rows": rows,
         "flag_choices": FLAG_CHOICES,
-        "convertible": convertible,
+        "layout_choices": CITATION_LAYOUT_CHOICES,
         "back": back,
         "created_by": _person(item.created_by),
         "updated_by": _person(item.updated_by),
@@ -224,60 +221,9 @@ def _merge(request, item, back):
     Nothing is saved. The saved values are shown above the form for comparison.
     """
     values = _values(request.POST)
-    rows = _case_rows(request.POST) if item.kind != KIND_NESTED and _has_case_fields(request.POST) else None
+    rows = _case_rows(request.POST) if _has_case_fields(request.POST) else None
     messages.info(request, "Someone else changed this Item. Your text is below; compare it with the saved version, then Save.")
     return _render(request, item, back, values=values, rows=rows, theirs=True)
-
-
-# ------------------------------------------------------------------ conversions
-
-@edit_endpoint
-def item_convert(request, pk):
-    """Change to Item / Nested Item. The first POST shows the preview; confirmed=1 does it."""
-    item = _load_item(request, pk)
-    post = request.POST
-    back = _next(request, _default_back(item))
-    to_kind = post.get("to_kind", "")
-    option = post.get("option") or None
-    editor = _editor_url(item, back)
-    if is_fetch(request):
-        # No preview step inline: it converts, or says why not. A conversion that needs a choice or a confirmation
-        # answers with ``needs_page`` and ``convert_url`` so the script can open the existing preview page.
-        try:
-            result = svc.convert_item(request.profile, request.user, item.pk, to_kind, _version(request), option,
-                                      accept_warnings=post.get("accept") == "1")
-        except svc.ConfirmationRequired as exc:
-            return _json_error(exc.message, 409, needs_page=True, convert_url=request.path)
-        return inline.ok(request, changed=result.changed, reload=True)
-    if post.get("confirmed"):
-        try:
-            result = svc.convert_item(request.profile, request.user, item.pk, to_kind, _version(request), option,
-                                      accept_warnings=post.get("accept") == "1")
-        except (Refused, svc.ConfirmationRequired) as exc:
-            messages.error(request, exc.message)
-        else:
-            if result.changed:
-                messages.success(request, f"Changed to {KIND_NAMES[to_kind]}.")
-            else:
-                messages.info(request, f"It is already a {KIND_NAMES[to_kind]}.")
-            return redirect(editor)
-    preview = svc.preview_conversion(request.profile, request.user, item.pk, to_kind, option)
-    if not preview["changed"]:
-        messages.info(request, f"It is already a {KIND_NAMES[to_kind]}.")
-        return redirect(editor)
-    context = {
-        "item": item,
-        "preview": preview,
-        "from_name": KIND_NAMES[preview["from_kind"]],
-        "to_name": KIND_NAMES[preview["to_kind"]],
-        "to_kind": preview["to_kind"],
-        "option": option or "",
-        "back": back,
-        "editor_url": editor,
-        "version": item.version,
-        "item_label": label(item),
-    }
-    return render(request, "diary/item_convert.html", context)
 
 
 # ------------------------------------------------------------------ review marker

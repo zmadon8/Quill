@@ -32,7 +32,7 @@ def item(text, *citations, **kw):
 
 
 def sample_subject():
-    """A Subject with a Section, restarting Items, a Nested Item with two children, flags, notes and two citations."""
+    """A Subject with a Section, restarting Items, an Item with citations on separate lines, flags, notes and two citations."""
     container = m.XContainer(
         entries=[
             item("Direct one", "(2020) 1 SCC 1"),
@@ -41,8 +41,9 @@ def sample_subject():
             m.XItem(html="<p>Two cites</p>", cases=[m.XCase("(2019) 1 SCC 1", "<p>on <b>facts</b></p>"), m.XCase("(2018) 2 SCC 2")]),
             m.XSection("Determining"),
             item("Restarted", "(2022) 3 SCC 3", needs_review=True, review_note="odd"),
-            m.XItem(html="<p>Nested <u>head</u></p>", is_nested=True, citation="(2017) 4 SCC 4",
-                    children=[item("child a"), item("child b", "(2016) 5 SCC 5")],
+            m.XItem(html="<p>Lines <u>head</u></p>", layout="lines",
+                    cases=[m.XCase("(2017) 4 SCC 4", "<p>First <u>point</u></p>"), m.XCase("(2016) 5 SCC 5"),
+                           m.XCase("", "<p>comment only</p>")],
                     notes=[m.XNote("<p>an item note</p>", [m.XLink("Law > Tort > Duty")])]),
         ],
         notes=[m.XNote("<p>Subject note</p>", [m.XLink("Law > Gone", deleted=True)])],
@@ -122,7 +123,7 @@ class RenderStructureTests(unittest.TestCase):
         self.assertIn("(1)\tDirect one - (2020) 1 SCC 1", items)
         self.assertIn("(1)\tAfter the Section one - (2021) 2 SCC 2 [Overruled]", items)
         self.assertIn("(1)\tRestarted - (2022) 3 SCC 3", items)
-        self.assertIn("(2)\tNested head - (2017) 4 SCC 4", items)
+        self.assertIn("(2)\tLines head", items)
         self.assertFalse(any(t.split("\t")[0].endswith(".") for t in items + sections))
         numbering_part = zipfile.ZipFile(io.BytesIO(self.data)).namelist()
         self.assertNotIn("word/numbering.xml", numbering_part)  # no Word auto-numbering anywhere
@@ -138,11 +139,17 @@ class RenderStructureTests(unittest.TestCase):
         fraud = next(p for p in self.paras if "start and" in p.text)
         self.assertEqual([(r.text, r.italic, r.bold) for r in fraud.runs if r.text in ("Italic", "bold")],
                          [("Italic", True, False), ("bold", False, True)])
-        nested = next(p for p in self.paras if "Nested" in p.text)
-        self.assertTrue(any(r.underline and r.text == "head" for r in nested.runs))
+        lines = next(p for p in self.paras if "Lines" in p.text)
+        self.assertTrue(any(r.underline and r.text == "head" for r in lines.runs))
 
-    def test_nested_children_are_bullets_and_sections_are_bold(self):
-        self.assertEqual(self.texts("DiaryBullet"), ["\u2022\tchild a", "\u2022\tchild b - (2016) 5 SCC 5"])
+    def test_citations_on_separate_lines_are_literal_a_b_c_with_the_comment_first(self):
+        self.assertEqual(self.texts("DiaryBullet"),
+                         ["(a)\tFirst point - (2017) 4 SCC 4", "(b)\t(2016) 5 SCC 5", "(c)\tcomment only"])
+        first = next(p for p in self.paras if p.text.startswith("(a)\tFirst point"))
+        self.assertEqual("".join(r.text for r in first.runs if r.italic), "(2017) 4 SCC 4")
+        self.assertTrue(any(r.underline and r.text == "point" for r in first.runs))
+
+    def test_sections_are_bold(self):
         section = next(p for p in self.paras if p.style == "DiarySection")
         self.assertTrue(all(r.bold for r in section.runs if r.text != "\t"))
 
@@ -185,7 +192,7 @@ class RenderStructureTests(unittest.TestCase):
     def test_front_page_has_title_date_count_and_a_contents_list_of_links(self):
         front = [p.text for p in self.paras[:10]]
         self.assertEqual(front[0], "Case Law Diary Main")
-        self.assertIn("Exported 2026-11-01. Records in this document: 9 Items.", front)
+        self.assertIn("Exported 2026-11-01. Records in this document: 7 Items.", front)
         root = ET.fromstring(zipfile.ZipFile(io.BytesIO(self.data)).read("word/document.xml"))
         anchors = [h.get(W + "anchor") for h in root.iter(W + "hyperlink")]
         names = {b.get(W + "name") for b in root.iter(W + "bookmarkStart")}
@@ -249,8 +256,8 @@ class GroupingTests(unittest.TestCase):
         self.assertEqual([(p.style, p.text) for p in paras if p.style.startswith("Heading")], [("Heading1", "4\tFraud")])
         self.assertIn("(1)\tx - (2020) 1 SCC 1", [p.text for p in paras])
 
-    def test_count_items_counts_children_and_not_sections(self):
-        self.assertEqual(m.count_items(sample_subject()), 9)
+    def test_count_items_counts_items_and_not_sections(self):
+        self.assertEqual(m.count_items(sample_subject()), 7)
 
 
 class NamingTests(unittest.TestCase):

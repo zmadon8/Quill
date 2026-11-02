@@ -61,7 +61,6 @@ class FormatTests(unittest.TestCase):
         self.assertEqual(n.number_siblings(3, "A"), ["A", "B", "C"])
         self.assertEqual(n.number_siblings(0, "1"), [])
         self.assertEqual(n.multi_item_labels(3), ["(a)", "(b)", "(c)"])
-        self.assertEqual(n.nested_bullets(2), [n.BULLET, n.BULLET])
 
 
 class DisplayLabelTests(unittest.TestCase):
@@ -91,8 +90,8 @@ class ChildrenTests(unittest.TestCase):
         kinds = ["item", "item", "section", "item"]
         self.assertEqual(n.number_children(kinds), ["(1)", "(2)", "(a)", "(1)"])
 
-    def test_nested_share_run(self):
-        kinds = ["item", "nested", "item", "section", "nested", "item"]
+    def test_the_item_run_restarts_after_each_section(self):
+        kinds = ["item", "item", "item", "section", "item", "item"]
         self.assertEqual(
             n.number_children(kinds), ["(1)", "(2)", "(3)", "(a)", "(1)", "(2)"]
         )

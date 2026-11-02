@@ -5,14 +5,14 @@ from django.test import TestCase, override_settings
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
-from diary.models import Item, Note, NoteLink, Section, Subject, Subtopic, Topic
+from diary.models import Case, Item, Note, NoteLink, Section, Subject, Subtopic, Topic
 from diary.tests.helpers import join_main, main_profile
 
 PASSWORD = "x-long-pass-123"
 
 
 def build_subject(profile, topics, items_per_container, name="Big Subject"):
-    """One Subject with ``topics`` Topics, each with a Sub-topic, Section, Items, nested Items, Notes and links."""
+    """One Subject with ``topics`` Topics, each with a Sub-topic, Section, Items (some with citations on separate lines), Notes and links."""
     subject = Subject.objects.create(profile=profile, name=name, landing_position=1)
     first_item = Item.objects.create(profile=profile, subject=subject, text="<p>first</p>", text_plain="first")
     for t in range(topics):
@@ -24,7 +24,9 @@ def build_subject(profile, topics, items_per_container, name="Big Subject"):
                 profile=profile, subtopic=sub, text=f"<p>item {t}-{n}</p>", text_plain=f"item {t}-{n}",
                 needs_review=(n % 2 == 0), review_note="check", position=n + 1,
             )
-            Item.objects.create(profile=profile, parent_item=top, text="<p>child</p>", text_plain="child")
+            Item.objects.filter(pk=top.pk).update(citation_layout="lines")
+            Case.objects.create(profile=profile, item=top, citation=f"A v B {t}-{n}", comment="<p>why</p>", position=1)
+            Case.objects.create(profile=profile, item=top, citation=f"C v D {t}-{n}", position=2)
             note = Note.objects.create(profile=profile, item=top, text="<p>note</p>", text_plain="note")
             NoteLink.objects.create(profile=profile, note=note, item=first_item)
             NoteLink.objects.create(profile=profile, note=note, section=section, position=2)

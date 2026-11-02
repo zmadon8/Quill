@@ -8,7 +8,6 @@ ITEM_FORMATS = (
 SECTION_FORMATS = ITEM_FORMATS + ("Section 1",)
 
 ITEM = "item"
-NESTED = "nested"
 SECTION = "section"
 NOTE = "note"
 
@@ -74,8 +73,8 @@ def number_siblings(count, fmt):
 def number_children(kinds, item_format="(1)", section_format="(a)"):
     """Labels for the ordered children of one container.
 
-    kinds: sequence of "item", "nested", "section" or "note".
-    Sections are numbered 1..n in their own run. Items and Nested Items share
+    kinds: sequence of "item", "section" or "note".
+    Sections are numbered 1..n in their own run. Items share
     one run that restarts after each Section. Notes get "" and are not counted.
     """
     labels = []
@@ -86,7 +85,7 @@ def number_children(kinds, item_format="(1)", section_format="(a)"):
             section_no += 1
             item_no = 0
             labels.append(format_number(section_no, section_format))
-        elif kind in (ITEM, NESTED):
+        elif kind == ITEM:
             item_no += 1
             labels.append(format_number(item_no, item_format))
         elif kind == NOTE:
@@ -94,11 +93,6 @@ def number_children(kinds, item_format="(1)", section_format="(a)"):
         else:
             raise ValueError(f"Unknown child kind: {kind!r}")
     return labels
-
-
-def nested_bullets(count):
-    """Items inside a Nested Item carry bullets, no numbers."""
-    return [BULLET] * count
 
 
 def multi_item_labels(count):

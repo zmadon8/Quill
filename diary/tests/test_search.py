@@ -75,13 +75,15 @@ class MatchEachRecordTypeTests(SearchTestBase):
         self.assertEqual([(r.kind, r.label) for r in results], [("Item", "An item")])
         self.assertEqual(results[0].field_label, "Comment")
 
-    def test_nested_item_citation(self):
-        nested = self.item("Group heading", kind="nested", citation="Okapi [2019 SCC OnLine Bom 1234]")
+    def test_second_citation_of_an_item_on_separate_lines(self):
+        item = self.item("Group heading", citation_layout="lines")
+        self.case(item, "First [2018 SCC 1]", para("Opening comment"))
+        self.case(item, "Okapi [2019 SCC OnLine Bom 1234]")
         results = self.search("okapi 1234")
-        self.assertEqual([(r.kind, r.label) for r in results], [("Nested Item", "Group heading")])
+        self.assertEqual([(r.kind, r.label) for r in results], [("Item", "Group heading")])
         self.assertEqual(results[0].field_label, "Citation")
-        self.assertFalse(results[0].in_nested)
-        self.assertTrue(results[0].url.endswith("#n-item-%d" % nested.pk))
+        self.assertTrue(results[0].url.endswith("#n-item-%d" % item.pk))
+        self.assertEqual([r.label for r in self.search("opening comment")], ["Group heading"])
 
     def test_flag_text(self):
         self.item("Plain", flag="other", flag_text="Pangolin warning")
@@ -122,13 +124,11 @@ class MatchEachRecordTypeTests(SearchTestBase):
         # Every Note hit opens the Note itself in context, whatever it sits on (D36).
         self.assertEqual(urls, {name: "n-note-%d" % note.pk for name, note in notes.items()})
 
-    def test_item_inside_nested_item(self):
-        nested = self.item("Group", kind="nested", citation="Group cite")
-        child = Item.objects.create(profile=self.profile, parent_item=nested, text=para("Child badger"))
+    def test_item_with_a_citation_is_found_by_text_and_by_citation(self):
+        child = self.item("Child badger")
         self.case(child, "AIR 1991 SC 5")
         results = self.search("badger")
         self.assertEqual([r.label for r in results], ["Child badger"])
-        self.assertTrue(results[0].in_nested)
         self.assertTrue(results[0].url.endswith("#n-item-%d" % child.pk))
         self.assertEqual([r.label for r in self.search("1991")], ["Child badger"])
 
@@ -233,11 +233,11 @@ class TrashTests(SearchTestBase):
         self.trash(note)
         self.assertEqual(self.search("heron"), [])
 
-    def test_child_of_deleted_nested_item_is_excluded(self):
-        nested = self.item("Group", kind="nested")
-        Item.objects.create(profile=self.profile, parent_item=nested, text=para("Child badger"))
+    def test_cases_of_a_deleted_item_are_excluded(self):
+        item = self.item("Group")
+        self.case(item, "Badger [2020] 1 SCC 1")
         self.assertEqual(len(self.search("badger")), 1)
-        self.trash(nested)
+        self.trash(item)
         self.assertEqual(self.search("badger"), [])
 
     def test_section_in_deleted_parent_is_excluded(self):
@@ -282,13 +282,12 @@ class FilterTests(SearchTestBase):
 
     def test_citations_only(self):
         self.case(self.main_item, "(2018) 9 SCC 49")
-        Item.objects.create(profile=self.profile, topic=self.topic, kind="nested", text=para("Group"),
-                            citation="Okapi (2019) 4 SCC 7")
+        self.case(self.item("Group"), "Okapi (2019) 4 SCC 7")
         self.assertEqual([r.label for r in self.search("scc", citations_only=True)], ["Common scc text too", "Group"])
         # the text "scc" of the other Item and the headings are not citation fields
         self.assertEqual(self.search("common", citations_only=True), [])
         self.assertEqual([r.label for r in self.search("2019 4 scc 7", citations_only=True)], ["Group"])
-        self.assertEqual({r.kind for r in self.search("scc", citations_only=True)}, {"Item", "Nested Item"})
+        self.assertEqual({r.kind for r in self.search("scc", citations_only=True)}, {"Item"})
 
     def test_citations_only_without_query_lists_items_with_a_citation(self):
         self.case(self.main_item, "(2018) 9 SCC 49")
@@ -312,9 +311,9 @@ class FilterTests(SearchTestBase):
         self.assertEqual({r.kind for r in results}, {"Item", "Section"})
         self.assertEqual(len(self.search("", review_only=True, subject_id=self.other.pk)), 1)
 
-    def test_review_only_includes_marked_items_inside_a_nested_item(self):
-        nested = self.item("Group", kind="nested")
-        child = Item.objects.create(profile=self.profile, parent_item=nested, text=para("Child"), needs_review=True)
+    def test_review_only_includes_marked_items(self):
+        self.item("Group")
+        child = self.item("Child", needs_review=True)
         results = self.search("", review_only=True)
         self.assertEqual([r.label for r in results], ["Child"])
         self.assertTrue(results[0].url.endswith("#n-item-%d" % child.pk))
@@ -387,15 +386,15 @@ class ResultUrlTests(SearchTestBase):
         section = Section.objects.create(profile=self.profile, topic=self.topic, name="Link marker section")
         item = self.item("Link marker item")
         self.case(item, "Link marker cite")
-        nested = self.item("Link marker nested", kind="nested", citation="Link marker nested cite")
-        child = Item.objects.create(profile=self.profile, parent_item=nested, text=para("Link marker child"))
+        lines = self.item("Link marker lines", citation_layout="lines")
+        self.case(lines, "Link marker lines cite")
         note_on_item = Note.objects.create(profile=self.profile, item=item, text=para("Link marker note"))
         note_on_topic = Note.objects.create(profile=self.profile, topic=self.topic, text=para("Link marker topic note"))
         Topic.objects.filter(pk=self.topic.pk).update(name="Link marker topic")
         Subtopic.objects.filter(pk=self.subtopic.pk).update(name="Link marker subtopic")
         Subject.objects.filter(pk=self.subject.pk).update(name="Link marker subject")
         results = self.search("link marker")
-        self.assertGreaterEqual(len(results), 9)
+        self.assertGreaterEqual(len(results), 8)
         seen = set()
         for result in results:
             path, _, anchor = result.url.partition("#")
@@ -406,7 +405,7 @@ class ResultUrlTests(SearchTestBase):
                 self.assertContains(resp, 'id="%s"' % anchor)
             seen.add(anchor)
         self.assertTrue({
-            "n-section-%d" % section.pk, "n-item-%d" % item.pk, "n-item-%d" % nested.pk, "n-item-%d" % child.pk,
+            "n-section-%d" % section.pk, "n-item-%d" % item.pk, "n-item-%d" % lines.pk,
             "n-topic-%d" % self.topic.pk, "n-subtopic-%d" % self.subtopic.pk,
             "n-note-%d" % note_on_item.pk, "n-note-%d" % note_on_topic.pk,
         } <= seen)

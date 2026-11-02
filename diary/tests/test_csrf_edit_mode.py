@@ -60,7 +60,6 @@ class CsrfEditModeTests(ServiceTestCase):
             ("edit_move_to", self.rec("item", self.one)),
             ("edit_landing", {**self.rec("subject", self.subject), "show": "0"}),
             ("edit_item", {**self.rec("item", self.two), "text": "two!", "citation": ""}, self.two.pk),
-            ("edit_item_convert", {**self.rec("item", self.two), "to_kind": "nested"}, self.two.pk),
             # Milestone 5: Notes and their links.
             ("edit_add", {"what": "note", "parent_type": "topic", "parent_id": self.topic.pk, "text": "new note"}),
             ("edit_note", {"text": "<p>edited</p>", "version": self.note.version, "next": self.next}, self.note.pk),

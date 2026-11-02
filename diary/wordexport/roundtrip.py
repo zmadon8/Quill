@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 
 from ..importer.docx_reader import read_docx
 from ..importer.plan import ITEM, SECTION, SUBJECT, SUBTOPIC, TOPIC, build_plan
-from .render import OTHER_SUBJECTS, S_BULLET, S_H1, S_H2, S_H3, S_ITEM, S_SECTION, S_SUBTOPIC
+from .render import OTHER_SUBJECTS, S_CASE_LINE, S_H1, S_H2, S_H3, S_ITEM, S_SECTION, S_SUBTOPIC
 
 BLANK = ""
 
@@ -139,8 +139,8 @@ def read_export(data):
             builder.add(Line("section", strip_label(text), para))
         elif style == S_ITEM:
             builder.add(Line("item", strip_label(text), para))
-        elif style == S_BULLET:
-            continue  # Items inside a Nested Item: the original file has none
+        elif style == S_CASE_LINE:
+            continue  # a citation on its own line (layout "On separate lines"): the original file has none
     builder.side.headings[()] = main
     builder.side.headings[("other",)] = other
     return builder.side

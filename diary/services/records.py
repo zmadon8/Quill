@@ -1,7 +1,7 @@
 """Create and edit records (docs/DESIGN.md sections 5.4 and 5.5). Moves are in moves.py, deletes in trash.py."""
 from django.db import transaction
 
-from ..models import FLAG_CHOICES, KIND_CHOICES
+from ..models import CITATION_LAYOUT_CHOICES, FLAG_CHOICES
 from ..richtext import sanitise_html
 from .core import (
     MODELS,
@@ -22,7 +22,7 @@ EDITABLE = {
     "topic": ("name",),
     "subtopic": ("name",),
     "section": ("name", "needs_review", "review_note"),
-    "item": ("text", "citation", "flag", "flag_text", "needs_review", "review_note"),
+    "item": ("text", "citation", "citation_layout", "flag", "flag_text", "needs_review", "review_note"),
     "case": ("citation", "comment"),
     "note": ("text",),
 }
@@ -32,7 +32,7 @@ CREATABLE = {
     "topic": ("name",),
     "subtopic": ("name",),
     "section": ("name", "needs_review", "review_note"),
-    "item": ("kind", "text", "citation", "flag", "flag_text", "needs_review", "review_note"),
+    "item": ("text", "citation", "citation_layout", "flag", "flag_text", "needs_review", "review_note"),
     "case": ("citation", "comment"),
     "note": ("text",),
 }
@@ -49,8 +49,8 @@ def _normalise(kind, name, value):
         return clean_name(value)
     if name == "flag" and value not in {c[0] for c in FLAG_CHOICES}:
         raise ValidationFailed(f"{value!r} is not a flag choice.")
-    if name == "kind" and value not in {c[0] for c in KIND_CHOICES}:
-        raise ValidationFailed(f"{value!r} is not an Item type.")
+    if name == "citation_layout" and value not in {c[0] for c in CITATION_LAYOUT_CHOICES}:
+        raise ValidationFailed(f"{value!r} is not a way to show citations.")
     if name in ("needs_review", "show_on_landing"):
         return bool(value)
     return value if value is not None else ""
@@ -75,7 +75,7 @@ def edit(profile, user, kind, record_id, changes, expected_version=None):
         if not actual:
             return make_result(ctx, obj)
         check_version(obj, expected_version, mine=actual)
-        if kind == "item" and "citation" in actual and obj.kind != "nested":
+        if kind == "item" and "citation" in actual:
             raise ValidationFailed("The citations of an Item are kept as Cases: edit the Case, not the Item.")
         for name, value in actual.items():
             setattr(obj, name, value)
@@ -115,10 +115,9 @@ def create(profile, user, record_type, parent=None, index=None, **fields):
             position = {"landing_position" if draft.show_on_landing else "other_acts_position": number}
         else:
             position = {"position": number}
-        # The citations of an Item are Cases (10d). A citation given with a new Item becomes its first
-        # Case; a Nested Item cannot own Cases and keeps its own citation.
+        # The citations of an Item are Cases (10d). A citation given with a new Item becomes its first Case.
         first_citation = ""
-        if record_type == "item" and values.get("kind", "plain") != "nested":
+        if record_type == "item":
             first_citation = values.pop("citation", "") or ""
         obj = create_row(ctx, model, **columns, **values, **position)
         if first_citation:

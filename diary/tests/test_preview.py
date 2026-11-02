@@ -26,9 +26,8 @@ class DefaultsTests(unittest.TestCase):
         self.assertEqual(only(self.rows, "subtopic"), ["1.", "2."])
         self.assertEqual(only(self.rows, "section"), ["(a)", "(b)"])
         self.assertEqual(only(self.rows, "citation"), ["(a)", "(b)"])
-        # Items run on across the Nested Item; the children are bullets.
-        items = [r["label"] for r in self.rows if r["kind"] in ("item", "nested")]
-        self.assertEqual(items, ["(1)", "(2)", "(3)", "\u2022", "\u2022", "(1)"])
+        items = [r["label"] for r in self.rows if r["kind"] == "item"]
+        self.assertEqual(items, ["(1)", "(2)", "(1)"])
 
     def test_restart_after_section(self):
         last_item = [r for r in self.rows if r["text"].startswith("First Item after")][0]
@@ -41,23 +40,20 @@ class DefaultsTests(unittest.TestCase):
         by_text = {r["text"]: r["indent"] for r in self.rows}
         self.assertLess(by_text["Sample Topic"], by_text["Sample Sub-topic 1"])
         self.assertLess(by_text["Sample Section"], by_text["First Item"])
-        self.assertLess(by_text["First Item"], by_text["First child"])
 
 
 class ChosenFormatsTests(unittest.TestCase):
     def test_changed_set(self):
         rows = preview.build_preview({
             "topic": "I", "subtopic": "(A)", "section": "a", "item": "(a)",
-            "nested_item": "(i)", "multi_citation": "1",
+            "multi_citation": "1",
         })
         self.assertEqual(only(rows, "topic"), ["I.", "II."])
         self.assertEqual(only(rows, "subtopic"), ["(A)", "(B)"])
         self.assertEqual(only(rows, "section"), ["a.", "b."])
         self.assertEqual(only(rows, "citation"), ["1", "2"])
-        kids = [r["label"] for r in rows if r["text"].endswith("child")]
-        self.assertEqual(kids, ["(i)", "(ii)"])
-        items = [r["label"] for r in rows if r["kind"] in ("item", "nested") and not r["text"].endswith("child")]
-        self.assertEqual(items, ["(a)", "(b)", "(c)", "(a)"])
+        items = [r["label"] for r in rows if r["kind"] == "item"]
+        self.assertEqual(items, ["(a)", "(b)", "(a)"])
 
     def test_none_and_section_n(self):
         rows = preview.build_preview({"topic": "none", "section": "Section 1", "item": "none"})
@@ -67,8 +63,8 @@ class ChosenFormatsTests(unittest.TestCase):
 
     def test_restart_after_section_with_other_formats(self):
         rows = preview.build_preview({"item": "A", "section": "Section 1"})
-        items = [r["label"] for r in rows if r["kind"] in ("item", "nested") and not r["text"].endswith("child")]
-        self.assertEqual(items, ["A.", "B.", "C.", "A."])
+        items = [r["label"] for r in rows if r["kind"] == "item"]
+        self.assertEqual(items, ["A.", "B.", "A."])
 
     def test_bullets_are_not_given_a_full_stop(self):
         rows = preview.build_preview({"topic": "bullet", "item": "bullet"})

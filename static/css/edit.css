@@ -57,7 +57,6 @@ body.edit-on .crumb-row { background: var(--bg); }
 .hrow.sec { margin: 1.25rem 0 .25rem; }
 .hrow.sec .section-header { margin: 0; }
 .row-active { background: var(--panel); outline: 2px solid var(--ink); outline-offset: 2px; }
-.editing .nested .erow:last-child { border-bottom: 0; }
 
 /* ---- Add form (opens directly below the row) ---- */
 .addform { margin: .5rem 0 1rem; padding: .85rem 1rem 1rem; border: 1px solid var(--ink); border-top-width: 3px; background: var(--panel); font-family: var(--font-sans); font-size: var(--small-size); box-shadow: 0 2px 8px rgba(0,0,0,.12); }

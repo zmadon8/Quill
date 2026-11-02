@@ -46,7 +46,7 @@ PARENT_LINKS = {
     "topic": (("subject", "subject"),),
     "subtopic": (("topic", "topic"), ("subject", "subject")),
     "section": (("subtopic", "subtopic"), ("topic", "topic"), ("subject", "subject")),
-    "item": (("parent_item", "item"), ("subtopic", "subtopic"), ("topic", "topic"), ("subject", "subject")),
+    "item": (("subtopic", "subtopic"), ("topic", "topic"), ("subject", "subject")),
     "case": (("item", "item"),),
     "note": (
         ("item", "item"),
@@ -281,8 +281,6 @@ def validate(ctx, obj):
     if kind == "item":
         if len(obj.citation) > 1000:
             raise ValidationFailed("The citation is too long (1000 characters at most).")
-        if obj.parent_item_id is not None and obj.kind != "plain":
-            raise ValidationFailed("An Item beneath a Nested Item must stay a plain Item (one level of nesting).")
     if kind == "case" and len(obj.citation) > 1000:
         raise ValidationFailed("The citation is too long (1000 characters at most).")
     if hasattr(obj, "clean") and kind in ("item", "case"):
@@ -325,7 +323,7 @@ CHILD_LINKS = {
     "topic": (("subtopic", "topic"), ("section", "topic"), ("item", "topic"), ("note", "topic")),
     "subtopic": (("section", "subtopic"), ("item", "subtopic"), ("note", "subtopic")),
     "section": (("note", "section"),),
-    "item": (("item", "parent_item"), ("case", "item"), ("note", "item")),
+    "item": (("case", "item"), ("note", "item")),
     "note": (("notelink", "note"),),
 }
 

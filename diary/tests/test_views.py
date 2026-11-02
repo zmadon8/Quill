@@ -58,8 +58,6 @@ class HomeIndexTests(TestCase):
         Item.objects.create(profile=main_profile(), subject=cls.arb, text="<p>direct</p>")
         Item.objects.create(profile=main_profile(), topic=topic, text="<p>in topic</p>", needs_review=True)
         Item.objects.create(profile=main_profile(), subtopic=sub, text="<p>in subtopic</p>")
-        nested = Item.objects.create(profile=main_profile(), subtopic=sub, text="<p>nested</p>", kind="nested")
-        Item.objects.create(profile=main_profile(), parent_item=nested, text="<p>child</p>")
         Item.objects.create(profile=main_profile(), subject=cls.arb, text="<p>deleted</p>", deleted_at=timezone.now())
         direct_sub = Subtopic.objects.create(profile=main_profile(), subject=cls.con, name="Direct")
         Item.objects.create(profile=main_profile(), subtopic=direct_sub, text="<p>c1</p>")
@@ -73,7 +71,7 @@ class HomeIndexTests(TestCase):
     def test_item_counts_per_subject_at_any_depth(self):
         self.client.force_login(self.reader)
         counts = self.counts(self.client.get(reverse("diary_home")))
-        self.assertEqual(counts["Arbitration"], "5")
+        self.assertEqual(counts["Arbitration"], "3")
         self.assertEqual(counts["Contracts"], "1")
         self.assertEqual(counts["Empty Subject"], "0")
 
@@ -104,7 +102,7 @@ class HomeIndexTests(TestCase):
     def test_meta_line_totals(self):
         self.client.force_login(self.reader)
         resp = self.client.get(reverse("diary_home"))
-        self.assertContains(resp, "5 subjects &middot; 6 items &middot; ")
+        self.assertContains(resp, "5 subjects &middot; 4 items &middot; ")
         self.assertContains(resp, '>1 for review</a>')
 
     def test_counts_use_a_fixed_number_of_queries(self):
@@ -802,7 +800,7 @@ class ReadingNumberingTests(TestCase):
         self.assertEqual(sections[26], "(aa)")
         self.assertEqual(sections[-1], "(ad)")
 
-    def test_topics_and_subtopics_and_nested_bullets(self):
+    def test_topics_and_subtopics_and_the_lines_item(self):
         contract = Subject.objects.get(name=SAMPLE_PREFIX + "Contract Law")
         ctx = reading.build_reading(contract, None)
         headings = [(b["level"], b["label"], b["name"]) for b in ctx["blocks"] if b["kind"] == "heading"]
@@ -810,9 +808,9 @@ class ReadingNumberingTests(TestCase):
         self.assertIn(("topic", "B", "Remedies"), headings)
         self.assertIn(("subtopic", "1", "Acceptance"), headings)  # alphabetical: before Offer
         self.assertIn(("subtopic", "2", "Offer"), headings)
-        nested = [b for b in ctx["blocks"] if b["kind"] == "item" and b["is_nested"]][0]
-        self.assertEqual([c["label"] for c in nested["children"]], ["\u2022", "\u2022"])
-        self.assertEqual(nested["label"], "(4)")
+        lines = [b for b in ctx["blocks"] if b["kind"] == "item" and b["layout"] == "lines"][0]
+        self.assertEqual([c["label"] for c in lines["cases"]], ["(a)", "(b)"])
+        self.assertEqual(lines["label"], "(4)")
 
     def test_deleted_records_are_not_shown_and_do_not_use_numbers(self):
         from django.utils import timezone
@@ -872,11 +870,24 @@ class ReadingCitationTests(TestCase):
         block = self.block("general offer", user)
         self.assertEqual([c["label"] for c in block["cases"]], ["(1)", "(2)", "(3)"])
 
-    def test_a_nested_item_still_shows_its_own_citation(self):
+    def test_citations_on_separate_lines_show_comment_first_then_citation(self):
+        block = self.block("Revocation of an offer")
+        self.assertEqual(block["layout"], "lines")
+        self.assertEqual([c["label"] for c in block["cases"]], ["(a)", "(b)"])
         subject = Subject.objects.get(name=SAMPLE_PREFIX + "Contract Law")
-        nested = next(b for b in reading.build_reading(subject, None)["blocks"] if b["kind"] == "item" and b["is_nested"])
-        self.assertEqual(nested["citation"], "Sample v. Nested (2010) 1 SCC 1")
-        self.assertEqual(nested["cases"], [])
+        self.client.force_login(join_main(User.objects.create_user("lines-reader", password=PASSWORD)))
+        html = self.client.get(reverse("read_subject", args=[subject.pk])).content.decode()
+        start = html.index('class="case-lines"')
+        line = html[start:start + 900]
+        self.assertLess(line.index("Revocation is effective before acceptance only"), line.index("Sample v. Revocation"))
+        self.assertIn('<em class="citation">Sample v. Revocation (2010) 1 SCC 1</em>', line)
+
+    def test_inline_layout_is_the_default_and_a_single_citation_is_always_inline(self):
+        self.assertEqual(self.block("general offer")["layout"], "inline")
+        self.assertEqual(self.block("invitation to treat")["layout"], "inline")
+        item = Item.objects.get(text__contains="invitation to treat")
+        Item.objects.filter(pk=item.pk).update(citation_layout="lines")
+        self.assertEqual(self.block("invitation to treat")["layout"], "inline")  # one citation: nothing to lay out
 
 
 class SampleDataTests(TestCase):

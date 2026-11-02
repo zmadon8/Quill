@@ -145,7 +145,11 @@ def restore_preview(request, pk):
             "backup": backup,
             "rows": rows,
             "profiles": services.profile_summary(document),
-            "legacy_note": services.legacy.describe(document.get("legacy_mapping") or services.legacy.new_stats()),
+            "legacy_note": " ".join(filter(None, [
+                services.legacy.describe(document.get("legacy_mapping") or services.legacy.new_stats()),
+                services.nested_conversion.describe(
+                    document.get("nested_mapping") or services.nested_conversion.new_stats()),
+            ])),
             "confirm_word": CONFIRM_WORD,
         },
     )

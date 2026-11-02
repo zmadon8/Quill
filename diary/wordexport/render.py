@@ -18,7 +18,7 @@ W = 567  # one step of indent (1 cm) and the width of a number
 OTHER_SUBJECTS = "Other Subjects"
 # Paragraph styles (ids in docxwriter.styles_xml); the round-trip check reads them back.
 S_H1, S_H2, S_H3 = "Heading1", "Heading2", "Heading3"
-S_SUBTOPIC, S_SECTION, S_ITEM, S_BULLET = "DiarySubtopic", "DiarySection", "DiaryItem", "DiaryBullet"
+S_SUBTOPIC, S_SECTION, S_ITEM, S_CASE_LINE = "DiarySubtopic", "DiarySection", "DiaryItem", "DiaryBullet"
 S_NOTE, S_SEE_ALSO, S_CONTENTS = "DiaryNote", "DiarySeeAlso", "DiaryContents"
 
 
@@ -121,7 +121,7 @@ class Renderer:
     def item_runs(self, item):
         runs = html_runs(item.html)
         has = bool(runs) and any(r.text.strip() for r in runs)
-        if item.cases:
+        if item.cases and item.layout != "lines":
             if has:
                 runs.append(dw.Run(" - "))
             labels = (numbering.number_siblings(len(item.cases), self.fmts["multi_citation_format"])
@@ -135,27 +135,32 @@ class Renderer:
                 if has_text(case.comment_html):
                     runs.append(dw.Run(" "))
                     runs.extend(html_runs(case.comment_html))
-        elif item.citation:
-            if has:
-                runs.append(dw.Run(" - "))
-            runs.append(dw.Run(item.citation, italic=True))
         if item.flag_label:
             runs.append(dw.Run(f" [{item.flag_label}]", color=dw.RED))
         runs.extend(self.review_runs(item.needs_review, item.review_note))
         return runs
 
-    def emit_item(self, item, label, pos, child=False):
-        self.doc.add(self.labelled(S_BULLET if child else S_ITEM, label, self.item_runs(item), pos))
+    def case_line_runs(self, case):
+        """"<comment> - <italic citation>"; the comment alone or the citation alone when the other is empty."""
+        runs = html_runs(case.comment_html) if has_text(case.comment_html) else []
+        if case.citation:
+            if runs:
+                runs.append(dw.Run(" - "))
+            runs.append(dw.Run(case.citation, italic=True))
+        return runs
+
+    def emit_item(self, item, label, pos):
+        self.doc.add(self.labelled(S_ITEM, label, self.item_runs(item), pos))
+        if item.cases and item.layout == "lines":
+            # Citations on separate lines: literal "(a)" labels in the user's citation format, text hanging under the text.
+            labels = numbering.number_siblings(len(item.cases), self.fmts["multi_citation_format"])
+            for case_label, case in zip(labels, item.cases):
+                self.doc.add(self.labelled(S_CASE_LINE, case_label, self.case_line_runs(case), pos + W))
         self.emit_notes(item.notes, pos + W)
-        if item.children:
-            labels = numbering.number_siblings(len(item.children), self.fmts["nested_item_format"])
-            for kid, kid_label in zip(item.children, labels):
-                self.emit_item(kid, kid_label, pos + W, child=True)
 
     def emit_container(self, container, base):
         """Items and Sections in manual order (Sections numbered, Items restarting after each), then the Notes."""
-        kinds = [numbering.SECTION if isinstance(e, XSection) else (numbering.NESTED if e.is_nested else numbering.ITEM)
-                 for e in container.entries]
+        kinds = [numbering.SECTION if isinstance(e, XSection) else numbering.ITEM for e in container.entries]
         labels = numbering.number_children(kinds, self.fmts["item_format"], self.fmts["section_format"])
         under_section = False
         for entry, kind, label in zip(container.entries, kinds, labels):

@@ -529,30 +529,25 @@ class ReviewListTests(TestCase):
         self.client.force_login(user)
         self.assertEqual(self.client.get(reverse("review_list")).status_code, 403)
 
-    def test_nested_child_section_and_anchors_are_listed_and_trash_is_not(self):
+    def test_item_section_and_anchors_are_listed_and_trash_is_not(self):
         reader = join_main(User.objects.create_user("rita", password=PASSWORD))
         main = main_profile()
         subject = Subject.objects.create(profile=main, name="Arbitration", landing_position=1)
         topic = Topic.objects.create(profile=main, subject=subject, name="Fraud")
-        nested = Item.objects.create(profile=main, topic=topic, kind="nested", text="<p>Group</p>")
-        child = Item.objects.create(profile=main, parent_item=nested, text="<p>zzchild</p>", needs_review=True)
+        child = Item.objects.create(profile=main, topic=topic, text="<p>zzchild</p>", needs_review=True)
         section = Section.objects.create(profile=main, topic=topic, name="zzsection", needs_review=True)
         gone = Item.objects.create(profile=main, topic=topic, text="<p>zzgone</p>", needs_review=True,
                                    deleted_at=timezone.now())
         dead_topic = Topic.objects.create(profile=main, subject=subject, name="Dead", deleted_at=timezone.now())
         Item.objects.create(profile=main, topic=dead_topic, text="<p>zzunder</p>", needs_review=True)
-        dead_nested = Item.objects.create(profile=main, topic=topic, kind="nested", text="<p>Dead group</p>",
-                                          deleted_at=timezone.now())
-        Item.objects.create(profile=main, parent_item=dead_nested, text="<p>zzorphan</p>", needs_review=True)
         self.client.force_login(reader)
         resp = self.client.get(reverse("review_list"))
         whole = reverse("read_subject", args=[subject.pk])
         self.assertContains(resp, "zzchild")
-        self.assertContains(resp, "inside a Nested Item")
         self.assertContains(resp, 'href="%s#n-item-%d"' % (whole, child.pk))
         self.assertContains(resp, 'href="%s#n-section-%d"' % (whole, section.pk))
         self.assertContains(resp, "2 records")
-        for text in ("zzgone", "zzunder", "zzorphan"):
+        for text in ("zzgone", "zzunder"):
             self.assertNotContains(resp, text)
         self.assertNotEqual(gone.pk, child.pk)
 
@@ -563,8 +558,7 @@ class ReviewListTests(TestCase):
         main = main_profile()
         subject = Subject.objects.create(profile=main, name="Arbitration", landing_position=1)
         topic = Topic.objects.create(profile=main, subject=subject, name="Fraud")
-        nested = Item.objects.create(profile=main, topic=topic, kind="nested", text="<p>Group</p>")
-        Item.objects.create(profile=main, parent_item=nested, text="<p>c</p>", needs_review=True)
+        Item.objects.create(profile=main, topic=topic, text="<p>c</p>", needs_review=True)
         Item.objects.create(profile=main, subject=subject, text="<p>i</p>", needs_review=True)
         Section.objects.create(profile=main, topic=topic, name="s", needs_review=True)
         Item.objects.create(profile=main, topic=topic, text="<p>not marked</p>")

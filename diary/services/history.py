@@ -6,7 +6,7 @@ and what type of Item it is are not touched here: Undo reverses moves and conver
 """
 from django.db import transaction
 
-from .. import legacy_merge as legacy
+from .. import nested_conversion as legacy
 from ..models import Case, VersionHistory
 from .core import Ctx, check_version, commit, create, get_record, make_result
 from .errors import NotFound, Refused
@@ -32,18 +32,15 @@ def restore_version(profile, user, kind, record_id, version, expected_version=No
         if row is None:
             raise NotFound("That version does not exist for this record.")
         snap = row.snapshot
-        # A version from before the Multi-Item merge (10d) may say "multi": that is a plain Item now.
-        if kind == "item" and legacy.map_kind(snap.get("kind", obj.kind)) != obj.kind:
-            raise Refused(
-                "That version was a different type of Item. Use Undo or convert the Item back, "
-                "then restore the version."
-            )
+        # A version from before the Multi-Item merge (10d) or Nested Items (round 10) may say "multi" or
+        # "nested": every Item is a plain Item now, so that is no obstacle.
         changes = {name: snap[name] for name in EDITABLE[kind] if name in snap and snap[name] != getattr(obj, name)}
         old_citation = None
-        if kind == "item" and obj.kind != "nested":
-            # Citations of a non-nested Item live in its Cases now; Item.citation stays empty (10d).
+        if kind == "item":
+            # Citations of an Item live in its Cases; Item.citation stays empty. An old version's citation
+            # (before 10d, or a Nested Item's) becomes Case (a).
             changes.pop("citation", None)
-            old_citation = legacy.legacy_snapshot_citation(snap, obj.kind)
+            old_citation = legacy.old_snapshot_citation(snap)
         if not changes and old_citation is None:
             return make_result(ctx, obj)
         check_version(obj, expected_version, mine=changes)

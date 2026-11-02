@@ -24,7 +24,7 @@ from .services.sequences import members
 from .sorting import sort_headings
 from .views_edit import _next, _version, edit_endpoint, editor_page
 
-#: Where a Note may sit and what a link may point at: the same five kinds of record (an Item may be a Nested Item or one inside it).
+#: Where a Note may sit and what a link may point at: the same five kinds of record.
 PLACE_KINDS = TARGET_KINDS
 PURPOSES = ("link", "retarget", "move")
 
@@ -172,13 +172,12 @@ def note_link(request):
 # ------------------------------------------------------------------ the picker
 
 def _entry(obj, kind):
-    kind_name = "Nested Item" if kind == "item" and obj.kind == "nested" else NICE[kind]
-    opens = kind in ("subject", "topic", "subtopic") or (kind == "item" and obj.kind == "nested" and not obj.parent_item_id)
-    return {"type": kind, "id": obj.pk, "label": label(obj), "kind_name": kind_name, "opens": opens}
+    opens = kind in ("subject", "topic", "subtopic")
+    return {"type": kind, "id": obj.pk, "label": label(obj), "kind_name": NICE[kind], "opens": opens}
 
 
 def _children(profile, kind, obj):
-    """The records directly inside a Subject, Topic, Sub-topic or Nested Item, headings first, then its Items and Sections."""
+    """The records directly inside a Subject, Topic or Sub-topic, headings first, then its Items and Sections."""
     live = {"profile": profile, "deleted_at__isnull": True}
     found = []
     if kind == "subject":
@@ -189,8 +188,6 @@ def _children(profile, kind, obj):
     if kind in ("subject", "topic", "subtopic"):
         for rec in members(profile.pk, ("run", kind, obj.pk)):
             found.append((rec, record_type(rec)))
-    elif kind == "item":
-        found += [(rec, "item") for rec in members(profile.pk, ("kids", "parent_item", obj.pk))]
     return [_entry(rec, rec_kind) for rec, rec_kind in found]
 
 
@@ -205,7 +202,7 @@ def _subjects(profile):
 def note_pick(request):
     """The tree picker for a Note: choose a place for a new link (``purpose=link``), another target for an existing link
     (``retarget``) or a new home for the Note (``move``). Drill down with ``at=type:id``; Subjects, Topics, Sub-topics,
-    Sections, Items and Nested Items (and the Items inside them) can all be chosen. A POST (from the editor's "Add a
+    Sections and Items can all be chosen. A POST (from the editor's "Add a
     link" button) saves the typed text first and then shows the picker.
     """
     source = request.POST if request.method == "POST" else request.GET

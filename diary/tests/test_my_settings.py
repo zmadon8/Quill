@@ -16,7 +16,6 @@ ALL_FORMATS = {
     "subtopic_format": "paren_upper_alpha",
     "section_format": "section_n",
     "item_format": "lower_roman",
-    "nested_item_format": "paren_lower_roman",
     "multi_citation_format": "decimal",
 }
 
@@ -51,7 +50,8 @@ class SettingsPageTests(Base):
         self.assertContains(resp, "never your stored data")
         self.assertContains(resp, "Use the standard formats")
         self.assertContains(resp, 'data-default="upper_alpha"')
-        self.assertContains(resp, 'data-default="bullet"')
+        self.assertContains(resp, 'data-default="paren_decimal"')
+        self.assertNotContains(resp, 'name="nested_item_format"')
         self.assertContains(resp, 'name="opening_page"')
         self.assertContains(resp, "Index of Subjects")
 

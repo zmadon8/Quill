@@ -9,7 +9,6 @@
   <details class="saved-version" open>
     <summary>The saved version (version {{ item.version }}), for comparison</summary>
     <p><strong>Text:</strong> {{ item.text|richhtml }}</p>
-    {% if not has_cases %}<p><strong>Citation:</strong> {{ item.citation }}</p>{% endif %}
     <p><strong>Flag:</strong> {{ item.flag }} {{ item.flag_text }} &middot; <strong>For review:</strong> {{ item.needs_review|yesno }} {{ item.review_note }}</p>
   </details>
   {% endif %}
@@ -25,7 +24,6 @@
       {% include "diary/_richtext_field.html" with rname="text" rvalue=values.text rlabel="Item text" rrows=6 %}
     </div>
 
-    {% if has_cases %}
     <fieldset class="field cases" data-cases>
       <legend class="field-label">Citations</legend>
       <p class="hint">The first citation is the main one. Add more if the Item rests on several; each has an optional comment, shown in smaller grey text after its citation.</p>
@@ -65,12 +63,14 @@
         </li>
       </template>
     </fieldset>
-    {% else %}
-    <div class="field">
-      <label for="id-citation" class="field-label">Citation</label>
-      <input type="text" id="id-citation" name="citation" value="{{ values.citation }}" maxlength="1000">
-    </div>
-    {% endif %}
+
+    <fieldset class="field" data-layout-control{% if rows|length < 2 %} hidden{% endif %}>
+      <legend class="field-label">Show citations</legend>
+      <p class="hint">Inline puts them after the text as (a), (b). On separate lines gives each its own line, with the comment first and the citation after it.</p>
+      {% for key, text in layout_choices %}
+      <label class="switch"><input type="radio" name="citation_layout" value="{{ key }}"{% if values.citation_layout == key %} checked{% endif %}> {{ text }}</label>
+      {% endfor %}
+    </fieldset>
 
     <fieldset class="field">
       <legend class="field-label">Flag</legend>
@@ -93,26 +93,6 @@
       <a class="button" href="{{ back }}">Cancel</a>
     </div>
   </form>
-
-  {% if convertible %}
-  <section class="field" aria-labelledby="change-to">
-    <h2 id="change-to">Change to</h2>
-    <p class="hint">Save your changes first: changing the type opens a preview and does not keep what you have typed above.</p>
-    <div class="convert-row">
-      {% for key, name in convertible %}
-      <form method="post" action="{% url 'edit_item_convert' item.pk %}">
-        {% csrf_token %}
-        <input type="hidden" name="to_kind" value="{{ key }}">
-        <input type="hidden" name="version" value="{{ item.version }}">
-        <input type="hidden" name="next" value="{{ back }}">
-        <button type="submit" class="secondary">Change to {{ name }}</button>
-      </form>
-      {% endfor %}
-    </div>
-  </section>
-  {% elif item.parent_item_id %}
-  <p class="hint">An Item beneath a Nested Item stays a plain Item (one level of nesting).</p>
-  {% endif %}
 
   <section class="field record-info" aria-labelledby="about">
     <h2 id="about">About this record</h2>

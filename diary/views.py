@@ -94,21 +94,16 @@ def opening_subject_for(user, profile):
 
 
 def item_counts_by_subject(profile):
-    """One aggregate query: {subject_id: (items, items_for_review)} for live Items at any depth.
+    """One aggregate query: {subject_id: (items, items_for_review)} for live Items.
 
-    An Item belongs to a Subject through its Topic, Sub-topic or Nested-Item parent, so the owning
-    Subject is the first non-null of those paths (a Nested Item's children go one level further).
-    Items whose own Topic, Sub-topic or Nested-Item parent is deleted are not counted.
+    An Item belongs to a Subject through its Topic or Sub-topic, or directly, so the owning
+    Subject is the first non-null of those paths. Items whose own Topic or Sub-topic is deleted are not counted.
     """
     owner = Coalesce(
         "subject_id",
         "topic__subject_id",
         "subtopic__subject_id",
         "subtopic__topic__subject_id",
-        "parent_item__subject_id",
-        "parent_item__topic__subject_id",
-        "parent_item__subtopic__subject_id",
-        "parent_item__subtopic__topic__subject_id",
     )
     rows = (
         Item.objects.filter(profile=profile, deleted_at__isnull=True)
@@ -116,7 +111,6 @@ def item_counts_by_subject(profile):
             Q(topic__deleted_at__isnull=False)
             | Q(subtopic__deleted_at__isnull=False)
             | Q(subtopic__topic__deleted_at__isnull=False)
-            | Q(parent_item__deleted_at__isnull=False)
         )
         .annotate(owner=owner)
         .values("owner")
@@ -313,13 +307,13 @@ def _review_rows(profile):
     """Every live Item and Section marked For review in ``profile``, with its path (document order after import).
 
     This is Search's "For review only" with an empty query (diary/search.py, which locates records with
-    diary/locate.py), so the two always list the same records, Items inside Nested Items included.
+    diary/locate.py), so the two always list the same records.
     """
     rows = []
     for r in search_module.run_search(profile, "", review_only=True):
         text = r.text
         rows.append({
-            "kind": "Item, inside a Nested Item" if r.in_nested else r.kind,
+            "kind": r.kind,
             "subject_id": r.subject_id,
             "path": " > ".join(name for name, _url in r.path),
             "text": text if len(text) <= 160 else text[:157] + "...",

@@ -34,7 +34,6 @@ DEFAULT_FORMATS = {
     "subtopic_format": "decimal",
     "section_format": "paren_lower_alpha",
     "item_format": "paren_decimal",
-    "nested_item_format": "bullet",
     "multi_citation_format": "paren_lower_alpha",
 }
 
@@ -75,10 +74,7 @@ class _Data:
         container = (
             Q(subject=subject) | Q(topic_id__in=topic_ids) | Q(subtopic_id__in=subtopic_ids)
         )
-        top_items = list(live(Item.objects.filter(container)))
-        top_ids = [i.pk for i in top_items]
-        child_items = list(live(Item.objects.filter(parent_item_id__in=top_ids)))
-        all_items = top_items + child_items
+        all_items = list(live(Item.objects.filter(container)))
         sections = list(live(Section.objects.filter(container)))
         item_ids = [i.pk for i in all_items]
         section_ids = [s.pk for s in sections]
@@ -115,7 +111,7 @@ class _Data:
             self.subtopics_by.setdefault(key, []).append(sub)
         self.items_by = {}
         for item in all_items:
-            self.items_by.setdefault(self._key(item, ("subject", "topic", "subtopic", "parent_item")), []).append(item)
+            self.items_by.setdefault(self._key(item, ("subject", "topic", "subtopic")), []).append(item)
         self.sections_by = {}
         for section in sections:
             self.sections_by.setdefault(self._key(section, ("subject", "topic", "subtopic")), []).append(section)
@@ -145,9 +141,7 @@ def _record_paths(prefix):
 
 
 def _item_paths(prefix):
-    paths = _record_paths(prefix)
-    parent = f"{prefix}__parent_item"
-    return paths + _record_paths(parent)
+    return _record_paths(prefix)
 
 
 def _link_paths():
@@ -160,7 +154,7 @@ def _note_paths(prefix):
     return _record_paths(prefix) + _record_paths(f"{prefix}__section") + _item_paths(f"{prefix}__item")
 
 
-PARENT_COLUMNS = ("parent_item", "item", "section", "subtopic", "topic", "subject")
+PARENT_COLUMNS = ("item", "section", "subtopic", "topic", "subject")
 
 
 def _up(obj):
@@ -242,9 +236,6 @@ def _locate(target):
     names = []
     top = target
     if isinstance(target, Item):
-        while top.parent_item_id:
-            names.insert(0, _short(top.text_plain, "Item"))
-            top = top.parent_item
         names.insert(0, _short(top.text_plain, "Item"))
         anchor = f"n-item-{target.pk}"
     else:
@@ -264,23 +255,16 @@ def note_place(note):
 
 def run_of(obj):
     """The key of the position run an Item or Section sits in (used by the edit mode drag script)."""
-    if getattr(obj, "parent_item_id", None):
-        return f"kids-{obj.parent_item_id}"
     for column in ("subtopic", "topic", "subject"):
         if getattr(obj, f"{column}_id"):
             return f"run-{column}-{getattr(obj, f'{column}_id')}"
     return ""
 
 
-def _item_block(item, data, fmts, label, depth, under_section, is_child=False):
+def _item_block(item, data, fmts, label, depth, under_section):
     cases = data.cases_by_item.get(item.pk, [])
     # One citation shows without a label; two or more are labelled with the Multi-Item citation format.
     case_labels = numbering.number_siblings(len(cases), fmts["multi_citation_format"]) if len(cases) > 1 else [""] * len(cases)
-    children = []
-    if not is_child:
-        kids = sorted(data.items_by.get(("parent_item", item.pk), []), key=lambda i: (i.position, i.pk))
-        kid_labels = numbering.number_siblings(len(kids), fmts["nested_item_format"])
-        children = [_item_block(k, data, fmts, b, depth, under_section, is_child=True) for k, b in zip(kids, kid_labels)]
     return {
         "kind": "item",
         "id": item.pk,
@@ -291,10 +275,10 @@ def _item_block(item, data, fmts, label, depth, under_section, is_child=False):
         "depth": depth,
         "indent": under_section,
         "is_multi": len(cases) > 1,
-        "is_nested": item.kind == "nested",
+        # With several citations the owner chooses how they show: inline "(a) X; (b) Y" after the text, or each on its own line.
+        "layout": item.citation_layout if len(cases) > 1 else "inline",
         "text": _html(item.text),
         "has_text": bool(item.text_plain.strip()),
-        "citation": item.citation if item.kind == "nested" else "",
         "cases": [
             {"label": lab, "citation": c.citation, "comment": _html(c.comment), "has_comment": bool(c.comment_plain.strip())}
             for lab, c in zip(case_labels, cases)
@@ -303,7 +287,6 @@ def _item_block(item, data, fmts, label, depth, under_section, is_child=False):
         "flag_label": item.flag_text or item.get_flag_display(),
         "needs_review": item.needs_review,
         "review_note": item.review_note,
-        "children": children,
         "notes": [_note_block(n, data) for n in data.notes_by.get(("item", item.pk), [])],
         "linked_from": data.incoming.get(("item", item.pk), []),
     }
@@ -318,8 +301,7 @@ def _note_block(note, data):
 def _container_blocks(key, depth, data, fmts):
     entries = [("item", i) for i in data.items_by.get(key, [])] + [("section", s) for s in data.sections_by.get(key, [])]
     entries.sort(key=lambda e: (e[1].position, 0 if e[0] == "section" else 1, e[1].pk))
-    kinds = [numbering.SECTION if k == "section" else (numbering.NESTED if o.kind == "nested" else numbering.ITEM)
-             for k, o in entries]
+    kinds = [numbering.SECTION if k == "section" else numbering.ITEM for k, o in entries]
     labels = numbering.number_children(kinds, fmts["item_format"], fmts["section_format"])
     blocks = []
     under_section = False

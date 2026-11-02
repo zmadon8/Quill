@@ -219,18 +219,16 @@ class AddTests(EditViewTestCase):
         self.assertEqual(Item.objects.filter(topic=self.topic).count(), 4)
         self.assertTrue(self.msgs(resp))
 
-    def test_add_nested_item_then_an_item_beneath_it(self):
-        self.add("nested", ("topic", self.topic.pk), text="nested heading")
-        nested = Item.objects.get(topic=self.topic, kind="nested")
-        self.assertEqual(nested.position, 6)
-        self.add("item", ("item", nested.pk), text="child")
-        child = Item.objects.get(parent_item=nested)
-        self.assertEqual((child.kind, child.position, child.topic_id), ("plain", 1, None))
+    def test_there_is_no_nested_item_to_add(self):
+        resp = self.add("nested", ("topic", self.topic.pk), text="nested heading")
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(Item.objects.filter(topic=self.topic).count(), 4)
+        self.assertTrue(self.msgs(resp))
 
-    def test_an_item_cannot_go_beneath_a_plain_item(self):
+    def test_an_item_cannot_go_beneath_an_item(self):
         resp = self.add("item", ("item", self.one.pk), text="child")
         self.assertEqual(resp.status_code, 302)
-        self.assertFalse(Item.objects.filter(parent_item=self.one).exists())
+        self.assertEqual(Item.objects.filter(text_plain="child").count(), 0)
         self.assertTrue(self.msgs(resp))
 
     def test_add_section_with_a_name(self):
@@ -279,11 +277,9 @@ class AddTests(EditViewTestCase):
         self.post("edit_add", {"what": "subject", "text": "Tort", "landing": "1"})
         self.assertTrue(Subject.objects.filter(profile=self.profile, name="Tort").exists())
 
-    def test_the_one_text_box_is_the_text_of_an_item_and_a_nested_item(self):
+    def test_the_one_text_box_is_the_text_of_an_item(self):
         self.add("item", ("topic", self.topic.pk), text="plain words")
-        self.add("nested", ("topic", self.topic.pk), text="nested words")
         self.assertEqual(Item.objects.get(topic=self.topic, text="<p>plain words</p>").kind, "plain")
-        self.assertEqual(Item.objects.get(topic=self.topic, text="<p>nested words</p>").kind, "nested")
 
     def test_item_text_sent_as_html_by_the_script_is_sanitised_not_escaped(self):
         self.add("item", ("topic", self.topic.pk), text="<p>Some <b>bold</b><script>x</script></p>", text_format="html")
@@ -330,12 +326,11 @@ class AddTests(EditViewTestCase):
         self.assertFalse(Item.objects.filter(citation="A v B").exists())
         self.assertFalse(Case.objects.filter(citation="A v B").exists())
 
-    def test_a_citation_is_saved_for_an_item_and_a_nested_item(self):
+    def test_a_citation_is_saved_for_an_item_as_its_first_case(self):
         self.add("item", ("topic", self.topic.pk), text="one more", citation=" A v B ")
-        self.add("nested", ("topic", self.topic.pk), text="n", citation="C v D")
         item = Item.objects.get(topic=self.topic, text="<p>one more</p>")
         self.assertEqual([c.citation for c in Case.objects.filter(item=item)], ["A v B"])
-        self.assertEqual(Item.objects.get(topic=self.topic, text="<p>n</p>").citation, "C v D")
+        self.assertEqual(item.citation, "")
 
     def test_the_full_add_page_has_one_text_box_and_a_citation_box(self):
         resp = self.client.get(reverse("edit_add") + f"?parent=topic:{self.topic.pk}")
@@ -395,14 +390,6 @@ class AddAfterTests(EditViewTestCase):
     def test_add_a_section_after_an_item(self):
         self.add_after(self.one, what="section", name="Early")
         self.assertEqual(self.order(), ["one", "Early", "two", "S", "three", "four"])
-
-    def test_add_after_a_nested_child_stays_inside_the_nested_item(self):
-        nested = self.make("item", ("topic", self.topic.pk), kind="nested", text="nested")
-        child = self.make("item", ("item", nested.pk), text="child one")
-        self.make("item", ("item", nested.pk), text="child two")
-        self.add_after(child, text="between")
-        kids = list(Item.objects.filter(parent_item=nested).order_by("position").values_list("text_plain", "position"))
-        self.assertEqual(kids, [("child one", 1), ("between", 2), ("child two", 3)])
 
     def test_add_a_topic_after_a_topic(self):
         later = self.make("topic", ("subject", self.subject.pk), name="Later")
@@ -748,14 +735,13 @@ class PickerTests(EditViewTestCase):
 
     def test_the_picker_lists_this_profile_only_with_valid_places_pickable(self):
         sub = self.make("subtopic", ("topic", self.topic.pk), name="Sub")
-        nested = self.make("item", ("topic", self.topic.pk), kind="nested", text="group")
         self.make("subject", profile=self.other_profile, name="Foreign")
         resp, found = self.entries(self.one)
         self.assertNotContains(resp, "Foreign")
         self.assertTrue(found[("subject", self.subject.pk)]["pick"])
         self.assertTrue(found[("topic", self.topic.pk)]["pick"])
         self.assertTrue(found[("subtopic", sub.pk)]["pick"])
-        self.assertTrue(found[("item", nested.pk)]["pick"])
+        self.assertFalse([key for key in found if key[0] == "item"])  # an Item is never a place to move to
         self.assertNotIn(("item", self.one.pk), found)
         self.assertEqual(found[("subtopic", sub.pk)]["depth"], 2)
 
@@ -765,13 +751,6 @@ class PickerTests(EditViewTestCase):
         self.assertTrue(found[("subject", self.subject.pk)]["pick"])
         self.assertFalse(found[("topic", self.topic.pk)]["pick"])
         self.assertFalse(found[("subtopic", sub.pk)]["pick"])
-
-    def test_a_nested_item_cannot_go_beneath_another_nested_item(self):
-        nested = self.make("item", ("topic", self.topic.pk), kind="nested", text="group")
-        other = self.make("item", ("topic", self.topic.pk), kind="nested", text="other group")
-        _, found = self.entries(nested)
-        self.assertFalse(found[("item", other.pk)]["pick"])
-        self.assertTrue(found[("topic", self.topic.pk)]["pick"])
 
     def test_picker_choices_post_to_the_move_endpoint(self):
         resp, _ = self.entries(self.one)

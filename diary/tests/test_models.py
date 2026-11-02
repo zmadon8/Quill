@@ -79,8 +79,6 @@ class ParentRuleTests(Base):
     def test_item_needs_exactly_one_parent(self):
         self.assertRefused(Item, text="x")
         self.assertRefused(Item, text="x", subject=self.subject, subtopic=self.subtopic)
-        nested = Item.objects.create(profile=main_profile(), subtopic=self.subtopic, kind="nested")
-        self.assertRefused(Item, text="x", parent_item=nested, subtopic=self.subtopic)
         for parent in ({"subject": self.subject}, {"topic": self.topic}, {"subtopic": self.subtopic}):
             Item.objects.create(profile=main_profile(), text="ok", **parent)
 
@@ -112,16 +110,21 @@ class ParentRuleTests(Base):
 
 
 class ItemRuleTests(Base):
-    def test_one_level_of_nesting(self):
-        nested = Item.objects.create(profile=main_profile(), subtopic=self.subtopic, kind="nested")
-        Item.objects.create(profile=main_profile(), parent_item=nested, kind="plain", text="child")
-        self.assertRefused(Item, parent_item=nested, kind="nested")
-        self.assertRefused(Item, parent_item=nested, kind="multi")
+    def test_items_cannot_sit_beneath_items_any_more(self):
+        self.assertFalse(hasattr(Item, "parent_item"))
+        self.assertNotIn("parent_item", [f.name for f in Item._meta.get_fields()])
 
-    def test_multi_is_no_longer_a_kind_choice(self):
+    def test_plain_is_the_only_kind_choice(self):
         from diary.models import KIND_CHOICES
 
-        self.assertEqual([value for value, _label in KIND_CHOICES], ["plain", "nested"])
+        self.assertEqual([value for value, _label in KIND_CHOICES], ["plain"])
+
+    def test_citation_layout_defaults_to_inline_and_has_two_choices(self):
+        from diary.models import CITATION_LAYOUT_CHOICES
+
+        item = Item.objects.create(profile=main_profile(), subtopic=self.subtopic)
+        self.assertEqual(item.citation_layout, "inline")
+        self.assertEqual([value for value, _label in CITATION_LAYOUT_CHOICES], ["inline", "lines"])
 
     def test_plain_item_cannot_hold_a_citation(self):
         # 10d: Case is the one store of citations (migration 0011, item_plain_has_no_citation).
@@ -132,10 +135,11 @@ class ItemRuleTests(Base):
         with self.assertRaises(IntegrityError), transaction.atomic():
             Item.objects.create(profile=main_profile(), subtopic=self.subtopic, kind="plain", citation="  ")
 
-    def test_nested_item_keeps_its_citation(self):
-        item = Item.objects.create(profile=main_profile(), subtopic=self.subtopic, kind="nested", citation="A v B (2001) 1 SCC 1")
-        item.refresh_from_db()
-        self.assertEqual(item.citation, "A v B (2001) 1 SCC 1")
+    def test_a_case_may_have_a_comment_and_no_citation(self):
+        item = Item.objects.create(profile=main_profile(), subtopic=self.subtopic)
+        case = Case.objects.create(profile=main_profile(), item=item, citation="", comment="<p>only a comment</p>")
+        case.clean()
+        self.assertEqual(case.comment_plain, "only a comment")
 
     def test_flag_and_review_defaults(self):
         item = Item.objects.create(profile=main_profile(), subtopic=self.subtopic)
@@ -147,12 +151,6 @@ class ItemRuleTests(Base):
         item = Item(subtopic=self.subtopic, citation="line one\nline two")
         with self.assertRaises(ValidationError):
             item.clean()
-
-    def test_clean_child_must_sit_under_nested_item(self):
-        plain = Item.objects.create(profile=main_profile(), subtopic=self.subtopic)
-        child = Item(parent_item=plain)
-        with self.assertRaises(ValidationError):
-            child.clean()
 
 
 class RichTextTests(Base):
@@ -181,12 +179,9 @@ class RichTextTests(Base):
         self.assertEqual(note.text, "<u>see</u> this")
         self.assertEqual(note.text_plain, "see this")
 
-    def test_case_allowed_under_any_item_except_nested(self):
+    def test_case_allowed_under_any_item(self):
         plain = Item.objects.create(profile=main_profile(), subtopic=self.subtopic)
         Case(item=plain, citation="A v B").clean()
-        nested = Item.objects.create(profile=main_profile(), subtopic=self.subtopic, kind="nested")
-        with self.assertRaises(ValidationError):
-            Case(item=nested, citation="A v B").clean()
 
 
 class UserSettingsTests(Base):
@@ -197,7 +192,7 @@ class UserSettingsTests(Base):
         self.assertEqual(settings_row.export_date_format, "YYYY-MM-DD")
         self.assertEqual(settings_row.section_format, "paren_lower_alpha")
         self.assertEqual(settings_row.item_format, "paren_decimal")
-        self.assertEqual(settings_row.nested_item_format, "bullet")
+        self.assertFalse(hasattr(settings_row, "nested_item_format"))
         self.assertEqual(settings_row.time_zone, "Asia/Kolkata")
         self.assertEqual(user.diary_settings, settings_row)
 

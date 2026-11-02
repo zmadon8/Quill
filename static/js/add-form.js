@@ -1,7 +1,7 @@
 /* The Add form in Edit mode (docs/DESIGN.md decision R5-10a).
    One Text box: for a Subject, Topic, Sub-topic or Section it is the name (one plain line, no
-   formatting toolbar); for an Item or Nested Item it is the rich text box. Citation is only for
-   Items and Nested Items, so it is greyed out (disabled) for the others. Whatever is typed is kept
+   formatting toolbar); for an Item it is the rich text box. Citation is only for
+   Items, so it is greyed out (disabled) for the others. Whatever is typed is kept
    when the kind is changed. The server decides by kind and ignores a citation for headings, so this
    script only makes the form easier to use; without it the form still works. */
 (function () {

@@ -8,16 +8,15 @@ from django.http import JsonResponse
 from django.template.loader import render_to_string
 
 from . import reading, undo_session
-from .models import KIND_NESTED, Subtopic, Topic
+from .models import Subtopic, Topic
 from .services.core import Ctx, ancestors, get_record
 from .services.moves import NICE
 from .templatetags.diary_tags import dotted
 
 #: Choice value -> button text, per kind of row. A choice is "<mode>:<what>": "inside" puts the new entry first inside
-#: the row (a heading, or a Nested Item), "after" puts it directly after the row. ``what`` is a key of views_edit.ADDABLE.
+#: the row (a heading), "after" puts it directly after the row. ``what`` is a key of views_edit.ADDABLE.
 CHOICE_LABELS = {
     "after:item": "Item",
-    "after:nested": "Nested Item",
     "after:section": "Section",
     "after:topic": "Topic",
     "after:subtopic": "Sub-topic",
@@ -27,23 +26,18 @@ CHOICE_LABELS = {
     "inside:note": "Note",
 }
 #: What can carry a citation (the others get a greyed-out citation box).
-CITATION_WHATS = ("item", "nested")
+CITATION_WHATS = ("item",)
 
 
 def add_choices(profile, kind, record):
     """[(choice, label)] that "+ Add" offers on a row of ``kind`` ('subject', 'topic', 'subtopic', 'section', 'item').
 
-    After an Item or Section: Item, Nested Item, Section. Every row also offers Note ("inside:note": a Note on that Subject, Topic, Sub-topic, Section or Item, shown beneath it). After a Topic: Item inside, Sub-topic, Topic. After a
-    Sub-topic: Item inside, Sub-topic. On a Nested Item: Item beneath it. An Item inside a Nested Item can only be
-    followed by an Item. A Subject offers Item inside plus the kind of heading it already holds (Topic, or direct
+    After an Item or Section: Item, Section. Every row also offers Note ("inside:note": a Note on that Subject, Topic, Sub-topic, Section or Item, shown beneath it). After a Topic: Item inside, Sub-topic, Topic. After a
+    Sub-topic: Item inside, Sub-topic. A Subject offers Item inside plus the kind of heading it already holds (Topic, or direct
     Sub-topic; both while it holds neither). Headings always land in their alphabetical place.
     """
     if kind in ("item", "section"):
-        if kind == "item" and record.kind == KIND_NESTED:
-            return [("inside:item", "Item beneath it"), ("inside:note", "Note")]
-        if kind == "item" and record.parent_item_id:
-            return [("after:item", "Item"), ("inside:note", "Note")]
-        return [(c, CHOICE_LABELS[c]) for c in ("after:item", "after:nested", "after:section", "inside:note")]
+        return [(c, CHOICE_LABELS[c]) for c in ("after:item", "after:section", "inside:note")]
     if kind == "topic":
         return [(c, CHOICE_LABELS[c]) for c in ("inside:item", "inside:subtopic", "inside:note", "after:topic")]
     if kind == "subtopic":
@@ -87,22 +81,19 @@ def _subject_of(request, kind, pk):
 
 
 def _walk(blocks):
-    """Every Item and Section block with the block it sits in (None for top level)."""
+    """Every Item and Section block."""
     for block in blocks:
         if block["kind"] in ("item", "section"):
-            yield block, None
-            for child in block.get("children", []):
-                yield child, block
+            yield block
 
 
 def row_payload(request, kind, pk, next_url):
     """What the script needs after a row was added or changed.
 
-    ``element`` is the id of the element to replace (an Item's ``n-item-N``, a Section's wrapper ``row-n-section-N``; for an
-    Item inside a Nested Item it is the Nested Item, which is rendered whole), ``anchor`` the id of the Item or Section
+    ``element`` is the id of the element to replace (an Item's ``n-item-N``, a Section's wrapper ``row-n-section-N``), ``anchor`` the id of the Item or Section
     itself (for links), ``html`` its new markup, ``after_anchor`` the id of the row before it (the
     element to insert it after when ``anchor`` is not on the page yet; None when it is the first in the Subject), and
-    ``labels`` the new generated number of every Item, Section and Item inside a Nested Item of the Subject, keyed by anchor. A
+    ``labels`` the new generated number of every Item and Section of the Subject, keyed by anchor. A
     heading (or anything not an Item or Section) gives ``{"reload": True}``: its place and the Contents panel change.
     """
     if kind not in ("item", "section"):
@@ -111,11 +102,10 @@ def row_payload(request, kind, pk, next_url):
     if subject is None:
         return {"reload": True}
     blocks = reading.build_reading(subject, request.user)["blocks"]
-    found = [(b, parent) for b, parent in _walk(blocks) if b["kind"] == kind and b["id"] == pk]
+    found = [b for b in _walk(blocks) if b["kind"] == kind and b["id"] == pk]
     if not found:
         return {"reload": True}
-    block, parent = found[0]
-    shown = parent or block
+    shown = found[0]
     html = render_to_string(
         "diary/_row.html",
         {"b": shown, "can_edit": True, "edit_mode": True, "next_url": next_url, "request": request},
@@ -127,7 +117,7 @@ def row_payload(request, kind, pk, next_url):
             break
         if other.get("anchor"):
             previous = other["anchor"]
-    labels = {b["anchor"]: dotted(b["label"]) for b, _ in _walk(blocks)}
+    labels = {b["anchor"]: dotted(b["label"]) for b in _walk(blocks)}
     element = f"row-{shown['anchor']}" if shown["kind"] == "section" else shown["anchor"]
     return {"element": element, "anchor": shown["anchor"], "html": html, "after_anchor": previous, "labels": labels}
 
@@ -140,7 +130,7 @@ def labels_payload(request, kind, pk):
     if subject is None:
         return {"reload": True}
     blocks = reading.build_reading(subject, request.user)["blocks"]
-    return {"labels": {b["anchor"]: dotted(b["label"]) for b, _ in _walk(blocks)}}
+    return {"labels": {b["anchor"]: dotted(b["label"]) for b in _walk(blocks)}}
 
 
 def kind_word(kind):

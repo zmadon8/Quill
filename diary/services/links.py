@@ -35,8 +35,7 @@ def _destination(ctx, target):
 def add_link(profile, user, note_id, target):
     """Link a Note to one target ((type, id)) in the same profile, after its other links.
 
-    Adding the same link twice does nothing. A Subject, Topic, Sub-topic, Section or Item (a Nested
-    Item and the Items inside it included) can be the target; a target in Trash or in another profile is refused.
+    Adding the same link twice does nothing. A Subject, Topic, Sub-topic, Section or Item can be the target; a target in Trash or in another profile is refused.
     """
     ctx = Ctx(profile, user)
     with transaction.atomic():

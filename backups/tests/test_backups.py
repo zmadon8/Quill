@@ -371,8 +371,9 @@ class DiaryRoundTripTests(BackupBase):
         section = Section.objects.create(profile=main_profile(), subtopic=subtopic, name="Ex Parte", needs_review=True, review_note="check")
         item = Item.objects.create(profile=main_profile(), subtopic=subtopic, text="<p>Rule <b>one</b></p>", position=1)
         Case.objects.create(profile=main_profile(), item=item, citation="A v B", position=1)
-        nested = Item.objects.create(profile=main_profile(), subject=other, kind="nested", text="Parent", citation="C v D")
-        Item.objects.create(profile=main_profile(), parent_item=nested, text="Child")
+        lines = Item.objects.create(profile=main_profile(), subject=other, text="Parent", citation_layout="lines")
+        Case.objects.create(profile=main_profile(), item=lines, citation="C v D", comment="<p>why</p>", position=1)
+        Case.objects.create(profile=main_profile(), item=lines, citation="G v H", position=2)
         multi = Item.objects.create(profile=main_profile(), topic=topic, text="Multi")
         Case.objects.create(profile=main_profile(), item=multi, citation="E v F", comment="<i>c</i>", position=1)
         note = Note.objects.create(profile=main_profile(), item=item, text="See also")
@@ -429,7 +430,7 @@ class DiaryRoundTripTests(BackupBase):
         self.assertEqual(doc["counts"]["diary.NoteLink"], 2)
 
         Subject.objects.create(profile=main_profile(), name="Extra")
-        Item.objects.filter(text_plain="Parent").update(citation="changed")
+        Item.objects.filter(text_plain="Parent").update(citation_layout="inline")
         NoteLink.objects.all().delete()
         Subject.objects.filter(name="Contract").delete()
         self.assertNotEqual(self.snapshot(), before)
@@ -785,7 +786,7 @@ class ViewTests(BackupBase):
 
 
 class CitationConstraintRestoreTests(BackupBase):
-    """Migration 0011 forbids a citation on a non-nested Item. A backup file must still restore: whatever the
+    """Since round 10 the database forbids a citation on every Item. A backup file must still restore: whatever the
     file holds is mapped BEFORE insertion, and the constraint is in force here (nothing lifts it)."""
 
     def make_file(self):
@@ -793,8 +794,12 @@ class CitationConstraintRestoreTests(BackupBase):
         subject = Subject.objects.create(profile=profile, name="Contract")
         sub = Subtopic.objects.create(profile=profile, subject=subject, name="Offer")
         self.item = Item.objects.create(profile=profile, subtopic=sub, text="p", position=1)
-        self.nested = Item.objects.create(profile=profile, subtopic=sub, text="n", kind="nested", citation="N v M", position=2)
-        return gunzip_json(services.create_backup("manual").data)
+        self.nested = Item.objects.create(profile=profile, subtopic=sub, text="n", position=2)
+        old = gunzip_json(services.create_backup("manual").data)
+        for record in old["models"]["diary.Item"]:  # an old file: the Nested Item holds its own citation
+            if record["pk"] == self.nested.pk:
+                record["fields"].update(kind="nested", citation="N v M")
+        return old
 
     def test_a_file_with_a_stray_citation_is_mapped_then_restored(self):
         old = self.make_file()
@@ -805,15 +810,17 @@ class CitationConstraintRestoreTests(BackupBase):
         self.assertEqual(doc["legacy_mapping"]["cases_created"], 1)
         services.restore_backup(doc, self.admin)
         self.assertEqual(self.item.cases.get().citation, "Stray v File")
-        self.assertFalse(Item.objects.exclude(kind="nested").exclude(citation="").exists())
-        self.assertEqual(Item.objects.get(pk=self.nested.pk).citation, "N v M")
+        self.assertFalse(Item.objects.exclude(citation="").exists())
+        self.assertEqual([c.citation for c in self.nested.cases.all()], ["N v M"])  # the Nested Item's citation too
 
     def test_a_file_in_the_current_shape_restores_unchanged(self):
-        old = self.make_file()
-        doc = services.parse_backup(json.dumps(old).encode("utf-8"), MAX)
+        self.make_file()
+        current = gunzip_json(services.create_backup("manual").data)
+        doc = services.parse_backup(json.dumps(current).encode("utf-8"), MAX)
         self.assertEqual(doc["legacy_mapping"]["items_changed"], 0)
+        self.assertEqual(doc["nested_mapping"]["nested_items"], 0)
         services.restore_backup(doc, self.admin)
-        self.assertEqual(Item.objects.get(pk=self.nested.pk).citation, "N v M")
+        self.assertEqual(Item.objects.get(pk=self.nested.pk).citation, "")
 
 
 class BannerTests(BackupBase):
@@ -942,7 +949,7 @@ class OldFormatItemsTests(BackupBase):
         allow_old_shape_items(self)
         super().setUp()
 
-    def build_old(self):
+    def build_old(self, with_nested=True):
         """Old-format rows written straight to the tables: citations on Items, kind 'multi'."""
         profile = main_profile()
         subject = Subject.objects.create(profile=profile, name="Contract")
@@ -954,7 +961,8 @@ class OldFormatItemsTests(BackupBase):
         Item.objects.filter(pk=self.multi.pk).update(kind="multi")
         Case.objects.create(profile=profile, item=self.multi, citation="C1", comment="<i>c</i>", position=1)
         Case.objects.create(profile=profile, item=self.multi, citation="C2", position=2)
-        self.nested = make(text="n", kind="nested", citation="N v M", position=4)
+        if with_nested:
+            self.nested = make(text="n", kind="nested", citation="N v M", position=4)
         make(text="t", citation="T v U", position=5, deleted_at=timezone.now())
         make(text="s", citation="  ", position=6)
         return gunzip_json(services.create_backup("manual").data)
@@ -974,7 +982,7 @@ class OldFormatItemsTests(BackupBase):
 
         from diary import legacy_merge as legacy
 
-        old = self.build_old()
+        old = self.build_old(with_nested=False)  # the Nested Item part has its own test (OldNestedFileTests)
         legacy.migrate_items(apps)
         migrated = self.shape()
 
@@ -992,11 +1000,11 @@ class OldFormatItemsTests(BackupBase):
              stats["nested_with_citation_kept"]),
             (4, 3, 1, 1, 1),
         )
-        self.assertEqual(doc["counts"]["diary.Case"], 5)
+        self.assertEqual(doc["counts"]["diary.Case"], 6)  # 5, and the Nested Item's own citation as Case (a)
         services.restore_backup(doc, self.admin)
-        self.assertFalse(Item.objects.exclude(kind="nested").exclude(citation="").exists())
-        self.assertFalse(Item.objects.filter(kind="multi").exists())
-        self.assertEqual(Item.objects.get(pk=self.nested.pk).citation, "N v M")
+        self.assertFalse(Item.objects.exclude(citation="").exists())
+        self.assertFalse(Item.objects.filter(kind__in=["multi", "nested"]).exists())
+        self.assertEqual([c.citation for c in self.nested.cases.all()], ["N v M"])
         self.assertEqual(self.plain.cases.get().citation, "A v B")
         self.assertEqual(Case.objects.get(citation="  ").item.text_plain, "s")
         trashed = Case.objects.get(citation="T v U")
@@ -1010,7 +1018,7 @@ class OldFormatItemsTests(BackupBase):
         old = self.build_old()
         doc = services.parse_backup(json.dumps(old).encode("utf-8"), MAX)
         rows = {r["label"]: r for r in services.preview_restore(doc)}
-        self.assertEqual(rows["diary.Case"]["in_file"], 5)
+        self.assertEqual(rows["diary.Case"]["in_file"], 6)
         self.assertIn("3 citation(s) moved into Case (a)", services.legacy.describe(doc["legacy_mapping"]))
 
     def test_restore_log_mentions_the_mapping(self):
@@ -1020,7 +1028,7 @@ class OldFormatItemsTests(BackupBase):
         self.assertIn("moved into Case (a)", BackupLog.objects.filter(kind="restore").latest("pk").message)
 
     def test_a_new_format_file_is_not_changed(self):
-        self.build_old()
+        self.build_old(with_nested=False)
         from django.apps import apps
 
         from diary import legacy_merge as legacy
@@ -1028,6 +1036,7 @@ class OldFormatItemsTests(BackupBase):
         legacy.migrate_items(apps)
         doc = services.parse_backup(services.create_backup("manual").data, MAX)
         self.assertEqual(doc["legacy_mapping"]["items_changed"], 0)
+        self.assertEqual(doc["nested_mapping"]["nested_items"], 0)
         self.assertEqual(doc["counts"]["diary.Case"], 5)
 
     def test_trashed_cases_are_reported_and_not_touched(self):
@@ -1054,3 +1063,104 @@ class OldFormatItemsTests(BackupBase):
                 record["fields"]["position"] = 0
         with self.assertRaises(services.BackupError):
             services.parse_backup(json.dumps(old).encode("utf-8"), MAX)
+
+
+class OldNestedFileTests(BackupBase):
+    """Round 10: Nested Items are gone. A backup made before it has kind "nested" Items with sub-items under
+    ``parent_item``; restoring it maps them with diary.nested_conversion, the code migration 0015 uses."""
+
+    def make_file(self, trashed=False):
+        profile = main_profile()
+        subject = Subject.objects.create(profile=profile, name="Contract")
+        topic = Topic.objects.create(profile=profile, subject=subject, name="Formation")
+        self.parent = Item.objects.create(profile=profile, topic=topic, text="<p>Parent</p>", position=1)
+        self.kid1 = Item.objects.create(profile=profile, topic=topic, text="<p>first sub-item</p>", position=2,
+                                        flag="overruled", flag_text="by X")
+        self.kid2 = Item.objects.create(profile=profile, topic=topic, text="<p>second sub-item</p>", position=3)
+        self.k1case = Case.objects.create(profile=profile, item=self.kid1, citation="K1 v L", position=1)
+        self.note = Note.objects.create(profile=profile, item=self.kid1, text="kid note", position=1)
+        elsewhere = Note.objects.create(profile=profile, topic=topic, text="elsewhere")
+        self.link = NoteLink.objects.create(profile=profile, note=elsewhere, item=self.kid1)
+        UserSettings.objects.create(user=self.alice)
+        if trashed:
+            batch = TrashBatch.objects.create(profile=profile, root_type="item", root_id=self.parent.pk, label="Gone")
+            stamp = timezone.now()
+            for item in (self.parent, self.kid1, self.kid2):
+                Item.objects.filter(pk=item.pk).update(deleted_at=stamp, delete_batch=batch.id)
+            Case.objects.update(deleted_at=stamp, delete_batch=batch.id)
+        old = gunzip_json(services.create_backup("manual").data)
+        for record in old["models"]["diary.Item"]:  # the old file shape
+            fields = record["fields"]
+            fields["parent_item"] = None
+            if record["pk"] == self.parent.pk:
+                fields.update(kind="nested", citation="N v M")
+            elif record["pk"] in (self.kid1.pk, self.kid2.pk):
+                fields.update(parent_item=self.parent.pk, topic=None, position=1 if record["pk"] == self.kid1.pk else 2)
+            fields.pop("citation_layout", None)
+        for record in old["models"]["diary.UserSettings"]:
+            record["fields"]["nested_item_format"] = "bullet"
+        return old
+
+    def parse(self, old):
+        return services.parse_backup(json.dumps(old).encode("utf-8"), MAX)
+
+    def test_a_nested_item_becomes_an_item_whose_citations_carry_the_sub_item_text(self):
+        doc = self.parse(self.make_file())
+        stats = doc["nested_mapping"]
+        self.assertEqual((stats["nested_items"], stats["children_folded"], stats["notes_moved"],
+                          stats["links_retargeted"]), (1, 2, 1, 1))
+        self.assertIn("1 Nested Item(s)", services.nested_conversion.describe(stats))
+        services.restore_backup(doc, self.admin)
+
+        parent = Item.objects.get(pk=self.parent.pk)
+        self.assertEqual((parent.kind, parent.citation, parent.citation_layout, parent.needs_review),
+                         ("plain", "", "lines", True))
+        self.assertIn("Converted from a Nested Item", parent.review_note)
+        cases = list(parent.cases.order_by("position"))
+        self.assertEqual([(c.position, c.citation) for c in cases], [(1, "N v M"), (2, "K1 v L"), (3, "")])
+        self.assertEqual(cases[0].comment, "")
+        self.assertEqual(cases[1].comment_plain, "first sub-item [Overruled: by X]")
+        self.assertEqual(cases[2].comment_plain, "second sub-item")
+        self.assertEqual(cases[1].pk, self.k1case.pk)  # the sub-item's own Case moved, not copied
+
+    def test_notes_and_links_of_the_sub_items_move_to_the_item(self):
+        services.restore_backup(self.parse(self.make_file()), self.admin)
+        self.assertEqual(Note.objects.get(pk=self.note.pk).item_id, self.parent.pk)
+        self.assertEqual(NoteLink.objects.get(pk=self.link.pk).item_id, self.parent.pk)
+
+    def test_sub_items_wait_in_a_trash_batch_and_nothing_nested_is_left(self):
+        services.restore_backup(self.parse(self.make_file()), self.admin)
+        for kid in (self.kid1, self.kid2):
+            kid = Item.objects.get(pk=kid.pk)
+            self.assertIsNotNone(kid.deleted_at)
+            self.assertIn("Nested Item conversion", TrashBatch.objects.get(pk=kid.delete_batch).label)
+            self.assertEqual(kid.topic_id, Item.objects.get(pk=self.parent.pk).topic_id)
+        self.assertFalse(Item.objects.filter(kind="nested").exists())
+        self.assertFalse(Item.objects.exclude(citation="").exists())
+        rows = VersionHistory.objects.filter(change_kind="migrate", record_type="item")
+        self.assertEqual({r.record_id for r in rows}, {self.parent.pk, self.kid1.pk, self.kid2.pk})
+        self.assertIn("Nested Item(s) became ordinary Items",
+                      BackupLog.objects.filter(kind="restore").latest("pk").message)
+
+    def test_the_removed_settings_column_in_an_old_file_is_dropped(self):
+        old = self.make_file()
+        doc = self.parse(old)
+        self.assertTrue(all("nested_item_format" not in r["fields"] for r in doc["models"]["diary.UserSettings"]))
+        services.restore_backup(doc, self.admin)
+        self.assertTrue(UserSettings.objects.filter(user=self.alice).exists())
+
+    def test_a_nested_item_that_was_in_trash_stays_in_trash_with_its_citations(self):
+        services.restore_backup(self.parse(self.make_file(trashed=True)), self.admin)
+        parent = Item.objects.get(pk=self.parent.pk)
+        self.assertIsNotNone(parent.deleted_at)
+        self.assertEqual(parent.cases.count(), 3)
+        self.assertFalse(parent.cases.filter(deleted_at__isnull=True).exists())
+        self.assertTrue(all(c.delete_batch == parent.delete_batch for c in parent.cases.all()))
+        self.assertFalse(Item.objects.filter(deleted_at__isnull=True, topic__isnull=False).exists())
+
+    def test_the_old_file_is_mapped_before_anything_is_inserted(self):
+        old = self.make_file()
+        doc = self.parse(old)
+        nested = [r for r in doc["models"]["diary.Item"] if r["fields"].get("kind") == "nested"]
+        self.assertEqual(nested, [])
+        self.assertTrue(all("parent_item" not in r["fields"] for r in doc["models"]["diary.Item"]))

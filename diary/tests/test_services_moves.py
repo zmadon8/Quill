@@ -161,41 +161,14 @@ class MoveBetweenParentsTests(ServiceTestCase):
         self.assertEqual(self.history_kinds(self.one), ["create", "reorder"])
         self.assertEqual(self.get(self.one).position, 5)
 
-    def test_move_item_into_a_nested_item(self):
-        nested = self.make("item", ("topic", self.topic.pk), kind="nested", text="n")
-        svc.move(self.profile, self.user, "item", self.four.pk, ("item", nested.pk))
-        four = self.get(self.four)
-        self.assertEqual((four.parent_item_id, four.topic_id, four.position), (nested.pk, None, 1))
-        self.assertEqual(
-            self.numbered(self.topic),
-            [("(1)", "one"), ("(2)", "two"), ("(a)", "S"), ("(1)", "three"), ("(2)", "n")],
-        )
-
-    def test_move_item_out_of_a_nested_item(self):
-        nested = self.make("item", ("topic", self.topic.pk), kind="nested", text="n")
-        child = self.make("item", ("item", nested.pk), text="child")
-        svc.move(self.profile, self.user, "item", child.pk, ("topic", self.topic.pk), index=0)
-        child = self.get(child)
-        self.assertEqual((child.parent_item_id, child.topic_id, child.position), (None, self.topic.pk, 1))
-        self.assertEqual(self.numbered(self.topic)[0], ("(1)", "child"))
-
-    def test_one_level_of_nesting_is_enforced(self):
-        nested = self.make("item", ("topic", self.topic.pk), kind="nested", text="n")
-        other_nested = self.make("item", ("topic", self.topic.pk), kind="nested", text="n2")
-        for moved, parent in ((other_nested, nested), (nested, nested), (self.one, self.two)):
+    def test_an_item_cannot_be_moved_beneath_an_item(self):
+        for moved, parent in ((self.four, self.two), (self.one, self.two)):
             with self.assertRaises(svc.Refused):
                 svc.move(self.profile, self.user, "item", moved.pk, ("item", parent.pk))
-        self.assertEqual(self.get(other_nested).topic_id, self.topic.pk)
         self.assertEqual(self.get(self.one).version, 1)
+        self.assertEqual(self.get(self.four).topic_id, self.topic.pk)
 
-    def test_an_item_with_citations_can_sit_beneath_a_nested_item(self):
-        nested = self.make("item", ("topic", self.topic.pk), kind="nested", text="n")
-        cited = self.make("item", ("topic", self.topic.pk), text="m", citation="A v B")
-        svc.move(self.profile, self.user, "item", cited.pk, ("item", nested.pk))
-        self.assertEqual(self.get(cited).parent_item_id, nested.pk)
-        self.assertEqual(Case.objects.filter(item=cited, deleted_at__isnull=True).count(), 1)
-
-    def test_a_case_moves_to_another_plain_item(self):
+    def test_a_case_moves_to_another_item(self):
         first = self.make("item", ("topic", self.topic.pk), text="a", citation="A v B")
         second = self.make("item", ("topic", self.topic.pk), text="b")
         case = Case.objects.get(item=first)
@@ -209,11 +182,6 @@ class MoveBetweenParentsTests(ServiceTestCase):
             svc.move(self.profile, self.user, "section", self.sec.pk, ("item", self.one.pk))
         with self.assertRaises(svc.Refused):
             svc.move(self.profile, self.user, "subject", self.subject.pk, ("topic", self.topic.pk))
-        nested = self.make("item", ("topic", self.topic.pk), kind="nested", text="n")
-        with self.assertRaises(svc.Refused):
-            svc.move(self.profile, self.user, "case", self.make("case", ("item", self.make(
-                "item", ("topic", self.topic.pk), text="m").pk), citation="c").pk,
-                ("item", nested.pk))
         self.assertEqual(self.get(self.sec).subtopic_id, None)
         self.assertEqual(self.get(self.sec).topic_id, self.topic.pk)
 

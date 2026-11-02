@@ -33,15 +33,21 @@ FORMAT_CHOICES = [
 SECTION_FORMAT_CHOICES = FORMAT_CHOICES + [("section_n", "Section 1, Section 2")]
 
 KIND_PLAIN = "plain"
-# LEGACY (10d): "multi" is no longer a stored or chosen kind. Every non-nested Item holds its citations
-# as Cases; an Item with two or more live Cases is "multi" only in the sense of being displayed as
-# (a), (b). The constant stays so old code paths and old backup files can still name the old value;
-# diary/legacy_merge.py maps it to "plain".
-KIND_MULTI = "multi"
-KIND_NESTED = "nested"
+# LEGACY: "multi" (10d) and "nested" (round 10) are no longer stored or chosen kinds. Every Item holds its
+# citations as Cases; an Item with two or more live Cases is shown as (a), (b). Old backup files and old
+# history snapshots may still name the old values; diary/legacy_merge.py and diary/nested_conversion.py map
+# them. ``Item.kind`` stays as a column with the one value "plain".
 KIND_CHOICES = [
     (KIND_PLAIN, "Item"),
-    (KIND_NESTED, "Nested Item"),
+]
+
+# How the citations of an Item with several of them are shown: inline "(a) X; (b) Y" after the text, or
+# each on its own line "(a) <comment> - <citation>" (round 10, replaces Nested Items).
+LAYOUT_INLINE = "inline"
+LAYOUT_LINES = "lines"
+CITATION_LAYOUT_CHOICES = [
+    (LAYOUT_INLINE, "Inline"),
+    (LAYOUT_LINES, "On separate lines"),
 ]
 
 FLAG_NONE = "none"
@@ -253,21 +259,18 @@ class Section(Record):
 
 class Item(RichTextMixin, Record):
     rich_fields = {"text": "text_plain"}
-    profile_parents = ("subject", "topic", "subtopic", "parent_item")
+    profile_parents = ("subject", "topic", "subtopic")
 
     subject = models.ForeignKey(Subject, null=True, blank=True, on_delete=models.CASCADE, related_name="items")
     topic = models.ForeignKey(Topic, null=True, blank=True, on_delete=models.CASCADE, related_name="items")
     subtopic = models.ForeignKey(Subtopic, null=True, blank=True, on_delete=models.CASCADE, related_name="items")
-    parent_item = models.ForeignKey(
-        "self", null=True, blank=True, on_delete=models.CASCADE, related_name="children"
-    )
     kind = models.CharField(max_length=10, choices=KIND_CHOICES, default=KIND_PLAIN)
+    citation_layout = models.CharField(max_length=10, choices=CITATION_LAYOUT_CHOICES, default=LAYOUT_INLINE)
     text = models.TextField(blank=True)
     text_plain = models.TextField(blank=True, editable=False)
-    # LEGACY (10d): for plain Items the citations now live in Cases (Case position order), and this column is
-    # always empty after migration diary 0010. It is kept so that old backup files and old history
-    # snapshots (which carry it) can still be read and mapped (diary/legacy_merge.py). A Nested Item
-    # cannot own Cases, so a Nested Item's own citation stays here, unchanged.
+    # LEGACY: the citations of an Item live in Cases (Case position order), and this column is always empty
+    # (migrations 0010 and 0015). It is kept so that old backup files and old history snapshots (which carry it)
+    # can still be read and mapped (diary/legacy_merge.py, diary/nested_conversion.py).
     citation = models.CharField(max_length=1000, blank=True)
     flag = models.CharField(max_length=10, choices=FLAG_CHOICES, default=FLAG_NONE)
     flag_text = models.CharField(max_length=300, blank=True)
@@ -284,35 +287,24 @@ class Item(RichTextMixin, Record):
                 fields=["profile", "import_ref"], condition=~Q(import_ref=""), name="item_import_ref_unique"
             ),
             models.CheckConstraint(
-                condition=exactly_one(["subject", "topic", "subtopic", "parent_item"]),
+                condition=exactly_one(["subject", "topic", "subtopic"]),
                 name="item_exactly_one_parent",
             ),
-            # One level of nesting: the children of a Nested Item are plain Items (section 2.2).
-            models.CheckConstraint(
-                condition=Q(parent_item__isnull=True) | Q(kind=KIND_PLAIN),
-                name="item_child_of_nested_is_plain",
-            ),
-            # 10d: Case is the one store of citations for a plain Item; only a Nested Item (which cannot own Cases)
-            # keeps its own. Added by migration 0011, after the data move of 0010.
-            models.CheckConstraint(
-                condition=Q(kind=KIND_NESTED) | Q(citation=""),
-                name="item_plain_has_no_citation",
-            ),
+            # Case is the one store of citations of an Item (10d; since round 10 for every Item).
+            models.CheckConstraint(condition=Q(citation=""), name="item_plain_has_no_citation"),
         ]
 
     def clean(self):
         super().clean()
         if self.citation and ("\n" in self.citation or "\r" in self.citation):
             raise ValidationError({"citation": "A citation must be a single line."})
-        if self.parent_item_id is not None and self.parent_item.kind != KIND_NESTED:
-            raise ValidationError({"parent_item": "Items can only sit beneath a Nested Item."})
 
     def __str__(self):
         return self.text_plain[:60] or f"Item {self.pk}"
 
 
 class Case(RichTextMixin, Record):
-    """One citation of an Item (any Item except a Nested Item), with an optional rich-text comment."""
+    """One citation of an Item, with an optional rich-text comment."""
 
     profile_parents = ("item",)
 
@@ -326,8 +318,6 @@ class Case(RichTextMixin, Record):
 
     def clean(self):
         super().clean()
-        if self.item_id is not None and self.item.kind == KIND_NESTED:
-            raise ValidationError({"item": "Cases are not allowed under a Nested Item."})
         if self.citation and ("\n" in self.citation or "\r" in self.citation):
             raise ValidationError({"citation": "A citation must be a single line."})
 
@@ -399,8 +389,6 @@ class UserSettings(models.Model):
     subtopic_format = models.CharField(max_length=20, choices=FORMAT_CHOICES, default="decimal")
     section_format = models.CharField(max_length=20, choices=SECTION_FORMAT_CHOICES, default="paren_lower_alpha")
     item_format = models.CharField(max_length=20, choices=FORMAT_CHOICES, default="paren_decimal")
-    # Format of the Items INSIDE a Nested Item (its children). The Nested Item itself uses item_format.
-    nested_item_format = models.CharField(max_length=20, choices=FORMAT_CHOICES, default="bullet")
     multi_citation_format = models.CharField(max_length=20, choices=FORMAT_CHOICES, default="paren_lower_alpha")
     export_custom_name = models.CharField(max_length=60, default="Case Law Diary")
     export_date_format = models.CharField(max_length=20, choices=DATE_FORMAT_CHOICES, default="YYYY-MM-DD")

@@ -24,6 +24,7 @@ from accounts.profiles import DEFAULT_PROFILE_NAME
 from accounts.suite import KEY_DIARY as DEFAULT_PROGRAM
 
 from diary import legacy_merge as legacy
+from diary import nested_conversion
 
 from . import policy, registry, storage as offsite_storage
 from .models import KEEP_KINDS, BackupFile, BackupLog
@@ -271,15 +272,21 @@ def upgrade_old_items(document, now=None):
     history rows record each change. A file already in the new shape is left alone. The statistics are
     kept in ``document["legacy_mapping"]`` so the restore preview and log can say what was mapped.
     """
+    stamp = (now or timezone.now()).isoformat()
     try:
-        stats = legacy.upgrade_document_items(document["models"], (now or timezone.now()).isoformat())
+        stats = legacy.upgrade_document_items(document["models"], stamp)
     except legacy.LegacyConflict as exc:
         raise BackupError(f"This backup holds data that cannot be mapped to the current format. {exc}")
+    # Then Nested Items (round 10): sub-items become citations with comments, via diary.nested_conversion.
+    nested = nested_conversion.upgrade_document_nested(document["models"], stamp)
     document["legacy_mapping"] = stats
-    if stats["items_changed"]:
+    document["nested_mapping"] = nested
+    if stats["items_changed"] or nested["nested_items"]:
         counts = document.setdefault("counts", {})
-        for label in ("diary.Item", "diary.Case", "diary.VersionHistory"):
-            counts[label] = len(document["models"].get(label, []))
+        for label in ("diary.Item", "diary.Case", "diary.Note", "diary.NoteLink", "diary.TrashBatch",
+                      "diary.VersionHistory"):
+            if label in document["models"]:
+                counts[label] = len(document["models"][label])
     return stats
 
 
@@ -476,7 +483,8 @@ def restore_backup(document, user):
         success=True,
         message="Restored: "
         + ", ".join(f"{label} {n}" for label, n in counts.items())
-        + (" " + legacy.describe(document.get("legacy_mapping") or legacy.new_stats())).rstrip(),
+        + (" " + legacy.describe(document.get("legacy_mapping") or legacy.new_stats())).rstrip()
+        + (" " + nested_conversion.describe(document.get("nested_mapping") or nested_conversion.new_stats())).rstrip(),
         created_by=survivor,
     )
     return counts

@@ -7,14 +7,14 @@ Two GET endpoints, both for Editors of the signed-in user's profile only (Reader
 * ``edit_inline_card`` (GET ``?kind=item&id=5``): the editing card that replaces a row.
 
 Saving is done by the existing endpoints (edit_add, edit_item, edit_rename, edit_review, edit_move, edit_delete,
-edit_item_convert, edit_undo) when the request carries ``X-Requested-With: fetch``; see docs/DESIGN.md.
+edit_undo) when the request carries ``X-Requested-With: fetch``; see docs/DESIGN.md.
 """
 
 from django.http import Http404, JsonResponse
 from django.template.loader import render_to_string
 
 from . import inline
-from .models import FLAG_CHOICES, KIND_NESTED, Case
+from .models import CITATION_LAYOUT_CHOICES, FLAG_CHOICES, Case
 from .reading import run_of
 from .services.core import Ctx, ancestors, get_record, label
 from .services.moves import NICE
@@ -67,22 +67,21 @@ def edit_card(request):
     back = _next(request)
     context = {
         "kind": kind, "record": record, "back": back, "where": _where(record),
-        "title": f"Editing {NICE[kind]}", "can_move": kind != "subject", "can_shift": False, "convert_to": [],
+        "title": f"Editing {NICE[kind]}", "can_move": kind != "subject", "can_shift": False,
     }
     if kind == "item":
         cases = Case._base_manager.filter(item=record, deleted_at__isnull=True, profile=request.profile)
         rows = [{"id": c.pk, "version": c.version, "citation": c.citation, "comment": c.comment}
                 for c in cases.order_by("position", "pk")]
-        if record.kind != KIND_NESTED and not rows:
+        if not rows:
             rows = [{"id": None, "version": None, "citation": "", "comment": ""}]
         context.update(
             values={"text": record.text, "citation": record.citation, "flag": record.flag, "flag_text": record.flag_text,
-                    "needs_review": record.needs_review, "review_note": record.review_note},
-            rows=rows, flag_choices=FLAG_CHOICES, can_shift=bool(run_of(record)),
-            title="Editing Nested Item" if record.kind == KIND_NESTED else "Editing Item",
+                    "needs_review": record.needs_review, "review_note": record.review_note,
+                    "citation_layout": record.citation_layout},
+            rows=rows, flag_choices=FLAG_CHOICES, layout_choices=CITATION_LAYOUT_CHOICES,
+            can_shift=bool(run_of(record)), title="Editing Item",
         )
-        if not record.parent_item_id:
-            context["convert_to"] = [("plain", "Item")] if record.kind == KIND_NESTED else [("nested", "Nested Item")]
     else:
         context["name"] = record.name
         if kind == "subject":

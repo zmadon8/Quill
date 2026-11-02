@@ -5,7 +5,7 @@
    2. "+ Add" opens a small form under the row; "Edit" turns the row into an editing card (a full-screen card on a phone).
       Both are pieces of HTML fetched from the server (edit_inline_add, edit_inline_card) and saved with the same
       endpoints as the full pages, with the header X-Requested-With: fetch, which answers JSON.
-   3. The grip at the left of an Item, Nested Item or Section drags it to a new place among its neighbours.
+   3. The grip at the left of an Item or Section drags it to a new place among its neighbours.
    Without this script the switch, "+ Add" and an Item's "Edit" are plain links to the full pages. */
 (function () {
   "use strict";
@@ -288,10 +288,6 @@
       var citable = whats.indexOf(what()) > -1;
       citeField.classList.toggle("off", !citable);
       Array.prototype.forEach.call(citeField.querySelectorAll("input, button"), function (n) { n.disabled = !citable; });
-      var single = what() === "nested";
-      more.hidden = single;
-      Array.prototype.forEach.call(list.querySelectorAll(".c2"), function (n) { n.hidden = single; });
-      Array.prototype.forEach.call(list.querySelectorAll("[data-cite-row]"), function (r, i) { r.hidden = single && i > 0; });
     }
     form.addEventListener("change", function (e) { if (e.target.name === "choice") { apply(); focusText(); } });
     apply();
@@ -322,12 +318,8 @@
       if (busy) { return; }
       showErrors(form, []);
       var body = new FormData(form);
-      var kind = what();
       if (isHeading()) {
         body.set("text", plain.value);
-        body.delete("case_citation"); body.delete("case_comment");
-      } else if (kind === "nested") {
-        body.set("citation", list.querySelector("input[name=case_citation]").value);
         body.delete("case_citation"); body.delete("case_comment");
       }
       var chosen = form.querySelector("input[name=choice]:checked");
@@ -406,6 +398,11 @@
     card.addEventListener("change", function (e) { if (e.target.name === "flag") { syncFlag(); } });
     syncFlag();
 
+    // "Show citations: Inline | On separate lines" only makes sense with two or more citations.
+    var layoutControl = card.querySelector("[data-layout-control]");
+    function syncLayout() {
+      if (layoutControl && list) { layoutControl.hidden = list.querySelectorAll("[data-case-row]").length < 2; }
+    }
     // Citations: add, remove (a saved one is also sent as case_gone so the server checks nobody changed it), drag to reorder.
     card.addEventListener("click", function (e) {
       if (e.target.closest("[data-case-add]") && template) {
@@ -414,6 +411,7 @@
         if (window.QuillRichText) { window.QuillRichText.initAll(fresh); }
         fresh.querySelector("input[name=case_citation]").focus();
         card.setAttribute("data-dirty", "1");
+        syncLayout();
         return;
       }
       var step = e.target.closest("[data-case-up], [data-case-down]");
@@ -436,6 +434,7 @@
         }
         li.remove();
         card.setAttribute("data-dirty", "1");
+        syncLayout();
       }
     });
     if (list) {
@@ -518,7 +517,6 @@
       var url = sub.getAttribute("formaction");
       if (action === "up" || action === "down") { send(url, ["direction", action], false); }
       else if (action === "delete") { send(url, null, true); }
-      else if (action === "convert") { send(url, [sub.name, sub.value], false); }
       else { postPlain(card, url, sub.name || null, sub.value); } // Move to..., landing page: whole pages
     });
   }
@@ -532,7 +530,7 @@
     if (edit && root.contains(edit)) { e.preventDefault(); openCard(edit); }
   });
 
-  // ---- 3. drag an Item, Nested Item or Section to a new place among its neighbours ----
+  // ---- 3. drag an Item or Section to a new place among its neighbours ----
   var drag = null;
   function clearMarks() {
     Array.prototype.forEach.call(document.querySelectorAll(".drop-before, .drop-after, .dragging"), function (n) {
