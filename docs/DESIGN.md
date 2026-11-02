@@ -1047,3 +1047,12 @@ Owner's round 6 answers: "Yes to 1 and 2. Yes to 3, and also add a setting to de
 5. Flags are red text plus the word (D47); "Linked from" is not printed. *Default: yes.*
 6. The Admin may do the Full exports even when their own role in the profile is Reader (D48). *Default: yes.*
 
+## Milestone 7 final decisions (performance and rehearsal)
+
+- **D53. Performance pass, no change in behaviour.** The whole-Subject reading page already loads a Subject in a fixed number of queries. The remaining per-row queries were in "Linked from" (each incoming link followed its Note and the Note's parents one query at a time) and in a Note's own links (each link followed its target). Both now load those parents in the same query with `select_related` (`diary/reading.py`), so the count no longer depends on how many Items or links there are. Search and the Review list read plain values in bulk and need no change; the Word export reads the whole profile in bulk (D50) and only follows a link to a record in Trash one at a time (rare). `diary/tests/test_query_counts.py` fails if the whole-Subject page (about 200 Items), the Review list or Search needs more than 40 queries, or more than 2 queries extra for 10 times the data. No cache, no extra service: memory use is unchanged.
+- **D54. Backup rehearsal command.** `python manage.py backup_rehearsal` takes a backup (kind "manual"), reads it back with the same checks as an upload, and compares the number of records per record type in the file with the live database. It prints a table, ends with "Backup rehearsal OK", and exits with an error if any count differs or the file cannot be read. It never restores and never changes diary data. The restore of an old-format file (users with a role, no profiles) is covered by tests in `backups/tests/test_rehearsal.py`.
+- **D55. Program feature-complete.** After Milestone 7 no further milestone is planned. The owner exclusions stand: no split screen and no Excel copy (D41).
+
+**Questions for the owner (Milestone 7), each with its default:**
+1. The off-site copy stays optional and off until you set it up. *Default: yes.*
+2. The rehearsal command stores one extra "manual" backup each time it runs. *Default: yes (old ones are removed by the normal retention).*

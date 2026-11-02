@@ -48,6 +48,9 @@ Only Editors (and Admins whose own role is Editor) can edit. Use the quiet **Edi
 - An empty diary shows a short first-run hint on the Subjects page.
 - Accessibility: skip-to-content link, visible keyboard focus, labels on icon-only buttons, 44px touch targets on phones, one column from 320px, and no fading flash when the system asks for reduced motion.
 - There is no split-screen view (owner decision, D41).
+- Performance: "Linked from" and Note links load without one query per row; tests cap the query count of the whole-Subject page, the Review list and Search (D53).
+- `python manage.py backup_rehearsal` takes a backup, reads it back and compares the record counts per type with the database. It restores nothing (D54). See docs/HOSTING_AND_DEPLOY.md section 6b.
+- The program is feature-complete with Milestone 7. There is no Excel copy (D41).
 
 ## Notes and cross-references (Milestone 5)
 

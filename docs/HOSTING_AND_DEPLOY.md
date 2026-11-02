@@ -83,6 +83,17 @@ By default backups live inside the database. If the database host has a serious 
 
 Keep a bucket lifecycle or versioning rule off unless you want extra copies kept; the app removes old copies itself.
 
+## 6b. Final backup rehearsal (Milestone 7)
+
+Do this once before relying on the system, and again after any large change.
+
+1. In the Render shell run `python manage.py backup_rehearsal`. It takes a backup, reads it back and prints the record count per type, in the file and in the database. It must end with "Backup rehearsal OK". Any "DIFFERENT" line or an error means: stop and ask Kiro. It restores nothing.
+2. On the Backups screen, download the newest backup to your computer.
+3. Make a small harmless change (for example rename a test Item) and note it.
+4. Restore the downloaded file on the Backups screen (a "Before restore" safety backup is made first).
+5. Confirm your change is gone, the data is as it was, and you can still sign in. Create a new test user to check that numbering continues.
+6. Run `python manage.py backup_rehearsal` again; it should say OK.
+
 ## 7. Costs at a glance (approximate; verify before signing up)
 
 | Item | About per month |

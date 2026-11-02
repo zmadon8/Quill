@@ -171,16 +171,25 @@ Note: the technology (Django, PostgreSQL) is confirmed for a **standalone app** 
 
 ## Milestone 7: Polish
 
-**Owner decision: no split screen.** The split screen idea is dropped from the plan.
+**Status: built. With this milestone the program is feature-complete. The code is written and checked by reading, compileall and ruff; the Django tests (including the new query-count and rehearsal tests) have their first real run in GitHub CI.**
 
-**Deliverable:** Performance tuning, accessibility and phone improvements, error messages, help text, Admin user management polish, final backup and restore rehearsal, and off-site backup copy if chosen.
+**Owner decisions: no split screen (D41), and, from Milestone 6, no Excel copy.** Neither is built or planned. The backup file stays the only backup format.
 
-**How you check it:**
-- Do a full rehearsal: take a backup, change some data, restore, and confirm the data is back as it was.
-- Use the app for a week of real work, listing anything that annoys you.
+**Deliverable (all done):** off-site backup copy (optional, off until configured), Help page, friendly error pages, first-run hint, accessibility and phone polish, a performance pass (no N+1 queries in "Linked from" or in Note links; bounded query counts proved by tests), and the final backup rehearsal command `python manage.py backup_rehearsal`.
+
+**Final owner check list:**
+
+1. **Off-site copy** (optional): follow docs/HOSTING_AND_DEPLOY.md section 6a, run `python manage.py backup_offsite` in the Render shell, and confirm the Backups screen shows a recent "Off-site copy".
+2. **Help page:** open Help from Home and from the diary; read it once and note anything unclear or out of date.
+3. **Rehearsal:** run `python manage.py backup_rehearsal` in the Render shell. It should end with "Backup rehearsal OK" and show equal counts per record type. Then do the manual restore rehearsal in docs/HOSTING_AND_DEPLOY.md section 6b (download, change data, restore, confirm).
+4. **Accessibility eyeball list:** press Tab from the top of each main page (a skip link appears, focus is always visible); every icon-only button has a hover name; on a phone (or a 320px wide window) there is one column and buttons are easy to tap; turn on "reduce motion" in the system and confirm nothing fades.
+5. **Speed:** open the largest Subject, the Review list and a Search; none should feel slow.
+6. **Errors:** open a wrong address while signed in (a friendly 404) and confirm there is no split-screen button anywhere.
+7. **A week of real work:** list anything that annoys you before sign-off.
 
 **Risks:**
 - Late discovery of workflow gaps (mitigation: the week of real use before sign-off).
+- Postgres-only behaviour not seen on SQLite (mitigation: the rehearsal on the real database).
 
 ## Round 3 (UI changes, after Milestone 2)
 
