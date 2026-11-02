@@ -145,22 +145,29 @@ Note: the technology (Django, PostgreSQL) is confirmed for a **standalone app** 
 
 **Deliverable:** Three types of Word export following `docs/DESIGN.md` section 12: (i) Full, one document; (ii) Full, one document per Subject with all Other Subjects together, delivered as one .zip with a manifest; (iii) Current View (Subject, Topic or Sub-topic on screen). Contents page, page headers, numbering per Settings (including Sections and the restart of Items after each Section), "See also" Notes, date and record count. File names built from the Custom Name, the part and the date. A "Backup" button for the restore file. **Profiles:** every export covers the user's profile only, and file names start with the profile's export name (default "Case Law Diary Main", editable in the profile's settings; `accounts.profiles.export_file_name` builds the cleaned name).
 
-**How you check it:**
-- Export (i) and open in Word: Subject names as headings, Topics lettered, Sub-topics numbered, Items (1), Citations in italic after " - ". Under `Clause 12: Leave to Sue` Section (a) has Items (1), (2) and Section (b) has Items (1) to (10), restarting correctly in Word.
-- Check the Other Subjects section (Heading 1 / 2 / 3) and a single Other Subject export (Heading 1 alone, confirmed).
-- **File names**: (i) `Case Law Diary Full 2026-11-01.docx` (with your Custom Name, which defaults to the program's display name, and the date); (ii) the zip `... Full - by Subject <date>.zip` holding one `... <Subject name> <date>.docx` per Subject, one `... Other Subjects <date>.docx`, and `manifest.txt`; (iii) `... <on-screen path joined by ", "> <date>.docx`. Illegal characters are replaced by a hyphen; over-long paths are shortened by the documented rule; duplicates in the zip get " (2)".
-- **Zip contents and counts**: each document's record count matches the screen for that Subject, and the grand total in `manifest.txt` equals the count on the Full export.
-- **Current View**: exported from a Subject, a Topic and a Sub-topic (the heading becomes Heading 1, the on-screen letter or number is kept, the whole subtree is included, Trash is not). On Search results, the Review list, Trash and History the button is disabled with a tooltip.
-- Exporting twice on the same day gives the same file name (the browser adds (1)); the app never overwrites or adds counters.
-- The record count on each export matches the screen count.
-- **Round trip:** a comparison report of the export against your original Word file; differences should be only the deliberate ones (formatting), listed one by one.
-- Export with and without the review markers (Items and Sections), for each of the three types.
+**How you check it:** see the owner check list below.
+
+**Status: built, CI pending.** The standard-library Word writer and renderer (`diary/wordexport/`, no new dependency), the Export page (`/caselaw/export/`, the Export link in the navigation and **Export this view** on the Subject and reading pages), the three exports, `manifest.txt`, the date format in My settings, hyphen replacement of illegal file-name characters, and the round-trip command `check_export_roundtrip`. Decisions and defaults are D42 to D52 in `docs/DESIGN.md`. The pure tests pass locally (41 in `diary/tests/test_wordexport_pure.py`, including the real file round trip: 950 of 950 Items, 693 of 693 citations in italics, 0 unexpected differences, and 5,000 Items rendered in 0.3 s). The Django tests (`diary/tests/test_wordexport_db.py`) could not be run where the code was written, so GitHub CI is their first run; it also times 5,000 Items through the database and repeats the round trip through the real database.
+
+**Owner check list (Milestone 6):**
+1. Open the Export page (Export in the top bar). Press **Full: one Word file** and open it in Word. Check: the front page (name, date, "Records in this document: N Items", Contents links), each Subject on its own page with its name in the page header, Topics lettered, Sub-topics numbered in bold, Items (1), (2), citations in italics after " - ", Sections (a), (b) with the Items restarting at (1), and "Clause 12: Leave to Sue" Section (a) with 2 Items and Section (b) with 10.
+2. Check **Other Subjects**: one Heading 1 page that lists them, then each Other Subject on its own page; the numbers match the screen.
+3. Press **Full: one file per Subject (.zip)**. The zip holds one file per Subject, one **Other Subjects** file and **manifest.txt**. The counts in the manifest match the counts beside each Subject on the Subjects page; the total is 950 for your file.
+4. On a Subject, a Topic and a Sub-topic press **Export this view**. The heading is Heading 1, the on-screen letter or number is kept, everything below it is included, nothing from Trash. A single Other Subject is Heading 1 alone.
+5. Tick **Include review markers** and export again: amber "[For review ...]" notes appear on Items and Sections; unticked, they do not.
+6. File names: `Case Law Diary Main Full 2026-11-01.docx`, `... Full - by Subject 2026-11-01.zip`, `... Arbitration, Fraud 2026-11-01.docx` (your profile's export name, then the part, then the date). Set a name with a colon in Profile settings: the preview says it is replaced with a hyphen. In My settings change **Date in Word file names** and export again.
+7. Change a number format in My settings (for example Items to (a), (b)) and export: the Word file follows it.
+8. Add a Note with a link: the Word file shows "See also: Subject > Topic > ..." and no "Linked from". Delete the target: it says "(target deleted)".
+9. Sign in as a Reader: Export shows only the Current View; the Full addresses give 403. The Admin can do both Full exports.
+10. Round trip (Render Shell or a computer with the project): `python manage.py check_export_roundtrip --profile Main --file "Case Law Diary.docx"`. It should print `RESULT: PASS`, 950 Item lines in both files, 0 unexpected differences, and list the deliberate differences (alphabetical order, numbers, 19 colons, Sections numbered, "Miscellaneous" is "Other Subjects").
+11. Time a Full export of your real data: it should finish in a second or two.
+12. Open a file in Word on your own computer and tell me if Word shows any "unreadable content" message (the file was checked as XML and re-read by our reader, but not opened in Word by me).
 
 **Risks:**
-- Word's numbering and heading behaviour when documents are opened on different computers, and the per-Section restart of Item numbers (mitigation: tested on your computer; fallback is to write the numbers as text).
-- Size of a whole-database file and speed, and zip creation for the per-Subject export.
+- The first open in a real Word could differ from the checks done here (mitigation: item 12; the XML follows the schema order).
+- Numbers are text, so Items added by hand in Word do not renumber (the price of an exact match with the screen, D43).
+- Size and speed with much more data than 5,000 Items (mitigation: measured in CI; a background job is the upgrade path, D50).
 - File names containing characters or lengths that Windows or macOS refuse (mitigation: the cleaning and length rules, tested).
-- The comparison needs your judgment on which differences are acceptable.
 
 ## Milestone 7: Polish
 
