@@ -234,7 +234,7 @@ class MoveBetweenParentsTests(ServiceTestCase):
         sub = self.make("subtopic", ("topic", self.topic.pk), name="Child")
         svc.move(self.profile, self.user, "topic", self.topic.pk, ("subject", s2.pk), index=0)
         # alphabetical: "Formation" then "X"; the moved Topic takes the next free stored position
-        self.assertEqual([t.name for t in members(self.profile.pk, ("topic", s2.pk))], ["Formation", "X"])
+        self.assertEqual([t.name for t in members(self.profile.pk, ("topic", "subject", s2.pk))], ["Formation", "X"])
         self.assertEqual(self.positions([x, self.topic]), [1, 2])
         self.assertEqual(self.get(self.topic2).position, 2)  # the list it left is not renumbered
         self.assertEqual(self.get(sub).topic_id, self.topic.pk)
