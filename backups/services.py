@@ -22,7 +22,7 @@ from accounts.models import ROLE_EDITOR, ROLE_READER
 from accounts.profiles import DEFAULT_PROFILE_NAME
 from accounts.suite import KEY_DIARY as DEFAULT_PROGRAM
 
-from diary.services import legacy
+from diary import legacy_merge as legacy
 
 from . import policy, registry
 from .models import KEEP_KINDS, BackupFile, BackupLog
@@ -265,7 +265,7 @@ def parse_backup(raw, max_bytes):
 def upgrade_old_items(document, now=None):
     """Map a backup made before the Multi-Item merge (10d) to the current Item shape.
 
-    Items with kind "multi" or an own ``citation`` are mapped by ``diary.services.legacy``, the very code
+    Items with kind "multi" or an own ``citation`` are mapped by ``diary.legacy_merge``, the very code
     the data migration uses: citations move into a new first Case, Multi-Items become Items, and "migrate"
     history rows record each change. A file already in the new shape is left alone. The statistics are
     kept in ``document["legacy_mapping"]`` so the restore preview and log can say what was mapped.

@@ -6,8 +6,8 @@ and what type of Item it is are not touched here: Undo reverses moves and conver
 """
 from django.db import transaction
 
+from .. import legacy_merge as legacy
 from ..models import Case, VersionHistory
-from . import legacy
 from .core import Ctx, check_version, commit, create, get_record, make_result
 from .errors import NotFound, Refused
 from .records import EDITABLE

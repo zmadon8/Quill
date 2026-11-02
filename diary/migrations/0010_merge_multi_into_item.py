@@ -1,14 +1,14 @@
 from django.db import migrations, models
 from django.db.migrations.exceptions import IrreversibleError
 
-from diary.services import legacy
+from diary import legacy_merge as legacy
 
 
 def merge_forwards(apps, schema_editor):
     """Move every non-nested Item's citation into its first Case and turn Multi-Items into Items.
 
     The mapping, the before/after count check and the "migrate" history rows are in
-    diary/services/legacy.py, shared with the backup loader. Any failed check raises and the whole
+    diary/legacy_merge.py, shared with the backup loader. Any failed check raises and the whole
     migration is rolled back.
     """
     legacy.migrate_items(apps)

@@ -22,22 +22,30 @@ written to version history with change kind "migrate"):
      not trimmed or dropped), an empty comment, and the Item's own ``citation`` becomes "".
   3. A Nested Item keeps its own citation untouched: a Nested Item cannot own Cases. Those are counted
      as ``nested_with_citation_kept``.
-  4. The new Case sits before any Case the Item already had. It gets position 1 when the Item had no
-     Cases (the app keeps live positions at 1..n), else one less than the lowest existing position. If
-     the lowest existing position is already 0 there is no free slot in front, and nothing is guessed:
-     ``LegacyConflict`` is raised and the whole migration or restore stops.
+  4. The new Case sits before every LIVE Case the Item has. It gets position 1 when the Item has no live
+     Case (the app keeps live positions at 1..n), else one less than the lowest live position. If that
+     leaves no free slot in front (the lowest live position is below 2), nothing is guessed:
+     ``LegacyConflict`` is raised and the whole migration or restore stops. Trashed Cases do not count
+     for the position (the old Multi to Item conversion left such Cases in Trash, at positions 1..n).
+     They are left untouched, NOT deleted, and every Item that has some is counted as
+     ``trashed_cases_beside`` and reported, because restoring that old Trash batch would bring back
+     Cases that repeat the citation now held by the new Case. The owner decides what to do with them.
   5. The new Case copies the Item's trash state (``deleted_at`` and ``delete_batch``), profile and
      created/updated-by, so restoring the Item from Trash brings its citation back with it.
   6. The Item's version goes up by one and both records get a "migrate" history row.
 
-This module imports no models, so a migration can use it safely.
+This module lives directly in the ``diary`` package, not in ``diary.services``, and imports no models
+and nothing else from the app, so the frozen migration does not depend on the live service layer.
 """
 import datetime
+import logging
 import uuid
 from collections import defaultdict
 from dataclasses import dataclass
 
 from django.db import transaction
+
+logger = logging.getLogger(__name__)
 
 KIND_PLAIN = "plain"
 KIND_MULTI = "multi"
@@ -66,6 +74,7 @@ class Conversion:
     case_position: object
     whitespace_only: bool = False
     kind_changed: bool = False
+    trashed_cases_beside: bool = False
 
 
 def map_kind(kind):
@@ -79,16 +88,20 @@ def new_case_position(case_positions):
     if not positions:
         return 1
     lowest = min(positions)
-    if lowest < 1:
+    if lowest < 2:
         raise LegacyConflict(
-            "An Item has its own citation and also Cases starting at position 0, so there is no free "
-            "place in front of them for its citation. Nothing was changed."
+            "An Item has its own citation and also live Cases starting at position "
+            f"{lowest}, so there is no free place in front of them for its citation. Nothing was changed."
         )
     return lowest - 1
 
 
-def convert_item(kind, citation, case_positions=()):
-    """What the mapping does to one Item, or None if the Item is already in the new shape."""
+def convert_item(kind, citation, case_positions=(), trashed_cases=0):
+    """What the mapping does to one Item, or None if the Item is already in the new shape.
+
+    ``case_positions`` are the positions of the Item's LIVE Cases; ``trashed_cases`` is how many
+    soft-deleted Cases it has (they never decide the position, but are reported).
+    """
     citation = citation or ""
     new_kind = map_kind(kind)
     moves = kind != KIND_NESTED and citation != ""
@@ -101,6 +114,7 @@ def convert_item(kind, citation, case_positions=()):
         case_position=new_case_position(case_positions) if moves else None,
         whitespace_only=moves and not citation.strip(),
         kind_changed=new_kind != kind,
+        trashed_cases_beside=moves and trashed_cases > 0,
     )
 
 
@@ -123,6 +137,7 @@ def new_stats():
         "multi_to_plain": 0,
         "whitespace_only": 0,
         "nested_with_citation_kept": 0,
+        "trashed_cases_beside": 0,
     }
 
 
@@ -189,10 +204,14 @@ def migrate_items(apps):
     with transaction.atomic():
         before = _count_state(Item, Case)
         positions = defaultdict(list)
-        for item_id, position in Case._default_manager.values_list("item_id", "position"):
-            positions[item_id].append(position)
+        trashed = defaultdict(int)
+        for item_id, position, deleted_at in Case._default_manager.values_list("item_id", "position", "deleted_at"):
+            if deleted_at is None:
+                positions[item_id].append(position)
+            else:
+                trashed[item_id] += 1
         for item in Item._default_manager.order_by("pk"):
-            conversion = convert_item(item.kind, item.citation, positions[item.pk])
+            conversion = convert_item(item.kind, item.citation, positions[item.pk], trashed[item.pk])
             if item.kind == KIND_NESTED and item.citation != "":
                 stats["nested_with_citation_kept"] += 1
             if conversion is None:
@@ -218,6 +237,7 @@ def migrate_items(apps):
                 )
                 stats["cases_created"] += 1
                 stats["whitespace_only"] += int(conversion.whitespace_only)
+                stats["trashed_cases_beside"] += int(conversion.trashed_cases_beside)
             stats["multi_to_plain"] += int(conversion.kind_changed)
             stats["items_changed"] += 1
             item.kind = conversion.new_kind
@@ -232,6 +252,8 @@ def migrate_items(apps):
                 changed_by=None, profile_id=item.profile_id, change_kind=CHANGE_KIND, group=None,
             )
         verify_counts(before, _count_state(Item, Case), stats)
+    if stats["trashed_cases_beside"]:
+        logger.warning(describe(stats))
     return stats
 
 
@@ -261,8 +283,12 @@ def upgrade_document_items(models_in_file, stamp):
     cases = models_in_file.setdefault("diary.Case", [])
     history = models_in_file.setdefault("diary.VersionHistory", [])
     positions = defaultdict(list)
+    trashed = defaultdict(int)
     for case in cases:
-        positions[case["fields"].get("item")].append(case["fields"].get("position", 0))
+        if case["fields"].get("deleted_at"):
+            trashed[case["fields"].get("item")] += 1
+        else:
+            positions[case["fields"].get("item")].append(case["fields"].get("position", 0))
     next_case = _next_pk(cases)
     next_history = _next_pk(history)
     for record in sorted(items, key=lambda r: r["pk"]):
@@ -271,7 +297,7 @@ def upgrade_document_items(models_in_file, stamp):
         citation = fields.get("citation", "") or ""
         if kind == KIND_NESTED and citation != "":
             stats["nested_with_citation_kept"] += 1
-        conversion = convert_item(kind, citation, positions[record["pk"]])
+        conversion = convert_item(kind, citation, positions[record["pk"]], trashed[record["pk"]])
         if conversion is None:
             continue
         profile = fields.get("profile")
@@ -299,6 +325,7 @@ def upgrade_document_items(models_in_file, stamp):
             next_history += 1
             stats["cases_created"] += 1
             stats["whitespace_only"] += int(conversion.whitespace_only)
+            stats["trashed_cases_beside"] += int(conversion.trashed_cases_beside)
         stats["multi_to_plain"] += int(conversion.kind_changed)
         stats["items_changed"] += 1
         fields["kind"] = conversion.new_kind
@@ -342,4 +369,9 @@ def describe(stats):
         parts.append(f"{stats['whitespace_only']} of the citations were only spaces and were kept as they were")
     if stats["nested_with_citation_kept"]:
         parts.append(f"{stats['nested_with_citation_kept']} Nested Item citation(s) left in place")
+    if stats["trashed_cases_beside"]:
+        parts.append(
+            f"{stats['trashed_cases_beside']} Item(s) also have Cases in Trash (left as they were); "
+            "restoring those would repeat the citation now in Case (a)"
+        )
     return "Older data format mapped: " + "; ".join(parts) + "."

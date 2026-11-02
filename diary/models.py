@@ -36,7 +36,7 @@ KIND_PLAIN = "plain"
 # LEGACY (10d): "multi" is no longer a stored or chosen kind. Every non-nested Item holds its citations
 # as Cases; an Item with two or more live Cases is "multi" only in the sense of being displayed as
 # (a), (b). The constant stays so old code paths and old backup files can still name the old value;
-# diary/services/legacy.py maps it to "plain".
+# diary/legacy_merge.py maps it to "plain".
 KIND_MULTI = "multi"
 KIND_NESTED = "nested"
 KIND_CHOICES = [
@@ -266,7 +266,7 @@ class Item(RichTextMixin, Record):
     text_plain = models.TextField(blank=True, editable=False)
     # LEGACY (10d): for plain Items the citations now live in Cases (Case position order), and this column is
     # always empty after migration diary 0010. It is kept so that old backup files and old history
-    # snapshots (which carry it) can still be read and mapped (diary/services/legacy.py). A Nested Item
+    # snapshots (which carry it) can still be read and mapped (diary/legacy_merge.py). A Nested Item
     # cannot own Cases, so a Nested Item's own citation stays here, unchanged.
     citation = models.CharField(max_length=1000, blank=True)
     flag = models.CharField(max_length=10, choices=FLAG_CHOICES, default=FLAG_NONE)
@@ -291,6 +291,12 @@ class Item(RichTextMixin, Record):
             models.CheckConstraint(
                 condition=Q(parent_item__isnull=True) | Q(kind=KIND_PLAIN),
                 name="item_child_of_nested_is_plain",
+            ),
+            # 10d: Case is the one store of citations for a plain Item; only a Nested Item (which cannot own Cases)
+            # keeps its own. Added by migration 0011, after the data move of 0010.
+            models.CheckConstraint(
+                condition=Q(kind=KIND_NESTED) | Q(citation=""),
+                name="item_plain_has_no_citation",
             ),
         ]
 

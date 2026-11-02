@@ -307,6 +307,20 @@ class HistoryTests(TrashTestCase):
         self.assertIn("text", names)
         self.assertIn("citation", names)
 
+    def test_an_old_version_with_a_citation_warns_that_case_a_is_replaced(self):
+        row = VersionHistory.objects.get(record_type="item", record_id=self.one.pk, version=2)
+        row.snapshot = {**row.snapshot, "citation": "Old v New"}
+        row.save()
+        resp = self.client.get(reverse("history_version", args=["item", self.one.pk, 2]))
+        self.assertTrue(resp.context["replaces_case_a"])
+        self.assertContains(resp, "replaces what Case (a) holds now")
+        self.assertContains(resp, "Old v New")
+
+    def test_a_version_without_an_old_citation_has_no_case_a_warning(self):
+        resp = self.client.get(reverse("history_version", args=["item", self.one.pk, 2]))
+        self.assertFalse(resp.context["replaces_case_a"])
+        self.assertNotContains(resp, "replaces what Case (a) holds now")
+
     def test_the_current_version_has_no_restore_button(self):
         resp = self.client.get(reverse("history_version", args=["item", self.one.pk, 3]))
         self.assertNotContains(resp, "Restore this version")

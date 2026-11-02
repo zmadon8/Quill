@@ -31,7 +31,7 @@ from diary.models import (
     UserSettings,
     VersionHistory,
 )
-from diary.tests.helpers import main_profile
+from diary.tests.helpers import allow_old_shape_items, main_profile
 
 User = get_user_model()
 PASSWORD = "correct-horse-battery-9"
@@ -755,6 +755,38 @@ class ViewTests(BackupBase):
         self.assertFalse(BackupFile.objects.filter(kind="uploaded").exists())
 
 
+class CitationConstraintRestoreTests(BackupBase):
+    """Migration 0011 forbids a citation on a non-nested Item. A backup file must still restore: whatever the
+    file holds is mapped BEFORE insertion, and the constraint is in force here (nothing lifts it)."""
+
+    def make_file(self):
+        profile = main_profile()
+        subject = Subject.objects.create(profile=profile, name="Contract")
+        sub = Subtopic.objects.create(profile=profile, subject=subject, name="Offer")
+        self.item = Item.objects.create(profile=profile, subtopic=sub, text="p", position=1)
+        self.nested = Item.objects.create(profile=profile, subtopic=sub, text="n", kind="nested", citation="N v M", position=2)
+        return gunzip_json(services.create_backup("manual").data)
+
+    def test_a_file_with_a_stray_citation_is_mapped_then_restored(self):
+        old = self.make_file()
+        for record in old["models"]["diary.Item"]:
+            if record["pk"] == self.item.pk:
+                record["fields"]["citation"] = "Stray v File"
+        doc = services.parse_backup(json.dumps(old).encode("utf-8"), MAX)
+        self.assertEqual(doc["legacy_mapping"]["cases_created"], 1)
+        services.restore_backup(doc, self.admin)
+        self.assertEqual(self.item.cases.get().citation, "Stray v File")
+        self.assertFalse(Item.objects.exclude(kind="nested").exclude(citation="").exists())
+        self.assertEqual(Item.objects.get(pk=self.nested.pk).citation, "N v M")
+
+    def test_a_file_in_the_current_shape_restores_unchanged(self):
+        old = self.make_file()
+        doc = services.parse_backup(json.dumps(old).encode("utf-8"), MAX)
+        self.assertEqual(doc["legacy_mapping"]["items_changed"], 0)
+        services.restore_backup(doc, self.admin)
+        self.assertEqual(Item.objects.get(pk=self.nested.pk).citation, "N v M")
+
+
 class BannerTests(BackupBase):
     def test_banner_after_failure(self):
         with mock.patch("backups.services.serializers.serialize", side_effect=RuntimeError("boom")):
@@ -875,7 +907,11 @@ class FriendlyErrorTests(TestCase):
 
 class OldFormatItemsTests(BackupBase):
     """10d: a backup made before Multi-Item was merged into Item is mapped exactly as migration 0010 maps the
-    live database (diary/services/legacy.py)."""
+    live database (diary/legacy_merge.py)."""
+
+    def setUp(self):
+        allow_old_shape_items(self)
+        super().setUp()
 
     def build_old(self):
         """Old-format rows written straight to the tables: citations on Items, kind 'multi'."""
@@ -907,7 +943,7 @@ class OldFormatItemsTests(BackupBase):
     def test_restoring_an_old_file_maps_like_the_migration(self):
         from django.apps import apps
 
-        from diary.services import legacy
+        from diary import legacy_merge as legacy
 
         old = self.build_old()
         legacy.migrate_items(apps)
@@ -958,12 +994,28 @@ class OldFormatItemsTests(BackupBase):
         self.build_old()
         from django.apps import apps
 
-        from diary.services import legacy
+        from diary import legacy_merge as legacy
 
         legacy.migrate_items(apps)
         doc = services.parse_backup(services.create_backup("manual").data, MAX)
         self.assertEqual(doc["legacy_mapping"]["items_changed"], 0)
         self.assertEqual(doc["counts"]["diary.Case"], 5)
+
+    def test_trashed_cases_are_reported_and_not_touched(self):
+        profile = main_profile()
+        subject = Subject.objects.create(profile=profile, name="Contract")
+        sub = Subtopic.objects.create(profile=profile, subject=subject, name="Offer")
+        item = Item.objects.create(profile=profile, subtopic=sub, text="j", citation="A v B; C v D", position=1)
+        gone = Case.objects.create(profile=profile, item=item, citation="A v B", position=1, deleted_at=timezone.now())
+        old = gunzip_json(services.create_backup("manual").data)
+        doc = services.parse_backup(json.dumps(old).encode("utf-8"), MAX)
+        self.assertEqual(doc["legacy_mapping"]["trashed_cases_beside"], 1)
+        self.assertIn("Cases in Trash", services.legacy.describe(doc["legacy_mapping"]))
+        services.restore_backup(doc, self.admin)
+        live = list(Case.objects.filter(item=item, deleted_at__isnull=True).values_list("citation", "position"))
+        self.assertEqual(live, [("A v B; C v D", 1)])
+        gone.refresh_from_db()
+        self.assertEqual((gone.position, gone.deleted_at is None), (1, False))
 
     def test_unmappable_data_is_refused_with_a_message(self):
         old = self.build_old()

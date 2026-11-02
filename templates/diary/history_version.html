@@ -20,6 +20,7 @@
     <input type="hidden" name="next" value="{% url 'history' kind pk %}">
     <button type="submit">Restore this version</button>
     <span class="hint">This saves the old content as a new version; nothing in the history is removed. Position and type are not changed.</span>
+    {% if replaces_case_a %}<p class="warning-box">This version is from before citations moved into Cases. Restoring it puts its citation, <strong>{{ old_citation }}</strong>, into Case (a) and replaces what Case (a) holds now. Other Cases are not changed.</p>{% endif %}
   </form>
   {% endif %}
 </div>

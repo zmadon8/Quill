@@ -123,12 +123,17 @@ class ItemRuleTests(Base):
 
         self.assertEqual([value for value, _label in KIND_CHOICES], ["plain", "nested"])
 
-    def test_item_with_cases_may_also_be_stored_with_a_citation_column_value(self):
-        # item_multi_has_no_citation was dropped in 10d; the legacy column is not constrained any more.
-        Item.objects.create(profile=main_profile(), subtopic=self.subtopic, kind="plain", citation="A v B")
+    def test_plain_item_cannot_hold_a_citation(self):
+        # 10d: Case is the one store of citations (migration 0011, item_plain_has_no_citation).
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            Item.objects.create(profile=main_profile(), subtopic=self.subtopic, kind="plain", citation="A v B")
 
-    def test_plain_item_keeps_citation(self):
-        item = Item.objects.create(profile=main_profile(), subtopic=self.subtopic, citation="A v B (2001) 1 SCC 1")
+    def test_plain_item_with_whitespace_citation_is_refused_too(self):
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            Item.objects.create(profile=main_profile(), subtopic=self.subtopic, kind="plain", citation="  ")
+
+    def test_nested_item_keeps_its_citation(self):
+        item = Item.objects.create(profile=main_profile(), subtopic=self.subtopic, kind="nested", citation="A v B (2001) 1 SCC 1")
         item.refresh_from_db()
         self.assertEqual(item.citation, "A v B (2001) 1 SCC 1")
 

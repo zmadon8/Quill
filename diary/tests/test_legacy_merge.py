@@ -1,4 +1,4 @@
-"""10d: Multi-Item merged into Item. The mapping (diary/services/legacy.py), data migration 0010 logic and
+"""10d: Multi-Item merged into Item. The mapping (diary/legacy_merge.py), data migration 0010 logic and
 History restore of a version that predates the merge (docs/DESIGN.md, Proposal for 10d)."""
 from unittest import mock
 
@@ -7,8 +7,9 @@ from django.test import SimpleTestCase, TestCase
 from django.utils import timezone
 
 from diary.models import Case, Item, Subject, Subtopic, Topic, VersionHistory
-from diary.services import history, legacy
-from diary.tests.helpers import main_profile
+from diary import legacy_merge as legacy
+from diary.services import history
+from diary.tests.helpers import allow_old_shape_items, main_profile
 from diary.tests.service_helpers import ServiceTestCase
 
 
@@ -39,6 +40,21 @@ class ConvertItemTests(SimpleTestCase):
         with self.assertRaises(legacy.LegacyConflict):
             legacy.convert_item("plain", "A v B", [0, 1])
 
+    def test_trashed_cases_do_not_decide_the_position_and_are_flagged(self):
+        c = legacy.convert_item("plain", "A v B", [], trashed_cases=2)
+        self.assertEqual((c.case_position, c.trashed_cases_beside), (1, True))
+        self.assertFalse(legacy.convert_item("plain", "A v B", [], 0).trashed_cases_beside)
+        self.assertFalse(legacy.convert_item("multi", "", [1], 3).trashed_cases_beside)
+
+    def test_live_cases_from_position_one_leave_no_free_place_so_nothing_is_guessed(self):
+        with self.assertRaises(legacy.LegacyConflict):
+            legacy.convert_item("plain", "A v B", [1, 2])
+
+    def test_describe_mentions_trashed_cases(self):
+        stats = legacy.new_stats()
+        stats.update(items_changed=1, cases_created=1, trashed_cases_beside=1)
+        self.assertIn("Cases in Trash", legacy.describe(stats))
+
     def test_old_snapshot_citation_mapping(self):
         self.assertEqual(legacy.legacy_snapshot_citation({"citation": "A v B"}, "plain"), "A v B")
         self.assertIsNone(legacy.legacy_snapshot_citation({"citation": ""}, "plain"))
@@ -60,6 +76,7 @@ class ConvertItemTests(SimpleTestCase):
 
 class MigrateItemsTests(TestCase):
     def setUp(self):
+        allow_old_shape_items(self)
         self.profile = main_profile()
         subject = Subject.objects.create(profile=self.profile, name="Contract")
         topic = Topic.objects.create(profile=self.profile, subject=subject, name="Formation")
@@ -140,6 +157,32 @@ class MigrateItemsTests(TestCase):
         Case.objects.create(profile=self.profile, item=item, citation="Later", position=2)
         legacy.migrate_items(django_apps)
         self.assertEqual(list(item.cases.order_by("position").values_list("citation", flat=True)), ["First", "Later"])
+
+    def test_leftover_trashed_cases_do_not_push_the_new_case_to_position_zero(self):
+        # What the old Multi to Item conversion left: a joined citation on the Item, its Cases in Trash at 1..n.
+        item = self.item(citation="A v B; C v D", position=1)
+        batch = timezone.now()
+        old = [
+            Case.objects.create(profile=self.profile, item=item, citation=c, position=n, deleted_at=batch)
+            for n, c in enumerate(["A v B", "C v D"], start=1)
+        ]
+        stats = legacy.migrate_items(django_apps)
+        live = list(item.cases.filter(deleted_at__isnull=True).values_list("citation", "position"))
+        self.assertEqual(live, [("A v B; C v D", 1)])
+        for case in old:  # left exactly as they were: not deleted, not renumbered, not merged
+            before = (case.citation, case.position, case.deleted_at)
+            case.refresh_from_db()
+            self.assertEqual((case.citation, case.position, case.deleted_at), before)
+        self.assertEqual(stats["trashed_cases_beside"], 1)
+        self.assertIn("Cases in Trash", legacy.describe(stats))
+
+    def test_live_case_at_position_one_with_a_citation_stops_the_migration(self):
+        item = self.item(citation="Clash", position=1)
+        Case.objects.create(profile=self.profile, item=item, citation="Live", position=1)
+        with self.assertRaises(legacy.LegacyConflict):
+            legacy.migrate_items(django_apps)
+        item.refresh_from_db()
+        self.assertEqual(item.citation, "Clash")
 
     def test_running_twice_changes_nothing_more(self):
         self.build()
@@ -234,3 +277,47 @@ class RestoreOldVersionTests(ServiceTestCase):
         self.old_version(self.one, "", version=7)
         history.restore_version(self.profile, self.user, "item", self.one.pk, 7)
         self.assertEqual(self.get(case).citation, "Keep")
+
+
+class MigrationIndependenceTests(SimpleTestCase):
+    """Migration 0010 is frozen: it must not pull in the live service layer, and nothing it uses may."""
+
+    def imports_of(self, path):
+        import ast
+        from pathlib import Path
+
+        found = set()
+        for node in ast.walk(ast.parse(Path(path).read_text(encoding="utf-8"))):
+            if isinstance(node, ast.Import):
+                found.update(alias.name for alias in node.names)
+            elif isinstance(node, ast.ImportFrom):
+                found.add(("." * node.level) + (node.module or ""))
+        return found
+
+    def test_mapping_module_and_migration_import_nothing_from_the_app_but_each_other(self):
+        from django.conf import settings
+
+        base = settings.BASE_DIR / "diary"
+        for path in (base / "legacy_merge.py", base / "migrations" / "0010_merge_multi_into_item.py"):
+            for name in self.imports_of(path):
+                self.assertFalse(name.startswith("diary.services"), f"{path.name} imports {name}")
+                self.assertNotIn(name, ("diary.models", ".models", "..models"), f"{path.name} imports {name}")
+                self.assertFalse(name.startswith("."), f"{path.name} imports {name}")
+        self.assertIn("diary", self.imports_of(base / "migrations" / "0010_merge_multi_into_item.py"))
+
+    def test_the_old_module_path_is_gone(self):
+        from pathlib import Path
+
+        from django.conf import settings
+
+        self.assertFalse((Path(settings.BASE_DIR) / "diary" / "services" / "legacy.py").exists())
+
+
+class ConstraintMigrationTests(TestCase):
+    def test_models_and_migrations_agree(self):
+        from io import StringIO
+
+        from django.core.management import call_command
+
+        out = StringIO()
+        call_command("makemigrations", "--check", "--dry-run", stdout=out)  # exits non-zero on drift

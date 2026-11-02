@@ -8,6 +8,7 @@ from django.http import Http404
 from django.shortcuts import redirect, render
 from django.urls import reverse
 
+from . import legacy_merge
 from . import services as svc
 from . import undo_session
 from .conflicts import plain
@@ -93,6 +94,11 @@ def history_version(request, kind, pk, version):
         fields.append({"name": name.replace("_", " "), "value": plain(value), "content": name in content,
                        "differs": record is not None and name in content and plain(getattr(record, name)) != plain(value)})
     live = record is not None and record.deleted_at is None
+    # A version from before the 10d merge keeps its one citation in the Item; restoring it writes that text into
+    # Case (a), replacing what Case (a) holds now. Say so before the button is pressed.
+    old_citation = (
+        legacy_merge.legacy_snapshot_citation(row.snapshot, record.kind) if live and kind == "item" else None
+    )
     return render(
         request,
         "diary/history_version.html",
@@ -107,6 +113,8 @@ def history_version(request, kind, pk, version):
             "fields": fields,
             "can_restore": live and kind in EDITABLE and row.version != record.version,
             "current_version": record.version if record is not None else None,
+            "replaces_case_a": old_citation is not None,
+            "old_citation": old_citation,
             "back": _next(request, reverse("subjects")),
         },
     )
