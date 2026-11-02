@@ -1,6 +1,9 @@
 {% extends "base_suite.html" %}
+{% load static %}
 {# Case law diary program: fills the shared shell with this program's name and navigation. #}
 {# Nav: Review (anyone with a profile) and Search; Backups for Admin only (Users lives on the suite Home page). Trash for Editors of the profile only. #}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/edit.css' %}">{% endblock %}
+{% block body_attrs %}{% if edit_mode %} class="edit-on"{% endif %}{% endblock %}
 {% block program_title %}{{ diary_name }}{% endblock %}
 {% block program_name %}<a href="{% url 'subjects' %}" title="Subjects" aria-label="{{ diary_name }}: Subjects">{{ diary_name }}</a>{% if current_profile %} <span class="profile-name">&middot; {{ current_profile.name }}</span>{% endif %}{% endblock %}
 {% block who %}{% endblock %}

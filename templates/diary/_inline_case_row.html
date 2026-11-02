@@ -1,0 +1,9 @@
+{# One citation row of the editing card. Context: row (id, version, citation, comment; None for a blank row). #}
+<li class="cite-row" data-case-row>
+  <span class="grip" data-case-grip title="Drag to change the order" aria-label="Drag to change the order"><svg viewBox="0 0 10 16" width="12" height="18" aria-hidden="true" fill="currentColor"><circle cx="2.5" cy="3" r="1.4"/><circle cx="7.5" cy="3" r="1.4"/><circle cx="2.5" cy="8" r="1.4"/><circle cx="7.5" cy="8" r="1.4"/><circle cx="2.5" cy="13" r="1.4"/><circle cx="7.5" cy="13" r="1.4"/></svg></span>
+  <input type="hidden" name="case_id" value="{{ row.id|default_if_none:'' }}">
+  <input type="hidden" name="case_version" value="{{ row.version|default_if_none:'' }}">
+  <input type="text" name="case_citation" maxlength="1000" value="{{ row.citation }}" aria-label="Citation">
+  <div class="rt c2" data-richtext><textarea class="rt-source" name="case_comment" rows="1" placeholder="Comment (optional)" aria-label="Comment (optional)">{{ row.comment }}</textarea></div>
+  <button type="button" class="x-btn" data-case-remove title="Remove this citation" aria-label="Remove this citation">&times;</button>
+</li>

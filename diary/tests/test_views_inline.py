@@ -251,6 +251,19 @@ class CardTests(InlineTestCase):
         self.assertIn("Move to", self.card("topic", self.topic).json()["html"])
         self.assertNotIn("Move to", self.card("subject", self.subject).json()["html"])
 
+    def test_subject_card_can_change_the_landing_page_place(self):
+        html = self.card("subject", self.subject).json()["html"]
+        self.assertIn('data-more-action="landing"', html)
+        self.assertIn("Put under Other Subjects", html)
+
+    def test_cards_have_the_phone_top_bar_and_a_blank_citation_template(self):
+        html = self.card("item", self.one).json()["html"]
+        self.assertIn('class="editcard"', html)
+        self.assertIn("card-top", html)
+        self.assertIn("data-case-template", html)
+        self.assertIn("data-case-grip", html)
+        self.assertIn("goes to Trash", html)
+
     def test_section_card_has_name_review_and_move_up_down(self):
         html = self.card("section", self.sec).json()["html"]
         for needle in ('name="name"', 'name="needs_review"', 'name="review_form"', "Move up", "Move down", "Move to"):

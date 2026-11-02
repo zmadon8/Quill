@@ -10,16 +10,17 @@
     <input type="search" id="home-q" name="q" placeholder="Search the diary&hellip;" autocomplete="off">
     <button type="submit" class="primary">Search</button>
   </form>
-  {% if can_edit %}<p class="actions"><a class="button small{% if edit_mode %} primary{% endif %}" href="{{ toggle_url }}">{% if edit_mode %}Done editing{% else %}Edit mode{% endif %}</a></p>{% endif %}
+  {% include "diary/_edit_switch.html" %}
+  <div{% if edit_mode %} data-edit-root data-add-url="{% url 'edit_inline_add' %}" data-card-url="{% url 'edit_inline_card' %}" data-move-url="{% url 'edit_move' %}" data-next="{{ next_url }}"{% endif %}>
   <ul class="subject-index">
     {% for subject in subjects %}
-    <li><a href="{% url 'subject_contents' subject.pk %}"><span class="name">{{ subject.name }}</span><span class="count">{{ subject.item_count }}</span></a>
-      {% include "diary/_edit_bar.html" with ekind="subject" eid=subject.pk eversion=subject.version ename=subject.name eanchor="" erun="" erename=True eadd=False elanding=True %}</li>
+    <li{% if edit_mode %} class="erow" data-edit-row data-kind="subject" data-id="{{ subject.pk }}" data-version="{{ subject.version }}"{% endif %}><a href="{% url 'subject_contents' subject.pk %}"><span class="name">{{ subject.name }}</span><span class="count">{{ subject.item_count }}</span></a>
+      {% include "diary/_row_actions.html" with ekind="subject" eid=subject.pk eword="Subject" %}</li>
     {% endfor %}
   </ul>
   {% if edit_mode %}
   <details class="edit-more">
-    <summary class="edit-btn icon-btn" aria-label="Add a Subject" title="Add a Subject">{% include "diary/_icon.html" with icon="add" %}<span class="visually-hidden">Add a Subject</span></summary>
+    <summary class="ra" aria-label="Add a Subject" title="Add a Subject"><span class="plus" aria-hidden="true">+</span><span>Add a Subject</span></summary>
     <form method="post" action="{% url 'edit_add' %}" class="edit-form">
       {% csrf_token %}
       <input type="hidden" name="what" value="subject">
@@ -35,13 +36,13 @@
   <h2 id="other-subjects" class="other-title">Other Subjects</h2>
   <ul class="subject-index">
     {% for subject in other_subjects %}
-    <li><a href="{% url 'subject_contents' subject.pk %}"><span class="name">{{ subject.name }}</span><span class="count">{{ subject.item_count }}</span></a>
-      {% include "diary/_edit_bar.html" with ekind="subject" eid=subject.pk eversion=subject.version ename=subject.name eanchor="" erun="" erename=True eadd=False elanding=False %}</li>
+    <li{% if edit_mode %} class="erow" data-edit-row data-kind="subject" data-id="{{ subject.pk }}" data-version="{{ subject.version }}"{% endif %}><a href="{% url 'subject_contents' subject.pk %}"><span class="name">{{ subject.name }}</span><span class="count">{{ subject.item_count }}</span></a>
+      {% include "diary/_row_actions.html" with ekind="subject" eid=subject.pk eword="Subject" %}</li>
     {% endfor %}
   </ul>
   {% if edit_mode %}
   <details class="edit-more" id="add-other-subject">
-    <summary class="edit-btn icon-btn" aria-label="Add a Subject" title="Add a Subject">{% include "diary/_icon.html" with icon="add" %}<span class="visually-hidden">Add a Subject</span></summary>
+    <summary class="ra" aria-label="Add a Subject" title="Add a Subject"><span class="plus" aria-hidden="true">+</span><span>Add a Subject</span></summary>
     <form method="post" action="{% url 'edit_add' %}" class="edit-form">
       {% csrf_token %}
       <input type="hidden" name="what" value="subject">
@@ -53,6 +54,7 @@
   </details>
   {% endif %}
   {% if not other_subjects %}<p class="empty">There are no Other Subjects yet.</p>{% endif %}
+  </div>
 </div>
-{% include "diary/_edit_tail.html" %}
 {% endblock %}
+{% block extra_js %}{% include "diary/_edit_scripts.html" %}{% endblock %}

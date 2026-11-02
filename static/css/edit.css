@@ -1,0 +1,203 @@
+/* Edit mode (docs/DESIGN.md, Edit mode; design/mockups/edit-mode shows the approved pictures). Loaded after tokens.css and site.css
+   on the diary pages. Parts: the Edit switch on the directory bar, the two buttons on every row, the "+ Add" form, the editing card
+   (in place on a desktop, full screen on a phone). */
+
+/* ---- Edit mode on: the whole page gets a faint cool tint so it is obvious ---- */
+body.edit-on { --bg: #e8edf0; --hair: #c9d1d6; }
+body.edit-on .reading.editing { max-width: 58rem; }
+body.edit-on .crumb-row { background: var(--bg); }
+
+/* ---- Directory bar: the Edit switch, Undo, Done, All ---- */
+.bar-tools { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .6rem; margin-left: auto; }
+.edit-switch { text-decoration: none; gap: .5rem; padding: 0 .75rem 0 .65rem; border-color: var(--muted); background: var(--panel); }
+.edit-switch .track { position: relative; width: 2.4rem; height: 1.3rem; border-radius: 1rem; background: var(--hair); border: 1px solid var(--muted); flex: 0 0 auto; }
+.edit-switch .knob { position: absolute; top: 1px; left: 1px; width: calc(1.3rem - 4px); height: calc(1.3rem - 4px); border-radius: 50%; background: #fff; border: 1px solid var(--muted); }
+.edit-switch[aria-checked=true] { border-color: var(--ink); background: #fff; font-weight: 600; }
+.edit-switch[aria-checked=true] .track { background: var(--ink); border-color: var(--ink); }
+.edit-switch[aria-checked=true] .knob { left: calc(100% - 1.3rem + 3px); border-color: var(--ink); }
+.bar-tools .in-context { margin: 0 0 0 .4rem; }
+.bar-tools button.small { padding: 0 .9rem; }
+.bar-sep { width: 1px; height: 1.6rem; background: var(--hair); }
+
+/* ---- Rows in Edit mode ---- */
+.erow { align-items: flex-start; }
+.erow .grip { flex: 0 0 22px; display: inline-flex; justify-content: center; align-items: center; height: 1.9rem; color: var(--muted); cursor: grab; }
+.row-actions { display: flex; flex: 0 0 auto; gap: .35rem; align-self: flex-start; }
+.ra { display: inline-flex; align-items: center; justify-content: center; min-height: 30px; padding: 0 .6rem; gap: .3rem; border: 1px solid var(--muted); border-radius: 2px; color: var(--ink); text-decoration: none; cursor: pointer; font-family: var(--font-sans); font-size: .9rem; line-height: 1.2; white-space: nowrap; background: var(--panel); }
+.subject-index li.erow { display: flex; align-items: center; gap: .75rem; }
+.subject-index li.erow > a:first-child { flex: 1 1 auto; min-width: 0; }
+.subject-index .row-actions a.ra { display: inline-flex; min-height: 30px; padding: 0 .6rem; border: 1px solid var(--muted); font-family: var(--font-sans); font-size: .9rem; }
+.ra svg { flex: 0 0 auto; }
+.ra .plus { font-size: 1.1rem; line-height: 1; font-weight: 600; }
+.ra:hover { background: #fff; border-color: var(--ink); }
+
+/* Heading rows: text at left, the same two buttons at the right edge */
+.hrow { display: flex; align-items: center; gap: .75rem; }
+.hrow > :first-child { flex: 1 1 auto; min-width: 0; }
+.hrow > .grip { flex: 0 0 22px; }
+.hrow > .section-header, .hrow > h1, .hrow > h2, .hrow > h3 { flex: 1 1 auto; min-width: 0; }
+.hrow.subject h1 { margin: 0; }
+.hrow.topic { margin: 2rem 0 .75rem; border-bottom: 1px solid var(--ink); padding-bottom: .4rem; }
+.hrow.topic .topic-heading { margin: 0; padding: 0; border: 0; }
+.hrow.sub { margin: 1.5rem 0 .4rem; }
+.hrow.sub .subtopic-heading { margin: 0; }
+.hrow.sec { margin: 1.25rem 0 .25rem; }
+.hrow.sec .section-header { margin: 0; }
+.row-active { background: var(--panel); outline: 2px solid var(--ink); outline-offset: 2px; }
+.editing .nested .erow:last-child { border-bottom: 0; }
+
+/* ---- Add form (opens directly below the row) ---- */
+.addform { margin: .5rem 0 1rem; padding: .85rem 1rem 1rem; border: 1px solid var(--ink); border-top-width: 3px; background: var(--panel); font-family: var(--font-sans); font-size: var(--small-size); box-shadow: 0 2px 8px rgba(0,0,0,.12); }
+.addform .form-title { margin: 0 0 .6rem; font-weight: 600; }
+.fld { display: block; margin: .8rem 0 0; }
+.fld > .field-label { display: block; margin-bottom: .25rem; font-weight: 600; }
+.fld.off > .field-label { color: var(--muted); font-weight: 400; }
+.seg { display: inline-flex; flex-wrap: nowrap; border: 1px solid var(--ink); border-radius: 2px; background: var(--panel); max-width: 100%; }
+.seg button { min-height: 38px; border: 0; border-right: 1px solid var(--hair); border-radius: 0; background: transparent; padding: 0 .9rem; font-family: var(--font-sans); font-size: var(--small-size); }
+.seg button:last-child { border-right: 0; }
+.seg button[aria-checked=true] { background: var(--ink); color: #fff; font-weight: 600; }
+.seg.wide { display: flex; }
+.seg.wide button { flex: 1 1 0; padding: 0 .3rem; }
+.rtbar { display: flex; gap: .35rem; margin-bottom: .35rem; }
+.rtbar button { min-width: 34px; min-height: 34px; padding: 0; font-size: 1rem; }
+.rtbar button.i { font-style: italic; font-family: var(--font-serif); }
+.rtbar button.b { font-weight: 700; }
+.rtbar button.u { text-decoration: underline; }
+.addform .rt-area, .editcard .rt-area { min-height: 3.2em; font-size: var(--text-size); }
+.addform input[type=text], .editcard input[type=text] { max-width: none; width: 100%; }
+.addform input:disabled, .editcard input:disabled { background: var(--hair); color: var(--muted); cursor: not-allowed; border-color: var(--hair); }
+.linkish { display: inline-flex; align-items: center; min-height: 34px; margin-top: .3rem; color: var(--oxblood); text-decoration: underline; background: none; border: 0; padding: 0; font: inherit; cursor: pointer; }
+.form-buttons { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: 1rem; align-items: center; }
+.kbd-hint { margin: .7rem 0 0; color: var(--muted); font-size: .9rem; }
+
+/* ---- Editing card (replaces the row in place) ---- */
+.editcard { position: relative; margin: .6rem 0 1rem; padding: 1rem; border: 1px solid var(--ink); border-top-width: 3px; background: var(--panel); font-family: var(--font-sans); font-size: var(--small-size); box-shadow: 0 2px 10px rgba(0,0,0,.15); }
+.editcard .card-title { margin: 0 0 .2rem; display: flex; align-items: baseline; gap: .6rem; font-weight: 600; }
+.editcard .card-title .where { font-weight: 400; color: var(--muted); }
+.cite-list { list-style: none; margin: 0; padding: 0; }
+.cite-row { display: grid; grid-template-columns: 22px minmax(0, 1fr) minmax(0, 1fr) 34px; gap: .5rem; align-items: center; margin-bottom: .5rem; }
+.cite-row .grip { color: var(--muted); display: inline-flex; justify-content: center; cursor: grab; }
+.x-btn { min-width: 34px; width: 34px; min-height: 34px; padding: 0; font-size: 1.1rem; line-height: 1; border-color: var(--hair); color: var(--muted); }
+.x-btn:hover { color: var(--oxblood); border-color: var(--oxblood); }
+.cite-head { display: grid; grid-template-columns: 22px minmax(0, 1fr) minmax(0, 1fr) 34px; gap: .5rem; font-size: .85rem; color: var(--muted); margin-bottom: .15rem; }
+.flag-line { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; }
+.flag-line input[type=text] { flex: 1 1 14rem; width: auto; }
+.switch-line { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; }
+.switch-line input[type=text] { flex: 1 1 14rem; width: auto; }
+.card-bar { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; margin: 1.1rem -1rem -1rem; padding: .75rem 1rem; border-top: 1px solid var(--hair); background: var(--bg); }
+.card-bar .spacer { flex: 1 1 auto; }
+.more-wrap { position: relative; }
+.menu { position: absolute; z-index: 10; right: 0; top: calc(100% + 4px); min-width: 17rem; padding: .3rem 0; background: #fff; border: 1px solid var(--ink); box-shadow: 0 6px 18px rgba(0,0,0,.25); text-align: left; }
+.menu.up { top: auto; bottom: calc(100% + 4px); }
+.menu button { display: flex; width: 100%; justify-content: flex-start; min-height: 40px; padding: 0 1rem; border: 0; border-radius: 0; background: transparent; font-family: var(--font-sans); }
+.menu button:hover { background: var(--panel); }
+.menu hr { border: 0; border-top: 1px solid var(--hair); margin: .3rem 0; }
+.menu .danger-item { flex-direction: column; align-items: flex-start; justify-content: center; color: var(--oxblood); font-weight: 600; padding: .35rem 1rem; }
+.menu .danger-item small { font-weight: 400; color: var(--muted); font-size: .85rem; }
+
+/* ---- Phone: bigger buttons, icon with its word underneath, >= 44px tap targets ---- */
+@media (max-width: 599px) {
+  .erow { flex-wrap: wrap; }
+  .erow .grip { flex-basis: 28px; height: 44px; }
+  .erow .item-body { flex: 1 1 0; }
+  .erow > .row-actions { flex: 0 0 100%; justify-content: flex-end; gap: .5rem; }
+  .ra { flex-direction: column; width: 60px; min-height: 56px; padding: .2rem 0; gap: .1rem; font-size: var(--small-size); }
+  .ra .plus { font-size: 1.6rem; height: 22px; display: inline-flex; align-items: center; }
+  .ra svg { width: 22px; height: 22px; }
+  .hrow { align-items: flex-start; }
+  .hrow .row-actions { gap: .4rem; }
+  .bar-tools { margin-left: 0; width: 100%; padding-bottom: .4rem; }
+  .bar-tools .in-context { margin-left: auto; }
+  .edit-switch { padding: 0 .6rem; }
+  .seg button { min-height: 44px; padding: 0 .4rem; }
+  .rtbar button { min-width: 44px; min-height: 44px; }
+  .addform { padding: .8rem; }
+  .addform .form-buttons button, .editcard .form-buttons button { flex: 1 1 0; }
+  .x-btn { min-width: 44px; width: 44px; min-height: 44px; }
+  .linkish { min-height: 44px; }
+  .cite-row, .cite-head { grid-template-columns: 28px minmax(0, 1fr) 44px; }
+  .cite-row .grip { grid-row: 1 / span 2; align-self: center; }
+  .cite-row .x-btn { grid-row: 1 / span 2; grid-column: 3; align-self: center; }
+  .cite-row .c2 { grid-column: 2; }
+  .cite-head { display: none; }
+  .menu { min-width: 16rem; }
+  .menu button { min-height: 48px; }
+  .card-bar .spacer { display: none; }
+  .hrow.topic .topic-heading { font-size: 1.4rem; }
+}
+
+/* ---- Pieces the live forms need that the pictures did not show ---- */
+/* Segmented choice: real radio buttons (they work from the keyboard and without a script), shown as joined buttons. */
+.seg-option { position: relative; display: inline-flex; }
+.seg-option input { position: absolute; opacity: 0; inset: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.seg-option span { display: inline-flex; align-items: center; justify-content: center; min-height: 38px; padding: 0 .9rem; border-right: 1px solid var(--hair); white-space: nowrap; }
+.seg-option:last-child span { border-right: 0; }
+.seg-option input:checked + span { background: var(--ink); color: #fff; font-weight: 600; }
+.seg-option input:focus-visible + span { outline: 3px solid var(--focus); outline-offset: -3px; }
+.seg.wide .seg-option { flex: 1 1 0; }
+.seg.wide .seg-option span { width: 100%; }
+.rev-switch { display: inline-flex; align-items: center; gap: .5rem; min-height: 38px; cursor: pointer; }
+.rev-switch input { width: 1.4rem; height: 1.4rem; }
+.cite-row .c2 { min-width: 0; }
+.cite-row .c2 .rt-area { min-height: 2.4em; }
+.cite-row.dragging-row { opacity: .5; }
+.cite-row.drop-before { box-shadow: 0 -3px 0 0 var(--focus); }
+.cite-row.drop-after { box-shadow: 0 3px 0 0 var(--focus); }
+.cite-row input[type=text] { min-height: 38px; }
+.addform .cite-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; }
+.editcard .cite-row { grid-template-columns: 22px minmax(0, 1fr) minmax(0, 1fr) 34px; }
+.menu a { display: flex; align-items: center; min-height: 40px; padding: 0 1rem; color: var(--ink); text-decoration: none; font-family: var(--font-sans); }
+.menu a:hover { background: var(--panel); }
+.more-wrap > summary { display: inline-flex; align-items: center; min-height: 38px; padding: 0 1rem; border: 1px solid var(--ink); border-radius: 2px; background: var(--panel); cursor: pointer; list-style: none; }
+.more-wrap > summary::-webkit-details-marker { display: none; }
+.more-wrap > summary::after { content: "\25BE"; margin-left: .4rem; }
+.form-error { margin: .7rem 0 0; color: var(--oxblood); font-weight: 600; }
+.form-error[hidden] { display: none; }
+.form-error button { margin-left: .5rem; }
+.addform .rt-btn, .editcard .rt-btn { min-width: 34px; min-height: 34px; font-size: 1rem; }
+.addform .rt-toolbar, .editcard .rt-toolbar { margin-bottom: .35rem; }
+.addform [hidden], .editcard [hidden] { display: none !important; }
+.card-top { display: none; }
+.row-hidden { display: none !important; }
+.editcard .field-label { font-weight: 600; }
+.editcard label.fld { display: block; }
+.undo-form { display: inline; margin: 0; }
+.bar-tools .undo-form button:disabled { opacity: .45; cursor: not-allowed; }
+
+@media (max-width: 599px) {
+  .seg-option span { min-height: 44px; padding: 0 .5rem; }
+  .rev-switch { min-height: 44px; }
+  .addform .rt-btn, .editcard .rt-btn { min-width: 44px; min-height: 44px; }
+  .addform .cite-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .addform .cite-row .x-btn { grid-column: 2; }
+  .addform .cite-row .c2 { grid-column: 1; }
+  .editcard .cite-row { grid-template-columns: 28px minmax(0, 1fr) 44px; }
+  .cite-row input[type=text] { min-height: 44px; }
+  .more-wrap > summary { min-height: 44px; }
+  .menu a { min-height: 48px; }
+  .subject-index li.erow { flex-wrap: wrap; }
+  .subject-index .row-actions a.ra { width: 60px; min-height: 56px; flex-direction: column; font-size: var(--small-size); }
+
+  /* Phone: the editing card fills the screen. Cancel and Save at the top and the bottom, the fields in one column. */
+  body.card-open { overflow: hidden; }
+  .editcard { position: fixed; z-index: 60; inset: 0; margin: 0; padding: 0; border: 0; overflow-y: auto; display: flex; flex-direction: column; background: var(--panel); box-shadow: none; }
+  .editcard > .fld, .editcard > .card-title, .editcard > .form-error { margin-left: .9rem; margin-right: .9rem; }
+  .editcard > .card-title { margin-top: 1rem; }
+  .editcard > .card-top ~ .fld:last-of-type { margin-bottom: 1rem; }
+  .card-top { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: .5rem; padding: .5rem .75rem; background: var(--bg); border-bottom: 1px solid var(--ink); }
+  .card-top .ttl { flex: 1 1 auto; text-align: center; font-weight: 600; line-height: 1.2; }
+  .editcard > .card-title { display: none; }
+  .editcard .card-bar { position: sticky; bottom: 0; margin: auto 0 0; padding: .6rem .75rem; border-top: 1px solid var(--ink); flex-wrap: nowrap; }
+  .editcard .card-bar .primary { flex: 1 1 0; }
+  .editcard .menu { top: auto; bottom: calc(100% + 4px); }
+}
+summary.ra { list-style: none; }
+summary.ra::-webkit-details-marker { display: none; }
+.grip { touch-action: none; user-select: none; }
+.inline-li { list-style: none; }
+.edit-toast { position: fixed; z-index: 80; left: 50%; bottom: 1rem; transform: translateX(-50%); max-width: 90vw; padding: .6rem 1rem; background: var(--ink); color: #fff; border-radius: 3px; font-family: var(--font-sans); box-shadow: 0 4px 14px rgba(0,0,0,.3); }
+.edit-toast[hidden] { display: none; }
+.row-flash { animation: row-flash 1.6s ease-out; }
+@keyframes row-flash { from { background: var(--amber-bg); } to { background: transparent; } }
+.cite-row .rt-toolbar { display: none; }
+.card-top .ttl small { display: block; font-weight: 400; color: var(--muted); font-size: .9rem; }

@@ -1,11 +1,10 @@
-{% load diary_tags %}<div class="item{% if b.indent %} under-section{% endif %}{% if b.flag %} flagged{% endif %}{% if b.needs_review %} review{% endif %}" id="{{ b.anchor }}">
+{% load diary_tags %}<div class="item{% if b.indent %} under-section{% endif %}{% if b.flag %} flagged{% endif %}{% if b.needs_review %} review{% endif %}{% if edit_mode %} erow{% endif %}" id="{{ b.anchor }}"{% if edit_mode %} data-edit-row data-kind="item" data-id="{{ b.id }}" data-version="{{ b.version }}" data-run="{{ b.run }}"{% endif %}>
+  {% if edit_mode and b.run %}{% include "diary/_grip.html" %}{% endif %}
   <span class="num">{{ b.label|dotted }}</span>
   <div class="item-body">
     <span class="item-text">{% if b.has_text %}{{ b.text }}{% endif %}</span>{% if b.cases %}{% if b.has_text %} - {% endif %}{% for case in b.cases %}<span class="case">{% if case.label %}<span class="num">{{ case.label }}</span> {% endif %}<em class="citation">{{ case.citation }}</em>{% if case.has_comment %} <span class="case-comment">{{ case.comment }}</span>{% endif %}</span>{% if not forloop.last %} ; {% endif %}{% endfor %}{% elif b.citation %}{% if b.has_text %} - {% endif %}<em class="citation">{{ b.citation }}</em>{% endif %}
     {% if b.flag %}<span class="flag-text">[{{ b.flag_label }}]</span>{% endif %}
     {% if b.needs_review %}<span class="review-marker">For review{% if b.review_note %}: {{ b.review_note }}{% endif %}</span>{% endif %}
-    {% if can_edit and not edit_mode %}{% include "diary/_add_here.html" with ahkind="item" ahid=b.id ahversion=b.version ahrun=b.run ahclass="add-here-read" %}{% endif %}
-    {% include "diary/_edit_bar.html" with ekind="item" eid=b.id eversion=b.version ename="" eanchor=b.anchor erun=b.run erename=False eadd=b.is_nested ereview=b.needs_review enote=b.review_note %}
     {% for note in b.notes %}{% include "diary/_note.html" with b=note %}{% endfor %}
     {% if b.children %}
     <div class="nested">
@@ -13,4 +12,5 @@
     </div>
     {% endif %}
   </div>
+  {% include "diary/_row_actions.html" with ekind="item" eid=b.id eword="Item" %}
 </div>

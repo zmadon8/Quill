@@ -1,0 +1,13 @@
+{# The Edit switch on the directory bar, and (when Edit is on) Undo and Done (docs/DESIGN.md Edit mode). Editors only: the caller context has can_edit. It is a link to toggle_url, so it works without JavaScript; edit-mode.js remembers the choice for the tab (sessionStorage) and carries ?edit=1 on the links. #}
+{% if can_edit %}<div class="bar-tools" data-bar-tools>
+  <a class="button edit-switch" role="switch" aria-checked="{% if edit_mode %}true{% else %}false{% endif %}" href="{{ toggle_url }}" data-edit-switch title="{% if edit_mode %}Switch Edit off and go back to plain reading{% else %}Switch Edit on to add and change entries{% endif %}">{% include "diary/_pencil.html" %}<span>Edit</span><span class="track"><span class="knob"></span></span></a>
+  {% if edit_mode %}
+  <form method="post" action="{% url 'edit_undo' %}" class="undo-form" data-undo-form>
+    {% csrf_token %}
+    <input type="hidden" name="group" value="{{ undo.group }}">
+    <input type="hidden" name="next" value="{{ next_url }}">
+    <button type="submit" class="small secondary" data-undo-button title="{% if undo %}Undo: {{ undo.text }}{% else %}Nothing to undo in this session{% endif %}"{% if not undo %} disabled{% endif %}>Undo</button>
+  </form>
+  <a class="button small primary" href="{{ toggle_url }}" data-edit-done title="Finish editing">Done</a>
+  {% endif %}
+</div>{% endif %}

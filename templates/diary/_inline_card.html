@@ -1,11 +1,12 @@
 {# The editing card that replaces a row in Edit mode (docs/DESIGN.md Edit mode, mockups 4 and 5). Context: kind, record, title, where, values/rows/flag_choices (Items), name (headings and Sections), convert_to [(kind, label)], can_shift, can_move, back, fallback. #}
 {# The Item fields are the same names as the full Item editor page (version, text, case_*, flag, flag_text, needs_review, review_note), so a stale save can be sent to the existing conflict screen as it is. A heading card is the name and More only. #}
-<form method="post" action="{% if kind == 'item' %}{% url 'edit_item' record.pk %}{% else %}{% url 'edit_rename' %}{% endif %}" class="edit-card" data-inline-card data-fallback="{{ fallback }}" data-kind="{{ kind }}" data-id="{{ record.pk }}" novalidate>
+<form method="post" action="{% if kind == 'item' %}{% url 'edit_item' record.pk %}{% else %}{% url 'edit_rename' %}{% endif %}" class="editcard" data-inline-card data-fallback="{{ fallback }}" data-kind="{{ kind }}" data-id="{{ record.pk }}" novalidate>
   {% csrf_token %}
   <input type="hidden" name="kind" value="{{ kind }}">
   <input type="hidden" name="id" value="{{ record.pk }}">
   <input type="hidden" name="version" value="{{ record.version }}">
   <input type="hidden" name="next" value="{{ back }}">
+  <div class="card-top"><button type="button" data-inline-cancel>Cancel</button><span class="ttl">{{ title }}{% if where %}<small class="where">{{ where }}</small>{% endif %}</span><button type="submit" class="primary">Save</button></div>
   <p class="card-title">{{ title }}{% if where %} <span class="where">{{ where }}</span>{% endif %}</p>
   {% if kind == "item" %}
   <div class="fld">
@@ -18,23 +19,16 @@
   <div class="fld" data-cases>
     <span class="field-label">Citations</span>
     <ul class="cite-list" data-case-list>
-      {% for row in rows %}
-      <li class="cite-row" data-case-row>
-        <input type="hidden" name="case_id" value="{{ row.id|default_if_none:'' }}">
-        <input type="hidden" name="case_version" value="{{ row.version|default_if_none:'' }}">
-        <input type="text" name="case_citation" maxlength="1000" value="{{ row.citation }}" aria-label="Citation">
-        <div class="rt c2" data-richtext><textarea class="rt-source" name="case_comment" rows="1" placeholder="Comment (optional)" aria-label="Comment (optional)">{{ row.comment }}</textarea></div>
-        <button type="button" class="x-btn" data-case-remove title="Remove this citation" aria-label="Remove this citation">&times;</button>
-      </li>
-      {% endfor %}
+      {% for row in rows %}{% include "diary/_inline_case_row.html" %}{% endfor %}
     </ul>
+    <template data-case-template>{% include "diary/_inline_case_row.html" with row=None %}</template>
     <button type="button" class="linkish" data-case-add>+ another citation</button>
   </div>
   {% endif %}
   <div class="fld">
     <span class="field-label">Flag</span>
     <div class="flag-line">
-      <div class="seg" role="radiogroup" aria-label="Flag">
+      <div class="seg wide" role="radiogroup" aria-label="Flag">
         {% for key, text in flag_choices %}<label class="seg-option"><input type="radio" name="flag" value="{{ key }}"{% if values.flag == key %} checked{% endif %}><span>{{ text }}</span></label>{% endfor %}
       </div>
       <input type="text" name="flag_text" maxlength="300" value="{{ values.flag_text }}" placeholder="Short text (used for Other)" aria-label="Flag text">
@@ -49,7 +43,7 @@
   <label class="fld"><span class="field-label">Name</span><input type="text" name="name" maxlength="500" value="{{ name }}" aria-label="Name" required></label>
   {% endif %}
   <div class="card-bar">
-    <button type="submit" class="primary">Save</button>
+    <button type="submit" class="primary" data-card-save>Save</button>
     <button type="button" data-inline-cancel>Cancel</button>
     <span class="spacer"></span>
     <details class="more-wrap" data-more>
@@ -59,6 +53,7 @@
         {% if can_shift %}<button type="submit" role="menuitem" formaction="{% url 'edit_move' %}" name="direction" value="up" data-more-action="up">Move up</button>
         <button type="submit" role="menuitem" formaction="{% url 'edit_move' %}" name="direction" value="down" data-more-action="down">Move down</button>{% endif %}
         {% for to_kind, text in convert_to %}<button type="submit" role="menuitem" formaction="{% url 'edit_item_convert' record.pk %}" name="to_kind" value="{{ to_kind }}" data-more-action="convert">Change to {{ text }}</button>{% endfor %}
+        {% if kind == "subject" %}<button type="submit" role="menuitem" formaction="{% url 'edit_landing' %}" name="show" value="{% if landing %}0{% else %}1{% endif %}" data-more-action="landing">{% if landing %}Put under Other Subjects{% else %}Show on the Subjects page{% endif %}</button>{% endif %}
         <a role="menuitem" href="{% url 'history' kind record.pk %}?next={{ back|urlencode }}" data-more-action="history">History</a>
         <hr>
         <button type="submit" role="menuitem" class="danger-item" formaction="{% url 'edit_delete' %}" data-more-action="delete"><span>Delete</span><small>goes to Trash &middot; Undo available</small></button>

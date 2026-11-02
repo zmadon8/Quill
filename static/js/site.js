@@ -348,12 +348,10 @@
   }
 
   // Topic and Sub-topic headings in the reading body are links that switch between the whole Subject and one Topic or Sub-topic.
-  // In Edit mode a heading whose edit card is open (its rename or review note form) does not switch, so a click cannot lose unsaved work.
+  // In Edit mode, while an editing card or an "+ Add" form is open the headings do not switch, so a click cannot lose unsaved work.
   document.addEventListener("click", function (event) {
     var link = event.target.closest ? event.target.closest("a[data-heading-toggle]") : null;
     if (!link) { return; }
-    var heading = link.parentNode;
-    var bar = heading ? heading.nextElementSibling : null;
-    if (bar && bar.hasAttribute("data-edit-bar") && bar.querySelector("details[open]")) { event.preventDefault(); }
+    if (document.querySelector("[data-inline-card], [data-inline-add]")) { event.preventDefault(); }
   });
 })();

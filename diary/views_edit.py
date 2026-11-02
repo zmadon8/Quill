@@ -67,7 +67,7 @@ def _conflict(request, exc):
 
 
 def is_fetch(request):
-    """True for a request made by the quick-add script, which wants JSON back instead of a page."""
+    """True for a request made by the Edit mode script, which wants JSON back instead of a page."""
     return request.headers.get("X-Requested-With") == "fetch"
 
 
@@ -280,7 +280,7 @@ def add(request):
     """Add a Subject, heading, Section, Item or Nested Item.
 
     It goes at the end of its parent, or directly after the record named by ``after`` ('item:5';
-    ``after_version`` is the version of that record the Editor saw). The quick-add script sends
+    ``after_version`` is the version of that record the Editor saw). The Edit mode script sends
     ``first=1`` with a parent to put the new entry first inside it, so it appears right below the
     heading it was added from. A request with the header X-Requested-With: fetch gets JSON back
     (``ok``, and the new ``kind``, ``id``, ``version`` or the ``errors``) instead of a redirect.

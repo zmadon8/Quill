@@ -513,17 +513,17 @@ class ReviewMarkerTests(ItemEditorTestCase):
         self.assertEqual(resp.status_code, 409)
         self.assertFalse(self.get(self.one).needs_review)
 
-    def test_the_reading_view_has_the_switch_for_items_and_sections_in_edit_mode(self):
+    def test_the_review_switch_is_in_the_editing_card_not_on_the_reading_row(self):
         url = reverse("read_subject", args=[self.subject.pk])
         editing = self.client.get(url + "?edit=1")
-        self.assertContains(editing, reverse("edit_review"))
-        self.assertContains(editing, "Mark for review")
-        self.assertNotContains(editing, "Clear review")
-        self.review("item", self.one, set="1")
-        self.review("section", self.sec, set="1")
-        self.assertContains(self.client.get(url + "?edit=1"), "Clear review")
+        self.assertContains(editing, "data-edit-open")
+        self.assertNotContains(editing, "Mark for review")
         self.assertNotContains(self.client.get(url), reverse("edit_review"))
-        self.assertNotContains(self.reader_client.get(url + "?edit=1"), reverse("edit_review"))
+        self.assertNotContains(self.reader_client.get(url + "?edit=1"), "data-edit-open")
+        card = self.client.get(reverse("edit_inline_card"), {"kind": "item", "id": self.one.pk})
+        self.assertIn('name="needs_review"', card.json()["html"])
+        self.review("item", self.one, set="1")
+        self.assertContains(self.client.get(url + "?edit=1"), "For review")
 
 
 class CreateItemKindTests(ItemEditorTestCase):

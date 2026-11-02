@@ -360,9 +360,9 @@ class HistoryTests(TrashTestCase):
         self.assertEqual(resp.status_code, 404)
         self.assertEqual(self.client.get(reverse("history", args=["subject", subject.pk])).status_code, 404)
 
-    def test_the_edit_bar_links_to_the_history(self):
-        resp = self.client.get(reverse("read_subject", args=[self.subject.pk]) + "?edit=1")
-        self.assertContains(resp, f'href="{self.url}?next=')
+    def test_the_editing_card_links_to_the_history(self):
+        resp = self.client.get(reverse("edit_inline_card"), {"kind": "item", "id": self.one.pk})
+        self.assertIn(f'href="{self.url}?next=', resp.json()["html"])
 
 
 class UndoViewTests(TrashTestCase):
@@ -376,7 +376,7 @@ class UndoViewTests(TrashTestCase):
         self.post("edit_delete", {**self.rec(self.one), "confirmed": "1"})
         self.assertEqual(len(self.groups()), 1)
         page = self.client.get(self.next)
-        self.assertContains(page, "data-undo-bar")
+        self.assertContains(page, "data-undo-form")
         self.assertContains(page, "Undo: Deleted 1 Item")
         resp = self.undo(self.groups()[-1])
         self.assertEqual(resp.status_code, 302)
@@ -385,7 +385,7 @@ class UndoViewTests(TrashTestCase):
 
     def test_the_undo_button_is_only_in_edit_mode(self):
         url = reverse("read_subject", args=[self.subject.pk])
-        self.assertNotContains(self.client.get(url), "data-undo-bar")
+        self.assertNotContains(self.client.get(url), "data-undo-form")
         self.assertContains(self.client.get(url + "?edit=1"), "Nothing to undo in this session")
 
     def test_deleting_a_topic_is_one_undo_step(self):

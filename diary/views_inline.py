@@ -93,6 +93,8 @@ def edit_card(request):
         fallback = reverse("edit_item", args=[record.pk]) + "?" + urlencode({"next": back})
     else:
         context["name"] = record.name
+        if kind == "subject":
+            context["landing"] = record.show_on_landing
         if kind == "section":
             context.update(values={"needs_review": record.needs_review, "review_note": record.review_note},
                            can_shift=True)

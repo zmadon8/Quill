@@ -86,30 +86,39 @@ class AccessTests(EditViewTestCase):
         for query in ("", "?edit=1"):
             resp = self.reader_client.get(url + query)
             self.assertEqual(resp.status_code, 200)
-            self.assertNotContains(resp, "data-edit-bar")
-            self.assertNotContains(resp, "Edit mode")
-            self.assertNotContains(resp, "edit-mode.js")
+            for absent in ("data-edit-switch", "data-row-actions", "data-edit-row", "edit-mode.js", "data-undo-form"):
+                self.assertNotContains(resp, absent)
         plain = self.client.get(url)
-        self.assertContains(plain, "Edit mode")
-        self.assertNotContains(plain, "data-edit-bar")
+        self.assertContains(plain, "data-edit-switch")
+        self.assertContains(plain, 'aria-checked="false"')
+        self.assertNotContains(plain, "data-row-actions")
+        self.assertNotContains(plain, "data-edit-row")
+        self.assertNotContains(plain, "data-undo-form")
         editing = self.client.get(url + "?edit=1")
-        self.assertContains(editing, "data-edit-bar")
+        self.assertContains(editing, 'aria-checked="true"')
+        self.assertContains(editing, "data-row-actions")
         self.assertContains(editing, "data-drag-handle")
-        self.assertContains(editing, "Done editing")
+        self.assertContains(editing, "data-edit-done")
+        self.assertContains(editing, "data-undo-form")
         self.assertContains(editing, "edit-mode.js")
+        self.assertContains(editing, "css/edit.css")
+        self.assertContains(editing, 'class="edit-on"')
+        # The old icon edit bars are gone.
+        for old in ("data-edit-bar", "Edit mode", "Done editing", "quick-add"):
+            self.assertNotContains(editing, old)
 
     def test_subject_lists_show_controls_only_to_editors_in_edit_mode(self):
-        self.assertNotContains(self.reader_client.get(reverse("subjects") + "?edit=1"), "data-edit-bar")
-        self.assertNotContains(self.client.get(reverse("subjects")), "data-edit-bar")
-        self.assertContains(self.client.get(reverse("subjects") + "?edit=1"), "data-edit-bar")
+        self.assertNotContains(self.reader_client.get(reverse("subjects") + "?edit=1"), "data-row-actions")
+        self.assertNotContains(self.reader_client.get(reverse("subjects")), "data-edit-switch")
+        self.assertNotContains(self.client.get(reverse("subjects")), "data-row-actions")
+        self.assertContains(self.client.get(reverse("subjects")), "data-edit-switch")
+        self.assertContains(self.client.get(reverse("subjects") + "?edit=1"), "data-row-actions")
         self.make("subject", name="Elsewhere", show_on_landing=False)
         # Both lists are on the one page, but Subjects are alphabetical: no reorder run, no drag handle.
         resp = self.client.get(reverse("subjects") + "?edit=1")
-        self.assertNotContains(resp, 'data-run="subject-show-1"')
-        self.assertNotContains(resp, 'data-run="subject-show-0"')
-        self.assertNotContains(resp, "Drag to reorder")
-        self.assertNotContains(resp, 'aria-label="Move up"')
-        self.assertContains(resp, 'aria-label="Rename"')
+        self.assertNotContains(resp, "data-run=")
+        self.assertNotContains(resp, "data-drag-handle")
+        self.assertContains(resp, "data-edit-open")
 
     def test_next_address_must_stay_on_this_site(self):
         for bad in ("https://evil.example/", "//evil.example/x", "javascript:alert(1)"):
@@ -300,26 +309,29 @@ class AddTests(EditViewTestCase):
         self.assertEqual([c.citation for c in Case.objects.filter(item=item)], ["A v B"])
         self.assertEqual(Item.objects.get(topic=self.topic, text="<p>n</p>").citation, "C v D")
 
-    def test_the_edit_page_has_one_text_box_and_a_disabled_citation_for_a_subject(self):
-        resp = self.client.get(self.next)
-        html = resp.content.decode()
+    def test_the_full_add_page_has_one_text_box_and_a_citation_box(self):
+        resp = self.client.get(reverse("edit_add") + f"?parent=topic:{self.topic.pk}")
         self.assertContains(resp, "data-add-form")
         self.assertContains(resp, "data-add-citation")
         self.assertNotContains(resp, "Name (headings and Sections)")
         self.assertNotContains(resp, "Text (Items)")
-        # The form inside the Subject's edit bar starts on Topic, so its Citation box is rendered disabled.
-        first = html[html.index("data-add-form>"):]
-        self.assertRegex(first[: first.index("</form>")], r'data-add-citation disabled')
-        # A Topic's form starts on Item, so its Citation box is enabled.
-        second = first[first.index("data-add-form>", 10):]
-        self.assertNotRegex(second[: second.index("</form>")], r'data-add-citation disabled')
+        # The reading page no longer carries add forms; they are fetched when "+ Add" is pressed.
+        self.assertNotContains(self.client.get(self.next), "data-add-form")
 
-    def test_the_edit_buttons_are_icons_with_labels_and_titles(self):
+    def test_every_row_has_exactly_two_buttons_with_words_and_tooltips(self):
         resp = self.client.get(self.next)
-        for label in ("Move up", "Move down", "Edit", "History", "Delete", "Move to", "Mark for review", "Rename", "Add"):
-            self.assertContains(resp, f'aria-label="{label}" title="{label}"')
-        self.assertContains(resp, "Drag to reorder")
-        self.assertContains(resp, 'class="icon"')
+        html = resp.content.decode()
+        rows = html.count("data-row-actions")
+        self.assertGreater(rows, 3)
+        self.assertEqual(html.count("data-add-here"), rows)
+        self.assertEqual(html.count("data-edit-open"), rows)
+        self.assertContains(resp, 'title="Add something')
+        self.assertContains(resp, "<span>Add</span>")
+        self.assertContains(resp, "<span>Edit</span>")
+        self.assertContains(resp, 'title="Edit this Item"')
+        self.assertContains(resp, 'title="Edit this Topic"')
+        for gone in ("Mark for review", "Rename", 'class="icon"', "Move up", "Move down"):
+            self.assertNotContains(resp, gone)
 
     def test_choosing_nothing_to_add_is_refused(self):
         resp = self.post("edit_add", {"what": "", "parent_type": "topic", "parent_id": self.topic.pk})
@@ -497,19 +509,18 @@ class AddAfterTests(EditViewTestCase):
         for query in ("?after=item:999999", "?after=bogus:1", "?parent=item:x", ""):
             self.assertEqual(self.client.get(reverse("edit_add") + query).status_code, 404, query)
 
-    def test_the_reading_view_shows_the_plus_to_editors_and_not_to_readers(self):
+    def test_the_plus_is_in_edit_mode_only_and_never_for_readers(self):
         url = reverse("read_subject", args=[self.subject.pk])
-        page = self.client.get(url)
+        self.assertNotContains(self.client.get(url), "data-add-here")
+        page = self.client.get(url + "?edit=1")
         self.assertContains(page, "data-add-here")
         self.assertContains(page, 'data-ref="item:%d"' % self.one.pk)
         self.assertContains(page, 'data-ref="section:%d"' % self.sec.pk)
         self.assertContains(page, 'data-ref="topic:%d"' % self.topic.pk)
-        self.assertContains(page, 'aria-label="Add entry here"')
-        self.assertContains(page, "quick-add")
-        reader = self.reader_client.get(url)
-        self.assertNotContains(reader, "data-add-here")
-        self.assertNotContains(reader, "quick-add")
-        self.assertNotContains(reader, "data-quick-add-config")
+        self.assertContains(page, reverse("edit_inline_add"))
+        self.assertContains(page, reverse("edit_inline_card"))
+        for query in ("", "?edit=1"):
+            self.assertNotContains(self.reader_client.get(url + query), "data-add-here")
 
     def test_edit_mode_has_the_plus_on_items_and_sections_as_a_link_to_the_add_page(self):
         page = self.client.get(self.next)
@@ -816,26 +827,22 @@ class AlphabeticalHeadingTests(EditViewTestCase):
     def add_heading(self, what, **fields):
         return self.post("edit_add", {"what": what, "parent_type": "subject", "parent_id": self.subject.pk, **fields})
 
-    def test_heading_edit_bars_have_no_reorder_controls_but_sections_and_items_do(self):
+    def test_headings_have_no_drag_grip_but_sections_and_items_do(self):
         self.make("topic", ("subject", self.subject.pk), name="Second")
         self.make("subtopic", ("topic", self.topic.pk), name="Sub")
         html = self.client.get(self.next).content.decode()
-        found = list(re.finditer(r'data-edit-bar data-kind="(\w+)"[^>]*?data-run="([^"]*)"', html))
         by_kind = {}
-        for i, m in enumerate(found):
-            end = found[i + 1].start() if i + 1 < len(found) else len(html)
-            by_kind.setdefault(m.group(1), []).append((m.group(2), html[m.end():end]))
+        for kind, rest in re.findall(r'<div[^>]*?data-edit-row data-kind="(\w+)"([^>]*)>', html):
+            by_kind.setdefault(kind, []).append(rest)
         for kind in ("subject", "topic", "subtopic"):
             self.assertTrue(by_kind[kind], kind)
-            for run, bar in by_kind[kind]:
-                self.assertEqual(run, "", kind)
-                for text in ("Drag to reorder", "Move up", "Move down"):
-                    self.assertNotIn(text, bar, kind)
+            for rest in by_kind[kind]:
+                self.assertNotIn("data-run", rest, kind)
         for kind in ("item", "section"):
-            for run, bar in by_kind[kind]:
-                self.assertNotEqual(run, "", kind)
-                for text in ("Drag to reorder", "Move up", "Move down"):
-                    self.assertIn(text, bar, kind)
+            self.assertTrue(by_kind[kind], kind)
+            for rest in by_kind[kind]:
+                self.assertRegex(rest, r'data-run="[^"]+"', kind)
+        self.assertEqual(html.count("data-drag-handle"), len(by_kind["item"]) + len(by_kind["section"]))
 
     def test_move_to_another_parent_lands_alphabetically_and_previews_the_new_letters(self):
         s2 = self.make("subject", name="Torts")
