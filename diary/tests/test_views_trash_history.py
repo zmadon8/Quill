@@ -197,10 +197,10 @@ class RestoreTests(TrashTestCase):
         self.assertEqual(self.resend(resp).status_code, 302)
         self.assertIsNone(self.get(self.one).deleted_at)
 
-    def test_a_case_cannot_come_back_under_an_item_that_is_no_longer_a_multi_item(self):
-        multi, first, _ = self.multi()
+    def test_a_case_cannot_come_back_under_an_item_that_is_now_a_nested_item(self):
+        multi, first, _ = self.cited()
         svc.delete(self.profile, self.user, "case", first.pk)
-        svc.convert_item(self.profile, self.user, multi.pk, "plain", None, accept_warnings=True)
+        svc.convert_item(self.profile, self.user, multi.pk, "nested", None)
         resp = self.trash_post("trash_restore", self.rec(first))
         self.assertEqual(resp.status_code, 302)
         self.assertIsNotNone(self.get(first).deleted_at)
@@ -293,7 +293,7 @@ class HistoryTests(TrashTestCase):
         self.assertContains(resp, "Time (IST)")
 
     def test_history_exists_for_every_record_type(self):
-        multi, first, _ = self.multi()
+        multi, first, _ = self.cited()
         for obj in (self.subject, self.topic, self.sec, self.one, multi, first):
             resp = self.client.get(reverse("history", args=[self.ref(obj)[0], obj.pk]))
             self.assertEqual(resp.status_code, 200, self.ref(obj))
@@ -405,7 +405,7 @@ class UndoViewTests(TrashTestCase):
         self.assertIsNotNone(self.get(self.one).deleted_at)
 
     def test_one_item_editor_save_is_one_undo_step(self):
-        multi, first, second = self.multi()
+        multi, first, second = self.cited()
         before = VersionHistory.objects.order_by("-id").first().id
         rows = self.case_rows([(first, "A v B2", "<b>note</b>"), (None, "E v F", "")])
         resp = self.client.post(self.editor_url(multi), {
@@ -533,15 +533,15 @@ class ConflictScreenTests(TrashTestCase):
         opened = self.get(self.one).version
         svc.edit(self.profile, self.user2, "item", self.one.pk, {"text": "<p>theirs</p>"})
         return self.client.post(self.editor_url(self.one), {
-            "version": opened, "text": "<p>My typed words</p>", "citation": "My citation", "flag": "none",
-            "flag_text": "", "review_note": "", "next": self.next})
+            "version": opened, "text": "<p>My typed words</p>", "flag": "none",
+            "flag_text": "", "review_note": "", "next": self.next, **self.case_rows([(None, "My citation", "")])})
 
     def test_the_item_conflict_shows_every_typed_field_next_to_the_saved_value(self):
         resp = self.typed_editor_conflict()
         self.assertEqual(resp.status_code, 409)
         rows = {label: (mine, theirs) for label, mine, theirs, _ in resp.context["rows"]}
         self.assertEqual(rows["Text"], ("My typed words", "theirs"))
-        self.assertEqual(rows["Citation"], ("My citation", ""))
+        self.assertEqual(rows["Citation 1"], ("My citation", ""))
         self.assertEqual(resp.context["merge"], {"type": "editor"})
 
     def test_edit_and_merge_reopens_the_editor_with_what_was_typed_and_saves_nothing(self):
@@ -556,7 +556,8 @@ class ConflictScreenTests(TrashTestCase):
         self.assertContains(merged, f'name="version" value="{current}"')
         self.assertEqual(self.get(self.one).version, current)
         saved = self.client.post(self.editor_url(self.one), {
-            "version": current, "text": "<p>merged words</p>", "citation": "My citation", "flag": "none", "next": self.next})
+            "version": current, "text": "<p>merged words</p>", "flag": "none", "next": self.next,
+            **self.case_rows([(None, "My citation", "")])})
         self.assertEqual(saved.status_code, 302)
         self.assertIn("merged words", self.get(self.one).text)
 
@@ -565,11 +566,11 @@ class ConflictScreenTests(TrashTestCase):
         self.assertEqual(self.resend(resp).status_code, 302)
         item = self.get(self.one)
         self.assertIn("My typed words", item.text)
-        self.assertEqual(item.citation, "My citation")
+        self.assertEqual(self.live_cases(item), [("My citation", "")])
         self.assertIn("theirs", [r.snapshot["text"] for r in self.history(self.one)][1])
 
     def test_keep_mine_with_a_changed_case_refreshes_every_version_and_saves_everything(self):
-        multi, first, second = self.multi()
+        multi, first, second = self.cited()
         rows = self.case_rows([(first, "A v B", ""), (second, "C v D2", "")])
         svc.edit(self.profile, self.user2, "case", first.pk, {"citation": "Changed"})
         resp = self.client.post(self.editor_url(multi), {
@@ -581,7 +582,7 @@ class ConflictScreenTests(TrashTestCase):
         self.assertIn("new text", self.get(multi).text)
 
     def test_nothing_typed_is_lost_when_the_conflict_is_on_a_case(self):
-        multi, first, second = self.multi()
+        multi, first, second = self.cited()
         rows = self.case_rows([(first, "Typed one", "<i>typed comment</i>"), (second, "Typed two", "")])
         svc.edit(self.profile, self.user2, "case", second.pk, {"citation": "Elsewhere"})
         resp = self.client.post(self.editor_url(multi), {
@@ -593,7 +594,7 @@ class ConflictScreenTests(TrashTestCase):
     def test_a_stale_conversion_shows_the_screen_with_what_was_asked(self):
         opened = self.get(self.one).version
         svc.edit(self.profile, self.user2, "item", self.one.pk, {"text": "<p>theirs</p>"})
-        resp = self.convert(self.one, "multi", confirmed="1", version=opened)
+        resp = self.convert(self.one, "nested", confirmed="1", version=opened)
         self.assertEqual(resp.status_code, 409)
         self.assertEqual(resp.context["rows"][0][1], "Change the type of the Item")
         self.assertEqual(self.get(self.one).kind, "plain")

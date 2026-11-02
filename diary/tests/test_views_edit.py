@@ -4,7 +4,7 @@ from django.test import Client, override_settings
 from django.urls import reverse
 
 from diary import services as svc
-from diary.models import Item, Section, Subject, Subtopic, Topic
+from diary.models import Case, Item, Section, Subject, Subtopic, Topic
 from diary.tests.helpers import join_main
 from diary.tests.service_helpers import ServiceTestCase
 from diary.undo_session import SESSION_KEY
@@ -158,7 +158,8 @@ class AddTests(EditViewTestCase):
         new = Item.objects.get(topic=self.topic, position=6)
         self.assertIn("five", new.text)
         self.assertIn("six", new.text)
-        self.assertEqual(new.citation, "(2020) 1 SCC 1")
+        self.assertEqual(new.citation, "")  # an Item's citation is its first Case
+        self.assertEqual([(c.citation, c.position) for c in Case.objects.filter(item=new)], [("(2020) 1 SCC 1", 1)])
         self.assertEqual(new.kind, "plain")
         self.assertEqual(self.numbered(self.topic)[-1][0], "(3)")
         self.assertEqual(self.positions([self.one, self.two, self.sec, self.three, self.four]), [1, 2, 3, 4, 5])
@@ -284,11 +285,13 @@ class AddTests(EditViewTestCase):
         for model in (Subject, Topic, Subtopic, Section):
             self.assertFalse(model.objects.filter(name__contains="A v B").exists())
         self.assertFalse(Item.objects.filter(citation="A v B").exists())
+        self.assertFalse(Case.objects.filter(citation="A v B").exists())
 
     def test_a_citation_is_saved_for_an_item_and_a_nested_item(self):
         self.add("item", ("topic", self.topic.pk), text="one more", citation=" A v B ")
         self.add("nested", ("topic", self.topic.pk), text="n", citation="C v D")
-        self.assertEqual(Item.objects.get(topic=self.topic, text="<p>one more</p>").citation, "A v B")
+        item = Item.objects.get(topic=self.topic, text="<p>one more</p>")
+        self.assertEqual([c.citation for c in Case.objects.filter(item=item)], ["A v B"])
         self.assertEqual(Item.objects.get(topic=self.topic, text="<p>n</p>").citation, "C v D")
 
     def test_the_edit_page_has_one_text_box_and_a_disabled_citation_for_a_subject(self):
