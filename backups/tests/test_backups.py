@@ -623,6 +623,23 @@ class LandingProgramBackupTests(BackupBase):
         self.assertEqual(User.objects.get(username="alice").landing_program, "")
 
 
+class LastDiaryPathBackupTests(BackupBase):
+    def test_last_page_round_trips(self):
+        User.objects.filter(pk=self.alice.pk).update(last_diary_path="/caselaw/search/?q=duty")
+        doc = services.parse_backup(services.create_backup("manual").data, MAX)
+        User.objects.filter(pk=self.alice.pk).update(last_diary_path="")
+        services.restore_backup(doc, self.admin)
+        self.assertEqual(User.objects.get(username="alice").last_diary_path, "/caselaw/search/?q=duty")
+
+    def test_backup_made_before_the_column_restores_as_blank(self):
+        User.objects.filter(pk=self.alice.pk).update(last_diary_path="/caselaw/search/")
+        doc = services.parse_backup(services.create_backup("manual").data, MAX)
+        for record in doc["models"]["accounts.User"]:
+            del record["fields"]["last_diary_path"]
+        services.restore_backup(doc, self.admin)
+        self.assertEqual(User.objects.get(username="alice").last_diary_path, "")
+
+
 class ViewTests(BackupBase):
     def test_non_admin_gets_403_everywhere(self):
         backup = services.create_backup("daily")
