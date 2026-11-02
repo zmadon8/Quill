@@ -208,7 +208,7 @@ Numbers appear in two places only: on screen and in the Word export. Searching a
 - **View whole Subject renders the entire Subject in one page with no lazy loading.** This is so that the browser's own find (Ctrl or Cmd + F) works across everything. Largest Subject: Procedure at 202 Items, which is light for one page. This stays safe up to several thousand Items.
 
 ### 5.3 Reading view (4.3)
-- Item: text, then " - ", then the Citation in italics. A Multi-Item: description, then the citations on the same line, each preceded by (a), (b), separated by " ; ", with a Case comment following its citation.
+- Item: text, then " - ", then the Citation in italics. With one citation it is shown as "Text - *Citation*" (no label). With several (10d: an Item holds one or more citations, each a Case): "Text - (a) *Citation* comment ; (b) *Citation* comment", the labels following the Multi-Item citation format setting, each Case comment (smaller, grey) following its citation. An Item with no citation shows just its text. A Nested Item keeps its own citation.
 - A **Section** shows as a bold header line with its number (default (a), (b)); the Items below it restart at (1) and are indented under it. A Section marked For review shows the same **amber** marker and its note.
 - Items with a flag are **red** with the flag text. Items marked "For review" show an **amber** marker.
 - Notes show a link icon and "See also: Subject > Topic > ..." and are clickable.
@@ -453,7 +453,7 @@ There are **three types of export** (decision D10). All three follow the same ma
 | Sections | Bold header line carrying the Section number per Settings (default (a), (b)) |
 | Items in a Nested Item | Bullets |
 | Citation | Italic, preceded by " - " |
-| Multi-Item | Description, then (a), (b) citations on the same line, comments after each |
+| Item with several citations (formerly Multi-Item) | Text, then (a), (b) citations on the same line, comments after each; one citation has no label |
 | Note | "See also: Subject > Topic > ..." |
 | Rich text | b, i, u kept |
 | Items under a heading | Precede its child headings |

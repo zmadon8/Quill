@@ -130,6 +130,7 @@ td a { display: inline-block; min-height: var(--tap); line-height: var(--tap); p
 .item-text p { display: inline; margin: 0; }
 .item-text p + p { display: block; margin-top: .4rem; }
 .citation { font-style: italic; color: var(--muted); }
+.case-comment { font-size: .9em; color: var(--muted); }
 .case-comment p { display: inline; margin: 0; }
 .under-section { margin-left: 1.5rem; }
 .nested { margin-top: .4rem; padding-left: .5rem; border-left: 2px solid var(--hair); }
