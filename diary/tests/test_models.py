@@ -197,7 +197,7 @@ class UserSettingsTests(Base):
         self.assertEqual(settings_row.export_date_format, "YYYY-MM-DD")
         self.assertEqual(settings_row.section_format, "paren_lower_alpha")
         self.assertEqual(settings_row.item_format, "paren_decimal")
-        self.assertEqual(settings_row.nested_item_format, "paren_decimal")
+        self.assertEqual(settings_row.nested_item_format, "bullet")
         self.assertEqual(settings_row.time_zone, "Asia/Kolkata")
         self.assertEqual(user.diary_settings, settings_row)
 

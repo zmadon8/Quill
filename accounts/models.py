@@ -30,6 +30,8 @@ class User(AbstractUser):
     """
 
     landing_program = models.CharField(max_length=30, blank=True, default="")
+    # Last Case Law Diary page viewed (path and query), used by the "last page I viewed" opening option.
+    last_diary_path = models.CharField(max_length=500, blank=True, default="")
 
     def save(self, *args, **kwargs):
         self.is_staff = self.is_superuser

@@ -34,7 +34,7 @@ DEFAULT_FORMATS = {
     "subtopic_format": "decimal",
     "section_format": "paren_lower_alpha",
     "item_format": "paren_decimal",
-    "nested_item_format": "paren_decimal",
+    "nested_item_format": "bullet",
     "multi_citation_format": "paren_lower_alpha",
 }
 
@@ -184,8 +184,8 @@ def _item_block(item, data, fmts, label, depth, under_section, is_child=False):
     children = []
     if not is_child:
         kids = sorted(data.items_by.get(("parent_item", item.pk), []), key=lambda i: (i.position, i.pk))
-        bullets = numbering.nested_bullets(len(kids))
-        children = [_item_block(k, data, fmts, b, depth, under_section, is_child=True) for k, b in zip(kids, bullets)]
+        kid_labels = numbering.number_siblings(len(kids), fmts["nested_item_format"])
+        children = [_item_block(k, data, fmts, b, depth, under_section, is_child=True) for k, b in zip(kids, kid_labels)]
     return {
         "kind": "item",
         "id": item.pk,

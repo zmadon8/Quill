@@ -216,7 +216,7 @@ def labels(key, objs, fmts):
         ]
         values = numbering.number_children(kinds, fmts["item_format"], fmts["section_format"])
     elif kind == "kids":
-        values = numbering.nested_bullets(len(objs))
+        values = numbering.number_siblings(len(objs), fmts["nested_item_format"])
     elif kind == "topic":
         values = numbering.number_siblings(len(objs), fmts["topic_format"])
     elif kind == "subtopic":

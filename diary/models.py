@@ -397,7 +397,8 @@ class UserSettings(models.Model):
     subtopic_format = models.CharField(max_length=20, choices=FORMAT_CHOICES, default="decimal")
     section_format = models.CharField(max_length=20, choices=SECTION_FORMAT_CHOICES, default="paren_lower_alpha")
     item_format = models.CharField(max_length=20, choices=FORMAT_CHOICES, default="paren_decimal")
-    nested_item_format = models.CharField(max_length=20, choices=FORMAT_CHOICES, default="paren_decimal")
+    # Format of the Items INSIDE a Nested Item (its children). The Nested Item itself uses item_format.
+    nested_item_format = models.CharField(max_length=20, choices=FORMAT_CHOICES, default="bullet")
     multi_citation_format = models.CharField(max_length=20, choices=FORMAT_CHOICES, default="paren_lower_alpha")
     export_custom_name = models.CharField(max_length=60, default="Case Law Diary")
     export_date_format = models.CharField(max_length=20, choices=DATE_FORMAT_CHOICES, default="YYYY-MM-DD")
