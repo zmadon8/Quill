@@ -215,6 +215,93 @@ class AddTests(EditViewTestCase):
         self.assertEqual(Subject.objects.filter(profile=self.profile).count(), 1)
         self.assertTrue(self.msgs(resp))
 
+    def test_the_one_text_box_is_the_name_of_each_heading_kind_and_section(self):
+        self.add("topic", ("subject", self.subject.pk), text="Performance")
+        self.assertTrue(Topic.objects.filter(subject=self.subject, name="Performance").exists())
+        self.add("subtopic", ("topic", self.topic.pk), text="Time")
+        self.assertTrue(Subtopic.objects.filter(topic=self.topic, name="Time").exists())
+        self.add("section", ("topic", self.topic.pk), text="  Later   part ")
+        self.assertTrue(Section.objects.filter(topic=self.topic, name="Later part").exists())
+        self.post("edit_add", {"what": "subject", "text": "Tort", "landing": "1"})
+        self.assertTrue(Subject.objects.filter(profile=self.profile, name="Tort").exists())
+
+    def test_the_one_text_box_is_the_text_of_an_item_and_a_nested_item(self):
+        self.add("item", ("topic", self.topic.pk), text="plain words")
+        self.add("nested", ("topic", self.topic.pk), text="nested words")
+        self.assertEqual(Item.objects.get(topic=self.topic, text="<p>plain words</p>").kind, "plain")
+        self.assertEqual(Item.objects.get(topic=self.topic, text="<p>nested words</p>").kind, "nested")
+
+    def test_item_text_sent_as_html_by_the_script_is_sanitised_not_escaped(self):
+        self.add("item", ("topic", self.topic.pk), text="<p>Some <b>bold</b><script>x</script></p>", text_format="html")
+        new = Item.objects.get(topic=self.topic, position=6)
+        self.assertIn("<b>bold</b>", new.text)
+        self.assertNotIn("<script>", new.text)
+
+    def test_tags_and_newlines_are_stripped_from_a_heading_name(self):
+        self.add("topic", ("subject", self.subject.pk), text="<b>Per</b>form\nance<script>alert(1)</script>")
+        topic = Topic.objects.exclude(pk=self.topic.pk).get(subject=self.subject)
+        self.assertNotIn("<", topic.name)
+        self.assertNotIn("\n", topic.name)
+        self.assertTrue(topic.name.startswith("Perform ance"))
+
+    def test_an_empty_text_is_refused_for_every_heading_kind(self):
+        before = (Topic.objects.count(), Subtopic.objects.count(), Section.objects.count(), Subject.objects.count())
+        for what, parent in (("topic", ("subject", self.subject.pk)), ("subtopic", ("topic", self.topic.pk)),
+                             ("section", ("topic", self.topic.pk))):
+            resp = self.add(what, parent, text="  <b></b> ")
+            self.assertTrue(self.msgs(resp))
+        resp = self.post("edit_add", {"what": "subject", "text": " ", "landing": "1"})
+        self.assertTrue(self.msgs(resp))
+        self.assertEqual(before, (Topic.objects.count(), Subtopic.objects.count(), Section.objects.count(), Subject.objects.count()))
+
+    def test_a_too_long_name_is_refused(self):
+        from diary.views_edit import HEADING_LIMITS
+
+        for what, parent, model in (("topic", ("subject", self.subject.pk), Topic), ("section", ("topic", self.topic.pk), Section)):
+            count = model.objects.count()
+            resp = self.add(what, parent, text="x" * (HEADING_LIMITS[what] + 1))
+            self.assertTrue(self.msgs(resp))
+            self.assertEqual(model.objects.count(), count)
+        self.add("topic", ("subject", self.subject.pk), text="y" * HEADING_LIMITS["topic"])
+        self.assertTrue(Topic.objects.filter(subject=self.subject, name="y" * HEADING_LIMITS["topic"]).exists())
+
+    def test_a_citation_is_ignored_for_headings_and_sections_even_when_posted(self):
+        self.add("topic", ("subject", self.subject.pk), text="Performance", citation="A v B")
+        self.add("subtopic", ("topic", self.topic.pk), text="Time", citation="A v B")
+        self.add("section", ("topic", self.topic.pk), text="Later", citation="A v B")
+        self.post("edit_add", {"what": "subject", "text": "Tort", "citation": "A v B", "landing": "1"})
+        self.assertFalse(Section.objects.filter(topic=self.topic, name__contains="A v B").exists())
+        for model in (Subject, Topic, Subtopic, Section):
+            self.assertFalse(model.objects.filter(name__contains="A v B").exists())
+        self.assertFalse(Item.objects.filter(citation="A v B").exists())
+
+    def test_a_citation_is_saved_for_an_item_and_a_nested_item(self):
+        self.add("item", ("topic", self.topic.pk), text="one more", citation=" A v B ")
+        self.add("nested", ("topic", self.topic.pk), text="n", citation="C v D")
+        self.assertEqual(Item.objects.get(topic=self.topic, text="<p>one more</p>").citation, "A v B")
+        self.assertEqual(Item.objects.get(topic=self.topic, text="<p>n</p>").citation, "C v D")
+
+    def test_the_edit_page_has_one_text_box_and_a_disabled_citation_for_a_subject(self):
+        resp = self.client.get(self.next)
+        html = resp.content.decode()
+        self.assertContains(resp, "data-add-form")
+        self.assertContains(resp, "data-add-citation")
+        self.assertNotContains(resp, "Name (headings and Sections)")
+        self.assertNotContains(resp, "Text (Items)")
+        # The form inside the Subject's edit bar starts on Topic, so its Citation box is rendered disabled.
+        first = html[html.index("data-add-form"):]
+        self.assertRegex(first[: first.index("</form>")], r'data-add-citation disabled')
+        # A Topic's form starts on Item, so its Citation box is enabled.
+        second = first[first.index("data-add-form", 10):]
+        self.assertNotRegex(second[: second.index("</form>")], r'data-add-citation disabled')
+
+    def test_the_edit_buttons_are_icons_with_labels_and_titles(self):
+        resp = self.client.get(self.next)
+        for label in ("Move up", "Move down", "Edit", "History", "Delete", "Move to", "Mark for review", "Rename", "Add"):
+            self.assertContains(resp, f'aria-label="{label}" title="{label}"')
+        self.assertContains(resp, "Drag to reorder")
+        self.assertContains(resp, 'class="icon"')
+
     def test_choosing_nothing_to_add_is_refused(self):
         resp = self.post("edit_add", {"what": "", "parent_type": "topic", "parent_id": self.topic.pk})
         self.assertEqual(resp.status_code, 302)

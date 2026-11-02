@@ -12,13 +12,14 @@ from django.core.exceptions import PermissionDenied
 from django.http import Http404, HttpResponseNotAllowed
 from django.shortcuts import redirect, render
 from django.urls import reverse
-from django.utils.html import escape
+from django.utils.html import escape, strip_tags
 from django.utils.http import url_has_allowed_host_and_scheme
 
 from . import services as svc
 from . import undo_session
 from .conflicts import conflict_page
-from .models import Item, Subject, Subtopic, Topic
+from .models import Item, Section, Subject, Subtopic, Topic
+from .richtext import sanitise_html
 from .services.core import Ctx, descendants, get_record, label
 from .services.errors import Conflict, NotFound, ServiceError
 from .services.moves import ALLOWED_PARENTS, NICE
@@ -38,6 +39,13 @@ ADDABLE = {
     "nested": ("item", {"kind": "nested"}),
 }
 ADD_NICE = {"nested": "Nested Item"}
+#: Longest name the Add form accepts for each kind that has a name (the model field lengths).
+HEADING_LIMITS = {
+    "subject": Subject._meta.get_field("name").max_length,
+    "topic": Topic._meta.get_field("name").max_length,
+    "subtopic": Subtopic._meta.get_field("name").max_length,
+    "section": Section._meta.get_field("name").max_length,
+}
 
 
 def _next(request, default=None):
@@ -154,14 +162,25 @@ def add(request):
     parent = None
     if post.get("parent_type"):
         parent = (post.get("parent_type"), _record_id(request, "parent_id"))
-    name = _single_line(post.get("name", ""))
+    # One "Text" box: the name of a heading or Section, the text of an Item or Nested Item.
+    # (An older form that posts "name" for a heading still works.)
+    typed = post.get("text", "") if "text" in post else post.get("name", "")
     fields = dict(extra)
-    if kind in ("subject", "topic", "subtopic", "section"):
+    if kind in HEADING_LIMITS:
+        name = _single_line(strip_tags(typed))
+        if not name:
+            messages.error(request, f"Type the {NICE[kind]} name first.")
+            return redirect(_next(request))
+        if len(name) > HEADING_LIMITS[kind]:
+            messages.error(request, f"The {NICE[kind]} name is too long (at most {HEADING_LIMITS[kind]} characters).")
+            return redirect(_next(request))
         fields["name"] = name
     if kind == "subject":
         fields["show_on_landing"] = post.get("landing", "1") == "1"
     if kind == "item":
-        text = _html(post.get("text", ""))
+        # The script sends cleaned HTML (text_format=html); without it the box is plain typed text.
+        text = sanitise_html(typed) if post.get("text_format") == "html" else _html(typed)
+        # A citation belongs to Items and Nested Items only; it is ignored for anything else.
         citation = _single_line(post.get("citation", ""))
         if not text and not citation:
             messages.error(request, "Type the Item text (or a citation) first.")

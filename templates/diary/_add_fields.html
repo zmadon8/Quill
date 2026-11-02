@@ -1,0 +1,11 @@
+{# The Text and Citation boxes of the Add form (docs/DESIGN.md R5-10a). Context: ekind (the record the form sits in). #}
+{# One Text box: the name of a heading or Section, the text of an Item or Nested Item. add-form.js swaps the rich box for a single plain line when a heading kind is chosen. Without the script the textarea is the box and the server decides by kind. A Subject starts on Topic (a heading), so its Citation box starts disabled. #}
+<div class="edit-field" data-add-text>
+  <span class="field-label" id="add-text-label-{{ ekind }}-{{ eid }}">Text</span>
+  <div class="rt" data-richtext data-add-rich>
+    <textarea class="rt-source" name="text" rows="3" aria-labelledby="add-text-label-{{ ekind }}-{{ eid }}"></textarea>
+  </div>
+  <input type="text" name="text" maxlength="500" data-add-plain hidden disabled aria-labelledby="add-text-label-{{ ekind }}-{{ eid }}">
+  <input type="hidden" name="text_format" value="" data-add-format disabled>
+</div>
+<label>Citation (Items only) <input type="text" name="citation" maxlength="1000" data-add-citation{% if ekind == "subject" %} disabled{% endif %}></label>

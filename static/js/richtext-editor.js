@@ -170,6 +170,12 @@
     box.insertBefore(area, source);
     sync();
 
+    /* Lets other scripts (the Add form) put HTML into the box, and read it back as plain text. */
+    box.rtApi = {
+      setHtml: function (html) { area.innerHTML = clean(html); sync(); },
+      getPlain: function () { return (area.innerText || area.textContent || "").replace(/\s+/g, " ").trim(); }
+    };
+
     var form = box.closest("form");
     if (form) { form.addEventListener("submit", sync, true); }
   }

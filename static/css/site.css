@@ -239,6 +239,24 @@ table[data-resizable-columns] th { position: relative; overflow-wrap: anywhere; 
 .edit-btn.danger { background: var(--oxblood); border-color: var(--oxblood); color: var(--oxblood-ink); }
 .drag-handle { cursor: grab; touch-action: none; user-select: none; letter-spacing: -.1em; }
 .drag-handle.active { cursor: grabbing; background: var(--amber-bg); }
+/* Icon buttons (R5-10b): 44px under a coarse pointer (also the default), compact with a mouse. */
+.icon-btn, .edit-bar summary.edit-btn.icon-btn { padding: 0; width: var(--tap); height: var(--tap); }
+.icon-btn .icon { display: block; pointer-events: none; }
+.edit-actions { align-items: center; }
+.edit-field { display: flex; flex-direction: column; gap: .25rem; }
+.edit-field .field-label { font-weight: 600; }
+.edit-form input:disabled, .edit-form textarea:disabled { background: var(--hair); color: var(--muted); cursor: not-allowed; }
+.edit-form label:has(input:disabled) { color: var(--muted); }
+.rt[hidden], .edit-field [hidden] { display: none; }
+@media (hover: hover) and (pointer: fine) {
+  .icon-btn, .edit-btn.icon-btn, .edit-bar summary.edit-btn.icon-btn { width: 30px; height: 30px; min-width: 0; min-height: 0; }
+  .edit-bar { gap: .25rem; margin: .2rem 0 .5rem; padding: .15rem .3rem; }
+  .edit-actions { gap: .2rem; flex-wrap: nowrap; }
+  .edit-bar .edit-actions { opacity: 0; transition: opacity .12s; }
+  .edit-bar:hover .edit-actions, .edit-bar:focus-within .edit-actions, .edit-bar:has(details[open]) .edit-actions,
+  .item:hover > .item-body > .edit-bar .edit-actions, :is(h1, h2, h3, .section-header):hover + .edit-bar .edit-actions,
+  li:hover > .edit-bar .edit-actions { opacity: 1; }
+}
 .edit-more[open] { border: 1px solid var(--hair); padding: .5rem; background: var(--bg); }
 .edit-form { display: flex; flex-direction: column; gap: .6rem; margin-top: .5rem; }
 .edit-form label { display: flex; flex-direction: column; gap: .25rem; }

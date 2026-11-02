@@ -19,13 +19,13 @@
   </ul>
   {% if edit_mode %}
   <details class="edit-more">
-    <summary class="edit-btn">Add a Subject&hellip;</summary>
+    <summary class="edit-btn icon-btn" aria-label="Add a Subject" title="Add a Subject">{% include "diary/_icon.html" with icon="add" %}<span class="visually-hidden">Add a Subject</span></summary>
     <form method="post" action="{% url 'edit_add' %}" class="edit-form">
       {% csrf_token %}
       <input type="hidden" name="what" value="subject">
       <input type="hidden" name="landing" value="1">
       <input type="hidden" name="next" value="{{ next_url }}">
-      <label>Subject name <input type="text" name="name" maxlength="300" required></label>
+      <label>Text (the Subject name) <input type="text" name="text" maxlength="300" required></label>
       <button type="submit">Add at the end</button>
     </form>
   </details>
@@ -41,13 +41,13 @@
   </ul>
   {% if edit_mode %}
   <details class="edit-more" id="add-other-subject">
-    <summary class="edit-btn">Add a Subject&hellip;</summary>
+    <summary class="edit-btn icon-btn" aria-label="Add a Subject" title="Add a Subject">{% include "diary/_icon.html" with icon="add" %}<span class="visually-hidden">Add a Subject</span></summary>
     <form method="post" action="{% url 'edit_add' %}" class="edit-form">
       {% csrf_token %}
       <input type="hidden" name="what" value="subject">
       <input type="hidden" name="landing" value="0">
       <input type="hidden" name="next" value="{{ next_url }}">
-      <label>Subject name <input type="text" name="name" maxlength="300" required></label>
+      <label>Text (the Subject name) <input type="text" name="text" maxlength="300" required></label>
       <button type="submit">Add at the end</button>
     </form>
   </details>
