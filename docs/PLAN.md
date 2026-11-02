@@ -104,6 +104,8 @@ Note: the technology (Django, PostgreSQL) is confirmed for a **standalone app** 
 - Change the Sections format (for example to "Section 1, Section 2") and watch the preview and screens change.
 - Type a Custom Name containing a colon; the preview shows the file name with a hyphen and says "':' was replaced with '-'". Empty names, over 60 characters, and leading or trailing dots or spaces are refused.
 
+**Status of 4d (My settings):** opening page and number formats with a live preview are built (D30 in `docs/DESIGN.md`); code written, not run against Django, so GitHub CI is the first run. **Owner check list:** on My settings choose each opening page and sign in again (and visit `/` directly); `?home=1` still reaches Home; change the formats and watch the Preview, then Save and check the reading page; "Use the standard formats" resets the dropdowns; try it on a phone.
+
 **Risks:**
 - Search quality on citations with unusual punctuation (mitigation: test with real citations from your file).
 - Shortcut clashes with the browser or Mac system (the reason Cmd+G and Cmd+H are not used).
