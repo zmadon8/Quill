@@ -787,7 +787,7 @@ Each has a default that stands unless you say otherwise.
 
 ## Proposal for 10d: merge Multi-Item into Item
 
-**STATUS: NOT IMPLEMENTED. This is a proposal only. No code, migration or data has changed. It waits for the owner's approval.**
+**STATUS: APPROVED by the owner ("Yes", with: keep a single Citation box in the add form as the first citation stored as Case (a); show each comment after its citation in smaller grey text; Multi-Item stays out of the Add menu). Part 1 (data model, migration 0010, old-backup and old-version mapping) is built; reading views, editor, conversions, importer, export and Trash wording follow in part 2.**
 
 [Owner: "Perhaps 'multi-item' can be merged with 'item', and all items can allow me to add multiple citations, with a little optional 'comment' displayed after it?"]
 
@@ -843,3 +843,12 @@ Each stage ends with CI green and your check before the next begins.
 
 - **R6-4.** [Owner: "keep the home icon on the Home page too, for now."] Decision: the Home icon (left of the brand) is now part of the shared header, so it shows on Home, Users, Settings and the other suite pages as well as inside programs. The block is defined once in `base_suite.html`.
 - **R6-2.** [Owner: "Yes" to opening the site address while signed in going to the chosen program.] Decision: a signed-in user who opens bare `/` as an entry visit goes straight to the program chosen in My settings (`User.landing_program`), provided they still have a profile in it; otherwise Home shows. An entry visit means a GET of `/` with no `?home=1` and no same-origin Referer (typed address, bookmark, or a link from another site). Deliberate Home access is never redirected: the Home icon, the brand link, Alt+H, Cancel links, the Back fallback and "Back to Home" all link to `/?home=1`, and ordinary in-site links to `/` carry a same-origin Referer. Chosen because it needs no cookies or session state and fails safe (an unexpected case shows Home).
+
+### 10d part 1: what was built (model, migration, legacy mapping)
+
+- `Item.kind` is now plain or nested. `Case` may sit under any Item except a Nested Item. The database rule `item_multi_has_no_citation` is dropped.
+- Migration `diary.0010` (one transaction, schema changes first, data move last): every non-nested Item whose `citation` is not empty gets a new first Case holding that citation exactly as written, with an empty comment, and the Item's own citation is emptied; every Multi-Item becomes a plain Item and keeps its Cases. Record counts are checked before and after inside the migration (Items unchanged, Cases up by exactly the number of moved citations, no citation or Multi-Item left); any mismatch raises and rolls everything back. Each changed Item (version +1, `updated_at` and `updated_by` untouched) and each new Case gets a version-history row with change kind "Migrate".
+- Decisions taken without being asked, for the owner to confirm: (1) a **Nested Item keeps its own citation** because a Nested Item cannot own Cases, so `Item.citation` is empty only for non-nested Items; (2) a citation made only of spaces is **kept verbatim** in a Case (not trimmed, not dropped) and counted separately; (3) the new Case is positioned **1** when the Item had no Cases (live positions are 1..n elsewhere in the app), else one before the lowest existing position; if that lowest position is 0 the migration stops with a message rather than guess; (4) the new Case copies the Item's Trash state so restoring the Item restores its citation.
+- Reverse is deliberately **not** supported (it raises a clear message): afterwards nothing says which Cases were once a single citation. The safety backup "pre_migration" taken by `migrate_with_backup` before the update is the way back.
+- `Item.citation` stays as a legacy column so old backups and old history snapshots still read.
+- All the mapping lives in `diary/services/legacy.py`: used by the migration, by the backup loader (`backups.services.upgrade_old_items`, so an old backup file is mapped exactly the same way and the restore preview says so), and by History restore (an old version's `citation` becomes Case (a), an empty one never clears it).
