@@ -91,14 +91,15 @@ class _Data:
             ).order_by("position", "pk")
         )
         self.links = {}
-        for link in live(NoteLink.objects.filter(note__in=notes)).order_by("position", "pk"):
+        outgoing = live(NoteLink.objects.filter(note__in=notes)).select_related(*_link_paths()).order_by("position", "pk")
+        for link in outgoing:
             self.links.setdefault(link.note_id, []).append(link)
 
         # Links INTO this Subject from live Notes anywhere (Linked from). A Note in Trash, or under something in Trash, shows nothing.
         self.incoming = {}
         targets = Q(subject=subject) | Q(topic_id__in=topic_ids) | Q(subtopic_id__in=subtopic_ids)
         targets |= Q(section_id__in=section_ids) | Q(item_id__in=item_ids)
-        found = live(NoteLink.objects.filter(targets, note__deleted_at__isnull=True)).select_related("note").order_by("note_id", "pk")
+        found = live(NoteLink.objects.filter(targets, note__deleted_at__isnull=True)).select_related(*_note_paths("note")).order_by("note_id", "pk")
         for link in found:
             if in_trash(link.note):
                 continue
@@ -135,6 +136,30 @@ class _Data:
 
 
 LINK_COLUMNS = ("subject", "topic", "subtopic", "section", "item")
+
+
+def _record_paths(prefix):
+    """select_related paths for a record at ``prefix`` and the headings above it (Sub-topic > Topic > Subject)."""
+    return [prefix, f"{prefix}__subject", f"{prefix}__topic__subject", f"{prefix}__subtopic__subject",
+            f"{prefix}__subtopic__topic__subject"]
+
+
+def _item_paths(prefix):
+    paths = _record_paths(prefix)
+    parent = f"{prefix}__parent_item"
+    return paths + _record_paths(parent)
+
+
+def _link_paths():
+    """Everything note_link_info and in_trash read from a link's target, loaded in the same query (no per-link queries)."""
+    return ["subject", "topic__subject", "subtopic__subject", "subtopic__topic__subject"] + _record_paths("section") + _item_paths("item")
+
+
+def _note_paths(prefix):
+    """Everything note_place and in_trash read from a Note, loaded in the same query."""
+    return _record_paths(prefix) + _record_paths(f"{prefix}__section") + _item_paths(f"{prefix}__item")
+
+
 PARENT_COLUMNS = ("parent_item", "item", "section", "subtopic", "topic", "subject")
 
 
