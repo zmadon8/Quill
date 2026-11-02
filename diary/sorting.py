@@ -14,14 +14,29 @@ The key of a name is built in three steps:
 3. Ties (same name apart from capitals or punctuation at the start) are broken by the full original
    name, then by id, so the order is always the same.
 
-Not handled on purpose: a leading "The" or "Re:" is not ignored; "Sections" sorts after "Section"
-(they are different words); Roman numerals are letters.
+Owner answers (round 7), applied to the sort key only; the displayed name never changes:
+
+* a leading "The", "Re:" or "Re " is ignored ("In re X" is not touched: only the very start counts);
+* a leading list marker such as "(a):" is ignored, so "(a): Freedom of Expression" sorts under F. The
+  marker is deliberately narrow: a bracketed letter, number or Roman numeral, then an optional ":", "."
+  or ")", then spaces. Bare "a." or "1." prefixes are NOT markers (a number is a number: "1. Intro" is 1);
+* the whole words "Sections", "Orders" and "Rules" count as "Section", "Order" and "Rule", so
+  "Sections 9 & 17" sorts between "Section 8" and "Section 10", by its first number.
+
+Not handled on purpose: Roman numerals outside a bracketed marker are letters.
 """
 import re
 import unicodedata
 
 _PARTS = re.compile(r"([0-9]+)")
 _SPACES = re.compile(r"\s+")
+#: "(a)", "[2]", "(iv):", "(b)." ... after case folding. A letter, 1-3 digits or a Roman numeral in brackets,
+#: then an optional ":" "." ")" and spaces. Only stripped when a name remains after it.
+_MARKER = re.compile(r"^[(\[]\s*(?:[a-z]|[0-9]{1,3}|[ivx]{2,5})\s*[)\]]"
+                     r"[:.)]?\s+|^[(\[]\s*(?:[a-z]|[0-9]{1,3})\s*[)\]][:.)]\s*")
+#: A leading "the ", "re:" or "re " (whole words, only at the very start).
+_LEAD_WORD = re.compile(r"^(?:the\s+|re\s*:\s*|re\s+)")
+_PLURALS = re.compile(r"\b(section|order|rule)s\b")
 
 #: Token kinds. A number sorts before text where both could stand.
 _NUMBER, _TEXT = 0, 1
@@ -32,10 +47,27 @@ def normalise(name):
     text = unicodedata.normalize("NFKD", name or "")
     text = "".join(ch for ch in text if not unicodedata.combining(ch))
     text = _SPACES.sub(" ", text.casefold()).strip()
+    text = _strip_leading(text)
+    while True:
+        rest = _MARKER.sub("", text, count=1)
+        rest = _strip_leading(_LEAD_WORD.sub("", rest, count=1))
+        if not rest or rest == text:
+            break
+        text = rest
+    return _PLURALS.sub(r"\1", text)
+
+
+def _strip_leading(text):
+    """Drop what is at the START and is not a letter or a digit; brackets stay so a marker can be seen."""
     start = 0
-    while start < len(text) and not text[start].isalnum():
+    while start < len(text) and not text[start].isalnum() and text[start] not in "([":
         start += 1
-    return text[start:]
+    text = text[start:]
+    # A bracket that is not a list marker is punctuation too: "(Zed)" -> "zed)".
+    if text and text[0] in "([" and not _MARKER.match(text):
+        text = text[1:]
+        return _strip_leading(text)
+    return text
 
 
 def natural_tokens(name):

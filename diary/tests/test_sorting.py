@@ -68,9 +68,41 @@ class OrderTests(unittest.TestCase):
     def test_prefix_first(self):
         check(self, ["Section", "Section 1", "Sub-Section 6A"])
 
-    def test_sections_plural_is_a_different_word(self):
-        # Documented: "Sections ..." sorts after every "Section N".
-        check(self, ["Section 11", "Section 45", "Sections 9 & 17", "Sections 12-14"])
+    def test_sections_plural_sorts_as_singular(self):
+        # Owner round 7: Sections/Orders/Rules sort as Section/Order/Rule, by first number.
+        check(self, ["Section 8", "Sections 9 & 17", "Section 10", "Section 11", "Sections 12-14", "Section 45"])
+        check(self, ["Order 2 Rule 2", "Orders 3-4", "Order 11 R.12", "Order 13-A"])
+        check(self, ["Rule 3A", "Rules 4-5", "Rule 10"])
+
+    def test_plural_only_whole_words_and_key_only(self):
+        self.assertEqual(s.normalise("Sections 9 & 17"), "section 9 & 17")
+        self.assertEqual(s.normalise("Crosssections"), "crosssections")
+        self.assertEqual(ordered("Sections 9", "Section 9"), ["Section 9", "Sections 9"])
+        self.assertEqual(ordered("Sections 9")[0], "Sections 9")  # displayed name unchanged
+
+    def test_leading_the_and_re_ignored(self):
+        self.assertEqual(s.normalise("The Court"), "court")
+        self.assertEqual(s.normalise("Re: Tender"), "tender")
+        self.assertEqual(s.normalise("Re Tender"), "tender")
+        self.assertEqual(s.normalise("In re Tender"), "in re tender")
+        self.assertEqual(s.normalise("Theory"), "theory")
+        self.assertEqual(s.normalise("Real"), "real")
+        self.assertEqual(ordered("The Zebra", "Apple", "Re: Mango", "Banana"),
+                         ["Apple", "Banana", "Re: Mango", "The Zebra"])
+
+    def test_list_marker_ignored(self):
+        self.assertEqual(s.normalise("(a): Freedom of Expression"), "freedom of expression")
+        self.assertEqual(s.normalise("(iv) Fourth"), "fourth")
+        self.assertEqual(s.normalise("[2]. Second"), "second")
+        self.assertEqual(s.normalise("(a): The Freedom"), "freedom")
+        # Conservative: bare prefixes and ordinary bracketed words are not markers.
+        self.assertEqual(s.normalise("a. Thing"), "a. thing")
+        self.assertEqual(s.normalise("1. Intro"), "1. intro")
+        self.assertEqual(s.normalise("(Quoted) name"), "quoted) name")
+        self.assertEqual(s.normalise("(mix) name"), "mix) name")
+
+    def test_real_marker_subtopics(self):
+        check(self, ["Equality", "(a): Freedom of Expression", "(g): Freedom of Trade and Commerce", "Liberty"])
 
     def test_leading_zero_equal_numbers_tie_break_on_name(self):
         self.assertEqual(ordered("S. 09", "S. 9"), ["S. 09", "S. 9"])
