@@ -221,4 +221,4 @@ Owner questions (default stands unless you say otherwise):
 
 Round 8 item 2 a and b (D25 in `docs/DESIGN.md`): the Subjects page is now "Home", titled "Index of Subjects", and the Edit switch is at the bottom of the Home page (on the bar on reading pages). Owner question: move it to the bottom on reading pages too? Default: no.
 
-Round 8 manual test needed: the Move to... flow (`postPlain` in `static/js/edit-mode.js`) has only a source-text test and the server-side strict-CSRF tests, no behavioural JS test. Before release, try Move to... once in a real browser (card, picker, confirm) and check it no longer shows "security check did not pass". Open owner question: should `/caselaw` go to `/caselaw/home/` (built) or to the Subjects address `/caselaw/subjects/`? Left unchanged.
+Round 8 manual test needed: the Move to... flow (`postPlain` in `static/js/edit-mode.js`) has only a source-text test and the server-side strict-CSRF tests, no behavioural JS test. Before release, try Move to... once in a real browser (card, picker, confirm) and check it no longer shows "security check did not pass".

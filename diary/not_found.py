@@ -30,7 +30,7 @@ def _is_browser_page_request(request):
 
 
 def _destination(request):
-    """Program Home for an address under /caselaw/ when the user has a profile there, else suite Home."""
+    """The Subjects page (/caselaw/subjects/) for an address under /caselaw/ when the user has a profile there, else suite Home."""
     user = getattr(request, "user", None)
     if (request.path_info.startswith("/caselaw/") and user is not None and user.is_authenticated
             and request_profile(request) is not None):

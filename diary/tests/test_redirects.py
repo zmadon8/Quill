@@ -1,4 +1,4 @@
-"""Round 8, item 1: the 301 redirects (unknown pages, /caselaw, the old /caselaw/subjects/ address)."""
+"""Round 8, item 1: the 301 redirects (unknown pages, /caselaw, /caselaw/home/ alias)."""
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
@@ -20,30 +20,31 @@ class RedirectTests(TestCase):
         cls.subject = Subject.objects.create(profile=main_profile(), name="Arbitration", landing_position=1)
 
     def test_diary_home_url(self):
-        self.assertEqual(reverse("diary_home"), "/caselaw/home/")
+        self.assertEqual(reverse("diary_home"), "/caselaw/subjects/")
 
-    def test_caselaw_with_and_without_slash_go_to_program_home(self):
-        for path in ("/caselaw", "/caselaw/"):
+    def test_caselaw_with_and_without_slash_go_to_subjects(self):
+        for path in ("/caselaw", "/caselaw/", "/caselaw/home/"):
             resp = self.client.get(path)
             self.assertEqual(resp.status_code, 301, path)
-            self.assertEqual(resp["Location"], "/caselaw/home/", path)
+            self.assertEqual(resp["Location"], "/caselaw/subjects/", path)
 
-    def test_old_subjects_page_keeps_the_query_string(self):
-        resp = self.client.get("/caselaw/subjects/?edit=1")
-        self.assertEqual(resp.status_code, 301)
-        self.assertEqual(resp["Location"], "/caselaw/home/?edit=1")
+    def test_caselaw_redirects_keep_the_query_string(self):
+        for path in ("/caselaw?edit=1", "/caselaw/?edit=1", "/caselaw/home/?edit=1"):
+            resp = self.client.get(path)
+            self.assertEqual(resp.status_code, 301, path)
+            self.assertEqual(resp["Location"], "/caselaw/subjects/?edit=1", path)
 
     def test_old_root_subjects_page_is_a_single_hop(self):
         resp = self.client.get("/subjects/?edit=1")
         self.assertEqual(resp.status_code, 301)
-        self.assertEqual(resp["Location"], "/caselaw/home/?edit=1")
+        self.assertEqual(resp["Location"], "/caselaw/subjects/?edit=1")
 
     def test_subject_contents_address_is_unchanged(self):
         self.assertEqual(reverse("subject_contents", args=[7]), "/caselaw/subjects/7/")
 
-    def test_program_home_page_renders(self):
+    def test_subjects_page_renders(self):
         self.client.force_login(self.reader)
-        self.assertEqual(self.client.get("/caselaw/home/").status_code, 200)
+        self.assertEqual(self.client.get("/caselaw/subjects/").status_code, 200)
 
     def test_unknown_root_page_in_a_browser_goes_to_suite_home(self):
         for path in ("/nope/", "/nope"):
@@ -51,11 +52,11 @@ class RedirectTests(TestCase):
             self.assertEqual(resp.status_code, 301, path)
             self.assertEqual(resp["Location"], "/?home=1", path)
 
-    def test_unknown_caselaw_page_goes_to_program_home_with_a_profile(self):
+    def test_unknown_caselaw_page_goes_to_subjects_with_a_profile(self):
         self.client.force_login(self.reader)
         resp = self.client.get("/caselaw/nope/", **HTML)
         self.assertEqual(resp.status_code, 301)
-        self.assertEqual(resp["Location"], "/caselaw/home/")
+        self.assertEqual(resp["Location"], "/caselaw/subjects/")
 
     def test_unknown_caselaw_page_goes_to_suite_home_without_a_profile(self):
         self.client.force_login(self.no_profile)
@@ -82,17 +83,17 @@ class RedirectTests(TestCase):
         self.client.force_login(self.reader)
         resp = self.client.get("/caselaw/subjects/999999/", **HTML)
         self.assertEqual(resp.status_code, 302)  # temporary: the record can come back from the Trash
-        self.assertEqual(resp["Location"], "/caselaw/home/")
+        self.assertEqual(resp["Location"], "/caselaw/subjects/")
         page = self.client.get(resp["Location"], **HTML)
         self.assertContains(page, "That page no longer exists.")
-        self.assertNotContains(self.client.get("/caselaw/home/", **HTML), "That page no longer exists.")
+        self.assertNotContains(self.client.get("/caselaw/subjects/", **HTML), "That page no longer exists.")
 
     def test_another_profiles_record_redirects_the_same_way(self):
         other = Profile.objects.create(program="diary", name="Other")
         theirs = Subject.objects.create(profile=other, name="Theirs", landing_position=1)
         self.client.force_login(self.reader)
         resp = self.client.get("/caselaw/subjects/%d/" % theirs.pk, **HTML)
-        self.assertEqual((resp.status_code, resp["Location"]), (302, "/caselaw/home/"))
+        self.assertEqual((resp.status_code, resp["Location"]), (302, "/caselaw/subjects/"))
 
     def test_forbidden_stays_forbidden(self):
         self.client.force_login(self.reader)

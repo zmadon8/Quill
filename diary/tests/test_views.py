@@ -171,7 +171,7 @@ class HomeIndexTests(TestCase):
 
     def test_caselaw_urls_and_old_urls_redirect(self):
         self.client.force_login(self.reader)
-        self.assertEqual(reverse("diary_home"), "/caselaw/home/")
+        self.assertEqual(reverse("diary_home"), "/caselaw/subjects/")
         self.assertEqual(reverse("search"), "/caselaw/search/")
         self.assertEqual(reverse("subject_contents", args=[7]), "/caselaw/subjects/7/")
         self.assertEqual(reverse("read_subject", args=[7]), "/caselaw/subjects/7/read/")
@@ -184,7 +184,7 @@ class HomeIndexTests(TestCase):
         self.assertEqual(reverse("backup_list"), "/backups/")
         self.assertEqual(reverse("healthz"), "/healthz/")
         moved = {
-            "/subjects/": "/caselaw/home/",
+            "/subjects/": "/caselaw/subjects/",
             "/subjects/7/": "/caselaw/subjects/7/",
             "/subjects/7/read/": "/caselaw/subjects/7/read/",
             "/topics/7/read/": "/caselaw/topics/7/read/",
