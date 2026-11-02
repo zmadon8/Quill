@@ -34,7 +34,7 @@ Rules from the specification:
 1. An **Item** is one proposition of law: rich text plus one single-line **Citation**.
 2. A **Nested Item** is an Item that has Items beneath it. It has its own text and Citation and is numbered like an Item. Items beneath it show **bullets only**.
 3. A **Section** is a bold header line between Items. It has its own number (its own format, section 4) and no children. It acts as a grouping header **by position**: the Items that follow it, up to the next Section, are numbered afresh from (1). A Section can be marked For review like an Item (section 11).
-4. A **Multi-Item** is an Item with several citations in one line, shown as (a), (b), (c). Each is a **Case** with its own Citation and an optional rich-text comment.
+4. An Item may hold one or more citations (10d: the former **Multi-Item** is merged into Item). Each citation is a **Case** with its own Citation line and an optional rich-text comment. One citation shows with no label; two or more show as (a), (b), (c). "Multi-Item" is no longer a type: it is just an Item with two or more Cases.
 5. Items may sit at any level: directly under a Subject, Topic, Sub-topic or Nested Item.
 6. A container shows its **own Items, Sections and Nested Items first** (one shared order), then its **Notes**, then its **child headings**.
 7. Numbering is **generated from position and never stored** (section 5).
@@ -98,15 +98,15 @@ The database check is: "exactly one parent column is not empty". Linked records 
 **Item**:
 - parent (3.1), `kind` (plain, multi, nested), `text` (rich), `text_plain` (derived), `citation` (single-line plain text), `flag` (none, overruled, doubted, other), `flag_text`, `needs_review`, `review_note`, `position`.
 - `original_line` (the exact Word paragraph, set at import, never edited) and `import_ref` (where it came from: paragraph number in the file). Both are empty for items you create by hand.
-- Rules in the database: a Nested Item's children must be plain Items (one level); a Multi-Item has no `citation` of its own because its Cases hold the citations.
+- Rules in the database: a Nested Item's children must be plain Items (one level); the citations of a non-nested Item are held by its Cases (`Item.citation` is empty for them; a Nested Item cannot own Cases and keeps its own `citation`). `Item.kind` is only plain or nested.
 
-**Case**: `item_id`, `citation`, `comment` (rich, optional), `position`. Only allowed under a Multi-Item.
+**Case**: `item_id`, `citation`, `comment` (rich, optional), `position`. Allowed under any Item except a Nested Item.
 
 **Note**: parent (3.1), `text` (rich), `position`.
 
 **NoteLink**: `note_id`, and exactly one target column: `subject_id`, `topic_id`, `subtopic_id`, `section_id`, `item_id` (a Nested Item is an Item). Links are never removed by the system, not even when the target is in Trash.
 
-**UserSettings**: `user_id`, `opening_page`, `opening_subject_id`, the number formats for Topics, Sub-topics, **Sections**, Items, Nested Items and Multi-Item citations, `export_custom_name` (text, default `Case Law Diary`, the program's display name; D17), `export_date_format`, and the time zone used for dates (section 5.11).
+**UserSettings**: `user_id`, `opening_page`, `opening_subject_id`, the number formats for Topics, Sub-topics, **Sections**, Items, Nested Items and the citation letters (the Multi-Item citation format), `export_custom_name` (text, default `Case Law Diary`, the program's display name; D17), `export_date_format`, and the time zone used for dates (section 5.11).
 
 **User**: login name, password (stored only as a secure hash), `role` (Admin, Editor or Reader; default Reader; Admin is tied to `is_superuser`, exposed as `is_admin`), `is_active`. Section 9.6 has the roles.
 
@@ -164,7 +164,7 @@ Numbers are computed whenever a page or export is built, from the order of recor
    - The Section number, the Item numbers and the restart are all generated from position. Nothing is stored.
 5. **Items inside a Nested Item**: bullets, no numbers.
 6. Every level **restarts under its parent**.
-7. **Multi-Item citations**: (a), (b), (c) inside the item.
+7. **Citation letters** (the Multi-Item citation format): (a), (b), (c) when an Item has two or more citations.
 
 **Worked example** (Topic `Letters Patent & OS Rules`, Sub-topic `Clause 12: Leave to Sue`; 12 Items and 2 Sections in the Word file, no Item before the first Section). The Diary shows, with the default Section format:
 
@@ -226,7 +226,7 @@ Numbers appear in two places only: on screen and in the Word export. Searching a
 - Separate single-line **Citation** box.
 - Flag selector (none, overruled, doubted, other plus short text).
 - **For review** switch with an optional note.
-- For Multi-Items: a Cases list (add, remove, reorder cases, each with a Citation and optional comment).
+- Citations: always one citation row (the main Citation box, first citation), plus "Add another citation"; each row has an optional Comment and Up, Down and Remove. Not shown for a Nested Item, which has its own single Citation.
 - **Change to** button for conversion (section 7).
 - Shows **created** and **last edited** times and who.
 - Shows **History** (section 9).
@@ -258,7 +258,7 @@ Two independent panes side by side, each with its own location. Only on wide scr
 ### 5.11 Settings (4.11)
 Per user:
 - **Opening page** (overrides the login landing on Home, decision D15): Home, Subjects, Other Subjects, Global Search, last page viewed, or a chosen Subject.
-- **Number formats** for Topics, Sub-topics, **Sections**, Items, Nested Items and Multi-Item citations, each with a live preview (the Sections preview shows a Section followed by Items restarting at (1)). Changing formats changes display and Word export only, never the stored data.
+- **Number formats** for Topics, Sub-topics, **Sections**, Items, Nested Items and citation letters (for Items with several citations), each with a live preview (the Sections preview shows a Section followed by Items restarting at (1)). Changing formats changes display and Word export only, never the stored data.
 - **Custom Name** (decision D11): the text that starts every exported Word file name. Default `Case Law Diary`, following the program's display name (D17). Rules: trimmed; 1 to 60 characters; not empty after cleaning; no leading or trailing dots or spaces. Characters not allowed in file names ( \ / : * ? " < > | and control characters ) are replaced with a hyphen `-`, and repeated spaces are collapsed. A **live preview** shows the resulting file name for each export type, with a note of any replacement made (for example "':' was replaced with '-'").
 - **Date format** for file names and the export date line: `YYYY-MM-DD` (default, needs owner confirmation), `DD-MM-YYYY`, or `D Month YYYY`.
 - **Time zone** for "today's date" in file names: default Asia/Kolkata (default, needs owner confirmation). The server itself stores times in UTC; every time shown on a screen or in a report is in IST (round 3, item 4).
@@ -274,24 +274,23 @@ Per user:
 - **Review list**: every Item and Section marked For review across all Subjects, with path and note. A Section appears as a header row with its number and its parent path.
 - **Trash**, **History**, **Backups (Admin only)**, **Users (Admin only)**, **Import report** (during import only).
 
-## 6. Conversions: Item, Multi-Item, Nested Item (4.13)
+## 6. Conversions: Item and Nested Item (4.13)
 
-Any of the three can become either of the other two. The record **keeps its ID**. A **preview is shown before every conversion** (before and after side by side), the change is recorded in history, and **Undo and history restore** bring the old form back exactly.
+(10d: the Multi-Item type is gone, so only Item and Nested Item convert. The rows below describe the implemented behaviour.)
+
+Either can become the other. The record **keeps its ID**. A **preview is shown before every conversion** (before and after side by side), the change is recorded in history, and **Undo and history restore** bring the old form back exactly.
 
 | From | To | What happens |
 |---|---|---|
-| Item | Multi | The text stays. The Citation becomes Case (a). |
-| Multi | Item | The Case citations (and comments) are joined into one single-line Citation: `(a) ... ; (b) ...`. |
-| Item | Nested | Text and Citation stay. It simply may now have Items beneath. |
-| Multi | Nested | Text stays. Each Case becomes an Item beneath it (citation becomes that Item's Citation; comment becomes that Item's text). |
-| Nested | Item or Multi | You choose: **(a)** keep the Items beneath, moved to sit directly after it (nothing lost); or **(b)** fold each child into a Case: child's text becomes the comment, child's Citation becomes the Case citation; the Nested Item's own Citation becomes Case (a). |
+| Item | Nested | Text stays. A single Case with no comment moves to the Nested Item's own Citation (the Case goes to Trash in a "Removed by conversion" batch). Several Cases, or any comment, become Items beneath it (comment as that Item's text, citation as that Item's Case (a)). Nothing is lost, so there is no flatten warning. |
+| Nested | Item | The Nested Item's own citation, if any, becomes Case (a). You choose: **(a) keep**: the children move to sit directly after it, keeping their own Cases; or **(b) fold**: each child becomes a Case (child text as the comment, the child's only citation as the citation); the children and their Cases go to the same Trash batch. |
 
 **Warnings and refusals (these are the resolved design points):**
 
-1. **Multi to Item joins rich-text comments into a plain single line.** That loses bold/italic/underline and line breaks in comments. The preview shows exactly the resulting text and a clear warning "formatting and line breaks in comments will be lost". The old form stays in history for restore. Nothing proceeds without your confirmation.
-2. **Nested to Multi/Item option (b), "folding", is refused** and option (a) is offered instead when any child: is a Multi-Item or Nested Item, has more than one Case, has a flag or For-review marker, has a Note, or when the Nested Item has Sections beside its children. (Folding would lose structure, so the app declines rather than guess.)
+1. **No information is lost in a conversion any more**, so the old warning about flattening comments was removed. The old form stays in history for restore.
+2. **Nested to Item option (b), "folding", is refused** and option (a) is offered instead when any child: is a Nested Item, has a flag or For-review marker, has a Note, has several citations, or has a citation of its own as well as a Case; or when the Nested Item has Sections beside its children. (Folding would lose structure, so the app declines rather than guess.)
 3. Because only one level of nesting exists (2.2), a Nested Item with Nested children cannot arise.
-4. Converting to Nested for a Multi with comments: each comment becomes the child's text with its formatting preserved (rich text to rich text, no loss).
+4. Converting an Item with several citations or comments to Nested: each comment becomes the child's text with its formatting preserved (rich text to rich text, no loss).
 5. A conversion that would put something in an illegal place is refused with an explanation.
 
 ## 7. Notes and cross-references
@@ -707,7 +706,7 @@ Everything below is a **DEFAULT, not confirmed by the owner**. The code is in `d
 - **M3-7. Previews.** `preview_move` and `preview_delete` list the Items, Sections, Topics or Cases whose generated number changes (before and after, using the user's number formats), and `preview_delete` also says how many records go to Trash. Previews write nothing.
 - **M3-8. Undo groups.** Every action stamps its history rows with one `group` id (new column on VersionHistory). `undo_group` reverses the whole action by restoring each record to the version before the action (a record the action created is moved to Trash). It only reverses the user's own actions; the view layer keeps the list of group ids for the session. If a record changed after the action it raises `UndoWarning` (list of records) unless `force=True`; if another user changed it, it is refused. The undo is itself an action with its own group, so undoing it is a redo. Names are not silently changed: if the old name is taken by another live Subject or Topic, Undo stops with `NameClash` and changes nothing.
 - **M3-9. History restore.** `restore_version` copies back only the content fields (name, text, citation, flag, review marker, comment). Where a record sits and what type of Item it is are not changed; restoring a version from before a conversion is refused with an explanation (use Undo, or convert back first).
-- **M3-10. Conversions.** Implemented as in section 6, with these choices. Multi to Item joins the Cases as `(a) Citation - comment; (b) Citation`; a single Case gives just its citation. The joined text is refused if over 1,000 characters. Comments are flattened to plain text, so the warning "Formatting and line breaks in comments will be lost." must be accepted (`accept_warnings=True`). Cases that disappear in a conversion go to Trash in a batch labelled "Removed by conversion", and every record written has change kind "convert" under one Undo group. Nested to Item or Multi with children needs an explicit choice, "keep" (children move to sit directly after it, in order) or "fold". Folding is refused (and "keep" offered) when a child has a flag, a For review marker or a Note. The database already forbids a Multi-Item or Nested Item under a Nested Item and a Section under an Item, so those parts of the refusal rule can never occur; they are enforced by the structure.
+- **M3-10. Conversions.** Implemented as in section 6, with these choices. (Superseded by 10d, section 6 and "10d part 2": there is no Multi type, so no joining of Cases and no flatten warning.) Cases that disappear in a conversion go to Trash in a batch labelled "Removed by conversion", and every record written has change kind "convert" under one Undo group. Nested to Item with children needs an explicit choice, "keep" (children move to sit directly after it, in order) or "fold". Folding is refused (and "keep" offered) when a child has a flag, a For review marker or a Note. The database already forbids a Multi-Item or Nested Item under a Nested Item and a Section under an Item, so those parts of the refusal rule can never occur; they are enforced by the structure.
 - **M3-11. Validation.** Names of Subjects, Topics and Sub-topics are required, tidied (surrounding and repeated spaces removed) and at most 300 characters; Subject names are unique among live Subjects of a profile ignoring case; the citation is one line of at most 1,000 characters; a Multi-Item has no citation. Content rules are checked on create, edit, history restore and convert only, so imported or older data can always be moved, deleted and restored.
 - **M3-12. Backups.** `diary.TrashBatch` is in the backup registry as an optional model (an older backup has none, so a restore leaves the table empty), and an older file without `delete_batch` or `group` loads with empty values.
 
@@ -764,49 +763,59 @@ Items 1 to 5, 6, 7 and 9 of the owner's round 5 request. The rest are recorded w
 - **R5-10b (quick add).** [Owner: "...perhaps, for all users with editing ability, add a '+' button to create (ONLY on the desktop view) next to every item or header etc allowing me to add new items?"] Decision: a "+" icon button (`aria-label` "Add entry here", `data-add-here`, template `_add_here.html`) sits next to every Subject, Topic and Sub-topic heading, every Section and every Item, for Editors only (nothing is rendered for Readers, and `edit/add/` answers 403 to them whatever is posted). In reading view it exists only when `(min-width: 900px) and (hover: hover) and (pointer: fine)` matches (CSS hides it otherwise) and shows on hover or keyboard focus; in Edit mode it is one of the icon buttons on every screen size. The "+" is an ordinary link to the Add page (`edit/add/?after=item:5` or `?parent=topic:3`, preselecting the place, `next` carried), so it works without JavaScript and on phones. `static/js/quick-add.js` (loaded only for Editors) turns the click into a small inline form directly beneath the row, only when the same media query matches at click time: a kind switch, Text (a plain line for Subject, Topic, Sub-topic and Section; the minimal rich box from `richtext-editor.js` for Item and Nested Item), Citation (disabled for the headings). Enter or Ctrl+Enter saves, Shift+Enter is a new line in the rich box, Escape cancels. It posts to the same `edit_add` view with the header `X-Requested-With: fetch` and gets JSON back (`ok`, `id`, `kind`, `version`, `after`, or `errors`, with 400 for a rule or typing error, 409 for a stale version, 403 for a non-Editor). Everything is done by `svc.create(..., index=...)`, so numbering, History and Undo behave as for any add, and the add is one Undo step including the siblings that shift. DEFAULT: on a heading the "+" adds INSIDE it, as the FIRST entry (`first=1`), so the new entry appears right under the heading where the form is; the Add form in the edit bar still adds at the end. DEFAULT: default kind after an Item or Section is Item (same parent; inside a Nested Item only Item is offered), on a Topic or Sub-topic Item, on a Subject Topic. DEFAULT: after a save the script fetches the same page again and swaps the article content, which is the simplest way to get every generated number right (the scroll position is kept), and opens the form again beneath the new Item or Section for "add another"; after adding a heading it just closes the form, because "after" a heading would really mean inside it. No sibling-version check is sent for "inside" adds.
 - **R5-10c.** [Owner: "When editing, and viewing items, put a button with the item to add an item AFTER that item."] Decision: the same "+" on an Item or Section means add directly after it, in the same parent (`after=<kind>:<id>`, kinds item, section, topic, subtopic). The server finds the record inside the signed-in profile (another profile's id or a Trash record is refused), takes its parent from its position sequence, counts its live siblings up to it and creates the new record at that index, so later siblings move down by one (a `reorder` History row each) and Items, Sections and Nested Items keep sharing one sequence. Optimistic concurrency: the form sends `after_version`, the version of the record the Editor saw; a stale one is a conflict (the normal conflict screen, or 409 JSON), and "Keep mine" re-sends with the current version. A Reader gets 403. Visible in reading view for Editors on desktop and in Edit mode everywhere (on a phone it opens the Add page). DEFAULT: one button serves both 10b and 10c (on an Item or Section it is "add after", on a heading it is "add inside"), instead of two buttons per row. DEFAULT (review fix): the no-JS Add page for `?parent=` now also puts the entry first (hidden `first=1`, "at the top of the ..."), so the "+" on a heading behaves the same with and without JavaScript. The server refuses a kind that cannot sit beside the anchor (`AFTER_CHOICES`, and only Items after a Nested Item child). Two Editors adding after the same record at once may compute the same index; `make_room` clamps the index inside the create transaction, so nothing is lost or duplicated and the order between the two new entries is arbitrary, which is accepted. An expired CSRF token on the inline form gets its own message ("Your session has expired"), not the permission one.
 
-Questions for the owner: (1) Should the Home icon also show on suite pages? (2) Should the Admin checkbox help text go too? (3) Should the Other Subjects list be collapsible?
+Round 5 questions 1 and 4 were answered in round 6 (see the decision log below); the rest are listed under round 6 questions.
 
 ### Editing redesign (plain description for the owner)
 
 Adding is now quicker in three ways. First, the edit buttons are small icons instead of words; hover or tab to a record to see them, and each has a hover label. Second, there is a **+** next to every heading, Section and Item. On a computer with a mouse, click it and a small box opens right under that line; type the text (and a citation for an Item), press **Enter**, and the entry is added directly after that Item or Section (or first inside that heading). The box stays open under the new entry so you can keep typing the next one; **Shift+Enter** starts a new line, **Esc** closes the box. Third, the same + works on a phone or tablet in Edit mode, but there it opens the ordinary Add page with the place already chosen, because a small screen has no room for the inline box. People who can only read never see the + and the server refuses them even if they try. Everything you add this way is numbered correctly, appears in History, and can be reversed with **Undo** (one step per entry). If someone else changed the Item you were adding after, nothing is added and you get the usual two versions screen.
 
-### Questions for the owner (round 5, consolidated)
+### Questions for the owner (round 5): answered or carried forward
 
-Each has a default that stands unless you say otherwise.
+Answered in round 6 (see the decision log under "Round 6" below):
 
-1. Should the Home icon also show on suite pages (Users, Settings)? Default: no, only inside a program.
-2. Should the Admin checkbox help text on the User form go too? Default: no, it stays.
-3. Should the Other Subjects list be collapsible? Default: no, always visible under the divider.
-4. Should the landing program setting also apply when someone opens the bare site address while already signed in? Default: no, only straight after sign-in.
-5. Should "All" be remembered per browser (as now) or follow the profile default every visit? Default: per browser after the first visit, profile default on the first.
-6. Should the quick-add "+" also appear for Editors on phones as an inline box? Default: no, phones use the Add page.
-7. 10d (below): approve merging Multi-Item into Item? Default: not approved, nothing is built.
-8. 10d: should an Item with several citations keep the single Item-level Citation box as "first citation"? Default: yes in the UI, stored as Case (a).
-9. 10d: when several citations exist, show comments after each citation, in smaller grey type? Default: yes, same style as Case comments now.
-10. 10d: after the merge, may the "Multi-Item" choice stay in the Add menu as a shortcut? Default: no, the Add menu has only Item and Nested Item.
+- Home icon on suite pages: **yes, keep it on Home too, for now** (R6-4).
+- Landing program when opening the site address while signed in: **yes** (R6-2).
+- "All" remembered per browser or by profile: **the owner asked for a setting** (R6-3).
+- 10d, merge Multi-Item into Item: **approved** with all three sub-answers (R6-1).
+
+Still open, each with the default that stands unless you say otherwise:
+
+1. Should the Admin checkbox help text on the User form go too? Default: no, it stays.
+2. Should the Other Subjects list be collapsible? Default: no, always visible under the divider.
+3. Should the quick-add "+" also appear for Editors on phones as an inline box? Default: no, phones use the Add page.
+
+### Questions for the owner (round 6)
+
+1. "All" under "Remember each user's choice": does "as per user choice" mean the per-browser memory (as built), or a choice stored on each user's account so it follows them across browsers? Default: per browser, as built.
+2. Nested Item single citation: when an Item with one Case and no comment becomes Nested, the Case moves into the Nested Item's own Citation (a Nested Item cannot hold Cases). Is that right? Default: yes.
+3. Should a Nested Item keep its own Citation box at all, or should citations be allowed only on plain Items? Default: keep it as built.
+4. Citations made only of spaces: kept exactly as written in a Case and counted separately. Should they be dropped instead? Default: kept.
+5. In the "always ticked" and "always unticked" modes the page may still be toggled for the reload that follows, and a manual browser reload returns to the configured state. Is that acceptable? Default: yes.
+6. Items in the Word file marked with typed (i), (ii) (32 lines) are still imported as whole lines with no citation, flagged for review. Should the importer split them into several citations? Default: no, leave them flagged.
+7. When an editor empties both the citation and the comment of a saved row, the row goes to the Trash (restorable) rather than staying as an empty Case. Is that right? Default: yes.
 
 ## Proposal for 10d: merge Multi-Item into Item
 
-**STATUS: APPROVED by the owner ("Yes", with: keep a single Citation box in the add form as the first citation stored as Case (a); show each comment after its citation in smaller grey text; Multi-Item stays out of the Add menu). Part 1 (data model, migration 0010, old-backup and old-version mapping) is built; reading views, editor, conversions, importer, export and Trash wording follow in part 2.**
+**STATUS: IMPLEMENTED (round 6). Approved by the owner ("Yes", with: keep a single Citation box in the add form as the first citation stored as Case (a); show each comment after its citation in smaller grey text; Multi-Item stays out of the Add menu). Built in two parts: data model, migration 0010, and old-backup and old-version mapping (part 1); reading views, editor, conversions, importer and sample data (part 2). The headings below keep the original proposal wording; "10d part 1" and "10d part 2" at the end record what was actually built and decided.**
 
 [Owner: "Perhaps 'multi-item' can be merged with 'item', and all items can allow me to add multiple citations, with a little optional 'comment' displayed after it?"]
 
-### How it would work
+### How it works
 
 - Every Item may hold zero, one or more citations. Each citation is a **Case** (citation line plus an optional rich-text comment), exactly as a Multi-Item's Cases are today.
 - Display: one citation shows as before, ` - Citation` after the text, with its comment (if any) after it. Several citations show as `(a) ... ; (b) ...` with each comment after its citation.
 - The `kind` value `multi` becomes derived: an Item is "multi" when it has two or more live Cases. It is no longer chosen or stored (the choice list keeps `plain` and `nested`).
-- The Item editor keeps one Citation box and an "Add another citation" button; each citation row has an optional Comment box and Up/Down/Remove.
+- The Item editor has one Citation box and an "Add another citation" button; each citation row has an optional Comment box and Up/Down/Remove.
 - Numbering: the Multi-Item number format (a), (b) is reused for the citation letters.
 
-### What exists today (from the code)
+### What existed before (from the code at the time of the proposal)
 
 - `Item.kind` is plain, multi or nested; `Item.citation` is one single line. A database check (`item_multi_has_no_citation`) forces a Multi-Item's own citation to be empty.
 - `Case` (item, citation, comment, comment_plain, position) is only allowed when `item.kind == multi` (`Case.clean`).
-- `diary/services/conversions.py` converts between the three kinds (Item to Multi makes Case (a) from the Citation; Multi to Item joins Cases into one line).
+- `diary/services/conversions.py` converted between the three kinds (Item to Multi made Case (a) from the Citation; Multi to Item joined Cases into one line).
 - `diary/reading.py` builds `is_multi` and the (a), (b) labels from Cases. `diary/importer` creates Multi-Items from paragraphs marked (i), (ii) (`multi_marker`). `backups/registry.py` lists `diary.Case` in both the backup and optional model lists.
 
-### Migration path for existing data
+### Migration path (as proposed; the built version is in "10d part 1")
 
 1. Stage A (additive): allow Cases under any non-nested Item (relax `Case.clean`); keep `Item.citation` and the check constraint untouched. Nothing is converted yet.
 2. Stage B (data migration, reversible): for every live plain Item with a non-empty `citation`, create Case (a) with that citation and an empty comment, then blank `Item.citation`. Existing Multi-Items already have Cases and are left alone. A backup is taken first (the same "Before ..." habit as the import).
@@ -823,7 +832,7 @@ Each has a default that stands unless you say otherwise.
 - **Trash:** deleting an Item sends its Cases with it, and restoring brings them back. The Trash rule that refuses restoring a Case under a non-Multi parent is replaced by "parent must not be Nested-only".
 - **Review and search:** For-review, flags and Notes stay on the Item. Search must index citations from Cases (today it also indexes `Item.citation`). Citation counts in the Review list change to count Cases.
 
-### Risks
+### Risks (as proposed)
 
 - Largest: a data migration across every Item with a citation. Mitigation: staged plan, backup first, reversible step, keep the old column for a release.
 - More rows: one extra Case row per cited Item, so reading pages need the existing prefetch of Cases (already done in `reading.py`) to avoid extra queries.
@@ -831,15 +840,19 @@ Each has a default that stands unless you say otherwise.
 - Importer idempotence and the dry-run report change; the owner's real Word file must be re-checked.
 - Anything that compares `kind == "multi"` (templates, trash, conversions, export, tests) must be found and changed together.
 
-### Staged plan (each stage is separate, tested and approved)
+### Staged plan (as proposed; in the end it was built as parts 1 and 2 in one round)
 
 1. Stage A: allow Cases under plain Items; Item editor shows "Add another citation"; reading view displays both. No data change.
 2. Stage B: data migration of `Item.citation` into Case (a), importer and export switched, old-backup handling.
 3. Stage C: `multi` derived, conversions reduced, constraint and column cleanup, docs and README updated.
 
-Each stage ends with CI green and your check before the next begins.
+The stages were combined; CI must confirm migration, tests and `makemigrations --check` because Django could not be run in the build environment.
 
 ### Round 6: Home icon on suite pages and opening the site address while signed in
+
+Owner's round 6 answers: "Yes to 1 and 2. Yes to 3, and also add a setting to decide whether, by Default, 'All' will be ticked, unticked, or as per user choice. For 4, keep the home icon on the Home page too, for now."
+
+- **R6-1.** [Owner: "Yes" to merging Multi-Item into Item (question 1), plus "Yes" to the second and third sub-questions.] Decision: 10d is approved and built. An Item holds one or more citations as Cases; the first citation is the single Citation box of the add form (stored as Case (a)); comments show after each citation in smaller grey text (`.case-comment`); the Add menu offers only Item and Nested Item (Multi-Item is not in it). Details are under "10d part 1" and "10d part 2".
 
 - **R6-4.** [Owner: "keep the home icon on the Home page too, for now."] Decision: the Home icon (left of the brand) is now part of the shared header, so it shows on Home, Users, Settings and the other suite pages as well as inside programs. The block is defined once in `base_suite.html`.
 - **R6-2.** [Owner: "Yes" to opening the site address while signed in going to the chosen program.] Decision: a signed-in user who opens bare `/` as an entry visit goes straight to the program chosen in My settings (`User.landing_program`), provided they still have a profile in it; otherwise Home shows. An entry visit means a GET of `/` with no `?home=1` and no same-origin Referer (typed address, bookmark, or a link from another site). Deliberate Home access is never redirected: the Home icon, the brand link, Alt+H, Cancel links, the Back fallback and "Back to Home" all link to `/?home=1`, and ordinary in-site links to `/` carry a same-origin Referer. Chosen because it needs no cookies or session state and fails safe (an unexpected case shows Home).
@@ -852,3 +865,13 @@ Each stage ends with CI green and your check before the next begins.
 - Reverse is deliberately **not** supported (it raises a clear message): afterwards nothing says which Cases were once a single citation. The safety backup "pre_migration" taken by `migrate_with_backup` before the update is the way back.
 - `Item.citation` stays as a legacy column so old backups and old history snapshots still read.
 - All the mapping lives in `diary/services/legacy.py`: used by the migration, by the backup loader (`backups.services.upgrade_old_items`, so an old backup file is mapped exactly the same way and the restore preview says so), and by History restore (an old version's `citation` becomes Case (a), an empty one never clears it).
+
+### 10d part 2: what was built (screens, conversions, importer)
+
+- **Reading:** "multi" is derived from the Case count. One Case shows no label; two or more are labelled with the user's citation-letter format (previously the reading view used a fixed (a)). A Nested Item shows its own citation. Comments follow their citation in smaller grey text.
+- **Add and edit:** a citation given with a new non-nested Item is stored as Case position 1 in the same Undo group. Editing `Item.citation` of a non-nested Item through the service is refused, because Cases hold citations; Nested Items keep `Item.citation`. The editor always shows one citation row (the main box) even when empty, labels rows "Citation 1 to n", and keeps the post field names `case_*`. A saved row whose citation and comment are both emptied is removed to the Trash (version checked); a comment-only row is kept. A post with no citations list at all leaves the Cases alone, which protects against wiping them.
+- **Conversions:** see section 6. `FLATTEN_WARNING` and the joining of Cases were removed. Cases can also be moved between plain Items (only a Nested parent is refused).
+- **Migration safety:** migration 0010 checks record counts before and after inside one transaction and rolls back on any mismatch; the "pre_migration" backup is the way back, since reverse is refused. Old backups and old History versions map to the new shape on load (legacy mapping in `diary/services/legacy.py`, shown in the restore preview). Limitation: restoring an old version overwrites Case (a) even if the Item now has more Cases.
+- **Importer (real Word file, run against the plan and report modules):** 41 Subjects, 178 Topics, 323 Sub-topics, 2 Sections, 950 Items (691 clean, 259 flagged) and 261 review-marked, all unchanged from before. A new count, **Citations (Cases, one per split line), is 693** (691 clean lines plus 2 flagged list-restart lines that are still split); 257 whole-line Items get no Case. Round trip (text, " - ", citation equals the original line) has 0 differences over 950 Items, and the dry-run report has no DIFFERENT rows. Typed (i), (ii) lines (32) stay whole lines flagged `multi_marker`. Cases get "import" History rows. Re-importing still changes nothing.
+- **Not present in the repo yet:** search, Word export and the Review list code, so nothing there needed changing; the export wording in section 12 describes the intended output.
+- **Verification status:** compileall, ruff (F, E9) and node syntax checks only; Django tests, the migration and `makemigrations --check` have not been run and must be confirmed by CI.

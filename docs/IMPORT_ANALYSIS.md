@@ -170,6 +170,8 @@ Result on your file: **693 Items split cleanly, 257 imported whole (as Text with
 | **All review-marked records at import** | **261** |
 | Split Items whose Citation had bold/underline in Word (flagged, default D-c) | 0 |
 
+**Update (round 6, 10d: Multi-Items are merged into Items).** Every Item now holds its citations as Cases. A line that splits cleanly at its single " - " gives the Item text plus one Case (a) holding the citation; on the real file that is **693 Cases** (691 clean lines plus 2 flagged list-restart lines that are still split), and the 257 whole-line Items get no Case. The 32 typed (i), (ii) lines are unchanged: still imported whole, with no Case, flagged for review. The other figures are unchanged (41 Subjects, 178 Topics, 323 Sub-topics, 2 Sections, 950 Items of which 691 clean and 259 flagged, 261 marked for review). The reconciliation report has a new row "Citations (Cases, one per split line)".
+
 Every one of these lines is stored whole in the Text field with an empty Citation, so no characters are moved or lost. The review screen would let you correct these one at a time, or sort them by reason. Reviewing about 260 lines is a manageable job, and the application stays fully usable while you do it.
 
 ### 5.1 Sections and the numbering of the Items after them

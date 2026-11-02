@@ -80,8 +80,9 @@ Note: the technology (Django, PostgreSQL) is confirmed for a **standalone app** 
 - Open an Item's History (the History button in Edit mode), view an old version and restore it; a new version appears at the top and the old ones stay.
 - Sign in as a Reader: there is no Trash entry in the menu and the Trash and History addresses give a 403 page.
 - Trash: delete a Topic, delete one of its Items first (before the Topic), then restore only that Item: the page offers to restore the Topic too. Create a new Topic with the same name as a deleted one and restore the deleted one: you are asked for a new name.
-- Convert an Item to Multi and back; see the preview each time and the warning when comments would be flattened.
-- Try to fold a Nested Item that has Multi-Item children: it should refuse and offer the other choice.
+- Add a second citation to an Item (Add another citation), give one a comment, save, and check the reading view shows (a), (b) with the comment after its citation in smaller grey text.
+- Convert an Item to Nested and back; see the preview each time (nothing is lost, so there is no flattening warning).
+- Try to fold a Nested Item that has a child with several citations: it should refuse and offer the other choice.
 
 **Risks:**
 - Biggest milestone and where data loss bugs would hide. Mitigation: split into sub-releases (edit, then Trash, then history and Undo, then conversions), each tested with a backup beforehand.
@@ -167,7 +168,7 @@ Done (follow-up): Back and Forward are arrow-only icon buttons; "All" moved to t
 
 ## Round 5 (navigation, All, landing program, quick-add)
 
-**Status: items 1 to 9, 10a, 10b and 10c are built (code written and reviewed, not yet run against Django; GitHub CI is the first real run). Item 10d (merge Multi-Item into Item) is a proposal only and is NOT implemented, awaiting your approval.** Decisions R5-1 to R5-10c and the questions with defaults are in `docs/DESIGN.md`, "UI round 5".
+**Status: items 1 to 9, 10a, 10b and 10c are built (code written and reviewed, not yet run against Django; GitHub CI is the first real run). Item 10d (merge Multi-Item into Item) is approved and built in round 6: every Item holds one or more citations as Cases, migration 0010 moves the old single Citation into Case (a), and conversions, importer and editor follow (Django tests and the migration still need a CI run).** Decisions R5-1 to R5-10c and the questions with defaults are in `docs/DESIGN.md`, "UI round 5".
 
 **Owner check list:**
 
