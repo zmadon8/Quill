@@ -20,12 +20,12 @@ from accounts.permissions import admin_required, reader_required
 from accounts.profiles import export_file_name, request_profile, request_role
 from accounts.suite import KEY_DIARY
 
-from . import reading, undo_session
+from . import locate, reading, undo_session
 from .forms import ProfileSettingsForm
 from .importer import loader as import_loader
 from .importer import service as import_service
 from .models import Item, Section, Subject, Subtopic, Topic
-from .sorting import heading_key, sort_headings
+from .sorting import sort_headings
 
 NO_PROFILE_MESSAGE = "No profile assigned - ask the Admin"
 
@@ -300,41 +300,32 @@ def healthz(request):
 
 def _review_rows(profile):
     """Every live Item and Section marked For review in ``profile``, with its path (document order after import)."""
+    tree = locate.Tree.load(profile)
     rows = []
-    items = Item.objects.filter(profile=profile, needs_review=True, deleted_at__isnull=True).select_related(
-        "subject", "topic__subject", "subtopic__subject", "subtopic__topic__subject"
-    )
-    sections = Section.objects.filter(profile=profile, needs_review=True, deleted_at__isnull=True).select_related(
-        "subject", "topic__subject", "subtopic__subject", "subtopic__topic__subject"
-    )
-    for kind, queryset in (("Item", items), ("Section", sections)):
-        for obj in queryset.order_by("pk"):
-            subtopic = obj.subtopic
-            topic = obj.topic or (subtopic.topic if subtopic else None)
-            subject = obj.subject or (topic.subject if topic else None) or (subtopic.subject if subtopic else None)
-            chain = [x for x in (subject, topic, subtopic) if x is not None]
-            if subject is None or any(x.deleted_at is not None for x in chain):
-                continue  # an Item inside a Nested Item or a deleted parent is not listed here
-            link = ("read_subtopic", subtopic.pk) if subtopic else (
-                ("read_topic", topic.pk) if topic else ("read_subject", subject.pk))
-            text = obj.text_plain if kind == "Item" else obj.name
-            # Real place in the Diary: content directly under the Subject, then its Sub-topics, then each
-            # Topic with its own content and Sub-topics; headings in alphabetical order. Items and Sections
-            # share one position sequence.
-            if topic is not None:
-                place = (2, heading_key(topic), heading_key(subtopic) if subtopic else ())
-            elif subtopic is not None:
-                place = (1, (), heading_key(subtopic))
+    items = Item.objects.filter(profile=profile, needs_review=True, deleted_at__isnull=True, parent_item__isnull=True)
+    sections = Section.objects.filter(profile=profile, needs_review=True, deleted_at__isnull=True)
+    for kind, queryset, text_field in (("Item", items, "text_plain"), ("Section", sections, "name")):
+        fields = ("pk", "subject_id", "topic_id", "subtopic_id", "position", "review_note", text_field)
+        for obj in queryset.values(*fields):
+            # The one locate-record-in-tree implementation (diary/locate.py), shared with Search.
+            place = tree.place(obj["subject_id"], obj["topic_id"], obj["subtopic_id"])
+            if place is None:
+                continue  # inside a deleted parent
+            if place.subtopic is not None:
+                link = ("read_subtopic", place.subtopic.pk)
+            elif place.topic is not None:
+                link = ("read_topic", place.topic.pk)
             else:
-                place = (0, (), ())
+                link = ("read_subject", place.subject.pk)
+            text = obj[text_field]
             rows.append({
                 "kind": kind,
-                "subject_id": subject.pk,
-                "path": " > ".join(x.name for x in chain),
+                "subject_id": place.subject.pk,
+                "path": " > ".join(place.names),
                 "text": text if len(text) <= 160 else text[:157] + "...",
-                "note": obj.review_note,
+                "note": obj["review_note"],
                 "url": reverse(link[0], args=[link[1]]),
-                "order": (subject.show_on_landing is False, heading_key(subject), place, obj.position, obj.pk),
+                "order": place.order + (obj["position"], obj["pk"]),
             })
     rows.sort(key=lambda r: r["order"])
     return rows
