@@ -2,7 +2,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from accounts.models import Profile, User
-from diary.models import Case, Item, Subject, Topic
+from diary.models import Case, Item, Note, Subject, Topic
 from diary.tests.helpers import join_main, main_profile
 
 PASSWORD = "x-long-pass-123"
@@ -85,6 +85,22 @@ class SearchViewTests(TestCase):
         self.assertNotContains(resp, "Foreign")
         resp = self.get(q="damages", subject=self.subject.pk)
         self.assertContains(resp, "1 result<")
+
+    def test_unicode_digit_params_do_not_crash(self):
+        for params in ({"subject": "\u00b2"}, {"limit": "\u00b2"}, {"q": "damages", "subject": "\u0663", "limit": "\uff11"}):
+            self.assertEqual(self.get(**params).status_code, 200)
+        self.assertEqual(self.get(q="damages", limit="\u00b2").status_code, 200)
+
+    def test_review_list_unicode_subject_does_not_crash(self):
+        self.client.force_login(self.reader)
+        self.assertEqual(self.client.get(reverse("review_list"), {"subject": "\u00b2"}).status_code, 200)
+
+    def test_subject_level_note_link_target_exists(self):
+        Note.objects.create(profile=self.profile, subject=self.subject, text="<p>Ostrich remark</p>")
+        resp = self.get(q="ostrich")
+        self.assertContains(resp, "#n-subject-%d" % self.subject.pk)
+        page = self.client.get(reverse("read_subject", args=[self.subject.pk]))
+        self.assertContains(page, 'id="n-subject-%d"' % self.subject.pk)
 
     def test_show_more_link_keeps_params(self):
         for i in range(55):

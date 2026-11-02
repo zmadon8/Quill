@@ -22,6 +22,7 @@ from accounts.suite import KEY_DIARY
 
 from . import reading, undo_session
 from .opening import remember_page
+from .params import safe_int
 from . import search as search_module
 from .forms import ProfileSettingsForm
 from .importer import loader as import_loader
@@ -334,8 +335,8 @@ def review_list(request):
                if s.pk in subject_counts]
     chosen = None
     raw = request.GET.get("subject", "")
-    if raw.isdigit() and int(raw) in subject_counts:
-        chosen = int(raw)
+    if safe_int(raw) in subject_counts:
+        chosen = safe_int(raw)
         rows = [r for r in rows if r["subject_id"] == chosen]
     return render(request, "diary/review_list.html", {
         "rows": rows, "total": len(rows), "all_total": sum(subject_counts.values()),
@@ -356,11 +357,11 @@ def search(request):
     panel = _panel_subjects(profile)
     live = {s.pk for s in panel["panel_main"] + panel["panel_other"]}
     raw = request.GET.get("subject", "")
-    subject_id = int(raw) if raw.isdigit() and int(raw) in live else None
+    subject_id = safe_int(raw) if safe_int(raw) in live else None
     citations_only = request.GET.get("citations") == "1"
     review_only = request.GET.get("review") == "1"
     raw_limit = request.GET.get("limit", "")
-    limit = int(raw_limit) if raw_limit.isdigit() and int(raw_limit) > 0 else SEARCH_PAGE
+    limit = safe_int(raw_limit) or SEARCH_PAGE
     limit = min(limit, SEARCH_MAX)
     searched = bool(query) or citations_only or review_only
     results = search_module.run_search(
