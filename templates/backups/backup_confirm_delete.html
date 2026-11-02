@@ -1,5 +1,5 @@
 {% extends "base_suite_home.html" %}
-{% block title %}Delete backup - {{ diary_name }}{% endblock %}
+{% block title %}Delete backup - {{ program_label }}{% endblock %}
 {% block content %}
 <h1>Delete backup</h1>
 <p>Delete the backup <strong>{{ backup.filename }}</strong> ({{ backup.get_kind_display }}, {{ backup.created_at|date:"Y-m-d H:i" }} IST)? This cannot be undone. Make sure you have downloaded it first if you want to keep a copy.</p>

@@ -1,6 +1,6 @@
 {% extends "base_suite_home.html" %}
 {% load static %}
-{% block title %}Backups - {{ diary_name }}{% endblock %}
+{% block title %}Backups - {{ program_label }}{% endblock %}
 {% block content %}
 <h1>Backups</h1>
 <p>Backups are kept inside the database for at least 30 days. A new one is made every night by the scheduled job. Backups marked "Before import" and "After import" are never cleaned up automatically; they stay until an Admin deletes them.</p>
