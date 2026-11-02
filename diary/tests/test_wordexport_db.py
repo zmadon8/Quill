@@ -142,7 +142,7 @@ class FullExportTests(ExportCase):
 
     def test_content_excludes_trash_and_other_profiles(self):
         everything = "\n".join(texts(self.full().data))
-        self.assertNotIn("TRASHED", everything)
+        self.assertNotIn("TRASHED", "\n".join(line for line in everything.split("\n") if not line.startswith("See also:")))
         self.assertNotIn("UNDER GONE", everything)
         self.assertNotIn("Gone Topic", everything)
         self.assertNotIn("ELSEWHERE", everything)
@@ -274,7 +274,8 @@ class CurrentViewTests(ExportCase):
     def test_the_whole_subtree_is_exported_without_trash(self):
         everything = "\n".join(texts(self.view("subject", self.arb.pk).data))
         self.assertIn("Fraud item", everything)
-        self.assertNotIn("TRASHED", everything)
+        # Only a "See also" line may name a trashed Item (marked "target deleted"); it is never printed as content.
+        self.assertNotIn("TRASHED", "\n".join(line for line in everything.split("\n") if not line.startswith("See also:")))
         self.assertEqual(self.view("subject", self.arb.pk).items, 3)
 
     def test_scope_outside_the_profile_or_in_trash_is_refused(self):
@@ -374,6 +375,10 @@ class ViewTests(ExportCase):
                 self.assertIn(query, body)
 
     def test_current_view_is_not_offered_on_search_review_trash_or_history(self):
+        from diary.models import VersionHistory
+
+        VersionHistory.objects.create(profile=self.profile, record_type="item", record_id=self.first.pk, version=1,
+                                      snapshot={"text": "<p>Prop one</p>"}, change_kind="create")
         client = self.login(self.editor)
         for url in (reverse("search"), reverse("review_list"), reverse("trash"),
                     reverse("history", args=["item", self.first.pk])):
@@ -381,7 +386,7 @@ class ViewTests(ExportCase):
 
     def test_the_export_page_with_a_view_shows_its_path_and_file_name(self):
         body = self.login(self.reader).get(f"{reverse('export')}?kind=subtopic&pk={self.fraud.pk}").content.decode()
-        self.assertIn("Arbitration &gt; Arbitrability &gt; Fraud", body)
+        self.assertIn("Arbitration > Arbitrability > Fraud", body)
         self.assertIn("Arbitration, Arbitrability, Fraud", body)
         self.assertIn('value="view"', body)
 

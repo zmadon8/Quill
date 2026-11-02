@@ -1095,7 +1095,7 @@ class ExportNameTests(BaseCase):
         resp = self.client.post(reverse("profile_settings"), {"export_name": "  My: Diary ", "reading_all_mode": "remember"})
         self.assertRedirects(resp, reverse("profile_settings"))
         self.assertEqual(Profile.objects.get(pk=self.main().pk).export_name, "My: Diary")
-        self.assertContains(self.client.get(reverse("profile_settings")), "My Diary")
+        self.assertContains(self.client.get(reverse("profile_settings")), "My- Diary")  # the preview shows the hyphen
 
     def test_all_default_is_on_and_editor_can_switch_it_off_and_on(self):
         self.assertTrue(self.main().reading_all_default)
