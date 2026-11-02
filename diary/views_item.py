@@ -36,7 +36,7 @@ def _default_back(item):
     chain = ancestors(item)
     if chain and chain[0][0] == "subject":
         return f"{reverse('read_subject', args=[chain[0][1].pk])}?edit=1#n-item-{item.pk}"
-    return reverse("subjects")
+    return reverse("diary_home")
 
 
 def _editor_url(item, back):

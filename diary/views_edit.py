@@ -60,7 +60,7 @@ def _next(request, default=None):
         and url_has_allowed_host_and_scheme(target, allowed_hosts={request.get_host()}, require_https=request.is_secure())
     ):
         return target
-    return default or reverse("subjects")
+    return default or reverse("diary_home")
 
 
 def _conflict(request, exc):
@@ -430,7 +430,7 @@ def delete(request):
     else:
         messages.success(request, f"Moved {result.info.get('count', 1)} record(s) to the Trash.")
     if kind in ("subject", "topic", "subtopic"):
-        return redirect(reverse("subjects") if kind == "subject" else _next_after_heading(request, kind, record_id))
+        return redirect(reverse("diary_home") if kind == "subject" else _next_after_heading(request, kind, record_id))
     return redirect(_next(request))
 
 

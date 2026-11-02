@@ -5,7 +5,7 @@ from . import suite
 from .profiles import get_profile_for
 
 #: URL name of the first page of each program, by program key.
-PROGRAM_LANDING_URLS = {suite.KEY_DIARY: "subjects"}
+PROGRAM_LANDING_URLS = {suite.KEY_DIARY: "diary_home"}
 #: Programs in the order they are offered.
 PROGRAM_KEYS = [suite.KEY_DIARY]
 

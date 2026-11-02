@@ -14,7 +14,7 @@ urlpatterns = [
     path("", views.home, name="home"),
     path("programs/", RedirectView.as_view(pattern_name="home", permanent=False), name="programs_legacy"),
     path("healthz/", views.healthz, name="healthz"),
-    _moved("subjects/", "subjects"),
+    _moved("subjects/", "diary_home"),
     _moved("subjects/<int:pk>/", "subject_contents"),
     _moved("subjects/<int:pk>/read/", "read_subject"),
     _moved("topics/<int:pk>/read/", "read_topic"),

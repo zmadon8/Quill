@@ -5,7 +5,7 @@
 {% block extra_css %}<link rel="stylesheet" href="{% static 'css/edit.css' %}">{% endblock %}
 {% block body_attrs %}{% if edit_mode %} class="edit-on"{% endif %}{% endblock %}
 {% block program_title %}{{ diary_name }}{% endblock %}
-{% block program_name %}<a href="{% url 'subjects' %}" title="Subjects" aria-label="{{ diary_name }}: Subjects">{{ diary_name }}</a>{% if current_profile %} <span class="profile-name">&middot; {{ current_profile.name }}</span>{% endif %}{% endblock %}
+{% block program_name %}<a href="{% url 'diary_home' %}" title="Subjects" aria-label="{{ diary_name }}: Subjects">{{ diary_name }}</a>{% if current_profile %} <span class="profile-name">&middot; {{ current_profile.name }}</span>{% endif %}{% endblock %}
 {% block who %}{% endblock %}
 {% block program_nav %}{% with current=request.resolver_match.url_name %}
   {% if current_profile %}<a href="{% url 'review_list' %}"{% if current == 'review_list' %} class="on" aria-current="page"{% endif %}>Review</a>{% endif %}

@@ -62,7 +62,7 @@ def history(request, kind, pk):
          "current": record is not None and r.version == record.version}
         for r in rows
     ]
-    back = _next(request, reverse("subjects"))
+    back = _next(request, reverse("diary_home"))
     return render(
         request,
         "diary/history.html",
@@ -115,7 +115,7 @@ def history_version(request, kind, pk, version):
             "current_version": record.version if record is not None else None,
             "replaces_case_a": old_citation is not None,
             "old_citation": old_citation,
-            "back": _next(request, reverse("subjects")),
+            "back": _next(request, reverse("diary_home")),
         },
     )
 

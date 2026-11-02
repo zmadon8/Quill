@@ -191,7 +191,7 @@ def profile_settings(request):
 def other_subjects(request):
     """Other Subjects now sit on the Subjects page; the old address redirects there (keeping Edit mode)."""
     keep = "?edit=1" if edit_context(request)["edit_mode"] else ""
-    return redirect(f"{reverse('subjects')}{keep}#other-subjects")
+    return redirect(f"{reverse('diary_home')}{keep}#other-subjects")
 
 
 @profile_required

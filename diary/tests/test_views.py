@@ -72,14 +72,14 @@ class HomeIndexTests(TestCase):
 
     def test_item_counts_per_subject_at_any_depth(self):
         self.client.force_login(self.reader)
-        counts = self.counts(self.client.get(reverse("subjects")))
+        counts = self.counts(self.client.get(reverse("diary_home")))
         self.assertEqual(counts["Arbitration"], "5")
         self.assertEqual(counts["Contracts"], "1")
         self.assertEqual(counts["Empty Subject"], "0")
 
     def test_other_subjects_listed_inline_with_counts_below_a_divider(self):
         self.client.force_login(self.reader)
-        resp = self.client.get(reverse("subjects"))
+        resp = self.client.get(reverse("diary_home"))
         html = resp.content.decode()
         counts = self.counts(resp)
         self.assertEqual(counts["Other One"], "0")
@@ -96,41 +96,41 @@ class HomeIndexTests(TestCase):
         self.client.force_login(self.reader)
         resp = self.client.get(reverse("other_subjects"))
         self.assertEqual(resp.status_code, 302)
-        self.assertEqual(resp["Location"], reverse("subjects") + "#other-subjects")
+        self.assertEqual(resp["Location"], reverse("diary_home") + "#other-subjects")
         self.client.force_login(self.admin)
         resp = self.client.get(reverse("other_subjects") + "?edit=1")
-        self.assertEqual(resp["Location"], reverse("subjects") + "?edit=1#other-subjects")
+        self.assertEqual(resp["Location"], reverse("diary_home") + "?edit=1#other-subjects")
 
     def test_meta_line_totals(self):
         self.client.force_login(self.reader)
-        resp = self.client.get(reverse("subjects"))
+        resp = self.client.get(reverse("diary_home"))
         self.assertContains(resp, "5 subjects &middot; 6 items &middot; ")
         self.assertContains(resp, '>1 for review</a>')
 
     def test_counts_use_a_fixed_number_of_queries(self):
         self.client.force_login(self.reader)
-        self.client.get(reverse("subjects"))
+        self.client.get(reverse("diary_home"))
         with CaptureQueriesContext(connection) as ctx:
-            self.client.get(reverse("subjects"))
+            self.client.get(reverse("diary_home"))
         # session, user, landing Subjects, one item aggregate, Other Subjects, live Subject ids
         self.assertLessEqual(len(ctx), 8)
 
     def test_search_box_leads_to_search_page(self):
         self.client.force_login(self.reader)
-        resp = self.client.get(reverse("subjects"))
+        resp = self.client.get(reverse("diary_home"))
         self.assertContains(resp, 'action="%s"' % reverse("search"))
         self.assertContains(resp, "Search the diary")
 
     def test_nav_hides_admin_items_from_reader(self):
         self.client.force_login(self.reader)
-        resp = self.client.get(reverse("subjects"))
+        resp = self.client.get(reverse("diary_home"))
         self.assertContains(resp, reverse("search"))
         self.assertNotContains(resp, 'href="%s"' % reverse("user_list"))
         self.assertNotContains(resp, 'href="%s"' % reverse("backup_list"))
 
     def test_nav_shows_admin_items_to_admin(self):
         self.client.force_login(self.admin)
-        resp = self.client.get(reverse("subjects"))
+        resp = self.client.get(reverse("diary_home"))
         nav = resp.content.decode().split('class="program-nav"')[1].split("</nav>")[0]
         self.assertNotIn('href="%s"' % reverse("user_list"), nav)
         self.assertNotIn('href="%s"' % reverse("backup_list"), nav)
@@ -154,7 +154,7 @@ class HomeIndexTests(TestCase):
         self.client.force_login(self.reader)
         home = self.client.get(reverse("home"))
         self.assertContains(home, 'class="who"')
-        for name in ("subjects", "search"):
+        for name in ("diary_home", "search"):
             self.assertNotContains(self.client.get(reverse(name)), 'class="who"', msg_prefix=name)
 
     def test_home_is_program_picker(self):
@@ -162,7 +162,7 @@ class HomeIndexTests(TestCase):
         resp = self.client.get(reverse("home"))
         self.assertEqual(reverse("home"), "/")
         self.assertContains(resp, "Case Law Diary")
-        self.assertContains(resp, 'href="%s"' % reverse("subjects"))
+        self.assertContains(resp, 'href="%s"' % reverse("diary_home"))
         self.assertNotContains(resp, "Switch program")
 
     def test_legacy_programs_url_redirects_home(self):
@@ -171,7 +171,7 @@ class HomeIndexTests(TestCase):
 
     def test_caselaw_urls_and_old_urls_redirect(self):
         self.client.force_login(self.reader)
-        self.assertEqual(reverse("subjects"), "/caselaw/subjects/")
+        self.assertEqual(reverse("diary_home"), "/caselaw/home/")
         self.assertEqual(reverse("search"), "/caselaw/search/")
         self.assertEqual(reverse("subject_contents", args=[7]), "/caselaw/subjects/7/")
         self.assertEqual(reverse("read_subject", args=[7]), "/caselaw/subjects/7/read/")
@@ -184,7 +184,7 @@ class HomeIndexTests(TestCase):
         self.assertEqual(reverse("backup_list"), "/backups/")
         self.assertEqual(reverse("healthz"), "/healthz/")
         moved = {
-            "/subjects/": "/caselaw/subjects/",
+            "/subjects/": "/caselaw/home/",
             "/subjects/7/": "/caselaw/subjects/7/",
             "/subjects/7/read/": "/caselaw/subjects/7/read/",
             "/topics/7/read/": "/caselaw/topics/7/read/",
@@ -207,15 +207,15 @@ class HomeIndexTests(TestCase):
         html = self.client.get(reverse("search")).content.decode()
         nav = html.split('class="program-nav"')[1].split("</nav>")[0]
         self.assertNotIn(">Subjects</a>", nav)
-        self.assertNotIn('href="%s"' % reverse("subjects"), nav)
+        self.assertNotIn('href="%s"' % reverse("diary_home"), nav)
         self.assertIn(reverse("search"), nav)
         header = html.split('<header class="site-header"')[1].split("</header>")[0]
-        self.assertIn('<a href="%s" title="Subjects"' % reverse("subjects"), header)
+        self.assertIn('<a href="%s" title="Subjects"' % reverse("diary_home"), header)
         self.assertIn("Log out", nav)
 
     def test_home_icon_button_precedes_program_name_in_programs_and_suite_pages(self):
         self.client.force_login(self.reader)
-        header = self.client.get(reverse("subjects")).content.decode().split('<header class="site-header"')[1].split("</header>")[0]
+        header = self.client.get(reverse("diary_home")).content.decode().split('<header class="site-header"')[1].split("</header>")[0]
         self.assertIn('class="home-button" href="%s?home=1"' % reverse("home"), header)
         self.assertIn('aria-label="Home (Alt+H)"', header)
         self.assertLess(header.index("home-button"), header.index('class="brand"'))
@@ -234,9 +234,9 @@ class HomeIndexTests(TestCase):
         self._choose_landing(self.reader)
         self.client.force_login(self.reader)
         resp = self.client.get(reverse("home"))
-        self.assertRedirects(resp, reverse("subjects"), fetch_redirect_response=False)
+        self.assertRedirects(resp, reverse("diary_home"), fetch_redirect_response=False)
         resp = self.client.get(reverse("home"), HTTP_REFERER="https://elsewhere.example/page")
-        self.assertRedirects(resp, reverse("subjects"), fetch_redirect_response=False)
+        self.assertRedirects(resp, reverse("diary_home"), fetch_redirect_response=False)
 
     def test_entry_visit_shows_home_without_landing_program(self):
         self.client.force_login(self.reader)
@@ -254,22 +254,22 @@ class HomeIndexTests(TestCase):
         self._choose_landing(self.reader)
         self.client.force_login(self.reader)
         self.assertEqual(self.client.get(reverse("home") + "?home=1").status_code, 200)
-        resp = self.client.get(reverse("home"), HTTP_REFERER="http://testserver" + reverse("subjects"))
+        resp = self.client.get(reverse("home"), HTTP_REFERER="http://testserver" + reverse("diary_home"))
         self.assertEqual(resp.status_code, 200)
-        html = self.client.get(reverse("subjects")).content.decode()
+        html = self.client.get(reverse("diary_home")).content.decode()
         self.assertIn('class="home-button" href="%s?home=1"' % reverse("home"), html)
         self.assertIn('data-home="%s?home=1"' % reverse("home"), html)
 
     def test_home_picker_is_one_link_with_only_the_program_name(self):
         self.client.force_login(self.reader)
         resp = self.client.get(reverse("home"))
-        self.assertContains(resp, '<a class="program-link" href="%s">Case Law Diary</a>' % reverse("subjects"))
+        self.assertContains(resp, '<a class="program-link" href="%s">Case Law Diary</a>' % reverse("diary_home"))
         self.assertNotContains(resp, ">Open<")
         self.assertNotContains(resp, "Case law, by Subject")
 
     def test_subjects_index_nav_has_no_other_subjects_or_users(self):
         self.client.force_login(self.admin)
-        resp = self.client.get(reverse("subjects"))
+        resp = self.client.get(reverse("diary_home"))
         nav = resp.content.decode().split('class="program-nav"')[1].split("</nav>")[0]
         self.assertNotIn(reverse("other_subjects"), nav)
         self.assertNotIn(reverse("user_list"), nav)
@@ -283,7 +283,7 @@ class HomeIndexTests(TestCase):
         self.assertIn("adam", nav)
         self.assertIn("Log out", nav)
         self.assertIn(reverse("backup_list"), nav)
-        for gone in (reverse("search"), reverse("subjects")):
+        for gone in (reverse("search"), reverse("diary_home")):
             self.assertNotIn(gone, nav)
         self.assertNotIn("Admin", nav)
         self.client.force_login(self.reader)
@@ -292,14 +292,14 @@ class HomeIndexTests(TestCase):
 
     def test_back_in_top_row_and_program_name_links_home(self):
         self.client.force_login(self.admin)
-        for name in ("home", "subjects", "search", "user_list", "backup_list", "settings"):
+        for name in ("home", "diary_home", "search", "user_list", "backup_list", "settings"):
             html = self.client.get(reverse(name)).content.decode()
             header = html.split('<header class="site-header"')[1].split("</header>")[0]
             self.assertIn("data-back", header, name)
             if name in ("home", "user_list", "backup_list", "settings"):
                 self.assertIn('<a href="%s?home=1" title="Go to Home (Alt+H)" aria-label="Go to Home">' % reverse("home"), header, name)
             else:
-                self.assertIn('<a href="%s" title="Subjects"' % reverse("subjects"), header, name)
+                self.assertIn('<a href="%s" title="Subjects"' % reverse("diary_home"), header, name)
             self.assertNotIn("switch-program", html, name)
             self.assertNotIn('class="toolbar', html, name)
             if name in ("home", "user_list", "backup_list", "settings"):
@@ -310,7 +310,7 @@ class HomeIndexTests(TestCase):
 
     def test_back_and_forward_sit_right_of_the_program_name(self):
         self.client.force_login(self.admin)
-        for name in ("home", "subjects", "user_list"):
+        for name in ("home", "diary_home", "user_list"):
             header = self.client.get(reverse(name)).content.decode().split('<header class="site-header"')[1].split("</header>")[0]
             brand = header.index('class="brand"')
             back = header.index("data-back")
@@ -334,7 +334,7 @@ class HomeIndexTests(TestCase):
     def test_review_in_diary_nav_for_anyone_with_a_profile(self):
         for user in (self.reader, self.admin):
             self.client.force_login(user)
-            nav = self.client.get(reverse("subjects")).content.decode().split('class="program-nav"')[1].split("</nav>")[0]
+            nav = self.client.get(reverse("diary_home")).content.decode().split('class="program-nav"')[1].split("</nav>")[0]
             self.assertIn('href="%s"' % reverse("review_list"), nav)
             self.assertIn(">Review</a>", nav)
         nav = self.client.get(reverse("review_list")).content.decode().split('class="program-nav"')[1].split("</nav>")[0]
@@ -367,7 +367,7 @@ class HomeIndexTests(TestCase):
 
     def test_breadcrumb_only_on_judgment_lists(self):
         self.client.force_login(self.admin)
-        for name in ("home", "subjects", "search", "user_list", "backup_list"):
+        for name in ("home", "diary_home", "search", "user_list", "backup_list"):
             self.assertNotContains(self.client.get(reverse(name)), 'class="breadcrumb"', msg_prefix=name)
 
 
@@ -395,7 +395,7 @@ class ReadingScreenTests(TestCase):
 
     def urls(self):
         return [
-            reverse("subjects"),
+            reverse("diary_home"),
             reverse("search"),
             reverse("subject_contents", args=[self.contract.pk]),
             reverse("read_subject", args=[self.contract.pk]),
@@ -430,7 +430,7 @@ class ReadingScreenTests(TestCase):
 
     def test_landing_respects_show_on_landing(self):
         self.client.force_login(self.users["reader"])
-        resp = self.client.get(reverse("subjects"))
+        resp = self.client.get(reverse("diary_home"))
         self.assertContains(resp, "Contract Law")
         self.assertContains(resp, "Other Subjects")
         self.assertContains(resp, "Sample Act")  # an Other Subject, listed under the Other Subjects heading
@@ -442,7 +442,7 @@ class ReadingScreenTests(TestCase):
     def test_crumb_for_an_other_subject_links_to_the_section(self):
         self.client.force_login(self.users["reader"])
         resp = self.client.get(reverse("read_subject", args=[self.other.pk]))
-        self.assertContains(resp, '<a href="%s#other-subjects">Other Subjects</a>' % reverse("subjects"))
+        self.assertContains(resp, '<a href="%s#other-subjects">Other Subjects</a>' % reverse("diary_home"))
 
     def test_breadcrumb_shown_on_judgment_lists_with_subjects_root(self):
         self.client.force_login(self.users["reader"])
@@ -450,7 +450,7 @@ class ReadingScreenTests(TestCase):
                     reverse("read_subtopic", args=[self.clause.pk])):
             resp = self.client.get(url)
             self.assertContains(resp, 'class="breadcrumb"')
-            self.assertContains(resp, '<a href="%s"' % reverse("subjects"))
+            self.assertContains(resp, '<a href="%s"' % reverse("diary_home"))
             self.assertContains(resp, ">Subjects</a>")
 
     def test_subject_links_open_whole_subject_view(self):
@@ -487,7 +487,7 @@ class ReadingScreenTests(TestCase):
         for url in (reverse("subject_contents", args=[self.contract.pk]), reverse("read_subject", args=[self.contract.pk])):
             html = self.client.get(url).content.decode()
             crumb = html.split('class="crumb-row"')[1].split("</div>")[0]
-            self.assertIn('href="%s" data-panel-switch aria-controls="panel-subjects" aria-expanded="false"' % reverse("subjects"), crumb, url)
+            self.assertIn('href="%s" data-panel-switch aria-controls="panel-subjects" aria-expanded="false"' % reverse("diary_home"), crumb, url)
             self.assertNotIn("data-in-context", html, url)
             self.assertNotIn("> All</label>", html, url)
             self.assertNotIn("View in context", html, url)
@@ -540,7 +540,7 @@ class ReadingScreenTests(TestCase):
 
     def test_pages_without_the_slide_over_panel_have_no_contents_button(self):
         self.client.force_login(self.users["reader"])
-        for url in (reverse("subjects"), reverse("search"), reverse("subject_contents", args=[self.contract.pk])):
+        for url in (reverse("diary_home"), reverse("search"), reverse("subject_contents", args=[self.contract.pk])):
             html = self.client.get(url).content.decode()
             self.assertNotIn("data-contents-toggle", html, url)
             self.assertNotIn('title="Contents"', html, url)
@@ -931,7 +931,7 @@ class ProfileScopingTests(TestCase):
 
     def test_index_lists_only_own_profile(self):
         self.client.force_login(self.user_a)
-        resp = self.client.get(reverse("subjects"))
+        resp = self.client.get(reverse("diary_home"))
         self.assertContains(resp, "Alpha Subject")
         self.assertNotContains(resp, "Beta Subject")
         self.assertEqual(resp.context["subject_total"], 1)
@@ -940,7 +940,7 @@ class ProfileScopingTests(TestCase):
 
     def test_other_profile_sees_its_own_counts(self):
         self.client.force_login(self.user_b)
-        resp = self.client.get(reverse("subjects"))
+        resp = self.client.get(reverse("diary_home"))
         self.assertContains(resp, "Beta Subject")
         self.assertNotContains(resp, "Alpha Subject")
         self.assertEqual(resp.context["item_total"], 2)
@@ -948,9 +948,9 @@ class ProfileScopingTests(TestCase):
 
     def test_other_subjects_scoped(self):
         self.client.force_login(self.user_a)
-        self.assertNotContains(self.client.get(reverse("subjects")), "Beta Other")
+        self.assertNotContains(self.client.get(reverse("diary_home")), "Beta Other")
         self.client.force_login(self.user_b)
-        self.assertContains(self.client.get(reverse("subjects")), "Beta Other")
+        self.assertContains(self.client.get(reverse("diary_home")), "Beta Other")
 
     def test_cross_profile_ids_404(self):
         self.client.force_login(self.user_a)
@@ -972,18 +972,18 @@ class ProfileScopingTests(TestCase):
 
     def test_admin_sees_only_own_profile(self):
         self.client.force_login(self.admin_a)
-        self.assertNotContains(self.client.get(reverse("subjects")), "Beta Subject")
+        self.assertNotContains(self.client.get(reverse("diary_home")), "Beta Subject")
         self.assertEqual(self.client.get(reverse("read_subject", args=[self.sub_b.pk])).status_code, 404)
 
     def test_header_shows_profile_name(self):
         self.client.force_login(self.user_a)
-        self.assertContains(self.client.get(reverse("subjects")), 'class="profile-name">&middot; Main</span>')
+        self.assertContains(self.client.get(reverse("diary_home")), 'class="profile-name">&middot; Main</span>')
         self.client.force_login(self.user_b)
-        self.assertContains(self.client.get(reverse("subjects")), "Junior")
+        self.assertContains(self.client.get(reverse("diary_home")), "Junior")
 
     def test_user_without_profile_gets_403_with_message(self):
         self.client.force_login(self.loner)
-        for name in ("subjects", "other_subjects", "search"):
+        for name in ("diary_home", "other_subjects", "search"):
             resp = self.client.get(reverse(name))
             self.assertEqual(resp.status_code, 403, name)
             self.assertContains(resp, "No profile assigned - ask the Admin", status_code=403)
@@ -995,21 +995,21 @@ class ProfileScopingTests(TestCase):
         resp = self.client.get(reverse("home"))
         self.assertContains(resp, "No programs are available to you yet.")
         self.assertNotContains(resp, "No profile assigned")
-        self.assertNotContains(resp, 'href="%s"' % reverse("subjects"))
+        self.assertNotContains(resp, 'href="%s"' % reverse("diary_home"))
         self.assertNotContains(resp, "Case Law Diary")
         self.client.force_login(self.user_a)
         resp = self.client.get(reverse("home"))
         self.assertNotContains(resp, "No programs are available")
-        self.assertContains(resp, 'href="%s"' % reverse("subjects"))
+        self.assertContains(resp, 'href="%s"' % reverse("diary_home"))
 
     def test_home_hides_program_for_admin_without_profile(self):
         admin = User.objects.create_user("rootless", password=PASSWORD, is_superuser=True)
         self.client.force_login(admin)
         resp = self.client.get(reverse("home"))
         self.assertContains(resp, "No programs are available to you yet.")
-        self.assertNotContains(resp, 'href="%s"' % reverse("subjects"))
+        self.assertNotContains(resp, 'href="%s"' % reverse("diary_home"))
         self.assertContains(resp, 'href="%s"' % reverse("user_list"))
-        self.assertEqual(self.client.get(reverse("subjects")).status_code, 403)
+        self.assertEqual(self.client.get(reverse("diary_home")).status_code, 403)
 
     def test_deleted_profile_means_no_access(self):
         from django.utils import timezone
@@ -1017,7 +1017,7 @@ class ProfileScopingTests(TestCase):
         self.b.deleted_at = timezone.now()
         self.b.save()
         self.client.force_login(self.user_b)
-        self.assertEqual(self.client.get(reverse("subjects")).status_code, 403)
+        self.assertEqual(self.client.get(reverse("diary_home")).status_code, 403)
 
     def test_opening_subject_must_belong_to_users_profile(self):
         from diary.models import UserSettings

@@ -57,8 +57,8 @@ class TrashAccessTests(TrashTestCase):
 
     def test_only_editors_get_a_trash_link(self):
         link = f'href="{self.trash_url}"'
-        self.assertContains(self.client.get(reverse("subjects")), link)
-        self.assertNotContains(self.reader_client.get(reverse("subjects")), link)
+        self.assertContains(self.client.get(reverse("diary_home")), link)
+        self.assertNotContains(self.reader_client.get(reverse("diary_home")), link)
 
     def test_the_trash_screen_is_get_only_and_restore_is_post_only(self):
         self.assertEqual(self.client.post(self.trash_url).status_code, 405)

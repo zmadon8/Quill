@@ -108,14 +108,14 @@ class AccessTests(EditViewTestCase):
             self.assertNotContains(editing, old)
 
     def test_subject_lists_show_controls_only_to_editors_in_edit_mode(self):
-        self.assertNotContains(self.reader_client.get(reverse("subjects") + "?edit=1"), "data-row-actions")
-        self.assertNotContains(self.reader_client.get(reverse("subjects")), "data-edit-switch")
-        self.assertNotContains(self.client.get(reverse("subjects")), "data-row-actions")
-        self.assertContains(self.client.get(reverse("subjects")), "data-edit-switch")
-        self.assertContains(self.client.get(reverse("subjects") + "?edit=1"), "data-row-actions")
+        self.assertNotContains(self.reader_client.get(reverse("diary_home") + "?edit=1"), "data-row-actions")
+        self.assertNotContains(self.reader_client.get(reverse("diary_home")), "data-edit-switch")
+        self.assertNotContains(self.client.get(reverse("diary_home")), "data-row-actions")
+        self.assertContains(self.client.get(reverse("diary_home")), "data-edit-switch")
+        self.assertContains(self.client.get(reverse("diary_home") + "?edit=1"), "data-row-actions")
         self.make("subject", name="Elsewhere", show_on_landing=False)
         # Both lists are on the one page, but Subjects are alphabetical: no reorder run, no drag handle.
-        resp = self.client.get(reverse("subjects") + "?edit=1")
+        resp = self.client.get(reverse("diary_home") + "?edit=1")
         self.assertNotContains(resp, "data-run=")
         self.assertNotContains(resp, "data-drag-handle")
         self.assertContains(resp, "data-edit-open")
@@ -123,7 +123,7 @@ class AccessTests(EditViewTestCase):
     def test_next_address_must_stay_on_this_site(self):
         for bad in ("https://evil.example/", "//evil.example/x", "javascript:alert(1)"):
             resp = self.post("edit_rename", {"kind": "topic", "id": self.topic.pk, "name": "Formation", "next": bad})
-            self.assertRedirects(resp, reverse("subjects"), fetch_redirect_response=False)
+            self.assertRedirects(resp, reverse("diary_home"), fetch_redirect_response=False)
 
 
 class OtherProfileTests(EditViewTestCase):
@@ -595,7 +595,7 @@ class DeleteTests(EditViewTestCase):
 
     def test_delete_a_subject_goes_to_the_subjects_page(self):
         resp = self.post("edit_delete", {**self.rec(self.subject), "confirmed": "1"})
-        self.assertRedirects(resp, reverse("subjects"), fetch_redirect_response=False)
+        self.assertRedirects(resp, reverse("diary_home"), fetch_redirect_response=False)
         self.assertIsNotNone(self.get(self.subject).deleted_at)
 
     def test_the_preview_counts_what_goes_with_a_heading(self):
@@ -784,7 +784,7 @@ class AlphabeticalHeadingTests(EditViewTestCase):
             self.make("subject", name=name)
         for name in ("Zz 10", "Zz 2", "Mm"):
             self.make("subject", name=name, show_on_landing=False)
-        html = self.client.get(reverse("subjects")).content.decode()
+        html = self.client.get(reverse("diary_home")).content.decode()
         self.order_in(html, [">apple<", ">Banana<", ">Contract<", ">S. 9<", ">S. 11<"])
         self.order_in(html, [">Mm<", ">Zz 2<", ">Zz 10<"])
         self.assertLess(html.index(">S. 11<"), html.index('class="other-divider"'))

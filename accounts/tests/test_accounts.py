@@ -138,7 +138,7 @@ class LandingProgramTests(BaseCase):
 
     def test_chosen_program_is_the_landing_page(self):
         self.choose(self.user)
-        self.assertRedirects(self.login(), reverse("subjects"))
+        self.assertRedirects(self.login(), reverse("diary_home"))
 
     def test_safe_next_wins(self):
         self.choose(self.user)
@@ -148,7 +148,7 @@ class LandingProgramTests(BaseCase):
     def test_unsafe_next_is_ignored(self):
         self.choose(self.user)
         resp = self.login(next_url="https://evil.example.com/x")
-        self.assertRedirects(resp, reverse("subjects"))
+        self.assertRedirects(resp, reverse("diary_home"))
 
     def test_no_profile_falls_back_to_home(self):
         loner = self.make_user("loner")
@@ -163,7 +163,7 @@ class LandingProgramTests(BaseCase):
         self.choose(self.user)
         self.client.force_login(self.user)
         resp = self.client.get(reverse("login"))
-        self.assertRedirects(resp, reverse("subjects"))
+        self.assertRedirects(resp, reverse("diary_home"))
 
     def test_login_redirect_setting_stays_home(self):
         from django.conf import settings
@@ -282,7 +282,7 @@ class SuiteSettingsTests(BaseCase):
 
     def test_program_header_uses_program_name(self):
         self.client.force_login(self.admin)
-        resp = self.client.get(reverse("subjects"))
+        resp = self.client.get(reverse("diary_home"))
         self.assertContains(resp, 'aria-label="Case Law Diary: Subjects">Case Law Diary</a>')
 
     def test_admin_only(self):
@@ -309,8 +309,8 @@ class SuiteSettingsTests(BaseCase):
         self.assertEqual(suite.get_names(), {"home": "Start Page", "diary": "Judgments"})
         home = self.client.get(reverse("home"))
         self.assertContains(home, ">Start Page</a>")
-        self.assertContains(home, 'class="program-link" href="%s">Judgments</a>' % reverse("subjects"))
-        self.assertContains(self.client.get(reverse("subjects")), 'aria-label="Judgments: Subjects">Judgments</a>')
+        self.assertContains(home, 'class="program-link" href="%s">Judgments</a>' % reverse("diary_home"))
+        self.assertContains(self.client.get(reverse("diary_home")), 'aria-label="Judgments: Subjects">Judgments</a>')
         self.client.force_login(self.user)
         self.assertContains(self.client.get(reverse("home")), ">Start Page</a>")
 

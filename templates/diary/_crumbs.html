@@ -1,9 +1,9 @@
 <nav class="breadcrumb" aria-label="You are here">
 {# With panel_switch the link also switches the side panel to the list of every Subject (site.js); the href is the no-JavaScript fallback. #}
-<a href="{% url 'subjects' %}"{% if panel_switch %} data-panel-switch aria-controls="panel-subjects" aria-expanded="false" title="Show all Subjects in the side panel"{% endif %}>Subjects</a>
+<a href="{% url 'diary_home' %}"{% if panel_switch %} data-panel-switch aria-controls="panel-subjects" aria-expanded="false" title="Show all Subjects in the side panel"{% endif %}>Subjects</a>
 {% for pk, name, url_name in crumbs %}
 <span class="sep">&rsaquo;</span>
-{% if url_name == "other_subjects" %}<a href="{% url 'subjects' %}#other-subjects">{{ name }}</a>
+{% if url_name == "other_subjects" %}<a href="{% url 'diary_home' %}#other-subjects">{{ name }}</a>
 {% elif url_name %}<a href="{% url url_name pk %}">{{ name }}</a>
 {% else %}<span aria-current="page">{{ name }}</span>{% endif %}
 {% endfor %}
