@@ -1,5 +1,6 @@
 """Settings for the Judgment Diary. All configuration comes from the environment."""
 import os
+import sys
 from pathlib import Path
 
 import dj_database_url
@@ -141,8 +142,12 @@ STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
-    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedStaticFilesStorage"},
+    # Hashed file names let browsers cache CSS/JS for a long time; collectstatic (build.sh) writes the manifest.
+    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
 }
+# Tests and CI never run collectstatic, so they use plain storage (the manifest storage would fail without it).
+if "test" in sys.argv[1:2] or os.environ.get("DJANGO_TESTING") == "1":
+    STORAGES["staticfiles"] = {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"}
 
 # Backup settings (used by the backups app).
 BACKUP_RETENTION_DAYS = max(30, _int("BACKUP_RETENTION_DAYS", 35))

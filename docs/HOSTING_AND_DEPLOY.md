@@ -52,6 +52,13 @@ You do not touch code. The steps are:
 7. **Check the site.** Open it, and check the thing that changed. Look at a couple of familiar Subjects to be sure all is as before.
 8. **If something is wrong, roll back.** In Render, open the web service, go to Events or Deploys, find the previous good deploy and press **Rollback** (or Redeploy on the earlier one). This restores the previous version of the program in a minute or two. It does not change the data. If the data was changed by a migration, tell Kiro and restore from the pre-change backup (with the preview) instead.
 
+## 5a. Server settings chosen for a small plan
+
+- **Web server:** `gunicorn ... --workers 2 --threads 2 --max-requests 500 --max-requests-jitter 50 --timeout 60`. Two worker processes with two threads each, each restarted after about 500 requests to keep memory steady. There is deliberately no `--preload`.
+- **Static files** (CSS and JavaScript) are served with hashed file names (WhiteNoise `CompressedManifestStaticFilesStorage`), so browsers can cache them for a long time and still pick up changes at the next deploy. `build.sh` runs `collectstatic`, which writes the list of hashed names. Tests use plain storage because they never run `collectstatic`.
+- **Nightly job:** backup, then (only if the backup worked) the deleted-profile purge and the old edit-history purge, then `clearsessions` to remove expired logins. A `clearsessions` problem never hides a failed backup: the job exits with the backup result.
+- **Edit history** is kept for `HISTORY_RETENTION_DAYS` (default 30) days.
+
 ## 6. Everyday safety habits
 
 - Keep the Admin password in a password manager. Use unique passwords for every user.

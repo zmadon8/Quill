@@ -12,7 +12,7 @@ services:
     # Runs before each new version goes live. Takes a safety backup first if the
     # update changes how data is stored, then applies the database changes.
     preDeployCommand: python manage.py migrate_with_backup
-    startCommand: gunicorn config.wsgi:application --workers 2 --timeout 60 --access-logfile -
+    startCommand: gunicorn config.wsgi:application --workers 2 --threads 2 --max-requests 500 --max-requests-jitter 50 --timeout 60 --access-logfile -
     healthCheckPath: /healthz/
     envVars:
       - key: PYTHON_VERSION
@@ -38,8 +38,10 @@ services:
     region: singapore
     schedule: "30 20 * * *"
     buildCommand: ./build.sh
-    # The purge only runs if the backup succeeded (&&), and refuses on its own if today's backup is missing.
-    startCommand: python manage.py run_backup && python manage.py purge_deleted_profiles
+    # Purges (deleted profiles, old edit history) only run if the backup succeeded (&&), and each refuses on its own
+    # if today's backup is missing. Clearing expired sessions is housekeeping: it always runs, but a failure there
+    # can never hide a backup failure because the job exits with the backup/purge result first.
+    startCommand: sh -c 'python manage.py run_backup && python manage.py purge_deleted_profiles && python manage.py purge_old_history; rc=$?; python manage.py clearsessions || echo "clearsessions failed (ignored)"; exit $rc'
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.8
@@ -56,6 +58,9 @@ services:
         value: "35"
       # Days a deleted profile can be restored before it is removed for good.
       - key: PROFILE_RETENTION_DAYS
+        value: "30"
+      # Days of edit history kept (the newest version of every record is always kept).
+      - key: HISTORY_RETENTION_DAYS
         value: "30"
 
 databases:
