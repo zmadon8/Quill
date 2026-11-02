@@ -1,4 +1,4 @@
-{# Edit controls for one record. Only ever rendered in Edit mode (Editors only). Context: ekind, eid, eversion, ename, eanchor, erun (position run, "" = cannot be reordered), erename (bool), eadd (bool), elanding (bool, Subjects only), ereview (bool needs_review, Items and Sections only), enote (review note). #}
+{# Edit controls for one record. Only ever rendered in Edit mode (Editors only). Context: ekind, eid, eversion, ename, eanchor, erun (position run of an Item or Section, "" = cannot be reordered; always "" for Subjects, Topics and Sub-topics, which are alphabetical), erename (bool), eadd (bool), elanding (bool, Subjects only), ereview (bool needs_review, Items and Sections only), enote (review note). #}
 {% if edit_mode %}
 <div class="edit-bar" data-edit-bar data-kind="{{ ekind }}" data-id="{{ eid }}" data-version="{{ eversion }}" data-run="{{ erun }}" data-target="{{ eanchor }}">
   <form method="post" action="{% url 'edit_move' %}" class="edit-actions">

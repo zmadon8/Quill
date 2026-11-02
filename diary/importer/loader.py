@@ -180,6 +180,9 @@ def _subject_of(obj, topics, subtopics):
 def read_back(profile):
     """What the database now holds for the imported records of ``profile``.
 
+    ``order`` follows the STORED positions (the kept Word order), not the alphabetical order the Diary
+    shows headings in, so the check that the file's order was saved stays meaningful.
+
     Only live records are compared; imported records in the Trash are listed apart under ``deleted``.
     """
     def imported(model):
@@ -280,7 +283,7 @@ def read_back(profile):
 
 
 def _walk(subject, order, topics, subtopics, sections, items):
-    """Append refs in the order the Diary lists them: Subject, then its Topics, Sub-topics and content."""
+    """Append refs in the stored Word order (positions): Subject, then its Topics, Sub-topics and content."""
     order.append(subject.import_ref)
 
     def content(**parent):

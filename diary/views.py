@@ -24,6 +24,7 @@ from .forms import ProfileSettingsForm
 from .importer import loader as import_loader
 from .importer import service as import_service
 from .models import Item, Section, Subject, Subtopic, Topic
+from .sorting import heading_key, sort_headings
 
 NO_PROFILE_MESSAGE = "No profile assigned - ask the Admin"
 
@@ -73,6 +74,11 @@ def _subjects(profile, **filters):
     return Subject.objects.filter(profile=profile, deleted_at__isnull=True, **filters)
 
 
+def _sorted_subjects(profile, **filters):
+    """Live Subjects in alphabetical order (diary/sorting.py); the stored positions are the kept Word order."""
+    return sort_headings(_subjects(profile, **filters))
+
+
 def opening_subject_for(user, profile):
     """The user's chosen opening Subject, only if it is live and in ``profile`` (else None)."""
     settings = getattr(user, "diary_settings", None)
@@ -120,10 +126,10 @@ def subjects(request):
     """Index: Subjects on the landing page with item counts, then the Other Subjects below a divider."""
     profile = request.profile
     counts = item_counts_by_subject(profile)
-    landing = list(_subjects(profile, show_on_landing=True).order_by("landing_position", "name", "pk"))
+    landing = list(_sorted_subjects(profile, show_on_landing=True))
     for subject in landing:
         subject.item_count = counts.get(subject.pk, (0, 0))[0]
-    other = list(_subjects(profile, show_on_landing=False).order_by("other_acts_position", "name", "pk"))
+    other = list(_sorted_subjects(profile, show_on_landing=False))
     for subject in other:
         subject.item_count = counts.get(subject.pk, (0, 0))[0]
     live_ids = set(_subjects(profile).values_list("pk", flat=True))
@@ -196,8 +202,8 @@ def search(request):
 def _panel_subjects(profile):
     """Every live Subject of the profile for the Subjects view of the Contents panel: main first, then Other, in order."""
     return {
-        "panel_main": list(_subjects(profile, show_on_landing=True).order_by("landing_position", "name", "pk")),
-        "panel_other": list(_subjects(profile, show_on_landing=False).order_by("other_acts_position", "name", "pk")),
+        "panel_main": list(_sorted_subjects(profile, show_on_landing=True)),
+        "panel_other": list(_sorted_subjects(profile, show_on_landing=False)),
     }
 
 
@@ -312,14 +318,15 @@ def _review_rows(profile):
             link = ("read_subtopic", subtopic.pk) if subtopic else (
                 ("read_topic", topic.pk) if topic else ("read_subject", subject.pk))
             text = obj.text_plain if kind == "Item" else obj.name
-            # Real position in the Diary: content directly under the Subject, then its Sub-topics, then each
-            # Topic with its own content and Sub-topics. Items and Sections share one position sequence.
+            # Real place in the Diary: content directly under the Subject, then its Sub-topics, then each
+            # Topic with its own content and Sub-topics; headings in alphabetical order. Items and Sections
+            # share one position sequence.
             if topic is not None:
-                place = (2, topic.position, subtopic.position if subtopic else 0)
+                place = (2, heading_key(topic), heading_key(subtopic) if subtopic else ())
             elif subtopic is not None:
-                place = (1, 0, subtopic.position)
+                place = (1, (), heading_key(subtopic))
             else:
-                place = (0, 0, 0)
+                place = (0, (), ())
             rows.append({
                 "kind": kind,
                 "subject_id": subject.pk,
@@ -327,8 +334,7 @@ def _review_rows(profile):
                 "text": text if len(text) <= 160 else text[:157] + "...",
                 "note": obj.review_note,
                 "url": reverse(link[0], args=[link[1]]),
-                "order": (subject.show_on_landing is False, subject.landing_position or subject.other_acts_position,
-                          subject.pk, place, obj.position, obj.pk),
+                "order": (subject.show_on_landing is False, heading_key(subject), place, obj.position, obj.pk),
             })
     rows.sort(key=lambda r: r["order"])
     return rows

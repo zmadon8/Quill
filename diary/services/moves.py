@@ -18,7 +18,8 @@ from .core import (
     record_type,
 )
 from .errors import Refused
-from .sequences import ident, labels, lock_sequence, members, normalize, place, sequence_key
+from ..sorting import sort_headings
+from .sequences import ident, is_alphabetical, labels, lock_sequence, members, normalize, place, sequence_key
 
 ALLOWED_PARENTS = {
     "topic": ("subject",),
@@ -35,6 +36,16 @@ NICE = {
 }
 
 PARENT_COLUMNS = ("subject", "topic", "subtopic", "parent_item", "item", "section", "note")
+
+
+def refuse_heading_reorder(obj):
+    """Subjects, Topics and Sub-topics are always alphabetical: refuse to put one at a chosen place."""
+    kind = record_type(obj)
+    if kind in ("subject", "topic", "subtopic"):
+        raise Refused(
+            f"{NICE[kind]}s are always listed alphabetically, so they cannot be reordered. "
+            "Rename it to change where it falls, or move it to another parent."
+        )
 
 
 def parent_column(child_kind, parent_kind):
@@ -130,6 +141,9 @@ def move(profile, user, kind, record_id, parent=None, index=None, expected_versi
         old_key = sequence_key(obj)
         target = _target(ctx, obj, parent)
         if target is None:
+            if parent is not None and is_alphabetical(old_key):
+                return make_result(ctx, obj)  # "move" to the parent it already has: nothing to do
+            refuse_heading_reorder(obj)
             lock_sequence(ctx, old_key)
             current, wanted = _plan_index(members(ctx.profile_id, old_key), obj, index)
             if current == wanted:
@@ -156,6 +170,7 @@ def shift(profile, user, kind, record_id, delta, expected_version=None):
     ctx = Ctx(profile, user)
     with transaction.atomic():
         obj = get_record(ctx, kind, record_id)
+        refuse_heading_reorder(obj)
         key = sequence_key(obj)
         if key is None:
             raise Refused(f"A {NICE.get(kind, kind)} has no position.")
@@ -195,6 +210,9 @@ def preview_move(profile, user, kind, record_id, parent=None, index=None):
     objs[ident(obj)] = obj
     before = labels(old_key, old_members, fmts)
     if target is None:
+        if parent is not None and is_alphabetical(old_key):
+            return {"changes": []}
+        refuse_heading_reorder(obj)
         others = [m for m in old_members if ident(m) != ident(obj)]
         at = len(others) if index is None else max(0, min(int(index), len(others)))
         after = labels(old_key, others[:at] + [obj] + others[at:], fmts)
@@ -211,7 +229,10 @@ def preview_move(profile, user, kind, record_id, parent=None, index=None):
     before.update(labels(new_key, new_members, fmts))
     after = labels(old_key, [m for m in old_members if ident(m) != ident(obj)], fmts)
     at = len(new_members) if index is None else max(0, min(int(index), len(new_members)))
-    after.update(labels(new_key, new_members[:at] + [obj] + new_members[at:], fmts))
+    if is_alphabetical(new_key):
+        after.update(labels(new_key, sort_headings(new_members + [moved]), fmts))
+    else:
+        after.update(labels(new_key, new_members[:at] + [obj] + new_members[at:], fmts))
     return {"changes": _changes(before, after, objs)}
 
 

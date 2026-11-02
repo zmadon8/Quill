@@ -14,7 +14,7 @@
   <ul class="subject-index">
     {% for subject in subjects %}
     <li><a href="{% url 'subject_contents' subject.pk %}"><span class="name">{{ subject.name }}</span><span class="count">{{ subject.item_count }}</span></a>
-      {% include "diary/_edit_bar.html" with ekind="subject" eid=subject.pk eversion=subject.version ename=subject.name eanchor="" erun="subject-show-1" erename=True eadd=False elanding=True %}</li>
+      {% include "diary/_edit_bar.html" with ekind="subject" eid=subject.pk eversion=subject.version ename=subject.name eanchor="" erun="" erename=True eadd=False elanding=True %}</li>
     {% endfor %}
   </ul>
   {% if edit_mode %}
@@ -36,7 +36,7 @@
   <ul class="subject-index">
     {% for subject in other_subjects %}
     <li><a href="{% url 'subject_contents' subject.pk %}"><span class="name">{{ subject.name }}</span><span class="count">{{ subject.item_count }}</span></a>
-      {% include "diary/_edit_bar.html" with ekind="subject" eid=subject.pk eversion=subject.version ename=subject.name eanchor="" erun="subject-show-0" erename=True eadd=False elanding=False %}</li>
+      {% include "diary/_edit_bar.html" with ekind="subject" eid=subject.pk eversion=subject.version ename=subject.name eanchor="" erun="" erename=True eadd=False elanding=False %}</li>
     {% endfor %}
   </ul>
   {% if edit_mode %}

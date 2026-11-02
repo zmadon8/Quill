@@ -238,7 +238,7 @@ def compare_with_database(plan, db):
     """Pure comparison of the plan (what the file says) with ``db`` (what the loader read back).
 
     ``db`` has: ``rows`` {ref: dict(kind, rebuilt, original_line, name, needs_review, review_note)},
-    ``order`` [refs in database listing order], ``groups`` [(ref, name, items after it)].
+    ``order`` [refs in the stored Word order: the saved positions, not the alphabetical display order], ``groups`` [(ref, name, items after it)].
     Returns a dict of findings.
     """
     found = {"missing": [], "extra": [], "expected_diff": [], "unexpected": [], "original_mismatch": [],
@@ -336,7 +336,7 @@ def reconciliation_report(plan, db, filename, sha256, generated, profile_name):
         out.append(f"    {ref}")
         out.append(f"      file:     {_short(repr(was), 200)}")
         out.append(f"      database: {_short(repr(now), 200)}")
-    out.append(f"  Order of records in the database matches the file: {'yes' if found['order_ok'] else 'NO'}")
+    out.append(f"  Stored Word order of records (their saved positions) matches the file: {'yes' if found['order_ok'] else 'NO'}")
     out.append(f"  Review marker differs between file plan and database: {len(found['review_diff'])}")
     for ref, planned, stored in found["review_diff"]:
         out.append(f"    {ref}: expected {planned}, stored {stored}")

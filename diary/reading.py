@@ -11,6 +11,7 @@ from django.utils.safestring import mark_safe
 from . import numbering
 from .models import Case, Item, Note, NoteLink, Section, Subtopic, Topic
 from .richtext import sanitise_html
+from .sorting import sort_headings
 
 #: Stored format names (models.FORMAT_CHOICES) -> keys understood by diary.numbering.
 FORMAT_KEYS = {
@@ -64,10 +65,11 @@ class _Data:
 
     def __init__(self, subject):
         self.subject = subject
-        self.topics = list(live(Topic.objects.filter(subject=subject)).order_by("position", "pk"))
+        # Subjects, Topics and Sub-topics are always alphabetical (diary/sorting.py); stored positions are the kept Word order.
+        self.topics = sort_headings(live(Topic.objects.filter(subject=subject)))
         topic_ids = [t.pk for t in self.topics]
-        self.subtopics = list(
-            live(Subtopic.objects.filter(Q(subject=subject) | Q(topic_id__in=topic_ids))).order_by("position", "pk")
+        self.subtopics = sort_headings(
+            live(Subtopic.objects.filter(Q(subject=subject) | Q(topic_id__in=topic_ids)))
         )
         subtopic_ids = [s.pk for s in self.subtopics]
         container = (
@@ -251,11 +253,8 @@ def _container_blocks(key, depth, data, fmts):
 
 
 def _heading(kind, obj, label, depth):
+    # No "run": headings are alphabetical and have no drag or Up/Down controls.
     run = ""
-    if kind == "topic":
-        run = f"topic-{obj.subject_id}"
-    elif kind == "subtopic":
-        run = f"subtopic-topic-{obj.topic_id}" if obj.topic_id else f"subtopic-subject-{obj.subject_id}"
     return {"kind": "heading", "level": kind, "id": obj.pk, "version": obj.version, "run": run,
             "anchor": f"n-{kind}-{obj.pk}", "label": label, "name": obj.name, "depth": depth}
 

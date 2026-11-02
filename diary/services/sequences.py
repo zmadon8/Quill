@@ -3,12 +3,27 @@
 Items, Nested Items and Sections of one parent share ONE sequence (docs/DESIGN.md section 2).
 Positions are kept as 1..n among the live siblings; records in Trash keep their old position so
 that Restore can put them back where they were.
+
+Subjects, Topics and Sub-topics are the exception (docs/DESIGN.md, "Alphabetical headings"): they are
+always shown in alphabetical order (diary/sorting.py), computed here on every read. Their stored
+position columns (position, landing_position, other_acts_position) still hold the original Word order
+and are never renumbered: a new or moved heading just gets the next free number, so the Word order
+could be switched back on later. Nothing in this module reorders them by hand.
 """
 from accounts.models import Profile
 
 from .. import numbering
+from ..sorting import sort_headings
 from ..models import Case, Item, Note, Section, Subject, Subtopic, Topic
 from .core import MODELS, commit, record_type
+
+#: Sequence kinds that are always alphabetical and cannot be reordered by hand.
+ALPHABETICAL = ("subject", "topic", "subtopic")
+
+
+def is_alphabetical(key):
+    return key is not None and key[0] in ALPHABETICAL
+
 
 #: Which record type each parent column of a sequence key refers to.
 COLUMN_TYPE = {
@@ -70,13 +85,12 @@ def members(profile_id, key):
     live = {"profile_id": profile_id, "deleted_at__isnull": True}
     if kind == "subject":
         rows = list(Subject._base_manager.filter(show_on_landing=value, **live))
-        attr = "landing_position" if value else "other_acts_position"
-        return sorted(rows, key=lambda o: (getattr(o, attr), o.name.lower(), o.pk))
+        return sort_headings(rows)
     if kind == "topic":
-        rows = Topic._base_manager.filter(subject_id=value, **live)
-    elif kind == "subtopic":
-        rows = Subtopic._base_manager.filter(**{f"{column}_id": value}, **live)
-    elif kind == "kids":
+        return sort_headings(Topic._base_manager.filter(subject_id=value, **live))
+    if kind == "subtopic":
+        return sort_headings(Subtopic._base_manager.filter(**{f"{column}_id": value}, **live))
+    if kind == "kids":
         rows = Item._base_manager.filter(parent_item_id=value, **live)
     elif kind == "run":
         rows = list(Item._base_manager.filter(**{f"{column}_id": value}, **live)) + list(
@@ -106,7 +120,17 @@ def place(ctx, obj, key, index=None, kind="reorder"):
 
     ``obj`` is saved with change kind ``kind`` (its parent columns may have been changed by the
     caller first). Siblings whose position changes are saved as 'reorder'. Returns the new index.
+
+    In an alphabetical sequence ``index`` is ignored: the record is saved where the alphabet puts it
+    (a record changing parent takes the next free stored position; no sibling is touched) and its
+    index among the alphabetical siblings is returned.
     """
+    if is_alphabetical(key):
+        others = [m for m in members(ctx.profile_id, key) if ident(m) != ident(obj)]
+        if kind == "move":
+            set_pos(obj, max([get_pos(m) for m in others], default=0) + 1)
+        commit(ctx, obj, kind, check=False)
+        return [ident(m) for m in sort_headings(others + [obj])].index(ident(obj))
     others = [m for m in members(ctx.profile_id, key) if ident(m) != ident(obj)]
     at = len(others) if index is None else max(0, min(int(index), len(others)))
     ordered = others[:at] + [obj] + others[at:]
@@ -126,6 +150,8 @@ def index_for_position(ctx, key, position):
     Deleting leaves the live siblings' positions alone, so a record restored from Trash goes in front
     of the first live sibling whose position is not lower than its own.
     """
+    if is_alphabetical(key):
+        return 0  # not used: place() puts a heading where the alphabet says
     return sum(1 for m in members(ctx.profile_id, key) if get_pos(m) < position)
 
 
@@ -135,6 +161,8 @@ def make_room(ctx, key, index=None):
     Returns the position number (1-based) the new record must be saved with.
     """
     others = members(ctx.profile_id, key)
+    if is_alphabetical(key):
+        return max([get_pos(m) for m in others], default=0) + 1  # next free stored (Word order) number; nothing shifts
     at = len(others) if index is None else max(0, min(int(index), len(others)))
     for i, member in enumerate(others):
         number = i + 1 if i < at else i + 2
@@ -146,8 +174,8 @@ def make_room(ctx, key, index=None):
 
 def normalize(ctx, key):
     """Make the live positions of one sequence exactly 1..n (history rows only for those that change)."""
-    if key is None:
-        return
+    if key is None or is_alphabetical(key):
+        return  # stored positions of headings are the kept Word order: never renumbered
     for number, member in enumerate(members(ctx.profile_id, key), start=1):
         if get_pos(member) != number:
             set_pos(member, number)

@@ -24,6 +24,7 @@ from .services.core import Ctx, check_version, descendants, get_record, label
 from .services.errors import Conflict, NotFound, ServiceError
 from .services.moves import ALLOWED_PARENTS, NICE
 from .services.sequences import COLUMN_TYPE, ident, members, sequence_key
+from .sorting import sort_headings
 from .views import profile_required, user_can_edit
 
 EDIT_KINDS = ("subject", "topic", "subtopic", "section", "item")
@@ -422,12 +423,13 @@ def picker_entries(profile, kind, obj):
         allowed.discard("item")
     banned = {ident(d) for d in descendants(obj)} | {(kind, obj.pk)}
     live = {"profile": profile, "deleted_at__isnull": True}
-    subjects = list(Subject.objects.filter(show_on_landing=True, **live).order_by("landing_position", "name", "pk"))
-    subjects += list(Subject.objects.filter(show_on_landing=False, **live).order_by("other_acts_position", "name", "pk"))
+    # Headings are listed alphabetically (diary/sorting.py), main Subjects first, then Other Subjects.
+    subjects = sort_headings(Subject.objects.filter(show_on_landing=True, **live))
+    subjects += sort_headings(Subject.objects.filter(show_on_landing=False, **live))
     topics, subs, nested = {}, {}, {}
-    for topic in Topic.objects.filter(**live).order_by("position", "pk"):
+    for topic in sort_headings(Topic.objects.filter(**live)):
         topics.setdefault(topic.subject_id, []).append(topic)
-    for sub in Subtopic.objects.filter(**live).order_by("position", "pk"):
+    for sub in sort_headings(Subtopic.objects.filter(**live)):
         subs.setdefault(("topic", sub.topic_id) if sub.topic_id else ("subject", sub.subject_id), []).append(sub)
     for item in Item.objects.filter(kind="nested", parent_item__isnull=True, **live).order_by("position", "pk"):
         for column in ("subject", "topic", "subtopic"):
