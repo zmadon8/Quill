@@ -166,6 +166,7 @@
       }).then(function (result) {
         parts.save.disabled = false;
         if (result.data && result.data.ok) { saved(result.data, parts.select.value); return; }
+        if (result.status === 403 && result.data && result.data.csrf) { showErrors(result.data.errors); return; }
         if (result.status === 403) { showErrors(["You cannot add entries here."]); return; }
         var list = result.data && result.data.errors;
         showErrors(list && list.length ? list : ["That could not be added. Try the Add page instead."]);

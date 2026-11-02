@@ -71,6 +71,13 @@ class AccessTests(EditViewTestCase):
         self.assertEqual(resp.status_code, 403)
         self.assertEqual(Item.objects.filter(topic=self.topic).count(), 4)
 
+    def test_a_failed_csrf_check_on_a_fetch_request_says_the_session_expired(self):
+        strict = Client(enforce_csrf_checks=True)
+        strict.force_login(self.user)
+        resp = strict.post(reverse("edit_add"), {"what": "item", "text": "x"}, HTTP_X_REQUESTED_WITH="fetch")
+        self.assertEqual(resp.status_code, 403)
+        self.assertTrue(resp.json()["csrf"])
+
     def test_readers_see_no_edit_controls_and_editors_see_them_only_in_edit_mode(self):
         url = reverse("read_subject", args=[self.subject.pk])
         for query in ("", "?edit=1"):
@@ -403,6 +410,19 @@ class AddAfterTests(EditViewTestCase):
         self.assertEqual(resp.status_code, 302)
         self.assertTrue(self.msgs(resp))
         self.assertFalse(Item.objects.filter(text_plain="x").exists())
+
+    def test_a_mismatched_kind_after_a_record_is_refused_before_placing(self):
+        for obj, what, fields in ((self.topic, "section", {"name": "Nope2"}), (self.one, "subtopic", {"name": "Nope3"})):
+            resp = self.add_after(obj, what=what, **fields)
+            self.assertEqual(resp.status_code, 302)
+            self.assertTrue(self.msgs(resp))
+        self.assertFalse(Section.objects.filter(name="Nope2").exists())
+        self.assertFalse(Subtopic.objects.filter(name="Nope3").exists())
+
+    def test_the_add_page_for_a_parent_puts_the_entry_first_like_the_inline_form(self):
+        resp = self.client.get(reverse("edit_add") + "?parent=topic:%d" % self.topic.pk)
+        self.assertContains(resp, 'name="first" value="1"')
+        self.assertContains(resp, "at the top of")
 
     def test_a_kind_that_cannot_sit_there_is_refused(self):
         resp = self.add_after(self.one, what="topic", name="Nope")

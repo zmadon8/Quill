@@ -206,6 +206,12 @@ def _place_after(request, after, expected=None):
     return record, parent, siblings.index(ident(record)) + 1
 
 
+def _is_nested_child(request, after):
+    """True when the Item named by ``after`` sits inside a Nested Item (only Items may follow it)."""
+    record = get_record(Ctx(request.profile, request.user), after[0], after[1], lock=False)
+    return bool(getattr(record, "parent_item_id", None))
+
+
 def _expected(request, name):
     value = request.POST.get(name, "")
     return int(value) if value.isdigit() else None
@@ -215,7 +221,7 @@ def _add_page(request):
     """The normal Add page: the same form as Edit mode, with the place chosen from the address.
 
     ``?after=item:5`` adds directly after that record; ``?parent=topic:3`` adds inside it (at the
-    end). It needs no JavaScript and is what a phone gets (the inline form is for desktops).
+    top, like the inline form). It needs no JavaScript and is what a phone gets (the inline form is for desktops).
     """
     after = _after(request.GET)
     parent = None
@@ -234,7 +240,7 @@ def _add_page(request):
         record = get_record(Ctx(request.profile, request.user), kind, int(pk), lock=False)
         choices = {"subject": ("topic", "section", "item", "nested"), "topic": ("subtopic", "section", "item", "nested"),
                    "subtopic": ("section", "item", "nested"), "item": ("item",)}[kind]
-        where = f"at the end of the {NICE[kind]} \u201c{label(record)}\u201d"
+        where = f"at the top of the {NICE[kind]} \u201c{label(record)}\u201d"
         parent, version = (kind, record.pk), None
     options = [{"value": c, "label": ADD_NICE.get(c) or NICE[ADDABLE[c][0]]} for c in choices]
     return render(request, "diary/add_page.html", {
@@ -264,6 +270,9 @@ def add(request):
     parent, index = None, None
     after = _after(post)
     if after:
+        allowed = AFTER_CHOICES[after[0]]
+        if what not in allowed or (after[0] == "item" and what != "item" and _is_nested_child(request, after)):
+            raise ServiceError("That cannot be added in that place.")
         _, parent, index = _place_after(request, after, _expected(request, "after_version"))
     else:
         if post.get("parent_type"):

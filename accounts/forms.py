@@ -144,7 +144,7 @@ class UserEditForm(forms.ModelForm):
     is_admin = _admin_field()
     profile = _profile_field()
     profile_role = _profile_role_field()
-    landing_program = _landing_field()
+    landing_program = forms.ChoiceField(required=False, label="Open after login")
 
     class Meta:
         model = User

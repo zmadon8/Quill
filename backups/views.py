@@ -5,7 +5,7 @@ import re
 
 from django.conf import settings
 from django.contrib import messages
-from django.http import FileResponse
+from django.http import FileResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_http_methods, require_POST
 
@@ -19,6 +19,8 @@ CONFIRM_WORD = "RESTORE"
 
 def csrf_failure(request, reason=""):
     """Plain 403 page for a failed security check (stale page, cookies blocked, other address)."""
+    if request.headers.get("X-Requested-With") == "fetch":
+        return JsonResponse({"ok": False, "csrf": True, "errors": ["Your session has expired. Reload the page and sign in again."]}, status=403)
     return render(request, "403_csrf.html", status=403)
 
 

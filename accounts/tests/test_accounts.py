@@ -10,7 +10,7 @@ from django.core.management.base import CommandError
 from django.db import IntegrityError, connection, transaction
 from django.db.migrations.executor import MigrationExecutor
 from django.http import HttpResponse
-from django.test import RequestFactory, TestCase, TransactionTestCase, override_settings
+from django.test import RequestFactory, SimpleTestCase, TestCase, TransactionTestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -1137,3 +1137,10 @@ class ExportNameTests(BaseCase):
         self.client.post(reverse("profile_settings"), {"export_name": "Mine"})
         junior.refresh_from_db()
         self.assertEqual(junior.export_name, "")
+
+
+class UserEditFormImportTests(SimpleTestCase):
+    def test_landing_choices_are_not_computed_when_the_module_loads(self):
+        from accounts.forms import UserEditForm
+
+        self.assertEqual(list(UserEditForm.base_fields["landing_program"].choices), [])
