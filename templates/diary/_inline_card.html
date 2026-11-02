@@ -1,6 +1,6 @@
-{# The editing card that replaces a row in Edit mode (docs/DESIGN.md Edit mode, mockups 4 and 5). Context: kind, record, title, where, values/rows/flag_choices (Items), name (headings and Sections), convert_to [(kind, label)], can_shift, can_move, back, fallback. #}
+{# The editing card that replaces a row in Edit mode (docs/DESIGN.md Edit mode, mockups 4 and 5). Context: kind, record, title, where, values/rows/flag_choices (Items), name (headings and Sections), convert_to [(kind, label)], can_shift, can_move, back. #}
 {# The Item fields are the same names as the full Item editor page (version, text, case_*, flag, flag_text, needs_review, review_note), so a stale save can be sent to the existing conflict screen as it is. A heading card is the name and More only. #}
-<form method="post" action="{% if kind == 'item' %}{% url 'edit_item' record.pk %}{% else %}{% url 'edit_rename' %}{% endif %}" class="editcard" data-inline-card data-fallback="{{ fallback }}" data-kind="{{ kind }}" data-id="{{ record.pk }}" novalidate>
+<form method="post" action="{% if kind == 'item' %}{% url 'edit_item' record.pk %}{% else %}{% url 'edit_rename' %}{% endif %}" class="editcard" data-inline-card data-kind="{{ kind }}" data-id="{{ record.pk }}" novalidate>
   {% csrf_token %}
   <input type="hidden" name="kind" value="{{ kind }}">
   <input type="hidden" name="id" value="{{ record.pk }}">

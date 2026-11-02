@@ -9,11 +9,9 @@ Two GET endpoints, both for Editors of the signed-in user's profile only (Reader
 Saving is done by the existing endpoints (edit_add, edit_item, edit_rename, edit_review, edit_move, edit_delete,
 edit_item_convert, edit_undo) when the request carries ``X-Requested-With: fetch``; see docs/DESIGN.md.
 """
-from urllib.parse import urlencode
 
 from django.http import Http404, JsonResponse
 from django.template.loader import render_to_string
-from django.urls import reverse
 
 from . import inline
 from .models import FLAG_CHOICES, KIND_NESTED, Case
@@ -46,18 +44,14 @@ def add_form(request):
     if not choices:
         raise Http404("Nothing can be added there.")
     after = any(value.startswith("after:") for value, _ in choices)
-    # The page address that does the same without JavaScript (the full Add page).
-    fallback = f"{reverse('edit_add')}?" + urlencode(
-        {"after" if after and kind != "subject" else "parent": f"{kind}:{pk}", "next": _next(request)}
-    )
     title = f"Add {'after' if after else 'inside'} {NICE[kind]} \u201c{label(record)}\u201d"
     html = render_to_string("diary/_inline_add.html", {
         "ref": f"{kind}:{pk}", "ref_version": record.version, "title": title, "choices": choices,
-        "default": choices[0][0], "citation_whats": " ".join(inline.CITATION_WHATS), "fallback": fallback,
+        "default": choices[0][0], "citation_whats": " ".join(inline.CITATION_WHATS),
         "next_url": _next(request),
     }, request=request)
     return JsonResponse({
-        "ok": True, "html": html, "ref": f"{kind}:{pk}", "version": record.version, "fallback": fallback,
+        "ok": True, "html": html, "ref": f"{kind}:{pk}", "version": record.version,
         "choices": [{"value": value, "label": text} for value, text in choices],
     })
 
@@ -75,7 +69,6 @@ def edit_card(request):
         "kind": kind, "record": record, "back": back, "where": _where(record),
         "title": f"Editing {NICE[kind]}", "can_move": kind != "subject", "can_shift": False, "convert_to": [],
     }
-    fallback = back
     if kind == "item":
         cases = Case._base_manager.filter(item=record, deleted_at__isnull=True, profile=request.profile)
         rows = [{"id": c.pk, "version": c.version, "citation": c.citation, "comment": c.comment}
@@ -90,7 +83,6 @@ def edit_card(request):
         )
         if not record.parent_item_id:
             context["convert_to"] = [("plain", "Item")] if record.kind == KIND_NESTED else [("nested", "Nested Item")]
-        fallback = reverse("edit_item", args=[record.pk]) + "?" + urlencode({"next": back})
     else:
         context["name"] = record.name
         if kind == "subject":
@@ -98,7 +90,5 @@ def edit_card(request):
         if kind == "section":
             context.update(values={"needs_review": record.needs_review, "review_note": record.review_note},
                            can_shift=True)
-    context["fallback"] = fallback
     html = render_to_string("diary/_inline_card.html", context, request=request)
-    return JsonResponse({"ok": True, "html": html, "kind": kind, "id": record.pk, "version": record.version,
-                         "fallback": fallback})
+    return JsonResponse({"ok": True, "html": html, "kind": kind, "id": record.pk, "version": record.version})

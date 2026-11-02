@@ -9,6 +9,7 @@ from functools import wraps
 
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
+from django.db import transaction
 from django.http import Http404, HttpResponseNotAllowed, JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
@@ -334,9 +335,11 @@ def add(request):
         if not plain_text(text).strip() and not citation and not cases:
             raise ServiceError("Type the Item text (or a citation) first.")
         fields.update(text=text, citation=citation)
-    result = svc.create(request.profile, request.user, kind, parent=parent, index=index if index is not None else _index(request), **fields)
-    for number, case in enumerate(cases):
-        svc.create(request.profile, request.user, "case", parent=("item", result.record.pk), index=number, **case)
+    # The Item and its Cases are one change: if a Case is refused, no half-made Item is left behind.
+    with transaction.atomic():
+        result = svc.create(request.profile, request.user, kind, parent=parent, index=index if index is not None else _index(request), **fields)
+        for number, case in enumerate(cases):
+            svc.create(request.profile, request.user, "case", parent=("item", result.record.pk), index=number, **case)
     if is_fetch(request):
         record = result.record
         payload = inline.row_payload(request, kind, record.pk, _next(request)) if kind in ("item", "section") else {"reload": True}
@@ -468,7 +471,7 @@ def move(request):
         return _changes_page(request, "Move", reverse("edit_move"), _fields(request, **extra), preview, lead, "Move")
     result = svc.move(request.profile, request.user, kind, record_id, parent, index, version)
     if is_fetch(request):
-        return inline.ok(request, changed=result.changed, **inline.labels_payload(request, kind, record_id))
+        return inline.ok(request, changed=result.changed, reload=True)
     messages.success(request, "Moved." if result.changed else "It is already there.")
     return redirect(_next(request))
 

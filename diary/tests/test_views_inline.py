@@ -106,11 +106,6 @@ class AddFormTests(InlineTestCase):
         self.assertIn('name="case_comment"', html)
         self.assertIn("+ another citation", html)
         self.assertIn('name="after_version" value="%d"' % self.get(self.one).version, html)
-        self.assertIn(reverse("edit_add") + "?after=item", body["fallback"])
-        heading = self.form("topic:%d" % self.topic.pk).json()
-        self.assertIn("after=topic", heading["fallback"])
-        nested = self.make("item", ("topic", self.topic.pk), kind="nested", text="nested")
-        self.assertIn("parent=item", self.form("item:%d" % nested.pk).json()["fallback"])
 
 
 class AddTests(InlineTestCase):
@@ -222,7 +217,6 @@ class CardTests(InlineTestCase):
         self.assertIn('action="%s"' % reverse("edit_item", args=[self.one.pk]), html)
         for text in ("None", "Overruled", "Doubted", "Other"):
             self.assertIn(text, html)
-        self.assertIn(reverse("edit_item", args=[self.one.pk]), body["fallback"])
 
     def test_nested_item_card_offers_change_to_item_and_a_single_citation(self):
         nested = self.make("item", ("topic", self.topic.pk), kind="nested", text="nested", citation="N v M")
@@ -402,11 +396,11 @@ class MoreMenuTests(InlineTestCase):
         self.fetch("edit_move", {"kind": "item", "id": self.two.pk, "version": self.get(self.two).version, "direction": "down"})
         self.assertEqual(self.order(), ["one", "two", "S", "three", "four"])
 
-    def test_drag_drop_move_answers_with_the_new_numbers(self):
+    def test_drag_drop_move_asks_for_a_reload(self):
         body = self.fetch("edit_move", {"kind": "item", "id": self.four.pk, "version": self.get(self.four).version,
                                         "index": "0", "confirmed": "1"}).json()
         self.assertEqual(self.order()[0], "four")
-        self.assertEqual(body["labels"]["n-item-%d" % self.four.pk], "(1)")
+        self.assertTrue(body["reload"])
 
     def test_change_to_nested_item_and_back(self):
         body = self.fetch("edit_item_convert", {"to_kind": "nested", "version": self.get(self.one).version},

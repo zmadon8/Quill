@@ -210,17 +210,23 @@ def _panel_subjects(profile):
 IN_CONTEXT_COOKIE = "quill_in_context"
 
 
-def _in_context(request):
+def _in_context(request, scope=None):
     """Whether the side-panel Contents links open the whole Subject (at the heading) or just that Topic or Sub-topic.
 
     The profile's ``reading_all_mode`` decides: always the whole Subject, always only that Topic or Sub-topic, or,
     in "remember" mode, the view this browser used last (cookie ``quill_in_context``, written by site.js when a
     reading page loads: "0" is a single Topic or Sub-topic, anything else the whole Subject). With no cookie yet
     the profile's ``reading_all_default`` decides. Clicking a Topic or Sub-topic heading in the reading body
-    never depends on this: that link always carries its own target."""
+    never depends on this: that link always carries its own target.
+
+    A reading page passes its ``scope``: in "remember" mode the page being shown is itself the view in use, so
+    the cookie (which site.js writes only after the page has rendered) is ignored and ``scope == "subject"``
+    decides. The cookie only matters for pages with no scope (the Subject contents page)."""
     mode = request.profile.reading_all_mode
     if mode != Profile.READING_ALL_REMEMBER:
         return mode == Profile.READING_ALL_ALWAYS_ON
+    if scope is not None:
+        return scope == "subject"
     cookie = request.COOKIES.get(IN_CONTEXT_COOKIE)
     if cookie is None:
         return bool(request.profile.reading_all_default)
@@ -240,7 +246,7 @@ def _render_reading(request, subject, scope, target, crumbs):
     context = reading.build_reading(subject, request.user, scope, target)
     current_topic = target.pk if scope == "topic" else (target.topic_id if scope == "subtopic" else None)
     context.update(subject=subject, scope=scope, target=target, crumbs=crumbs, toc_current_topic=current_topic,
-                   in_context=_in_context(request), **edit_context(request), **_panel_subjects(request.profile))
+                   in_context=_in_context(request, scope), **edit_context(request), **_panel_subjects(request.profile))
     return render(request, "diary/reader.html", context)
 
 

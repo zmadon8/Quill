@@ -1,5 +1,5 @@
-{# The "+ Add" form that opens under a row in Edit mode (docs/DESIGN.md Edit mode, mockups 3 and 3b). Context: ref ("item:5"), ref_version, title, choices [(value, label)], default, citation_whats, fallback (address of the full Add page), next_url. The script posts the form to edit_add with the header X-Requested-With: fetch; without the script the button is the link to the full Add page. #}
-<form method="post" action="{% url 'edit_add' %}" class="addform" role="group" aria-label="{{ title }}" data-inline-add data-fallback="{{ fallback }}" data-citation-whats="{{ citation_whats }}">
+{# The "+ Add" form that opens under a row in Edit mode (docs/DESIGN.md Edit mode, mockups 3 and 3b). Context: ref ("item:5"), ref_version, title, choices [(value, label)], default, citation_whats, next_url. The script posts the form to edit_add with the header X-Requested-With: fetch; without the script the button is the link to the full Add page. #}
+<form method="post" action="{% url 'edit_add' %}" class="addform" role="group" aria-label="{{ title }}" data-inline-add data-citation-whats="{{ citation_whats }}">
   {% csrf_token %}
   <input type="hidden" name="ref" value="{{ ref }}">
   <input type="hidden" name="after_version" value="{{ ref_version }}">
