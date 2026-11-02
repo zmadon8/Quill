@@ -3,6 +3,7 @@
 {% block content %}
 <div class="home-column conflict">
   <h1>This {{ kind_name }} has changed</h1>
+  <p class="error" role="alert">Someone else saved a change to this {{ kind_name }} while you were editing it (or you changed it in another window). So that their work is not overwritten by mistake, your change was not saved yet.</p>
   <p>{{ error.message }} Nothing was saved. The version you opened was {{ error.expected_version }}; the current version is {{ error.current_version }}.</p>
   <p>Choose what to do. Nothing you typed is lost: it is shown here and kept by the first and third choices.</p>
 

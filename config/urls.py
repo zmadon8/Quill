@@ -1,7 +1,7 @@
 from django.urls import include, path
 from django.views.generic import RedirectView
 
-# Django's default 404 template is used when templates/404.html is missing; see diary/not_found.py.
+# Browser page requests go Home; anything else gets templates/404.html. See diary/not_found.py.
 handler404 = "diary.not_found.not_found"
 
 urlpatterns = [

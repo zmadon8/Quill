@@ -173,6 +173,12 @@ def home(request):
     return render(request, "diary/home.html", {"diary_profile": request_profile(request)})
 
 
+@reader_required
+def help_page(request):
+    """The Help page: plain-language instructions for everyday tasks. Any signed-in user may read it."""
+    return render(request, "diary/help.html")
+
+
 @profile_required
 def profile_settings(request):
     """Settings of the user's profile. Editors can change the Display Name, the export name and the "All" default; Readers only view them."""

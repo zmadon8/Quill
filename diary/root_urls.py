@@ -12,6 +12,7 @@ def _moved(old, name, **kw):
 
 urlpatterns = [
     path("", views.home, name="home"),
+    path("help/", views.help_page, name="help"),
     path("programs/", RedirectView.as_view(pattern_name="home", permanent=False), name="programs_legacy"),
     path("healthz/", views.healthz, name="healthz"),
     _moved("subjects/", "diary_home"),

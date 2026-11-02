@@ -41,6 +41,14 @@ Only Editors (and Admins whose own role is Editor) can edit. Use the quiet **Edi
 - **Undo**: in Edit mode the **Undo** button on the bar (hover for what it undoes) reverses your latest action in this browser session, whole (deleting a Topic with 30 Items is one step; saving an Item with its Cases is one step). If the record changed since, you are warned and can choose **Undo anyway**. Undo never reverses someone else's change. Undoing can itself be undone.
 - If someone else changed the same record first, nothing is saved and you see both versions side by side with three choices: **Keep mine** (do it again over theirs; theirs stays in History), **Keep theirs** (change nothing) or **Edit and merge** (the editor reopens with everything you typed, next to the saved version). This also applies to moves and deletes.
 
+## Help, error pages and accessibility (Milestone 7)
+
+- **Help** is linked in the top bar of Home and of the diary, and under the program button on Home (`/help/`). It explains, in plain words, reading, editing, Trash and Undo, search, settings, profiles and users, backups and restore, export and import. Keep it in step with this README when a feature changes.
+- Friendly pages for 403 (not allowed), 404, 500, a failed security check and "No profile assigned". A mistyped address in a browser still goes to Home. When someone else saved the same record first, the clash screen starts with a plain explanation.
+- An empty diary shows a short first-run hint on the Subjects page.
+- Accessibility: skip-to-content link, visible keyboard focus, labels on icon-only buttons, 44px touch targets on phones, one column from 320px, and no fading flash when the system asks for reduced motion.
+- There is no split-screen view (owner decision, D41).
+
 ## Notes and cross-references (Milestone 5)
 
 In Edit mode, **+ Add** offers **Note** on any Subject, Topic, Sub-topic, Section or Item (a Note on an Item shows directly beneath it). A Note's **Edit** button opens its page: text (bold, italic, underline), its links (add with the tree picker, Up, Down, Change, Remove) and **More** (Move to, Move up/down, History, Delete). Readers see each link as "See also: ..." (click to jump to it) and the place linked to shows "Linked from: ..." (click to go back). If the target is deleted the Note says "target deleted" until it is restored. A target with links cannot be deleted permanently until each link is pointed elsewhere or removed. Search results for a Note open the Note. Not built: polish (Milestone 7, without a split screen). Code: `diary/services/links.py`, `diary/views_note.py`, `templates/diary/note_editor.html`, `note_pick.html`. Tests: `diary/tests/test_services_links.py`, `test_views_notes.py`.

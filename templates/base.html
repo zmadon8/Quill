@@ -16,5 +16,6 @@
   {% if current_profile and current != 'search' and current != 'diary_home' %}<form class="nav-search" role="search" method="get" action="{% url 'search' %}"><label class="visually-hidden" for="nav-q">Search the diary</label><input type="search" id="nav-q" name="q" placeholder="Search" autocomplete="off" data-search-input><button type="submit">Search</button></form>{% endif %}
   {% if current_profile %}<a href="{% url 'export' %}"{% if current == 'export' %} class="on" aria-current="page"{% endif %}>Export</a>{% endif %}
   <a href="{% url 'search' %}"{% if current == 'search' %} class="on" aria-current="page"{% endif %}>Search</a>
+  <a href="{% url 'help' %}"{% if current == 'help' %} class="on" aria-current="page"{% endif %}>Help</a>
   <a href="{% url 'profile_settings' %}"{% if current == 'profile_settings' %} class="on" aria-current="page"{% endif %}>Profile settings</a>
 {% endwith %}{% endblock %}

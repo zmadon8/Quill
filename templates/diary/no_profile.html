@@ -3,5 +3,6 @@
 {% block content %}
 <h1>{{ diary_name }}</h1>
 <p class="error" role="alert">{{ message }}</p>
-<p><a href="{% url 'home' %}?home=1">Back to Home</a></p>
+<p>Your account is not linked to a diary yet, so there is nothing to show. Nothing is wrong with your password. Ask the Admin to give you a profile (a profile is like a separate notebook), then come back.</p>
+<p><a class="button" href="{% url 'home' %}?home=1">Back to Home</a></p>
 {% endblock %}

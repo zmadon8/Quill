@@ -7,5 +7,6 @@
   {% if user.is_admin %}<a href="{% url 'import_word' %}"{% if current == 'import_word' %} class="on" aria-current="page"{% endif %}>Import</a>{% endif %}
   {% if user.is_admin %}<a href="{% url 'backup_list' %}"{% if current|slice:":7" == 'backup_' or current|slice:":8" == 'restore_' %} class="on" aria-current="page"{% endif %}>Backups</a>{% endif %}
   {% if user.is_admin %}<a href="{% url 'settings' %}"{% if current == 'settings' %} class="on" aria-current="page"{% endif %}>Settings</a>{% endif %}
+  <a href="{% url 'help' %}"{% if current == 'help' %} class="on" aria-current="page"{% endif %}>Help</a>
   <a href="{% url 'my_settings' %}"{% if current == 'my_settings' %} class="on" aria-current="page"{% endif %}>My settings</a>
 {% endwith %}{% endblock %}

@@ -216,3 +216,8 @@ summary.ra::-webkit-details-marker { display: none; }
 /* The Edit switch at the bottom of the program Home page (docs/DESIGN.md D25). */
 .edit-switch-bottom { margin: 2.5rem 0 1.5rem; padding-top: 1rem; border-top: 1px solid var(--hair); display: flex; justify-content: center; }
 .edit-switch-bottom .bar-tools { margin-left: 0; justify-content: center; }
+
+/* Reduced motion: no fading flash on a saved row, a steady outline instead (Milestone 7). */
+@media (prefers-reduced-motion: reduce) {
+  .row-flash { animation: none; outline: 3px solid var(--amber-line); outline-offset: 2px; }
+}

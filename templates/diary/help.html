@@ -1,0 +1,51 @@
+{% extends "base_suite_home.html" %}
+{% block title %}Help - {{ home_name }}{% endblock %}
+{% block content %}
+<div class="home-column help-page">
+  <h1>Help</h1>
+  <p>This page explains the everyday tasks in plain words. Nothing here needs any technical knowledge. Use the Home button (the little house, top left) at any time to start again.</p>
+  <nav aria-label="On this page" class="help-toc">
+    <ul>
+      <li><a href="#h-read">Reading and finding things</a></li>
+      <li><a href="#h-edit">Editing</a></li>
+      <li><a href="#h-trash">Trash and Undo</a></li>
+      <li><a href="#h-search">Search</a></li>
+      <li><a href="#h-settings">Settings</a></li>
+      <li><a href="#h-people">Profiles and users</a></li>
+      <li><a href="#h-backups">Backups and restore</a></li>
+      <li><a href="#h-export">Export to Word</a></li>
+      <li><a href="#h-import">Import from Word</a></li>
+    </ul>
+  </nav>
+
+  <h2 id="h-read">Reading and finding things</h2>
+  <p>On Home press the diary button. The Subjects page lists your Subjects. Press a Subject to read it. Use <strong>Search</strong> (top bar) to find words, a citation such as 2018 9 SCC 49, or an exact phrase in quotation marks. <strong>Review</strong> lists everything marked For review.</p>
+
+  <h2 id="h-edit">Editing</h2>
+  <p>Only Editors can edit. Press the <strong>Edit</strong> link (the pencil) to switch editing on; the bar across the top says Editing. Every row then has two buttons: <strong>+ Add</strong> and <strong>Edit</strong>. Change the text, press Save, and it is kept. Press <strong>Done</strong> when you have finished. If you only want to read, leave Edit off.</p>
+  <p>If someone else changed the same record first, nothing is lost: you see both versions side by side and choose <strong>Keep mine</strong>, <strong>Keep theirs</strong> or <strong>Edit and merge</strong>. Every saved version stays in <strong>History</strong> (Edit, then More, then History) and can be brought back.</p>
+
+  <h2 id="h-trash">Trash and Undo</h2>
+  <p>Deleting never removes anything at once. It moves the record, with what is under it, to the <strong>Trash</strong>. Open Trash from the top bar and press <strong>Restore</strong> to bring it back in its old place. Only an explicit <strong>Delete permanently</strong> removes it for good. While editing, the <strong>Undo</strong> button reverses your last action.</p>
+
+  <h2 id="h-search">Search</h2>
+  <p>Type a word or part of a word. Capital letters and punctuation do not matter. Put exact phrases in quotation marks. You can narrow a search by Subject and see the results in context.</p>
+
+  <h2 id="h-settings">Settings</h2>
+  <p><strong>My settings</strong> (every user) chooses what opens after you log in and how numbers look. <strong>Profile settings</strong> (in the diary menu) sets the name shown at the top and the name used for Word files; only Editors can change them. The Admin also has <strong>Settings</strong> on Home to rename the Home page and the diary.</p>
+
+  <h2 id="h-people">Profiles and users</h2>
+  <p>A <strong>profile</strong> is a separate notebook of diary entries. Each person is linked to one profile and sees only that one. The Admin makes profiles under <strong>Profiles</strong>, and adds people, changes passwords and chooses roles under <strong>Users</strong>. Roles: <strong>Reader</strong> reads only, <strong>Editor</strong> reads and edits, <strong>Admin</strong> does everything including users and backups. If you see "No profile assigned", ask the Admin.</p>
+
+  <h2 id="h-backups">Backups and restore</h2>
+  <p>The site saves a backup every night and keeps them for at least 30 days. The Admin can open <strong>Backups</strong> to press <strong>Backup now</strong>, <strong>Download</strong> a copy to keep on a computer, or <strong>Restore</strong>. Restore first shows what would change, and takes a safety backup before it does anything. A yellow bar at the top warns the Admin if a backup failed.</p>
+
+  <h2 id="h-export">Export to Word</h2>
+  <p>Open <strong>Export</strong> in the top bar. Choose the whole diary in one Word file, one file per Subject, or just the page you are looking at. The file downloads to your computer. Exporting never changes the diary.</p>
+
+  <h2 id="h-import">Import from Word</h2>
+  <p>The Admin can load a Word diary with <strong>Import</strong> on Home. It always shows a practice run first and changes nothing until the Admin approves it. It only goes into an empty profile.</p>
+
+  <p class="hint">Still stuck? Ask the Admin, and say which page you were on and what you pressed.</p>
+</div>
+{% endblock %}

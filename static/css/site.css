@@ -413,3 +413,16 @@ table[data-resizable-columns] th { position: relative; overflow-wrap: anywhere; 
 /* Word export (Milestone 6) */
 .export-link { min-height: 2rem; font-size: var(--small-size); }
 .export-page .settings-section { margin-bottom: 1.25rem; }
+
+/* Help page, first-run hint and small-screen polish (Milestone 7). */
+.help-page h2 { margin-top: 2rem; }
+.help-page p, .help-page li { max-width: 42rem; }
+.help-toc ul { padding-left: 0; list-style: none; }
+.help-toc a, .help-link a, .first-run a { display: inline-flex; align-items: center; min-height: var(--tap); }
+@media (max-width: 599px) {
+  .nav-search input[type=search], .nav-search button { min-height: var(--tap); }
+  .toc-toggle { width: var(--tap); flex-basis: var(--tap); }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { scroll-behavior: auto !important; }
+}
