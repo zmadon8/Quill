@@ -202,13 +202,22 @@ def _panel_subjects(profile):
 
 
 IN_CONTEXT_COOKIE = "quill_in_context"
+IN_CONTEXT_ONCE_COOKIE = "quill_in_context_once"
 
 
 def _in_context(request):
     """The "All" tick, remembered in a cookie so the server can show the whole Subject.
 
-    With a cookie, "0" is unticked and anything else is ticked. With no cookie (no choice made yet) the
-    profile's ``reading_all_default`` decides."""
+    In "remember" mode a cookie wins ("0" is unticked, anything else ticked); with no cookie (no choice made
+    yet) the profile's ``reading_all_default`` decides. In the always modes the remembered cookie is ignored
+    and the page starts as configured; only the one-shot cookie written by a toggle (and cleared by the script
+    on the next load) changes this one page view."""
+    mode = request.profile.reading_all_mode
+    if mode != Profile.READING_ALL_REMEMBER:
+        once = request.COOKIES.get(IN_CONTEXT_ONCE_COOKIE)
+        if once is not None:
+            return once != "0"
+        return mode == Profile.READING_ALL_ALWAYS_ON
     cookie = request.COOKIES.get(IN_CONTEXT_COOKIE)
     if cookie is None:
         return bool(request.profile.reading_all_default)
@@ -219,7 +228,7 @@ def _in_context(request):
 def subject_contents(request, pk):
     subject = get_object_or_404(_subjects(request.profile), pk=pk)
     context = reading.build_reading(subject, request.user)
-    context.update(subject=subject, crumbs=_crumbs(subject), in_context=_in_context(request),
+    context.update(subject=subject, crumbs=_crumbs(subject), in_context=_in_context(request), in_context_mode=request.profile.reading_all_mode,
                    **edit_context(request), **_panel_subjects(request.profile))
     return render(request, "diary/subject_contents.html", context)
 
@@ -232,7 +241,7 @@ def _render_reading(request, subject, scope, target, crumbs):
     context = reading.build_reading(subject, request.user, scope, target)
     current_topic = target.pk if scope == "topic" else (target.topic_id if scope == "subtopic" else None)
     context.update(subject=subject, scope=scope, target=target, crumbs=crumbs, toc_current_topic=current_topic,
-                   in_context=_in_context(request), **edit_context(request), **_panel_subjects(request.profile))
+                   in_context=_in_context(request), in_context_mode=request.profile.reading_all_mode, **edit_context(request), **_panel_subjects(request.profile))
     return render(request, "diary/reader.html", context)
 
 

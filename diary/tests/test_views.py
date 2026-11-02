@@ -609,6 +609,38 @@ class ReadingScreenTests(TestCase):
         self.client.cookies["quill_in_context"] = "0"
         self.assertEqual(self.client.get(reverse("read_topic", args=[topic.pk])).status_code, 200)
 
+    def test_always_on_ignores_cookie_and_once_cookie_toggles_one_load(self):
+        self.client.force_login(self.users["reader"])
+        topic = Topic.objects.get(name="Remedies")
+        whole = reverse("read_subject", args=[self.contract.pk])
+        Profile.objects.filter(pk=main_profile().pk).update(reading_all_mode="always_on", reading_all_default=False)
+        self.client.cookies["quill_in_context"] = "0"
+        resp = self.client.get(reverse("read_topic", args=[topic.pk]))
+        self.assertRedirects(resp, "%s#n-topic-%d" % (whole, topic.pk), fetch_redirect_response=False)
+        self.assertContains(self.client.get(whole), 'data-in-context-mode="always_on" checked')
+        self.client.cookies["quill_in_context_once"] = "0"
+        self.assertEqual(self.client.get(reverse("read_topic", args=[topic.pk])).status_code, 200)
+        self.assertNotContains(self.client.get(whole), "data-in-context-mode=\"always_on\" checked")
+
+    def test_always_off_ignores_cookie_and_once_cookie_toggles_one_load(self):
+        self.client.force_login(self.users["reader"])
+        topic = Topic.objects.get(name="Remedies")
+        whole = reverse("read_subject", args=[self.contract.pk])
+        Profile.objects.filter(pk=main_profile().pk).update(reading_all_mode="always_off", reading_all_default=True)
+        self.client.cookies["quill_in_context"] = "1"
+        self.assertEqual(self.client.get(reverse("read_topic", args=[topic.pk])).status_code, 200)
+        self.assertNotContains(self.client.get(whole), "data-in-context-mode=\"always_off\" checked")
+        self.client.cookies["quill_in_context_once"] = "1"
+        resp = self.client.get(reverse("read_topic", args=[topic.pk]))
+        self.assertRedirects(resp, "%s#n-topic-%d" % (whole, topic.pk), fetch_redirect_response=False)
+
+    def test_remember_mode_ignores_once_cookie(self):
+        self.client.force_login(self.users["reader"])
+        topic = Topic.objects.get(name="Remedies")
+        self.client.cookies["quill_in_context"] = "0"
+        self.client.cookies["quill_in_context_once"] = "1"
+        self.assertEqual(self.client.get(reverse("read_topic", args=[topic.pk])).status_code, 200)
+
     def test_login_page_has_no_diary_name(self):
         from django.test import Client
 

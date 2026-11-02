@@ -338,6 +338,24 @@
     var setCookie = function (on) { document.cookie = "quill_in_context=" + (on ? "1" : "0") + "; path=/; max-age=31536000; SameSite=Lax"; };
     var contextLabel = document.querySelector("[data-in-context-label]");
     if (contextLabel) { contextLabel.hidden = false; }
+    // Always ticked / Always unticked: the server starts every page as configured and ignores the remembered cookie.
+    // A toggle only writes a one-shot cookie for the reload it causes; it is cleared here on load and never touches the remembered choice.
+    var onceMode = contextBox.getAttribute("data-in-context-mode") !== "remember";
+    if (onceMode) {
+      document.cookie = "quill_in_context_once=; path=/; max-age=0; SameSite=Lax";
+      contextBox.addEventListener("change", function () {
+        document.cookie = "quill_in_context_once=" + (contextBox.checked ? "1" : "0") + "; path=/; max-age=60; SameSite=Lax";
+        if (!contextBox.checked) {
+          var onceHash = window.location.hash.replace(/^#/, "");
+          var onceLinks = document.querySelectorAll("[data-toc] a[data-anchor]");
+          for (var j = 0; j < onceLinks.length; j++) {
+            if (onceHash && onceLinks[j].dataset.anchor === onceHash) { window.location.href = onceLinks[j].dataset.ownUrl; return; }
+          }
+        }
+        window.location.reload();
+      });
+      return;
+    }
     var storedCtx = null;
     var triedRestore = null;
     try { storedCtx = window.localStorage.getItem(CTX_KEY); } catch (err) { storedCtx = null; }

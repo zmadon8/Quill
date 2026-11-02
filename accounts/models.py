@@ -70,13 +70,26 @@ class Profile(models.Model):
     ``export_name`` is the name this profile's exported files start with; blank means the default
     "<program name> <profile name>" (see ``accounts.profiles.effective_export_name``).
     ``reading_all_default`` is whether the "All" tick on the reading pages starts ticked for this profile
-    when the browser has no choice yet (no cookie and no saved value).
+    when the browser has no choice yet (no cookie and no saved value) and ``reading_all_mode`` is "remember".
+    ``reading_all_mode`` decides how "All" starts: always ticked, always unticked, or as each browser last left it.
     """
+
+    READING_ALL_ALWAYS_ON = "always_on"
+    READING_ALL_ALWAYS_OFF = "always_off"
+    READING_ALL_REMEMBER = "remember"
+    READING_ALL_MODE_CHOICES = [
+        (READING_ALL_ALWAYS_ON, "Always ticked"),
+        (READING_ALL_ALWAYS_OFF, "Always unticked"),
+        (READING_ALL_REMEMBER, "Remember each user's choice"),
+    ]
 
     program = models.CharField(max_length=30)
     name = models.CharField(max_length=60)
     export_name = models.CharField(max_length=100, blank=True, default="")
     reading_all_default = models.BooleanField(default=True)
+    reading_all_mode = models.CharField(
+        max_length=10, choices=READING_ALL_MODE_CHOICES, default=READING_ALL_REMEMBER
+    )
     deleted_at = models.DateTimeField(null=True, blank=True)
     deleted_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"

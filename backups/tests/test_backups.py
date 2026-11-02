@@ -570,6 +570,25 @@ class ReadingAllDefaultBackupTests(BackupBase):
             del record["fields"]["reading_all_default"]
         services.restore_backup(doc, self.admin)
         self.assertTrue(Profile.objects.get(name="Main").reading_all_default)
+        self.assertEqual(Profile.objects.get(name="Main").reading_all_mode, "remember")
+
+    def test_mode_round_trips(self):
+        Profile.objects.filter(pk=main_profile().pk).update(reading_all_mode="always_off")
+        doc = services.parse_backup(services.create_backup("manual").data, MAX)
+        self.assertEqual(doc["models"]["accounts.Profile"][0]["fields"]["reading_all_mode"], "always_off")
+        Profile.objects.filter(pk=main_profile().pk).update(reading_all_mode="always_on")
+        services.restore_backup(doc, self.admin)
+        self.assertEqual(Profile.objects.get(name="Main").reading_all_mode, "always_off")
+
+    def test_backup_without_mode_restores_as_remember_with_its_boolean(self):
+        Profile.objects.filter(pk=main_profile().pk).update(reading_all_mode="always_on", reading_all_default=False)
+        doc = services.parse_backup(services.create_backup("manual").data, MAX)
+        for record in doc["models"]["accounts.Profile"]:
+            del record["fields"]["reading_all_mode"]
+        services.restore_backup(doc, self.admin)
+        profile = Profile.objects.get(name="Main")
+        self.assertEqual(profile.reading_all_mode, "remember")
+        self.assertFalse(profile.reading_all_default)
 
 
 class LandingProgramBackupTests(BackupBase):

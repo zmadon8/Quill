@@ -1090,7 +1090,7 @@ class ExportNameTests(BaseCase):
 
     def test_editor_can_change_name(self):
         self.client.force_login(self.admin)  # Editor of Main through the membership
-        resp = self.client.post(reverse("profile_settings"), {"export_name": "  My: Diary "})
+        resp = self.client.post(reverse("profile_settings"), {"export_name": "  My: Diary ", "reading_all_mode": "remember"})
         self.assertRedirects(resp, reverse("profile_settings"))
         self.assertEqual(Profile.objects.get(pk=self.main().pk).export_name, "My: Diary")
         self.assertContains(self.client.get(reverse("profile_settings")), "My Diary")
@@ -1100,20 +1100,42 @@ class ExportNameTests(BaseCase):
         self.client.force_login(self.admin)
         resp = self.client.get(reverse("profile_settings"))
         self.assertContains(resp, 'name="reading_all_default"')
-        self.assertContains(resp, "Show &quot;All&quot; ticked by default")
-        self.client.post(reverse("profile_settings"), {"export_name": ""})  # unticked box sends nothing
+        self.assertContains(resp, "First-time &quot;All&quot; is ticked")
+        self.client.post(reverse("profile_settings"), {"export_name": "", "reading_all_mode": "remember"})
         self.assertFalse(Profile.objects.get(pk=self.main().pk).reading_all_default)
-        self.client.post(reverse("profile_settings"), {"export_name": "", "reading_all_default": "on"})
+        self.client.post(
+            reverse("profile_settings"),
+            {"export_name": "", "reading_all_mode": "remember", "reading_all_default": "on"},
+        )
         self.assertTrue(Profile.objects.get(pk=self.main().pk).reading_all_default)
+
+    def test_mode_defaults_to_remember_and_editor_can_change_it(self):
+        self.assertEqual(self.main().reading_all_mode, "remember")
+        self.client.force_login(self.admin)
+        resp = self.client.get(reverse("profile_settings"))
+        self.assertContains(resp, 'name="reading_all_mode"')
+        for label in ("Always ticked", "Always unticked", "Remember each user&#x27;s choice"):
+            self.assertContains(resp, label)
+        for mode in ("always_on", "always_off", "remember"):
+            self.client.post(reverse("profile_settings"), {"export_name": "", "reading_all_mode": mode})
+            self.assertEqual(Profile.objects.get(pk=self.main().pk).reading_all_mode, mode)
+        resp = self.client.post(reverse("profile_settings"), {"export_name": "", "reading_all_mode": "bogus"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(Profile.objects.get(pk=self.main().pk).reading_all_mode, "remember")
 
     def test_reader_cannot_change_all_default(self):
         self.client.force_login(self.user)
-        resp = self.client.post(reverse("profile_settings"), {"export_name": "", "reading_all_default": "on"})
+        resp = self.client.post(
+            reverse("profile_settings"),
+            {"export_name": "", "reading_all_default": "on", "reading_all_mode": "always_on"},
+        )
         self.assertEqual(resp.status_code, 403)
         Profile.objects.filter(pk=self.main().pk).update(reading_all_default=False)
         resp = self.client.get(reverse("profile_settings"))
         self.assertNotContains(resp, 'name="reading_all_default"')
-        self.assertContains(resp, "starts ticked")
+        self.assertNotContains(resp, 'name="reading_all_mode"')
+        self.assertContains(resp, "First-time")
+        self.assertEqual(Profile.objects.get(pk=self.main().pk).reading_all_mode, "remember")
         self.assertFalse(Profile.objects.get(pk=self.main().pk).reading_all_default)
 
     def test_reader_can_view_but_not_change(self):
@@ -1134,7 +1156,7 @@ class ExportNameTests(BaseCase):
     def test_only_own_profile_changes(self):
         junior = Profile.objects.create(program="diary", name="Junior")
         self.client.force_login(self.admin)
-        self.client.post(reverse("profile_settings"), {"export_name": "Mine"})
+        self.client.post(reverse("profile_settings"), {"export_name": "Mine", "reading_all_mode": "remember"})
         junior.refresh_from_db()
         self.assertEqual(junior.export_name, "")
 
