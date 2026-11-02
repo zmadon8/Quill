@@ -19,7 +19,7 @@ from . import services as svc
 from . import undo_session
 from .conflicts import conflict_page
 from .models import Item, Section, Subject, Subtopic, Topic
-from .richtext import sanitise_html
+from .richtext import plain_text, sanitise_html
 from .services.core import Ctx, check_version, descendants, get_record, label
 from .services.errors import Conflict, NotFound, ServiceError
 from .services.moves import ALLOWED_PARENTS, NICE
@@ -297,7 +297,7 @@ def add(request):
         text = sanitise_html(typed) if post.get("text_format") == "html" else _html(typed)
         # A citation belongs to Items and Nested Items only; it is ignored for anything else.
         citation = _single_line(post.get("citation", ""))
-        if not text and not citation:
+        if not plain_text(text).strip() and not citation:
             raise ServiceError("Type the Item text (or a citation) first.")
         fields.update(text=text, citation=citation)
     result = svc.create(request.profile, request.user, kind, parent=parent, index=index if index is not None else _index(request), **fields)

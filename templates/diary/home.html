@@ -5,8 +5,6 @@
   <h1>Programs</h1>
   {% if diary_profile %}
   <a class="program-link" href="{% url 'subjects' %}">{{ diary_name }}</a>
-    <a class="button primary" href="{% url 'subjects' %}">Open</a>
-  </div>
   {% else %}
   <p class="muted">No programs are available to you yet.</p>
   {% endif %}

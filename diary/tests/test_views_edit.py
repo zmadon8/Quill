@@ -299,10 +299,10 @@ class AddTests(EditViewTestCase):
         self.assertNotContains(resp, "Name (headings and Sections)")
         self.assertNotContains(resp, "Text (Items)")
         # The form inside the Subject's edit bar starts on Topic, so its Citation box is rendered disabled.
-        first = html[html.index("data-add-form"):]
+        first = html[html.index("data-add-form>"):]
         self.assertRegex(first[: first.index("</form>")], r'data-add-citation disabled')
         # A Topic's form starts on Item, so its Citation box is enabled.
-        second = first[first.index("data-add-form", 10):]
+        second = first[first.index("data-add-form>", 10):]
         self.assertNotRegex(second[: second.index("</form>")], r'data-add-citation disabled')
 
     def test_the_edit_buttons_are_icons_with_labels_and_titles(self):

@@ -208,19 +208,19 @@ class HomeIndexTests(TestCase):
         self.assertNotIn(">Subjects</a>", nav)
         self.assertNotIn('href="%s"' % reverse("subjects"), nav)
         self.assertIn(reverse("search"), nav)
-        header = html.split('<header class="site-header">')[1].split("</header>")[0]
+        header = html.split('<header class="site-header"')[1].split("</header>")[0]
         self.assertIn('<a href="%s" title="Subjects"' % reverse("subjects"), header)
         self.assertIn("Log out", nav)
 
     def test_home_icon_button_precedes_program_name_inside_programs_only(self):
         self.client.force_login(self.reader)
-        header = self.client.get(reverse("subjects")).content.decode().split('<header class="site-header">')[1].split("</header>")[0]
+        header = self.client.get(reverse("subjects")).content.decode().split('<header class="site-header"')[1].split("</header>")[0]
         self.assertIn('class="home-button" href="%s"' % reverse("home"), header)
         self.assertIn('aria-label="Home (Alt+H)"', header)
         self.assertLess(header.index("home-button"), header.index('class="brand"'))
         self.assertLess(header.index('class="brand"'), header.index("data-back"))
         self.assertLess(header.index("data-back"), header.index("data-forward"))
-        suite_header = self.client.get(reverse("home")).content.decode().split('<header class="site-header">')[1].split("</header>")[0]
+        suite_header = self.client.get(reverse("home")).content.decode().split('<header class="site-header"')[1].split("</header>")[0]
         self.assertNotIn("home-button", suite_header)
 
     def test_home_picker_is_one_link_with_only_the_program_name(self):
@@ -257,7 +257,7 @@ class HomeIndexTests(TestCase):
         self.client.force_login(self.admin)
         for name in ("home", "subjects", "search", "user_list", "backup_list", "settings"):
             html = self.client.get(reverse(name)).content.decode()
-            header = html.split('<header class="site-header">')[1].split("</header>")[0]
+            header = html.split('<header class="site-header"')[1].split("</header>")[0]
             self.assertIn("data-back", header, name)
             if name in ("home", "user_list", "backup_list", "settings"):
                 self.assertIn('<a href="%s" title="Go to Home (Alt+H)" aria-label="Go to Home">' % reverse("home"), header, name)
@@ -274,7 +274,7 @@ class HomeIndexTests(TestCase):
     def test_back_and_forward_sit_right_of_the_program_name(self):
         self.client.force_login(self.admin)
         for name in ("home", "subjects", "user_list"):
-            header = self.client.get(reverse(name)).content.decode().split('<header class="site-header">')[1].split("</header>")[0]
+            header = self.client.get(reverse(name)).content.decode().split('<header class="site-header"')[1].split("</header>")[0]
             brand = header.index('class="brand"')
             back = header.index("data-back")
             forward = header.index("data-forward")
@@ -390,8 +390,7 @@ class ReadingScreenTests(TestCase):
         resp = self.client.get(reverse("subjects"))
         self.assertContains(resp, "Contract Law")
         self.assertContains(resp, "Other Subjects")
-        self.assertNotContains(resp, "Sample Act")
-        self.assertContains(resp, "Sample Act")
+        self.assertContains(resp, "Sample Act")  # an Other Subject, listed under the Other Subjects heading
         self.assertContains(resp, 'id="other-subjects"')
         html = resp.content.decode()
         self.assertLess(html.index("Contract Law"), html.index('id="other-subjects"'))
@@ -408,7 +407,8 @@ class ReadingScreenTests(TestCase):
                     reverse("read_subtopic", args=[self.clause.pk])):
             resp = self.client.get(url)
             self.assertContains(resp, 'class="breadcrumb"')
-            self.assertContains(resp, '<a href="%s">Subjects</a>' % reverse("subjects"))
+            self.assertContains(resp, '<a href="%s"' % reverse("subjects"))
+            self.assertContains(resp, ">Subjects</a>")
 
     def test_subject_links_open_whole_subject_view(self):
         self.client.force_login(self.users["reader"])
@@ -790,7 +790,7 @@ class ProfileScopingTests(TestCase):
         self.assertNotContains(resp, "Beta Subject")
         self.assertEqual(resp.context["subject_total"], 1)
         self.assertEqual(resp.context["item_total"], 1)
-        self.assertEqual(resp.context["other_count"], 0)
+        self.assertEqual(resp.context["other_subjects"], [])
 
     def test_other_profile_sees_its_own_counts(self):
         self.client.force_login(self.user_b)

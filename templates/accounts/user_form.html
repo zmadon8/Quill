@@ -4,6 +4,7 @@
 <h1>{{ title }}</h1>
 <form method="post" class="stack">
   {% csrf_token %}
+  {{ form.non_field_errors }}
   {% for field in form %}
   {% if field.name == "profile" %}
   <div class="profile-row">
