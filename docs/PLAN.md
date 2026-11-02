@@ -198,6 +198,23 @@ A button with three dots, each followed by a line, sits at the right end of the 
 
 Owner question (default stands unless you say otherwise): should the Contents button also appear on the Subject contents page? Default: no, there the Contents list is already shown in the page on a phone.
 
+### Round 7, item 2: Edit mode redesign
+
+**Status: built (server in FEAT-005, client in FEAT-006); code written, not run against Django. GitHub CI is the first run, and the owner should try it on a computer and a phone.** Design: D22 in `docs/DESIGN.md`; pictures in `design/mockups/edit-mode/`. The old icon edit bars and quick-add are removed.
+
+Owner check list (try on the real site):
+1. Switch Edit on from the bar; move to another page and back: it should stay on in the same tab. Done turns it off.
+2. Every row has just "+ Add" and "Edit". On a phone they are big enough to tap.
+3. "+ Add" under an Item: add an Item, press Enter, the next blank form opens. Try a Nested Item, a Section, a Topic and a Sub-topic.
+4. "Edit" on an Item: change the text, citations (drag a grip), flag, For review, then Save; also More: Move up, Change to Nested Item, History, Delete then Undo.
+5. "Edit" on a Topic: only the name (no explanatory text) and More.
+6. Open the same Item in two windows and save in both: the second should show the clash message and link.
+
+Owner questions (default stands unless you say otherwise):
+- Should Edit on a heading, Section or Subject also work without JavaScript? Default: no (only Items and "+ Add" fall back to full pages).
+- Should Delete in the card ask "are you sure"? Default: no, Undo is on the bar.
+- After a drag, should the page reload? Default: yes (numbers and versions always right).
+
 ## Order and dependencies
 
 0, 1, then 2 (so real data can be seen), then 3, 4, 5, 6, 7. Milestones 4 and 5 can swap if you need Notes sooner. All questions in `docs/DESIGN.md` section 14 are answered (N1 and N2 are closed by D9 and I10). Only four small questions remain, each with a default that is used unless you say otherwise: the Section number style, the date format in file names, the long file name rule, and the Current View heading level for a Topic.
