@@ -91,25 +91,27 @@ Note: the technology (Django, PostgreSQL) is confirmed for a **standalone app** 
 
 ## Milestone 4: Search, Review list, Settings
 
-**Deliverable:** Global Search page with the shortcuts (Alt+G, Alt+H and Ctrl+Alt+G, Ctrl+Alt+H; Option on a Mac) and visible Search and Subjects buttons, with Home (the program picker) beside the program name; filters; highlighted snippets; open in context. The Review list screen. Settings: opening page (overrides login landing on Home), number formats with preview (including the new Sections format), Custom Name for exported file names with a live file-name preview, and the date format (with time zone). **Profiles:** Search, the Review list and the opening Subject setting look only inside the user's profile.
+**Deliverable:** Global Search page with the shortcuts (Alt+G, Alt+H and Ctrl+Alt+G, Ctrl+Alt+H; Option on a Mac) and visible Search and Subjects buttons, with Home (the program picker) beside the program name; filters; highlighted snippets; open in context. The Review list screen. Settings: opening page (overrides login landing on Home) and number formats with preview (including the Sections format). **Profiles:** Search, the Review list and the opening Subject setting look only inside the user's profile.
+
+**Not part of the built Milestone 4:** the **Custom Name** setting (with its live file-name preview) and the **date format** (with time zone). They only matter once Word files are exported, so they go with **Milestone 6** (Word export); see D32 in `docs/DESIGN.md`. If you want them earlier, say so.
+
+**Status: built (4a to 4d), CI pending.** 4a: search engine (`diary/searchtext.py`, `diary/search.py`, `diary/locate.py`). 4b: Search page, header search box, filters, snippets, open in context with a brief highlight, Alt+G. 4c: the Review list rebuilt on the same code (also lists Items inside Nested Items). 4d: My settings (opening page, number formats with a live preview, last page; D30). The pure tests pass locally; the Django tests could not be run where the code was written, so GitHub CI is their first run. Decisions and defaults are in D30 to D32.
 
 **How you check it:**
-- Search `2018 9 SCC 49` and find `(2018) 9 SCC 49`.
-- Search part of a word; search a quoted phrase exactly; confirm Trash items never appear.
-- Use the filters: one Subject, Citations only, review only. Result count shows.
-- Click a result: you land on the item, scrolled to it.
+- Search `2018 9 SCC 49` and find `(2018) 9 SCC 49`. Search part of a word; search a quoted phrase exactly; confirm Trash items never appear.
+- Use the filters: one Subject, Citations only, For review only. The result count shows; "Show more" adds 50.
+- Click a result: you land on the record in the reading view and it flashes briefly. Press Alt+G on any page: the search box is focused.
+- The header search box appears on reading pages (not on the Search or Index of Subjects pages) and wraps cleanly on a phone.
 - Time it: results should appear in under a second.
-- Change Items to (a), (b), (c) in Settings (the default is now (1), (2), (3)); the screens change and the stored data does not. Set the opening page and check it.
-- Mark an item For review with one click; see it in the Review list. Do the same for a Section; it appears as a header row with its number and parent path, and the search filter "For review only" finds it.
-- Change the Sections format (for example to "Section 1, Section 2") and watch the preview and screens change.
-- Type a Custom Name containing a colon; the preview shows the file name with a hyphen and says "':' was replaced with '-'". Empty names, over 60 characters, and leading or trailing dots or spaces are refused.
-
-**Status of 4d (My settings):** opening page and number formats with a live preview are built (D30 in `docs/DESIGN.md`); code written, not run against Django, so GitHub CI is the first run. **Owner check list:** on My settings choose each opening page and sign in again (and visit `/` directly); `?home=1` still reaches Home; change the formats and watch the Preview, then Save and check the reading page; "Use the standard formats" resets the dropdowns; try it on a phone.
+- Mark an Item For review with one click; see it in the Review list. Do the same for a Section and for an Item inside a Nested Item; each appears in the Review list, and "Search within these" shows the same records.
+- My settings: choose each opening page (Subjects, Global Search, the last page I viewed, a chosen Subject), sign in again and also visit `/` directly; `?home=1` still reaches Home.
+- Change Items to (a), (b), (c) (the default is (1), (2), (3)) and watch the Preview, then Save and check the reading page: the screens change, the stored data does not. Change the Sections format (for example "Section 1, Section 2"). Check Items inside a Nested Item (bullets by default). "Use the standard formats" resets the dropdowns. Try it on a phone.
+- There is no Custom Name or date format screen yet (Milestone 6).
 
 **Risks:**
 - Search quality on citations with unusual punctuation (mitigation: test with real citations from your file).
 - Shortcut clashes with the browser or Mac system (the reason Cmd+G and Cmd+H are not used).
-- Search speed as data grows (indexed; measured at 5,000 Items).
+- Search speed as data grows (measured at 5,000 records, about 0.35 s for the matching code; upgrade path to pg_trgm in `docs/DESIGN.md` section 10).
 
 ## Milestone 5: Notes
 
