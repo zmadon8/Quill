@@ -1,5 +1,6 @@
 import hashlib
 import io
+import logging
 import os
 import re
 
@@ -14,11 +15,14 @@ from accounts.permissions import admin_required
 from . import services
 from .models import KEEP_KINDS, BackupFile, BackupLog
 
+logger = logging.getLogger(__name__)
+
 CONFIRM_WORD = "RESTORE"
 
 
 def csrf_failure(request, reason=""):
     """Plain 403 page for a failed security check (stale page, cookies blocked, other address)."""
+    logger.warning("CSRF check failed: %s (path %s, host %s)", reason, request.path, request.get_host())
     if request.headers.get("X-Requested-With") == "fetch":
         return JsonResponse({"ok": False, "csrf": True, "errors": ["Your session has expired. Reload the page and sign in again."]}, status=403)
     return render(request, "403_csrf.html", status=403)
