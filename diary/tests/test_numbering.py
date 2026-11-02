@@ -64,6 +64,20 @@ class FormatTests(unittest.TestCase):
         self.assertEqual(n.nested_bullets(2), [n.BULLET, n.BULLET])
 
 
+class DisplayLabelTests(unittest.TestCase):
+    def test_full_stop_after_unbracketed_labels(self):
+        self.assertEqual(n.display_label("A"), "A.")
+        self.assertEqual(n.display_label("1"), "1.")
+        self.assertEqual(n.display_label("iv"), "iv.")
+        self.assertEqual(n.display_label("Section 1"), "Section 1.")
+
+    def test_closed_or_empty_labels_unchanged(self):
+        self.assertEqual(n.display_label("(a)"), "(a)")
+        self.assertEqual(n.display_label(n.BULLET), n.BULLET)
+        self.assertEqual(n.display_label(""), "")
+        self.assertEqual(n.display_label(None), "")
+
+
 class ChildrenTests(unittest.TestCase):
     def test_clause_12_example(self):
         kinds = ["section", "item", "item"] + ["section"] + ["item"] * 8

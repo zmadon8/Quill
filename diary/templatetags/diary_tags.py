@@ -1,6 +1,7 @@
 from django import template
 from django.utils.safestring import mark_safe
 
+from diary import numbering
 from diary.richtext import sanitise_html
 
 register = template.Library()
@@ -12,10 +13,7 @@ def dotted(label):
 
     Labels already closed by a bracket ('(a)'), a bullet or nothing are returned unchanged.
     """
-    label = str(label or "")
-    if label and label[-1].isalnum():
-        return label + "."
-    return label
+    return numbering.display_label(label)
 
 
 @register.filter

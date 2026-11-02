@@ -104,3 +104,14 @@ def nested_bullets(count):
 def multi_item_labels(count):
     """Multi-Item citations: (a), (b), (c) inside the item."""
     return number_siblings(count, "(a)")
+
+
+def display_label(label):
+    """A label as the reading page shows it: 'A' -> 'A.', '1' -> '1.', 'Section 1' -> 'Section 1.'.
+
+    Labels already closed by a bracket ('(a)'), a bullet or nothing are returned unchanged.
+    """
+    label = str(label or "")
+    if label and label[-1].isalnum():
+        return label + "."
+    return label
