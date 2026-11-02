@@ -68,16 +68,17 @@ def my_settings(request):
 @require_GET
 def format_preview(request):
     """The sample for the formats in the query string (the settings page fetches this as you choose)."""
-    from diary.forms import FORMAT_FIELDS, DiarySettingsForm, preview_rows
+    from diary.forms import FORMAT_FIELDS, DiarySettingsForm, allowed_formats, preview_rows
 
     chosen = {}
     profile = get_profile_for(request.user, suite.KEY_DIARY)
     if profile:
         chosen = DiarySettingsForm(user=request.user, profile=profile).current()
     chosen = {name: chosen.get(name) for name in FORMAT_FIELDS}
+    allowed = allowed_formats()
     for name in FORMAT_FIELDS:
         value = request.GET.get(name, "")
-        if value:
+        if value in allowed[name]:  # junk or not-allowed values leave the saved (or standard) format in place
             chosen[name] = value
     return render(request, "accounts/_format_preview.html", {"preview": preview_rows(chosen)})
 

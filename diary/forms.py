@@ -135,6 +135,13 @@ class DiarySettingsForm(forms.Form):
         return row
 
 
+def allowed_formats():
+    """For each ``*_format`` name, the set of format keys that may be chosen."""
+    allowed = {name: {key for key, _label in FORMAT_CHOICES} for name in FORMAT_FIELDS}
+    allowed["section_format"] = {key for key, _label in SECTION_FORMAT_CHOICES}
+    return allowed
+
+
 def preview_rows(chosen):
     """Sample rows (diary.preview) for ``chosen``, a mapping of ``*_format`` names to stored format names.
 
@@ -142,8 +149,7 @@ def preview_rows(chosen):
     """
     from . import preview, reading
 
-    allowed = {name: {key for key, _label in FORMAT_CHOICES} for name in FORMAT_FIELDS}
-    allowed["section_format"] = {key for key, _label in SECTION_FORMAT_CHOICES}
+    allowed = allowed_formats()
     standard = {name: UserSettings._meta.get_field(name).default for name in FORMAT_FIELDS}
     formats = {}
     for key in preview.KEYS:
