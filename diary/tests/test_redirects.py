@@ -81,7 +81,7 @@ class RedirectTests(TestCase):
     def test_missing_record_redirects_with_a_message(self):
         self.client.force_login(self.reader)
         resp = self.client.get("/caselaw/subjects/999999/", **HTML)
-        self.assertEqual(resp.status_code, 301)
+        self.assertEqual(resp.status_code, 302)  # temporary: the record can come back from the Trash
         self.assertEqual(resp["Location"], "/caselaw/home/")
         page = self.client.get(resp["Location"], **HTML)
         self.assertContains(page, "That page no longer exists.")
@@ -92,7 +92,7 @@ class RedirectTests(TestCase):
         theirs = Subject.objects.create(profile=other, name="Theirs", landing_position=1)
         self.client.force_login(self.reader)
         resp = self.client.get("/caselaw/subjects/%d/" % theirs.pk, **HTML)
-        self.assertEqual((resp.status_code, resp["Location"]), (301, "/caselaw/home/"))
+        self.assertEqual((resp.status_code, resp["Location"]), (302, "/caselaw/home/"))
 
     def test_forbidden_stays_forbidden(self):
         self.client.force_login(self.reader)
