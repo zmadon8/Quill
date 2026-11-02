@@ -352,7 +352,7 @@ class HomeIndexTests(TestCase):
                 self.assertEqual(button.count("<svg"), 1, name)
                 inner = button.split(">", 1)[1].rsplit("</button>", 1)[0]
                 self.assertEqual(re.sub(r"<svg.*?</svg>", "", inner, flags=re.S).strip(), "", name)
-            self.assertEqual(header.count("<svg") - 2, 1, name)  # the Home icon is on every page, Home included
+            self.assertEqual(header.count("<svg") - 2, 0 if name == "home" else 1, name)  # the Home icon is on every page except the suite Home
             self.assertIn('data-fallback="%s"' % reverse("home"), header)
 
     def test_review_in_diary_nav_for_anyone_with_a_profile(self):

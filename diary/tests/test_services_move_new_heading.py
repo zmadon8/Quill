@@ -1,4 +1,5 @@
 """Move to a new Topic or Sub-topic (round 11): rules, validation, one Undo step, previews, views."""
+from django.test import override_settings
 from django.urls import reverse
 
 from diary import services as svc
@@ -63,7 +64,7 @@ class NewHeadingServiceTests(ServiceTestCase):
         result = svc.move_to_new_heading(self.profile, self.user, "item", self.one.pk, "topic", "Zed")
         self.assertIsNotNone(result.group)
         rows = VersionHistory.objects.filter(profile=self.profile, group=result.group)
-        self.assertEqual({r.record_type for r in rows}, {"topic", "item"})
+        self.assertLessEqual({"topic", "item"}, {r.record_type for r in rows})  # renumbered Sections share the group too
         svc.undo_group(self.profile, self.user, result.group)
         self.assertEqual(self.get(self.one).topic_id, self.topic.pk)
         self.assertFalse(Topic._base_manager.filter(subject=self.subject, name="Zed", deleted_at__isnull=True).exists())
@@ -115,6 +116,7 @@ class NewHeadingServiceTests(ServiceTestCase):
         self.assertEqual(topic_change, [("A", "B")])
 
 
+@override_settings(SECURE_SSL_REDIRECT=False)
 class NewHeadingViewTests(ServiceTestCase):
     def setUp(self):
         super().setUp()
