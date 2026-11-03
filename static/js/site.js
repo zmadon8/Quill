@@ -4,9 +4,9 @@
   var home = script && script.dataset.home;
   var search = script && script.dataset.search;
 
-  // Alt+H (shown as Option-H on a Mac) goes Home, Alt+G (Option-G) opens Search. Ctrl+Alt works too.
+  // Alt+H (shown as Option-H on a Mac) goes Home, Alt+F (Option-F) opens Search. Ctrl+Alt works too.
   // event.code is used because Option changes the typed letter on a Mac. Cmd is left alone.
-  // On the Search page Alt+G focuses that page's own box; on other program pages it opens the search bar under the header.
+  // On the Search page Alt+F and the magnifier focus that page's own box; on other program pages it opens the search bar under the header.
   var toggleBtn = document.querySelector("[data-search-toggle]");
   var pop = document.getElementById("search-pop");
   var popInput = document.querySelector("[data-search-popup-input]");
@@ -21,6 +21,12 @@
     pop.hidden = true;
     if (toggleBtn) { toggleBtn.setAttribute("aria-expanded", "false"); if (refocus) { toggleBtn.focus(); } }
   };
+  if (toggleBtn && !pop) {
+    toggleBtn.addEventListener("click", function () {
+      var box = document.querySelector("[data-search-input]");
+      if (box) { box.focus(); box.select(); } else if (search) { window.location.href = search; }
+    });
+  }
   if (toggleBtn && pop) {
     toggleBtn.addEventListener("click", function () { if (pop.hidden) { openPop(); } else { closePop(true); } });
     document.addEventListener("keydown", function (e) {
@@ -35,7 +41,11 @@
   document.addEventListener("keydown", function (e) {
     if (!e.altKey || e.metaKey) { return; }
     if (e.code === "KeyH" && home) { e.preventDefault(); window.location.href = home; }
-    if (e.code === "KeyG") {
+    if (e.code === "KeyF") {
+      var t = e.target;
+      var typing = t && t.nodeType === 1 && (t.isContentEditable || t.tagName === "TEXTAREA" || t.tagName === "SELECT" ||
+        (t.tagName === "INPUT" && !/^(checkbox|radio|button|submit|reset)$/.test(t.type)));
+      if (typing) { return; }
       var box = document.querySelector("[data-search-input]");
       if (box) { e.preventDefault(); box.focus(); box.select(); }
       else if (pop) { e.preventDefault(); openPop(); }
