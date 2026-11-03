@@ -32,12 +32,12 @@
     {% if not chosen_subject %}<p class="search-view meta">View: {% if by_subject %}<a href="{{ cards_url }}">All results</a> | <strong>By Subject</strong>{% else %}<strong>All results</strong> | <a href="{{ subjects_url }}">By Subject</a>{% endif %}</p>{% endif %}
   </div>
   {% if by_subject %}
-  <div class="search-two{% if request.GET.s %} has-pick{% endif %}">
+  <div class="search-two{% if picked_valid %} has-pick{% endif %}">
     <nav class="search-subjects" aria-label="Subjects with results">
       {% for g in groups %}<a href="{{ g.url }}"{% if g.subject.pk == chosen_group.subject.pk %} class="sel" aria-current="true"{% endif %}><span>{{ g.subject.name }}</span><span class="count">{{ g.count }}</span></a>{% endfor %}
     </nav>
     <div class="search-pane">
-      {% if request.GET.s %}<p class="search-back"><a href="{{ cards_url }}&amp;view=subjects">&larr; All Subjects</a></p>{% endif %}
+      {% if picked_valid %}<p class="search-back"><a href="{{ cards_url }}&amp;view=subjects">&larr; All Subjects</a></p>{% endif %}
       <h2 class="search-pane-title">{{ chosen_group.subject.name }}</h2>
       <ol class="search-results cards">
         {% for r in results %}

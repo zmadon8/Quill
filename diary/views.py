@@ -382,7 +382,7 @@ def search(request):
         base_params["review"] = 1
     if headers_only:
         base_params["headers"] = 1
-    groups, chosen_group, shown = [], None, results
+    groups, chosen_group, shown, picked_valid = [], None, results, False
     if by_subject:
         counts = {}
         for r in results:
@@ -390,7 +390,9 @@ def search(request):
         groups = [{"subject": s, "count": counts[s.pk]}
                   for s in panel["panel_main"] + panel["panel_other"] if s.pk in counts]
         picked = safe_int(request.GET.get("s"))
-        chosen_group = next((g for g in groups if g["subject"].pk == picked), groups[0] if groups else None)
+        pick_group = next((g for g in groups if g["subject"].pk == picked), None)
+        picked_valid = pick_group is not None
+        chosen_group = pick_group or (groups[0] if groups else None)
         for g in groups:
             g["url"] = "?" + urlencode(dict(base_params, view="subjects", s=g["subject"].pk))
         shown = [r for r in results if chosen_group and r.subject_id == chosen_group["subject"].pk]
@@ -410,7 +412,7 @@ def search(request):
         "more_query": urlencode(more_params),
         "main_subjects": panel["panel_main"], "other_subjects": panel["panel_other"],
         "chosen_subject": subject_id, "citations_only": citations_only, "review_only": review_only,
-        "headers_only": headers_only, "want_subjects": request.GET.get("view") == "subjects", "by_subject": by_subject, "groups": groups, "chosen_group": chosen_group,
+        "headers_only": headers_only, "want_subjects": request.GET.get("view") == "subjects", "by_subject": by_subject, "groups": groups, "chosen_group": chosen_group, "picked_valid": picked_valid,
         "cards_url": "?" + urlencode(view_params),
         "subjects_url": "?" + urlencode(dict(view_params, view="subjects")),
     })

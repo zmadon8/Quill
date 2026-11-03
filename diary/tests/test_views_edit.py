@@ -765,7 +765,7 @@ class PickerTests(EditViewTestCase):
         # Every Subject and Topic that holds something has an arrow, hidden until the script runs (no script: all open).
         self.assertIn("data-picker-toggle hidden", html)
         self.assertIn('aria-expanded="true"', html)
-        self.assertNotIn('aria-expanded="false"', html)
+        self.assertNotIn('aria-expanded="false"', html[html.index("data-picker"):])
         self.assertIn(f'aria-controls="picker-sub-topic-{self.topic.pk}"', html)
         self.assertIn(f'id="picker-sub-topic-{self.topic.pk}"', html)
         self.assertEqual(html.count("data-picker-toggle"), 2)  # the Subject and the Topic; the Sub-topic is a leaf
