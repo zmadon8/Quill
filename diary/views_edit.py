@@ -517,6 +517,8 @@ def picker_entries(profile, kind, obj):
     ``pick`` says whether ``obj`` may be moved under that entry (right type, not inside itself).
     """
     allowed = set(ALLOWED_PARENTS[kind])
+    if kind == "subtopic":
+        allowed.discard("subject")  # a Sub-topic always sits in a Topic (D81); the service still reads older data that has some
     banned = {ident(d) for d in descendants(obj)} | {(kind, obj.pk)}
     live = {"profile": profile, "deleted_at__isnull": True}
     # Headings are listed alphabetically (diary/sorting.py), main Subjects first, then Other Subjects.

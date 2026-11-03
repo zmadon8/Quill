@@ -51,11 +51,13 @@ class ServiceRuleTests(ServiceTestCase):
         self.assertEqual(self.get(item).topic_id, mine.pk)
         self.assertEqual(len(self.topics()), 2)
 
-    def test_a_subject_with_direct_subtopics_keeps_its_items_where_they_are(self):
+    def test_a_subject_with_direct_subtopics_is_housed_like_any_other(self):
+        # D81: Subjects under Other Subjects follow the same rule.
         self.make("subtopic", ("subject", self.subject.pk), name="Direct")
-        item = self.make("item", ("subject", self.subject.pk), text="stays")
-        self.assertEqual((self.get(item).subject_id, self.get(item).topic_id), (self.subject.pk, None))
-        self.assertEqual(self.topics(), [])
+        item = self.make("item", ("subject", self.subject.pk), text="goes to Topic 1")
+        topic = self.topics()[0]
+        self.assertEqual(topic.name, "1")
+        self.assertEqual((self.get(item).subject_id, self.get(item).topic_id), (None, topic.pk))
 
     def test_notes_are_not_housed(self):
         note = self.make("note", ("subject", self.subject.pk), text="about the Subject")
@@ -83,11 +85,12 @@ class ServiceRuleTests(ServiceTestCase):
         self.assertEqual((moved.subject_id, Topic.objects.get(pk=moved.topic_id).name), (None, "1"))
         self.assertEqual(Topic.objects.get(pk=moved.topic_id).subject_id, self.subject.pk)
 
-    def test_move_to_a_subject_with_direct_subtopics_stays_under_the_subject(self):
+    def test_move_to_a_subject_with_direct_subtopics_lands_in_its_topic_1(self):
         self.make("subtopic", ("subject", self.subject.pk), name="Direct")
         item = self.make("item", ("subject", self.make("subject", name="Other").pk), text="x")
         svc.move(self.profile, self.user, "item", item.pk, ("subject", self.subject.pk))
-        self.assertEqual(self.get(item).subject_id, self.subject.pk)
+        moved = self.get(item)
+        self.assertEqual((moved.subject_id, Topic.objects.get(pk=moved.topic_id).name), (None, "1"))
 
     def test_the_move_preview_writes_nothing(self):
         other = self.make("subject", name="Contract")

@@ -219,7 +219,7 @@ def targets(profile, user, kind, record_id):
     obj = get_record(ctx, kind, record_id, lock=False)
     live = {"profile": profile, "deleted_at__isnull": True}
     if wanted == "subject":
-        rows = [s for s in sort_headings(Subject.objects.filter(**live)) if s.pk != obj.pk and housing.accepts_topics(ctx, s.pk)]
+        rows = [s for s in sort_headings(Subject.objects.filter(**live)) if s.pk != obj.pk]
         return [(s.pk, s.name) for s in rows]
     subjects = {s.pk: s.name for s in Subject.objects.filter(**live)}
     rows = sort_headings(Topic.objects.filter(**live).exclude(pk=obj.pk))

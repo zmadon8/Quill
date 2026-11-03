@@ -10,7 +10,7 @@ from django.db import transaction
 from ..models import VersionHistory
 from .core import PARENT_LINKS, Ctx, apply_snapshot, commit, get_record, label, make_result, next_free_name, parent_of, record_type
 from .errors import NameClash, NotFound, Refused, UndoWarning
-from .trash import _name_taken, check_restorable, prune_batches, trash_subtree
+from .trash import _name_taken, prune_batches, trash_subtree
 
 
 def group_summary(profile, group):
@@ -76,7 +76,6 @@ def undo_group(profile, user, group, force=False):
                 )
         if changed and not force:
             raise UndoWarning(changed)
-        revived = []  # records to run the placement checks on: revived from Trash or put back under another parent
         for key in keys:
             obj = records[key]
             obj.refresh_from_db()
@@ -103,11 +102,5 @@ def undo_group(profile, user, group, force=False):
                 raise NameClash(kind, obj.pk, obj.name, next_free_name(type(obj), obj.profile_id, obj.name, **scope))
             _check_place_is_live(obj, set(keys))
             commit(ctx, obj, "restore", check=False)
-            if obj.deleted_at is None and (was_deleted or moved):
-                revived.append(key)
-        # Records coming back to life, or back under their old parent after a Move, obey the same placement rules as Restore. Checked after the whole
-        # action is applied (an action may change a parent and its children together); a refusal rolls it back.
-        for key in revived:
-            check_restorable(get_record(ctx, key[0], key[1], include_deleted=True, lock=False))
         prune_batches(ctx.profile_id)
         return make_result(ctx, None)

@@ -24,7 +24,7 @@ The longer plans are in `docs/PLAN.md` (what is built when), `docs/DESIGN.md` (h
 - Search: **Search history** (recent searches, click to repeat, clear all or one; kept in this browser). The Subject drop-down is replaced by a **By Subject** toggle, and all the ticks (Citations only, For review only, Search headers, By Subject) are remembered by the browser.
 - **Email plug-in** (`mailer` app): Forgot my password and scheduled emailed backups, including the complete Word export. See `docs/EMAIL.md`.
 
-- **Phone fixes and speed (round 13b):** on a phone and tablet the Edit button now sits beside the Contents icon. The full-screen editing card is sized to the visible screen (so the Save buttons stay in view when the keyboard opens), no longer pops the keyboard up by itself on a touch screen, shows "Saving..." and "Saved.", and shows any failure in a red band under the top bar. Pages are compressed on the way out, a Topic or Sub-topic page no longer loads the rest of the Subject, and scrolling does less work. **Light version** (My settings) is an opt-in for a slow phone.
+- **Phone fixes and speed (round 13b):** on a phone and tablet the Edit button now sits beside the Contents icon. The full-screen editing card is sized to the visible screen (so the Save buttons stay in view when the keyboard opens), no longer pops the keyboard up by itself on a touch screen, shows "Saving..." and "Saved.", and shows any failure in a red band under the top bar. Pages are compressed on the way out, a Topic or Sub-topic page no longer loads the rest of the Subject, and scrolling does less work.
 
 ## How to edit
 

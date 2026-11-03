@@ -116,15 +116,16 @@ class CreateTests(ServiceTestCase):
         with self.assertRaises(svc.Refused):
             self.make("item", ("item", plain.pk), text="child")
 
-    def test_topic_and_direct_subtopics_do_not_mix(self):
+    def test_every_subject_may_hold_topics_and_older_direct_subtopics_together(self):
+        # D81: a Subject listed under Other Subjects is treated like any other. The old "Topics or Sub-topics, not both" rule is gone.
         subject = self.make("subject", name="S")
         self.make("topic", ("subject", subject.pk), name="T")
-        with self.assertRaises(svc.Refused):
-            self.make("subtopic", ("subject", subject.pk), name="Direct")
-        other = self.make("subject", name="O")
+        direct = self.make("subtopic", ("subject", subject.pk), name="Direct")
+        self.assertEqual(self.get(direct).subject_id, subject.pk)
+        other = self.make("subject", name="O", show_on_landing=False)
         self.make("subtopic", ("subject", other.pk), name="Direct")
-        with self.assertRaises(svc.Refused):
-            self.make("topic", ("subject", other.pk), name="T")
+        topic = self.make("topic", ("subject", other.pk), name="T")
+        self.assertEqual(self.get(topic).subject_id, other.pk)
 
     def test_cases_under_any_item(self):
         subject = self.make("subject", name="S")

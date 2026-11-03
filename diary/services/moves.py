@@ -1,7 +1,7 @@
 """Move and reorder (docs/DESIGN.md section 5.4) and the numbering previews for Items and Sections.
 
-Rules: same profile only, one level of nesting, a Subject holds Topics or direct Sub-topics but
-not both, a heading cannot go inside itself. Items and Sections share one position
+Rules: same profile only, one level of nesting, a heading cannot go inside itself. Every Subject (listed on the
+Subjects page or under Other Subjects) follows the same rules and may hold Topics and Sub-topics side by side (D81). Items and Sections share one position
 sequence per parent, kept as 1..n among the live siblings.
 """
 import contextlib
@@ -58,24 +58,6 @@ def parent_column(child_kind, parent_kind):
     return parent_kind
 
 
-def check_heading_mix(subject, wanted):
-    """A Subject holds Topics or direct Sub-topics, not both (section 2.1)."""
-    if wanted == "topic" and Subtopic._base_manager.filter(
-        subject=subject, deleted_at__isnull=True, profile_id=subject.profile_id
-    ).exists():
-        raise Refused(
-            f"{subject.name!r} holds Sub-topics directly, so it cannot also hold Topics. "
-            "A Subject holds Topics or Sub-topics, not both."
-        )
-    if wanted == "subtopic" and Topic._base_manager.filter(
-        subject=subject, deleted_at__isnull=True, profile_id=subject.profile_id
-    ).exists():
-        raise Refused(
-            f"{subject.name!r} holds Topics, so it cannot also hold Sub-topics directly. "
-            "A Subject holds Topics or Sub-topics, not both."
-        )
-
-
 def check_move_allowed(obj, parent_kind, parent):
     """Raise Refused (with the reason) unless ``obj`` may sit under ``parent``."""
     kind = record_type(obj)
@@ -93,10 +75,6 @@ def check_move_allowed(obj, parent_kind, parent):
         ident(d) for d in descendants(obj)
     }:
         raise Refused(f"A {NICE[kind]} cannot be placed inside something that sits beneath it.")
-    if kind == "topic":
-        check_heading_mix(parent, "topic")
-    if kind == "subtopic" and parent_kind == "subject":
-        check_heading_mix(parent, "subtopic")
 
 
 def _target(ctx, obj, parent, lock=True):
@@ -286,15 +264,14 @@ def _place_of(obj):
 def new_heading_options(profile, user, obj):
     """The new headings the Move to picker offers for ``obj``: a list of dicts {kind, parent_kind, parent, label}.
 
-    "New Topic in this Subject" (Items, Sections and Sub-topics inside a Topic) is not offered when the Subject holds
-    Sub-topics directly (a Subject holds Topics or Sub-topics, not both). "New Sub-topic in this Topic" (Items and
+    "New Topic in this Subject" (Items, Sections and Sub-topics) is offered for every Subject. "New Sub-topic in this Topic" (Items and
     Sections only) is offered only when the record sits in a Topic (directly or through a Sub-topic). Topics get neither.
     """
     kind = record_type(obj)
     subject, topic = _place_of(obj)
     ctx = Ctx(profile, user)
     options = []
-    if kind in NEW_TOPIC_FOR and subject is not None and housing.accepts_topics(ctx, subject.pk):
+    if kind in NEW_TOPIC_FOR and subject is not None:
         options.append({"kind": "topic", "parent_kind": "subject", "parent": subject, "label": "New Topic in this Subject"})
     if kind in NEW_SUBTOPIC_FOR and topic is not None:
         options.append({"kind": "subtopic", "parent_kind": "topic", "parent": topic, "label": "New Sub-topic in this Topic"})

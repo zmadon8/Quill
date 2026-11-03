@@ -8,7 +8,6 @@ from django.http import JsonResponse
 from django.template.loader import render_to_string
 
 from . import reading, undo_session
-from .models import Subtopic, Topic
 from .services.core import Ctx, ancestors, get_record
 from .services.moves import NICE
 from .templatetags.diary_tags import dotted
@@ -33,8 +32,8 @@ def add_choices(profile, kind, record):
     """[(choice, label)] that "+ Add" offers on a row of ``kind`` ('subject', 'topic', 'subtopic', 'section', 'item').
 
     After an Item or Section: Item, Section. Every row also offers Note ("inside:note": a Note on that Subject, Topic, Sub-topic, Section or Item, shown beneath it). After a Topic: Item inside, Sub-topic, Topic. After a
-    Sub-topic: Item inside, Sub-topic. A Subject offers Item inside plus the kind of heading it already holds (Topic, or direct
-    Sub-topic; both while it holds neither). Headings always land in their alphabetical place.
+    Sub-topic: Item inside, Sub-topic. A Subject offers Item inside, Topic and Note: every Subject is alike (D81), and a Sub-topic always
+    sits in a Topic. Headings always land in their alphabetical place.
     """
     if kind in ("item", "section"):
         return [(c, CHOICE_LABELS[c]) for c in ("after:item", "after:section", "inside:note")]
@@ -43,14 +42,7 @@ def add_choices(profile, kind, record):
     if kind == "subtopic":
         return [(c, CHOICE_LABELS[c]) for c in ("inside:item", "inside:note", "after:subtopic")]
     if kind == "subject":
-        has_topics = Topic._base_manager.filter(subject=record, deleted_at__isnull=True, profile=profile).exists()
-        has_subs = Subtopic._base_manager.filter(subject=record, deleted_at__isnull=True, profile=profile).exists()
-        wanted = ["inside:item"]
-        if not has_subs:
-            wanted.append("inside:topic")
-        if not has_topics:
-            wanted.append("inside:subtopic")
-        wanted.append("inside:note")
+        wanted = ["inside:item", "inside:topic", "inside:note"]
         return [(c, CHOICE_LABELS[c]) for c in wanted]
     return []
 

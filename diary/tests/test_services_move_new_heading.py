@@ -34,12 +34,13 @@ class NewHeadingServiceTests(ServiceTestCase):
         self.assertEqual(options["subtopic"]["parent"].pk, self.topic.pk)
         self.assertEqual(options["topic"]["parent"].pk, self.subject.pk)
 
-    def test_subject_holding_subtopics_directly_offers_no_new_topic(self):
-        other = self.make("subject", name="Others")
+    def test_subject_holding_subtopics_directly_is_treated_like_any_other(self):
+        # D81: the old rule that stopped such a Subject taking Topics is gone.
+        other = self.make("subject", name="Others", show_on_landing=False)
         sub = self.make("subtopic", ("subject", other.pk), name="Direct")
         item = self.make("item", ("subtopic", sub.pk), text="in direct")
-        self.assertEqual(self.kinds(item), [])
-        self.assertEqual(self.kinds(sub), [])
+        self.assertEqual(self.kinds(item), ["topic"])
+        self.assertEqual(self.kinds(sub), ["topic"])
 
     def test_move_into_a_new_topic(self):
         result = svc.move_to_new_heading(self.profile, self.user, "item", self.one.pk, "topic", "  Zed   Topic ")

@@ -40,9 +40,3 @@ def current_profile(request):
         return {"current_profile": None, "diary_editor": False}
     profile = request_profile(request)
     return {"current_profile": profile, "diary_editor": profile is not None and request_role(request) == ROLE_EDITOR}
-
-
-def light_version(request):
-    """``light_mode``: True when the signed-in user has switched the Light version on (My settings). No database query."""
-    user = getattr(request, "user", None)
-    return {"light_mode": bool(user is not None and user.is_authenticated and getattr(user, "light_mode", False))}

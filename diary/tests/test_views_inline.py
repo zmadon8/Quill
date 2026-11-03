@@ -81,13 +81,14 @@ class AddFormTests(InlineTestCase):
         self.assertEqual([(c["value"], c["label"]) for c in body["choices"]],
                          [("inside:item", "Item inside"), ("inside:note", "Note"), ("after:subtopic", "Sub-topic")])
 
-    def test_a_subject_offers_the_kind_of_heading_it_already_holds(self):
+    def test_every_subject_offers_item_topic_and_note(self):
+        # D81: Subjects under Other Subjects are treated like any other, and a Sub-topic always sits in a Topic.
         self.assertEqual(self.choices("subject:%d" % self.subject.pk), ["inside:item", "inside:topic", "inside:note"])
         other = self.make("subject", name="Other Acts", show_on_landing=False)
         self.make("subtopic", ("subject", other.pk), name="Direct")
-        self.assertEqual(self.choices("subject:%d" % other.pk), ["inside:item", "inside:subtopic", "inside:note"])
+        self.assertEqual(self.choices("subject:%d" % other.pk), ["inside:item", "inside:topic", "inside:note"])
         empty = self.make("subject", name="Empty")
-        self.assertEqual(self.choices("subject:%d" % empty.pk), ["inside:item", "inside:topic", "inside:subtopic", "inside:note"])
+        self.assertEqual(self.choices("subject:%d" % empty.pk), ["inside:item", "inside:topic", "inside:note"])
 
     def test_the_form_has_segmented_choices_citations_and_the_no_javascript_link(self):
         body = self.form("item:%d" % self.one.pk).json()

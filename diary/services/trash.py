@@ -30,7 +30,6 @@ from .core import (
 )
 from .errors import NameClash, ParentInTrash, PermanentDeleteRefused, Refused, ValidationFailed
 from . import housing
-from .moves import check_heading_mix
 from .sequences import get_pos, ident, index_for_position, lock_sequence, normalize, place, sequence_key
 
 LINK_TARGETS = ("subject", "topic", "subtopic", "section", "item")
@@ -109,18 +108,6 @@ def prune_batches(profile_id):
     TrashBatch.objects.filter(profile_id=profile_id).exclude(id__in=used).delete()
 
 
-def check_restorable(rec):
-    """Raise Refused unless ``rec`` may live again where it is (heading mix).
-
-    Shared by Restore and Undo, which both bring records back to life.
-    """
-    kind = record_type(rec)
-    if kind == "topic":
-        check_heading_mix(rec.subject, "topic")
-    if kind == "subtopic" and rec.subject_id is not None:
-        check_heading_mix(rec.subject, "subtopic")
-
-
 def restore(
     profile, user, kind, record_id, expected_version=None, new_name=None, new_names=None, restore_parents=False
 ):
@@ -153,7 +140,6 @@ def restore(
             names[(kind, obj.pk)] = new_name
         targets = chain + [obj] + below
         for rec in targets:
-            check_restorable(rec)
             wanted = names.get(ident(rec))
             if wanted is not None:
                 if record_type(rec) not in RENAMABLE:

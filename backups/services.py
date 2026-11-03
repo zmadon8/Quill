@@ -381,6 +381,7 @@ def _normalise_user_records(records):
     for record in records:
         fields = record["fields"]
         old_role = fields.pop("role", None)
+        fields.pop("light_mode", None)  # a switch that existed for a short while and was withdrawn (D81)
         is_superuser = bool(fields.get("is_superuser")) or old_role == "admin"
         fields["is_superuser"] = is_superuser
         fields["is_staff"] = is_superuser

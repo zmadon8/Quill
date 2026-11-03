@@ -490,12 +490,6 @@ table[data-resizable-columns] th { position: relative; overflow-wrap: anywhere; 
   .crumb-row > .contents-icon { order: 6; margin-left: 0; }
 }
 
-/* Light version (My settings > Light version): less to draw and animate on a phone. Nothing is hidden or removed. */
-html.light *, html.light *::before, html.light *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
-html.light .contents-panel, html.light .site-header.header-open, html.light .export-menu, html.light .menu, html.light .editcard, html.light .edit-toast { box-shadow: none; }
-/* Text far off the screen is not laid out until you scroll near it (supported browsers only; others ignore this). Not used while editing, because it would clip the menus. */
-html.light body:not(.edit-on) .reading .item, html.light body:not(.edit-on) .reading .section-header, html.light body:not(.edit-on) .reading .note { content-visibility: auto; contain-intrinsic-size: auto 5rem; }
-
 /* Previous / next arrows beside the heading of a Topic or Sub-topic page. */
 .stepping { display: flex; align-items: center; gap: .75rem; }
 .stepping .heading-link { flex: 1 1 auto; min-width: 0; }
