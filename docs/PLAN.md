@@ -156,7 +156,7 @@ Note: the technology (Django, PostgreSQL) is confirmed for a **standalone app** 
 3. Press **Full: one file per Subject (.zip)**. The zip holds one file per Subject, one **Other Subjects** file and **manifest.txt**. The counts in the manifest match the counts beside each Subject on the Subjects page; the total is 950 for your file.
 4. On a Subject, a Topic and a Sub-topic press **Export**. The heading is Heading 1, the on-screen letter or number is kept, everything below it is included, nothing from Trash. A single Other Subject is Heading 1 alone.
 5. The **Include review markers** box is ticked by default: amber "[For review ...]" notes appear on Items and Sections; unticked, they do not.
-6. File names: `Case Law Diary Main Full 2026-11-01.docx`, `... Full - by Subject 2026-11-01.zip`, `... Arbitration, Fraud 2026-11-01.docx` (your profile's export name, then the part, then the date). Set a name with a colon in Profile settings: the preview says it is replaced with a hyphen. In My settings change **Date in Word file names** and export again.
+6. File names: `Case Law Diary Main Full 2026-11-01.docx`, `... Full - by Subject 2026-11-01.zip`, `... Arbitration, Fraud 2026-11-01.docx` (your profile's export name, then the part, then the date). Set a name with a colon in Settings: the preview says it is replaced with a hyphen. In My settings change **Date in Word file names** and export again.
 7. Change a number format in My settings (for example Items to (a), (b)) and export: the Word file follows it.
 8. Add a Note with a link: the Word file shows "See also: Subject > Topic > ..." and no "Linked from". Delete the target: it says "(target deleted)".
 9. Sign in as a Reader: Export shows only the Current View; the Full addresses give 403. The Admin can do both Full exports.
@@ -286,3 +286,5 @@ Branch `hotfix-nested`. Migration 0015 now converts every Item with Items beneat
 Branch `round-12`. Item 1: the full Add page (the phone path) now offers exactly the types of the inline "+ Add" form, from one shared `inline.add_choices`, and both forms carry Flag and For review for an Item and For review for a Section (D69). Item 7: the Move to tree starts collapsed with arrows and Expand all / Collapse all (D70). Pending: CI run (the new tests could not be run in the sandbox).
 
 Items 2, 3, 4 and 6b (search, D71): Option A cards, a By Subject view when the whole diary is searched, a Search headers toggle, no Review list tab inside Search, Option+F, and a magnifier-only Search control on every diary page.
+
+Items 5 and 6a (D72): the diary menu says "Settings" (word kept, swap to an icon is one include), and the Export control is an icon-only download arrow on phones (option B) and a split button with This page / Full diary / By Subject on desktop (option E); Readers get This page only.

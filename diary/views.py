@@ -184,7 +184,7 @@ def profile_settings(request):
             raise PermissionDenied
         if form.is_valid():
             form.save()
-            messages.success(request, "Profile settings saved.")
+            messages.success(request, "Settings saved.")
             return redirect("profile_settings")
     return render(
         request,

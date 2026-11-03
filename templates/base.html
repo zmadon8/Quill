@@ -18,5 +18,5 @@
   {% if diary_editor %}<a href="{% url 'trash' %}"{% if current == 'trash' %} class="on" aria-current="page"{% endif %}>Trash</a>{% endif %}
   {% if current_profile %}<a href="{% url 'export' %}"{% if current == 'export' %} class="on" aria-current="page"{% endif %}>Export</a>{% endif %}
   <a href="{% url 'help' %}"{% if current == 'help' %} class="on" aria-current="page"{% endif %}>Help</a>
-  <a href="{% url 'profile_settings' %}"{% if current == 'profile_settings' %} class="on" aria-current="page"{% endif %}>Profile settings</a>
+  <a href="{% url 'profile_settings' %}"{% if current == 'profile_settings' %} class="on" aria-current="page"{% endif %} aria-label="Settings" title="Settings">{% include "diary/_settings_label.html" %}</a>
 {% endwith %}{% endblock %}

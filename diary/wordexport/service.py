@@ -52,7 +52,7 @@ def _context(profile, user, now):
     now = now or timezone.now()
     return {
         "fmts": fmts,
-        # The title is the name as typed; file names use the cleaned name with the same fallbacks as the Profile settings preview.
+        # The title is the name as typed; file names use the cleaned name with the same fallbacks as the Settings preview.
         "export_name": effective_export_name(profile),
         "file_export_name": export_file_name(profile),
         "date_text": naming.format_date(naming.today(now, zone), date_format),

@@ -439,4 +439,39 @@
     if (!link) { return; }
     if (document.querySelector("[data-inline-card], [data-inline-add]")) { event.preventDefault(); }
   });
+  // Export split button (desktop): the caret opens a menu (This page / Full diary / By Subject). Keyboard: Enter/Space/Down opens,
+  // Up/Down/Home/End move, Esc closes and returns focus to the caret; a click outside closes it.
+  document.querySelectorAll("[data-export-menu]").forEach(function (box) {
+    var more = box.querySelector(".export-more");
+    var menu = box.querySelector(".export-menu");
+    if (!more || !menu) { return; }
+    var items = function () { return Array.prototype.slice.call(menu.querySelectorAll("[role=menuitem]")); };
+    var close = function (refocus) {
+      menu.hidden = true;
+      more.setAttribute("aria-expanded", "false");
+      if (refocus) { more.focus(); }
+    };
+    var open = function (index) {
+      menu.hidden = false;
+      more.setAttribute("aria-expanded", "true");
+      var list = items();
+      if (index !== null && list.length) { list[index < 0 ? list.length - 1 : index].focus(); }
+    };
+    more.addEventListener("click", function () { if (menu.hidden) { open(null); } else { close(false); } });
+    more.addEventListener("keydown", function (e) {
+      if (e.key === "ArrowDown") { e.preventDefault(); open(0); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); open(-1); }
+    });
+    menu.addEventListener("keydown", function (e) {
+      var list = items();
+      var at = list.indexOf(document.activeElement);
+      if (e.key === "ArrowDown") { e.preventDefault(); list[(at + 1) % list.length].focus(); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); list[(at - 1 + list.length) % list.length].focus(); }
+      else if (e.key === "Home") { e.preventDefault(); list[0].focus(); }
+      else if (e.key === "End") { e.preventDefault(); list[list.length - 1].focus(); }
+      else if (e.key === "Escape") { e.preventDefault(); close(true); }
+      else if (e.key === "Tab") { close(false); }
+    });
+    document.addEventListener("click", function (e) { if (!menu.hidden && !box.contains(e.target)) { close(false); } });
+  });
 })();

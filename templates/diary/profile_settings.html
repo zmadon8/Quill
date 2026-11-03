@@ -1,7 +1,7 @@
 {% extends "base.html" %}
-{% block title %}Profile settings{% endblock %}
+{% block title %}Settings{% endblock %}
 {% block content %}
-<h1>Profile settings</h1>
+<h1>Settings</h1>
 <p>Profile: <strong>{{ request.profile.name }}</strong></p>
 {% if can_edit %}
 <form method="post" class="stack">

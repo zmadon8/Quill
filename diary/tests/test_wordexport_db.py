@@ -371,9 +371,26 @@ class ViewTests(ExportCase):
             client = self.login(user)
             for page, query in pages.items():
                 body = client.get(page).content.decode()
-                self.assertRegex(body, r'class="button export-link"[^>]*>Export</a>')
+                self.assertRegex(body, r'class="button export-link export-main"[^>]*aria-label="Export"')
+                self.assertIn('<span class="export-word">Export</span>', body)
                 self.assertNotIn("Export this view", body)
-                self.assertIn(query, body)
+                self.assertIn("type=view&amp;review=1&amp;" + query, body)
+                self.assertIn('class="export-icon"', body)
+                if user is self.editor:
+                    self.assertIn('aria-haspopup="menu"', body)
+                    self.assertIn(">This page</a>", body)
+                    self.assertIn("type=full&amp;review=1", body)
+                    self.assertIn("type=by_subject&amp;review=1", body)
+                else:
+                    self.assertNotIn("aria-haspopup", body)
+                    self.assertNotIn("export-menu", body)
+                    self.assertNotIn("type=full", body)
+
+    def test_diary_menu_says_settings_not_profile_settings(self):
+        body = self.login(self.editor).get(reverse("profile_settings")).content.decode()
+        self.assertRegex(body, r'<a href="[^"]*"[^>]*aria-label="Settings"[^>]*>Settings</a>')
+        self.assertIn("<h1>Settings</h1>", body)
+        self.assertNotIn("Profile settings", body)
 
     def test_current_view_is_not_offered_on_search_review_trash_or_history(self):
         from diary.models import VersionHistory
@@ -383,7 +400,7 @@ class ViewTests(ExportCase):
         client = self.login(self.editor)
         for url in (reverse("search"), reverse("review_list"), reverse("trash"),
                     reverse("history", args=["item", self.first.pk])):
-            self.assertNotContains(client.get(url), 'class="button export-link"')
+            self.assertNotContains(client.get(url), 'class="button export-link')
 
     def test_the_export_page_with_a_view_shows_its_path(self):
         body = self.login(self.reader).get(f"{reverse('export')}?kind=subtopic&pk={self.fraud.pk}").content.decode()
