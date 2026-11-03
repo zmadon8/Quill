@@ -7,17 +7,16 @@
   <form method="post" action="{% url 'edit_move' %}" class="tree-picker">
     {% csrf_token %}
     {% for name, value in fields %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
-    <ul class="picker-list">
+    <ul class="picker-list picker-news">
       {% for o in new_options %}
       <li class="depth-0 picker-new"><button type="submit" formaction="{% url 'edit_move_new' %}" name="new_heading" value="{{ o.kind }}" class="picker-choice">+ {{ o.label }} <span class="meta">{{ o.parent.name }}</span></button></li>
       {% endfor %}
-      {% for e in entries %}
-      <li class="depth-{{ e.depth }}">
-        {% if e.pick %}<button type="submit" name="parent" value="{{ e.type }}:{{ e.id }}" class="picker-choice">{{ e.label }} <span class="meta">{{ e.kind_name }}</span></button>
-        {% else %}<span class="picker-no">{{ e.label }} <span class="meta">{{ e.kind_name }}</span></span>{% endif %}
-      </li>
-      {% endfor %}
     </ul>
+    <p class="picker-controls" data-picker-controls hidden>
+      <button type="button" data-picker-expand-all>Expand all</button>
+      <button type="button" data-picker-collapse-all>Collapse all</button>
+    </p>
+    <div data-picker>{% include "diary/_picker_nodes.html" with nodes=tree %}</div>
   </form>
   <p><a class="button" href="{{ next_url }}">Cancel</a></p>
 </div>

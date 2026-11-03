@@ -251,6 +251,30 @@
     if (resetButton) { resetButton.addEventListener("click", reset); }
   }
 
+  // Move to tree: Subjects and Topics start collapsed, each has an arrow, plus Expand all / Collapse all.
+  // Without JavaScript the arrows and buttons stay hidden and everything is open.
+  document.querySelectorAll("[data-picker]").forEach(function (box) {
+    var nodes = Array.prototype.slice.call(box.querySelectorAll("[data-picker-node]"));
+    function setOpen(node, open) {
+      var btn = node.querySelector("[data-picker-toggle]");
+      var sub = node.querySelector(":scope > ul");
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+      if (sub) { sub.hidden = !open; }
+    }
+    nodes.forEach(function (node) {
+      var btn = node.querySelector("[data-picker-toggle]");
+      btn.hidden = false;
+      setOpen(node, false);
+      btn.addEventListener("click", function () { setOpen(node, btn.getAttribute("aria-expanded") !== "true"); });
+    });
+    var controls = document.querySelector("[data-picker-controls]");
+    if (controls) { controls.hidden = false; }
+    var expand = document.querySelector("[data-picker-expand-all]");
+    var collapse = document.querySelector("[data-picker-collapse-all]");
+    if (expand) { expand.addEventListener("click", function () { nodes.forEach(function (n) { setOpen(n, true); }); }); }
+    if (collapse) { collapse.addEventListener("click", function () { nodes.forEach(function (n) { setOpen(n, false); }); }); }
+  });
+
   // Contents list: expand/collapse each Topic, plus Expand all / Collapse all.
   // Without JavaScript everything stays open. Choices are remembered per Subject in this browser.
   document.querySelectorAll("[data-toc]").forEach(function (box) {

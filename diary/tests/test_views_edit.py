@@ -758,6 +758,30 @@ class PickerTests(EditViewTestCase):
         self.assertContains(resp, f'value="topic:{self.topic.pk}"')
         self.assertContains(resp, reverse("edit_move"))
 
+    def test_the_tree_is_collapsible_and_the_new_heading_options_stay_on_top(self):
+        sub = self.make("subtopic", ("topic", self.topic.pk), name="Sub")
+        resp, _ = self.entries(self.one)
+        html = resp.content.decode()
+        # Every Subject and Topic that holds something has an arrow, hidden until the script runs (no script: all open).
+        self.assertIn("data-picker-toggle hidden", html)
+        self.assertIn('aria-expanded="true"', html)
+        self.assertNotIn('aria-expanded="false"', html)
+        self.assertIn(f'aria-controls="picker-sub-topic-{self.topic.pk}"', html)
+        self.assertIn(f'id="picker-sub-topic-{self.topic.pk}"', html)
+        self.assertEqual(html.count("data-picker-toggle"), 2)  # the Subject and the Topic; the Sub-topic is a leaf
+        self.assertIn("data-picker-expand-all", html)
+        self.assertIn("data-picker-collapse-all", html)
+        self.assertLess(html.index("picker-new"), html.index("data-picker-controls"))
+        self.assertLess(html.index("data-picker-controls"), html.index(f'value="subtopic:{sub.pk}"'))
+        self.assertEqual(html.count("&middot; current"), 1)
+        self.assertRegex(html, r"Contract\s*<span class=\"meta\">Subject &middot; current")
+
+    def test_a_pick_from_the_tree_still_moves(self):
+        other = self.make("topic", ("subject", self.subject.pk), name="Other")
+        resp = self.post("edit_move", {**self.rec(self.one), "parent": f"topic:{other.pk}", "confirmed": "1"})
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(self.get(self.one).topic_id, other.pk)
+
 
 class LandingTests(EditViewTestCase):
     def test_a_subject_moves_to_other_subjects_and_back(self):

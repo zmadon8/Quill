@@ -1,0 +1,13 @@
+{# One level of the Move to tree. Context: nodes (from views_edit.picker_tree). Recursive. A node with children has an arrow button (hidden until the script runs, so without it everything is open) and its sub-list. #}
+<ul{% if sub_id %} id="{{ sub_id }}"{% endif %} class="{% if sub_id %}picker-sub{% else %}picker-list{% endif %}">
+  {% for n in nodes %}
+  <li class="picker-node depth-{{ n.depth }}"{% if n.children %} data-picker-node{% endif %}>
+    <div class="picker-row">
+      {% if n.children %}<button type="button" class="picker-toggle" data-picker-toggle hidden aria-expanded="true" aria-controls="{{ n.open_id }}" aria-label="Show or hide what is inside {{ n.label }}"><span aria-hidden="true" class="toc-chevron"></span></button>{% else %}<span class="picker-spacer"></span>{% endif %}
+      {% if n.pick %}<button type="submit" name="parent" value="{{ n.type }}:{{ n.id }}" class="picker-choice">{{ n.label }} <span class="meta">{{ n.kind_name }}{% if n.current %} &middot; current{% endif %}</span></button>
+      {% else %}<span class="picker-no">{{ n.label }} <span class="meta">{{ n.kind_name }}{% if n.current %} &middot; current{% endif %}</span></span>{% endif %}
+    </div>
+    {% if n.children %}{% include "diary/_picker_nodes.html" with nodes=n.children sub_id=n.open_id %}{% endif %}
+  </li>
+  {% endfor %}
+</ul>

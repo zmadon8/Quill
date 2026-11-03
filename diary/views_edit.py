@@ -23,7 +23,7 @@ from . import undo_session
 from .conflicts import conflict_page
 from .models import FLAG_CHOICES, Section, Subject, Subtopic, Topic
 from .richtext import plain_text, sanitise_html
-from .services.core import Ctx, check_version, descendants, get_record, label
+from .services.core import Ctx, ancestors, check_version, descendants, get_record, label
 from .services.errors import Conflict, NotFound, ServiceError, ValidationFailed
 from .services.moves import ALLOWED_PARENTS, NICE
 from .services.sequences import COLUMN_TYPE, ident, members, sequence_key
@@ -545,6 +545,29 @@ def picker_entries(profile, kind, obj):
     return entries
 
 
+def picker_tree(entries, current=None):
+    """The flat ``picker_entries`` as a nested list for the collapsible Move to tree.
+
+    Each node is the entry plus ``children`` (the entries one level down, in order), ``open_id`` (an id for the
+    sub-list, set only when there are children) and ``current`` (True for the Subject the record sits in now,
+    given as ``current`` = ('subject', pk)).
+    """
+    roots, stack = [], []
+    for entry in entries:
+        node = {**entry, "children": [], "open_id": "", "current": (entry["type"], entry["id"]) == current}
+        del stack[entry["depth"]:]
+        (stack[-1]["children"] if stack else roots).append(node)
+        stack.append(node)
+
+    def name(nodes):
+        for node in nodes:
+            if node["children"]:
+                node["open_id"] = f"picker-sub-{node['type']}-{node['id']}"
+            name(node["children"])
+    name(roots)
+    return roots
+
+
 @edit_endpoint
 def move_to(request):
     """The tree picker: choose the new place for a heading, Section or Item."""
@@ -555,10 +578,13 @@ def move_to(request):
     obj = get_record(Ctx(request.profile, request.user), kind, record_id, lock=False)
     if kind == "note":
         return redirect(f"{reverse('edit_note_pick')}?{urlencode({'purpose': 'move', 'note': obj.pk, 'next': _next(request)})}")
+    chain = ancestors(obj)
+    current = ("subject", chain[0][1].pk) if chain and chain[0][0] == "subject" else None
+    entries = picker_entries(request.profile, kind, obj)
     return render(
         request,
         "diary/edit_move_to.html",
-        {"entries": picker_entries(request.profile, kind, obj), "new_options": svc.new_heading_options(request.profile, request.user, obj),
+        {"entries": entries, "tree": picker_tree(entries, current), "new_options": svc.new_heading_options(request.profile, request.user, obj),
          "fields": sorted(_fields(request).items()),
          "kind_name": NICE[kind], "record_label": label(obj), "next_url": _next(request)},
     )

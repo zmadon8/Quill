@@ -297,9 +297,18 @@ table[data-resizable-columns] th { position: relative; overflow-wrap: anywhere; 
 .renumber-list { padding-left: 1.25rem; }
 .picker-list { list-style: none; margin: 0; padding: 0; }
 .picker-list li { margin: .25rem 0; }
-.picker-list .depth-1 { padding-left: 1.25rem; }
-.picker-list .depth-2 { padding-left: 2.5rem; }
-.picker-list .depth-3 { padding-left: 3.75rem; }
+.picker-sub { list-style: none; margin: 0; padding: 0 0 0 1.25rem; }
+.picker-sub[hidden] { display: none; }
+.picker-row { display: flex; align-items: center; gap: .25rem; }
+.picker-row > .picker-choice, .picker-row > .picker-no { flex: 1 1 auto; width: auto; }
+.picker-toggle, .picker-spacer { flex: 0 0 var(--tap); width: var(--tap); min-height: var(--tap); padding: 0; }
+.picker-toggle { border: 0; background: none; cursor: pointer; }
+.picker-toggle[hidden] { display: none; }
+.picker-toggle[aria-expanded=false] .toc-chevron { transform: rotate(-45deg); }
+.picker-toggle:focus-visible { outline: 3px solid var(--focus); outline-offset: -3px; }
+.picker-controls { display: flex; flex-wrap: wrap; gap: .5rem; margin: .75rem 0; }
+.picker-controls[hidden] { display: none; }
+.picker-controls button { min-height: var(--tap); }
 .picker-choice { width: 100%; justify-content: flex-start; white-space: normal; text-align: left; }
 .picker-no { display: block; min-height: var(--tap); padding: .6rem 1rem; color: var(--muted); }
 
