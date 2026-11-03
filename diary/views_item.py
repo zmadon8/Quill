@@ -16,9 +16,8 @@ from . import services as svc
 from .models import CITATION_LAYOUT_CHOICES, FLAG_CHOICES, Case, Item
 from .services.core import ancestors, label
 from .services.errors import Conflict, Refused, ValidationFailed
-from .views_edit import _next, _record_id, _single_line, _version, edit_endpoint, editor_page, is_fetch
+from .views_edit import FLAG_TEXT_MAX, _next, _record_id, _single_line, _version, edit_endpoint, editor_page, is_fetch
 
-FLAG_TEXT_MAX = 300
 
 
 def _load_item(request, pk):

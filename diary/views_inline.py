@@ -48,7 +48,7 @@ def add_form(request):
     html = render_to_string("diary/_inline_add.html", {
         "ref": f"{kind}:{pk}", "ref_version": record.version, "title": title, "choices": choices,
         "default": choices[0][0], "citation_whats": " ".join(inline.CITATION_WHATS),
-        "next_url": _next(request),
+        "next_url": _next(request), "flag_choices": FLAG_CHOICES,
     }, request=request)
     return JsonResponse({
         "ok": True, "html": html, "ref": f"{kind}:{pk}", "version": record.version,

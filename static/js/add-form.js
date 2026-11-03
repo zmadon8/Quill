@@ -9,6 +9,16 @@
 
   var HEADINGS = { subject: 1, topic: 1, subtopic: 1, section: 1 };
 
+  /* Flag is for Items, For review for Items and Sections; the others hide and disable them. */
+  function marking(form, what) {
+    [["[data-add-flag]", what === "item"], ["[data-add-review]", what === "item" || what === "section"]].forEach(function (pair) {
+      var box = form.querySelector(pair[0]);
+      if (!box) { return; }
+      box.hidden = !pair[1];
+      Array.prototype.forEach.call(box.querySelectorAll("input"), function (n) { n.disabled = !pair[1]; });
+    });
+  }
+
   function setup(form) {
     var what = form.querySelector("[data-add-what]");
     var rich = form.querySelector("[data-add-rich]");
@@ -18,7 +28,8 @@
     if (!what || !rich || !plain) { return; }
     var source = rich.querySelector("textarea");
 
-    function kind() { return what.value || (what.getAttribute("value") || ""); }
+    /* The choice is "after:item" or "inside:note": the kind is the part after the colon. */
+    function kind() { return (what.value || "").split(":").pop(); }
 
     function toPlain() {
       if (rich.rtApi) { return rich.rtApi.getPlain(); }
@@ -52,6 +63,7 @@
         format.disabled = heading || !rich.rtApi;
       }
       if (citation) { citation.disabled = heading; }
+      marking(form, kind());
     }
 
     what.addEventListener("change", apply);

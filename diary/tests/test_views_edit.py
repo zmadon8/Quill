@@ -459,8 +459,9 @@ class AddAfterTests(EditViewTestCase):
 
     def test_the_add_page_for_a_parent_puts_the_entry_first_like_the_inline_form(self):
         resp = self.client.get(reverse("edit_add") + "?parent=topic:%d" % self.topic.pk)
-        self.assertContains(resp, 'name="first" value="1"')
-        self.assertContains(resp, "at the top of")
+        self.assertContains(resp, 'name="ref" value="topic:%d"' % self.topic.pk)
+        self.assertContains(resp, 'value="inside:item" selected')
+        self.assertContains(resp, "inside the Topic")
 
     def test_a_kind_that_cannot_sit_there_is_refused(self):
         resp = self.add_after(self.one, what="topic", name="Nope")

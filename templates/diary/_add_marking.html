@@ -1,0 +1,17 @@
+{# Flag and For review on the Add forms (inline and full page), the same fields and names as the Item editing card. Context: flag_choices, values.flag. The Flag is for Items only, For review for Items and Sections: the script hides and disables what the chosen type does not take, and the server ignores it anyway. #}
+<div class="fld" data-add-flag>
+  <span class="field-label">Flag</span>
+  <div class="flag-line">
+    <div class="seg wide" role="radiogroup" aria-label="Flag">
+      {% for key, text in flag_choices %}<label class="seg-option"><input type="radio" name="flag" value="{{ key }}"{% if key == "none" %} checked{% endif %}><span>{{ text }}</span></label>{% endfor %}
+    </div>
+    <input type="text" name="flag_text" maxlength="300" placeholder="Short text (used for Other)" aria-label="Flag text">
+  </div>
+</div>
+<div class="fld" data-add-review>
+  <span class="field-label">For review</span>
+  <div class="switch-line">
+    <label class="rev-switch"><input type="checkbox" name="needs_review" value="1"><span>For review</span></label>
+    <input type="text" name="review_note" placeholder="Note for review (optional)" aria-label="Review note">
+  </div>
+</div>

@@ -21,10 +21,10 @@ from . import inline
 from . import services as svc
 from . import undo_session
 from .conflicts import conflict_page
-from .models import Section, Subject, Subtopic, Topic
+from .models import FLAG_CHOICES, Section, Subject, Subtopic, Topic
 from .richtext import plain_text, sanitise_html
 from .services.core import Ctx, check_version, descendants, get_record, label
-from .services.errors import Conflict, NotFound, ServiceError
+from .services.errors import Conflict, NotFound, ServiceError, ValidationFailed
 from .services.moves import ALLOWED_PARENTS, NICE
 from .services.sequences import COLUMN_TYPE, ident, members, sequence_key
 from .sorting import sort_headings
@@ -43,6 +43,8 @@ ADDABLE = {
     "note": ("note", {}),
 }
 ADD_NICE = {}
+#: Longest flag text an Item takes (the Item editor and the Add forms).
+FLAG_TEXT_MAX = 300
 #: Longest name the Add form accepts for each kind that has a name (the model field lengths).
 HEADING_LIMITS = {
     "subject": Subject._meta.get_field("name").max_length,
@@ -241,34 +243,47 @@ def _expected(request, name):
 def _add_page(request):
     """The normal Add page: the same form as Edit mode, with the place chosen from the address.
 
-    ``?after=item:5`` adds directly after that record; ``?parent=topic:3`` adds inside it (at the
-    top, like the inline form). It needs no JavaScript and is what a phone gets (the inline form is for desktops).
+    ``?after=item:5`` or ``?parent=topic:3`` names the row the "+ Add" button belonged to. The page offers exactly the
+    types the inline form offers on that row (``inline.add_choices``, the one shared list) and posts ``ref`` and
+    ``choice`` like it. It needs no JavaScript and is what a phone gets.
     """
-    after = _after(request.GET)
-    parent = None
-    if after:
-        record, parent, _ = _place_after(request, after)
-        choices = AFTER_CHOICES[after[0]]
-        where = f"directly after the {NICE[after[0]]} \u201c{label(record)}\u201d"
-        version = record.version
-    else:
-        value = request.GET.get("parent", "")
-        kind, _, pk = value.partition(":")
-        if kind not in ("subject", "topic", "subtopic", "section", "item") or not pk.isdigit():
-            raise Http404("Unknown place.")
-        record = get_record(Ctx(request.profile, request.user), kind, int(pk), lock=False)
-        choices = {"subject": ("topic", "section", "item", "note"),
-                   "topic": ("subtopic", "section", "item", "note"),
-                   "subtopic": ("section", "item", "note"), "section": ("note",),
-                   "item": ("note",)}[kind]
-        where = f"at the top of the {NICE[kind]} \u201c{label(record)}\u201d"
-        parent, version = (kind, record.pk), None
-    options = [{"value": c, "label": ADD_NICE.get(c) or NICE[ADDABLE[c][0]]} for c in choices]
+    value = request.GET.get("after", "") or request.GET.get("parent", "")
+    kind, _, pk = value.partition(":")
+    if kind not in EDIT_KINDS or not pk.isdigit():
+        raise Http404("Unknown place.")
+    record = get_record(Ctx(request.profile, request.user), kind, int(pk), lock=False)
+    choices = inline.add_choices(request.profile, kind, record)
+    if not choices:
+        raise Http404("Nothing can be added there.")
+    options = [{"value": c, "label": text} for c, text in choices]
+    after = any(c.startswith("after:") for c, _ in choices)
+    where = f"{'after' if after else 'inside'} the {NICE[kind]} \u201c{label(record)}\u201d"
     return render(request, "diary/add_page.html", {
-        "options": options, "where": where, "after": f"{after[0]}:{after[1]}" if after else "",
-        "after_version": version if after else "", "parent": parent, "next_url": _next(request),
-        "kind_key": "after" if after else "parent",
+        "options": options, "where": where, "ref": f"{kind}:{record.pk}", "ref_version": record.version,
+        "next_url": _next(request), "flag_choices": FLAG_CHOICES, "values": {"flag": "none"},
+        "default": choices[0][0],
     })
+
+
+def _marking(post, kind):
+    """The Flag and For review fields of a new Item (all of them) or Section (For review only), as the create service takes them.
+
+    Validation is the Item editor's: a flag must be one of the choices, its text at most FLAG_TEXT_MAX characters.
+    Other kinds get nothing, whatever was posted.
+    """
+    if kind not in ("item", "section"):
+        return {}
+    marked = post.get("needs_review") == "1"
+    fields = {"needs_review": marked, "review_note": post.get("review_note", "").strip() if marked else ""}
+    if kind == "item":
+        flag = post.get("flag", "none")
+        if flag not in {c[0] for c in FLAG_CHOICES}:
+            raise ValidationFailed(f"{flag!r} is not a flag choice.")
+        flag_text = "" if flag == "none" else _single_line(post.get("flag_text", ""))
+        if len(flag_text) > FLAG_TEXT_MAX:
+            raise ValidationFailed(f"The flag text is too long ({FLAG_TEXT_MAX} characters at most).")
+        fields.update(flag=flag, flag_text=flag_text)
+    return fields
 
 
 @editor_page
@@ -315,6 +330,7 @@ def add(request):
         if len(name) > HEADING_LIMITS[kind]:
             raise ServiceError(f"The {NICE[kind]} name is too long (at most {HEADING_LIMITS[kind]} characters).")
         fields["name"] = name
+    fields.update(_marking(post, kind))
     if kind == "subject":
         fields["show_on_landing"] = post.get("landing", "1") == "1"
     cases = []

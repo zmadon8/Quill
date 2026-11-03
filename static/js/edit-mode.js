@@ -288,6 +288,12 @@
       var citable = whats.indexOf(what()) > -1;
       citeField.classList.toggle("off", !citable);
       Array.prototype.forEach.call(citeField.querySelectorAll("input, button"), function (n) { n.disabled = !citable; });
+      [["[data-add-flag]", what() === "item"], ["[data-add-review]", what() === "item" || what() === "section"]].forEach(function (pair) {
+        var box = form.querySelector(pair[0]);
+        if (!box) { return; }
+        box.hidden = !pair[1];
+        Array.prototype.forEach.call(box.querySelectorAll("input"), function (n) { n.disabled = !pair[1]; });
+      });
     }
     form.addEventListener("change", function (e) { if (e.target.name === "choice") { apply(); focusText(); } });
     apply();

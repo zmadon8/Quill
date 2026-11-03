@@ -267,7 +267,7 @@ class PhoneAddTests(ServiceTestCase):
             self.assertIn(label, markup)
         self.assertNotIn("Nested", markup)
         self.assertNotIn("desktop", markup.lower())
-        data = {**fields_of(markup), "what": "item", "text": "added on a phone", "citation": "A v B"}
+        data = {**fields_of(markup), "choice": "after:item", "text": "added on a phone", "citation": "A v B"}
         self.assertEqual(self.strict.post(reverse("edit_add"), {k: v for k, v in data.items()
                                                                 if k != "csrfmiddlewaretoken"}).status_code, 403)
         resp = self.strict.post(reverse("edit_add"), data)
@@ -277,12 +277,15 @@ class PhoneAddTests(ServiceTestCase):
         added = Item.objects.get(profile=self.profile, text__contains="added on a phone")
         self.assertEqual(added.topic_id, self.topic.pk)
 
-    def test_the_add_page_inside_a_topic_offers_item_section_and_note(self):
+    def test_the_add_page_inside_a_topic_offers_what_the_inline_form_offers(self):
+        from diary import inline
+
         page = self.strict.get(reverse("edit_add"), {"parent": f"topic:{self.topic.pk}", "next": self.next})
         self.assertEqual(page.status_code, 200)
         markup = page.content.decode()
-        for label in (">Item<", ">Section<", ">Note<"):
-            self.assertIn(label, markup)
+        for value, text in inline.add_choices(self.profile, "topic", self.topic):
+            self.assertIn(f'<option value="{value}" ', markup)
+            self.assertIn(f">{text}</option>", markup)
 
     def test_the_script_does_not_wait_for_a_wide_screen_or_a_mouse(self):
         for name in ("edit-mode.js", "add-form.js"):
