@@ -16,6 +16,15 @@
     </p>
   </section>
   <section class="settings-section">
+    <h2>Header bar</h2>
+    {{ form.header_style.errors }}
+    <fieldset class="header-style-choice">
+      <legend class="visually-hidden">{{ form.header_style.label }}</legend>
+      {% for radio in form.header_style %}<label class="search-check">{{ radio.tag }} {{ radio.choice_label }}</label> {% endfor %}
+    </fieldset>
+    <p class="field-help">{{ form.header_style.help_text }}</p>
+  </section>
+  <section class="settings-section">
     <h2>Open after login</h2>
     <p>
       {{ form.landing_program.errors }}

@@ -32,6 +32,10 @@ class User(AbstractUser):
     landing_program = models.CharField(max_length=30, blank=True, default="")
     # Last Case Law Diary page viewed (path and query), used by the "last page I viewed" opening option.
     last_diary_path = models.CharField(max_length=500, blank=True, default="")
+    # How the header bar shows its links (My settings): simple icons, or the words (round 15, D84).
+    HEADER_ICONS, HEADER_WORDS = "icons", "words"
+    HEADER_STYLE_CHOICES = [(HEADER_ICONS, "Icons"), (HEADER_WORDS, "Words")]
+    header_style = models.CharField(max_length=10, choices=HEADER_STYLE_CHOICES, default=HEADER_ICONS)
 
     def save(self, *args, **kwargs):
         self.is_staff = self.is_superuser

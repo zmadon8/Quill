@@ -387,6 +387,8 @@ class ViewTests(ExportCase):
                     self.assertNotIn("type=full", body)
 
     def test_diary_menu_says_settings_not_profile_settings(self):
+        self.editor.header_style = "words"  # D84: with Words the link reads "Settings"; with Icons it is a gear named Settings
+        self.editor.save(update_fields=["header_style"])
         body = self.login(self.editor).get(reverse("profile_settings")).content.decode()
         self.assertRegex(body, r'<a href="[^"]*"[^>]*aria-label="Settings"[^>]*>Settings</a>')
         self.assertIn("<h1>Settings</h1>", body)

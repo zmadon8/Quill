@@ -368,7 +368,9 @@ class HomeIndexTests(TestCase):
             # The Home icon is on every page except the suite Home; the Search magnifier only on program (diary) pages.
             self.assertEqual(header.count('class="home-button"'), 0 if name == "home" else 1, name)
             self.assertEqual(header.count("data-search-toggle"), 1 if name == "diary_home" else 0, name)
-            self.assertEqual(header.count("<svg") - 2, header.count('class="home-button"') + header.count("data-search-toggle"), name)
+            # Icons are the default header bar (D84): Trash, Export, Help and Settings are icons on diary pages too.
+            self.assertEqual(header.count("<svg") - 2, header.count('class="home-button"') + header.count("data-search-toggle")
+                             + header.count('class="nav-icon'), name)
             self.assertIn('data-fallback="%s"' % reverse("home"), header)
 
     def test_no_review_tab_in_the_header(self):

@@ -236,14 +236,24 @@ class MySettingsForm(forms.ModelForm):
 
     class Meta:
         model = User
-        fields = ("email", "landing_program")
+        fields = ("email", "landing_program", "header_style")
+        labels = {"header_style": "Header bar"}
+        widgets = {"header_style": forms.RadioSelect}
 
     def clean_email(self):
         return _clean_unique_email(self)
 
+    def clean_header_style(self):
+        return self.cleaned_data.get("header_style") or self.instance.header_style or User.HEADER_ICONS
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["email"].help_text = "Used only to email you a link if you forget your password."
+        self.fields["header_style"].required = False  # not posted: keep the current choice (see clean_header_style)
+        self.fields["header_style"].help_text = (
+            "Icons: Trash is a dustbin, Export a downward arrow, Help a question mark, Settings a gear, and Search and "
+            "Home their usual icons (hover or long-press to see the name). Words: the names instead."
+        )
         self.fields["landing_program"].choices = landing.program_choices(landing.programs_for(self.instance))
 
 

@@ -40,3 +40,11 @@ def current_profile(request):
         return {"current_profile": None, "diary_editor": False}
     profile = request_profile(request)
     return {"current_profile": profile, "diary_editor": profile is not None and request_role(request) == ROLE_EDITOR}
+
+
+def header_style(request):
+    """``header_words``: True when the signed-in user chose Words for the header bar (My settings); Icons otherwise."""
+    user = getattr(request, "user", None)
+    words = bool(user is not None and user.is_authenticated and getattr(user, "header_style", "icons") == "words")
+    return {"header_words": words}
+
