@@ -239,6 +239,29 @@ def letters(number):
 
 # ------------------------------------------------------------------ live database (the migration)
 
+def conversion_order(parent_of, nested_ids):
+    """Primary keys of the Items to convert, deepest first.
+
+    ``parent_of`` maps every Item that sits beneath another Item to that parent's key. An Item is converted when it
+    is a Nested Item or has any Item beneath it (the parent may be of ANY kind: older data and earlier bugs left
+    children under plain Items, and those are folded the same way). Deepest first means an inner group is
+    converted before the group that contains it, so each parent absorbs finished children. A cycle (bad data)
+    cannot loop: its members get depth 0 and the final sweep detaches anything still attached.
+    """
+    def depth(pk):
+        seen, count = {pk}, 0
+        while parent_of.get(pk) is not None:
+            pk = parent_of[pk]
+            if pk in seen:
+                return 0
+            seen.add(pk)
+            count += 1
+        return count
+
+    chosen = set(nested_ids) | {p for p in parent_of.values() if p is not None}
+    return sorted(chosen, key=lambda pk: (-depth(pk), pk))
+
+
 def _case_dict(case):
     return {"id": case.pk, "citation": case.citation, "comment": case.comment}
 
@@ -302,11 +325,26 @@ def migrate_nested(apps):
             changed_by=None, profile_id=obj.profile_id, change_kind=CHANGE_KIND, group=None,
         )
 
+    def place_of(item):
+        """The Item that holds the Subject/Topic/Sub-topic place: this one, or the nearest ancestor that has one
+        (an inner group sits beneath another Item and has no place of its own)."""
+        seen = set()
+        while all(getattr(item, f"{c}_id") is None for c in PARENT_COLUMNS) and item.parent_item_id is not None:
+            if item.pk in seen:
+                break
+            seen.add(item.pk)
+            item = Item._default_manager.get(pk=item.parent_item_id)
+        return item
+
     with transaction.atomic():
         before = _count_state(Item, Case, Note, NoteLink)
         folded_live = 0
         all_folded = []
-        for nested in list(Item._default_manager.filter(kind=KIND_NESTED).order_by("pk")):
+        parent_of = dict(Item._default_manager.filter(parent_item__isnull=False).values_list("pk", "parent_item_id"))
+        nested_ids = list(Item._default_manager.filter(kind=KIND_NESTED).values_list("pk", flat=True))
+        for parent_pk in conversion_order(parent_of, nested_ids):
+            # Read fresh: an earlier group may have moved or trashed this Item.
+            nested = Item._default_manager.get(pk=parent_pk)
             stats["nested_items"] += 1
             deleted = nested.deleted_at is not None
             kids = list(Item._default_manager.filter(parent_item_id=nested.pk).order_by("position", "pk"))
@@ -422,8 +460,9 @@ def migrate_nested(apps):
             # 4. The children: out of the Nested Item (a parent of its own), folded ones into Trash.
             for k in kids:
                 is_folded = k in folded
+                place = place_of(nested)
                 for column in PARENT_COLUMNS:
-                    setattr(k, f"{column}_id", getattr(nested, f"{column}_id"))
+                    setattr(k, f"{column}_id", getattr(place, f"{column}_id"))
                 k.parent_item_id = None
                 k.position = nested.position
                 if is_folded:
@@ -441,6 +480,22 @@ def migrate_nested(apps):
                 )
                 record(k, "item")
             stats["empty_children"] += len(plan.empty_children)
+        # Safety sweep (cycles, anything unforeseen): detach what is still attached, keeping its state, so no
+        # Item is lost and the parent column can be dropped. Trashed Items stay in Trash.
+        for left in list(Item._default_manager.filter(parent_item__isnull=False)):
+            up = Item._default_manager.filter(pk=left.parent_item_id).first()
+            if up is not None:
+                up = place_of(up)
+                for column in PARENT_COLUMNS:
+                    setattr(left, f"{column}_id", getattr(up, f"{column}_id"))
+            left.parent_item_id = None
+            left.version += 1
+            Item._default_manager.filter(pk=left.pk).update(
+                subject_id=left.subject_id, topic_id=left.topic_id, subtopic_id=left.subtopic_id,
+                parent_item_id=None, version=left.version,
+            )
+            record(left, "item")
+            stats["children_left_in_trash"] += 1
         after = _count_state(Item, Case, Note, NoteLink)
         verify_counts(before, after, stats, folded_live)
         stuck_notes = Note._default_manager.filter(item_id__in=all_folded).count()
@@ -468,12 +523,18 @@ def upgrade_document_nested(models_in_file, stamp):
     items = models_in_file.get("diary.Item", [])
     for record in models_in_file.get("diary.UserSettings", []):
         record["fields"].pop("nested_item_format", None)
-    nested_records = sorted((r for r in items if r["fields"].get("kind") == KIND_NESTED), key=lambda r: r["pk"])
     kids_of = defaultdict(list)
+    parent_of = {}
     for record in items:
         parent = record["fields"].get("parent_item")
         if parent is not None:
             kids_of[parent].append(record)
+            parent_of[record["pk"]] = parent
+    by_key = {r["pk"]: r for r in items}
+    order = conversion_order(
+        parent_of, [r["pk"] for r in items if r["fields"].get("kind") == KIND_NESTED]
+    )
+    nested_records = [by_key[pk] for pk in order if pk in by_key]
     cases = models_in_file.setdefault("diary.Case", [])
     notes = models_in_file.setdefault("diary.Note", [])
     links = models_in_file.setdefault("diary.NoteLink", [])
@@ -496,6 +557,16 @@ def upgrade_document_nested(models_in_file, stamp):
             pk, record_type, record_id, fields.get("version", 1), legacy._record_snapshot(record_id, fields, fks),
             profile, stamp,
         ))
+
+    def place_fields(record):
+        seen = set()
+        while all(record["fields"].get(c) is None for c in PARENT_COLUMNS):
+            up = parent_of.get(record["pk"])
+            if up is None or up in seen or up not in by_key:
+                break
+            seen.add(record["pk"])
+            record = by_key[up]
+        return record["fields"]
 
     for nested in nested_records:
         stats["nested_items"] += 1
@@ -545,13 +616,18 @@ def upgrade_document_nested(models_in_file, stamp):
                 }
                 case_pk = rows["case"]
                 rows["case"] += 1
-                cases.append({"model": "diary.case", "pk": case_pk, "fields": case_fields})
+                new_case = {"model": "diary.case", "pk": case_pk, "fields": case_fields}
+                cases.append(new_case)
+                cases_of[nested["pk"]].append(new_case)  # an outer group may fold this Item later
                 stats["cases_created"] += 1
             else:
                 case = by_id[spec.existing_id]
                 case_pk, case_fields = case["pk"], case["fields"]
                 if case_fields.get("item") != nested["pk"]:
                     stats["cases_moved"] += 1
+                if case_fields.get("item") != nested["pk"]:
+                    cases_of[case_fields.get("item")].remove(case)
+                    cases_of[nested["pk"]].append(case)
                 case_fields.update(item=nested["pk"], comment=spec.comment, comment_plain=comment_plain, position=number)
                 if spec.existing_id in {c["pk"] for cs in kid_cases.values() for c in cs} and deleted:
                     case_fields.update(deleted_at=fields.get("deleted_at"), delete_batch=batch_of_n)
@@ -574,6 +650,7 @@ def upgrade_document_nested(models_in_file, stamp):
         next_note = 1 + max(live_notes or [0])
         for k in folded:
             for note in sorted(notes_of.get(k["pk"], []), key=by_pos):
+                notes_of[nested["pk"]].append(note)
                 note["fields"]["item"] = nested["pk"]
                 if not note["fields"].get("deleted_at"):
                     note["fields"]["position"] = next_note
@@ -582,6 +659,7 @@ def upgrade_document_nested(models_in_file, stamp):
                 log("note", note["pk"], note["fields"], NOTE_FKS, profile)
                 stats["notes_moved"] += 1
             for link in sorted(links_of.get(k["pk"], []), key=lambda r: r["pk"]):
+                links_of[nested["pk"]].append(link)
                 link["fields"]["item"] = nested["pk"]
                 link["fields"]["version"] = link["fields"].get("version", 1) + 1
                 log("notelink", link["pk"], link["fields"], LINK_FKS, profile)
@@ -596,8 +674,9 @@ def upgrade_document_nested(models_in_file, stamp):
         log("item", nested["pk"], fields, ITEM_FKS, profile)
         for k in kids:
             kf = k["fields"]
+            place = place_fields(nested)
             for column in PARENT_COLUMNS:
-                kf[column] = fields.get(column)
+                kf[column] = place.get(column)
             kf["position"] = fields.get("position", 0)
             if k in folded:
                 kf["deleted_at"] = kf.get("deleted_at") or stamp

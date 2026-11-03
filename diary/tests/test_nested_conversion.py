@@ -204,6 +204,99 @@ class DocumentMappingTests(SimpleTestCase):
         self.assertEqual([c["fields"]["item"] for c in doc["diary.Case"]], [2, 1])  # its Case stays with it
 
 
+class ConversionOrderTests(SimpleTestCase):
+    def test_deepest_parent_first_and_plain_parents_are_included(self):
+        # 1 (nested) > 2 (plain, has kid 4) > 4 ; 1 > 3 ; 9 is a nested Item with no kids
+        order = nc.conversion_order({2: 1, 3: 1, 4: 2}, [1, 9])
+        self.assertEqual(order, [2, 1, 9])
+
+    def test_a_plain_parent_with_children_is_converted_too(self):
+        self.assertEqual(nc.conversion_order({5: 7}, []), [7])
+
+    def test_a_cycle_cannot_loop(self):
+        self.assertEqual(sorted(nc.conversion_order({1: 2, 2: 1}, [])), [1, 2])
+
+    def test_nothing_to_do(self):
+        self.assertEqual(nc.conversion_order({}, []), [])
+
+
+def shaped_document():
+    """Nested 1 with a live kid, a trashed kid and an inner plain parent 4 (itself a kid) with kid 5; plus a
+    plain parent 6 with kid 7 and a trashed Nested Item 8 whose kid 9 is live."""
+    base = {"profile": 1, "created_by": None, "updated_by": None, "deleted_at": None, "delete_batch": None, "version": 1}
+    item = dict(subject=None, topic=None, subtopic=None, flag="none", flag_text="", needs_review=False,
+                review_note="", citation="", position=1, **base)
+
+    def make(pk, kind="plain", parent=None, **kw):
+        fields = {**item, **kw}
+        if parent is None and "topic" not in kw:
+            fields["topic"] = 5
+        return rec("diary.item", pk, kind=kind, text=f"<p>t{pk}</p>", parent_item=parent, **fields)
+
+    trashed = {"deleted_at": "2025-01-01T00:00:00", "delete_batch": "b1"}
+    return {
+        "diary.Item": [
+            make(1, "nested", citation="N v M"),
+            make(2, parent=1), make(3, parent=1, **trashed),
+            make(4, parent=1), make(5, parent=4),
+            make(6), make(7, parent=6),
+            make(8, "nested", citation="T v U", **trashed), make(9, parent=8),
+        ],
+        "diary.Case": [], "diary.Note": [], "diary.NoteLink": [], "diary.VersionHistory": [], "diary.UserSettings": [],
+    }
+
+
+class ShapesInDocumentTests(SimpleTestCase):
+    def test_every_shape_ends_with_no_item_beneath_another(self):
+        doc = shaped_document()
+        nc.upgrade_document_nested(doc, "2026-01-01T00:00:00")
+        items = {r["pk"]: r["fields"] for r in doc["diary.Item"]}
+        self.assertEqual(len(items), 9)
+        self.assertTrue(all("parent_item" not in f for f in items.values()))
+        self.assertTrue(all(f["kind"] == "plain" for f in items.values()))
+        # every Item has exactly one place (the database constraint)
+        for pk, f in items.items():
+            self.assertEqual(sum(f.get(c) is not None for c in ("subject", "topic", "subtopic")), 1, pk)
+
+    def test_the_trashed_child_stays_in_trash_and_is_not_folded(self):
+        doc = shaped_document()
+        nc.upgrade_document_nested(doc, "2026-01-01T00:00:00")
+        items = {r["pk"]: r["fields"] for r in doc["diary.Item"]}
+        self.assertEqual(items[3]["delete_batch"], "b1")
+
+    def test_a_plain_parent_absorbs_its_child(self):
+        doc = shaped_document()
+        nc.upgrade_document_nested(doc, "2026-01-01T00:00:00")
+        items = {r["pk"]: r["fields"] for r in doc["diary.Item"]}
+        self.assertEqual(items[6]["citation_layout"], "lines")
+        self.assertIsNotNone(items[7]["deleted_at"])
+        cases = [c["fields"] for c in doc["diary.Case"] if c["fields"]["item"] == 6]
+        self.assertEqual([c["comment"] for c in cases], ["<p>t7</p>"])
+
+    def test_two_levels_are_folded_inner_group_first(self):
+        doc = shaped_document()
+        nc.upgrade_document_nested(doc, "2026-01-01T00:00:00")
+        items = {r["pk"]: r["fields"] for r in doc["diary.Item"]}
+        self.assertIsNotNone(items[5]["deleted_at"])
+        self.assertIsNotNone(items[4]["deleted_at"])
+        self.assertEqual(items[5]["topic"], 5)  # the place of the outermost Item
+        by_item = {}
+        for c in doc["diary.Case"]:
+            by_item.setdefault(c["fields"]["item"], []).append(c["fields"]["comment"])
+        self.assertNotIn(4, by_item)  # its Case moved up into Item 1
+        self.assertEqual(len(by_item[1]), 3)
+        self.assertIn("<p>t2</p>", by_item[1])
+        self.assertTrue(any(c.startswith("<p>t4 - t5") for c in by_item[1]))  # the inner group arrived finished
+
+    def test_a_live_child_of_a_trashed_parent_is_folded_and_waits_in_trash(self):
+        doc = shaped_document()
+        nc.upgrade_document_nested(doc, "2026-01-01T00:00:00")
+        items = {r["pk"]: r["fields"] for r in doc["diary.Item"]}
+        self.assertIsNotNone(items[9]["deleted_at"])
+        self.assertEqual(items[8]["delete_batch"], "b1")
+        self.assertEqual([c["fields"]["citation"] for c in doc["diary.Case"] if c["fields"]["item"] == 8][:1], ["T v U"])
+
+
 class MigrationIndependenceTests(SimpleTestCase):
     def test_the_module_and_the_migration_import_no_models_and_no_services(self):
         import ast
@@ -353,6 +446,49 @@ class MigrationTests(TransactionTestCase):
         kid2 = Item.objects.get(pk=self.kid2.pk)
         self.assertEqual((kid2.parent_item_id, kid2.topic_id, kid2.delete_batch), (None, self.topic.pk, None))
         self.assertEqual(self.model("Case").objects.filter(item_id=self.nested.pk).count(), 2)
+
+    def test_children_of_a_plain_parent_are_converted_too(self):
+        Item = self.model("Item")
+        Item.objects.filter(pk=self.nested.pk).update(kind="plain", citation="")
+        stats = self.run_migration()
+        self.assertEqual(Item.objects.filter(parent_item__isnull=False).count(), 0)
+        self.assertEqual(stats["children_folded"], 2)
+        self.assertEqual(Item.objects.get(pk=self.nested.pk).citation_layout, "lines")
+        self.assertEqual(self.model("Case").objects.filter(item_id=self.nested.pk).count(), 2)
+
+    def test_two_levels_leave_nothing_beneath_another_item(self):
+        Item, Case = self.model("Item"), self.model("Case")
+        kw = {"profile_id": self.profile.pk}
+        inner = Item.objects.create(parent_item=self.kid2, text="<p>inner</p>", position=1, **kw)
+        counts = Item.objects.count()
+        self.run_migration()
+        self.assertEqual(Item.objects.count(), counts)
+        self.assertFalse(Item.objects.filter(parent_item__isnull=False).exists())
+        inner = Item.objects.get(pk=inner.pk)
+        self.assertEqual((inner.topic_id, inner.parent_item_id), (self.topic.pk, None))
+        self.assertIsNotNone(inner.deleted_at)
+        comments = [c.comment for c in Case.objects.filter(item_id=self.nested.pk)]
+        self.assertTrue(any(c.startswith("<p>two - inner") for c in comments), comments)  # inner group first
+
+    def test_a_trashed_child_and_a_live_child_of_a_trashed_parent(self):
+        from django.utils import timezone
+
+        Item = self.model("Item")
+        stamp = timezone.now()
+        Item.objects.filter(pk__in=[self.nested.pk]).update(deleted_at=stamp)
+        Item.objects.filter(pk=self.kid1.pk).update(deleted_at=stamp)
+        self.run_migration()
+        self.assertFalse(Item.objects.filter(parent_item__isnull=False).exists())
+        self.assertEqual(Item.objects.get(pk=self.kid1.pk).topic_id, self.topic.pk)
+        self.assertIsNotNone(Item.objects.get(pk=self.kid2.pk).deleted_at)
+
+    def test_counts_reconcile_after_the_conversion(self):
+        Item = self.model("Item")
+        total = Item.objects.count()
+        live = Item.objects.filter(deleted_at__isnull=True).count()
+        self.run_migration()
+        self.assertEqual(Item.objects.count(), total)
+        self.assertEqual(Item.objects.filter(deleted_at__isnull=True).count(), live - 2)
 
     def test_the_real_migration_files_apply_and_leave_the_final_schema(self):
         executor = MigrationExecutor(connection)
