@@ -56,8 +56,9 @@ class HeaderStyleTests(TestCase):
         self.assertEqual(header.count("<svg"), 2)
 
     def test_the_current_page_is_still_marked(self):
-        header = self.header("help")
-        self.assertRegex(header, r'class="nav-icon on" aria-current="page" aria-label="Help"')
+        # The Export page uses the diary header bar (the Help page uses the suite Home header).
+        header = self.header("export")
+        self.assertRegex(header, r'class="nav-icon on" aria-current="page" aria-label="Export"')
 
     def test_my_settings_saves_the_choice_and_a_post_without_it_keeps_it(self):
         resp = self.client.get(reverse("my_settings"))
