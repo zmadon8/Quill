@@ -29,7 +29,7 @@ Then open **Backups > Email backups** as an Admin, type your address and press *
 * The login page shows **Forgot my password** once email is set up. It asks for the address and always answers "if an account has that email, a link is on its way", so it cannot be used to discover who has an account.
 * The link is for one use and expires after an hour (it also stops working once the password changes). The new password must pass the usual password rules.
 * Disabled accounts get no link. Someone with no email address asks the Admin, who can still set a password under **Users**.
-* Not built (say if you want it): a limit on how many reset emails one address or visitor can ask for. Your email provider's own sending limits are the safety net for now.
+* **Limits:** one address can ask for 3 reset emails an hour, and one visitor (IP address) for 10 an hour. Over the limit the page gives the same 'a link is on its way' answer and sends nothing, so it reveals nothing about which accounts exist. Requests are kept for a day (`accounts.ResetRequest`, not part of backups).
 
 ## 3. Emailed backups
 

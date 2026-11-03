@@ -6,7 +6,7 @@ keep parents before children; any new model must be appended here. Restore delet
 reverse order and loads in this order.
 
 Deliberately NOT in a backup file:
-  * FailedLogin (short-lived login throttling),
+  * FailedLogin and ResetRequest (short-lived login and password-reset throttling),
   * PurgeLog (history of the deleted-profile purge job),
   * sessions (people simply sign in again),
   * BackupFile and BackupLog (a backup must never contain other backups).

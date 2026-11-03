@@ -1,4 +1,5 @@
 import logging
+from datetime import timedelta
 
 from django.conf import settings
 from django.contrib import messages
@@ -7,12 +8,13 @@ from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
+from django.utils import timezone
 from django.views.decorators.http import require_GET, require_http_methods
 
 from . import landing, suite
 from .clear import ClearRefused, clear_preview, clear_profile
-from .forms import MySettingsForm, ProfileForm, SuiteNamesForm, UserCreateForm, UserEditForm
-from .models import Profile, ProfileMembership, PurgeLog
+from .forms import MySettingsForm, _client_ip, ProfileForm, SuiteNamesForm, UserCreateForm, UserEditForm
+from .models import Profile, ProfileMembership, PurgeLog, ResetRequest, prune_reset_requests
 from .permissions import admin_required
 from .profiles import (
     days_left,
@@ -61,6 +63,28 @@ class LandingLoginView(auth_views.LoginView):
     # LoginView.get_success_url uses a safe ``next`` first (host and scheme checked), then this default.
 
 
+RESET_PER_EMAIL = 3  # reset requests per address per hour
+RESET_PER_IP = 10  # reset requests per visitor (IP address) per hour
+RESET_WINDOW = timedelta(hours=1)
+
+
+def reset_limited(request, email):
+    """True if this address or visitor has asked too often in the last hour; otherwise record this request.
+
+    A request for an address with no account counts the same as one with an account, so the limit cannot be used
+    to tell the two apart.
+    """
+    email_lower = (email or "").strip().lower()[:254]
+    ip = _client_ip(request)
+    now = timezone.now()
+    prune_reset_requests(now)
+    recent = ResetRequest.objects.filter(at__gte=now - RESET_WINDOW)
+    if recent.filter(email_lower=email_lower).count() >= RESET_PER_EMAIL or recent.filter(ip=ip).count() >= RESET_PER_IP:
+        return True
+    ResetRequest.objects.create(email_lower=email_lower, ip=ip, at=now)
+    return False
+
+
 class ForgotPasswordView(auth_views.PasswordResetView):
     """Ask for an email address; if an active account has it, email a one-hour link to choose a new password.
 
@@ -82,6 +106,9 @@ class ForgotPasswordView(auth_views.PasswordResetView):
         if not email_ready():
             form.add_error(None, "Email is not set up on this server. Ask the Admin to set a new password for you.")
             return self.form_invalid(form)
+        if reset_limited(self.request, form.cleaned_data["email"]):
+            # Over the limit: the same answer as always, and nothing is sent (so the limit shows nothing about accounts).
+            return redirect(self.success_url)
         try:
             return super().form_valid(form)
         except Exception:
