@@ -8,7 +8,7 @@ new group, so Undoing an Undo is a redo.
 from django.db import transaction
 
 from ..models import VersionHistory
-from .core import PARENT_LINKS, Ctx, apply_snapshot, commit, get_record, label, make_result, next_free_name, parent_of, record_type
+from .core import Ctx, apply_snapshot, commit, get_record, label, make_result, next_free_name, parent_of, record_type
 from .errors import NameClash, NotFound, Refused, UndoWarning
 from .trash import _name_taken, prune_batches, trash_subtree
 
@@ -79,7 +79,6 @@ def undo_group(profile, user, group, force=False):
         for key in keys:
             obj = records[key]
             obj.refresh_from_db()
-            was_deleted = obj.deleted_at is not None
             before = (
                 VersionHistory.objects.filter(
                     profile=profile, record_type=key[0], record_id=key[1], version__lt=first[key].version
@@ -92,10 +91,7 @@ def undo_group(profile, user, group, force=False):
                 if obj.deleted_at is None:
                     trash_subtree(ctx, obj)
                 continue
-            columns = [f"{column}_id" for column, _ in PARENT_LINKS[record_type(obj)]]
-            old_parents = [getattr(obj, c) for c in columns]
             apply_snapshot(obj, before.snapshot)
-            moved = old_parents != [getattr(obj, c) for c in columns]
             if obj.deleted_at is None and record_type(obj) in ("subject", "topic") and _name_taken(obj, obj.name):
                 kind = record_type(obj)
                 scope = {} if kind == "subject" else {"subject_id": obj.subject_id}

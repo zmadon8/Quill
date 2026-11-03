@@ -367,7 +367,8 @@ class DiaryRoundTripTests(BackupBase):
         topic = Topic.objects.create(profile=main_profile(), subject=subject, name="Formation", position=1)
         subtopic = Subtopic.objects.create(profile=main_profile(), topic=topic, name="Offer", position=1)
         other = Subject.objects.create(profile=main_profile(), name="Companies Act", position=2)
-        Subtopic.objects.create(profile=main_profile(), subject=other, name="Directors")
+        other_topic = Topic.objects.create(profile=main_profile(), subject=other, name="1", position=1)
+        Subtopic.objects.create(profile=main_profile(), topic=other_topic, name="Directors")
         section = Section.objects.create(profile=main_profile(), subtopic=subtopic, name="Ex Parte", needs_review=True, review_note="check")
         item = Item.objects.create(profile=main_profile(), subtopic=subtopic, text="<p>Rule <b>one</b></p>", position=1)
         Case.objects.create(profile=main_profile(), item=item, citation="A v B", position=1)
@@ -953,7 +954,8 @@ class OldFormatItemsTests(BackupBase):
         """Old-format rows written straight to the tables: citations on Items, kind 'multi'."""
         profile = main_profile()
         subject = Subject.objects.create(profile=profile, name="Contract")
-        sub = Subtopic.objects.create(profile=profile, subject=subject, name="Offer")
+        topic = Topic.objects.create(profile=profile, subject=subject, name="Formation", position=1)
+        sub = Subtopic.objects.create(profile=profile, topic=topic, name="Offer")
         make = lambda **kw: Item.objects.create(profile=profile, subtopic=sub, **kw)  # noqa: E731
         self.plain = make(text="p", citation="A v B", position=1)
         self.bare = make(text="b", position=2)
@@ -1168,7 +1170,8 @@ class OldNestedFileTests(BackupBase):
 
 class OldLooseItemsFileTests(BackupBase):
     """Round 10 (D61): Items directly under a Subject go into its Topic "1" when an older backup file is restored,
-    exactly as migration 0017 does for the live database (diary/topic_one.py)."""
+    exactly as migration 0017 does for the live database (diary/topic_one.py). Since D82 a Sub-topic directly under a
+    Subject is housed first (diary/subtopic_one.py, migration 0018), so nothing is left loose any more."""
 
     def make_file(self):
         profile = main_profile()
@@ -1183,8 +1186,11 @@ class OldLooseItemsFileTests(BackupBase):
     def test_loose_items_are_housed_before_anything_is_inserted(self):
         doc = services.parse_backup(json.dumps(self.make_file()).encode("utf-8"), MAX)
         stats = doc["housing_mapping"]
-        self.assertEqual((stats["subjects_housed"], stats["topics_made"], stats["items_moved"],
-                          stats["left_under_subjects_with_subtopics"]), (1, 1, 2, 1))
+        # Plain gets a new Topic "1"; Holder's Topic "1" was made by the Sub-topic housing and is reused here.
+        self.assertEqual((stats["subjects_housed"], stats["topics_made"], stats["topics_reused"], stats["items_moved"],
+                          stats["left_under_subjects_with_subtopics"]), (2, 1, 1, 3, 0))
+        sub_stats = doc["subtopic_mapping"]
+        self.assertEqual((sub_stats["subjects_housed"], sub_stats["topics_made"], sub_stats["subtopics_moved"]), (1, 1, 1))
         self.assertEqual(doc["counts"]["diary.Topic"], len(doc["models"]["diary.Topic"]))
         services.restore_backup(doc, self.admin)
         topic = Topic.objects.get(subject=self.plain)
@@ -1192,7 +1198,11 @@ class OldLooseItemsFileTests(BackupBase):
         self.assertEqual(list(Item.objects.filter(topic=topic).order_by("position").values_list("pk", "position")),
                          [(self.a.pk, 1), (self.b.pk, 2)])
         self.assertIsNone(Item.objects.get(pk=self.a.pk).subject_id)
-        self.assertEqual(Item.objects.get(pk=self.kept.pk).subject_id, self.holder.pk)
+        holder_topic = Topic.objects.get(subject=self.holder)
+        self.assertEqual(holder_topic.name, "1")
+        kept = Item.objects.get(pk=self.kept.pk)
+        self.assertEqual((kept.subject_id, kept.topic_id), (None, holder_topic.pk))
+        self.assertEqual(Subtopic.objects.get(name="Direct").topic_id, holder_topic.pk)
         self.assertIn("now in a Topic called", BackupLog.objects.filter(kind="restore").latest("pk").message)
         self.assertTrue(VersionHistory.objects.filter(change_kind="migrate", record_type="topic").exists())
 
@@ -1201,3 +1211,4 @@ class OldLooseItemsFileTests(BackupBase):
         services.restore_backup(doc, self.admin)
         again = services.parse_backup(services.create_backup("manual").data, MAX)
         self.assertEqual(again["housing_mapping"]["items_moved"], 0)
+        self.assertEqual(again["subtopic_mapping"]["subtopics_moved"], 0)

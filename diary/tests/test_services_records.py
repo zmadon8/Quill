@@ -52,11 +52,12 @@ class CreateTests(ServiceTestCase):
 
     def test_names_equal_after_normalising_list_deterministically(self):
         subject = self.make("subject", name="S")
-        t = ("subject", subject.pk)
+        topic = self.make("topic", ("subject", subject.pk), name="T")
+        t = ("topic", topic.pk)
         a = self.make("subtopic", t, name="Commercial contracts")
         b = self.make("subtopic", t, name="Commercial Contracts")
-        first = [x.pk for x in members(self.profile.pk, ("subtopic", "subject", subject.pk))]
-        second = [x.pk for x in members(self.profile.pk, ("subtopic", "subject", subject.pk))]
+        first = [x.pk for x in members(self.profile.pk, ("subtopic", "topic", topic.pk))]
+        second = [x.pk for x in members(self.profile.pk, ("subtopic", "topic", topic.pk))]
         self.assertEqual(first, second)
         self.assertEqual(sorted(first), sorted([a.pk, b.pk]))
 

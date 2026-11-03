@@ -269,7 +269,6 @@ def new_heading_options(profile, user, obj):
     """
     kind = record_type(obj)
     subject, topic = _place_of(obj)
-    ctx = Ctx(profile, user)
     options = []
     if kind in NEW_TOPIC_FOR and subject is not None:
         options.append({"kind": "topic", "parent_kind": "subject", "parent": subject, "label": "New Topic in this Subject"})
