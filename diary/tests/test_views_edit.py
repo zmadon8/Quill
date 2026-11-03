@@ -462,6 +462,7 @@ class AddAfterTests(EditViewTestCase):
         self.assertContains(resp, 'name="ref" value="topic:%d"' % self.topic.pk)
         self.assertContains(resp, 'value="inside:item" selected')
         self.assertContains(resp, "inside the Topic")
+        self.assertContains(resp, 'name="choice"')
 
     def test_a_kind_that_cannot_sit_there_is_refused(self):
         resp = self.add_after(self.one, what="topic", name="Nope")
@@ -508,13 +509,13 @@ class AddAfterTests(EditViewTestCase):
     def test_the_add_page_preselects_the_place_without_javascript(self):
         resp = self.client.get(reverse("edit_add") + "?after=item:%d&next=%s" % (self.two.pk, self.next))
         self.assertEqual(resp.status_code, 200)
-        self.assertContains(resp, 'name="after" value="item:%d"' % self.two.pk)
-        self.assertContains(resp, "directly after")
-        self.assertContains(resp, '<option value="item">')
+        self.assertContains(resp, 'name="ref" value="item:%d"' % self.two.pk)
+        self.assertContains(resp, "after the Item")
+        self.assertContains(resp, '<option value="after:item" selected>')
         self.assertContains(resp, 'name="next"')
         resp = self.client.get(reverse("edit_add") + "?parent=topic:%d" % self.topic.pk)
-        self.assertContains(resp, 'name="parent_type" value="topic"')
-        self.assertContains(resp, '<option value="subtopic">')
+        self.assertContains(resp, 'name="ref" value="topic:%d"' % self.topic.pk)
+        self.assertContains(resp, '<option value="inside:subtopic">')
 
     def test_the_add_page_form_posts_to_the_same_add(self):
         self.client.get(reverse("edit_add") + "?after=item:%d" % self.one.pk)

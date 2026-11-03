@@ -135,7 +135,7 @@ class AddNoteTests(NoteViewCase):
 
     def test_the_add_page_offers_note(self):
         resp = self.client.get(reverse("edit_add"), {"parent": f"section:{self.sec.pk}", "next": self.next})
-        self.assertContains(resp, '<option value="note">Note</option>', html=False)
+        self.assertContains(resp, '<option value="inside:note">Note</option>', html=False)
 
 
 class EditorTests(NoteViewCase):

@@ -284,7 +284,7 @@ class PhoneAddTests(ServiceTestCase):
         self.assertEqual(page.status_code, 200)
         markup = page.content.decode()
         for value, text in inline.add_choices(self.profile, "topic", self.topic):
-            self.assertIn(f'<option value="{value}" ', markup)
+            self.assertIn(f'<option value="{value}"', markup)
             self.assertIn(f">{text}</option>", markup)
 
     def test_the_script_does_not_wait_for_a_wide_screen_or_a_mouse(self):

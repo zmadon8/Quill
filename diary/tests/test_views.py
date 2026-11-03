@@ -232,9 +232,11 @@ class HomeIndexTests(TestCase):
         nav = html.split('class="program-nav"')[1].split("</nav>")[0]
         self.assertNotIn(">Subjects</a>", nav)
         self.assertNotIn('href="%s"' % reverse("diary_home"), nav)
-        self.assertIn(reverse("search"), nav)
+        self.assertNotIn("Search", nav)
         header = html.split('<header class="site-header"')[1].split("</header>")[0]
         self.assertIn('<a href="%s" title="Home"' % reverse("diary_home"), header)
+        self.assertIn("data-search-toggle", header)
+        self.assertIn('aria-label="Search"', header)
         self.assertNotIn("Log out", nav)
 
     def test_home_icon_is_last_in_the_header_and_log_out_only_on_suite_home(self):

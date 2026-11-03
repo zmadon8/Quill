@@ -526,8 +526,9 @@ class SearchPageTests(SearchTestBase):
 
     def test_by_subject_defaults_to_first_subject_and_is_not_used_with_a_filter(self):
         resp = self.client.get(reverse("search"), {"q": "Pangolin", "view": "subjects"})
-        self.assertContains(resp, "Pangolin one")
-        self.assertNotContains(resp, "Pangolin two")
+        # Main Subjects are listed alphabetically, so "Yak Subject" comes before "Zebra Subject".
+        self.assertContains(resp, "Pangolin two")
+        self.assertNotContains(resp, "Pangolin one")
         resp = self.client.get(reverse("search"), {"q": "Pangolin", "view": "subjects", "subject": self.other.pk})
         self.assertNotContains(resp, 'class="search-subjects"')
 
