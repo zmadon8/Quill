@@ -52,6 +52,16 @@ You do not touch code. The steps are:
 7. **Check the site.** Open it, and check the thing that changed. Look at a couple of familiar Subjects to be sure all is as before.
 8. **If something is wrong, roll back.** In Render, open the web service, go to Events or Deploys, find the previous good deploy and press **Rollback** (or Redeploy on the earlier one). This restores the previous version of the program in a minute or two. It does not change the data. If the data was changed by a migration, tell Kiro and restore from the pre-change backup (with the preview) instead.
 
+## 5b. If the deploy stops with "Items still sit beneath another Item"
+
+**What it meant.** The update turns old Nested Items into ordinary Items with several citations. Its last safety check found Items that still sat beneath another Item, so it stopped and **rolled everything back**. Nothing was lost or changed: your data is exactly as before, and the old version of the site kept running.
+
+**What was fixed.** The conversion now handles every Item that has Items beneath it, however it was nested, including Items already in Trash. The check itself is unchanged.
+
+**Optional look first (changes nothing).** In the Render Shell of the running service: `python manage.py nested_report`. It lists each Item that sits beneath another Item and what the update will do with it.
+
+**To redeploy.** Merge the fix, then deploy as in section 5. The backup `pre_migration` is taken first as usual. If it stops again, copy the error line and send it; the data will again be untouched.
+
 ## 5a. Server settings chosen for a small plan
 
 - **Web server:** `gunicorn ... --workers 2 --threads 2 --max-requests 500 --max-requests-jitter 50 --timeout 60`. Two worker processes with two threads each, each restarted after about 500 requests to keep memory steady. There is deliberately no `--preload`.

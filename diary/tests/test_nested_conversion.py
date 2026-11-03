@@ -490,6 +490,33 @@ class MigrationTests(TransactionTestCase):
         self.assertEqual(Item.objects.count(), total)
         self.assertEqual(Item.objects.filter(deleted_at__isnull=True).count(), live - 2)
 
+    def test_the_report_lists_every_item_beneath_another_and_changes_nothing(self):
+        from io import StringIO
+
+        from django.core.management import call_command
+
+        Item = self.model("Item")
+        before = list(Item.objects.order_by("pk").values_list("pk", "version", "parent_item_id", "deleted_at"))
+        out = StringIO()
+        call_command("nested_report", stdout=out)
+        text = out.getvalue()
+        self.assertIn("2 Items sit beneath another Item", text)
+        self.assertIn(f"Item {self.kid1.pk} ", text)
+        self.assertIn("0 Item(s) sit beneath a parent that is not a Nested Item", text)
+        self.assertEqual(before, list(Item.objects.order_by("pk").values_list("pk", "version", "parent_item_id", "deleted_at")))
+
+    def test_the_report_says_so_on_the_final_schema(self):
+        from io import StringIO
+
+        from django.core.management import call_command
+
+        executor = MigrationExecutor(connection)
+        executor.loader.build_graph()
+        executor.migrate(executor.loader.graph.leaf_nodes())
+        out = StringIO()
+        call_command("nested_report", stdout=out)
+        self.assertIn("no parent_item column", out.getvalue())
+
     def test_the_real_migration_files_apply_and_leave_the_final_schema(self):
         executor = MigrationExecutor(connection)
         executor.loader.build_graph()

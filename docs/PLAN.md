@@ -276,3 +276,7 @@ Owner questions (defaults stand unless you say otherwise): see the "open questio
 ## Round 11 (part 2)
 
 Status: in progress, CI pending. Header (Home icon at far right, Log out only on Home, search icon with pop-up bar, Mac-style shortcut labels): built. Export cleanup and its mockups: built. Move to a new Topic or Sub-topic: built. Search-results mockups (suggestions only, live Search unchanged): done. See the decision log (D62 to D66). CI pending: none of the new tests could be run in the sandbox (Django not installable).
+
+## Hotfix: Nested Item conversion (D67, D68)
+
+Branch `hotfix-nested`. Migration 0015 now converts every Item with Items beneath it (any parent kind, any depth), detaches Trash children safely and sweeps what is left; the backup loader shares the logic. New read-only `nested_report` command. Phone adding pinned by tests (D68). Pending: CI run, then redeploy.
