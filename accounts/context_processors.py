@@ -49,31 +49,58 @@ def header_style(request):
     return {"header_words": words}
 
 
-#: The main Home page header: (url name, label, icon, admin only, "is this the current page" test on the url name).
-SUITE_NAV = (
-    ("profile_list", "Profiles", "icons/profiles.svg.html", True, lambda n: n.startswith("profile_")),
-    ("user_list", "Users", "icons/users.svg.html", True, lambda n: n.startswith("user_")),
-    ("import_word", "Import", "icons/import.svg.html", True, lambda n: n == "import_word"),
-    ("backup_list", "Backups", "icons/backups.svg.html", True, lambda n: n.startswith("backup_") or n.startswith("restore_")),
-    ("settings", "Settings", "icons/gear.svg.html", True, lambda n: n == "settings"),
-    ("help", "Help", "icons/help.svg.html", False, lambda n: n == "help"),
-    ("my_settings", "My settings", "icons/mysettings.svg.html", False, lambda n: n == "my_settings"),
+#: The main Home page header (D86): each entry is one header item; its tabs are the sub-pages shown across the top of
+#: every page of the group. A tab is (url name, label, Admin only, "is this the current page" test on the url name).
+#: The header item opens the first tab the user may see, and is marked current on every page of the group.
+def _starts(*prefixes):
+    return lambda n: any(n.startswith(p) for p in prefixes)
+
+
+def _is(*names):
+    return lambda n: n in names
+
+
+SUITE_GROUPS = (
+    ("Users & Profiles", "icons/users.svg.html", (
+        ("user_list", "Users", True, _starts("user_")),
+        ("profile_list", "Profiles", True, _starts("profile_")),
+    )),
+    ("Backups & Import", "icons/backups.svg.html", (
+        ("backup_list", "Backups", True, lambda n: (n.startswith("backup_") and n != "backup_email") or n.startswith("restore_")),
+        ("backup_email", "Email backups", True, _is("backup_email")),
+        ("import_word", "Import", True, _is("import_word")),
+    )),
+    ("Settings", "icons/gear.svg.html", (
+        ("my_settings", "My settings", False, _is("my_settings", "format_preview")),
+        ("settings", "Site settings", True, _is("settings")),
+    )),
+    ("Help", "icons/help.svg.html", (
+        ("help", "Help", False, _is("help")),
+    )),
 )
 
 
 def suite_nav(request):
-    """``suite_nav``: the links of the main Home page header bar, for ``templates/base_suite_home.html``."""
+    """``suite_nav`` (the header items of the main Home page) and ``suite_tabs`` (the sub-pages of the group the current
+    page belongs to, shown only when the user may see two or more). No database query."""
     from django.urls import reverse
 
     user = getattr(request, "user", None)
     if user is None or not user.is_authenticated:
-        return {"suite_nav": []}
+        return {"suite_nav": [], "suite_tabs": []}
     match = getattr(request, "resolver_match", None)
     current = (match.url_name or "") if match else ""
-    items = []
-    for url_name, label, icon, admin_only, is_current in SUITE_NAV:
-        if admin_only and not user.is_admin:
+    items, tabs_here = [], []
+    for label, icon, tabs in SUITE_GROUPS:
+        mine = [
+            {"url": reverse(url_name), "name": name, "on": is_current(current)}
+            for url_name, name, admin_only, is_current in tabs
+            if user.is_admin or not admin_only
+        ]
+        if not mine:
             continue
-        items.append({"url": reverse(url_name), "name": label, "icon": icon, "on": is_current(current)})
-    return {"suite_nav": items}
-
+        on = any(t["on"] for t in mine)
+        items.append({"url": mine[0]["url"], "name": label, "icon": icon, "on": on})
+        if on and len(mine) > 1:
+            tabs_here = mine
+    return {"suite_nav": items, "suite_tabs": tabs_here}

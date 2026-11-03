@@ -21,11 +21,61 @@ On Render, set these environment variables on **both** the web service and the n
 | `EMAIL_BACKUP_MAX_MB` | Optional. Most file size to attach (default 15). Use 6 for Amazon SES (10 MB message limit) |
 | `PASSWORD_RESET_TIMEOUT` | Optional. Seconds a reset link works (default 3600) |
 
-Then open **Backups > Email backups** as an Admin, type your address and press **Send a test email**. If it arrives, email works.
+Then open **Backups & Import > Email backups** as an Admin, type your address and press **Send a test email**. If it arrives, email works.
+
+## 1a. Step by step with Gmail (recommended: free, takes about 15 minutes)
+
+**A. Make a mailbox just for the diary (5 minutes).** Go to accounts.google.com and create a new Google account, for example `madon.diary.mail@gmail.com`. Using a separate mailbox means its password is only ever used for this, and your own inbox is not involved. Write the address down.
+
+**B. Turn on 2-Step Verification (3 minutes).** Signed in to that new account, open myaccount.google.com, choose **Security**, then **2-Step Verification**, and follow the steps (usually your phone number). Google only offers app passwords once this is on.
+
+**C. Make an app password (2 minutes).** Still in that account, open myaccount.google.com/apppasswords (or search for "App passwords" in the search box at the top of your Google Account page). Type a name such as `Case Law Diary` and press **Create**. Google shows a 16-letter password in four groups, once. Copy it (the spaces do not matter). If you lose it, delete it and make a new one; nothing else changes.
+
+**D. Put the settings into Render (5 minutes).** Sign in to dashboard.render.com.
+1. Open the web service **judgment-diary**, then **Environment** in the left menu.
+2. Find each variable below (they are already listed, empty; if one is missing, press **Add Environment Variable**) and fill it in:
+
+   | Key | Value |
+   |---|---|
+   | `EMAIL_HOST` | `smtp.gmail.com` |
+   | `EMAIL_PORT` | `587` |
+   | `EMAIL_HOST_USER` | the new Gmail address |
+   | `EMAIL_HOST_PASSWORD` | the 16-letter app password |
+   | `DEFAULT_FROM_EMAIL` | `Case Law Diary <the new Gmail address>` (Gmail always sends from the account's own address, so use the same one) |
+
+3. Press **Save, rebuild, and deploy** (or **Save changes**, then let it deploy). Wait until Render shows **Live** (a few minutes).
+4. Open the cron job **judgment-diary-daily-backup**, then **Environment**, and enter the **same five values**. Save. (The nightly emailed backup runs here; without these it cannot send.)
+
+Never paste the app password anywhere else: not in GitHub, not in a chat, not in an email.
+
+**E. Test it (2 minutes).** On the diary site, as the Admin: **Backups & Import > Email backups**, type your own address in **Send to**, press **Send a test email**. A green message means Gmail accepted it; check your inbox (and the spam folder the first time; mark it "Not spam").
+
+**F. Switch on what you want.**
+* Forgot my password: every person adds their address under **Settings > My settings** (the Admin can also add it under **Users & Profiles > Users**). Then log out and check that the login page shows **Forgot my password**.
+* Emailed backups: on **Email backups** tick **Send backups by email**, choose how often, who receives it and **What to send**, then press **Save** (or **Save and send one now** to try it at once).
+
+## 1b. Step by step with Brevo (if you want reset emails to come from your own domain)
+
+Only worth it if you own a web address (for example `madonchambers.in`). Brevo's free plan allows about 300 emails a day.
+1. Create an account at brevo.com.
+2. Under **Senders, Domains & Dedicated IPs**, add your sender address and verify it; for best delivery also add your domain and the DNS records Brevo shows (ask whoever manages your domain, or Kiro, for help).
+3. Under **SMTP & API**, tab **SMTP**: note the **Login** shown there, and press **Generate a new SMTP key**; copy the key.
+4. On Render (web service and cron job, as in D above): `EMAIL_HOST` = `smtp-relay.brevo.com`, `EMAIL_PORT` = `587`, `EMAIL_HOST_USER` = the Brevo SMTP login, `EMAIL_HOST_PASSWORD` = the SMTP key, `DEFAULT_FROM_EMAIL` = `Case Law Diary <your verified sender address>`.
+5. Test as in E. Check Brevo's current limit on message size and set `EMAIL_BACKUP_MAX_MB` below it.
+
+## 1c. If the test email fails
+
+The screen shows the reason. The usual ones:
+* **"Email is not set up on this server"**: `EMAIL_HOST` is empty, or the service has not redeployed since you saved. Check the web service's Environment, then **Manual Deploy > Deploy latest commit**.
+* **SMTPAuthenticationError** (often with code 535): the login or app password is wrong, or 2-Step Verification was turned off (which deletes app passwords). Make a new app password and paste it again.
+* **Timeout / connection refused**: the host or port is wrong (use `smtp.gmail.com` and `587`). Port 25 never works on Render.
+* **SMTPSenderRefused**: `DEFAULT_FROM_EMAIL` is not the Gmail address itself (Gmail), or not a verified sender (Brevo).
+* **The test works but the nightly backup email does not arrive**: the cron job is missing the five values (step D4). The Admin warning bar and **Email backups > Last send** show the reason.
+* **Gmail says the attachment is too big**: lower `EMAIL_BACKUP_MAX_MB`, or choose **Both, in separate emails**.
 
 ## 2. Forgot my password
 
-* Every person can add their email address under **My settings**; the Admin can add it under **Users**. An address can belong to one account only.
+* Every person can add their email address under **Settings > My settings**; the Admin can add it under **Users & Profiles > Users**. An address can belong to one account only.
 * The login page shows **Forgot my password** once email is set up. It asks for the address and always answers "if an account has that email, a link is on its way", so it cannot be used to discover who has an account.
 * The link is for one use and expires after an hour (it also stops working once the password changes). The new password must pass the usual password rules.
 * Disabled accounts get no link. Someone with no email address asks the Admin, who can still set a password under **Users**.
@@ -33,7 +83,7 @@ Then open **Backups > Email backups** as an Admin, type your address and press *
 
 ## 3. Emailed backups
 
-**Backups > Email backups** (Admin only):
+**Backups & Import > Email backups** (Admin only):
 
 * Switch on, choose how often (every day / week on a chosen weekday / month on a chosen day, 1 to 28) and who gets it (up to 10 addresses).
 * Choose **What to send**: (i) the JSON backup only, (ii) the complete Word export only, (iii) both in one email, or (iv) both in separate emails. The Word export is one file per diary profile (with or without For review markers), The Word file uses the number and date formats of the Admin who last saved the schedule.

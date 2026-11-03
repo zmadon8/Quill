@@ -89,48 +89,77 @@ class HeaderStyleTests(TestCase):
 
 @override_settings(SECURE_SSL_REDIRECT=False)
 class SuiteHeaderTests(TestCase):
-    """D85: the main Home page header has icons too, and follows the same choice."""
+    """D85, D86: the main Home page header has icons too (same choice), and its pages are merged into groups with tabs."""
 
-    SUITE = ("Profiles", "Users", "Import", "Backups", "Settings", "Help", "My settings")
+    GROUPS = ("Users &amp; Profiles", "Backups &amp; Import", "Settings", "Help")
 
     def setUp(self):
         self.admin = join_main(User.objects.create_user("adam", password=PASSWORD, is_superuser=True), "editor")
         self.client.force_login(self.admin)
 
-    def header(self, name="home"):
+    def page(self, name="home"):
         url = reverse(name) + ("?home=1" if name == "home" else "")
-        html = self.client.get(url).content.decode()
-        return html.split('<header class="site-header"')[1].split("</header>")[0]
+        return self.client.get(url).content.decode()
 
-    def test_every_home_page_link_is_an_icon_with_its_name(self):
+    def header(self, name="home"):
+        return self.page(name).split('<header class="site-header"')[1].split("</header>")[0]
+
+    def tabs(self, name):
+        html = self.page(name)
+        if 'class="subnav"' not in html:
+            return []
+        nav = html.split('class="subnav"')[1].split("</nav>")[0]
+        return re.findall(r">([^<]+)</a>", nav)
+
+    def test_every_home_page_item_is_an_icon_with_its_name(self):
         header = self.header()
-        for name in self.SUITE:
+        for name in self.GROUPS:
             link = re.search(r'<a [^>]*aria-label="%s" title="%s">(.*?)</a>' % (name, name), header, re.S)
             self.assertIsNotNone(link, name)
             self.assertIn("<svg", link.group(1), name)
+        for gone in ("Profiles", "Import", "My settings", "Site settings"):
+            self.assertNotIn('aria-label="%s"' % gone, header, gone)
         logout = re.search(r'<button type="submit" class="link nav-icon" aria-label="Log out" title="Log out">(.*?)</button>', header, re.S)
         self.assertIsNotNone(logout)
         self.assertIn("<svg", logout.group(1))
-        nav = re.sub(r"<[^>]*>", " ", header.split('class="program-nav"')[1])
-        for word in self.SUITE + ("Log out",):
-            self.assertNotIn(word, nav, word)
 
     def test_words_on_the_home_page(self):
         self.admin.header_style = "words"
         self.admin.save(update_fields=["header_style"])
-        header = self.header()
-        nav = re.sub(r"<[^>]*>", " ", header.split('class="program-nav"')[1])
-        for word in self.SUITE + ("Log out",):
+        nav = re.sub(r"<[^>]*>", " ", self.header().split('class="program-nav"')[1])
+        for word in ("Users &amp; Profiles", "Backups &amp; Import", "Settings", "Help", "Log out"):
             self.assertIn(word, nav, word)
-        self.assertNotIn("nav-icon", header)
+        self.assertNotIn("nav-icon", self.header())
 
-    def test_the_current_page_is_marked_and_readers_see_only_their_links(self):
-        self.assertRegex(self.header("user_list"), r'class="nav-icon on" aria-current="page" aria-label="Users"')
+    def test_each_merged_page_has_its_tabs_and_the_header_item_stays_marked(self):
+        self.assertEqual(self.tabs("user_list"), ["Users", "Profiles"])
+        self.assertEqual(self.tabs("profile_list"), ["Users", "Profiles"])
+        self.assertEqual(self.tabs("backup_list"), ["Backups", "Email backups", "Import"])
+        self.assertEqual(self.tabs("backup_email"), ["Backups", "Email backups", "Import"])
+        self.assertEqual(self.tabs("import_word"), ["Backups", "Email backups", "Import"])
+        self.assertEqual(self.tabs("my_settings"), ["My settings", "Site settings"])
+        self.assertEqual(self.tabs("settings"), ["My settings", "Site settings"])
+        self.assertEqual(self.tabs("home"), [])
+        self.assertRegex(self.header("profile_list"), r'class="nav-icon on" aria-current="page" aria-label="Users &amp; Profiles"')
+        self.assertRegex(self.header("backup_email"), r'class="nav-icon on" aria-current="page" aria-label="Backups &amp; Import"')
+        self.assertRegex(self.header("settings"), r'class="nav-icon on" aria-current="page" aria-label="Settings"')
+        html = self.page("backup_email")
+        nav = html.split('class="subnav"')[1].split("</nav>")[0]
+        self.assertIn('href="%s" class="on" aria-current="page">Email backups</a>' % reverse("backup_email"), nav)
+        self.assertNotIn('class="on" aria-current="page">Backups</a>', nav)
+
+    def test_header_items_open_the_first_sub_page(self):
+        header = self.header()
+        for url_name, label in (("user_list", "Users &amp; Profiles"), ("backup_list", "Backups &amp; Import"),
+                                ("my_settings", "Settings")):
+            self.assertRegex(header, r'<a href="%s" class="nav-icon" aria-label="%s"' % (re.escape(reverse(url_name)), label))
+
+    def test_readers_see_only_settings_and_help_and_no_tabs(self):
         reader = join_main(User.objects.create_user("rita", password=PASSWORD))
         self.client.force_login(reader)
         header = self.header()
-        for name in ("Profiles", "Users", "Import", "Backups", "Settings"):
+        for name in ("Users &amp; Profiles", "Backups &amp; Import"):
             self.assertNotIn('aria-label="%s"' % name, header, name)
-        for name in ("Help", "My settings"):
+        for name in ("Settings", "Help"):
             self.assertIn('aria-label="%s"' % name, header, name)
-
+        self.assertEqual(self.tabs("my_settings"), [])  # only one sub-page they may see: no tab row

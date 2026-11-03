@@ -297,9 +297,11 @@ class SuiteSettingsTests(BaseCase):
         self.assertEqual(self.client.get(reverse("settings")).status_code, 302)
 
     def test_settings_link_only_for_admin(self):
+        # D86: Site settings is a tab of the merged Settings page (Home's Settings item opens My settings).
         self.client.force_login(self.admin)
-        self.assertContains(self.client.get(reverse("home")), 'href="%s"' % reverse("settings"))
+        self.assertContains(self.client.get(reverse("my_settings")), 'href="%s"' % reverse("settings"))
         self.client.force_login(self.user)
+        self.assertNotContains(self.client.get(reverse("my_settings")), 'href="%s"' % reverse("settings"))
         self.assertNotContains(self.client.get(reverse("home")), 'href="%s"' % reverse("settings"))
 
     def test_rename_shows_everywhere(self):
@@ -765,10 +767,13 @@ class ProfileScreenTests(BaseCase):
         self.assertEqual(self.client.get(reverse("profile_list")).status_code, 302)
 
     def test_profiles_link_only_for_admin_on_home(self):
+        # D86: Profiles is a tab of Users & Profiles, which Home links to (Admin only).
         self.client.force_login(self.admin)
-        self.assertContains(self.client.get(reverse("home")), 'href="%s"' % reverse("profile_list"))
+        self.assertContains(self.client.get(reverse("home")), 'href="%s"' % reverse("user_list"))
+        self.assertContains(self.client.get(reverse("user_list")), 'href="%s"' % reverse("profile_list"))
         self.client.force_login(self.user)
         self.assertNotContains(self.client.get(reverse("home")), 'href="%s"' % reverse("profile_list"))
+        self.assertNotContains(self.client.get(reverse("home")), 'href="%s"' % reverse("user_list"))
 
     def test_admin_creates_and_renames(self):
         self.client.force_login(self.admin)
