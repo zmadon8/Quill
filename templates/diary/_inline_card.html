@@ -54,6 +54,8 @@
         {% if can_move %}<button type="submit" role="menuitem" formaction="{% url 'edit_move_to' %}" data-more-action="move_to">Move to&hellip;</button>{% endif %}
         {% if can_shift %}<button type="submit" role="menuitem" formaction="{% url 'edit_move' %}" name="direction" value="up" data-more-action="up">Move up</button>
         <button type="submit" role="menuitem" formaction="{% url 'edit_move' %}" name="direction" value="down" data-more-action="down">Move down</button>{% endif %}
+        {% if can_promote %}<button type="submit" role="menuitem" formaction="{% url 'edit_level' %}" name="direction" value="promote" data-more-action="promote">Promote to {{ promote_to }}&hellip;</button>{% endif %}
+        {% if can_demote %}<button type="submit" role="menuitem" formaction="{% url 'edit_level' %}" name="direction" value="demote" data-more-action="demote">Demote to {{ demote_to }}&hellip;</button>{% endif %}
         {% if kind == "subject" %}<button type="submit" role="menuitem" formaction="{% url 'edit_landing' %}" name="show" value="{% if landing %}0{% else %}1{% endif %}" data-more-action="landing">{% if landing %}Put under Other Subjects{% else %}Show on the Subjects page{% endif %}</button>{% endif %}
         <a role="menuitem" href="{% url 'history' kind record.pk %}?next={{ back|urlencode }}" data-more-action="history">History</a>
         <hr>

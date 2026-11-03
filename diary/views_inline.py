@@ -16,6 +16,7 @@ from django.template.loader import render_to_string
 from . import inline
 from .models import CITATION_LAYOUT_CHOICES, FLAG_CHOICES, Case
 from .reading import run_of
+from .services import levels
 from .services.core import Ctx, ancestors, get_record, label
 from .services.moves import NICE
 from .views_edit import EDIT_KINDS, _next, editor_get
@@ -68,6 +69,8 @@ def edit_card(request):
     context = {
         "kind": kind, "record": record, "back": back, "where": _where(record),
         "title": f"Editing {NICE[kind]}", "can_move": kind != "subject", "can_shift": False,
+        "can_promote": levels.can_promote(kind), "can_demote": levels.can_demote(kind),
+        "promote_to": NICE.get(levels.PROMOTE_TO.get(kind, ""), ""), "demote_to": NICE.get(levels.DEMOTE_TO.get(kind, ""), ""),
     }
     if kind == "item":
         cases = Case._base_manager.filter(item=record, deleted_at__isnull=True, profile=request.profile)

@@ -29,6 +29,18 @@ services:
       # Render's own address is allowed automatically.
       - key: DJANGO_ALLOWED_HOSTS
         sync: false
+      # Email (Forgot my password, emailed backups). Set these in the dashboard; leave EMAIL_HOST empty to keep email off.
+      # See docs/EMAIL.md.
+      - key: EMAIL_HOST
+        sync: false
+      - key: EMAIL_PORT
+        sync: false
+      - key: EMAIL_HOST_USER
+        sync: false
+      - key: EMAIL_HOST_PASSWORD
+        sync: false
+      - key: DEFAULT_FROM_EMAIL
+        sync: false
 
   # The nightly backup: 20:30 UTC is 02:00 in India (IST).
   - type: cron
@@ -41,7 +53,8 @@ services:
     # Purges (deleted profiles, old edit history) only run if the backup succeeded (&&), and each refuses on its own
     # if today's backup is missing. Clearing expired sessions is housekeeping: it always runs, but a failure there
     # can never hide a backup failure because the job exits with the backup/purge result first.
-    startCommand: sh -c 'python manage.py run_backup && python manage.py purge_deleted_profiles && python manage.py purge_old_history; rc=$?; python manage.py clearsessions || echo "clearsessions failed (ignored)"; exit $rc'
+    # send_email_backups emails the backup / Word export when the Admin's schedule says one is due (does nothing if off).
+    startCommand: sh -c 'python manage.py run_backup && python manage.py purge_deleted_profiles && python manage.py purge_old_history; rc=$?; python manage.py send_email_backups || echo "send_email_backups failed (see Backups > Email backups)"; python manage.py clearsessions || echo "clearsessions failed (ignored)"; exit $rc'
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.8
@@ -62,6 +75,18 @@ services:
       # Days of edit history kept (the newest version of every record is always kept).
       - key: HISTORY_RETENTION_DAYS
         value: "30"
+      # Email (Forgot my password, emailed backups). Set these in the dashboard; leave EMAIL_HOST empty to keep email off.
+      # See docs/EMAIL.md.
+      - key: EMAIL_HOST
+        sync: false
+      - key: EMAIL_PORT
+        sync: false
+      - key: EMAIL_HOST_USER
+        sync: false
+      - key: EMAIL_HOST_PASSWORD
+        sync: false
+      - key: DEFAULT_FROM_EMAIL
+        sync: false
 
 databases:
   - name: judgment-diary-db

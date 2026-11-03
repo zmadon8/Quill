@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 from django import forms
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 from django.contrib.auth.password_validation import validate_password
@@ -36,6 +37,17 @@ def _client_ip(request):
 
 
 class ThrottledAuthenticationForm(AuthenticationForm):
+    remember_me = forms.BooleanField(
+        required=False,
+        label="Remember me",
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["remember_me"].help_text = (
+            f"Stay signed in on this device for {settings.REMEMBER_ME_DAYS} days. Leave unticked on a shared computer."
+        )
+
     def _is_throttled(self, username_lower, ip):
         """Keyed on username plus IP, so a stranger elsewhere cannot lock the owner out."""
         since = timezone.now() - timedelta(minutes=LOCKOUT_MINUTES)
@@ -107,6 +119,14 @@ def _clean_profile_role(form):
     return role
 
 
+def _clean_unique_email(form):
+    """A blank email is fine; a used one is refused (ignoring case) so that a reset link goes to one person only."""
+    email = (form.cleaned_data.get("email") or "").strip()
+    if email and User.objects.filter(email__iexact=email).exclude(pk=form.instance.pk).exists():
+        raise ValidationError("Another account already uses this email address.")
+    return email
+
+
 class UserCreateForm(UserCreationForm):
     is_admin = _admin_field()
     profile = _profile_field()
@@ -114,11 +134,15 @@ class UserCreateForm(UserCreationForm):
 
     class Meta:
         model = User
-        fields = ("username",)
+        fields = ("username", "email")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["profile"].queryset = _live_diary_profiles()
+        self.fields["email"].help_text = "Optional. Needed for \u201cForgot my password\u201d and for emailed backups."
+
+    def clean_email(self):
+        return _clean_unique_email(self)
 
     def clean_profile_role(self):
         return _clean_profile_role(self)
@@ -148,10 +172,14 @@ class UserEditForm(forms.ModelForm):
 
     class Meta:
         model = User
-        fields = ("username", "is_active", "landing_program")
+        fields = ("username", "email", "is_active", "landing_program")
+
+    def clean_email(self):
+        return _clean_unique_email(self)
 
     def __init__(self, *args, editing_user=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["email"].help_text = "Optional. Needed for \u201cForgot my password\u201d."
         self.fields["landing_program"].choices = landing.program_choices()
         self.editing_user = editing_user
         self.fields["is_admin"].initial = self.instance.is_superuser
@@ -208,10 +236,14 @@ class MySettingsForm(forms.ModelForm):
 
     class Meta:
         model = User
-        fields = ("landing_program",)
+        fields = ("email", "landing_program")
+
+    def clean_email(self):
+        return _clean_unique_email(self)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["email"].help_text = "Used only to email you a link if you forget your password."
         self.fields["landing_program"].choices = landing.program_choices(landing.programs_for(self.instance))
 
 

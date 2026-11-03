@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{# Promote / demote confirmation (docs: diary/services/levels.py). Context: direction, kind_name, record_label, new_kind_name, lines, warnings, wants_target, options, chosen, target_kind_name, error, fields, next_url. #}
+{% block content %}
+<div class="home-column">
+  <h1>{{ title }}</h1>
+  <p>{% if direction == "promote" %}Promote{% else %}Demote{% endif %} the {{ kind_name }} &ldquo;{{ record_label }}&rdquo; to a {{ new_kind_name }}?</p>
+  <ul class="level-list">
+    {% for line in lines %}<li>{{ line }}</li>{% endfor %}
+  </ul>
+  {% for w in warnings %}<p class="error" role="note"><strong>Note:</strong> {{ w }}</p>{% endfor %}
+  {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+  <form method="post" action="{% url 'edit_level' %}" class="edit-form">
+    {% csrf_token %}
+    {% for name, value in fields %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+    {% if wants_target %}
+    <label>Goes under this {{ target_kind_name }}
+      <select name="target" required>
+        <option value="">Choose a {{ target_kind_name }}&hellip;</option>
+        {% for pk, name in options %}<option value="{{ pk }}"{% if pk == chosen %} selected{% endif %}>{{ name }}</option>{% endfor %}
+      </select>
+    </label>
+    {% if not options %}<p class="meta">There is no {{ target_kind_name }} it can go under.</p>{% endif %}
+    {% endif %}
+    <button type="submit" name="confirmed" value="1"{% if wants_target and not options %} disabled{% endif %}>{% if direction == "promote" %}Promote{% else %}Demote{% endif %}</button>
+    {% if wants_target %}<button type="submit" formnovalidate>Show what changes</button>{% endif %}
+    <a class="button" href="{{ next_url }}">Cancel</a>
+  </form>
+</div>
+{% endblock %}

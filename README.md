@@ -16,6 +16,14 @@ The longer plans are in `docs/PLAN.md` (what is built when), `docs/DESIGN.md` (h
 - A yellow warning bar at the top of every page (Admins only) if the last backup failed or there has been none for 36 hours.
 - A health check address (`/healthz/`) that Render uses to see that the site is up.
 
+## Round 13 additions
+
+- **Remember me** on the login page (30 days; unticked, the login ends when the browser closes). **Forgot my password** (appears once email is set up): email a one-hour link, choose a new password. Add your email under My settings; the Admin can add it under Users.
+- The **Review** tab is gone from the header (the Review page and Search's **For review only** remain).
+- **Promote / Demote** in Edit mode, under **More**: Section -> Sub-topic -> Topic -> Subject and back down. One Undo step. See `docs/DESIGN.md` D75.
+- Search: the Subject drop-down is replaced by a **By Subject** toggle, and all the ticks (Citations only, For review only, Search headers, By Subject) are remembered by the browser.
+- **Email plug-in** (`mailer` app): Forgot my password and scheduled emailed backups, including the complete Word export. See `docs/EMAIL.md`.
+
 ## How to edit
 
 Only Editors (and Admins whose own role is Editor) can edit. Use the quiet **Edit** link (pencil and the word "Edit") on the bar under the header when reading, or at the bottom of the Home page. **Off** is plain reading with no controls. **On** turns the link into a dark-red pill reading **Editing · Done**, gives the page a faint blue-grey tint, and shows a slim dark-red strip across the very top of the page with **Editing · Undo · Done**. The choice is remembered for the browser tab and carried from page to page (the address gets `?edit=1`). **Done**, or the switch again, turns it off. Readers never see the switch and the addresses answer 403 for them.

@@ -1,8 +1,12 @@
+import logging
+
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse_lazy
 from django.views.decorators.http import require_GET, require_http_methods
 
 from . import landing, suite
@@ -24,13 +28,65 @@ from .profiles import (
 User = get_user_model()
 
 
+logger = logging.getLogger(__name__)
+
+
+def email_ready():
+    """True if this server can send email (the Forgot my password link is hidden otherwise)."""
+    from mailer.services import is_configured  # lazy: mailer imports accounts
+
+    return is_configured()
+
+
 class LandingLoginView(auth_views.LoginView):
     """Sign in, then open a safe ``next`` if there is one, else the user's chosen program, else Home."""
 
     def get_default_redirect_url(self):
         return landing.landing_url(self.request.user)
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["email_ready"] = email_ready()
+        return context
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        # Ticked: the session lasts REMEMBER_ME_DAYS. Unticked: it ends when the browser is closed.
+        if form.cleaned_data.get("remember_me"):
+            self.request.session.set_expiry(settings.REMEMBER_ME_DAYS * 24 * 60 * 60)
+        else:
+            self.request.session.set_expiry(0)
+        return response
+
     # LoginView.get_success_url uses a safe ``next`` first (host and scheme checked), then this default.
+
+
+class ForgotPasswordView(auth_views.PasswordResetView):
+    """Ask for an email address; if an active account has it, email a one-hour link to choose a new password.
+
+    The answer is always the same page ("if there is an account, a link is on its way") so that nobody can use it to find
+    out which addresses are registered. A failure to send is logged, not shown, for the same reason.
+    """
+
+    template_name = "registration/password_reset_form.html"
+    email_template_name = "registration/password_reset_email.txt"
+    subject_template_name = "registration/password_reset_subject.txt"
+    success_url = reverse_lazy("password_reset_done")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["email_ready"] = email_ready()
+        return context
+
+    def form_valid(self, form):
+        if not email_ready():
+            form.add_error(None, "Email is not set up on this server. Ask the Admin to set a new password for you.")
+            return self.form_invalid(form)
+        try:
+            return super().form_valid(form)
+        except Exception:
+            logger.exception("Could not send a password reset email")
+            return redirect(self.success_url)
 
 
 @login_required

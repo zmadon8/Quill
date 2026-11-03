@@ -19,6 +19,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 
 from . import inline
 from . import services as svc
+from .services import levels as svc_levels
 from . import undo_session
 from .conflicts import conflict_page
 from .models import FLAG_CHOICES, Section, Subject, Subtopic, Topic
@@ -588,6 +589,60 @@ def move_to(request):
          "fields": sorted(_fields(request).items()),
          "kind_name": NICE[kind], "record_label": label(obj), "next_url": _next(request)},
     )
+
+
+def _after_level_change(request, new_kind, new):
+    """The new heading's own page (the old record's page is gone); a new Section: the Subject page it is in."""
+    keep = "?edit=1" if "edit=1" in _next(request) else ""
+    if new_kind == "subject":
+        return redirect(f"{reverse('read_subject', args=[new.pk])}{keep}")
+    if new_kind == "topic":
+        return redirect(f"{reverse('read_topic', args=[new.pk])}{keep}")
+    if new_kind == "subtopic":
+        return redirect(f"{reverse('read_subtopic', args=[new.pk])}{keep}")
+    chain = ancestors(new)
+    subject = next((rec for kind, rec in chain if kind == "subject"), None)
+    if subject is None:
+        return redirect(reverse("diary_home"))
+    return redirect(f"{reverse('read_subject', args=[subject.pk])}{keep}")
+
+
+@edit_endpoint
+def level(request):
+    """Promote (Section -> Sub-topic -> Topic -> Subject) or demote (Subject -> Topic -> Sub-topic -> Section) a record.
+
+    ``direction`` is promote or demote. The first POST shows what will happen (and, for a Subject or Topic being demoted,
+    asks where it goes); the same POST with confirmed=1 does it as one Undo step.
+    """
+    kind, record_id, version = _kind(request), _record_id(request), _version(request)
+    direction = request.POST.get("direction", "")
+    if direction not in ("promote", "demote"):
+        raise Http404("Unknown change of level.")
+    target_raw = request.POST.get("target", "")
+    target_id = int(target_raw) if target_raw.isdigit() else None
+    obj = get_record(Ctx(request.profile, request.user), kind, record_id, lock=False)
+    wants_target = direction == "demote" and kind in svc_levels.NEEDS_TARGET
+    options = svc_levels.targets(request.profile, request.user, kind, record_id) if wants_target else []
+    if request.POST.get("confirmed") and not (wants_target and target_id not in {o[0] for o in options}):
+        if direction == "promote":
+            new_kind, new = svc.promote(request.profile, request.user, kind, record_id, version)
+        else:
+            new_kind, new = svc.demote(request.profile, request.user, kind, record_id, target_id, version)
+        messages.success(request, f"The {NICE[kind]} is now a {NICE[new_kind]}. Undo reverses it.")
+        return _after_level_change(request, new_kind, new)
+    error = ""
+    if request.POST.get("confirmed") and wants_target:
+        error = f"Choose the {'Subject' if kind == 'subject' else 'Topic'} it goes under."
+    chosen = target_id if target_id in {o[0] for o in options} else None
+    info = svc.describe_level(request.profile, request.user, kind, record_id, direction, chosen if wants_target else None)
+    return render(request, "diary/edit_level.html", {
+        "title": ("Promote " if direction == "promote" else "Demote ") + NICE[kind],
+        "direction": direction, "kind_name": NICE[kind], "record_label": label(obj),
+        "new_kind_name": NICE[info["new_kind"]], "lines": info["lines"], "warnings": info["warnings"],
+        "wants_target": wants_target, "options": options, "chosen": chosen,
+        "target_kind_name": "Subject" if kind == "subject" else "Topic", "error": error,
+        "fields": sorted(_fields(request, direction=direction).items()), "next_url": _next(request),
+    })
 
 
 @edit_endpoint

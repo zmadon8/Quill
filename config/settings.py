@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     "accounts",
     "backups",
     "diary",
+    "mailer",
 ]
 
 MIDDLEWARE = [
@@ -130,6 +131,8 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # Sessions live in the database; nothing is stored on local disk.
 SESSION_ENGINE = "django.contrib.sessions.backends.db"
+# "Remember me" on the login page keeps the session this many days; without it the session ends when the browser closes.
+REMEMBER_ME_DAYS = max(1, _int("REMEMBER_ME_DAYS", 30))
 
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "Asia/Kolkata"
@@ -159,6 +162,34 @@ HISTORY_RETENTION_DAYS = max(1, _int("HISTORY_RETENTION_DAYS", 30))
 MAX_BACKUP_UPLOAD_MB = _int("MAX_BACKUP_UPLOAD_MB", 100)
 # Off-site copies: how many days to keep them (the storage itself is chosen by OFFSITE_BACKUP_* env vars).
 OFFSITE_BACKUP_RETENTION_DAYS = max(30, _int("OFFSITE_BACKUP_RETENTION_DAYS", 90))
+
+# Email (the mailer app: Forgot my password, and scheduled backups by email). Any SMTP service works (a mailbox with
+# an app password, Amazon SES, Brevo, Mailgun...). With no EMAIL_HOST nothing can be sent: the "Forgot my password"
+# link is hidden and the Admin's email screen says so. In DEBUG with no EMAIL_HOST, mail is printed to the console.
+def _flag(name, default=False):
+    raw = os.environ.get(name, "").strip().lower()
+    return default if not raw else raw in ("1", "true", "yes", "on")
+
+
+EMAIL_HOST = os.environ.get("EMAIL_HOST", "").strip()
+EMAIL_PORT = _int("EMAIL_PORT", 587)
+EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_SSL = _flag("EMAIL_USE_SSL")  # port 465
+EMAIL_USE_TLS = _flag("EMAIL_USE_TLS", default=not EMAIL_USE_SSL)  # port 587
+EMAIL_TIMEOUT = _int("EMAIL_TIMEOUT", 20)
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "").strip() or EMAIL_HOST_USER or "Case Law Diary <noreply@localhost>"
+SERVER_EMAIL = DEFAULT_FROM_EMAIL
+if EMAIL_HOST:
+    EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+elif DEBUG:
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+else:
+    EMAIL_BACKEND = "mailer.backends.NotConfiguredBackend"
+# A "Forgot my password" link works for this many seconds (one hour).
+PASSWORD_RESET_TIMEOUT = _int("PASSWORD_RESET_TIMEOUT", 3600)
+# Largest total size of the files attached to one backup email (files grow by about a third when sent, and most mailboxes refuse more than about 25 MB; Amazon SES refuses more than 10 MB, so set 6 there).
+EMAIL_BACKUP_MAX_MB = max(1, _int("EMAIL_BACKUP_MAX_MB", 15))
 
 if not DEBUG:
     SECURE_SSL_REDIRECT = True

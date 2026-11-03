@@ -12,4 +12,5 @@ urlpatterns = [
     path("caselaw/", RedirectView.as_view(pattern_name="diary_home", permanent=True, query_string=True)),
     path("caselaw/", include("diary.urls")),
     path("", include("backups.urls")),
+    path("", include("mailer.urls")),
 ]

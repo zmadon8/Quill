@@ -9,4 +9,5 @@
   <input type="hidden" name="next" value="{{ next }}">
   <button type="submit">Log in</button>
 </form>
+{% if email_ready %}<p><a href="{% url 'password_reset' %}">Forgot my password</a></p>{% endif %}
 {% endblock %}

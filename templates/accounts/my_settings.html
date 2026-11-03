@@ -7,6 +7,15 @@
   {% csrf_token %}
   {% if form.non_field_errors %}{{ form.non_field_errors }}{% endif %}
   <section class="settings-section">
+    <h2>My email address</h2>
+    <p>
+      {{ form.email.errors }}
+      <label for="{{ form.email.id_for_label }}">{{ form.email.label }}</label>
+      {{ form.email }}
+      <span class="field-help">{{ form.email.help_text }}</span>
+    </p>
+  </section>
+  <section class="settings-section">
     <h2>Open after login</h2>
     <p>
       {{ form.landing_program.errors }}

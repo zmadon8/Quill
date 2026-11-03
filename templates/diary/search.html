@@ -9,27 +9,19 @@
       <input type="search" id="search-q" name="q" value="{{ q }}" placeholder="Search the diary&hellip;" autocomplete="off" autofocus data-search-input>
       <button type="submit" class="primary">Search</button>
     </div>
-    <div class="search-filters">
-      <label for="search-subject">Subject</label>
-      <select id="search-subject" name="subject">
-        <option value="">All Subjects</option>
-        {% for s in main_subjects %}<option value="{{ s.pk }}"{% if s.pk == chosen_subject %} selected{% endif %}>{{ s.name }}</option>{% endfor %}
-        {% if other_subjects %}<optgroup label="Other Subjects">
-          {% for s in other_subjects %}<option value="{{ s.pk }}"{% if s.pk == chosen_subject %} selected{% endif %}>{{ s.name }}</option>{% endfor %}
-        </optgroup>{% endif %}
-      </select>
+    <div class="search-filters" data-search-toggles>
       <label class="search-check"><input type="checkbox" name="citations" value="1"{% if citations_only %} checked{% endif %}> Citations only</label>
       <label class="search-check"><input type="checkbox" name="review" value="1"{% if review_only %} checked{% endif %}> For review only</label>
       <label class="search-check"><input type="checkbox" name="headers" value="1"{% if headers_only %} checked{% endif %}> Search headers</label>
+      <label class="search-check"><input type="checkbox" name="view" value="subjects"{% if want_subjects %} checked{% endif %}> By Subject</label>
     </div>
-    {% if want_subjects and not chosen_subject %}<input type="hidden" name="view" value="subjects">{% endif %}
+    {% if chosen_subject %}<input type="hidden" name="subject" value="{{ chosen_subject }}">{% endif %}
   </form>
   {% if not searched %}
-  <p class="meta search-help">Type words to find in names, text, citations, comments, flags, review notes and notes. Every word must appear (parts of words count), so <em>2018 9 SCC 49</em> finds (2018) 9 SCC 49. Put words in &ldquo;double quotes&rdquo; to find them together as a phrase. Brackets, full stops and quote marks are ignored. Search headers looks only in Subject, Topic, Sub-topic and Section names. &#8997;F (Option-F on a Mac, Alt+F on Windows) jumps to the search box.</p>
+  <p class="meta search-help">Type words to find in names, text, citations, comments, flags, review notes and notes. Every word must appear (parts of words count), so <em>2018 9 SCC 49</em> finds (2018) 9 SCC 49. Put words in &ldquo;double quotes&rdquo; to find them together as a phrase. Brackets, full stops and quote marks are ignored. Search headers looks only in Subject, Topic, Sub-topic and Section names. The ticks (Citations only, For review only, Search headers, By Subject) are remembered by this browser. &#8997;F (Option-F on a Mac, Alt+F on Windows) jumps to the search box.</p>
   {% elif results %}
   <div class="search-head">
     <p class="meta search-count">{{ total }} result{{ total|pluralize }}</p>
-    {% if not chosen_subject %}<p class="search-view meta">View: {% if by_subject %}<a href="{{ cards_url }}">All results</a> | <strong>By Subject</strong>{% else %}<strong>All results</strong> | <a href="{{ subjects_url }}">By Subject</a>{% endif %}</p>{% endif %}
   </div>
   {% if by_subject %}
   <div class="search-two{% if picked_valid %} has-pick{% endif %}">

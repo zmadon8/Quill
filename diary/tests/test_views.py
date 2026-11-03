@@ -371,16 +371,14 @@ class HomeIndexTests(TestCase):
             self.assertEqual(header.count("<svg") - 2, header.count('class="home-button"') + header.count("data-search-toggle"), name)
             self.assertIn('data-fallback="%s"' % reverse("home"), header)
 
-    def test_review_in_diary_nav_for_anyone_with_a_profile(self):
+    def test_no_review_tab_in_the_header(self):
+        # The Review tab was removed from the header; the page itself is still reachable (Subjects page link, For review only in Search).
         for user in (self.reader, self.admin):
             self.client.force_login(user)
             nav = self.client.get(reverse("diary_home")).content.decode().split('class="program-nav"')[1].split("</nav>")[0]
-            self.assertIn('href="%s"' % reverse("review_list"), nav)
-            self.assertIn(">Review</a>", nav)
-        nav = self.client.get(reverse("review_list")).content.decode().split('class="program-nav"')[1].split("</nav>")[0]
-        self.assertIn('class="on" aria-current="page">Review</a>', nav)
-        nav = self.client.get(reverse("home")).content.decode().split('class="program-nav"')[1].split("</nav>")[0]
-        self.assertNotIn(reverse("review_list"), nav)
+            self.assertNotIn(">Review</a>", nav)
+            self.assertNotIn('href="%s"' % reverse("review_list"), nav)
+        self.assertEqual(self.client.get(reverse("review_list")).status_code, 200)
 
     def test_site_js_keeps_back_and_forward_inside_the_site(self):
         from pathlib import Path

@@ -100,6 +100,10 @@ By default backups live inside the database. If the database host has a serious 
 
 Keep a bucket lifecycle or versioning rule off unless you want extra copies kept; the app removes old copies itself.
 
+## 6a2. Email (Forgot my password, emailed backups)
+
+Optional and off until `EMAIL_HOST` is set. See `docs/EMAIL.md` for the settings, the Admin screen and privacy notes. Set the `EMAIL_*` variables on both the web service and the nightly cron job.
+
 ## 6b. Final backup rehearsal (Milestone 7)
 
 Do this once before relying on the system, and again after any large change.
