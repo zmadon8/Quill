@@ -280,3 +280,7 @@ Status: in progress, CI pending. Header (Home icon at far right, Log out only on
 ## Hotfix: Nested Item conversion (D67, D68)
 
 Branch `hotfix-nested`. Migration 0015 now converts every Item with Items beneath it (any parent kind, any depth), detaches Trash children safely and sweeps what is left; the backup loader shares the logic. New read-only `nested_report` command. Phone adding pinned by tests (D68). Pending: CI run, then redeploy.
+
+## Round 12 (items 1 and 7)
+
+Branch `round-12`. Item 1: the full Add page (the phone path) now offers exactly the types of the inline "+ Add" form, from one shared `inline.add_choices`, and both forms carry Flag and For review for an Item and For review for a Section (D69). Item 7: the Move to tree starts collapsed with arrows and Expand all / Collapse all (D70). Pending: CI run (the new tests could not be run in the sandbox).
