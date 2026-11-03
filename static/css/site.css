@@ -498,3 +498,17 @@ table[data-resizable-columns] th { position: relative; overflow-wrap: anywhere; 
 a.step:hover, a.step:focus-visible { border-color: var(--ink); background: var(--panel); }
 .step.disabled { opacity: .35; }
 @media (max-width: 599px) { .step { width: var(--tap); height: var(--tap); } }
+
+/* Search page: wider than the reading column, so the By Subject grouping has room (round 15). */
+.home-column.search-page { max-width: 72rem; }
+.search-page .search-form { max-width: 46rem; }
+.search-two { grid-template-columns: minmax(0, 19rem) minmax(0, 1fr); gap: 1.5rem; }
+/* "Group by Subject": a switch beside the result count. It changes how results are shown, not what is searched. */
+.group-switch { display: inline-flex; align-items: center; gap: .55rem; min-height: var(--tap); color: var(--ink); text-decoration: none; font-family: var(--font-sans); font-size: var(--small-size); cursor: pointer; }
+.group-switch .track { position: relative; width: 2.4rem; height: 1.35rem; border-radius: 999px; background: var(--hair); border: 1px solid var(--muted); flex: 0 0 auto; }
+.group-switch .knob { position: absolute; top: 2px; left: 2px; width: calc(1.35rem - 6px); height: calc(1.35rem - 6px); border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.3); transition: left .15s; }
+.group-switch[aria-checked="true"] .track { background: var(--oxblood); border-color: var(--oxblood); }
+.group-switch[aria-checked="true"] .knob { left: calc(100% - 1.35rem + 4px); }
+.group-switch:hover, .group-switch:focus-visible { text-decoration: underline; }
+[data-search-results][aria-busy="true"] { opacity: .6; }
+@media (prefers-reduced-motion: reduce) { .group-switch .knob { transition: none; } }

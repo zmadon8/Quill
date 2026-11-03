@@ -532,6 +532,29 @@ class SearchPageTests(SearchTestBase):
         resp = self.client.get(reverse("search"), {"q": "Pangolin", "view": "subjects", "subject": self.other.pk})
         self.assertNotContains(resp, 'class="search-subjects"')
 
+    def test_group_by_subject_is_a_switch_beside_the_results_not_a_search_filter(self):
+        # Round 15: grouping only changes how results are shown, so it sits with the results, not with the search ticks.
+        resp = self.client.get(reverse("search"), {"q": "Pangolin"})
+        html = resp.content.decode()
+        filters = html.split("data-search-toggles")[1].split("</div>")[0]
+        self.assertNotIn("By Subject", filters)
+        self.assertNotIn('name="view"', filters)
+        self.assertContains(resp, 'role="switch" aria-checked="false"')
+        self.assertContains(resp, "Group by Subject")
+        self.assertIn('data-search-results', html)
+        # the switch keeps the search (words and ticks) and only adds the grouping
+        self.assertContains(resp, 'href="?q=Pangolin&amp;view=subjects" data-group-toggle')
+        self.assertContains(resp, 'name="view" value="subjects" data-group-input disabled')
+        grouped = self.client.get(reverse("search"), {"q": "Pangolin", "view": "subjects"})
+        self.assertContains(grouped, 'role="switch" aria-checked="true"')
+        self.assertContains(grouped, 'href="?q=Pangolin" data-group-toggle')
+        self.assertContains(grouped, 'name="view" value="subjects" data-group-input>')
+        self.assertContains(grouped, 'class="search-subjects"')
+
+    def test_no_group_switch_when_one_subject_is_searched(self):
+        resp = self.client.get(reverse("search"), {"q": "Pangolin", "subject": self.other.pk})
+        self.assertNotContains(resp, "data-group-toggle")
+
     def test_headers_param_is_passed_through(self):
         resp = self.client.get(reverse("search"), {"q": "Pangolin", "headers": "1"})
         self.assertContains(resp, "No results")

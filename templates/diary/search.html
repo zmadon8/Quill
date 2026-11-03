@@ -13,28 +13,31 @@
       <label class="search-check"><input type="checkbox" name="citations" value="1"{% if citations_only %} checked{% endif %}> Citations only</label>
       <label class="search-check"><input type="checkbox" name="review" value="1"{% if review_only %} checked{% endif %}> For review only</label>
       <label class="search-check"><input type="checkbox" name="headers" value="1"{% if headers_only %} checked{% endif %}> Search headers</label>
-      <label class="search-check"><input type="checkbox" name="view" value="subjects"{% if want_subjects %} checked{% endif %}> By Subject</label>
     </div>
     {% if chosen_subject %}<input type="hidden" name="subject" value="{{ chosen_subject }}">{% endif %}
+    {# Grouping is not a search filter: it only changes how the results are shown. Kept here so a new search keeps the grouping. #}
+    <input type="hidden" name="view" value="subjects" data-group-input{% if not want_subjects or chosen_subject %} disabled{% endif %}>
   </form>
   <details class="search-history" data-search-history hidden>
     <summary>Search history</summary>
     <ul class="search-history-list" data-history-list></ul>
     <p><button type="button" data-history-clear>Clear search history</button> <span class="meta">Kept only in this browser, for your login.</span></p>
   </details>
+  <div data-search-results>
   {% if not searched %}
-  <p class="meta search-help">Type words to find in names, text, citations, comments, flags, review notes and notes. Every word must appear (parts of words count), so <em>2018 9 SCC 49</em> finds (2018) 9 SCC 49. Put words in &ldquo;double quotes&rdquo; to find them together as a phrase. Brackets, full stops and quote marks are ignored. Search headers looks only in Subject, Topic, Sub-topic and Section names. The ticks (Citations only, For review only, Search headers, By Subject) are remembered by this browser, and so are your recent searches (see Search history, where you can clear them). &#8997;F (Option-F on a Mac, Alt+F on Windows) jumps to the search box.</p>
+  <p class="meta search-help">Type words to find in names, text, citations, comments, flags, review notes and notes. Every word must appear (parts of words count), so <em>2018 9 SCC 49</em> finds (2018) 9 SCC 49. Put words in &ldquo;double quotes&rdquo; to find them together as a phrase. Brackets, full stops and quote marks are ignored. Search headers looks only in Subject, Topic, Sub-topic and Section names. The ticks (Citations only, For review only, Search headers) and Group by Subject are remembered by this browser, and so are your recent searches (see Search history, where you can clear them). &#8997;F (Option-F on a Mac, Alt+F on Windows) jumps to the search box.</p>
   {% elif results %}
   <div class="search-head">
     <p class="meta search-count">{{ total }} result{{ total|pluralize }}</p>
+    {% if not chosen_subject %}<a class="group-switch" role="switch" aria-checked="{% if by_subject %}true{% else %}false{% endif %}" href="{% if by_subject %}{{ cards_url }}{% else %}{{ subjects_url }}{% endif %}" data-group-toggle data-swap title="Group the results by Subject, or show them in one list. The search is not changed."><span class="track" aria-hidden="true"><span class="knob"></span></span>Group by Subject</a>{% endif %}
   </div>
   {% if by_subject %}
   <div class="search-two{% if picked_valid %} has-pick{% endif %}">
     <nav class="search-subjects" aria-label="Subjects with results">
-      {% for g in groups %}<a href="{{ g.url }}"{% if g.subject.pk == chosen_group.subject.pk %} class="sel" aria-current="true"{% endif %}><span>{{ g.subject.name }}</span><span class="count">{{ g.count }}</span></a>{% endfor %}
+      {% for g in groups %}<a data-swap href="{{ g.url }}"{% if g.subject.pk == chosen_group.subject.pk %} class="sel" aria-current="true"{% endif %}><span>{{ g.subject.name }}</span><span class="count">{{ g.count }}</span></a>{% endfor %}
     </nav>
     <div class="search-pane">
-      {% if picked_valid %}<p class="search-back"><a href="{{ cards_url }}&amp;view=subjects">&larr; All Subjects</a></p>{% endif %}
+      {% if picked_valid %}<p class="search-back"><a data-swap href="{{ cards_url }}&amp;view=subjects">&larr; All Subjects</a></p>{% endif %}
       <h2 class="search-pane-title">{{ chosen_group.subject.name }}</h2>
       <ol class="search-results cards">
         {% for r in results %}
@@ -73,5 +76,6 @@
   {% else %}
   <p class="empty search-none">No results{% if q %} for &ldquo;{{ q }}&rdquo;{% endif %}.</p>
   {% endif %}
+  </div>
 </div>
 {% endblock %}
