@@ -92,16 +92,16 @@ Note: the technology (Django, PostgreSQL) is confirmed for a **standalone app** 
 
 ## Milestone 4: Search, Review list, Settings
 
-**Deliverable:** Global Search page with the shortcuts (Alt+G, Alt+H and Ctrl+Alt+G, Ctrl+Alt+H; Option on a Mac) and visible Search and Subjects buttons, with Home (the program picker) beside the program name; filters; highlighted snippets; open in context. The Review list screen. Settings: opening page (overrides login landing on Home) and number formats with preview (including the Sections format). **Profiles:** Search, the Review list and the opening Subject setting look only inside the user's profile.
+**Deliverable:** Global Search page with the shortcuts (originally Alt+G, now Alt+F: see D71; Alt+H; Ctrl+Alt+F, Ctrl+Alt+H; Option on a Mac) and visible Search and Subjects buttons, with Home (the program picker) beside the program name; filters; highlighted snippets; open in context. The Review list screen. Settings: opening page (overrides login landing on Home) and number formats with preview (including the Sections format). **Profiles:** Search, the Review list and the opening Subject setting look only inside the user's profile.
 
 **Not part of the built Milestone 4:** the **Custom Name** setting (with its live file-name preview) and the **date format** (with time zone). They only matter once Word files are exported, so they go with **Milestone 6** (Word export); see D32 in `docs/DESIGN.md`. If you want them earlier, say so.
 
-**Status: built (4a to 4d), CI pending.** 4a: search engine (`diary/searchtext.py`, `diary/search.py`, `diary/locate.py`). 4b: Search page, header search box, filters, snippets, open in context with a brief highlight, Alt+G. 4c: the Review list rebuilt on the same code (also lists Items inside Nested Items). 4d: My settings (opening page, number formats with a live preview, last page; D30). The pure tests pass locally; the Django tests could not be run where the code was written, so GitHub CI is their first run. Decisions and defaults are in D30 to D32.
+**Status: built (4a to 4d), CI pending.** 4a: search engine (`diary/searchtext.py`, `diary/search.py`, `diary/locate.py`). 4b: Search page, header search box, filters, snippets, open in context with a brief highlight, Alt+G (now Alt+F, D71). 4c: the Review list rebuilt on the same code (also lists Items inside Nested Items). 4d: My settings (opening page, number formats with a live preview, last page; D30). The pure tests pass locally; the Django tests could not be run where the code was written, so GitHub CI is their first run. Decisions and defaults are in D30 to D32.
 
 **How you check it:**
 - Search `2018 9 SCC 49` and find `(2018) 9 SCC 49`. Search part of a word; search a quoted phrase exactly; confirm Trash items never appear.
 - Use the filters: one Subject, Citations only, For review only. The result count shows; "Show more" adds 50.
-- Click a result: you land on the record in the reading view and it flashes briefly. Press Alt+G on any page: the search box is focused.
+- Click a result: you land on the record in the reading view and it flashes briefly. Press Alt+F on any page: the search box is focused.
 - The header search box appears on reading pages (not on the Search or Index of Subjects pages) and wraps cleanly on a phone.
 - Time it: results should appear in under a second.
 - Mark an Item For review with one click; see it in the Review list. Do the same for a Section; each appears in the Review list, and "Search within these" shows the same records.
@@ -281,6 +281,8 @@ Status: in progress, CI pending. Header (Home icon at far right, Log out only on
 
 Branch `hotfix-nested`. Migration 0015 now converts every Item with Items beneath it (any parent kind, any depth), detaches Trash children safely and sweeps what is left; the backup loader shares the logic. New read-only `nested_report` command. Phone adding pinned by tests (D68). Pending: CI run, then redeploy.
 
-## Round 12 (items 1 and 7)
+## Round 12 (items 1, 2, 3, 4, 6b and 7)
 
 Branch `round-12`. Item 1: the full Add page (the phone path) now offers exactly the types of the inline "+ Add" form, from one shared `inline.add_choices`, and both forms carry Flag and For review for an Item and For review for a Section (D69). Item 7: the Move to tree starts collapsed with arrows and Expand all / Collapse all (D70). Pending: CI run (the new tests could not be run in the sandbox).
+
+Items 2, 3, 4 and 6b (search, D71): Option A cards, a By Subject view when the whole diary is searched, a Search headers toggle, no Review list tab inside Search, Option+F, and a magnifier-only Search control on every diary page.

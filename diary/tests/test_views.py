@@ -118,9 +118,18 @@ class HomeIndexTests(TestCase):
         resp = self.client.get(reverse("diary_home"))
         self.assertContains(resp, 'action="%s"' % reverse("search"))
         self.assertContains(resp, 'aria-label="Search"')
-        self.assertContains(resp, 'title="Search (&#8997;G)"')
+        self.assertContains(resp, 'title="Search (&#8997;F)"')
         self.assertContains(resp, 'id="search-pop" hidden')
         self.assertNotContains(resp, "home-search")
+        self.assertNotContains(resp, "&#8997;G")
+        self.assertNotContains(resp, 'aria-current="page">Search</a>')
+        self.assertNotContains(resp, 'href="%s">Search</a>' % reverse("search"))
+
+    def test_search_icon_stays_on_the_search_page_without_a_popup(self):
+        self.client.force_login(self.reader)
+        resp = self.client.get(reverse("search"))
+        self.assertContains(resp, 'title="Search (&#8997;F)"')
+        self.assertNotContains(resp, 'id="search-pop"')
 
     def test_nav_hides_admin_items_from_reader(self):
         self.client.force_login(self.reader)

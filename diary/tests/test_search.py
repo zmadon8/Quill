@@ -328,6 +328,40 @@ class FilterTests(SearchTestBase):
         self.assertEqual(self.search("scc", citations_only=True, review_only=True, subject_id=self.other.pk), [])
 
 
+class HeadersOnlyTests(SearchTestBase):
+    def setUp(self):
+        super().setUp()
+        self.section = Section.objects.create(profile=self.profile, topic=self.topic, name="Pangolin Section")
+        self.hit = self.item("Pangolin in the text")
+        self.case(self.hit, "Pangolin v State (2020) 1 SCC 1", "Pangolin comment")
+
+    def test_headers_only_finds_names_not_item_text(self):
+        self.assertEqual(self.kinds("Pangolin", headers_only=True), [("Section", "Pangolin Section")])
+        self.assertEqual(len(self.search("Pangolin")), 2)
+
+    def test_headers_only_finds_subject_topic_subtopic(self):
+        for word, kind in (("Zebra", "Subject"), ("Quokka", "Topic"), ("Wombat", "Sub-topic")):
+            self.assertEqual([r.kind for r in self.search(word, headers_only=True)], [kind])
+
+    def test_headers_only_skips_review_notes_notes_and_flags(self):
+        Item.objects.filter(pk=self.hit.pk).update(review_note="Axolotl", flag_text="Axolotl")
+        self.assertEqual(self.search("Axolotl", headers_only=True), [])
+
+    def test_headers_only_excludes_trash_and_other_profiles(self):
+        self.trash(self.section)
+        self.assertEqual(self.search("Pangolin", headers_only=True), [])
+        other = Profile.objects.create(name="Other", program="diary")
+        subject = Subject.objects.create(profile=other, name="Pangolin Other", landing_position=1)
+        self.assertEqual(run_search(other, "Pangolin", headers_only=True)[0].subject_id, subject.pk)
+        self.assertEqual(self.search("Pangolin", headers_only=True), [])
+
+    def test_headers_only_combines_with_subject_filter(self):
+        other = Subject.objects.create(profile=self.profile, name="Pangolin Subject", landing_position=2)
+        self.assertEqual(len(self.search("Pangolin", headers_only=True)), 2)
+        self.assertEqual([r.label for r in self.search("Pangolin", headers_only=True, subject_id=other.pk)],
+                         ["Pangolin Subject"])
+
+
 class OrderTests(SearchTestBase):
     def test_diary_order(self):
         profile = self.profile
@@ -466,3 +500,37 @@ class SpeedTests(SearchTestBase):
         print("run_search, 5,000 results: %.3f s" % elapsed)
         self.assertEqual(len(everything), 5000)
         self.assertLess(elapsed, 1.0)
+
+
+@override_settings(SECURE_SSL_REDIRECT=False)
+class SearchPageTests(SearchTestBase):
+    def setUp(self):
+        super().setUp()
+        self.item("Pangolin one")
+        self.other = Subject.objects.create(profile=self.profile, name="Yak Subject", landing_position=2)
+        other_topic = Topic.objects.create(profile=self.profile, subject=self.other, name="Yak Topic")
+        Item.objects.create(profile=self.profile, topic=other_topic, text=para("Pangolin two"))
+        self.client.force_login(join_main(get_user_model().objects.create_user("rita", password="x-long-pass-123")))
+
+    def test_no_review_list_link_inside_search(self):
+        resp = self.client.get(reverse("search"))
+        self.assertNotContains(resp, 'class="meta" href="%s' % reverse("review_list"))
+        self.assertContains(resp, "For review only")
+        self.assertContains(resp, "Search headers")
+
+    def test_by_subject_view_lists_subjects_and_chosen_results(self):
+        resp = self.client.get(reverse("search"), {"q": "Pangolin", "view": "subjects", "s": self.other.pk})
+        self.assertContains(resp, 'class="search-subjects"')
+        self.assertContains(resp, "Pangolin two")
+        self.assertNotContains(resp, "Pangolin one")
+
+    def test_by_subject_defaults_to_first_subject_and_is_not_used_with_a_filter(self):
+        resp = self.client.get(reverse("search"), {"q": "Pangolin", "view": "subjects"})
+        self.assertContains(resp, "Pangolin one")
+        self.assertNotContains(resp, "Pangolin two")
+        resp = self.client.get(reverse("search"), {"q": "Pangolin", "view": "subjects", "subject": self.other.pk})
+        self.assertNotContains(resp, 'class="search-subjects"')
+
+    def test_headers_param_is_passed_through(self):
+        resp = self.client.get(reverse("search"), {"q": "Pangolin", "headers": "1"})
+        self.assertContains(resp, "No results")
