@@ -60,9 +60,16 @@ def _html(value):
 
 
 class _Data:
-    """Everything live under one Subject, grouped by parent."""
+    """Everything live under one Subject, grouped by parent.
 
-    def __init__(self, subject):
+    All the headings (Topics and Sub-topics) are always loaded, because numbering and the Contents list need them. The
+    Items, Sections, Cases, Notes and links are loaded only for what the page will show: the whole Subject, or just the
+    chosen Topic (with its Sub-topics), or just the chosen Sub-topic. A Topic page therefore no longer reads, and
+    no longer cleans, every Item of the Subject. Numbers do not change: an Item's number depends only on its own
+    siblings, which are always loaded.
+    """
+
+    def __init__(self, subject, scope="subject", target=None):
         self.subject = subject
         # Subjects, Topics and Sub-topics are always alphabetical (diary/sorting.py); stored positions are the kept Word order.
         self.topics = sort_headings(live(Topic.objects.filter(subject=subject)))
@@ -71,9 +78,18 @@ class _Data:
             live(Subtopic.objects.filter(Q(subject=subject) | Q(topic_id__in=topic_ids)))
         )
         subtopic_ids = [s.pk for s in self.subtopics]
-        container = (
-            Q(subject=subject) | Q(topic_id__in=topic_ids) | Q(subtopic_id__in=subtopic_ids)
-        )
+        if scope == "topic" and target is not None:
+            shown_subs = [s.pk for s in self.subtopics if s.topic_id == target.pk]
+            container = Q(topic_id=target.pk) | Q(subtopic_id__in=shown_subs)
+            heading_targets = container
+        elif scope == "subtopic" and target is not None:
+            container = Q(subtopic_id=target.pk)
+            heading_targets = container
+        else:
+            container = (
+                Q(subject=subject) | Q(topic_id__in=topic_ids) | Q(subtopic_id__in=subtopic_ids)
+            )
+            heading_targets = container
         all_items = list(live(Item.objects.filter(container)))
         sections = list(live(Section.objects.filter(container)))
         item_ids = [i.pk for i in all_items]
@@ -93,8 +109,7 @@ class _Data:
 
         # Links INTO this Subject from live Notes anywhere (Linked from). A Note in Trash, or under something in Trash, shows nothing.
         self.incoming = {}
-        targets = Q(subject=subject) | Q(topic_id__in=topic_ids) | Q(subtopic_id__in=subtopic_ids)
-        targets |= Q(section_id__in=section_ids) | Q(item_id__in=item_ids)
+        targets = heading_targets | Q(section_id__in=section_ids) | Q(item_id__in=item_ids)
         found = live(NoteLink.objects.filter(targets, note__deleted_at__isnull=True)).select_related(*_note_paths("note")).order_by("note_id", "pk")
         for link in found:
             if in_trash(link.note):
@@ -355,7 +370,7 @@ def build_reading(subject, user, scope="subject", target=None):
     scope is "subject", "topic" or "subtopic"; target is the Topic or Sub-topic shown.
     """
     fmts = formats_for(user)
-    data = _Data(subject)
+    data = _Data(subject, scope, target)
     topic_labels = dict(zip((t.pk for t in data.topics), numbering.number_siblings(len(data.topics), fmts["topic_format"])))
     direct = data.subtopics_by.get(("subject", subject.pk), [])
     direct_labels = dict(zip((s.pk for s in direct), numbering.number_siblings(len(direct), fmts["subtopic_format"])))

@@ -418,7 +418,15 @@
       document.addEventListener("click", function (e) {
         if (isOpen() && !siteHeader.contains(e.target) && !headerBtn.contains(e.target)) { closeHeader(false); }
       });
-      window.addEventListener("scroll", syncButton, { passive: true });
+      // Scroll events come many times a frame on a phone, and reading the position forces the page to be laid out each time:
+      // do the check at most once per frame.
+      var framePending = false;
+      window.addEventListener("scroll", function () {
+        if (framePending) { return; }
+        framePending = true;
+        var later = window.requestAnimationFrame || function (fn) { return window.setTimeout(fn, 50); };
+        later(function () { framePending = false; syncButton(); });
+      }, { passive: true });
       window.addEventListener("resize", function () { closeHeader(false); syncButton(); });
       syncButton();
     }

@@ -481,3 +481,17 @@ table[data-resizable-columns] th { position: relative; overflow-wrap: anywhere; 
   .export-more, .export-menu { display: none !important; }
   .export-split .export-main { border-radius: 2px; }
 }
+
+/* Mobile and tablet (the Contents icon is shown below 900px): the Edit button sits right beside the Contents icon.
+   Order on the breadcrumb row: breadcrumb ... Export, Edit, Contents. Export takes the auto margin, so the three stay together at the right. */
+@media (max-width: 899px) {
+  .crumb-row > .export-split, .crumb-row > .export-link { order: 4; margin-left: auto; }
+  .crumb-row > .bar-tools { order: 5; margin-left: 0; }
+  .crumb-row > .contents-icon { order: 6; margin-left: 0; }
+}
+
+/* Light version (My settings > Light version): less to draw and animate on a phone. Nothing is hidden or removed. */
+html.light *, html.light *::before, html.light *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
+html.light .contents-panel, html.light .site-header.header-open, html.light .export-menu, html.light .menu, html.light .editcard, html.light .edit-toast { box-shadow: none; }
+/* Text far off the screen is not laid out until you scroll near it (supported browsers only; others ignore this). Not used while editing, because it would clip the menus. */
+html.light body:not(.edit-on) .reading .item, html.light body:not(.edit-on) .reading .section-header, html.light body:not(.edit-on) .reading .note { content-visibility: auto; contain-intrinsic-size: auto 5rem; }

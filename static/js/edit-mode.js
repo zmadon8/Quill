@@ -128,6 +128,7 @@
     if (!force && dirty(current.node) && !window.confirm("Throw away what you typed?")) { return false; }
     var c = current;
     current = null;
+    if (c.node.quillUnfit) { c.node.quillUnfit(); }
     (c.node.quillWrap || c.node).remove();
     if (c.kind === "card") {
       c.row.classList.remove("row-hidden");
@@ -162,6 +163,9 @@
       box.appendChild(link);
     }
     box.hidden = false;
+    // On a phone the message could sit off screen: scroll it into view and say it again in the toast.
+    try { box.scrollIntoView({ block: "center" }); } catch (e) { /* old browser */ }
+    toast(list.join(" "));
   }
 
   /* Send the form's fields to a page (not fetch), for the screens that are whole pages: the conflict screen, Move to... */
@@ -188,7 +192,8 @@
     if (result.status === 409 && data.conflict) {
       showErrors(form, data.errors && data.errors.length ? data.errors : ["Someone changed this while you were editing."], data.conflict_url);
     } else if (result.status === 403) {
-      showErrors(form, ["You cannot change this."]);
+      // A 403 with a message is usually an expired sign-in (the phone kept the page open for a long time): say so.
+      showErrors(form, data.errors && data.errors.length ? data.errors : ["You cannot change this."]);
     } else {
       showErrors(form, data.errors && data.errors.length ? data.errors : ["That could not be saved. Use the full page instead."]);
     }
@@ -382,10 +387,30 @@
       document.body.classList.add("card-open");
       if (window.QuillRichText) { window.QuillRichText.initAll(card); }
       setupCard(card, row);
+      fitToScreen(card);
       var first = card.querySelector(".rt-area, input[name=name]");
-      if (first) { first.focus(); }
+      // On a phone the keyboard would pop up at once and cover the buttons: the person taps the field they want instead.
+      if (first && !(window.matchMedia && window.matchMedia("(pointer: coarse)").matches)) { first.focus(); }
       card.scrollIntoView({ block: "nearest" });
     }).catch(function () { if (button.href) { window.location.href = button.href; } });
+  }
+
+  // Phone: the editing card is full screen. Phone browsers do not shrink a fixed box when the keyboard opens (and iOS can scroll it
+  // out of view), which hid both Save buttons. So while the card is open it is sized to the part of the screen you can actually see.
+  function fitToScreen(card) {
+    var vv = window.visualViewport;
+    if (!vv || !window.matchMedia) { return; }
+    var phone = window.matchMedia("(max-width: 599px)");
+    function fit() {
+      if (!phone.matches) { card.style.top = card.style.bottom = card.style.height = ""; return; }
+      card.style.top = vv.offsetTop + "px";
+      card.style.bottom = "auto";
+      card.style.height = vv.height + "px";
+    }
+    vv.addEventListener("resize", fit);
+    vv.addEventListener("scroll", fit);
+    card.quillUnfit = function () { vv.removeEventListener("resize", fit); vv.removeEventListener("scroll", fit); };
+    fit();
   }
 
   function setupCard(card, row) {
@@ -501,17 +526,21 @@
         toast("Moved to Trash. Undo is in the bar above.");
       } else {
         applyRow(data);
+        toast("Saved.");
       }
     }
     function send(url, extra, deleted) {
       if (busy) { return; }
       busy = true;
       showErrors(card, []);
+      card.setAttribute("aria-busy", "true");
+      toast(deleted ? "Moving to Trash\u2026" : "Saving\u2026");
       var body = new FormData(card);
       if (extra) { body.set(extra[0], extra[1]); }
-      request(url, { method: "POST", body: body }).then(function (r) { done(r, deleted); }).catch(function () {
+      request(url, { method: "POST", body: body }).then(function (r) { card.removeAttribute("aria-busy"); done(r, deleted); }).catch(function () {
         busy = false;
-        showErrors(card, ["Could not reach the server. Nothing was changed."]);
+        card.removeAttribute("aria-busy");
+        showErrors(card, ["Could not reach the server. Nothing was changed. Check your connection and press Save again."]);
       });
     }
 

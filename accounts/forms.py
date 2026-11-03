@@ -236,7 +236,11 @@ class MySettingsForm(forms.ModelForm):
 
     class Meta:
         model = User
-        fields = ("email", "landing_program")
+        fields = ("email", "landing_program", "light_mode")
+        labels = {"light_mode": "Light version"}
+        help_texts = {
+            "light_mode": "For a slow phone. Turns off animations and shadows, skips drawing text that is far off the screen, and makes the Contents links open one Topic at a time instead of the whole Subject. Nothing is removed, and it only affects you. Turn it off here at any time."
+        }
 
     def clean_email(self):
         return _clean_unique_email(self)

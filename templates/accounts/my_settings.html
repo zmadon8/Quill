@@ -16,6 +16,14 @@
     </p>
   </section>
   <section class="settings-section">
+    <h2>Light version</h2>
+    <p>
+      {{ form.light_mode.errors }}
+      <label for="{{ form.light_mode.id_for_label }}">{{ form.light_mode }} {{ form.light_mode.label }}</label>
+      <span class="field-help">{{ form.light_mode.help_text }}</span>
+    </p>
+  </section>
+  <section class="settings-section">
     <h2>Open after login</h2>
     <p>
       {{ form.landing_program.errors }}

@@ -224,6 +224,8 @@ def _in_context(request, scope=None):
     A reading page passes its ``scope``: in "remember" mode the page being shown is itself the view in use, so
     the cookie (which site.js writes only after the page has rendered) is ignored and ``scope == "subject"``
     decides. The cookie only matters for pages with no scope (the Subject contents page)."""
+    if getattr(request.user, "light_mode", False):
+        return False  # the Light version: one Topic or Sub-topic at a time, never the whole Subject
     mode = request.profile.reading_all_mode
     if mode != Profile.READING_ALL_REMEMBER:
         return mode == Profile.READING_ALL_ALWAYS_ON

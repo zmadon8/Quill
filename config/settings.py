@@ -87,6 +87,7 @@ TEMPLATES = [
                 "accounts.context_processors.suite_names",
                 "accounts.context_processors.current_profile",
                 "accounts.context_processors.program_label",
+                "accounts.context_processors.light_version",
                 "backups.context_processors.backup_banner",
             ],
         },
@@ -186,6 +187,9 @@ elif DEBUG:
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 else:
     EMAIL_BACKEND = "mailer.backends.NotConfiguredBackend"
+# Compress pages and text on the way out (much less to download on a phone). Set GZIP_RESPONSES=0 to switch off.
+if _flag("GZIP_RESPONSES", default=True):
+    MIDDLEWARE.insert(1, "config.middleware.TextGZipMiddleware")  # right after SecurityMiddleware
 # A "Forgot my password" link works for this many seconds (one hour).
 PASSWORD_RESET_TIMEOUT = _int("PASSWORD_RESET_TIMEOUT", 3600)
 # Largest total size of the files attached to one backup email (files grow by about a third when sent, and most mailboxes refuse more than about 25 MB; Amazon SES refuses more than 10 MB, so set 6 there).

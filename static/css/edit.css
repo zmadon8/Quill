@@ -194,7 +194,8 @@ body.edit-on .crumb-row { background: var(--bg); }
 
   /* Phone: the editing card fills the screen. Cancel and Save at the top and the bottom, the fields in one column. */
   body.card-open { overflow: hidden; }
-  .editcard { position: fixed; z-index: 60; inset: 0; margin: 0; padding: 0; border: 0; overflow-y: auto; display: flex; flex-direction: column; background: var(--panel); box-shadow: none; }
+  /* edit-mode.js sets top and height from the visible screen while the card is open, so the Save buttons stay in view when the phone keyboard opens. */
+  .editcard { position: fixed; z-index: 60; inset: 0; overscroll-behavior: contain; margin: 0; padding: 0; border: 0; overflow-y: auto; display: flex; flex-direction: column; background: var(--panel); box-shadow: none; }
   .editcard > .fld, .editcard > .card-title, .editcard > .form-error { margin-left: .9rem; margin-right: .9rem; }
   .editcard > .card-title { margin-top: 1rem; }
   .editcard > .card-top ~ .fld:last-of-type { margin-bottom: 1rem; }
@@ -204,6 +205,11 @@ body.edit-on .crumb-row { background: var(--bg); }
   .editcard .card-bar { position: sticky; bottom: 0; margin: auto 0 0; padding: .6rem .75rem; border-top: 1px solid var(--ink); flex-wrap: nowrap; }
   .editcard .card-bar .primary { flex: 1 1 0; }
   .editcard .menu { top: auto; bottom: calc(100% + 4px); }
+  .editcard button, .editcard summary { touch-action: manipulation; }
+  body.card-open .edit-toast { bottom: 5.5rem; }
+  /* A message from a failed Save is shown in a red band right under the top bar, where it cannot be missed. */
+  .editcard > .card-top { order: -2; }
+  .editcard > .form-error:not([hidden]) { order: -1; margin: 0; padding: .6rem .9rem; background: #fbe9ea; border-bottom: 1px solid var(--oxblood); color: var(--oxblood); font-weight: 600; }
 }
 summary.ra { list-style: none; }
 summary.ra::-webkit-details-marker { display: none; }
