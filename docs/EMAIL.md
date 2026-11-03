@@ -36,10 +36,10 @@ Then open **Backups > Email backups** as an Admin, type your address and press *
 **Backups > Email backups** (Admin only):
 
 * Switch on, choose how often (every day / week on a chosen weekday / month on a chosen day, 1 to 28) and who gets it (up to 10 addresses).
-* Choose what is attached: the full backup file, the complete Word export of every diary profile (with or without For review markers), or both. The Word file uses the number and date formats of the Admin who last saved the schedule.
+* Choose **What to send**: (i) the JSON backup only, (ii) the complete Word export only, (iii) both in one email, or (iv) both in separate emails. The Word export is one file per diary profile (with or without For review markers), The Word file uses the number and date formats of the Admin who last saved the schedule.
 * **Save and send one now** sends at once. **Send a test email** sends a short message only.
 * The nightly cron job runs `python manage.py send_email_backups` right after the nightly backup. It sends when a send is due and does nothing otherwise. A planned day that was missed is made up once. If a send fails it is tried again the next night, and every Admin sees a warning bar at the top until one succeeds.
-* If all the files together are bigger than `EMAIL_BACKUP_MAX_MB`, the ones that do not fit are left out and the email says so. Big diaries: rely on the off-site copy (hosting guide section 6a) and use email for the Word file only.
+* **Too large:** each email carries at most `EMAIL_BACKUP_MAX_MB` of files. Files that do not fit are left out, the email subject says (incomplete) and the body lists what is missing, and every Admin sees the warning bar until it is fixed (the email with what fits still goes). Separate emails (iv) give each file its own allowance. If the diary is too big even for that, rely on the off-site copy (hosting guide section 6a), email the Word file only, or raise the limit if your provider allows it.
 * Run by hand any time in the Render shell: `python manage.py send_email_backups --force`.
 
 ### Please think about privacy
