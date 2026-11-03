@@ -115,11 +115,29 @@ def _heading_records(tree):
                           (0, 0, 0, sub.pk), self_heading=sub)
 
 
-def _records(profile, tree, citations_only, review_only):
-    """Every live, locatable record the filters allow."""
+def _section_name_records(profile, tree, citations_only, review_only):
+    if citations_only:
+        return
+    for row in Section.objects.filter(profile=profile, deleted_at__isnull=True).values(
+            "pk", "subject_id", "topic_id", "subtopic_id", "name", "position", "needs_review", "review_note"):
+        place = tree.place(row["subject_id"], row["topic_id"], row["subtopic_id"])
+        if place is None or (review_only and not row["needs_review"]):
+            continue
+        label = _short(row["name"]) or "Section"
+        yield _Record("section", label, place, f"n-section-{row['pk']}", [("section", row["name"])],
+                      (1, row["position"], 0, row["pk"]), needs_review=row["needs_review"],
+                      review_note=row["review_note"], text=row["name"])
+
+
+def _records(profile, tree, citations_only, review_only, headers_only=False):
+    """Every live, locatable record the filters allow. ``headers_only`` limits it to the names of Subjects, Topics,
+    Sub-topics and Sections (no Item, Case, Note, review note or flag text)."""
     with_notes_and_headings = not (citations_only or review_only)
     if with_notes_and_headings:
         yield from _heading_records(tree)
+    if headers_only:
+        yield from _section_name_records(profile, tree, citations_only, review_only)
+        return
 
     sections = list(Section.objects.filter(profile=profile, deleted_at__isnull=True).values(
         "pk", "subject_id", "topic_id", "subtopic_id", "name", "position", "needs_review", "review_note"))
@@ -204,11 +222,12 @@ def _records(profile, tree, citations_only, review_only):
                           extra_path=[])
 
 
-def run_search(profile, query, subject_id=None, citations_only=False, review_only=False):
+def run_search(profile, query, subject_id=None, citations_only=False, review_only=False, headers_only=False):
     """Every match of ``query`` in ``profile`` as a list of SearchResult, best first (unpaginated).
 
     Best first is: the whole query appearing together first, then the order of the Diary. An empty query
     lists everything the Citations only / For review only filters select; with neither filter it lists nothing.
+    ``headers_only`` searches only the Subject, Topic, Sub-topic and Section names.
     """
     terms = searchtext.parse_query(query)
     if not terms and not (citations_only or review_only):
@@ -216,7 +235,7 @@ def run_search(profile, query, subject_id=None, citations_only=False, review_onl
     tree = Tree.load(profile)
     urls = _Urls()
     results = []
-    for rec in _records(profile, tree, citations_only, review_only):
+    for rec in _records(profile, tree, citations_only, review_only, headers_only):
         place = rec.place
         if subject_id is not None and place.subject.pk != subject_id:
             continue
