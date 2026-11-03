@@ -20,28 +20,59 @@
       </select>
       <label class="search-check"><input type="checkbox" name="citations" value="1"{% if citations_only %} checked{% endif %}> Citations only</label>
       <label class="search-check"><input type="checkbox" name="review" value="1"{% if review_only %} checked{% endif %}> For review only</label>
-      <a class="meta" href="{% url 'review_list' %}{% if chosen_subject %}?subject={{ chosen_subject }}{% endif %}">Review list</a>
+      <label class="search-check"><input type="checkbox" name="headers" value="1"{% if headers_only %} checked{% endif %}> Search headers</label>
     </div>
+    {% if want_subjects and not chosen_subject %}<input type="hidden" name="view" value="subjects">{% endif %}
   </form>
   {% if not searched %}
-  <p class="meta search-help">Type words to find in names, text, citations, comments, flags, review notes and notes. Every word must appear (parts of words count), so <em>2018 9 SCC 49</em> finds (2018) 9 SCC 49. Put words in &ldquo;double quotes&rdquo; to find them together as a phrase. Brackets, full stops and quote marks are ignored. &#8997;G (Option-G on a Mac) jumps to the search box.</p>
+  <p class="meta search-help">Type words to find in names, text, citations, comments, flags, review notes and notes. Every word must appear (parts of words count), so <em>2018 9 SCC 49</em> finds (2018) 9 SCC 49. Put words in &ldquo;double quotes&rdquo; to find them together as a phrase. Brackets, full stops and quote marks are ignored. Search headers looks only in Subject, Topic, Sub-topic and Section names. &#8997;F (Option-F on a Mac, Alt+F on Windows) jumps to the search box.</p>
   {% elif results %}
-  <p class="meta search-count">{{ total }} result{{ total|pluralize }}</p>
-  <ol class="search-results">
-    {% for r in results %}
-    <li class="search-result">
+  <div class="search-head">
+    <p class="meta search-count">{{ total }} result{{ total|pluralize }}</p>
+    {% if not chosen_subject %}<p class="search-view meta">View: {% if by_subject %}<a href="{{ cards_url }}">All results</a> | <strong>By Subject</strong>{% else %}<strong>All results</strong> | <a href="{{ subjects_url }}">By Subject</a>{% endif %}</p>{% endif %}
+  </div>
+  {% if by_subject %}
+  <div class="search-two{% if request.GET.s %} has-pick{% endif %}">
+    <nav class="search-subjects" aria-label="Subjects with results">
+      {% for g in groups %}<a href="{{ g.url }}"{% if g.subject.pk == chosen_group.subject.pk %} class="sel" aria-current="true"{% endif %}><span>{{ g.subject.name }}</span><span class="count">{{ g.count }}</span></a>{% endfor %}
+    </nav>
+    <div class="search-pane">
+      {% if request.GET.s %}<p class="search-back"><a href="{{ cards_url }}&amp;view=subjects">&larr; All Subjects</a></p>{% endif %}
+      <h2 class="search-pane-title">{{ chosen_group.subject.name }}</h2>
+      <ol class="search-results cards">
+        {% for r in results %}
+        <li class="search-result card">
       <div class="search-meta">
-        <span class="search-kind">{{ r.kind }}</span>
+        <span class="search-kind badge">{{ r.kind }}</span>
         {% if r.needs_review %}<span class="review-marker">For review</span>{% endif %}
         {% if r.flag_text %}<span class="flag-text">{{ r.flag_text }}</span>{% endif %}
+        {% if r.path %}<span class="search-path">{% for name, url in r.path %}{% if not forloop.first %} &gt; {% endif %}{{ name }}{% endfor %}</span>{% endif %}
       </div>
       <a class="search-link" href="{{ r.url }}" title="Open in context">{{ r.label }}</a>
-      {% if r.path %}<div class="search-path">{% for name, url in r.path %}{% if not forloop.first %} &gt; {% endif %}{{ name }}{% endfor %}</div>{% endif %}
+      {% if r.segments %}<p class="search-snippet"><span class="search-field">{{ r.field_label }}:</span> {% for seg in r.segments %}{% if seg.1 %}<mark>{{ seg.0 }}</mark>{% else %}{{ seg.0 }}{% endif %}{% endfor %}</p>{% endif %}
+    </li>
+        {% endfor %}
+      </ol>
+      {% if has_more %}<p class="search-more"><a class="button" href="{% url 'search' %}?{{ more_query }}">Show more</a> <span class="meta">Showing {{ results|length }} of {{ shown_total }}</span></p>{% endif %}
+    </div>
+  </div>
+  {% else %}
+  <ol class="search-results cards">
+    {% for r in results %}
+    <li class="search-result card">
+      <div class="search-meta">
+        <span class="search-kind badge">{{ r.kind }}</span>
+        {% if r.needs_review %}<span class="review-marker">For review</span>{% endif %}
+        {% if r.flag_text %}<span class="flag-text">{{ r.flag_text }}</span>{% endif %}
+        {% if r.path %}<span class="search-path">{% for name, url in r.path %}{% if not forloop.first %} &gt; {% endif %}{{ name }}{% endfor %}</span>{% endif %}
+      </div>
+      <a class="search-link" href="{{ r.url }}" title="Open in context">{{ r.label }}</a>
       {% if r.segments %}<p class="search-snippet"><span class="search-field">{{ r.field_label }}:</span> {% for seg in r.segments %}{% if seg.1 %}<mark>{{ seg.0 }}</mark>{% else %}{{ seg.0 }}{% endif %}{% endfor %}</p>{% endif %}
     </li>
     {% endfor %}
   </ol>
   {% if has_more %}<p class="search-more"><a class="button" href="{% url 'search' %}?{{ more_query }}">Show more</a> <span class="meta">Showing {{ results|length }} of {{ total }}</span></p>{% endif %}
+  {% endif %}
   {% else %}
   <p class="empty search-none">No results{% if q %} for &ldquo;{{ q }}&rdquo;{% endif %}.</p>
   {% endif %}

@@ -220,6 +220,24 @@ td a { display: inline-block; min-height: var(--tap); line-height: var(--tap); p
 .search-check { display: inline-flex; align-items: center; gap: .4rem; min-height: var(--tap); }
 .search-help { max-width: 42rem; }
 .search-results { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--hair); }
+.search-results.cards { border-top: 0; display: grid; gap: .75rem; }
+.search-result.card { background: var(--panel); border: 1px solid var(--hair); border-left: 3px solid var(--ink); padding: .8rem 1rem; }
+.search-kind.badge { display: inline-block; font-size: .75rem; padding: .1rem .5rem; border: 1px solid var(--hair); border-radius: 999px; background: var(--panel); }
+.search-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .25rem 1rem; }
+.search-two { display: grid; grid-template-columns: minmax(0, 15rem) minmax(0, 1fr); gap: 1rem; align-items: start; }
+.search-subjects { border: 1px solid var(--hair); background: var(--panel); }
+.search-subjects a { display: flex; justify-content: space-between; gap: .5rem; align-items: center; min-height: var(--tap); padding: .3rem .8rem; border-bottom: 1px solid var(--hair); color: var(--ink); text-decoration: none; overflow-wrap: anywhere; }
+.search-subjects a:last-child { border-bottom: 0; }
+.search-subjects a.sel { background: var(--bg); box-shadow: inset 3px 0 0 var(--oxblood); }
+.search-subjects .count { font-size: .8rem; color: var(--muted); border: 1px solid var(--hair); border-radius: 999px; padding: 0 .55rem; }
+.search-pane-title { margin: 0 0 .6rem; font-size: 1.2rem; }
+.search-back { display: none; margin: 0 0 .5rem; }
+@media (max-width: 599px) {
+  .search-two { grid-template-columns: 1fr; }
+  .search-two.has-pick .search-subjects { display: none; }
+  .search-two:not(.has-pick) .search-pane { display: none; }
+  .search-two.has-pick .search-back { display: block; }
+}
 .search-result { padding: .75rem 0; border-bottom: 1px solid var(--hair); }
 .search-meta { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; font-family: var(--font-sans); font-size: var(--small-size); color: var(--muted); }
 .search-kind { letter-spacing: .06em; text-transform: uppercase; }

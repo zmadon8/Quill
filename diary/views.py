@@ -365,23 +365,54 @@ def search(request):
     raw_limit = request.GET.get("limit", "")
     limit = safe_int(raw_limit) or SEARCH_PAGE
     limit = min(limit, SEARCH_MAX)
+    headers_only = request.GET.get("headers") == "1"
     searched = bool(query) or citations_only or review_only
     results = search_module.run_search(
-        profile, query, subject_id=subject_id, citations_only=citations_only, review_only=review_only
+        profile, query, subject_id=subject_id, citations_only=citations_only, review_only=review_only,
+        headers_only=headers_only,
     ) if searched else []
-    more_params = {"q": query, "limit": min(limit + SEARCH_PAGE, SEARCH_MAX)}
+    # "By Subject" view: only when the whole database is searched (a Subject filter always uses the plain cards).
+    by_subject = bool(results) and subject_id is None and request.GET.get("view") == "subjects"
+    base_params = {"q": query}
     if subject_id:
-        more_params["subject"] = subject_id
+        base_params["subject"] = subject_id
     if citations_only:
-        more_params["citations"] = 1
+        base_params["citations"] = 1
     if review_only:
-        more_params["review"] = 1
+        base_params["review"] = 1
+    if headers_only:
+        base_params["headers"] = 1
+    groups, chosen_group, shown = [], None, results
+    if by_subject:
+        counts = {}
+        for r in results:
+            counts[r.subject_id] = counts.get(r.subject_id, 0) + 1
+        groups = [{"subject": s, "count": counts[s.pk]}
+                  for s in panel["panel_main"] + panel["panel_other"] if s.pk in counts]
+        picked = safe_int(request.GET.get("s"))
+        chosen_group = next((g for g in groups if g["subject"].pk == picked), groups[0] if groups else None)
+        for g in groups:
+            g["url"] = "?" + urlencode(dict(base_params, view="subjects", s=g["subject"].pk))
+        shown = [r for r in results if chosen_group and r.subject_id == chosen_group["subject"].pk]
+        has_more = len(shown) > limit and limit < SEARCH_MAX
+    else:
+        has_more = len(results) > limit and limit < SEARCH_MAX
+    more_params = dict(base_params, limit=min(limit + SEARCH_PAGE, SEARCH_MAX))
+    if by_subject:
+        more_params["view"] = "subjects"
+        if chosen_group:
+            more_params["s"] = chosen_group["subject"].pk
+    view_params = {k: v for k, v in base_params.items()}
     return render(request, "diary/search.html", {
-        "q": query, "searched": searched, "results": results[:limit], "total": len(results),
-        "has_more": len(results) > limit and limit < SEARCH_MAX,
+        "q": query, "searched": searched, "results": shown[:limit], "total": len(results),
+        "shown_total": len(shown),
+        "has_more": has_more,
         "more_query": urlencode(more_params),
         "main_subjects": panel["panel_main"], "other_subjects": panel["panel_other"],
         "chosen_subject": subject_id, "citations_only": citations_only, "review_only": review_only,
+        "headers_only": headers_only, "want_subjects": request.GET.get("view") == "subjects", "by_subject": by_subject, "groups": groups, "chosen_group": chosen_group,
+        "cards_url": "?" + urlencode(view_params),
+        "subjects_url": "?" + urlencode(dict(view_params, view="subjects")),
     })
 
 
