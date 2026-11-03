@@ -372,7 +372,7 @@ class DiaryRoundTripTests(BackupBase):
         section = Section.objects.create(profile=main_profile(), subtopic=subtopic, name="Ex Parte", needs_review=True, review_note="check")
         item = Item.objects.create(profile=main_profile(), subtopic=subtopic, text="<p>Rule <b>one</b></p>", position=1)
         Case.objects.create(profile=main_profile(), item=item, citation="A v B", position=1)
-        lines = Item.objects.create(profile=main_profile(), subject=other, text="Parent", citation_layout="lines")
+        lines = Item.objects.create(profile=main_profile(), topic=other_topic, text="Parent", citation_layout="lines")
         Case.objects.create(profile=main_profile(), item=lines, citation="C v D", comment="<p>why</p>", position=1)
         Case.objects.create(profile=main_profile(), item=lines, citation="G v H", position=2)
         multi = Item.objects.create(profile=main_profile(), topic=topic, text="Multi")
