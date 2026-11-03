@@ -244,11 +244,12 @@ class AddTests(EditViewTestCase):
         sub = Subtopic.objects.get(topic=topic)
         self.assertEqual((sub.name, sub.position), ("Time", 1))
 
-    def test_a_subject_with_topics_refuses_a_direct_subtopic(self):
-        resp = self.add("subtopic", ("subject", self.subject.pk), name="Direct")
-        self.assertEqual(resp.status_code, 302)
+    def test_a_subtopic_added_to_a_subject_is_housed_in_its_topic_1(self):
+        # D82: never a Sub-topic straight under a Subject.
+        self.add("subtopic", ("subject", self.subject.pk), name="Direct")
         self.assertFalse(Subtopic.objects.filter(subject=self.subject).exists())
-        self.assertTrue(self.msgs(resp))
+        sub = Subtopic.objects.get(name="Direct")
+        self.assertEqual((sub.topic.name, sub.topic.subject_id), ("1", self.subject.pk))
 
     def test_a_blank_heading_name_is_refused(self):
         resp = self.add("topic", ("subject", self.subject.pk), name="   ")

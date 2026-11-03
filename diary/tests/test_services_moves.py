@@ -1,6 +1,6 @@
 """Move, reorder, positions and generated numbers after moves and deletes (service layer)."""
 from diary import services as svc
-from diary.models import Case, NoteLink, VersionHistory
+from diary.models import Case, NoteLink, Topic, VersionHistory
 from diary.services.sequences import members
 from diary.tests.service_helpers import ServiceTestCase
 
@@ -208,21 +208,21 @@ class MoveBetweenParentsTests(ServiceTestCase):
         self.assertEqual(self.get(sub).topic_id, self.topic.pk)
         self.assertEqual(self.get(self.topic).subject_id, s2.pk)
 
-    def test_topic_cannot_move_into_a_subject_with_direct_subtopics(self):
-        s2 = self.make("subject", name="Acts")
-        self.make("subtopic", ("subject", s2.pk), name="Direct")
-        with self.assertRaises(svc.Refused):
-            svc.move(self.profile, self.user, "topic", self.topic.pk, ("subject", s2.pk))
-        self.assertEqual(self.get(self.topic).subject_id, self.subject.pk)
+    def test_topic_moves_into_any_subject(self):
+        # D81: the "Topics or Sub-topics, not both" rule is gone.
+        s2 = self.make("subject", name="Acts", show_on_landing=False)
+        self.make("topic", ("subject", s2.pk), name="Existing")
+        svc.move(self.profile, self.user, "topic", self.topic.pk, ("subject", s2.pk))
+        self.assertEqual(self.get(self.topic).subject_id, s2.pk)
 
-    def test_subtopic_moves_between_topic_and_subject(self):
+    def test_a_subtopic_moved_to_a_subject_lands_in_its_topic_1(self):
+        # D82: a Sub-topic always sits in a Topic; "under a Subject" means in its Topic "1".
         s2 = self.make("subject", name="Acts")
         sub = self.make("subtopic", ("topic", self.topic.pk), name="Offer")
         svc.move(self.profile, self.user, "subtopic", sub.pk, ("subject", s2.pk))
         moved = self.get(sub)
-        self.assertEqual((moved.topic_id, moved.subject_id), (None, s2.pk))
-        with self.assertRaises(svc.Refused):
-            svc.move(self.profile, self.user, "subtopic", sub.pk, ("subject", self.subject.pk))
+        self.assertIsNone(moved.subject_id)
+        self.assertEqual((Topic.objects.get(pk=moved.topic_id).name, Topic.objects.get(pk=moved.topic_id).subject_id), ("1", s2.pk))
 
     def test_links_are_untouched_by_moves(self):
         note = self.make("note", ("topic", self.topic2.pk), text="see")

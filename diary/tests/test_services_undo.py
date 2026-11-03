@@ -172,25 +172,14 @@ class UndoTests(ServiceTestCase):
 
 
 class UndoStructuralRuleTests(ServiceTestCase):
-    def test_undo_of_a_topic_delete_is_refused_once_the_subject_holds_subtopics(self):
+    def test_undo_of_a_topic_delete_works_whatever_else_the_subject_holds(self):
+        # D81: no "Topics or Sub-topics, not both" rule any more, so nothing blocks the Undo.
         subject = self.make("subject", name="Contract")
         topic = self.make("topic", ("subject", subject.pk), name="Formation")
         deleted = svc.delete(self.profile, self.user, "topic", topic.pk)
-        self.make("subtopic", ("subject", subject.pk), name="Direct")
-        with self.assertRaises(svc.Refused):
-            svc.undo_group(self.profile, self.user, deleted.group)
-        self.assertIsNotNone(self.get(topic).deleted_at)
-        self.assertIsNotNone(self.get(topic).delete_batch)
-
-    def test_undo_of_a_move_is_refused_once_the_old_subject_holds_subtopics(self):
-        old = self.make("subject", name="Contract")
-        new = self.make("subject", name="Tort")
-        topic = self.make("topic", ("subject", old.pk), name="Formation")
-        moved = svc.move(self.profile, self.user, "topic", topic.pk, parent=("subject", new.pk))
-        self.make("subtopic", ("subject", old.pk), name="Direct")
-        with self.assertRaises(svc.Refused):
-            svc.undo_group(self.profile, self.user, moved.group)
-        self.assertEqual(self.get(topic).subject_id, new.pk)
+        self.make("subtopic", ("subject", subject.pk), name="Direct")  # housed in Topic "1" (D82)
+        svc.undo_group(self.profile, self.user, deleted.group)
+        self.assertIsNone(self.get(topic).deleted_at)
 
     def test_undo_still_works_when_the_rules_hold(self):
         subject = self.make("subject", name="Contract")

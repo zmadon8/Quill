@@ -154,7 +154,7 @@ def restore(
         anchored = chain + [obj]
         for rec in anchored:
             if record_type(rec) in housing.HOUSED and rec.subject_id is not None:
-                # An Item or Section trashed while it sat directly under a Subject comes back into Topic "1" (D61).
+                # An Item, Section or Sub-topic trashed while it sat directly under a Subject comes back into Topic "1" (D61, D82).
                 kind_, topic_id = housing.house_parent(ctx, ("subject", rec.subject_id))
                 if kind_ == "topic":
                     rec.subject_id, rec.topic_id = None, topic_id

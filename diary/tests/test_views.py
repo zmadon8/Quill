@@ -477,10 +477,14 @@ class ReadingScreenTests(TestCase):
         self.assertLess(html.index("Contract Law"), html.index('id="other-subjects"'))
         self.assertLess(html.index('id="other-subjects"'), html.index("Sample Act"))
 
-    def test_crumb_for_an_other_subject_links_to_the_section(self):
+    def test_crumb_for_an_other_subject_has_no_other_subjects_step(self):
+        # D82: the breadcrumb is the same for every Subject.
         self.client.force_login(self.users["reader"])
         resp = self.client.get(reverse("read_subject", args=[self.other.pk]))
-        self.assertContains(resp, '<a href="%s#other-subjects">Other Subjects</a>' % reverse("diary_home"))
+        crumbs = resp.content.decode().split('class="breadcrumb"')[1].split("</nav>")[0]
+        self.assertNotIn("Other Subjects", crumbs)
+        self.assertNotIn("#other-subjects", crumbs)
+        self.assertIn(self.other.name, crumbs)
 
     def test_breadcrumb_shown_on_judgment_lists_with_subjects_root(self):
         self.client.force_login(self.users["reader"])

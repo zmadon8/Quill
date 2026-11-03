@@ -51,13 +51,15 @@ class ServiceRuleTests(ServiceTestCase):
         self.assertEqual(self.get(item).topic_id, mine.pk)
         self.assertEqual(len(self.topics()), 2)
 
-    def test_a_subject_with_direct_subtopics_is_housed_like_any_other(self):
-        # D81: Subjects under Other Subjects follow the same rule.
-        self.make("subtopic", ("subject", self.subject.pk), name="Direct")
+    def test_a_subtopic_and_an_item_added_to_a_subject_share_one_topic_1(self):
+        # D81, D82: Subjects under Other Subjects follow the same rule, and there is one Topic "1" per Subject.
+        sub = self.make("subtopic", ("subject", self.subject.pk), name="Direct")
         item = self.make("item", ("subject", self.subject.pk), text="goes to Topic 1")
+        self.assertEqual(len(self.topics()), 1)
         topic = self.topics()[0]
         self.assertEqual(topic.name, "1")
         self.assertEqual((self.get(item).subject_id, self.get(item).topic_id), (None, topic.pk))
+        self.assertEqual((self.get(sub).subject_id, self.get(sub).topic_id), (None, topic.pk))
 
     def test_notes_are_not_housed(self):
         note = self.make("note", ("subject", self.subject.pk), text="about the Subject")

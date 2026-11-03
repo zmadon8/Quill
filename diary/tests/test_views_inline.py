@@ -85,7 +85,7 @@ class AddFormTests(InlineTestCase):
         # D81: Subjects under Other Subjects are treated like any other, and a Sub-topic always sits in a Topic.
         self.assertEqual(self.choices("subject:%d" % self.subject.pk), ["inside:item", "inside:topic", "inside:note"])
         other = self.make("subject", name="Other Acts", show_on_landing=False)
-        self.make("subtopic", ("subject", other.pk), name="Direct")
+        self.make("topic", ("subject", other.pk), name="Existing")
         self.assertEqual(self.choices("subject:%d" % other.pk), ["inside:item", "inside:topic", "inside:note"])
         empty = self.make("subject", name="Empty")
         self.assertEqual(self.choices("subject:%d" % empty.pk), ["inside:item", "inside:topic", "inside:note"])

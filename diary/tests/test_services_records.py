@@ -116,14 +116,15 @@ class CreateTests(ServiceTestCase):
         with self.assertRaises(svc.Refused):
             self.make("item", ("item", plain.pk), text="child")
 
-    def test_every_subject_may_hold_topics_and_older_direct_subtopics_together(self):
-        # D81: a Subject listed under Other Subjects is treated like any other. The old "Topics or Sub-topics, not both" rule is gone.
+    def test_a_subtopic_added_to_a_subject_goes_into_its_topic_1(self):
+        # D81 and D82: every Subject is alike, and a Sub-topic always sits in a Topic.
         subject = self.make("subject", name="S")
         self.make("topic", ("subject", subject.pk), name="T")
         direct = self.make("subtopic", ("subject", subject.pk), name="Direct")
-        self.assertEqual(self.get(direct).subject_id, subject.pk)
+        housed = self.get(direct)
+        self.assertIsNone(housed.subject_id)
+        self.assertEqual((Topic.objects.get(pk=housed.topic_id).name, Topic.objects.get(pk=housed.topic_id).subject_id), ("1", subject.pk))
         other = self.make("subject", name="O", show_on_landing=False)
-        self.make("subtopic", ("subject", other.pk), name="Direct")
         topic = self.make("topic", ("subject", other.pk), name="T")
         self.assertEqual(self.get(topic).subject_id, other.pk)
 

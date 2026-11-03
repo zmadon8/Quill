@@ -24,7 +24,7 @@ from accounts.profiles import DEFAULT_PROFILE_NAME
 from accounts.suite import KEY_DIARY as DEFAULT_PROGRAM
 
 from diary import legacy_merge as legacy
-from diary import nested_conversion, topic_one
+from diary import nested_conversion, subtopic_one, topic_one
 
 from . import policy, registry, storage as offsite_storage
 from .models import KEEP_KINDS, BackupFile, BackupLog
@@ -279,14 +279,17 @@ def upgrade_old_items(document, now=None):
         raise BackupError(f"This backup holds data that cannot be mapped to the current format. {exc}")
     # Then Nested Items (round 10): sub-items become citations with comments, via diary.nested_conversion.
     nested = nested_conversion.upgrade_document_nested(document["models"], stamp)
-    # Last: Items and Sections directly under a Subject go into its Topic "1" (D61).
+    # Then: Sub-topics directly under a Subject go into its Topic "1" (D82), and last the Items and Sections directly under a
+    # Subject go into the same Topic "1" (D61). The order matters: Items are left loose while their Subject holds Sub-topics.
+    housed_sub = subtopic_one.house_document(document["models"], stamp)
     housed = topic_one.house_document(document["models"], stamp)
+    document["subtopic_mapping"] = housed_sub
     document["legacy_mapping"] = stats
     document["nested_mapping"] = nested
     document["housing_mapping"] = housed
-    if stats["items_changed"] or nested["nested_items"] or housed["subjects_housed"]:
+    if stats["items_changed"] or nested["nested_items"] or housed["subjects_housed"] or housed_sub["subjects_housed"]:
         counts = document.setdefault("counts", {})
-        for label in ("diary.Item", "diary.Section", "diary.Topic", "diary.Case", "diary.Note", "diary.NoteLink",
+        for label in ("diary.Item", "diary.Section", "diary.Subtopic", "diary.Topic", "diary.Case", "diary.Note", "diary.NoteLink",
                       "diary.TrashBatch", "diary.VersionHistory"):
             if label in document["models"]:
                 counts[label] = len(document["models"][label])
@@ -489,6 +492,7 @@ def restore_backup(document, user):
         + ", ".join(f"{label} {n}" for label, n in counts.items())
         + (" " + legacy.describe(document.get("legacy_mapping") or legacy.new_stats())).rstrip()
         + (" " + nested_conversion.describe(document.get("nested_mapping") or nested_conversion.new_stats())).rstrip()
+        + (" " + subtopic_one.describe(document.get("subtopic_mapping") or subtopic_one.new_stats())).rstrip()
         + (" " + topic_one.describe(document.get("housing_mapping") or topic_one.new_stats())).rstrip(),
         created_by=survivor,
     )

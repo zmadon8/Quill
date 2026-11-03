@@ -254,10 +254,8 @@ def _render_reading(request, subject, scope, target, crumbs):
 
 
 def _crumbs(subject):
-    crumbs = []
-    if not subject.show_on_landing:
-        crumbs.append((None, "Other Subjects", "other_subjects"))
-    crumbs.append((subject.pk, subject.name, "read_subject"))
+    # The breadcrumb is the same for every Subject: no "Other Subjects" step (D82).
+    crumbs = [(subject.pk, subject.name, "read_subject")]
     return crumbs
 
 

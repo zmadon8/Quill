@@ -34,12 +34,12 @@ class NewHeadingServiceTests(ServiceTestCase):
         self.assertEqual(options["subtopic"]["parent"].pk, self.topic.pk)
         self.assertEqual(options["topic"]["parent"].pk, self.subject.pk)
 
-    def test_subject_holding_subtopics_directly_is_treated_like_any_other(self):
-        # D81: the old rule that stopped such a Subject taking Topics is gone.
+    def test_an_other_subject_is_treated_like_any_other(self):
+        # D81: the old rule that stopped such a Subject taking Topics is gone; D82: its Sub-topic sits in Topic "1".
         other = self.make("subject", name="Others", show_on_landing=False)
         sub = self.make("subtopic", ("subject", other.pk), name="Direct")
         item = self.make("item", ("subtopic", sub.pk), text="in direct")
-        self.assertEqual(self.kinds(item), ["topic"])
+        self.assertEqual(self.kinds(item), ["topic", "subtopic"])
         self.assertEqual(self.kinds(sub), ["topic"])
 
     def test_move_into_a_new_topic(self):

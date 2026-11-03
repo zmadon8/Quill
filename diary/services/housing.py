@@ -1,4 +1,4 @@
-"""Items live in a Topic (round 10, docs/DESIGN.md D61).
+"""Items, Sections and Sub-topics live in a Topic (round 10, docs/DESIGN.md D61; Sub-topics: D82).
 
 Owner: "Any items which are not housed in a Topic will automatically be housed in a topic called \u201c1\u201d". So an Item
 or Section that is added to, or moved to, or restored under a Subject goes into that Subject's Topic named "1" instead
@@ -10,8 +10,8 @@ from django.db.models.functions import Lower
 from ..models import Topic
 
 TOPIC_ONE = "1"
-#: Record types that are housed in a Topic when their parent would be a Subject.
-HOUSED = ("item", "section")
+#: Record types that are housed in a Topic when their parent would be a Subject (D61 for Items and Sections, D82 for Sub-topics).
+HOUSED = ("item", "section", "subtopic")
 
 
 def find_topic_one(ctx, subject_id):
