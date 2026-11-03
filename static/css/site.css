@@ -495,3 +495,12 @@ html.light *, html.light *::before, html.light *::after { transition: none !impo
 html.light .contents-panel, html.light .site-header.header-open, html.light .export-menu, html.light .menu, html.light .editcard, html.light .edit-toast { box-shadow: none; }
 /* Text far off the screen is not laid out until you scroll near it (supported browsers only; others ignore this). Not used while editing, because it would clip the menus. */
 html.light body:not(.edit-on) .reading .item, html.light body:not(.edit-on) .reading .section-header, html.light body:not(.edit-on) .reading .note { content-visibility: auto; contain-intrinsic-size: auto 5rem; }
+
+/* Previous / next arrows beside the heading of a Topic or Sub-topic page. */
+.stepping { display: flex; align-items: center; gap: .75rem; }
+.stepping .heading-link { flex: 1 1 auto; min-width: 0; }
+.step-arrows { display: inline-flex; gap: .25rem; flex: 0 0 auto; margin-left: auto; }
+.step { display: inline-flex; align-items: center; justify-content: center; width: 2.2rem; height: 2.2rem; color: var(--ink); border: 1px solid var(--hair); border-radius: 3px; background: var(--bg); text-decoration: none; letter-spacing: 0; }
+a.step:hover, a.step:focus-visible { border-color: var(--ink); background: var(--panel); }
+.step.disabled { opacity: .35; }
+@media (max-width: 599px) { .step { width: var(--tap); height: var(--tap); } }

@@ -364,6 +364,41 @@ def _topic_blocks(topic, label, data, fmts, depth):
     return blocks
 
 
+def _step(kind, obj):
+    return {"kind": kind, "id": obj.pk, "name": obj.name, "url": reverse(READ_URL_NAMES[kind], args=[obj.pk])}
+
+
+def neighbours(data, scope, target):
+    """(previous, next) for the arrows beside the heading of a Topic or Sub-topic page; each is a dict or None.
+
+    Reading order is the Contents order (alphabetical). From a Topic: the Topic before and after it. From a Sub-topic:
+    the Sub-topic before and after it in the same Topic; at either end, the previous or next Topic (the one before or
+    after the Sub-topic's own Topic). A Sub-topic directly under a Subject only has its sibling Sub-topics.
+    """
+    topics = data.topics
+    topic_at = {t.pk: i for i, t in enumerate(topics)}
+
+    def topic_step(i):
+        return _step("topic", topics[i]) if 0 <= i < len(topics) else None
+
+    if scope == "topic":
+        i = topic_at.get(target.pk)
+        return (None, None) if i is None else (topic_step(i - 1), topic_step(i + 1))
+    if scope == "subtopic":
+        if target.topic_id:
+            siblings = data.subtopics_by.get(("topic", target.topic_id), [])
+        else:
+            siblings = data.subtopics_by.get(("subject", target.subject_id), [])
+        j = next((n for n, sub in enumerate(siblings) if sub.pk == target.pk), None)
+        if j is None:
+            return None, None
+        parent = topic_at.get(target.topic_id) if target.topic_id else None
+        before = _step("subtopic", siblings[j - 1]) if j > 0 else (topic_step(parent - 1) if parent is not None else None)
+        after = _step("subtopic", siblings[j + 1]) if j + 1 < len(siblings) else (topic_step(parent + 1) if parent is not None else None)
+        return before, after
+    return None, None
+
+
 def build_reading(subject, user, scope="subject", target=None):
     """Return the context for the reading page.
 
@@ -403,4 +438,5 @@ def build_reading(subject, user, scope="subject", target=None):
             siblings = direct
         labels = dict(zip((s.pk for s in siblings), numbering.number_siblings(len(siblings), fmts["subtopic_format"])))
         blocks = _subtopic_blocks(target, labels[target.pk], data, fmts, 1)
-    return {"blocks": blocks, "toc": toc, "direct_toc": direct_toc}
+    prev_nav, next_nav = neighbours(data, scope, target)
+    return {"blocks": blocks, "toc": toc, "direct_toc": direct_toc, "prev_nav": prev_nav, "next_nav": next_nav}
