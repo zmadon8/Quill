@@ -151,7 +151,7 @@ class HomeIndexTests(TestCase):
     def test_nav_marks_current_page(self):
         self.client.force_login(self.admin)
         resp = self.client.get(reverse("user_list"))
-        self.assertContains(resp, 'class="on" aria-current="page">Users</a>')
+        self.assertContains(resp, 'class="nav-icon on" aria-current="page" aria-label="Users"')  # Icons, the default (D85)
         self.assertNotContains(resp, 'class="on" aria-current="page">Subjects</a>')
 
     def test_login_page_is_plain(self):
@@ -370,7 +370,7 @@ class HomeIndexTests(TestCase):
             self.assertEqual(header.count("data-search-toggle"), 1 if name == "diary_home" else 0, name)
             # Icons are the default header bar (D84): Trash, Export, Help and Settings are icons on diary pages too.
             self.assertEqual(header.count("<svg") - 2, header.count('class="home-button"') + header.count("data-search-toggle")
-                             + header.count('class="nav-icon'), name)
+                             + header.count("nav-icon"), name)
             self.assertIn('data-fallback="%s"' % reverse("home"), header)
 
     def test_no_review_tab_in_the_header(self):

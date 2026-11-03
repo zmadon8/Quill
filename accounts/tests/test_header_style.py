@@ -85,3 +85,52 @@ class HeaderStyleTests(TestCase):
         with CaptureQueriesContext(connection) as words:
             self.client.get(reverse("diary_home"))
         self.assertEqual(len(icons), len(words))
+
+
+@override_settings(SECURE_SSL_REDIRECT=False)
+class SuiteHeaderTests(TestCase):
+    """D85: the main Home page header has icons too, and follows the same choice."""
+
+    SUITE = ("Profiles", "Users", "Import", "Backups", "Settings", "Help", "My settings")
+
+    def setUp(self):
+        self.admin = join_main(User.objects.create_user("adam", password=PASSWORD, is_superuser=True), "editor")
+        self.client.force_login(self.admin)
+
+    def header(self, name="home"):
+        url = reverse(name) + ("?home=1" if name == "home" else "")
+        html = self.client.get(url).content.decode()
+        return html.split('<header class="site-header"')[1].split("</header>")[0]
+
+    def test_every_home_page_link_is_an_icon_with_its_name(self):
+        header = self.header()
+        for name in self.SUITE:
+            link = re.search(r'<a [^>]*aria-label="%s" title="%s">(.*?)</a>' % (name, name), header, re.S)
+            self.assertIsNotNone(link, name)
+            self.assertIn("<svg", link.group(1), name)
+        logout = re.search(r'<button type="submit" class="link nav-icon" aria-label="Log out" title="Log out">(.*?)</button>', header, re.S)
+        self.assertIsNotNone(logout)
+        self.assertIn("<svg", logout.group(1))
+        nav = re.sub(r"<[^>]*>", " ", header.split('class="program-nav"')[1])
+        for word in self.SUITE + ("Log out",):
+            self.assertNotIn(word, nav, word)
+
+    def test_words_on_the_home_page(self):
+        self.admin.header_style = "words"
+        self.admin.save(update_fields=["header_style"])
+        header = self.header()
+        nav = re.sub(r"<[^>]*>", " ", header.split('class="program-nav"')[1])
+        for word in self.SUITE + ("Log out",):
+            self.assertIn(word, nav, word)
+        self.assertNotIn("nav-icon", header)
+
+    def test_the_current_page_is_marked_and_readers_see_only_their_links(self):
+        self.assertRegex(self.header("user_list"), r'class="nav-icon on" aria-current="page" aria-label="Users"')
+        reader = join_main(User.objects.create_user("rita", password=PASSWORD))
+        self.client.force_login(reader)
+        header = self.header()
+        for name in ("Profiles", "Users", "Import", "Backups", "Settings"):
+            self.assertNotIn('aria-label="%s"' % name, header, name)
+        for name in ("Help", "My settings"):
+            self.assertIn('aria-label="%s"' % name, header, name)
+

@@ -88,6 +88,7 @@ TEMPLATES = [
                 "accounts.context_processors.current_profile",
                 "accounts.context_processors.program_label",
                 "accounts.context_processors.header_style",
+                "accounts.context_processors.suite_nav",
                 "backups.context_processors.backup_banner",
             ],
         },

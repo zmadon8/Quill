@@ -48,3 +48,32 @@ def header_style(request):
     words = bool(user is not None and user.is_authenticated and getattr(user, "header_style", "icons") == "words")
     return {"header_words": words}
 
+
+#: The main Home page header: (url name, label, icon, admin only, "is this the current page" test on the url name).
+SUITE_NAV = (
+    ("profile_list", "Profiles", "icons/profiles.svg.html", True, lambda n: n.startswith("profile_")),
+    ("user_list", "Users", "icons/users.svg.html", True, lambda n: n.startswith("user_")),
+    ("import_word", "Import", "icons/import.svg.html", True, lambda n: n == "import_word"),
+    ("backup_list", "Backups", "icons/backups.svg.html", True, lambda n: n.startswith("backup_") or n.startswith("restore_")),
+    ("settings", "Settings", "icons/gear.svg.html", True, lambda n: n == "settings"),
+    ("help", "Help", "icons/help.svg.html", False, lambda n: n == "help"),
+    ("my_settings", "My settings", "icons/mysettings.svg.html", False, lambda n: n == "my_settings"),
+)
+
+
+def suite_nav(request):
+    """``suite_nav``: the links of the main Home page header bar, for ``templates/base_suite_home.html``."""
+    from django.urls import reverse
+
+    user = getattr(request, "user", None)
+    if user is None or not user.is_authenticated:
+        return {"suite_nav": []}
+    match = getattr(request, "resolver_match", None)
+    current = (match.url_name or "") if match else ""
+    items = []
+    for url_name, label, icon, admin_only, is_current in SUITE_NAV:
+        if admin_only and not user.is_admin:
+            continue
+        items.append({"url": reverse(url_name), "name": label, "icon": icon, "on": is_current(current)})
+    return {"suite_nav": items}
+

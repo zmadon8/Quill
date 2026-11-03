@@ -521,3 +521,26 @@ a.step:hover, a.step:focus-visible { border-color: var(--ink); background: var(-
 .home-button.word-tool { width: auto; min-width: 0; }
 .word-tool:hover, .word-tool:focus-visible { color: var(--oxblood); border-color: var(--oxblood); }
 .header-style-choice { border: 0; padding: 0; margin: 0 0 .25rem; display: flex; gap: 1.5rem; }
+
+/* No boxes around icons, anywhere (round 15, D85). Every icon-only control keeps its 44px tap area and its keyboard
+   focus ring (:focus-visible above); hover turns it oxblood. Buttons that carry a word (Save, + Add, Edit...) keep their look. */
+.home-button, .icon-tool, .back-button, .forward-button, .header-toggle, .contents-icon, .icon-button, .step,
+.program-nav .home-button, .program-nav .icon-tool, .program-nav button.nav-icon {
+  border: 0; background: transparent; box-shadow: none; border-radius: 0; color: var(--ink);
+}
+.home-button:hover, .home-button:focus-visible, .icon-tool:hover, .icon-tool:focus-visible,
+.back-button:hover:not(:disabled), .forward-button:hover:not(:disabled), .header-toggle:hover, .contents-icon:hover,
+.icon-button:hover, a.step:hover, a.step:focus-visible, .program-nav button.nav-icon:hover {
+  background: transparent; color: var(--oxblood);
+}
+.contents-icon[aria-expanded="true"] { background: transparent; color: var(--oxblood); }
+.program-nav button.nav-icon { display: inline-flex; align-items: center; justify-content: center; min-width: var(--tap); min-height: var(--tap); padding: 0; }
+.program-nav button.nav-icon svg { display: block; }
+/* Words mode: Search, Home and Log out read like the other header words, not as boxed buttons. */
+.word-tool { border: 0; background: transparent; padding: 0; color: var(--muted); }
+.word-tool:hover, .word-tool:focus-visible { color: var(--ink); background: transparent; }
+@media (max-width: 599px) {
+  /* The Export button is an icon only on a phone: no box there either. */
+  .export-split .export-link, .crumb-row > .export-link { border: 0; background: transparent; color: var(--ink); }
+  .export-split .export-link:hover { color: var(--oxblood); background: transparent; }
+}
