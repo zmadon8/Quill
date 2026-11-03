@@ -231,3 +231,62 @@ class MoveToNewHeadingFlowTests(ServiceTestCase):
         self.assertNotEqual(undo.status_code, 403)
         self.assertEqual(self.get(self.one).topic_id, self.topic.pk)
         self.assertFalse(Topic._base_manager.filter(subject=self.subject, name="Zed", deleted_at__isnull=True).exists())
+
+
+PHONE = "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/126.0 Mobile Safari/537.36"
+
+
+@override_settings(SECURE_SSL_REDIRECT=False)
+class PhoneAddTests(ServiceTestCase):
+    """Hotfix: "I am not able to add a new item in Mobile mode. I am told to go to desktop mode."
+
+    Nothing in the round 11 code gates adding on a desktop. These tests keep it that way: "+ Add" is a real link to
+    the full Add page (no script needed), the page works for a phone browser with the real CSRF check, and the
+    script never tests for a wide screen or a mouse before opening the form.
+    """
+
+    def setUp(self):
+        super().setUp()
+        join_main(self.user, "editor")
+        self.build_topic()
+        self.strict = Client(enforce_csrf_checks=True, HTTP_USER_AGENT=PHONE)
+        self.strict.force_login(self.user)
+        self.next = reverse("read_subject", args=[self.subject.pk]) + "?edit=1"
+
+    def test_the_add_button_is_a_link_to_the_add_page_with_the_place(self):
+        resp = self.strict.get(reverse("read_subject", args=[self.subject.pk]), {"edit": "1"})
+        self.assertContains(resp, f"after=item:{self.one.pk}")
+        self.assertContains(resp, f"parent=topic:{self.topic.pk}")
+        self.assertNotContains(resp, "desktop")
+
+    def test_the_add_page_after_an_item_offers_item_and_section_and_saves_with_the_page_token(self):
+        page = self.strict.get(reverse("edit_add"), {"after": f"item:{self.one.pk}", "next": self.next})
+        self.assertEqual(page.status_code, 200)
+        markup = page.content.decode()
+        for label in (">Item<", ">Section<"):
+            self.assertIn(label, markup)
+        self.assertNotIn("Nested", markup)
+        self.assertNotIn("desktop", markup.lower())
+        data = {**fields_of(markup), "what": "item", "text": "added on a phone", "citation": "A v B"}
+        self.assertEqual(self.strict.post(reverse("edit_add"), {k: v for k, v in data.items()
+                                                                if k != "csrfmiddlewaretoken"}).status_code, 403)
+        resp = self.strict.post(reverse("edit_add"), data)
+        self.assertEqual(resp.status_code, 302)
+        from diary.models import Item
+
+        added = Item.objects.get(profile=self.profile, text__contains="added on a phone")
+        self.assertEqual(added.topic_id, self.topic.pk)
+
+    def test_the_add_page_inside_a_topic_offers_item_section_and_note(self):
+        page = self.strict.get(reverse("edit_add"), {"parent": f"topic:{self.topic.pk}", "next": self.next})
+        self.assertEqual(page.status_code, 200)
+        markup = page.content.decode()
+        for label in (">Item<", ">Section<", ">Note<"):
+            self.assertIn(label, markup)
+
+    def test_the_script_does_not_wait_for_a_wide_screen_or_a_mouse(self):
+        for name in ("edit-mode.js", "add-form.js"):
+            source = (Path(settings.BASE_DIR) / "static" / "js" / name).read_text(encoding="utf-8").lower()
+            self.assertNotIn("desktop", source, name)
+            self.assertNotIn("hover: hover", source, name)
+            self.assertNotIn("pointer: fine", source, name)
