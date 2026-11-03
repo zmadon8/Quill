@@ -256,7 +256,7 @@ def _add_page(request):
     if not choices:
         raise Http404("Nothing can be added there.")
     options = [{"value": c, "label": text} for c, text in choices]
-    after = any(c.startswith("after:") for c, _ in choices)
+    after = bool(request.GET.get("after")) and not request.GET.get("parent")
     where = f"{'after' if after else 'inside'} the {NICE[kind]} \u201c{label(record)}\u201d"
     return render(request, "diary/add_page.html", {
         "options": options, "where": where, "ref": f"{kind}:{record.pk}", "ref_version": record.version,

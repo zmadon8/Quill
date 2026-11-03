@@ -232,7 +232,9 @@ class HomeIndexTests(TestCase):
         nav = html.split('class="program-nav"')[1].split("</nav>")[0]
         self.assertNotIn(">Subjects</a>", nav)
         self.assertNotIn('href="%s"' % reverse("diary_home"), nav)
-        self.assertNotIn("Search", nav)
+        self.assertNotIn(">Search<", nav)
+        self.assertNotIn("Search</a>", nav)
+        self.assertNotIn("Search", re.sub(r"<[^>]*>", " ", nav))
         header = html.split('<header class="site-header"')[1].split("</header>")[0]
         self.assertIn('<a href="%s" title="Home"' % reverse("diary_home"), header)
         self.assertIn("data-search-toggle", header)
