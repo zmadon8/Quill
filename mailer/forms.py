@@ -14,13 +14,12 @@ class EmailBackupForm(forms.ModelForm):
 
     class Meta:
         model = EmailBackupSchedule
-        fields = ("enabled", "frequency", "weekday", "day_of_month", "recipients", "include_data", "include_word", "include_review")
+        fields = ("enabled", "frequency", "weekday", "day_of_month", "recipients", "delivery", "include_review")
         labels = {
             "enabled": "Send backups by email",
             "frequency": "How often",
             "weekday": "On",
-            "include_data": "The full backup file (.json.gz) that can be restored on the Backups screen",
-            "include_word": "The complete Word export (.docx) of each diary profile",
+            "delivery": "What to send",
             "include_review": "Include For review markers in the Word file",
         }
 
@@ -35,6 +34,4 @@ class EmailBackupForm(forms.ModelForm):
         if cleaned.get("enabled"):
             if not cleaned.get("recipients") and "recipients" not in self.errors:
                 self.add_error("recipients", "Add at least one email address, or untick \u201cSend backups by email\u201d.")
-            if not (cleaned.get("include_data") or cleaned.get("include_word")):
-                raise forms.ValidationError("Tick the backup file, the Word file, or both.")
         return cleaned

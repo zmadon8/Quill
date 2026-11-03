@@ -7,6 +7,13 @@ FREQUENCY_CHOICES = [
     (FREQ_WEEKLY, "Every week"),
     (FREQ_MONTHLY, "Every month"),
 ]
+DELIVERY_DATA, DELIVERY_WORD, DELIVERY_BOTH_ONE, DELIVERY_BOTH_SEPARATE = "data", "word", "both_one", "both_separate"
+DELIVERY_CHOICES = [
+    (DELIVERY_DATA, "The JSON backup only"),
+    (DELIVERY_WORD, "The complete Word export only"),
+    (DELIVERY_BOTH_ONE, "Both, in one email"),
+    (DELIVERY_BOTH_SEPARATE, "Both, in separate emails"),
+]
 WEEKDAY_CHOICES = [
     (0, "Monday"), (1, "Tuesday"), (2, "Wednesday"), (3, "Thursday"), (4, "Friday"), (5, "Saturday"), (6, "Sunday"),
 ]
@@ -24,8 +31,7 @@ class EmailBackupSchedule(models.Model):
     weekday = models.PositiveSmallIntegerField(choices=WEEKDAY_CHOICES, default=0)
     day_of_month = models.PositiveSmallIntegerField(default=1)
     recipients = models.TextField(blank=True)
-    include_data = models.BooleanField(default=True)
-    include_word = models.BooleanField(default=True)
+    delivery = models.CharField(max_length=15, choices=DELIVERY_CHOICES, default=DELIVERY_BOTH_ONE)
     include_review = models.BooleanField(default=True)
     # Whose My settings (number formats, date format) the emailed Word file uses: the Admin who last saved the schedule.
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")

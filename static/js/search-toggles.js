@@ -55,4 +55,65 @@
       });
     });
   }
+
+  // Search history: the last 50 different searches (words and ticks), kept in this browser for this login only.
+  // Recorded when the Search page shows a search; click one to run it again; x removes one; Clear removes all.
+  var hist = document.querySelector("[data-search-history]");
+  var hform = document.querySelector("[data-search-form]");
+  if (hist && hform) {
+    var HKEY = "quill.search.history." + (hform.getAttribute("data-user") || "");
+    var MAX = 50;
+    var TICKS = [["citations", "1", "Citations only"], ["review", "1", "For review only"], ["headers", "1", "Search headers"], ["view", "subjects", "By Subject"]];
+    var load = function () {
+      try { var v = JSON.parse(window.localStorage.getItem(HKEY)); return Array.isArray(v) ? v : []; } catch (err) { return []; }
+    };
+    var save = function (list) {
+      try { window.localStorage.setItem(HKEY, JSON.stringify(list.slice(0, MAX))); } catch (err) { /* private mode */ }
+    };
+    var same = function (a, b) {
+      return a.q === b.q && TICKS.every(function (t) { return !!a[t[0]] === !!b[t[0]]; });
+    };
+    var list = load();
+    if (hform.hasAttribute("data-searched")) {
+      var entry = { q: (hform.querySelector("[name=q]").value || "").trim(), at: Date.now() };
+      TICKS.forEach(function (t) { var c = hform.querySelector("[name=" + t[0] + "]"); entry[t[0]] = !!(c && c.checked); });
+      if (entry.q) {
+        list = [entry].concat(list.filter(function (e) { return !same(e, entry); }));
+        save(list);
+        list = list.slice(0, MAX);
+      }
+    }
+    var ul = hist.querySelector("[data-history-list]");
+    var urlFor = function (e) {
+      var params = new URLSearchParams();
+      params.set("q", e.q);
+      TICKS.forEach(function (t) { if (e[t[0]]) { params.set(t[0], t[1]); } });
+      return hform.getAttribute("action") + "?" + params.toString();
+    };
+    var draw = function () {
+      ul.textContent = "";
+      list.forEach(function (e, i) {
+        var li = document.createElement("li");
+        var a = document.createElement("a");
+        a.href = urlFor(e);
+        a.textContent = e.q;
+        li.appendChild(a);
+        var ticks = TICKS.filter(function (t) { return e[t[0]]; }).map(function (t) { return t[2]; });
+        if (ticks.length) { var m = document.createElement("span"); m.className = "meta"; m.textContent = " (" + ticks.join(", ") + ")"; li.appendChild(m); }
+        var x = document.createElement("button");
+        x.type = "button"; x.className = "link"; x.textContent = "\u00d7"; x.setAttribute("aria-label", "Remove " + e.q + " from history"); x.title = "Remove";
+        x.addEventListener("click", function () { list.splice(i, 1); save(list); draw(); });
+        li.appendChild(document.createTextNode(" "));
+        li.appendChild(x);
+        ul.appendChild(li);
+      });
+      hist.hidden = list.length === 0;
+    };
+    hist.querySelector("[data-history-clear]").addEventListener("click", function () {
+      list = [];
+      try { window.localStorage.removeItem(HKEY); } catch (err) { /* private mode */ }
+      draw();
+    });
+    draw();
+  }
 })();

@@ -15,10 +15,10 @@
   {{ form.weekday.as_field_group }}
   {{ form.day_of_month.as_field_group }}
   {{ form.recipients.as_field_group }}
-  {{ form.include_data.as_field_group }}
-  {{ form.include_word.as_field_group }}
+  {{ form.delivery.as_field_group }}
+  <p class="meta">The JSON backup (.json.gz) can be restored on the Backups screen. The Word export (.docx) is the whole diary, one file per diary profile. <strong>Both, in separate emails</strong> sends two emails, each with its own {{ max_mb }} MB allowance, which suits a large diary.{% if backup_size %} The newest backup file is {{ backup_size|filesizeformat }}.{% endif %}</p>
   {{ form.include_review.as_field_group }}
-  <p class="meta">Weekly uses the day chosen under &ldquo;On&rdquo;; monthly uses the day of the month. The nightly job (about 02:00 IST) sends it. If a send fails it is tried again the next night. Files are sent only up to {{ max_mb }} MB in all; anything bigger is left out and the email says so.</p>
+  <p class="meta">Weekly uses the day chosen under &ldquo;On&rdquo;; monthly uses the day of the month. The nightly job (about 02:00 IST) sends it. If a send fails it is tried again the next night. Each email carries at most {{ max_mb }} MB of files; anything that does not fit is left out, the email says so, and a warning bar shows on every page until you fix it.</p>
   <button type="submit" name="action" value="save">Save</button>
   <button type="submit" name="action" value="send_now">Save and send one now</button>
   <button type="submit" name="action" value="test" formnovalidate>Send a test email</button>

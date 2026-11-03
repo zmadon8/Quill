@@ -21,7 +21,7 @@ The longer plans are in `docs/PLAN.md` (what is built when), `docs/DESIGN.md` (h
 - **Remember me** on the login page (30 days; unticked, the login ends when the browser closes). **Forgot my password** (appears once email is set up): email a one-hour link, choose a new password. Add your email under My settings; the Admin can add it under Users.
 - The **Review** tab is gone from the header (the Review page and Search's **For review only** remain).
 - **Promote / Demote** in Edit mode, under **More**: Section -> Sub-topic -> Topic -> Subject and back down. One Undo step. See `docs/DESIGN.md` D75.
-- Search: the Subject drop-down is replaced by a **By Subject** toggle, and all the ticks (Citations only, For review only, Search headers, By Subject) are remembered by the browser.
+- Search: **Search history** (recent searches, click to repeat, clear all or one; kept in this browser). The Subject drop-down is replaced by a **By Subject** toggle, and all the ticks (Citations only, For review only, Search headers, By Subject) are remembered by the browser.
 - **Email plug-in** (`mailer` app): Forgot my password and scheduled emailed backups, including the complete Word export. See `docs/EMAIL.md`.
 
 ## How to edit

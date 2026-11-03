@@ -3,7 +3,7 @@
 {% block content %}
 <div class="home-column search-page">
   <h1>Search</h1>
-  <form class="search-form" role="search" method="get" action="{% url 'search' %}">
+  <form class="search-form" role="search" method="get" action="{% url 'search' %}" data-search-form data-user="{{ request.user.pk }}"{% if searched and q %} data-searched="1"{% endif %}>
     <div class="search-row">
       <label class="visually-hidden" for="search-q">Search the diary</label>
       <input type="search" id="search-q" name="q" value="{{ q }}" placeholder="Search the diary&hellip;" autocomplete="off" autofocus data-search-input>
@@ -17,8 +17,13 @@
     </div>
     {% if chosen_subject %}<input type="hidden" name="subject" value="{{ chosen_subject }}">{% endif %}
   </form>
+  <details class="search-history" data-search-history hidden>
+    <summary>Search history</summary>
+    <ul class="search-history-list" data-history-list></ul>
+    <p><button type="button" data-history-clear>Clear search history</button> <span class="meta">Kept only in this browser, for your login.</span></p>
+  </details>
   {% if not searched %}
-  <p class="meta search-help">Type words to find in names, text, citations, comments, flags, review notes and notes. Every word must appear (parts of words count), so <em>2018 9 SCC 49</em> finds (2018) 9 SCC 49. Put words in &ldquo;double quotes&rdquo; to find them together as a phrase. Brackets, full stops and quote marks are ignored. Search headers looks only in Subject, Topic, Sub-topic and Section names. The ticks (Citations only, For review only, Search headers, By Subject) are remembered by this browser. &#8997;F (Option-F on a Mac, Alt+F on Windows) jumps to the search box.</p>
+  <p class="meta search-help">Type words to find in names, text, citations, comments, flags, review notes and notes. Every word must appear (parts of words count), so <em>2018 9 SCC 49</em> finds (2018) 9 SCC 49. Put words in &ldquo;double quotes&rdquo; to find them together as a phrase. Brackets, full stops and quote marks are ignored. Search headers looks only in Subject, Topic, Sub-topic and Section names. The ticks (Citations only, For review only, Search headers, By Subject) are remembered by this browser, and so are your recent searches (see Search history, where you can clear them). &#8997;F (Option-F on a Mac, Alt+F on Windows) jumps to the search box.</p>
   {% elif results %}
   <div class="search-head">
     <p class="meta search-count">{{ total }} result{{ total|pluralize }}</p>

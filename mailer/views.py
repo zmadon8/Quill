@@ -40,4 +40,5 @@ def backup_email(request):
     return render(request, "mailer/backup_email.html", {
         "form": form, "schedule": schedule, "configured": services.is_configured(),
         "max_mb": settings.EMAIL_BACKUP_MAX_MB, "due": services.is_due(schedule),
+        "backup_size": services.newest_backup_size(),
     })

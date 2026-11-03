@@ -20,7 +20,14 @@ from backups.models import BackupFile
 from diary.wordexport import service as word_export
 from diary.wordexport.service import ExportError
 
-from .models import FREQ_DAILY, FREQ_MONTHLY, FREQ_WEEKLY, EmailBackupSchedule
+from .models import (
+    DELIVERY_BOTH_ONE,
+    DELIVERY_BOTH_SEPARATE,
+    DELIVERY_DATA,
+    DELIVERY_WORD,
+    FREQ_MONTHLY,
+    FREQ_WEEKLY,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -90,6 +97,11 @@ def is_due(schedule, now=None):
 
 # ------------------------------------------------------------------ what is attached
 
+def newest_backup_size():
+    latest = BackupFile.objects.defer("data").order_by("-created_at", "-id").first()
+    return latest.size_bytes if latest is not None else 0
+
+
 def _fresh_backup(now):
     latest = BackupFile.objects.order_by("-created_at", "-id").first()
     if latest is not None and now - latest.created_at < timedelta(hours=FRESH_BACKUP_HOURS):
@@ -97,50 +109,61 @@ def _fresh_backup(now):
     return backup_services.create_backup("manual")
 
 
-def collect_attachments(schedule, now=None):
-    """([(file name, bytes, content type)], [notes about what was left out]) within EMAIL_BACKUP_MAX_MB in total."""
-    now = now or timezone.now()
-    limit = settings.EMAIL_BACKUP_MAX_MB * 1024 * 1024
-    files, notes, used, names = [], [], 0, set()
+def _data_files(schedule, now):
+    backup = _fresh_backup(now)
+    return [(backup.filename, bytes(backup.data), GZIP_TYPE)], []
 
-    def add(name, data, content_type):
-        nonlocal used
-        if used + len(data) > limit:
-            notes.append(f"{name} ({len(data) // 1024} KB) was left out: the files would be more than {settings.EMAIL_BACKUP_MAX_MB} MB in all.")
-            return
+
+def _word_files(schedule, now):
+    """One .docx per live diary profile: ([(name, bytes, type)], [notes about any that could not be made])."""
+    files, notes = [], []
+    for profile in Profile.objects.filter(program=KEY_DIARY, deleted_at__isnull=True).order_by("name"):
+        try:
+            exported = word_export.full(profile, schedule.owner, include_review=schedule.include_review, now=now)
+        except ExportError as exc:
+            notes.append(f"The Word file for {profile.name} could not be made: {exc}")
+            continue
+        files.append((exported.name, exported.data, exported.content_type))
+    return files, notes
+
+
+def plan_emails(delivery):
+    """The emails to send for a delivery choice: a list of emails, each a list of parts ("data" / "word")."""
+    return {
+        DELIVERY_DATA: [["data"]],
+        DELIVERY_WORD: [["word"]],
+        DELIVERY_BOTH_ONE: [["data", "word"]],
+        DELIVERY_BOTH_SEPARATE: [["data"], ["word"]],
+    }.get(delivery, [["data", "word"]])
+
+
+def fit_to_limit(files, limit_bytes, max_mb):
+    """(files that fit within the limit in total, notes about the ones left out). Names are made unique."""
+    kept, notes, used, names = [], [], 0, set()
+    for name, data, content_type in files:
+        if used + len(data) > limit_bytes:
+            notes.append(f"{name} ({max(1, len(data) // 1024)} KB) was left out: the files would be more than {max_mb} MB in this email.")
+            continue
         base, n = name, 1
         while name in names:
             n += 1
             name = f"{n}-{base}"
         names.add(name)
-        files.append((name, data, content_type))
+        kept.append((name, data, content_type))
         used += len(data)
-
-    if schedule.include_data:
-        backup = _fresh_backup(now)
-        add(backup.filename, bytes(backup.data), GZIP_TYPE)
-    if schedule.include_word:
-        profiles = Profile.objects.filter(program=KEY_DIARY, deleted_at__isnull=True).order_by("name")
-        for profile in profiles:
-            try:
-                exported = word_export.full(profile, schedule.owner, include_review=schedule.include_review, now=now)
-            except ExportError as exc:
-                notes.append(f"The Word file for {profile.name} could not be made: {exc}")
-                continue
-            add(exported.name, exported.data, exported.content_type)
-    return files, notes
+    return kept, notes
 
 
-def _body(files, notes, now):
+def _body(files, notes, now, part_label):
     local = timezone.localtime(now)
-    lines = [f"Your Case Law Diary backup, made {local:%Y-%m-%d %H:%M} (IST).", ""]
+    lines = [f"Your Case Law Diary backup ({part_label}), made {local:%Y-%m-%d %H:%M} (IST).", ""]
     if files:
         lines.append("Attached:")
         lines += [f"  - {name} ({max(1, len(data) // 1024)} KB)" for name, data, _ in files]
     else:
         lines.append("No files could be attached.")
     if notes:
-        lines += ["", "Please note:"] + [f"  - {n}" for n in notes]
+        lines += ["", "PLEASE NOTE (this backup is incomplete):"] + [f"  - {n}" for n in notes]
     lines += [
         "",
         "The .json.gz file is a full backup: restore it on the Backups screen. The .docx file is the whole diary as a Word document.",
@@ -149,55 +172,79 @@ def _body(files, notes, now):
     return "\n".join(lines)
 
 
+def _describe_error(exc):
+    # Shown on the Admin's screen: our own errors say what is wrong; anything else is reduced to its type.
+    return str(exc) if isinstance(exc, ValueError) else exc.__class__.__name__ + (f": {exc}" if str(exc) else "")
+
+
 # ------------------------------------------------------------------ sending
 
-def _record(schedule, ok, message, now):
+def _record(schedule, ok, message, now, sent=None):
+    """Save the outcome. ``ok`` False raises the warning bar; ``sent`` (default: ok) says whether to move last_sent_at."""
+    sent = ok if sent is None else sent
     schedule.last_attempt_at = now
     schedule.last_ok = ok
     schedule.last_message = message[:500]
     fields = ["last_attempt_at", "last_ok", "last_message"]
-    if ok:
+    if sent:
         schedule.last_sent_at = now
         fields.append("last_sent_at")
     schedule.save(update_fields=fields)
 
 
 def send_scheduled_backup(schedule, now=None):
-    """Make the files and email them to the recipients. Returns (ok, message); never raises, and records the result.
+    """Make the files and email them as the schedule's ``delivery`` says. Returns (ok, message); never raises.
 
-    Only a successful send moves ``last_sent_at``, so a failed send is tried again on the next run.
+    Each email is built, sent and let go before the next, to keep memory low. ``ok`` is False if any email failed OR
+    any file had to be left out for size (the email still goes with what fits, and the warning bar tells the Admin).
+    Only a send that got at least one email out moves ``last_sent_at``; a total failure is tried again next run.
     """
     now = now or timezone.now()
     recipients = parse_recipients(schedule.recipients)
-    try:
-        if not recipients:
-            raise ValueError("There is nobody to send to. Add an email address.")
-        if not (schedule.include_data or schedule.include_word):
-            raise ValueError("Nothing is chosen to send. Tick the backup file, the Word file, or both.")
-        if not is_configured():
-            raise ValueError("Email is not set up on this server (EMAIL_HOST is missing).")
-        files, notes = collect_attachments(schedule, now)
-        if not files:
-            raise ValueError("There was nothing to attach. " + " ".join(notes))
-        message = EmailMessage(
-            subject=f"Case Law Diary backup {timezone.localtime(now):%Y-%m-%d}",
-            body=_body(files, notes, now),
-            to=recipients,
-        )
-        for name, data, content_type in files:
-            message.attach(name, data, content_type)
-        message.send(fail_silently=False)
-    except Exception as exc:
-        # The text is shown on the Admin's screen: our own errors say what is wrong; anything else is reduced to its type.
-        detail = str(exc) if isinstance(exc, ValueError) else exc.__class__.__name__ + (f": {exc}" if str(exc) else "")
-        logger.warning("Emailed backup failed: %s", detail)
-        _record(schedule, False, f"FAILED: {detail}", now)
-        return False, detail
-    summary = f"Sent to {', '.join(recipients)} with {len(files)} file{'s' if len(files) != 1 else ''}."
-    if notes:
-        summary += " " + " ".join(notes)
-    _record(schedule, True, summary, now)
-    return True, summary
+    if not recipients:
+        _record(schedule, False, "FAILED: There is nobody to send to. Add an email address.", now)
+        return False, "There is nobody to send to. Add an email address."
+    if not is_configured():
+        _record(schedule, False, "FAILED: Email is not set up on this server (EMAIL_HOST is missing).", now)
+        return False, "Email is not set up on this server (EMAIL_HOST is missing)."
+    limit = settings.EMAIL_BACKUP_MAX_MB * 1024 * 1024
+    labels = {"data": "JSON backup", "word": "Word export"}
+    sent_count, problems, summaries = 0, [], []
+    plan = plan_emails(schedule.delivery)
+    for number, parts in enumerate(plan, start=1):
+        label = " + ".join(labels[p] for p in parts)
+        try:
+            files, notes = [], []
+            for part in parts:
+                got, extra = (_data_files if part == "data" else _word_files)(schedule, now)
+                files += got
+                notes += extra
+            files, left_out = fit_to_limit(files, limit, settings.EMAIL_BACKUP_MAX_MB)
+            notes += left_out
+            if not files:
+                raise ValueError("there was nothing to attach. " + " ".join(notes))
+            message = EmailMessage(
+                subject=f"Case Law Diary backup {timezone.localtime(now):%Y-%m-%d}: {label}" + (" (incomplete)" if notes else ""),
+                body=_body(files, notes, now, label),
+                to=recipients,
+            )
+            for name, data, content_type in files:
+                message.attach(name, data, content_type)
+            message.send(fail_silently=False)
+        except Exception as exc:
+            detail = _describe_error(exc)
+            logger.warning("Emailed backup (%s) failed: %s", label, detail)
+            problems.append(f"{label}: {detail}")
+            continue
+        sent_count += 1
+        summaries.append(f"{label}: {len(files)} file{'s' if len(files) != 1 else ''}")
+        problems += [f"{label}: {n}" for n in notes]
+    text = f"Sent {sent_count} of {len(plan)} email{'s' if len(plan) != 1 else ''} to {', '.join(recipients)} ({'; '.join(summaries)})." if sent_count else "Nothing was sent."
+    if problems:
+        text += " PROBLEMS: " + " | ".join(problems)
+    ok = sent_count == len(plan) and not problems
+    _record(schedule, ok, text if ok else f"FAILED: {text}", now, sent=sent_count > 0)
+    return ok, text
 
 
 def send_test_email(to):
@@ -213,7 +260,7 @@ def send_test_email(to):
             to=list(to),
         ).send(fail_silently=False)
     except Exception as exc:
-        detail = str(exc) if isinstance(exc, ValueError) else exc.__class__.__name__ + (f": {exc}" if str(exc) else "")
+        detail = _describe_error(exc)
         logger.warning("Test email failed: %s", detail)
         return False, detail
     return True, f"Test email sent to {', '.join(to)}."
