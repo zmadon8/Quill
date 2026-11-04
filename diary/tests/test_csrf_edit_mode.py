@@ -75,7 +75,6 @@ class CsrfEditModeTests(ServiceTestCase):
             ("edit_move_to", self.rec("note", self.note)),
             ("edit_move", {**self.rec("note", self.note), "direction": "down"}),
             ("edit_delete", {**self.rec("note", self.note), "confirmed": "1"}),
-            ("edit_review", {**self.rec("item", self.two)}),
             ("edit_undo", {"next": self.next}),
             ("history_restore", {**self.rec("item", self.one), "restore_version": "x"}),
             ("trash_restore", {**self.rec("item", self.one)}),

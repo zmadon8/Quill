@@ -261,7 +261,7 @@
     var rich = form.querySelector("[data-add-rich], [data-richtext]");
     var source = rich.querySelector("textarea");
     var field = rich.parentNode;
-    var plain = el("input", { type: "text", maxlength: "500", "aria-label": "Name" });
+    var plain = el("input", { type: "text", maxlength: "500", "aria-label": "Name", placeholder: "Name" });
     plain.hidden = true;
     field.appendChild(plain);
     var citeField = form.querySelector("[data-add-citations]");
@@ -294,12 +294,14 @@
       var citable = whats.indexOf(what()) > -1;
       citeField.classList.toggle("off", !citable);
       Array.prototype.forEach.call(citeField.querySelectorAll("input, button"), function (n) { n.disabled = !citable; });
-      [["[data-add-flag]", what() === "item"], ["[data-add-review]", what() === "item" || what() === "section"]].forEach(function (pair) {
-        var box = form.querySelector(pair[0]);
-        if (!box) { return; }
-        box.hidden = !pair[1];
-        Array.prototype.forEach.call(box.querySelectorAll("input"), function (n) { n.disabled = !pair[1]; });
-      });
+      // Items and Sections take a Flag (D88); the other kinds hide and disable it.
+      var flagBox = form.querySelector("[data-add-flag]");
+      if (flagBox) {
+        var flags = what() === "item" || what() === "section";
+        flagBox.hidden = !flags;
+        Array.prototype.forEach.call(flagBox.querySelectorAll("input, select"), function (n) { n.disabled = !flags; });
+        if (window.QuillFlags) { window.QuillFlags.sync(flagBox); }
+      }
     }
     form.addEventListener("change", function (e) { if (e.target.name === "choice") { apply(); focusText(); } });
     apply();
@@ -417,18 +419,12 @@
   function setupCard(card, row) {
     var list = card.querySelector("[data-case-list]");
     var template = card.querySelector("[data-case-template]");
-    var flagText = card.querySelector("input[name=flag_text]");
     var busy = false;
 
     card.addEventListener("input", function () { card.setAttribute("data-dirty", "1"); });
     card.addEventListener("change", function () { card.setAttribute("data-dirty", "1"); });
 
-    function syncFlag() {
-      var chosen = card.querySelector("input[name=flag]:checked");
-      if (flagText) { flagText.disabled = !chosen || chosen.value === "none"; }
-    }
-    card.addEventListener("change", function (e) { if (e.target.name === "flag") { syncFlag(); } });
-    syncFlag();
+    if (window.QuillFlags) { window.QuillFlags.sync(card); } // the box beside a flag: greyed out while None is chosen
 
     // "Show citations: Inline | On separate lines" only makes sense with two or more citations.
     var layoutControl = card.querySelector("[data-layout-control]");

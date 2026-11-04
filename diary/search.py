@@ -14,7 +14,7 @@ from django.urls import reverse
 
 from . import searchtext
 from .locate import Tree
-from .models import FLAG_CHOICES, FLAG_NONE, Case, Item, Note, Section
+from .models import FLAG_NONE, Case, Item, Note, Section, flag_label
 
 FIELD_LABELS = {
     "name": "Name",
@@ -23,11 +23,10 @@ FIELD_LABELS = {
     "citation": "Citation",
     "comment": "Comment",
     "flag": "Flag",
-    "review_note": "Review note",
     "note": "Note",
+    "url": "Link",
 }
 KIND_LABELS = {"subject": "Subject", "topic": "Topic", "subtopic": "Sub-topic"}
-_FLAG_NAMES = dict(FLAG_CHOICES)
 _LABEL_LENGTH = 100
 
 
@@ -39,10 +38,10 @@ class SearchResult:
     url: str  # read_subject url + "#" + anchor of the element
     segments: list  # [(text, highlighted)] excerpt of the first field that matched; the caller escapes it
     field_label: str  # which field the excerpt is from ("Citation", "Text", ...)
-    flag_text: str = ""
-    needs_review: bool = False
-    review_note: str = ""
-    text: str = ""  # the record's whole own text (an Item's plain text, a Section's name); the Review list shortens it
+    flag_text: str = ""  # how the flag reads ("Pending: ask"), "" when there is none
+    flag: str = ""  # the flag's key (pending, overruled, doubted, other), "" when there is none
+    link: str = ""  # a citation's web address (the Hyperlinks page)
+    text: str = ""  # the record's whole own text (an Item's plain text, a Section's name)
     subject_id: int = 0
     score: int = 0
     order: tuple = field(default_factory=tuple)
@@ -52,10 +51,10 @@ class _Record:
     """One searchable record, before matching."""
 
     __slots__ = ("kind", "label", "place", "extra_path", "anchor", "fields", "tail", "flag_text",
-                 "needs_review", "review_note", "self_heading", "text")
+                 "flag", "self_heading", "text", "link")
 
     def __init__(self, kind, label, place, anchor, fields, tail, extra_path=(), flag_text="",
-                 needs_review=False, review_note="", self_heading=None, text=""):
+                 flag="", self_heading=None, text="", link=""):
         self.kind = kind
         self.text = text
         self.label = label
@@ -65,9 +64,9 @@ class _Record:
         self.tail = tail
         self.extra_path = list(extra_path)
         self.flag_text = flag_text
-        self.needs_review = needs_review
-        self.review_note = review_note
+        self.flag = flag
         self.self_heading = self_heading
+        self.link = link
 
 
 def _short(text):
@@ -115,35 +114,46 @@ def _heading_records(tree):
                           (0, 0, 0, sub.pk), self_heading=sub)
 
 
-def _section_name_records(profile, tree, citations_only, review_only):
+def _flag_of(row, flag_kind):
+    """(is this record flagged in the way asked for, flag key or "", how the flag reads)."""
+    key = row["flag"] if row["flag"] != FLAG_NONE else ""
+    wanted = bool(key) and (flag_kind is None or key == flag_kind)
+    return wanted, key, flag_label(row["flag"], row["flag_text"])
+
+
+SECTION_VALUES = ("pk", "subject_id", "topic_id", "subtopic_id", "name", "position", "flag", "flag_text")
+
+
+def _section_name_records(profile, tree, citations_only, flags_only, flag_kind=None):
     if citations_only:
         return
-    for row in Section.objects.filter(profile=profile, deleted_at__isnull=True).values(
-            "pk", "subject_id", "topic_id", "subtopic_id", "name", "position", "needs_review", "review_note"):
+    for row in Section.objects.filter(profile=profile, deleted_at__isnull=True).values(*SECTION_VALUES):
         place = tree.place(row["subject_id"], row["topic_id"], row["subtopic_id"])
-        if place is None or (review_only and not row["needs_review"]):
+        wanted, key, shown = _flag_of(row, flag_kind)
+        if place is None or (flags_only and not wanted):
             continue
         label = _short(row["name"]) or "Section"
         yield _Record("section", label, place, f"n-section-{row['pk']}", [("section", row["name"])],
-                      (1, row["position"], 0, row["pk"]), needs_review=row["needs_review"],
-                      review_note=row["review_note"], text=row["name"])
+                      (1, row["position"], 0, row["pk"]), flag=key, flag_text=shown, text=row["name"])
 
 
-def _records(profile, tree, citations_only, review_only, headers_only=False):
-    """Every live, locatable record the filters allow. ``headers_only`` limits it to the names of Subjects, Topics,
-    Sub-topics and Sections (no Item, Case, Note, review note or flag text)."""
-    with_notes_and_headings = not (citations_only or review_only)
+def _records(profile, tree, citations_only, flags_only, headers_only=False, flag_kind=None):
+    """Every live, locatable record the filters allow.
+
+    ``headers_only`` limits it to the names of Subjects, Topics, Sub-topics and Sections. ``flags_only`` (D88) limits it
+    to flagged Items and Sections (of the kind ``flag_kind``, or any) and looks for the words ONLY in the text beside the
+    flag (with ``citations_only`` too: in that text or the citations); an empty query then lists every flagged record.
+    """
+    with_notes_and_headings = not (citations_only or flags_only)
     if with_notes_and_headings:
         yield from _heading_records(tree)
     if headers_only:
-        yield from _section_name_records(profile, tree, citations_only, review_only)
+        yield from _section_name_records(profile, tree, citations_only, flags_only, flag_kind)
         return
 
-    sections = list(Section.objects.filter(profile=profile, deleted_at__isnull=True).values(
-        "pk", "subject_id", "topic_id", "subtopic_id", "name", "position", "needs_review", "review_note"))
+    sections = list(Section.objects.filter(profile=profile, deleted_at__isnull=True).values(*SECTION_VALUES))
     items = {row["pk"]: row for row in Item.objects.filter(profile=profile, deleted_at__isnull=True).values(
-        "pk", "subject_id", "topic_id", "subtopic_id", "text_plain", "flag",
-        "flag_text", "needs_review", "review_note", "position")}
+        "pk", "subject_id", "topic_id", "subtopic_id", "text_plain", "flag", "flag_text", "position")}
     cases = {}
     for row in Case.objects.filter(profile=profile, deleted_at__isnull=True).order_by("position", "pk").values(
             "item_id", "pk", "citation", "comment_plain"):
@@ -160,23 +170,26 @@ def _records(profile, tree, citations_only, review_only, headers_only=False):
         label = _item_label(row, item_cases)
         item_info[pk] = (place, tail, label)
 
-        if review_only and not row["needs_review"]:
+        wanted, key, shown = _flag_of(row, flag_kind)
+        if flags_only and not wanted:
             continue
         fields = []
-        if not citations_only:
-            fields.append(("text", row["text_plain"]))
-        for case in item_cases:
-            fields.append((f"citation#{case['pk']}", case["citation"]))
-            if not citations_only:
-                fields.append((f"comment#{case['pk']}", case["comment_plain"]))
-        if not citations_only:
+        if flags_only:
             fields.append(("flag", row["flag_text"]))
-            fields.append(("review_note", row["review_note"]))
-        record = _Record(
-            "item", label, place, f"n-item-{pk}", fields, tail,
-            flag_text=row["flag_text"] or (_FLAG_NAMES[row["flag"]] if row["flag"] != FLAG_NONE else ""),
-            needs_review=row["needs_review"], review_note=row["review_note"], text=row["text_plain"])
-        if citations_only and not record.fields:
+            if citations_only:
+                fields += [(f"citation#{case['pk']}", case["citation"]) for case in item_cases]
+        else:
+            if not citations_only:
+                fields.append(("text", row["text_plain"]))
+            for case in item_cases:
+                fields.append((f"citation#{case['pk']}", case["citation"]))
+                if not citations_only:
+                    fields.append((f"comment#{case['pk']}", case["comment_plain"]))
+            if not citations_only:
+                fields.append(("flag", row["flag_text"]))
+        record = _Record("item", label, place, f"n-item-{pk}", fields, tail, flag=key, flag_text=shown,
+                         text=row["text_plain"])
+        if citations_only and not flags_only and not record.fields:
             continue
         yield record
 
@@ -188,11 +201,17 @@ def _records(profile, tree, citations_only, review_only, headers_only=False):
         tail = (1, row["position"], 0, row["pk"])
         label = _short(row["name"]) or "Section"
         section_info[row["pk"]] = (place, tail, label)
-        if citations_only or (review_only and not row["needs_review"]):
+        wanted, key, shown = _flag_of(row, flag_kind)
+        if flags_only:
+            if not wanted:
+                continue
+            fields = [("flag", row["flag_text"])]
+        elif citations_only:
             continue
-        yield _Record("section", label, place, f"n-section-{row['pk']}",
-                      [("section", row["name"]), ("review_note", row["review_note"])], tail,
-                      needs_review=row["needs_review"], review_note=row["review_note"], text=row["name"])
+        else:
+            fields = [("section", row["name"]), ("flag", row["flag_text"])]
+        yield _Record("section", label, place, f"n-section-{row['pk']}", fields, tail, flag=key, flag_text=shown,
+                      text=row["name"])
 
     if not with_notes_and_headings:
         return
@@ -222,20 +241,36 @@ def _records(profile, tree, citations_only, review_only, headers_only=False):
                           extra_path=[])
 
 
-def run_search(profile, query, subject_id=None, citations_only=False, review_only=False, headers_only=False):
-    """Every match of ``query`` in ``profile`` as a list of SearchResult, best first (unpaginated).
+def _link_records(profile, tree, with_links):
+    """The citations (Cases) of live Items: those WITH a web address (searched in the address) or those WITHOUT one
+    (searched in the citation), for the Hyperlinks page (D89)."""
+    items = {row["pk"]: row for row in Item.objects.filter(profile=profile, deleted_at__isnull=True).values(
+        "pk", "subject_id", "topic_id", "subtopic_id", "text_plain", "position")}
+    cases = list(Case.objects.filter(profile=profile, deleted_at__isnull=True).order_by("item_id", "position", "pk").values(
+        "item_id", "pk", "citation", "url", "position"))
+    by_item = {}
+    for case in cases:
+        by_item.setdefault(case["item_id"], []).append(case)
+    for case in cases:
+        row = items.get(case["item_id"])
+        if row is None:
+            continue  # its Item is deleted
+        if bool(case["url"]) != with_links:
+            continue
+        place = tree.place(row["subject_id"], row["topic_id"], row["subtopic_id"])
+        if place is None:
+            continue
+        item_label = _item_label(row, by_item.get(row["pk"], []))
+        fields = [("url", case["url"])] if with_links else [("citation", case["citation"])]
+        yield _Record("citation", _short(case["citation"]) or "(a citation with no text)", place, f"n-item-{row['pk']}",
+                      fields, (1, row["position"], 1, row["pk"], case["position"], case["pk"]),
+                      extra_path=[(item_label, None)], text=case["citation"], link=case["url"])
 
-    Best first is: the whole query appearing together first, then the order of the Diary. An empty query
-    lists everything the Citations only / For review only filters select; with neither filter it lists nothing.
-    ``headers_only`` searches only the Subject, Topic, Sub-topic and Section names.
-    """
-    terms = searchtext.parse_query(query)
-    if not terms and not (citations_only or review_only):
-        return []
-    tree = Tree.load(profile)
-    urls = _Urls()
+
+def _results(records, terms, subject_id=None):
+    tree_urls = _Urls()
     results = []
-    for rec in _records(profile, tree, citations_only, review_only, headers_only):
+    for rec in records:
         place = rec.place
         if subject_id is not None and place.subject.pk != subject_id:
             continue
@@ -250,8 +285,8 @@ def run_search(profile, query, subject_id=None, citations_only=False, review_onl
         headings = place.headings
         if rec.self_heading is not None:
             headings = headings[:-1]
-        path = [(h.name, urls.of(h.kind, h.pk)) for h in headings] + rec.extra_path
-        subject_url = urls.of("subject", place.subject.pk)
+        path = [(h.name, tree_urls.of(h.kind, h.pk)) for h in headings] + rec.extra_path
+        subject_url = tree_urls.of("subject", place.subject.pk)
         results.append(SearchResult(
             kind=KIND_LABELS.get(rec.kind, rec.kind.capitalize()),
             label=rec.label,
@@ -260,8 +295,8 @@ def run_search(profile, query, subject_id=None, citations_only=False, review_onl
             segments=segments,
             field_label=_field_label(key) if key else "",
             flag_text=rec.flag_text,
-            needs_review=rec.needs_review,
-            review_note=rec.review_note,
+            flag=rec.flag,
+            link=rec.link,
             text=rec.text,
             subject_id=place.subject.pk,
             score=score,
@@ -269,3 +304,27 @@ def run_search(profile, query, subject_id=None, citations_only=False, review_onl
         ))
     results.sort(key=lambda r: (-r.score, r.order))
     return results
+
+
+def run_search(profile, query, subject_id=None, citations_only=False, flags_only=False, headers_only=False,
+               flag_kind=None):
+    """Every match of ``query`` in ``profile`` as a list of SearchResult, best first (unpaginated).
+
+    Best first is: the whole query appearing together first, then the order of the Diary. An empty query lists
+    everything the Citations / Flags filters select; with neither filter it lists nothing. ``headers_only`` searches only
+    the Subject, Topic, Sub-topic and Section names. ``flags_only`` searches only the text beside flags (D88), and
+    ``flag_kind`` (pending, overruled, doubted, other) keeps one kind of flag.
+    """
+    terms = searchtext.parse_query(query)
+    if not terms and not (citations_only or flags_only):
+        return []
+    tree = Tree.load(profile)
+    return _results(_records(profile, tree, citations_only, flags_only, headers_only, flag_kind), terms, subject_id)
+
+
+def run_links(profile, query, with_links=True):
+    """The Hyperlinks page (D89): every citation with a web address (``with_links``; the words are looked for in the
+    address) or every citation without one (looked for in the citation), as SearchResults in Diary order."""
+    terms = searchtext.parse_query(query)
+    tree = Tree.load(profile)
+    return _results(_link_records(profile, tree, with_links), terms)

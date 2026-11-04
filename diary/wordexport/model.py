@@ -29,17 +29,14 @@ class XItem:
     html: str = ""  # the Item's text, rich (p, br, b, i, u)
     cases: list = field(default_factory=list)  # XCase, in order
     layout: str = "inline"  # "lines": each citation on its own line, "(a) <comment> - <citation>"
-    flag_label: str = ""  # "" when the Item has no flag
-    needs_review: bool = False
-    review_note: str = ""
+    flag_label: str = ""  # "" when the Item has no flag (models.flag_label: "Pending: ask", the text of Other...)
     notes: list = field(default_factory=list)  # XNote
 
 
 @dataclass
 class XSection:
     name: str = ""
-    needs_review: bool = False
-    review_note: str = ""
+    flag_label: str = ""  # Sections have flags too (D88)
     notes: list = field(default_factory=list)
 
 
@@ -87,7 +84,7 @@ class ExportInput:
     part: str  # "Full", a Subject name, "Other Subjects" or the on-screen path
     date_text: str
     fmts: dict
-    include_review: bool = False
+    include_review: bool = False  # include the Flags (the name dates from before For review was merged into them, D88)
     main: list = field(default_factory=list)
     others: list = field(default_factory=list)
     view_topic: XTopic | None = None

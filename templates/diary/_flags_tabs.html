@@ -1,0 +1,2 @@
+{# The two sub-pages of the Flags tab (D89). Context: tab ("flags" or "links"). #}
+<nav class="subnav" aria-label="Sections of this page"><a href="{% url 'flags' %}"{% if tab == "flags" %} class="on" aria-current="page"{% endif %}>Flags</a><a href="{% url 'flag_links' %}"{% if tab == "links" %} class="on" aria-current="page"{% endif %}>Hyperlinks</a></nav>

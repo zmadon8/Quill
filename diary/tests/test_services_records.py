@@ -253,11 +253,16 @@ class EditTests(ServiceTestCase):
         svc.edit(self.profile, self.user, "subject", other.pk, {"name": "Torts II"})
         self.assertEqual(self.get(other).name, "Torts II")
 
-    def test_edit_section_review_marker(self):
-        svc.edit(self.profile, self.user, "section", self.sec.pk, {"needs_review": True, "review_note": "check"})
+    def test_edit_section_flag(self):
+        # D88: Sections have flags; For review cannot be set any more.
+        svc.edit(self.profile, self.user, "section", self.sec.pk, {"flag": "pending", "flag_text": "  check  it "})
         sec = self.get(self.sec)
-        self.assertTrue(sec.needs_review)
-        self.assertEqual(self.history(self.sec)[-1].snapshot["review_note"], "check")
+        self.assertEqual((sec.flag, sec.flag_text), ("pending", "check it"))
+        self.assertEqual(self.history(self.sec)[-1].snapshot["flag_text"], "check it")
+        svc.edit(self.profile, self.user, "section", self.sec.pk, {"flag": "none"})
+        self.assertEqual((self.get(self.sec).flag, self.get(self.sec).flag_text), ("none", ""))
+        with self.assertRaises(svc.Refused):
+            svc.edit(self.profile, self.user, "section", self.sec.pk, {"needs_review": True})
 
     def test_a_record_in_trash_cannot_be_edited(self):
         svc.delete(self.profile, self.user, "item", self.one.pk)

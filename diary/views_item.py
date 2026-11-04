@@ -1,4 +1,4 @@
-"""The Item editor and the review marker switch (Milestone 3c, docs/DESIGN.md sections 5.5 and 11).
+"""The Item editor (Milestone 3c, docs/DESIGN.md sections 5.5 and 11).
 
 Same rules as ``views_edit``: Editors of the signed-in user's profile only (Readers get 403, another
 profile's ids give 404), POST with the CSRF token for every change, and every change goes through the
@@ -16,7 +16,7 @@ from . import services as svc
 from .models import CITATION_LAYOUT_CHOICES, FLAG_CHOICES, Case, Item
 from .services.core import ancestors, label
 from .services.errors import Conflict, Refused, ValidationFailed
-from .views_edit import FLAG_TEXT_MAX, _next, _record_id, _single_line, _version, edit_endpoint, editor_page, is_fetch
+from .views_edit import FLAG_TEXT_MAX, _next, _single_line, _version, editor_page, is_fetch
 
 
 
@@ -90,8 +90,6 @@ def _values(post):
         "citation_layout": _layout(post),
         "flag": flag,
         "flag_text": "" if flag == "none" else _single_line(post.get("flag_text", "")),
-        "needs_review": post.get("needs_review") == "1",
-        "review_note": post.get("review_note", "").strip(),
     }
 
 
@@ -139,7 +137,7 @@ def _save(request, item, back):
         with transaction.atomic():
             if len(values["flag_text"]) > FLAG_TEXT_MAX:
                 raise ValidationFailed(f"The flag text is too long ({FLAG_TEXT_MAX} characters at most).")
-            changes = {name: values[name] for name in ("text", "flag", "flag_text", "needs_review", "review_note")}
+            changes = {name: values[name] for name in ("text", "flag", "flag_text")}
             if values["citation_layout"] is not None:
                 changes["citation_layout"] = values["citation_layout"]
             svc.edit(request.profile, request.user, "item", item.pk, changes, _version(request))
@@ -161,8 +159,7 @@ def _save(request, item, back):
 
 
 def _everything_typed(values, rows):
-    shown = {"Text": values["text"], "Flag": values["flag"], "Flag text": values["flag_text"],
-             "For review": "yes" if values["needs_review"] else "no", "Review note": values["review_note"]}
+    shown = {"Text": values["text"], "Flag": values["flag"], "Flag text": values["flag_text"]}
     for number, row in enumerate(rows, start=1):
         shown[f"Citation {number}"] = row["citation"]
         shown[f"Citation {number} comment"] = row["comment"]
@@ -180,7 +177,7 @@ def _person(user):
 def _render(request, item, back, values=None, rows=None, status=200, theirs=False):
     if values is None:
         values = {"text": item.text, "citation_layout": item.citation_layout, "flag": item.flag,
-                  "flag_text": item.flag_text, "needs_review": item.needs_review, "review_note": item.review_note}
+                  "flag_text": item.flag_text}
     if values.get("citation_layout") is None:
         values = {**values, "citation_layout": item.citation_layout}
     if rows is None:
@@ -227,31 +224,3 @@ def _merge(request, item, back):
     rows = _case_rows(request.POST) if _has_case_fields(request.POST) else None
     messages.info(request, "Someone else changed this Item. Your text is below; compare it with the saved version, then Save.")
     return _render(request, item, back, values=values, rows=rows, theirs=True)
-
-
-# ------------------------------------------------------------------ review marker
-
-@edit_endpoint
-def review(request):
-    """One click set or clear of the For review marker on an Item or a Section.
-
-    ``set`` is 1 or 0. A note may come with it (``note``); clearing the marker also clears the note
-    (the old note stays in the history).
-    """
-    kind = request.POST.get("kind", "")
-    if kind not in ("item", "section"):
-        raise Http404("Only Items and Sections have a For review marker.")
-    marked = request.POST.get("set") == "1"
-    changes = {"needs_review": marked}
-    if not marked:
-        changes["review_note"] = ""
-    elif "note" in request.POST:
-        changes["review_note"] = request.POST.get("note", "").strip()
-    result = svc.edit(request.profile, request.user, kind, _record_id(request), changes, _version(request))
-    if is_fetch(request):
-        return inline.ok(request, changed=result.changed, **inline.row_payload(request, kind, _record_id(request), _next(request)))
-    if not result.changed:
-        messages.info(request, "No change.")
-    else:
-        messages.success(request, "Marked for review." if marked else "Review marker cleared.")
-    return redirect(_next(request))

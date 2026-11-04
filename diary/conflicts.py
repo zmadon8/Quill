@@ -6,7 +6,7 @@ offers three choices:
 
 * keep mine: the same request is sent again with the current version number, so it goes through;
 * keep theirs: go back without changing anything;
-* edit and merge: edit what was typed (the Item editor, the name box, the review note, or the tree
+* edit and merge: edit what was typed (the Item editor, the name box, the flag, or the tree
   picker for a move) with the current version number, then save.
 
 Every typed value is carried in hidden fields, so nothing the Editor typed is lost.
@@ -34,7 +34,6 @@ OPERATIONS = {
 #: Posted fields the merge form lets the Editor change, per address: (field, label, multi-line).
 MERGEABLE = {
     "edit_rename": ("name", "Name", False),
-    "edit_review": ("note", "Review note", True),
 }
 IGNORED = {"csrfmiddlewaretoken", "merge"}
 
@@ -115,7 +114,7 @@ def comparison(request, exc):
     rows = []
     if name == "edit_item":
         labels = {"Text": "text", "Citation": "citation", "Flag": "flag", "Flag text": "flag_text",
-                  "For review": "needs_review", "Review note": "review_note"}
+                  }
         for label_, value in exc.mine.items():
             column = labels.get(label_)
             stored = plain(theirs.get(column)) if column and exc.record_type == "item" else ""

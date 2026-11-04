@@ -32,6 +32,13 @@ def restore_version(profile, user, kind, record_id, version, expected_version=No
         if row is None:
             raise NotFound("That version does not exist for this record.")
         snap = row.snapshot
+        if snap.get("needs_review"):
+            # A version saved before For review was merged into the Flags (D88): its mark comes back as the flag,
+            # exactly as the migration folded it, so nothing of it is lost.
+            from ..review_flags import merge
+
+            snap = dict(snap)
+            snap["flag"], snap["flag_text"] = merge(snap.get("flag"), snap.get("flag_text"), True, snap.get("review_note"))
         # A version from before the Multi-Item merge (10d) or Nested Items (round 10) may say "multi" or
         # "nested": every Item is a plain Item now, so that is no obstacle.
         changes = {name: snap[name] for name in EDITABLE[kind] if name in snap and snap[name] != getattr(obj, name)}

@@ -151,6 +151,7 @@ def restore_preview(request, pk):
                     document.get("nested_mapping") or services.nested_conversion.new_stats()),
                 services.subtopic_one.describe(document.get("subtopic_mapping") or services.subtopic_one.new_stats()),
                 services.topic_one.describe(document.get("housing_mapping") or services.topic_one.new_stats()),
+                services.review_flags.describe(document.get("review_mapping") or services.review_flags.new_stats()),
             ])),
             "confirm_word": CONFIRM_WORD,
         },

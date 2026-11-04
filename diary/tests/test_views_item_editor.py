@@ -17,9 +17,6 @@ class ItemEditorTestCase(EditViewTestCase):
         current = self.get(item)
         data = {"version": current.version, "text": current.text, "citation": current.citation,
                 "flag": current.flag, "flag_text": current.flag_text, "next": self.next}
-        if current.needs_review:
-            data["needs_review"] = "1"
-        data["review_note"] = current.review_note
         data.update(fields)
         return (client or self.client).post(self.editor_url(item), data)
 
@@ -47,7 +44,7 @@ class ItemEditorTestCase(EditViewTestCase):
 class EditorAccessTests(ItemEditorTestCase):
     def test_readers_get_403_everywhere(self):
         item = self.get(self.one)
-        for name, args in (("edit_item", [item.pk]), ("edit_review", [])):
+        for name, args in (("edit_item", [item.pk]),):
             url = reverse(name, args=args)
             self.assertEqual(self.reader_client.get(url).status_code, 403, name)
             resp = self.reader_client.post(url, {"kind": "item", "id": item.pk, "version": item.version, "set": "1",
@@ -56,7 +53,7 @@ class EditorAccessTests(ItemEditorTestCase):
         resp = self.save(self.one, client=self.reader_client, text="<p>hacked</p>")
         self.assertEqual(resp.status_code, 403)
         after = self.get(self.one)
-        self.assertEqual((after.text, after.version, after.needs_review, after.kind), (item.text, item.version, False, "plain"))
+        self.assertEqual((after.text, after.version, after.flag, after.kind), (item.text, item.version, "none", "plain"))
 
     def test_another_profiles_item_is_404_everywhere(self):
         subject = self.make("subject", profile=self.other_profile, name="Foreign")
@@ -64,10 +61,8 @@ class EditorAccessTests(ItemEditorTestCase):
         foreign = self.make("item", ("topic", topic.pk), profile=self.other_profile, text="secret")
         self.assertEqual(self.client.get(self.editor_url(foreign)).status_code, 404)
         self.assertEqual(self.save(foreign, text="<p>x</p>").status_code, 404)
-        resp = self.client.post(reverse("edit_review"), {"kind": "item", "id": foreign.pk, "set": "1"})
-        self.assertEqual(resp.status_code, 404)
         foreign = self.get(foreign)
-        self.assertEqual((foreign.text, foreign.version, foreign.needs_review), ("secret", 1, False))
+        self.assertEqual((foreign.text, foreign.version, foreign.flag), ("secret", 1, "none"))
 
     def test_unknown_and_trashed_items_are_404(self):
         self.assertEqual(self.client.get(reverse("edit_item", args=[999999])).status_code, 404)
@@ -79,11 +74,11 @@ class EditorAccessTests(ItemEditorTestCase):
         strict = Client(enforce_csrf_checks=True)
         strict.force_login(self.user)
         self.assertEqual(strict.post(self.editor_url(self.one), {"text": "x"}).status_code, 403)
-        self.assertEqual(strict.post(reverse("edit_review"), {"kind": "item", "id": self.one.pk, "set": "1"}).status_code, 403)
         self.assertEqual(self.get(self.one).version, 1)
 
-    def test_review_is_post_only(self):
-        self.assertEqual(self.client.get(reverse("edit_review")).status_code, 405)
+    def test_the_for_review_switch_address_is_gone(self):
+        # D88: For review was merged into the Flags; the one-click switch went with it.
+        self.assertEqual(self.client.post("/caselaw/edit/review/", {"kind": "item", "id": self.one.pk, "set": "1"}).status_code, 404)
 
 
 class EditorPageTests(ItemEditorTestCase):
@@ -91,7 +86,7 @@ class EditorPageTests(ItemEditorTestCase):
         resp = self.client.get(self.editor_url(self.one), {"next": self.next})
         self.assertEqual(resp.status_code, 200)
         for needle in ("Edit Item", 'name="text"', 'name="case_citation"', 'name="flag"', 'name="flag_text"',
-                       'name="needs_review"', 'name="review_note"', "data-richtext", "richtext-editor.js",
+                       "data-flag-select", 'value="pending"', "data-richtext", "richtext-editor.js",
                        "IST by editor", "data-case-list", "Add a citation"):
             self.assertContains(resp, needle)
         self.assertNotContains(resp, "Multi-Item")
@@ -180,15 +175,15 @@ class SaveTests(ItemEditorTestCase):
         item = self.get(self.one)
         self.assertEqual((item.flag, item.flag_text), ("none", ""))
 
-    def test_for_review_switch_and_note(self):
-        self.save(self.one, needs_review="1", review_note="  check the year ")
+    def test_pending_takes_text_and_the_old_review_fields_are_ignored(self):
+        # D88: Pending sits after None; every flag but None takes text; For review is gone (posting it changes nothing).
+        self.save(self.one, flag="pending", flag_text="  check   the year ", needs_review="1", review_note="ignored")
         item = self.get(self.one)
-        self.assertEqual((item.needs_review, item.review_note), (True, "check the year"))
-        data = {"version": item.version, "text": item.text, "citation": item.citation, "flag": "none",
-                "flag_text": "", "review_note": "", "next": self.next}
-        self.client.post(self.editor_url(self.one), data)
-        item = self.get(self.one)
-        self.assertEqual((item.needs_review, item.review_note), (False, ""))
+        self.assertEqual((item.flag, item.flag_text, item.needs_review, item.review_note), ("pending", "check the year", False, ""))
+        page = self.client.get(self.editor_url(self.one)).content.decode()
+        self.assertLess(page.index('value="none"'), page.index('value="pending"'))
+        self.assertLess(page.index('value="pending"'), page.index('value="overruled"'))
+        self.assertNotIn('name="needs_review"', page)
 
     def test_saving_without_changes_writes_no_new_version(self):
         before = self.get(self.one).version
@@ -210,7 +205,7 @@ class SaveTests(ItemEditorTestCase):
         self.assertEqual(self.live_cases(self.one), [])
 
     def test_a_too_long_flag_text_is_refused(self):
-        resp = self.save(self.one, flag="other", flag_text="x" * 301)
+        resp = self.save(self.one, flag="other", flag_text="x" * 2001)
         self.assertEqual(resp.status_code, 400)
         self.assertEqual(self.get(self.one).flag, "none")
 
@@ -226,7 +221,7 @@ class StaleSaveTests(ItemEditorTestCase):
         svc.edit(self.profile, self.user2, "item", self.one.pk, {"text": "<p>theirs</p>"})
         resp = self.client.post(self.editor_url(self.one), {
             "version": opened, "text": "<p>My typed words</p>", "flag": "none",
-            "flag_text": "", "review_note": "", "next": self.next, **self.case_rows([(None, "My citation", "")])})
+            "flag_text": "", "next": self.next, **self.case_rows([(None, "My citation", "")])})
         self.assertEqual(resp.status_code, 409)
         self.assertContains(resp, "has changed", status_code=409)
         self.assertContains(resp, "My typed words", status_code=409)
@@ -335,143 +330,18 @@ class CaseTests(ItemEditorTestCase):
         self.assertEqual(self.live_cases(item), [("A v B", "<b>note</b>"), ("C v D", "")])
 
 
-class ReviewMarkerTests(ItemEditorTestCase):
-    def review(self, kind, obj, client=None, **fields):
-        data = {"kind": kind, "id": obj.pk, "version": self.get(obj).version, "next": self.next}
-        data.update(fields)
-        return (client or self.client).post(reverse("edit_review"), data)
-
-    def test_one_click_set_and_clear_on_an_item(self):
-        resp = self.review("item", self.one, set="1")
-        self.assertRedirects(resp, self.next, fetch_redirect_response=False)
-        self.assertTrue(self.get(self.one).needs_review)
-        self.review("item", self.one, set="0")
-        self.assertFalse(self.get(self.one).needs_review)
-
-    def test_one_click_set_and_clear_on_a_section(self):
-        self.review("section", self.sec, set="1")
-        self.assertTrue(self.get(self.sec).needs_review)
-        self.review("section", self.sec, set="0")
-        self.assertFalse(self.get(self.sec).needs_review)
-
-    def test_a_note_can_come_with_the_marker_and_clearing_removes_it(self):
-        self.review("section", self.sec, set="1", note="  check numbering ")
-        sec = self.get(self.sec)
-        self.assertEqual((sec.needs_review, sec.review_note), (True, "check numbering"))
-        self.review("section", self.sec, set="0")
-        sec = self.get(self.sec)
-        self.assertEqual((sec.needs_review, sec.review_note), (False, ""))
-
-    def test_setting_it_again_without_a_note_keeps_the_note(self):
-        self.review("item", self.one, set="1", note="why")
-        self.review("item", self.one, set="1")
-        self.assertEqual(self.get(self.one).review_note, "why")
-
-    def test_repeating_a_click_is_harmless(self):
-        self.review("item", self.one, set="1")
-        version = self.get(self.one).version
-        resp = self.review("item", self.one, set="1")
-        self.assertEqual(resp.status_code, 302)
-        self.assertEqual(self.get(self.one).version, version)
-
-    def test_only_items_and_sections_can_be_marked(self):
-        self.assertEqual(self.review("topic", self.topic, set="1").status_code, 404)
-        self.assertEqual(self.review("note", self.one, set="1").status_code, 404)
-
-    def test_a_stale_click_shows_the_conflict_page(self):
-        opened = self.get(self.one).version
-        svc.edit(self.profile, self.user2, "item", self.one.pk, {"text": "<p>theirs</p>"})
-        resp = self.review("item", self.one, set="1", version=opened)
-        self.assertEqual(resp.status_code, 409)
-        self.assertFalse(self.get(self.one).needs_review)
-
-    def test_the_review_switch_is_in_the_editing_card_not_on_the_reading_row(self):
+class FlagShownTests(ItemEditorTestCase):
+    def test_the_flag_is_in_the_editing_card_and_shows_on_the_reading_row(self):
         url = reverse("read_subject", args=[self.subject.pk])
         editing = self.client.get(url + "?edit=1")
         self.assertContains(editing, "data-edit-open")
         self.assertNotContains(editing, "Mark for review")
-        self.assertNotContains(self.client.get(url), reverse("edit_review"))
         self.assertNotContains(self.reader_client.get(url + "?edit=1"), "data-edit-open")
-        card = self.client.get(reverse("edit_inline_card"), {"kind": "item", "id": self.one.pk})
-        self.assertIn('name="needs_review"', card.json()["html"])
-        self.review("item", self.one, set="1")
-        self.assertContains(self.client.get(url + "?edit=1"), "For review")
-
-
-class CreateItemKindTests(ItemEditorTestCase):
-    def test_the_service_refuses_a_kind_and_creates_plain_items(self):
-        item = self.make("item", ("topic", self.topic.pk), text="n", citation="N v M")
-        self.assertEqual(self.get(item).kind, "plain")
-        self.assertEqual(self.get(item).citation, "")
-        with self.assertRaises(svc.Refused):
-            self.make("item", ("topic", self.topic.pk), kind="nested", text="m")
-
-    def test_the_add_view_offers_no_nested_item(self):
-        before = set(Item.objects.values_list("pk", flat=True))
-        self.post("edit_add", {"what": "nested", "parent_type": "topic", "parent_id": self.topic.pk, "text": "x"})
-        self.assertEqual(set(Item.objects.values_list("pk", flat=True)), before)
-        self.post("edit_add", {"what": "item", "parent_type": "topic", "parent_id": self.topic.pk,
-                               "text": "item", "citation": "A v B"})
-        made = list(Item.objects.exclude(pk__in=before))
-        self.assertEqual([(i.text, i.kind, i.citation) for i in made], [("<p>item</p>", "plain", "")])
-        self.assertEqual([(c.citation, c.position) for c in Case.objects.filter(item=made[0])], [("A v B", 1)])
-
-
-class ReorderCitationsRealPostTests(ItemEditorTestCase):
-    """Re-ordering citations through a real POST with the CSRF check switched on (round 10, item 2)."""
-
-    def setUp(self):
-        super().setUp()
-        self.strict = Client(enforce_csrf_checks=True)
-        self.strict.force_login(self.user)
-
-    def token_from_editor_page(self, item):
-        import re
-
-        page = self.strict.get(self.editor_url(item), {"next": self.next})
-        self.assertEqual(page.status_code, 200)
-        self.assertContains(page, "data-case-up")
-        return re.search(r'name="csrfmiddlewaretoken" value="([^"]+)"', page.content.decode()).group(1)
-
-    def post_order(self, item, cases):
-        token = self.token_from_editor_page(item)
-        data = {"version": self.get(item).version, "text": item.text, "flag": "none", "next": self.next,
-                "csrfmiddlewaretoken": token, **self.case_rows([(c, c.citation, c.comment) for c in cases])}
-        return self.strict.post(self.editor_url(item), data)
-
-    def test_two_citations_swap(self):
-        item, first, second = self.cited()
-        resp = self.post_order(item, [second, first])
-        self.assertEqual(resp.status_code, 302)
-        self.assertEqual([c for c, _ in self.live_cases(item)], ["C v D", "A v B"])
-        self.assertEqual((self.get(second).position, self.get(first).position), (1, 2))
-
-    def test_three_citations_rotate_and_reverse(self):
-        item, first, second = self.cited()
-        third = self.make("case", ("item", item.pk), citation="E v F", comment="")
-        self.assertEqual(self.post_order(item, [third, first, second]).status_code, 302)
-        self.assertEqual([c for c, _ in self.live_cases(item)], ["E v F", "A v B", "C v D"])
-        self.assertEqual(self.post_order(item, [second, first, third]).status_code, 302)
-        self.assertEqual([c for c, _ in self.live_cases(item)], ["C v D", "A v B", "E v F"])
-
-    def test_a_reorder_is_one_undo_step(self):
-        from diary.models import VersionHistory
-
-        item, first, second = self.cited()
-        third = self.make("case", ("item", item.pk), citation="E v F", comment="")
-        seen = set(VersionHistory.objects.values_list("pk", flat=True))
-        self.post_order(item, [third, second, first])
-        new = VersionHistory.objects.exclude(pk__in=seen)
-        self.assertTrue(new.exists())
-        groups = set(new.values_list("group", flat=True))
-        self.assertEqual(len(groups), 1)
-        self.assertNotIn(None, groups)
-        self.assertEqual({row.record_type for row in new}, {"case"})
-
-    def test_the_card_has_move_buttons(self):
-        item, first, second = self.cited()
-        resp = self.strict.get(reverse("edit_inline_card"), {"kind": "item", "id": item.pk, "next": self.next})
-        self.assertEqual(resp.status_code, 200)
-        html = resp.json()["html"]
-        self.assertEqual(html.count("data-case-up"), 3)  # two rows and the blank template
-        self.assertEqual(html.count("data-case-down"), 3)
+        card = self.client.get(reverse("edit_inline_card"), {"kind": "item", "id": self.one.pk}).json()["html"]
+        self.assertIn("data-flag-select", card)
+        self.assertNotIn('name="needs_review"', card)
+        self.save(self.one, flag="pending", flag_text="ask the client")
+        self.assertContains(self.client.get(url), "[Pending: ask the client]")
+        self.save(self.one, flag="other", flag_text="see the appeal")
+        self.assertContains(self.client.get(url), "[see the appeal]")
+        self.assertNotContains(self.client.get(url), "For review")

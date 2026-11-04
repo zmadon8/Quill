@@ -186,18 +186,19 @@ class AddTests(InlineTestCase):
 
 
 class CardTests(InlineTestCase):
-    def test_item_card_has_text_citations_flag_review_and_the_more_menu(self):
+    def test_item_card_has_text_citations_flag_and_the_more_menu(self):
         self.make("case", ("item", self.one.pk), citation="A v B", comment="@ para 22")
         body = self.card("item", self.one).json()
         html = body["html"]
         self.assertEqual(body["version"], self.get(self.one).version)
         for needle in ('name="text"', 'name="case_citation"', 'value="A v B"', "@ para 22", 'name="case_id"',
-                       'name="flag"', 'name="flag_text"', 'name="needs_review"', 'name="review_note"',
+                       '<select name="flag"', 'value="pending"', 'name="flag_text"',
                        "+ another citation", "Move to", "Move up", "Move down", "History",
                        "Delete", "goes to Trash"):
             self.assertIn(needle, html, needle)
         self.assertNotIn("Change to", html)
         self.assertNotIn("Nested", html)
+        self.assertNotIn('name="needs_review"', html)
         self.assertIn('action="%s"' % reverse("edit_item", args=[self.one.pk]), html)
         for text in ("None", "Overruled", "Doubted", "Other"):
             self.assertIn(text, html)
@@ -249,9 +250,9 @@ class CardTests(InlineTestCase):
         self.assertIn("data-case-grip", html)
         self.assertIn("goes to Trash", html)
 
-    def test_section_card_has_name_review_and_move_up_down(self):
+    def test_section_card_has_name_flag_and_move_up_down(self):
         html = self.card("section", self.sec).json()["html"]
-        for needle in ('name="name"', 'name="needs_review"', 'name="review_form"', "Move up", "Move down", "Move to"):
+        for needle in ('name="name"', '<select name="flag"', 'name="flag_text"', 'name="flag_form"', "Move up", "Move down", "Move to"):
             self.assertIn(needle, html, needle)
         self.assertNotIn("Change to", html)
 
@@ -264,7 +265,7 @@ class SaveTests(InlineTestCase):
         return data
 
     def test_item_save_gives_the_new_row(self):
-        resp = self.fetch("edit_item", self.save_data(self.one, flag="doubted", needs_review="1", review_note="check"),
+        resp = self.fetch("edit_item", self.save_data(self.one, flag="doubted", flag_text="check"),
                           args=[self.one.pk])
         self.assertEqual(resp.status_code, 200)
         body = resp.json()
@@ -273,7 +274,7 @@ class SaveTests(InlineTestCase):
         self.assertIn("A v B", body["html"])
         self.assertIn("check", body["html"])
         item = self.get(self.one)
-        self.assertEqual((item.flag, item.needs_review), ("doubted", True))
+        self.assertEqual((item.flag, item.flag_text), ("doubted", "check"))
         self.assertEqual(list(Case.objects.filter(item=item).values_list("citation", flat=True)), ["A v B"])
         self.assertTrue(body["undo"]["group"])
 
@@ -329,23 +330,18 @@ class SaveTests(InlineTestCase):
         self.assertEqual(resp.json()["conflict_url"], reverse("edit_rename"))
         self.assertEqual(self.get(self.topic).name, "Theirs")
 
-    def test_section_card_saves_name_and_review_together(self):
+    def test_section_card_saves_name_and_flag_together(self):
         resp = self.fetch("edit_rename", {"kind": "section", "id": self.sec.pk, "version": self.get(self.sec).version,
-                                          "name": "Renamed", "review_form": "1", "needs_review": "1", "review_note": "why"})
+                                          "name": "Renamed", "flag_form": "1", "flag": "pending", "flag_text": "why"})
         body = resp.json()
         self.assertEqual(body["element"], "row-n-section-%d" % self.sec.pk)
+        self.assertIn("[Pending: why]", body["html"])
         section = self.get(self.sec)
-        self.assertEqual((section.name, section.needs_review, section.review_note), ("Renamed", True, "why"))
+        self.assertEqual((section.name, section.flag, section.flag_text), ("Renamed", "pending", "why"))
         self.fetch("edit_rename", {"kind": "section", "id": self.sec.pk, "version": section.version, "name": "Renamed",
-                                   "review_form": "1", "review_note": "ignored"})
+                                   "flag_form": "1", "flag": "none", "flag_text": "ignored"})
         section = self.get(self.sec)
-        self.assertEqual((section.needs_review, section.review_note), (False, ""))
-
-    def test_review_switch_answers_with_the_row(self):
-        resp = self.fetch("edit_review", {"kind": "item", "id": self.one.pk, "version": self.get(self.one).version,
-                                          "set": "1", "note": "look"})
-        self.assertEqual(resp.json()["element"], "n-item-%d" % self.one.pk)
-        self.assertTrue(self.get(self.one).needs_review)
+        self.assertEqual((section.flag, section.flag_text), ("none", ""))
 
 
 class MoreMenuTests(InlineTestCase):

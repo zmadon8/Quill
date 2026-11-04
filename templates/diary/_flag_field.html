@@ -1,0 +1,10 @@
+{# The Flag of an Item or Section (round 16, D88: For review was merged into the flags). A drop-down, and a box beside it for text, for every flag except None (the box is greyed out while None is chosen). Context: flag_choices, values.flag, values.flag_text. Used by the Item editor, the editing cards and the Add forms; the field names are the same everywhere. #}
+<div class="fld flag-field" data-flag-field>
+  <span class="field-label">Flag</span>
+  <div class="flag-line">
+    <select name="flag" aria-label="Flag" data-flag-select>
+      {% for key, text in flag_choices %}<option value="{{ key }}"{% if values.flag == key %} selected{% elif not values.flag and key == "none" %} selected{% endif %}>{{ text }}</option>{% endfor %}
+    </select>
+    <input type="text" name="flag_text" maxlength="2000" value="{{ values.flag_text|default:'' }}" placeholder="Text beside the flag (optional)" aria-label="Flag text" data-flag-text{% if not values.flag or values.flag == "none" %} disabled{% endif %}>
+  </div>
+</div>

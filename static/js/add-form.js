@@ -9,14 +9,14 @@
 
   var HEADINGS = { subject: 1, topic: 1, subtopic: 1, section: 1 };
 
-  /* Flag is for Items, For review for Items and Sections; the others hide and disable them. */
+  /* Items and Sections take a Flag (D88); the others hide and disable it. */
   function marking(form, what) {
-    [["[data-add-flag]", what === "item"], ["[data-add-review]", what === "item" || what === "section"]].forEach(function (pair) {
-      var box = form.querySelector(pair[0]);
-      if (!box) { return; }
-      box.hidden = !pair[1];
-      Array.prototype.forEach.call(box.querySelectorAll("input"), function (n) { n.disabled = !pair[1]; });
-    });
+    var box = form.querySelector("[data-add-flag]");
+    if (!box) { return; }
+    var flags = what === "item" || what === "section";
+    box.hidden = !flags;
+    Array.prototype.forEach.call(box.querySelectorAll("input, select"), function (n) { n.disabled = !flags; });
+    if (window.QuillFlags) { window.QuillFlags.sync(box); }
   }
 
   function setup(form) {

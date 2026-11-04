@@ -22,10 +22,11 @@ def build_subject(profile, topics, items_per_container, name="Big Subject"):
         for n in range(items_per_container):
             top = Item.objects.create(
                 profile=profile, subtopic=sub, text=f"<p>item {t}-{n}</p>", text_plain=f"item {t}-{n}",
-                needs_review=(n % 2 == 0), review_note="check", position=n + 1,
+                flag="pending" if n % 2 == 0 else "none", flag_text="check" if n % 2 == 0 else "", position=n + 1,
             )
             Item.objects.filter(pk=top.pk).update(citation_layout="lines")
-            Case.objects.create(profile=profile, item=top, citation=f"A v B {t}-{n}", comment="<p>why</p>", position=1)
+            Case.objects.create(profile=profile, item=top, citation=f"A v B {t}-{n}", comment="<p>why</p>", position=1,
+                                url=f"https://example.com/Case/{t}-{n}")
             Case.objects.create(profile=profile, item=top, citation=f"C v D {t}-{n}", position=2)
             note = Note.objects.create(profile=profile, item=top, text="<p>note</p>", text_plain="note")
             NoteLink.objects.create(profile=profile, note=note, item=first_item)
@@ -62,14 +63,17 @@ class QueryCountTests(TestCase):
         self.assertLessEqual(large, self.CEILING)
         self.assertLessEqual(large, small + 2, "query count grew with the amount of data")
 
-    def test_review_list_is_bounded(self):
+    def test_flags_and_hyperlinks_pages_are_bounded(self):
         build_subject(main_profile(), topics=2, items_per_container=3)
-        small = self.count(reverse("review_list"))
-        self.assertContains(self.last_response, "check")
+        small = {name: self.count(reverse(name)) for name in ("flags", "flag_links")}
+        self.assertContains(self.last_response, "https://example.com/Case/")
         build_subject(main_profile(), topics=8, items_per_container=25, name="Bigger Subject")
-        large = self.count(reverse("review_list"))
-        self.assertLessEqual(large, self.CEILING)
-        self.assertLessEqual(large, small + 2, "query count grew with the amount of data")
+        for name in ("flags", "flag_links"):
+            large = self.count(reverse(name))
+            self.assertLessEqual(large, self.CEILING, name)
+            self.assertLessEqual(large, small[name] + 2, "query count grew with the amount of data: " + name)
+        self.count(reverse("flags"))
+        self.assertContains(self.last_response, "Pending: check")
 
     def test_search_is_bounded(self):
         build_subject(main_profile(), topics=2, items_per_container=3)

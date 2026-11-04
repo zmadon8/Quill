@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Hyperlinks - {{ program_label }}{% endblock %}
+{% block content %}
+<div class="home-column search-page">
+  {% include "diary/_flags_tabs.html" %}
+  <h1>Hyperlinks</h1>
+  <form class="search-form" role="search" method="get" action="{% url 'flag_links' %}">
+    <div class="search-row">
+      <label class="visually-hidden" for="links-q">{% if which == "with" %}Search the link addresses{% else %}Search the citations{% endif %}</label>
+      <input type="search" id="links-q" name="q" value="{{ q }}" placeholder="{% if which == 'with' %}Search the link addresses&hellip;{% else %}Search the citations&hellip;{% endif %}" autocomplete="off">
+      <button type="submit" class="primary">Search</button>
+    </div>
+    <div class="search-filters" role="radiogroup" aria-label="Citations to show">
+      <label class="search-check"><input type="radio" name="links" value="" data-autosubmit{% if which == "with" %} checked{% endif %}> With a link</label>
+      <label class="search-check"><input type="radio" name="links" value="without" data-autosubmit{% if which == "without" %} checked{% endif %}> Without a link</label>
+      <noscript><button type="submit" class="small">Show</button></noscript>
+    </div>
+  </form>
+  <div data-search-results>
+  {% if results %}
+  <div class="search-head"><p class="meta search-count">{{ total }} citation{{ total|pluralize }} {% if which == "with" %}with{% else %}without{% endif %} a link{% if q %} matching &ldquo;{{ q }}&rdquo;{% endif %}</p></div>
+  {% include "diary/_grouped_results.html" %}
+  {% else %}
+  <p class="empty search-none">{% if q %}Nothing matches &ldquo;{{ q }}&rdquo;.{% elif which == "with" %}No citation has a link yet.{% else %}Every citation has a link.{% endif %}</p>
+  {% endif %}
+  </div>
+  <p class="meta search-help">{% if which == "with" %}Every citation that has a link, grouped by Subject; the search box looks in the link addresses.{% else %}Every citation that has no link yet, grouped by Subject; the search box looks in the citations.{% endif %} Open a result to add or change its link in Edit mode.</p>
+</div>
+{% endblock %}

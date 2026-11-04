@@ -9,69 +9,38 @@
       <input type="search" id="search-q" name="q" value="{{ q }}" placeholder="Search the diary&hellip;" autocomplete="off" autofocus data-search-input>
       <button type="submit" class="primary">Search</button>
     </div>
+    {# One line (D90): Search history, then Group by Subject (a way of showing the results, not a filter), Citations, Flags, Headers. #}
     <div class="search-filters" data-search-toggles>
-      <label class="search-check"><input type="checkbox" name="citations" value="1"{% if citations_only %} checked{% endif %}> Citations only</label>
-      <label class="search-check"><input type="checkbox" name="review" value="1"{% if review_only %} checked{% endif %}> For review only</label>
-      <label class="search-check"><input type="checkbox" name="headers" value="1"{% if headers_only %} checked{% endif %}> Search headers</label>
+      <details class="search-history" data-search-history hidden>
+        <summary>History</summary>
+        <div class="search-history-pop">
+          <ul class="search-history-list" data-history-list></ul>
+          <p><button type="button" class="small" data-history-clear>Clear search history</button> <span class="meta">Kept only in this browser, for your login.</span></p>
+        </div>
+      </details>
+      {% if not chosen_subject %}<button type="button" class="link group-switch" role="switch" aria-checked="{% if want_subjects %}true{% else %}false{% endif %}" data-group-toggle data-cards="{{ cards_url }}" data-subjects="{{ subjects_url }}" title="Show the results grouped under their Subjects, or in one list. The search is not run again."><span class="track" aria-hidden="true"><span class="knob"></span></span>Group by Subject</button>{% endif %}
+      <label class="search-check"><input type="checkbox" name="citations" value="1"{% if citations_only %} checked{% endif %}> Citations</label>
+      <label class="search-check"><input type="checkbox" name="flags" value="1"{% if flags_only %} checked{% endif %}> Flags</label>
+      <label class="search-check"><input type="checkbox" name="headers" value="1"{% if headers_only %} checked{% endif %}> Headers</label>
     </div>
     {% if chosen_subject %}<input type="hidden" name="subject" value="{{ chosen_subject }}">{% endif %}
-    {# Grouping is not a search filter: it only changes how the results are shown. Kept here so a new search keeps the grouping. #}
+    {# The grouping travels with a new search; the switch above changes it without searching again. #}
     <input type="hidden" name="view" value="subjects" data-group-input{% if not want_subjects or chosen_subject %} disabled{% endif %}>
   </form>
-  <details class="search-history" data-search-history hidden>
-    <summary>Search history</summary>
-    <ul class="search-history-list" data-history-list></ul>
-    <p><button type="button" data-history-clear>Clear search history</button> <span class="meta">Kept only in this browser, for your login.</span></p>
-  </details>
   <div data-search-results>
   {% if not searched %}
-  <p class="meta search-help">Type words to find in names, text, citations, comments, flags, review notes and notes. Every word must appear (parts of words count), so <em>2018 9 SCC 49</em> finds (2018) 9 SCC 49. Put words in &ldquo;double quotes&rdquo; to find them together as a phrase. Brackets, full stops and quote marks are ignored. Search headers looks only in Subject, Topic, Sub-topic and Section names. The ticks (Citations only, For review only, Search headers) and Group by Subject are remembered by this browser, and so are your recent searches (see Search history, where you can clear them). &#8997;F (Option-F on a Mac, Alt+F on Windows) jumps to the search box.</p>
+  <p class="meta search-help">Type words to find in names, text, citations, comments, flags and notes. Every word must appear (parts of words count), so <em>2018 9 SCC 49</em> finds (2018) 9 SCC 49. Put words in &ldquo;double quotes&rdquo; to find them together as a phrase. Brackets, full stops and quote marks are ignored. <strong>Citations</strong> looks only in citations, <strong>Flags</strong> only in the text beside flags (with no words it lists everything flagged), <strong>Headers</strong> only in Subject, Topic, Sub-topic and Section names. <strong>Group by Subject</strong> shows the results under their Subjects; switching it does not search again. The ticks are remembered by this browser, and so are your recent searches (<strong>History</strong>, where you can clear them). &#8997;F (Option-F on a Mac, Alt+F on Windows) jumps to the search box.</p>
   {% elif results %}
   <div class="search-head">
     <p class="meta search-count">{{ total }} result{{ total|pluralize }}</p>
-    {% if not chosen_subject %}<a class="group-switch" role="switch" aria-checked="{% if by_subject %}true{% else %}false{% endif %}" href="{% if by_subject %}{{ cards_url }}{% else %}{{ subjects_url }}{% endif %}" data-group-toggle data-swap title="Group the results by Subject, or show them in one list. The search is not changed."><span class="track" aria-hidden="true"><span class="knob"></span></span>Group by Subject</a>{% endif %}
   </div>
   {% if by_subject %}
-  <div class="search-two{% if picked_valid %} has-pick{% endif %}">
-    <nav class="search-subjects" aria-label="Subjects with results">
-      {% for g in groups %}<a data-swap href="{{ g.url }}"{% if g.subject.pk == chosen_group.subject.pk %} class="sel" aria-current="true"{% endif %}><span>{{ g.subject.name }}</span><span class="count">{{ g.count }}</span></a>{% endfor %}
-    </nav>
-    <div class="search-pane">
-      {% if picked_valid %}<p class="search-back"><a data-swap href="{{ cards_url }}&amp;view=subjects">&larr; All Subjects</a></p>{% endif %}
-      <h2 class="search-pane-title">{{ chosen_group.subject.name }}</h2>
-      <ol class="search-results cards">
-        {% for r in results %}
-        <li class="search-result card">
-      <div class="search-meta">
-        <span class="search-kind badge">{{ r.kind }}</span>
-        {% if r.needs_review %}<span class="review-marker">For review</span>{% endif %}
-        {% if r.flag_text %}<span class="flag-text">{{ r.flag_text }}</span>{% endif %}
-        {% if r.path %}<span class="search-path">{% for name, url in r.path %}{% if not forloop.first %} &gt; {% endif %}{{ name }}{% endfor %}</span>{% endif %}
-      </div>
-      <a class="search-link" href="{{ r.url }}" title="Open in context">{{ r.label }}</a>
-      {% if r.segments %}<p class="search-snippet"><span class="search-field">{{ r.field_label }}:</span> {% for seg in r.segments %}{% if seg.1 %}<mark>{{ seg.0 }}</mark>{% else %}{{ seg.0 }}{% endif %}{% endfor %}</p>{% endif %}
-    </li>
-        {% endfor %}
-      </ol>
-      {% if has_more %}<p class="search-more"><a class="button" href="{% url 'search' %}?{{ more_query }}">Show more</a> <span class="meta">Showing {{ results|length }} of {{ shown_total }}</span></p>{% endif %}
-    </div>
-  </div>
+  {% include "diary/_grouped_results.html" %}
   {% else %}
   <ol class="search-results cards">
-    {% for r in results %}
-    <li class="search-result card">
-      <div class="search-meta">
-        <span class="search-kind badge">{{ r.kind }}</span>
-        {% if r.needs_review %}<span class="review-marker">For review</span>{% endif %}
-        {% if r.flag_text %}<span class="flag-text">{{ r.flag_text }}</span>{% endif %}
-        {% if r.path %}<span class="search-path">{% for name, url in r.path %}{% if not forloop.first %} &gt; {% endif %}{{ name }}{% endfor %}</span>{% endif %}
-      </div>
-      <a class="search-link" href="{{ r.url }}" title="Open in context">{{ r.label }}</a>
-      {% if r.segments %}<p class="search-snippet"><span class="search-field">{{ r.field_label }}:</span> {% for seg in r.segments %}{% if seg.1 %}<mark>{{ seg.0 }}</mark>{% else %}{{ seg.0 }}{% endif %}{% endfor %}</p>{% endif %}
-    </li>
-    {% endfor %}
+    {% for r in results %}{% include "diary/_result_card.html" %}{% endfor %}
   </ol>
-  {% if has_more %}<p class="search-more"><a class="button" href="{% url 'search' %}?{{ more_query }}">Show more</a> <span class="meta">Showing {{ results|length }} of {{ total }}</span></p>{% endif %}
+  {% if has_more %}<p class="search-more"><a class="button" href="{{ more_url }}">Show more</a> <span class="meta">Showing {{ results|length }} of {{ total }}</span></p>{% endif %}
   {% endif %}
   {% else %}
   <p class="empty search-none">No results{% if q %} for &ldquo;{{ q }}&rdquo;{% endif %}.</p>

@@ -141,10 +141,15 @@ class ItemRuleTests(Base):
         case.clean()
         self.assertEqual(case.comment_plain, "only a comment")
 
-    def test_flag_and_review_defaults(self):
+    def test_flag_defaults_and_the_retired_review_switch(self):
+        from django.db import IntegrityError, transaction
+
         item = Item.objects.create(profile=main_profile(), subtopic=self.subtopic)
         self.assertEqual(item.flag, "none")
         self.assertFalse(item.needs_review)
+        # D88: the For review switch is retired; a check rule keeps it off.
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            Item.objects.filter(pk=item.pk).update(needs_review=True)
         self.assertEqual(item.original_line, "")
 
     def test_clean_rejects_multiline_citation(self):

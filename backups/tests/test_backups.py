@@ -369,7 +369,7 @@ class DiaryRoundTripTests(BackupBase):
         other = Subject.objects.create(profile=main_profile(), name="Companies Act", position=2)
         other_topic = Topic.objects.create(profile=main_profile(), subject=other, name="1", position=1)
         Subtopic.objects.create(profile=main_profile(), topic=other_topic, name="Directors")
-        section = Section.objects.create(profile=main_profile(), subtopic=subtopic, name="Ex Parte", needs_review=True, review_note="check")
+        section = Section.objects.create(profile=main_profile(), subtopic=subtopic, name="Ex Parte", flag="pending", flag_text="check")
         item = Item.objects.create(profile=main_profile(), subtopic=subtopic, text="<p>Rule <b>one</b></p>", position=1)
         Case.objects.create(profile=main_profile(), item=item, citation="A v B", position=1)
         lines = Item.objects.create(profile=main_profile(), topic=other_topic, text="Parent", citation_layout="lines")
@@ -1115,9 +1115,10 @@ class OldNestedFileTests(BackupBase):
         services.restore_backup(doc, self.admin)
 
         parent = Item.objects.get(pk=self.parent.pk)
-        self.assertEqual((parent.kind, parent.citation, parent.citation_layout, parent.needs_review),
-                         ("plain", "", "lines", True))
-        self.assertIn("Converted from a Nested Item", parent.review_note)
+        # The conversion's own note was a For review mark; it is now the flag Other (D88).
+        self.assertEqual((parent.kind, parent.citation, parent.citation_layout, parent.needs_review, parent.flag),
+                         ("plain", "", "lines", False, "other"))
+        self.assertIn("Converted from a Nested Item", parent.flag_text)
         cases = list(parent.cases.order_by("position"))
         self.assertEqual([(c.position, c.citation) for c in cases], [(1, "N v M"), (2, "K1 v L"), (3, "")])
         self.assertEqual(cases[0].comment, "")
@@ -1166,6 +1167,53 @@ class OldNestedFileTests(BackupBase):
         nested = [r for r in doc["models"]["diary.Item"] if r["fields"].get("kind") == "nested"]
         self.assertEqual(nested, [])
         self.assertTrue(all("parent_item" not in r["fields"] for r in doc["models"]["diary.Item"]))
+
+
+class OldReviewFileTests(BackupBase):
+    """Round 16 (D88): a backup made before For review was merged into the Flags is restored with each mark folded into
+    the Flag, exactly as migration 0021 does for the live database (diary/review_flags.py)."""
+
+    def make_file(self):
+        profile = main_profile()
+        subject = Subject.objects.create(profile=profile, name="Contract")
+        topic = Topic.objects.create(profile=profile, subject=subject, name="Formation", position=1)
+        self.plain = Item.objects.create(profile=profile, topic=topic, text="<p>plain</p>", position=1)
+        self.flagged = Item.objects.create(profile=profile, topic=topic, text="<p>flagged</p>", position=2,
+                                           flag="overruled", flag_text="by X v Y")
+        self.bare = Item.objects.create(profile=profile, topic=topic, text="<p>bare</p>", position=3)
+        self.untouched = Item.objects.create(profile=profile, topic=topic, text="<p>untouched</p>", position=4)
+        self.section = Section.objects.create(profile=profile, topic=topic, name="Sec", position=5)
+        old = gunzip_json(services.create_backup("manual").data)
+        marks = {self.plain.pk: "check   the\nyear", self.flagged.pk: "see appeal", self.bare.pk: ""}
+        for record in old["models"]["diary.Item"]:
+            if record["pk"] in marks:
+                record["fields"].update(needs_review=True, review_note=marks[record["pk"]])
+        for record in old["models"]["diary.Section"]:
+            record["fields"].update(needs_review=True, review_note="heading to confirm")
+            record["fields"].pop("flag", None)  # an old file has no flags on Sections
+            record["fields"].pop("flag_text", None)
+        return old
+
+    def test_marks_become_flags_before_anything_is_inserted(self):
+        doc = services.parse_backup(json.dumps(self.make_file()).encode("utf-8"), MAX)
+        stats = doc["review_mapping"]
+        self.assertEqual((stats["items"], stats["sections"], stats["kept_flag"]), (3, 1, 1))
+        services.restore_backup(doc, self.admin)
+        got = {i.pk: (i.flag, i.flag_text, i.needs_review, i.review_note) for i in Item.objects.all()}
+        self.assertEqual(got[self.plain.pk], ("other", "check the year", False, ""))
+        self.assertEqual(got[self.flagged.pk], ("overruled", "by X v Y \u00b7 For review: see appeal", False, ""))
+        self.assertEqual(got[self.bare.pk], ("other", "For review", False, ""))
+        self.assertEqual(got[self.untouched.pk], ("none", "", False, ""))
+        section = Section.objects.get(pk=self.section.pk)
+        self.assertEqual((section.flag, section.flag_text, section.needs_review), ("other", "heading to confirm", False))
+        self.assertIn("marked For review now carry the review note as a Flag",
+                      BackupLog.objects.filter(kind="restore").latest("pk").message)
+        self.assertTrue(VersionHistory.objects.filter(change_kind="migrate", record_type="section").exists())
+
+    def test_a_merged_file_is_not_changed_again(self):
+        services.restore_backup(services.parse_backup(json.dumps(self.make_file()).encode("utf-8"), MAX), self.admin)
+        again = services.parse_backup(services.create_backup("manual").data, MAX)
+        self.assertEqual((again["review_mapping"]["items"], again["review_mapping"]["sections"]), (0, 0))
 
 
 class OldLooseItemsFileTests(BackupBase):

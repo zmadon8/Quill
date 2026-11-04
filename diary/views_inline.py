@@ -6,7 +6,7 @@ Two GET endpoints, both for Editors of the signed-in user's profile only (Reader
 * ``edit_inline_add`` (GET ``?ref=item:5``): the "+ Add" form that opens under a row, with the kinds that row offers;
 * ``edit_inline_card`` (GET ``?kind=item&id=5``): the editing card that replaces a row.
 
-Saving is done by the existing endpoints (edit_add, edit_item, edit_rename, edit_review, edit_move, edit_delete,
+Saving is done by the existing endpoints (edit_add, edit_item, edit_rename, edit_move, edit_delete,
 edit_undo) when the request carries ``X-Requested-With: fetch``; see docs/DESIGN.md.
 """
 
@@ -80,7 +80,6 @@ def edit_card(request):
             rows = [{"id": None, "version": None, "citation": "", "comment": "", "url": ""}]
         context.update(
             values={"text": record.text, "citation": record.citation, "flag": record.flag, "flag_text": record.flag_text,
-                    "needs_review": record.needs_review, "review_note": record.review_note,
                     "citation_layout": record.citation_layout},
             rows=rows, flag_choices=FLAG_CHOICES, layout_choices=CITATION_LAYOUT_CHOICES,
             can_shift=bool(run_of(record)), title="Editing Item",
@@ -90,7 +89,7 @@ def edit_card(request):
         if kind == "subject":
             context["landing"] = record.show_on_landing
         if kind == "section":
-            context.update(values={"needs_review": record.needs_review, "review_note": record.review_note},
+            context.update(values={"flag": record.flag, "flag_text": record.flag_text}, flag_choices=FLAG_CHOICES,
                            can_shift=True)
     html = render_to_string("diary/_inline_card.html", context, request=request)
     return JsonResponse({"ok": True, "html": html, "kind": kind, "id": record.pk, "version": record.version})

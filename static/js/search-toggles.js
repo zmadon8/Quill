@@ -1,6 +1,7 @@
 (function () {
   "use strict";
-  // Search toggles (Citations only, For review only, Search headers) are remembered by this browser (localStorage).
+  // Search toggles (Citations, Flags, Headers: D90) are remembered by this browser (localStorage). A choice saved before
+  // round 16 under "review" (For review only) is read as Flags.
   // "Group by Subject" is not a search filter: it only changes how the results are shown, has its own remembered
   // choice (GROUP_KEY), and switches in place without running a new search from the box (see the end of this file).
   // On the Search page the saved ticks are applied to the form and, if a search is showing and they differ from the
@@ -8,7 +9,11 @@
   // Ticks named in the address are left alone. Without JavaScript the ticks simply travel in the address, as before.
   var KEY = "quill.search.toggles";
   var read = function () {
-    try { var v = JSON.parse(window.localStorage.getItem(KEY)); return v && typeof v === "object" ? v : null; } catch (err) { return null; }
+    var v = null;
+    try { v = JSON.parse(window.localStorage.getItem(KEY)); } catch (err) { return null; }
+    if (!v || typeof v !== "object") { return null; }
+    if (Object.prototype.hasOwnProperty.call(v, "review") && !Object.prototype.hasOwnProperty.call(v, "flags")) { v.flags = v.review; }
+    return v;
   };
   var write = function (state) {
     try { window.localStorage.setItem(KEY, JSON.stringify(state)); } catch (err) { /* private mode */ }
@@ -29,7 +34,7 @@
     var saved = read();
     // Ticks named in the address win (a link such as the Review list's "Search within these" means exactly what it says).
     var wanted = new URLSearchParams(window.location.search);
-    var explicit = ["citations", "review", "headers"].some(function (name) { return wanted.has(name); });
+    var explicit = ["citations", "flags", "review", "headers"].some(function (name) { return wanted.has(name); });
     if (saved && !explicit) {
       var changed = false;
       checks.forEach(function (c) {
@@ -52,10 +57,10 @@
 
   var pop = document.querySelector(".search-pop-form");
   if (pop) {
-    var names = { citations: "1", review: "1", headers: "1", view: "subjects" };
+    var names = { citations: "1", flags: "1", headers: "1", view: "subjects" };
     pop.addEventListener("submit", function () {
       var state = read() || {};
-      state = { citations: state.citations, review: state.review, headers: state.headers, view: readGroup() };
+      state = { citations: state.citations, flags: state.flags, headers: state.headers, view: readGroup() };
       Object.keys(names).forEach(function (name) {
         if (state[name] && !pop.querySelector("input[name=" + name + "]")) {
           var h = document.createElement("input");
@@ -73,9 +78,13 @@
   if (hist && hform) {
     var HKEY = "quill.search.history." + (hform.getAttribute("data-user") || "");
     var MAX = 50;
-    var TICKS = [["citations", "1", "Citations only"], ["review", "1", "For review only"], ["headers", "1", "Search headers"]];
+    var TICKS = [["citations", "1", "Citations"], ["flags", "1", "Flags"], ["headers", "1", "Headers"]];
     var load = function () {
-      try { var v = JSON.parse(window.localStorage.getItem(HKEY)); return Array.isArray(v) ? v : []; } catch (err) { return []; }
+      var v = [];
+      try { v = JSON.parse(window.localStorage.getItem(HKEY)); } catch (err) { return []; }
+      if (!Array.isArray(v)) { return []; }
+      v.forEach(function (e) { if (e && e.review && !e.flags) { e.flags = true; } }); // saved before round 16
+      return v;
     };
     var save = function (list) {
       try { window.localStorage.setItem(HKEY, JSON.stringify(list.slice(0, MAX))); } catch (err) { /* private mode */ }
@@ -128,14 +137,21 @@
     draw();
   }
 
-  // Group by Subject: switch the grouping, or pick a Subject in the grouped view, without leaving the page or touching
-  // the search box. The page asks the server for the same results in the other layout and swaps them in; the address
-  // is updated so Back, reload and bookmarks still work. Without JavaScript these are ordinary links.
+  // Group by Subject (D83, D90): a switch in the ticks row. It changes how the results are shown, never what is searched:
+  // with results on screen it asks the server for the same results in the other layout and swaps them in (the address is
+  // updated so Back, reload and bookmarks still work); without results it only remembers the choice for the next search.
+  // Picking a Subject in the grouped view (also on the Flags and Hyperlinks pages) swaps in the same way.
+  // Without JavaScript the Subject picks are ordinary links.
   var results = document.querySelector("[data-search-results]");
   var groupInput = document.querySelector("[data-group-input]");
+  var groupSwitch = document.querySelector("[data-group-toggle]");
+  var setSwitch = function (on) {
+    if (groupSwitch) { groupSwitch.setAttribute("aria-checked", on ? "true" : "false"); }
+    if (groupInput) { groupInput.disabled = !on; }
+  };
   if (results && window.fetch && window.DOMParser) {
     var busy = false;
-    var swap = function (href, focusToggle) {
+    var swap = function (href) {
       if (busy) { return; }
       busy = true;
       results.setAttribute("aria-busy", "true");
@@ -147,13 +163,8 @@
         var fresh = new DOMParser().parseFromString(html, "text/html").querySelector("[data-search-results]");
         if (!fresh) { throw new Error("no results"); }
         results.innerHTML = fresh.innerHTML;
-        var grouped = url.searchParams.get("view") === "subjects";
-        if (groupInput) { groupInput.disabled = !grouped; }
+        if (groupSwitch) { setSwitch(url.searchParams.get("view") === "subjects"); }
         window.history.replaceState(window.history.state, "", url.pathname + url.search);
-        if (focusToggle) {
-          var again = results.querySelector("[data-group-toggle]");
-          if (again) { again.focus(); }
-        }
       }).catch(function () {
         window.location.href = url.toString(); // fall back to an ordinary page load
       }).then(function () {
@@ -166,20 +177,22 @@
       var link = e.target.closest("a[data-swap]");
       if (!link || !results.contains(link)) { return; }
       e.preventDefault();
-      var toggle = link.hasAttribute("data-group-toggle");
-      if (toggle) { writeGroup(link.getAttribute("aria-checked") !== "true"); }
-      swap(link.getAttribute("href"), toggle);
+      swap(link.getAttribute("href"));
     });
-    results.addEventListener("keydown", function (e) {
-      // A switch also answers the Space key.
-      var link = e.target.closest && e.target.closest("a[data-group-toggle]");
-      if (link && e.key === " ") { e.preventDefault(); link.click(); }
-    });
-    // The remembered grouping is applied when results are shown and the address does not say otherwise.
-    var toggleNow = results.querySelector("[data-group-toggle]");
-    var params = new URLSearchParams(window.location.search);
-    if (toggleNow && !params.has("view") && readGroup() && toggleNow.getAttribute("aria-checked") !== "true") {
-      swap(toggleNow.getAttribute("href"), false);
+    var hasResults = function () { return !!results.querySelector(".search-result"); };
+    if (groupSwitch) {
+      groupSwitch.addEventListener("click", function () {
+        var on = groupSwitch.getAttribute("aria-checked") !== "true";
+        writeGroup(on);
+        setSwitch(on);
+        if (hasResults()) { swap(groupSwitch.getAttribute(on ? "data-subjects" : "data-cards")); }
+      });
+      // The remembered grouping is applied when results are shown and the address does not say otherwise.
+      var params = new URLSearchParams(window.location.search);
+      if (!params.has("view") && readGroup() && groupSwitch.getAttribute("aria-checked") !== "true") {
+        setSwitch(true);
+        if (hasResults()) { swap(groupSwitch.getAttribute("data-subjects")); }
+      }
     }
   }
 })();

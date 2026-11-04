@@ -21,7 +21,7 @@ What happens to what is inside (the rules the confirmation page shows):
   become Sections. A Topic "1" (only a holder for loose Items) is dissolved into the new Topic instead.
 
 Notes on the old record move to the new one, and links from other Notes are pointed at the new record. Section
-"For review" marks cannot be kept by a Sub-topic (it has none); the confirmation page says so.
+flags cannot be kept by a Sub-topic (it has none); the confirmation page says so.
 """
 import contextlib
 
@@ -263,8 +263,10 @@ def describe(profile, user, kind, record_id, direction, target_id=None):
                 lines.append("It is made beside the Sub-topic it sits in now, not inside it.")
             if not (obj.name or "").strip():
                 raise Refused("This Section has no name, so it cannot become a Sub-topic. Give it a name first.")
-            if obj.needs_review:
-                warnings.append("This Section is marked For review. A Sub-topic has no such mark, so the mark is not kept (it stays in the Trash copy and in History).")
+            if (obj.flag or "none") != "none":
+                from ..models import flag_label
+
+                warnings.append(f"This Section has the flag \u201c{flag_label(obj.flag, obj.flag_text)}\u201d. A Sub-topic has no flag, so it is not kept (it stays in the Trash copy and in History).")
     if kind == "subtopic":
         if direction == "promote":
             lines.append("It becomes a Topic in the same Subject. Its Sections, Items and Notes go with it.")

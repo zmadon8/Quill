@@ -507,4 +507,29 @@
     });
     showLinks();
   }
+
+  // Flags (D88): the text box beside a flag is greyed out while None is chosen. One helper for every form.
+  var syncFlags = function (scope) {
+    Array.prototype.forEach.call((scope || document).querySelectorAll("[data-flag-field]"), function (box) {
+      var select = box.querySelector("[data-flag-select]");
+      var text = box.querySelector("[data-flag-text]");
+      if (select && text) { text.disabled = select.disabled || select.value === "none"; }
+    });
+  };
+  window.QuillFlags = { sync: syncFlags };
+  document.addEventListener("change", function (e) {
+    var select = e.target.closest && e.target.closest("[data-flag-select]");
+    if (!select) { return; }
+    syncFlags(select.closest("[data-flag-field]").parentNode);
+    var text = select.closest("[data-flag-field]").querySelector("[data-flag-text]");
+    if (text && !text.disabled) { text.focus(); }
+  });
+  syncFlags(document);
+
+  // A drop-down or choice marked data-autosubmit shows its choice at once (the Flags and Hyperlinks pages).
+  document.addEventListener("change", function (e) {
+    var field = e.target.closest && e.target.closest("[data-autosubmit]");
+    if (!field || !field.form) { return; }
+    if (field.form.requestSubmit) { field.form.requestSubmit(); } else { field.form.submit(); }
+  });
 })();

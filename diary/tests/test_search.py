@@ -92,16 +92,15 @@ class MatchEachRecordTypeTests(SearchTestBase):
         self.assertEqual(results[0].flag_text, "Pangolin warning")
         self.assertEqual(results[0].field_label, "Flag")
 
-    def test_item_review_note(self):
-        self.item("Plain", needs_review=True, review_note="Tapir check this")
+    def test_item_flag_reads_with_its_name(self):
+        self.item("Plain", flag="pending", flag_text="Tapir check this")
         results = self.search("tapir")
         self.assertEqual([r.label for r in results], ["Plain"])
-        self.assertTrue(results[0].needs_review)
-        self.assertEqual(results[0].review_note, "Tapir check this")
-        self.assertEqual(results[0].field_label, "Review note")
+        self.assertEqual((results[0].flag, results[0].flag_text), ("pending", "Pending: Tapir check this"))
+        self.assertEqual(results[0].field_label, "Flag")
 
-    def test_section_review_note(self):
-        Section.objects.create(profile=self.profile, topic=self.topic, name="Sec", needs_review=True, review_note="Gecko note")
+    def test_section_flag_text(self):
+        Section.objects.create(profile=self.profile, topic=self.topic, name="Sec", flag="other", flag_text="Gecko note")
         self.assertEqual(self.kinds("gecko"), [("Section", "Sec")])
 
     def test_note_text_locates_at_parent_item(self):
@@ -254,15 +253,15 @@ class ProfileScopeTests(SearchTestBase):
         item = Item.objects.create(profile=other, topic=topic, text=para("Lynx elsewhere"))
         Case.objects.create(profile=other, item=item, citation="(2018) 9 SCC 49")
         Note.objects.create(profile=other, item=item, text=para("Gnu elsewhere"))
-        Section.objects.create(profile=other, topic=topic, name="Ibex elsewhere", needs_review=True)
+        Section.objects.create(profile=other, topic=topic, name="Ibex elsewhere", flag="doubted")
         self.item("Lynx here")
         for query in ("zebra", "quokka", "lynx", "2018 9 scc 49", "gnu", "ibex", "elsewhere"):
             labels = [r.label for r in self.search(query)]
             self.assertFalse([x for x in labels if "lsewhere" in x], (query, labels))
         self.assertEqual([r.label for r in self.search("lynx")], ["Lynx here"])
         self.assertEqual([r.label for r in run_search(other, "lynx")], ["Lynx elsewhere"])
-        self.assertEqual([r.label for r in run_search(other, "", review_only=True)], ["Ibex elsewhere"])
-        self.assertEqual(self.search("", review_only=True), [])
+        self.assertEqual([r.label for r in run_search(other, "", flags_only=True)], ["Ibex elsewhere"])
+        self.assertEqual(self.search("", flags_only=True), [])
         self.assertEqual(self.search("zebra", subject_id=subject.pk), [])
 
 
@@ -293,39 +292,44 @@ class FilterTests(SearchTestBase):
         self.case(self.main_item, "(2018) 9 SCC 49")
         self.assertEqual([r.label for r in self.search("", citations_only=True)], ["Common scc text too"])
 
-    def test_review_only_covers_items_and_sections(self):
-        Item.objects.filter(pk=self.main_item.pk).update(needs_review=True, review_note="check")
-        Section.objects.create(profile=self.profile, topic=self.topic, name="Common Sec", needs_review=True)
+    def test_flags_only_looks_only_in_the_text_beside_flags(self):
+        # D88/D90: "Flags" searches within the flags of Items and Sections, nowhere else.
+        Item.objects.filter(pk=self.main_item.pk).update(flag="other", flag_text="common worry")
+        Section.objects.create(profile=self.profile, topic=self.topic, name="Common Sec", flag="pending", flag_text="common too")
         Section.objects.create(profile=self.profile, topic=self.topic, name="Common Plain Sec")
-        results = self.search("common", review_only=True)
+        Item.objects.filter(pk=self.other_item.pk).update(flag="doubted", flag_text="nothing alike")
+        results = self.search("common", flags_only=True)
         self.assertEqual({(r.kind, r.label) for r in results}, {("Item", "Common scc text too"), ("Section", "Common Sec")})
-        self.assertTrue(all(r.needs_review for r in results))
+        self.assertTrue(all(r.field_label == "Flag" for r in results))
+        # "Common" is in the other Item's text, not in its flag: not found
+        self.assertEqual(self.search("scc", flags_only=True), [])
 
-    def test_review_only_with_empty_query_lists_everything_marked(self):
-        Item.objects.filter(pk=self.main_item.pk).update(needs_review=True)
-        Item.objects.filter(pk=self.other_item.pk).update(needs_review=True)
-        Section.objects.create(profile=self.profile, topic=self.topic, name="Sec", needs_review=True)
-        Note.objects.create(profile=self.profile, topic=self.topic, text=para("Not marked"))
-        results = self.search("", review_only=True)
+    def test_flags_only_with_empty_query_lists_everything_flagged(self):
+        Item.objects.filter(pk=self.main_item.pk).update(flag="pending")
+        Item.objects.filter(pk=self.other_item.pk).update(flag="overruled")
+        Section.objects.create(profile=self.profile, topic=self.topic, name="Sec", flag="other", flag_text="x")
+        Note.objects.create(profile=self.profile, topic=self.topic, text=para("Not flagged"))
+        results = self.search("", flags_only=True)
         self.assertEqual(len(results), 3)
         self.assertEqual({r.kind for r in results}, {"Item", "Section"})
-        self.assertEqual(len(self.search("", review_only=True, subject_id=self.other.pk)), 1)
+        self.assertEqual(len(self.search("", flags_only=True, subject_id=self.other.pk)), 1)
+        self.assertEqual([r.label for r in self.search("", flags_only=True, flag_kind="overruled")], ["Common scc text"])
 
-    def test_review_only_includes_marked_items(self):
+    def test_flags_only_includes_flagged_items(self):
         self.item("Group")
-        child = self.item("Child", needs_review=True)
-        results = self.search("", review_only=True)
+        child = self.item("Child", flag="pending")
+        results = self.search("", flags_only=True)
         self.assertEqual([r.label for r in results], ["Child"])
         self.assertTrue(results[0].url.endswith("#n-item-%d" % child.pk))
 
     def test_filters_combine(self):
-        Item.objects.filter(pk=self.main_item.pk).update(needs_review=True)
+        Item.objects.filter(pk=self.main_item.pk).update(flag="pending")
         self.case(self.main_item, "(2018) 9 SCC 49")
-        other_case_item = self.item("Not for review")
+        other_case_item = self.item("Not flagged")
         self.case(other_case_item, "(2017) 1 SCC 1")
-        results = self.search("scc", citations_only=True, review_only=True, subject_id=self.subject.pk)
+        results = self.search("scc", citations_only=True, flags_only=True, subject_id=self.subject.pk)
         self.assertEqual([r.label for r in results], ["Common scc text too"])
-        self.assertEqual(self.search("scc", citations_only=True, review_only=True, subject_id=self.other.pk), [])
+        self.assertEqual(self.search("scc", citations_only=True, flags_only=True, subject_id=self.other.pk), [])
 
 
 class HeadersOnlyTests(SearchTestBase):
@@ -343,8 +347,8 @@ class HeadersOnlyTests(SearchTestBase):
         for word, kind in (("Zebra", "Subject"), ("Quokka", "Topic"), ("Wombat", "Sub-topic")):
             self.assertEqual([r.kind for r in self.search(word, headers_only=True)], [kind])
 
-    def test_headers_only_skips_review_notes_notes_and_flags(self):
-        Item.objects.filter(pk=self.hit.pk).update(review_note="Axolotl", flag_text="Axolotl")
+    def test_headers_only_skips_notes_and_flags(self):
+        Item.objects.filter(pk=self.hit.pk).update(flag="other", flag_text="Axolotl")
         self.assertEqual(self.search("Axolotl", headers_only=True), [])
 
     def test_headers_only_excludes_trash_and_other_profiles(self):
@@ -512,11 +516,16 @@ class SearchPageTests(SearchTestBase):
         Item.objects.create(profile=self.profile, topic=other_topic, text=para("Pangolin two"))
         self.client.force_login(join_main(get_user_model().objects.create_user("rita", password="x-long-pass-123")))
 
-    def test_no_review_list_link_inside_search(self):
-        resp = self.client.get(reverse("search"))
-        self.assertNotContains(resp, 'class="meta" href="%s' % reverse("review_list"))
-        self.assertContains(resp, "For review only")
-        self.assertContains(resp, "Search headers")
+    def test_the_ticks_are_group_citations_flags_headers_after_history(self):
+        # D90: History, then Group by Subject, Citations, Flags, Headers, all on one line.
+        html = self.client.get(reverse("search")).content.decode()
+        row = html.split("data-search-toggles")[1].split("data-group-input")[0]
+        order = [row.index(x) for x in ("data-search-history", "Group by Subject", "> Citations</label>",
+                                         "> Flags</label>", "> Headers</label>")]
+        self.assertEqual(order, sorted(order))
+        for gone in ("For review only", "Citations only", "Search headers", 'name="review"'):
+            self.assertNotIn(gone, html)
+        self.assertNotIn('class="meta" href="%s' % reverse("review_list"), html)
 
     def test_by_subject_view_lists_subjects_and_chosen_results(self):
         resp = self.client.get(reverse("search"), {"q": "Pangolin", "view": "subjects", "s": self.other.pk})
@@ -532,24 +541,21 @@ class SearchPageTests(SearchTestBase):
         resp = self.client.get(reverse("search"), {"q": "Pangolin", "view": "subjects", "subject": self.other.pk})
         self.assertNotContains(resp, 'class="search-subjects"')
 
-    def test_group_by_subject_is_a_switch_beside_the_results_not_a_search_filter(self):
-        # Round 15: grouping only changes how results are shown, so it sits with the results, not with the search ticks.
+    def test_group_by_subject_is_a_switch_in_the_ticks_row_not_a_search_filter(self):
+        # Round 15/16 (D83, D90): grouping only changes how results are shown. Its switch sits first among the ticks,
+        # carries the two addresses of the same search (one list / grouped) and is not a form field itself.
         resp = self.client.get(reverse("search"), {"q": "Pangolin"})
         html = resp.content.decode()
-        filters = html.split("data-search-toggles")[1].split("</div>")[0]
-        self.assertNotIn("By Subject", filters)
-        self.assertNotIn('name="view"', filters)
-        self.assertContains(resp, 'role="switch" aria-checked="false"')
-        self.assertContains(resp, "Group by Subject")
+        row = html.split("data-search-toggles")[1].split("data-group-input")[0]
+        self.assertIn("Group by Subject", row)
+        self.assertNotIn('name="view"', row)
+        self.assertContains(resp, 'role="switch" aria-checked="false" data-group-toggle data-cards="?q=Pangolin" '
+                                  'data-subjects="?q=Pangolin&amp;view=subjects"')
         self.assertIn('data-search-results', html)
-        # the switch keeps the search (words and ticks) and only adds the grouping
-        self.assertContains(resp, 'href="?q=Pangolin&amp;view=subjects" data-group-toggle')
         self.assertContains(resp, 'name="view" value="subjects" data-group-input disabled')
         grouped = self.client.get(reverse("search"), {"q": "Pangolin", "view": "subjects"})
-        self.assertContains(grouped, 'role="switch" aria-checked="true"')
-        self.assertContains(grouped, 'href="?q=Pangolin" data-group-toggle')
+        self.assertContains(grouped, 'role="switch" aria-checked="true" data-group-toggle')
         self.assertContains(grouped, 'name="view" value="subjects" data-group-input>')
-        self.assertContains(grouped, 'class="search-subjects"')
 
     def test_no_group_switch_when_one_subject_is_searched(self):
         resp = self.client.get(reverse("search"), {"q": "Pangolin", "subject": self.other.pk})

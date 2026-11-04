@@ -56,7 +56,7 @@ class HomeIndexTests(TestCase):
         topic = Topic.objects.create(profile=main_profile(), subject=cls.arb, name="Fraud")
         sub = Subtopic.objects.create(profile=main_profile(), topic=topic, name="Ex parte")
         Item.objects.create(profile=main_profile(), subject=cls.arb, text="<p>direct</p>")
-        Item.objects.create(profile=main_profile(), topic=topic, text="<p>in topic</p>", needs_review=True)
+        Item.objects.create(profile=main_profile(), topic=topic, text="<p>in topic</p>", flag="pending")
         Item.objects.create(profile=main_profile(), subtopic=sub, text="<p>in subtopic</p>")
         Item.objects.create(profile=main_profile(), subject=cls.arb, text="<p>deleted</p>", deleted_at=timezone.now())
         direct_sub = Subtopic.objects.create(profile=main_profile(), subject=cls.con, name="Direct")
@@ -102,8 +102,8 @@ class HomeIndexTests(TestCase):
     def test_meta_line_totals(self):
         self.client.force_login(self.reader)
         resp = self.client.get(reverse("diary_home"))
-        self.assertContains(resp, "5 subjects &middot; 4 items &middot; ")
-        self.assertContains(resp, '>1 for review</a>')
+        self.assertContains(resp, "5 subjects &middot; 4 items</p>")
+        self.assertNotContains(resp, "for review")  # D88: the For review count is gone from the Subjects page
 
     def test_counts_use_a_fixed_number_of_queries(self):
         self.client.force_login(self.reader)
@@ -188,7 +188,7 @@ class HomeIndexTests(TestCase):
         self.assertEqual(reverse("read_subject", args=[7]), "/caselaw/subjects/7/read/")
         self.assertEqual(reverse("read_topic", args=[7]), "/caselaw/topics/7/read/")
         self.assertEqual(reverse("read_subtopic", args=[7]), "/caselaw/subtopics/7/read/")
-        for name in ("other_subjects", "review_list", "import_word", "profile_settings"):
+        for name in ("other_subjects", "review_list", "flags", "flag_links", "import_word", "profile_settings"):
             self.assertTrue(reverse(name).startswith("/caselaw/"), name)
         for root in ("/", "/healthz/", "/users/", "/settings/", "/backups/", "/profiles/", "/login/", "/logout/"):
             self.assertFalse(root.startswith("/caselaw/"))
@@ -374,14 +374,16 @@ class HomeIndexTests(TestCase):
                              + header.count("nav-icon"), name)
             self.assertIn('data-fallback="%s"' % reverse("home"), header)
 
-    def test_no_review_tab_in_the_header(self):
-        # The Review tab was removed from the header; the page itself is still reachable (Subjects page link, For review only in Search).
+    def test_no_review_tab_in_the_header_and_the_old_address_forwards_to_flags(self):
+        # The Review tab was removed (D74); the Review page became the Flags page (D88, D89), which the header links to.
         for user in (self.reader, self.admin):
             self.client.force_login(user)
             nav = self.client.get(reverse("diary_home")).content.decode().split('class="program-nav"')[1].split("</nav>")[0]
             self.assertNotIn(">Review</a>", nav)
             self.assertNotIn('href="%s"' % reverse("review_list"), nav)
-        self.assertEqual(self.client.get(reverse("review_list")).status_code, 200)
+            self.assertIn('href="%s"' % reverse("flags"), nav)
+        resp = self.client.get(reverse("review_list") + "?subject=3")
+        self.assertRedirects(resp, reverse("flags") + "?subject=3", fetch_redirect_response=False)
 
     def test_site_js_keeps_back_and_forward_inside_the_site(self):
         from pathlib import Path
@@ -759,7 +761,7 @@ class ReadingScreenTests(TestCase):
         self.assertContains(resp, '<em class="citation">Harvey v. Facey [1893] AC 552</em>', html=False)
         self.assertContains(resp, "flagged")
         self.assertContains(resp, "Overruled by New v. Law (1990)")
-        self.assertContains(resp, "For review: Check the citation against the report.")
+        self.assertContains(resp, "[Pending: Check the citation against the report.]")
         self.assertContains(resp, "See also: ")
         self.assertContains(resp, "Carlill v. Carbolic Smoke Ball Co")
         self.assertContains(resp, " ; ")

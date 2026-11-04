@@ -51,7 +51,7 @@ def export_page(request):
         "can_full": can_export_full(request),
         "scope_kind": kind, "scope_pk": pk, "scope_path": path,
         "main_subjects": main, "other_subjects": other,
-        # Review markers are on unless the page is opened with review=0 (round 11: checked by default).
+        # Flags are included unless the page is opened with review=0 (checked by default; "review" is the old name, D88).
         "include_review": request.GET.get("review") != "0",
     })
 

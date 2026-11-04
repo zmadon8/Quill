@@ -44,8 +44,8 @@ ADDABLE = {
     "note": ("note", {}),
 }
 ADD_NICE = {}
-#: Longest flag text an Item takes (the Item editor and the Add forms).
-FLAG_TEXT_MAX = 300
+#: Longest flag text an Item or Section takes (the Item editor, the cards and the Add forms; D88).
+FLAG_TEXT_MAX = 2000
 #: Longest name the Add form accepts for each kind that has a name (the model field lengths).
 HEADING_LIMITS = {
     "subject": Subject._meta.get_field("name").max_length,
@@ -266,25 +266,23 @@ def _add_page(request):
     })
 
 
-def _marking(post, kind):
-    """The Flag and For review fields of a new Item (all of them) or Section (For review only), as the create service takes them.
+def _flag_fields(post):
+    """{flag, flag_text} as posted by any form with the Flag field (D88). The flag must be one of the choices; its text is
+    one line of at most FLAG_TEXT_MAX characters, and there is no text beside None."""
+    flag = post.get("flag", "none") or "none"
+    if flag not in {c[0] for c in FLAG_CHOICES}:
+        raise ValidationFailed(f"{flag!r} is not a flag choice.")
+    flag_text = "" if flag == "none" else _single_line(post.get("flag_text", ""))
+    if len(flag_text) > FLAG_TEXT_MAX:
+        raise ValidationFailed(f"The flag text is too long ({FLAG_TEXT_MAX} characters at most).")
+    return {"flag": flag, "flag_text": flag_text}
 
-    Validation is the Item editor's: a flag must be one of the choices, its text at most FLAG_TEXT_MAX characters.
-    Other kinds get nothing, whatever was posted.
-    """
+
+def _marking(post, kind):
+    """The Flag of a new Item or Section, as the create service takes it (D88). Other kinds get nothing, whatever was posted."""
     if kind not in ("item", "section"):
         return {}
-    marked = post.get("needs_review") == "1"
-    fields = {"needs_review": marked, "review_note": post.get("review_note", "").strip() if marked else ""}
-    if kind == "item":
-        flag = post.get("flag", "none")
-        if flag not in {c[0] for c in FLAG_CHOICES}:
-            raise ValidationFailed(f"{flag!r} is not a flag choice.")
-        flag_text = "" if flag == "none" else _single_line(post.get("flag_text", ""))
-        if len(flag_text) > FLAG_TEXT_MAX:
-            raise ValidationFailed(f"The flag text is too long ({FLAG_TEXT_MAX} characters at most).")
-        fields.update(flag=flag, flag_text=flag_text)
-    return fields
+    return _flag_fields(post)
 
 
 @editor_page
@@ -392,10 +390,9 @@ def rename(request):
         return redirect(_next(request))
     name = _single_line(request.POST.get("name", ""))
     changes = {"name": name}
-    if kind == "section" and request.POST.get("review_form") == "1":
-        # The Section card has the For review switch and note next to the name: one save, one Undo step.
-        marked = request.POST.get("needs_review") == "1"
-        changes.update(needs_review=marked, review_note=request.POST.get("review_note", "").strip() if marked else "")
+    if kind == "section" and request.POST.get("flag_form") == "1":
+        # The Section card has the Flag next to the name (D88): one save, one Undo step.
+        changes.update(_flag_fields(request.POST))
     result = svc.edit(request.profile, request.user, kind, _record_id(request), changes, _version(request))
     if is_fetch(request):
         # A new name can change the alphabetical place and the Contents panel, so the script reloads the page.

@@ -9,7 +9,7 @@ from django.urls import reverse
 from django.utils.safestring import mark_safe
 
 from . import numbering
-from .models import Case, Item, Note, NoteLink, Section, Subtopic, Topic
+from .models import Case, Item, Note, NoteLink, Section, Subtopic, Topic, flag_label
 from .richtext import sanitise_html
 from .sorting import sort_headings
 
@@ -299,9 +299,7 @@ def _item_block(item, data, fmts, label, depth, under_section):
             for lab, c in zip(case_labels, cases)
         ],
         "flag": item.flag if item.flag != "none" else "",
-        "flag_label": item.flag_text or item.get_flag_display(),
-        "needs_review": item.needs_review,
-        "review_note": item.review_note,
+        "flag_label": flag_label(item.flag, item.flag_text),
         "notes": [_note_block(n, data) for n in data.notes_by.get(("item", item.pk), [])],
         "linked_from": data.incoming.get(("item", item.pk), []),
     }
@@ -332,8 +330,8 @@ def _container_blocks(key, depth, data, fmts):
                 "label": label,
                 "name": obj.name,
                 "depth": depth,
-                "needs_review": obj.needs_review,
-                "review_note": obj.review_note,
+                "flag": obj.flag if obj.flag != "none" else "",
+                "flag_label": flag_label(obj.flag, obj.flag_text),
                 "linked_from": data.incoming.get(("section", obj.pk), []),
             })
             blocks.extend(_note_block(n, data) | {"depth": depth, "indent": True}

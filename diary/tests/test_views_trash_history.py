@@ -534,7 +534,7 @@ class ConflictScreenTests(TrashTestCase):
         svc.edit(self.profile, self.user2, "item", self.one.pk, {"text": "<p>theirs</p>"})
         return self.client.post(self.editor_url(self.one), {
             "version": opened, "text": "<p>My typed words</p>", "flag": "none",
-            "flag_text": "", "review_note": "", "next": self.next, **self.case_rows([(None, "My citation", "")])})
+            "flag_text": "", "next": self.next, **self.case_rows([(None, "My citation", "")])})
 
     def test_the_item_conflict_shows_every_typed_field_next_to_the_saved_value(self):
         resp = self.typed_editor_conflict()
@@ -590,14 +590,4 @@ class ConflictScreenTests(TrashTestCase):
         self.assertEqual(resp.status_code, 409)
         for text in ("Typed one", "typed comment", "Typed two", "typed text", "Elsewhere"):
             self.assertContains(resp, text, status_code=409)
-
-    def test_the_review_note_can_be_merged(self):
-        stale = self.rec(self.one)
-        svc.edit(self.profile, self.user2, "item", self.one.pk, {"text": "<p>theirs</p>"})
-        resp = self.post("edit_review", {**stale, "set": "1", "note": "check this"})
-        self.assertEqual(resp.status_code, 409)
-        self.assertEqual(resp.context["merge"]["type"], "fields")
-        self.assertEqual(self.resend(resp, note="check this please").status_code, 302)
-        item = self.get(self.one)
-        self.assertEqual((item.needs_review, item.review_note), (True, "check this please"))
 

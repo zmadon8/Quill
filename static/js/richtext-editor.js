@@ -108,6 +108,9 @@
     area.setAttribute("aria-multiline", "true");
     area.setAttribute("aria-label", source.getAttribute("aria-label") || "Text");
     area.innerHTML = clean(source.value);
+    // The grey hint (round 16): the textarea's placeholder, shown inside the box whenever it holds no text.
+    var hint = source.getAttribute("placeholder") || "";
+    if (hint) { area.setAttribute("data-placeholder", hint); area.setAttribute("aria-placeholder", hint); }
     area.style.minHeight = (Number(source.getAttribute("rows")) || 3) * 1.5 + "em";
 
     var buttons = {};
@@ -133,7 +136,10 @@
       sync();
       state();
     }
-    function sync() { source.value = clean(area); }
+    function sync() {
+      source.value = clean(area);
+      area.classList.toggle("rt-empty", !(area.textContent || "").replace(/\u00a0/g, " ").trim());
+    }
     function state() {
       COMMANDS.forEach(function (c) {
         var on = false;

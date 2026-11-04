@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Flags - {{ program_label }}{% endblock %}
+{% block content %}
+<div class="home-column search-page">
+  {% include "diary/_flags_tabs.html" %}
+  <h1>Flags</h1>
+  <form class="search-form" role="search" method="get" action="{% url 'flags' %}">
+    <div class="search-row">
+      <label class="visually-hidden" for="flags-q">Search the text beside the flags</label>
+      <input type="search" id="flags-q" name="q" value="{{ q }}" placeholder="Search the text beside the flags&hellip;" autocomplete="off">
+      <button type="submit" class="primary">Search</button>
+    </div>
+    <div class="search-filters">
+      <label for="flags-kind">Show</label>
+      <select id="flags-kind" name="flag" data-autosubmit>
+        {% for key, name in flag_filters %}<option value="{{ key }}"{% if key == flag %} selected{% endif %}>{{ name }}</option>{% endfor %}
+      </select>
+      <noscript><button type="submit" class="small">Show</button></noscript>
+      {% if q or flag %}<a href="{% url 'flags' %}">Show every flag</a>{% endif %}
+    </div>
+  </form>
+  <div data-search-results>
+  {% if results %}
+  <div class="search-head"><p class="meta search-count">{{ total }} flagged record{{ total|pluralize }}{% if q %} matching &ldquo;{{ q }}&rdquo;{% endif %}</p></div>
+  {% include "diary/_grouped_results.html" %}
+  {% else %}
+  <p class="empty search-none">{% if q %}No flag text matches &ldquo;{{ q }}&rdquo;.{% elif flag %}Nothing has this flag.{% else %}Nothing is flagged.{% endif %}</p>
+  {% endif %}
+  </div>
+  <p class="meta search-help">Every Item and Section with a flag, grouped by Subject. Choose one kind of flag under <strong>Show</strong>. The search box looks only in the text beside the flags.</p>
+</div>
+{% endblock %}

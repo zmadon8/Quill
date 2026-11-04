@@ -36,11 +36,11 @@ def sample_subject():
     container = m.XContainer(
         entries=[
             item("Direct one", "(2020) 1 SCC 1"),
-            m.XSection("Ex Parte", needs_review=True, review_note="check me"),
+            m.XSection("Ex Parte", flag_label="check me"),
             item("After the Section one", "(2021) 2 SCC 2", flag_label="Overruled"),
             m.XItem(html="<p>Two cites</p>", cases=[m.XCase("(2019) 1 SCC 1", "<p>on <b>facts</b></p>"), m.XCase("(2018) 2 SCC 2")]),
             m.XSection("Determining"),
-            item("Restarted", "(2022) 3 SCC 3", needs_review=True, review_note="odd"),
+            item("Restarted", "(2022) 3 SCC 3", flag_label="Pending: odd"),
             m.XItem(html="<p>Lines <u>head</u></p>", layout="lines",
                     cases=[m.XCase("(2017) 4 SCC 4", "<p>First <u>point</u></p>"), m.XCase("(2016) 5 SCC 5"),
                            m.XCase("", "<p>comment only</p>")],
@@ -55,7 +55,7 @@ def sample_subject():
 
 def make(**kw):
     base = dict(title="Case Law Diary Main", part="Full", date_text="2026-11-01", fmts=dict(DEFAULT_FMTS),
-                main=[sample_subject()])
+                main=[sample_subject()], include_review=True)  # flags included, as the Export page ticks it (D88)
     base.update(kw)
     return m.ExportInput(**base)
 
@@ -166,17 +166,23 @@ class RenderStructureTests(unittest.TestCase):
         self.assertLess(order.index("DiaryItem"), first_heading2)
         self.assertLess(order.index("DiaryNote"), first_heading2)  # the Subject's own Notes come before its Topics
 
-    def test_flag_is_red_and_review_markers_are_off_by_default(self):
+    def test_flags_are_red_on_items_and_sections(self):
         document = zipfile.ZipFile(io.BytesIO(self.data)).read("word/document.xml").decode()
         self.assertIn(f'<w:color w:val="{dw.RED}"/>', document)
-        self.assertNotIn("For review", document.split("Contents")[1])  # the front page says "not included"
-        self.assertNotIn("[For review", document)
+        self.assertNotIn("For review", document)
+        paras = paragraphs_of(self.data)
+        self.assertTrue(any(p.style == "DiarySection" and p.text.endswith("Ex Parte [check me]") for p in paras))
+        self.assertTrue(any(p.style == "DiaryItem" and p.text.endswith("[Pending: odd]") for p in paras))
+        self.assertTrue(any(p.text == "Flags: included." for p in paras))
 
-    def test_review_markers_appear_on_items_and_sections_when_asked(self):
-        paras = paragraphs_of(render.render(make(include_review=True)))
-        self.assertTrue(any(p.style == "DiarySection" and p.text.endswith("Ex Parte [For review: check me]") for p in paras))
-        self.assertTrue(any(p.style == "DiaryItem" and p.text.endswith("[For review: odd]") for p in paras))
-        self.assertEqual(sum("[For review" in p.text for p in paras), 2)
+    def test_flags_can_be_left_out(self):
+        # D88: the Export page's "Include flags" (it was "Include review markers") now covers every flag.
+        data = render.render(make(include_review=False))
+        paras = paragraphs_of(data)
+        self.assertFalse(any("[" in p.text and p.style in ("DiaryItem", "DiarySection") and
+                             ("Overruled" in p.text or "odd" in p.text or "check me" in p.text) for p in paras))
+        self.assertTrue(any(p.text == "Flags: not included." for p in paras))
+        self.assertNotIn(f'<w:color w:val="{dw.RED}"/>', zipfile.ZipFile(io.BytesIO(data)).read("word/document.xml").decode())
 
     def test_hanging_indents_hold_the_number_in_the_margin(self):
         root = ET.fromstring(zipfile.ZipFile(io.BytesIO(self.data)).read("word/document.xml"))

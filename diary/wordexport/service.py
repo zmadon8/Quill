@@ -110,7 +110,7 @@ def by_subject(profile, user, include_review=False, now=None, snapshot=None):
     total = sum(f[2] for f in files)
     lines = [
         f"{ctx['export_name']}: Full, one document per Subject",
-        f"Exported {ctx['date_text']}. Review markers: {'included' if include_review else 'not included'}.",
+        f"Exported {ctx['date_text']}. Flags: {'included' if include_review else 'not included'}.",
         "Records are Items at every depth (the figure shown beside each Subject).",
         "",
     ]
@@ -184,7 +184,7 @@ def current_view(profile, user, kind, pk, include_review=False, now=None, snapsh
 
 
 def roundtrip(profile, original_bytes, now=None):
-    """Export ``profile`` in full (standard number formats, no review markers) and compare it with the original Word file.
+    """Export ``profile`` in full (standard number formats, no flags) and compare it with the original Word file.
 
     Returns a ``roundtrip.RoundTrip`` (``.text`` is the plain report, ``.unexpected`` lists real differences).
     """

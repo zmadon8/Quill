@@ -1,5 +1,5 @@
-{# The editing card that replaces a row in Edit mode (docs/DESIGN.md Edit mode, mockups 4 and 5). Context: kind, record, title, where, values/rows/flag_choices (Items), name (headings and Sections), layout_choices, can_shift, can_move, back. #}
-{# The Item fields are the same names as the full Item editor page (version, text, case_*, flag, flag_text, needs_review, review_note), so a stale save can be sent to the existing conflict screen as it is. A heading card is the name and More only. #}
+{# The editing card that replaces a row in Edit mode (docs/DESIGN.md Edit mode, mockups 4 and 5). Context: kind, record, title, where, values/rows/flag_choices (Items and Sections), name (headings and Sections), layout_choices, can_shift, can_move, back. #}
+{# The Item fields are the same names as the full Item editor page (version, text, case_*, flag, flag_text), so a stale save can be sent to the existing conflict screen as it is. A heading card is the name and More only. #}
 <form method="post" action="{% if kind == 'item' %}{% url 'edit_item' record.pk %}{% else %}{% url 'edit_rename' %}{% endif %}" class="editcard" data-inline-card data-kind="{{ kind }}" data-id="{{ record.pk }}" novalidate>
   {% csrf_token %}
   <input type="hidden" name="kind" value="{{ kind }}">
@@ -11,7 +11,7 @@
   {% if kind == "item" %}
   <div class="fld">
     <span class="field-label" id="card-text-label-{{ record.pk }}">Text</span>
-    {% include "diary/_richtext_field.html" with rname="text" rvalue=values.text rlabel="Text" rrows=3 %}
+    {% include "diary/_richtext_field.html" with rname="text" rvalue=values.text rlabel="Text" rhint="Text of the Item" rrows=3 %}
   </div>
   <div class="fld" data-cases>
     <span class="field-label">Citations</span>
@@ -27,22 +27,13 @@
       {% for key, text in layout_choices %}<label class="seg-option"><input type="radio" name="citation_layout" value="{{ key }}"{% if values.citation_layout == key %} checked{% endif %}><span>{{ text }}</span></label>{% endfor %}
     </div>
   </div>
-  <div class="fld">
-    <span class="field-label">Flag</span>
-    <div class="flag-line">
-      <div class="seg wide" role="radiogroup" aria-label="Flag">
-        {% for key, text in flag_choices %}<label class="seg-option"><input type="radio" name="flag" value="{{ key }}"{% if values.flag == key %} checked{% endif %}><span>{{ text }}</span></label>{% endfor %}
-      </div>
-      <input type="text" name="flag_text" maxlength="300" value="{{ values.flag_text }}" placeholder="Short text (used for Other)" aria-label="Flag text">
-    </div>
-  </div>
-  {% include "diary/_inline_review.html" %}
+  {% include "diary/_flag_field.html" %}
   {% elif kind == "section" %}
-  <input type="hidden" name="review_form" value="1">
-  <label class="fld"><span class="field-label">Name</span><input type="text" name="name" maxlength="500" value="{{ name }}" aria-label="Name"></label>
-  {% include "diary/_inline_review.html" %}
+  <input type="hidden" name="flag_form" value="1">
+  <label class="fld"><span class="field-label">Name</span><input type="text" name="name" maxlength="500" value="{{ name }}" aria-label="Name" placeholder="Name of the Section (optional)"></label>
+  {% include "diary/_flag_field.html" %}
   {% else %}
-  <label class="fld"><span class="field-label">Name</span><input type="text" name="name" maxlength="500" value="{{ name }}" aria-label="Name" required></label>
+  <label class="fld"><span class="field-label">Name</span><input type="text" name="name" maxlength="500" value="{{ name }}" aria-label="Name" placeholder="Name" required></label>
   {% endif %}
   <div class="card-bar">
     <button type="submit" class="primary" data-card-save>Save</button>

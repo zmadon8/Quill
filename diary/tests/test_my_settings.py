@@ -312,7 +312,8 @@ class LastPageTrackingTests(Base):
             reverse("read_topic", args=[self.remedies.pk]),
             reverse("read_subtopic", args=[self.offer.pk]),
             reverse("search") + "?q=duty",
-            reverse("review_list"),
+            reverse("flags"),
+            reverse("flag_links"),
         ]
         for url in urls:
             self.assertEqual(self.client.get(url).status_code, 200, url)

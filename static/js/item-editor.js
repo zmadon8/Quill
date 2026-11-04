@@ -55,12 +55,5 @@
     renumber();
   }
 
-  /* The flag text only makes sense when a flag is chosen. */
-  var select = document.querySelector("[data-flag-select]");
-  var flagText = document.querySelector("[data-flag-text]");
-  if (select && flagText) {
-    var sync = function () { flagText.disabled = select.value === "none"; };
-    select.addEventListener("change", sync);
-    sync();
-  }
+  /* The flag text box (greyed out while None is chosen) is handled for every form by site.js (window.QuillFlags). */
 })();

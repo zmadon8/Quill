@@ -7,7 +7,7 @@ Diary's: Subjects, Topics and Sub-topics alphabetical (``diary.sorting``); Items
 """
 from dataclasses import dataclass, field
 
-from ..models import Case, Item, Note, NoteLink, Section, Subject, Subtopic, Topic
+from ..models import Case, Item, Note, NoteLink, Section, Subject, Subtopic, Topic, flag_label
 from ..sorting import sort_headings
 from . import model as m
 
@@ -63,12 +63,12 @@ def load(profile):
         return row.subject_id in live_subject_ids
 
     item_fields = base + ("subject", "topic", "subtopic", "text", "text_plain", "citation_layout",
-                          "flag", "flag_text", "needs_review", "review_note")
+                          "flag", "flag_text")
     all_items = list(_live(Item, profile, *item_fields))
     items = [i for i in all_items if container_live(i)]
     item_ids = {i.pk for i in items}
-    sections = [s for s in _live(Section, profile, *base, "subject", "topic", "subtopic", "name", "needs_review",
-                                 "review_note") if container_live(s)]
+    sections = [s for s in _live(Section, profile, *base, "subject", "topic", "subtopic", "name", "flag",
+                                 "flag_text") if container_live(s)]
     section_ids = {s.pk for s in sections}
     cases = [c for c in _live(Case, profile, *base, "item", "citation", "comment") if c.item_id in item_ids]
     notes = [
@@ -138,14 +138,12 @@ def load(profile):
         return [m.XNote(n.text, [link_of(link) for link in links_by.get(n.pk, [])]) for n in notes_by.get(key, [])]
 
     def x_item(item):
-        flag = (item.flag_text or item.get_flag_display()) if item.flag != "none" else ""
         item_cases = cases_by.get(item.pk, [])
         return m.XItem(
             html=item.text,
             cases=[m.XCase(c.citation, c.comment) for c in item_cases],
             layout=item.citation_layout if len(item_cases) > 1 else "inline",
-            flag_label=flag, needs_review=item.needs_review,
-            review_note=item.review_note, notes=x_notes(("item", item.pk)),
+            flag_label=flag_label(item.flag, item.flag_text), notes=x_notes(("item", item.pk)),
         )
 
     def x_container(kind, pk):
@@ -155,7 +153,7 @@ def load(profile):
         entries = []
         for what, row in rows:
             if what == "section":
-                entries.append(m.XSection(row.name, row.needs_review, row.review_note, x_notes(("section", row.pk))))
+                entries.append(m.XSection(row.name, flag_label(row.flag, row.flag_text), x_notes(("section", row.pk))))
             else:
                 entries.append(x_item(row))
         return m.XContainer(entries, x_notes(key))

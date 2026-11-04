@@ -72,10 +72,14 @@ class SearchViewTests(TestCase):
         resp = self.get(q="", citations="1")
         self.assertContains(resp, "1 result<")
         self.assertContains(resp, "checked")
-        Item.objects.filter(pk=self.item.pk).update(needs_review=True)
-        resp = self.get(review="1")
+        Item.objects.filter(pk=self.item.pk).update(flag="pending")
+        resp = self.get(flags="1")
         self.assertContains(resp, "1 result<")
-        self.assertContains(resp, "For review")
+        self.assertContains(resp, ">Pending</span>")
+        self.assertContains(resp, 'name="flags" value="1" checked')
+        old = self.get(review="1")  # an address from before round 16 (For review only) means Flags
+        self.assertContains(old, "1 result<")
+        self.assertContains(old, 'name="flags" value="1" checked')
 
     def test_subject_filter_and_foreign_subject_ignored(self):
         other = Profile.objects.create(program="diary", name="Second")
@@ -91,9 +95,11 @@ class SearchViewTests(TestCase):
             self.assertEqual(self.get(**params).status_code, 200)
         self.assertEqual(self.get(q="damages", limit="\u00b2").status_code, 200)
 
-    def test_review_list_unicode_subject_does_not_crash(self):
+    def test_flags_pages_unicode_params_do_not_crash(self):
         self.client.force_login(self.reader)
-        self.assertEqual(self.client.get(reverse("review_list"), {"subject": "\u00b2"}).status_code, 200)
+        for name, params in (("flags", {"s": "\u00b2", "limit": "\uff11", "flag": "\u00b2"}),
+                             ("flag_links", {"s": "\u0663", "links": "\u00b2"})):
+            self.assertEqual(self.client.get(reverse(name), params).status_code, 200, name)
 
     def test_subject_level_note_link_target_exists(self):
         note = Note.objects.create(profile=self.profile, subject=self.subject, text="<p>Ostrich remark</p>")

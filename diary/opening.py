@@ -11,7 +11,7 @@ from .models import Subject, Subtopic, Topic
 DIARY_PREFIX = "/caselaw/"
 MAX_PATH = 500
 #: Pages that count as "the last page I viewed" (URL names).
-REMEMBERED = {"diary_home", "subject_contents", "read_subject", "read_topic", "read_subtopic", "search", "review_list"}
+REMEMBERED = {"diary_home", "subject_contents", "read_subject", "read_topic", "read_subtopic", "search", "flags", "flag_links"}
 
 
 def record_last_page(request, response):

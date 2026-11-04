@@ -22,8 +22,8 @@ EDITABLE = {
     "subject": ("name",),
     "topic": ("name",),
     "subtopic": ("name",),
-    "section": ("name", "needs_review", "review_note"),
-    "item": ("text", "citation", "citation_layout", "flag", "flag_text", "needs_review", "review_note"),
+    "section": ("name", "flag", "flag_text"),
+    "item": ("text", "citation", "citation_layout", "flag", "flag_text"),
     "case": ("citation", "comment", "url"),
     "note": ("text",),
 }
@@ -32,8 +32,8 @@ CREATABLE = {
     "subject": ("name", "show_on_landing"),
     "topic": ("name",),
     "subtopic": ("name",),
-    "section": ("name", "needs_review", "review_note"),
-    "item": ("text", "citation", "citation_layout", "flag", "flag_text", "needs_review", "review_note"),
+    "section": ("name", "flag", "flag_text"),
+    "item": ("text", "citation", "citation_layout", "flag", "flag_text"),
     "case": ("citation", "comment", "url"),
     "note": ("text",),
 }
@@ -50,6 +50,11 @@ def _normalise(kind, name, value):
         return clean_name(value)
     if name == "flag" and value not in {c[0] for c in FLAG_CHOICES}:
         raise ValidationFailed(f"{value!r} is not a flag choice.")
+    if name == "flag_text":
+        text = " ".join((value or "").split())  # one line
+        if len(text) > FLAG_TEXT_MAX:
+            raise ValidationFailed(f"The flag text is too long ({FLAG_TEXT_MAX} characters at most).")
+        return text
     if name == "citation_layout" and value not in {c[0] for c in CITATION_LAYOUT_CHOICES}:
         raise ValidationFailed(f"{value!r} is not a way to show citations.")
     if name == "url":
@@ -59,6 +64,8 @@ def _normalise(kind, name, value):
     return value if value is not None else ""
 
 
+#: Longest text beside a flag (round 16: a For review note folded into a flag can be long, so this is generous).
+FLAG_TEXT_MAX = 2000
 #: Longest web address a citation may carry (the model field length).
 URL_MAX = 2000
 
@@ -98,6 +105,8 @@ def edit(profile, user, kind, record_id, changes, expected_version=None):
     with transaction.atomic():
         obj = get_record(ctx, kind, record_id)
         wanted = {name: _normalise(kind, name, value) for name, value in changes.items()}
+        if wanted.get("flag") == "none":
+            wanted["flag_text"] = ""  # no text beside None (D88)
         actual = {name: value for name, value in wanted.items() if getattr(obj, name) != value}
         if not actual:
             return make_result(ctx, obj)
@@ -120,6 +129,8 @@ def create(profile, user, record_type, parent=None, index=None, **fields):
     ctx = Ctx(profile, user)
     model = MODELS[record_type]
     values = {name: _normalise(record_type, name, value) for name, value in fields.items()}
+    if values.get("flag") == "none":
+        values["flag_text"] = ""  # no text beside None (D88)
     with transaction.atomic():
         if record_type == "subject":
             if parent is not None:

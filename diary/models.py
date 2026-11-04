@@ -51,12 +51,33 @@ CITATION_LAYOUT_CHOICES = [
 ]
 
 FLAG_NONE = "none"
+FLAG_OTHER = "other"
+#: The flags of an Item or Section (round 16, D88: "For review" was merged into them; Pending added after None).
 FLAG_CHOICES = [
     (FLAG_NONE, "None"),
+    ("pending", "Pending"),
     ("overruled", "Overruled"),
     ("doubted", "Doubted"),
-    ("other", "Other"),
+    (FLAG_OTHER, "Other"),
 ]
+_FLAG_NAMES = dict(FLAG_CHOICES)
+
+
+def flag_label(flag, text):
+    """How a flag reads on screen and in Word: "" for none; Other shows its text (or "Other"); the others show their
+    name, then the text ("Pending: ask the client"). Text that already starts with the name is shown alone, so older
+    flags such as "Overruled by X v. Y" do not read "Overruled: Overruled by X v. Y"."""
+    if not flag or flag == FLAG_NONE:
+        return ""
+    text = " ".join((text or "").split())
+    if flag == FLAG_OTHER:
+        return text or _FLAG_NAMES[FLAG_OTHER]
+    name = _FLAG_NAMES.get(flag, flag.capitalize())
+    if not text:
+        return name
+    if text.lower().startswith(name.lower()):
+        return text
+    return f"{name}: {text}"
 
 OPENING_PAGE_CHOICES = [
     ("home", "Home"),
@@ -236,6 +257,11 @@ class Section(Record):
     subtopic = models.ForeignKey(Subtopic, null=True, blank=True, on_delete=models.CASCADE, related_name="sections")
     name = models.CharField(max_length=500, blank=True)
     position = models.PositiveIntegerField(default=0)
+    # Round 16 (D88): Sections have flags like Items.
+    flag = models.CharField(max_length=10, choices=FLAG_CHOICES, default=FLAG_NONE)
+    flag_text = models.TextField(blank=True)
+    # LEGACY (D88): "For review" was merged into the flags. Always False since migration 0021 (a check rule keeps it so);
+    # kept so that old backup files and history snapshots, which carry it, can still be read and mapped.
     needs_review = models.BooleanField(default=False)
     review_note = models.TextField(blank=True)
     # Set by the Word import only (Milestone 2): the exact Word paragraph and where it came from.
@@ -251,6 +277,7 @@ class Section(Record):
             models.CheckConstraint(
                 condition=exactly_one(["subject", "topic", "subtopic"]), name="section_exactly_one_parent"
             ),
+            models.CheckConstraint(condition=Q(needs_review=False), name="section_review_retired"),
         ]
 
     def __str__(self):
@@ -273,7 +300,8 @@ class Item(RichTextMixin, Record):
     # can still be read and mapped (diary/legacy_merge.py, diary/nested_conversion.py).
     citation = models.CharField(max_length=1000, blank=True)
     flag = models.CharField(max_length=10, choices=FLAG_CHOICES, default=FLAG_NONE)
-    flag_text = models.CharField(max_length=300, blank=True)
+    flag_text = models.TextField(blank=True)
+    # LEGACY (D88): "For review" was merged into the flags. Always False since migration 0021 (a check rule keeps it so).
     needs_review = models.BooleanField(default=False)
     review_note = models.TextField(blank=True)
     position = models.PositiveIntegerField(default=0)
@@ -292,6 +320,7 @@ class Item(RichTextMixin, Record):
             ),
             # Case is the one store of citations of an Item (10d; since round 10 for every Item).
             models.CheckConstraint(condition=Q(citation=""), name="item_plain_has_no_citation"),
+            models.CheckConstraint(condition=Q(needs_review=False), name="item_review_retired"),
         ]
 
     def clean(self):

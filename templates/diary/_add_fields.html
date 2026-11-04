@@ -3,9 +3,9 @@
 <div class="edit-field" data-add-text>
   <span class="field-label" id="add-text-label-{{ ekind }}-{{ eid }}">Text</span>
   <div class="rt" data-richtext data-add-rich>
-    <textarea class="rt-source" name="text" rows="3" aria-labelledby="add-text-label-{{ ekind }}-{{ eid }}"></textarea>
+    <textarea class="rt-source" name="text" rows="3" placeholder="Text of the Item" aria-labelledby="add-text-label-{{ ekind }}-{{ eid }}"></textarea>
   </div>
-  <input type="text" name="text" maxlength="500" data-add-plain hidden disabled aria-labelledby="add-text-label-{{ ekind }}-{{ eid }}">
+  <input type="text" name="text" maxlength="500" placeholder="Name" data-add-plain hidden disabled aria-labelledby="add-text-label-{{ ekind }}-{{ eid }}">
   <input type="hidden" name="text_format" value="" data-add-format disabled>
 </div>
-<label>Citation (Items only) <input type="text" name="citation" maxlength="1000" data-add-citation{% if ekind == "subject" %} disabled{% endif %}></label>
+<label>Citation (Items only) <input type="text" name="citation" maxlength="1000" placeholder="Case name [(2020) 1 SCC 1]" data-add-citation{% if ekind == "subject" %} disabled{% endif %}></label>

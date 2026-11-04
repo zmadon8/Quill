@@ -4,7 +4,9 @@
 way ``diary.wordexport.gather`` would from the database: alphabetical headings, Items and Sections by position,
 a split line as an Item with one citation.
 """
+from diary import review_flags
 from diary.importer.plan import ITEM, SECTION, SUBJECT, SUBTOPIC, TOPIC
+from diary.models import flag_label
 from diary.sorting import sort_key
 from diary.wordexport import model as m
 
@@ -17,16 +19,21 @@ DEFAULT_FMTS = {
 }
 
 
+def _flag(marked, note):
+    """The flag an imported record gets (D88: the import's note became a flag Other), as it reads in Word."""
+    flag, text = review_flags.merge("none", "", marked, note)
+    return flag_label(flag, text)
+
+
 def _container(plan, parent):
     entries = []
     kids = [n for n in plan.nodes if n.parent is parent and n.kind in (ITEM, SECTION)]
     for node in sorted(kids, key=lambda n: n.position):
         if node.kind == SECTION:
-            entries.append(m.XSection(name=node.name, needs_review=node.needs_review, review_note=node.review_note))
+            entries.append(m.XSection(name=node.name, flag_label=_flag(True, node.review_note)))
         else:
             cases = [m.XCase(citation=node.citation)] if node.citation else []
-            entries.append(m.XItem(html=node.text_html, cases=cases, needs_review=node.needs_review,
-                                   review_note=node.review_note))
+            entries.append(m.XItem(html=node.text_html, cases=cases, flag_label=_flag(node.needs_review, node.review_note)))
     return m.XContainer(entries)
 
 

@@ -1,4 +1,4 @@
-{# One rich text box. Context: rname (field name posted), rvalue (stored HTML), rlabel (accessible name), rrows (minimum lines). The textarea is the no-script fallback and the field that is posted; richtext-editor.js hides it and shows the editable box. #}
+{# One rich text box. Context: rname (field name posted), rvalue (stored HTML), rlabel (accessible name), rrows (minimum lines), rhint (grey hint shown while the box is empty; defaults to rlabel). The textarea is the no-script fallback and the field that is posted; richtext-editor.js hides it and shows the editable box. #}
 <div class="rt" data-richtext>
-  <textarea class="rt-source" name="{{ rname }}" rows="{{ rrows|default:4 }}" aria-label="{{ rlabel }}">{{ rvalue }}</textarea>
+  <textarea class="rt-source" name="{{ rname }}" rows="{{ rrows|default:4 }}" aria-label="{{ rlabel }}" placeholder="{{ rhint|default:rlabel }}">{{ rvalue }}</textarea>
 </div>

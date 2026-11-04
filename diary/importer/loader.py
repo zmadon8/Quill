@@ -12,6 +12,7 @@ from django.db import DatabaseError, transaction
 
 from accounts.models import Profile
 from diary.models import Case, Item, Note, NoteLink, Section, Subject, Subtopic, Topic, VersionHistory
+from diary import review_flags
 from diary.richtext import sanitise_html
 
 from .plan import ITEM, SECTION, SUBJECT, SUBTOPIC, TOPIC, html_signature
@@ -135,12 +136,15 @@ def _create_all(plan, profile, user):
             obj = Subtopic(name=node.name, **{parent_field: parent}, **extra, **common)
         else:
             parent_field = {Subject: "subject", Topic: "topic", Subtopic: "subtopic"}[parent.__class__]
+            # The import's own notes ("Imported whole as Text ...") are flags Other with the note (D88; they were
+            # For review marks before For review was merged into the Flags). Every Section is flagged (decision I10).
             if node.kind == SECTION:
-                obj = Section(name=node.name, needs_review=True, review_note=node.review_note,
-                              **{parent_field: parent}, **extra, **common)
+                flag, flag_text = review_flags.merge("none", "", True, node.review_note)
+                obj = Section(name=node.name, flag=flag, flag_text=flag_text, **{parent_field: parent}, **extra, **common)
             else:
-                obj = Item(text=node.text_html, needs_review=node.needs_review,
-                           review_note=node.review_note, **{parent_field: parent}, **extra, **common)
+                flag, flag_text = review_flags.merge("none", "", node.needs_review, node.review_note)
+                obj = Item(text=node.text_html, flag=flag, flag_text=flag_text,
+                           **{parent_field: parent}, **extra, **common)
         obj.save()
         made[id(node)] = obj
         created.append(obj)
@@ -234,17 +238,16 @@ def read_back(profile):
         bump(_subject_of(s, all_topics, all_subtopics), "subtopics")
     for s in sections:
         rows[s.import_ref] = dict(kind=SECTION, rebuilt=s.name, original_line=s.original_line, name=s.name,
-                                  needs_review=s.needs_review, review_note=s.review_note)
+                                  **_flag_as_review(s))
         bump(_subject_of(s, all_topics, all_subtopics), "sections")
     for i in items:
         # Item text + " - " + its citations (Cases in order), exactly as the Word line was written.
         joined = "; ".join(citations.get(i.pk, [])) or i.citation
         rebuilt = exact_text(i.text) + (f" - {joined}" if joined else "")
         rows[i.import_ref] = dict(kind=ITEM, rebuilt=rebuilt, original_line=i.original_line, name="",
-                                  needs_review=i.needs_review, review_note=i.review_note,
-                                  signature=html_signature(i.text))
+                                  **_flag_as_review(i), signature=html_signature(i.text))
         bump(_subject_of(i, all_topics, all_subtopics), "items")
-        if i.needs_review:
+        if rows[i.import_ref]["needs_review"]:
             bump(_subject_of(i, all_topics, all_subtopics), "flagged")
 
     main = sorted((s for s in subjects.values() if s.show_on_landing), key=lambda s: (s.landing_position, s.pk))
@@ -279,13 +282,19 @@ def read_back(profile):
         "subtopics": len(subtopics),
         "sections": len(sections),
         "items": len(items),
-        "items_flagged": sum(1 for i in items if i.needs_review),
+        "items_flagged": sum(1 for i in items if rows[i.import_ref]["needs_review"]),
         "citations": sum(len(v) for v in citations.values()),
         "review_marked": len(flagged),
     }
     counts["items_clean"] = counts["items"] - counts["items_flagged"]
     return {"rows": rows, "order": order, "groups": groups, "counts": counts, "per_subject": per_subject,
             "review_list": flagged, "deleted": deleted}
+
+
+def _flag_as_review(record):
+    """The import's note of a record, read back from its flag (D88): flagged means "marked", the flag text is the note."""
+    flagged = (record.flag or "none") != "none"
+    return {"needs_review": flagged, "review_note": record.flag_text if flagged else ""}
 
 
 def _walk(subject, order, topics, subtopics, sections, items):

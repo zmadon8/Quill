@@ -89,8 +89,8 @@ def load_sample_data(profile):
         flag="overruled", flag_text="Overruled by New v. Law (1990)", position=5,
     )
     _item(profile,
-        subtopic=offer, text="<p>This sample Item is marked for review.</p>", citation="Doubtful v. Sample (2005) 3 SCC 3",
-        needs_review=True, review_note="Check the citation against the report.", position=6,
+        subtopic=offer, text="<p>This sample Item has a Pending flag.</p>", citation="Doubtful v. Sample (2005) 3 SCC 3",
+        flag="pending", flag_text="Check the citation against the report.", position=6,
     )
     acceptance = Subtopic.objects.create(profile=profile, topic=formation, name="Acceptance", position=2)
     _items(profile, 3, subtopic=acceptance)
@@ -106,7 +106,7 @@ def load_sample_data(profile):
                             citation=f"(2015) {n} SCC 10", position=3 + n)
     Section.objects.create(profile=profile,
         subtopic=clause, name="Leave to sue: procedure", position=6,
-        needs_review=True, review_note="Section heading wording to be confirmed.",
+        flag="other", flag_text="Section heading wording to be confirmed.",
     )
     for n in range(1, 9):
         _item(profile, subtopic=clause, text=f"<p>Section B proposition {n}.</p>",

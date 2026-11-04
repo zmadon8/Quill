@@ -62,9 +62,9 @@ class ExportCase(TestCase):
         self.zed = Topic.objects.create(profile=p, subject=self.arb, name="Zed", position=2)
         self.fraud = Subtopic.objects.create(profile=p, topic=self.topic, name="Fraud", position=1)
         self.duty = Subtopic.objects.create(profile=p, subject=self.stamp, name="Duty", position=1)
-        self.first = add_item(p, ("topic", self.topic), "Prop one", "(2020) 1 SCC 1", 1, needs_review=True, review_note="check")
-        self.section = Section.objects.create(profile=p, topic=self.topic, name="Ex Parte", position=2, needs_review=True,
-                                              review_note="sec")
+        self.first = add_item(p, ("topic", self.topic), "Prop one", "(2020) 1 SCC 1", 1, flag="pending", flag_text="check")
+        self.section = Section.objects.create(profile=p, topic=self.topic, name="Ex Parte", position=2, flag="other",
+                                              flag_text="sec")
         self.after = add_item(p, ("topic", self.topic), "After section", "(2021) 2 SCC 2", 3)
         self.in_fraud = add_item(p, ("subtopic", self.fraud), "Fraud item", "(2019) 3 SCC 3", 1)
         self.in_duty = add_item(p, ("subtopic", self.duty), "Duty item", "(2018) 4 SCC 4", 1)
@@ -163,12 +163,16 @@ class FullExportTests(ExportCase):
         self.assertIn("See also: Arbitration > Arbitrability > Prop one", everything)
         self.assertIn("See also: Arbitration > Arbitrability > TRASHED ITEM (target deleted)", everything)
 
-    def test_review_markers_only_when_asked(self):
+    def test_flags_only_when_asked(self):
+        # D88: "Include flags" (it was "Include review markers") covers every flag of Items and Sections.
         plain = "\n".join(texts(self.full().data))
         marked = "\n".join(texts(self.full(include_review=True).data))
-        self.assertNotIn("For review", plain)
-        self.assertIn("Prop one - (2020) 1 SCC 1 [For review: check]", marked)
-        self.assertIn("(a)\tEx Parte [For review: sec]", marked)
+        self.assertNotIn("[Pending", plain)
+        self.assertNotIn("[sec]", plain)
+        self.assertIn("Flags: not included.", plain)
+        self.assertIn("Prop one - (2020) 1 SCC 1 [Pending: check]", marked)
+        self.assertIn("(a)\tEx Parte [sec]", marked)
+        self.assertNotIn("For review", marked)
 
     def test_numbers_follow_the_users_settings(self):
         UserSettings.objects.create(user=self.editor, topic_format="upper_roman", item_format="lower_alpha",
@@ -235,10 +239,10 @@ class BySubjectTests(ExportCase):
         arb = archive.read("Case Law Diary Main Arbitration 2026-11-01.docx")
         self.assertIn("Exported 2026-11-01. Records in this document: 3 Items.", texts(arb))
 
-    def test_review_markers_apply_to_the_zip_too(self):
+    def test_flags_apply_to_the_zip_too(self):
         _, archive = self.archive(include_review=True)
         arb = "\n".join(texts(archive.read("Case Law Diary Main Arbitration 2026-11-01.docx")))
-        self.assertIn("[For review: check]", arb)
+        self.assertIn("[Pending: check]", arb)
 
     def test_two_subjects_with_the_same_cleaned_name_do_not_overwrite_each_other(self):
         Subject.objects.create(profile=self.profile, name="Tort?", position=5)
@@ -284,9 +288,9 @@ class CurrentViewTests(ExportCase):
             with self.assertRaises(service.ExportError):
                 self.view(kind, pk)
 
-    def test_review_markers_in_a_view(self):
+    def test_flags_in_a_view(self):
         marked = "\n".join(texts(self.view("topic", self.topic.pk, include_review=True).data))
-        self.assertIn("[For review: check]", marked)
+        self.assertIn("[Pending: check]", marked)
 
 
 class ViewTests(ExportCase):
@@ -330,8 +334,8 @@ class ViewTests(ExportCase):
         client = self.login(self.editor)
         plain = texts(client.get(self.url(type="view", kind="topic", pk=self.topic.pk)).content)
         marked = texts(client.get(self.url(type="view", kind="topic", pk=self.topic.pk, review=1)).content)
-        self.assertFalse(any("[For review" in t for t in plain))
-        self.assertTrue(any("[For review" in t for t in marked))
+        self.assertFalse(any("[Pending" in t for t in plain))
+        self.assertTrue(any("[Pending" in t for t in marked))
 
     def test_another_profiles_records_and_bad_input_are_404(self):
         client = self.login(self.editor)
@@ -400,7 +404,7 @@ class ViewTests(ExportCase):
         VersionHistory.objects.create(profile=self.profile, record_type="item", record_id=self.first.pk, version=1,
                                       snapshot={"text": "<p>Prop one</p>"}, change_kind="create")
         client = self.login(self.editor)
-        for url in (reverse("search"), reverse("review_list"), reverse("trash"),
+        for url in (reverse("search"), reverse("flags"), reverse("flag_links"), reverse("trash"),
                     reverse("history", args=["item", self.first.pk])):
             self.assertNotContains(client.get(url), 'class="button export-link')
 
@@ -410,10 +414,10 @@ class ViewTests(ExportCase):
         self.assertNotIn("File name", body)
         self.assertIn('value="view"', body)
 
-    def test_export_page_is_tidied_and_review_markers_are_checked_by_default(self):
+    def test_export_page_is_tidied_and_flags_are_checked_by_default(self):
         body = self.login(self.editor).get(reverse("export")).content.decode()
         self.assertEqual(body.count('type="checkbox"'), 1)
-        self.assertIn('name="review" value="1" checked> Include review markers</label>', body)
+        self.assertIn('name="review" value="1" checked> Include flags</label>', body)
         self.assertNotIn("amber", body)
         self.assertNotIn("A whole Subject", body)
         self.assertNotIn("File names", body)
@@ -428,8 +432,8 @@ class ViewTests(ExportCase):
         client = self.login(self.reader)
         marked = texts(client.get(self.url(type="subject", subject_pk=self.arb.pk, review=1)).content)
         plain = texts(client.get(self.url(type="subject", subject_pk=self.arb.pk)).content)
-        self.assertTrue(any("[For review" in t for t in marked))
-        self.assertFalse(any("[For review" in t for t in plain))
+        self.assertTrue(any("[Pending" in t for t in marked))
+        self.assertFalse(any("[Pending" in t for t in plain))
         self.assertEqual(client.get(self.url(type="subject", subject_pk="x")).status_code, 404)
 
     def test_nav_has_an_export_link(self):

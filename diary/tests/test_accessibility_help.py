@@ -19,7 +19,7 @@ class AccessibilityTests(TestCase):
         self.client.force_login(self.user)
 
     def test_every_page_has_skip_link_and_main_target(self):
-        for name in ("home", "help", "diary_home", "search", "review_list"):
+        for name in ("home", "help", "diary_home", "search", "flags", "flag_links"):
             resp = self.client.get(reverse(name) + ("?home=1" if name == "home" else ""))
             self.assertContains(resp, 'class="skip-link" href="#main"', msg_prefix=name)
             self.assertContains(resp, '<main id="main">', msg_prefix=name)

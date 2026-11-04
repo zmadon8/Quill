@@ -103,10 +103,11 @@ class Renderer:
         lead = [dw.Run(label, bold=kw.pop("bold_label", False)), dw.Run(tab=True)]
         return dw.Para(style, lead + runs, left=pos + W, hanging=W, **kw)
 
-    def review_runs(self, needs_review, note):
-        if not (self.review and needs_review):
+    def flag_runs(self, label):
+        """" [Pending: ask the client]" in red, when the flags are included (D88: For review is one of the flags now)."""
+        if not (self.review and label):
             return []
-        return [dw.Run(" [For review" + (f": {note}" if note else "") + "]", color=dw.AMBER)]
+        return [dw.Run(f" [{label}]", color=dw.RED)]
 
     # -- notes ------------------------------------------------------------------------------------
     def emit_notes(self, notes, left):
@@ -135,9 +136,7 @@ class Renderer:
                 if has_text(case.comment_html):
                     runs.append(dw.Run(" "))
                     runs.extend(html_runs(case.comment_html))
-        if item.flag_label:
-            runs.append(dw.Run(f" [{item.flag_label}]", color=dw.RED))
-        runs.extend(self.review_runs(item.needs_review, item.review_note))
+        runs.extend(self.flag_runs(item.flag_label))
         return runs
 
     def case_line_runs(self, case):
@@ -167,7 +166,7 @@ class Renderer:
             if kind == numbering.SECTION:
                 under_section = True
                 runs = [dw.Run(entry.name, bold=True)] if entry.name else []
-                runs += self.review_runs(entry.needs_review, entry.review_note)
+                runs += self.flag_runs(entry.flag_label)
                 self.doc.add(self.labelled(S_SECTION, label, runs, base, bold_label=True))
                 self.emit_notes(entry.notes, base + W)
             else:
@@ -226,8 +225,8 @@ class Renderer:
         total = count_items(data)
         self.doc.add(dw.Para("Normal", [dw.Run(f"Exported {data.date_text}. Records in this document: {total} "
                                                f"Item{'' if total == 1 else 's'}.")]))
-        marks = "included" if self.review else "not included"
-        self.doc.add(dw.Para("Normal", [dw.Run(f"Review markers: {marks}.")]))
+        marks = "included" if self.review else "not included"  # the Flags (D88)
+        self.doc.add(dw.Para("Normal", [dw.Run(f"Flags: {marks}.")]))
         self.doc.add(dw.Para("ContentsHeading", [dw.Run("Contents")]))
         contents_at = len(front.paras)  # the list is filled in after the body, when every bookmark is known
 

@@ -24,7 +24,7 @@ from accounts.profiles import DEFAULT_PROFILE_NAME
 from accounts.suite import KEY_DIARY as DEFAULT_PROGRAM
 
 from diary import legacy_merge as legacy
-from diary import nested_conversion, subtopic_one, topic_one
+from diary import nested_conversion, review_flags, subtopic_one, topic_one
 
 from . import policy, registry, storage as offsite_storage
 from .models import KEEP_KINDS, BackupFile, BackupLog
@@ -284,10 +284,14 @@ def upgrade_old_items(document, now=None):
     housed_sub = subtopic_one.house_document(document["models"], stamp)
     housed = topic_one.house_document(document["models"], stamp)
     document["subtopic_mapping"] = housed_sub
+    # Last: For review marks are folded into the Flags (D88), as migration 0021 does for the live database.
+    document["review_mapping"] = review_flags.upgrade_document(document["models"], stamp)
     document["legacy_mapping"] = stats
     document["nested_mapping"] = nested
     document["housing_mapping"] = housed
-    if stats["items_changed"] or nested["nested_items"] or housed["subjects_housed"] or housed_sub["subjects_housed"]:
+    reviewed = document["review_mapping"]
+    if (stats["items_changed"] or nested["nested_items"] or housed["subjects_housed"] or housed_sub["subjects_housed"]
+            or reviewed["items"] or reviewed["sections"]):
         counts = document.setdefault("counts", {})
         for label in ("diary.Item", "diary.Section", "diary.Subtopic", "diary.Topic", "diary.Case", "diary.Note", "diary.NoteLink",
                       "diary.TrashBatch", "diary.VersionHistory"):
@@ -493,7 +497,8 @@ def restore_backup(document, user):
         + (" " + legacy.describe(document.get("legacy_mapping") or legacy.new_stats())).rstrip()
         + (" " + nested_conversion.describe(document.get("nested_mapping") or nested_conversion.new_stats())).rstrip()
         + (" " + subtopic_one.describe(document.get("subtopic_mapping") or subtopic_one.new_stats())).rstrip()
-        + (" " + topic_one.describe(document.get("housing_mapping") or topic_one.new_stats())).rstrip(),
+        + (" " + topic_one.describe(document.get("housing_mapping") or topic_one.new_stats())).rstrip()
+        + (" " + review_flags.describe(document.get("review_mapping") or review_flags.new_stats())).rstrip(),
         created_by=survivor,
     )
     return counts

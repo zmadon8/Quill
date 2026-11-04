@@ -1,0 +1,11 @@
+{# One result card (Search, Flags, Hyperlinks). Context: r (a diary.search.SearchResult). #}
+<li class="search-result card">
+  <div class="search-meta">
+    <span class="search-kind badge">{{ r.kind }}</span>
+    {% if r.flag_text %}<span class="flag-text flag-{{ r.flag }}">{{ r.flag_text }}</span>{% endif %}
+    {% if r.path %}<span class="search-path">{% for name, url in r.path %}{% if not forloop.first %} &gt; {% endif %}{{ name }}{% endfor %}</span>{% endif %}
+  </div>
+  <a class="search-link" href="{{ r.url }}" title="Open in context">{{ r.label }}</a>
+  {% if r.segments %}<p class="search-snippet"><span class="search-field">{{ r.field_label }}:</span> {% for seg in r.segments %}{% if seg.1 %}<mark>{{ seg.0 }}</mark>{% else %}{{ seg.0 }}{% endif %}{% endfor %}</p>{% endif %}
+  {% if r.link %}<p class="search-url"><a class="cite-link" href="{{ r.link }}" target="_blank" rel="noopener noreferrer" title="Open the link (new tab)">{{ r.link }}</a></p>{% endif %}
+</li>

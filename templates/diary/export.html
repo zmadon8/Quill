@@ -7,7 +7,7 @@
 
   <form method="get" action="{% url 'export_download' %}" class="stack export-form">
     <p class="export-option">
-      <label class="search-check"><input type="checkbox" name="review" value="1"{% if include_review %} checked{% endif %}> Include review markers</label>
+      <label class="search-check"><input type="checkbox" name="review" value="1"{% if include_review %} checked{% endif %}> Include flags</label>
     </p>
 
     <section class="settings-section">
@@ -18,7 +18,7 @@
       <input type="hidden" name="pk" value="{{ scope_pk }}">
       <p><button type="submit" name="type" value="view" class="primary">Download this view</button></p>
       {% else %}
-      <p class="meta">Open a Subject, Topic or Sub-topic and press <strong>Export</strong> at the top of the page to export exactly that. The button is not offered on Search, Review, Trash or History.</p>
+      <p class="meta">Open a Subject, Topic or Sub-topic and press <strong>Export</strong> at the top of the page to export exactly that. The button is not offered on Search, Flags, Trash or History.</p>
       {% endif %}
     </section>
 

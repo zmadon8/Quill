@@ -27,7 +27,7 @@ from . import search as search_module
 from .forms import ProfileSettingsForm
 from .importer import loader as import_loader
 from .importer import service as import_service
-from .models import Item, Subject, Subtopic, Topic
+from .models import FLAG_CHOICES, Item, Subject, Subtopic, Topic
 from .sorting import sort_headings
 from .wordexport import naming
 
@@ -94,7 +94,7 @@ def opening_subject_for(user, profile):
 
 
 def item_counts_by_subject(profile):
-    """One aggregate query: {subject_id: (items, items_for_review)} for live Items.
+    """One aggregate query: {subject_id: (items, flagged items)} for live Items.
 
     An Item belongs to a Subject through its Topic or Sub-topic, or directly, so the owning
     Subject is the first non-null of those paths. Items whose own Topic or Sub-topic is deleted are not counted.
@@ -114,10 +114,10 @@ def item_counts_by_subject(profile):
         )
         .annotate(owner=owner)
         .values("owner")
-        .annotate(items=Count("pk"), review=Count("pk", filter=Q(needs_review=True)))
+        .annotate(items=Count("pk"), flagged=Count("pk", filter=~Q(flag="none")))
         .order_by()
     )
-    return {r["owner"]: (r["items"], r["review"]) for r in rows}
+    return {r["owner"]: (r["items"], r["flagged"]) for r in rows}
 
 
 @profile_required
@@ -134,14 +134,12 @@ def subjects(request):
         subject.item_count = counts.get(subject.pk, (0, 0))[0]
     live_ids = set(_subjects(profile).values_list("pk", flat=True))
     total_items = sum(n for pk, (n, _) in counts.items() if pk in live_ids)
-    total_review = sum(r for pk, (_, r) in counts.items() if pk in live_ids)
     return render(request, "diary/subjects.html", {
         **edit_context(request),
         "subjects": landing,
         "other_subjects": other,
         "subject_total": len(live_ids),
         "item_total": total_items,
-        "review_total": total_review,
     })
 
 
@@ -301,57 +299,55 @@ def healthz(request):
     return HttpResponse("ok", content_type="text/plain")
 
 
-def _review_rows(profile):
-    """Every live Item and Section marked For review in ``profile``, with its path (document order after import).
-
-    This is Search's "For review only" with an empty query (diary/search.py, which locates records with
-    diary/locate.py), so the two always list the same records.
-    """
-    rows = []
-    for r in search_module.run_search(profile, "", review_only=True):
-        text = r.text
-        rows.append({
-            "kind": r.kind,
-            "subject_id": r.subject_id,
-            "path": " > ".join(name for name, _url in r.path),
-            "text": text if len(text) <= 160 else text[:157] + "...",
-            "note": r.review_note,
-            "url": r.url,
-            "order": r.order,
-        })
-    return rows  # run_search already returns them in Diary order
-
-
 @profile_required
-@remember_page
 def review_list(request):
-    """Docs/DESIGN.md section 5.12: everything marked For review, with path and note."""
-    rows = _review_rows(request.profile)
-    subject_counts = {}
-    for r in rows:
-        subject_counts[r["subject_id"]] = subject_counts.get(r["subject_id"], 0) + 1
-    panel = _panel_subjects(request.profile)
-    choices = [(s.pk, s.name, subject_counts[s.pk]) for s in panel["panel_main"] + panel["panel_other"]
-               if s.pk in subject_counts]
-    chosen = None
-    raw = request.GET.get("subject", "")
-    if safe_int(raw) in subject_counts:
-        chosen = safe_int(raw)
-        rows = [r for r in rows if r["subject_id"] == chosen]
-    return render(request, "diary/review_list.html", {
-        "rows": rows, "total": len(rows), "all_total": sum(subject_counts.values()),
-        "subject_choices": choices, "chosen_subject": chosen,
-    })
+    """The old Review list (everything marked For review) became the Flags page (D88, D89): its address forwards there."""
+    return redirect(reverse("flags") + ("?" + request.GET.urlencode() if request.GET else ""))
 
 
 SEARCH_PAGE = 50
 SEARCH_MAX = 1000
+#: The kinds of flag the Flags page can show (D89): every flag, or one kind.
+FLAG_FILTERS = [("", "All flags")] + [(key, name) for key, name in FLAG_CHOICES if key != "none"]
+
+
+def _grouped(request, results, panel, base_params, limit):
+    """The "Grouped by Subject" view of ``results`` (shared by Search, Flags and Hyperlinks): a list of the Subjects that
+    have results, with counts, and the results of the chosen Subject (``?s=``; the first one when none is chosen)."""
+    counts = {}
+    for r in results:
+        counts[r.subject_id] = counts.get(r.subject_id, 0) + 1
+    groups = [{"subject": s, "count": counts[s.pk]} for s in panel["panel_main"] + panel["panel_other"] if s.pk in counts]
+    picked = safe_int(request.GET.get("s"))
+    pick_group = next((g for g in groups if g["subject"].pk == picked), None)
+    chosen_group = pick_group or (groups[0] if groups else None)
+    for g in groups:
+        g["url"] = "?" + urlencode(dict(base_params, s=g["subject"].pk))
+    shown = [r for r in results if chosen_group and r.subject_id == chosen_group["subject"].pk]
+    more = dict(base_params, limit=min(limit + SEARCH_PAGE, SEARCH_MAX))
+    if chosen_group:
+        more["s"] = chosen_group["subject"].pk
+    return {
+        "groups": groups, "chosen_group": chosen_group, "picked_valid": pick_group is not None,
+        "results": shown[:limit], "shown_total": len(shown), "total": len(results),
+        "has_more": len(shown) > limit and limit < SEARCH_MAX,
+        "more_url": request.path + "?" + urlencode(more),
+        "back_url": "?" + urlencode(base_params),
+    }
+
+
+def _limit(request):
+    return min(safe_int(request.GET.get("limit", "")) or SEARCH_PAGE, SEARCH_MAX)
 
 
 @profile_required
 @remember_page
 def search(request):
-    """Global Search (docs/DESIGN.md section 10). Everything is in the address, so Back and bookmarks work."""
+    """Global Search (docs/DESIGN.md section 10). Everything is in the address, so Back and bookmarks work.
+
+    The ticks (D90): Group by Subject (a way of showing the results, not a search filter), Citations, Flags (look only in
+    the text beside flags; an older address's ``review=1`` means the same) and Headers.
+    """
     profile = request.profile
     query = request.GET.get("q", "").strip()[:500]
     panel = _panel_subjects(profile)
@@ -359,61 +355,74 @@ def search(request):
     raw = request.GET.get("subject", "")
     subject_id = safe_int(raw) if safe_int(raw) in live else None
     citations_only = request.GET.get("citations") == "1"
-    review_only = request.GET.get("review") == "1"
-    raw_limit = request.GET.get("limit", "")
-    limit = safe_int(raw_limit) or SEARCH_PAGE
-    limit = min(limit, SEARCH_MAX)
+    flags_only = request.GET.get("flags") == "1" or request.GET.get("review") == "1"
+    limit = _limit(request)
     headers_only = request.GET.get("headers") == "1"
-    searched = bool(query) or citations_only or review_only
+    searched = bool(query) or citations_only or flags_only
     results = search_module.run_search(
-        profile, query, subject_id=subject_id, citations_only=citations_only, review_only=review_only,
+        profile, query, subject_id=subject_id, citations_only=citations_only, flags_only=flags_only,
         headers_only=headers_only,
     ) if searched else []
-    # "By Subject" view: only when the whole database is searched (a Subject filter always uses the plain cards).
-    by_subject = bool(results) and subject_id is None and request.GET.get("view") == "subjects"
+    # Grouped by Subject: only when the whole database is searched (a Subject filter always uses the plain cards).
+    want_subjects = request.GET.get("view") == "subjects"
+    by_subject = bool(results) and subject_id is None and want_subjects
     base_params = {"q": query}
     if subject_id:
         base_params["subject"] = subject_id
     if citations_only:
         base_params["citations"] = 1
-    if review_only:
-        base_params["review"] = 1
+    if flags_only:
+        base_params["flags"] = 1
     if headers_only:
         base_params["headers"] = 1
-    groups, chosen_group, shown, picked_valid = [], None, results, False
-    if by_subject:
-        counts = {}
-        for r in results:
-            counts[r.subject_id] = counts.get(r.subject_id, 0) + 1
-        groups = [{"subject": s, "count": counts[s.pk]}
-                  for s in panel["panel_main"] + panel["panel_other"] if s.pk in counts]
-        picked = safe_int(request.GET.get("s"))
-        pick_group = next((g for g in groups if g["subject"].pk == picked), None)
-        picked_valid = pick_group is not None
-        chosen_group = pick_group or (groups[0] if groups else None)
-        for g in groups:
-            g["url"] = "?" + urlencode(dict(base_params, view="subjects", s=g["subject"].pk))
-        shown = [r for r in results if chosen_group and r.subject_id == chosen_group["subject"].pk]
-        has_more = len(shown) > limit and limit < SEARCH_MAX
-    else:
-        has_more = len(results) > limit and limit < SEARCH_MAX
-    more_params = dict(base_params, limit=min(limit + SEARCH_PAGE, SEARCH_MAX))
-    if by_subject:
-        more_params["view"] = "subjects"
-        if chosen_group:
-            more_params["s"] = chosen_group["subject"].pk
-    view_params = {k: v for k, v in base_params.items()}
-    return render(request, "diary/search.html", {
-        "q": query, "searched": searched, "results": shown[:limit], "total": len(results),
-        "shown_total": len(shown),
-        "has_more": has_more,
-        "more_query": urlencode(more_params),
+    context = {
+        "q": query, "searched": searched, "total": len(results),
         "main_subjects": panel["panel_main"], "other_subjects": panel["panel_other"],
-        "chosen_subject": subject_id, "citations_only": citations_only, "review_only": review_only,
-        "headers_only": headers_only, "want_subjects": request.GET.get("view") == "subjects", "by_subject": by_subject, "groups": groups, "chosen_group": chosen_group, "picked_valid": picked_valid,
-        "cards_url": "?" + urlencode(view_params),
-        "subjects_url": "?" + urlencode(dict(view_params, view="subjects")),
-    })
+        "chosen_subject": subject_id, "citations_only": citations_only, "flags_only": flags_only,
+        "headers_only": headers_only, "want_subjects": want_subjects, "by_subject": by_subject,
+        "cards_url": "?" + urlencode(base_params),
+        "subjects_url": "?" + urlencode(dict(base_params, view="subjects")),
+    }
+    if by_subject:
+        context.update(_grouped(request, results, panel, dict(base_params, view="subjects"), limit))
+    else:
+        more = dict(base_params, limit=min(limit + SEARCH_PAGE, SEARCH_MAX))
+        context.update(results=results[:limit], shown_total=len(results),
+                       has_more=len(results) > limit and limit < SEARCH_MAX,
+                       more_url=request.path + "?" + urlencode(more))
+    return render(request, "diary/search.html", context)
+
+
+@profile_required
+@remember_page
+def flags_page(request):
+    """The Flags tab, Flags page (D89): every flagged Item and Section, or one kind of flag, grouped by Subject like
+    Search; the search box looks ONLY in the text beside the flags."""
+    profile = request.profile
+    query = request.GET.get("q", "").strip()[:500]
+    kind = request.GET.get("flag", "")
+    if kind not in dict(FLAG_FILTERS):
+        kind = ""
+    results = search_module.run_search(profile, query, flags_only=True, flag_kind=kind or None)
+    base_params = {k: v for k, v in (("q", query), ("flag", kind)) if v}
+    context = {"q": query, "flag": kind, "flag_filters": FLAG_FILTERS, "tab": "flags"}
+    context.update(_grouped(request, results, _panel_subjects(profile), base_params, _limit(request)))
+    return render(request, "diary/flags.html", context)
+
+
+@profile_required
+@remember_page
+def flag_links(request):
+    """The Flags tab, Hyperlinks page (D89): the citations WITH a web address (the search box looks in the address) or
+    WITHOUT one (it looks in the citation), grouped by Subject like Search."""
+    profile = request.profile
+    query = request.GET.get("q", "").strip()[:500]
+    which = "without" if request.GET.get("links") == "without" else "with"
+    results = search_module.run_links(profile, query, with_links=which == "with")
+    base_params = {k: v for k, v in (("q", query), ("links", "without" if which == "without" else "")) if v}
+    context = {"q": query, "which": which, "tab": "links"}
+    context.update(_grouped(request, results, _panel_subjects(profile), base_params, _limit(request)))
+    return render(request, "diary/flag_links.html", context)
 
 
 logger = logging.getLogger(__name__)

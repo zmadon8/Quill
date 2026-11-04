@@ -20,7 +20,7 @@ class EmailBackupForm(forms.ModelForm):
             "frequency": "How often",
             "weekday": "On",
             "delivery": "What to send",
-            "include_review": "Include For review markers in the Word file",
+            "include_review": "Include the Flags in the Word file",
         }
 
     def clean_recipients(self):

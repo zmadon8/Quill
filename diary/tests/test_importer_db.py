@@ -67,19 +67,21 @@ class ImportIntoProfileTests(TestCase):
         self.assertEqual([(c.citation, c.position, c.comment) for c in clean.cases.all()],
                          [("Alpha v Beta [(2010) 1 SCC 1]", 1, "")])
         self.assertEqual(clean.text_plain, "Clean proposition")
-        self.assertFalse(clean.needs_review)
+        self.assertEqual(clean.flag, "none")
         whole = Item.objects.get(original_line="Only a case name")
         self.assertEqual((whole.citation, whole.text_plain), ("", "Only a case name"))
         self.assertFalse(whole.cases.exists())  # a line imported whole has no citation, so no Case
-        self.assertTrue(whole.needs_review)
-        self.assertTrue(whole.review_note)
+        # D88: the import's note is a flag Other (it was a For review mark).
+        self.assertEqual(whole.flag, "other")
+        self.assertTrue(whole.flag_text)
+        self.assertFalse(whole.needs_review)
 
     def test_sections_are_flagged_and_share_positions_with_items(self):
         self.do_import()
         a = Section.objects.get(name="Ex Parte")
         b = Section.objects.get(name="Determining")
-        self.assertTrue(a.needs_review and b.needs_review)
-        self.assertIn("confirm these are Sections", a.review_note)
+        self.assertEqual((a.flag, b.flag), ("other", "other"))
+        self.assertIn("confirm these are Sections", a.flag_text)
         self.assertLess(a.position, b.position)
 
     def test_history_marks_everything_as_imported(self):
@@ -324,10 +326,10 @@ class RealFileThroughTheDatabaseTests(TestCase):
         self.assertEqual(Subtopic.objects.filter(profile=p).count(), EXPECTED["subtopics"])
         self.assertEqual(Section.objects.filter(profile=p).count(), EXPECTED["sections"])
         self.assertEqual(Item.objects.filter(profile=p).count(), EXPECTED["items"])
-        self.assertEqual(Item.objects.filter(profile=p, needs_review=False).count(), EXPECTED["items_clean"])
-        self.assertEqual(Item.objects.filter(profile=p, needs_review=True).count(), EXPECTED["items_flagged"])
-        marked = (Item.objects.filter(profile=p, needs_review=True).count()
-                  + Section.objects.filter(profile=p, needs_review=True).count())
+        self.assertEqual(Item.objects.filter(profile=p, flag="none").count(), EXPECTED["items_clean"])
+        self.assertEqual(Item.objects.filter(profile=p, flag="other").count(), EXPECTED["items_flagged"])
+        marked = (Item.objects.filter(profile=p).exclude(flag="none").count()
+                  + Section.objects.filter(profile=p).exclude(flag="none").count())
         self.assertEqual(marked, EXPECTED["review_marked"])
         # One Case per split line (691 clean + 2 flagged lines that were still split); none for whole lines.
         self.assertEqual(Case.objects.filter(profile=p).count(), 693)
@@ -362,8 +364,8 @@ class RealFileThroughTheDatabaseTests(TestCase):
         for key, count in expected.items():
             note = f"Imported whole as Text with no Citation: {REASONS[key]}."
             with self.subTest(reason=key):
-                self.assertEqual(Item.objects.filter(profile=self.profile, review_note=note).count(), count)
-        restarts = Item.objects.filter(profile=self.profile, review_note__contains="Word list restarted here")
+                self.assertEqual(Item.objects.filter(profile=self.profile, flag_text=note).count(), count)
+        restarts = Item.objects.filter(profile=self.profile, flag_text__contains="Word list restarted here")
         self.assertEqual(sorted(restarts.values_list("import_ref", flat=True)), ["para-1033", "para-1356"])
         self.assertEqual(restarts.filter(cases__isnull=True).count(), 0)  # split normally, only flagged
 
@@ -441,7 +443,7 @@ class ImportScreenTests(TestCase):
         self.assertNotContains(resp, "Ready to import.")
         self.assertNotContains(resp, "--import")
 
-    def test_reconciliation_after_an_import_and_the_review_list(self):
+    def test_reconciliation_after_an_import_and_the_flags_page(self):
         self.client.force_login(self.admin)
         service.run_import(self.data, "small.docx", main_profile(), self.admin)
         resp = self.post(action="reconcile")
@@ -449,9 +451,12 @@ class ImportScreenTests(TestCase):
         self.assertEqual(Subject.objects.filter(profile=main_profile()).count(), 4)
         resp = self.post(action="reconcile_download")
         self.assertIn(b"RESULT: MATCH", resp.content)
-        listing = self.client.get(reverse("review_list"))
-        self.assertContains(listing, "Only a case name")
-        self.assertContains(listing, "Ex Parte")
+        from diary.search import run_search
+
+        flagged = {r.label for r in run_search(main_profile(), "", flags_only=True)}
+        self.assertIn("Only a case name", flagged)
+        self.assertIn("Ex Parte", flagged)
+        self.assertEqual(self.client.get(reverse("flags")).status_code, 200)
 
     def test_an_unexpected_error_is_a_plain_message_not_a_server_error(self):
         self.client.force_login(self.admin)
@@ -478,122 +483,150 @@ class ImportScreenTests(TestCase):
 
 
 @override_settings(SECURE_SSL_REDIRECT=False)
-class ReviewListTests(TestCase):
+class FlagsPageTests(TestCase):
+    """D89: the Flags tab. Flags: every flagged Item and Section (or one kind), grouped by Subject like Search, and a
+    search ONLY in the text beside the flags. Hyperlinks: citations with (or without) a link. The old Review list
+    address forwards to Flags."""
+
+    def setUp(self):
+        self.reader = join_main(User.objects.create_user("rita", password=PASSWORD))
+        self.client.force_login(self.reader)
+        self.main = main_profile()
+
     def test_lists_only_this_profile_and_live_records(self):
-        reader = join_main(User.objects.create_user("rita", password=PASSWORD))
-        main = main_profile()
+        main = self.main
         subject = Subject.objects.create(profile=main, name="Arbitration", landing_position=1)
-        Item.objects.create(profile=main, subject=subject, text="<p>Mine</p>", needs_review=True, review_note="check")
+        Item.objects.create(profile=main, subject=subject, text="<p>Mine</p>", flag="pending", flag_text="check")
         Item.objects.create(profile=main, subject=subject, text="<p>Fine</p>")
-        Section.objects.create(profile=main, subject=subject, name="A section", needs_review=True)
-        junior = other_profile()
-        elsewhere = Subject.objects.create(profile=junior, name="Elsewhere")
-        Item.objects.create(profile=junior, subject=elsewhere, text="<p>Theirs</p>", needs_review=True)
-        self.client.force_login(reader)
-        resp = self.client.get(reverse("review_list"))
+        Section.objects.create(profile=main, subject=subject, name="A section", flag="other", flag_text="name?")
+        elsewhere = Subject.objects.create(profile=other_profile(), name="Elsewhere")
+        Item.objects.create(profile=elsewhere.profile, subject=elsewhere, text="<p>Theirs</p>", flag="doubted")
+        resp = self.client.get(reverse("flags"))
         self.assertContains(resp, "Mine")
+        self.assertContains(resp, "Pending: check")
         self.assertContains(resp, "A section")
         self.assertNotContains(resp, "Theirs")
         self.assertNotContains(resp, "Fine")
-        self.assertContains(resp, "2 records")
+        self.assertContains(resp, "2 flagged records")
+        self.assertContains(resp, 'class="search-subjects"')  # grouped by Subject, like Search
+        self.assertContains(resp, 'class="subnav"')
+        self.assertContains(resp, 'href="%s" class="on" aria-current="page">Flags</a>' % reverse("flags"))
 
     def test_order_is_alphabetical_for_headings_and_by_position_for_items_inside_each_parent(self):
-        reader = join_main(User.objects.create_user("rita", password=PASSWORD))
-        main = main_profile()
+        main = self.main
         subject = Subject.objects.create(profile=main, name="Arbitration", landing_position=1)
-        # stored (Word) positions say Zeta first; the alphabet says Alpha first
         late = Topic.objects.create(profile=main, subject=subject, name="Zeta", position=1)
         early = Topic.objects.create(profile=main, subject=subject, name="Alpha", position=2)
-        # created in the "wrong" order on purpose: primary keys must not decide the order
-        Item.objects.create(profile=main, topic=late, text="<p>zzitemL2</p>", position=2, needs_review=True)
-        Section.objects.create(profile=main, topic=late, name="zzsectionL1", position=1, needs_review=True)
-        Item.objects.create(profile=main, topic=early, text="<p>zzitemE1</p>", position=1, needs_review=True)
-        Section.objects.create(profile=main, topic=early, name="zzsectionE2", position=2, needs_review=True)
-        self.client.force_login(reader)
-        body = self.client.get(reverse("review_list")).content.decode()
+        Item.objects.create(profile=main, topic=late, text="<p>zzitemL2</p>", position=2, flag="pending")
+        Section.objects.create(profile=main, topic=late, name="zzsectionL1", position=1, flag="pending")
+        Item.objects.create(profile=main, topic=early, text="<p>zzitemE1</p>", position=1, flag="pending")
+        Section.objects.create(profile=main, topic=early, name="zzsectionE2", position=2, flag="pending")
+        body = self.client.get(reverse("flags")).content.decode()
         positions = [body.index(x) for x in ("zzitemE1", "zzsectionE2", "zzsectionL1", "zzitemL2")]
         self.assertEqual(positions, sorted(positions))
 
-    def test_subject_filter_count_path_note_and_context_link(self):
-        reader = join_main(User.objects.create_user("rita", password=PASSWORD))
-        main = main_profile()
+    def test_subjects_with_counts_paths_and_context_links(self):
+        main = self.main
         one = Subject.objects.create(profile=main, name="Arbitration", landing_position=1)
         two = Subject.objects.create(profile=main, name="Contracts", landing_position=2)
         topic = Topic.objects.create(profile=main, subject=one, name="Fraud")
-        Item.objects.create(profile=main, topic=topic, text="<p>zzfraud</p>", needs_review=True, review_note="whynote")
-        Section.objects.create(profile=main, subject=two, name="zzsection", needs_review=True)
-        self.client.force_login(reader)
-        resp = self.client.get(reverse("review_list"))
-        self.assertContains(resp, "2 records")
-        self.assertContains(resp, "Arbitration (1)")
-        self.assertContains(resp, "Contracts (1)")
+        item = Item.objects.create(profile=main, topic=topic, text="<p>zzfraud</p>", flag="other", flag_text="whynote")
+        Section.objects.create(profile=main, subject=two, name="zzsection", flag="pending")
+        resp = self.client.get(reverse("flags"))
+        self.assertContains(resp, "2 flagged records")
+        nav = resp.content.decode().split('class="search-subjects"')[1].split("</nav>")[0]
+        self.assertIn("Arbitration", nav)
+        self.assertIn("Contracts", nav)
         self.assertContains(resp, "Arbitration &gt; Fraud")
         self.assertContains(resp, "whynote")
-        item = Item.objects.get(topic=topic)
         self.assertContains(resp, 'href="%s#n-item-%d"' % (reverse("read_subject", args=[one.pk]), item.pk))
-        self.assertContains(resp, "Open in context")
-        self.assertContains(resp, 'class="col-kind"')
-        resp = self.client.get(reverse("review_list"), {"subject": one.pk})
-        self.assertContains(resp, "1 record ")
-        self.assertContains(resp, "zzfraud")
-        self.assertNotContains(resp, "zzsection")
-        self.assertContains(resp, "of 2 in all")
-        resp = self.client.get(reverse("review_list"), {"subject": "bogus"})
-        self.assertContains(resp, "2 records")
+        self.assertNotContains(resp, "zzsection")  # the first Subject is shown; the other is a click away
+        resp = self.client.get(reverse("flags"), {"s": two.pk})
+        self.assertContains(resp, "zzsection")
+        self.assertNotContains(resp, "zzfraud")
+        self.assertContains(resp, "&larr; All Subjects")
+        self.assertContains(self.client.get(reverse("flags"), {"s": "bogus"}), "zzfraud")
 
-    def test_requires_a_profile(self):
-        user = User.objects.create_user("nobody", password=PASSWORD)
-        self.client.force_login(user)
-        self.assertEqual(self.client.get(reverse("review_list")).status_code, 403)
+    def test_one_kind_of_flag_and_a_search_in_the_flag_text_only(self):
+        main = self.main
+        subject = Subject.objects.create(profile=main, name="Arbitration", landing_position=1)
+        Item.objects.create(profile=main, subject=subject, text="<p>alpha item</p>", flag="pending", flag_text="ask client")
+        Item.objects.create(profile=main, subject=subject, text="<p>beta item client</p>", flag="overruled")
+        Item.objects.create(profile=main, subject=subject, text="<p>client not flagged</p>")
+        resp = self.client.get(reverse("flags"), {"flag": "overruled"})
+        self.assertContains(resp, "beta item")
+        self.assertNotContains(resp, "alpha item")
+        self.assertContains(resp, '<option value="overruled" selected>')
+        resp = self.client.get(reverse("flags"), {"q": "client"})
+        self.assertContains(resp, "alpha item")  # "client" is in its flag text
+        self.assertNotContains(resp, "beta item")  # only in its Item text
+        self.assertNotContains(resp, "not flagged")
+        self.assertContains(self.client.get(reverse("flags"), {"flag": "nonsense"}), "alpha item")  # unknown: all flags
 
-    def test_item_section_and_anchors_are_listed_and_trash_is_not(self):
-        reader = join_main(User.objects.create_user("rita", password=PASSWORD))
-        main = main_profile()
+    def test_requires_a_profile_and_the_old_address_forwards(self):
+        self.assertRedirects(self.client.get(reverse("review_list")), reverse("flags"), fetch_redirect_response=False)
+        self.client.force_login(User.objects.create_user("nobody", password=PASSWORD))
+        for name in ("flags", "flag_links", "review_list"):
+            self.assertEqual(self.client.get(reverse(name)).status_code, 403, name)
+
+    def test_items_sections_and_anchors_are_listed_and_trash_is_not(self):
+        main = self.main
         subject = Subject.objects.create(profile=main, name="Arbitration", landing_position=1)
         topic = Topic.objects.create(profile=main, subject=subject, name="Fraud")
-        child = Item.objects.create(profile=main, topic=topic, text="<p>zzchild</p>", needs_review=True)
-        section = Section.objects.create(profile=main, topic=topic, name="zzsection", needs_review=True)
-        gone = Item.objects.create(profile=main, topic=topic, text="<p>zzgone</p>", needs_review=True,
-                                   deleted_at=timezone.now())
+        child = Item.objects.create(profile=main, topic=topic, text="<p>zzchild</p>", flag="pending")
+        section = Section.objects.create(profile=main, topic=topic, name="zzsection", flag="pending")
+        Item.objects.create(profile=main, topic=topic, text="<p>zzgone</p>", flag="pending", deleted_at=timezone.now())
         dead_topic = Topic.objects.create(profile=main, subject=subject, name="Dead", deleted_at=timezone.now())
-        Item.objects.create(profile=main, topic=dead_topic, text="<p>zzunder</p>", needs_review=True)
-        self.client.force_login(reader)
-        resp = self.client.get(reverse("review_list"))
+        Item.objects.create(profile=main, topic=dead_topic, text="<p>zzunder</p>", flag="pending")
+        resp = self.client.get(reverse("flags"))
         whole = reverse("read_subject", args=[subject.pk])
-        self.assertContains(resp, "zzchild")
         self.assertContains(resp, 'href="%s#n-item-%d"' % (whole, child.pk))
         self.assertContains(resp, 'href="%s#n-section-%d"' % (whole, section.pk))
-        self.assertContains(resp, "2 records")
+        self.assertContains(resp, "2 flagged records")
         for text in ("zzgone", "zzunder"):
             self.assertNotContains(resp, text)
-        self.assertNotEqual(gone.pk, child.pk)
 
-    def test_review_list_and_search_for_review_only_return_the_same_records(self):
+    def test_the_flags_page_and_search_with_flags_return_the_same_records(self):
         from diary.search import run_search
-        from diary.views import _review_rows
 
-        main = main_profile()
+        main = self.main
         subject = Subject.objects.create(profile=main, name="Arbitration", landing_position=1)
         topic = Topic.objects.create(profile=main, subject=subject, name="Fraud")
-        Item.objects.create(profile=main, topic=topic, text="<p>c</p>", needs_review=True)
-        Item.objects.create(profile=main, subject=subject, text="<p>i</p>", needs_review=True)
-        Section.objects.create(profile=main, topic=topic, name="s", needs_review=True)
+        Item.objects.create(profile=main, topic=topic, text="<p>c</p>", flag="pending")
+        Section.objects.create(profile=main, topic=topic, name="s", flag="doubted")
         Item.objects.create(profile=main, topic=topic, text="<p>not marked</p>")
-        rows = _review_rows(main)
-        results = run_search(main, "", review_only=True)
-        self.assertEqual(len(rows), 3)
-        self.assertEqual([r["url"] for r in rows], [r.url for r in results])
+        page = self.client.get(reverse("flags"))
+        searched = self.client.get(reverse("search"), {"flags": "1", "view": "subjects"})
+        self.assertEqual([r.url for r in page.context["results"]], [r.url for r in searched.context["results"]])
+        self.assertEqual(len(run_search(main, "", flags_only=True)), 2)
 
-    def test_links_between_review_list_and_search(self):
-        reader = join_main(User.objects.create_user("rita", password=PASSWORD))
-        main = main_profile()
+    def test_hyperlinks_with_and_without_and_a_search_in_the_address(self):
+        main = self.main
         subject = Subject.objects.create(profile=main, name="Arbitration", landing_position=1)
-        Item.objects.create(profile=main, subject=subject, text="<p>x</p>", needs_review=True)
-        self.client.force_login(reader)
-        resp = self.client.get(reverse("review_list"), {"subject": subject.pk})
-        self.assertContains(resp, 'href="%s?review=1&amp;subject=%d"' % (reverse("search"), subject.pk))
-        resp = self.client.get(reverse("review_list"))
-        self.assertContains(resp, 'href="%s?review=1"' % reverse("search"))
+        topic = Topic.objects.create(profile=main, subject=subject, name="Fraud")
+        item = Item.objects.create(profile=main, topic=topic, text="<p>the item</p>")
+        address = "https://www.SCConline.com/Members/Doc?Id=AbC"
+        Case.objects.create(profile=main, item=item, citation="Linked v Case", url=address, position=1)
+        Case.objects.create(profile=main, item=item, citation="Bare v Case", position=2)
+        resp = self.client.get(reverse("flag_links"))
+        self.assertContains(resp, "Linked v Case")
+        self.assertNotContains(resp, "Bare v Case")
+        self.assertContains(resp, 'href="%s"' % address.replace("&", "&amp;"))
+        self.assertContains(resp, "1 citation with a link")
+        self.assertContains(resp, 'href="%s" class="on" aria-current="page">Hyperlinks</a>' % reverse("flag_links"))
+        without = self.client.get(reverse("flag_links"), {"links": "without"})
+        self.assertContains(without, "Bare v Case")
+        self.assertNotContains(without, "Linked v Case")
+        self.assertContains(self.client.get(reverse("flag_links"), {"q": "scconline"}), "Linked v Case")
+        self.assertNotContains(self.client.get(reverse("flag_links"), {"q": "Linked"}), "Linked v Case")  # not in the address
+        self.assertContains(self.client.get(reverse("flag_links"), {"links": "without", "q": "bare"}), "Bare v Case")
+
+    def test_the_header_has_the_flags_tab(self):
+        nav = self.client.get(reverse("diary_home")).content.decode().split('class="program-nav"')[1].split("</nav>")[0]
+        self.assertIn('href="%s"' % reverse("flags"), nav)
+        self.assertIn('aria-label="Flags"', nav)
+        flags_nav = self.client.get(reverse("flag_links")).content.decode().split('class="program-nav"')[1].split("</nav>")[0]
+        self.assertIn('class="nav-icon on" aria-current="page" aria-label="Flags"', flags_nav)
 
 
 class ImportCommandTests(TestCase):

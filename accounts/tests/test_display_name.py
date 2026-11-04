@@ -25,7 +25,7 @@ class DisplayNameTests(BaseCase):
     def test_display_name_replaces_the_header_brand_title_and_aria_label(self):
         self.set_name("Madon's Case Law")
         self.client.force_login(self.user)
-        for name in ("diary_home", "review_list", "profile_settings"):
+        for name in ("diary_home", "flags", "profile_settings"):
             resp = self.client.get(reverse(name))
             self.assertContains(resp, 'aria-label="Madon&#x27;s Case Law: Home">Madon&#x27;s Case Law</a>', msg_prefix=name)
             self.assertNotContains(resp, 'class="profile-name"', msg_prefix=name)
@@ -35,7 +35,7 @@ class DisplayNameTests(BaseCase):
     def test_header_brand_still_links_to_the_program_index(self):
         self.set_name("Mine")
         self.client.force_login(self.user)
-        self.assertContains(self.client.get(reverse("review_list")), 'href="%s" title="Home" aria-label="Mine: Home"' % reverse("diary_home"))
+        self.assertContains(self.client.get(reverse("flags")), 'href="%s" title="Home" aria-label="Mine: Home"' % reverse("diary_home"))
 
     def test_home_picker_button_shows_display_name_else_program_name(self):
         self.client.force_login(self.user)
