@@ -364,7 +364,8 @@ class ViewTests(ExportCase):
         nobody = User.objects.create_user("nobody", password=PASSWORD)
         self.assertEqual(self.login(nobody).get(reverse("export")).status_code, 403)
 
-    def test_export_this_view_link_is_on_reading_pages_for_everyone(self):
+    def test_header_export_opens_the_page_ready_for_this_view_and_there_is_no_floating_button(self):
+        # Round 18: the Export button in the sticky breadcrumb row is gone; the header's Export carries the page.
         pages = {
             reverse("read_subject", args=[self.arb.pk]): f"kind=subject&amp;pk={self.arb.pk}",
             reverse("read_topic", args=[self.topic.pk]): f"kind=topic&amp;pk={self.topic.pk}",
@@ -375,27 +376,17 @@ class ViewTests(ExportCase):
             client = self.login(user)
             for page, query in pages.items():
                 body = client.get(page).content.decode()
-                self.assertRegex(body, r'class="button export-link export-main"[^>]*aria-label="Export"')
-                self.assertIn('<span class="export-word">Export</span>', body)
-                self.assertNotIn("Export this view", body)
-                self.assertIn("type=view&amp;review=1&amp;" + query, body)
-                self.assertIn('class="export-icon"', body)
-                if user is self.editor:
-                    self.assertIn('aria-haspopup="menu"', body)
-                    self.assertIn(">This page</a>", body)
-                    self.assertIn("type=full&amp;review=1", body)
-                    self.assertIn("type=by_subject&amp;review=1", body)
-                else:
-                    self.assertNotIn("aria-haspopup", body)
-                    self.assertNotIn("export-menu", body)
-                    self.assertNotIn("type=full", body)
+                self.assertIn(f'href="{reverse("export")}?{query}"', body)
+                self.assertEqual(body.count('aria-label="Export"'), 1, page)
+                self.assertNotIn("export-split", body)
+                self.assertNotIn("export-menu", body)
+                self.assertNotIn("type=view&amp;", body)
 
-    def test_diary_menu_says_settings_not_profile_settings(self):
+    def test_settings_gear_is_named_settings(self):
         self.editor.header_style = "words"  # D84: with Words the link reads "Settings"; with Icons it is a gear named Settings
         self.editor.save(update_fields=["header_style"])
-        body = self.login(self.editor).get(reverse("profile_settings")).content.decode()
+        body = self.login(self.editor).get(reverse("diary_home")).content.decode()
         self.assertRegex(body, r'<a href="[^"]*"[^>]*aria-label="Settings"[^>]*>Settings</a>')
-        self.assertIn("<h1>Settings</h1>", body)
         self.assertNotIn("Profile settings", body)
 
     def test_current_view_is_not_offered_on_search_review_trash_or_history(self):
@@ -406,12 +397,11 @@ class ViewTests(ExportCase):
         client = self.login(self.editor)
         for url in (reverse("search"), reverse("flags"), reverse("flag_links"), reverse("trash"),
                     reverse("history", args=["item", self.first.pk])):
-            self.assertNotContains(client.get(url), 'class="button export-link')
+            self.assertNotContains(client.get(url), f'href="{reverse("export")}?kind=')
 
     def test_the_export_page_with_a_view_shows_its_path(self):
         body = self.login(self.reader).get(f"{reverse('export')}?kind=subtopic&pk={self.fraud.pk}").content.decode()
         self.assertIn("Arbitration > Arbitrability > Fraud", body)
-        self.assertNotIn("File name", body)
         self.assertIn('value="view"', body)
 
     def test_export_page_is_tidied_and_flags_are_checked_by_default(self):
@@ -420,8 +410,6 @@ class ViewTests(ExportCase):
         self.assertIn('name="review" value="1" checked> Include flags</label>', body)
         self.assertNotIn("amber", body)
         self.assertNotIn("A whole Subject", body)
-        self.assertNotIn("File names", body)
-        self.assertNotIn("File name:", body)
         self.assertIn("<h2>Subject</h2>", body)
         self.assertEqual(body.count(">Subject</label>"), 1)  # the hidden label for the picker, not a visible second heading
         self.assertIn('class="visually-hidden" for="export-subject">Subject</label>', body)
@@ -456,15 +444,38 @@ class SettingsTests(ExportCase):
         self.assertEqual(resp.status_code, 200)
         self.assertFalse(UserSettings.objects.filter(user=self.editor, export_date_format="MM/DD/YY").exists())
 
-    def test_my_settings_shows_the_date_choice(self):
-        self.assertContains(self.login(self.reader).get(reverse("my_settings")), "Date in Word file names")
+    def test_the_date_choice_and_file_name_are_on_the_export_page_not_settings(self):
+        # Round 18 (D97): both moved from Settings to the Export page.
+        body = self.login(self.reader).get(reverse("export")).content.decode()
+        self.assertIn("Date in Word file names", body)
+        self.assertIn('name="export_name"', body)
+        self.assertIn('name="export_date_format"', body)
+        settings_page = self.login(self.reader).get(reverse("my_settings")).content.decode()
+        self.assertNotIn("Date in Word file names", settings_page)
+        self.assertNotIn('name="export_name"', settings_page)
 
-    def test_profile_settings_preview_says_which_characters_were_replaced(self):
-        client = self.login(self.editor)
-        client.post(reverse("profile_settings"), {"export_name": "A:B", "reading_all_mode": "remember"})
-        body = client.get(reverse("profile_settings")).content.decode()
+    def test_a_reader_can_change_the_export_file_name_and_their_date_format(self):
+        client = self.login(self.reader)
+        resp = client.post(reverse("export_settings"), {"export_name": "  A:B  ", "export_date_format": "DD-MM-YYYY"})
+        self.assertRedirects(resp, reverse("export"))
+        self.profile.refresh_from_db()
+        self.assertEqual(self.profile.export_name, "A:B")
+        self.assertEqual(UserSettings.objects.get(user=self.reader).export_date_format, "DD-MM-YYYY")
+        self.assertFalse(UserSettings.objects.filter(user=self.editor, export_date_format="DD-MM-YYYY").exists())
+        body = client.get(reverse("export")).content.decode()
         self.assertIn("A-B", body)
         self.assertIn("&#x27;:&#x27; was replaced with &#x27;-&#x27;", body)
+
+    def test_export_settings_keep_the_view_and_refuse_junk(self):
+        client = self.login(self.editor)
+        resp = client.post(reverse("export_settings"), {"export_name": "", "export_date_format": "DD-MM-YYYY",
+                                                        "kind": "topic", "pk": self.topic.pk})
+        self.assertRedirects(resp, f"{reverse('export')}?kind=topic&pk={self.topic.pk}", fetch_redirect_response=False)
+        bad = client.post(reverse("export_settings"), {"export_name": "X", "export_date_format": "MM/DD/YY"})
+        self.assertEqual(bad.status_code, 200)
+        self.profile.refresh_from_db()
+        self.assertEqual(self.profile.export_name, "")
+        self.assertEqual(client.get(reverse("export_settings")).status_code, 405)
 
 
 class RoundTripDbTests(TestCase):

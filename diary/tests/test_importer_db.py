@@ -474,9 +474,9 @@ class ImportScreenTests(TestCase):
         self.assertContains(resp, "not a readable Word")
 
     def test_home_nav_links_to_import_for_admins_only(self):
-        # D86: Import is a tab of Backups & Import, which Home links to (Admin only).
+        # D86, D96: Import is a tab of Admins, which Home links to (Admin only).
         self.client.force_login(self.admin)
-        self.assertContains(self.client.get(reverse("home")), reverse("backup_list"))
+        self.assertContains(self.client.get(reverse("home")), reverse("user_list"))
         self.assertContains(self.client.get(reverse("backup_list")), reverse("import_word"))
         self.client.force_login(self.editor)
         self.assertNotContains(self.client.get(reverse("home")), reverse("import_word"))

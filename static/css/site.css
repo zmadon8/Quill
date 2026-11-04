@@ -21,6 +21,17 @@ a { color: inherit; }
 .back-button:disabled, .forward-button:disabled { opacity: .45; cursor: not-allowed; }
 .brand { font-family: var(--font-serif); font-style: italic; font-size: 1.75rem; line-height: 1.1; }
 .profile-name { font-size: var(--small-size); font-style: normal; opacity: .7; }
+/* Switch profile (round 18, D95): a small menu next to the header name, for someone with several profiles. */
+.profile-switch { display: inline-block; position: relative; margin-left: .3rem; font-family: var(--font-sans); font-style: normal; font-size: var(--small-size); vertical-align: middle; }
+.profile-switch > summary { list-style: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; min-width: 1.9rem; min-height: 1.9rem; border-radius: 2px; color: var(--muted); }
+.profile-switch > summary::-webkit-details-marker { display: none; }
+.profile-switch > summary:hover, .profile-switch[open] > summary { color: var(--oxblood); background: var(--panel); }
+.profile-switch > summary:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.profile-menu { position: absolute; top: calc(100% + 4px); left: 0; z-index: 40; min-width: 14rem; display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--ink); border-radius: 2px; box-shadow: 0 4px 14px rgba(0,0,0,.15); }
+.profile-menu-title { padding: .45rem 1rem; color: var(--muted); border-bottom: 1px solid var(--hair); }
+.profile-menu button { display: block; width: 100%; min-height: var(--tap); padding: 0 1rem; text-align: left; background: none; border: 0; border-bottom: 1px solid var(--hair); border-radius: 0; color: var(--ink); font: inherit; cursor: pointer; }
+.profile-menu button:hover, .profile-menu button:focus-visible { background: var(--bg); color: var(--oxblood); }
+.profile-menu small { color: var(--muted); }
 .button.disabled, .button[aria-disabled=true] { opacity: .45; cursor: not-allowed; pointer-events: none; }
 .program-disabled { margin: 0; }
 .program-nav { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0 1.25rem; font-size: var(--small-size); }
@@ -101,6 +112,8 @@ td a { display: inline-block; min-height: var(--tap); line-height: var(--tap); p
 .program-link { display: block; margin-bottom: 1.5rem; padding: 1.5rem 1rem; border: 1px solid var(--hair); border-bottom: 2px solid var(--ink); font-family: var(--font-serif); font-style: italic; font-size: 1.75rem; color: var(--ink); text-decoration: none; }
 .program-link:hover { background: var(--panel); color: var(--oxblood); border-bottom-color: var(--oxblood); }
 .program-link:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.program-switch { margin: 0; }
+button.program-link { width: 100%; text-align: left; background: none; cursor: pointer; }
 
 /* Users form: profile and role on one line */
 .profile-row { display: flex; gap: 1rem; align-items: flex-end; flex-wrap: nowrap; }

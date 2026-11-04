@@ -1,9 +1,7 @@
-import copy
 import logging
 from functools import wraps
 from urllib.parse import urlencode, urlsplit
 
-from django.core.exceptions import PermissionDenied
 from django.db import connection
 from django.db.models import Count, Q
 from django.db.models.functions import Coalesce
@@ -17,19 +15,17 @@ from accounts import landing as account_landing
 from accounts.models import ROLE_EDITOR
 from accounts.models import Profile
 from accounts.permissions import admin_required, reader_required
-from accounts.profiles import effective_export_name, export_file_name, request_profile, request_role
+from accounts.profiles import request_profile, request_role
 from accounts.suite import KEY_DIARY
 
 from . import reading, undo_session
 from .opening import remember_page
 from .params import safe_int
 from . import search as search_module
-from .forms import ProfileSettingsForm
 from .importer import loader as import_loader
 from .importer import service as import_service
 from .models import FLAG_CHOICES, Item, Subject, Subtopic, Topic
 from .sorting import sort_headings
-from .wordexport import naming
 
 NO_PROFILE_MESSAGE = "No profile assigned - ask the Admin"
 
@@ -173,23 +169,9 @@ def help_page(request):
 
 @profile_required
 def profile_settings(request):
-    """Settings of the user's profile. Editors can change the Display Name, the export name and the "All" default; Readers only view them."""
-    profile = request.profile
-    can_edit = user_can_edit(request)
-    form = ProfileSettingsForm(request.POST or None, instance=copy.copy(profile))  # a copy: an invalid POST must not change the header
-    if request.method == "POST":
-        if not can_edit:
-            raise PermissionDenied
-        if form.is_valid():
-            form.save()
-            messages.success(request, "Settings saved.")
-            return redirect("profile_settings")
-    return render(
-        request,
-        "diary/profile_settings.html",
-        {"form": form, "can_edit": can_edit, "preview": export_file_name(form.instance),
-         "replaced": naming.replacements(effective_export_name(form.instance))},
-    )
+    """The old Settings > Diary tab. Round 18 (D96): its settings are on Settings > General > Display (the export file
+    name is on the Export page), so the old address opens Display."""
+    return redirect(reverse("my_settings") + "?tab=display")
 
 
 @profile_required

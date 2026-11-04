@@ -6,20 +6,19 @@ from .models import DATE_FORMAT_CHOICES, FORMAT_CHOICES, SECTION_FORMAT_CHOICES,
 
 
 class ProfileSettingsForm(forms.ModelForm):
-    """Settings an Editor can change for their profile (the Display Name, the export file name and what the Contents links open)."""
+    """Settings an Editor can change for their profile: the Display Name and what the Contents links open (Settings >
+    General > Display, round 18). The export file name is on the Export page (ExportSettingsForm)."""
 
     class Meta:
         model = Profile
-        fields = ("display_name", "export_name", "reading_all_mode", "reading_all_default")
+        fields = ("display_name", "reading_all_mode", "reading_all_default")
         labels = {
             "display_name": "Display Name",
-            "export_name": "Export file name",
             "reading_all_mode": "Contents links open",
             "reading_all_default": "If there is no last view yet, Contents links open the whole Subject",
         }
         help_texts = {
             "display_name": "Shown at the top of every page instead of the program name. Leave blank to show the program name and the profile name.",
-            "export_name": "Leave blank to use the default, for example Case Law Diary Main.",
             "reading_all_mode": "The Contents links in the side panel. Clicking a Topic or Sub-topic heading in the text always switches between the whole Subject and that one Topic or Sub-topic, whatever this says.",
             "reading_all_default": "Used only with \"The view I used last\", for a browser that has not read anything yet.",
         }
@@ -27,8 +26,41 @@ class ProfileSettingsForm(forms.ModelForm):
     def clean_display_name(self):
         return " ".join((self.cleaned_data.get("display_name") or "").split())
 
+
+
+class ExportSettingsForm(forms.Form):
+    """The Export page's file settings (round 18, D97). The file name belongs to the profile and anyone in it (Readers
+    too) may change it; the date format is the user's own."""
+
+    export_name = forms.CharField(
+        max_length=Profile._meta.get_field("export_name").max_length, required=False, label="Export file name",
+        help_text="The start of every exported file name, for everyone using this profile. Leave blank for the default.",
+    )
+    export_date_format = forms.ChoiceField(
+        choices=DATE_FORMAT_CHOICES, label="Date in Word file names",
+        help_text="Your own choice: the date at the end of the file names you export, and on the front page. "
+                  "The time zone is India (Asia/Kolkata, IST).",
+    )
+
+    def __init__(self, *args, user, profile, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.user = user
+        self.profile = profile
+        if not self.is_bound:
+            row = UserSettings.objects.filter(user=user).first() or UserSettings(user=user)
+            self.initial = {"export_name": profile.export_name, "export_date_format": row.export_date_format}
+
     def clean_export_name(self):
         return " ".join((self.cleaned_data.get("export_name") or "").split())
+
+    def save(self):
+        if self.profile.export_name != self.cleaned_data["export_name"]:
+            self.profile.export_name = self.cleaned_data["export_name"]
+            self.profile.save(update_fields=["export_name", "updated_at"])
+        row = UserSettings.objects.get_or_create(user=self.user)[0]
+        if row.export_date_format != self.cleaned_data["export_date_format"]:
+            row.export_date_format = self.cleaned_data["export_date_format"]
+            row.save(update_fields=["export_date_format"])
 
 
 #: Opening pages offered inside the Case Law Diary (the stored legacy value "other_subjects" is shown as "home").

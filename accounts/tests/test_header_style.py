@@ -89,23 +89,25 @@ class HeaderStyleTests(TestCase):
 
 @override_settings(SECURE_SSL_REDIRECT=False)
 class SuiteHeaderTests(TestCase):
-    """D85, D86: the main Home page header has icons too (same choice), and its pages are merged into groups with tabs."""
+    """D85, D86, D96: the main Home page header has icons too (same choice), and its pages are merged into groups with
+    tabs: Admins, General, the Case Law Diary (by its name) and Help."""
 
-    GROUPS = ("Users &amp; Profiles", "Backups &amp; Import", "Settings", "Help")
+    GROUPS = ("Admins", "General", "Case Law Diary", "Help")
+    ADMIN_TABS = ["Users", "Profiles", "Page Names", "Backups", "Email Backups", "Import"]
 
     def setUp(self):
         self.admin = join_main(User.objects.create_user("adam", password=PASSWORD, is_superuser=True), "editor")
         self.client.force_login(self.admin)
 
-    def page(self, name="home"):
-        url = reverse(name) + ("?home=1" if name == "home" else "")
+    def page(self, name="home", query=""):
+        url = reverse(name) + ("?home=1" if name == "home" else query)
         return self.client.get(url).content.decode()
 
-    def header(self, name="home"):
-        return self.page(name).split('<header class="site-header"')[1].split("</header>")[0]
+    def header(self, name="home", query=""):
+        return self.page(name, query).split('<header class="site-header"')[1].split("</header>")[0]
 
-    def tabs(self, name):
-        html = self.page(name)
+    def tabs(self, name, query=""):
+        html = self.page(name, query)
         if 'class="subnav"' not in html:
             return []
         nav = html.split('class="subnav"')[1].split("</nav>")[0]
@@ -117,7 +119,7 @@ class SuiteHeaderTests(TestCase):
             link = re.search(r'<a [^>]*aria-label="%s" title="%s">(.*?)</a>' % (name, name), header, re.S)
             self.assertIsNotNone(link, name)
             self.assertIn("<svg", link.group(1), name)
-        for gone in ("Profiles", "Import", "My settings", "Site"):
+        for gone in ("Profiles", "Import", "My settings", "Site", "Settings", "Users &amp; Profiles"):
             self.assertNotIn('aria-label="%s"' % gone, header, gone)
         logout = re.search(r'<button type="submit" class="link nav-icon" aria-label="Log out" title="Log out">(.*?)</button>', header, re.S)
         self.assertIsNotNone(logout)
@@ -127,44 +129,53 @@ class SuiteHeaderTests(TestCase):
         self.admin.header_style = "words"
         self.admin.save(update_fields=["header_style"])
         nav = re.sub(r"<[^>]*>", " ", self.header().split('class="program-nav"')[1])
-        for word in ("Users &amp; Profiles", "Backups &amp; Import", "Settings", "Help", "Log out"):
+        for word in self.GROUPS + ("Log out",):
             self.assertIn(word, nav, word)
         self.assertNotIn("nav-icon", self.header())
 
     def test_each_merged_page_has_its_tabs_and_the_header_item_stays_marked(self):
-        self.assertEqual(self.tabs("user_list"), ["Users", "Profiles"])
-        self.assertEqual(self.tabs("profile_list"), ["Users", "Profiles"])
-        self.assertEqual(self.tabs("backup_list"), ["Backups", "Email backups", "Import"])
-        self.assertEqual(self.tabs("backup_email"), ["Backups", "Email backups", "Import"])
-        self.assertEqual(self.tabs("import_word"), ["Backups", "Email backups", "Import"])
-        settings_tabs = ["Account", "Display", "Numbers", "Word export", "Diary", "My edits", "Site"]  # D93
-        for name in ("my_settings", "settings", "profile_settings", "my_edits", "password_change"):
-            self.assertEqual(self.tabs(name), settings_tabs, name)
+        for name in ("user_list", "profile_list", "settings", "backup_list", "backup_email", "import_word", "user_create"):
+            self.assertEqual(self.tabs(name), self.ADMIN_TABS, name)
+            self.assertRegex(self.header(name), r'class="nav-icon on" aria-current="page" aria-label="Admins"', name)
+        for name, query in (("my_settings", ""), ("my_settings", "?tab=account"), ("my_settings", "?tab=display"),
+                            ("password_change", "")):
+            self.assertEqual(self.tabs(name, query), ["Account", "Display"], (name, query))
+            self.assertRegex(self.header(name, query), r'class="nav-icon on" aria-current="page" aria-label="General"')
+        for name, query in (("my_settings", "?tab=numbers"), ("my_edits", "")):
+            self.assertEqual(self.tabs(name, query), ["Numbers", "My edits"], (name, query))
+            self.assertRegex(self.header(name, query),
+                             r'class="nav-icon on" aria-current="page" aria-label="Case Law Diary"')
         self.assertEqual(self.tabs("home"), [])
-        self.assertRegex(self.header("profile_list"), r'class="nav-icon on" aria-current="page" aria-label="Users &amp; Profiles"')
-        self.assertRegex(self.header("backup_email"), r'class="nav-icon on" aria-current="page" aria-label="Backups &amp; Import"')
-        self.assertRegex(self.header("settings"), r'class="nav-icon on" aria-current="page" aria-label="Settings"')
         html = self.page("backup_email")
         nav = html.split('class="subnav"')[1].split("</nav>")[0]
-        self.assertIn('href="%s" class="on" aria-current="page">Email backups</a>' % reverse("backup_email"), nav)
+        self.assertIn('href="%s" class="on" aria-current="page">Email Backups</a>' % reverse("backup_email"), nav)
         self.assertNotIn('class="on" aria-current="page">Backups</a>', nav)
+        self.assertNotIn("&larr; Backups", html)  # round 18: no back link on Email Backups
+
+    def test_the_diary_item_is_named_after_the_diary(self):
+        from accounts import suite
+
+        suite.set_names({suite.KEY_HOME: "Home", suite.KEY_DIARY: "Judgments"})
+        header = self.header()
+        self.assertIn('aria-label="Judgments"', header)
+        self.assertNotIn('aria-label="Case Law Diary"', header)
 
     def test_header_items_open_the_first_sub_page(self):
         header = self.header()
-        for url, label in ((reverse("user_list"), "Users &amp; Profiles"), (reverse("backup_list"), "Backups &amp; Import"),
-                           (reverse("my_settings") + "?tab=account", "Settings")):
+        for url, label in ((reverse("user_list"), "Admins"), (reverse("my_settings") + "?tab=account", "General"),
+                           (reverse("my_settings") + "?tab=numbers", "Case Law Diary")):
             self.assertRegex(header, r'<a href="%s" class="nav-icon" aria-label="%s"' % (re.escape(url), label))
 
-    def test_readers_see_only_settings_and_help(self):
+    def test_readers_see_only_general_the_diary_and_help(self):
         reader = join_main(User.objects.create_user("rita", password=PASSWORD))
         self.client.force_login(reader)
         header = self.header()
-        for name in ("Users &amp; Profiles", "Backups &amp; Import"):
-            self.assertNotIn('aria-label="%s"' % name, header, name)
-        for name in ("Settings", "Help"):
+        self.assertNotIn('aria-label="Admins"', header)
+        for name in ("General", "Case Law Diary", "Help"):
             self.assertIn('aria-label="%s"' % name, header, name)
-        # D93: a reader with a profile has every Settings tab but Site
-        self.assertEqual(self.tabs("my_settings"), ["Account", "Display", "Numbers", "Word export", "Diary", "My edits"])
-        loner = User.objects.create_user("lone", password=PASSWORD)  # no diary profile: Account and Display only
+        self.assertEqual(self.tabs("my_settings"), ["Account", "Display"])
+        self.assertEqual(self.tabs("my_settings", "?tab=numbers"), ["Numbers", "My edits"])
+        loner = User.objects.create_user("lone", password=PASSWORD)  # no diary profile: no diary item at all
         self.client.force_login(loner)
         self.assertEqual(self.tabs("my_settings"), ["Account", "Display"])
+        self.assertNotIn('aria-label="Case Law Diary"', self.header())

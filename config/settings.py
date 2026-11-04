@@ -159,6 +159,8 @@ BACKUP_RETENTION_DAYS = max(30, _int("BACKUP_RETENTION_DAYS", 35))
 BACKUP_STALE_HOURS = _int("BACKUP_STALE_HOURS", 36)
 # Days a deleted profile can be restored before the purge job removes it for good.
 PROFILE_RETENTION_DAYS = max(1, _int("PROFILE_RETENTION_DAYS", 30))
+# Days a deleted user can be restored before the nightly job removes them for good (round 18, D94).
+USER_RETENTION_DAYS = max(1, _int("USER_RETENTION_DAYS", 30))
 # Days of edit history kept; older versions are purged nightly (the newest version of every record is always kept).
 HISTORY_RETENTION_DAYS = max(1, _int("HISTORY_RETENTION_DAYS", 30))
 MAX_BACKUP_UPLOAD_MB = _int("MAX_BACKUP_UPLOAD_MB", 100)

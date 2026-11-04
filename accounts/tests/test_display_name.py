@@ -43,19 +43,25 @@ class DisplayNameTests(BaseCase):
         self.set_name("Mine")
         self.assertContains(self.client.get(reverse("home") + "?home=1"), 'class="program-link" href="/caselaw/subjects/">Mine</a>')
 
+    # Round 18 (D96): the Display Name is on Settings > General > Display (fields prefixed "diary-").
+    def display(self, data=None):
+        if data is None:
+            return self.client.get(reverse("my_settings") + "?tab=display")
+        return self.client.post(reverse("my_settings"), {"tab": "display", "diary-reading_all_mode": "remember", **data})
+
     def test_editor_sets_it_trimmed_and_clearing_falls_back(self):
         self.client.force_login(self.admin)  # Editor of Main
-        resp = self.client.post(reverse("profile_settings"), {"display_name": "  Madon's   Cases ", "reading_all_mode": "remember"})
-        self.assertRedirects(resp, reverse("profile_settings"))
+        resp = self.display({"diary-display_name": "  Madon's   Cases "})
+        self.assertRedirects(resp, reverse("my_settings") + "?tab=display")
         self.assertEqual(self.main().display_name, "Madon's Cases")
         self.assertEqual(self.main().export_name, "")  # export_name is unchanged
-        self.client.post(reverse("profile_settings"), {"display_name": "", "reading_all_mode": "remember"})
+        self.display({"diary-display_name": ""})
         self.assertEqual(self.main().display_name, "")
         self.assertContains(self.client.get(reverse("diary_home")), 'class="profile-name">&middot; Main</span>')
 
     def test_too_long_is_refused_and_the_header_is_not_changed(self):
         self.client.force_login(self.admin)
-        resp = self.client.post(reverse("profile_settings"), {"display_name": "x" * 81, "reading_all_mode": "remember"})
+        resp = self.display({"diary-display_name": "x" * 81})
         self.assertEqual(resp.status_code, 200)
         self.assertNotContains(resp, 'aria-label="%s: Home"' % ("x" * 81))
         self.assertEqual(self.main().display_name, "")
@@ -63,22 +69,22 @@ class DisplayNameTests(BaseCase):
     def test_reader_sees_it_but_cannot_change_it(self):
         self.set_name("Mine")
         self.client.force_login(self.user)
-        resp = self.client.get(reverse("profile_settings"))
+        resp = self.display()
         self.assertContains(resp, "Display Name: <strong>Mine</strong>")
-        self.assertNotContains(resp, 'name="display_name"')
-        self.assertEqual(self.client.post(reverse("profile_settings"), {"display_name": "Hacked"}).status_code, 403)
+        self.assertNotContains(resp, 'name="diary-display_name"')
+        self.display({"diary-display_name": "Hacked"})
         self.assertEqual(self.main().display_name, "Mine")
 
     def test_editor_form_shows_the_field(self):
         self.client.force_login(self.admin)
-        resp = self.client.get(reverse("profile_settings"))
-        self.assertContains(resp, 'name="display_name"')
+        resp = self.display()
+        self.assertContains(resp, 'name="diary-display_name"')
         self.assertContains(resp, "Display Name")
 
     def test_profiles_are_isolated(self):
         junior = Profile.objects.create(program="diary", name="Junior")
         self.client.force_login(self.admin)
-        self.client.post(reverse("profile_settings"), {"display_name": "Mine", "reading_all_mode": "remember"})
+        self.display({"diary-display_name": "Mine"})
         junior.refresh_from_db()
         self.assertEqual(junior.display_name, "")
 

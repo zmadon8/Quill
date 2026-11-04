@@ -66,12 +66,13 @@ class SettingsTabsTests(TestCase):
         self.assertEqual(self.visible("account"), {"account"})
         self.assertEqual(self.visible("display"), {"display"})
         self.assertEqual(self.visible("numbers"), {"numbers"})
-        self.assertEqual(self.visible("export"), {"export"})
+        self.assertEqual(self.visible("export"), {"account"})  # round 18: Word export moved to the Export page
         self.assertEqual(self.visible("bogus"), {"account"})
         html = self.client.get(reverse("my_settings"), {"tab": "numbers"}).content.decode()
-        for field in ('name="email"', 'name="header_style"', 'name="topic_format"', 'name="export_date_format"',
+        for field in ('name="email"', 'name="header_style"', 'name="topic_format"', 'name="diary-reading_all_mode"',
                       'name="tab" value="numbers"'):
             self.assertIn(field, html)
+        self.assertNotIn('name="export_date_format"', html)
 
     def test_saving_a_tab_keeps_the_others_and_returns_to_it(self):
         self.client.post(reverse("my_settings"), {"tab": "display", "email": "e@example.com", "header_style": "words",
@@ -85,9 +86,9 @@ class SettingsTabsTests(TestCase):
     def test_the_gear_and_home_open_the_settings_area(self):
         diary = self.client.get(reverse("diary_home")).content.decode()
         self.assertIn('href="%s" class="nav-icon" aria-label="Settings"' % reverse("my_settings"), diary)
-        diary_tab = self.client.get(reverse("profile_settings")).content.decode()
-        self.assertIn("<h2>Diary</h2>", diary_tab)
-        self.assertIn('class="subnav"', diary_tab)
+        display = self.client.get(reverse("my_settings"), {"tab": "display"}).content.decode()
+        self.assertIn("<h2>Case Law Diary</h2>", display)  # round 18: the old Diary tab is part of Display
+        self.assertIn('class="subnav"', display)
 
     def test_change_my_password(self):
         page = self.client.get(reverse("password_change"))

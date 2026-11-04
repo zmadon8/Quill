@@ -1,3 +1,4 @@
+import copy
 import logging
 from datetime import timedelta
 
@@ -9,12 +10,12 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
-from django.views.decorators.http import require_GET, require_http_methods
+from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
-from . import landing, suite
+from . import landing, suite, user_trash
 from .clear import ClearRefused, clear_preview, clear_profile
 from .forms import MySettingsForm, UsernamePasswordResetForm, _client_ip, ProfileForm, SuiteNamesForm, UserCreateForm, UserEditForm
-from .models import Profile, ProfileMembership, PurgeLog, ResetRequest, prune_reset_requests
+from .models import ROLE_EDITOR, Profile, ProfileMembership, PurgeLog, ResetRequest, prune_reset_requests
 from .permissions import admin_required
 from .profiles import (
     days_left,
@@ -22,9 +23,11 @@ from .profiles import (
     get_profile_for,
     name_clash,
     profile_usage,
-    restore_conflicts,
+    request_profile,
+    request_role,
     restore_profile,
     retention_days,
+    use_profile,
 )
 
 User = get_user_model()
@@ -127,27 +130,38 @@ class ForgotPasswordView(auth_views.PasswordResetView):
 @login_required
 @require_http_methods(["GET", "POST"])
 def my_settings(request):
-    """Every signed-in user: the page to open after login, and (with a diary profile) the number formats."""
-    from diary.forms import DiarySettingsForm, preview_rows  # lazy: diary imports accounts
+    """Settings for every signed-in user: Account and Display (General), and Numbers (the Case Law Diary item).
+
+    Display also holds the diary's own settings (Display Name, what the Contents links open; round 18, D96): they belong
+    to the profile, so everyone in it sees them and only its Editors can change them.
+    """
+    from diary.forms import DiarySettingsForm, ProfileSettingsForm, preview_rows  # lazy: diary imports accounts
 
     form = MySettingsForm(request.POST or None, instance=request.user)
-    profile = get_profile_for(request.user, suite.KEY_DIARY)
+    profile = request_profile(request, suite.KEY_DIARY)
     diary_form = DiarySettingsForm(request.POST or None, user=request.user, profile=profile) if profile else None
-    # Round 17 (D93): the page is shown one tab at a time (Account, Display, Numbers, Word export). Every field stays in
-    # the form (the other tabs are only hidden), so a Save never changes what is on a tab you did not open.
+    can_edit_profile = profile is not None and request_role(request, suite.KEY_DIARY) == ROLE_EDITOR
+    # A copy, so an invalid POST does not change the header of the page shown with the errors. Only checked when the
+    # page sent it (its select is always sent), so a save from somewhere else never resets these shared settings.
+    sent = request.method == "POST" and "diary-reading_all_mode" in request.POST
+    profile_form = ProfileSettingsForm(request.POST if sent else None, instance=copy.copy(profile), prefix="diary") \
+        if can_edit_profile else None
+    # One tab at a time. Every field stays in the form (the other tabs are only hidden), so a Save never changes what
+    # is on a tab you did not open.
     tab = request.POST.get("tab") or request.GET.get("tab") or "account"
-    tabs = ["account", "display"] + (["numbers", "export"] if diary_form is not None else [])
+    tabs = ["account", "display"] + (["numbers"] if diary_form is not None else [])
     if tab not in tabs:
         tab = "account"
     if request.method == "POST":
-        # Both forms are checked so that every error is shown at once; nothing is saved unless both are fine.
+        # Every form is checked so that every error is shown at once; nothing is saved unless all are fine.
+        extras = [f for f in (diary_form, profile_form) if f is not None and f.is_bound]
         valid = form.is_valid()
-        if diary_form is not None:
-            valid = diary_form.is_valid() and valid
+        for extra in extras:
+            valid = extra.is_valid() and valid
         if valid:
             form.save()
-            if diary_form is not None:
-                diary_form.save()
+            for extra in extras:
+                extra.save()
             messages.success(request, "Settings saved.")
             return redirect(reverse("my_settings") + ("" if tab == "account" else f"?tab={tab}"))
     return render(
@@ -156,10 +170,25 @@ def my_settings(request):
         {
             "form": form,
             "diary_form": diary_form,
+            "profile_form": profile_form,
+            "diary_profile": profile,
             "tab": tab,
             "preview": preview_rows(diary_form.effective()) if diary_form is not None else [],
         },
     )
+
+
+@login_required
+@require_POST
+def profile_switch(request):
+    """Use another of my profiles (round 18, D95): from the header menu or the Home page. Opens its Subjects page."""
+    from diary.params import safe_int
+
+    profile = Profile.objects.filter(pk=safe_int(request.POST.get("profile", "")), program=suite.KEY_DIARY).first()
+    if profile is None or not use_profile(request.user, profile):
+        messages.error(request, "You do not have that profile.")
+        return redirect(reverse("home") + "?home=1")
+    return redirect("diary_home")
 
 
 class MyPasswordChangeView(auth_views.PasswordChangeView):
@@ -193,20 +222,29 @@ def format_preview(request):
     return render(request, "accounts/_format_preview.html", {"preview": preview_rows(chosen)})
 
 
+def _with_profiles(users):
+    """Give each user ``profiles_text``: their live profiles with roles, for example "Main (Editor), Smith (Reader)"."""
+    by_user = {}
+    for m in ProfileMembership.objects.filter(
+        program=suite.KEY_DIARY, suspended=False, profile__deleted_at__isnull=True
+    ).select_related("profile").order_by("profile__name", "pk"):
+        by_user.setdefault(m.user_id, []).append(f"{m.profile.name} ({m.get_role_display()})")
+    for u in users:
+        u.profiles_text = ", ".join(by_user.get(u.pk, []))
+    return users
+
+
 @admin_required
 def user_list(request):
-    users = list(User.objects.order_by("username"))
-    memberships = {
-        m.user_id: m
-        for m in ProfileMembership.objects.filter(
-            program=suite.KEY_DIARY, profile__deleted_at__isnull=True
-        ).select_related("profile")
-    }
-    for u in users:
-        m = memberships.get(u.pk)
-        u.diary_profile_name = m.profile.name if m else ""
-        u.diary_role_label = m.get_role_display() if m else ""
-    return render(request, "accounts/user_list.html", {"users": users})
+    users = _with_profiles(list(user_trash.live_users().order_by("username")))
+    deleted = _with_profiles(list(user_trash.deleted_users().order_by("-deleted_at", "username")))
+    for u in deleted:
+        u.days_left = user_trash.days_left(u)
+    return render(request, "accounts/user_list.html", {
+        "users": users,
+        "deleted_users": deleted,
+        "user_retention_days": user_trash.retention_days(),
+    })
 
 
 @admin_required
@@ -223,7 +261,7 @@ def user_create(request):
 @admin_required
 @require_http_methods(["GET", "POST"])
 def user_edit(request, pk):
-    target = get_object_or_404(User, pk=pk)
+    target = get_object_or_404(user_trash.live_users(), pk=pk)  # a deleted user is restored first, then edited
     form = UserEditForm(request.POST or None, instance=target, editing_user=request.user)
     if request.method == "POST" and form.is_valid():
         form.save()
@@ -239,7 +277,8 @@ def user_edit(request, pk):
 @admin_required
 @require_http_methods(["GET", "POST"])
 def user_delete(request, pk):
-    target = get_object_or_404(User, pk=pk)
+    """Soft delete (round 18, D94): the user can be restored from Deleted users for USER_RETENTION_DAYS."""
+    target = get_object_or_404(user_trash.live_users(), pk=pk)
     problem = None
     if target.pk == request.user.pk:
         problem = "You cannot delete your own account."
@@ -250,11 +289,26 @@ def user_delete(request, pk):
         if problem:
             messages.error(request, problem)
             return redirect("user_list")
-        name = target.username
-        target.delete()
-        messages.success(request, f"User {name} deleted.")
+        user_trash.delete_user(target, request.user)
+        messages.success(
+            request,
+            f"User {target.username} deleted. You can restore them from Deleted users for "
+            f"{user_trash.retention_days()} days.",
+        )
         return redirect("user_list")
-    return render(request, "accounts/user_confirm_delete.html", {"target": target, "problem": problem})
+    return render(request, "accounts/user_confirm_delete.html", {
+        "target": target, "problem": problem, "user_retention_days": user_trash.retention_days(),
+    })
+
+
+@admin_required
+@require_POST
+def user_restore(request, pk):
+    """Bring a deleted user back as they were: profiles, roles, settings and whether they could sign in."""
+    target = get_object_or_404(user_trash.deleted_users(), pk=pk)
+    user_trash.restore_user(target)
+    messages.success(request, f"User {target.username} restored.")
+    return redirect("user_list")
 
 
 @admin_required
@@ -351,20 +405,11 @@ def profile_delete(request, pk):
 @admin_required
 @require_http_methods(["GET", "POST"])
 def profile_restore(request, pk):
-    """Bring back a deleted profile with its members. Refused if a member now has another profile.
+    """Bring back a deleted profile with its members (a user may have several profiles, so nobody is in the way).
 
     If a live profile has the same name, the Admin is asked for a new name first.
     """
     target = get_object_or_404(Profile, pk=pk, program=suite.KEY_DIARY, deleted_at__isnull=False)
-    conflicts = restore_conflicts(target)
-    if conflicts:
-        messages.error(
-            request,
-            f"Profile {target.name} cannot be restored: {', '.join(conflicts)} "
-            f"{'has' if len(conflicts) == 1 else 'have'} been given another profile since. "
-            "Change their profile on the Users screen first, then try again.",
-        )
-        return redirect("profile_list")
     if name_clash(target) or (request.method == "POST" and "name" in request.POST):
         form = ProfileForm(request.POST or None, instance=target)
         if request.method == "POST" and form.is_valid():

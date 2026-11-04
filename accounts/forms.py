@@ -12,12 +12,11 @@ from django.utils import timezone
 from . import landing, suite
 from .models import (
     ROLE_CHOICES,
-    ROLE_READER,
     FailedLogin,
     Profile,
     prune_failed_logins,
 )
-from .profiles import get_membership_for, set_user_profile
+from .profiles import live_memberships, set_user_profiles
 
 User = get_user_model()
 
@@ -73,29 +72,47 @@ class ThrottledAuthenticationForm(AuthenticationForm):
         return cleaned
 
 
-def _profile_field():
-    return forms.ModelChoiceField(
-        queryset=Profile.objects.none(),
-        required=False,
-        empty_label="(no profile)",
-        label="Case law diary profile",
-    )
+#: Round 18 (D95): each live profile gets one choice on the user form, so a user may have several (each with its role).
+PROFILE_ACCESS_CHOICES = [("", "No access")] + ROLE_CHOICES
+PROFILE_FIELD_PREFIX = "profile_"
 
 
-def _profile_role_field():
-    return forms.ChoiceField(
-        choices=ROLE_CHOICES,
-        initial=ROLE_READER,
-        required=False,
-        label="Role in that profile",
-    )
+class ProfileAccessMixin:
+    """Adds one "No access / Editor / Reader" field per live Case Law Diary profile (named ``profile_<pk>``)."""
+
+    def _add_profile_fields(self, current=None):
+        current = current or {}
+        self.access_profiles = list(_live_diary_profiles())
+        for profile in self.access_profiles:
+            self.fields[f"{PROFILE_FIELD_PREFIX}{profile.pk}"] = forms.ChoiceField(
+                choices=PROFILE_ACCESS_CHOICES, required=False, label=profile.name,
+                initial=current.get(profile.pk, ""),
+            )
+
+    def profile_fields(self):
+        """The per-profile fields, for the template (in profile name order)."""
+        return [self[f"{PROFILE_FIELD_PREFIX}{p.pk}"] for p in self.access_profiles]
+
+    def other_fields(self):
+        """Every other field, in form order."""
+        names = {f"{PROFILE_FIELD_PREFIX}{p.pk}" for p in self.access_profiles}
+        return [field for field in self if field.name not in names]
+
+    def chosen_roles(self):
+        """{profile: role} for every profile given Editor or Reader."""
+        roles = {}
+        for profile in self.access_profiles:
+            role = self.cleaned_data.get(f"{PROFILE_FIELD_PREFIX}{profile.pk}") or ""
+            if role:
+                roles[profile] = role
+        return roles
 
 
 def _admin_field():
     return forms.BooleanField(
         required=False,
         label="Admin",
-        help_text="Admins manage users, profiles, settings and backups. Their role inside a profile is set above.",
+        help_text="Admins manage users, profiles, settings and backups. Their role inside each profile is set above.",
     )
 
 
@@ -111,14 +128,6 @@ def _live_diary_profiles():
     return Profile.objects.filter(program=suite.KEY_DIARY, deleted_at__isnull=True).order_by("name")
 
 
-def _clean_profile_role(form):
-    """Reader unless a valid role was chosen; the role only matters together with a profile."""
-    role = form.cleaned_data.get("profile_role") or ROLE_READER
-    if role not in dict(ROLE_CHOICES):
-        role = ROLE_READER
-    return role
-
-
 def _clean_unique_email(form):
     """A blank email is fine; a used one is refused (ignoring case) so that a reset link goes to one person only."""
     email = (form.cleaned_data.get("email") or "").strip()
@@ -127,10 +136,8 @@ def _clean_unique_email(form):
     return email
 
 
-class UserCreateForm(UserCreationForm):
+class UserCreateForm(ProfileAccessMixin, UserCreationForm):
     is_admin = _admin_field()
-    profile = _profile_field()
-    profile_role = _profile_role_field()
 
     class Meta:
         model = User
@@ -138,14 +145,11 @@ class UserCreateForm(UserCreationForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["profile"].queryset = _live_diary_profiles()
         self.fields["email"].help_text = "Optional. Needed for \u201cForgot my password\u201d and for emailed backups."
+        self._add_profile_fields()
 
     def clean_email(self):
         return _clean_unique_email(self)
-
-    def clean_profile_role(self):
-        return _clean_profile_role(self)
 
     def save(self, commit=True):
         user = super().save(commit=False)
@@ -153,11 +157,11 @@ class UserCreateForm(UserCreationForm):
         if commit:
             with transaction.atomic():
                 user.save()
-                set_user_profile(user, self.cleaned_data.get("profile"), self.cleaned_data["profile_role"])
+                set_user_profiles(user, self.chosen_roles())
         return user
 
 
-class UserEditForm(forms.ModelForm):
+class UserEditForm(ProfileAccessMixin, forms.ModelForm):
     new_password = forms.CharField(
         required=False,
         strip=False,
@@ -166,8 +170,6 @@ class UserEditForm(forms.ModelForm):
     )
 
     is_admin = _admin_field()
-    profile = _profile_field()
-    profile_role = _profile_role_field()
     landing_program = forms.ChoiceField(required=False, label="Open after login")
 
     class Meta:
@@ -183,14 +185,7 @@ class UserEditForm(forms.ModelForm):
         self.fields["landing_program"].choices = landing.program_choices()
         self.editing_user = editing_user
         self.fields["is_admin"].initial = self.instance.is_superuser
-        self.fields["profile"].queryset = _live_diary_profiles()
-        membership = get_membership_for(self.instance)
-        if membership:
-            self.fields["profile"].initial = membership.profile
-            self.fields["profile_role"].initial = membership.role
-
-    def clean_profile_role(self):
-        return _clean_profile_role(self)
+        self._add_profile_fields({m.profile_id: m.role for m in live_memberships(self.instance)})
 
     def clean_new_password(self):
         password = self.cleaned_data.get("new_password")
@@ -225,7 +220,7 @@ class UserEditForm(forms.ModelForm):
         if commit:
             with transaction.atomic():
                 user.save()
-                set_user_profile(user, self.cleaned_data.get("profile"), self.cleaned_data["profile_role"])
+                set_user_profiles(user, self.chosen_roles())
         return user
 
 

@@ -6,10 +6,19 @@ the Current View only; the two Full exports are for Editors of the profile and t
 import logging
 import time
 
+from urllib.parse import urlencode
+
+from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.http import Http404, HttpResponse
-from django.shortcuts import render
+from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.utils.http import content_disposition_header
+from django.views.decorators.http import require_POST
+
+from accounts.profiles import effective_export_name, export_file_name
+
+from .forms import ExportSettingsForm
 
 from .models import Subject
 from .params import safe_int
@@ -41,9 +50,42 @@ def _scope(request, kind, pk):
     return kind, pk, path
 
 
+def _file_settings(request, form=None):
+    """The "File name and date" part of the Export page (round 18, D97)."""
+    import copy
+
+    from .wordexport import naming
+
+    form = form or ExportSettingsForm(user=request.user, profile=request.profile)
+    shown = copy.copy(request.profile)  # an invalid POST must not change what the page says the files start with
+    return {"file_form": form, "file_preview": export_file_name(shown),
+            "file_replaced": naming.replacements(effective_export_name(shown))}
+
+
+def _back_to_export(request):
+    keep = {key: request.POST[key] for key in ("kind", "pk") if request.POST.get(key)}
+    return reverse("export") + ("?" + urlencode(keep) if keep else "")
+
+
+@profile_required
+@require_POST
+def export_settings(request):
+    """Save the export file name (the profile's; any member may change it) and my date format."""
+    form = ExportSettingsForm(request.POST, user=request.user, profile=request.profile)
+    if form.is_valid():
+        form.save()
+        messages.success(request, "Export settings saved.")
+        return redirect(_back_to_export(request))
+    return _render_page(request, request.POST.get("kind", ""), request.POST.get("pk", ""), form)
+
+
 @profile_required
 def export_page(request):
-    kind, pk, path = _scope(request, request.GET.get("kind", ""), request.GET.get("pk", ""))
+    return _render_page(request, request.GET.get("kind", ""), request.GET.get("pk", ""))
+
+
+def _render_page(request, kind, pk, file_form=None):
+    kind, pk, path = _scope(request, kind, pk)
     subjects = Subject.objects.filter(profile=request.profile, deleted_at__isnull=True)
     main = sort_headings(subjects.filter(show_on_landing=True))
     other = sort_headings(subjects.filter(show_on_landing=False))
@@ -53,6 +95,7 @@ def export_page(request):
         "main_subjects": main, "other_subjects": other,
         # Flags are included unless the page is opened with review=0 (checked by default; "review" is the old name, D88).
         "include_review": request.GET.get("review") != "0",
+        **_file_settings(request, file_form),
     })
 
 

@@ -1,6 +1,7 @@
 """Profiles: separate data spaces inside a program (see docs/DESIGN.md, Profiles).
 
-Each user has at most one profile per program. The "default profile" helpers take the model
+A user may have several profiles in a program (round 18, D95), each with its own role; the one in use is the one
+used most recently (switched to from the header or the Home page). The "default profile" helpers take the model
 classes as arguments so the data migrations (which use historical models) and the tests share
 exactly the same logic.
 """
@@ -10,6 +11,8 @@ from datetime import timedelta
 
 from django.conf import settings
 from django.db import transaction
+from django.db.models import F
+from django.db.models.functions import Lower
 from django.utils import timezone
 
 from .models import ROLE_READER, Profile, ProfileMembership
@@ -18,15 +21,34 @@ from .suite import KEY_DIARY, get_names
 DEFAULT_PROFILE_NAME = "Main"
 
 
-def get_membership_for(user, program=KEY_DIARY):
-    """The user's membership of a live profile in ``program`` (with the profile loaded), or None."""
+def live_memberships(user, program=KEY_DIARY):
+    """Every membership of ``user`` that gives access in ``program`` (live profile, not suspended), the one in use first.
+
+    In use: the one switched to most recently; never-used ones follow by profile name. Profiles are loaded too.
+    """
     if user is None or not getattr(user, "pk", None):
-        return None
-    return (
-        ProfileMembership.objects.filter(user=user, program=program, profile__deleted_at__isnull=True)
+        return []
+    return list(
+        ProfileMembership.objects.filter(
+            user=user, program=program, suspended=False, profile__deleted_at__isnull=True
+        )
         .select_related("profile")
-        .first()
+        .order_by(F("last_used_at").desc(nulls_last=True), Lower("profile__name"), "pk")
     )
+
+
+def get_membership_for(user, program=KEY_DIARY):
+    """The user's membership of the live profile they are using in ``program`` (with the profile loaded), or None."""
+    memberships = live_memberships(user, program)
+    return memberships[0] if memberships else None
+
+
+def use_profile(user, profile):
+    """Make ``profile`` the one ``user`` is using (from now on, on every device). False if they may not use it."""
+    updated = ProfileMembership.objects.filter(
+        user=user, profile=profile, suspended=False, profile__deleted_at__isnull=True
+    ).update(last_used_at=timezone.now())
+    return bool(updated)
 
 
 def get_profile_for(user, program=KEY_DIARY):
@@ -65,10 +87,18 @@ def request_profile(request, program=KEY_DIARY):
     """The signed-in user's profile for ``program``, looked up once per request (None if none)."""
     attr = f"_profile_{program}"
     if not hasattr(request, attr):
-        membership = get_membership_for(getattr(request, "user", None), program)
+        memberships = live_memberships(getattr(request, "user", None), program)
+        membership = memberships[0] if memberships else None
+        setattr(request, f"_memberships_{program}", memberships)
         setattr(request, f"_membership_{program}", membership)
         setattr(request, attr, membership.profile if membership else None)
     return getattr(request, attr)
+
+
+def request_memberships(request, program=KEY_DIARY):
+    """All the signed-in user's live memberships in ``program`` for this request (the one in use first); no extra query."""
+    request_profile(request, program)
+    return getattr(request, f"_memberships_{program}", [])
 
 
 def request_role(request, program=KEY_DIARY):
@@ -78,17 +108,18 @@ def request_role(request, program=KEY_DIARY):
     return membership.role if membership else None
 
 
-def set_user_profile(user, profile, role=ROLE_READER, program=KEY_DIARY):
-    """Make ``profile`` the user's only profile in ``program`` with ``role``; None removes access.
+def set_user_profiles(user, roles, program=KEY_DIARY):
+    """Give ``user`` exactly the live profiles in ``roles`` ({profile: role}) in ``program``; others are taken away.
 
-    Replaces any existing membership, so the one-per-program rule is never broken.
+    Memberships of deleted profiles (suspended) are kept, so those profiles stay restorable with their members. A kept
+    membership keeps its "last used" time, so the user stays in the profile they were using if they still have it.
     """
     with transaction.atomic():
-        # Suspended memberships (of deleted profiles) are kept so those profiles stay restorable.
+        keep = [p.pk for p in roles]
         ProfileMembership.objects.filter(user=user, program=program, suspended=False).exclude(
-            profile=profile
+            profile_id__in=keep
         ).delete()
-        if profile is not None:
+        for profile, role in roles.items():
             membership, created = ProfileMembership.objects.get_or_create(
                 user=user, profile=profile, defaults={"program": program, "role": role}
             )
@@ -97,11 +128,16 @@ def set_user_profile(user, profile, role=ROLE_READER, program=KEY_DIARY):
                 membership.save(update_fields=["role"])
 
 
+def set_user_profile(user, profile, role=ROLE_READER, program=KEY_DIARY):
+    """Make ``profile`` the user's only profile in ``program`` with ``role``; None removes access (first Admin, tests)."""
+    set_user_profiles(user, {profile: role} if profile is not None else {}, program)
+
+
 def profile_usage(profile):
     """(members, live diary subjects) counts, used to refuse deleting a profile in use."""
     from diary.models import Subject
 
-    members = ProfileMembership.objects.filter(profile=profile).count()
+    members = ProfileMembership.objects.filter(profile=profile, user__deleted_at__isnull=True).count()
     subjects = Subject.objects.filter(profile=profile, deleted_at__isnull=True).count()
     return members, subjects
 
@@ -128,15 +164,6 @@ def delete_profile(profile, user=None):
         profile.deleted_at = timezone.now()
         profile.deleted_by = user if user is not None and getattr(user, "pk", None) else None
         profile.save(update_fields=["deleted_at", "deleted_by", "updated_at"])
-
-
-def restore_conflicts(profile):
-    """Users of a deleted profile who were given another profile in the same program meanwhile."""
-    suspended = ProfileMembership.objects.filter(profile=profile, suspended=True).values_list("user_id", flat=True)
-    taken = ProfileMembership.objects.filter(
-        program=profile.program, suspended=False, user_id__in=list(suspended)
-    ).select_related("user")
-    return sorted({m.user.username for m in taken}, key=str.lower)
 
 
 def name_clash(profile):

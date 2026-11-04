@@ -6,7 +6,7 @@
 <p class="error">{{ problem }}</p>
 <p><a href="{% url 'user_list' %}">Back to users</a></p>
 {% else %}
-<p>Delete user <strong>{{ target.username }}</strong>? This cannot be undone.</p>
+<p>Delete user <strong>{{ target.username }}</strong>? They will not be able to sign in. You can restore them from <strong>Deleted users</strong> on the Users page for {{ user_retention_days }} days; after that they are removed for good.</p>
 <form method="post">
   {% csrf_token %}
   <button type="submit" class="danger">Delete</button>

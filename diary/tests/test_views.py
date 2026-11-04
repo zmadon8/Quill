@@ -146,12 +146,13 @@ class HomeIndexTests(TestCase):
         self.assertNotIn('href="%s"' % reverse("backup_list"), nav)
         resp = self.client.get(reverse("home"))
         self.assertContains(resp, 'href="%s"' % reverse("user_list"))
-        self.assertContains(resp, 'href="%s"' % reverse("backup_list"))
+        # Round 18 (D96): Backups is a tab of Admins, which Home links to.
+        self.assertContains(self.client.get(reverse("user_list")), 'href="%s"' % reverse("backup_list"))
 
     def test_nav_marks_current_page(self):
         self.client.force_login(self.admin)
         resp = self.client.get(reverse("user_list"))
-        self.assertContains(resp, 'class="nav-icon on" aria-current="page" aria-label="Users &amp; Profiles"')  # D85, D86
+        self.assertContains(resp, 'class="nav-icon on" aria-current="page" aria-label="Admins"')  # D85, D86, D96
         self.assertContains(resp, '<a href="%s" class="on" aria-current="page">Users</a>' % reverse("user_list"))  # its tab
         self.assertNotContains(resp, 'class="on" aria-current="page">Subjects</a>')
 

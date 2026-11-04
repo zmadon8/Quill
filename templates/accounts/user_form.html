@@ -5,15 +5,20 @@
 <form method="post" class="stack">
   {% csrf_token %}
   {{ form.non_field_errors }}
-  {% for field in form %}
-  {% if field.name == "profile" %}
-  <div class="profile-row">
-    <p>{{ field.label_tag }} {{ field }}{{ field.errors }}</p>
-    <p>{{ form.profile_role.label_tag }} {{ form.profile_role }}{{ form.profile_role.errors }}</p>
-  </div>
-  {% elif field.name != "profile_role" %}
-  {{ field.as_field_group }}
+  {% for field in form.other_fields %}
+  {% if field.name == "is_admin" %}
+  {# Round 18 (D95): one choice per profile, so a user may have several, each with its own role. #}
+  <fieldset class="profile-access" data-profile-access>
+    <legend>{{ diary_name }} profiles</legend>
+    {% for f in form.profile_fields %}
+    <p class="profile-row">{{ f.label_tag }} {{ f }}{{ f.errors }}</p>
+    {% empty %}
+    <p class="muted">There are no profiles yet. Add one on the Profiles tab.</p>
+    {% endfor %}
+    <p class="field-help">Choose Editor or Reader for each profile this person may use. With more than one, they switch between them from the header or the Home page.</p>
+  </fieldset>
   {% endif %}
+  {{ field.as_field_group }}
   {% endfor %}
   <button type="submit">Save</button>
   <a href="{% url 'user_list' %}">Cancel</a>

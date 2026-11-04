@@ -4,7 +4,14 @@
 <div class="launcher">
   <h1>Programs</h1>
   {% if diary_profile %}
-  <a class="program-link" href="{% url 'diary_home' %}">{{ program_label }}</a>
+  <a class="program-link" href="{% url 'diary_home' %}">{% if other_profiles and not diary_profile.display_name %}{{ diary_name }} &middot; {{ diary_profile.name }}{% else %}{{ program_label }}{% endif %}</a>
+  {# Round 18 (D95): someone with several profiles opens any of them from here; the one used last is the button above. #}
+  {% for p in other_profiles %}
+  <form method="post" action="{% url 'profile_switch' %}" class="program-switch">
+    {% csrf_token %}
+    <button type="submit" name="profile" value="{{ p.pk }}" class="program-link">{% if p.display_name %}{{ p.display_name }}{% else %}{{ diary_name }} &middot; {{ p.name }}{% endif %}</button>
+  </form>
+  {% endfor %}
   {% else %}
   <p class="muted">No programs are available to you yet.</p>
   {% endif %}

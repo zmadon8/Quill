@@ -36,6 +36,12 @@ class User(AbstractUser):
     HEADER_ICONS, HEADER_WORDS = "icons", "words"
     HEADER_STYLE_CHOICES = [(HEADER_ICONS, "Icons"), (HEADER_WORDS, "Words")]
     header_style = models.CharField(max_length=10, choices=HEADER_STYLE_CHOICES, default=HEADER_ICONS)
+    # Round 18 (D94): a deleted user is kept for USER_RETENTION_DAYS so an Admin can restore them. While deleted they
+    # cannot sign in (is_active is off) and keep their username and email address; ``was_active`` is what Restore puts
+    # back. Who deleted them is kept as a name (not a link), so a backup file never depends on the order users load in.
+    deleted_at = models.DateTimeField(null=True, blank=True)
+    deleted_by_name = models.CharField(max_length=150, blank=True, default="")
+    was_active = models.BooleanField(default=True)
 
     def save(self, *args, **kwargs):
         self.is_staff = self.is_superuser
@@ -47,6 +53,10 @@ class User(AbstractUser):
     @property
     def is_admin(self):
         return self.is_superuser
+
+    @property
+    def is_deleted(self):
+        return self.deleted_at is not None
 
 
 class SuiteName(models.Model):
@@ -131,14 +141,15 @@ class Profile(models.Model):
 
 
 class ProfileMembership(models.Model):
-    """Gives one user access to one profile, as Editor or Reader (``role``). One profile per program.
+    """Gives one user access to one profile, as Editor or Reader (``role``).
 
-    ``program`` is copied from the profile on save so the database can enforce the rule
-    "one profile per user per program". Several users may share a profile.
+    Round 18 (D95): a user may have several profiles in a program, each with its own role (one membership per user and
+    profile). The one they are using is the membership used most recently (``last_used_at``, set when they switch);
+    see ``accounts.profiles.get_membership_for``. ``program`` is copied from the profile on save. Several users may
+    share a profile.
 
-    When a profile is deleted its memberships are kept but ``suspended``: they give no access and
-    do not count towards the one-profile rule, so the user can be given another profile meanwhile.
-    Restoring the profile lifts the suspension (refused if that user has since been given another).
+    When a profile is deleted its memberships are kept but ``suspended``: they give no access. Restoring the profile
+    lifts the suspension.
     """
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="profile_memberships")
@@ -147,14 +158,11 @@ class ProfileMembership(models.Model):
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default=ROLE_READER)
     suspended = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
+    last_used_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(
-                fields=["user", "program"],
-                condition=Q(suspended=False),
-                name="membership_one_profile_per_program",
-            ),
+            models.UniqueConstraint(fields=["user", "profile"], name="membership_one_per_user_and_profile"),
         ]
 
     def save(self, *args, **kwargs):

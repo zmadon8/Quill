@@ -42,5 +42,6 @@ urlpatterns = [
     path("my-edits/", views_history.my_edits, name="my_edits"),
     path("export/", views_export.export_page, name="export"),
     path("export/download/", views_export.export_download, name="export_download"),
+    path("export/settings/", views_export.export_settings, name="export_settings"),
     path("profile-settings/", views.profile_settings, name="profile_settings"),
 ]

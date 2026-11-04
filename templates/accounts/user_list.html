@@ -5,14 +5,13 @@
 <p><a class="button" href="{% url 'user_create' %}">New user</a></p>
 <div class="table-wrap">
 <table>
-  <thead><tr><th>Username</th><th>Admin</th><th>Profile</th><th>Role in profile</th><th>Active</th><th>Last login</th><th></th></tr></thead>
+  <thead><tr><th>Username</th><th>Admin</th><th>Profiles (role)</th><th>Active</th><th>Last login</th><th></th></tr></thead>
   <tbody>
   {% for u in users %}
     <tr>
       <td>{{ u.username }}</td>
       <td>{{ u.is_admin|yesno:"Yes,No" }}</td>
-      <td>{{ u.diary_profile_name|default:"None" }}</td>
-      <td>{{ u.diary_role_label|default:"-" }}</td>
+      <td>{{ u.profiles_text|default:"None" }}</td>
       <td>{{ u.is_active|yesno:"Yes,No" }}</td>
       <td>{{ u.last_login|default:"Never" }}</td>
       <td><a href="{% url 'user_edit' u.pk %}">Edit</a> | <a href="{% url 'user_delete' u.pk %}">Delete</a></td>
@@ -21,4 +20,29 @@
   </tbody>
 </table>
 </div>
+
+{# Round 18 (D94): deleted users can be restored for USER_RETENTION_DAYS, then the nightly job removes them for good. #}
+<h2>Deleted users</h2>
+{% if deleted_users %}
+<p class="meta">A deleted user cannot sign in. Restore brings them back exactly as they were. After {{ user_retention_days }} days they are removed for good (only after a successful backup that night).</p>
+<div class="table-wrap">
+<table data-deleted-users>
+  <thead><tr><th>Username</th><th>Profiles (role)</th><th>Deleted</th><th>By</th><th>Days left</th><th></th></tr></thead>
+  <tbody>
+  {% for u in deleted_users %}
+    <tr>
+      <td>{{ u.username }}</td>
+      <td>{{ u.profiles_text|default:"None" }}</td>
+      <td>{{ u.deleted_at }}</td>
+      <td>{{ u.deleted_by_name|default:"-" }}</td>
+      <td>{{ u.days_left }}</td>
+      <td><form method="post" action="{% url 'user_restore' u.pk %}" class="inline">{% csrf_token %}<button type="submit">Restore</button></form></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<p class="muted">No deleted users. A deleted user can be restored here for {{ user_retention_days }} days.</p>
+{% endif %}
 {% endblock %}

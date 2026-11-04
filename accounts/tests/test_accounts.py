@@ -17,7 +17,7 @@ from django.utils import timezone
 from accounts.forms import THROTTLE_MESSAGE
 from accounts import suite
 from accounts.models import FailedLogin, Profile, ProfileMembership, SuiteName
-from accounts.profiles import assign_unassigned_users, ensure_default_profile, get_profile_for
+from accounts.profiles import assign_unassigned_users, delete_profile, ensure_default_profile, get_profile_for
 from accounts.permissions import (
     admin_required,
     program_editor_required,
@@ -225,8 +225,7 @@ class LandingProgramTests(BaseCase):
             {
                 "username": "alice",
                 "is_active": "on",
-                "profile": ensure_default_profile().pk,
-                "profile_role": "reader",
+                f"profile_{ensure_default_profile().pk}": "reader",
                 "landing_program": "diary",
             },
         )
@@ -238,7 +237,7 @@ class LandingProgramTests(BaseCase):
         self.client.force_login(self.admin)
         resp = self.client.post(
             reverse("user_edit", args=[self.user.pk]),
-            {"username": "alice", "is_active": "on", "profile_role": "reader", "landing_program": "nonsense"},
+            {"username": "alice", "is_active": "on", "landing_program": "nonsense"},
         )
         self.assertEqual(resp.status_code, 200)
         self.user.refresh_from_db()
@@ -383,18 +382,67 @@ class UserAdminTests(BaseCase):
         self.user.refresh_from_db()
         self.assertTrue(self.user.is_superuser)
 
-    def test_delete(self):
+    def test_delete_keeps_the_user_for_restore(self):
+        # Round 18 (D94): deleting switches the account off and lists it under Deleted users for 30 days.
         url = reverse("user_delete", args=[self.user.pk])
         self.assertContains(self.client.get(url), "alice")
+        self.assertContains(self.client.get(url), "restore them from")
         self.assertRedirects(self.client.post(url), reverse("user_list"))
-        self.assertFalse(User.objects.filter(pk=self.user.pk).exists())
+        self.user.refresh_from_db()
+        self.assertIsNotNone(self.user.deleted_at)
+        self.assertFalse(self.user.is_active)
+        self.assertTrue(self.user.was_active)
+        self.assertEqual(self.user.deleted_by_name, "boss")
+        self.assertTrue(ProfileMembership.objects.filter(user=self.user).exists())  # kept for the restore
+        page = self.client.get(reverse("user_list")).content.decode()
+        deleted_part = page.split("<h2>Deleted users</h2>")[1]
+        self.assertIn("alice", deleted_part)
+        self.assertIn(reverse("user_restore", args=[self.user.pk]), deleted_part)
+        self.assertNotIn(reverse("user_edit", args=[self.user.pk]), page)
+        self.assertEqual(self.client.get(reverse("user_edit", args=[self.user.pk])).status_code, 404)
+        self.assertEqual(self.client.post(url).status_code, 404)  # already deleted
+
+    def test_a_deleted_user_cannot_sign_in_and_restore_brings_them_back(self):
+        role = program_role(self.user, "diary")
+        self.client.post(reverse("user_delete", args=[self.user.pk]))
+        other = self.client_class()
+        self.assertFalse(other.login(username="alice", password=PASSWORD))
+        self.assertEqual(self.client.get(reverse("user_restore", args=[self.user.pk])).status_code, 405)
+        self.assertRedirects(self.client.post(reverse("user_restore", args=[self.user.pk])), reverse("user_list"))
+        self.user.refresh_from_db()
+        self.assertIsNone(self.user.deleted_at)
+        self.assertTrue(self.user.is_active)
+        self.assertEqual(program_role(self.user, "diary"), role)
+        self.assertTrue(other.login(username="alice", password=PASSWORD))
+        self.assertEqual(self.client.post(reverse("user_restore", args=[self.user.pk])).status_code, 404)
+
+    def test_restore_keeps_a_disabled_user_disabled(self):
+        self.user.is_active = False
+        self.user.save()
+        self.client.post(reverse("user_delete", args=[self.user.pk]))
+        self.client.post(reverse("user_restore", args=[self.user.pk]))
+        self.user.refresh_from_db()
+        self.assertFalse(self.user.is_active)
+        self.assertIsNone(self.user.deleted_at)
+
+    def test_a_deleted_user_keeps_their_username_and_email(self):
+        self.user.email = "alice@example.com"
+        self.user.save()
+        self.client.post(reverse("user_delete", args=[self.user.pk]))
+        resp = self.client.post(reverse("user_create"), {"username": "newbie", "email": "ALICE@example.com",
+                                                         "password1": PASSWORD, "password2": PASSWORD})
+        self.assertContains(resp, "Another account already uses this email address.")
+        resp = self.client.post(reverse("user_create"), {"username": "alice", "password1": PASSWORD,
+                                                         "password2": PASSWORD})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(User.objects.filter(username__iexact="alice").count(), 1)
 
     def test_cannot_delete_self(self):
         other = self.make_user("second", admin=True)
         url = reverse("user_delete", args=[self.admin.pk])
         self.client.post(url)
-        self.assertTrue(User.objects.filter(pk=self.admin.pk).exists())
-        self.assertTrue(User.objects.filter(pk=other.pk).exists())
+        self.assertTrue(User.objects.filter(pk=self.admin.pk, deleted_at__isnull=True).exists())
+        self.assertTrue(User.objects.filter(pk=other.pk, deleted_at__isnull=True).exists())
 
     def test_cannot_disable_self(self):
         self.make_user("second", admin=True)
@@ -422,13 +470,13 @@ class UserAdminTests(BaseCase):
         # active Admin exists to do it. A disabled Admin does not change that.
         inactive = self.make_user("old", admin=True, active=False)
         self.client.post(reverse("user_delete", args=[self.admin.pk]))
-        self.assertTrue(User.objects.filter(pk=self.admin.pk).exists())
-        self.assertTrue(User.objects.filter(pk=inactive.pk).exists())
+        self.assertTrue(User.objects.filter(pk=self.admin.pk, deleted_at__isnull=True).exists())
+        self.assertTrue(User.objects.filter(pk=inactive.pk, deleted_at__isnull=True).exists())
 
     def test_admin_can_delete_a_disabled_admin(self):
         inactive = self.make_user("old", admin=True, active=False)
         self.client.post(reverse("user_delete", args=[inactive.pk]))
-        self.assertFalse(User.objects.filter(pk=inactive.pk).exists())
+        self.assertTrue(User.objects.filter(pk=inactive.pk, deleted_at__isnull=False).exists())
 
     def test_can_remove_admin_rights_from_one_of_two(self):
         second = self.make_user("second", admin=True)
@@ -478,24 +526,29 @@ class RoleTests(BaseCase):
         self.assertFalse(hasattr(user, "role"))
         self.assertIsNone(program_role(user, "diary"))
 
-    def test_create_form_defaults_to_reader_and_not_admin(self):
+    def test_create_form_offers_no_access_by_default_and_not_admin(self):
         self.client.force_login(self.admin)
         form = self.client.get(reverse("user_create")).context["form"]
-        self.assertEqual(form.fields["profile_role"].initial, "reader")
+        main = ensure_default_profile()
+        self.assertEqual(form.fields[f"profile_{main.pk}"].initial, "")
         self.assertFalse(form.fields["is_admin"].initial)
 
-    def test_user_form_has_profile_and_role_on_one_line_without_help_text(self):
+    def test_user_form_has_one_line_per_profile(self):
+        # Round 18 (D95): one "No access / Editor / Reader" choice per live profile.
+        Profile.objects.create(program="diary", name="Junior")
+        Profile.objects.create(program="diary", name="Gone", deleted_at=timezone.now())
         self.client.force_login(self.admin)
         for url in (reverse("user_create"), reverse("user_edit", args=[self.user.pk])):
             resp = self.client.get(url)
             html = resp.content.decode()
-            row = html.split('class="profile-row"')[1].split("</div>")[0]
-            self.assertIn('name="profile"', row, url)
-            self.assertIn('name="profile_role"', row, url)
-            self.assertIn("Case law diary profile", row, url)
-            self.assertIn("Role in that profile", row, url)
+            box = html.split("data-profile-access")[1].split("</fieldset>")[0]
+            self.assertEqual(box.count('class="profile-row"'), 2, url)
+            for name in ("Main", "Junior"):
+                self.assertIn(f">{name}</label>", box, url)
+            self.assertNotIn("Gone", box, url)
+            for label in ("No access", "Editor", "Reader"):
+                self.assertIn(label, box, url)
             self.assertNotContains(resp, "at most one profile per program")
-            self.assertNotContains(resp, "Reader: view only. Editor: view and edit.")
 
     def test_is_staff_follows_superuser_flag(self):
         a = User.objects.create_user("a", password=PASSWORD, is_superuser=True)
@@ -605,39 +658,31 @@ class RoleTests(BaseCase):
         main = ensure_default_profile()
         self.client.post(
             reverse("user_edit", args=[self.user.pk]),
-            {"username": "alice", "is_active": "on", "profile": main.pk, "profile_role": "editor"},
+            {"username": "alice", "is_active": "on", f"profile_{main.pk}": "editor"},
         )
         self.user.refresh_from_db()
         self.assertEqual(program_role(self.user, "diary"), "editor")
         self.assertFalse(self.user.is_superuser)
         self.assertEqual(ProfileMembership.objects.filter(user=self.user).count(), 1)
 
-    def test_role_follows_the_profile_chosen(self):
+    def test_each_profile_has_its_own_role(self):
         self.client.force_login(self.admin)
+        main = ensure_default_profile()
         junior = Profile.objects.create(program="diary", name="Junior")
         self.client.post(
             reverse("user_edit", args=[self.user.pk]),
-            {"username": "alice", "is_active": "on", "profile": junior.pk, "profile_role": "editor"},
+            {"username": "alice", "is_active": "on", f"profile_{junior.pk}": "editor", f"profile_{main.pk}": "reader"},
         )
-        membership = ProfileMembership.objects.get(user=self.user)
-        self.assertEqual((membership.profile, membership.role), (junior, "editor"))
+        roles = dict(ProfileMembership.objects.filter(user=self.user).values_list("profile__name", "role"))
+        self.assertEqual(roles, {"Junior": "editor", "Main": "reader"})
 
     def test_invalid_role_rejected(self):
         self.client.force_login(self.admin)
         resp = self.client.post(
             reverse("user_edit", args=[self.user.pk]),
-            {"username": "alice", "is_active": "on", "profile": ensure_default_profile().pk, "profile_role": "root"},
+            {"username": "alice", "is_active": "on", f"profile_{ensure_default_profile().pk}": "root"},
         )
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(program_role(self.user, "diary"), "reader")
-
-    def test_blank_role_defaults_to_reader(self):
-        self.client.force_login(self.admin)
-        ProfileMembership.objects.filter(user=self.user).update(role="editor")
-        self.client.post(
-            reverse("user_edit", args=[self.user.pk]),
-            {"username": "alice", "is_active": "on", "profile": ensure_default_profile().pk},
-        )
         self.assertEqual(program_role(self.user, "diary"), "reader")
 
     def test_admin_flag_is_independent_of_profile_role(self):
@@ -645,7 +690,7 @@ class RoleTests(BaseCase):
         self.client.post(
             reverse("user_edit", args=[self.user.pk]),
             {"username": "alice", "is_active": "on", "is_admin": "on",
-             "profile": ensure_default_profile().pk, "profile_role": "reader"},
+             f"profile_{ensure_default_profile().pk}": "reader"},
         )
         self.user.refresh_from_db()
         self.assertTrue(self.user.is_superuser)
@@ -689,14 +734,33 @@ class ProfileModelTests(TestCase):
         membership = ProfileMembership.objects.create(user=self.alice, profile=self.main, program="wrong")
         self.assertEqual(membership.program, "diary")
 
-    def test_one_profile_per_user_per_program(self):
+    def test_several_profiles_per_user_but_one_membership_per_profile(self):
+        # Round 18 (D95): the old "one profile per program" rule is gone.
         second = Profile.objects.create(program="diary", name="Junior")
         ProfileMembership.objects.create(user=self.alice, profile=self.main)
+        ProfileMembership.objects.create(user=self.alice, profile=second, role="editor")
         with self.assertRaises(IntegrityError):
             with transaction.atomic():
                 ProfileMembership.objects.create(user=self.alice, profile=second)
-        other_program = Profile.objects.create(program="other", name="Anything")
-        ProfileMembership.objects.create(user=self.alice, profile=other_program)
+
+    def test_the_profile_in_use_is_the_one_switched_to_last(self):
+        from accounts.profiles import live_memberships, use_profile
+
+        junior = Profile.objects.create(program="diary", name="Junior")
+        ProfileMembership.objects.create(user=self.alice, profile=self.main)
+        ProfileMembership.objects.create(user=self.alice, profile=junior, role="editor")
+        self.assertEqual(get_profile_for(self.alice), junior)  # never switched: by name (Junior before Main)
+        self.assertTrue(use_profile(self.alice, self.main))
+        self.assertEqual(get_profile_for(self.alice), self.main)
+        self.assertEqual([m.profile for m in live_memberships(self.alice)], [self.main, junior])
+        self.assertTrue(use_profile(self.alice, junior))
+        self.assertEqual(get_profile_for(self.alice), junior)
+        self.assertEqual(program_role(self.alice, "diary"), "editor")
+        Profile.objects.filter(pk=junior.pk).update(deleted_at=timezone.now())
+        self.assertEqual(get_profile_for(self.alice), self.main)
+        self.assertFalse(use_profile(self.alice, junior))
+        stranger = Profile.objects.create(program="diary", name="Stranger")
+        self.assertFalse(use_profile(self.alice, stranger))
 
     def test_several_users_may_share_a_profile(self):
         bob = User.objects.create_user("bob", password=PASSWORD)
@@ -871,18 +935,20 @@ class ProfileRecoveryTests(BaseCase):
         main.refresh_from_db()
         self.assertIsNotNone(main.deleted_at)
 
-    def test_member_given_another_profile_can_be_assigned_and_blocks_restore(self):
+    def test_member_given_another_profile_meanwhile_keeps_both_after_restore(self):
+        # Round 18 (D95): a user may have several profiles, so another profile no longer blocks a restore.
         main = self.delete_main()
         junior = Profile.objects.create(program="diary", name="Junior")
         from accounts.profiles import set_user_profile
 
         set_user_profile(self.user, junior, "reader")
         resp = self.client.post(reverse("profile_restore", args=[main.pk]), follow=True)
-        self.assertContains(resp, self.user.username)
-        self.assertContains(resp, "cannot be restored")
+        self.assertNotContains(resp, "cannot be restored")
         main.refresh_from_db()
-        self.assertIsNotNone(main.deleted_at)
-        self.assertEqual(get_profile_for(self.user), junior)
+        self.assertIsNone(main.deleted_at)
+        names = sorted(ProfileMembership.objects.filter(user=self.user, suspended=False)
+                       .values_list("profile__name", flat=True))
+        self.assertEqual(names, ["Junior", "Main"])
 
     def test_same_name_asks_for_rename(self):
         main = self.delete_main()
@@ -988,50 +1054,65 @@ class UserProfileAssignmentTests(BaseCase):
         self.client.force_login(self.admin)
         self.assertContains(self.client.get(reverse("user_list")), "Main")
 
-    def test_edit_form_preselects_current_profile(self):
+    def test_edit_form_preselects_current_profiles(self):
         self.client.force_login(self.admin)
         resp = self.client.get(reverse("user_edit", args=[self.user.pk]))
-        self.assertEqual(resp.context["form"].fields["profile"].initial, ensure_default_profile())
+        self.assertEqual(resp.context["form"].fields[f"profile_{ensure_default_profile().pk}"].initial, "reader")
 
-    def test_assignment_is_replaced_not_duplicated(self):
+    def test_a_second_profile_is_added_and_the_first_kept(self):
         junior = Profile.objects.create(program="diary", name="Junior")
+        main = ensure_default_profile()
         self.client.force_login(self.admin)
         resp = self.client.post(
             reverse("user_edit", args=[self.user.pk]),
-            {"username": "alice", "is_active": "on", "profile_role": "reader", "profile": junior.pk},
+            {"username": "alice", "is_active": "on", f"profile_{main.pk}": "reader", f"profile_{junior.pk}": "editor"},
         )
         self.assertRedirects(resp, reverse("user_list"))
-        self.assertEqual(ProfileMembership.objects.filter(user=self.user).count(), 1)
-        self.assertEqual(get_profile_for(self.user), junior)
+        self.assertEqual(ProfileMembership.objects.filter(user=self.user).count(), 2)
+        listing = self.client.get(reverse("user_list")).content.decode()
+        self.assertIn("Junior (Editor), Main (Reader)", listing)
 
-    def test_blank_profile_removes_access(self):
+    def test_no_access_removes_that_profile_only(self):
+        junior = Profile.objects.create(program="diary", name="Junior")
+        main = ensure_default_profile()
+        ProfileMembership.objects.create(user=self.user, profile=junior)
         self.client.force_login(self.admin)
         self.client.post(
             reverse("user_edit", args=[self.user.pk]),
-            {"username": "alice", "is_active": "on", "profile_role": "reader", "profile": ""},
+            {"username": "alice", "is_active": "on", f"profile_{main.pk}": "", f"profile_{junior.pk}": "reader"},
         )
+        self.assertEqual(get_profile_for(self.user), junior)
+        self.client.post(reverse("user_edit", args=[self.user.pk]), {"username": "alice", "is_active": "on"})
         self.assertIsNone(get_profile_for(self.user))
 
-    def test_deleted_profile_not_offered_or_accepted(self):
-        gone = Profile.objects.create(program="diary", name="Gone", deleted_at=timezone.now())
+    def test_deleted_profile_not_offered_and_its_membership_kept(self):
+        gone = Profile.objects.create(program="diary", name="Gone")
+        ProfileMembership.objects.create(user=self.user, profile=gone, role="editor")
+        delete_profile(gone)
         self.client.force_login(self.admin)
         resp = self.client.post(
             reverse("user_edit", args=[self.user.pk]),
-            {"username": "alice", "is_active": "on", "profile_role": "reader", "profile": gone.pk},
+            {"username": "alice", "is_active": "on", f"profile_{gone.pk}": "reader",
+             f"profile_{ensure_default_profile().pk}": "reader"},
         )
-        self.assertEqual(resp.status_code, 200)
+        self.assertRedirects(resp, reverse("user_list"))
         self.assertEqual(get_profile_for(self.user), ensure_default_profile())
+        kept = ProfileMembership.objects.get(user=self.user, profile=gone)
+        self.assertEqual((kept.suspended, kept.role), (True, "editor"))  # restorable as it was
 
-    def test_create_user_with_profile(self):
+    def test_create_user_with_profiles(self):
         junior = Profile.objects.create(program="diary", name="Junior")
+        main = ensure_default_profile()
         self.client.force_login(self.admin)
         resp = self.client.post(
             reverse("user_create"),
-            {"username": "newbie", "password1": PASSWORD, "password2": PASSWORD, "profile_role": "reader",
-             "profile": junior.pk},
+            {"username": "newbie", "password1": PASSWORD, "password2": PASSWORD,
+             f"profile_{junior.pk}": "reader", f"profile_{main.pk}": "editor"},
         )
         self.assertRedirects(resp, reverse("user_list"))
-        self.assertEqual(get_profile_for(User.objects.get(username="newbie")), junior)
+        newbie = User.objects.get(username="newbie")
+        self.assertEqual(ProfileMembership.objects.filter(user=newbie).count(), 2)
+        self.assertEqual(program_role(newbie, "diary"), "reader")  # Junior comes first by name until they switch
 
 
 class RoleMigrationTests(TransactionTestCase):
@@ -1095,77 +1176,88 @@ class ExportNameTests(BaseCase):
         profile.export_name = "  . "  # nothing usable is left, so the profile's own name is used
         self.assertEqual(export_file_name(profile), "Main")
 
+    # Round 18 (D96/D97): the export file name is on the Export page (anyone in the profile may change it); the
+    # Display Name and the Contents settings are on Settings > General > Display (Editors change them).
+    def display(self, data=None):
+        url = reverse("my_settings") + "?tab=display"
+        if data is None:
+            return self.client.get(url)
+        return self.client.post(reverse("my_settings"), {"tab": "display", **data})
+
     def test_editor_can_change_name(self):
         self.client.force_login(self.admin)  # Editor of Main through the membership
-        resp = self.client.post(reverse("profile_settings"), {"export_name": "  My: Diary ", "reading_all_mode": "remember"})
-        self.assertRedirects(resp, reverse("profile_settings"))
+        resp = self.client.post(reverse("export_settings"), {"export_name": "  My: Diary ", "export_date_format": "YYYY-MM-DD"})
+        self.assertRedirects(resp, reverse("export"))
         self.assertEqual(Profile.objects.get(pk=self.main().pk).export_name, "My: Diary")
-        self.assertContains(self.client.get(reverse("profile_settings")), "My- Diary")  # the preview shows the hyphen
+        self.assertContains(self.client.get(reverse("export")), "My- Diary")  # the preview shows the hyphen
+
+    def test_reader_can_change_the_export_name_too(self):
+        self.client.force_login(self.user)
+        self.client.post(reverse("export_settings"), {"export_name": "Shared", "export_date_format": "YYYY-MM-DD"})
+        self.assertEqual(self.main().export_name, "Shared")
+
+    def test_old_diary_settings_address_opens_display(self):
+        self.client.force_login(self.user)
+        self.assertRedirects(self.client.get(reverse("profile_settings")), reverse("my_settings") + "?tab=display")
 
     def test_all_default_is_on_and_editor_can_switch_it_off_and_on(self):
         self.assertTrue(self.main().reading_all_default)
         self.client.force_login(self.admin)
-        resp = self.client.get(reverse("profile_settings"))
-        self.assertContains(resp, 'name="reading_all_default"')
+        resp = self.display()
+        self.assertContains(resp, 'name="diary-reading_all_default"')
         self.assertContains(resp, "If there is no last view yet, Contents links open the whole Subject")
-        self.client.post(reverse("profile_settings"), {"export_name": "", "reading_all_mode": "remember"})
+        self.display({"diary-reading_all_mode": "remember"})
         self.assertFalse(Profile.objects.get(pk=self.main().pk).reading_all_default)
-        self.client.post(
-            reverse("profile_settings"),
-            {"export_name": "", "reading_all_mode": "remember", "reading_all_default": "on"},
-        )
+        self.display({"diary-reading_all_mode": "remember", "diary-reading_all_default": "on"})
         self.assertTrue(Profile.objects.get(pk=self.main().pk).reading_all_default)
+
+    def test_saving_another_tab_leaves_the_diary_settings_alone(self):
+        Profile.objects.filter(pk=self.main().pk).update(display_name="Kept", reading_all_mode="always_on")
+        self.client.force_login(self.admin)
+        self.client.post(reverse("my_settings"), {"tab": "account", "email": ""})
+        main = self.main()
+        self.assertEqual((main.display_name, main.reading_all_mode, main.reading_all_default),
+                         ("Kept", "always_on", True))
 
     def test_mode_defaults_to_remember_and_editor_can_change_it(self):
         self.assertEqual(self.main().reading_all_mode, "remember")
         self.client.force_login(self.admin)
-        resp = self.client.get(reverse("profile_settings"))
-        self.assertContains(resp, 'name="reading_all_mode"')
+        resp = self.display()
+        self.assertContains(resp, 'name="diary-reading_all_mode"')
         for label in ("The whole Subject", "Only that Topic or Sub-topic", "The view I used last"):
             self.assertContains(resp, label)
         for mode in ("always_on", "always_off", "remember"):
-            self.client.post(reverse("profile_settings"), {"export_name": "", "reading_all_mode": mode})
+            self.display({"diary-reading_all_mode": mode})
             self.assertEqual(Profile.objects.get(pk=self.main().pk).reading_all_mode, mode)
-        resp = self.client.post(reverse("profile_settings"), {"export_name": "", "reading_all_mode": "bogus"})
+        resp = self.display({"diary-reading_all_mode": "bogus"})
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(Profile.objects.get(pk=self.main().pk).reading_all_mode, "remember")
 
     def test_reader_cannot_change_all_default(self):
         self.client.force_login(self.user)
-        resp = self.client.post(
-            reverse("profile_settings"),
-            {"export_name": "", "reading_all_default": "on", "reading_all_mode": "always_on"},
-        )
-        self.assertEqual(resp.status_code, 403)
+        self.display({"diary-reading_all_default": "on", "diary-reading_all_mode": "always_on"})
         Profile.objects.filter(pk=self.main().pk).update(reading_all_default=False)
-        resp = self.client.get(reverse("profile_settings"))
-        self.assertNotContains(resp, 'name="reading_all_default"')
-        self.assertNotContains(resp, 'name="reading_all_mode"')
+        resp = self.display()
+        self.assertNotContains(resp, 'name="diary-reading_all_default"')
+        self.assertNotContains(resp, 'name="diary-reading_all_mode"')
         self.assertContains(resp, "With no last view yet, Contents links open the whole Subject")
+        self.assertContains(resp, "Only its Editors can change them.")
         self.assertEqual(Profile.objects.get(pk=self.main().pk).reading_all_mode, "remember")
         self.assertFalse(Profile.objects.get(pk=self.main().pk).reading_all_default)
 
-    def test_reader_can_view_but_not_change(self):
-        self.client.force_login(self.user)
-        resp = self.client.get(reverse("profile_settings"))
-        self.assertContains(resp, "Case Law Diary Main")
-        self.assertNotContains(resp, 'name="export_name"')
-        self.assertNotContains(resp, "Save")
-        self.assertContains(resp, "Only Editors of this profile can change it.")
-        self.assertEqual(self.client.post(reverse("profile_settings"), {"export_name": "X"}).status_code, 403)
-        self.assertEqual(self.main().export_name, "")
-
-    def test_user_without_profile_refused(self):
+    def test_user_without_profile_has_no_diary_settings(self):
         other = self.make_user("nobody")
         self.client.force_login(other)
-        self.assertEqual(self.client.get(reverse("profile_settings")).status_code, 403)
+        self.assertNotContains(self.display(), "data-diary-settings")
+        self.assertEqual(self.client.get(reverse("export")).status_code, 403)
 
     def test_only_own_profile_changes(self):
         junior = Profile.objects.create(program="diary", name="Junior")
         self.client.force_login(self.admin)
-        self.client.post(reverse("profile_settings"), {"export_name": "Mine", "reading_all_mode": "remember"})
+        self.client.post(reverse("export_settings"), {"export_name": "Mine", "export_date_format": "YYYY-MM-DD"})
+        self.display({"diary-display_name": "Mine too", "diary-reading_all_mode": "remember"})
         junior.refresh_from_db()
-        self.assertEqual(junior.export_name, "")
+        self.assertEqual((junior.export_name, junior.display_name), ("", ""))
 
 
 class UserEditFormImportTests(SimpleTestCase):

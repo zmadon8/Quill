@@ -2,7 +2,6 @@
 {% block title %}Email backups - {{ program_label }}{% endblock %}
 {% block content %}
 <h1>Email backups</h1>
-<p><a href="{% url 'backup_list' %}">&larr; Backups</a></p>
 <p>The nightly job can email you a copy of the diary: the full backup file, the complete Word export, or both. Use it as an extra copy kept away from the server, in a mailbox you trust. <strong>These files hold the whole diary and the scrambled passwords of every user, so send them only to people who may see everything.</strong></p>
 {% if not configured %}
 <p class="error" role="alert">Email is not set up on this server, so nothing can be sent yet. Set <code>EMAIL_HOST</code> (and the other <code>EMAIL_</code> settings) in the hosting dashboard. See <code>docs/EMAIL.md</code>.</p>
