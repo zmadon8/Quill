@@ -1,8 +1,8 @@
 {% extends "base.html" %}
-{% block title %}Export to Word - {{ program_label }}{% endblock %}
+{% block title %}Export - {{ program_label }}{% endblock %}
 {% block content %}
 <div class="home-column export-page">
-  <h1>Export to Word</h1>
+  <h1>Export</h1>
   <p class="meta">Files cover this profile only ({{ request.profile.name }}), without anything in the Trash. Numbers follow your Numbers settings at the moment of export.</p>
 
   <form method="get" action="{% url 'export_download' %}" class="stack export-form">
@@ -16,25 +16,25 @@
       <p>On screen: <strong>{{ scope_path|join:" > " }}</strong></p>
       <input type="hidden" name="kind" value="{{ scope_kind }}">
       <input type="hidden" name="pk" value="{{ scope_pk }}">
-      <p><button type="submit" name="type" value="view" class="primary">Download this view</button></p>
+      <p><button type="submit" name="type" value="view" class="primary">Download this view (Word)</button></p>
+      <p><button type="submit" name="type" value="offline_view">Download this view as an Offline copy</button></p>
       {% else %}
       <p class="meta">Open a Subject, Topic or Sub-topic and press <strong>Export</strong> in the header to export exactly that page.</p>
       {% endif %}
     </section>
 
-    {% if can_full %}
     <section class="settings-section">
       <h2>Full</h2>
       <p><button type="submit" name="type" value="full" class="primary">Full: one Word file</button></p>
       <p><button type="submit" name="type" value="by_subject" class="primary">Full: one file per Subject (.zip)</button></p>
       <p class="meta">One Word file for each Subject and one for all Other Subjects together, with a manifest.txt that lists each file and its Item count.</p>
     </section>
-    {% else %}
+
     <section class="settings-section">
-      <h2>Full</h2>
-      <p class="meta">The two Full exports are for Editors and the Admin. You can export the Current View of any Subject, Topic or Sub-topic.</p>
+      <h2>Offline copy</h2>
+      <p><button type="submit" name="type" value="offline" class="primary">Download the Offline copy</button></p>
+      <p class="meta">One file for reading without internet. Open it in a web browser (it works best on a computer; on a phone the Word file is easier). It looks like this website, with the Subjects page, Contents, citations, flags and links, and a search box that works offline. You cannot edit in it, and it does not update by itself: download it again to get newer changes. It is not part of the scheduled email backups.</p>
     </section>
-    {% endif %}
 
     <section class="settings-section">
       <h2>Subject</h2>
@@ -47,7 +47,8 @@
           </optgroup>{% endif %}
         </select>
       </p>
-      <p><button type="submit" name="type" value="subject">Download this Subject</button></p>
+      <p><button type="submit" name="type" value="subject">Download this Subject (Word)</button>
+        <button type="submit" name="type" value="offline_subject">Download this Subject as an Offline copy</button></p>
     </section>
   </form>
 

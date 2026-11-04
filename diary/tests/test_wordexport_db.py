@@ -302,15 +302,15 @@ class ViewTests(ExportCase):
         for url in (reverse("export"), self.url(type="full")):
             self.assertEqual(Client().get(url).status_code, 302)
 
-    def test_the_page_shows_full_buttons_to_editors_and_admin_but_not_readers(self):
-        for user, full in ((self.editor, True), (self.admin, True), (self.reader, False)):
+    def test_the_page_shows_every_download_to_every_member(self):
+        for user in (self.editor, self.admin, self.reader):
             body = self.login(user).get(reverse("export")).content.decode()
-            self.assertEqual('value="full"' in body, full, user.username)
-            self.assertEqual('value="by_subject"' in body, full, user.username)
+            for value in ("full", "by_subject", "offline", "offline_subject"):
+                self.assertIn(f'value="{value}"', body, user.username)
             self.assertIn("Download this Subject", body)
 
-    def test_editor_and_admin_download_full_and_zip(self):
-        for user in (self.editor, self.admin):
+    def test_every_member_downloads_full_and_zip(self):
+        for user in (self.editor, self.admin, self.reader):
             client = self.login(user)
             resp = client.get(self.url(type="full"))
             self.assertEqual(resp.status_code, 200)
@@ -322,10 +322,10 @@ class ViewTests(ExportCase):
             self.assertEqual(zipped["Content-Type"], "application/zip")
             self.assertIn("manifest.txt", zipfile.ZipFile(io.BytesIO(zipped.content)).namelist())
 
-    def test_a_reader_gets_403_for_both_full_exports_but_can_export_a_view(self):
+    def test_a_reader_can_make_both_full_exports_and_a_view(self):
         client = self.login(self.reader)
-        self.assertEqual(client.get(self.url(type="full")).status_code, 403)
-        self.assertEqual(client.get(self.url(type="by_subject")).status_code, 403)
+        self.assertEqual(client.get(self.url(type="full")).status_code, 200)
+        self.assertEqual(client.get(self.url(type="by_subject")).status_code, 200)
         resp = client.get(self.url(type="view", kind="topic", pk=self.topic.pk))
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(texts(resp.content, "Heading1"), ["A\tArbitrability"])

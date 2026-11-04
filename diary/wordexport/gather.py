@@ -70,7 +70,7 @@ def load(profile):
     sections = [s for s in _live(Section, profile, *base, "subject", "topic", "subtopic", "name", "flag",
                                  "flag_text") if container_live(s)]
     section_ids = {s.pk for s in sections}
-    cases = [c for c in _live(Case, profile, *base, "item", "citation", "comment") if c.item_id in item_ids]
+    cases = [c for c in _live(Case, profile, *base, "item", "citation", "comment", "url") if c.item_id in item_ids]
     notes = [
         n for n in _live(Note, profile, *base, "subject", "topic", "subtopic", "item", "section", "text")
         if (n.item_id in item_ids if n.item_id else n.section_id in section_ids if n.section_id else container_live(n))
@@ -126,11 +126,12 @@ def load(profile):
             if row is None:
                 info = note_link_info(link)
                 return m.XLink(info["path"], True)
+            ref = f"{kind}-{target_id}"
             if kind == "item":
-                return m.XLink(" > ".join(container_path(row) + [_short(row.text_plain, "Item")]))
+                return m.XLink(" > ".join(container_path(row) + [_short(row.text_plain, "Item")]), ref=ref)
             if kind == "section":
-                return m.XLink(" > ".join(container_path(row) + [row.name or "Section"]))
-            return m.XLink(" > ".join(heading_path(kind, row)))
+                return m.XLink(" > ".join(container_path(row) + [row.name or "Section"]), ref=ref)
+            return m.XLink(" > ".join(heading_path(kind, row)), ref=ref)
         return m.XLink("", True)
 
     # -- the tree ---------------------------------------------------------------------------------
@@ -141,9 +142,10 @@ def load(profile):
         item_cases = cases_by.get(item.pk, [])
         return m.XItem(
             html=item.text,
-            cases=[m.XCase(c.citation, c.comment) for c in item_cases],
+            cases=[m.XCase(c.citation, c.comment, c.url) for c in item_cases],
             layout=item.citation_layout if len(item_cases) > 1 else "inline",
             flag_label=flag_label(item.flag, item.flag_text), notes=x_notes(("item", item.pk)),
+            pk=item.pk, flag=item.flag if item.flag != "none" else "",
         )
 
     def x_container(kind, pk):
@@ -153,7 +155,8 @@ def load(profile):
         entries = []
         for what, row in rows:
             if what == "section":
-                entries.append(m.XSection(row.name, flag_label(row.flag, row.flag_text), x_notes(("section", row.pk))))
+                entries.append(m.XSection(row.name, flag_label(row.flag, row.flag_text), x_notes(("section", row.pk)),
+                                          pk=row.pk, flag=row.flag if row.flag != "none" else ""))
             else:
                 entries.append(x_item(row))
         return m.XContainer(entries, x_notes(key))
@@ -169,18 +172,18 @@ def load(profile):
             direct_subtopics_of.setdefault(sub.subject_id, []).append(sub)
 
     def build_subject(subject):
-        xs = m.XSubject(subject.name, x_container("subject", subject.pk))
+        xs = m.XSubject(subject.name, x_container("subject", subject.pk), pk=subject.pk)
         snapshot.subjects[subject.pk] = xs
         for index, topic in enumerate(sort_headings(topics_of.get(subject.pk, [])), 1):
-            xt = m.XTopic(topic.name, index, x_container("topic", topic.pk))
+            xt = m.XTopic(topic.name, index, x_container("topic", topic.pk), pk=topic.pk)
             for sindex, sub in enumerate(sort_headings(subtopics_of.get(topic.pk, [])), 1):
-                xsub = m.XSubtopic(sub.name, sindex, x_container("subtopic", sub.pk))
+                xsub = m.XSubtopic(sub.name, sindex, x_container("subtopic", sub.pk), pk=sub.pk)
                 xt.subtopics.append(xsub)
                 snapshot.subtopics[sub.pk] = (xsub, topic.pk, xs)
             xs.topics.append(xt)
             snapshot.topics[topic.pk] = (xt, xs)
         for sindex, sub in enumerate(sort_headings(direct_subtopics_of.get(subject.pk, [])), 1):
-            xsub = m.XSubtopic(sub.name, sindex, x_container("subtopic", sub.pk))
+            xsub = m.XSubtopic(sub.name, sindex, x_container("subtopic", sub.pk), pk=sub.pk)
             xs.subtopics.append(xsub)
             snapshot.subtopics[sub.pk] = (xsub, None, xs)
         return xs

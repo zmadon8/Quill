@@ -12,14 +12,16 @@ from django.utils import timezone
 from accounts.profiles import effective_export_name, export_file_name
 
 from .. import reading
-from . import gather, naming
+from . import gather, naming, offline
 from . import model as m
 from .render import OTHER_SUBJECTS, render
 
 DOCX_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 ZIP_TYPE = "application/zip"
+HTML_TYPE = "text/html; charset=utf-8"
 
 FULL, BY_SUBJECT, VIEW = "full", "by_subject", "view"
+OFFLINE, OFFLINE_VIEW, OFFLINE_SUBJECT = "offline", "offline_view", "offline_subject"
 
 
 class ExportError(Exception):
@@ -181,6 +183,22 @@ def current_view(profile, user, kind, pk, include_review=False, now=None, snapsh
     data = _input(ctx, ", ".join(path), include_review, path=path, **pieces)
     name = view_file_name(profile, user, path, now)
     return ExportFile(name, render(data), DOCX_TYPE, m.count_items(data))
+
+
+def offline_copy(profile, user, include_review=True, kind=None, pk=None, now=None, snapshot=None):
+    """The Offline copy (D98): one read-only .html file. Without ``kind`` it is the whole diary; otherwise a Subject,
+    Topic or Sub-topic with everything below it, like a Current View."""
+    ctx = _context(profile, user, now)
+    snap = snapshot or gather.load(profile)
+    if kind is None:
+        data = _input(ctx, "Offline copy", include_review, main=snap.main, others=snap.others)
+        parts = ["Offline copy"]
+    else:
+        path, pieces = view_scope(profile, kind, pk, snap)
+        data = _input(ctx, ", ".join(path), include_review, path=path, **pieces)
+        parts = path + ["Offline copy"]
+    name = naming.build_name(ctx["file_export_name"], parts, ctx["date_text"], "html")
+    return ExportFile(name, offline.build_html(data).encode("utf-8"), HTML_TYPE, m.count_items(data))
 
 
 def roundtrip(profile, original_bytes, now=None):

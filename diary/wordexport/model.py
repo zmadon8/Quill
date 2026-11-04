@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 class XLink:
     path: str  # "Subject > Topic > ..." as the reading page shows it
     deleted: bool = False  # the target is in Trash: "(target deleted)"
+    ref: str = ""  # where it points, e.g. "item-12" (the Offline copy turns it into a hyperlink); "" if in Trash
 
 
 @dataclass
@@ -22,6 +23,7 @@ class XNote:
 class XCase:
     citation: str = ""
     comment_html: str = ""
+    url: str = ""  # the citation's web address, if it has one (the Offline copy makes the citation a hyperlink)
 
 
 @dataclass
@@ -31,6 +33,8 @@ class XItem:
     layout: str = "inline"  # "lines": each citation on its own line, "(a) <comment> - <citation>"
     flag_label: str = ""  # "" when the Item has no flag (models.flag_label: "Pending: ask", the text of Other...)
     notes: list = field(default_factory=list)  # XNote
+    pk: int = 0  # the record's id (the Offline copy uses it for anchors and links)
+    flag: str = ""  # the flag's key ("pending", "overruled"...), "" for none
 
 
 @dataclass
@@ -38,6 +42,8 @@ class XSection:
     name: str = ""
     flag_label: str = ""  # Sections have flags too (D88)
     notes: list = field(default_factory=list)
+    pk: int = 0
+    flag: str = ""
 
 
 @dataclass
@@ -53,6 +59,7 @@ class XSubtopic:
     name: str = ""
     index: int = 1  # 1-based place among its (alphabetical) siblings; the number is made from it
     container: XContainer = field(default_factory=XContainer)
+    pk: int = 0
 
 
 @dataclass
@@ -61,6 +68,7 @@ class XTopic:
     index: int = 1
     container: XContainer = field(default_factory=XContainer)
     subtopics: list = field(default_factory=list)
+    pk: int = 0
 
 
 @dataclass
@@ -69,6 +77,7 @@ class XSubject:
     container: XContainer = field(default_factory=XContainer)
     topics: list = field(default_factory=list)
     subtopics: list = field(default_factory=list)  # directly under the Subject (Other Subjects)
+    pk: int = 0
 
 
 @dataclass
