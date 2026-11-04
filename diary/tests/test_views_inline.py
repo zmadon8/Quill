@@ -309,7 +309,7 @@ class SaveTests(InlineTestCase):
         self.assertEqual(self.get(self.one).text_plain, "theirs")
 
     def test_a_refused_item_save_is_json_400(self):
-        resp = self.fetch("edit_item", self.save_data(self.one, flag_text="x" * 301, flag="other"), args=[self.one.pk])
+        resp = self.fetch("edit_item", self.save_data(self.one, flag_text="x" * 2001, flag="other"), args=[self.one.pk])
         self.assertEqual(resp.status_code, 400)
         self.assertFalse(resp.json()["ok"])
 

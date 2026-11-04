@@ -55,7 +55,7 @@ def sample_subject():
 
 def make(**kw):
     base = dict(title="Case Law Diary Main", part="Full", date_text="2026-11-01", fmts=dict(DEFAULT_FMTS),
-                main=[sample_subject()], include_review=True)  # flags included, as the Export page ticks it (D88)
+                main=[sample_subject()])
     base.update(kw)
     return m.ExportInput(**base)
 
@@ -121,7 +121,7 @@ class RenderStructureTests(unittest.TestCase):
         self.assertEqual(sections, ["(a)\tEx Parte", "(b)\tDetermining"])
         # Direct Items, then the first Section's run, then the second's: the second run restarts at (1).
         self.assertIn("(1)\tDirect one - (2020) 1 SCC 1", items)
-        self.assertIn("(1)\tAfter the Section one - (2021) 2 SCC 2 [Overruled]", items)
+        self.assertIn("(1)\tAfter the Section one - (2021) 2 SCC 2", items)  # flags left out unless asked (D88)
         self.assertIn("(1)\tRestarted - (2022) 3 SCC 3", items)
         self.assertIn("(2)\tLines head", items)
         self.assertFalse(any(t.split("\t")[0].endswith(".") for t in items + sections))
@@ -166,11 +166,13 @@ class RenderStructureTests(unittest.TestCase):
         self.assertLess(order.index("DiaryItem"), first_heading2)
         self.assertLess(order.index("DiaryNote"), first_heading2)  # the Subject's own Notes come before its Topics
 
-    def test_flags_are_red_on_items_and_sections(self):
-        document = zipfile.ZipFile(io.BytesIO(self.data)).read("word/document.xml").decode()
+    def test_flags_are_red_on_items_and_sections_when_included(self):
+        data = render.render(make(include_review=True))
+        document = zipfile.ZipFile(io.BytesIO(data)).read("word/document.xml").decode()
         self.assertIn(f'<w:color w:val="{dw.RED}"/>', document)
         self.assertNotIn("For review", document)
-        paras = paragraphs_of(self.data)
+        paras = paragraphs_of(data)
+        self.assertTrue(any(p.text.endswith("After the Section one - (2021) 2 SCC 2 [Overruled]") for p in paras))
         self.assertTrue(any(p.style == "DiarySection" and p.text.endswith("Ex Parte [check me]") for p in paras))
         self.assertTrue(any(p.style == "DiaryItem" and p.text.endswith("[Pending: odd]") for p in paras))
         self.assertTrue(any(p.text == "Flags: included." for p in paras))
@@ -217,7 +219,7 @@ class RenderStructureTests(unittest.TestCase):
         self.assertIn("I\tArbitrability", texts)
         self.assertIn("(a)\tFraud", texts)
         self.assertIn("Section 1\tEx Parte", texts)
-        self.assertIn("a\tAfter the Section one - (2021) 2 SCC 2 [Overruled]", texts)
+        self.assertIn("a\tAfter the Section one - (2021) 2 SCC 2", texts)
 
     def test_empty_item_format_keeps_the_tab_so_the_text_is_still_found(self):
         paras = paragraphs_of(render.render(make(fmts=dict(DEFAULT_FMTS, item_format="none"))))

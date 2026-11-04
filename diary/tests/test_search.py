@@ -546,7 +546,7 @@ class SearchPageTests(SearchTestBase):
         # carries the two addresses of the same search (one list / grouped) and is not a form field itself.
         resp = self.client.get(reverse("search"), {"q": "Pangolin"})
         html = resp.content.decode()
-        row = html.split("data-search-toggles")[1].split("data-group-input")[0]
+        row = html.split("data-search-toggles")[1].split("\n    </div>")[0]
         self.assertIn("Group by Subject", row)
         self.assertNotIn('name="view"', row)
         self.assertContains(resp, 'role="switch" aria-checked="false" data-group-toggle data-cards="?q=Pangolin" '
