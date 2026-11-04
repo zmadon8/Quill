@@ -74,10 +74,10 @@ def edit_card(request):
     }
     if kind == "item":
         cases = Case._base_manager.filter(item=record, deleted_at__isnull=True, profile=request.profile)
-        rows = [{"id": c.pk, "version": c.version, "citation": c.citation, "comment": c.comment}
+        rows = [{"id": c.pk, "version": c.version, "citation": c.citation, "comment": c.comment, "url": c.url}
                 for c in cases.order_by("position", "pk")]
         if not rows:
-            rows = [{"id": None, "version": None, "citation": "", "comment": ""}]
+            rows = [{"id": None, "version": None, "citation": "", "comment": "", "url": ""}]
         context.update(
             values={"text": record.text, "citation": record.citation, "flag": record.flag, "flag_text": record.flag_text,
                     "needs_review": record.needs_review, "review_note": record.review_note,

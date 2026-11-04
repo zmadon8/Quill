@@ -29,6 +29,7 @@
   } else if (store() === "1" && !/[?&]edit=/.test(window.location.search)) {
     var again = new URL(window.location.href);
     again.searchParams.set("edit", "1");
+    if (window.quillKeepPlace) { window.quillKeepPlace.keep(); } // the same page, Edit on: stay where you were (D87)
     window.location.replace(again.toString());
     return;
   }

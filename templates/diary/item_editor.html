@@ -40,6 +40,7 @@
             </span>
           </div>
           <label>Citation <input type="text" name="case_citation" value="{{ row.citation }}" maxlength="1000"></label>
+          <label>Link (optional) <input type="url" name="case_url" maxlength="2000" value="{{ row.url|default_if_none:'' }}" placeholder="Link (optional): https://..." aria-label="Web address of this citation (optional)" autocapitalize="off" autocorrect="off" spellcheck="false"></label>
           <div class="field-label">Comment (optional)</div>
           {% include "diary/_richtext_field.html" with rname="case_comment" rvalue=row.comment rlabel="Citation comment" rrows=3 %}
         </li>
@@ -58,6 +59,7 @@
             </span>
           </div>
           <label>Citation <input type="text" name="case_citation" value="" maxlength="1000"></label>
+          <label>Link (optional) <input type="url" name="case_url" maxlength="2000" value="" placeholder="Link (optional): https://..." aria-label="Web address of this citation (optional)" autocapitalize="off" autocorrect="off" spellcheck="false"></label>
           <div class="field-label">Comment (optional)</div>
           <div class="rt" data-richtext><textarea class="rt-source" name="case_comment" rows="3" aria-label="Citation comment"></textarea></div>
         </li>

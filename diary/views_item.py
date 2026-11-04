@@ -41,6 +41,8 @@ def _case_rows(post):
     """The Cases as posted, in the order shown: [{id, version, citation, comment}]. Blank new rows are dropped."""
     ids, versions = post.getlist("case_id"), post.getlist("case_version")
     citations, comments = post.getlist("case_citation"), post.getlist("case_comment")
+    # Older pages (open since before round 16) send no case_url: then the addresses are left as they are (None).
+    urls = post.getlist("case_url") if "case_url" in post else None
     rows = []
     for number in range(len(citations)):
         raw_id = ids[number] if number < len(ids) else ""
@@ -52,8 +54,9 @@ def _case_rows(post):
             "version": int(raw_version) if raw_version.isdigit() else None,
             "citation": _single_line(citations[number]),
             "comment": comments[number] if number < len(comments) else "",
+            "url": (urls[number] if number < len(urls) else "") if urls is not None else None,
         }
-        if row["id"] is None and not row["citation"] and not row["comment"].strip():
+        if row["id"] is None and not row["citation"] and not row["comment"].strip() and not (row["url"] or "").strip():
             continue
         rows.append(row)
     return rows
@@ -111,15 +114,16 @@ def _save_cases(request, item, rows, gone):
             svc.delete(profile, user, "case", pk, gone.get(pk))
     order = []
     for row in rows:
-        if row["id"] and not row["citation"] and not row["comment"].strip():
+        url_changes = {} if row["url"] is None else {"url": row["url"]}
+        if row["id"] and not row["citation"] and not row["comment"].strip() and not (row["url"] or "").strip():
             svc.delete(profile, user, "case", row["id"], row["version"])
         elif row["id"]:
-            svc.edit(profile, user, "case", row["id"], {"citation": row["citation"], "comment": row["comment"]},
+            svc.edit(profile, user, "case", row["id"], {"citation": row["citation"], "comment": row["comment"], **url_changes},
                      row["version"])
             order.append(row["id"])
         else:
             made = svc.create(profile, user, "case", parent=("item", item.pk), citation=row["citation"],
-                              comment=row["comment"])
+                              comment=row["comment"], **url_changes)
             order.append(made.record.pk)
     for index, pk in enumerate(order):
         svc.move(profile, user, "case", pk, None, index)
@@ -181,11 +185,11 @@ def _render(request, item, back, values=None, rows=None, status=200, theirs=Fals
         values = {**values, "citation_layout": item.citation_layout}
     if rows is None:
         cases = Case._base_manager.filter(item=item, deleted_at__isnull=True, profile=request.profile)
-        rows = [{"id": c.pk, "version": c.version, "citation": c.citation, "comment": c.comment}
+        rows = [{"id": c.pk, "version": c.version, "citation": c.citation, "comment": c.comment, "url": c.url}
                 for c in cases.order_by("position", "pk")]
     if not rows:
         # The first row is the main citation box; it is always there, empty if the Item has no citation yet.
-        rows = [{"id": None, "version": None, "citation": "", "comment": ""}]
+        rows = [{"id": None, "version": None, "citation": "", "comment": "", "url": ""}]
     context = {
         "item": item,
         "kind_name": "Item",

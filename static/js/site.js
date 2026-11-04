@@ -130,6 +130,7 @@
       if (!isSitePath(target)) { return; }
       nav.i = index;
       saveNav();
+      if (window.quillKeepPlace) { window.quillKeepPlace.keep(target); } // the in-app Back/Forward return to your place (D87)
       window.location.assign(target);
     };
     if (back) {
@@ -371,6 +372,7 @@
     window.addEventListener("touchmove", markMoved, { passive: true });
     window.addEventListener("keydown", markMoved);
     var jumpToHash = function () {
+      if (window.quillKeepPlace && window.quillKeepPlace.restoring) { return; } // a reload keeps your place instead (D87)
       var id = window.location.hash.replace(/^#/, "");
       var el = id ? document.getElementById(decodeURIComponent(id)) : null;
       if (el) { measure(); el.scrollIntoView(); }
@@ -482,4 +484,27 @@
     });
     document.addEventListener("click", function (e) { if (!menu.hidden && !box.contains(e.target)) { close(false); } });
   });
+
+  // Hyperlinks on citations on/off (D87): a switch in the header bar. It only changes how the page looks (a class on
+  // the page, remembered by this browser), so nothing reloads and you stay exactly where you are.
+  var linkSwitches = document.querySelectorAll("[data-links-toggle]");
+  if (linkSwitches.length) {
+    var root = document.documentElement;
+    var showLinks = function () {
+      var on = !root.classList.contains("links-off");
+      Array.prototype.forEach.call(linkSwitches, function (b) {
+        b.setAttribute("aria-checked", on ? "true" : "false");
+        b.title = "Hyperlinks on citations: " + (on ? "on (press to turn off)" : "off (press to turn on)");
+      });
+    };
+    Array.prototype.forEach.call(linkSwitches, function (b) {
+      b.addEventListener("click", function () {
+        var off = !root.classList.contains("links-off");
+        root.classList.toggle("links-off", off);
+        try { window.localStorage.setItem("quill.links", off ? "off" : "on"); } catch (err) { /* private mode */ }
+        showLinks();
+      });
+    });
+    showLinks();
+  }
 })();

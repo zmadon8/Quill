@@ -10,4 +10,5 @@
   <input type="text" name="case_citation" maxlength="1000" value="{{ row.citation }}" aria-label="Citation">
   <div class="rt c2" data-richtext><textarea class="rt-source" name="case_comment" rows="1" placeholder="Comment (optional)" aria-label="Comment (optional)">{{ row.comment }}</textarea></div>
   <button type="button" class="x-btn" data-case-remove title="Remove this citation" aria-label="Remove this citation">&times;</button>
+  <input type="url" name="case_url" maxlength="2000" value="{{ row.url|default_if_none:'' }}" placeholder="Link (optional): https://..." aria-label="Web address of this citation (optional)" autocapitalize="off" autocorrect="off" spellcheck="false" class="c3">
 </li>

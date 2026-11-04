@@ -312,6 +312,9 @@ class Case(RichTextMixin, Record):
 
     item = models.ForeignKey(Item, on_delete=models.CASCADE, related_name="cases")
     citation = models.CharField(max_length=1000, blank=True)
+    # A web address for the citation (round 16, D87). Stored EXACTLY as typed (capitals, query, everything); only the
+    # spaces before and after it are dropped. Must start with http:// or https:// (checked by the service layer).
+    url = models.CharField(max_length=2000, blank=True, default="")
     comment = models.TextField(blank=True)
     comment_plain = models.TextField(blank=True, editable=False)
     position = models.PositiveIntegerField(default=0)

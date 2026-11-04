@@ -24,7 +24,7 @@ EDITABLE = {
     "subtopic": ("name",),
     "section": ("name", "needs_review", "review_note"),
     "item": ("text", "citation", "citation_layout", "flag", "flag_text", "needs_review", "review_note"),
-    "case": ("citation", "comment"),
+    "case": ("citation", "comment", "url"),
     "note": ("text",),
 }
 
@@ -34,7 +34,7 @@ CREATABLE = {
     "subtopic": ("name",),
     "section": ("name", "needs_review", "review_note"),
     "item": ("text", "citation", "citation_layout", "flag", "flag_text", "needs_review", "review_note"),
-    "case": ("citation", "comment"),
+    "case": ("citation", "comment", "url"),
     "note": ("text",),
 }
 
@@ -52,9 +52,35 @@ def _normalise(kind, name, value):
         raise ValidationFailed(f"{value!r} is not a flag choice.")
     if name == "citation_layout" and value not in {c[0] for c in CITATION_LAYOUT_CHOICES}:
         raise ValidationFailed(f"{value!r} is not a way to show citations.")
+    if name == "url":
+        return clean_url(value)
     if name in ("needs_review", "show_on_landing"):
         return bool(value)
     return value if value is not None else ""
+
+
+#: Longest web address a citation may carry (the model field length).
+URL_MAX = 2000
+
+
+def clean_url(value):
+    """A citation's web address as it will be stored: EXACTLY as typed, except the spaces before and after it.
+
+    Empty is allowed (no link). Anything else must start with http:// or https:// (so a link can never run a script)
+    and be one line, at most URL_MAX characters. Capitals, query strings and everything else are kept as they are.
+    """
+    url = (value or "").strip()
+    if not url:
+        return ""
+    if "\n" in url or "\r" in url or "\t" in url:
+        raise ValidationFailed("A web address must be one line.")
+    if " " in url:
+        raise ValidationFailed("A web address cannot contain spaces. Check what was pasted.")
+    if not url.lower().startswith(("http://", "https://")):
+        raise ValidationFailed(f"A web address must start with https:// (or http://): {url[:80]!r}")
+    if len(url) > URL_MAX:
+        raise ValidationFailed(f"The web address is too long ({URL_MAX} characters at most).")
+    return url
 
 
 def edit(profile, user, kind, record_id, changes, expected_version=None):

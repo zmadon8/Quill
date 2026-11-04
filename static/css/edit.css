@@ -230,3 +230,12 @@ summary.ra::-webkit-details-marker { display: none; }
 @media (prefers-reduced-motion: reduce) {
   .row-flash { animation: none; outline: 3px solid var(--amber-line); outline-offset: 2px; }
 }
+
+/* The web address of a citation (D87): its own line under the citation and comment. */
+.cite-row .c3 { grid-column: 2 / -2; min-height: 38px; font-size: .9rem; }
+.addform .cite-row .c3 { grid-column: 1 / -2; }
+.cite-row input[type=url], .case-row input[type=url] { width: 100%; max-width: none; }
+@media (max-width: 599px) {
+  .cite-row .c3 { grid-column: 2; min-height: 44px; }
+  .addform .cite-row .c3 { grid-column: 1; }
+}

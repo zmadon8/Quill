@@ -550,3 +550,15 @@ a.step:hover, a.step:focus-visible { border-color: var(--ink); background: var(-
 .subnav a { display: inline-flex; align-items: center; min-height: var(--tap); color: var(--muted); text-decoration: none; border-bottom: 2px solid transparent; margin-bottom: -1px; }
 .subnav a:hover, .subnav a:focus-visible { color: var(--ink); }
 .subnav a.on { color: var(--ink); border-bottom-color: var(--oxblood); font-weight: 600; }
+
+/* Hyperlinks on citations (D87). On: the citation is underlined and opens the link in a new tab.
+   Off (header switch): the citation looks and behaves like plain text; nothing reloads. */
+a.cite-link { color: inherit; text-decoration: underline; text-decoration-color: var(--oxblood); text-underline-offset: .18em; }
+a.cite-link:hover, a.cite-link:focus-visible { color: var(--oxblood); }
+html.links-off a.cite-link { text-decoration: none; pointer-events: none; cursor: text; }
+.links-toggle { position: relative; }
+.program-nav button.nav-word { background: none; border: 0; padding: 0; font: inherit; color: var(--muted); min-height: var(--tap); cursor: pointer; }
+html.links-off .links-toggle { color: var(--muted); }
+html.links-off .links-toggle.nav-icon svg { opacity: .45; }
+html.links-off .links-toggle .links-state::after { content: ""; position: absolute; left: 50%; top: 50%; width: 22px; height: 2px; background: currentColor; transform: translate(-50%, -50%) rotate(-45deg); }
+html.links-off .links-toggle.nav-word .links-state::after { width: 100%; transform: translate(-50%, -50%); }

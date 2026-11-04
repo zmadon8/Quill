@@ -372,14 +372,15 @@ def add(request):
 
 
 def _new_cases(post):
-    """[{'citation', 'comment'}] from the parallel lists case_citation / case_comment; rows with neither are dropped."""
-    comments = post.getlist("case_comment")
+    """[{'citation', 'comment', 'url'}] from the parallel lists case_citation / case_comment / case_url; empty rows are dropped."""
+    comments, urls = post.getlist("case_comment"), post.getlist("case_url")
     rows = []
     for number, citation in enumerate(post.getlist("case_citation")):
         citation = _single_line(citation)
         comment = comments[number] if number < len(comments) else ""
-        if citation or comment.strip():
-            rows.append({"citation": citation, "comment": comment})
+        url = urls[number] if number < len(urls) else ""
+        if citation or comment.strip() or url.strip():
+            rows.append({"citation": citation, "comment": comment, "url": url})
     return rows
 
 

@@ -295,7 +295,7 @@ def _item_block(item, data, fmts, label, depth, under_section):
         "text": _html(item.text),
         "has_text": bool(item.text_plain.strip()),
         "cases": [
-            {"label": lab, "citation": c.citation, "comment": _html(c.comment), "has_comment": bool(c.comment_plain.strip())}
+            {"label": lab, "citation": c.citation, "url": c.url, "comment": _html(c.comment), "has_comment": bool(c.comment_plain.strip())}
             for lab, c in zip(case_labels, cases)
         ],
         "flag": item.flag if item.flag != "none" else "",
