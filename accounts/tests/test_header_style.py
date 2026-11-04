@@ -117,7 +117,7 @@ class SuiteHeaderTests(TestCase):
             link = re.search(r'<a [^>]*aria-label="%s" title="%s">(.*?)</a>' % (name, name), header, re.S)
             self.assertIsNotNone(link, name)
             self.assertIn("<svg", link.group(1), name)
-        for gone in ("Profiles", "Import", "My settings", "Site settings"):
+        for gone in ("Profiles", "Import", "My settings", "Site"):
             self.assertNotIn('aria-label="%s"' % gone, header, gone)
         logout = re.search(r'<button type="submit" class="link nav-icon" aria-label="Log out" title="Log out">(.*?)</button>', header, re.S)
         self.assertIsNotNone(logout)
@@ -137,8 +137,9 @@ class SuiteHeaderTests(TestCase):
         self.assertEqual(self.tabs("backup_list"), ["Backups", "Email backups", "Import"])
         self.assertEqual(self.tabs("backup_email"), ["Backups", "Email backups", "Import"])
         self.assertEqual(self.tabs("import_word"), ["Backups", "Email backups", "Import"])
-        self.assertEqual(self.tabs("my_settings"), ["My settings", "Site settings"])
-        self.assertEqual(self.tabs("settings"), ["My settings", "Site settings"])
+        settings_tabs = ["Account", "Display", "Numbers", "Word export", "Diary", "My edits", "Site"]  # D93
+        for name in ("my_settings", "settings", "profile_settings", "my_edits", "password_change"):
+            self.assertEqual(self.tabs(name), settings_tabs, name)
         self.assertEqual(self.tabs("home"), [])
         self.assertRegex(self.header("profile_list"), r'class="nav-icon on" aria-current="page" aria-label="Users &amp; Profiles"')
         self.assertRegex(self.header("backup_email"), r'class="nav-icon on" aria-current="page" aria-label="Backups &amp; Import"')
@@ -150,11 +151,11 @@ class SuiteHeaderTests(TestCase):
 
     def test_header_items_open_the_first_sub_page(self):
         header = self.header()
-        for url_name, label in (("user_list", "Users &amp; Profiles"), ("backup_list", "Backups &amp; Import"),
-                                ("my_settings", "Settings")):
-            self.assertRegex(header, r'<a href="%s" class="nav-icon" aria-label="%s"' % (re.escape(reverse(url_name)), label))
+        for url, label in ((reverse("user_list"), "Users &amp; Profiles"), (reverse("backup_list"), "Backups &amp; Import"),
+                           (reverse("my_settings") + "?tab=account", "Settings")):
+            self.assertRegex(header, r'<a href="%s" class="nav-icon" aria-label="%s"' % (re.escape(url), label))
 
-    def test_readers_see_only_settings_and_help_and_no_tabs(self):
+    def test_readers_see_only_settings_and_help(self):
         reader = join_main(User.objects.create_user("rita", password=PASSWORD))
         self.client.force_login(reader)
         header = self.header()
@@ -162,4 +163,8 @@ class SuiteHeaderTests(TestCase):
             self.assertNotIn('aria-label="%s"' % name, header, name)
         for name in ("Settings", "Help"):
             self.assertIn('aria-label="%s"' % name, header, name)
-        self.assertEqual(self.tabs("my_settings"), [])  # only one sub-page they may see: no tab row
+        # D93: a reader with a profile has every Settings tab but Site
+        self.assertEqual(self.tabs("my_settings"), ["Account", "Display", "Numbers", "Word export", "Diary", "My edits"])
+        loner = User.objects.create_user("lone", password=PASSWORD)  # no diary profile: Account and Display only
+        self.client.force_login(loner)
+        self.assertEqual(self.tabs("my_settings"), ["Account", "Display"])

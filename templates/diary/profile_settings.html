@@ -1,7 +1,9 @@
-{% extends "base.html" %}
-{% block title %}Settings{% endblock %}
+{% extends "base_suite_home.html" %}
+{% block title %}Diary settings{% endblock %}
 {% block content %}
 <h1>Settings</h1>
+{# Round 17 (D93): the Diary tab of Settings. These belong to the profile (everyone in it sees them); Editors change them. #}
+<h2>Diary</h2>
 <p>Profile: <strong>{{ request.profile.name }}</strong></p>
 {% if can_edit %}
 <form method="post" class="stack">

@@ -39,6 +39,7 @@ urlpatterns = [
     path("history/<str:kind>/<int:pk>/", views_history.history, name="history"),
     path("history/<str:kind>/<int:pk>/<int:version>/", views_history.history_version, name="history_version"),
     path("history/restore/", views_history.history_restore, name="history_restore"),
+    path("my-edits/", views_history.my_edits, name="my_edits"),
     path("export/", views_export.export_page, name="export"),
     path("export/download/", views_export.export_download, name="export_download"),
     path("profile-settings/", views.profile_settings, name="profile_settings"),

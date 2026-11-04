@@ -2,10 +2,13 @@
 {% load static %}
 {% block title %}My settings - {{ diary_name }}{% endblock %}
 {% block content %}
-<h1>My settings</h1>
+<h1>Settings</h1>
+{# Round 17 (D93): one tab at a time (the tabs are under the header). Every field stays in the form; the other tabs are only hidden, so Save never changes a tab you did not open. A tab with an error is shown. #}
 <form method="post" class="stack settings-form" data-preview-url="{% url 'format_preview' %}">
   {% csrf_token %}
+  <input type="hidden" name="tab" value="{{ tab }}">
   {% if form.non_field_errors %}{{ form.non_field_errors }}{% endif %}
+  <div class="settings-tab" data-settings-tab="account"{% if tab != "account" and not form.email.errors %} hidden{% endif %}>
   <section class="settings-section">
     <h2>My email address</h2>
     <p>
@@ -15,6 +18,12 @@
       <span class="field-help">{{ form.email.help_text }}</span>
     </p>
   </section>
+  <section class="settings-section">
+    <h2>My password</h2>
+    <p><a class="button" href="{% url 'password_change' %}">Change my password</a></p>
+  </section>
+  </div>
+  <div class="settings-tab" data-settings-tab="display"{% if tab != "display" and not form.header_style.errors and not form.landing_program.errors and not diary_form.opening_page.errors and not diary_form.opening_subject.errors %} hidden{% endif %}>
   <section class="settings-section">
     <h2>Header bar</h2>
     {{ form.header_style.errors }}
@@ -47,7 +56,9 @@
     </div>
     {% endif %}
   </section>
+  </div>
   {% if diary_form %}
+  <div class="settings-tab" data-settings-tab="numbers"{% if tab != "numbers" %} hidden{% endif %}>
   <section class="settings-section">
     <h2>Number formats</h2>
     <p class="field-help">Changing formats changes how numbers are shown (on screen and in the Word export) but never your stored data.</p>
@@ -73,11 +84,14 @@
       </div>
     </div>
   </section>
+  </div>
+  <div class="settings-tab" data-settings-tab="export"{% if tab != "export" %} hidden{% endif %}>
   <section class="settings-section">
     <h2>Word export</h2>
     {% include "accounts/_field_row.html" with f=diary_form.export_date_format %}
-    <p class="field-help">The date at the end of every exported file name and on its front page. The time zone is India (Asia/Kolkata, IST). The start of the file name is the profile&rsquo;s export name, set in Settings. Numbers in the Word file follow the formats above.</p>
+    <p class="field-help">The date at the end of every exported file name and on its front page. The time zone is India (Asia/Kolkata, IST). The start of the file name is the profile&rsquo;s export name, set on the <a href="{% url 'profile_settings' %}">Diary</a> tab. Numbers in the Word file follow the formats on the <a href="{% url 'my_settings' %}?tab=numbers">Numbers</a> tab.</p>
   </section>
+  </div>
   {% endif %}
   <button type="submit">Save</button>
   <a href="{% url 'home' %}?home=1">Cancel</a>

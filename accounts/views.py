@@ -7,13 +7,13 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_http_methods
 
 from . import landing, suite
 from .clear import ClearRefused, clear_preview, clear_profile
-from .forms import MySettingsForm, _client_ip, ProfileForm, SuiteNamesForm, UserCreateForm, UserEditForm
+from .forms import MySettingsForm, UsernamePasswordResetForm, _client_ip, ProfileForm, SuiteNamesForm, UserCreateForm, UserEditForm
 from .models import Profile, ProfileMembership, PurgeLog, ResetRequest, prune_reset_requests
 from .permissions import admin_required
 from .profiles import (
@@ -63,18 +63,18 @@ class LandingLoginView(auth_views.LoginView):
     # LoginView.get_success_url uses a safe ``next`` first (host and scheme checked), then this default.
 
 
-RESET_PER_EMAIL = 3  # reset requests per address per hour
+RESET_PER_EMAIL = 3  # reset requests per account (username; it was the email address before D91) per hour
 RESET_PER_IP = 10  # reset requests per visitor (IP address) per hour
 RESET_WINDOW = timedelta(hours=1)
 
 
-def reset_limited(request, email):
-    """True if this address or visitor has asked too often in the last hour; otherwise record this request.
+def reset_limited(request, username):
+    """True if this account (username) or visitor has asked too often in the last hour; otherwise record this request.
 
-    A request for an address with no account counts the same as one with an account, so the limit cannot be used
-    to tell the two apart.
+    A request for a name with no account counts the same as one with an account, so the limit cannot be used to tell
+    the two apart. (The column is still called ``email_lower``: it held the address before D91.)
     """
-    email_lower = (email or "").strip().lower()[:254]
+    email_lower = "user:" + (username or "").strip().lower()[:240]
     ip = _client_ip(request)
     now = timezone.now()
     prune_reset_requests(now)
@@ -86,12 +86,11 @@ def reset_limited(request, email):
 
 
 class ForgotPasswordView(auth_views.PasswordResetView):
-    """Ask for an email address; if an active account has it, email a one-hour link to choose a new password.
+    """Forgot my password, by USERNAME (D91). The owner chose plain answers: "Email sent", "No recovery email address
+    found with this user." or "User not found." (so the page does say whether a username exists; the hourly limits stop
+    anyone from trying many names). A disabled account counts as not found. The link works for one hour."""
 
-    The answer is always the same page ("if there is an account, a link is on its way") so that nobody can use it to find
-    out which addresses are registered. A failure to send is logged, not shown, for the same reason.
-    """
-
+    form_class = UsernamePasswordResetForm
     template_name = "registration/password_reset_form.html"
     email_template_name = "registration/password_reset_email.txt"
     subject_template_name = "registration/password_reset_subject.txt"
@@ -106,14 +105,23 @@ class ForgotPasswordView(auth_views.PasswordResetView):
         if not email_ready():
             form.add_error(None, "Email is not set up on this server. Ask the Admin to set a new password for you.")
             return self.form_invalid(form)
-        if reset_limited(self.request, form.cleaned_data["email"]):
-            # Over the limit: the same answer as always, and nothing is sent (so the limit shows nothing about accounts).
-            return redirect(self.success_url)
+        username = form.cleaned_data["username"].strip()
+        if reset_limited(self.request, username):
+            form.add_error(None, "Too many requests. Please try again in an hour.")
+            return self.form_invalid(form)
+        user = User._default_manager.filter(username__iexact=username, is_active=True).first()
+        if user is None:
+            form.add_error("username", "User not found.")
+            return self.form_invalid(form)
+        if not (user.email or "").strip() or not user.has_usable_password():
+            form.add_error("username", "No recovery email address found with this user.")
+            return self.form_invalid(form)
         try:
             return super().form_valid(form)
         except Exception:
             logger.exception("Could not send a password reset email")
-            return redirect(self.success_url)
+            form.add_error(None, "The email could not be sent. Please try again later, or ask the Admin.")
+            return self.form_invalid(form)
 
 
 @login_required
@@ -125,6 +133,12 @@ def my_settings(request):
     form = MySettingsForm(request.POST or None, instance=request.user)
     profile = get_profile_for(request.user, suite.KEY_DIARY)
     diary_form = DiarySettingsForm(request.POST or None, user=request.user, profile=profile) if profile else None
+    # Round 17 (D93): the page is shown one tab at a time (Account, Display, Numbers, Word export). Every field stays in
+    # the form (the other tabs are only hidden), so a Save never changes what is on a tab you did not open.
+    tab = request.POST.get("tab") or request.GET.get("tab") or "account"
+    tabs = ["account", "display"] + (["numbers", "export"] if diary_form is not None else [])
+    if tab not in tabs:
+        tab = "account"
     if request.method == "POST":
         # Both forms are checked so that every error is shown at once; nothing is saved unless both are fine.
         valid = form.is_valid()
@@ -135,16 +149,29 @@ def my_settings(request):
             if diary_form is not None:
                 diary_form.save()
             messages.success(request, "Settings saved.")
-            return redirect("my_settings")
+            return redirect(reverse("my_settings") + ("" if tab == "account" else f"?tab={tab}"))
     return render(
         request,
         "accounts/my_settings.html",
         {
             "form": form,
             "diary_form": diary_form,
+            "tab": tab,
             "preview": preview_rows(diary_form.effective()) if diary_form is not None else [],
         },
     )
+
+
+class MyPasswordChangeView(auth_views.PasswordChangeView):
+    """Settings > Account > Change my password (D93): the current password, then the new one twice (the usual rules)."""
+
+    template_name = "accounts/password_change.html"
+    success_url = reverse_lazy("my_settings")
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(self.request, "Your password is changed.")
+        return response
 
 
 @login_required

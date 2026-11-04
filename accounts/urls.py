@@ -36,6 +36,7 @@ urlpatterns = [
         name="password_reset_complete",
     ),
     path("my-settings/", views.my_settings, name="my_settings"),
+    path("my-settings/password/", views.MyPasswordChangeView.as_view(), name="password_change"),
     path("my-settings/preview/", views.format_preview, name="format_preview"),
     path("settings/", views.suite_settings, name="settings"),
     path("profiles/", views.profile_list, name="profile_list"),

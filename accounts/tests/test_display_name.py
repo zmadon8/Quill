@@ -25,7 +25,7 @@ class DisplayNameTests(BaseCase):
     def test_display_name_replaces_the_header_brand_title_and_aria_label(self):
         self.set_name("Madon's Case Law")
         self.client.force_login(self.user)
-        for name in ("diary_home", "flags", "profile_settings"):
+        for name in ("diary_home", "flags"):  # the Diary settings tab uses the Home header (D93)
             resp = self.client.get(reverse(name))
             self.assertContains(resp, 'aria-label="Madon&#x27;s Case Law: Home">Madon&#x27;s Case Law</a>', msg_prefix=name)
             self.assertNotContains(resp, 'class="profile-name"', msg_prefix=name)

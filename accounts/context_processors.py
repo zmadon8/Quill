@@ -60,29 +60,57 @@ def _is(*names):
     return lambda n: n in names
 
 
+#: The tabs of the merged Settings page (round 17, D93), in order: (my_settings ``?tab=``, label, needs a diary profile).
+SETTINGS_TABS = (("account", "Account", False), ("display", "Display", False), ("numbers", "Numbers", True),
+                 ("export", "Word export", True))
+MY_SETTINGS_PAGES = ("my_settings", "format_preview", "password_change")
+
+
+def _settings_tab(key):
+    def current(name, request):
+        if name not in MY_SETTINGS_PAGES:
+            return False
+        if name == "password_change":
+            return key == "account"
+        return (request.GET.get("tab") or request.POST.get("tab") or "account") == key
+    return current
+
+
+def _plain(test):
+    return lambda name, request: test(name)
+
+
+#: One entry per header item: (label, icon, tabs). A tab is (url name, label, who may see it, current-page test,
+#: query string). Who: "all", "admin" or "profile" (a Case Law Diary profile).
 SUITE_GROUPS = (
     ("Users & Profiles", "icons/users.svg.html", (
-        ("user_list", "Users", True, _starts("user_")),
-        ("profile_list", "Profiles", True, _starts("profile_")),
+        ("user_list", "Users", "admin", _plain(_starts("user_")), ""),
+        ("profile_list", "Profiles", "admin", _plain(_starts("profile_list", "profile_create", "profile_edit",
+                                                             "profile_delete", "profile_clear", "profile_restore")), ""),
     )),
     ("Backups & Import", "icons/backups.svg.html", (
-        ("backup_list", "Backups", True, lambda n: (n.startswith("backup_") and n != "backup_email") or n.startswith("restore_")),
-        ("backup_email", "Email backups", True, _is("backup_email")),
-        ("import_word", "Import", True, _is("import_word")),
+        ("backup_list", "Backups", "admin",
+         _plain(lambda n: (n.startswith("backup_") and n != "backup_email") or n.startswith("restore_")), ""),
+        ("backup_email", "Email backups", "admin", _plain(_is("backup_email")), ""),
+        ("import_word", "Import", "admin", _plain(_is("import_word")), ""),
     )),
-    ("Settings", "icons/gear.svg.html", (
-        ("my_settings", "My settings", False, _is("my_settings", "format_preview")),
-        ("settings", "Site settings", True, _is("settings")),
+    ("Settings", "icons/gear.svg.html", tuple(
+        ("my_settings", label, "profile" if needs_profile else "all", _settings_tab(key), f"?tab={key}")
+        for key, label, needs_profile in SETTINGS_TABS
+    ) + (
+        ("profile_settings", "Diary", "profile", _plain(_is("profile_settings")), ""),
+        ("my_edits", "My edits", "profile", _plain(_is("my_edits")), ""),
+        ("settings", "Site", "admin", _plain(_is("settings")), ""),
     )),
     ("Help", "icons/help.svg.html", (
-        ("help", "Help", False, _is("help")),
+        ("help", "Help", "all", _plain(_is("help")), ""),
     )),
 )
 
 
 def suite_nav(request):
     """``suite_nav`` (the header items of the main Home page) and ``suite_tabs`` (the sub-pages of the group the current
-    page belongs to, shown only when the user may see two or more). No database query."""
+    page belongs to, shown only when the user may see two or more). At most one cached query (the user's diary profile)."""
     from django.urls import reverse
 
     user = getattr(request, "user", None)
@@ -90,12 +118,24 @@ def suite_nav(request):
         return {"suite_nav": [], "suite_tabs": []}
     match = getattr(request, "resolver_match", None)
     current = (match.url_name or "") if match else ""
+    has_profile = None
+
+    def allowed(who):
+        nonlocal has_profile
+        if who == "admin":
+            return user.is_admin
+        if who == "profile":
+            if has_profile is None:
+                has_profile = request_profile(request) is not None
+            return has_profile
+        return True
+
     items, tabs_here = [], []
     for label, icon, tabs in SUITE_GROUPS:
         mine = [
-            {"url": reverse(url_name), "name": name, "on": is_current(current)}
-            for url_name, name, admin_only, is_current in tabs
-            if user.is_admin or not admin_only
+            {"url": reverse(url_name) + query, "name": name, "on": is_current(current, request)}
+            for url_name, name, who, is_current, query in tabs
+            if allowed(who)
         ]
         if not mine:
             continue

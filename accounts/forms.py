@@ -3,7 +3,7 @@ from datetime import timedelta
 from django import forms
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
+from django.contrib.auth.forms import AuthenticationForm, PasswordResetForm, UserCreationForm
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.db import transaction
@@ -316,3 +316,28 @@ class SuiteNamesForm(forms.Form):
         suite.set_names(
             {key: " ".join(self.cleaned_data[field].split()) for field, key in self.FIELD_KEYS.items()}
         )
+
+
+class UsernamePasswordResetForm(PasswordResetForm):
+    """Forgot my password, by USERNAME (round 17, D91): the link goes to the email address on that account.
+
+    Django's form looks people up by email; this one takes a username instead and finds the one active account with it
+    (capitals ignored) that has a password and an email address. Nobody else is told whether such an account exists.
+    ``cleaned_data["email"]`` carries the username, because Django's ``save`` passes that value to ``get_users``.
+    """
+
+    email = None  # not asked for
+    username = forms.CharField(label="Username", max_length=150,
+                               widget=forms.TextInput(attrs={"autocomplete": "username", "autofocus": True,
+                                                             "autocapitalize": "none", "spellcheck": "false"}))
+
+    def clean(self):
+        cleaned = super().clean()
+        cleaned["email"] = (cleaned.get("username") or "").strip()
+        return cleaned
+
+    def get_users(self, username):
+        user = User._default_manager.filter(username__iexact=(username or "").strip(), is_active=True).first()
+        if user is not None and user.has_usable_password() and (user.email or "").strip():
+            yield user
+

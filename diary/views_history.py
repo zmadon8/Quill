@@ -17,6 +17,8 @@ from .services.core import MODELS, Ctx, get_record, label
 from .services.errors import NameClash, NotFound, UndoWarning
 from .services.moves import NICE
 from .services.records import EDITABLE
+from .models import VersionHistory
+from .views import profile_required, user_can_edit
 from .views_edit import _json_error, _next, _record_id, _version, edit_endpoint, editor_get, is_fetch
 
 #: Columns that say where a record is or how it was made, not what it says: shown last in a snapshot.
@@ -174,3 +176,71 @@ def undo(request):
         return inline.ok(request, undone=True, reload=True)
     messages.success(request, "Undone.")
     return redirect(_next(request))
+
+
+# ------------------------------------------------------------------ My edits (round 17, D92)
+
+MY_EDITS_PAGE = 100
+MY_EDITS_MAX = 1000
+#: How each kind of change reads in the list.
+DONE = {"create": "Added", "edit": "Changed", "move": "Moved", "reorder": "Reordered", "delete": "Moved to Trash",
+        "restore": "Brought back", "convert": "Converted", "import": "Imported", "migrate": "Updated"}
+
+
+def _where(kind, pk, profile):
+    """(url to the record in context, or None when it is in Trash or gone) for the My edits list."""
+    from . import reading
+
+    record = _current(profile, kind, pk)
+    if record is None or reading.in_trash(record):
+        return None
+    try:
+        if kind == "note":
+            return reading.note_place(record)[1]
+        if kind in ("subject", "topic", "subtopic", "section", "item"):
+            _path, container, anchor = reading._locate(record)
+            return reading._anchor_url(container, anchor)
+        if kind == "case":
+            return _where("item", record.item_id, profile)
+    except Exception:  # an odd old record must never break the list
+        return None
+    return None
+
+
+@profile_required
+def my_edits(request):
+    """Every change the signed-in user made in their profile, newest first, one line per action (an action that touched
+    several records, such as a delete of a Topic with its Items, is one line). Kept as long as the edit history is kept."""
+    profile = request.profile
+    try:
+        limit = max(MY_EDITS_PAGE, min(int(request.GET.get("limit", MY_EDITS_PAGE)), MY_EDITS_MAX))
+    except ValueError:
+        limit = MY_EDITS_PAGE
+    rows = list(VersionHistory.objects.filter(profile=profile, changed_by=request.user).order_by("-id")[: limit * 10])
+    actions, by_group = [], {}
+    for row in rows:
+        key = row.group or ("row", row.pk)
+        if key not in by_group:
+            if len(actions) >= limit:
+                continue
+            by_group[key] = {"rows": [], "at": row.changed_at}
+            actions.append(by_group[key])
+        by_group[key]["rows"].append(row)
+    can_open_history = user_can_edit(request)
+    for action in actions:
+        group = action["rows"]
+        main = next((r for r in reversed(group) if r.change_kind != "reorder"), group[-1])  # the first thing done
+        action.update(
+            done=DONE.get(main.change_kind, main.get_change_kind_display()),
+            kind=NICE.get(main.record_type, main.record_type.capitalize()),
+            label=_name(main.record_type, main.snapshot, main.record_id),
+            others=len({(r.record_type, r.record_id) for r in group}) - 1,
+            history_url=reverse("history", args=[main.record_type, main.record_id]) if can_open_history else None,
+            open_url=_where(main.record_type, main.record_id, profile),
+        )
+    return render(request, "diary/my_edits.html", {
+        "actions": actions, "has_more": len(actions) >= limit and limit < MY_EDITS_MAX,
+        "more_url": f"{reverse('my_edits')}?limit={min(limit + MY_EDITS_PAGE, MY_EDITS_MAX)}",
+        "retention_days": settings.HISTORY_RETENTION_DAYS,
+    })
+
