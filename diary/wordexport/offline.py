@@ -57,9 +57,10 @@ class _Builder:
         return f' <span class="flag-text flag-{_e(key or "other")}">[{_e(label)}]</span>'
 
     def link_html(self, link):
-        text = f"See also: {link.path}"
         if link.deleted or not link.ref:
-            return f'<div class="see-also">{_e(text)} (target deleted)</div>'
+            # The target is in Trash: the offline file holds live data only, so its path (which names the trashed
+            # Item) is not written; it only says that the target was deleted.
+            return '<div class="see-also">See also: (target deleted)</div>'
         return f'<div class="see-also">See also: <a href="#{_e(link.ref)}">{_e(link.path)}</a></div>'
 
     def notes(self, notes):
