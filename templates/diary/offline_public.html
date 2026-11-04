@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="referrer" content="no-referrer">
+<title>Offline copy</title>
+<style>body{font:1.1rem/1.5 system-ui,sans-serif;margin:0;padding:1.25rem;background:#fff;color:#111}h1{font-size:1.4rem;margin:0 0 1.25rem}.button{display:flex;align-items:center;justify-content:center;box-sizing:border-box;width:100%;min-height:4rem;font-size:1.5rem;font-weight:700;background:#0b3d91;color:#fff;border-radius:.5rem;text-decoration:none;margin-bottom:1rem}.small{font-size:.95rem;color:#333}</style>
+</head>
+<body>
+<h1>{{ name }}</h1>
+{% if has_copy %}
+<a class="button" href="{{ download_url }}" download>Download</a>
+<p>Saved copy made: {{ link.copy_made_at|date:"Y-m-d H:i" }} (IST)<br>Size: {{ size }}<br>Items: {{ link.copy_items }}</p>
+<p class="small">Opens in your phone browser. If search does not work, open the file in Chrome or Safari.</p>
+{% else %}
+<p>No copy is ready yet. Please ask the Admin to make one.</p>
+{% endif %}
+</body>
+</html>

@@ -3,7 +3,7 @@ and the permanent redirects from the old root-level diary URLs to /caselaw/ (ite
 from django.urls import path
 from django.views.generic import RedirectView
 
-from . import views
+from . import views, views_offline_link
 
 
 def _moved(old, name, **kw):
@@ -15,6 +15,9 @@ urlpatterns = [
     path("help/", views.help_page, name="help"),
     path("programs/", RedirectView.as_view(pattern_name="home", permanent=False), name="programs_legacy"),
     path("healthz/", views.healthz, name="healthz"),
+    # Round 21 (D100): the secret Offline link. Deliberately public (no login); see views_offline_link.
+    path("offline/<str:token>/", views_offline_link.offline_public, name="offline_public"),
+    path("offline/<str:token>/download/", views_offline_link.offline_download, name="offline_download"),
     _moved("subjects/", "diary_home"),
     _moved("subjects/<int:pk>/", "subject_contents"),
     _moved("subjects/<int:pk>/read/", "read_subject"),

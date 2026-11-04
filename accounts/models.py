@@ -1,3 +1,5 @@
+import hashlib
+import secrets
 from datetime import timedelta
 
 from django.conf import settings
@@ -217,6 +219,65 @@ class PurgeLog(models.Model):
         return f"purge {'ok' if self.success else 'REFUSED'} at {self.ran_at:%Y-%m-%d %H:%M}"
 
 
+def hash_token(token):
+    """sha256 hex of an offline-link token (what the public page looks the link up by)."""
+    return hashlib.sha256((token or "").encode("utf-8")).hexdigest()
+
+
+class OfflineLink(models.Model):
+    """Round 21 (D100): the secret, password-less link that downloads one profile's saved Offline copy.
+
+    One per profile, made by an Admin. The token is kept in plain text so the Admin can copy the link again; the public
+    page finds the row by ``token_hash``. ``copy_data`` is the pre-made file (rebuilt by the Admin's button and by the
+    nightly job, never by a visitor). Never included in backup files: it is derived data and the token is a secret.
+    """
+
+    profile = models.OneToOneField(Profile, on_delete=models.CASCADE, related_name="offline_link")
+    token = models.CharField(max_length=64)
+    token_hash = models.CharField(max_length=64, unique=True)
+    enabled = models.BooleanField(default=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    # The Admin who made or renewed the link or last pressed "Make a copy now": their formats are used for the file.
+    made_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    copy_data = models.BinaryField(null=True, blank=True)
+    copy_name = models.CharField(max_length=255, blank=True)
+    copy_made_at = models.DateTimeField(null=True, blank=True)
+    copy_items = models.PositiveIntegerField(default=0)
+    copy_size = models.PositiveIntegerField(default=0)
+    # The last failed refresh (plain words), shown to the Admin; blank after a good one.
+    copy_error = models.CharField(max_length=300, blank=True)
+
+    def new_token(self):
+        """Set a fresh random token (and its hash). The caller saves."""
+        self.token = secrets.token_urlsafe(32)
+        self.token_hash = hash_token(self.token)
+
+    @property
+    def has_copy(self):
+        return self.copy_made_at is not None and self.copy_size > 0
+
+    def __str__(self):
+        return f"offline link of profile {self.profile_id}"
+
+
+class OfflineDownload(models.Model):
+    """One counted download of a saved Offline copy, used to limit downloads per visitor and per link. Short-lived."""
+
+    link = models.ForeignKey(OfflineLink, on_delete=models.CASCADE)
+    ip = models.CharField(max_length=64, blank=True)
+    at = models.DateTimeField(db_index=True)
+
+    def __str__(self):
+        return f"{self.link_id} at {self.at:%Y-%m-%d %H:%M:%S}"
+
+
+def forget_copy(profile):
+    """Erase the saved copy of ``profile`` (the link itself stays). Used by Delete all data."""
+    OfflineLink.objects.filter(profile=profile).update(
+        copy_data=None, copy_name="", copy_made_at=None, copy_items=0, copy_size=0, copy_error=""
+    )
+
+
 def prune_failed_logins(now=None, max_age=timedelta(days=1)):
     """Delete failed-login rows older than ``max_age``. Returns the number removed."""
     now = now or timezone.now()
@@ -228,4 +289,11 @@ def prune_reset_requests(now=None, max_age=timedelta(days=1)):
     """Delete reset-request rows older than ``max_age``. Returns the number removed."""
     now = now or timezone.now()
     deleted, _ = ResetRequest.objects.filter(at__lt=now - max_age).delete()
+    return deleted
+
+
+def prune_offline_downloads(now=None, max_age=timedelta(days=1)):
+    """Delete download-count rows older than ``max_age``. Returns the number removed."""
+    now = now or timezone.now()
+    deleted, _ = OfflineDownload.objects.filter(at__lt=now - max_age).delete()
     return deleted

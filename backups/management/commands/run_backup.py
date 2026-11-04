@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand, CommandError
 
-from accounts.models import prune_failed_logins
+from accounts.models import prune_failed_logins, prune_offline_downloads
 from backups import services
 
 
@@ -21,6 +21,10 @@ class Command(BaseCommand):
             prune_failed_logins()
         except Exception as exc:  # housekeeping must not fail a successful backup
             self.stderr.write(f"Could not clean old failed-login records: {exc}")
+        try:
+            prune_offline_downloads()
+        except Exception as exc:  # housekeeping must not fail a successful backup
+            self.stderr.write(f"Could not clean old offline download records: {exc}")
         self.stdout.write(
             self.style.SUCCESS(
                 f"Daily backup OK: {backup.filename} ({backup.size_bytes} bytes). "

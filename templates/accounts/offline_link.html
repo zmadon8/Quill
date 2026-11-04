@@ -1,0 +1,49 @@
+{% extends "base_suite_home.html" %}
+{% load static %}
+{% block title %}Offline link - {{ target.name }} - {{ diary_name }}{% endblock %}
+{% block content %}
+<h1>Offline link: {{ target.name }}</h1>
+<p><a href="{% url 'profile_list' %}">Back to Profiles</a></p>
+
+{% if not link %}
+<p>Status: <strong>No link yet</strong></p>
+<p>A secret link lets you download this profile's whole diary as one file for reading offline, for example on a phone, without signing in and without a password.</p>
+<form method="post">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="make">
+  <button type="submit">Make link</button>
+</form>
+{% else %}
+<p>Status: <strong>{% if link.enabled %}On{% else %}Off{% endif %}</strong></p>
+{% if link.enabled %}
+<p><label for="offline-url">The link</label><br>
+<input id="offline-url" type="text" readonly size="70" value="{{ public_url }}" data-offline-url>
+<button type="button" data-offline-copy>Copy</button></p>
+<p>Anyone who has this link can download this profile's diary. Share it only with yourself.</p>
+<p><a href="{{ public_url }}">Open the public page</a></p>
+{% else %}
+<p>The link is switched off. Nobody can download with it.</p>
+{% endif %}
+
+<h2>Saved copy</h2>
+{% if link.has_copy %}
+<p>Made {{ link.copy_made_at|date:"Y-m-d H:i" }} (IST). Size {{ link.copy_size|filesizeformat }}. Items: {{ link.copy_items }}.</p>
+{% else %}
+<p>No copy yet.</p>
+{% endif %}
+{% if link.copy_error %}<p class="error">Last problem: {{ link.copy_error }}</p>{% endif %}
+
+<div>
+  <form method="post" class="inline">{% csrf_token %}<input type="hidden" name="action" value="copy"><button type="submit">Make a copy now</button></form>
+  {% if link.enabled %}
+  <form method="post" class="inline">{% csrf_token %}<input type="hidden" name="action" value="off"><button type="submit">Switch off</button></form>
+  {% else %}
+  <form method="post" class="inline">{% csrf_token %}<input type="hidden" name="action" value="on"><button type="submit">Switch on</button></form>
+  {% endif %}
+  <form method="post" class="inline" data-confirm="Make a new link? The old link will stop working at once.">{% csrf_token %}<input type="hidden" name="action" value="renew"><button type="submit">Make a new link</button></form>
+</div>
+
+<p>The saved copy is remade every night after the backup, so it can be up to a day old. It holds only this profile's live diary (nothing in Trash), flags included. It uses the number formats and date format of {% if maker %}{{ maker }}{% else %}the standard settings{% endif %}, the Admin who last made the link or the copy.</p>
+{% endif %}
+{% endblock %}
+{% block extra_js %}<script src="{% static 'js/offline-link.js' %}"></script>{% endblock %}

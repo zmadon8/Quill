@@ -15,7 +15,7 @@ from django.views.decorators.http import require_GET, require_http_methods, requ
 from . import landing, suite, user_trash
 from .clear import ClearRefused, clear_preview, clear_profile
 from .forms import MySettingsForm, UsernamePasswordResetForm, _client_ip, ProfileForm, SuiteNamesForm, UserCreateForm, UserEditForm
-from .models import ROLE_EDITOR, Profile, ProfileMembership, PurgeLog, ResetRequest, prune_reset_requests
+from .models import ROLE_EDITOR, OfflineLink, Profile, ProfileMembership, PurgeLog, ResetRequest, prune_reset_requests
 from .permissions import admin_required
 from .profiles import (
     days_left,
@@ -455,3 +455,69 @@ def profile_clear(request, pk):
         )
         return redirect("profile_list")
     return render(request, "accounts/profile_clear.html", {"target": target, "rows": rows, "total": total})
+
+
+@admin_required
+@require_http_methods(["GET", "POST"])
+def offline_link_admin(request, pk):
+    """Round 21 (D100): make, switch on or off, renew and refresh the secret Offline link of one profile (Admin only)."""
+    from diary.offline_link import make_copy  # lazy: diary imports accounts
+
+    target = get_object_or_404(_live_profiles(), pk=pk)
+    link = OfflineLink.objects.filter(profile=target).select_related("made_by").defer("copy_data").first()
+    if request.method == "POST":
+        action = request.POST.get("action", "")
+        try:
+            _offline_link_action(request, target, link, action, make_copy)
+        except Exception:
+            logger.exception("Offline link action %s failed for profile %s", action, target.pk)
+            if action in ("make", "copy", "on", "renew"):
+                OfflineLink.objects.filter(profile=target).update(
+                    copy_error="The last attempt to save a copy failed. The earlier copy, if any, is kept."
+                )
+            messages.error(
+                request,
+                "That did not work and nothing was lost. The earlier saved copy, if any, is kept. Please try again.",
+            )
+        return redirect("offline_link_admin", pk=target.pk)
+    context = {"target": target, "link": link}
+    if link is not None:
+        context["public_url"] = request.build_absolute_uri(reverse("offline_public", args=[link.token]))
+        context["maker"] = link.made_by.username if link.made_by_id else ""
+    return render(request, "accounts/offline_link.html", context)
+
+
+def _offline_link_action(request, target, link, action, make_copy):
+    user = request.user
+    if action == "make" and link is None:
+        link = OfflineLink(profile=target, made_by=user)
+        link.new_token()
+        link.save()
+        make_copy(link, user)
+        messages.success(request, "The link is made and the first copy is saved.")
+    elif link is None:
+        messages.error(request, "There is no link yet. Press Make link first.")
+        return
+    elif action == "copy":
+        make_copy(link, user)
+        messages.success(request, "A new copy is saved.")
+    elif action == "off":
+        OfflineLink.objects.filter(pk=link.pk).update(enabled=False)
+        messages.success(request, "The link is switched off. Nobody can download with it now.")
+    elif action == "on":
+        OfflineLink.objects.filter(pk=link.pk).update(enabled=True)
+        if not link.has_copy:
+            make_copy(link, user)
+        messages.success(request, "The link is switched on again (the same address as before).")
+    elif action == "renew":
+        link.new_token()
+        link.enabled = True
+        link.made_by = user
+        link.save(update_fields=["token", "token_hash", "enabled", "made_by"])
+        if not link.has_copy:
+            make_copy(link, user)
+        messages.success(request, "A new link is made. The old link has stopped working.")
+    else:
+        messages.error(request, "Nothing was done.")
+        return
+    logger.info("Offline link action %s: profile %s, user %s", action, target.pk, user.pk)

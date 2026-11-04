@@ -10,7 +10,7 @@ from django.utils import timezone
 
 from backups import registry, services
 
-from .models import Profile, PurgeLog
+from .models import Profile, PurgeLog, forget_copy
 
 
 class ClearRefused(Exception):
@@ -63,6 +63,7 @@ def clear_profile(profile, user):
                 _total, per_label = model._base_manager.filter(profile=profile).delete()
                 for label, number in per_label.items():
                     counts[label] = counts.get(label, 0) + number
+            forget_copy(profile)  # the saved Offline copy holds the diary too (round 21)
     except ClearRefused:
         raise
     except Exception as exc:

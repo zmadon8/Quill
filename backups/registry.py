@@ -7,6 +7,11 @@ reverse order and loads in this order.
 
 Deliberately NOT in a backup file:
   * FailedLogin and ResetRequest (short-lived login and password-reset throttling),
+  * OfflineLink and OfflineDownload (round 21, D100): a saved Offline copy is derived data and must never be copied
+    into backup files, emailed or sent off-site, and the secret token is not spread into backup files either.
+    Effect: a restore deletes profiles by queryset delete, which cascades to their links and copies, so after any
+    restore all links and saved copies are gone and the Admin makes a new link. (A restore can therefore never
+    bring back a link that was revoked.)
   * PurgeLog (history of the deleted-profile purge job),
   * sessions (people simply sign in again),
   * BackupFile and BackupLog (a backup must never contain other backups).

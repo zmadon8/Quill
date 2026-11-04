@@ -105,7 +105,8 @@ SUITE_GROUPS = (
     ("Admins", "icons/admin.svg.html", (
         ("user_list", "Users", "admin", _plain(_starts("user_")), ""),
         ("profile_list", "Profiles", "admin", _plain(_starts("profile_list", "profile_create", "profile_edit",
-                                                             "profile_delete", "profile_clear", "profile_restore")), ""),
+                                                             "profile_delete", "profile_clear", "profile_restore",
+                                                             "offline_link_admin")), ""),
         ("settings", "Page Names", "admin", _plain(_is("settings")), ""),
         ("backup_list", "Backups", "admin",
          _plain(lambda n: (n.startswith("backup_") and n != "backup_email") or n.startswith("restore_")), ""),

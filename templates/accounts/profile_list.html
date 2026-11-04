@@ -14,7 +14,7 @@
       <td>{{ p.display_name|default:"-" }}</td>
       <td>{{ p.member_count }}</td>
       <td>{{ p.subject_count }}</td>
-      <td><a href="{% url 'profile_edit' p.pk %}">Rename</a> | <a href="{% url 'profile_clear' p.pk %}">Delete all data</a> | <a href="{% url 'profile_delete' p.pk %}">Delete</a></td>
+      <td><a href="{% url 'profile_edit' p.pk %}">Rename</a> | <a href="{% url 'offline_link_admin' p.pk %}">Offline link</a> | <a href="{% url 'profile_clear' p.pk %}">Delete all data</a> | <a href="{% url 'profile_delete' p.pk %}">Delete</a></td>
     </tr>
   {% empty %}
     <tr><td colspan="5">No profiles yet.</td></tr>
