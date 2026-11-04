@@ -11,7 +11,7 @@ from diary.tests.helpers import join_main
 
 User = get_user_model()
 PASSWORD = "x-long-pass-123"
-NAMES = ("Trash", "Export", "Offline", "Help", "Settings")
+NAMES = ("Trash", "Export", "Help", "Settings")
 
 
 @override_settings(SECURE_SSL_REDIRECT=False)
@@ -55,22 +55,20 @@ class HeaderStyleTests(TestCase):
         # only Back and Forward keep their arrows
         self.assertEqual(header.count("<svg"), 2)
 
-    def test_offline_is_a_download_arrow_and_export_is_a_page_with_a_w(self):
+    def test_export_is_the_only_download_item_and_uses_the_arrow(self):
+        # D101: no separate Offline item; Export (downward arrow) opens the Export page.
         header = self.header()
-        offline = re.search(r'<a [^>]*aria-label="Offline"[^>]*>(.*?)</a>', header, re.S)
-        self.assertIn("%s?type=offline&amp;review=1" % reverse("export_download"), offline.group(0))
-        self.assertIn("M12 4v11", offline.group(1))
+        self.assertNotIn('aria-label="Offline"', header)
+        self.assertNotIn("type=offline", header)
         export = re.search(r'<a [^>]*aria-label="Export"[^>]*>(.*?)</a>', header, re.S)
-        self.assertNotIn("M12 4v11", export.group(1))
-        self.assertIn("M8.5 11l1.2 6", export.group(1))
+        self.assertIn('href="%s"' % reverse("export"), export.group(0))
+        self.assertIn("M12 4v11", export.group(1))
+        self.assertNotIn("M8.5 11l1.2 6", export.group(1))
 
-    def test_offline_is_for_every_member_and_downloads_a_file(self):
+    def test_every_member_still_gets_the_offline_copy_from_the_export_page(self):
         reader = join_main(User.objects.create_user("rita", password=PASSWORD))
-        admin = join_main(User.objects.create_user("adam", password=PASSWORD, is_superuser=True), "editor")
-        for user in (reader, admin, self.editor):
-            self.client.force_login(user)
-            self.assertIn('aria-label="Offline"', self.header(), user.username)
         self.client.force_login(reader)
+        self.assertNotIn('aria-label="Offline"', self.header())
         resp = self.client.get(reverse("export_download") + "?type=offline&review=1")
         self.assertEqual(resp.status_code, 200)
         self.assertIn("attachment", resp["Content-Disposition"])
