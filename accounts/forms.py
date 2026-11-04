@@ -246,7 +246,7 @@ class MySettingsForm(forms.ModelForm):
         self.fields["email"].help_text = "Used only to email you a link if you forget your password."
         self.fields["header_style"].required = False  # not posted: keep the current choice (see clean_header_style)
         self.fields["header_style"].help_text = (
-            "Icons: Trash is a dustbin, Export a downward arrow, Help a question mark, Settings a gear, and Search and "
+            "Icons: Trash is a dustbin, Export a page with a W, Offline a downward arrow, Help a question mark, Settings a gear, and Search and "
             "Home their usual icons (hover or long-press to see the name). Words: the names instead."
         )
         self.fields["landing_program"].choices = landing.program_choices(landing.programs_for(self.instance))
