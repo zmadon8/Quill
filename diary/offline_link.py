@@ -8,7 +8,6 @@ from datetime import timedelta
 
 from django.utils import timezone
 
-from accounts.forms import _client_ip
 from accounts.models import OfflineDownload, OfflineLink, prune_offline_downloads
 
 from .wordexport import service
@@ -18,6 +17,19 @@ logger = logging.getLogger(__name__)
 OFFLINE_WINDOW = timedelta(hours=1)
 OFFLINE_PER_IP = 20
 OFFLINE_PER_LINK = 100
+# Resumed downloads (a Range starting above 0) are counted too, against a looser separate cap, so a phone on a weak
+# signal can resume many times but the header cannot be used to get the file without limit.
+OFFLINE_RESUMES_PER_IP = 60
+OFFLINE_RESUMES_PER_LINK = 300
+RESUME_PREFIX = "r:"
+
+
+def download_ip(request):
+    """The visitor's address for the limit: the LAST X-Forwarded-For entry (added by Render's proxy, so the client
+    cannot forge it), else REMOTE_ADDR. The first entry is supplied by the client and is never trusted here."""
+    forwarded = request.META.get("HTTP_X_FORWARDED_FOR", "")
+    ip = forwarded.split(",")[-1].strip() if forwarded else ""
+    return (ip or request.META.get("REMOTE_ADDR", ""))[:60]
 
 
 def make_copy(link, user=None):
@@ -52,7 +64,7 @@ def refresh_all():
     """
     made = 0
     failed = []
-    links = OfflineLink.objects.filter(enabled=True, profile__deleted_at__isnull=True).select_related("profile", "made_by")
+    links = OfflineLink.objects.filter(enabled=True, profile__deleted_at__isnull=True).select_related("profile", "made_by").defer("copy_data")
     for link in list(links.order_by("profile_id")):
         try:
             make_copy(link)
@@ -65,16 +77,23 @@ def refresh_all():
     return made, failed
 
 
-def download_limited(request, link):
+def download_limited(request, link, resume=False):
     """True if this visitor or this link has had too many downloads in the last hour; otherwise record this one.
 
-    Not called for HEAD requests or resumed ranges, so a retry on a poor network is never punished.
+    A full download (or a retry from byte 0) uses one of the 20 hourly slots per visitor and 100 per link. A resumed
+    range uses the looser separate cap (60 and 300). HEAD requests carry no body and are not passed here.
     """
-    ip = _client_ip(request)
+    ip = download_ip(request)
     now = timezone.now()
     prune_offline_downloads(now)
     recent = OfflineDownload.objects.filter(link=link, at__gte=now - OFFLINE_WINDOW)
-    if recent.filter(ip=ip).count() >= OFFLINE_PER_IP or recent.count() >= OFFLINE_PER_LINK:
+    if resume:
+        recent = recent.filter(ip__startswith=RESUME_PREFIX)
+        per_ip, per_link, stored = OFFLINE_RESUMES_PER_IP, OFFLINE_RESUMES_PER_LINK, RESUME_PREFIX + ip
+    else:
+        recent = recent.exclude(ip__startswith=RESUME_PREFIX)
+        per_ip, per_link, stored = OFFLINE_PER_IP, OFFLINE_PER_LINK, ip
+    if recent.filter(ip=stored).count() >= per_ip or recent.count() >= per_link:
         return True
-    OfflineDownload.objects.create(link=link, ip=ip, at=now)
+    OfflineDownload.objects.create(link=link, ip=stored, at=now)
     return False

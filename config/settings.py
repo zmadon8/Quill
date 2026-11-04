@@ -211,6 +211,7 @@ if not DEBUG:
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
-    "handlers": {"console": {"class": "logging.StreamHandler"}},
+    "filters": {"redact_offline_token": {"()": "diary.logfilters.RedactOfflineToken"}},
+    "handlers": {"console": {"class": "logging.StreamHandler", "filters": ["redact_offline_token"]}},
     "root": {"handlers": ["console"], "level": "INFO"},
 }

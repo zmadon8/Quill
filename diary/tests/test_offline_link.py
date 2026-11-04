@@ -7,7 +7,14 @@ from django.urls import reverse
 from django.utils import timezone
 
 from accounts.models import OfflineDownload, OfflineLink
-from diary.offline_link import OFFLINE_PER_IP, OFFLINE_PER_LINK, make_copy
+from diary.logfilters import redact
+from diary.offline_link import (
+    OFFLINE_PER_IP,
+    OFFLINE_PER_LINK,
+    OFFLINE_RESUMES_PER_IP,
+    RESUME_PREFIX,
+    make_copy,
+)
 from diary.tests.test_wordexport_db import ExportCase, add_item
 
 
@@ -179,13 +186,44 @@ class LimitTests(OfflineLinkCase):
         self.assertIn("Too many downloads", response.content.decode())
         self.assertEqual(self.download(ip="10.0.0.2").status_code, 200)
 
-    def test_heads_and_resumes_are_not_counted(self):
+    def test_heads_are_not_counted_and_never_load_the_blob(self):
         for _ in range(OFFLINE_PER_IP):
             self.download()
         self.assertEqual(self.download().status_code, 429)
-        self.assertEqual(self.client.head(self.download_url, REMOTE_ADDR="10.0.0.1").status_code, 200)
-        self.assertEqual(self.download(HTTP_RANGE="bytes=5-").status_code, 206)
+        with self.assertNumQueries(1):  # only the link lookup; the blob is not read
+            response = self.client.head(self.download_url, REMOTE_ADDR="10.0.0.1")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Length"], str(len(self.saved)))
         self.assertEqual(OfflineDownload.objects.count(), OFFLINE_PER_IP)
+
+    def test_a_range_from_one_cannot_bypass_the_limit(self):
+        for _ in range(OFFLINE_RESUMES_PER_IP):
+            self.assertEqual(self.download(HTTP_RANGE="bytes=1-").status_code, 206)
+        self.assertEqual(self.download(HTTP_RANGE="bytes=1-").status_code, 429)
+        self.assertEqual(OfflineDownload.objects.count(), OFFLINE_RESUMES_PER_IP)
+        self.assertTrue(OfflineDownload.objects.filter(ip__startswith=RESUME_PREFIX).count())
+
+    def test_resumes_use_a_separate_looser_cap(self):
+        for _ in range(OFFLINE_PER_IP):
+            self.download()
+        self.assertEqual(self.download().status_code, 429)
+        self.assertEqual(self.download(HTTP_RANGE="bytes=5-").status_code, 206)
+
+    def test_resumes_do_not_use_up_the_full_download_slots(self):
+        for _ in range(OFFLINE_PER_IP):
+            self.download(HTTP_RANGE="bytes=5-")
+        self.assertEqual(self.download().status_code, 200)
+
+    def test_a_forged_first_forwarded_address_does_not_give_a_new_visitor(self):
+        for number in range(OFFLINE_PER_IP):
+            response = self.client.get(
+                self.download_url, REMOTE_ADDR="10.0.0.1", HTTP_X_FORWARDED_FOR=f"1.2.3.{number}, 8.8.8.8"
+            )
+            self.assertEqual(response.status_code, 200)
+        forged = self.client.get(self.download_url, REMOTE_ADDR="10.0.0.1", HTTP_X_FORWARDED_FOR="9.9.9.9, 8.8.8.8")
+        self.assertEqual(forged.status_code, 429)
+        other = self.client.get(self.download_url, REMOTE_ADDR="10.0.0.1", HTTP_X_FORWARDED_FOR="9.9.9.9, 8.8.4.4")
+        self.assertEqual(other.status_code, 200)
 
     def test_rows_older_than_an_hour_do_not_count(self):
         old = timezone.now() - timedelta(hours=2)
@@ -198,3 +236,38 @@ class LimitTests(OfflineLinkCase):
         for number in range(OFFLINE_PER_LINK):
             OfflineDownload.objects.create(link=self.link, ip=f"9.9.9.{number}", at=now)
         self.assertEqual(self.download(ip="10.1.1.1").status_code, 429)
+
+
+class LogRedactionTests(OfflineLinkCase):
+    def test_the_token_is_removed_from_log_text(self):
+        self.assertEqual(
+            redact(f"Too Many Requests: /offline/{self.token}/download/"), "Too Many Requests: /offline/<token>/download/"
+        )
+        self.assertEqual(redact("/diary/"), "/diary/")
+
+    def test_the_filter_redacts_a_request_warning_record(self):
+        import logging
+
+        from diary.logfilters import RedactOfflineToken
+
+        record = logging.LogRecord(
+            "django.request", logging.WARNING, __file__, 1, "%s: %s", ("Too Many Requests", self.download_url), None
+        )
+        self.assertTrue(RedactOfflineToken().filter(record))
+        self.assertNotIn(self.token, record.getMessage())
+        self.assertIn("/offline/<token>/download/", record.getMessage())
+
+    def test_the_console_handler_has_the_filter(self):
+        from django.conf import settings
+
+        self.assertIn("redact_offline_token", settings.LOGGING["handlers"]["console"]["filters"])
+
+
+class RefreshMemoryTests(OfflineLinkCase):
+    def test_refresh_does_not_load_the_old_blobs(self):
+        from diary.offline_link import refresh_all
+
+        with mock.patch("diary.offline_link.make_copy") as maker:
+            refresh_all()
+        link = maker.call_args[0][0]
+        self.assertIn("copy_data", link.get_deferred_fields())

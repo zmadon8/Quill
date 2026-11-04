@@ -4,7 +4,8 @@ These two views are deliberately OPEN: they have no login decorator, because the
 chose a secret link with no password, so it works at once on a phone with poor network). They therefore:
   * answer every wrong, switched-off or deleted link with the SAME small 404 page, so nothing is revealed;
   * never build the file (they only hand out the copy an Admin or the nightly job saved earlier);
-  * keep the token out of the app's own log lines;
+  * keep the token out of the app's own log lines (the explicit log calls leave it out and a filter on the console
+    handler redacts it from Django's request warnings; the web server's access log still shows it);
   * tell search engines, caches and other sites to keep away (headers on every response).
 """
 import hmac
@@ -91,15 +92,21 @@ def offline_download(request, token):
     if not link.has_copy:
         return _message(NO_COPY, 404)
 
-    # A resumed download (an honoured Range that starts above 0) and HEAD are free, so a retry on a poor network is
-    # never punished. Everything else counts against the hourly limit.
+    # Every GET that sends a body is counted: a full download or retry from byte 0 against the main limit, a resumed
+    # range (start above 0) against a looser separate cap. HEAD is answered from the stored metadata and not counted.
     etag_given = request.META.get("HTTP_IF_RANGE", "")
     match = RANGE_RE.match(request.META.get("HTTP_RANGE", "").strip())
     wanted = None
     if match and (not etag_given or etag_given == _etag(link, link.copy_size)):
         wanted = (int(match.group(1)), int(match.group(2)) if match.group(2) else None)
-    free = request.method == "HEAD" or (wanted is not None and wanted[0] > 0)
-    if not free and download_limited(request, link):
+
+    if request.method == "HEAD":
+        response = HttpResponse(b"", content_type="text/html; charset=utf-8")
+        response["Content-Length"] = str(link.copy_size)
+        return _file_headers(response, link, link.copy_size)
+
+    resume = wanted is not None and wanted[0] > 0
+    if download_limited(request, link, resume=resume):
         response = _message("Too many downloads. Please try again in an hour.", 429)
         response["Retry-After"] = "3600"
         return response
@@ -107,9 +114,8 @@ def offline_download(request, token):
     data = OfflineLink.objects.filter(pk=link.pk).values_list("copy_data", flat=True).first()
     if data is None:
         return _message(NO_COPY, 404)
-    data = bytes(data)  # PostgreSQL gives a memoryview
+    data = memoryview(data)  # PostgreSQL gives a memoryview already; slicing it does not copy
     total = len(data)
-    etag = _etag(link, total)
 
     status, body, first, last = 200, data, 0, total - 1
     if wanted is not None:
@@ -121,17 +127,17 @@ def offline_download(request, token):
         last = min(last, total - 1)
         status, body = 206, data[first : last + 1]
 
-    if request.method == "HEAD":
-        response = HttpResponse(b"", status=status, content_type="text/html; charset=utf-8")
-        response["Content-Length"] = str(len(body))
-    else:
-        response = HttpResponse(body, status=status, content_type="text/html; charset=utf-8")
+    response = HttpResponse(body, status=status, content_type="text/html; charset=utf-8")
     if status == 206:
         response["Content-Range"] = f"bytes {first}-{last}/{total}"
+    if first == 0 and status == 200:
+        logger.info("Offline copy downloaded: profile %s, %s bytes", link.profile_id, total)
+    return _file_headers(response, link, total)
+
+
+def _file_headers(response, link, total):
     response["Content-Disposition"] = content_disposition_header(True, link.copy_name or "Offline copy.html")
     response["Accept-Ranges"] = "bytes"
-    response["ETag"] = etag
+    response["ETag"] = _etag(link, total)
     response["Last-Modified"] = http_date(link.copy_made_at.timestamp())
-    if request.method != "HEAD" and first == 0 and status == 200:
-        logger.info("Offline copy downloaded: profile %s, %s bytes", link.profile_id, total)
     return _headers(response, "private, no-cache")
