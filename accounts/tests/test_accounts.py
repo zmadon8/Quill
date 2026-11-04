@@ -296,9 +296,10 @@ class SuiteSettingsTests(BaseCase):
         self.assertEqual(self.client.get(reverse("settings")).status_code, 302)
 
     def test_settings_link_only_for_admin(self):
-        # D86: Site settings is a tab of the merged Settings page (Home's Settings item opens My settings).
+        # D96: Page Names (the old Site settings) is a tab of Admins (Home's Admins item opens Users).
         self.client.force_login(self.admin)
-        self.assertContains(self.client.get(reverse("my_settings")), 'href="%s"' % reverse("settings"))
+        self.assertContains(self.client.get(reverse("user_list")), 'href="%s"' % reverse("settings"))
+        self.assertNotContains(self.client.get(reverse("my_settings")), 'href="%s"' % reverse("settings"))
         self.client.force_login(self.user)
         self.assertNotContains(self.client.get(reverse("my_settings")), 'href="%s"' % reverse("settings"))
         self.assertNotContains(self.client.get(reverse("home")), 'href="%s"' % reverse("settings"))
@@ -544,7 +545,7 @@ class RoleTests(BaseCase):
             box = html.split("data-profile-access")[1].split("</fieldset>")[0]
             self.assertEqual(box.count('class="profile-row"'), 2, url)
             for name in ("Main", "Junior"):
-                self.assertIn(f">{name}</label>", box, url)
+                self.assertIn(f">{name}:</label>", box, url)
             self.assertNotIn("Gone", box, url)
             for label in ("No access", "Editor", "Reader"):
                 self.assertIn(label, box, url)

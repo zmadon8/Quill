@@ -321,10 +321,10 @@ class HomeIndexTests(TestCase):
         self.assertIn(reverse("user_list"), nav)
         self.assertIn("adam", nav)
         self.assertIn("Log out", nav)
-        self.assertIn(reverse("backup_list"), nav)
+        self.assertIn('aria-label="Admins"', nav)  # D96: Backups is a tab of Admins
         for gone in (reverse("search"), reverse("diary_home")):
             self.assertNotIn(gone, nav)
-        self.assertNotIn("Admin", nav)
+        self.assertNotIn(">Admin<", nav)
         self.client.force_login(self.reader)
         nav = self.client.get(reverse("home")).content.decode().split('class="program-nav"')[1].split("</nav>")[0]
         self.assertNotIn(reverse("user_list"), nav)
