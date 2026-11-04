@@ -36,7 +36,7 @@ You will need: an email address, a payment card, and a GitHub account (the proje
 6. **Create your Admin account.** Open the web service in Render, open its Shell tab, and run `DJANGO_SUPERUSER_USERNAME=yourname DJANGO_SUPERUSER_PASSWORD='a long password' python manage.py create_first_admin`. This works only when there are no users at all, so it cannot be misused later. (Or run `python manage.py create_first_admin` with the username only and type the password when asked.) Store the password in a password manager.
 7. **Log in** and create a second user in the Users screen.
 8. **Custom address (optional).** If you own a domain name, Render shows you where to point it. https (the padlock) is automatic.
-9. **Check the nightly backup.** It is switched on automatically by the cron job from the Blueprint; there is no switch in the app. The next morning, open the Backups screen and confirm a new "Daily" backup appears. You can also press "Backup now" at any time.
+9. **Check the nightly backup.** It is switched on automatically by the cron job from the Blueprint; there is no switch in the app. The next morning, open the Backups screen and confirm a new "Daily" backup appears. You can also press "Backup now" at any time. The same job then runs `python manage.py refresh_offline_copies` to remake the saved copy behind each secret Offline link; you can run it by hand in the Render shell.
 10. **Do a restore rehearsal** on a practice copy before putting real data in: download a backup, restore it, and confirm it works. Only then is the system ready for the real Word import.
 
 ## 5. How to deploy a change (every time)

@@ -91,6 +91,7 @@ The screen shows the reason. The usual ones:
 * The nightly cron job runs `python manage.py send_email_backups` right after the nightly backup. It sends when a send is due and does nothing otherwise. A planned day that was missed is made up once. If a send fails it is tried again the next night, and every Admin sees a warning bar at the top until one succeeds.
 * **Too large:** each email carries at most `EMAIL_BACKUP_MAX_MB` of files. Files that do not fit are left out, the email subject says (incomplete) and the body lists what is missing, and every Admin sees the warning bar until it is fixed (the email with what fits still goes). Separate emails (iv) give each file its own allowance. If the diary is too big even for that, rely on the off-site copy (hosting guide section 6a), email the Word file only, or raise the limit if your provider allows it.
 * Run by hand any time in the Render shell: `python manage.py send_email_backups --force`.
+* The same nightly job then runs `python manage.py refresh_offline_copies`, which remakes the saved copy behind each secret Offline link (Admins > Profiles > Offline link). A failure there does not affect backups or emails. Run it by hand any time in the Render shell.
 
 ### Please think about privacy
 
