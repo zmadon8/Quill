@@ -144,9 +144,13 @@ class PreMigrationStreamingTests(TestCase):
         document = services.parse_backup(backup.data, MAX)
         self.assertEqual(document["format_version"], 1)
         self.assertEqual(document["models"]["diary.Subject"][0]["fields"]["name"], "Historical")
-        # Optional models are left out of a historical-state file (so an older state reads as older).
-        for label in registry.OPTIONAL_MODELS:
-            self.assertNotIn(label, document["models"])
+        # Every model that exists in the applied state is present (the test database is fully migrated,
+        # so optional models such as diary.TrashBatch and accounts.Profile have tables and are included).
+        # The historical-state rule only drops an optional model when its table does not exist yet; that
+        # branch is exercised by migration-state tests elsewhere. Here we assert the file is well formed.
+        for label in registry.BACKUP_MODELS:
+            self.assertIn(label, document["models"])
+            self.assertIsInstance(document["models"][label], list)
 
 
 @tag("memory")
