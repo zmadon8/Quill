@@ -12,7 +12,7 @@ from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
-from . import landing, programs, suite, user_trash
+from . import landing, programs, user_trash
 from .clear import ClearRefused, clear_preview, clear_profile
 from .forms import MySettingsForm, UsernamePasswordResetForm, _client_ip, ProfileForm, SuiteNamesForm, UserCreateForm, UserEditForm
 from .models import ROLE_EDITOR, OfflineLink, Profile, ProfileMembership, PurgeLog, ResetRequest, prune_reset_requests
@@ -318,9 +318,7 @@ def user_restore(request, pk):
 @require_http_methods(["GET", "POST"])
 def suite_settings(request):
     """Rename the Home page and the programs (Admin only; the names are shared by all users)."""
-    names = suite.get_names()
-    initial = {"home_name": names[suite.KEY_HOME], "diary_name": names[suite.KEY_DIARY]}
-    form = SuiteNamesForm(request.POST or None, initial=initial)
+    form = SuiteNamesForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         form.save()
         messages.success(request, "Names saved.")

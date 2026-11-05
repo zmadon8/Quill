@@ -271,7 +271,11 @@ class SuiteSettingsTests(BaseCase):
 
     def test_defaults_without_rows(self):
         self.assertEqual(SuiteName.objects.count(), 0)
-        self.assertEqual(suite.get_names(), {"home": "Home", "diary": "Case Law Diary"})
+        # T1.3: the Fee Register default joins the suite. Home and the diary are unchanged.
+        self.assertEqual(
+            suite.get_names(),
+            {"home": "Home", "diary": "Case Law Diary", "fees": "Fee Register"},
+        )
         self.client.force_login(self.admin)
         resp = self.client.get(reverse("home"))
         self.assertContains(resp, ">Home</a>")
@@ -308,7 +312,10 @@ class SuiteSettingsTests(BaseCase):
         self.client.force_login(self.admin)
         resp = self.post(home="  Start   Page ", diary="Judgments")
         self.assertRedirects(resp, reverse("settings"))
-        self.assertEqual(suite.get_names(), {"home": "Start Page", "diary": "Judgments"})
+        self.assertEqual(
+            suite.get_names(),
+            {"home": "Start Page", "diary": "Judgments", "fees": "Fee Register"},
+        )
         home = self.client.get(reverse("home"))
         self.assertContains(home, ">Start Page</a>")
         self.assertContains(home, 'class="program-link" href="%s">Judgments</a>' % reverse("diary_home"))
@@ -335,6 +342,42 @@ class SuiteSettingsTests(BaseCase):
         self.post(diary="Two")
         self.assertEqual(SuiteName.objects.filter(key="diary").count(), 1)
         self.assertEqual(suite.get_names()["diary"], "Two")
+
+    def test_fees_default_name_is_available_but_not_shown_while_unregistered(self):
+        # T1.3: the Fee Register default exists in the suite, but with fees unregistered the
+        # Settings screen has no fees field and no row is ever stored for it.
+        self.assertEqual(suite.get_names()[suite.KEY_FEES], "Fee Register")
+        self.client.force_login(self.admin)
+        resp = self.client.get(reverse("settings"))
+        self.assertEqual(resp.status_code, 200)
+        form = resp.context["form"]
+        self.assertEqual(list(form.fields), ["home_name", "diary_name"])
+        self.assertNotIn("fees_name", form.fields)
+        self.assertNotContains(resp, "Fee Register")
+        # Saving the two existing fields never writes a fees row.
+        self.post(diary="Judgments")
+        self.assertFalse(SuiteName.objects.filter(key=suite.KEY_FEES).exists())
+
+    def test_fees_field_appears_only_when_fees_is_registered(self):
+        # Simulate T1.8 registering fees, then confirm the same form grows a Fee Register field.
+        # State is restored so no other test sees fees registered.
+        from accounts import programs
+        from accounts.forms import SuiteNamesForm
+
+        saved = dict(programs.PROGRAMS)
+        try:
+            programs.PROGRAMS[suite.KEY_FEES] = programs.Program(
+                key=suite.KEY_FEES, landing_url_name="home", profile_models=lambda: [],
+            )
+            form = SuiteNamesForm()
+            self.assertIn("fees_name", form.fields)
+            self.assertEqual(form.fields["fees_name"].initial, "Fee Register")
+            self.assertEqual(form.fields["fees_name"].label, "Fee Register name")
+        finally:
+            programs.PROGRAMS.clear()
+            programs.PROGRAMS.update(saved)
+        # Back to diary only.
+        self.assertEqual(programs.program_keys(), [suite.KEY_DIARY])
 
 
 class UserAdminTests(BaseCase):

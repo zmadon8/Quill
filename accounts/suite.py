@@ -8,10 +8,12 @@ from .models import SuiteName
 
 KEY_HOME = "home"
 KEY_DIARY = "diary"
+KEY_FEES = "fees"
 
 DEFAULT_NAMES = {
     KEY_HOME: "Home",
     KEY_DIARY: "Case Law Diary",
+    KEY_FEES: "Fee Register",
 }
 MAX_NAME_LENGTH = 60
 

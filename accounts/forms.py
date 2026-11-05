@@ -9,7 +9,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
-from . import landing, suite
+from . import landing, programs, suite
 from .models import (
     ROLE_CHOICES,
     FailedLogin,
@@ -295,22 +295,61 @@ class ProfileForm(forms.ModelForm):
         return profile
 
 
+#: The field label and the clash-message label for the Home page and each known program key. New programs
+#: fall back to "<display name> name" / "<display name>" if not listed here, so the form keeps working even
+#: before a key is given a bespoke label.
+SUITE_NAME_LABELS = {
+    suite.KEY_HOME: ("Home page name", "Home page"),
+    suite.KEY_DIARY: ("Case law diary name", "Case law diary"),
+}
+
+
 class SuiteNamesForm(forms.Form):
-    """Rename the Home page and each program. Names are shared by every user."""
+    """Rename the Home page and each registered program. Names are shared by every user.
 
-    home_name = forms.CharField(label="Home page name", max_length=suite.MAX_NAME_LENGTH)
-    diary_name = forms.CharField(label="Case law diary name", max_length=suite.MAX_NAME_LENGTH)
+    One text field is built per key: the Home page is always shown, and each program registered in
+    ``accounts.programs`` gets a field. While a program (such as the Fee Register) is not yet registered
+    it has no field here, so the screen stays exactly as before. The field for key ``k`` is named
+    ``<k>_name`` (so ``home_name`` and ``diary_name`` keep their names and behaviour).
+    """
 
-    FIELD_KEYS = {"home_name": suite.KEY_HOME, "diary_name": suite.KEY_DIARY}
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.name_keys = self._name_keys()
+        names = suite.get_names()
+        for key in self.name_keys:
+            field_name = self._field_name(key)
+            label = SUITE_NAME_LABELS.get(key, (f"{names.get(key, key)} name", None))[0]
+            self.fields[field_name] = forms.CharField(
+                label=label, max_length=suite.MAX_NAME_LENGTH, initial=names.get(key, ""),
+            )
+
+    @staticmethod
+    def _name_keys():
+        """The Home page followed by every registered program key."""
+        return [suite.KEY_HOME, *programs.program_keys()]
+
+    @staticmethod
+    def _field_name(key):
+        return f"{key}_name"
+
+    def _clash_label(self, key):
+        """The human label used in the "same name as" message for ``key``."""
+        bespoke = SUITE_NAME_LABELS.get(key)
+        if bespoke is not None:
+            return bespoke[1]
+        return suite.get_names().get(key, key)
 
     def clean(self):
         cleaned = super().clean()
         seen = {}
-        for field, label in (("home_name", "Home page"), ("diary_name", "Case law diary")):
+        for key in self.name_keys:
+            field = self._field_name(key)
             value = cleaned.get(field)
             if not value:
                 continue
             folded = " ".join(value.split()).casefold()
+            label = self._clash_label(key)
             if folded in seen:
                 self.add_error(field, f"{label} cannot have the same name as {seen[folded]}.")
             else:
@@ -319,7 +358,7 @@ class SuiteNamesForm(forms.Form):
 
     def save(self):
         suite.set_names(
-            {key: " ".join(self.cleaned_data[field].split()) for field, key in self.FIELD_KEYS.items()}
+            {key: " ".join(self.cleaned_data[self._field_name(key)].split()) for key in self.name_keys}
         )
 
 
