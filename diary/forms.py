@@ -16,12 +16,13 @@ class ProfileSettingsForm(forms.ModelForm):
     """Settings an Editor can change for their profile: the Display Name and what the Contents links open (Settings >
     Display, round 18/19). The export file name is on the Export page (ExportSettingsForm).
 
-    Round 19 (user item 4) adds a plain Yes/No toggle on the Display tab, ``view_whole_subject``: Yes means clicking
-    a Subject opens the whole Subject (``reading_all_mode = always_on``), No means it opens the scoped Contents page
-    with a "Read Whole Subject" button (``always_off``). The ``reading_all_mode`` select (which also offers the
-    third "The view I used last"/remember mode) and the ``reading_all_default`` checkbox stay on as an advanced
-    control, so the remember mode and existing profile data are never lost. On save the advanced select wins when it
-    asks for remember; otherwise the Yes/No toggle decides between always_on and always_off."""
+    Round 19 (user item 4) has a plain Yes/No toggle on the Display tab, ``view_whole_subject``, as the only reading
+    control: Yes means clicking a Subject opens the whole Subject (``reading_all_mode = always_on``), No means it
+    opens the scoped Contents page with a "Read Whole Subject" button (``always_off``). The "The view I used last"
+    (remember) choice and the ``reading_all_default`` checkbox are no longer offered. ``reading_all_mode`` now only
+    ever becomes ``always_on`` or ``always_off`` from the toggle; an older row still on ``remember`` is shown as
+    Yes/No (Yes if its ``reading_all_default`` is True, else No) and is mapped to ``always_on``/``always_off`` on its
+    next save."""
 
     view_whole_subject = forms.ChoiceField(
         choices=VIEW_WHOLE_CHOICES,
@@ -33,24 +34,20 @@ class ProfileSettingsForm(forms.ModelForm):
 
     class Meta:
         model = Profile
-        fields = ("display_name", "reading_all_mode", "reading_all_default")
+        fields = ("display_name",)
         labels = {
             "display_name": "Display Name",
-            "reading_all_mode": "Contents links open (advanced)",
-            "reading_all_default": "If there is no last view yet, Contents links open the whole Subject",
         }
         help_texts = {
             "display_name": "Shown at the top of every page instead of the program name. Leave blank to show the program name and the profile name.",
-            "reading_all_mode": "Advanced: the Contents links in the side panel. \"The view I used last\" is the one extra choice beyond the Yes/No toggle above. Clicking a Topic or Sub-topic heading in the text always switches between the whole Subject and that one Topic or Sub-topic, whatever this says.",
-            "reading_all_default": "Used only with \"The view I used last\", for a browser that has not read anything yet.",
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if not self.is_bound:
-            # The toggle reflects the saved mode: always_on -> Yes, always_off -> No. In "remember" mode there is no
-            # forced Yes/No, so fall back to the effective default (reading_all_default) and leave the advanced
-            # select showing "remember".
+            # The toggle reflects the saved mode: always_on -> Yes, always_off -> No. An older row still on the
+            # "remember" mode (no longer offered) falls back to the effective default (reading_all_default), which is
+            # still a model attribute on the instance even though it is no longer a form field.
             mode = self.instance.reading_all_mode
             if mode == Profile.READING_ALL_ALWAYS_ON:
                 self.fields["view_whole_subject"].initial = VIEW_WHOLE_YES
@@ -66,13 +63,13 @@ class ProfileSettingsForm(forms.ModelForm):
 
     def save(self, commit=True):
         instance = super().save(commit=False)
-        # The advanced select wins when it asks for the remember mode; otherwise the plain Yes/No toggle decides.
-        if self.cleaned_data.get("reading_all_mode") != Profile.READING_ALL_REMEMBER:
-            instance.reading_all_mode = (
-                Profile.READING_ALL_ALWAYS_ON
-                if self.cleaned_data.get("view_whole_subject") == VIEW_WHOLE_YES
-                else Profile.READING_ALL_ALWAYS_OFF
-            )
+        # The Yes/No toggle is the only reading control: it always decides the mode (remember is no longer offered).
+        # reading_all_default is left untouched; it is simply no longer used by the UI.
+        instance.reading_all_mode = (
+            Profile.READING_ALL_ALWAYS_ON
+            if self.cleaned_data.get("view_whole_subject") == VIEW_WHOLE_YES
+            else Profile.READING_ALL_ALWAYS_OFF
+        )
         if commit:
             instance.save()
         return instance

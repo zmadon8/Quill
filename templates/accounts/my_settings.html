@@ -57,7 +57,7 @@
     {% endif %}
   </section>
   {% if diary_profile %}
-  {# Round 18 (D96) / round 19 (item 4): the diary's own settings (the old Diary tab). They belong to the profile: everyone in it sees them; only its Editors change them. The Yes/No toggle "open the whole Subject" is the plain control; the "Contents links open (advanced)" select keeps the third "The view I used last" mode so no profile data is lost. #}
+  {# Round 18 (D96) / round 19 (item 4): the diary's own settings (the old Diary tab). They belong to the profile: everyone in it sees them; only its Editors change them. The Yes/No toggle "open the whole Subject" is the only reading control. #}
   <section class="settings-section" data-diary-settings>
     <h2>{{ diary_name }}</h2>
     <p class="field-help">For the profile <strong>{{ diary_profile.name }}</strong>: everyone using it sees these.{% if not profile_form %} Only its Editors can change them.{% endif %}</p>
@@ -70,16 +70,9 @@
       {% for radio in profile_form.view_whole_subject %}<label class="search-check">{{ radio.tag }} {{ radio.choice_label }}</label> {% endfor %}
       <p class="field-help">{{ profile_form.view_whole_subject.help_text }}</p>
     </fieldset>
-    <details class="settings-advanced">
-      <summary>Advanced reading options</summary>
-      {{ profile_form.reading_all_mode.as_field_group }}
-      {{ profile_form.reading_all_default.as_field_group }}
-    </details>
     {% else %}
     <p>Display Name: <strong>{% if diary_profile.display_name %}{{ diary_profile.display_name }}{% else %}(none: the header shows {{ diary_name }} &middot; {{ diary_profile.name }}){% endif %}</strong></p>
-    <p>When I click a Subject, open the whole Subject: <strong>{% if diary_profile.reading_all_mode == "always_on" %}Yes{% elif diary_profile.reading_all_mode == "always_off" %}No{% else %}The view I used last ({% if diary_profile.reading_all_default %}Yes{% else %}No{% endif %} with no last view yet){% endif %}</strong></p>
-    <p>Contents links open (advanced): <strong>{{ diary_profile.get_reading_all_mode_display }}</strong></p>
-    <p>With no last view yet, Contents links open the whole Subject (used only with "The view I used last"): <strong>{% if diary_profile.reading_all_default %}Yes{% else %}No{% endif %}</strong></p>
+    <p>When I click a Subject, open the whole Subject: <strong>{% if diary_profile.reading_all_mode == "always_on" %}Yes{% elif diary_profile.reading_all_mode == "always_off" %}No{% elif diary_profile.reading_all_default %}Yes{% else %}No{% endif %}</strong></p>
     {% endif %}
   </section>
   {% endif %}

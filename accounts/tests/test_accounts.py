@@ -1224,10 +1224,10 @@ class ExportNameTests(BaseCase):
         url = reverse("my_settings") + "?tab=display"
         if data is None:
             return self.client.get(url)
-        # Round 19: the Display tab now has a required Yes/No "open the whole Subject" toggle. When a test posts the
-        # advanced reading_all_mode select it must also send the toggle, or the profile form fails validation and
-        # nothing saves. Default the toggle to match the posted mode (always_on -> Yes, else No) so the existing
-        # reading_all_mode / reading_all_default assertions hold; the caller may override diary-view_whole_subject.
+        # Round 19: the Display tab's only reading control is the required Yes/No "open the whole Subject" toggle.
+        # reading_all_mode and reading_all_default are no longer form fields, so posting them is harmless extra data
+        # that Django ignores; the toggle alone decides the stored reading_all_mode. When a test posts the old
+        # reading_all_mode key without a toggle, default the toggle to match it (always_on -> Yes, else No).
         payload = {"tab": "display", **data}
         if "diary-reading_all_mode" in payload and "diary-view_whole_subject" not in payload:
             payload["diary-view_whole_subject"] = "yes" if payload["diary-reading_all_mode"] == "always_on" else "no"
@@ -1249,15 +1249,25 @@ class ExportNameTests(BaseCase):
         self.client.force_login(self.user)
         self.assertRedirects(self.client.get(reverse("profile_settings")), reverse("my_settings") + "?tab=display")
 
-    def test_all_default_is_on_and_editor_can_switch_it_off_and_on(self):
+    def test_display_form_no_longer_offers_remember_or_all_default(self):
+        # Round 19 (user item 4): the Yes/No toggle is the only reading control. The advanced "remember" select and
+        # the reading_all_default checkbox are gone from the form and the page, and saving never changes the stored
+        # reading_all_default. The Profile model keeps both fields (no migration); only the UI is simplified.
+        from diary.forms import ProfileSettingsForm
+
+        fields = ProfileSettingsForm().fields
+        self.assertIn("view_whole_subject", fields)
+        self.assertNotIn("reading_all_mode", fields)
+        self.assertNotIn("reading_all_default", fields)
         self.assertTrue(self.main().reading_all_default)
         self.client.force_login(self.admin)
         resp = self.display()
-        self.assertContains(resp, 'name="diary-reading_all_default"')
-        self.assertContains(resp, "If there is no last view yet, Contents links open the whole Subject")
-        self.display({"diary-reading_all_mode": "remember"})
-        self.assertFalse(Profile.objects.get(pk=self.main().pk).reading_all_default)
-        self.display({"diary-reading_all_mode": "remember", "diary-reading_all_default": "on"})
+        self.assertNotContains(resp, 'name="diary-reading_all_default"')
+        self.assertNotContains(resp, 'name="diary-reading_all_mode"')
+        self.assertNotContains(resp, "The view I used last")
+        self.assertNotContains(resp, "Advanced reading options")
+        # Posting the toggle (even alongside the now-ignored old keys) leaves reading_all_default untouched.
+        self.display({"diary-view_whole_subject": "no", "diary-reading_all_default": "on"})
         self.assertTrue(Profile.objects.get(pk=self.main().pk).reading_all_default)
 
     def test_saving_another_tab_leaves_the_diary_settings_alone(self):
@@ -1268,52 +1278,37 @@ class ExportNameTests(BaseCase):
         self.assertEqual((main.display_name, main.reading_all_mode, main.reading_all_default),
                          ("Kept", "always_on", True))
 
-    def test_mode_defaults_to_remember_and_editor_can_change_it(self):
-        self.assertEqual(self.main().reading_all_mode, "remember")
-        self.client.force_login(self.admin)
-        resp = self.display()
-        self.assertContains(resp, 'name="diary-reading_all_mode"')
-        for label in ("The whole Subject", "Only that Topic or Sub-topic", "The view I used last"):
-            self.assertContains(resp, label)
-        for mode in ("always_on", "always_off", "remember"):
-            self.display({"diary-reading_all_mode": mode})
-            self.assertEqual(Profile.objects.get(pk=self.main().pk).reading_all_mode, mode)
-        resp = self.display({"diary-reading_all_mode": "bogus"})
-        self.assertEqual(resp.status_code, 200)
-        self.assertEqual(Profile.objects.get(pk=self.main().pk).reading_all_mode, "remember")
-
     def test_yes_no_toggle_sets_always_on_or_always_off(self):
-        # Round 19 (user item 4): the plain Display toggle sets reading_all_mode directly when the advanced select is
-        # not asking for the "remember" mode. Yes -> always_on (clicking a Subject opens the whole Subject); No ->
-        # always_off (the scoped Contents page with a "Read Whole Subject" button).
+        # Round 19 (user item 4): the plain Display toggle is the only reading control and always sets
+        # reading_all_mode. Yes -> always_on (clicking a Subject opens the whole Subject); No -> always_off (the
+        # scoped Contents page with a "Read Whole Subject" button). There is no longer a way to choose remember.
         self.client.force_login(self.admin)  # Editor of Main
         resp = self.client.post(reverse("my_settings"), {
-            "tab": "display", "diary-view_whole_subject": "yes", "diary-reading_all_mode": "always_off"})
+            "tab": "display", "diary-view_whole_subject": "yes"})
         self.assertRedirects(resp, reverse("my_settings") + "?tab=display")
         self.assertEqual(Profile.objects.get(pk=self.main().pk).reading_all_mode, "always_on")
         self.client.post(reverse("my_settings"), {
-            "tab": "display", "diary-view_whole_subject": "no", "diary-reading_all_mode": "always_on"})
+            "tab": "display", "diary-view_whole_subject": "no"})
         self.assertEqual(Profile.objects.get(pk=self.main().pk).reading_all_mode, "always_off")
 
-    def test_remember_select_beats_the_yes_no_toggle(self):
-        # The advanced "The view I used last" (remember) choice wins over the Yes/No toggle, so the remember mode and
-        # its reading_all_default are never lost.
+    def test_toggle_maps_a_pre_existing_remember_profile_on_save(self):
+        # A row still on the old "remember" mode (no longer offered) is shown as Yes/No and mapped to
+        # always_on/always_off on its next save: the toggle wins, remember can never be kept through the form.
+        Profile.objects.filter(pk=self.main().pk).update(reading_all_mode="remember")
         self.client.force_login(self.admin)
-        self.client.post(reverse("my_settings"), {
-            "tab": "display", "diary-view_whole_subject": "yes", "diary-reading_all_mode": "remember"})
-        self.assertEqual(Profile.objects.get(pk=self.main().pk).reading_all_mode, "remember")
+        self.client.post(reverse("my_settings"), {"tab": "display", "diary-view_whole_subject": "yes"})
+        self.assertEqual(Profile.objects.get(pk=self.main().pk).reading_all_mode, "always_on")
 
-    def test_reader_cannot_change_all_default(self):
+    def test_reader_cannot_change_the_diary_settings(self):
         self.client.force_login(self.user)
-        self.display({"diary-reading_all_default": "on", "diary-reading_all_mode": "always_on"})
-        Profile.objects.filter(pk=self.main().pk).update(reading_all_default=False)
+        self.display({"diary-view_whole_subject": "yes"})
         resp = self.display()
         self.assertNotContains(resp, 'name="diary-reading_all_default"')
         self.assertNotContains(resp, 'name="diary-reading_all_mode"')
-        self.assertContains(resp, "With no last view yet, Contents links open the whole Subject")
+        self.assertNotContains(resp, 'name="diary-view_whole_subject"')
         self.assertContains(resp, "Only its Editors can change them.")
+        # A Reader cannot post the Display form, so the profile's reading_all_mode is unchanged (still the default).
         self.assertEqual(Profile.objects.get(pk=self.main().pk).reading_all_mode, "remember")
-        self.assertFalse(Profile.objects.get(pk=self.main().pk).reading_all_default)
 
     def test_user_without_profile_has_no_diary_settings(self):
         other = self.make_user("nobody")
