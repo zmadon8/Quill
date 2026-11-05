@@ -1,0 +1,484 @@
+"""Dashboard KPI and headline-summary service for the Fee Register (T3.7, R-RD-1).
+
+Ports ``dashboardService.ts`` (``getDashboardSummary``, ``getDashboardKpis``,
+``localIso`` and the internal ``statsAppearances`` helper) to the Django ORM,
+profile-scoped. The dashboard shows at-a-glance figures for the Overview landing
+page; every money result goes through ``fees.services.money.round2`` and nothing
+here re-derives a memo line fee (the single fee rule lives in
+``fees.services.memo_fees``; per-memo totals come from the stored
+``Memo.total_fees`` column or ``memo_fees.effective_total_fees``), so the
+single-fee-rule grep guard in ``test_memo_fees`` holds.
+
+Appearances are NOT taken from the raw memo ``num_appearances`` sum. They come
+from the statistics period engine (``fees.services.statistics.get_period_statistics``)
+via :func:`stats_appearances`, so the dashboard's "appearances this month / year"
+ALWAYS agree with the Statistics page (which includes the manual extras entered
+in Edit Statistics). This mirrors the TypeScript source, which sourced the
+dashboard appearances from ``getPeriodStatistics`` for the same reason.
+
+Local calendar date (TIME_ZONE is Asia/Kolkata): all figures use the LOCAL date
+so a late-evening entry near a month or financial-year boundary is attributed to
+the right period. ``now`` defaults to ``datetime.date.today()`` (matching the
+sibling fee services) and is injectable for deterministic tests.
+``local_iso(now)`` returns the ``YYYY-MM-DD`` local calendar date.
+
+THE DASHBOARD-KPIS SWITCH (acceptance test, zero queries when off)
+------------------------------------------------------------------
+``get_dashboard_kpis(profile, now=None, settings=None)`` must perform ZERO
+database queries when ``dashboard_kpis_enabled`` is False. Because
+``settings.get_settings`` itself issues a query (it get-or-creates the row), the
+contract is: the caller MAY pass an already-read ``settings`` dict as the
+``settings`` keyword. When ``settings`` is provided the function does NOT read it
+from the database, so with ``settings={'dashboard_kpis_enabled': False}`` the
+switch short-circuits and returns the empty catalogue (:data:`EMPTY_KPIS`)
+BEFORE any query, including before any ``stats_cache.get_or_compute`` call. The
+acceptance test therefore does::
+
+    with self.assertNumQueries(0):
+        result = get_dashboard_kpis(profile, now, settings={"dashboard_kpis_enabled": False})
+
+and ``result`` is ``EMPTY_KPIS`` (every KPI id mapped to 0). When ``settings`` is
+None the function reads it with ``get_settings`` (one query) and then applies the
+same switch, so a caller that does not pre-read still gets the gated behaviour,
+just not at zero queries (the get-or-create read is unavoidable there).
+
+``statistics_enabled`` is honoured the same way: the appearances figures come
+from the statistics engine, so when ``statistics_enabled`` is False the
+appearances KPIs are reported as 0 and the engine is not called. The switch is
+read from the same ``settings`` dict (pre-read or fetched) and checked before the
+appearances lookup.
+
+CACHING
+-------
+``get_dashboard_kpis`` memoises its result in the ``StatsCache`` table via
+``stats_cache.get_or_compute(profile, kind="dashboard", params=..., compute,
+today_sensitive=True)``. It is ``today_sensitive`` because every figure depends
+on the current local date (this month, this FY and the rolling last-30-days
+window). The switch short-circuit happens BEFORE ``get_or_compute`` so the
+zero-query path never touches the cache. ``params`` is
+``{"view": "kpis", "today": local_iso(now)}`` so a new day is a fresh key as well
+as a fresh ``valid_on`` stamp.
+
+JSON money representation: ``get_or_compute`` JSON-serialises the payload, so the
+cached KPI catalogue stores every money value as a STRING (``str(Decimal)``) and
+every count as an int. On a hit the stored strings are returned verbatim; callers
+that need a ``Decimal`` reconstruct it with ``Decimal(value)``. Strings (not
+floats) are used so the two-decimal money value round-trips exactly without
+binary-float drift. ``get_dashboard_summary`` is a pure computation and is not
+itself cached (it is cheap relative to the KPI catalogue and is also called
+directly by callers that want ``Decimal`` figures); the KPI catalogue is the one
+cached payload.
+"""
+from __future__ import annotations
+
+import datetime
+from decimal import Decimal
+
+from django.db.models import DecimalField, Sum, Value
+from django.db.models.functions import Coalesce
+
+from fees.models import Allocation, Memo
+from fees.services import memo_fees, stats_cache
+from fees.services.financial_year import derive_financial_year
+from fees.services.money import round2
+from fees.services.settings import get_settings
+from fees.services.statistics import get_period_statistics
+
+__all__ = [
+    "EMPTY_KPIS",
+    "KPI_IDS",
+    "local_iso",
+    "get_dashboard_summary",
+    "get_dashboard_kpis",
+]
+
+_ZERO = Decimal("0")
+
+#: The status passed to ``compute_is_overdue`` for an unpaid memo (every memo
+#: reaching that check is unpaid: gross paid strictly below the total).
+_UNPAID = "Unpaid"
+
+#: Every KPI id in the catalogue, in the TypeScript ``getDashboardKpis`` order.
+#: Money ids are serialised as strings, count ids as ints, both in the result.
+KPI_IDS = (
+    "billed_this_month",
+    "billed_this_year",
+    "billed_last30",
+    "received_this_month",
+    "received_this_year",
+    "received_last30",
+    "memos_this_month",
+    "memos_this_year",
+    "memos_last30",
+    "appearances_this_month",
+    "appearances_this_year",
+    "appearances_last30",
+    "conferences_this_month",
+    "conferences_this_year",
+    "conferences_last30",
+    "drafts_this_year",
+    "drafts_last30",
+    "total_outstanding",
+    "amount_overdue",
+    "memos_awaiting_payment",
+    "written_off_total",
+    "draft_memos_count",
+    "draft_memos_total",
+)
+
+#: The money KPI ids (serialised as ``str(Decimal)`` in the cached / returned
+#: catalogue); every other id is a plain integer count.
+_MONEY_KPIS = frozenset(
+    (
+        "billed_this_month",
+        "billed_this_year",
+        "billed_last30",
+        "received_this_month",
+        "received_this_year",
+        "received_last30",
+        "total_outstanding",
+        "amount_overdue",
+        "written_off_total",
+        "draft_memos_total",
+    )
+)
+
+#: The result returned when the dashboard-KPIs switch is OFF: every id at 0
+#: (money as the string "0", counts as the int 0). A fresh dict per access so a
+#: caller can never mutate the shared default.
+def _empty_kpis():
+    return {
+        kpi: ("0" if kpi in _MONEY_KPIS else 0) for kpi in KPI_IDS
+    }
+
+
+#: Convenience module-level snapshot of the off-switch result (read-only use).
+EMPTY_KPIS = _empty_kpis()
+
+
+def local_iso(d) -> str:
+    """The LOCAL calendar date as ``YYYY-MM-DD`` (ports ``localIso``).
+
+    Accepts a ``date`` / ``datetime``; a ``datetime`` is reduced to its date.
+    """
+    if isinstance(d, datetime.datetime):
+        d = d.date()
+    return f"{d.year:04d}-{d.month:02d}-{d.day:02d}"
+
+
+def _as_date(now):
+    """Coerces ``now`` (``None`` / ``date`` / ``datetime``) to a local ``date``."""
+    if now is None:
+        return datetime.date.today()
+    if isinstance(now, datetime.datetime):
+        return now.date()
+    return now
+
+
+def _gross_received_between(profile, start_iso, end_iso) -> Decimal:
+    """Gross allocations (amount + tds_amount) whose payment date is in ``[start, end]``.
+
+    ONE aggregate query over the profile's allocations joined to their payment.
+    The payment date is an ISO ``YYYY-MM-DD`` column, so an inclusive string range
+    selects the right calendar window. Returns a two-decimal ``Decimal``.
+    """
+    money_field = DecimalField(max_digits=14, decimal_places=2)
+    agg = (
+        Allocation.objects.filter(
+            profile=profile,
+            payment__date_of_payment__gte=start_iso,
+            payment__date_of_payment__lte=end_iso,
+        )
+        .aggregate(
+            received=Coalesce(
+                Sum("amount") + Sum("tds_amount"),
+                Value(_ZERO),
+                output_field=money_field,
+            )
+        )
+    )
+    return round2(agg["received"] or _ZERO)
+
+
+def stats_appearances(profile, now, *, enabled=True):
+    """Appearances for the current month and FY, from the statistics engine.
+
+    Ports ``statsAppearances``: appearances come from
+    ``get_period_statistics`` (the SAME engine as the Statistics page) so the
+    dashboard and statistics always agree, including the manual "extras" entered
+    in Edit Statistics which the raw memo counts do not carry.
+
+    ``enabled`` gates the ``statistics_enabled`` switch: when False the engine is
+    not called and ``{"month": 0, "year": 0}`` is returned (no query).
+    """
+    if not enabled:
+        return {"month": 0, "year": 0}
+    today = _as_date(now)
+    fy = derive_financial_year(local_iso(today))
+    opts = {"exclude_future_months": True, "pro_rate_current_month": True}
+    months = get_period_statistics(profile, "month", fy, opts, today)
+    years = get_period_statistics(profile, "financialYear", None, opts, today)
+
+    month_value = 0
+    for period in months["periods"]:
+        if period["month"] == today.month:
+            month_value = period["num_appearances"]
+            break
+    year_value = 0
+    for period in years["periods"]:
+        if period["key"] == fy:
+            year_value = period["num_appearances"]
+            break
+    return {"month": month_value, "year": year_value}
+
+
+def get_dashboard_summary(profile, now=None, settings=None):
+    """The headline Dashboard figures (ports ``getDashboardSummary``).
+
+    Reads every non-draft memo ONCE (the stored ``total_fees`` plus
+    ``date`` / ``financial_year`` / ``written_off`` and the stored gross
+    ``amount_paid`` column, which ``payments.recompute_paid`` maintains, read
+    directly rather than via a per-row subquery, mirroring ``outstanding.py``),
+    then accumulates in Python. Received figures are two aggregate queries over
+    allocations by payment date, and appearances come from the statistics engine.
+
+    Returns a dict with the snake_case ``DashboardSummary`` keys:
+    ``total_outstanding``, ``received_this_month``, ``memos_awaiting_payment``,
+    ``written_off_total``, ``billed_this_month``, ``billed_this_year``,
+    ``appearances_this_year``, ``received_this_year`` and ``amount_overdue``.
+    Every money figure is a two-decimal ``Decimal``.
+
+    ``settings`` may be a pre-read settings dict (to avoid the get-or-create read
+    and to honour the ``statistics_enabled`` switch without a second hop); when
+    None it is read with ``get_settings``.
+    """
+    if settings is None:
+        settings = get_settings(profile)
+    overdue_days = settings.get("overdue_days") or 0
+    statistics_enabled = bool(settings.get("statistics_enabled", True))
+
+    today = _as_date(now)
+    today_iso = local_iso(today)
+    current_fy = derive_financial_year(today_iso)
+    ym = today_iso[:7]
+
+    rows = Memo.objects.filter(profile=profile, is_draft=False).values(
+        "date",
+        "financial_year",
+        "written_off",
+        "amount_paid",
+        "total_fees",
+        "num_appearances",
+        "fees_per_appearance",
+        "num_conferences",
+        "fees_per_conference",
+        "fees_misc_drafting",
+        "custom_fees_appearances",
+        "custom_fees_conferences",
+        "custom_fees_misc",
+        "custom_total_fees",
+    )
+
+    total_outstanding = _ZERO
+    written_off_total = _ZERO
+    memos_awaiting_payment = 0
+    billed_this_month = _ZERO
+    billed_this_year = _ZERO
+    amount_overdue = _ZERO
+
+    for row in rows.iterator():
+        total = memo_fees.effective_total_fees(row)
+        date_iso = local_iso(row["date"]) if isinstance(row["date"], datetime.date) else str(row["date"])[:10]
+
+        if row["financial_year"] == current_fy:
+            billed_this_year = round2(billed_this_year + total)
+        if date_iso[:7] == ym:
+            billed_this_month = round2(billed_this_month + total)
+
+        if row["written_off"]:
+            written_off_total = round2(written_off_total + total)
+            continue
+
+        outstanding = round2(total - round2(row["amount_paid"]))
+        if outstanding > 0:
+            total_outstanding = round2(total_outstanding + outstanding)
+            memos_awaiting_payment += 1
+            if memo_fees.compute_is_overdue(
+                row["date"], _UNPAID, False, overdue_days, today
+            ):
+                amount_overdue = round2(amount_overdue + outstanding)
+
+    received_this_month = _gross_received_between(
+        profile, f"{ym}-01", f"{ym}-31"
+    )
+    fy_start_year = int(current_fy[:4])
+    fy_start = f"{fy_start_year}-04-01"
+    fy_end = f"{fy_start_year + 1}-03-31"
+    received_this_year = _gross_received_between(profile, fy_start, fy_end)
+
+    appearances_this_year = stats_appearances(
+        profile, today, enabled=statistics_enabled
+    )["year"]
+
+    return {
+        "total_outstanding": total_outstanding,
+        "received_this_month": received_this_month,
+        "memos_awaiting_payment": memos_awaiting_payment,
+        "written_off_total": written_off_total,
+        "billed_this_month": billed_this_month,
+        "billed_this_year": billed_this_year,
+        "appearances_this_year": appearances_this_year,
+        "received_this_year": received_this_year,
+        "amount_overdue": amount_overdue,
+    }
+
+
+def _compute_kpis(profile, today, settings):
+    """Builds the full KPI catalogue as a JSON-safe dict (money as str, counts int).
+
+    ``today`` is already a local ``date``; ``settings`` is the resolved settings
+    dict. Honours ``statistics_enabled`` for the appearances figures.
+    """
+    statistics_enabled = bool(settings.get("statistics_enabled", True))
+    base = get_dashboard_summary(profile, today, settings=settings)
+
+    today_iso = local_iso(today)
+    start30 = local_iso(today - datetime.timedelta(days=29))
+    fy = derive_financial_year(today_iso)
+    ym = today_iso[:7]
+
+    rows = Memo.objects.all().filter(profile=profile).values(
+        "date",
+        "financial_year",
+        "is_draft",
+        "written_off",
+        "num_appearances",
+        "fees_per_appearance",
+        "num_conferences",
+        "fees_per_conference",
+        "fees_misc_drafting",
+        "num_drafts",
+        "custom_fees_appearances",
+        "custom_fees_conferences",
+        "custom_fees_misc",
+        "custom_total_fees",
+    )
+
+    memos_this_month = memos_this_year = memos_last30 = 0
+    conferences_this_month = conferences_this_year = conferences_last30 = 0
+    appearances_last30 = 0
+    billed_last30 = _ZERO
+    drafts_this_year = drafts_last30 = 0
+    draft_memos_count = 0
+    draft_memos_total = _ZERO
+
+    for row in rows.iterator():
+        total = memo_fees.effective_total_fees(row)
+        if row["is_draft"]:
+            draft_memos_count += 1
+            draft_memos_total = round2(draft_memos_total + total)
+            continue
+        date_iso = (
+            local_iso(row["date"])
+            if isinstance(row["date"], datetime.date)
+            else str(row["date"])[:10]
+        )
+        in_month = date_iso[:7] == ym
+        in_year = row["financial_year"] == fy
+        in_last30 = start30 <= date_iso <= today_iso
+        num_conferences = row["num_conferences"] or 0
+        num_drafts = row["num_drafts"] or 0
+        if in_month:
+            memos_this_month += 1
+            conferences_this_month += num_conferences
+        if in_year:
+            memos_this_year += 1
+            conferences_this_year += num_conferences
+            drafts_this_year += num_drafts
+        if in_last30:
+            memos_last30 += 1
+            conferences_last30 += num_conferences
+            appearances_last30 += row["num_appearances"] or 0
+            drafts_last30 += num_drafts
+            billed_last30 = round2(billed_last30 + total)
+
+    received_last30 = _gross_received_between(profile, start30, today_iso)
+    appearances = stats_appearances(profile, today, enabled=statistics_enabled)
+
+    values = {
+        "billed_this_month": base["billed_this_month"],
+        "billed_this_year": base["billed_this_year"],
+        "billed_last30": billed_last30,
+        "received_this_month": base["received_this_month"],
+        "received_this_year": base["received_this_year"],
+        "received_last30": received_last30,
+        "memos_this_month": memos_this_month,
+        "memos_this_year": memos_this_year,
+        "memos_last30": memos_last30,
+        "appearances_this_month": appearances["month"],
+        "appearances_this_year": appearances["year"],
+        "appearances_last30": appearances_last30,
+        "conferences_this_month": conferences_this_month,
+        "conferences_this_year": conferences_this_year,
+        "conferences_last30": conferences_last30,
+        "drafts_this_year": drafts_this_year,
+        "drafts_last30": drafts_last30,
+        "total_outstanding": base["total_outstanding"],
+        "amount_overdue": base["amount_overdue"],
+        "memos_awaiting_payment": base["memos_awaiting_payment"],
+        "written_off_total": base["written_off_total"],
+        "draft_memos_count": draft_memos_count,
+        "draft_memos_total": draft_memos_total,
+    }
+    return _to_json_safe(values)
+
+
+def _to_json_safe(values):
+    """Serialises a KPI value map to JSON-safe form: money as str, counts as int."""
+    out = {}
+    for kpi in KPI_IDS:
+        value = values[kpi]
+        if kpi in _MONEY_KPIS:
+            out[kpi] = str(round2(value))
+        else:
+            out[kpi] = int(value)
+    return out
+
+
+def get_dashboard_kpis(profile, now=None, settings=None):
+    """Every Overview KPI as an id -> value map (ports ``getDashboardKpis``).
+
+    THE SWITCH (zero queries when off): when ``dashboard_kpis_enabled`` is False
+    the function returns :data:`EMPTY_KPIS` (every id at 0) WITHOUT any database
+    query, short-circuiting BEFORE ``stats_cache.get_or_compute``. To make that a
+    genuine zero-query path the caller passes an already-read ``settings`` dict as
+    the ``settings`` keyword (``get_settings`` itself issues a get-or-create
+    query, so a function-internal read could not be zero queries). When
+    ``settings`` is None it is read with ``get_settings`` (one query) and the same
+    switch is applied.
+
+    When the switch is ON the catalogue is memoised in ``StatsCache`` under
+    ``kind="dashboard"`` with ``params={"view": "kpis", "today": local_iso(now)}``
+    and ``today_sensitive=True`` (the figures depend on the current date). Money
+    values are stored and returned as strings (``str(Decimal)``) and counts as
+    ints, so the payload is JSON-serialisable; a caller needing a ``Decimal``
+    reconstructs it with ``Decimal(value)``.
+
+    "Last 30 days" is the 30 calendar days ending today inclusive, by memo date
+    for billed / counts and by payment date for received. ``statistics_enabled``
+    gates the appearances figures (reported 0 when off).
+    """
+    if settings is None:
+        settings = get_settings(profile)
+    if not settings.get("dashboard_kpis_enabled", True):
+        return _empty_kpis()
+
+    today = _as_date(now)
+    params = {"view": "kpis", "today": local_iso(today)}
+
+    def compute():
+        return _compute_kpis(profile, today, settings)
+
+    return stats_cache.get_or_compute(
+        profile, "dashboard", params, compute, today_sensitive=True
+    )
