@@ -4,7 +4,7 @@
 {% block program_nav %}{% for i in suite_nav %}{% include "_nav_item.html" with url=i.url name=i.name icon=i.icon on=i.on %}
   {% endfor %}{% endblock %}
 {# Sub-pages of a merged page (Users & Profiles, Backups & Import, Settings: D86), as tabs under the header. #}
-{% block crumb_nav %}{% if suite_tabs %}<nav class="subnav" aria-label="Sections of this page">{% for t in suite_tabs %}<a href="{{ t.url }}"{% if t.on %} class="on" aria-current="page"{% endif %}>{{ t.name }}</a>{% endfor %}</nav>{% endif %}{% endblock %}
+{% block crumb_nav %}{% if suite_tabs %}<nav class="subnav" aria-label="Sections of this page">{% for t in suite_tabs %}<a href="{{ t.url }}"{% if t.on %} class="on" aria-current="page"{% endif %}>{{ t.name }}</a>{% endfor %}</nav>{% endif %}{% if suite_subtabs %}<nav class="subnav" aria-label="Sections of the Case Law Diary settings">{% for t in suite_subtabs %}<a href="{{ t.url }}"{% if t.on %} class="on" aria-current="page"{% endif %}>{{ t.name }}</a>{% endfor %}</nav>{% endif %}{% endblock %}
 {# Log out appears only on the suite Home page (round 11); every other page has the Home icon at the far right. #}
 {% block nav_end %}{% if request.resolver_match.url_name == 'home' %}<form method="post" action="{% url 'logout' %}" class="inline">
           {% csrf_token %}

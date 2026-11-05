@@ -2,7 +2,7 @@
 {% block title %}Page Names - {{ home_name }}{% endblock %}
 {% block content %}
 <h1>Page Names</h1>
-<p>The names everyone sees. <strong>Home page name</strong> is the name of the first page after login (top left on the Home, Admins, General and Help pages). <strong>Case law diary name</strong> is the diary&rsquo;s name: top left on its pages (unless a profile has its own Display Name), in page titles, as the Settings item for the diary, and at the start of exported file names (unless a profile has its own). Only the displayed names change; nothing else is affected.</p>
+<p>The names everyone sees. <strong>Home page name</strong> is the name of the first page after login (top left on the Home, Admins, Settings and Help pages). <strong>Case law diary name</strong> is the diary&rsquo;s name: top left on its pages (unless a profile has its own Display Name), in page titles, as the Settings item for the diary, and at the start of exported file names (unless a profile has its own). Only the displayed names change; nothing else is affected.</p>
 <form method="post" class="stack">
   {% csrf_token %}
   {{ form.as_p }}

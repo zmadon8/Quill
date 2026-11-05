@@ -90,7 +90,7 @@ def _is(*names):
 
 
 #: The my_settings tabs (``?tab=``): (key, label, needs a diary profile). Round 18 (D96): Account and Display are under
-#: General; Numbers is under the Case Law Diary item.
+#: Settings; Numbers is under the Case Law Diary tab.
 SETTINGS_TABS = (("account", "Account", False), ("display", "Display", False), ("numbers", "Numbers", True))
 MY_SETTINGS_PAGES = ("my_settings", "format_preview", "password_change")
 
@@ -113,12 +113,24 @@ def _my_settings_tab(key, label, who):
     return ("my_settings", label, who, _settings_tab(key), f"?tab={key}")
 
 
-#: The label of a header item that is the Case Law Diary's own name (renamed on Admins > Page Names).
+#: The label of a header item or tab that is the Case Law Diary's own name (renamed on Admins > Page Names). Used both
+#: for the diary group label (history) and now for the diary TAB label inside the Settings group; suite_nav resolves it
+#: to the current display name.
 DIARY_NAME = object()
 
+
+def _diary_tab_current(name, request):
+    """The Case Law Diary tab (and the Settings header item) are current on the Numbers settings tab and on My edits."""
+    if name == "my_edits":
+        return True
+    return _settings_tab("numbers")(name, request)
+
+
 #: One entry per header item: (label, icon, tabs). A tab is (url name, label, who may see it, current-page test,
-#: query string). Who: "all", "admin" or "profile" (a Case Law Diary profile). Round 18 (D96): Admins (everything only
-#: an Admin may do), General (my account and display), the Case Law Diary (by its current name), Help.
+#: query string). Who: "all", "admin" or "profile" (a Case Law Diary profile). The label may be the DIARY_NAME sentinel,
+#: which suite_nav resolves to the diary's current display name. Round 19: Admins (everything only an Admin may do),
+#: Settings (my account, display, and - for users with a diary profile - the Case Law Diary tab by its current name,
+#: whose own sub-tabs are Numbers and Edits), Help.
 SUITE_GROUPS = (
     ("Admins", "icons/admin.svg.html", (
         ("user_list", "Users", "admin", _plain(_starts("user_")), ""),
@@ -131,28 +143,33 @@ SUITE_GROUPS = (
         ("backup_email", "Email Backups", "admin", _plain(_is("backup_email")), ""),
         ("import_word", "Import", "admin", _plain(_is("import_word")), ""),
     )),
-    ("General", "icons/gear.svg.html", (
+    ("Settings", "icons/gear.svg.html", (
         _my_settings_tab("account", "Account", "all"),
         _my_settings_tab("display", "Display", "all"),
-    )),
-    (DIARY_NAME, "icons/diary.svg.html", (
-        _my_settings_tab("numbers", "Numbers", "profile"),
-        ("my_edits", "My edits", "profile", _plain(_is("my_edits")), ""),
+        ("my_settings", DIARY_NAME, "profile", _diary_tab_current, "?tab=numbers"),
     )),
     ("Help", "icons/help.svg.html", (
         ("help", "Help", "all", _plain(_is("help")), ""),
     )),
 )
 
+#: The second-level sub-tabs of the Case Law Diary tab (Numbers and Edits). Shown only when that tab is current and only
+#: to users with a diary profile. Plain links, no JavaScript needed. Each is (url name, label, current-page test, query).
+DIARY_SUBTABS = (
+    ("my_settings", "Numbers", _settings_tab("numbers"), "?tab=numbers"),
+    ("my_edits", "Edits", _plain(_is("my_edits")), ""),
+)
+
 
 def suite_nav(request):
-    """``suite_nav`` (the header items of the main Home page) and ``suite_tabs`` (the sub-pages of the group the current
-    page belongs to, shown only when the user may see two or more). At most one cached query (the user's diary profile)."""
+    """``suite_nav`` (the header items of the main Home page), ``suite_tabs`` (the sub-pages of the group the current page
+    belongs to, shown only when the user may see two or more) and ``suite_subtabs`` (the second-level sub-tabs of the
+    Case Law Diary tab, shown only when that tab is current). At most one cached query (the user's diary profile)."""
     from django.urls import reverse
 
     user = getattr(request, "user", None)
     if user is None or not user.is_authenticated:
-        return {"suite_nav": [], "suite_tabs": []}
+        return {"suite_nav": [], "suite_tabs": [], "suite_subtabs": []}
     match = getattr(request, "resolver_match", None)
     current = (match.url_name or "") if match else ""
     has_profile = None
@@ -167,13 +184,18 @@ def suite_nav(request):
             return has_profile
         return True
 
+    def diary_name():
+        names = getattr(request, "_suite_names", None)
+        return (names or _names())[suite.KEY_DIARY]
+
     items, tabs_here = [], []
     for label, icon, tabs in SUITE_GROUPS:
         if label is DIARY_NAME:
-            names = getattr(request, "_suite_names", None)
-            label = (names or _names())[suite.KEY_DIARY]
+            label = diary_name()
         mine = [
-            {"url": reverse(url_name) + query, "name": name, "on": is_current(current, request)}
+            {"url": reverse(url_name) + query,
+             "name": diary_name() if name is DIARY_NAME else name,
+             "on": is_current(current, request)}
             for url_name, name, who, is_current, query in tabs
             if allowed(who)
         ]
@@ -183,4 +205,12 @@ def suite_nav(request):
         items.append({"url": mine[0]["url"], "name": label, "icon": icon, "on": on})
         if on and len(mine) > 1:
             tabs_here = mine
-    return {"suite_nav": items, "suite_tabs": tabs_here}
+    # Second level: the Case Law Diary tab's own sub-tabs (Numbers, Edits), only for users with a diary profile and only
+    # while that tab is the current one.
+    subtabs = []
+    if allowed("profile") and _diary_tab_current(current, request):
+        subtabs = [
+            {"url": reverse(url_name) + query, "name": name, "on": is_current(current, request)}
+            for url_name, name, is_current, query in DIARY_SUBTABS
+        ]
+    return {"suite_nav": items, "suite_tabs": tabs_here, "suite_subtabs": subtabs}

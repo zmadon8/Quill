@@ -130,7 +130,7 @@ class ForgotPasswordView(auth_views.PasswordResetView):
 @login_required
 @require_http_methods(["GET", "POST"])
 def my_settings(request):
-    """Settings for every signed-in user: Account and Display (General), and Numbers (the Case Law Diary item).
+    """Settings for every signed-in user: Account and Display (Settings tabs), and Numbers (the Case Law Diary tab).
 
     Display also holds the diary's own settings (Display Name, what the Contents links open; round 18, D96): they belong
     to the profile, so everyone in it sees them and only its Editors can change them.
