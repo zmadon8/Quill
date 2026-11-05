@@ -408,7 +408,7 @@ class Migration(migrations.Migration):
                     models.Index(fields=["payment"], name="fees_allocation_payment_idx"),
                     models.Index(fields=["memo"], name="fees_allocation_memo_idx"),
                     models.Index(
-                        fields=["profile", "memo"], name="fees_allocation_profile_memo_idx"
+                        fields=["profile", "memo"], name="fees_alloc_profile_memo_idx"
                     ),
                 ],
             },

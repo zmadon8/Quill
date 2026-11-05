@@ -376,7 +376,7 @@ class Allocation(models.Model):
         indexes = [
             models.Index(fields=["payment"], name="fees_allocation_payment_idx"),
             models.Index(fields=["memo"], name="fees_allocation_memo_idx"),
-            models.Index(fields=["profile", "memo"], name="fees_allocation_profile_memo_idx"),
+            models.Index(fields=["profile", "memo"], name="fees_alloc_profile_memo_idx"),
         ]
 
     def __str__(self):
