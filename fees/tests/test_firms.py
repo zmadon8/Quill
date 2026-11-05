@@ -316,7 +316,9 @@ class MatterRollupTests(TestCase):
         self.profile = fees_profile()
         self.firm = create_firm(self.profile, "Acme")
         self.group = self.firm.groups.first()
-        FeesSettings.objects.create(profile=self.profile, overdue_days=30)
+        FeesSettings.objects.update_or_create(
+            profile=self.profile, defaults={"overdue_days": 30}
+        )
 
     def _matter(self, name):
         return make_matter(self.profile, self.firm, self.group, name)
