@@ -242,7 +242,7 @@ class Memo(models.Model):
     memo_number = models.CharField(max_length=100, null=True, blank=True)
     financial_year = models.CharField(max_length=7)
     seq = models.IntegerField(default=0)
-    date = models.DateField()
+    date = models.DateField(null=True, blank=True)
     matter = models.ForeignKey(Matter, on_delete=models.PROTECT, related_name="memos")
     firm = models.ForeignKey(Firm, on_delete=models.CASCADE, related_name="memos")
     group = models.ForeignKey(Group, on_delete=models.CASCADE, related_name="memos")

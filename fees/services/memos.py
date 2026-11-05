@@ -312,7 +312,7 @@ def create_memo(profile, data, is_draft=False):
             matter=matter,
             firm_id=matter.firm_id,
             group_id=matter.group_id,
-            date=raw_date,
+            date=raw_date or None,
             is_draft=is_draft,
             addressee_line1="",
         )
@@ -442,9 +442,13 @@ def update_memo(profile, memo_id, data):
 
     with transaction.atomic():
         if "date" in data:
-            memo.date = data["date"]
+            memo.date = data["date"] or None
             if memo.is_draft:
-                memo.financial_year = derive_financial_year(memo.date)
+                memo.financial_year = (
+                    derive_financial_year(memo.date)
+                    if memo.date
+                    else current_financial_year()
+                )
             # A finalised memo keeps its number and financial_year on a date edit.
 
         _apply_input_fields(memo, data)
