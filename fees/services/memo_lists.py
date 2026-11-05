@@ -12,8 +12,9 @@ Reuse, do NOT re-derive (R-MEMO-1, D3): every row's fees come from the stored
 ``total_fees`` via ``memo_fees.resolve_memo_fees`` / ``effective_total_fees`` and
 the paid-driven values from ``memo_fees.status_and_due``; the stored
 ``amount_paid`` (gross), ``amount_received`` (net) and ``amount_tds`` columns are
-read directly (payments.py keeps them in step, R-DATA-4). Nothing here computes
-``num_appearances * fees_per_appearance`` inline, so the T2.2 grep guard holds.
+read directly (payments.py keeps them in step, R-DATA-4). Nothing here
+multiplies a count by its per-unit rate (the per-appearance and per-conference
+products stay in memo_fees.py), so the T2.2 grep guard holds.
 
 Scoping (design section 11): every query is filtered by ``profile`` exactly like
 the sibling services. These are pure READS: they never bump ``data_version``.
