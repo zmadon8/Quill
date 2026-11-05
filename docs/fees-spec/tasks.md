@@ -48,13 +48,14 @@ Goal: the diary is provably unchanged, the fees tables exist, backups are safe.
 
 ## Phase 2: core services (B 5)
 
+- [ ] T2.0 Migration `fees/migrations/0002` adds the five `FeesSettings` memo text-default fields (`memo_default_name`, `memo_default_designation`, `memo_default_address`, `memo_default_bank_details`, `memo_default_pan`) and the three `WordTemplate` signature fields (`signature_data`, `signature_filename`, `signature_content_type`). `0001_initial` is not altered. Gate: `makemigrations --check` clean; migration applies on an empty DB.
 - [ ] T2.1 `services/money.py`, `services/financial_year.py`, `services/fees_in_words.py`. Port: feesInWords unit and property, memoNumberService FY tests, formatMoney (fixture `money_cases.json`). Gate: tests pass.
 - [ ] T2.2 `services/memo_fees.py` (single B 5.2 implementation, D3) with derived values (net of TDS, due, status, overdue). Port: memoService fee tests and property. Test: no other module computes line fees.
 - [ ] T2.3 `services/memo_numbers.py` including Q8. Port: memoNumberService, memoNumber.property. Concurrency test. 
 - [ ] T2.4 `services/firms.py`, `services/matters.py` (groups, cascade moves, roll-ups, recent matters, group in use error). Port: firmService, matterService and properties; Q2 test.
 - [ ] T2.5 `services/memos.py` (create, draft, finalise, update, delete, write off, based-on) with stored `total_fees` and `touch`. Port: memoService unit and property. Tests for Q1, Q5.
 - [ ] T2.6 `services/payments.py` with `recompute_paid` and Q3. Port: paymentService unit and property, payment prefill table. Test R-DATA-4 with seeded random operation sequences.
-- [ ] T2.7 `services/settings.py` (all keys, validation, bank accounts, `data_version`, new switches, name pattern fields validated by `filenames.validate_pattern` once it exists; stub until T5.1). Port: settingsService.
+- [ ] T2.7 `services/settings.py` (all keys, validation, bank accounts, `data_version`, new switches, name pattern fields validated by `filenames.validate_pattern` once it exists; stub until T5.1; and the five memo text-default fields validated for max length with a null resetting to the blank default per R-SET-7). Port: settingsService.
 - [ ] T2.8 `services/integrity.py` and `fees_check` command. Gate: reports zero mismatches after the random-sequence test.
 - [ ] Gate G-RAM for Phase 2: query-count tests for service entry points; `openpyxl` not imported.
 - [ ] **STOP P2:** all ported tests pass; report coverage list vs section 16 of the brief.
@@ -77,9 +78,9 @@ Goal: the diary is provably unchanged, the fees tables exist, backups are safe.
 
 ## Phase 4: Excel backup and restore (B 11, D6)
 
-- [ ] T4.1 `services/excel_backup.py` export (design 7.1), contract test constants copied from `backupService.ts`.
-- [ ] T4.2 Restore reader, preview, id remapping, backfill, recomputes, `WebSettings`, `RESTORE_FAILED`, typed confirmation, pre-restore suite backup, heavy lock. Port: backupService.property (as seeded loops).
-- [ ] T4.3 Round-trip acceptance tests: web to web; desktop-shaped fixture (generated in the test, including legacy `payments.memo_id` and missing allocations sheet); the empty sample `.xlsx` copied into `fees/tests/fixtures/` (it contains no client data); NOT NULL vestigial columns present; `payment_details` sentinel present in backup only.
+- [ ] T4.1 `services/excel_backup.py` export (design 7.1), contract test constants copied from `backupService.ts`. Ensure the `WebSettings` sheet carries the five memo text-default settings (`memo_default_name`, `memo_default_designation`, `memo_default_address`, `memo_default_bank_details`, `memo_default_pan`) alongside the existing web-only keys, and that `WordTemplate.signature_data` is NOT written to the `.xlsx`.
+- [ ] T4.2 Restore reader, preview, id remapping, backfill, recomputes, `WebSettings` (apply the five memo text defaults when present), `RESTORE_FAILED`, typed confirmation, pre-restore suite backup, heavy lock. The suite backup carries the signature bytes automatically (design 7.4). Port: backupService.property (as seeded loops).
+- [ ] T4.3 Round-trip acceptance tests: web to web; desktop-shaped fixture (generated in the test, including legacy `payments.memo_id` and missing allocations sheet); the empty sample `.xlsx` copied into `fees/tests/fixtures/` (it contains no client data); NOT NULL vestigial columns present; `payment_details` sentinel present in backup only. Assert the five memo text defaults round-trip via the `WebSettings` sheet, and the signature image round-trips via the suite backup only (absent from the `.xlsx`).
 - [ ] T4.4 Clear-all (backup first, typed confirmation, pre-clear suite backup, only this profile).
 - [ ] T4.5 Memory tests: export under 12 MB, restore under 40 MB on the planning dataset.
 - [ ] **OWNER GATE G-D6 (manual, needs the owner's real desktop file):** restore a real desktop backup on a local or staging database; compare counts, dashboard KPIs and outstanding grand total with the desktop app; export from the web and restore into the desktop app (and confirm it opens, with fewer features is acceptable). The file is not committed.
@@ -90,7 +91,8 @@ Goal: the diary is provably unchanged, the fees tables exist, backups are safe.
 ## Phase 5: exports (B 7)
 
 - [ ] T5.1 `exports/filenames.py` and tests R-FN-7 (default outputs identical to the original: the five examples, the three original unit tests, Property 20 re-run). Then connect settings validation (T2.7).
-- [ ] T5.2 `exports/template_prep.py`, `exports/word.py`, placeholder map, `WordTemplate` upload/download service. Copy `Template 2-11-2026 (short tags).docx` to `fees/tests/fixtures/`. Port: exportService (map tests), shortTagTemplates (acceptance), templateTags (merge regex). Zip limits tests. Memory test under 2 MB.
+- [ ] T5.2 `exports/template_prep.py`, `exports/word.py`, placeholder map, `WordTemplate` upload/download service. Add the five memo text tags (`MEMO_NAME`/`M1` to `MEMO_PAN`/`M5`) from the `FeesSettings` memo defaults and the signature tag `MEMO_SIGNATURE`/`MSIG` to the placeholder map and the accepted tag set (design 8.2). Add signature upload handling to the `WordTemplate` upload/download service: validate type (png or jpg/jpeg) and size (2 MB) before opening, reject with `INVALID_SIGNATURE`, store `signature_data`, `signature_filename`, `signature_content_type`, and allow download and replace. Copy `Template 2-11-2026 (short tags).docx` to `fees/tests/fixtures/`. Port: exportService (map tests), shortTagTemplates (acceptance), templateTags (merge regex). Zip limits tests. Memory test under 2 MB.
+- [ ] T5.2a Signature image embedding (design 8.4): emit the image as a `word/media/` part, add the `document.xml.rels` relationship, and emit a `w:drawing` run at the `MEMO_SIGNATURE` tag; stdlib-only, honouring the 8.1 zip limits. Acceptance test: a memo with an uploaded png produces a `.docx` whose `word/media` contains the image part, `document.xml.rels` has the relationship, and `document.xml` has a `w:drawing` at the tag location; a memo with no signature renders a valid `.docx` with the tag removed and no media part added.
 - [ ] T5.3 `exports/xlsx.py` for every workbook in B 7.3 with `write_only`, temp file, exact columns and totals; `Memos` zero rows gives `EXPORT_FAILED`; visible-column handling. Tests open files with `openpyxl` read-only and assert headers, totals, formats.
 - [ ] T5.4 `exports/tax_summary.py`.
 - [ ] T5.5 Reader-allowed export permission tests; `payment_details` sentinel test over all exports; RFC 5987 filename helper tests.
@@ -132,7 +134,7 @@ Each screen: template, CSS, small JS, accessibility check, review stop optional 
 - [ ] T8.5 Outstanding (firm summary, detail with grouped, summary and in-order views, tick boxes plus Pay).
 - [ ] T8.6 Dashboard (KPI boxes, customise, recent matters).
 - [ ] T8.7 Statistics Standard tab and Edit Statistics grid; Explore tab with pivot table, saved views, chart (`pivot-chart.js`, off by default, host palette).
-- [ ] T8.8 Settings: all sections, **file-name pattern with live preview** (`filename-preview.js`), owner name, template upload, bank accounts, display, start years, switches, import, backup/restore, clear-all.
+- [ ] T8.8 Settings: all sections, **file-name pattern with live preview** (`filename-preview.js`), owner name, template upload, bank accounts, display, start years, switches, import, backup/restore, clear-all. Add a "Memo text defaults" group (R-SET-7) with inputs for name, designation, address and PAN and a textarea for the multi-line bank details, and add the signature image upload control (R-SET-8) inside the Word Template box next to the template upload and download.
 - [ ] T8.9 Manual accessibility and phone-width pass (360 px), keyboard, focus ring, text sizes; screenshot review for the owner.
 - [ ] Gate G-RAM: re-run memory tests; check page weight (gzip) and JS size per page.
 - [ ] **STOP P8:** owner reviews screens.

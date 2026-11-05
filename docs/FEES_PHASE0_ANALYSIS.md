@@ -158,6 +158,14 @@ Adopted from brief 14 (all of it), with the additions in brackets. Details and n
 
 Note on the draft numbering of the brief: its "After approval" list skips item 3. Cosmetic, nothing missing.
 
+### 4.1 Memo text defaults and signature (D10 to D12)
+
+| # | Decision | Recorded outcome | Source |
+|---|---|---|---|
+| D10 | Memo text defaults | Five profile-level `FeesSettings` fields (`memo_default_name`, `memo_default_designation`, `memo_default_address`, `memo_default_bank_details` multi-line, `memo_default_pan`), blank by default, printed on every memo through the placeholder tags `MEMO_NAME`/`M1` to `MEMO_PAN`/`M5`. No per-memo override (owner asked for defaults set in Settings). | Owner request (user items 2 and 3) |
+| D11 | Signature image | Upload co-located in the Word Template box; accepted types png or jpg/jpeg only; size cap 2 MB (consistent with the template cap U7 and R-NFR-9); stored on `WordTemplate` (`signature_data`, `signature_filename`, `signature_content_type`); placed by the tag `MEMO_SIGNATURE`/`MSIG`, which embeds the image rather than substituting text. Excluded from the `.xlsx` desktop backup (like the template); included in the suite JSON backup. | Owner request (user item 3) |
+| D12 | New migration | A new migration `fees/migrations/0002` adds the five settings fields and the three signature fields; `0001_initial` is not altered. Built in Phase 2. | Spec provision |
+
 ---
 
 ## 5. Owner answers incorporated
@@ -264,6 +272,9 @@ Summary here, full detail in [FEES_RAM_BUDGET.md](FEES_RAM_BUDGET.md). Steady st
 | U9 | Lower `MAX_BACKUP_UPLOAD_MB` from 100 to 30 until the restore path streams? | Yes |
 | U10 | Gunicorn changes (`--preload`, `MALLOC_ARENA_MAX=2`, possibly 1 worker with 4 threads): measure first, then ask. | Measure first |
 | U11 | `FEES_ENABLED` dark-launch flag? | Yes |
+| U12 | Signature image accepted types and size cap: png or jpg/jpeg only, 2 MB (matching the template cap U7)? | png/jpg(jpeg) only, 2 MB |
+| U13 | Memo text defaults tag naming: `MEMO_NAME`/`M1`, `MEMO_DESIGNATION`/`M2`, `MEMO_ADDRESS`/`M3`, `MEMO_BANK_DETAILS`/`M4`, `MEMO_PAN`/`M5`; signature `MEMO_SIGNATURE`/`MSIG`? | Yes |
+| U14 | Memo text defaults are profile-level with no per-memo override (set once in Settings)? | Yes, no per-memo override |
 
 ---
 

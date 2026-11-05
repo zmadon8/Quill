@@ -36,8 +36,8 @@ All money `DecimalField(max_digits=14, decimal_places=2)`. `profile = ForeignKey
 
 | Model | Fields beyond B 4 | Constraints and indexes |
 |---|---|---|
-| `FeesSettings` | one row per profile (`OneToOne`), all B 9 keys; new: `statistics_enabled` (True), `dashboard_kpis_enabled` (True), `export_owner_name` (default "Ziyad Madon"), `memo_filename_pattern` (blank), `data_version` (BigInteger, 0) | unique profile |
-| `WordTemplate` | `profile` OneToOne, `filename`, `data` (BinaryField, original), `prepared` (BinaryField, tags merged), `tags` (JSON list), `uploaded_at` | read with `.defer("data", "prepared")` except on export |
+| `FeesSettings` | one row per profile (`OneToOne`), all B 9 keys; new: `statistics_enabled` (True), `dashboard_kpis_enabled` (True), `export_owner_name` (default "Ziyad Madon"), `memo_filename_pattern` (blank), `data_version` (BigInteger, 0); memo text defaults (R-SET-7): `memo_default_name` `CharField(120, blank, default "")`, `memo_default_designation` `CharField(120, blank, default "")`, `memo_default_address` `CharField(300, blank, default "")`, `memo_default_bank_details` `TextField(blank, default "")` (multi-line), `memo_default_pan` `CharField(20, blank, default "")` | unique profile |
+| `WordTemplate` | `profile` OneToOne, `filename`, `data` (BinaryField, original), `prepared` (BinaryField, tags merged), `tags` (JSON list), `uploaded_at`; signature (R-SET-8): `signature_data` (BinaryField, null, blank), `signature_filename` `CharField(255, blank, default "")`, `signature_content_type` `CharField(100, blank, default "")` | read with `.defer("data", "prepared", "signature_data")` except on export |
 | `BankAccount` | `name` | unique `(profile, Lower(name))` |
 | `Firm` | `name`, `status`, `notes` | unique `(profile, Lower(name))`; index `(profile, status)` |
 | `Group` | `firm`, `name` | unique `(firm, Lower(name))` |
@@ -51,6 +51,8 @@ All money `DecimalField(max_digits=14, decimal_places=2)`. `profile = ForeignKey
 | `StatsCache` | `profile`, `kind`, `params_hash`, `valid_on` (date or null), `data_version`, `payload` (JSON), `created_at` | unique `(profile, kind, params_hash)`; excluded from backups |
 
 Deleting: `memo.matter` and `allocation.memo` are `PROTECT`; services delete explicitly in the documented order. Profile purge and clear delete child first (section 7.5).
+
+The five `FeesSettings` memo text-default fields and the three `WordTemplate` signature fields require a NEW migration `fees/migrations/0002` when built. `0001_initial` already shipped in Phase 1 and must NOT be altered; a later migration (Phase 2, task T2.0) adds these fields. Do not create the migration now; it is only described here.
 
 ## 3. Money and rounding (`services/money.py`)
 
@@ -127,7 +129,9 @@ HTTP statuses follow B 12. JSON endpoints: statistics data, pivot, saved views, 
 | dates | `YYYY-MM-DD` text |
 | money | number, 2 decimals |
 | Settings Electron-only | defaults (`zoom_factor` 1, `backup_*_enabled` 0, dirs and `last_*` empty, `backup_retention` 30, `auto_backup_frequency` off, `word_template_path` empty, `backup_migrated` 1) |
-| web-only settings | extra sheet `WebSettings` (`key`, `value`) |
+| web-only settings | extra sheet `WebSettings` (`key`, `value`): `export_owner_name`, `memo_filename_pattern`, `statistics_enabled`, `dashboard_kpis_enabled`, plus the five memo text defaults `memo_default_name`, `memo_default_designation`, `memo_default_address`, `memo_default_bank_details`, `memo_default_pan` (R-SET-7) |
+
+The signature image bytes (`WordTemplate.signature_data`) are NOT written to the `.xlsx`, consistent with the Word template bytes being absent from the `.xlsx` (they ride in the suite backup only, section 7.4).
 
 ### 7.2 Excel restore
 
@@ -145,6 +149,7 @@ Listed in requirements R-BK-3. The contract test keeps its own copy of the deskt
 
 - `BACKUP_MODELS` appends, after `accounts.ProfileMembership` and the diary models: `fees.FeesSettings`, `fees.WordTemplate`, `fees.BankAccount`, `fees.Firm`, `fees.Group`, `fees.Matter`, `fees.Memo`, `fees.NumberSequence`, `fees.Payment`, `fees.Allocation`, `fees.PeriodAdjustment`, `fees.SavedView`. All also in `OPTIONAL_MODELS`. `StatsCache` is not listed.
 - `FEES_PROFILE_MODELS` is a separate list (same order) so `services.upgrade_old_document`, which pushes unassigned diary rows into the diary "Main" profile, never touches fee models.
+- The new `WordTemplate.signature_data` binary field (R-SET-8) is carried by the suite backup automatically, because `fees.WordTemplate` is already in `BACKUP_MODELS` (no registry change needed); like the existing `data` and `prepared` bytes it is streamed per row through the chunked serialiser (chunk_size 500), so it adds no table-at-once memory cost. The five memo text-default settings are plain `FeesSettings` columns and round-trip with that model.
 - **Restore guard (R-BK-4):** `preview_restore` computes `will_empty = [label for label in OPTIONAL_MODELS if label not in file and table_has_rows(label)]`. The template shows a red box naming the program and row counts and requires an extra tick box. The view refuses to restore without it.
 - **Streaming serialiser (R-BK-6, RAM R1):** `_build_document` is replaced by `write_document(fileobj, now)`: writes `{"format": ..., "format_version": 1, "created_at": ..., "models": {` then for each label `"label": [` records `]`, using `queryset.iterator(chunk_size=500)` and Django's `Serializer` per chunk, joining records with commas, into a `gzip.GzipFile` over `tempfile.SpooledTemporaryFile(max_size=2 MB)`; then `counts` is written last (the layout puts `counts` after `models`; `parse_backup` reads a dict so key order is irrelevant). `BackupFile.data` still receives the final gzip bytes (one copy). Test: old and new builders produce equal parsed documents on the diary fixtures and a fees fixture; restore round-trip; memory test.
 - Decompressed size cap lowered to 30 MB (U9) and `restore_backup` deserialises each model in chunks of 500.
@@ -165,6 +170,29 @@ Listed in requirements R-BK-3. The contract test keeps its own copy of the deskt
 
 `build_placeholder_map(memo_detail)` is a straight port of `buildBaseMap` and `withShortAliases` (B 7.1 table, including `L23` using the raw `fees_misc_drafting` and `L16W`, `L19W`). Payment data is never included.
 
+The map also carries the five memo-constant text tags from the `FeesSettings` memo defaults (R-SET-7), a straight extension of the existing map under long and short names:
+
+| Long tag | Short | Value |
+|---|---|---|
+| `MEMO_NAME` | `M1` | `memo_default_name` |
+| `MEMO_DESIGNATION` | `M2` | `memo_default_designation` |
+| `MEMO_ADDRESS` | `M3` | `memo_default_address` |
+| `MEMO_BANK_DETAILS` | `M4` | `memo_default_bank_details` (multi-line; its `\n` is turned into a Word line break by the 8.1 renderer) |
+| `MEMO_PAN` | `M5` | `memo_default_pan` |
+
+The signature tag `MEMO_SIGNATURE` (short `MSIG`) is NOT a text substitution; it is handled by the image-embedding step of section 8.4. It is listed in the tag set so the upload-time tag validation (8.1) accepts it, but it carries no string value in the map.
+
+### 8.4 Signature image embedding
+
+Embedding a signature image in a `.docx` is the one genuinely new renderer mechanism beyond the stdlib text renderer of 8.1, and is detailed and tested in Phase 5. It is stdlib-only (`zipfile` plus `xml`), adds no new dependency, and honours the same zip entry and uncompressed-size limits as 8.1 (200 entries, 20 MB uncompressed total).
+
+Unlike a text tag, `MEMO_SIGNATURE` requires three coordinated edits to the docx zip rather than a string replace:
+1. Add the image bytes (`WordTemplate.signature_data`) as a new part under `word/media/` (for example `word/media/signature1.png`), choosing the extension from `signature_content_type` (png or jpg/jpeg per R-SET-8), and register its content type in `[Content_Types].xml` if the extension default is not already declared.
+2. Add a relationship entry in the part's `_rels` (`word/_rels/document.xml.rels`) of type `image`, with a fresh unused relationship id (for example `rIdSig`), its `Target` pointing at the new media part.
+3. At the `MEMO_SIGNATURE` location emit an inline `w:drawing` run whose `a:blip r:embed` references the new relationship id, sized to a sensible default (for example a fixed width in EMUs with the height scaled to the image aspect ratio). The `{{MEMO_SIGNATURE}}` placeholder run is replaced by this drawing run.
+
+When no signature is uploaded, the `MEMO_SIGNATURE` tag renders to nothing (the placeholder is removed, no media part or relationship is added) and the output is still a valid `.docx`. Headers and footers are processed the same way as 8.1 if the tag appears there; each XML part that uses the tag gets its own relationship entry in that part's `_rels`.
+
 ### 8.3 File name function (`exports/filenames.py`)
 
 ```
@@ -178,7 +206,7 @@ Default pattern proof against the original (`middle` is sanitised separately in 
 
 The Word export view calls this function with the profile's settings; the preview endpoint calls the same function with the newest memo (or a built-in sample memo `2026-27/5`, matter "Sample Matter") and the pattern from the request body, so preview equals reality. The response header is built by a helper that sends `filename*=UTF-8''<percent-encoded>` and an ASCII fallback `filename`.
 
-Settings UI: a text input for the pattern with a clickable placeholder list (inserts at the cursor), live preview line, error list, "Reset to default"; a text input for the owner name.
+Settings UI: a text input for the pattern with a clickable placeholder list (inserts at the cursor), live preview line, error list, "Reset to default"; a text input for the owner name. A new "Memo text defaults" group (R-SET-7) holds a text input each for name, designation, address and PAN and a textarea for the multi-line bank details. The signature image upload control (R-SET-8) sits inside the existing Word Template box, next to the template upload and download, with its own download and replace actions.
 
 ## 9. Account bootstrap (`create_fees_user`)
 
