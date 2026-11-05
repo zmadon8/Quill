@@ -575,11 +575,15 @@ class ReadingScreenTests(TestCase):
         topic = Topic.objects.get(name="Remedies")
         for url in (reverse("read_subject", args=[self.contract.pk]), reverse("read_topic", args=[topic.pk])):
             html = self.client.get(url).content.decode()
-            crumb = html.split('class="crumb-row"')[1].split("</div>")[0]
+            # The crumb-row holds several nested divs now (the Edit bar's bar-tools, which carries the Links toggle).
+            # Capture the whole header row, from class="crumb-row" up to the reader layout that follows it.
+            crumb = html.split('class="crumb-row"')[1].split("reader-layout")[0]
             self.assertEqual(html.count("data-contents-toggle"), 1, url)
             self.assertIn("data-contents-toggle", crumb, url)
             self.assertIn('aria-controls="contents-panel" aria-expanded="false" aria-label="Contents"', crumb, url)
-            button = crumb.split("<button")[2]  # the first button is Show header
+            # Pick the Contents button by its marker, not by position: the Links toggle now sits before it.
+            button = "<button" + crumb.split("<button")[-1].split("</button>")[0]
+            self.assertIn("data-contents-toggle", button, url)  # it really is the Contents button
             self.assertEqual(button.count("<circle"), 3, url)  # three dots
             self.assertEqual(button.count("<path"), 1, url)  # and three lines
             self.assertIn("M10 6h11M10 12h11M10 18h11", button, url)
