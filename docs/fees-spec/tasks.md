@@ -149,7 +149,7 @@ Each screen: template, CSS, small JS, accessibility check, review stop optional 
 ## Phase 10: release (only on the owner's explicit go-ahead)
 
 - [ ] T10.1 Merge/push as the owner directs; Render deploys with `migrate_with_backup`.
-- [ ] T10.2 On Render Shell, once: `python manage.py create_fees_user --username Ziyad --profile Ziyad-Fees --make-admin` (the user `Ziyad` already exists, so no password is set; add `--reset-password` with `FEES_USER_PASSWORD` set temporarily in the shell session only if a reset is wanted). Confirm sign-in.
+- [ ] T10.2 On Render Shell, once: `python manage.py create_fees_user --username Ziyad --profile Ziyad-Fees --make-admin`. The user `Ziyad` already exists, so this only adds the `Ziyad-Fees` Editor membership and promotes `Ziyad` to Admin; it creates no new user and sets no password (add `--reset-password` with `FEES_USER_PASSWORD` set temporarily in the shell session only if a password reset is wanted). Confirm sign-in.
 - [ ] T10.3 Restore the owner's desktop backup into the `Ziyad` profile; compare KPIs; keep the desktop app in parallel.
 - [ ] T10.4 Watch the Render memory graph for a week (alarm line 400 MB); download a first Excel backup.
 

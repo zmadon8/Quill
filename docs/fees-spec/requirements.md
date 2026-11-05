@@ -224,11 +224,12 @@ Status of decisions: D1 to D9, Q8 and the owner's answers are recorded in the an
 
 ## R-ACC Account bootstrap (owner answer)
 
-**R-ACC-1** A management command `create_fees_user --username Ziyad --profile Ziyad-Fees` shall, idempotently: create the Fee Register profile `Ziyad-Fees` if missing; use the existing user `Ziyad` (or create a user if missing, with a usable password), promote to `is_superuser` true (Admin) when `--make-admin`; create or update the membership as Editor; set `landing_program` to `fees`.
-- Password: prompted twice with `getpass`, or read from environment `FEES_USER_PASSWORD`; validated with Django validators; never passed as an argument, never printed, never stored in the repository, a migration, a fixture or a log. A second run changes nothing unless `--reset-password` is given.
+**R-ACC-1** A management command `create_fees_user --username Ziyad --profile Ziyad-Fees` shall, idempotently: create the Fee Register profile `Ziyad-Fees` if missing; **attach a membership to the existing user `Ziyad` (it shall NOT create a new user)**; promote that user to `is_superuser` true (Admin) when `--make-admin` (owner's choice); create or update the membership as Editor; set `landing_program` to `fees`.
+- AC: run against the existing `Ziyad` adds exactly one `ProfileMembership` and creates **no** second `User` row (`User.objects.count()` unchanged). A missing username is refused by default (no account created); a user may be created only with the explicit `--create-missing` flag (kept for a fresh install, not the owner's case).
+- Password: for an existing user none is set unless `--reset-password`. When `--create-missing` creates a user the password is prompted twice with `getpass`, or read from environment `FEES_USER_PASSWORD`; validated with Django validators; never passed as an argument, never printed, never stored in the repository, a migration, a fixture or a log. A second run changes nothing unless `--reset-password` is given.
 - Output names the user and profile only.
-- AC tests: first run creates; second run no-op; refusing a weak password; membership upgraded from reader to editor; user existing as non-admin is **not** silently promoted unless `--make-admin` is passed (the default for a newly created user is Admin per the owner's request); command never runs automatically and no data or user is created by any migration.
-- Open (U6): confirm that Admin plus Editor membership is what is meant.
+- AC tests: first run against the existing `Ziyad` adds the membership and creates no second user; second run is a no-op; membership upgraded from reader to editor; a non-admin existing user is **not** silently promoted unless `--make-admin` is passed; a missing username is refused unless `--create-missing`; when `--create-missing` creates a user a weak password is refused; command never runs automatically and no data or user is created by any migration.
+- U6 (owner answered): the existing user `Ziyad` is the Admin, and the profile is `Ziyad-Fees`. No new user is created.
 
 ## R-SH Shared-core changes
 

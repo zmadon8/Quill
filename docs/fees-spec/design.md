@@ -182,13 +182,16 @@ Settings UI: a text input for the pattern with a clickable placeholder list (ins
 
 ## 9. Account bootstrap (`create_fees_user`)
 
-Arguments: `--username` (required), `--profile` (required), `--make-admin/--no-admin` (default admin for a newly created user), `--reset-password`. Steps, each skipped if already true:
+**Owner's instruction (do not create a new user):** the owner's user `Ziyad` already exists. The command adds the Fee Register profile `Ziyad-Fees` to that existing user. It must **attach a membership to the existing `Ziyad`**, never create a second account. For the owner's run the normal path touches no password and does not require `--create-missing`.
+
+Arguments: `--username` (required), `--profile` (required), `--make-admin/--no-admin` (promote the existing user to Admin; default on), `--reset-password`, `--create-missing` (opt-in; only then may a missing user be created, for reuse on a fresh install). Steps, each skipped if already true:
 1. `ensure_default_profile(Profile, KEY_FEES, profile_name)`.
-2. Look up the user case-insensitively. If missing: read the password (`FEES_USER_PASSWORD` or two `getpass` prompts; error if non-interactive and the variable is unset), `full_clean(exclude=["password"])`, `validate_password`, `set_password`, `is_superuser=True` (the `User.save` keeps `is_staff` in step), `landing_program="fees"`.
-3. If the user exists: no password change unless `--reset-password`; promote to admin only with `--make-admin` explicitly.
-4. Membership: `ProfileMembership.objects.update_or_create(user, profile, defaults={"role": ROLE_EDITOR, "suspended": False})`.
-5. Print `User Ziyad ready: Admin, Editor in Fee Register profile Ziyad-Fees` and nothing secret.
-Tests use `call_command` with the environment variable patched via `mock.patch.dict(os.environ, ...)` using a test-only string. No migration, fixture or `render.yaml` entry creates a user or a password.
+2. Look up the user case-insensitively.
+   - **If the user exists (the owner's case):** do not change the password unless `--reset-password`; promote to Admin only with `--make-admin`; set `landing_program="fees"`. No new account is created.
+   - **If the user is missing:** by default **refuse** with a clear message (so a typo in `--username` can never silently create a stray account). Only with `--create-missing` may it create one: read the password (`FEES_USER_PASSWORD` or two `getpass` prompts; error if non-interactive and the variable is unset), `full_clean(exclude=["password"])`, `validate_password`, `set_password`, `is_superuser` per `--make-admin`, `landing_program="fees"`.
+3. Membership: `ProfileMembership.objects.update_or_create(user=user, profile=profile, defaults={"role": ROLE_EDITOR, "suspended": False})` on the resolved existing user.
+4. Print `User Ziyad ready: Admin, Editor in Fee Register profile Ziyad-Fees` and nothing secret.
+Tests use `call_command` with the environment variable patched via `mock.patch.dict(os.environ, ...)` using a test-only string. A test asserts that running against the existing `Ziyad` creates **no** second user and only adds the membership, and that a missing user without `--create-missing` is refused. No migration, fixture or `render.yaml` entry creates a user or a password.
 
 ## 10. Shared-core generalisation (KEY_DIARY)
 
