@@ -57,6 +57,7 @@ from fees.models import (
     Memo,
 )
 from fees.services.memo_fees import compute_is_overdue
+from fees.services.memos import touch
 from fees.services.money import round2
 
 __all__ = [
@@ -123,6 +124,7 @@ def create_firm(profile, name):
     with transaction.atomic():
         firm = Firm.objects.create(profile=profile, name=clean, status=FIRM_ACTIVE)
         Group.objects.create(profile=profile, firm=firm, name=clean)
+        touch(profile)
     return firm
 
 
@@ -172,8 +174,10 @@ def get_firm(profile, firm_id):
 def set_firm_status(profile, firm_id, status):
     """Manually sets a firm's stored status to ``active`` or ``archived`` (R-FIRM-5)."""
     firm = _get_firm_or_raise(profile, firm_id)
-    firm.status = _normalize_status(status)
-    firm.save(update_fields=["status", "updated_at"])
+    with transaction.atomic():
+        firm.status = _normalize_status(status)
+        firm.save(update_fields=["status", "updated_at"])
+        touch(profile)
     return firm
 
 
@@ -204,7 +208,9 @@ def update_firm(profile, firm_id, name=None, notes=None):
         update_fields.append("notes")
     if update_fields:
         update_fields.append("updated_at")
-        firm.save(update_fields=update_fields)
+        with transaction.atomic():
+            firm.save(update_fields=update_fields)
+            touch(profile)
     return firm
 
 
@@ -233,7 +239,10 @@ def add_group(profile, firm_id, name):
             "DUPLICATE_PARTNER_NAME", f'Group "{clean}" already exists in this firm'
         )
 
-    return Group.objects.create(profile=profile, firm=firm, name=clean)
+    with transaction.atomic():
+        group = Group.objects.create(profile=profile, firm=firm, name=clean)
+        touch(profile)
+    return group
 
 
 def update_group(profile, group_id, name):
@@ -258,8 +267,10 @@ def update_group(profile, group_id, name):
             "DUPLICATE_PARTNER_NAME", f'Group "{clean}" already exists in this firm'
         )
 
-    group.name = clean
-    group.save(update_fields=["name", "updated_at"])
+    with transaction.atomic():
+        group.name = clean
+        group.save(update_fields=["name", "updated_at"])
+        touch(profile)
     return group
 
 
@@ -286,7 +297,9 @@ def remove_group(profile, firm_id, group_id):
             status=409,
         )
 
-    group.delete()
+    with transaction.atomic():
+        group.delete()
+        touch(profile)
     return None
 
 

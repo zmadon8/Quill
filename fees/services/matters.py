@@ -31,6 +31,7 @@ from django.db.models.functions import Lower
 
 from fees.errors import FeesError
 from fees.models import Firm, Group, Matter, Memo
+from fees.services.memos import touch
 
 __all__ = [
     "MAX_MATTER_NAME",
@@ -143,7 +144,10 @@ def create_matter(profile, firm_id, group_id, name, **memo_defaults):
         "is_archived": False,
     }
     fields.update(_collect_memo_defaults(memo_defaults))
-    return Matter.objects.create(**fields)
+    with transaction.atomic():
+        matter = Matter.objects.create(**fields)
+        touch(profile)
+    return matter
 
 
 # ---------------------------------------------------------------------------
@@ -222,6 +226,7 @@ def update_matter(profile, matter_id, name=None, firm_id=None, group_id=None, **
             Memo.objects.filter(profile=profile, matter=matter).update(
                 firm_id=target_firm_id, group_id=target_group_id
             )
+        touch(profile)
 
     return matter
 
@@ -271,9 +276,11 @@ def _set_archived(profile, matter_id, archived):
     matter = Matter.objects.filter(profile=profile, pk=matter_id).first()
     if matter is None:
         raise FeesError("MATTER_NOT_FOUND", f"Matter {matter_id} not found")
-    if matter.is_archived != archived:
-        matter.is_archived = archived
-        matter.save(update_fields=["is_archived", "updated_at"])
+    with transaction.atomic():
+        if matter.is_archived != archived:
+            matter.is_archived = archived
+            matter.save(update_fields=["is_archived", "updated_at"])
+        touch(profile)
     return matter
 
 
