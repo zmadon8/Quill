@@ -1,10 +1,12 @@
 {# The Edit button (Round 9, mockup option A: design/mockups/edit-button/a.html). Editors only: the caller context has can_edit. #}
 {# Off: a quiet "Edit" link with a pencil. On: an oxblood pill "Editing · Done" that finishes editing. Undo and Done also sit in the strip across the top of the page (_edit_strip.html). #}
 {# It is a link to toggle_url, so it works without JavaScript; edit-mode.js remembers the choice for the tab (sessionStorage) and carries ?edit=1 on the links. #}
-{% if can_edit %}<div class="bar-tools" data-bar-tools>
-  {% if edit_mode %}
+{# The Links toggle (hyperlinks on citations on/off, D87) sits on this same bar, just to the left of Edit. It renders for any signed-in user with a profile, so Readers (who have no Edit button) keep it on reading pages. The bar itself shows when the user can_edit OR has a current_profile. #}
+{% if can_edit or current_profile %}<div class="bar-tools" data-bar-tools>
+  {% if current_profile %}<button type="button" class="link {% if not header_words %}nav-icon{% else %}nav-word{% endif %} links-toggle" role="switch" aria-checked="true" data-links-toggle aria-label="Hyperlinks on citations" title="Hyperlinks on citations: on (press to turn off)">{% if header_words %}Links{% else %}{% include "icons/link.svg.html" %}{% endif %}<span class="links-state" aria-hidden="true"></span></button>{% endif %}
+  {% if can_edit %}{% if edit_mode %}
   <a class="button edit-switch edit-pill" role="switch" aria-checked="true" aria-label="Editing is on. Press to finish editing" href="{{ toggle_url }}" data-edit-switch title="Finish editing and go back to plain reading">{% include "diary/_pencil.html" %}<span>Editing</span><span class="dot" aria-hidden="true">&middot;</span><span>Done</span></a>
   {% else %}
   <a class="button edit-switch edit-link" role="switch" aria-checked="false" href="{{ toggle_url }}" data-edit-switch title="Switch Edit on to add and change entries">{% include "diary/_pencil.html" %}<span>Edit</span></a>
-  {% endif %}
+  {% endif %}{% endif %}
 </div>{% endif %}
