@@ -101,7 +101,7 @@ The two designs are already close, because the host's "Chambers" look and the Fe
 
 - Seven desktop tabs become host program-nav entries in the brief's order: Dashboard, Statistics, Memos, Firms, Feebook, Outstanding, Settings. The program name links to the Dashboard.
 - Global search becomes a header icon that opens a search bar (Esc closes).
-- Settings sits where the host puts program settings.
+- Settings sits where the host puts program settings. The fees Settings screen, when built, will also be the fourth tab of the suite "Settings" group on the Home page (after Account, Display and Case Law Diary), per-profile and shown only for users with a fees profile, mirroring the Case Law Diary tab and consistent with the new Settings IA; this is distinct from the fees program's own in-program "Settings" nav tab above.
 - No zoom, no native dialogs, no Cmd shortcuts (browser conflicts). Keep Ctrl+Enter to save the memo form and Esc to close dialogs.
 - Modals become server-rendered pages, or a native `<dialog>` where staying on the page matters (payment allocation rows).
 - Dropdowns use native `<select>`, so there is no clipping problem.
@@ -162,7 +162,7 @@ Note on the draft numbering of the brief: its "After approval" list skips item 3
 
 | # | Decision | Recorded outcome | Source |
 |---|---|---|---|
-| D10 | Memo text defaults | Five profile-level `FeesSettings` fields (`memo_default_name`, `memo_default_designation`, `memo_default_address`, `memo_default_bank_details` multi-line, `memo_default_pan`), blank by default, printed on every memo through the placeholder tags `MEMO_NAME`/`M1` to `MEMO_PAN`/`M5`. No per-memo override (owner asked for defaults set in Settings). | Owner request (user items 2 and 3) |
+| D10 | Memo text defaults | Five profile-level `FeesSettings` fields (`memo_default_name`, `memo_default_designation`, `memo_default_address` multi-line, `memo_default_bank_details` multi-line, `memo_default_pan`), blank by default, printed on every memo through the placeholder tags `MEMO_NAME`/`M1` to `MEMO_PAN`/`M5`. No per-memo override (owner asked for defaults set in Settings). | Owner request (user items 2 and 3) |
 | D11 | Signature image | Upload co-located in the Word Template box; accepted types png or jpg/jpeg only; size cap 2 MB (consistent with the template cap U7 and R-NFR-9); stored on `WordTemplate` (`signature_data`, `signature_filename`, `signature_content_type`); placed by the tag `MEMO_SIGNATURE`/`MSIG`, which embeds the image rather than substituting text. Excluded from the `.xlsx` desktop backup (like the template); included in the suite JSON backup. | Owner request (user item 3) |
 | D12 | New migration | A new migration `fees/migrations/0002` adds the five settings fields and the three signature fields; `0001_initial` is not altered. Built in Phase 2. | Spec provision |
 

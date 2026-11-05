@@ -36,7 +36,7 @@ All money `DecimalField(max_digits=14, decimal_places=2)`. `profile = ForeignKey
 
 | Model | Fields beyond B 4 | Constraints and indexes |
 |---|---|---|
-| `FeesSettings` | one row per profile (`OneToOne`), all B 9 keys; new: `statistics_enabled` (True), `dashboard_kpis_enabled` (True), `export_owner_name` (default "Ziyad Madon"), `memo_filename_pattern` (blank), `data_version` (BigInteger, 0); memo text defaults (R-SET-7): `memo_default_name` `CharField(120, blank, default "")`, `memo_default_designation` `CharField(120, blank, default "")`, `memo_default_address` `CharField(300, blank, default "")`, `memo_default_bank_details` `TextField(blank, default "")` (multi-line), `memo_default_pan` `CharField(20, blank, default "")` | unique profile |
+| `FeesSettings` | one row per profile (`OneToOne`), all B 9 keys; new: `statistics_enabled` (True), `dashboard_kpis_enabled` (True), `export_owner_name` (default "Ziyad Madon"), `memo_filename_pattern` (blank), `data_version` (BigInteger, 0); memo text defaults (R-SET-7): `memo_default_name` `CharField(120, blank, default "")`, `memo_default_designation` `CharField(120, blank, default "")`, `memo_default_address` `TextField(blank, default "")` (multi-line), `memo_default_bank_details` `TextField(blank, default "")` (multi-line), `memo_default_pan` `CharField(20, blank, default "")` | unique profile |
 | `WordTemplate` | `profile` OneToOne, `filename`, `data` (BinaryField, original), `prepared` (BinaryField, tags merged), `tags` (JSON list), `uploaded_at`; signature (R-SET-8): `signature_data` (BinaryField, null, blank), `signature_filename` `CharField(255, blank, default "")`, `signature_content_type` `CharField(100, blank, default "")` | read with `.defer("data", "prepared", "signature_data")` except on export |
 | `BankAccount` | `name` | unique `(profile, Lower(name))` |
 | `Firm` | `name`, `status`, `notes` | unique `(profile, Lower(name))`; index `(profile, status)` |
@@ -176,7 +176,7 @@ The map also carries the five memo-constant text tags from the `FeesSettings` me
 |---|---|---|
 | `MEMO_NAME` | `M1` | `memo_default_name` |
 | `MEMO_DESIGNATION` | `M2` | `memo_default_designation` |
-| `MEMO_ADDRESS` | `M3` | `memo_default_address` |
+| `MEMO_ADDRESS` | `M3` | `memo_default_address` (multi-line; its `\n` is turned into a Word line break by the 8.1 renderer) |
 | `MEMO_BANK_DETAILS` | `M4` | `memo_default_bank_details` (multi-line; its `\n` is turned into a Word line break by the 8.1 renderer) |
 | `MEMO_PAN` | `M5` | `memo_default_pan` |
 
@@ -206,7 +206,7 @@ Default pattern proof against the original (`middle` is sanitised separately in 
 
 The Word export view calls this function with the profile's settings; the preview endpoint calls the same function with the newest memo (or a built-in sample memo `2026-27/5`, matter "Sample Matter") and the pattern from the request body, so preview equals reality. The response header is built by a helper that sends `filename*=UTF-8''<percent-encoded>` and an ASCII fallback `filename`.
 
-Settings UI: a text input for the pattern with a clickable placeholder list (inserts at the cursor), live preview line, error list, "Reset to default"; a text input for the owner name. A new "Memo text defaults" group (R-SET-7) holds a text input each for name, designation, address and PAN and a textarea for the multi-line bank details. The signature image upload control (R-SET-8) sits inside the existing Word Template box, next to the template upload and download, with its own download and replace actions.
+Settings UI: a text input for the pattern with a clickable placeholder list (inserts at the cursor), live preview line, error list, "Reset to default"; a text input for the owner name. A new "Memo text defaults" group (R-SET-7) holds a text input each for name, designation and PAN and a textarea each for the multi-line address and bank details. The signature image upload control (R-SET-8) sits inside the existing Word Template box, next to the template upload and download, with its own download and replace actions.
 
 ## 9. Account bootstrap (`create_fees_user`)
 
@@ -267,6 +267,8 @@ A. Characterisation tests written against the unchanged code and committed first
 - Memory test helper and `fees_memory_bench` as in the RAM budget section 8.
 
 ## 12. Settings and permissions summary
+
+Suite Settings placement: the Fee Register Settings screen (R-UI-1, R-SET-1 and following), when built, is surfaced as the FOURTH tab of the suite "Settings" group on the Home page (after Account, Display and the Case Law Diary tab), consistent with the Settings IA built in user items 2 and 3. It is per-profile (tied to a fees profile) and shown only when the user has a fees profile, mirroring how the Case Law Diary tab shows only for a diary profile. This suite-level Settings group (the shared Home-page header group of Account, Display and Case Law Diary tabs) is distinct from the fees program's OWN in-program navigation, which also has a "Settings" tab (R-UI-1: Dashboard, Statistics, Memos, Firms, Feebook, Outstanding, Settings); item 5 concerns only the suite Settings group placement.
 
 Reader: all GET pages and exports (Word, Excel lists, statements, ledgers, statistics, annual summary, tax summary). Editor: everything else, including Excel backup download, restore, import, clear-all, template upload, settings save. Admin: no extra rights inside the program; the Admin screens (Users, Profiles, Backups) are suite-wide as today.
 
