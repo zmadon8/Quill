@@ -69,7 +69,7 @@ class SettingsTabsTests(TestCase):
         self.assertEqual(self.visible("export"), {"account"})  # round 18: Word export moved to the Export page
         self.assertEqual(self.visible("bogus"), {"account"})
         html = self.client.get(reverse("my_settings"), {"tab": "numbers"}).content.decode()
-        for field in ('name="email"', 'name="header_style"', 'name="topic_format"', 'name="diary-reading_all_mode"',
+        for field in ('name="email"', 'name="header_style"', 'name="topic_format"', 'name="diary-view_whole_subject"',
                       'name="tab" value="numbers"'):
             self.assertIn(field, html)
         self.assertNotIn('name="export_date_format"', html)

@@ -143,7 +143,7 @@ def my_settings(request):
     can_edit_profile = profile is not None and request_role(request) == ROLE_EDITOR
     # A copy, so an invalid POST does not change the header of the page shown with the errors. Only checked when the
     # page sent it (its select is always sent), so a save from somewhere else never resets these shared settings.
-    sent = request.method == "POST" and "diary-reading_all_mode" in request.POST
+    sent = request.method == "POST" and "diary-view_whole_subject" in request.POST
     profile_form = ProfileSettingsForm(request.POST if sent else None, instance=copy.copy(profile), prefix="diary") \
         if can_edit_profile else None
     # One tab at a time. Every field stays in the form (the other tabs are only hidden), so a Save never changes what
