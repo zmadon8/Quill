@@ -1224,7 +1224,14 @@ class ExportNameTests(BaseCase):
         url = reverse("my_settings") + "?tab=display"
         if data is None:
             return self.client.get(url)
-        return self.client.post(reverse("my_settings"), {"tab": "display", **data})
+        # Round 19: the Display tab now has a required Yes/No "open the whole Subject" toggle. When a test posts the
+        # advanced reading_all_mode select it must also send the toggle, or the profile form fails validation and
+        # nothing saves. Default the toggle to match the posted mode (always_on -> Yes, else No) so the existing
+        # reading_all_mode / reading_all_default assertions hold; the caller may override diary-view_whole_subject.
+        payload = {"tab": "display", **data}
+        if "diary-reading_all_mode" in payload and "diary-view_whole_subject" not in payload:
+            payload["diary-view_whole_subject"] = "yes" if payload["diary-reading_all_mode"] == "always_on" else "no"
+        return self.client.post(reverse("my_settings"), payload)
 
     def test_editor_can_change_name(self):
         self.client.force_login(self.admin)  # Editor of Main through the membership
@@ -1273,6 +1280,27 @@ class ExportNameTests(BaseCase):
             self.assertEqual(Profile.objects.get(pk=self.main().pk).reading_all_mode, mode)
         resp = self.display({"diary-reading_all_mode": "bogus"})
         self.assertEqual(resp.status_code, 200)
+        self.assertEqual(Profile.objects.get(pk=self.main().pk).reading_all_mode, "remember")
+
+    def test_yes_no_toggle_sets_always_on_or_always_off(self):
+        # Round 19 (user item 4): the plain Display toggle sets reading_all_mode directly when the advanced select is
+        # not asking for the "remember" mode. Yes -> always_on (clicking a Subject opens the whole Subject); No ->
+        # always_off (the scoped Contents page with a "Read Whole Subject" button).
+        self.client.force_login(self.admin)  # Editor of Main
+        resp = self.client.post(reverse("my_settings"), {
+            "tab": "display", "diary-view_whole_subject": "yes", "diary-reading_all_mode": "always_off"})
+        self.assertRedirects(resp, reverse("my_settings") + "?tab=display")
+        self.assertEqual(Profile.objects.get(pk=self.main().pk).reading_all_mode, "always_on")
+        self.client.post(reverse("my_settings"), {
+            "tab": "display", "diary-view_whole_subject": "no", "diary-reading_all_mode": "always_on"})
+        self.assertEqual(Profile.objects.get(pk=self.main().pk).reading_all_mode, "always_off")
+
+    def test_remember_select_beats_the_yes_no_toggle(self):
+        # The advanced "The view I used last" (remember) choice wins over the Yes/No toggle, so the remember mode and
+        # its reading_all_default are never lost.
+        self.client.force_login(self.admin)
+        self.client.post(reverse("my_settings"), {
+            "tab": "display", "diary-view_whole_subject": "yes", "diary-reading_all_mode": "remember"})
         self.assertEqual(Profile.objects.get(pk=self.main().pk).reading_all_mode, "remember")
 
     def test_reader_cannot_change_all_default(self):

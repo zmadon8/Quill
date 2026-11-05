@@ -118,7 +118,7 @@ class MyEditsTests(TestCase):
         resp = self.client.get(reverse("my_edits"))
         self.assertEqual(resp.status_code, 200)
         html = resp.content.decode()
-        self.assertIn("My edits", html)
+        self.assertIn("Edits", html)  # round 19: the page heading is now "Edits" (inside Settings > Case Law Diary)
         self.assertNotIn("Theirs", html)
         self.assertLess(html.index("Changed Item"), html.index("Added Item"))
         self.assertLess(html.index("Added Item"), html.index("Added Topic"))

@@ -512,6 +512,31 @@ class ReadingScreenTests(TestCase):
         html = self.client.get(reverse("read_topic", args=[self.clause.topic_id])).content.decode()
         self.assertIn(reverse("read_subtopic", args=[self.clause.pk]), html.split('class="toc-box"')[1])
 
+    def test_subjects_page_click_opens_whole_subject_under_yes_and_contents_under_no(self):
+        # Round 19 (user item 4): the Display Yes/No toggle (reading_all_mode always_on/always_off) decides what a
+        # Subject link on the Subjects page (diary_home) and in the side panel opens. This exercises the real
+        # template conditional {% if subject_opens_whole %}read_subject{% else %}subject_contents{% endif %}; it
+        # would fail if that conditional (and its subject_opens_whole context key) were reverted.
+        self.client.force_login(self.users["reader"])
+        whole = reverse("read_subject", args=[self.contract.pk])
+        scoped = reverse("subject_contents", args=[self.contract.pk])
+
+        Profile.objects.filter(pk=main_profile().pk).update(reading_all_mode="always_on")
+        index = self.client.get(reverse("diary_home")).content.decode()
+        self.assertIn('<a href="%s"><span class="name">%s</span>' % (whole, self.contract.name), index)
+        self.assertNotIn('<a href="%s"><span class="name">%s</span>' % (scoped, self.contract.name), index)
+        # The side panel on the (scoped) Contents page also opens the whole Subject.
+        panel = self.client.get(scoped).content.decode().split("data-panel-subjects")[1]
+        self.assertIn('<a href="%s"' % whole, panel)
+        self.assertNotIn('<a href="%s"' % scoped, panel)
+
+        Profile.objects.filter(pk=main_profile().pk).update(reading_all_mode="always_off")
+        index = self.client.get(reverse("diary_home")).content.decode()
+        self.assertIn('<a href="%s"><span class="name">%s</span>' % (scoped, self.contract.name), index)
+        self.assertNotIn('<a href="%s"><span class="name">%s</span>' % (whole, self.contract.name), index)
+        panel = self.client.get(scoped).content.decode().split("data-panel-subjects")[1]
+        self.assertIn('<a href="%s"' % scoped, panel)
+
     def test_contents_lists_topics_and_subtopics(self):
         self.client.force_login(self.users["reader"])
         resp = self.client.get(reverse("subject_contents", args=[self.contract.pk]))

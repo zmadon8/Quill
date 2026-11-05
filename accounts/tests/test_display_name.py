@@ -47,7 +47,13 @@ class DisplayNameTests(BaseCase):
     def display(self, data=None):
         if data is None:
             return self.client.get(reverse("my_settings") + "?tab=display")
-        return self.client.post(reverse("my_settings"), {"tab": "display", "diary-reading_all_mode": "remember", **data})
+        # Round 19: the Display tab's required Yes/No toggle must be posted too, or the profile form fails validation
+        # and the Display Name is not saved. Keeping reading_all_mode on "remember" means the toggle does not change
+        # the stored mode, so these Display Name assertions are unaffected.
+        return self.client.post(
+            reverse("my_settings"),
+            {"tab": "display", "diary-reading_all_mode": "remember", "diary-view_whole_subject": "no", **data},
+        )
 
     def test_editor_sets_it_trimmed_and_clearing_falls_back(self):
         self.client.force_login(self.admin)  # Editor of Main
