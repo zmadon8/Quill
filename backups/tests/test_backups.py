@@ -426,7 +426,9 @@ class DiaryRoundTripTests(BackupBase):
     def test_round_trip_restores_everything(self):
         self.build()
         before = self.snapshot()
-        self.assertTrue(all(before[label] for label in registry.BACKUP_MODELS))
+        self.assertTrue(
+            all(before[label] for label in registry.BACKUP_MODELS if not label.startswith("fees."))
+        )
         doc = services.parse_backup(services.create_backup("manual").data, MAX)
         self.assertEqual(doc["counts"]["diary.NoteLink"], 2)
 

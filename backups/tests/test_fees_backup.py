@@ -181,7 +181,7 @@ class PreFeesRestoreGuardTests(TestCase):
 
     def test_preview_page_shows_the_warning_box(self):
         backup = self._store_pre_fees_backup()
-        response = self.client.get(reverse("restore_preview", pk=backup.pk))
+        response = self.client.get(reverse("restore_preview", args=[backup.pk]))
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.context["will_empty"])
         self.assertContains(response, "will be emptied")
@@ -190,7 +190,7 @@ class PreFeesRestoreGuardTests(TestCase):
     def test_restore_is_refused_without_the_extra_tick(self):
         backup = self._store_pre_fees_backup()
         response = self.client.post(
-            reverse("restore_preview", pk=backup.pk), {"confirm": "RESTORE"}
+            reverse("restore_preview", args=[backup.pk]), {"confirm": "RESTORE"}
         )
         self.assertEqual(response.status_code, 302)
         # Nothing was emptied: the fee rows are all still present.
@@ -203,7 +203,7 @@ class PreFeesRestoreGuardTests(TestCase):
     def test_restore_proceeds_with_the_extra_tick(self):
         backup = self._store_pre_fees_backup()
         response = self.client.post(
-            reverse("restore_preview", pk=backup.pk),
+            reverse("restore_preview", args=[backup.pk]),
             {"confirm": "RESTORE", "empty_confirm": "yes"},
         )
         self.assertEqual(response.status_code, 302)
