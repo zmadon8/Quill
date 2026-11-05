@@ -20,13 +20,11 @@ Behaviour (matching the TypeScript source):
 
 Q6 (brief line 1159, R-RD-7): the original SQL built ``lower(col) LIKE '%q%'``
 without escaping, so a user query containing ``%`` or ``_`` (the SQL LIKE
-wildcards) behaved as a wildcard. This port escapes the backslash, percent and
-underscore in the query before matching so those characters are matched
-LITERALLY and never act as wildcards. Django's ``__icontains`` builds a
-parameterised ``LIKE`` whose escape character is the backslash, so prefixing
-each of ``\\``, ``%`` and ``_`` in the term with a backslash makes it literal on
-the backends the project uses. The ``\\`` substitution runs first so the escapes
-added for ``%`` and ``_`` are not themselves re-escaped.
+wildcards) behaved as a wildcard. Django's ``__icontains`` already escapes the
+LIKE wildcards ``%`` and ``_`` (and the backslash) in the search VALUE on all
+supported backends, so those characters are matched LITERALLY and never act as
+wildcards. Q6 is therefore satisfied by the ORM and no manual escaping is
+needed; the trimmed query is handed straight to ``__icontains``.
 
 Scoping (design section 11): every query is filtered by ``profile`` like the
 sibling read services. This is a pure READ: it never bumps ``data_version``.
@@ -43,25 +41,10 @@ from django.db.models.functions import Lower
 
 from fees.models import Firm, Matter, Memo
 
-__all__ = ["search", "escape_like"]
+__all__ = ["search"]
 
 #: The shortest query that searches; a shorter one returns nothing (brief 6.8).
 _MIN_QUERY_LEN = 2
-
-
-def escape_like(term):
-    """Escapes the LIKE wildcards in ``term`` so they match literally (Q6).
-
-    Prefixes each backslash, percent and underscore with a backslash so that an
-    ``__icontains`` built over the result treats ``%`` and ``_`` as ordinary
-    characters rather than wildcards. The backslash substitution runs first so
-    the backslashes added for ``%`` and ``_`` are not re-escaped.
-    """
-    return (
-        term.replace("\\", "\\\\")
-        .replace("%", "\\%")
-        .replace("_", "\\_")
-    )
 
 
 def search(profile, raw_query, limit=20):
@@ -71,19 +54,18 @@ def search(profile, raw_query, limit=20):
     firms first, then matters, then memos, each section limited to ``limit`` and
     the combined list sliced to ``limit``. ``raw_query`` is trimmed and a query
     shorter than two characters returns an empty list. The match is
-    case-insensitive substring; the LIKE wildcards ``%`` and ``_`` in the query
-    are escaped so they are matched literally (Q6). Three queries; a pure read.
+    case-insensitive substring; Django's ``__icontains`` already escapes the
+    LIKE wildcards ``%`` and ``_`` in the query so they match literally (Q6).
+    Three queries; a pure read.
     """
     query = (raw_query or "").strip()
     if len(query) < _MIN_QUERY_LEN:
         return []
 
-    needle = escape_like(query)
-
     results = []
 
     firms = (
-        Firm.objects.filter(profile=profile, name__icontains=needle)
+        Firm.objects.filter(profile=profile, name__icontains=query)
         .order_by(Lower("name"))[:limit]
     )
     for firm in firms:
@@ -97,7 +79,7 @@ def search(profile, raw_query, limit=20):
         )
 
     matters = (
-        Matter.objects.filter(profile=profile, name__icontains=needle)
+        Matter.objects.filter(profile=profile, name__icontains=query)
         .select_related("firm")
         .order_by(Lower("name"))[:limit]
     )
@@ -113,10 +95,10 @@ def search(profile, raw_query, limit=20):
 
     memos = (
         Memo.objects.filter(
-            Q(memo_number__icontains=needle)
-            | Q(plaintiff_name__icontains=needle)
-            | Q(defendant_name__icontains=needle)
-            | Q(client__icontains=needle),
+            Q(memo_number__icontains=query)
+            | Q(plaintiff_name__icontains=query)
+            | Q(defendant_name__icontains=query)
+            | Q(client__icontains=query),
             profile=profile,
         )
         .select_related("matter", "firm")
