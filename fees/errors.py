@@ -18,6 +18,7 @@ DEFAULT_STATUS = 400
 #: Codes that do not follow a suffix rule, with their fixed status (R-ER-1).
 _EXACT_STATUS = {
     "MATTER_ARCHIVED": 409,
+    "GROUP_IN_USE": 409,
     "TOO_MANY_PARTNERS": 422,
     "NO_TEMPLATE": 422,
     "RESTORE_FAILED": 422,
@@ -42,6 +43,7 @@ def status_for(code):
 #: services). A code not listed here uses the message passed to ``FeesError`` or a generic fallback.
 MESSAGES = {
     "MATTER_ARCHIVED": "This matter is archived, so it cannot get a new memo.",
+    "GROUP_IN_USE": "This group still has matters, so it cannot be removed.",
     "TOO_MANY_PARTNERS": "This firm already has the most groups allowed.",
     "NO_TEMPLATE": "No Word template has been uploaded yet.",
     "RESTORE_FAILED": "The backup file could not be read.",
