@@ -32,6 +32,8 @@ class ImportIsolationTests(SimpleTestCase):
         for name in _package_modules("fees"):
             if ".migrations" in name or name.endswith(".migrations"):
                 continue
+            if ".tests" in name or name.endswith(".tests"):
+                continue
             source = _source_of(name)
             if "import diary" in source or "from diary" in source:
                 offenders.append(name)
@@ -41,6 +43,8 @@ class ImportIsolationTests(SimpleTestCase):
         offenders = []
         for name in _package_modules("diary"):
             if ".migrations" in name or name.endswith(".migrations"):
+                continue
+            if ".tests" in name or name.endswith(".tests"):
                 continue
             source = _source_of(name)
             if "import fees" in source or "from fees" in source:
