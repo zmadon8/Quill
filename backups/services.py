@@ -11,6 +11,7 @@ import re
 import tempfile
 import zlib
 
+from django.apps import apps
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core import serializers
@@ -533,6 +534,47 @@ def _file_has_active_admin(document):
         if fields.get("is_superuser") and fields.get("is_active", True):
             return True
     return False
+
+
+def _program_of_label(label):
+    """A short program name for the app a backup label belongs to, for the restore warning box."""
+    app_label = label.split(".", 1)[0]
+    return {
+        "diary": "Case Law Diary",
+        "fees": "Fee Register",
+        "accounts": "Accounts",
+    }.get(app_label, app_label)
+
+
+def models_that_would_empty(document):
+    """Record types a restore would wipe because the file lacks them but the database has rows (R-BK-4).
+
+    One dict per optional model that is both absent from ``document["models"]`` AND currently has at
+    least one row: ``{label, name, program, count_now}``. ``name`` is the model's plural verbose name,
+    ``program`` names the program the record type belongs to. Used by the restore preview to warn that
+    restoring an older file (for example one taken before the Fee Register existed) would discard data
+    that is only in the database, and to require an extra confirmation before it may proceed.
+    """
+    models_in_file = document.get("models", {})
+    warnings = []
+    for label in registry.BACKUP_MODELS:
+        if label not in registry.OPTIONAL_MODELS or label in models_in_file:
+            continue
+        try:
+            model = apps.get_model(label)
+        except LookupError:
+            continue
+        count_now = model._default_manager.count()
+        if count_now:
+            warnings.append(
+                {
+                    "label": label,
+                    "name": model._meta.verbose_name_plural.title(),
+                    "program": _program_of_label(label),
+                    "count_now": count_now,
+                }
+            )
+    return warnings
 
 
 def preview_restore(document):

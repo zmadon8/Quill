@@ -332,8 +332,11 @@ class CrossProgramTests(TestCase):
 
         admin = self.User.objects.create_user(username="boss", password="x", is_superuser=True)
         Subject.objects.create(profile=self.diary_profile, name="Keep me")
+        # Since T1.9 the fee models are in the backups registry, so clearing a fees profile deletes that
+        # profile's fee rows. The diary profile's data and the fees profile row itself stay intact.
+        Firm.objects.create(profile=self.fees_profile, name="Acme LLP")
         counts = clear.clear_profile(self.fees_profile, admin)
-        # No fee models are in the backups registry yet (T1.9), so nothing is deleted and no diary row is touched.
-        self.assertEqual(counts, {})
+        self.assertEqual(counts.get("fees.Firm"), 1)
+        self.assertEqual(Firm.objects.filter(profile=self.fees_profile).count(), 0)
         self.assertEqual(Subject.objects.filter(profile=self.diary_profile).count(), 1)
         self.assertTrue(Profile.objects.filter(pk=self.fees_profile.pk).exists())

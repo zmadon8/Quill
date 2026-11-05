@@ -126,9 +126,20 @@ def restore_preview(request, pk):
         messages.error(request, str(exc))
         return redirect("backup_list")
 
+    will_empty = services.models_that_would_empty(document)
+
     if request.method == "POST":
         if request.POST.get("confirm", "").strip() != CONFIRM_WORD:
             messages.error(request, f"Nothing was changed. Type the word {CONFIRM_WORD} to confirm.")
+            return redirect("restore_preview", pk=pk)
+        # R-BK-4: if the file lacks record types that currently hold data, restoring would empty them.
+        # Require the extra tick box before that destruction may proceed.
+        if will_empty and not request.POST.get("empty_confirm"):
+            messages.error(
+                request,
+                "Nothing was changed. This file does not contain some record types that currently "
+                "hold data. Tick the extra box to confirm you want those records emptied.",
+            )
             return redirect("restore_preview", pk=pk)
         try:
             services.restore_backup(document, request.user)
@@ -155,5 +166,6 @@ def restore_preview(request, pk):
                 services.review_flags.describe(document.get("review_mapping") or services.review_flags.new_stats()),
             ])),
             "confirm_word": CONFIRM_WORD,
+            "will_empty": will_empty,
         },
     )
