@@ -25,7 +25,7 @@ from django.test import TestCase
 from accounts.models import Profile
 from accounts.suite import KEY_FEES
 from fees.models import Firm, Group, Matter
-from fees.services import memos, outstanding, payments
+from fees.services import matters, memos, outstanding, payments
 
 
 def fees_profile(name="Ziyad-Fees"):
@@ -95,10 +95,11 @@ class ListOutstandingTests(TestCase):
         )
 
     def test_includes_memos_from_archived_matters(self):
-        archived = seed_matter(
-            self.profile, self.firm, self.group, "Gamma", archived=True
-        )
-        memo_with_total(self.profile, archived, 1000)
+        # A matter accrues memos while active, then is archived later; the
+        # Outstanding view must still include its unpaid memos.
+        matter = seed_matter(self.profile, self.firm, self.group, "Gamma")
+        memo_with_total(self.profile, matter, 1000)
+        matters.archive_matter(self.profile, matter.pk)
         groups = outstanding.list_outstanding(self.profile, {})
         self.assertEqual(len(groups), 1)
         self.assertEqual(groups[0]["subtotal"], Decimal("1000.00"))
