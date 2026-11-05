@@ -71,6 +71,7 @@ cached payload.
 """
 from __future__ import annotations
 
+import calendar
 import datetime
 from decimal import Decimal
 
@@ -308,8 +309,10 @@ def get_dashboard_summary(profile, now=None, settings=None):
             ):
                 amount_overdue = round2(amount_overdue + outstanding)
 
+    last_day = calendar.monthrange(today.year, today.month)[1]
+    month_end = f"{ym}-{last_day:02d}"
     received_this_month = _gross_received_between(
-        profile, f"{ym}-01", f"{ym}-31"
+        profile, f"{ym}-01", month_end
     )
     fy_start_year = int(current_fy[:4])
     fy_start = f"{fy_start_year}-04-01"
