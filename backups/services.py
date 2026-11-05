@@ -8,6 +8,7 @@ import hashlib
 import json
 import logging
 import re
+import tempfile
 import zlib
 
 from django.conf import settings
@@ -74,30 +75,57 @@ def applied_state_apps():
     return loader.project_state(nodes).apps
 
 
+def _backup_labels(app_registry=None):
+    """Labels that make up the ``models`` section, in backup order (parents first).
+
+    Registry models missing from a historical state have no table yet, so they are recorded as empty.
+    Optional models stay out of the file then, so an older state is read as an older backup.
+    """
+    seeded = [
+        label
+        for label in registry.BACKUP_MODELS
+        if not (label in registry.OPTIONAL_MODELS and app_registry is not None)
+    ]
+    present = {model._meta.label for model in registry.get_models(app_registry)}
+    # A model present in the state but somehow not pre-seeded (future-proofing) is still appended.
+    for label in present:
+        if label not in seeded:
+            seeded.append(label)
+    return seeded
+
+
+def _serialize_model_records(model):
+    """Serialise one model to a list of record dicts, exactly as the backup file stores them.
+
+    Same field selection, ordering and encoder as the streaming writer, so a caller can compare the
+    two builders record by record.
+    """
+    text = serializers.serialize(
+        "json",
+        model._default_manager.order_by("pk"),
+        fields=registry.field_names(model),
+        use_natural_foreign_keys=False,
+        use_natural_primary_keys=False,
+        cls=_ExactJSONEncoder,
+    )
+    return json.loads(text)
+
+
 def _build_document(now, app_registry=None):
+    """Build the whole backup document in memory.
+
+    Kept as the reference builder: the streaming ``write_document`` must produce a gzip whose parsed
+    content equals this document. ``create_backup`` uses the streaming writer; the equality is a test.
+    """
     models_out = {}
     counts = {}
-    # Registry models missing from the historical state have no table yet: record them as empty.
-    # Optional models stay out of the file then, so an older state is read as an older backup.
-    for label in registry.BACKUP_MODELS:
-        if label in registry.OPTIONAL_MODELS and app_registry is not None:
-            continue
+    for label in _backup_labels(app_registry):
         models_out[label] = []
         counts[label] = 0
     for model in registry.get_models(app_registry):
-        label = model._meta.label
-        models_out.setdefault(label, [])
-        text = serializers.serialize(
-            "json",
-            model._default_manager.order_by("pk"),
-            fields=registry.field_names(model),
-            use_natural_foreign_keys=False,
-            use_natural_primary_keys=False,
-            cls=_ExactJSONEncoder,
-        )
-        records = json.loads(text)
-        models_out[label] = records
-        counts[label] = len(records)
+        records = _serialize_model_records(model)
+        models_out[model._meta.label] = records
+        counts[model._meta.label] = len(records)
     document = {
         "format": FORMAT_MARKER,
         "format_version": FORMAT_VERSION,
@@ -106,6 +134,88 @@ def _build_document(now, app_registry=None):
         "counts": counts,
     }
     return document, counts
+
+
+def _iter_model_record_chunks(model, chunk_size=500):
+    """Yield already-serialised record JSON text for ``model``, a chunk at a time.
+
+    Each yielded string is the inner text of a JSON array (no surrounding brackets), so chunks can be
+    joined with commas straight into the file. ``queryset.iterator`` keeps only one chunk of rows in
+    memory at a time, and the serialiser is given the same fields and encoder as ``_build_document``.
+    """
+    field_names = registry.field_names(model)
+    queryset = model._default_manager.order_by("pk")
+    for rows in _chunked(queryset.iterator(chunk_size=chunk_size), chunk_size):
+        text = serializers.serialize(
+            "json",
+            rows,
+            fields=field_names,
+            use_natural_foreign_keys=False,
+            use_natural_primary_keys=False,
+            cls=_ExactJSONEncoder,
+        )
+        # serializers.serialize returns "[ {..}, {..} ]"; drop the brackets, keep the records.
+        inner = text.strip()
+        inner = inner[1:-1] if inner.startswith("[") and inner.endswith("]") else inner
+        count = len(rows)
+        yield inner, count
+
+
+def _chunked(iterable, size):
+    """Group an iterable into lists of at most ``size`` items (one chunk alive at a time)."""
+    chunk = []
+    for item in iterable:
+        chunk.append(item)
+        if len(chunk) >= size:
+            yield chunk
+            chunk = []
+    if chunk:
+        yield chunk
+
+
+def write_document(fileobj, now, app_registry=None):
+    """Stream the backup document as gzip-compressed JSON into ``fileobj``. Returns ``counts``.
+
+    Writes the exact same document layout as ``_build_document`` (``format``, ``format_version``,
+    ``created_at``, ``models`` then ``counts``), one model at a time and, within a model, one chunk of
+    500 rows at a time via ``queryset.iterator``. The peak memory is a single chunk plus the gzip
+    window, not several whole copies of the data. ``counts`` is written after ``models``; key order
+    inside the JSON object is irrelevant to ``parse_backup``, which reads a dict.
+    """
+    labels = _backup_labels(app_registry)
+    present = {model._meta.label: model for model in registry.get_models(app_registry)}
+    counts = {label: 0 for label in labels}
+    gz = gzip.GzipFile(fileobj=fileobj, mode="wb", mtime=0)
+    try:
+        def write(text):
+            gz.write(text.encode("utf-8"))
+
+        write("{")
+        write('"format": ' + json.dumps(FORMAT_MARKER) + ", ")
+        write('"format_version": ' + json.dumps(FORMAT_VERSION) + ", ")
+        write('"created_at": ' + json.dumps(now.isoformat()) + ", ")
+        write('"models": {')
+        for label_index, label in enumerate(labels):
+            if label_index:
+                write(", ")
+            write(json.dumps(label) + ": [")
+            model = present.get(label)
+            if model is not None:
+                first = True
+                for inner, count in _iter_model_record_chunks(model):
+                    if inner:
+                        if not first:
+                            write(", ")
+                        write(inner)
+                        first = False
+                    counts[label] += count
+            write("]")
+        write("}, ")
+        write('"counts": ' + json.dumps(counts))
+        write("}")
+    finally:
+        gz.close()
+    return counts
 
 
 def _log_failure(kind, started, exc, user):
@@ -141,8 +251,13 @@ def create_backup(kind, user=None, use_applied_state=False):
                 # One consistent snapshot for every model (needs to be the first statement).
                 with connection.cursor() as cursor:
                     cursor.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
-            document, counts = _build_document(started, app_registry)
-            raw = gzip.compress(json.dumps(document).encode("utf-8"))
+            # Stream the gzip into a spooled temp file (in memory up to 2 MB, then on disk), so the
+            # peak is one chunk of rows, not several whole copies. Read the finished bytes back once
+            # for storage, so BackupFile.data, size_bytes and sha256 are identical to before.
+            with tempfile.SpooledTemporaryFile(max_size=2 * 1024 * 1024) as spool:
+                counts = write_document(spool, started, app_registry)
+                spool.seek(0)
+                raw = spool.read()
             filename = f"judgment-diary-backup-{timezone.localtime(started):%Y%m%d-%H%M%S}-{kind}.json.gz"
             backup = BackupFile.objects.create(
                 created_at=started,
@@ -467,7 +582,14 @@ def restore_backup(document, user):
             batches = []
             for model in registry.get_models():
                 records = document["models"].get(model._meta.label, [])
-                batches.append((model, list(serializers.deserialize("json", json.dumps(records)))))
+                # R4: deserialise in chunks of 500 rather than json.dumps-ing a whole model at once,
+                # so the largest live text is one chunk. The deserialised objects are collected exactly
+                # as before (delete order, saves, counts and sequence reset are unchanged).
+                objects = []
+                for start in range(0, len(records), 500):
+                    chunk = records[start:start + 500]
+                    objects.extend(serializers.deserialize("json", json.dumps(chunk)))
+                batches.append((model, objects))
             for model, _objects in reversed(batches):
                 model._default_manager.all().delete()
             for _model, objects in batches:

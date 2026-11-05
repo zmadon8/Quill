@@ -54,8 +54,9 @@ def backup_now(request):
 @admin_required
 def backup_download(request, pk):
     backup = get_object_or_404(BackupFile, pk=pk)
+    # Wrap the stored gzip bytes once (R2): the memoryview is sent straight out, no second copy.
     return FileResponse(
-        io.BytesIO(bytes(backup.data)),
+        io.BytesIO(backup.data if isinstance(backup.data, bytes) else bytes(backup.data)),
         as_attachment=True,
         filename=backup.filename,
         content_type="application/octet-stream",

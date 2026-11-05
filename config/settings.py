@@ -163,7 +163,7 @@ PROFILE_RETENTION_DAYS = max(1, _int("PROFILE_RETENTION_DAYS", 30))
 USER_RETENTION_DAYS = max(1, _int("USER_RETENTION_DAYS", 30))
 # Days of edit history kept; older versions are purged nightly (the newest version of every record is always kept).
 HISTORY_RETENTION_DAYS = max(1, _int("HISTORY_RETENTION_DAYS", 30))
-MAX_BACKUP_UPLOAD_MB = _int("MAX_BACKUP_UPLOAD_MB", 100)
+MAX_BACKUP_UPLOAD_MB = _int("MAX_BACKUP_UPLOAD_MB", 30)
 # Off-site copies: how many days to keep them (the storage itself is chosen by OFFSITE_BACKUP_* env vars).
 OFFSITE_BACKUP_RETENTION_DAYS = max(30, _int("OFFSITE_BACKUP_RETENTION_DAYS", 90))
 
