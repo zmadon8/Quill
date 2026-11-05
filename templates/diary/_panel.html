@@ -18,12 +18,12 @@
 <div id="panel-subjects" data-panel-subjects hidden>
   <p class="panel-back"><button type="button" class="small" data-panel-topics-link>&lsaquo; Topics</button></p>
   <ul class="panel-subject-list">
-    {% for s in panel_main %}<li><a href="{% url 'subject_contents' s.pk %}"{% if s.pk == subject.pk %} class="current" aria-current="true"{% endif %}>{{ s.name }}</a></li>{% endfor %}
+    {% for s in panel_main %}<li><a href="{% if subject_opens_whole %}{% url 'read_subject' s.pk %}{% else %}{% url 'subject_contents' s.pk %}{% endif %}"{% if s.pk == subject.pk %} class="current" aria-current="true"{% endif %}>{{ s.name }}</a></li>{% endfor %}
   </ul>
   {% if panel_other %}
   <p class="panel-label panel-label--other">Other Subjects</p>
   <ul class="panel-subject-list">
-    {% for s in panel_other %}<li><a href="{% url 'subject_contents' s.pk %}"{% if s.pk == subject.pk %} class="current" aria-current="true"{% endif %}>{{ s.name }}</a></li>{% endfor %}
+    {% for s in panel_other %}<li><a href="{% if subject_opens_whole %}{% url 'read_subject' s.pk %}{% else %}{% url 'subject_contents' s.pk %}{% endif %}"{% if s.pk == subject.pk %} class="current" aria-current="true"{% endif %}>{{ s.name }}</a></li>{% endfor %}
   </ul>
   {% endif %}
 </div>

@@ -71,6 +71,15 @@ def edit_context(request):
     }
 
 
+def open_whole_subject(profile):
+    """Whether clicking a Subject should open the whole Subject (round 19, user item 4).
+
+    True only when the profile's ``reading_all_mode`` is ``always_on``: the Display tab's Yes/No toggle. Otherwise
+    (``always_off`` or ``remember``) a Subject link opens the scoped Contents page with its "Read Whole Subject"
+    button, as before. The Table of Contents links are handled separately by ``_in_context``."""
+    return profile.reading_all_mode == Profile.READING_ALL_ALWAYS_ON
+
+
 def _subjects(profile, **filters):
     return Subject.objects.filter(profile=profile, deleted_at__isnull=True, **filters)
 
@@ -136,6 +145,7 @@ def subjects(request):
         "other_subjects": other,
         "subject_total": len(live_ids),
         "item_total": total_items,
+        "subject_opens_whole": open_whole_subject(profile),
     })
 
 
@@ -169,7 +179,7 @@ def help_page(request):
 
 @profile_required
 def profile_settings(request):
-    """The old Settings > Diary tab. Round 18 (D96): its settings are on Settings > General > Display (the export file
+    """The old Settings > Diary tab. Round 18 (D96): its settings are on Settings > Display (the export file
     name is on the Export page), so the old address opens Display."""
     return redirect(reverse("my_settings") + "?tab=display")
 
@@ -186,6 +196,7 @@ def _panel_subjects(profile):
     return {
         "panel_main": list(_sorted_subjects(profile, show_on_landing=True)),
         "panel_other": list(_sorted_subjects(profile, show_on_landing=False)),
+        "subject_opens_whole": open_whole_subject(profile),
     }
 
 
