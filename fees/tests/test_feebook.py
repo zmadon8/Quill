@@ -10,7 +10,7 @@ Q7 (the firm and group filters do NOT hide unaccounted payments).
 Every list path asserts a tight ``assertNumQueries`` bound so a regression that
 adds a per-row query (an N+1) fails: ``list_feebook`` with allocation rows is
 four queries (settings, the per-payment memo-number grouping, the allocation
-rows, the unaccounted rows), and three when ``unaccounted_only`` skips the
+rows, the unaccounted rows), and two when ``unaccounted_only`` skips the
 allocation query.
 
 Everything is scoped to a ``Profile(program="fees")``. Memos are created via
@@ -204,15 +204,15 @@ class FeebookUnaccountedTests(TestCase):
         self.assertEqual(len(unaccounted), 1)
         self.assertIsNone(unaccounted[0]["memo_id"])
 
-    def test_query_count_three_when_unaccounted_only(self):
+    def test_query_count_two_when_unaccounted_only(self):
         memo = memo_with_total(self.profile, self.matter, 1000)
         payments.add_payment_to_memo(
             self.profile, memo.pk, dict(amount=500, date_of_payment="2026-08-01")
         )
         self._add_unaccounted(200, "2026-08-05")
-        # settings + unaccounted rows (the allocation grouping and rows are
-        # skipped under unaccounted_only).
-        with self.assertNumQueries(3):
+        # settings + unaccounted rows = 2 queries (the allocation grouping and
+        # rows are skipped under unaccounted_only).
+        with self.assertNumQueries(2):
             rows = feebook.list_feebook(self.profile, {"unaccounted_only": True})
             self.assertEqual(len(rows), 1)
 
