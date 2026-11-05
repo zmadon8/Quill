@@ -137,6 +137,40 @@ class SchemaTests(TestCase):
         self.assertEqual(settings.data_version, 0)
         self.assertEqual(settings.money_unit, "full")
 
+    def test_memo_text_default_fields(self):
+        # R-SET-7: five firm-constant memo text defaults, all blank by default.
+        profile = fees_profile()
+        settings = FeesSettings.objects.create(profile=profile)
+        for name in (
+            "memo_default_name",
+            "memo_default_designation",
+            "memo_default_address",
+            "memo_default_bank_details",
+            "memo_default_pan",
+        ):
+            self.assertEqual(getattr(settings, name), "", name)
+        meta = FeesSettings._meta
+        self.assertEqual(meta.get_field("memo_default_name").max_length, 120)
+        self.assertEqual(meta.get_field("memo_default_designation").max_length, 120)
+        self.assertEqual(meta.get_field("memo_default_pan").max_length, 20)
+        # Address and bank details are multi-line TextFields.
+        self.assertEqual(meta.get_field("memo_default_address").get_internal_type(), "TextField")
+        self.assertEqual(
+            meta.get_field("memo_default_bank_details").get_internal_type(), "TextField"
+        )
+
+    def test_word_template_signature_fields(self):
+        # R-SET-8: signature image fields default blank/None.
+        profile = fees_profile()
+        template = WordTemplate.objects.create(profile=profile)
+        self.assertIsNone(template.signature_data)
+        self.assertEqual(template.signature_filename, "")
+        self.assertEqual(template.signature_content_type, "")
+        meta = WordTemplate._meta
+        self.assertEqual(meta.get_field("signature_data").get_internal_type(), "BinaryField")
+        self.assertEqual(meta.get_field("signature_filename").max_length, 255)
+        self.assertEqual(meta.get_field("signature_content_type").max_length, 100)
+
 
 class CaseInsensitiveUniquenessTests(TestCase):
     """R-DATA-3: names are unique per scope ignoring case, enforced by the database."""

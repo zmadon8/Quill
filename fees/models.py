@@ -70,6 +70,12 @@ class FeesSettings(models.Model):
     # New file-name settings (requirements R-FN-1, R-FN-2).
     export_owner_name = models.CharField(max_length=80, default="Ziyad Madon")
     memo_filename_pattern = models.CharField(max_length=200, blank=True, default="")
+    # Memo text defaults (R-SET-7): firm-constant values printed on every memo, no per-memo override.
+    memo_default_name = models.CharField(max_length=120, blank=True, default="")
+    memo_default_designation = models.CharField(max_length=120, blank=True, default="")
+    memo_default_address = models.TextField(blank=True, default="")  # multi-line (R-SET-7, recent change)
+    memo_default_bank_details = models.TextField(blank=True, default="")  # multi-line
+    memo_default_pan = models.CharField(max_length=20, blank=True, default="")
     # Cache stamp (R-DATA-6).
     data_version = models.BigIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -98,6 +104,11 @@ class WordTemplate(models.Model):
     prepared = models.BinaryField(null=True, blank=True)
     tags = models.JSONField(default=list, blank=True)
     uploaded_at = models.DateTimeField(auto_now=True)
+    # Signature image (R-SET-8): stored per profile, embedded at the MEMO_SIGNATURE tag; read with
+    # .defer alongside data/prepared.
+    signature_data = models.BinaryField(null=True, blank=True)
+    signature_filename = models.CharField(max_length=255, blank=True, default="")
+    signature_content_type = models.CharField(max_length=100, blank=True, default="")
 
     def __str__(self):
         return f"template of profile {self.profile_id}"
