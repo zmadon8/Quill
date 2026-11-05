@@ -27,6 +27,8 @@ from accounts.suite import KEY_DIARY as DEFAULT_PROGRAM
 from diary import legacy_merge as legacy
 from diary import nested_conversion, review_flags, subtopic_one, topic_one
 
+from fees.services.heavy import heavy_operation
+
 from . import policy, registry, storage as offsite_storage
 from .models import KEEP_KINDS, BackupFile, BackupLog
 
@@ -244,41 +246,47 @@ def create_backup(kind, user=None, use_applied_state=False):
     """
     started = timezone.now()
     try:
-        app_registry = applied_state_apps() if use_applied_state else None
-        outermost = not connection.in_atomic_block
-        with transaction.atomic():
-            if outermost and connection.vendor == "postgresql":
-                # One consistent snapshot for every model (needs to be the first statement).
-                with connection.cursor() as cursor:
-                    cursor.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
-            # Stream the gzip into a spooled temp file (in memory up to 2 MB, then on disk), so the
-            # peak is one chunk of rows, not several whole copies. Read the finished bytes back once
-            # for storage, so BackupFile.data, size_bytes and sha256 are identical to before.
-            with tempfile.SpooledTemporaryFile(max_size=2 * 1024 * 1024) as spool:
-                counts = write_document(spool, started, app_registry)
-                spool.seek(0)
-                raw = spool.read()
-            filename = f"judgment-diary-backup-{timezone.localtime(started):%Y%m%d-%H%M%S}-{kind}.json.gz"
-            backup = BackupFile.objects.create(
-                created_at=started,
-                kind=kind,
-                filename=filename,
-                data=raw,
-                size_bytes=len(raw),
-                sha256=hashlib.sha256(raw).hexdigest(),
-                record_counts=counts,
-                created_by=user,
-            )
-            BackupLog.objects.create(
-                started_at=started,
-                finished_at=timezone.now(),
-                kind=kind,
-                success=True,
-                message=f"Backup created: {sum(counts.values())} records.",
-                size_bytes=len(raw),
-                backup=backup,
-                created_by=user,
-            )
+        # R-NFR-6: only one heavy suite operation at a time. "suite_backup" is shared
+        # with restore so a backup and a restore cannot run at once. The pre-restore
+        # safety backup runs inside restore_backup on the same session; PostgreSQL
+        # advisory locks are re-entrant and counted, so this nested acquire succeeds
+        # and each finally releases once, keeping the count balanced.
+        with heavy_operation("suite_backup"):
+            app_registry = applied_state_apps() if use_applied_state else None
+            outermost = not connection.in_atomic_block
+            with transaction.atomic():
+                if outermost and connection.vendor == "postgresql":
+                    # One consistent snapshot for every model (needs to be the first statement).
+                    with connection.cursor() as cursor:
+                        cursor.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
+                # Stream the gzip into a spooled temp file (in memory up to 2 MB, then on disk), so the
+                # peak is one chunk of rows, not several whole copies. Read the finished bytes back once
+                # for storage, so BackupFile.data, size_bytes and sha256 are identical to before.
+                with tempfile.SpooledTemporaryFile(max_size=2 * 1024 * 1024) as spool:
+                    counts = write_document(spool, started, app_registry)
+                    spool.seek(0)
+                    raw = spool.read()
+                filename = f"judgment-diary-backup-{timezone.localtime(started):%Y%m%d-%H%M%S}-{kind}.json.gz"
+                backup = BackupFile.objects.create(
+                    created_at=started,
+                    kind=kind,
+                    filename=filename,
+                    data=raw,
+                    size_bytes=len(raw),
+                    sha256=hashlib.sha256(raw).hexdigest(),
+                    record_counts=counts,
+                    created_by=user,
+                )
+                BackupLog.objects.create(
+                    started_at=started,
+                    finished_at=timezone.now(),
+                    kind=kind,
+                    success=True,
+                    message=f"Backup created: {sum(counts.values())} records.",
+                    size_bytes=len(raw),
+                    backup=backup,
+                    created_by=user,
+                )
     except Exception as exc:
         _log_failure(kind, started, exc, user)
         raise
@@ -578,7 +586,10 @@ def restore_backup(document, user):
 
     started = timezone.now()
     try:
-        with transaction.atomic():
+        # R-NFR-6: guard the destructive restore. The pre-restore safety backup above
+        # has already finished and released its own "suite_backup" lock, so this takes
+        # "suite_restore" cleanly; a backup or restore on another connection is refused.
+        with heavy_operation("suite_restore"), transaction.atomic():
             batches = []
             for model in registry.get_models():
                 records = document["models"].get(model._meta.label, [])
