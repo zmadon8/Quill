@@ -47,6 +47,18 @@ PROGRAMS = {
 }
 
 
+def register_program(program):
+    """Add ``program`` to the registry (idempotent; a second call with the same key replaces it).
+
+    A program registers itself from its app ``ready()`` (design 10.2 step C), so the shared-core
+    screens pick it up without any edit here. Registration must not call ``reverse`` or touch the
+    database: it only records the program's key, its landing URL name and its lazy ``profile_models``
+    callable. The diary (step A above) is registered at import time; a later program appends itself.
+    """
+    PROGRAMS[program.key] = program
+    return program
+
+
 def program_keys():
     """The registered program keys, in registration order."""
     return list(PROGRAMS)

@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     "accounts",
     "backups",
     "diary",
+    "fees",
     "mailer",
 ]
 

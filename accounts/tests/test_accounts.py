@@ -266,8 +266,11 @@ class AccessTests(BaseCase):
 
 
 class SuiteSettingsTests(BaseCase):
-    def post(self, home="Home", diary="Case Law Diary"):
-        return self.client.post(reverse("settings"), {"home_name": home, "diary_name": diary})
+    def post(self, home="Home", diary="Case Law Diary", fees="Fee Register"):
+        # T1.8 registered the Fee Register, so the shared rename form now has a (required) fees field too.
+        return self.client.post(
+            reverse("settings"), {"home_name": home, "diary_name": diary, "fees_name": fees}
+        )
 
     def test_defaults_without_rows(self):
         self.assertEqual(SuiteName.objects.count(), 0)
@@ -343,41 +346,36 @@ class SuiteSettingsTests(BaseCase):
         self.assertEqual(SuiteName.objects.filter(key="diary").count(), 1)
         self.assertEqual(suite.get_names()["diary"], "Two")
 
-    def test_fees_default_name_is_available_but_not_shown_while_unregistered(self):
-        # T1.3: the Fee Register default exists in the suite, but with fees unregistered the
-        # Settings screen has no fees field and no row is ever stored for it.
+    def test_fees_default_name_is_available_and_shown_once_registered(self):
+        # T1.8 registers the Fee Register (fees/apps.py ready), so the shared Settings screen now shows a
+        # Fee Register name field alongside Home and the Case Law Diary. Before T1.8 this test asserted the
+        # field was absent while fees was unregistered; registering fees is intended (R-SH-3), so the
+        # expectation now reflects the registered program while the Home and diary fields are unchanged.
+        from accounts import programs
+
         self.assertEqual(suite.get_names()[suite.KEY_FEES], "Fee Register")
+        self.assertIn(suite.KEY_FEES, programs.program_keys())
         self.client.force_login(self.admin)
         resp = self.client.get(reverse("settings"))
         self.assertEqual(resp.status_code, 200)
         form = resp.context["form"]
-        self.assertEqual(list(form.fields), ["home_name", "diary_name"])
-        self.assertNotIn("fees_name", form.fields)
-        self.assertNotContains(resp, "Fee Register")
-        # Saving the two existing fields never writes a fees row.
-        self.post(diary="Judgments")
-        self.assertFalse(SuiteName.objects.filter(key=suite.KEY_FEES).exists())
+        self.assertEqual(list(form.fields), ["home_name", "diary_name", "fees_name"])
+        self.assertEqual(form.fields["fees_name"].initial, "Fee Register")
+        self.assertEqual(form.fields["fees_name"].label, "Fee Register name")
+        self.assertContains(resp, "Fee Register")
 
-    def test_fees_field_appears_only_when_fees_is_registered(self):
-        # Simulate T1.8 registering fees, then confirm the same form grows a Fee Register field.
-        # State is restored so no other test sees fees registered.
+    def test_fees_field_appears_because_fees_is_registered(self):
+        # The Fee Register is registered at startup (T1.8). Confirm the shared form carries its field and
+        # that the diary is still present too.
         from accounts import programs
         from accounts.forms import SuiteNamesForm
 
-        saved = dict(programs.PROGRAMS)
-        try:
-            programs.PROGRAMS[suite.KEY_FEES] = programs.Program(
-                key=suite.KEY_FEES, landing_url_name="home", profile_models=lambda: [],
-            )
-            form = SuiteNamesForm()
-            self.assertIn("fees_name", form.fields)
-            self.assertEqual(form.fields["fees_name"].initial, "Fee Register")
-            self.assertEqual(form.fields["fees_name"].label, "Fee Register name")
-        finally:
-            programs.PROGRAMS.clear()
-            programs.PROGRAMS.update(saved)
-        # Back to diary only.
-        self.assertEqual(programs.program_keys(), [suite.KEY_DIARY])
+        self.assertIn(suite.KEY_FEES, programs.program_keys())
+        form = SuiteNamesForm()
+        self.assertIn("fees_name", form.fields)
+        self.assertIn("diary_name", form.fields)
+        self.assertEqual(form.fields["fees_name"].initial, "Fee Register")
+        self.assertEqual(form.fields["fees_name"].label, "Fee Register name")
 
 
 class UserAdminTests(BaseCase):
