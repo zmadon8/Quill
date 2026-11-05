@@ -50,7 +50,7 @@ from django.db import transaction
 from django.db.models import F
 
 from fees.errors import FeesError
-from fees.models import Allocation, FeesSettings, Matter, Memo, Payment
+from fees.models import Allocation, FeesSettings, Matter, Memo, Payment, StatsCache
 from fees.services import memo_fees, memo_numbers
 from fees.services.financial_year import (
     current_financial_year,
@@ -139,12 +139,20 @@ def touch(profile):
     Call this ONCE inside every mutating operation's ``transaction.atomic()``.
     The settings row is get-or-created so a profile that has never opened
     Settings still has a stamp to advance; the increment is a single
-    ``F("data_version") + 1`` update so it is race-free. Returns nothing.
+    ``F("data_version") + 1`` update so it is race-free.
+
+    Bumping ``data_version`` already LOGICALLY invalidates every cached
+    ``StatsCache`` row for the profile (a cached row is valid only while its
+    ``data_version`` matches). This also DELETES the profile's cache rows so
+    stale rows do not accumulate across mutating operations (design lines 67 and
+    141; R-NFR-10). Only the ``StatsCache`` MODEL is imported here, not the
+    ``stats_cache`` service, so there is no import cycle. Returns nothing.
     """
     settings, _created = FeesSettings.objects.get_or_create(profile=profile)
     FeesSettings.objects.filter(pk=settings.pk).update(
         data_version=F("data_version") + 1
     )
+    StatsCache.objects.filter(profile=profile).delete()
 
 
 # ---------------------------------------------------------------------------
