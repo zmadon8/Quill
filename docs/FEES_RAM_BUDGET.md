@@ -143,3 +143,60 @@ python -c "import resource, openpyxl; print(resource.getrusage(resource.RUSAGE_S
 ```
 
 Record results in a new section at the end of this file. If "worker baseline" is above 130 MB or "openpyxl" above 35 MB, apply the section 7 levers before Phase 2 starts.
+
+## 10. Measured baseline (to be filled from a real run)
+
+**Status: pending.** These numbers have not been measured yet. The planning sandbox had no network, so Django, psycopg and openpyxl could not be installed and the real application could not start (section 1). Task T1.6 provides the tool; the authoritative numbers come from a run on CI and, with the owner's help, once on Render's Shell against the live-like instance. Until then every cell below is a placeholder and **must not be guessed or filled with an estimate**. When the run happens, replace the placeholders here and then the estimates in sections 2 to 4.
+
+### Commands to run
+
+On a machine with the project's requirements installed (CI or Render Shell), with `DATABASE_URL` set:
+
+```
+# 1. Steady-state per process, while the site is serving (Render Shell).
+#    Read both RSS and PSS; PSS shows the shared-pages saving that --preload would give.
+ps -eo pid,rss,cmd | grep gunicorn
+ps -o rss,pss -p <each gunicorn pid>
+
+# 2. Fresh import cost of the apps in one process (does not serve requests).
+python -c "import resource, django, os; os.environ['DJANGO_SETTINGS_MODULE']='config.settings'; django.setup(); print(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss//1024, 'MB')"
+
+# 3. The same, then openpyxl, to get the openpyxl resident delta.
+python -c "import resource, openpyxl; print(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss//1024, 'MB')"
+
+# 4. The bench command: startup RSS, openpyxl resident delta, and the dataset-build peak,
+#    built in a throwaway profile inside a transaction that rolls back (leaves no data).
+python manage.py fees_memory_bench
+#    Scale it down for a quick check on a small instance:
+python manage.py fees_memory_bench --dataset-size small
+#    Import cost only, no dataset build:
+python manage.py fees_memory_bench --skip-build
+```
+
+`fees_memory_bench` is a manual tool. It is not part of CI or `manage.py test`; CI only confirms it imports (via `manage.py check`). It exits non-zero only if a measured peak is over its cap; the dataset-build cap is deliberately generous because the build is a bulk load, not a guarded heavy operation.
+
+### Results
+
+Fill each cell from the commands above. Leave it as "to be measured" until the real run. The "heavy operation" rows below the dataset build are built in later phases; mark each with the phase that produces it and fill the peak when that phase's `fees_memory_bench` entry and memory test exist.
+
+| Measurement | Source | Cap or target | Measured |
+|---|---|---|---|
+| Gunicorn master RSS | command 1 | section 2 est. 25 MB | to be measured |
+| Worker baseline RSS (both programs loaded, no openpyxl) | command 1, command 2 | decision rule: 130 MB | to be measured |
+| Worker baseline PSS (both programs loaded) | command 1 (`pss`) | informational | to be measured |
+| openpyxl resident delta | command 3, command 4 | decision rule: 35 MB | to be measured |
+| Dataset build peak (planning size) | command 4 | generous skeleton cap 200 MB | to be measured |
+| Statistics peak | Phase 3 (T3.8) | 5 MB | Phase 3 |
+| Dashboard peak | Phase 3 (T3.7) | 3 MB | Phase 3 |
+| Pivot peak | Phase 3 (T3.8) | 8 MB | Phase 3 |
+| Excel export peak | Phase 5 (T5.3, T5.6) | 12 MB | Phase 5 |
+| Annual summary export peak | Phase 5 (T5.3, T5.6) | 20 MB | Phase 5 |
+| Excel import peak | Phase 6 (T6.2) | 25 MB | Phase 6 |
+| Excel restore peak | Phase 4 (T4.2, T4.5) | 40 MB | Phase 4 |
+| Word export peak | Phase 5 (T5.2, T5.6) | 2 MB | Phase 5 |
+| Suite backup build peak | Phase 1 (T1.4, T1.9) | 15 MB | to be measured |
+| Suite restore peak | Phase 4 | 60 MB | Phase 4 |
+
+### Decision rule
+
+Restating the gate from task T1.6: once the worker baseline and openpyxl numbers are measured, if the **worker baseline RSS is above 130 MB** or the **openpyxl resident delta is above 35 MB**, apply the section 7 levers in order of preference (`MALLOC_ARENA_MAX=2`, gunicorn `--preload`, then 1 worker with 4 threads). Each is a separate `render.yaml` or environment change that **needs the owner's approval** and is never done silently. If any measured baseline is more than 20 percent above the section 4 numbers, apply the levers before Phase 2 continues.
