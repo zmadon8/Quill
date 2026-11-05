@@ -82,7 +82,7 @@ class ProfileAccessMixin:
 
     def _add_profile_fields(self, current=None):
         current = current or {}
-        self.access_profiles = list(_live_diary_profiles())
+        self.access_profiles = list(_live_profiles())
         for profile in self.access_profiles:
             self.fields[f"{PROFILE_FIELD_PREFIX}{profile.pk}"] = forms.ChoiceField(
                 choices=PROFILE_ACCESS_CHOICES, required=False, label=profile.name,
@@ -124,8 +124,9 @@ def _landing_field(programs=None):
     )
 
 
-def _live_diary_profiles():
-    return Profile.objects.filter(program=suite.KEY_DIARY, deleted_at__isnull=True).order_by("name")
+def _live_profiles(program=suite.KEY_DIARY):
+    """Live profiles of ``program`` in name order (the default program is the diary, as before)."""
+    return Profile.objects.filter(program=program, deleted_at__isnull=True).order_by("name")
 
 
 def _clean_unique_email(form):
@@ -253,7 +254,16 @@ class MySettingsForm(forms.ModelForm):
 
 
 class ProfileForm(forms.ModelForm):
-    """Create or rename a Case Law Diary profile, and set its Display Name. Names are unique among live profiles, ignoring case."""
+    """Create or rename a profile, and set its Display Name. Names are unique among live profiles of the
+    same program, ignoring case.
+
+    A new profile belongs to ``program`` (the diary by default, the only registered program today; a later
+    step adds a program select). Editing or restoring keeps the profile's own program.
+    """
+
+    def __init__(self, *args, program=suite.KEY_DIARY, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.program = self.instance.program if self.instance.pk else program
 
     class Meta:
         model = Profile
@@ -270,7 +280,7 @@ class ProfileForm(forms.ModelForm):
         name = " ".join((self.cleaned_data.get("name") or "").split())
         if not name:
             raise ValidationError("Enter a name.")
-        clash = Profile.objects.filter(program=suite.KEY_DIARY, name__iexact=name, deleted_at__isnull=True)
+        clash = Profile.objects.filter(program=self.program, name__iexact=name, deleted_at__isnull=True)
         if self.instance.pk:
             clash = clash.exclude(pk=self.instance.pk)
         if clash.exists():
@@ -279,7 +289,7 @@ class ProfileForm(forms.ModelForm):
 
     def save(self, commit=True):
         profile = super().save(commit=False)
-        profile.program = suite.KEY_DIARY
+        profile.program = self.program
         if commit:
             profile.save()
         return profile

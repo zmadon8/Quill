@@ -12,7 +12,7 @@ from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
-from . import landing, suite, user_trash
+from . import landing, programs, suite, user_trash
 from .clear import ClearRefused, clear_preview, clear_profile
 from .forms import MySettingsForm, UsernamePasswordResetForm, _client_ip, ProfileForm, SuiteNamesForm, UserCreateForm, UserEditForm
 from .models import ROLE_EDITOR, OfflineLink, Profile, ProfileMembership, PurgeLog, ResetRequest, prune_reset_requests
@@ -138,9 +138,9 @@ def my_settings(request):
     from diary.forms import DiarySettingsForm, ProfileSettingsForm, preview_rows  # lazy: diary imports accounts
 
     form = MySettingsForm(request.POST or None, instance=request.user)
-    profile = request_profile(request, suite.KEY_DIARY)
+    profile = request_profile(request)
     diary_form = DiarySettingsForm(request.POST or None, user=request.user, profile=profile) if profile else None
-    can_edit_profile = profile is not None and request_role(request, suite.KEY_DIARY) == ROLE_EDITOR
+    can_edit_profile = profile is not None and request_role(request) == ROLE_EDITOR
     # A copy, so an invalid POST does not change the header of the page shown with the errors. Only checked when the
     # page sent it (its select is always sent), so a save from somewhere else never resets these shared settings.
     sent = request.method == "POST" and "diary-reading_all_mode" in request.POST
@@ -184,11 +184,14 @@ def profile_switch(request):
     """Use another of my profiles (round 18, D95): from the header menu or the Home page. Opens its Subjects page."""
     from diary.params import safe_int
 
-    profile = Profile.objects.filter(pk=safe_int(request.POST.get("profile", "")), program=suite.KEY_DIARY).first()
+    profile = Profile.objects.filter(
+        pk=safe_int(request.POST.get("profile", "")), program__in=programs.program_keys()
+    ).first()
     if profile is None or not use_profile(request.user, profile):
         messages.error(request, "You do not have that profile.")
         return redirect(reverse("home") + "?home=1")
-    return redirect("diary_home")
+    program = programs.get_program(profile.program)
+    return redirect(program.landing_url_name if program is not None else "home")
 
 
 class MyPasswordChangeView(auth_views.PasswordChangeView):
@@ -210,7 +213,7 @@ def format_preview(request):
     from diary.forms import FORMAT_FIELDS, DiarySettingsForm, allowed_formats, preview_rows
 
     chosen = {}
-    profile = get_profile_for(request.user, suite.KEY_DIARY)
+    profile = get_profile_for(request.user)
     if profile:
         chosen = DiarySettingsForm(user=request.user, profile=profile).current()
     chosen = {name: chosen.get(name) for name in FORMAT_FIELDS}
@@ -226,7 +229,7 @@ def _with_profiles(users):
     """Give each user ``profiles_text``: their live profiles with roles, for example "Main (Editor), Smith (Reader)"."""
     by_user = {}
     for m in ProfileMembership.objects.filter(
-        program=suite.KEY_DIARY, suspended=False, profile__deleted_at__isnull=True
+        program__in=programs.program_keys(), suspended=False, profile__deleted_at__isnull=True
     ).select_related("profile").order_by("profile__name", "pk"):
         by_user.setdefault(m.user_id, []).append(f"{m.profile.name} ({m.get_role_display()})")
     for u in users:
@@ -326,7 +329,7 @@ def suite_settings(request):
 
 
 def _live_profiles():
-    return Profile.objects.filter(program=suite.KEY_DIARY, deleted_at__isnull=True)
+    return Profile.objects.filter(program__in=programs.program_keys(), deleted_at__isnull=True)
 
 
 @admin_required
@@ -335,7 +338,7 @@ def profile_list(request):
     for p in profiles:
         p.member_count, p.subject_count = profile_usage(p)
     deleted = list(
-        Profile.objects.filter(program=suite.KEY_DIARY, deleted_at__isnull=False)
+        Profile.objects.filter(program__in=programs.program_keys(), deleted_at__isnull=False)
         .select_related("deleted_by")
         .order_by("-deleted_at")
     )
@@ -409,7 +412,9 @@ def profile_restore(request, pk):
 
     If a live profile has the same name, the Admin is asked for a new name first.
     """
-    target = get_object_or_404(Profile, pk=pk, program=suite.KEY_DIARY, deleted_at__isnull=False)
+    target = get_object_or_404(
+        Profile, pk=pk, program__in=programs.program_keys(), deleted_at__isnull=False
+    )
     if name_clash(target) or (request.method == "POST" and "name" in request.POST):
         form = ProfileForm(request.POST or None, instance=target)
         if request.method == "POST" and form.is_valid():

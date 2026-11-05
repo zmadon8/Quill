@@ -61,6 +61,33 @@ PROFILE_MODELS = [
 ]
 
 
+#: Profile-scoped model labels per program key, parents first (the same order as in ``BACKUP_MODELS``).
+#: ``profile_models_for`` turns the labels into model classes in the order the profile purge and clear
+#: delete them (children first). Only the diary is listed today; a second program adds its own list here.
+PROGRAM_PROFILE_MODELS = {
+    "diary": PROFILE_MODELS,
+}
+
+
+def profile_models_for(program, app_registry=None):
+    """Model classes carrying a ``profile`` column for ``program``, in delete order (children first).
+
+    Returns an empty list for an unknown program. The order is the reverse of the parents-first label
+    list, so a caller can delete rows straight down the list; this matches the order the profile purge
+    and clear used before the registry existed.
+    """
+    app_registry = app_registry or apps
+    labels = PROGRAM_PROFILE_MODELS.get(program, [])
+    models = []
+    for label in reversed(labels):
+        try:
+            models.append(app_registry.get_model(label))
+        except LookupError:
+            if app_registry is apps:
+                raise
+    return models
+
+
 def get_models(app_registry=None):
     """The registry models, in backup order (parents first).
 

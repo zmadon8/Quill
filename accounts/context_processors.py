@@ -1,10 +1,23 @@
 import logging
 
-from . import suite
+from . import programs, suite
 from .models import ROLE_EDITOR
 from .profiles import request_memberships, request_profile, request_role
 
 logger = logging.getLogger(__name__)
+
+
+def current_program_key(request):
+    """The program the current page belongs to, from the URL namespace, falling back to the diary.
+
+    Each program is mounted under a URL namespace equal to its key (``diary``). A request with no match
+    (for example a context processor called with a plain test request) uses the diary, as before.
+    """
+    match = getattr(request, "resolver_match", None)
+    namespace = getattr(match, "namespace", "") if match is not None else ""
+    if namespace and programs.get_program(namespace) is not None:
+        return namespace
+    return suite.KEY_DIARY
 
 
 def suite_names(request):
@@ -31,12 +44,17 @@ def program_label(request):
 
     Used in the page title and the Home program button. Never raises: a failure falls back to the program name."""
     try:
-        profile = request_profile(request) if getattr(request, "user", None) and request.user.is_authenticated else None
+        program = current_program_key(request)
+        profile = (
+            request_profile(request, program)
+            if getattr(request, "user", None) and request.user.is_authenticated
+            else None
+        )
         name = (profile.display_name or "").strip() if profile is not None else ""
         if name:
             return {"program_label": name}
         names = getattr(request, "_suite_names", None) or suite.get_names()
-        return {"program_label": names[suite.KEY_DIARY]}
+        return {"program_label": names[program]}
     except Exception:
         logger.exception("Could not work out the program label")
         return {"program_label": suite.DEFAULT_NAMES[suite.KEY_DIARY]}

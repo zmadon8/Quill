@@ -1,13 +1,13 @@
 """Where a user lands after signing in: Home (the default) or one program chosen in My settings."""
 from django.urls import reverse
 
-from . import suite
+from . import programs, suite
 from .profiles import get_profile_for
 
-#: URL name of the first page of each program, by program key.
-PROGRAM_LANDING_URLS = {suite.KEY_DIARY: "diary_home"}
-#: Programs in the order they are offered.
-PROGRAM_KEYS = [suite.KEY_DIARY]
+#: Programs in the order they are offered, and the URL name of each one's first page. Both are derived
+#: from the program registry, so a program added there appears here without editing this module.
+PROGRAM_KEYS = programs.program_keys()
+PROGRAM_LANDING_URLS = {key: programs.get_program(key).landing_url_name for key in PROGRAM_KEYS}
 
 
 def program_choices(programs=None):
