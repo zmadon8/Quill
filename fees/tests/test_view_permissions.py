@@ -111,11 +111,12 @@ ROUTES = {
 }
 
 
-# Routes whose GET is a redirect for every member allowed in (the landing page opens the default tab; a
-# result page with no finished job in the session goes back to the backup page).
+# Routes whose GET is a redirect for every member allowed in: the landing page opens the default tab; a
+# result page with no finished job in the session goes back to the backup page; and the restore route is
+# POST-driven (its upload form lives on the backup page), so a GET sends the user back there.
 FIXTURE = Path(__file__).parent / "fixtures" / "Template 2-11-2026 (short tags).docx"
 
-REDIRECTS = {"fees_landing", "fees_backup_restored", "fees_backup_cleared"}
+REDIRECTS = {"fees_landing", "fees_backup_restore", "fees_backup_restored", "fees_backup_cleared"}
 
 # Editor-only routes that also accept POST (the rest of the E routes are GET only).
 E_POST = {"fees_payment_new", "fees_payment_edit", "fees_backup_restore", "fees_backup_clear"}

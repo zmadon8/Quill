@@ -95,6 +95,7 @@ def firm_edit(request, firm_id):
 @require_POST
 def firm_status(request, firm_id):
     profile, _settings = scope.context(request)
+    firms.get_firm(profile, firm_id)  # another profile's firm is a 404 before the status check
     status = request.POST.get("status", "")
     if status not in ("active", "archived"):
         raise FeesError("INVALID_FIRM_STATUS", "Choose active or archived.")
