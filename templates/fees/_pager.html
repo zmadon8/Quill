@@ -1,5 +1,6 @@
+{# Previous / Next. Context: meta (page, total_pages, has_prev, has_next, optional total), query_string (filters without page). #}
 {% if meta.total_pages > 1 %}<nav class="pager" aria-label="Pages">
-  {% if meta.has_prev %}<a href="?{% if query_string %}{{ query_string }}&amp;{% endif %}page={{ meta.page|add:'-1' }}">Previous</a>{% endif %}
-  Page {{ meta.page }} of {{ meta.total_pages }}
-  {% if meta.has_next %}<a href="?{% if query_string %}{{ query_string }}&amp;{% endif %}page={{ meta.page|add:'1' }}">Next</a>{% endif %}
+  {% if meta.has_prev %}<a class="button" rel="prev" href="?{% if query_string %}{{ query_string }}&amp;{% endif %}page={{ meta.page|add:'-1' }}">Previous</a>{% else %}<span class="button disabled" aria-disabled="true">Previous</span>{% endif %}
+  <span class="pager-status" aria-current="page">Page {{ meta.page }} of {{ meta.total_pages }}</span>
+  {% if meta.has_next %}<a class="button" rel="next" href="?{% if query_string %}{{ query_string }}&amp;{% endif %}page={{ meta.page|add:'1' }}">Next</a>{% else %}<span class="button disabled" aria-disabled="true">Next</span>{% endif %}
 </nav>{% endif %}

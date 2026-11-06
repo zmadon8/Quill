@@ -1,0 +1,84 @@
+/* Fee Register styles. Loaded after tokens.css and site.css by templates/fees/base_fees.html; uses the host tokens only.
+   Dark mode: the host defines none, so none is added here. If the host adds one through the tokens, this file follows
+   because it never writes a colour that is not a token.
+
+   U1 (docs/FEES_PHASE0_ANALYSIS.md section 8, answered "yes"): data tables only (.ledger-table) use 15px text.
+   Everything else stays at 16px or more. */
+:root { --data-size: .9375rem; }
+
+/* Search bar under the header (the magnifier in the program nav opens it; site.js drives it). */
+.fees-search-form { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .75rem; }
+.fees-search-form input[type=search] { flex: 1 1 16rem; max-width: none; min-height: var(--tap); }
+.fees-search-form button { min-height: var(--tap); min-width: 6rem; }
+
+/* Messages: success reads as a quiet note, errors keep the host's oxblood rule. */
+.messages li.success { border-left-color: var(--ink); }
+.messages li.warning { border-left-color: var(--amber-line); background: var(--amber-bg); color: var(--amber-ink); }
+
+/* Filter bar and page actions. */
+.filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: .5rem 1rem; margin: 0 0 1rem; }
+.filters label { display: flex; flex-direction: column; gap: .15rem; font-size: var(--small-size); }
+.filters label:has(input[type=checkbox]) { flex-direction: row; align-items: center; min-height: var(--tap); }
+.filters input[type=checkbox] { width: 1.25rem; height: 1.25rem; }
+.filters input[type=text], .filters select { min-height: var(--tap); width: auto; max-width: 100%; }
+.muted { color: var(--muted); }
+.form-errors { margin: 0 0 1rem; padding: .6rem .8rem .6rem 1.6rem; border: 1px solid var(--oxblood); border-left-width: 4px; color: var(--oxblood); background: var(--panel); }
+
+/* Ledger book table: rule under the header, hairline rows, double rule above the totals, figures right aligned. */
+.ledger-table { width: 100%; border-collapse: collapse; font-size: var(--data-size); line-height: 1.4; }
+.ledger-table caption { text-align: left; padding: 0 0 .5rem; color: var(--muted); font-size: var(--small-size); }
+.ledger-table th { padding: .6rem .5rem; text-align: left; font-size: var(--data-size); border-bottom: 2px solid var(--ink); vertical-align: bottom; position: relative; }
+.ledger-table td { padding: .5rem .5rem; border-bottom: 1px solid var(--hair); vertical-align: top; }
+.ledger-table td a { min-height: var(--tap); line-height: var(--tap); }
+.ledger-table tbody tr:hover { background: var(--panel); }
+.ledger-table th.money, .ledger-table td.money { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ledger-table tfoot th, .ledger-table tfoot td { border-top: 3px double var(--ink); border-bottom: 0; font-weight: 600; text-transform: none; letter-spacing: 0; }
+.ledger-table tfoot td.money { text-align: right; font-variant-numeric: tabular-nums; }
+.ledger-table .col-hidden { display: none; }
+.ledger-table .overdue, .ledger-table .negative { color: var(--oxblood); }
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* Status: a small square plus the word, so colour is never the only signal. */
+.status { display: inline-flex; align-items: center; gap: .45rem; white-space: nowrap; }
+.status-sq { display: inline-block; flex: none; width: .7rem; height: .7rem; border: 2px solid var(--ink); background: transparent; }
+.status-paid .status-sq { background: var(--ink); }
+.status-partial .status-sq { background: linear-gradient(90deg, var(--ink) 50%, transparent 50%); }
+.status-unpaid .status-sq { background: transparent; }
+.status-overdue .status-sq { background: var(--oxblood); border-color: var(--oxblood); }
+.status-overdue { color: var(--oxblood); }
+.status-draft .status-sq { border-style: dashed; border-color: var(--muted); }
+.status-written-off .status-sq { border-color: var(--muted); background: repeating-linear-gradient(45deg, var(--muted) 0 2px, transparent 2px 4px); }
+
+/* Column chooser (columns.js). Without JavaScript the table simply shows every column. */
+.table-tools { display: flex; flex-wrap: wrap; gap: .5rem 1rem; align-items: center; margin: 0 0 .5rem; }
+.col-menu { position: relative; }
+.col-menu > summary { list-style: none; cursor: pointer; display: inline-flex; align-items: center; min-height: var(--tap); padding: 0 .9rem; border: 1px solid var(--hair); background: var(--panel); border-radius: 3px; }
+.col-menu > summary::-webkit-details-marker { display: none; }
+.col-menu[open] > summary, .col-menu > summary:hover { border-color: var(--oxblood); color: var(--oxblood); }
+.col-menu-list { position: absolute; z-index: 30; top: calc(100% + 4px); left: 0; min-width: 14rem; max-width: 90vw; padding: .5rem 1rem; background: var(--bg); border: 1px solid var(--hair); box-shadow: 0 4px 10px rgb(0 0 0 / .12); }
+.col-menu-list label { display: flex; align-items: center; gap: .6rem; min-height: var(--tap); font-size: var(--small-size); }
+.col-menu-list input { width: 1.25rem; height: 1.25rem; }
+
+/* Pager. */
+.pager { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; margin: 1rem 0; }
+.pager-status { color: var(--muted); }
+
+/* Confirmation pages (clear all, restore). */
+.confirm.warning-box { margin: 0 0 1.25rem; }
+.confirm ul { margin: 0; padding-left: 1.25rem; }
+.confirm-form { max-width: 36rem; }
+.confirm-form input[type=text] { width: 100%; max-width: 100%; }
+
+/* Phone layout: tables scroll sideways inside .table-wrap, controls stack and keep a 44px tap area. */
+@media (max-width: 599px) {
+  .filters { flex-direction: column; align-items: stretch; }
+  .filters select, .filters input[type=text] { width: 100%; }
+  .filters button, .pager .button { min-height: var(--tap); }
+  .pager { justify-content: space-between; }
+  .pager-status { order: -1; flex-basis: 100%; }
+  .fees-search-form input[type=search] { flex-basis: 100%; }
+  .fees-search-form button { flex: 1 1 auto; }
+  .col-menu-list { position: static; box-shadow: none; max-width: none; }
+  .ledger-table { min-width: 36rem; }
+}
+@media (prefers-reduced-motion: reduce) { .ledger-table tbody tr { transition: none; } }

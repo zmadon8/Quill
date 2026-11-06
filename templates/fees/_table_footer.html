@@ -1,0 +1,3 @@
+{% load fees_money %}
+{# Totals row over a double rule. Context: label_span (columns before the first figure), label, figures (list of values, money), optional trailing (empty cells after), money_unit. #}
+<tfoot><tr><th scope="row" colspan="{{ label_span }}">{{ label }}</th>{% for v in figures %}<td class="money">{{ v|fees_money:money_unit }}</td>{% endfor %}{% if trailing %}<td colspan="{{ trailing }}"></td>{% endif %}</tr></tfoot>
