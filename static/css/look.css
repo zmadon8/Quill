@@ -22,7 +22,7 @@ body.look .subnav + main, body.look .subnav + .banner-warning + main { padding-t
 body.look .brand .profile-name { opacity: 1; }
 body.look .brand a:hover, body.look .brand a:focus-visible { border-bottom-color: transparent; }
 /* Icon-only header controls keep a 44px tap area (the shared shell draws them 30px). */
-body.look .program-nav .icon-tool, body.look .program-nav .home-button { height: var(--tap); min-width: var(--tap); }
+body.look .program-nav .icon-tool, body.look .program-nav .home-button, body.look .program-nav .signout-button { height: var(--tap); min-width: var(--tap); }
 body.look .back-button, body.look .forward-button { width: var(--tap); min-width: var(--tap); height: var(--tap); }
 @media (min-width: 900px) and (pointer: fine) {
   body.look .back-button, body.look .forward-button { width: 32px; min-width: 32px; height: 32px; }
@@ -35,6 +35,7 @@ body.look .back-button, body.look .forward-button { width: var(--tap); min-width
   body.look .search-pop { padding: 8px 12px; }
   body.look .program-nav { font-size: 16px; gap: 0 14px; }
   body.look .program-nav .who { font-size: 14px; }
+  body.look .program-nav .header-end a.who { font-size: 14px; max-width: 8rem; }
   body.look .brand { font-size: 20px; }
 }
 

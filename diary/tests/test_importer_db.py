@@ -489,6 +489,9 @@ class FlagsPageTests(TestCase):
     address forwards to Flags."""
 
     def setUp(self):
+        from accounts import suite
+
+        suite.set_brand_modes({key: suite.BRAND_LOGO for key in suite.BRAND_KEYS})  # Words is the default
         self.reader = join_main(User.objects.create_user("rita", password=PASSWORD))
         self.client.force_login(self.reader)
         self.main = main_profile()

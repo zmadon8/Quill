@@ -677,7 +677,8 @@ class RoleTests(BaseCase):
     def test_header_shows_username_only_and_user_list_shows_role(self):
         self.client.force_login(self.user)
         resp = self.client.get(reverse("home"))
-        self.assertContains(resp, '<span class="who">alice</span>', html=True)
+        self.assertContains(resp, 'class="who" href="%s?tab=account"' % reverse("my_settings"))
+        self.assertContains(resp, ">alice</a>")
         self.assertNotContains(resp, "Reader")
         self.client.force_login(self.admin)
         self.assertContains(self.client.get(reverse("user_list")), "Reader")

@@ -1159,3 +1159,14 @@ Owner instruction, verbatim: "Words / Logo should default to Words. Search and H
 - Search, Home and Sign out are icons whatever the choice, with an accessible label (`aria-label` and `title`): `templates/_search_button.html`, `templates/_home_button.html`, `templates/_signout_button.html`. The choice still applies to the other header items (Trash, Flags, Export, Help, Settings, Admins and so on).
 - Sign out (was "Log out", and only on the Home page) is now in every header. No extra query: the choice still comes from the one `suite.read_all` query.
 - Test changes: tests that check the icons choose Logo first (`accounts.tests.test_header_style`, and the header tests in `diary.tests.test_views`, `diary.tests.test_importer_db`, `accounts.tests.test_round17`); `test_header_style` has a new test for the Words default.
+
+
+## Round 22: uniform header on every page
+
+Owner instruction, verbatim: "The format of the Header should be uniform in all pages, i.e., user name, search and Home should be on the right, with the rest on the left."
+
+- One shell (`templates/base_suite.html`, which Home, Admins, Settings, Help, the Case Law Diary, the Fee Register and the login pages all extend) draws the header, so every page has the same format. LEFT: program brand (and profile switcher), Back / Forward, then the program's own items. RIGHT, in this order: the signed-in user's name (a link to Settings > Account), Search, Home, and Sign out at the far right (`<div class="header-end">`; partials `_header_user.html`, `_search_button.html`, `_home_button.html`, `_signout_button.html`).
+- Search is shown where the page has a search (the Case Law Diary with a profile, and the Fee Register); the suite pages and the login page have none, so it is left out there. The login page shows only the brand: nobody is signed in, so there is no name, Home or Sign out.
+- Home now also appears on the Home page itself (it used to show only Log out there), and the user name now also shows inside the Case Law Diary and the Fee Register.
+- Accessibility is unchanged: the skip link, the "Main" navigation landmark, labels on every icon. Layout: `static/css/design.css` (`.header-end`) and `static/css/look.css`; the right-hand group wraps under the nav on a phone (360 to 390 px), with a long name cut short with an ellipsis. Profile switcher, Words / Logo, Links toggle, the Fee Register search drop-down and the diary Alt+F search bar behave as before.
+- Test changes: the markup assertions in `diary.tests.test_views` (name on every page, Home on the Home page, Sign out in every header) and `accounts.tests.test_accounts` (the name is a link).
