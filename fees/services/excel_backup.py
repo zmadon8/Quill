@@ -19,7 +19,11 @@ the payment has exactly one allocation, else empty; timestamps are ``YYYY-MM-DD 
 never empty; booleans are 0 or 1; dates are ISO text; money is a number. ``payment_details`` is in the
 backup (it is the full backup, R-PAY-5). Electron-only settings are written at their desktop defaults.
 Web-only settings go to the ``WebSettings`` sheet (``key``, ``value``), including the five memo text
-defaults (R-SET-7). The Word template bytes and the signature image bytes (``WordTemplate``) are NEVER
+defaults (R-SET-7), ``memo_signature_default`` and ``list_default_filter`` (an older file without these keys
+restores to the defaults). A second web-only sheet, ``WebMemoFlags`` (``memo_id``, ``memo_number``,
+``include_signature``), carries the per-memo signature flag; the desktop ``Memos`` sheet gets NO new column
+(it is a contract). An older file without ``WebMemoFlags`` restores every memo with the signature default
+of the file's ``WebSettings`` (off when absent). The Word template bytes and the signature image bytes (``WordTemplate``) are NEVER
 written to the ``.xlsx`` (they travel in the suite backup only, design 7.4).
 """
 import datetime
@@ -46,6 +50,8 @@ __all__ = [
     "OPTIONAL_SHEETS",
     "WEB_SETTINGS_SHEET",
     "WEB_SETTINGS_HEADERS",
+    "WEB_MEMO_FLAGS_SHEET",
+    "WEB_MEMO_FLAGS_HEADERS",
     "SETTINGS_COLUMNS",
     "ELECTRON_ONLY_DEFAULTS",
     "NOT_NULL_DEFAULTS",
@@ -186,6 +192,10 @@ OPTIONAL_SHEETS = frozenset(["PaymentAllocations", "PeriodAdjustments", "SavedVi
 WEB_SETTINGS_SHEET = "WebSettings"
 WEB_SETTINGS_HEADERS = ["key", "value"]
 
+#: The per-memo web-only flags sheet (not in ``OPTIONAL_SHEETS``: it is never a required desktop sheet).
+WEB_MEMO_FLAGS_SHEET = "WebMemoFlags"
+WEB_MEMO_FLAGS_HEADERS = ["memo_id", "memo_number", "include_signature"]
+
 #: The five memo text defaults (R-SET-7) carried by ``WebSettings``.
 MEMO_TEXT_DEFAULT_KEYS = [
     "memo_default_name",
@@ -201,7 +211,10 @@ WEB_SETTINGS_KEYS = [
     "memo_filename_pattern",
     "statistics_enabled",
     "dashboard_kpis_enabled",
-] + MEMO_TEXT_DEFAULT_KEYS
+] + MEMO_TEXT_DEFAULT_KEYS + [
+    "memo_signature_default",
+    "list_default_filter",
+]
 
 #: NOT NULL columns with a default; a blank or missing value takes this on restore (ported from
 #: ``NOT_NULL_INT_DEFAULTS`` in ``readSheetRows``). The settings defaults are merged in from
@@ -487,6 +500,16 @@ def export_workbook(profile):
     web_sheet = workbook.create_sheet(WEB_SETTINGS_SHEET)
     settings = FeesSettings.objects.filter(profile=profile).first() or FeesSettings(profile=profile)
     write_rows(web_sheet, WEB_SETTINGS_HEADERS, _web_settings_rows(settings))
+
+    flags_sheet = workbook.create_sheet(WEB_MEMO_FLAGS_SHEET)
+    flag_rows = (
+        [pk, number, _bool(include)]
+        for pk, number, include in Memo.objects.filter(profile=profile)
+        .order_by("pk")
+        .values_list("pk", "memo_number", "include_signature")
+        .iterator(chunk_size=_CHUNK)
+    )
+    write_rows(flags_sheet, WEB_MEMO_FLAGS_HEADERS, flag_rows)
 
     out = tempfile.TemporaryFile()
     workbook.save(out)

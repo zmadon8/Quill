@@ -825,3 +825,45 @@ class RestoreMemoryTests(TestCase):
         self.assertEqual(result["counts"]["allocations"], summary["allocations"])
         self.assertEqual(Memo.objects.filter(profile=profile).count(), summary["memos"])
         self.assertTrue(result["fees_check"]["ok"])
+
+
+class SignatureFlagRestoreTests(TestCase):
+    """Per-memo include_signature comes from WebMemoFlags; an absent sheet uses the file's default."""
+
+    def test_round_trip_keeps_the_flag_of_each_memo(self):
+        source = fees_profile("Flag-Source")
+        seed_web_data(source)
+        ticked = Memo.objects.filter(profile=source, memo_number__isnull=False).order_by("pk").first()
+        Memo.objects.filter(pk=ticked.pk).update(include_signature=True)
+        target = fees_profile("Flag-Target")
+        out = export_of(source)
+        restore(target, out)
+        out.close()
+        restored = Memo.objects.get(profile=target, memo_number=ticked.memo_number)
+        self.assertTrue(restored.include_signature)
+        self.assertEqual(Memo.objects.filter(profile=target, include_signature=True).count(), 1)
+
+    def test_file_without_the_sheet_uses_the_default_in_web_settings(self):
+        sheets = minimal_sheets(2)
+        sheets["WebSettings"] = [["key", "value"], ["memo_signature_default", 1], ["list_default_filter", "active"]]
+        profile = fees_profile("Flag-Default-On")
+        restore(profile, build_workbook(sheets))
+        self.assertEqual(Memo.objects.filter(profile=profile, include_signature=True).count(), 2)
+        saved = FeesSettings.objects.get(profile=profile)
+        self.assertTrue(saved.memo_signature_default)
+        self.assertEqual(saved.list_default_filter, "active")
+
+    def test_file_without_any_web_sheet_leaves_everything_off(self):
+        profile = fees_profile("Flag-Default-Off")
+        restore(profile, build_workbook(minimal_sheets(2)))
+        self.assertEqual(Memo.objects.filter(profile=profile, include_signature=True).count(), 0)
+        saved = FeesSettings.objects.get(profile=profile)
+        self.assertFalse(saved.memo_signature_default)
+        self.assertEqual(saved.list_default_filter, "all")
+
+    def test_flag_sheet_overrides_the_default_per_memo(self):
+        sheets = minimal_sheets(2)
+        sheets["WebMemoFlags"] = [["memo_id", "memo_number", "include_signature"], [1, None, 1], [2, None, 0]]
+        profile = fees_profile("Flag-Sheet")
+        restore(profile, build_workbook(sheets))
+        self.assertEqual(Memo.objects.filter(profile=profile, include_signature=True).count(), 1)

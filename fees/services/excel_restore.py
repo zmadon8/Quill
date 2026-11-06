@@ -24,7 +24,8 @@ Public API
        rewriting every foreign key, backfill allocations from the legacy ``payments.memo_id``,
        recompute ``total_fees`` (``memo_fees.resolve_memo_fees``) and the paid columns
        (``payments.recompute_paid``), rebuild ``NumberSequence`` as ``MAX(seq)`` per financial year over
-       non-draft memos, apply ``Settings`` and ``WebSettings`` (including the five memo text defaults),
+       non-draft memos, apply ``Settings`` and ``WebSettings`` (including the five memo text defaults), and the per-memo
+       signature flag from the web-only ``WebMemoFlags`` sheet (absent: the file's signature default),
        and ``touch`` (``data_version`` bump and ``StatsCache`` purge);
     7. any failure inside the transaction rolls everything back and raises ``FeesError("RESTORE_FAILED")``.
 
@@ -71,6 +72,7 @@ from fees.services.excel_backup import (
     OPTIONAL_SHEETS,
     SETTINGS_COLUMNS,
     TABLES,
+    WEB_MEMO_FLAGS_SHEET,
     WEB_SETTINGS_KEYS,
     WEB_SETTINGS_SHEET,
 )
@@ -439,16 +441,43 @@ def _apply_settings_row(settings, values, number):
         setattr(settings, name, _text(values.get(name)))
 
 
-def _apply_web_settings(settings, workbook):
-    """Apply the ``WebSettings`` sheet (key, value) when present; unknown keys are ignored."""
+def _web_settings_found(workbook):
+    """The known ``WebSettings`` keys of the file as ``{key: value}`` (empty when the sheet is absent)."""
     found = {}
     for _number, values in _read_sheet(workbook, WEB_SETTINGS_SHEET, ["key", "value"], ["key", "value"]):
         key = _text(values["key"]).strip()
         if key in WEB_SETTINGS_KEYS:
             found[key] = values["value"]
+    return found
+
+
+def _memo_flags(workbook, found):
+    """``(flags, default)``: ``{old memo id: include_signature}`` from ``WebMemoFlags`` and the value a
+    memo takes when the file has no flag for it (the file's ``memo_signature_default``, off when absent)."""
+    default = _bool(found.get("memo_signature_default"), default=False)
+    if WEB_MEMO_FLAGS_SHEET not in workbook.sheetnames:
+        return {}, default
+    flags = {}
+    for _number, values in _read_sheet(
+        workbook, WEB_MEMO_FLAGS_SHEET, ["memo_id", "include_signature"], ["memo_id"]
+    ):
+        key = _key(values["memo_id"])
+        if key is not None:
+            flags[key] = _bool(values["include_signature"], default=False)
+    return flags, default
+
+
+def _apply_web_settings(settings, workbook, found=None):
+    """Apply the ``WebSettings`` sheet (key, value) when present; unknown keys are ignored."""
+    if found is None:
+        found = _web_settings_found(workbook)
     for key in _WEB_BOOL_KEYS:
         if key in found:
             setattr(settings, key, _bool(found[key], default=True))
+    if "memo_signature_default" in found:
+        settings.memo_signature_default = _bool(found["memo_signature_default"], default=False)
+    if _text(found.get("list_default_filter")).strip() in ("all", "active"):
+        settings.list_default_filter = _text(found["list_default_filter"]).strip()
     for key in _WEB_TEXT_KEYS:
         if key in found:
             text = _text(found[key])
@@ -686,6 +715,8 @@ def _load(profile, workbook):
     n_banks = loader.count
 
     # Memos: firm and group come from the matter (R-DATA-5); total_fees from the single fee rule.
+    web_found = _web_settings_found(workbook)
+    signature_flags, signature_default = _memo_flags(workbook, web_found)
     loader = _Loader(Memo, memo_ids)
     invalid_dates = 0
     for number, v in _rows(workbook, "Memos"):
@@ -727,6 +758,7 @@ def _load(profile, workbook):
             num_drafts=_int(v["num_drafts"], "Memos", number, "num_drafts"),
             written_off=_bool(v["written_off"]),
             is_draft=_bool(v["is_draft"]),
+            include_signature=signature_flags.get(_key(v["id"]), signature_default),
             custom_fees_appearances=_dec(v["custom_fees_appearances"], "Memos", number, "custom_fees_appearances", True),
             custom_fees_conferences=_dec(v["custom_fees_conferences"], "Memos", number, "custom_fees_conferences", True),
             custom_fees_misc=_dec(v["custom_fees_misc"], "Memos", number, "custom_fees_misc", True),
@@ -856,7 +888,7 @@ def _load(profile, workbook):
     for number, v in _read_sheet(workbook, "Settings", _SETTINGS_SHEET_COLUMNS, _MIN_COLUMNS["Settings"]):
         _apply_settings_row(settings, v, number)
         break
-    web_keys = _apply_web_settings(settings, workbook)
+    web_keys = _apply_web_settings(settings, workbook, web_found)
     settings.save()
 
     touch(profile)  # data_version bump and StatsCache purge

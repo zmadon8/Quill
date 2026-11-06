@@ -170,6 +170,7 @@ def snapshot(profile):
         "num_conferences", "fees_per_conference", "fees_misc_drafting", "num_drafts",
         "custom_fees_appearances", "custom_fees_conferences", "custom_fees_misc", "custom_total_fees",
         "written_off", "is_draft", "total_fees", "amount_paid", "amount_received", "amount_tds",
+        "include_signature",
     )
     saved_settings = settings_service.get_settings(profile)
     saved_settings.pop("data_version", None)

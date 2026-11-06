@@ -111,7 +111,7 @@ class ExportContractTests(TestCase):
 
     def test_sheet_names_and_order(self):
         self.assertEqual(
-            list(self.book.keys()), [sheet for sheet, _cols in DESKTOP_TABLES] + ["WebSettings"]
+            list(self.book.keys()), [sheet for sheet, _cols in DESKTOP_TABLES] + ["WebSettings", "WebMemoFlags"]
         )
 
     def test_header_rows_equal_the_desktop_columns(self):
@@ -238,7 +238,8 @@ class ExportContractTests(TestCase):
             list(values.keys()),
             ["export_owner_name", "memo_filename_pattern", "statistics_enabled",
              "dashboard_kpis_enabled", "memo_default_name", "memo_default_designation",
-             "memo_default_address", "memo_default_bank_details", "memo_default_pan"],
+             "memo_default_address", "memo_default_bank_details", "memo_default_pan",
+             "memo_signature_default", "list_default_filter"],
         )
         self.assertEqual(values["export_owner_name"], "Test Owner")
         self.assertEqual(values["memo_filename_pattern"], "pattern-x")
@@ -338,3 +339,21 @@ class ExportMemoryTests(TestCase):
             size = out.seek(0, 2)
             out.close()
         self.assertGreater(size, 100000)
+
+
+class WebMemoFlagsSheetTests(TestCase):
+    """The per-memo signature flag travels in the web-only WebMemoFlags sheet, not in the Memos sheet."""
+
+    def test_flag_sheet_has_one_row_per_memo_and_the_ticked_flag(self):
+        profile = fees_profile("Flags-Backup")
+        seed_web_data(profile)
+        ticked = Memo.objects.filter(profile=profile, memo_number__isnull=False).order_by("pk").first()
+        Memo.objects.filter(pk=ticked.pk).update(include_signature=True)
+        book = export_rows(profile)
+        rows = book["WebMemoFlags"]
+        self.assertEqual(rows[0], ["memo_id", "memo_number", "include_signature"])
+        flags = {row[0]: row[2] for row in rows[1:]}
+        self.assertEqual(len(flags), Memo.objects.filter(profile=profile).count())
+        self.assertEqual(flags[ticked.pk], 1)
+        self.assertEqual(sum(flags.values()), 1)
+        self.assertNotIn("include_signature", book["Memos"][0])
