@@ -124,6 +124,14 @@ def _my_settings_tab(key, label, who):
 #: to the current display name.
 DIARY_NAME = object()
 
+#: Same idea for the Fee Register tab of the Settings group (its program name, renamed on Admins > Page Names).
+FEES_NAME = object()
+
+
+def _never(name, request):
+    """The Fee Register tab is a link out to that program's Settings screen, so it is never current on a suite page."""
+    return False
+
 
 def _diary_tab_current(name, request):
     """The Case Law Diary tab (and the Settings header item) are current on the Numbers settings tab and on My edits."""
@@ -133,7 +141,7 @@ def _diary_tab_current(name, request):
 
 
 #: One entry per header item: (label, icon, tabs). A tab is (url name, label, who may see it, current-page test,
-#: query string). Who: "all", "admin" or "profile" (a Case Law Diary profile). The label may be the DIARY_NAME sentinel,
+#: query string). Who: "all", "admin", "profile" (a Case Law Diary profile) or "fees" (a Fee Register profile). The label may be the DIARY_NAME sentinel,
 #: which suite_nav resolves to the diary's current display name. Round 19: Admins (everything only an Admin may do),
 #: Settings (my account, display, and - for users with a diary profile - the Case Law Diary tab by its current name,
 #: whose own sub-tabs are Numbers and Edits), Help.
@@ -153,6 +161,7 @@ SUITE_GROUPS = (
         _my_settings_tab("account", "Account", "all"),
         _my_settings_tab("display", "Display", "all"),
         ("my_settings", DIARY_NAME, "profile", _diary_tab_current, "?tab=numbers"),
+        ("fees_settings", FEES_NAME, "fees", _never, ""),
     )),
     ("Help", "icons/help.svg.html", (
         ("help", "Help", "all", _plain(_is("help")), ""),
@@ -184,6 +193,8 @@ def suite_nav(request):
         nonlocal has_profile
         if who == "admin":
             return user.is_admin
+        if who == "fees":
+            return request_profile(request, suite.KEY_FEES) is not None
         if who == "profile":
             if has_profile is None:
                 has_profile = request_profile(request) is not None
@@ -194,13 +205,17 @@ def suite_nav(request):
         names = getattr(request, "_suite_names", None)
         return (names or _names())[suite.KEY_DIARY]
 
+    def fees_name():
+        names = getattr(request, "_suite_names", None)
+        return (names or _names())[suite.KEY_FEES]
+
     items, tabs_here = [], []
     for label, icon, tabs in SUITE_GROUPS:
         if label is DIARY_NAME:
             label = diary_name()
         mine = [
             {"url": reverse(url_name) + query,
-             "name": diary_name() if name is DIARY_NAME else name,
+             "name": diary_name() if name is DIARY_NAME else (fees_name() if name is FEES_NAME else name),
              "on": is_current(current, request)}
             for url_name, name, who, is_current, query in tabs
             if allowed(who)
