@@ -366,7 +366,7 @@ class SuiteNamesForm(forms.Form):
         modes = suite.get_brand_modes()
         for key in self.brand_keys:
             self.fields[self._brand_field(key)] = forms.ChoiceField(
-                label=f"{names.get(key, key)} header bar", required=False, initial=modes.get(key, suite.BRAND_LOGO),
+                label=f"{names.get(key, key)} header bar", required=False, initial=modes.get(key, suite.BRAND_WORDS),
                 choices=[(suite.BRAND_WORDS, "Words"), (suite.BRAND_LOGO, "Logo")], widget=forms.RadioSelect,
                 help_text="Words: Trash, Export, Help, Settings and the other items as words. Logo: as icons.",
             )

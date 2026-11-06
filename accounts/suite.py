@@ -20,7 +20,7 @@ MAX_NAME_LENGTH = 60
 
 #: Header bar style per program (round 20, 3.1): Words (the names as words) or Logo (the icons). Suite-wide, for
 #: everyone, set by an Admin on Admins > Page Names. Stored in ``SuiteName`` rows keyed ``brand_<key>`` (the mode is
-#: kept in ``display_name``), so no new table is needed; ``get_names`` ignores them. No row means Logo, the old default.
+#: kept in ``display_name``), so no new table is needed; ``get_names`` ignores them. No row means Words (the default since round 22; Search, Home and Sign out are always icons).
 BRAND_WORDS = "words"
 BRAND_LOGO = "logo"
 BRAND_MODES = (BRAND_WORDS, BRAND_LOGO)
@@ -34,7 +34,7 @@ def read_all():
     Defaults fill every missing row. The context processors use this so a page asks the table once.
     """
     names = dict(DEFAULT_NAMES)
-    modes = {key: BRAND_LOGO for key in BRAND_KEYS}
+    modes = {key: BRAND_WORDS for key in BRAND_KEYS}
     wanted = [*DEFAULT_NAMES, *(BRAND_PREFIX + key for key in BRAND_KEYS)]
     for row in SuiteName.objects.filter(key__in=wanted):
         if row.key in DEFAULT_NAMES:
@@ -58,7 +58,7 @@ def set_names(new_names):
 
 
 def get_brand_modes():
-    """Return ``{key: "words" | "logo"}`` for Home, the Case Law Diary and the Fee Register (Logo when not set)."""
+    """Return ``{key: "words" | "logo"}`` for Home, the Case Law Diary and the Fee Register (Words when not set)."""
     return read_all()[1]
 
 

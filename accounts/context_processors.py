@@ -34,7 +34,7 @@ def _read(request):
             cached = suite.read_all()
         except Exception:
             logger.exception("Could not read the suite display names")
-            cached = (dict(suite.DEFAULT_NAMES), {key: suite.BRAND_LOGO for key in suite.BRAND_KEYS})
+            cached = (dict(suite.DEFAULT_NAMES), {key: suite.BRAND_WORDS for key in suite.BRAND_KEYS})
         request._suite_all = cached
         request._suite_names = cached[0]  # reused by program_label so the page does not query twice
     return cached
@@ -90,14 +90,15 @@ def current_profile(request):
 
 
 def header_style(request):
-    """``header_words``: True when the header bar shows words instead of icons (Logo) on this page. The choice is
+    """``header_words``: True when the header bar shows words instead of icons (Logo) on this page (the default). Search, Home and Sign out
+    ignore it and are always icons. The choice is
     suite-wide (Admins > Page Names), per program: the Fee Register's pages use its choice, every other page the Case
     Law Diary's; base_suite_home.html swaps in the Home choice (``home_header_words``) for the Home, Admins, Settings and
     Help pages. No extra query (shared with ``suite_names``).
     ``justify_text``: True when the signed-in user chose to justify text (My settings, Display); base_suite.html puts the class on <html>."""
     user = getattr(request, "user", None)
     program = current_program_key(request)
-    mode = _read(request)[1].get(program, suite.BRAND_LOGO)
+    mode = _read(request)[1].get(program, suite.BRAND_WORDS)
     justify = bool(user is not None and user.is_authenticated and getattr(user, "justify_text", False))
     return {"header_words": mode == suite.BRAND_WORDS, "justify_text": justify}
 

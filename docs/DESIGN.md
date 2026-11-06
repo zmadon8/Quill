@@ -1149,3 +1149,13 @@ Owner instructions, verbatim: "When selecting the financial year, there should b
 - Edit Statistics (working days, extra counts and replacements) is no longer a Statistics tab; it sits in Settings > Start Years & Statistics. `?tab=edit` on the Statistics page now shows the Standard tab. Saving a month returns to that Settings tab. The save route `fees_settings_statistics_grid` is unchanged.
 - Log out on the Home page is always the icon, in Words mode too.
 - Test changes: `fees.tests.test_ui_pages` (the Edit grid tests now use Settings), `fees.tests.test_ui_screens` and `fees.tests.test_round2_views` (the `?tab=edit` entries now point at Settings), `accounts.tests.test_header_style.test_words_on_the_home_page` (Log out stays an icon), the `WebSettings` key list in `fees.tests.test_excel_backup`.
+
+
+## Round 22: Words by default; Search, Home and Sign out always icons
+
+Owner instruction, verbatim: "Words / Logo should default to Words. Search and Home should ALWAYS be logos." Then: "Sign out should also ALWAYS be a logo".
+
+- With no stored choice (`SuiteName` rows `brand_home`, `brand_diary`, `brand_fees`) the header bar shows Words for Home, the Case Law Diary and the Fee Register (`accounts/suite.py`, `accounts/context_processors.py`, the Page Names form). A choice an Admin has already saved is kept.
+- Search, Home and Sign out are icons whatever the choice, with an accessible label (`aria-label` and `title`): `templates/_search_button.html`, `templates/_home_button.html`, `templates/_signout_button.html`. The choice still applies to the other header items (Trash, Flags, Export, Help, Settings, Admins and so on).
+- Sign out (was "Log out", and only on the Home page) is now in every header. No extra query: the choice still comes from the one `suite.read_all` query.
+- Test changes: tests that check the icons choose Logo first (`accounts.tests.test_header_style`, and the header tests in `diary.tests.test_views`, `diary.tests.test_importer_db`, `accounts.tests.test_round17`); `test_header_style` has a new test for the Words default.

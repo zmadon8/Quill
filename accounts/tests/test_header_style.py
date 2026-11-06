@@ -1,5 +1,6 @@
-"""Round 15 (D84), changed in round 20 (3.1): Admins > Page Names chooses Logo (icons, the default) or Words for the
-header bar of Home, the Case Law Diary and the Fee Register, for everyone."""
+"""Round 15 (D84), changed in round 20 (3.1) and round 22: Admins > Page Names chooses Words (the default) or Logo (icons)
+for the header bar of Home, the Case Law Diary and the Fee Register, for everyone. Search, Home and Sign out are ALWAYS
+icons, whatever the choice. Most tests below pick Logo in setUp so they can check the icons; the default has its own test."""
 import re
 
 from django.contrib.auth import get_user_model
@@ -9,11 +10,17 @@ from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 from accounts import suite
+from accounts.models import SuiteName
 from diary.tests.helpers import join_main
 
 User = get_user_model()
 PASSWORD = "x-long-pass-123"
 NAMES = ("Trash", "Export", "Help", "Settings")
+SIGN_OUT = r'<button type="submit" class="link nav-icon signout-button" aria-label="Sign out" title="Sign out">(.*?)</button>'
+
+
+def choose_logo_everywhere():
+    suite.set_brand_modes({key: suite.BRAND_LOGO for key in suite.BRAND_KEYS})
 
 
 @override_settings(SECURE_SSL_REDIRECT=False)
@@ -21,6 +28,7 @@ class HeaderStyleTests(TestCase):
     def setUp(self):
         self.editor = join_main(User.objects.create_user("eddie", password=PASSWORD), "editor")
         self.client.force_login(self.editor)
+        choose_logo_everywhere()
 
     def header(self, name="diary_home"):
         html = self.client.get(reverse(name)).content.decode()
@@ -30,7 +38,19 @@ class HeaderStyleTests(TestCase):
         nav = header.split('class="program-nav"')[1]
         return re.sub(r"\s+", " ", re.sub(r"<[^>]*>", " ", nav))
 
-    def test_icons_are_the_default_and_every_icon_keeps_its_name(self):
+    def test_words_are_the_default_but_search_home_and_sign_out_are_icons(self):
+        # Owner: "Words / Logo should default to Words. Search and Home should ALWAYS be logos." (and Sign out)
+        SuiteName.objects.filter(key__startswith="brand_").delete()
+        self.assertEqual(suite.get_brand_modes(), {"home": "words", "diary": "words", "fees": "words"})
+        header = self.header()
+        text = self.visible_text(header)
+        for word in NAMES:
+            self.assertIn(word, text, word)
+        self.assertIn('class="icon-tool search-toggle"', header)
+        self.assertIn('class="home-button" href=', header)
+        self.assertIsNotNone(re.search(SIGN_OUT, header, re.S))
+
+    def test_logo_shows_icons_and_every_icon_keeps_its_name(self):
         header = self.header()
         for name in NAMES:
             link = re.search(r'<a [^>]*aria-label="%s" title="[^"]*">(.*?)</a>' % name, header, re.S)
@@ -38,7 +58,7 @@ class HeaderStyleTests(TestCase):
             self.assertIn("<svg", link.group(1), name)
             self.assertIn('class="nav-icon', link.group(0), name)
         text = self.visible_text(header)
-        for word in NAMES + ("Search", "Home"):
+        for word in NAMES + ("Search", "Home", "Sign out"):
             self.assertNotIn(word, text, word)
         self.assertIn('class="icon-tool search-toggle"', header)
         self.assertIn('class="home-button" href=', header)
@@ -47,13 +67,16 @@ class HeaderStyleTests(TestCase):
         suite.set_brand_modes({suite.KEY_DIARY: "words"})
         header = self.header()
         text = self.visible_text(header)
-        for word in NAMES + ("Search", "Home"):
+        for word in NAMES:
             self.assertIn(word, text, word)
+        for word in ("Search", "Home", "Sign out"):
+            self.assertNotIn(word, text, word)  # always icons
         self.assertNotIn('class="nav-icon', header)
-        self.assertIn('class="word-tool search-toggle"', header)
-        self.assertIn('class="home-button word-tool"', header)
-        # only Back and Forward keep their arrows
-        self.assertEqual(header.count("<svg"), 2)
+        self.assertNotIn("word-tool", header)
+        self.assertIn('class="icon-tool search-toggle"', header)
+        self.assertIn('class="home-button" href=', header)
+        # Back, Forward, Search, Home and Sign out are the only icons
+        self.assertEqual(header.count("<svg"), 5)
 
     def test_export_is_the_only_download_item_and_uses_the_arrow(self):
         # D101: no separate Offline item; Export (downward arrow) opens the Export page.
@@ -87,7 +110,7 @@ class HeaderStyleTests(TestCase):
         self.client.post(reverse("my_settings"), {"header_style": "words", "landing_program": ""})
         self.editor.refresh_from_db()
         self.assertEqual(self.editor.header_style, before)
-        self.assertNotIn('class="word-tool search-toggle"', self.header())
+        self.assertNotIn(">Trash</a>", self.header())
 
     def test_the_choice_is_for_everyone_and_set_by_an_admin_on_page_names(self):
         admin = join_main(User.objects.create_user("adam", password=PASSWORD, is_superuser=True), "editor")
@@ -108,13 +131,13 @@ class HeaderStyleTests(TestCase):
         self.assertEqual(suite.get_brand_modes()["diary"], "words")
         # everyone now sees Words on the diary
         self.client.force_login(self.editor)
-        self.assertIn('class="word-tool search-toggle"', self.header())
+        self.assertIn(">Trash</a>", self.header())
 
     def test_home_and_diary_choices_are_separate(self):
         suite.set_brand_modes({suite.KEY_HOME: "words"})
-        self.assertNotIn('class="word-tool search-toggle"', self.header())  # the diary is still Logo
+        self.assertNotIn(">Trash</a>", self.header())  # the diary is still Logo
         suite.set_brand_modes({suite.KEY_HOME: "logo", suite.KEY_DIARY: "words"})
-        self.assertIn('class="word-tool search-toggle"', self.header())
+        self.assertIn(">Trash</a>", self.header())
         home = self.client.get(reverse("home") + "?home=1").content.decode()
         self.assertIn('class="nav-icon"', home.split('<header class="site-header"')[1].split("</header>")[0])
 
@@ -162,6 +185,7 @@ class SuiteHeaderTests(TestCase):
     def setUp(self):
         self.admin = join_main(User.objects.create_user("adam", password=PASSWORD, is_superuser=True), "editor")
         self.client.force_login(self.admin)
+        choose_logo_everywhere()
 
     def page(self, name="home", query=""):
         url = reverse(name) + ("?home=1" if name == "home" else query)
@@ -192,7 +216,7 @@ class SuiteHeaderTests(TestCase):
             self.assertIn("<svg", link.group(1), name)
         for gone in ("Profiles", "Import", "My settings", "Site", "Users &amp; Profiles", "Case Law Diary"):
             self.assertNotIn('aria-label="%s"' % gone, header, gone)
-        logout = re.search(r'<button type="submit" class="link nav-icon" aria-label="Log out" title="Log out">(.*?)</button>', header, re.S)
+        logout = re.search(SIGN_OUT, header, re.S)
         self.assertIsNotNone(logout)
         self.assertIn("<svg", logout.group(1))
 
@@ -201,10 +225,10 @@ class SuiteHeaderTests(TestCase):
         nav = re.sub(r"<[^>]*>", " ", self.header().split('class="program-nav"')[1])
         for word in self.GROUPS:
             self.assertIn(word, nav, word)
-        # Log out is always the logo, never the words, even in Words mode.
-        self.assertNotIn("Log out", nav)
+        # Sign out is always the logo, never the words, even in Words mode.
+        self.assertNotIn("Sign out", nav)
         header = self.header()
-        logout = re.search(r'<button type="submit" class="link nav-icon" aria-label="Log out" title="Log out">(.*?)</button>', header, re.S)
+        logout = re.search(SIGN_OUT, header, re.S)
         self.assertIsNotNone(logout)
         self.assertIn("<svg", logout.group(1))
         self.assertEqual(header.count("nav-icon"), 1)

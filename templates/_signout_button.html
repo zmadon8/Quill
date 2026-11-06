@@ -1,0 +1,4 @@
+{# Header, far right: Sign out. ALWAYS an icon (owner), whatever the Words / Logo choice; the name stays for screen readers and as a tooltip. #}<form method="post" action="{% url 'logout' %}" class="inline">
+  {% csrf_token %}
+  <button type="submit" class="link nav-icon signout-button" aria-label="Sign out" title="Sign out">{% include "icons/logout.svg.html" %}</button>
+</form>
