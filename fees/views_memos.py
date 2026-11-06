@@ -179,6 +179,7 @@ def memo_based_on(request, memo_id):
 @require_POST
 def memo_delete(request, memo_id):
     profile, _settings = scope.context(request)
+    memos.get_memo(profile, memo_id)  # another profile's memo is a 404 before the confirm check
     if request.POST.get("confirm") != "1":
         messages.error(request, "Tick the box to confirm that you want to delete this memo.")
         return redirect("fees_memo_detail", memo_id=memo_id)

@@ -205,7 +205,7 @@ class PaymentFlowTests(FlowBase):
         self.assertEqual(Payment.objects.filter(profile=self.profile).count(), 1)
         self.assertEqual(Decimal(str(self.detail(first)["amount_paid"])), Decimal("200"))
         self.assertEqual(Decimal(str(self.detail(second)["amount_paid"])), Decimal("300"))
-        self.assertContains(self.get("fees_feebook"), "Split")
+        self.assertContains(self.get("fees_feebook"), "Multiple")
 
 
 class LifecycleFlowTests(FlowBase):

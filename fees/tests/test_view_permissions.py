@@ -10,6 +10,7 @@ The table says how each route is reached:
 ``test_the_table_lists_every_url_name`` fails when a route is added to ``fees.urls`` without a row here (and
 when a row names a route that no longer exists), so a new endpoint cannot ship untested.
 """
+from pathlib import Path
 from unittest import mock
 
 from django.contrib.auth import get_user_model
@@ -20,6 +21,7 @@ from accounts.models import ROLE_EDITOR, ROLE_READER, Profile, ProfileMembership
 from accounts.suite import KEY_FEES
 from fees import urls as fees_urls
 from fees.models import Group, SavedView
+from fees.services import word_template
 from fees.tests import xlsx_support as xs
 
 User = get_user_model()
@@ -111,6 +113,8 @@ ROUTES = {
 
 # Routes whose GET is a redirect for every member allowed in (the landing page opens the default tab; a
 # result page with no finished job in the session goes back to the backup page).
+FIXTURE = Path(__file__).parent / "fixtures" / "Template 2-11-2026 (short tags).docx"
+
 REDIRECTS = {"fees_landing", "fees_backup_restored", "fees_backup_cleared"}
 
 # Editor-only routes that also accept POST (the rest of the E routes are GET only).
@@ -171,6 +175,8 @@ class PermissionBase(TestCase):
     def setUp(self):
         self.profile = Profile.objects.create(program=KEY_FEES, name="Perm-Fees")
         self.seed = xs.seed_web_data(self.profile)
+        # The Word export needs an uploaded template (no template, no export), so the role tests seed one.
+        word_template.upload_template(self.profile, FIXTURE.name, FIXTURE.read_bytes())
         self.reader = make_user("reader-p", self.profile, ROLE_READER)
         self.editor = make_user("editor-p", self.profile, ROLE_EDITOR)
         self.outsider = make_user("outsider-p")
