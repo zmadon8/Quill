@@ -17,7 +17,7 @@ from django.utils import timezone
 from accounts.forms import THROTTLE_MESSAGE
 from accounts import suite
 from accounts.models import FailedLogin, Profile, ProfileMembership, SuiteName
-from accounts.profiles import assign_unassigned_users, delete_profile, ensure_default_profile, get_profile_for
+from accounts.profiles import assign_unassigned_users, live_memberships, delete_profile, ensure_default_profile, get_profile_for
 from accounts.permissions import (
     admin_required,
     program_editor_required,
@@ -359,7 +359,11 @@ class SuiteSettingsTests(BaseCase):
         resp = self.client.get(reverse("settings"))
         self.assertEqual(resp.status_code, 200)
         form = resp.context["form"]
-        self.assertEqual(list(form.fields), ["home_name", "diary_name", "fees_name"])
+        # The Words/Logo choice per program (home_brand, diary_brand, fees_brand) sits after the names.
+        self.assertEqual(
+            list(form.fields),
+            ["home_name", "diary_name", "fees_name", "home_brand", "diary_brand", "fees_brand"],
+        )
         self.assertEqual(form.fields["fees_name"].initial, "Fee Register")
         self.assertEqual(form.fields["fees_name"].label, "Fee Register name")
         self.assertContains(resp, "Fee Register")
@@ -737,7 +741,11 @@ class RoleTests(BaseCase):
         )
         self.user.refresh_from_db()
         self.assertTrue(self.user.is_superuser)
-        self.assertEqual(program_role(self.user, "diary"), "reader")
+        # The stored role stays as chosen (the Users screen shows it); the Admin flag does not rewrite it.
+        stored = live_memberships(self.user, "diary", raw=True)
+        self.assertEqual([m.role for m in stored], ["reader"])
+        # Effective role: an Admin is an Editor in every program (the owner's rule).
+        self.assertEqual(program_role(self.user, "diary"), "editor")
 
     def test_last_admin_cannot_become_editor_or_be_disabled(self):
         self.client.force_login(self.admin)

@@ -191,7 +191,7 @@ class CardTests(InlineTestCase):
         body = self.card("item", self.one).json()
         html = body["html"]
         self.assertEqual(body["version"], self.get(self.one).version)
-        for needle in ('name="text"', 'name="case_citation"', 'value="A v B"', "@ para 22", 'name="case_id"',
+        for needle in ('name="text"', 'name="case_citation"', '>A v B</textarea>', "@ para 22", 'name="case_id"',
                        '<select name="flag"', 'value="pending"', 'name="flag_text"',
                        "+ another citation", "Move to", "Move up", "Move down", "History",
                        "Delete", "goes to Trash"):

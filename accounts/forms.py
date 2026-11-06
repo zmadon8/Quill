@@ -294,7 +294,8 @@ class ProfileForm(forms.ModelForm):
             self.fields["program"].choices = [(k, names.get(k, k)) for k in keys]
             self.fields["program"].initial = program
 
-    program = forms.ChoiceField(label="Program", choices=[])
+    # Not required: a post without a Program (the diary-only screen, older clients) creates a Case Law Diary profile.
+    program = forms.ChoiceField(label="Program", choices=[], required=False)
 
     class Meta:
         model = Profile
@@ -308,7 +309,8 @@ class ProfileForm(forms.ModelForm):
         return " ".join((self.cleaned_data.get("display_name") or "").split())
 
     def clean_program(self):
-        self.program = self.cleaned_data["program"]  # a valid choice (enabled programs only); used by clean_name
+        # A valid choice (enabled programs only), or the diary when none was posted; used by clean_name.
+        self.program = self.cleaned_data.get("program") or suite.KEY_DIARY
         return self.program
 
     def clean_name(self):

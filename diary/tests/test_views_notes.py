@@ -384,11 +384,17 @@ class DisplayTests(NoteViewCase):
         self.assertLess(html.index('id="n-item-%d"' % self.one.pk), html.index("beneath one"))
         self.assertLess(html.index("beneath one"), html.index('id="n-item-%d"' % self.two.pk))
 
-    def test_notes_come_after_the_items_and_sections_and_before_the_child_headings(self):
+    def test_notes_come_directly_under_their_heading_before_the_items_and_the_child_headings(self):
+        # Owner item 1.7: a note sits directly under the Topic or Sub-topic heading it belongs to.
         sub = self.make("subtopic", ("topic", self.topic.pk), name="Offer heading")
         html = self.read()
-        self.assertLess(html.index('id="n-item-%d"' % self.four.pk), html.index('id="n-note-%d"' % self.note.pk))
-        self.assertLess(html.index('id="n-note-%d"' % self.note.pk), html.index('id="n-subtopic-%d"' % sub.pk))
+        heading = html.index('id="n-topic-%d"' % self.topic.pk)
+        note = html.index('id="n-note-%d"' % self.note.pk)
+        self.assertLess(heading, note)
+        self.assertLess(note, html.index('id="n-item-%d"' % self.one.pk))
+        self.assertLess(note, html.index('id="n-section-%d"' % self.sec.pk))
+        self.assertLess(note, html.index('id="n-item-%d"' % self.four.pk))
+        self.assertLess(note, html.index('id="n-subtopic-%d"' % sub.pk))
 
     def test_notes_reorder_among_themselves(self):
         second = self.make("note", ("topic", self.topic.pk), text="<p>Second note</p>")
