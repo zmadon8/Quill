@@ -538,7 +538,8 @@ class SettingsWriteTests(WriteBase):
         self.assertEqual(config.overdue_days, 50)
         self.assertEqual(config.default_tab, "firms")  # set by the seed
         self.assertEqual(config.export_owner_name, "Test Owner")
-        self.assertFalse(config.statistics_enabled)
+        # WriteBase.setUp switches statistics on; the partial POST must not change it.
+        self.assertTrue(config.statistics_enabled)
 
     def test_a_bad_value_shows_the_page_again_and_saves_nothing(self):
         response = self.post("fees_settings", {"overdue_days": "many", "default_tab": "dashboard"})
