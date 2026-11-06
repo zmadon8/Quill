@@ -10,9 +10,12 @@
   <script>try{if(localStorage.getItem("quill.links")==="off"){document.documentElement.classList.add("links-off");}}catch(e){}</script>
   <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
   <link rel="stylesheet" href="{% static 'css/site.css' %}">
+  {# design.css is the shared look (top bar, tabs, links); look.css is the Home and Diary page layer (inert on Fee Register pages). #}
+  <link rel="stylesheet" href="{% static 'css/design.css' %}">
+  <link rel="stylesheet" href="{% static 'css/look.css' %}">
   {% block extra_css %}{% endblock %}
 </head>
-<body{% block body_attrs %}{% endblock %}>
+<body{% block body_attrs %} class="look"{% endblock %}>
   <a class="skip-link" href="#main">Skip to content</a>
   {% block edit_strip %}{% endblock %}
   <div class="page">

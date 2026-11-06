@@ -1,4 +1,5 @@
-/* Design tokens shared by every program in the suite (Option D "Chambers").
+/* Design tokens shared by every page of the suite: Home, the Case Law Diary and the Fee Register. The palette and fonts follow the
+   owner's desktop Fee Register app (docs/FEES_DESIGN_SYSTEM.md). The component layer is static/css/design.css.
    A program may override any of these in its own stylesheet, loaded after this one.
 
    FONTS: no web fonts are loaded today, so the stacks below fall back to fonts already on the device.
@@ -12,20 +13,29 @@
 
    then put "Source Serif 4" first in --font-serif. Nothing else needs to change. */
 :root {
-  --font-serif: "Source Serif 4", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  /* Fonts: Newsreader and Inter are named first (used when installed on the device), then fonts every Mac or PC has. */
+  --font-serif: "Newsreader Variable", Newsreader, "Source Serif 4", Georgia, "Times New Roman", serif;
+  --font-sans: "Inter Variable", Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 
-  --bg: #f8f6f1;        /* page */
-  --panel: #fcfbf8;     /* slightly lighter panels */
-  --ink: #1e1c19;
-  --muted: #6b655b;     /* 5.3:1 on --bg (AA) */
-  --hair: #d9d3c5;      /* hairline dividers */
-  --oxblood: #7a1f2b;   /* ONLY primary actions, overruled/flagged items and alerts */
-  --oxblood-ink: #ffffff;
-  --amber-bg: #f4ead0;  /* "For review" pill */
-  --amber-line: #c9a24d;
-  --amber-ink: #6b4e12;
-  --focus: #1f5fbf;
+  /* Desktop palette: warm paper, black ink, one maroon accent. */
+  --paper: #FAF8F3; --paper-2: #F3F0E7; --card: #FFFEFC; --white: #FFFFFF;
+  --line: #E4DFD2; --line-strong: #CFC9BA;
+  --ink: #1C1B19; --ink-2: #3F3C35; --ink-3: #5E594E; --faint: #A8A294;
+  --accent: #7A2E2E; --accent-hover: #652525; --accent-tint: #F8EEEE;
+  --ok: #15803D; --warn: #D97706; --bad: #B91C1C;
+  --radius: 2px;
+
+  /* Older names used by site.css and edit.css, pointed at the palette above. */
+  --bg: var(--paper);       /* page (edit mode tints this) */
+  --panel: var(--card);     /* panels and cards */
+  --muted: #6B655B;         /* 5.3:1 on --paper (AA) */
+  --hair: var(--line);      /* hairline dividers */
+  --oxblood: var(--accent); /* primary actions, flagged items, alerts */
+  --oxblood-ink: #FFFFFF;
+  --amber-bg: #F4EAD0;      /* "For review" / pending chips */
+  --amber-line: #C9A24D;
+  --amber-ink: #6B4E12;
+  --focus: #1F5FBF;
 
   --text-size: 1.125rem;   /* 18px reading text */
   --small-size: 1rem;      /* never below 16px */

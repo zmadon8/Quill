@@ -111,7 +111,7 @@ class AccessTests(EditViewTestCase):
         self.assertNotContains(plain, "edit-pill")
         self.assertContains(editing, "edit-mode.js")
         self.assertContains(editing, "css/edit.css")
-        self.assertContains(editing, 'class="edit-on"')
+        self.assertContains(editing, 'class="look edit-on"')
         # The old icon edit bars are gone.
         for old in ("data-edit-bar", "Edit mode", "Done editing", "quick-add"):
             self.assertNotContains(editing, old)

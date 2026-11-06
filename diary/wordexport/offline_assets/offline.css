@@ -1,20 +1,21 @@
-:root { --font-serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --bg: #f8f6f1; --panel: #fcfbf8; --ink: #1e1c19; --muted: #6b655b; --hair: #d9d3c5; --oxblood: #7a1f2b;
-  --amber-bg: #f4ead0; --amber-line: #c9a24d; --amber-ink: #6b4e12; --focus: #1f5fbf; }
+:root { --font-serif: "Newsreader Variable", Newsreader, "Iowan Old Style", Georgia, "Times New Roman", serif;
+  --font-sans: "Inter Variable", Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --bg: #FAF8F3; --panel: #FFFEFC; --ink: #1C1B19; --muted: #6B655B; --hair: #E4DFD2; --oxblood: #7A2E2E;
+  --amber-bg: #F4EAD0; --amber-line: #C9A24D; --amber-ink: #6B4E12; --focus: #1F5FBF; }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-serif); font-size: 1.125rem; line-height: 1.55; }
-a { color: var(--focus); }
+a { color: var(--oxblood); }
 a:focus, input:focus, button:focus { outline: 3px solid var(--focus); outline-offset: 2px; }
-header.top { background: var(--panel); border-bottom: 1px solid var(--hair); padding: .75rem 1rem; position: sticky; top: 0; z-index: 5; }
+header.top { background: var(--bg); border-bottom: 1px solid var(--ink); padding: .75rem 1rem; position: sticky; top: 0; z-index: 5; }
 header.top .bar { max-width: 60rem; margin: 0 auto; display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; }
-header.top .title { font-weight: 700; margin-right: auto; }
+header.top .title { font-family: var(--font-serif); font-style: italic; font-weight: 400; font-size: 1.3rem; margin-right: auto; }
 header.top .title a { color: var(--ink); text-decoration: none; }
 .search { display: flex; gap: .4rem; }
-.search input { font: inherit; font-family: var(--font-sans); min-height: 44px; padding: 0 .6rem; width: 16rem; max-width: 100%; border: 1px solid var(--hair); border-radius: 3px; background: #fff; }
-.search button { font: inherit; font-family: var(--font-sans); min-height: 44px; padding: 0 .9rem; border: 1px solid var(--oxblood); background: var(--oxblood); color: #fff; border-radius: 3px; cursor: pointer; }
+.search input { font: inherit; font-family: var(--font-sans); min-height: 44px; padding: 0 .6rem; width: 16rem; max-width: 100%; border: 1px solid var(--hair); border-radius: 2px; background: #fff; }
+.search button { font: inherit; font-family: var(--font-sans); min-height: 44px; padding: 0 .9rem; border: 1px solid var(--oxblood); background: var(--oxblood); color: #fff; border-radius: 2px; cursor: pointer; }
 main { max-width: 60rem; margin: 0 auto; padding: 1rem; }
 .meta { color: var(--muted); font-family: var(--font-sans); font-size: 1rem; }
+h1, h2, h3 { font-family: var(--font-serif); font-weight: 500; }
 h1 { font-size: 1.8rem; margin: .5rem 0; } h2 { font-size: 1.4rem; margin: 1.6rem 0 .4rem; } h3 { font-size: 1.2rem; margin: 1.2rem 0 .3rem; }
 ul.plain { list-style: none; padding: 0; margin: 0; }
 ul.plain li { padding: .45rem 0; border-bottom: 1px solid var(--hair); }

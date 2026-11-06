@@ -3,7 +3,7 @@
 {# Case law diary program: fills the shared shell with this program's name and navigation. #}
 {# Nav: Backups for Admin only (Users lives on the suite Home page). Trash for Editors of the profile only. #}
 {% block extra_css %}<link rel="stylesheet" href="{% static 'css/edit.css' %}">{% endblock %}
-{% block body_attrs %}{% if edit_mode %} class="edit-on"{% endif %}{% endblock %}
+{% block body_attrs %} class="look{% if edit_mode %} edit-on{% endif %}"{% endblock %}
 {% block program_title %}{{ program_label }}{% endblock %}
 {# Header brand: the profile's Display Name alone when it has one, else "<program name> · <profile name>" (Round 9). #}
 {% block program_name %}{% if current_profile and current_profile.display_name %}<a href="{% url 'diary_home' %}" title="Home" aria-label="{{ current_profile.display_name }}: Home">{{ current_profile.display_name }}</a>{% else %}<a href="{% url 'diary_home' %}" title="Home" aria-label="{{ diary_name }}: Home">{{ diary_name }}</a>{% if current_profile %} <span class="profile-name">&middot; {{ current_profile.name }}</span>{% endif %}{% endif %}{% if other_profiles %}{% include "diary/_profile_switch.html" %}{% endif %}{% endblock %}

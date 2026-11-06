@@ -6,8 +6,11 @@ exception (U1) in `FEES_PHASE0_ANALYSIS.md`.
 
 ## How it is wired
 
-- `static/css/ledger.css` holds the whole system. Every rule starts with `body.ledger`, so it only applies where the
-  body has the class `ledger`. Home and the Case Law Diary do not have it and are unaffected.
+- Shared by the whole suite: `static/css/tokens.css` (palette and fonts), `static/css/design.css` (top bar, tabs, search
+  bar; applies to `body.ledger` and `body.look`) and `static/css/look.css` (Home and Case Law Diary page layer, `body.look`
+  only). Every suite page that is not a Fee Register page has `<body class="look">` from `base_suite.html`.
+- `static/css/ledger.css` holds the Fee Register components. Every rule starts with `body.ledger`, so it only applies where the
+  body has the class `ledger`.
 - `templates/fees/base_fees.html` sets `<body class="ledger w-6xl">` through the `body_attrs` block. A page picks its
   width by overriding `{% block page_width %}` with `w-6xl`, `w-5xl`, `w-4xl` or `w-3xl`.
 - `static/css/fees.css` keeps only fees-specific bits (the search form and live-total figures).
