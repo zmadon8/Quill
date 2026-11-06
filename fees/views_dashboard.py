@@ -21,6 +21,13 @@ def selected_kpis(config):
     return chosen or list(dashboard.KPI_IDS)
 
 
+def kpi_label(kpi):
+    """A KPI id in words: ``billed_last30`` -> ``Billed, last 30 days``."""
+    words = kpi.replace("_last30", ", last 30 days").replace("_this_month", ", this month").replace("_this_year", ", this year")
+    words = words.replace("_", " ")
+    return words[:1].upper() + words[1:]
+
+
 def _kpi_rows(values, chosen):
     rows = []
     for kpi in chosen:
@@ -28,7 +35,7 @@ def _kpi_rows(values, chosen):
         rows.append(
             {
                 "id": kpi,
-                "label": kpi.replace("_", " ").capitalize(),
+                "label": kpi_label(kpi),
                 "value": value,
                 "money": isinstance(value, str),
             }
@@ -62,7 +69,7 @@ def dashboard_page(request):
             "kpi_rows": _kpi_rows(kpis, chosen),
             "kpis_enabled": bool(config.get("dashboard_kpis_enabled", True)),
             "kpi_choices": [
-                {"id": kpi, "label": kpi.replace("_", " ").capitalize(), "on": kpi in chosen}
+                {"id": kpi, "label": kpi_label(kpi), "on": kpi in chosen}
                 for kpi in dashboard.KPI_IDS
             ],
             "recent_matters": memo_lists.list_recent_matters(profile),

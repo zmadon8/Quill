@@ -109,3 +109,9 @@
 .chips .chip { min-height: var(--tap); margin: 0 .25rem .25rem 0; padding: 0 .75rem; border: 1px solid var(--hair); background: var(--panel); border-radius: 999px; cursor: pointer; }
 .payment-form .alloc-row { margin: 0 0 .25rem; }
 .payment-form [data-remaining], .payment-form [data-gross] { font-variant-numeric: tabular-nums; }
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); gap: .75rem; margin: 0 0 1.25rem; }
+.kpi { margin: 0; padding: .6rem .8rem; border: 1px solid var(--hair); border-top: 3px double var(--ink); background: var(--panel); }
+.kpi dt { margin: 0; color: var(--muted); font-size: var(--small-size); }
+.kpi dd { margin: .15rem 0 0; font-size: 1.35rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.kpi-customise { margin: 0 0 1rem; }
+.kpi-customise > summary { cursor: pointer; display: inline-flex; align-items: center; min-height: var(--tap); }

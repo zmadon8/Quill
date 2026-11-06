@@ -518,3 +518,70 @@ class OutstandingScreenTests(UiPageBase):
         self.assertIn("overdue=1", match.group(1))
         self.assertNotIn("view=", match.group(1))
         self.assertNotIn("sort=", match.group(1))
+
+
+class DashboardScreenTests(UiPageBase):
+    """T8.6: KPI boxes, customise, recent matters."""
+
+    def settings_on(self, **extra):
+        FeesSettings.objects.update_or_create(profile=self.profile, defaults=dict({"dashboard_kpis_enabled": True}, **extra))
+
+    def test_dashboard_landmarks_and_boxes(self):
+        self.settings_on(statistics_enabled=True)
+        text = self.assert_page(self.page("fees_dashboard"), "dashboard")
+        self.assertIn('aria-labelledby="summary-heading"', text)
+        self.assertIn('aria-labelledby="overview-heading"', text)
+        self.assertIn('aria-labelledby="recent-heading"', text)
+        self.assertIn('<div class="kpi"><dt><a href="%s">Total outstanding</a></dt>' % reverse("fees_outstanding"), text)
+        self.assertIn("Appearances this year", text)
+        self.assertIn('<th scope="col" class="money">Memos</th>', text)
+        self.assertIn("<caption>", text)
+
+    def test_overview_shows_every_figure_when_the_saved_list_is_empty_or_unknown(self):
+        self.settings_on(dashboard_kpis="")
+        text = self.html(self.page("fees_dashboard"))
+        self.assertIn("Billed, last 30 days", text)
+        self.assertIn("Memos awaiting payment", text)
+        self.settings_on(dashboard_kpis="nonsense")
+        self.assertIn("Billed, last 30 days", self.html(self.page("fees_dashboard")))
+
+    def test_overview_shows_only_the_chosen_figures_in_order(self):
+        self.settings_on(dashboard_kpis="billed_this_year,drafts_last30")
+        text = self.html(self.page("fees_dashboard"))
+        overview = text[text.index('id="overview-heading"'):text.index('id="recent-heading"')]
+        self.assertLess(overview.index("Billed, this year"), overview.index("Drafts, last 30 days"))
+        self.assertNotIn("Billed, last 30 days", overview)
+
+    def test_overview_can_be_switched_off(self):
+        FeesSettings.objects.update_or_create(profile=self.profile, defaults={"dashboard_kpis_enabled": False})
+        text = self.assert_page(self.page("fees_dashboard"), "dashboard-off")
+        self.assertNotIn("overview-heading", text)
+        self.assertIn("summary-heading", text)
+
+    def test_appearances_box_follows_the_statistics_switch(self):
+        self.settings_on(statistics_enabled=False)
+        self.assertNotIn("Appearances this year", self.html(self.page("fees_dashboard")))
+
+    def test_customise_is_for_editors_only_and_posts_to_the_existing_endpoint(self):
+        self.settings_on()
+        reader = self.html(self.page("fees_dashboard"))
+        self.assertNotIn("kpi-customise", reader)
+        self.assertNotIn('name="kpi"', reader)
+        editor = self.assert_page(self.page("fees_dashboard", user=self.editor), "dashboard-editor")
+        self.assertIn('<details class="kpi-customise">', editor)
+        self.assertIn('method="post" action="%s"' % reverse("fees_dashboard_kpis"), editor)
+        self.assertIn('<button type="submit" class="primary">Save figures</button>', editor)
+        self.assertGreater(editor.count('name="kpi"'), 5)
+
+    def test_recent_matters_link_to_matter_firm_and_memo(self):
+        i = self.ids()
+        text = self.html(self.page("fees_dashboard"))
+        self.assertIn(reverse("fees_matter_detail", kwargs={"matter_id": i["matter"]}), text)
+        self.assertIn(reverse("fees_firm_detail", kwargs={"firm_id": i["firm"]}), text)
+
+    def test_kpi_labels_are_words(self):
+        from fees.views_dashboard import kpi_label
+
+        self.assertEqual(kpi_label("billed_last30"), "Billed, last 30 days")
+        self.assertEqual(kpi_label("memos_this_month"), "Memos, this month")
+        self.assertEqual(kpi_label("memos_awaiting_payment"), "Memos awaiting payment")
