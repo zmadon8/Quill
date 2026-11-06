@@ -294,6 +294,9 @@ def _item_block(item, data, fmts, label, depth, under_section):
         "layout": item.citation_layout if len(cases) > 1 else "inline",
         "text": _html(item.text),
         "has_text": bool(item.text_plain.strip()),
+        # With the citations on separate lines the text ends with ":" (not doubled if the text has one already).
+        "colon": len(cases) > 1 and item.citation_layout == "lines" and bool(item.text_plain.strip())
+                 and not item.text_plain.rstrip().endswith(":"),
         "cases": [
             {"label": lab, "citation": c.citation, "url": c.url, "comment": _html(c.comment), "has_comment": bool(c.comment_plain.strip())}
             for lab, c in zip(case_labels, cases)

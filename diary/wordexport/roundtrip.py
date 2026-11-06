@@ -7,7 +7,7 @@ and Sub-topic and in the same order, exactly once, with its citation in italics 
 
 Deliberate differences (listed, not counted as problems): headings are alphabetical; numbers are literal text in
 the chosen formats (the original has Word's automatic numbers); trailing colons are gone from names (import
-decision I8); Sections are numbered; "Miscellaneous" is "Other Subjects"; a citation is in italics after " - ".
+decision I8); an Item whose citations are on separate lines gets a ":" after its text (none after an import, which has no such Items); Sections are numbered; "Miscellaneous" is "Other Subjects"; a citation is in italics after " - ".
 """
 import difflib
 from collections import Counter, defaultdict
@@ -260,6 +260,8 @@ def compare(original, export, plan):
         f"  - Sections are numbered ({sections_export} Section line(s))",
         "  - 'Miscellaneous' is 'Other Subjects'; its Subjects are Heading 2",
         "  - A single citation is written in italics after ' - '; several would be labelled (a), (b)",
+        "  - An Item with several citations on separate lines ends with ':' in the export if its text has none; an imported",
+        "    file has no such Items, so an unchanged import is not affected",
         "",
     ]
     if unexpected:
