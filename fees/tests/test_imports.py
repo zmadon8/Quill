@@ -477,7 +477,7 @@ class StreamingSpyTests(TempDirMixin, SimpleTestCase):
 # Inspect
 # ---------------------------------------------------------------------------
 
-class InspectTests(TempDirMixin, SimpleTestCase):
+class InspectTests(TempDirMixin, TestCase):
     def test_headers_first_five_rows_count_and_guess(self):
         path = os.path.join(self.make_dir(), "in.csv")
         write_csv(path, [[" Firm ", "Matter Name ", "Amount Paid"]] + [[f"F{i}", f"M{i}", str(i)] for i in range(8)])
