@@ -19,8 +19,8 @@
 <div class="table-wrap">
 <table class="ledger-table stat-table">
   <caption>Statistics by {% if granularity == "financialYear" %}financial year{% else %}{{ granularity }}{% if granularity == "month" or granularity == "quarter" %} for {{ fy }}{% endif %}{% endif %}</caption>
-  <thead><tr><th scope="col">Metric</th>{% for p in stats.periods %}<th scope="col" class="money">{{ p.label }}</th>{% endfor %}</tr></thead>
-  <tbody>{% for row in table %}<tr><th scope="row">{{ row.label }}</th>{% for v in row.cells %}<td class="money">{% if row.money %}{{ v|fees_money:money_unit }}{% else %}{{ v|default_if_none:"" }}{% endif %}</td>{% endfor %}</tr>{% endfor %}</tbody>
+  <thead><tr><th scope="col">Metric</th>{% for p in stats.periods %}<th scope="col" class="money{% if p.is_current_month %} current-col{% elif p.is_future %} future-col{% endif %}">{{ p.label }}</th>{% endfor %}{% if stats.periods|length > 1 %}<th scope="col" class="money total-col">Total</th>{% endif %}</tr></thead>
+  <tbody>{% for row in table %}<tr><th scope="row">{{ row.label }}</th>{% for c in row.cells %}<td class="money{% if c.current %} current-col{% endif %}{% if c.overridden %} hand{% endif %}"{% if c.overridden %} title="Entered by hand in Edit statistics"{% endif %}>{% if row.money %}{{ c.value|fees_money:money_unit }}{% else %}{{ c.value|default_if_none:"" }}{% endif %}</td>{% endfor %}{% if stats.periods|length > 1 %}<td class="money total-col">{% if row.total is not None %}{% if row.money %}{{ row.total|fees_money:money_unit }}{% else %}{{ row.total }}{% endif %}{% endif %}</td>{% endif %}</tr>{% endfor %}</tbody>
 </table>
 </div>
 

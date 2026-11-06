@@ -137,6 +137,34 @@ def _table(stats):
     return rows
 
 
+#: Metrics that add up across periods (the Total column); ratios do not.
+_SUMMED_METRICS = frozenset(
+    ("num_appearances", "num_conferences", "num_drafts", "amount_billed", "amount_recovered",
+     "amount_received", "amount_received_plus_tds")
+)
+
+
+def _display_table(stats):
+    """The period table for the page: like ``_table`` but each cell says whether it was typed in by hand,
+    plus a Total per summable metric. The JSON endpoint keeps using ``_table``."""
+    periods = stats["periods"]
+    rows = []
+    for key, label, is_money in xlsx.STAT_METRIC_ROWS:
+        cells = [
+            {
+                "value": period.get(key),
+                "overridden": key in (period.get("overridden") or ()),
+                "current": bool(period.get("is_current_month")),
+            }
+            for period in periods
+        ]
+        total = None
+        if key in _SUMMED_METRICS and periods:
+            total = sum((period.get(key) or 0 for period in periods), 0)
+        rows.append({"label": label, "money": is_money, "cells": cells, "total": total})
+    return rows
+
+
 def _adjustment_rows(profile, fy):
     """Twelve month rows in financial-year order, each with the saved adjustment values (blank when none)."""
     saved = {row["month"]: row for row in statistics.list_adjustments(profile, fy)}
@@ -238,7 +266,7 @@ def statistics_page(request):
         stats = statistics.get_period_statistics(
             profile, granularity, None if granularity == "financialYear" else fy, stat_options(request.GET)
         )
-        context.update({"stats": stats, "table": _table(stats)})
+        context.update({"stats": stats, "table": _display_table(stats)})
     elif tab == "edit":
         context["adjustment_rows"] = _adjustment_rows(profile, fy)
     else:
