@@ -12,6 +12,7 @@ from . import (
     views_memos,
     views_outstanding,
     views_payments,
+    views_prefs,
     views_search,
     views_settings,
     views_statistics,
@@ -46,6 +47,7 @@ urlpatterns = [
     path("memos/<int:memo_id>/delete/", views_memos.memo_delete, name="fees_memo_delete"),
     path("memos/<int:memo_id>/write-off/", views_memos.memo_write_off, name="fees_memo_write_off"),
     path("memos/<int:memo_id>/finalise/", views_memos.memo_finalise, name="fees_memo_finalise"),
+    path("memos/<int:memo_id>/move/", views_memos.memo_move, name="fees_memo_move"),
     path("memos/<int:memo_id>/based-on/", views_memos.memo_based_on, name="fees_memo_based_on"),
     path("memos/<int:memo_id>/word/", views_exports.memo_word, name="fees_memo_word"),
     path("memos/<int:memo_id>/statement/", views_exports.memo_statement, name="fees_memo_statement"),
@@ -101,8 +103,11 @@ urlpatterns = [
     path("settings/template/download/", views_settings.template_download, name="fees_template_download"),
     path("settings/signature/upload/", views_settings.signature_upload, name="fees_signature_upload"),
     path("settings/signature/download/", views_settings.signature_download, name="fees_signature_download"),
+    path("settings/template/tags/", views_settings.template_tags_download, name="fees_template_tags_download"),
     path("settings/filename-preview/", views_settings.filename_preview, name="fees_filename_preview"),
     path("settings/statistics-grid/", views_settings.statistics_grid, name="fees_settings_statistics_grid"),
+    # The signed-in user's own interface preferences (column widths): any role, never fee data
+    path("prefs/", views_prefs.prefs_endpoint, name="fees_prefs"),
     # Backup and import (Editor)
     path("backup/", views_backup.backup_page, name="fees_backup"),
     path("backup/download/", views_backup.backup_download, name="fees_backup_download"),

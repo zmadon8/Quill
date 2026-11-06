@@ -177,6 +177,44 @@ def memo_based_on(request, memo_id):
     return _form_page(request, forms.memo_form_from_detail(source), based_on=memo_id)
 
 
+def _move_page(request, memo, errors=None, status=200):
+    """The move confirmation page: a matter picker grouped by firm, active matters other than the current one."""
+    profile, _settings = scope.context(request)
+    by_firm = {}
+    for matter in matters.list_matters(profile, status_filter="active"):
+        if matter.pk != memo["matter_id"]:
+            by_firm.setdefault(matter.firm.name, []).append(matter)
+    groups = [{"firm": name, "matters": by_firm[name]} for name in sorted(by_firm, key=str.lower)]
+    return render_page(
+        request,
+        "fees/memo_move.html",
+        {"memo": memo, "firm_groups": groups, "errors": errors or []},
+        status=status,
+    )
+
+
+@fees_editor
+@handle_fees_errors()
+@require_http_methods(["GET", "HEAD", "POST"])
+def memo_move(request, memo_id):
+    """Move a memo to another active matter. The number, payments and totals do not change."""
+    profile, _settings = scope.context(request)
+    memo = memos.get_memo(profile, memo_id)  # another profile's memo is a 404
+    if request.method != "POST":
+        return _move_page(request, memo)
+    target = (request.POST.get("matter_id") or "").strip()
+    try:
+        if not target.isdigit():
+            raise FeesError("INVALID_MEMO", "Choose the matter to move this memo to.")
+        moved = memos.move_memo(profile, memo_id, int(target))
+    except FeesError as err:
+        if err.status == 404:
+            raise Http404(err.message) from err
+        return _move_page(request, memo, errors=[err.message], status=err.status)
+    messages.success(request, f"Memo {moved.memo_number or '(draft)'} moved.")
+    return redirect("fees_memo_detail", memo_id=memo_id)
+
+
 @fees_editor
 @handle_fees_errors()
 @require_POST

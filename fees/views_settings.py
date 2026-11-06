@@ -11,6 +11,7 @@ from django.views.decorators.http import require_http_methods, require_safe, req
 from fees import forms, scope
 from fees.decorators import fees_editor, fees_read_write, fees_reader, handle_fees_errors
 from fees.errors import FeesError
+from fees.exports import tag_reference
 from fees.exports.filenames import memo_export_filename, validate_pattern
 from fees.models import BankAccount, Memo
 from fees.pages import DOCX_TYPE, bytes_response, json_ok, render_page
@@ -136,6 +137,14 @@ def template_download(request):
     profile, _settings = scope.context(request)
     name, data = word_template.download_template(profile)
     return bytes_response(name, data, DOCX_TYPE)
+
+
+@fees_reader
+@handle_fees_errors()
+@require_safe
+def template_tags_download(request):
+    """The Word template tag reference (every tag, its short name, what it fills in, an example)."""
+    return bytes_response(tag_reference.FILE_NAME, tag_reference.build_tag_reference(), DOCX_TYPE)
 
 
 @fees_reader

@@ -20,7 +20,7 @@ from accounts.suite import KEY_FEES
 from fees.errors import FeesError, status_for
 from fees.exports import docx_zip, images, template_prep, word
 from fees.exports.placeholders import build_placeholder_map, is_known_tag
-from fees.models import FeesSettings, Firm, Group, Matter, WordTemplate
+from fees.models import FeesSettings, Firm, Group, Matter, Memo, WordTemplate
 from fees.services import memos, word_template
 from fees.tests import docx_support as ds
 from fees.tests.memory import assert_peak_under
@@ -571,6 +571,7 @@ class RenderMemoTests(TestCase):
     def test_render_with_png_signature(self):
         png = ds.png_bytes(200, 60)
         word_template.upload_signature(self.profile, "s.png", "image/png", png)
+        Memo.objects.filter(pk=self.memo_id()).update(include_signature=True)
         name, out = word_template.render_memo_docx(self.profile, self.memo_id())
         with out:
             parts = ds.read_zip(out)
@@ -582,6 +583,32 @@ class RenderMemoTests(TestCase):
         self.assertEqual(document.count("<w:drawing>"), 1)
         self.assertIn("Z. Madon", document)
         self.assertNotIn("{{", document)
+
+    def test_signature_is_left_out_when_the_memo_does_not_include_it(self):
+        word_template.upload_signature(self.profile, "s.png", "image/png", ds.png_bytes(200, 60))
+        self.assertFalse(Memo.objects.get(pk=self.memo_id()).include_signature)
+        name, out = word_template.render_memo_docx(self.profile, self.memo_id())
+        with out:
+            parts = ds.read_zip(out)
+        self.assertFalse([n for n in parts if n.startswith("word/media/")])
+        document = parts["word/document.xml"].decode()
+        self.assertNotIn("w:drawing", document)
+        self.assertNotIn("{{", document)
+        self.assertIn("Z. Madon", document)
+
+    def test_a_ticked_memo_without_an_uploaded_signature_renders_empty(self):
+        Memo.objects.filter(pk=self.memo_id()).update(include_signature=True)
+        name, out = word_template.render_memo_docx(self.profile, self.memo_id())
+        with out:
+            parts = ds.read_zip(out)
+        self.assertFalse([n for n in parts if n.startswith("word/media/")])
+        self.assertNotIn("{{", parts["word/document.xml"].decode())
+
+    def test_has_signature_helper(self):
+        self.assertFalse(word_template.has_signature(self.profile))
+        word_template.upload_signature(self.profile, "s.png", "image/png", ds.png_bytes())
+        self.assertTrue(word_template.has_signature(self.profile))
+        self.assertFalse(word_template.has_signature(fees_profile("NoSignatureHere")))
 
     def test_render_without_signature_is_valid_and_has_no_media(self):
         name, out = word_template.render_memo_docx(self.profile, self.memo_id())

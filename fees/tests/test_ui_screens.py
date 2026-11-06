@@ -26,6 +26,7 @@ SCREENS = (
     ("fees_memo_detail", "memo", "", False),
     ("fees_memo_edit", "memo", "", True),
     ("fees_memo_based_on", "memo", "", True),
+    ("fees_memo_move", "memo", "", True),
     ("fees_payment_new", None, "", True),
     ("fees_payment_edit", "payment", "", True),
     ("fees_firms", None, "", False),
@@ -60,7 +61,7 @@ NOT_PAGES = {
     "fees_firm_ledger_export", "fees_matter_archive", "fees_matter_statement_export", "fees_matter_ledger_export",
     "fees_feebook_export", "fees_outstanding_export", "fees_outstanding_summary_export", "fees_search",
     "fees_bank_account_add", "fees_bank_account_rename", "fees_bank_account_delete", "fees_template_upload",
-    "fees_template_download", "fees_signature_upload", "fees_signature_download", "fees_filename_preview",
+    "fees_template_download", "fees_template_tags_download", "fees_prefs", "fees_signature_upload", "fees_signature_download", "fees_filename_preview",
     "fees_settings_statistics_grid", "fees_backup_download", "fees_backup_restore", "fees_backup_restored",
     "fees_backup_cleared", "fees_import_inspect", "fees_import_run",
 }

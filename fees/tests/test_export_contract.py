@@ -76,6 +76,8 @@ class SeededBase(TestCase):
         word_template.upload_template(self.profile, "all-tags.docx", template)
         word_template.upload_signature(self.profile, "sig.png", "image/png", ds.png_bytes(80, 30))
         self.memo_id = self.seed["memo_a"].pk
+        # The signature picture is embedded only for a memo that asks for it.
+        Memo.objects.filter(pk=self.memo_id).update(include_signature=True)
 
 
 class ReaderPermissionTests(SeededBase):

@@ -846,3 +846,115 @@ class MemoPropertyTests(TestCase):
             self.assertEqual(form["client"], client)
             self.assertNotIn("id", form)
             self.assertNotIn("memo_number", form)
+
+
+# ---------------------------------------------------------------------------
+# Signature flag (item 2.3)
+# ---------------------------------------------------------------------------
+
+class IncludeSignatureTests(TestCase):
+    def setUp(self):
+        self.profile = fees_profile("Sig-Memo")
+        _, _, self.matter = seed_matter(self.profile)
+
+    def test_defaults_to_off_and_is_stored_when_given(self):
+        plain = memos.create_memo(self.profile, base_input(self.matter.pk))
+        ticked = memos.create_memo(self.profile, base_input(self.matter.pk, include_signature=True))
+        self.assertFalse(plain.include_signature)
+        self.assertTrue(ticked.include_signature)
+        self.assertTrue(memos.get_memo(self.profile, ticked.pk)["include_signature"])
+
+    def test_update_changes_it_and_leaves_it_alone_when_not_sent(self):
+        memo = memos.create_memo(self.profile, base_input(self.matter.pk))
+        memos.update_memo(self.profile, memo.pk, base_input(self.matter.pk, include_signature=True))
+        self.assertTrue(Memo.objects.get(pk=memo.pk).include_signature)
+        memos.update_memo(self.profile, memo.pk, base_input(self.matter.pk))
+        self.assertTrue(Memo.objects.get(pk=memo.pk).include_signature)
+        memos.update_memo(self.profile, memo.pk, base_input(self.matter.pk, include_signature=False))
+        self.assertFalse(Memo.objects.get(pk=memo.pk).include_signature)
+
+    def test_create_based_on_copies_the_flag(self):
+        memo = memos.create_memo(self.profile, base_input(self.matter.pk, include_signature=True))
+        self.assertTrue(memos.create_based_on(self.profile, memo.pk)["include_signature"])
+
+
+# ---------------------------------------------------------------------------
+# Move a memo to another matter (item 2.6)
+# ---------------------------------------------------------------------------
+
+class MoveMemoTests(TestCase):
+    def setUp(self):
+        self.profile = fees_profile("Move-Memo")
+        self.firm, self.group, self.matter = seed_matter(self.profile)
+        self.firm2 = Firm.objects.create(profile=self.profile, name="Other firm")
+        self.group2 = Group.objects.create(profile=self.profile, firm=self.firm2, name="Other group")
+        self.target = Matter.objects.create(
+            profile=self.profile, firm=self.firm2, group=self.group2, name="Target matter"
+        )
+        self.memo = memos.create_memo(self.profile, base_input(self.matter.pk))
+
+    def test_matter_firm_and_group_follow_the_target(self):
+        moved = memos.move_memo(self.profile, self.memo.pk, self.target.pk)
+        saved = Memo.objects.get(pk=self.memo.pk)
+        self.assertEqual(moved.pk, self.memo.pk)
+        self.assertEqual(
+            (saved.matter_id, saved.firm_id, saved.group_id),
+            (self.target.pk, self.firm2.pk, self.group2.pk),
+        )
+
+    def test_number_year_totals_and_payments_are_untouched(self):
+        pay = Payment.objects.create(
+            profile=self.profile, amount=100, date_of_payment=datetime.date(2026, 8, 1)
+        )
+        Allocation.objects.create(payment=pay, memo=self.memo, profile=self.profile, amount=100)
+        Memo.objects.filter(pk=self.memo.pk).update(amount_paid=100, amount_received=100)
+        before = Memo.objects.get(pk=self.memo.pk)
+        memos.move_memo(self.profile, self.memo.pk, self.target.pk)
+        after = Memo.objects.get(pk=self.memo.pk)
+        for field in (
+            "memo_number", "financial_year", "seq", "date", "total_fees", "amount_paid",
+            "amount_received", "amount_tds", "addressee_line1", "num_appearances",
+        ):
+            self.assertEqual(getattr(after, field), getattr(before, field), field)
+        self.assertEqual(Allocation.objects.filter(memo_id=self.memo.pk).count(), 1)
+        self.assertTrue(Payment.objects.filter(pk=pay.pk).exists())
+
+    def test_an_archived_target_is_refused(self):
+        Matter.objects.filter(pk=self.target.pk).update(is_archived=True)
+        with self.assertRaises(FeesError) as ctx:
+            memos.move_memo(self.profile, self.memo.pk, self.target.pk)
+        self.assertEqual(ctx.exception.code, "MATTER_ARCHIVED")
+        self.assertEqual(Memo.objects.get(pk=self.memo.pk).matter_id, self.matter.pk)
+
+    def test_a_target_in_another_profile_is_not_found(self):
+        other = fees_profile("Move-Other")
+        _, _, foreign = seed_matter(other)
+        with self.assertRaises(FeesError) as ctx:
+            memos.move_memo(self.profile, self.memo.pk, foreign.pk)
+        self.assertEqual(ctx.exception.code, "MATTER_NOT_FOUND")
+        self.assertEqual(Memo.objects.get(pk=self.memo.pk).matter_id, self.matter.pk)
+
+    def test_a_memo_in_another_profile_is_not_found(self):
+        other = fees_profile("Move-Other-2")
+        with self.assertRaises(FeesError) as ctx:
+            memos.move_memo(other, self.memo.pk, self.target.pk)
+        self.assertEqual(ctx.exception.code, "MEMO_NOT_FOUND")
+
+    def test_bumps_the_data_version_once(self):
+        before = data_version(self.profile)
+        memos.move_memo(self.profile, self.memo.pk, self.target.pk)
+        self.assertEqual(data_version(self.profile), before + 1)
+
+    def test_a_refused_move_does_not_bump_the_data_version(self):
+        Matter.objects.filter(pk=self.target.pk).update(is_archived=True)
+        before = data_version(self.profile)
+        with self.assertRaises(FeesError):
+            memos.move_memo(self.profile, self.memo.pk, self.target.pk)
+        self.assertEqual(data_version(self.profile), before)
+
+    def test_a_draft_can_be_moved_too(self):
+        draft = memos.save_draft(self.profile, {"matter_id": self.matter.pk, "addressee_line1": "D"})
+        memos.move_memo(self.profile, draft.pk, self.target.pk)
+        saved = Memo.objects.get(pk=draft.pk)
+        self.assertEqual((saved.matter_id, saved.firm_id, saved.group_id), (self.target.pk, self.firm2.pk, self.group2.pk))
+        self.assertIsNone(saved.memo_number)

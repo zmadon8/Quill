@@ -76,6 +76,68 @@ LINE_TAGS = (
     "LINE_24A_TOTAL_FEES_WORDS",
 )
 
+#: What each tag fills in, and an example: ``long name (or L16W / L19W) -> (description, example)``.
+#: Used only to build the downloadable tag reference (``fees.exports.tag_reference``). A test asserts
+#: every tag the map accepts is covered here (by its long name, or by the name itself when it has
+#: no long name), so this table cannot drift from the map. The examples are made up.
+TAG_DOCS = {
+    "LINE_1_DATE": ("Memo date, written dd.mm.yyyy", "02.10.2026"),
+    "LINE_2_MEMO_NUMBER": ("Memo number", "14 of 2026-27"),
+    "LINE_5_ADDRESSEE_1": ("Addressee, first line", "M/s Example & Co"),
+    "LINE_6_ADDRESSEE_2": ("Addressee, second line (blank if not used)", "Mumbai"),
+    "LINE_7_MATTER_NAME": (
+        "Matter name. Uses the matter's Short Name when one is set, otherwise the full name",
+        "Sample v. Union",
+    ),
+    "LINE_8_COURT_NAME": ("Caption (court and cause title). Line breaks are kept", "In the High Court"),
+    "LINE_9_ADD_LEFT": ("Additional Details, left", "Suit No. 1 of 2026"),
+    "LINE_10_ADD_RIGHT": ("Additional Details, right", "Commercial Division"),
+    "LINE_11_PLAINTIFF": ("Plaintiff or petitioner name", "Example Traders"),
+    "LINE_12_PLAINTIFF_TYPE": ("Plaintiff type, for example Plaintiff or Petitioner", "Plaintiff"),
+    "LINE_13_DEFENDANT": ("Defendant or respondent name", "Sample Industries"),
+    "LINE_14_DEFENDANT_TYPE": ("Defendant type, for example Defendant or Respondent", "Defendant"),
+    "LINE_15_CLIENT": ("Client name", "Example Traders"),
+    "LINE_16_NUM_APPEARANCES": ("Number of appearances, as a bare number (blank when 0)", "2"),
+    "L16W": ("Number plus the right word (blank when 0)", "1 Appearance / 2 Appearances"),
+    "LINE_17_DATES_APPEARANCES": ("Dates of the appearances, as typed", "03.04.2026, 17.04.2026"),
+    "LINE_18_FEES_PER_APP": ("Fee per appearance", "15,000"),
+    "LINE_18A_FEES_APPEARANCES": ("Total fee for appearances (the amount, or the custom amount)", "30,000"),
+    "LINE_19_NUM_CONFERENCES": ("Number of conferences, as a bare number (blank when 0)", "1"),
+    "L19W": ("Number plus the right word (blank when 0)", "1 Conference / 3 Conferences"),
+    "LINE_20_DATES_CONFERENCES": ("Dates of the conferences, as typed", "10.04.2026"),
+    "LINE_21_FEES_PER_CONF": ("Fee per conference", "5,000"),
+    "LINE_21A_FEES_CONFERENCES": ("Total fee for conferences (the amount, or the custom amount)", "5,000"),
+    "LINE_22_MISC_DESC": ("Description of the drafting or miscellaneous item", "Drafting of written statement"),
+    "LINE_23_FEES_MISC": ("Fee for the drafting or miscellaneous item", "10,000"),
+    "LINE_24_TOTAL_FEES": ("Total fees (the memo amount)", "45,000"),
+    "LINE_24A_TOTAL_FEES_WORDS": ("Total fees in words", "Rupees Forty Five Thousand Only"),
+    "MEMO_NAME": ("Your name, from Settings (memo text defaults)", "A. Advocate"),
+    "MEMO_DESIGNATION": ("Your designation, from Settings", "Advocate"),
+    "MEMO_ADDRESS": ("Your address, from Settings. Line breaks are kept", "12 Sample Road"),
+    "MEMO_BANK_DETAILS": ("Your bank details, from Settings. Line breaks are kept", "Sample Bank, A/c 0000"),
+    "MEMO_PAN": ("Your PAN, from Settings", "ABCDE1234F"),
+    "MEMO_SIGNATURE": (
+        "Your signature image, from Settings. Printed only when the memo's signature box is ticked; "
+        "otherwise this tag prints nothing",
+        "(a picture)",
+    ),
+    "SHOW_APPEARANCES": (
+        "Block kept when there are appearances (a count, or a fee per appearance)",
+        "{{#IF_APP}} ... {{/IF_APP}}",
+    ),
+    "SHOW_CONFERENCES": (
+        "Block kept when there are conferences (a count, or a fee per conference)",
+        "{{#IF_CONF}} ... {{/IF_CONF}}",
+    ),
+    "SHOW_MISC": (
+        "Block kept when there is a drafting or miscellaneous fee or description",
+        "{{#IF_MISC}} ... {{/IF_MISC}}",
+    ),
+    "SHOW_PLAINTIFF": ("Block kept when a plaintiff name has been entered", "{{#IF_PL}} ... {{/IF_PL}}"),
+    "SHOW_DEFENDANT": ("Block kept when a defendant name has been entered", "{{#IF_DEF}} ... {{/IF_DEF}}"),
+    "SHOW_CLIENT": ("Block kept when a client name has been entered", "{{#IF_CLIENT}} ... {{/IF_CLIENT}}"),
+}
+
 _LINE_PREFIX = re.compile(r"^LINE_(\d+[A-Z]?)_")
 
 

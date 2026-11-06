@@ -6,6 +6,8 @@ The table says how each route is reached:
 * ``RW`` : GET for any role, POST for an Editor only.
 * ``E``  : GET and POST for an Editor only (payments, backup, import carry payment details).
 * ``W``  : POST for an Editor only.
+* ``U``  : GET and POST for any role: the user's own interface preferences (column widths), which are not fee
+  data (``fees_prefs``).
 
 ``test_the_table_lists_every_url_name`` fails when a route is added to ``fees.urls`` without a row here (and
 when a row names a route that no longer exists), so a new endpoint cannot ship untested.
@@ -27,7 +29,7 @@ from fees.tests import xlsx_support as xs
 User = get_user_model()
 PASSWORD = "x-Test-Pw-1"
 
-R, RW, E, W = "R", "RW", "E", "W"
+R, RW, E, W, U = "R", "RW", "E", "W", "U"
 
 # URL name -> (access, query string used for the GET request).
 ROUTES = {
@@ -55,6 +57,7 @@ ROUTES = {
     "fees_memo_write_off": (W, ""),
     "fees_memo_finalise": (W, ""),
     "fees_memo_based_on": (RW, ""),
+    "fees_memo_move": (E, ""),
     "fees_memo_word": (R, ""),
     "fees_memo_statement": (R, ""),
     "fees_payment_new": (RW, ""),
@@ -96,10 +99,12 @@ ROUTES = {
     "fees_bank_account_delete": (W, ""),
     "fees_template_upload": (W, ""),
     "fees_template_download": (R, ""),
+    "fees_template_tags_download": (R, ""),
     "fees_signature_upload": (W, ""),
     "fees_signature_download": (R, ""),
     "fees_filename_preview": (R, "?pattern=Memo+%7Bmemo_no%7D"),
     "fees_settings_statistics_grid": (RW, "?fy=2026-27"),
+    "fees_prefs": (U, "?key=col-widths:memos"),
     "fees_backup": (E, ""),
     "fees_backup_download": (E, ""),
     "fees_backup_restore": (E, ""),
@@ -120,7 +125,7 @@ FIXTURE = Path(__file__).parent / "fixtures" / "Template 2-11-2026 (short tags).
 REDIRECTS = {"fees_landing", "fees_backup_restore", "fees_backup_restored", "fees_backup_cleared"}
 
 # Editor-only routes that also accept POST (the payment forms are RW: a Reader may open them, only an Editor saves) (the rest of the E routes are GET only).
-E_POST = {"fees_backup_restore", "fees_backup_clear"}
+E_POST = {"fees_backup_restore", "fees_backup_clear", "fees_memo_move"}
 
 
 def route_names():
@@ -164,7 +169,7 @@ class RouteTableTests(TestCase):
 
     def test_every_access_code_is_known(self):
         for name, (access, _query) in ROUTES.items():
-            self.assertIn(access, (R, RW, E, W), name)
+            self.assertIn(access, (R, RW, E, W, U), name)
 
     def test_every_id_param_is_known(self):
         known = {"memo_id", "firm_id", "group_id", "matter_id", "payment_id", "account_id", "view_id"}
@@ -232,7 +237,7 @@ class RoleTests(PermissionBase):
     def test_a_reader_gets_every_read_route(self):
         self.client.force_login(self.reader)
         for name, (access, _query) in ROUTES.items():
-            if access in (R, RW):
+            if access in (R, RW, U):
                 self.assertEqual(self.request(name, self.mine).status_code, self.expected_get(name), name)
 
     def test_a_reader_is_refused_every_editor_only_route_and_every_write(self):
@@ -240,8 +245,16 @@ class RoleTests(PermissionBase):
         for name, (access, _query) in ROUTES.items():
             if access in (E, W):
                 self.assertEqual(self.request(name, self.mine).status_code, 403, name)
-            if access != R:
+            if access not in (R, U):
                 self.assertEqual(self.client.post(self.url(name, self.mine), {}).status_code, 403, name)
+
+    def test_a_reader_may_use_the_user_preference_routes(self):
+        self.client.force_login(self.reader)
+        for name, (access, _query) in ROUTES.items():
+            if access == U:
+                response = self.client.post(self.url(name, self.mine), {})
+                self.assertNotEqual(response.status_code, 403, name)
+                self.assertNotEqual(response.status_code, 405, name)
 
     def test_an_editor_gets_every_page_and_export(self):
         self.client.force_login(self.editor)
@@ -255,7 +268,7 @@ class RoleTests(PermissionBase):
             "fees.services.clear_all._default_backup", return_value=None
         ):
             for name, (access, _query) in ROUTES.items():
-                if access in (RW, W) or name in E_POST:
+                if access in (RW, W, U) or name in E_POST:
                     response = self.client.post(self.url(name, self.mine), {})
                 else:
                     continue

@@ -58,6 +58,7 @@
 <section class="settings-box" aria-labelledby="word-template-h">
 <h2 id="word-template-h">Word template</h2>
 <p>{% if template_info.has_template %}Template: {{ template_info.filename }} (<a href="{% url 'fees_template_download' %}">download</a>){% else %}No template uploaded.{% endif %}</p>
+<p><a href="{% url 'fees_template_tags_download' %}">Download the list of template tags (Word)</a></p>
 <p>{% if template_info.has_signature %}Signature image: {{ template_info.signature_filename }} (<a href="{% url 'fees_signature_download' %}">download</a>){% else %}No signature image uploaded.{% endif %}</p>
 {% if can_edit %}
 <form method="post" action="{% url 'fees_template_upload' %}" enctype="multipart/form-data">{% csrf_token %}

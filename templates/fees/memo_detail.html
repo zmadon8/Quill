@@ -45,6 +45,9 @@
   | <a href="{% url 'fees_memo_based_on' memo.id %}">New memo based on this</a>
   | <a href="{% url 'fees_payment_new' %}?memo={{ memo.id }}">Add payment</a>{% endif %}
 </p>
+{% if can_edit %}<details class="more-menu"><summary>More</summary>
+  <p><a href="{% url 'fees_memo_move' memo.id %}">Move this memo to another matter</a></p>
+</details>{% endif %}
 {% if can_edit %}
 <h2>Actions</h2>
 {% if memo.is_draft %}
