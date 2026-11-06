@@ -68,6 +68,16 @@ _ADJUSTMENT_OVERRIDES = (
 )
 
 
+def ensure_statistics_on(config):
+    """Raise ``STATISTICS_DISABLED`` (409) when the profile has Statistics switched off (owner decision 3).
+
+    Nothing in the statistics engine runs when it is off, so every Statistics page, data, explore, saved
+    view, adjustment and export view calls this first. ``config`` is the settings from ``scope.context``.
+    """
+    if config is not None and not config.statistics_enabled:
+        raise FeesError("STATISTICS_DISABLED")
+
+
 def is_page_post(request):
     """True when a form on the Statistics page posted (it wants a redirect back, not JSON)."""
     return request.POST.get("return_to") == "statistics"
@@ -211,6 +221,8 @@ def saved_view_query(view):
 @require_safe
 def statistics_page(request):
     profile, config = scope.context(request)
+    if config is not None and not config.statistics_enabled:
+        return render_page(request, "fees/statistics.html", {"stats_off": True})
     tab = _choice(request.GET, "tab", [(t, t) for t in _TABS], "standard")
     granularity = granularity_param(request.GET)
     fy = financial_year_param(request.GET)
@@ -243,7 +255,8 @@ def statistics_page(request):
 @require_safe
 def data(request):
     """JSON: the period table."""
-    profile, _settings = scope.context(request)
+    profile, config = scope.context(request)
+    ensure_statistics_on(config)
     granularity = granularity_param(request.GET)
     fy = financial_year_param(request.GET)
     stats = statistics.get_period_statistics(
@@ -257,7 +270,8 @@ def data(request):
 @require_safe
 def explore(request):
     """JSON: a pivot of one measure over a row dimension and an optional column dimension."""
-    profile, _settings = scope.context(request)
+    profile, config = scope.context(request)
+    ensure_statistics_on(config)
     query = request.GET
     req = {
         "measure": (query.get("measure") or "billed").strip(),
@@ -279,11 +293,12 @@ def explore(request):
 @require_http_methods(["GET", "HEAD", "POST"])
 def saved_views(request):
     """JSON: the saved pivot views (GET); save a new one (POST, Editor)."""
-    profile, _settings = scope.context(request)
+    profile, config = scope.context(request)
     if request.method == "POST":
         post = request.POST
 
         def save():
+            ensure_statistics_on(config)
             view_input = {
                 "name": post.get("name", ""),
                 "measure": (post.get("measure") or "").strip(),
@@ -306,6 +321,7 @@ def saved_views(request):
             return page_post(request, save, "View saved.", **back)
         save()
         return json_ok({"views": statistics.list_saved_views(profile)}, status=201)
+    ensure_statistics_on(config)
     return json_ok({"views": statistics.list_saved_views(profile)})
 
 
@@ -313,17 +329,24 @@ def saved_views(request):
 @handle_fees_errors(json=True)
 @require_POST
 def saved_view_delete(request, view_id):
-    profile, _settings = scope.context(request)
+    profile, config = scope.context(request)
+
+    def delete():
+        ensure_statistics_on(config)
+        return statistics.delete_saved_view(profile, view_id)
+
     if is_page_post(request):
-        return page_post(request, lambda: statistics.delete_saved_view(profile, view_id), "View deleted.", tab="explore")
-    return json_ok({"views": statistics.delete_saved_view(profile, view_id)})
+        return page_post(request, delete, "View deleted.", tab="explore")
+    return json_ok({"views": delete()})
 
 
 @fees_reader
 @handle_fees_errors()
 @require_safe
 def year_end(request):
-    profile, _settings = scope.context(request)
+    profile, config = scope.context(request)
+    if config is not None and not config.statistics_enabled:
+        return render_page(request, "fees/statistics.html", {"stats_off": True})
     fy = financial_year_param(request.GET)
     summary = statistics.get_year_end_summary(profile, fy, stat_options(request.GET))
     return render_page(request, "fees/year_end.html", {"fy": fy, "summary": summary})
@@ -333,7 +356,8 @@ def year_end(request):
 @handle_fees_errors()
 @require_safe
 def export_statistics(request):
-    profile, _settings = scope.context(request)
+    profile, config = scope.context(request)
+    ensure_statistics_on(config)
     granularity = granularity_param(request.GET)
     fy = financial_year_param(request.GET)
     result = xlsx.export_statistics(
@@ -346,7 +370,8 @@ def export_statistics(request):
 @handle_fees_errors()
 @require_safe
 def export_annual(request):
-    profile, _settings = scope.context(request)
+    profile, config = scope.context(request)
+    ensure_statistics_on(config)
     fy = financial_year_param(request.GET)
     with heavy_operation("annual_export"):
         result = xlsx.export_annual_summary(profile, fy, stat_options(request.GET))
@@ -357,6 +382,7 @@ def export_annual(request):
 @handle_fees_errors()
 @require_safe
 def export_tax_summary(request):
-    profile, _settings = scope.context(request)
+    profile, config = scope.context(request)
+    ensure_statistics_on(config)
     fy = financial_year_param(request.GET)
     return file_response(tax_summary.export_tax_summary(profile, fy, stat_options(request.GET)), TEXT_TYPE)

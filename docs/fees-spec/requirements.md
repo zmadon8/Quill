@@ -122,7 +122,7 @@ Status of decisions: D1 to D9, Q8 and the owner's answers are recorded in the an
 **R-RD-3 Ledger.** Per B 6.4: debit and credit rows, order, running balance with `round2`, no unaccounted payments, written-off memo stays a full debit, filename title rule. Test: ledgerService.
 **R-RD-4 Statement.** Per B 6.5.
 **R-RD-5 Dashboard.** KPIs per B 6.6 using SQL aggregates and the user's local date (`Asia/Kolkata` default); selection stored as CSV; row off when `dashboard_kpis_enabled` is false (no KPI query runs: test with `assertNumQueries`); Recent Matters list always shown.
-**R-RD-6 Statistics.** Period engine, year-end summary, annual breakdown, pivot, saved views, adjustments per B 6.7, every rule line by line, cutoff by `initial_financial_year`. Off when `statistics_enabled` is false: 404 and skipped elsewhere (appearance KPIs fall back to raw sums). Explore chart off by default; no chart code is loaded or run until ticked.
+**R-RD-6 Statistics.** Period engine, year-end summary, annual breakdown, pivot, saved views, adjustments per B 6.7, every rule line by line, cutoff by `initial_financial_year`. Off when `statistics_enabled` is false (owner decision 3): nothing in the statistics engine runs. The Statistics page and the year-end page show "Statistics is switched off in Settings." (200, with a Settings link for Editors only); every statistics JSON endpoint (data, explore, saved views, adjustment grid) and every save or delete of a saved view or adjustment answers `STATISTICS_DISABLED` (409); the Statistics, annual summary and tax summary exports (all built on the engine) flash the same message and redirect. Editing the Edit Statistics grid and Explore is part of Statistics, so it is blocked too. The Dashboard skips the appearance figures (appearance KPIs fall back to raw sums). Explore chart off by default; no chart code is loaded or run until ticked.
 - Tests: statisticsService, statisticsPeriods, statistics property.
 **R-RD-7 Search.** Per B 6.8 with `%` and `_` escaped (Q6); under two characters returns nothing; limit 20.
 
@@ -227,7 +227,7 @@ Status of decisions: D1 to D9, Q8 and the owner's answers are recorded in the an
 
 ## R-ER Errors
 
-**R-ER-1** Original error codes are kept; HTTP statuses: `*_NOT_FOUND` 404; `DUPLICATE_*` and `MATTER_ARCHIVED` 409; `INVALID_*` (including `INVALID_SIGNATURE`), `TOO_MANY_PARTNERS`, `NO_TEMPLATE`, `RESTORE_FAILED` 422; `EXPORT_FAILED` 400; unexpected 500. Page views show the message from `useToastStore.ts` equivalents; JSON endpoints return `{ok: false, error: CODE, details}`.
+**R-ER-1** Original error codes are kept; HTTP statuses: `*_NOT_FOUND` 404; `DUPLICATE_*`, `MATTER_ARCHIVED` and `STATISTICS_DISABLED` 409; `INVALID_*` (including `INVALID_SIGNATURE`), `TOO_MANY_PARTNERS`, `NO_TEMPLATE`, `RESTORE_FAILED` 422; `EXPORT_FAILED` 400; unexpected 500. Page views show the message from `useToastStore.ts` equivalents; JSON endpoints return `{ok: false, error: CODE, details}`.
 
 ## R-UI User interface (B 13, analysis section 2)
 

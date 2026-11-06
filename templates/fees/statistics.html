@@ -3,7 +3,8 @@
 {% block page_title %}Statistics - {{ program_label }}{% endblock %}
 {% block content %}
 <h1>Statistics</h1>
-{% if fees_settings and not fees_settings.statistics_enabled %}<p class="notice" role="note">Statistics is switched off in Settings, so it is not in the menu. The figures below are still correct.</p>{% endif %}
+{% if stats_off %}<p class="notice" role="note">Statistics is switched off in Settings.{% if can_edit %} <a href="{% url 'fees_settings' %}">Open Settings</a>{% endif %}</p>
+{% else %}
 <nav class="stat-tabs" aria-label="Statistics sections">
   <a href="{% url 'fees_statistics' %}?tab=standard&amp;granularity={{ granularity }}&amp;fy={{ fy }}"{% if tab == "standard" %} class="on" aria-current="page"{% endif %}>Standard</a>
   <a href="{% url 'fees_statistics' %}?tab=edit&amp;fy={{ fy }}"{% if tab == "edit" %} class="on" aria-current="page"{% endif %}>{% if can_edit %}Edit statistics{% else %}Adjustments{% endif %}</a>
@@ -94,6 +95,7 @@
   <label>Name for this view <input type="text" name="name" maxlength="100" required></label>
   <button type="submit">Save view</button>
 </form>{% endif %}
+{% endif %}
 {% endif %}
 {% endblock %}
 {% block page_js %}{% if tab == "explore" and pivot %}<script src="{% static 'js/pivot-chart.js' %}"></script>{% endif %}{% endblock %}

@@ -724,6 +724,8 @@ class StatisticsPageTests(UiPageBase):
     def test_page_still_answers_when_statistics_is_switched_off(self):
         FeesSettings.objects.update_or_create(profile=self.profile, defaults={"statistics_enabled": False})
         text = self.assert_page(self.page("fees_statistics"), "off")
-        self.assertIn("Statistics is switched off in Settings", text)
+        self.assertIn("Statistics is switched off in Settings.", text)
+        self.assertNotIn("still correct", text)
+        self.assertNotIn("<caption>", text)
         nav = text[text.index('<nav class="program-nav"'):text.index("</nav>")]
         self.assertNotIn(">Statistics</a>", nav)

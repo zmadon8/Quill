@@ -184,6 +184,8 @@ class PermissionBase(TestCase):
         self.outsider = make_user("outsider-p")
         self.other_profile = Profile.objects.create(program=KEY_FEES, name="Other-Perm")
         self.other_seed = xs.seed_web_data(self.other_profile)
+        xs.statistics_on(self.profile)
+        xs.statistics_on(self.other_profile)
         self.mine = id_kwargs(self.seed, self.profile)
         self.theirs = id_kwargs(self.other_seed, self.other_profile)
 

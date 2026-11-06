@@ -100,6 +100,8 @@ Names are `fees_<name>`. R = reader, E = editor.
 | Backup | `backup/` (page), `backup/download/`, `backup/restore/` (upload then confirm), `backup/clear/` | GET/POST | E |
 | Import | `import/`, `import/inspect/`, `import/run/` | GET/POST | E |
 
+**Statistics switched off (owner decision 3).** `views_statistics.ensure_statistics_on(settings)` raises `FeesError("STATISTICS_DISABLED")` (409, message "Statistics is switched off in Settings.") when `FeesSettings.statistics_enabled` is false. It is the first call in every statistics data, explore, saved view, adjustment grid and export view, before any `services.statistics` or `stats_cache` call, so nothing is computed. The Statistics and year-end pages test the flag themselves and render the short message (200). JSON views return `{ok: false, error: "STATISTICS_DISABLED", ...}` with 409; exports and page posts flash the message. Tests: `test_statistics_off.py` patches every engine entry point to raise.
+
 HTTP statuses follow B 12. JSON endpoints: statistics data, pivot, saved views, payee suggestions, search, filename preview. Everything else renders HTML or redirects (post, redirect, get).
 
 ## 6. Templates, CSS, JS

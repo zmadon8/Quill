@@ -16,7 +16,7 @@ from fees.models import BankAccount, Memo
 from fees.pages import DOCX_TYPE, bytes_response, json_ok, render_page
 from fees.services import settings as settings_service
 from fees.services import statistics, word_template
-from fees.views_statistics import financial_year_param, is_page_post, page_post
+from fees.views_statistics import ensure_statistics_on, financial_year_param, is_page_post, page_post
 
 #: Largest Word template accepted (the template prepare step has its own, tighter limits).
 MAX_TEMPLATE_UPLOAD = 20 * 1024 * 1024
@@ -215,13 +215,19 @@ def _save_adjustment(profile, post):
 @require_http_methods(["GET", "HEAD", "POST"])
 def statistics_grid(request):
     """JSON: the month-by-month adjustments of one financial year (GET); save one month (POST, Editor)."""
-    profile, _settings = scope.context(request)
+    profile, config = scope.context(request)
     if request.method == "POST":
         post = request.POST
+
+        def save():
+            ensure_statistics_on(config)
+            return _save_adjustment(profile, post)
+
         if is_page_post(request):
             fy = post.get("fy") or ""
-            return page_post(request, lambda: _save_adjustment(profile, post), "Adjustments saved.", tab="edit", fy=fy)
-        fy = _save_adjustment(profile, post)
+            return page_post(request, save, "Adjustments saved.", tab="edit", fy=fy)
+        fy = save()
         return json_ok({"financial_year": fy, "adjustments": statistics.list_adjustments(profile, fy)})
+    ensure_statistics_on(config)
     fy = financial_year_param(request.GET)
     return json_ok({"financial_year": fy, "adjustments": statistics.list_adjustments(profile, fy)})

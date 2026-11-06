@@ -57,6 +57,11 @@ def memo_input(matter_id, **over):
     return data
 
 
+def statistics_on(profile):
+    """Switch Statistics on for a seeded profile (the seed leaves it off so the backup carries a non-default)."""
+    FeesSettings.objects.filter(profile=profile).update(statistics_enabled=True)
+
+
 def seed_web_data(profile):
     """Fill ``profile`` through the services. Returns a dict of the interesting objects."""
     firm_a = firms.create_firm(profile, "Alpha & Co")

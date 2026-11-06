@@ -7,7 +7,7 @@ to the user and ``status`` is the HTTP status a view uses. A view decorator (add
 "details": ...}`` with ``status`` for JSON endpoints. No view depends on this yet.
 
 The status for a code follows requirements R-ER-1 by its suffix (``*_NOT_FOUND`` is 404, ``DUPLICATE_*``
-and ``MATTER_ARCHIVED`` are 409, the validation family is 422, ``EXPORT_FAILED`` is 400). The full
+``MATTER_ARCHIVED`` and ``STATISTICS_DISABLED`` are 409, the validation family is 422, ``EXPORT_FAILED`` is 400). The full
 message catalogue (a port of ``useToastStore.ts``) lands with the services in later phases; ``MESSAGES``
 starts with the handful already named in the brief and design so a caller can fall back to a default.
 """
@@ -19,6 +19,7 @@ DEFAULT_STATUS = 400
 _EXACT_STATUS = {
     "MATTER_ARCHIVED": 409,
     "GROUP_IN_USE": 409,
+    "STATISTICS_DISABLED": 409,
     "TOO_MANY_PARTNERS": 422,
     "NO_TEMPLATE": 422,
     "RESTORE_FAILED": 422,
@@ -45,6 +46,7 @@ def status_for(code):
 #: services). A code not listed here uses the message passed to ``FeesError`` or a generic fallback.
 MESSAGES = {
     "MATTER_ARCHIVED": "This matter is archived, so it cannot get a new memo.",
+    "STATISTICS_DISABLED": "Statistics is switched off in Settings.",
     "GROUP_IN_USE": "This group still has matters, so it cannot be removed.",
     "TOO_MANY_PARTNERS": "This firm already has the most groups allowed.",
     "NO_TEMPLATE": "No Word template has been uploaded yet.",

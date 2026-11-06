@@ -49,6 +49,8 @@ class SeededViewsBase(TestCase):
         self.outsider = make_user("outsider-v")
         self.other_profile = Profile.objects.create(program=KEY_FEES, name="Other-Fees")
         self.other_seed = xs.seed_web_data(self.other_profile)
+        xs.statistics_on(self.profile)
+        xs.statistics_on(self.other_profile)
 
     def login(self, user):
         self.client.force_login(user)
