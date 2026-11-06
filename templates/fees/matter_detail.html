@@ -4,15 +4,12 @@
 {% block page_title %}{{ matter.name }} - {{ program_label }}{% endblock %}
 {% block crumb_nav %}{% url 'fees_firm_detail' matter.firm_id as back %}{% include "fees/_back.html" with url=back label=matter.firm.name %}{% endblock %}
 {% block content %}
-<h1>{{ matter.name }}{% if matter.is_archived %} (archived){% endif %}</h1>
-<dl>
-  <dt>Firm</dt><dd><a href="{% url 'fees_firm_detail' matter.firm_id %}">{{ matter.firm.name }}</a></dd>
-  <dt>Group</dt><dd>{{ matter.group.name }}</dd>
-</dl>
-<p class="page-actions" role="group" aria-label="Matter actions"><a class="button" href="{% url 'fees_matter_statement' matter.pk %}">Statement</a> <a class="button" href="{% url 'fees_matter_ledger' matter.pk %}">Ledger</a>{% if can_edit %} <a class="button" href="{% url 'fees_matter_edit' matter.pk %}">Edit or move matter</a>{% if not matter.is_archived %} <a class="button primary" href="{% url 'fees_memo_new' %}?matter={{ matter.pk }}">New memo</a>{% endif %}{% endif %}</p>
-{% if matter.notes %}<p>{{ matter.notes|linebreaksbr }}</p>{% endif %}
+<div class="page-head"><h1>{{ matter.name }}{% if matter.is_archived %} <small class="muted">(archived)</small>{% endif %}</h1>
+<p class="page-actions" role="group" aria-label="Matter actions"><a class="button small secondary" href="{% url 'fees_matter_statement' matter.pk %}">Statement</a> <a class="button small secondary" href="{% url 'fees_matter_ledger' matter.pk %}">Ledger</a>{% if can_edit %} <a class="button small secondary" href="{% url 'fees_matter_edit' matter.pk %}">Edit or move matter</a>{% if not matter.is_archived %} <a class="button small primary" href="{% url 'fees_memo_new' %}?matter={{ matter.pk }}">New memo</a>{% endif %}{% endif %}</p></div>
+<p class="subtitle muted"><a href="{% url 'fees_firm_detail' matter.firm_id %}">{{ matter.firm.name }}</a> &middot; {{ matter.group.name }}</p>
+{% if matter.notes %}<section class="card" aria-labelledby="notes-heading"><h2 id="notes-heading">Notes</h2><p>{{ matter.notes|linebreaksbr }}</p></section>{% endif %}
 <h2>Memos</h2>
-{% include "fees/_memo_table.html" with table_key="matter-memos" %}
+{% include "fees/_memo_table.html" with table_key="matter-memos" matter_view=True %}
 {% if can_edit %}<section class="danger-zone" aria-labelledby="archive-heading"><h2 id="archive-heading">{% if matter.is_archived %}Make this matter active{% else %}Archive this matter{% endif %}</h2>
 <form method="post" action="{% url 'fees_matter_archive' matter.pk %}">{% csrf_token %}{% if matter.is_archived %}<input type="hidden" name="archive" value="0"><button type="submit">Make this matter active</button>{% else %}<input type="hidden" name="archive" value="1"><button type="submit">Archive this matter</button>{% endif %}</form></section>{% endif %}
 {% endblock %}

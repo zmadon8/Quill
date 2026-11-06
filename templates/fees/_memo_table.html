@@ -1,19 +1,23 @@
 {% load fees_money %}
-{# Memo table. Context: items, totals, money_unit; optional table_key (column menu key), fees_dots (status markers). #}
+{# Memo table. Context: items, totals, money_unit, can_edit; optional table_key (column menu key), matter_view (Apps / Confs / Drafts instead of Firm and Matter), legend (status legend strip), fees_dots, fees_settings (hide_payment_when_paid). #}
+<div class="table-card">
+{% if legend %}<p class="status-legend" aria-label="Status key"><span class="legend-item"><span class="status-sq sq-paid" aria-hidden="true"></span>Paid</span> <span class="legend-item"><span class="status-sq sq-unpaid" aria-hidden="true"></span>Unpaid</span> <span class="legend-item"><span class="status-sq sq-overdue" aria-hidden="true"></span>Overdue</span> <span class="legend-item"><span class="status-sq sq-written-off" aria-hidden="true"></span>Written Off</span></p>{% endif %}
 <div class="table-wrap">
 <table class="ledger-table" data-fees-columns="{{ table_key|default:'memos' }}">
   <caption>{{ totals.count }} memo{{ totals.count|pluralize }}</caption>
-  <thead><tr><th scope="col" data-col-fixed>No.</th><th scope="col">Date</th><th scope="col">Firm</th><th scope="col">Matter</th><th scope="col" class="money">Total</th><th scope="col" class="money">Net of TDS</th><th scope="col" class="money">Received</th><th scope="col" class="money">TDS</th><th scope="col" class="money">Due</th><th scope="col" data-col-fixed>Status</th></tr></thead>
+  <thead><tr><th scope="col" data-col-fixed>No.</th><th scope="col">Date</th>{% if matter_view %}<th scope="col" class="money">Apps</th><th scope="col" class="money">Confs</th><th scope="col" class="money">Drafts</th>{% else %}<th scope="col">Firm</th><th scope="col">Matter</th>{% endif %}<th scope="col" class="money">Total</th><th scope="col" class="money">Net of TDS</th><th scope="col" class="money">Received</th><th scope="col" class="money">TDS</th><th scope="col" class="money">Due</th><th scope="col" data-col-fixed>Status</th>{% if can_edit %}<th scope="col" data-col-fixed><span class="visually-hidden">Actions</span></th>{% endif %}</tr></thead>
   <tbody>
   {% for m in items %}<tr>
     <td><a href="{% url 'fees_memo_detail' m.id %}">{{ m.memo_number|default:"(draft)" }}</a></td>
-    <td>{{ m.date|fees_date }}</td><td>{{ m.firm_name }}</td><td>{{ m.matter_name }}</td>
+    <td>{{ m.date|fees_date }}</td>{% if matter_view %}<td class="money">{{ m.num_appearances }}</td><td class="money">{{ m.num_conferences }}</td><td class="money">{{ m.num_drafts }}</td>{% else %}<td><a href="{% url 'fees_firm_detail' m.firm_id %}">{{ m.firm_name }}</a></td><td><a href="{% url 'fees_matter_detail' m.matter_id %}">{{ m.matter_name }}</a></td>{% endif %}
     <td class="money">{{ m.total_fees|fees_money:money_unit }}</td><td class="money">{{ m.net_of_tds|fees_money:money_unit }}</td>
     <td class="money">{{ m.amount_received|fees_money:money_unit }}</td><td class="money">{{ m.amount_tds|fees_money:money_unit }}</td>
-    <td class="money">{{ m.amount_due|fees_money:money_unit }}</td>
+    <td class="money due">{{ m.amount_due|fees_money:money_unit }}</td>
     <td>{% include "fees/_memo_status.html" with m=m %}</td>
-  </tr>{% empty %}<tr><td colspan="10">No memos.</td></tr>{% endfor %}
+    {% if can_edit %}<td class="row-actions">{% if m.is_draft %}<a class="button small primary" href="{% url 'fees_memo_edit' m.id %}" aria-label="Edit draft for {{ m.matter_name }}">Edit</a>{% else %}{% if not fees_settings.hide_payment_when_paid or m.status != "Paid" %}<a class="button small success" href="{% url 'fees_payment_new' %}?memo={{ m.id }}" aria-label="Payment for memo {{ m.memo_number }}">Payment</a> {% endif %}{% if matter_view %}<a class="button small secondary" href="{% url 'fees_memo_edit' m.id %}" aria-label="Edit memo {{ m.memo_number }}">Edit</a>{% endif %}{% endif %}</td>{% endif %}
+  </tr>{% empty %}<tr><td colspan="{% if can_edit %}11{% else %}10{% endif %}">No memos.</td></tr>{% endfor %}
   </tbody>
-  <tfoot><tr><th scope="row" colspan="4">Total ({{ totals.count }})</th><td class="money">{{ totals.total_fees|fees_money:money_unit }}</td><td class="money">{{ totals.net_of_tds|fees_money:money_unit }}</td><td class="money">{{ totals.amount_received|fees_money:money_unit }}</td><td class="money">{{ totals.amount_tds|fees_money:money_unit }}</td><td class="money">{{ totals.amount_due|fees_money:money_unit }}</td><td></td></tr></tfoot>
+  <tfoot><tr><th scope="row" colspan="{% if matter_view %}5{% else %}4{% endif %}">Total ({{ totals.count }})</th><td class="money">{{ totals.total_fees|fees_money:money_unit }}</td><td class="money">{{ totals.net_of_tds|fees_money:money_unit }}</td><td class="money">{{ totals.amount_received|fees_money:money_unit }}</td><td class="money">{{ totals.amount_tds|fees_money:money_unit }}</td><td class="money">{{ totals.amount_due|fees_money:money_unit }}</td><td></td>{% if can_edit %}<td></td>{% endif %}</tr></tfoot>
 </table>
+</div>
 </div>
