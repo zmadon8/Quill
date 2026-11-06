@@ -45,8 +45,8 @@
     });
     var type = kind ? kind.value : "bar";
     var stacked = type === "stacked";
-    var W = Math.max(480, 60 + rows.length * (type === "line" ? 40 : 28 * (stacked ? 1 : series.length) + 16)), H = 300;
-    var L = 70, B = 70, T = 12, R = 12, pw = W - L - R, ph = H - T - B;
+    var W = Math.max(480, 60 + rows.length * (type === "line" ? 40 : 28 * (stacked ? 1 : series.length) + 16)), H = 320;
+    var L = 90, B = 90, T = 12, R = 12, pw = W - L - R, ph = H - T - B;
     var top = 0, low = 0;
     rows.forEach(function (r, ri) {
       var pos = 0, neg = 0;
@@ -63,14 +63,14 @@
     [0, 0.25, 0.5, 0.75, 1].forEach(function (f) {
       var v = low + (top - low) * f;
       el("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: hair, "stroke-width": 1 }, svg);
-      var t = el("text", { x: L - 6, y: y(v) + 4, "text-anchor": "end", fill: muted, "font-size": 12 }, svg);
+      var t = el("text", { x: L - 6, y: y(v) + 5, "text-anchor": "end", fill: muted, "font-size": 16 }, svg);
       t.textContent = fmt(v);
     });
     el("line", { x1: L, x2: W - R, y1: y(0), y2: y(0), stroke: ink, "stroke-width": 1 }, svg);
     var band = pw / rows.length;
     rows.forEach(function (r, ri) {
       var cx = L + band * ri + band / 2;
-      var t = el("text", { x: cx, y: H - B + 14, "text-anchor": "end", fill: ink, "font-size": 12, transform: "rotate(-40 " + cx + " " + (H - B + 14) + ")" }, svg);
+      var t = el("text", { x: cx, y: H - B + 18, "text-anchor": "end", fill: ink, "font-size": 16, transform: "rotate(-40 " + cx + " " + (H - B + 18) + ")" }, svg);
       t.textContent = r.label;
     });
     if (type === "line") {

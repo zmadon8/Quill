@@ -128,7 +128,7 @@
 .chart-tools[hidden], .pivot-chart[hidden] { display: none; }
 .chart-tools label { display: inline-flex; align-items: center; gap: .5rem; min-height: var(--tap); }
 .pivot-chart { margin: 0 0 1.5rem; overflow-x: auto; }
-.pivot-chart svg { display: block; max-width: 100%; height: auto; font: inherit; }
+.pivot-chart svg { display: block; max-width: none; font: inherit; } /* keeps the 16px labels true size; the figure scrolls sideways on a phone */
 .pivot-chart figcaption { color: var(--muted); font-size: var(--small-size); }
 .chart-legend { list-style: none; display: flex; flex-wrap: wrap; gap: .25rem 1rem; padding: 0; margin: .5rem 0 0; font-size: var(--small-size); }
 .chart-legend i { display: inline-block; width: .9rem; height: .9rem; margin-right: .35rem; vertical-align: -.1rem; border: 1px solid var(--ink); }
@@ -137,3 +137,13 @@
 .settings-box { margin: 1.5rem 0; padding: .5rem 1rem 1rem; border: 1px solid var(--hair); }
 .settings-box form { margin: .5rem 0; }
 [data-filename-result] { min-height: 1.4em; }
+
+/* Accessibility pass (T8.9): controls the host leaves unstyled stay inside a 360px page and keep a 44px tap area. */
+main input[type=number], main input[type=date], main textarea { box-sizing: border-box; max-width: 100%; font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--muted); border-radius: 2px; padding: .4rem .6rem; }
+main input[type=number], main input[type=date] { min-height: var(--tap); }
+main textarea { width: 100%; max-width: 40rem; }
+main input[type=file] { max-width: 100%; min-height: var(--tap); font: inherit; }
+.ledger-table td:has(> input[type=checkbox]) { min-width: var(--tap); text-align: center; }
+.ledger-table input[type=checkbox] { width: 1.5rem; height: 1.5rem; }
+.ledger-table td input[type=text] { min-height: var(--tap); }
+.ledger-table td button { min-height: var(--tap); }

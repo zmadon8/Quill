@@ -4,7 +4,8 @@
 {% block content %}
 <h1>Year end {{ fy }}</h1>
 <p><a href="{% url 'fees_statistics' %}?fy={{ fy }}">Statistics</a></p>
-<table class="ledger-table"><tbody>
+<div class="table-wrap">
+<table class="ledger-table"><caption>Year end {{ fy }} summary</caption><tbody>
   <tr><th scope="row">Memos</th><td>{{ summary.memo_count }}</td></tr>
   <tr><th scope="row">Total billed</th><td>{{ summary.total_billed|fees_money }}</td></tr>
   <tr><th scope="row">Total received</th><td>{{ summary.total_received|fees_money }}</td></tr>
@@ -15,4 +16,5 @@
   <tr><th scope="row">Appearances</th><td>{{ summary.num_appearances }}</td></tr>
   <tr><th scope="row">Appearances per week</th><td>{{ summary.appearances_per_week }}</td></tr>
 </tbody></table>
+</div>
 {% endblock %}

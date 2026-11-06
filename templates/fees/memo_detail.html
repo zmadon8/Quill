@@ -24,12 +24,12 @@
     <tr><td>{{ memo.misc_drafting_description|default:"Miscellaneous and drafting" }} ({{ memo.num_drafts }} drafts)</td><td></td><td></td><td>{{ memo.fees_misc|fees_money:money_unit }}</td></tr>
   </tbody>
   <tfoot>
-    <tr><th scope="row" colspan="3">Total fees</th><th class="money">{{ memo.total_fees|fees_money:money_unit }}</th></tr>
+    <tr><th scope="row" colspan="3">Total fees</th><td class="money">{{ memo.total_fees|fees_money:money_unit }}</td></tr>
     <tr><th scope="row" colspan="3">Net of TDS</th><td class="money">{{ memo.net_of_tds|fees_money:money_unit }}</td></tr>
     <tr><th scope="row" colspan="3">Paid (with TDS)</th><td class="money">{{ memo.amount_paid|fees_money:money_unit }}</td></tr>
     <tr><th scope="row" colspan="3">Received</th><td class="money">{{ memo.amount_received|fees_money:money_unit }}</td></tr>
     <tr><th scope="row" colspan="3">TDS</th><td class="money">{{ memo.amount_tds|fees_money:money_unit }}</td></tr>
-    <tr><th scope="row" colspan="3">Due</th><th class="money">{{ memo.amount_due|fees_money:money_unit }}</th></tr>
+    <tr><th scope="row" colspan="3">Due</th><td class="money">{{ memo.amount_due|fees_money:money_unit }}</td></tr>
   </tfoot>
 </table></div>
 <h2>Payments</h2>

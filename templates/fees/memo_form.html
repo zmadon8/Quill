@@ -49,7 +49,7 @@
     </div>
     <p><label>Total override (blank or 0 means none) <input type="text" inputmode="decimal" name="custom_total_fees" value="{{ form.custom_total_fees }}"></label></p>
     <div class="fee-total" data-fee-total hidden>
-      <p><strong>Total fees: <span data-total-figure>0</span></strong></p>
+      <p aria-live="polite" aria-atomic="true"><strong>Total fees: <span data-total-figure>0</span></strong></p>
       <p class="muted" data-total-words aria-live="polite"></p>
       <p class="muted">A preview. The total is worked out again when you save.</p>
     </div>

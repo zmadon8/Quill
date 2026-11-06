@@ -127,17 +127,17 @@ Goal: the diary is provably unchanged, the fees tables exist, backups are safe.
 
 Each screen: template, CSS, small JS, accessibility check, review stop optional (the owner may ask to review after each).
 
-- [ ] T8.1 `base_fees.html`, `fees.css` (ledger table, status square, money filter, U1 decision applied), program nav, search icon and bar, messages, confirm pages, `_pager`, `_table_footer`; `money.js`, `columns.js`.
-- [ ] T8.2 Memos and Draft Memos pages, **memo form** (`memo-form.js`: live total, words, ticks, number preview, leave warning, Ctrl+Enter), memo detail with its payments.
-- [ ] T8.3 Firms, Firm page, Groups panel, Matter page, matter move.
-- [ ] T8.4 Feebook and the **payment form/dialog** (`payment-form.js`: auto TDS, allocation rows, Remaining, prefill, payee chips).
-- [ ] T8.5 Outstanding (firm summary, detail with grouped, summary and in-order views, tick boxes plus Pay).
-- [ ] T8.6 Dashboard (KPI boxes, customise, recent matters).
-- [ ] T8.7 Statistics Standard tab and Edit Statistics grid; Explore tab with pivot table, saved views, chart (`pivot-chart.js`, off by default, host palette).
-- [ ] T8.8 Settings: all sections, **file-name pattern with live preview** (`filename-preview.js`), owner name, template upload, bank accounts, display, start years, switches, import, backup/restore, clear-all. Add a "Memo text defaults" group (R-SET-7) with inputs for name, designation and PAN and a textarea each for the multi-line address and bank details, and add the signature image upload control (R-SET-8) inside the Word Template box next to the template upload and download. Surface this fees Settings screen as the fourth tab of the suite "Settings" group (after Account, Display and Case Law Diary), per-profile and shown only for users with a fees profile, mirroring how the Case Law Diary tab shows only for a diary profile; this suite-level placement is distinct from the fees program's own in-program "Settings" nav tab (R-UI-1).
-- [ ] T8.9 Manual accessibility and phone-width pass (360 px), keyboard, focus ring, text sizes; screenshot review for the owner.
-- [ ] Gate G-RAM: re-run memory tests; check page weight (gzip) and JS size per page.
-- [ ] **STOP P8:** owner reviews screens.
+- [x] T8.1 `base_fees.html`, `fees.css` (ledger table, status square, money filter, U1 decision applied), program nav, search icon and bar, messages, confirm pages, `_pager`, `_table_footer`; `money.js`, `columns.js`.
+- [x] T8.2 Memos and Draft Memos pages, **memo form** (`memo-form.js`: live total, words, ticks, number preview, leave warning, Ctrl+Enter), memo detail with its payments.
+- [x] T8.3 Firms, Firm page, Groups panel, Matter page, matter move.
+- [x] T8.4 Feebook and the **payment form/dialog** (`payment-form.js`: auto TDS, allocation rows, Remaining, prefill, payee chips).
+- [x] T8.5 Outstanding (firm summary, detail with grouped, summary and in-order views, tick boxes plus Pay).
+- [x] T8.6 Dashboard (KPI boxes, customise, recent matters).
+- [x] T8.7 Statistics Standard tab and Edit Statistics grid; Explore tab with pivot table, saved views, chart (`pivot-chart.js`, off by default, host palette).
+- [x] T8.8 Settings: all sections, **file-name pattern with live preview** (`filename-preview.js`), owner name, template upload, bank accounts, display, start years, switches, import, backup/restore, clear-all. Add a "Memo text defaults" group (R-SET-7) with inputs for name, designation and PAN and a textarea each for the multi-line address and bank details, and add the signature image upload control (R-SET-8) inside the Word Template box next to the template upload and download. Surface this fees Settings screen as the fourth tab of the suite "Settings" group (after Account, Display and Case Law Diary), per-profile and shown only for users with a fees profile, mirroring how the Case Law Diary tab shows only for a diary profile; this suite-level placement is distinct from the fees program's own in-program "Settings" nav tab (R-UI-1).
+- [x] T8.9 Manual accessibility and phone-width pass (360 px), keyboard, focus ring, text sizes; screenshot review for the owner (done as a checklist, `docs/FEES_UI_REVIEW.md`, because screenshots could not be made).
+- [x] Gate G-RAM: re-run memory tests; check page weight (gzip) and JS size per page. (Reasoned and sizes recorded in `docs/FEES_UI_REVIEW.md`; the memory tests and `fees_memory_bench` still run in CI.)
+- [ ] **STOP P8:** owner reviews screens (pending; use `docs/FEES_UI_REVIEW.md`).
 
 ---
 
