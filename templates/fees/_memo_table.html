@@ -1,5 +1,5 @@
 {% load fees_money %}
-{# Memo table. Context: items, totals, money_unit; optional table_key (column menu key), fees_settings (status markers). #}
+{# Memo table. Context: items, totals, money_unit; optional table_key (column menu key), fees_dots (status markers). #}
 <div class="table-wrap">
 <table class="ledger-table" data-fees-columns="{{ table_key|default:'memos' }}">
   <caption>{{ totals.count }} memo{{ totals.count|pluralize }}</caption>

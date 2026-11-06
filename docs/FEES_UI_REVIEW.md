@@ -62,7 +62,7 @@ Text:
 
 - [ ] Body, labels, buttons and messages look 16 px or more.
 - [ ] Only the ledger-style data tables use 15 px text (decision U1). Check they are still comfortable to read.
-- [ ] Status never relies on colour: each memo status shows a square and a word.
+- [ ] Status never relies on colour: each memo status shows a square and a word. With Settings > Show status markers switched off, no square shows on any page and the word stays.
 
 Reader versus Editor:
 
@@ -109,7 +109,7 @@ HTML page weight could not be measured without a running server. Pages are serve
 - Statistics tabs are chosen with `?tab=` (standard, edit, explore); all are server rendered and forms post back to the existing endpoints with `return_to=statistics`.
 - Explore chart is off by default, offers bars, stacked bars and line only, and uses the host palette. Chart labels are 16 px, so the chart is wider than a phone and scrolls inside its box.
 - Settings: Reader sees values read only. The Fee Register tab in the suite Settings group is a link to the fees Settings page, not a copy of it. The Word template box holds the template and the signature image.
-- Status is a square plus a word (paid, partial, unpaid, overdue, draft, written off, unaccounted).
+- Status is a square plus a word (paid, partial, unpaid, overdue, draft, written off, unaccounted). Settings > Show status markers (owner decision 4) removes the square from every page (memos, drafts, memo detail, matter, outstanding, feebook); the word and the Status column stay. Exports are unaffected. The page context carries one `fees_dots` flag read from the settings already loaded for the request, so there is no extra query.
 - Money shows in the unit chosen in Settings (rupees, thousands, lac or crore) with the configured suffixes.
 
 ## 5. Static accessibility audit (T8.9)

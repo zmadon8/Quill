@@ -6,7 +6,9 @@ Later screens subclass it and add their own checks on top of ``assert_page``.
 """
 import re
 
+from django.db import connection
 from django.test import override_settings
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils.html import escape
 
@@ -729,3 +731,85 @@ class StatisticsPageTests(UiPageBase):
         self.assertNotIn("<caption>", text)
         nav = text[text.index('<nav class="program-nav"'):text.index("</nav>")]
         self.assertNotIn(">Statistics</a>", nav)
+
+
+class StatusMarkerSettingTests(UiPageBase):
+    """Owner decision 4: Settings > Show status markers hides the coloured square everywhere; the words stay."""
+
+    MARKER = 'class="status-sq"'
+
+    def set_dots(self, value):
+        FeesSettings.objects.update_or_create(profile=self.profile, defaults={"show_status_dots": value})
+
+    def marker_pages(self):
+        """Pages that render a status marker when the setting is on: (label, url name, kwargs, query)."""
+        i = self.ids()
+        return [
+            ("memos", "fees_memos", {}, ""),
+            ("drafts", "fees_memo_drafts", {}, ""),
+            ("memo detail", "fees_memo_detail", {"memo_id": i["memo"]}, ""),
+            ("outstanding detail", "fees_outstanding_detail", {}, ""),
+            ("outstanding detail by firm", "fees_outstanding_detail", {}, "?firm=%d" % i["firm"]),
+            ("feebook unaccounted", "fees_feebook", {}, "?unaccounted=1"),
+        ]
+
+    def other_pages(self):
+        """Pages that show a marker only when the setting is on (or not at all); they are checked with it off."""
+        i = self.ids()
+        return [
+            ("outstanding", "fees_outstanding", {}, ""),
+            ("feebook", "fees_feebook", {}, ""),
+            ("firms", "fees_firms", {}, ""),
+            ("firm", "fees_firm_detail", {"firm_id": i["firm"]}, ""),
+            ("matter", "fees_matter_detail", {"matter_id": i["matter"]}, ""),
+            ("dashboard", "fees_dashboard", {}, ""),
+        ]
+
+    def test_default_is_on_and_markers_show(self):
+        for label, name, kwargs, query in self.marker_pages():
+            text = self.assert_page(self.page(name, kwargs, query), label)
+            self.assertIn(self.MARKER, text, label)
+
+    def test_on_shows_markers_with_words(self):
+        self.set_dots(True)
+        for label, name, kwargs, query in self.marker_pages():
+            self.assertIn(self.MARKER, self.html(self.page(name, kwargs, query)), label)
+
+    def test_off_hides_every_marker_on_every_page(self):
+        self.set_dots(False)
+        for label, name, kwargs, query in self.marker_pages() + self.other_pages():
+            text = self.assert_page(self.page(name, kwargs, query), label)
+            self.assertNotIn("status-sq", text, label)
+
+    def test_off_keeps_the_status_words_and_columns(self):
+        self.set_dots(False)
+        text = self.html(self.page("fees_memos"))
+        self.assertRegex(text, r'<span class="status status-[a-z-]+">[A-Z][a-z]+')
+        self.assertIn('<th scope="col" data-col-fixed>Status</th>', text)
+        drafts = self.html(self.page("fees_memo_drafts"))
+        self.assertIn('<span class="status status-draft">Draft</span>', drafts)
+        detail = self.html(self.page("fees_outstanding_detail"))
+        self.assertRegex(detail, r'<span class="status status-(unpaid|partial|overdue)">(Unpaid|Partly paid)')
+        feebook = self.html(self.page("fees_feebook", query="?unaccounted=1"))
+        self.assertIn('<span class="status status-unaccounted">Unaccounted</span>', feebook)
+
+    def test_off_applies_to_editors_too(self):
+        self.set_dots(False)
+        text = self.html(self.page("fees_memos", user=self.editor))
+        self.assertNotIn("status-sq", text)
+
+    def test_turning_it_back_on_restores_the_markers(self):
+        self.set_dots(False)
+        self.assertNotIn("status-sq", self.html(self.page("fees_memos")))
+        self.set_dots(True)
+        self.assertIn(self.MARKER, self.html(self.page("fees_memos")))
+
+    def test_hiding_adds_no_queries(self):
+        counts = {}
+        for value in (True, False):
+            self.set_dots(value)
+            self.login(self.reader)
+            with CaptureQueriesContext(connection) as ctx:
+                self.client.get(reverse("fees_memos"))
+            counts[value] = len(ctx)
+        self.assertLessEqual(counts[False], counts[True])

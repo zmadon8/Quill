@@ -194,7 +194,7 @@ Status of decisions: D1 to D9, Q8 and the owner's answers are recorded in the an
 
 ## R-SET Settings (B 9)
 
-**R-SET-1** One `FeesSettings` row per profile with the keys, defaults and validation of B 9, including new `statistics_enabled` and `dashboard_kpis_enabled`, `export_owner_name`, `memo_filename_pattern`. Electron-only keys are not stored. Validation errors are 422 with the message. A null on a not-null field resets the default.
+**R-SET-1** (Show status markers, `show_status_dots`, default on, is honoured by every Fee Register page: when off, no status square renders anywhere and the status words and columns stay; exports are unaffected.) One `FeesSettings` row per profile with the keys, defaults and validation of B 9, including new `statistics_enabled` and `dashboard_kpis_enabled`, `export_owner_name`, `memo_filename_pattern`. Electron-only keys are not stored. Validation errors are 422 with the message. A null on a not-null field resets the default.
 **R-SET-2** Bank accounts: list, add, rename, delete (1 to 200 chars, unique ignoring case, max 50). Deleting an account in use by a payment is refused with a clear message (or sets the payment's bank blank after confirm; default refuse).
 **R-SET-3** Word template: upload `.docx` only, at most 2 MB **(U7)**, stored in `WordTemplate`; at upload the tags split across runs are merged once, tags are checked, and the prepared XML parts are stored; download current; unreadable files give `INVALID_TEMPLATE`.
 **R-SET-4** Money display: `full` or `truncated` with editable suffixes (at most 12 characters), as in B 9, via a template filter. Test: formatMoney.

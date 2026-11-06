@@ -60,6 +60,8 @@ def render_page(request, template, context=None, status=200):
     base = {
         "fees_profile": profile,
         "fees_settings": settings,
+        # Show status markers (Settings); read once per request from the cached settings, so no extra query.
+        "fees_dots": settings is None or settings.show_status_dots,
         "can_edit": request_role(request, KEY_FEES) == ROLE_EDITOR,
         "fees_nav": nav_for(request, settings),
     }
