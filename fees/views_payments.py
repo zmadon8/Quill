@@ -7,7 +7,7 @@ from django.views.decorators.http import require_http_methods, require_safe, req
 from fees import forms, scope
 from fees.decorators import fees_editor, handle_fees_errors
 from fees.errors import FeesError
-from fees.models import Payment
+from fees.models import Memo, Payment
 from fees.pages import int_list, int_or_none, json_ok, render_page
 from fees.services import memo_numbers, memos, payments
 from fees.services import settings as settings_service
@@ -25,15 +25,37 @@ def payment_or_404(profile, payment_id):
     return payments.get_payment(profile, payment_id)
 
 
-def _form_page(request, form, payment=None, memo_id=None, errors=None, status=200):
+def _memo_ids(query):
+    """The memos named in the query (``?memo=1&memo=2`` or ``?memo=1,2``), in order, no repeats, at most one form's rows."""
+    seen = []
+    for value in query.getlist("memo"):
+        for number in int_list(value):
+            if number not in seen:
+                seen.append(number)
+    return seen[: forms.PAYMENT_ROWS]
+
+
+def _matter_ids(profile, memo_ids):
+    """The matters of ``memo_ids`` (one query): what the payee suggestions are asked for."""
+    if not memo_ids:
+        return []
+    return sorted(set(Memo.objects.filter(profile=profile, pk__in=memo_ids).values_list("matter_id", flat=True)))
+
+
+def _form_page(request, form, payment=None, memo_ids=None, errors=None, status=200):
     profile, _settings = scope.context(request)
+    memo_ids = list(memo_ids or [])
+    if payment is not None:
+        memo_ids = [a["memo_id"] for a in payment["allocations"]]
     return render_page(
         request,
         "fees/payment_form.html",
         {
             "form": form,
             "payment": payment,
-            "memo_id": memo_id,
+            "memo_id": memo_ids[0] if len(memo_ids) == 1 and payment is None else None,
+            "memo_query": "&".join(f"memo={n}" for n in memo_ids) if payment is None else "",
+            "matter_ids": ",".join(str(n) for n in _matter_ids(profile, memo_ids)),
             "bank_choices": settings_service.list_bank_accounts(profile),
             "errors": errors or [],
         },
@@ -74,22 +96,23 @@ def _data(request, profile):
 @require_http_methods(["GET", "HEAD", "POST"])
 def payment_new(request):
     profile, _settings = scope.context(request)
-    memo_id = int_or_none(request.GET.get("memo"))
+    memo_ids = _memo_ids(request.GET)
     if request.method == "POST":
         try:
             dto = payments.add_payment(profile, _data(request, profile))
         except FeesError as err:
             if err.status == 404:
                 raise Http404(err.message) from err
-            return _form_page(request, _echo(request.POST), memo_id=memo_id, errors=[err.message], status=err.status)
+            return _form_page(request, _echo(request.POST), memo_ids=memo_ids, errors=[err.message], status=err.status)
         return _after_save(request, dto)
     config = settings_service.get_settings(profile)
-    memo = None
-    prefill = None
-    if memo_id is not None:
-        memo = memos.get_memo(profile, memo_id)
-        prefill = payments.payment_prefill(config["default_payment_amount"], memo["amount_due"], config["default_tds_rate"])
-    return _form_page(request, forms.blank_payment_form(config, memo, prefill), memo_id=memo_id)
+    if not memo_ids:
+        return _form_page(request, forms.blank_payment_form(config))
+    found = [memos.get_memo(profile, n) for n in memo_ids]
+    if len(found) == 1:
+        prefill = payments.payment_prefill(config["default_payment_amount"], found[0]["amount_due"], config["default_tds_rate"])
+        return _form_page(request, forms.blank_payment_form(config, found[0], prefill), memo_ids=memo_ids)
+    return _form_page(request, forms.multi_memo_payment_form(config, found), memo_ids=memo_ids)
 
 
 @fees_editor

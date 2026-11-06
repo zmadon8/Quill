@@ -334,3 +334,113 @@ class FirmScreenTests(UiPageBase):
         query = "?firm=%d" % other
         moved = self.assert_page(self.page("fees_matter_edit", {"matter_id": i["matter"]}, query=query, user=self.editor), "matter-move")
         self.assertIn('name="firm_id" value="%d"' % other, moved)
+
+
+class FeebookAndPaymentTests(UiPageBase):
+    """T8.4: the Feebook and the payment form."""
+
+    def test_feebook_table_landmarks(self):
+        text = self.assert_page(self.page("fees_feebook"), "feebook")
+        self.assertIn('data-fees-columns="feebook"', text)
+        self.assertIn('<th scope="col" class="money">Paid + TDS</th>', text)
+        self.assertRegex(text, r'<th scope="row" colspan="4">Total \(\d+\)</th>')
+        self.assertIn("<caption>", text)
+        self.assertIn('aria-label="Feebook actions"', text)
+        self.assert_no_unlabelled_controls(text, "feebook")
+
+    def test_feebook_unaccounted_has_words_and_a_marker(self):
+        text = self.html(self.page("fees_feebook", query="?unaccounted=1"))
+        self.assertIn('status-unaccounted"><span class="status-sq" aria-hidden="true"></span>Unaccounted', text)
+
+    def test_feebook_hides_edit_controls_from_a_reader(self):
+        text = self.html(self.page("fees_feebook"))
+        self.assertNotIn(reverse("fees_payment_new"), text)
+        self.assertNotIn("/assign/", text)
+        self.assertNotIn(">Attach<", text)
+
+    def test_feebook_editor_can_edit_and_attach(self):
+        text = self.assert_page(self.page("fees_feebook", user=self.editor), "feebook-editor")
+        self.assertIn(reverse("fees_payment_new"), text)
+        self.assertIn("/assign/", text)
+        self.assertIn('aria-label="Edit payment of ', text)
+        self.assert_no_unlabelled_controls(text, "feebook-editor")
+
+    def test_payment_form_works_without_script(self):
+        text = self.assert_page(self.page("fees_payment_new", user=self.editor), "payment")
+        self.assertIn('method="post" action="%s"' % reverse("fees_payment_new"), text)
+        for name in ("amount", "date_of_payment", "tds_rate", "auto_tds", "tds_amount", "payee", "bank_account_id",
+                     "alloc_memo_0", "alloc_amount_0", "alloc_tds_0", "alloc_memo_4"):
+            self.assertIn('name="%s"' % name, text)
+        self.assertIn('<button type="submit" class="primary">Save</button>', text)
+        self.assertIn("js/fees/payment-form.js", text)
+        # Script-made parts stay hidden until the script shows them.
+        self.assertIn("data-payee-chips hidden", text)
+        self.assertIn("data-remaining role=\"status\" aria-live=\"polite\" hidden", text)
+        self.assertIn('data-payees-url="%s"' % reverse("fees_payment_payees"), text)
+        self.assertIn('class="crumb-row"', text)
+        self.assert_no_unlabelled_controls(text, "payment")
+
+    def test_payment_form_for_a_memo_prefills_the_row_and_the_payee_matters(self):
+        i = self.ids()
+        text = self.assert_page(self.page("fees_payment_new", query="?memo=%d" % i["memo"], user=self.editor), "payment-memo")
+        memo = self.seed["memo_a"]
+        memo.refresh_from_db()
+        self.assertIn('name="alloc_memo_0" value="%s"' % memo.memo_number, text)
+        self.assertIn('data-matters="%d"' % i["matter"], text)
+        self.assertIn("?memo=%d" % i["memo"], text)
+        self.assertIn(reverse("fees_memo_detail", kwargs={"memo_id": i["memo"]}), text)
+
+    def test_payment_form_for_several_memos(self):
+        a, b = self.seed["memo_a"], self.seed["memo_b"]
+        a.refresh_from_db()
+        b.refresh_from_db()
+        query = "?memo=%d&memo=%d" % (a.pk, b.pk)
+        text = self.assert_page(self.page("fees_payment_new", query=query, user=self.editor), "payment-two")
+        self.assertIn('name="alloc_memo_0" value="%s"' % a.memo_number, text)
+        self.assertIn('name="alloc_memo_1" value="%s"' % b.memo_number, text)
+        self.assertIn("?memo=%d&amp;memo=%d" % (a.pk, b.pk), text)
+        self.assertIn('data-matters="%d"' % self.ids()["matter"], text)
+
+    def test_several_memos_are_capped_at_the_rows_and_junk_is_ignored(self):
+        a = self.seed["memo_a"]
+        text = self.assert_page(self.page("fees_payment_new", query="?memo=%d,x,%d" % (a.pk, a.pk), user=self.editor), "payment-dup")
+        self.assertIn('name="alloc_memo_0"', text)
+
+    def test_payment_edit_form(self):
+        i = self.ids()
+        text = self.assert_page(self.page("fees_payment_edit", {"payment_id": i["payment"]}, user=self.editor), "payment-edit")
+        self.assertIn('value="Alpha payer"', text)
+        self.assertIn(reverse("fees_payment_delete", kwargs={"payment_id": i["payment"]}), text)
+        self.assertIn('data-matters="%d"' % i["matter"], text)
+        self.assert_no_unlabelled_controls(text, "payment-edit")
+
+    def test_payment_form_posts_without_script(self):
+        a = self.seed["memo_a"]
+        a.refresh_from_db()
+        self.login(self.editor)
+        response = self.client.post(
+            reverse("fees_payment_new") + "?memo=%d" % a.pk,
+            {"amount": "100", "tds_rate": "10", "auto_tds": "1", "date_of_payment": "2026-09-01", "alloc_memo_0": a.memo_number},
+        )
+        self.assertEqual(response.status_code, 302)
+
+    def test_failed_save_shows_the_form_again_with_the_error(self):
+        a = self.seed["memo_a"]
+        self.login(self.editor)
+        response = self.client.post(reverse("fees_payment_new") + "?memo=%d" % a.pk, {"amount": "abc", "date_of_payment": "2026-09-01"})
+        self.assertGreaterEqual(response.status_code, 400)
+        text = self.html(response)
+        self.assertIn('role="alert"', text)
+        self.assertIn('data-matters="%d"' % self.ids()["matter"], text)
+
+    def test_reader_cannot_open_the_payment_form(self):
+        self.assertEqual(self.page("fees_payment_new").status_code, 403)
+
+    def test_payment_script_does_not_use_the_single_fee_rule(self):
+        from pathlib import Path
+
+        import fees
+
+        source = (Path(fees.__file__).resolve().parent.parent / "static" / "js" / "fees" / "payment-form.js").read_text()
+        self.assertNotRegex(source, r"num_appearances\s*\*\s*fees_per_appearance")
+        self.assertNotIn(EM_DASH, source)

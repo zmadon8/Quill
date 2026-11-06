@@ -178,6 +178,28 @@ def blank_payment_form(config, memo=None, prefill=None):
     return form
 
 
+def multi_memo_payment_form(config, found):
+    """A new payment form for several memos at once (ticked on Outstanding): one row per memo, each for what the
+    default payment setting suggests for its due, and the payment amount as their total. ``found`` is a list of
+    ``memos.get_memo`` dicts. These are starting values only; the server checks every figure when the form is saved."""
+    rate = config.get("default_tds_rate", "0")
+    rows = []
+    total = Decimal("0.00")
+    auto = True
+    for memo in found:
+        prefill = payment_service.payment_prefill(config["default_payment_amount"], memo["amount_due"], rate)
+        auto = prefill["auto_tds"]
+        amount = prefill["amount"]
+        tds = payment_service.compute_auto_tds(amount, rate) if auto else Decimal("0.00")
+        total += amount
+        rows.append({"memo_number": _text(memo.get("memo_number")), "amount": _text(amount), "tds_amount": _text(tds)})
+    form = blank_payment_form(config)
+    form["amount"] = _text(total)
+    form["auto_tds"] = auto
+    form["rows"] = _padded(rows)
+    return form
+
+
 def payment_form_from_dto(dto):
     """The form values for an existing payment (a ``payments.get_payment`` dict)."""
     date = dto.get("date_of_payment")

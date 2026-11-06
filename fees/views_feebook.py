@@ -17,6 +17,10 @@ def feebook_page(request):
     profile, settings = scope.context(request)
     filters = feebook_filters(request.GET)
     entries = feebook.list_feebook(profile, filters)
+    totals = {
+        key: sum((e[key] or 0 for e in entries), start=0) for key in ("amount_paid", "tds", "paid_plus_tds")
+    }
+    totals["count"] = len(entries)
     page_items, meta = memo_lists.paginate(entries, page_number(request.GET), PAGE_SIZE)
     query = request.GET.copy()
     query.pop("page", None)
@@ -26,6 +30,7 @@ def feebook_page(request):
         {
             "entries": page_items,
             "meta": meta,
+            "totals": totals,
             "filters": filters,
             "firm_choices": firms.list_firms(profile),
             "bank_choices": settings_service.list_bank_accounts(profile),
