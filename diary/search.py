@@ -267,14 +267,30 @@ def _link_records(profile, tree, with_links):
                       extra_path=[(item_label, None)], text=case["citation"], link=case["url"])
 
 
-def _results(records, terms, subject_id=None):
+def _results(records, parsed, subject_id=None, flag_kind=None):
+    """Match ``records`` against a ``searchtext.Parsed`` query (words and operators, plus its ``subject:`` and
+    ``flag:`` filters; ``flag_kind`` is the Flags page's own choice and must hold too)."""
     tree_urls = _Urls()
     results = []
+    terms = parsed.terms
+    flags = parsed.flags
+    if flag_kind is not None:
+        flags = {flag_kind} if flags is None else flags & {flag_kind}
+    subject_ok = {}  # subject pk -> does its name satisfy subject:
     for rec in records:
         place = rec.place
         if subject_id is not None and place.subject.pk != subject_id:
             continue
-        matched = searchtext.match_fields(rec.fields, terms)
+        if flags is not None and rec.flag not in flags:
+            continue
+        if parsed.subjects:
+            pk = place.subject.pk
+            if pk not in subject_ok:
+                name = searchtext.normalise(place.subject.name)
+                subject_ok[pk] = any(piece in name for piece in parsed.subjects)
+            if not subject_ok[pk]:
+                continue
+        matched = searchtext.match_fields(rec.fields, parsed)
         if matched is None:
             continue
         score = 0
@@ -313,18 +329,23 @@ def run_search(profile, query, subject_id=None, citations_only=False, flags_only
     Best first is: the whole query appearing together first, then the order of the Diary. An empty query lists
     everything the Citations / Flags filters select; with neither filter it lists nothing. ``headers_only`` searches only
     the Subject, Topic, Sub-topic and Section names. ``flags_only`` searches only the text beside flags (D88), and
-    ``flag_kind`` (pending, overruled, doubted, other) keeps one kind of flag.
+    ``flag_kind`` (pending, overruled, doubted, other) keeps one kind of flag. The query may use the operators of
+    diary/searchtext.py (OR, NOT / "-", "phrases", brackets, ``word*``, ``subject:``, ``flag:``); a query it cannot
+    read is searched as plain words (``searchtext.parse_search(query).notice`` says so). A query with only
+    ``subject:`` / ``flag:`` lists every record they select.
     """
-    terms = searchtext.parse_query(query)
-    if not terms and not (citations_only or flags_only):
+    parsed = searchtext.parse_search(query)
+    has_filter = bool(parsed.subjects) or parsed.flags is not None
+    if parsed.expr is None and not (has_filter or citations_only or flags_only):
         return []
     tree = Tree.load(profile)
-    return _results(_records(profile, tree, citations_only, flags_only, headers_only, flag_kind), terms, subject_id)
+    return _results(_records(profile, tree, citations_only, flags_only, headers_only, flag_kind), parsed, subject_id,
+                    flag_kind)
 
 
 def run_links(profile, query, with_links=True):
     """The Hyperlinks page (D89): every citation with a web address (``with_links``; the words are looked for in the
     address) or every citation without one (looked for in the citation), as SearchResults in Diary order."""
-    terms = searchtext.parse_query(query)
+    parsed = searchtext.parse_search(query)
     tree = Tree.load(profile)
-    return _results(_link_records(profile, tree, with_links), terms)
+    return _results(_link_records(profile, tree, with_links), parsed)

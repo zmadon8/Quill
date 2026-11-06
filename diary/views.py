@@ -19,7 +19,7 @@ from accounts.permissions import admin_required, reader_required
 from accounts.profiles import request_profile, request_role
 from accounts.suite import KEY_DIARY, KEY_FEES, get_names
 
-from . import reading, undo_session
+from . import reading, searchtext, undo_session
 from .opening import remember_page
 from .params import safe_int
 from . import search as search_module
@@ -380,6 +380,7 @@ def search(request):
         "main_subjects": panel["panel_main"], "other_subjects": panel["panel_other"],
         "chosen_subject": subject_id, "citations_only": citations_only, "flags_only": flags_only,
         "headers_only": headers_only, "want_subjects": want_subjects, "by_subject": by_subject,
+        "notice": searchtext.parse_search(query).notice,
         "cards_url": "?" + urlencode(base_params),
         "subjects_url": "?" + urlencode(dict(base_params, view="subjects")),
     }
@@ -405,7 +406,8 @@ def flags_page(request):
         kind = ""
     results = search_module.run_search(profile, query, flags_only=True, flag_kind=kind or None)
     base_params = {k: v for k, v in (("q", query), ("flag", kind)) if v}
-    context = {"q": query, "flag": kind, "flag_filters": FLAG_FILTERS, "tab": "flags"}
+    context = {"q": query, "flag": kind, "flag_filters": FLAG_FILTERS, "tab": "flags",
+               "notice": searchtext.parse_search(query).notice}
     context.update(_grouped(request, results, _panel_subjects(profile), base_params, _limit(request)))
     return render(request, "diary/flags.html", context)
 
@@ -420,7 +422,7 @@ def flag_links(request):
     which = "without" if request.GET.get("links") == "without" else "with"
     results = search_module.run_links(profile, query, with_links=which == "with")
     base_params = {k: v for k, v in (("q", query), ("links", "without" if which == "without" else "")) if v}
-    context = {"q": query, "which": which, "tab": "links"}
+    context = {"q": query, "which": which, "tab": "links", "notice": searchtext.parse_search(query).notice}
     context.update(_grouped(request, results, _panel_subjects(profile), base_params, _limit(request)))
     return render(request, "diary/flag_links.html", context)
 
