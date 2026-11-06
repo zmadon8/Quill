@@ -18,13 +18,15 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 
-from accounts.permissions import program_editor_required, program_reader_required
+from accounts.permissions import admin_required, program_editor_required, program_reader_required
 from accounts.suite import KEY_FEES
 from fees.errors import FeesError
 from fees.services.heavy import Busy
 
 fees_reader = program_reader_required(KEY_FEES)
 fees_editor = program_editor_required(KEY_FEES)
+#: Restore, import and clear-all: suite Admin only (an Admin is an Editor in every profile, so scope still works).
+fees_admin = admin_required
 
 _READ_METHODS = ("GET", "HEAD")
 

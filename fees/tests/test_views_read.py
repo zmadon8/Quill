@@ -47,6 +47,9 @@ class SeededViewsBase(TestCase):
         self.reader = make_user("reader-v", self.profile, ROLE_READER)
         self.editor = make_user("editor-v", self.profile, ROLE_EDITOR)
         self.outsider = make_user("outsider-v")
+        self.admin = make_user("admin-sv", self.profile, ROLE_EDITOR)
+        self.admin.is_superuser = True
+        self.admin.save()
         self.other_profile = Profile.objects.create(program=KEY_FEES, name="Other-Fees")
         self.other_seed = xs.seed_web_data(self.other_profile)
         xs.statistics_on(self.profile)
@@ -150,7 +153,6 @@ class RouteTests(SeededViewsBase):
         return {
             "html": [
                 ("fees_backup", {}, ""),
-                ("fees_import", {}, ""),
             ],
             "json": [("fees_payment_payees", {}, "?matters=%d" % i["matter"])],
             "files": [("fees_backup_download", {}, "")],
@@ -182,6 +184,13 @@ class RouteTests(SeededViewsBase):
     def test_editor_gets_every_route(self):
         self.check(self.routes(), self.editor)
         self.check(self.editor_only(), self.editor)
+
+    def test_import_is_for_the_admin_only(self):
+        self.login(self.admin)
+        self.assertEqual(self.get("fees_import", {}, "").status_code, 200)
+        for user in (self.editor, self.reader):
+            self.login(user)
+            self.assertEqual(self.get("fees_import", {}, "").status_code, 403)
 
     def test_reader_is_refused_the_editor_only_routes(self):
         self.login(self.reader)

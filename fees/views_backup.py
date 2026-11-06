@@ -13,7 +13,7 @@ from django.shortcuts import redirect
 from django.views.decorators.http import require_http_methods, require_safe
 
 from fees import scope
-from fees.decorators import fees_editor, handle_fees_errors
+from fees.decorators import fees_admin, fees_editor, handle_fees_errors
 from fees.errors import FeesError
 from fees.pages import XLSX_TYPE, file_response, render_page
 from fees.services import clear_all, excel_backup, excel_restore
@@ -60,7 +60,7 @@ def _upload(request):
     return upload
 
 
-@fees_editor
+@fees_admin
 @handle_fees_errors(fallback="fees_backup")
 @require_http_methods(["GET", "HEAD", "POST"])
 def restore(request):
@@ -84,7 +84,7 @@ def restore(request):
     )
 
 
-@fees_editor
+@fees_admin
 @handle_fees_errors(fallback="fees_backup")
 @require_http_methods(["GET", "HEAD", "POST"])
 def clear(request):
@@ -106,14 +106,14 @@ def _result_page(request, key, template):
     return render_page(request, template, {"result": result})
 
 
-@fees_editor
+@fees_admin
 @handle_fees_errors()
 @require_safe
 def restored(request):
     return _result_page(request, RESTORE_RESULT_KEY, "fees/restore_result.html")
 
 
-@fees_editor
+@fees_admin
 @handle_fees_errors()
 @require_safe
 def cleared(request):

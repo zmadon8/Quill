@@ -49,8 +49,10 @@ class SmokeBase(test_flows.FlowBase):
         self.open_memo = self.new_memo("2026-08-10")
         self.pay(self.paid_memo, 14000, "2026-08-01")
 
-    def other_client(self, name, profile, role):
+    def other_client(self, name, profile, role, admin=False):
         user = User.objects.create_user(username=name, password=PASSWORD)
+        user.is_superuser = admin
+        user.save()
         ProfileMembership.objects.create(user=user, profile=profile, role=role)
         client = Client()
         client.force_login(user)
@@ -183,7 +185,7 @@ class RestoreSmokeTests(SmokeBase):
         self.assertEqual(workbook[:2], XLSX_MAGIC)
 
         fresh = Profile.objects.create(program=KEY_FEES, name="Smoke-Fresh")
-        client = self.other_client("editor-fresh", fresh, ROLE_EDITOR)
+        client = self.other_client("admin-fresh", fresh, ROLE_EDITOR, admin=True)
         self.assertFalse(Memo.objects.filter(profile=fresh).exists())
 
         upload = SimpleUploadedFile("backup.xlsx", workbook)
@@ -210,6 +212,7 @@ class RestoreSmokeTests(SmokeBase):
         self.assertEqual(Memo.objects.filter(profile=self.profile).count(), 2)
 
     def test_the_desktop_backup_fixture_restores_to_an_empty_register(self):
+        self.make_admin()
         fixture = Path(__file__).parent / "fixtures" / "fee_register_empty_reset_backup.xlsx"
         with mock.patch("fees.services.excel_restore._default_backup", return_value=None):
             response = self.post(
@@ -255,6 +258,8 @@ class ReaderSmokeTests(SmokeBase):
         self.assertTrue(Memo.objects.filter(pk=self.paid_memo.pk).exists())
         self.assertEqual(self.reader.post(reverse("fees_payment_new"), {"amount": "1"}).status_code, 403)
         self.assertEqual(self.reader.get(reverse("fees_backup")).status_code, 403)
+        for name in ("fees_backup_restore", "fees_backup_clear", "fees_import", "fees_import_inspect"):
+            self.assertEqual(self.reader.get(reverse(name)).status_code, 403, name)
         self.assertEqual(self.reader.get(reverse("fees_backup_download")).status_code, 403)
 
 

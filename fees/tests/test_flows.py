@@ -29,6 +29,12 @@ class FlowBase(TestCase):
         user = User.objects.create_user(username="editor-flow", password=PASSWORD)
         ProfileMembership.objects.create(user=user, profile=self.profile, role=ROLE_EDITOR)
         self.client.force_login(user)
+        self.user = user
+
+    def make_admin(self):
+        """Restore, import and clear-all are Admin only: make the flow user the suite Admin."""
+        self.user.is_superuser = True
+        self.user.save()
 
     def post(self, name, data=None, kwargs=None):
         return self.client.post(reverse(name, kwargs=kwargs or {}), data or {})
@@ -258,6 +264,7 @@ class LifecycleFlowTests(FlowBase):
 
 class BackupRoundTripFlowTests(FlowBase):
     def test_backup_clear_and_restore_bring_everything_back(self):
+        self.make_admin()
         self.make_setup()
         first = self.new_memo("2026-07-15")
         self.new_memo("2026-08-15")

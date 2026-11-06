@@ -10,6 +10,8 @@ class SettingsScreenTests(UiPageBase):
 
     def test_every_section_renders_for_an_editor(self):
         text = self.settings_text(self.editor)
+        self.assertNotIn(">Danger zone</h2>", text)  # clear-all is Admin only
+        text = self.settings_text(self.admin)
         for heading in ("Default Fees", "Payments", "Memo Text Defaults", "Word memo file names", "Start Years",
                         "Statistics", "Display", "Word template", "Danger zone"):
             self.assertIn(">%s</h2>" % heading, text, heading)
@@ -54,13 +56,28 @@ class SettingsScreenTests(UiPageBase):
         text = self.settings_text(self.editor)
         self.assertIn("Save settings", text)
         self.assertIn(reverse("fees_backup"), text)
-        self.assertIn(reverse("fees_import"), text)
         self.assertIn(reverse("fees_bank_account_add"), text)
+        # Import and clear-all are for the Admin only, so an Editor does not see those controls.
+        self.assertNotIn('"%s"' % reverse("fees_import"), text)
+        self.assertNotIn("Clear All Data", text)
+
+    def test_admin_sees_import_and_clear_all(self):
+        text = self.settings_text(self.admin)
+        self.assertIn(reverse("fees_import"), text)
+        self.assertIn("Clear All Data", text)
 
     def test_reader_cannot_open_backup_or_import(self):
         for name in ("fees_backup", "fees_import"):
             self.assertEqual(self.page(name).status_code, 403, name)
-            self.assertEqual(self.page(name, user=self.editor).status_code, 200, name)
+        self.assertEqual(self.page("fees_backup", user=self.editor).status_code, 200)
+        self.assertEqual(self.page("fees_import", user=self.editor).status_code, 403)
+        self.assertEqual(self.page("fees_import", user=self.admin).status_code, 200)
+
+    def test_editor_backup_page_has_the_download_but_no_restore_or_clear(self):
+        text = self.html(self.page("fees_backup", user=self.editor))
+        self.assertIn(reverse("fees_backup_download"), text)
+        self.assertNotIn('"%s"' % reverse("fees_backup_restore"), text)
+        self.assertNotIn('"%s"' % reverse("fees_backup_clear"), text)
 
 
 class SettingsRound2Tests(UiPageBase):

@@ -300,4 +300,5 @@ class ResizableColumnsAndSearchTests(WriteBase):
         self.assertEqual(self.client.get(reverse("fees_search"), {"q": firm.name}).status_code, 200)
 
     def test_clear_all_data_anchor_exists_on_the_backup_page(self):
+        self.client.force_login(self.admin)
         self.assertContains(self.client.get(reverse("fees_backup")), 'id="clear"')

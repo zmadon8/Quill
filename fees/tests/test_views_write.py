@@ -46,6 +46,13 @@ def make_user(name, profile=None, role=None):
     return user
 
 
+def make_admin(name, profile):
+    user = make_user(name, profile, ROLE_EDITOR)
+    user.is_superuser = True
+    user.save()
+    return user
+
+
 @override_settings(SECURE_SSL_REDIRECT=False)
 class WriteBase(TestCase):
     def setUp(self):
@@ -54,6 +61,7 @@ class WriteBase(TestCase):
         self.editor = make_user("editor-w", self.profile, ROLE_EDITOR)
         self.reader = make_user("reader-w", self.profile, ROLE_READER)
         self.outsider = make_user("outsider-w")
+        self.admin = make_admin("admin-w", self.profile)
         self.other_profile = Profile.objects.create(program=KEY_FEES, name="Other-Write")
         self.other_seed = xs.seed_web_data(self.other_profile)
         xs.statistics_on(self.profile)
@@ -671,6 +679,10 @@ class SettingsWriteTests(WriteBase):
 
 
 class BackupWriteTests(WriteBase):
+    def setUp(self):
+        super().setUp()
+        self.client.force_login(self.admin)  # restore and clear-all are Admin only
+
     def workbook(self):
         out = excel_backup.export_workbook(self.profile)
         with out:
@@ -795,6 +807,10 @@ class BackupWriteTests(WriteBase):
 
 
 class ImportWriteTests(WriteBase):
+    def setUp(self):
+        super().setUp()
+        self.client.force_login(self.admin)  # import is Admin only
+
     CSV = b"Firm,Matter,Date,Total Fees\nImport Firm,Import Matter,2026-08-01,5000\n"
 
     def csv(self, data=None, name="memos.csv"):
@@ -964,10 +980,31 @@ class RoleAndCsrfTests(WriteBase):
             ("fees_bank_account_add", {}),
             ("fees_template_upload", {}),
             ("fees_signature_upload", {}),
-            ("fees_import_inspect", {}),
-            ("fees_import_run", {}),
         ):
             self.assertEqual(self.client.get(reverse(name, kwargs=kwargs)).status_code, 405, name)
+
+    def test_get_is_refused_on_post_only_import_endpoints_for_the_admin(self):
+        self.client.force_login(self.admin)
+        for name in ("fees_import_inspect", "fees_import_run"):
+            self.assertEqual(self.client.get(reverse(name)).status_code, 405, name)
+
+    def test_an_editor_is_refused_restore_import_and_clear_all(self):
+        self.client.force_login(self.editor)
+        before = self.snapshot()
+        for name in ("fees_backup_restore", "fees_backup_clear", "fees_import_inspect", "fees_import_run"):
+            self.assertEqual(self.client.post(reverse(name), {"confirmation": "Write-Fees"}).status_code, 403, name)
+        for name in (
+            "fees_backup_restore", "fees_backup_clear", "fees_backup_restored", "fees_backup_cleared", "fees_import",
+        ):
+            self.assertEqual(self.client.get(reverse(name)).status_code, 403, name)
+        self.assertEqual(self.snapshot(), before)
+
+    def test_an_admin_is_not_refused_restore_import_and_clear_all(self):
+        self.client.force_login(self.admin)
+        for name in ("fees_backup_restore", "fees_import_inspect", "fees_import_run"):
+            self.assertNotEqual(self.client.post(reverse(name), {}).status_code, 403, name)
+        for name in ("fees_backup_clear", "fees_import"):
+            self.assertEqual(self.client.get(reverse(name)).status_code, 200, name)
 
 
 class ServicesDoTheWorkTests(WriteBase):

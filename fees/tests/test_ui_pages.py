@@ -151,7 +151,7 @@ class ShellTests(UiPageBase):
 
 class ConfirmPageTests(UiPageBase):
     def test_clear_confirm_page(self):
-        text = self.assert_page(self.page("fees_backup_clear", user=self.editor), "clear")
+        text = self.assert_page(self.page("fees_backup_clear", user=self.admin), "clear")
         self.assertIn('class="confirm warning-box"', text)
         self.assertIn('name="confirmation"', text)
         self.assertIn("Cancel", text)

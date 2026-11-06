@@ -68,6 +68,10 @@ class BackupRoleAccessTests(BackupBase):
             for url in ("backup_list", "restore_upload"):
                 self.assertEqual(self.client.get(reverse(url)).status_code, 403, (name, url))
             self.assertEqual(self.client.post(reverse("backup_now")).status_code, 403)
+            self.assertEqual(self.client.post(reverse("restore_upload"), {}).status_code, 403)
+            for url in ("restore_preview", "backup_download", "backup_delete"):
+                self.assertEqual(self.client.get(reverse(url, args=[1])).status_code, 403, (name, url))
+            self.assertEqual(self.client.post(reverse("restore_preview", args=[1]), {}).status_code, 403)
             self.client.logout()
 
 

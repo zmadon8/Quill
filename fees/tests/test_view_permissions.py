@@ -6,6 +6,8 @@ The table says how each route is reached:
 * ``RW`` : GET for any role, POST for an Editor only.
 * ``E``  : GET and POST for an Editor only (payments, backup, import carry payment details).
 * ``W``  : POST for an Editor only.
+* ``A``  : GET and POST for a suite Admin only (restore, import, clear-all: an Editor or Reader gets 403).
+* ``AW`` : POST for a suite Admin only.
 * ``U``  : GET and POST for any role: the user's own interface preferences (column widths), which are not fee
   data (``fees_prefs``).
 
@@ -29,7 +31,7 @@ from fees.tests import xlsx_support as xs
 User = get_user_model()
 PASSWORD = "x-Test-Pw-1"
 
-R, RW, E, W, U = "R", "RW", "E", "W", "U"
+R, RW, E, W, U, A, AW = "R", "RW", "E", "W", "U", "A", "AW"
 
 # URL name -> (access, query string used for the GET request).
 ROUTES = {
@@ -107,13 +109,13 @@ ROUTES = {
     "fees_prefs": (U, "?key=col-widths:memos"),
     "fees_backup": (E, ""),
     "fees_backup_download": (E, ""),
-    "fees_backup_restore": (E, ""),
-    "fees_backup_clear": (E, ""),
-    "fees_backup_restored": (E, ""),
-    "fees_backup_cleared": (E, ""),
-    "fees_import": (E, ""),
-    "fees_import_inspect": (W, ""),
-    "fees_import_run": (W, ""),
+    "fees_backup_restore": (A, ""),
+    "fees_backup_clear": (A, ""),
+    "fees_backup_restored": (A, ""),
+    "fees_backup_cleared": (A, ""),
+    "fees_import": (A, ""),
+    "fees_import_inspect": (AW, ""),
+    "fees_import_run": (AW, ""),
 }
 
 
@@ -125,7 +127,10 @@ FIXTURE = Path(__file__).parent / "fixtures" / "Template 2-11-2026 (short tags).
 REDIRECTS = {"fees_landing", "fees_backup_restore", "fees_backup_restored", "fees_backup_cleared"}
 
 # Editor-only routes that also accept POST (the payment forms are RW: a Reader may open them, only an Editor saves) (the rest of the E routes are GET only).
-E_POST = {"fees_backup_restore", "fees_backup_clear", "fees_memo_move"}
+E_POST = {"fees_memo_move"}
+
+# Admin-only routes that take a POST from the Admin without a 403 or 405 (the GET-and-POST ones plus the POST-only ones).
+ADMIN_POST = {"fees_backup_restore", "fees_backup_clear", "fees_import_inspect", "fees_import_run"}
 
 
 def route_names():
@@ -169,7 +174,7 @@ class RouteTableTests(TestCase):
 
     def test_every_access_code_is_known(self):
         for name, (access, _query) in ROUTES.items():
-            self.assertIn(access, (R, RW, E, W, U), name)
+            self.assertIn(access, (R, RW, E, W, U, A, AW), name)
 
     def test_every_id_param_is_known(self):
         known = {"memo_id", "firm_id", "group_id", "matter_id", "payment_id", "account_id", "view_id"}
@@ -187,6 +192,9 @@ class PermissionBase(TestCase):
         self.reader = make_user("reader-p", self.profile, ROLE_READER)
         self.editor = make_user("editor-p", self.profile, ROLE_EDITOR)
         self.outsider = make_user("outsider-p")
+        self.admin = make_user("admin-p", self.profile, ROLE_EDITOR)
+        self.admin.is_superuser = True
+        self.admin.save()
         self.other_profile = Profile.objects.create(program=KEY_FEES, name="Other-Perm")
         self.other_seed = xs.seed_web_data(self.other_profile)
         xs.statistics_on(self.profile)
@@ -205,7 +213,7 @@ class PermissionBase(TestCase):
     def request(self, name, ids):
         """GET for every route a GET can reach, POST for a POST-only route."""
         url = self.url(name, ids)
-        if ROUTES[name][0] == W:
+        if ROUTES[name][0] in (W, AW):
             return self.client.post(url, {})
         return self.client.get(url)
 
@@ -243,7 +251,7 @@ class RoleTests(PermissionBase):
     def test_a_reader_is_refused_every_editor_only_route_and_every_write(self):
         self.client.force_login(self.reader)
         for name, (access, _query) in ROUTES.items():
-            if access in (E, W):
+            if access in (E, W, A, AW):
                 self.assertEqual(self.request(name, self.mine).status_code, 403, name)
             if access not in (R, U):
                 self.assertEqual(self.client.post(self.url(name, self.mine), {}).status_code, 403, name)
@@ -259,7 +267,11 @@ class RoleTests(PermissionBase):
     def test_an_editor_gets_every_page_and_export(self):
         self.client.force_login(self.editor)
         for name, (access, _query) in ROUTES.items():
-            if access != W:
+            if access in (W, AW):
+                continue
+            if access == A:
+                self.assertEqual(self.request(name, self.mine).status_code, 403, name)
+            else:
                 self.assertEqual(self.request(name, self.mine).status_code, self.expected_get(name), name)
 
     def test_an_editor_is_not_refused_on_any_write(self):
@@ -276,6 +288,37 @@ class RoleTests(PermissionBase):
                 self.assertNotEqual(response.status_code, 405, name)
                 if response.status_code == 302:
                     self.assertNotIn(reverse("login"), response["Location"], name)
+
+    def test_an_editor_is_refused_every_admin_only_route_on_get_and_post(self):
+        self.client.force_login(self.editor)
+        for name, (access, _query) in ROUTES.items():
+            if access in (A, AW):
+                self.assertEqual(self.client.post(self.url(name, self.mine), {}).status_code, 403, name)
+                self.assertEqual(self.client.get(self.url(name, self.mine)).status_code, 403, name)
+
+    def test_the_admin_gets_every_admin_only_route(self):
+        self.client.force_login(self.admin)
+        for name, (access, _query) in ROUTES.items():
+            if access == A:
+                self.assertEqual(self.request(name, self.mine).status_code, self.expected_get(name), name)
+
+    def test_the_admin_is_not_refused_on_an_admin_only_post(self):
+        self.client.force_login(self.admin)
+        with mock.patch("fees.services.excel_restore._default_backup", return_value=None), mock.patch(
+            "fees.services.clear_all._default_backup", return_value=None
+        ):
+            for name in sorted(ADMIN_POST):
+                response = self.client.post(self.url(name, self.mine), {})
+                self.assertNotEqual(response.status_code, 403, name)
+                self.assertNotEqual(response.status_code, 405, name)
+                if response.status_code == 302:
+                    self.assertNotIn(reverse("login"), response["Location"], name)
+
+    def test_an_admin_only_post_route_refuses_get_for_the_admin(self):
+        self.client.force_login(self.admin)
+        for name, (access, _query) in ROUTES.items():
+            if access == AW:
+                self.assertEqual(self.client.get(self.url(name, self.mine)).status_code, 405, name)
 
     def test_a_post_only_route_refuses_get_for_an_editor(self):
         self.client.force_login(self.editor)

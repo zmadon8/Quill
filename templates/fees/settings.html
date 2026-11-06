@@ -111,12 +111,13 @@
 <div class="settings-panel" id="settings-data" data-settings-panel="data">
 {% if can_edit %}
 <section class="card settings-card" aria-labelledby="data-h"><h2 id="data-h">Backup and import</h2>
-  <p><a href="{% url 'fees_backup' %}">Backup, restore and clear</a> | <a href="{% url 'fees_import' %}">Import memos</a></p>
+  {% if user.is_admin %}<p><a href="{% url 'fees_backup' %}">Backup, restore and clear</a> | <a href="{% url 'fees_import' %}">Import memos</a></p>
+  {% else %}<p><a href="{% url 'fees_backup' %}">Download a backup</a></p>{% endif %}
 </section>
-<section class="danger-zone settings-card" aria-labelledby="danger-h"><h2 id="danger-h">Danger zone</h2>
+{% if user.is_admin %}<section class="danger-zone settings-card" aria-labelledby="danger-h"><h2 id="danger-h">Danger zone</h2>
   <p>Clear All Data removes every firm, matter and memo in this profile. Take a backup first.</p>
   <p><a class="button" href="{% url 'fees_backup' %}#clear">Clear All Data</a></p>
-</section>
+</section>{% endif %}
 {% else %}<p class="muted">Backup and import are for editors.</p>{% endif %}
 </div>
 

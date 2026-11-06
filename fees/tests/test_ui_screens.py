@@ -11,7 +11,7 @@ from django.urls import get_resolver, reverse
 
 from fees.services.excel_restore import RESTORE_CONFIRMATION
 from fees.tests.test_ui_pages import EM_DASH, UiPageBase
-from fees.tests.test_view_permissions import ROUTES, RW
+from fees.tests.test_view_permissions import A, ROUTES, RW
 
 # Screens a signed-in user opens with GET, as (url name, needs an id of this kind, query, editor only).
 SCREENS = (
@@ -119,7 +119,8 @@ class EveryScreenTests(UiPageBase):
 
     def test_every_screen_renders_for_an_editor(self):
         for name, kind, query, _editor_only in SCREENS:
-            text = self.render(name, kind, query, self.editor)
+            # Import and clear-all are Admin only, so the Admin renders those.
+            text = self.render(name, kind, query, self.admin if ROUTES[name][0] == A else self.editor)
             self.check_structure(text, name)
 
     def test_reader_screens_render_for_a_reader(self):
@@ -151,7 +152,7 @@ class ResultScreenTests(UiPageBase):
     CSV = b"Firm name,Matter name\nFirm One,Matter One\n"
 
     def post(self, name, data):
-        self.login(self.editor)
+        self.login(self.admin)  # import, restore and clear-all are Admin only
         return self.client.post(reverse(name), data)
 
     def test_import_map_and_result(self):
@@ -167,7 +168,7 @@ class ResultScreenTests(UiPageBase):
         self.assertNotIn(EM_DASH, text)
 
     def test_restore_preview_restored_and_cleared(self):
-        self.login(self.editor)
+        self.login(self.admin)
         workbook = self.body(self.client.get(reverse("fees_backup_download")))
         preview = self.post(
             "fees_backup_restore", {"action": "preview", "file": SimpleUploadedFile("backup.xlsx", workbook)}

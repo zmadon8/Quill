@@ -108,7 +108,7 @@ urlpatterns = [
     path("settings/statistics-grid/", views_settings.statistics_grid, name="fees_settings_statistics_grid"),
     # The signed-in user's own interface preferences (column widths): any role, never fee data
     path("prefs/", views_prefs.prefs_endpoint, name="fees_prefs"),
-    # Backup and import (Editor)
+    # Backup download (Editor); restore, clear-all and import (suite Admin only)
     path("backup/", views_backup.backup_page, name="fees_backup"),
     path("backup/download/", views_backup.backup_download, name="fees_backup_download"),
     path("backup/restore/", views_backup.restore, name="fees_backup_restore"),
