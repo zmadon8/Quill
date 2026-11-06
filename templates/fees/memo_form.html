@@ -13,7 +13,8 @@
 <form method="post" action="{{ request.path }}">
   {% csrf_token %}
   {% if based_on %}<input type="hidden" name="based_on" value="{{ based_on }}">{% endif %}
-  <p><label>Matter <select name="matter_id" required><option value="">Choose</option>{% for m in matter_choices %}<option value="{{ m.pk }}"{% if form.matter_id == m.pk|stringformat:"s" %} selected{% endif %}>{{ m.firm.name }}: {{ m.name }}</option>{% endfor %}</select></label></p>
+  {% if memo %}<p>Matter: {{ memo.firm_name }}: {{ memo.matter_name }}</p><input type="hidden" name="matter_id" value="{{ memo.matter_id }}">
+  {% else %}<p><label>Matter <select name="matter_id" required><option value="">Choose</option>{% for m in matter_choices %}<option value="{{ m.pk }}"{% if form.matter_id == m.pk|stringformat:"s" %} selected{% endif %}>{{ m.firm.name }}: {{ m.name }}</option>{% endfor %}</select></label></p>{% endif %}
   <p><label>Date <input type="date" name="date" value="{{ form.date }}"></label>
      {% if not memo or not memo.is_draft %}<label>Custom number (leave blank for the next number) <input type="text" name="custom_memo_number" value="{{ form.custom_memo_number }}" maxlength="100"></label>{% endif %}</p>
   <p><label>Addressee <input type="text" name="addressee_line1" value="{{ form.addressee_line1 }}" size="50"></label></p>

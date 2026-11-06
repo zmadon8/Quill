@@ -3,10 +3,12 @@
 Thin views: they read through ``fees.services`` and hand the result to a template. No view bumps
 ``data_version``; the services do that when they write.
 """
+from django.contrib import messages
 from django.shortcuts import redirect
+from django.views.decorators.http import require_GET, require_POST
 
 from fees import scope
-from fees.decorators import fees_reader, handle_fees_errors
+from fees.decorators import fees_editor, fees_reader, handle_fees_errors
 from fees.pages import TAB_URL_NAMES, json_ok, render_page
 from fees.services import dashboard, memo_lists
 from fees.services import settings as settings_service
@@ -57,19 +59,42 @@ def dashboard_page(request):
             "summary": summary,
             "kpi_rows": _kpi_rows(kpis, chosen),
             "kpis_enabled": bool(config.get("dashboard_kpis_enabled", True)),
-            "kpi_ids": dashboard.KPI_IDS,
-            "chosen_kpis": chosen,
+            "kpi_choices": [
+                {"id": kpi, "label": kpi.replace("_", " ").capitalize(), "on": kpi in chosen}
+                for kpi in dashboard.KPI_IDS
+            ],
             "recent_matters": memo_lists.list_recent_matters(profile),
             "money_unit": config.get("money_unit", "full"),
         },
     )
 
 
+@fees_editor
+@handle_fees_errors()
+@require_POST
+def save_kpis(request):
+    """Save which Overview figures the Dashboard shows. Nothing ticked means all of them."""
+    profile, _settings = scope.context(request)
+    ticked = set(request.POST.getlist("kpi"))
+    chosen = [kpi for kpi in dashboard.KPI_IDS if kpi in ticked]
+    settings_service.update_settings(profile, {"dashboard_kpis": ",".join(chosen)})
+    messages.success(request, "Dashboard figures saved.")
+    return redirect("fees_dashboard")
+
+
 @fees_reader
 @handle_fees_errors(json=True)
-def kpis(request):
-    """JSON: every KPI and the saved selection. (Saving the selection is a POST, added with the write views.)"""
+@require_GET
+def kpi_json(request):
+    """JSON: every KPI and the saved selection."""
     profile, _settings = scope.context(request)
     config = settings_service.get_settings(profile)
     values = dashboard.get_dashboard_kpis(profile, settings=config)
     return json_ok({"kpis": values, "selected": selected_kpis(config), "enabled": bool(config["dashboard_kpis_enabled"])})
+
+
+def kpis(request):
+    """``dashboard/kpis/``: GET is the JSON for any role, POST saves the selection (Editor)."""
+    if request.method == "POST":
+        return save_kpis(request)
+    return kpi_json(request)

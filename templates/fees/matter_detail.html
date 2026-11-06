@@ -5,6 +5,7 @@
 <h1>{{ matter.name }}{% if matter.is_archived %} (archived){% endif %}</h1>
 <p><a href="{% url 'fees_firm_detail' matter.firm_id %}">{{ matter.firm.name }}</a> | {{ matter.group.name }} | <a href="{% url 'fees_matter_statement' matter.pk %}">Statement</a> | <a href="{% url 'fees_matter_ledger' matter.pk %}">Ledger</a>{% if can_edit %} | <a href="{% url 'fees_matter_edit' matter.pk %}">Edit</a>{% if not matter.is_archived %} | <a href="{% url 'fees_memo_new' %}?matter={{ matter.pk }}">New memo</a>{% endif %}{% endif %}</p>
 {% if matter.notes %}<p>{{ matter.notes|linebreaksbr }}</p>{% endif %}
+{% if can_edit %}<form method="post" action="{% url 'fees_matter_archive' matter.pk %}">{% csrf_token %}{% if matter.is_archived %}<input type="hidden" name="archive" value="0"><button type="submit">Make this matter active</button>{% else %}<input type="hidden" name="archive" value="1"><button type="submit">Archive this matter</button>{% endif %}</form>{% endif %}
 <h2>Memos</h2>
 {% include "fees/_memo_table.html" %}
 {% endblock %}

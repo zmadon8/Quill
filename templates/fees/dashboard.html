@@ -22,6 +22,14 @@
   <tbody>{% for k in kpi_rows %}<tr><th scope="row">{{ k.label }}</th><td>{% if k.money %}{{ k.value|fees_money:money_unit }}{% else %}{{ k.value }}{% endif %}</td></tr>{% endfor %}</tbody>
 </table>
 {% endif %}
+{% if can_edit and kpis_enabled %}
+<form method="post" action="{% url 'fees_dashboard_kpis' %}">{% csrf_token %}
+  <fieldset><legend>Figures to show in the overview</legend>
+  {% for k in kpi_choices %}<label><input type="checkbox" name="kpi" value="{{ k.id }}"{% if k.on %} checked{% endif %}> {{ k.label }}</label>
+  {% endfor %}</fieldset>
+  <button type="submit">Save figures</button>
+</form>
+{% endif %}
 <h2>Recent matters</h2>
 <table class="ledger-table">
   <thead><tr><th>Matter</th><th>Firm</th><th>Last memo</th><th>Date</th><th>Memos</th></tr></thead>

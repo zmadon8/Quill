@@ -8,7 +8,10 @@ import datetime
 from decimal import Decimal, InvalidOperation
 
 from fees.errors import FeesError
+from fees.models import Matter, Memo, Payment
 from fees.services import matters as matter_service
+from fees.services import payments as payment_service
+from fees.services.memo_numbers import find_memo_id_by_number
 
 #: The text fields of a memo form, in page order.
 MEMO_TEXT_FIELDS = (
@@ -94,6 +97,12 @@ def memo_form_from_detail(detail):
 # ---------------------------------------------------------------------------
 
 
+#: Largest money figure a form accepts (the money columns hold 14 digits, two after the point).
+MAX_AMOUNT = Decimal(10) ** 11
+#: Largest count (appearances, conferences, drafts) a form accepts.
+MAX_COUNT = 1_000_000
+
+
 def parse_date(text, label="Date"):
     """A real ``YYYY-MM-DD`` date from ``text``, or ``None`` when blank. Anything else is ``INVALID_DATE`` (422)."""
     value = (text or "").strip()
@@ -116,8 +125,8 @@ def parse_decimal(text, label="Amount", required=False):
         number = Decimal(value)
     except InvalidOperation as exc:
         raise FeesError("INVALID_NUMBER", f"{label} must be a number.") from exc
-    if not number.is_finite():
-        raise FeesError("INVALID_NUMBER", f"{label} must be a number.")
+    if not number.is_finite() or abs(number) >= MAX_AMOUNT:
+        raise FeesError("INVALID_NUMBER", f"{label} must be a number below {MAX_AMOUNT:,}.")
     return number
 
 
@@ -127,9 +136,12 @@ def parse_int(text, label="Number", default=0):
     if not value:
         return default
     try:
-        return int(value)
+        number = int(value)
     except ValueError as exc:
         raise FeesError("INVALID_NUMBER", f"{label} must be a whole number.") from exc
+    if number < 0 or number > MAX_COUNT:
+        raise FeesError("INVALID_NUMBER", f"{label} must be between 0 and {MAX_COUNT:,}.")
+    return number
 
 
 # ---------------------------------------------------------------------------
@@ -189,3 +201,174 @@ def payment_form_from_dto(dto):
         "payment_details": _text(dto.get("payment_details")),
         "rows": _padded(rows),
     }
+
+
+# ---------------------------------------------------------------------------
+# Reading a submitted form into the dict a service takes
+# ---------------------------------------------------------------------------
+
+
+def clean_text(post, name, model, label=None):
+    """The posted text for ``name``, checked against the model field's length. Blank is ``""``."""
+    value = (post.get(name) or "").replace("\r\n", "\n")
+    if name not in ("additional_details_left", "additional_details_right", "notes", "payment_details",
+                    "dates_of_appearances", "dates_of_conferences", "misc_drafting_description"):
+        value = value.strip()
+    limit = model._meta.get_field(name).max_length
+    if limit is not None and len(value) > limit:
+        raise FeesError("INVALID_TEXT", f"{label or name.replace('_', ' ').capitalize()} must be at most {limit} characters.")
+    return value
+
+
+def memo_data_from_post(post):
+    """The memo dict for ``memos.create_memo`` / ``update_memo`` from a submitted memo form.
+
+    The form carries counts and rates only; the total is worked out by the service. A blank override means no
+    override (``None``).
+    """
+    matter_id = (post.get("matter_id") or "").strip()
+    data = {
+        "date": parse_date(post.get("date")),
+        "matter_id": int(matter_id) if matter_id.isdigit() else None,
+        "custom_memo_number": (post.get("custom_memo_number") or "").strip(),
+    }
+    for name in MEMO_TEXT_FIELDS:
+        data[name] = clean_text(post, name, Memo)
+    for name in MEMO_COUNT_FIELDS:
+        data[name] = parse_int(post.get(name), name.replace("_", " ").capitalize())
+    for name in MEMO_RATE_FIELDS:
+        data[name] = parse_decimal(post.get(name), name.replace("_", " ").capitalize()) or Decimal("0")
+    for name in MEMO_CUSTOM_FIELDS:
+        data[name] = parse_decimal(post.get(name), name.replace("_", " ").capitalize())
+    return data
+
+
+def payment_data_from_post(post, profile, bank_ids):
+    """The payment dict for ``payments.add_payment`` / ``update_payment`` from a submitted payment form.
+
+    ``bank_ids`` are the ids of the profile's own bank accounts. Memo rows are matched by memo number. A single
+    row with no amount takes the payment amount and the payment TDS; with several rows each needs an amount.
+    ``allocations`` is always present, so an edit with every row blank makes the payment unaccounted.
+    """
+    amount = parse_decimal(post.get("amount"), "Amount received", required=True)
+    rate = parse_decimal(post.get("tds_rate"), "TDS rate") or Decimal("0")
+    auto_tds = (post.get("auto_tds") or "") == "1"
+    tds_entered = parse_decimal(post.get("tds_amount"), "TDS amount")
+    bank = (post.get("bank_account_id") or "").strip()
+    if bank and (not bank.isdigit() or int(bank) not in bank_ids):
+        raise FeesError("INVALID_PAYMENT", "Choose one of your own bank accounts.")
+    data = {
+        "amount": amount,
+        "tds_rate": rate,
+        "auto_tds": auto_tds,
+        "tds_amount": tds_entered,
+        "date_of_payment": parse_date(post.get("date_of_payment"), "Date of payment"),
+        "payee": clean_text(post, "payee", Payment),
+        "bank_account_id": int(bank) if bank else None,
+        "payment_mode": clean_text(post, "payment_mode", Payment),
+        "payment_details": clean_text(post, "payment_details", Payment),
+    }
+    rows = []
+    for i in range(PAYMENT_ROWS):
+        number = (post.get(f"alloc_memo_{i}") or "").strip()
+        row_amount = parse_decimal(post.get(f"alloc_amount_{i}"), "Memo amount")
+        row_tds = parse_decimal(post.get(f"alloc_tds_{i}"), "Memo TDS")
+        if not number and row_amount is None and row_tds is None:
+            continue
+        memo_id = find_memo_id_by_number(profile, number)
+        if memo_id is None:
+            raise FeesError("INVALID_PAYMENT", f'There is no numbered memo "{number}".')
+        rows.append({"memo_id": memo_id, "amount": row_amount, "tds_amount": row_tds})
+    if len(rows) == 1:
+        if rows[0]["amount"] is None and amount is not None:
+            rows[0]["amount"] = amount
+        if rows[0]["tds_amount"] is None and amount is not None:
+            rows[0]["tds_amount"] = payment_service.resolve_tds_amount(amount, rate, auto_tds, tds_entered)
+    for row in rows:
+        if row["amount"] is None:
+            raise FeesError("INVALID_PAYMENT", "Enter an amount for each memo.")
+    data["allocations"] = rows
+    return data
+
+
+def echo_form(post, names):
+    """The submitted values for ``names`` as a form dict (so a failed save shows what the user typed)."""
+    return {name: post.get(name, "") for name in names}
+
+
+def matter_data_from_post(post):
+    """``(name, group_id, firm_id, memo_defaults)`` from a submitted matter form."""
+    defaults = {}
+    for name in matter_service.MEMO_DEFAULT_FIELDS:
+        if name == "addressee_use_firm_name":
+            defaults[name] = (post.get(name) or "") == "1"
+        else:
+            defaults[name] = clean_text(post, name, Matter)
+    firm = (post.get("firm_id") or "").strip()
+    group = (post.get("group_id") or "").strip()
+    return (
+        clean_text(post, "name", Matter, "Name"),
+        int(group) if group.isdigit() else None,
+        int(firm) if firm.isdigit() else None,
+        defaults,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Settings
+# ---------------------------------------------------------------------------
+
+#: Settings keys that are on/off switches (a form sends a hidden ``0`` before the box, so the last value wins).
+SETTINGS_FLAGS = (
+    "hide_payment_when_paid",
+    "default_lines_enabled",
+    "show_status_dots",
+    "statistics_enabled",
+    "dashboard_kpis_enabled",
+)
+#: Settings keys that are text or choices (passed through as typed; the service validates them).
+SETTINGS_TEXT = (
+    "default_court_name",
+    "default_additional_details_left",
+    "default_additional_details_right",
+    "default_tab",
+    "initial_financial_year",
+    "memos_start_year",
+    "feebook_start_year",
+    "money_unit",
+    "money_suffix_thousands",
+    "money_suffix_lac",
+    "money_suffix_crore",
+    "default_payment_amount",
+    "export_owner_name",
+    "memo_filename_pattern",
+    "memo_default_name",
+    "memo_default_designation",
+    "memo_default_address",
+    "memo_default_bank_details",
+    "memo_default_pan",
+)
+#: Settings keys that are numbers (blank resets the field to its default).
+SETTINGS_NUMBERS = (
+    "default_fees_per_appearance",
+    "default_fees_per_conference",
+    "default_fees_misc_drafting",
+    "default_tds_rate",
+    "overdue_days",
+)
+
+
+def settings_data_from_post(post):
+    """The partial settings dict for ``settings.update_settings``: only keys present in the form are included."""
+    data = {}
+    for name in SETTINGS_FLAGS:
+        if name in post:
+            data[name] = post.getlist(name)[-1] == "1"
+    for name in SETTINGS_TEXT:
+        if name in post:
+            data[name] = (post.get(name) or "").replace("\r\n", "\n")
+    for name in SETTINGS_NUMBERS:
+        if name in post:
+            value = (post.get(name) or "").strip()
+            data[name] = value or None
+    return data

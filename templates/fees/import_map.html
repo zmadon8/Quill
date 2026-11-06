@@ -1,0 +1,18 @@
+{% extends "fees/base_fees.html" %}
+{% block page_title %}Import - {{ program_label }}{% endblock %}
+{% block content %}
+<h1>Import {{ file_name }}</h1>
+<p>{{ info.row_count }} rows found. First rows:</p>
+<table class="ledger-table">
+  <thead><tr>{% for h in info.headers %}<th>{{ h }}</th>{% endfor %}</tr></thead>
+  <tbody>{% for row in info.sample_rows %}<tr>{% for cell in row %}<td>{{ cell }}</td>{% endfor %}</tr>{% endfor %}</tbody>
+</table>
+<form method="post" action="{% url 'fees_import_run' %}" enctype="multipart/form-data">{% csrf_token %}
+  <p><label>Choose the same file again <input type="file" name="file" accept=".xlsx,.csv" required></label></p>
+  {% for f in fields %}<p><label>{{ f.label }}{% if f.required %} (required){% endif %}
+    <select name="map_{{ f.id }}"><option value="">Not in the file</option>{% for h in info.headers %}<option value="{{ h }}"{% if h == f.guess %} selected{% endif %}>{{ h }}</option>{% endfor %}</select></label></p>
+  {% endfor %}
+  <p><label><input type="checkbox" name="auto_number" value="1"> Number the memos automatically</label></p>
+  <button type="submit">Import</button>
+</form>
+{% endblock %}

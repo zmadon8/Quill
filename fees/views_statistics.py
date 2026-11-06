@@ -1,12 +1,14 @@
 """Statistics: the period table, the pivot, saved views, the year-end page and the statistics exports."""
 import re
 
+from django.views.decorators.http import require_http_methods, require_POST
+
 from fees import scope
-from fees.decorators import fees_reader, handle_fees_errors
+from fees.decorators import fees_editor, fees_read_write, fees_reader, handle_fees_errors
 from fees.errors import FeesError
 from fees.exports import tax_summary, xlsx
 from fees.pages import TEXT_TYPE, XLSX_TYPE, file_response, flag, int_or_none, json_ok, render_page
-from fees.services import statistics
+from fees.services import firms, statistics
 from fees.services.financial_year import current_financial_year
 from fees.services.heavy import heavy_operation
 
@@ -118,12 +120,36 @@ def explore(request):
     return json_ok({"pivot": statistics.get_pivot(profile, req)})
 
 
-@fees_reader
+@fees_read_write
 @handle_fees_errors(json=True)
+@require_http_methods(["GET", "POST"])
 def saved_views(request):
-    """JSON: the saved pivot views. (Creating one is a POST, added with the write views.)"""
+    """JSON: the saved pivot views (GET); save a new one (POST, Editor)."""
     profile, _settings = scope.context(request)
+    if request.method == "POST":
+        post = request.POST
+        view_input = {
+            "name": post.get("name", ""),
+            "measure": (post.get("measure") or "").strip(),
+            "row_dim": (post.get("row_dim") or "").strip(),
+            "col_dim": (post.get("col_dim") or "").strip(),
+            "from_fy": financial_year_param(post, "from_fy", default=False) or "",
+            "to_fy": financial_year_param(post, "to_fy", default=False) or "",
+        }
+        firm_id = int_or_none(post.get("firm_id"))
+        if firm_id is not None:
+            firms.get_firm(profile, firm_id)  # another profile's firm is a 404
+            view_input["firm_id"] = firm_id
+        return json_ok({"views": statistics.save_saved_view(profile, view_input)}, status=201)
     return json_ok({"views": statistics.list_saved_views(profile)})
+
+
+@fees_editor
+@handle_fees_errors(json=True)
+@require_POST
+def saved_view_delete(request, view_id):
+    profile, _settings = scope.context(request)
+    return json_ok({"views": statistics.delete_saved_view(profile, view_id)})
 
 
 @fees_reader

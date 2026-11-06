@@ -5,4 +5,14 @@
 <p><a href="{% url 'fees_settings' %}">Settings</a></p>
 <h2>Download a backup</h2>
 <p><a href="{% url 'fees_backup_download' %}">Download an Excel backup</a>. It holds every firm, matter, memo and payment, including payment notes.</p>
+<h2>Restore from an Excel backup</h2>
+<p>Restoring replaces all of your data with the file. A safety backup is made first. You will see what the file holds before anything changes.</p>
+<form method="post" action="{% url 'fees_backup_restore' %}" enctype="multipart/form-data">{% csrf_token %}
+  <input type="hidden" name="action" value="preview">
+  <label>Backup file (.xlsx) <input type="file" name="file" accept=".xlsx" required></label>
+  <button type="submit">Check the file</button>
+</form>
+<h2>Clear all data</h2>
+<p>Deletes every firm, matter, memo and payment, and resets the settings. A safety backup is made first.</p>
+<p><a href="{% url 'fees_backup_clear' %}">Clear all data</a></p>
 {% endblock %}

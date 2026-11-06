@@ -5,7 +5,11 @@
 <p><a href="{% url 'fees_firms' %}">Firms</a> | <a href="{% url 'fees_firm_statement' firm.pk %}">Statement</a> | <a href="{% url 'fees_firm_ledger' firm.pk %}">Ledger</a>{% if can_edit %} | <a href="{% url 'fees_firm_edit' firm.pk %}">Edit</a> | <a href="{% url 'fees_matter_new' %}?firm={{ firm.pk }}">New matter</a>{% endif %}</p>
 {% if firm.notes %}<p>{{ firm.notes|linebreaksbr }}</p>{% endif %}
 <h2>Groups</h2>
-<ul>{% for g in groups %}<li>{{ g.name }}</li>{% endfor %}</ul>
+<ul>{% for g in groups %}<li>{{ g.name }}
+  {% if can_edit %}<form method="post" action="{% url 'fees_group_rename' firm.pk g.pk %}" class="inline">{% csrf_token %}<input type="text" name="name" value="{{ g.name }}" aria-label="New name for {{ g.name }}"> <button type="submit">Rename</button></form>
+  <form method="post" action="{% url 'fees_group_remove' firm.pk g.pk %}" class="inline">{% csrf_token %}<button type="submit">Remove</button></form>{% endif %}</li>{% endfor %}</ul>
+{% if can_edit %}<form method="post" action="{% url 'fees_group_add' firm.pk %}">{% csrf_token %}<label>New group <input type="text" name="name" maxlength="200" required></label> <button type="submit">Add group</button></form>
+<form method="post" action="{% url 'fees_firm_status' firm.pk %}">{% csrf_token %}{% if firm.status == 'archived' %}<input type="hidden" name="status" value="active"><button type="submit">Make this firm active</button>{% else %}<input type="hidden" name="status" value="archived"><button type="submit">Archive this firm</button>{% endif %}</form>{% endif %}
 <h2>Matters</h2>
 <table class="ledger-table">
   <thead><tr><th>Matter</th><th>Status</th></tr></thead>

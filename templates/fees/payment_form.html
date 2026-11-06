@@ -21,4 +21,10 @@
   </fieldset>
   <p><button type="submit">Save</button> <a href="{% if memo_id %}{% url 'fees_memo_detail' memo_id %}{% else %}{% url 'fees_feebook' %}{% endif %}">Cancel</a></p>
 </form>
+{% if payment %}
+<form method="post" action="{% url 'fees_payment_delete' payment.id %}">{% csrf_token %}
+  <label><input type="checkbox" name="confirm" value="1" required> Yes, delete this payment</label>
+  <button type="submit">Delete payment</button>
+</form>
+{% endif %}
 {% endblock %}

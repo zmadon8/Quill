@@ -1,17 +1,25 @@
-"""Settings page, the Word template and signature downloads, the file-name preview and the statistics grid."""
+"""Settings page and its saves, bank accounts, the Word template and signature (upload and download), the
+file-name preview and the statistics grid."""
 import datetime
 from types import SimpleNamespace
 
-from django.views.decorators.http import require_GET
+from django.contrib import messages
+from django.http import Http404
+from django.shortcuts import redirect
+from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
-from fees import scope
-from fees.decorators import fees_read_write, fees_reader, handle_fees_errors
+from fees import forms, scope
+from fees.decorators import fees_editor, fees_read_write, fees_reader, handle_fees_errors
+from fees.errors import FeesError
 from fees.exports.filenames import memo_export_filename, validate_pattern
-from fees.models import Memo
+from fees.models import BankAccount, Memo
 from fees.pages import DOCX_TYPE, bytes_response, json_ok, render_page
 from fees.services import settings as settings_service
 from fees.services import statistics, word_template
 from fees.views_statistics import financial_year_param
+
+#: Largest Word template accepted (the template prepare step has its own, tighter limits).
+MAX_TEMPLATE_UPLOAD = 20 * 1024 * 1024
 
 DEFAULT_TAB_CHOICES = ("memos", "dashboard", "statistics", "firms", "feebook", "outstanding", "settings")
 PAYMENT_AMOUNT_CHOICES = (("zero", "Blank"), ("full", "Full amount due"), ("netOfTds", "Amount due less TDS"))
@@ -32,10 +40,93 @@ def settings_context(profile):
 
 @fees_read_write
 @handle_fees_errors()
-@require_GET
+@require_http_methods(["GET", "POST"])
 def settings_page(request):
     profile, _settings = scope.context(request)
+    if request.method == "POST":
+        try:
+            settings_service.update_settings(profile, forms.settings_data_from_post(request.POST))
+        except FeesError as err:
+            if err.status == 404:
+                raise Http404(err.message) from err
+            context = settings_context(profile)
+            context["errors"] = [err.message]
+            return render_page(request, "fees/settings.html", context, status=err.status)
+        messages.success(request, "Settings saved.")
+        return redirect("fees_settings")
     return render_page(request, "fees/settings.html", settings_context(profile))
+
+
+def _bank_account_or_404(profile, account_id):
+    if not BankAccount.objects.filter(profile=profile, pk=account_id).exists():
+        raise Http404("Bank account not found")
+
+
+@fees_editor
+@handle_fees_errors(fallback="fees_settings")
+@require_POST
+def bank_account_add(request):
+    profile, _settings = scope.context(request)
+    settings_service.add_bank_account(profile, request.POST.get("name", ""))
+    messages.success(request, "Bank account added.")
+    return redirect("fees_settings")
+
+
+@fees_editor
+@handle_fees_errors(fallback="fees_settings")
+@require_POST
+def bank_account_rename(request, account_id):
+    profile, _settings = scope.context(request)
+    _bank_account_or_404(profile, account_id)
+    settings_service.update_bank_account(profile, account_id, request.POST.get("name", ""))
+    messages.success(request, "Bank account renamed.")
+    return redirect("fees_settings")
+
+
+@fees_editor
+@handle_fees_errors(fallback="fees_settings")
+@require_POST
+def bank_account_delete(request, account_id):
+    profile, _settings = scope.context(request)
+    _bank_account_or_404(profile, account_id)
+    settings_service.delete_bank_account(profile, account_id)
+    messages.success(request, "Bank account removed.")
+    return redirect("fees_settings")
+
+
+def _uploaded(request, limit, message):
+    """``(file name, bytes, content type)`` of the ``file`` upload, read at most ``limit`` bytes plus one."""
+    upload = request.FILES.get("file")
+    if upload is None:
+        raise FeesError("INVALID_UPLOAD", "Choose a file to upload.")
+    data = upload.read(limit + 1)
+    if len(data) > limit:
+        raise FeesError("INVALID_UPLOAD", message)
+    return upload.name, data, upload.content_type
+
+
+@fees_editor
+@handle_fees_errors(fallback="fees_settings")
+@require_POST
+def template_upload(request):
+    profile, _settings = scope.context(request)
+    name, data, _type = _uploaded(request, MAX_TEMPLATE_UPLOAD, "The template is larger than 20 MB.")
+    word_template.upload_template(profile, name, data)
+    messages.success(request, "Word template saved.")
+    return redirect("fees_settings")
+
+
+@fees_editor
+@handle_fees_errors(fallback="fees_settings")
+@require_POST
+def signature_upload(request):
+    profile, _settings = scope.context(request)
+    name, data, content_type = _uploaded(
+        request, word_template.MAX_SIGNATURE_BYTES, "The signature image is larger than 2 MB."
+    )
+    word_template.upload_signature(profile, name, content_type, data)
+    messages.success(request, "Signature image saved.")
+    return redirect("fees_settings")
 
 
 @fees_reader
@@ -92,11 +183,36 @@ def filename_preview(request):
     )
 
 
+def _optional(text, parse):
+    value = (text or "").strip()
+    return parse(value) if value else None
+
+
 @fees_read_write
 @handle_fees_errors(json=True)
-@require_GET
+@require_http_methods(["GET", "POST"])
 def statistics_grid(request):
-    """JSON: the month-by-month adjustments of one financial year. (Saving one is a POST, added with the write views.)"""
+    """JSON: the month-by-month adjustments of one financial year (GET); save one month (POST, Editor)."""
     profile, _settings = scope.context(request)
+    if request.method == "POST":
+        post = request.POST
+        month = forms.parse_int(post.get("month"), "Month", default=0)
+        if not 1 <= month <= 12:
+            raise FeesError("INVALID_MONTH", "Month must be from 1 to 12.")
+        fy = financial_year_param(post)
+        adjustment = {
+            "financial_year": fy,
+            "month": month,
+            "working_days": forms.parse_int(post.get("working_days"), "Working days"),
+            "extra_appearances": forms.parse_int(post.get("extra_appearances"), "Extra appearances"),
+            "extra_conferences": forms.parse_int(post.get("extra_conferences"), "Extra conferences"),
+            "extra_drafts": forms.parse_int(post.get("extra_drafts"), "Extra drafts"),
+        }
+        for key in ("override_appearances", "override_conferences", "override_drafts"):
+            adjustment[key] = _optional(post.get(key), lambda v, k=key: forms.parse_int(v, k))
+        for key in ("override_billed", "override_received", "override_received_plus_tds"):
+            adjustment[key] = forms.parse_decimal(post.get(key), key)
+        statistics.save_adjustment(profile, adjustment)
+        return json_ok({"financial_year": fy, "adjustments": statistics.list_adjustments(profile, fy)})
     fy = financial_year_param(request.GET)
     return json_ok({"financial_year": fy, "adjustments": statistics.list_adjustments(profile, fy)})

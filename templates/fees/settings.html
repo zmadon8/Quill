@@ -18,9 +18,9 @@
     <p><label>Default TDS rate % <input type="text" name="default_tds_rate" value="{{ config.default_tds_rate }}" size="6"></label>
        <label>Overdue after (days) <input type="number" min="0" name="overdue_days" value="{{ config.overdue_days }}"></label>
        <label>Amount received starts as <select name="default_payment_amount">{% for value, label in payment_amount_choices %}<option value="{{ value }}"{% if config.default_payment_amount == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label></p>
-    <p><label><input type="checkbox" name="hide_payment_when_paid" value="1"{% if config.hide_payment_when_paid %} checked{% endif %}> Hide the payment button on paid memos</label>
-       <label><input type="checkbox" name="show_status_dots" value="1"{% if config.show_status_dots %} checked{% endif %}> Show status markers</label>
-       <label><input type="checkbox" name="default_lines_enabled" value="1"{% if config.default_lines_enabled %} checked{% endif %}> Fee lines on by default</label></p>
+    <p><label><input type="hidden" name="hide_payment_when_paid" value="0"><input type="checkbox" name="hide_payment_when_paid" value="1"{% if config.hide_payment_when_paid %} checked{% endif %}> Hide the payment button on paid memos</label>
+       <label><input type="hidden" name="show_status_dots" value="0"><input type="checkbox" name="show_status_dots" value="1"{% if config.show_status_dots %} checked{% endif %}> Show status markers</label>
+       <label><input type="hidden" name="default_lines_enabled" value="0"><input type="checkbox" name="default_lines_enabled" value="1"{% if config.default_lines_enabled %} checked{% endif %}> Fee lines on by default</label></p>
   </fieldset>
   <fieldset><legend>Display</legend>
     <p><label>Opens on <select name="default_tab">{% for t in tab_choices %}<option value="{{ t }}"{% if config.default_tab == t %} selected{% endif %}>{{ t|capfirst }}</option>{% endfor %}</select></label>
@@ -31,8 +31,8 @@
     <p><label>Initial financial year <input type="text" name="initial_financial_year" value="{{ config.initial_financial_year }}" size="8"></label>
        <label>Memos from <input type="text" name="memos_start_year" value="{{ config.memos_start_year }}" size="8"></label>
        <label>Feebook from <input type="text" name="feebook_start_year" value="{{ config.feebook_start_year }}" size="8"></label></p>
-    <p><label><input type="checkbox" name="statistics_enabled" value="1"{% if config.statistics_enabled %} checked{% endif %}> Statistics page</label>
-       <label><input type="checkbox" name="dashboard_kpis_enabled" value="1"{% if config.dashboard_kpis_enabled %} checked{% endif %}> Dashboard overview</label></p>
+    <p><label><input type="hidden" name="statistics_enabled" value="0"><input type="checkbox" name="statistics_enabled" value="1"{% if config.statistics_enabled %} checked{% endif %}> Statistics page</label>
+       <label><input type="hidden" name="dashboard_kpis_enabled" value="0"><input type="checkbox" name="dashboard_kpis_enabled" value="1"{% if config.dashboard_kpis_enabled %} checked{% endif %}> Dashboard overview</label></p>
   </fieldset>
   <fieldset><legend>Word memo</legend>
     <p><label>Owner name in file names <input type="text" name="export_owner_name" value="{{ config.export_owner_name }}" maxlength="80"></label></p>
@@ -50,8 +50,20 @@
 <p>{% if template_info.has_template %}Template: {{ template_info.filename }} (<a href="{% url 'fees_template_download' %}">download</a>){% else %}No template uploaded.{% endif %}
    {% if template_info.has_signature %}Signature: {{ template_info.signature_filename }} (<a href="{% url 'fees_signature_download' %}">download</a>){% endif %}</p>
 
+{% if can_edit %}
+<form method="post" action="{% url 'fees_template_upload' %}" enctype="multipart/form-data">{% csrf_token %}
+  <label>Upload a Word template (.docx) <input type="file" name="file" accept=".docx" required></label> <button type="submit">Upload template</button>
+</form>
+<form method="post" action="{% url 'fees_signature_upload' %}" enctype="multipart/form-data">{% csrf_token %}
+  <label>Upload a signature image (PNG or JPEG, at most 2 MB) <input type="file" name="file" accept=".png,.jpg,.jpeg" required></label> <button type="submit">Upload signature</button>
+</form>
+{% endif %}
+
 <h2>Bank accounts</h2>
-<ul>{% for b in bank_accounts %}<li>{{ b.name }}</li>{% empty %}<li>None.</li>{% endfor %}</ul>
+<ul>{% for b in bank_accounts %}<li>{{ b.name }}
+  {% if can_edit %}<form method="post" action="{% url 'fees_bank_account_rename' b.pk %}" class="inline">{% csrf_token %}<input type="text" name="name" value="{{ b.name }}" aria-label="New name for {{ b.name }}"> <button type="submit">Rename</button></form>
+  <form method="post" action="{% url 'fees_bank_account_delete' b.pk %}" class="inline">{% csrf_token %}<button type="submit">Remove</button></form>{% endif %}</li>{% empty %}<li>None.</li>{% endfor %}</ul>
+{% if can_edit %}<form method="post" action="{% url 'fees_bank_account_add' %}">{% csrf_token %}<label>New bank account <input type="text" name="name" maxlength="200" required></label> <button type="submit">Add</button></form>{% endif %}
 
 {% if can_edit %}<p><a href="{% url 'fees_backup' %}">Backup, restore and clear</a> | <a href="{% url 'fees_import' %}">Import memos</a></p>{% endif %}
 {% endblock %}

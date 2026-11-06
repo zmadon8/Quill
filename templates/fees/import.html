@@ -3,4 +3,9 @@
 {% block content %}
 <h1>Import memos</h1>
 <p><a href="{% url 'fees_settings' %}">Settings</a></p>
+<p>Import firms, matters, memos and payments from an Excel (.xlsx) or CSV file. You choose which column is which on the next page. Importing the same file twice creates everything twice.</p>
+<form method="post" action="{% url 'fees_import_inspect' %}" enctype="multipart/form-data">{% csrf_token %}
+  <label>File (.xlsx or .csv) <input type="file" name="file" accept=".xlsx,.csv" required></label>
+  <button type="submit">Read the file</button>
+</form>
 {% endblock %}
