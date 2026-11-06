@@ -1,13 +1,14 @@
 {% extends "fees/base_fees.html" %}
 {% block page_title %}{% if firm %}Edit firm{% else %}New firm{% endif %} - {{ program_label }}{% endblock %}
+{% block crumb_nav %}{% if firm %}{% url 'fees_firm_detail' firm.pk as back %}{% include "fees/_back.html" with url=back label=firm.name %}{% else %}{% url 'fees_firms' as back %}{% include "fees/_back.html" with url=back label="Firms" %}{% endif %}{% endblock %}
 {% block content %}
 <h1>{% if firm %}Edit {{ firm.name }}{% else %}New firm{% endif %}</h1>
 {% if not can_edit %}<p class="muted">You can read this page but not save it.</p>{% endif %}
 {% include "fees/_form_errors.html" %}
-<form method="post" action="{{ request.path }}">
+<form method="post" action="{{ request.path }}" class="fees-form">
   {% csrf_token %}
   <p><label>Name <input type="text" name="name" value="{{ form.name }}" maxlength="200" required></label></p>
   {% if firm %}<p><label>Notes <textarea name="notes" rows="4" cols="50">{{ form.notes }}</textarea></label></p>{% endif %}
-  {% if can_edit %}<p><button type="submit">Save</button> <a href="{% if firm %}{% url 'fees_firm_detail' firm.pk %}{% else %}{% url 'fees_firms' %}{% endif %}">Cancel</a></p>{% endif %}
+  {% if can_edit %}<p><button type="submit" class="primary">Save</button> <a href="{% if firm %}{% url 'fees_firm_detail' firm.pk %}{% else %}{% url 'fees_firms' %}{% endif %}">Cancel</a></p>{% endif %}
 </form>
 {% endblock %}

@@ -271,3 +271,66 @@ class MemoScreenTests(UiPageBase):
         self.assert_no_unlabelled_controls(text, "detail-editor")
         draft = self.assert_page(self.page("fees_memo_detail", {"memo_id": i["draft"]}, user=self.editor), "detail-draft")
         self.assertIn(reverse("fees_memo_finalise", kwargs={"memo_id": i["draft"]}), draft)
+
+
+class FirmScreenTests(UiPageBase):
+    """T8.3: firms, firm page with its groups, matter page and the matter form (including a move)."""
+
+    def test_firm_list(self):
+        text = self.assert_page(self.page("fees_firms"), "firms")
+        self.assertIn('<th scope="col">Firm</th>', text)
+        self.assertIn('aria-label="Show firms"', text)
+        self.assertNotIn(reverse("fees_firm_new"), text)
+        editor = self.html(self.page("fees_firms", user=self.editor))
+        self.assertIn('href="%s"' % reverse("fees_firm_new"), editor)
+
+    def test_firm_page_for_a_reader_has_no_edit_controls(self):
+        i = self.ids()
+        text = self.assert_page(self.page("fees_firm_detail", {"firm_id": i["firm"]}), "firm")
+        self.assertIn('aria-labelledby="groups-heading"', text)
+        self.assertIn('class="breadcrumb" aria-label="Back"', text)
+        self.assertNotIn("/groups/add/", text)
+        self.assertNotIn("/rename/", text)
+        self.assertNotIn("/remove/", text)
+        self.assertNotIn(reverse("fees_firm_status", kwargs={"firm_id": i["firm"]}), text)
+        self.assertNotIn(reverse("fees_firm_edit", kwargs={"firm_id": i["firm"]}), text)
+
+    def test_firm_page_for_an_editor_has_the_groups_panel(self):
+        i = self.ids()
+        text = self.assert_page(self.page("fees_firm_detail", {"firm_id": i["firm"]}, user=self.editor), "firm-editor")
+        self.assertIn(reverse("fees_group_add", kwargs={"firm_id": i["firm"]}), text)
+        self.assertIn("aria-label=\"New name for group ", text)
+        self.assertIn(reverse("fees_firm_status", kwargs={"firm_id": i["firm"]}), text)
+        self.assert_no_unlabelled_controls(text, "firm-editor")
+
+    def test_firm_forms(self):
+        i = self.ids()
+        new = self.assert_page(self.page("fees_firm_new", user=self.editor), "firm-new")
+        self.assertIn('name="name"', new)
+        edit = self.assert_page(self.page("fees_firm_edit", {"firm_id": i["firm"]}, user=self.editor), "firm-edit")
+        self.assertIn('name="notes"', edit)
+        self.assert_no_unlabelled_controls(edit, "firm-edit")
+        reader = self.assert_page(self.page("fees_firm_edit", {"firm_id": i["firm"]}), "firm-edit-reader")
+        self.assertNotIn(">Save</button>", reader)
+
+    def test_matter_page(self):
+        i = self.ids()
+        text = self.assert_page(self.page("fees_matter_detail", {"matter_id": i["matter"]}), "matter")
+        self.assertIn('data-fees-columns="matter-memos"', text)
+        self.assertNotIn(reverse("fees_matter_archive", kwargs={"matter_id": i["matter"]}), text)
+        editor = self.assert_page(self.page("fees_matter_detail", {"matter_id": i["matter"]}, user=self.editor), "matter-editor")
+        self.assertIn(reverse("fees_matter_archive", kwargs={"matter_id": i["matter"]}), editor)
+        self.assertIn("Edit or move matter", editor)
+
+    def test_matter_form_new_and_move(self):
+        i = self.ids()
+        new = self.assert_page(self.page("fees_matter_new", user=self.editor), "matter-new")
+        self.assert_no_unlabelled_controls(new, "matter-new")
+        edit = self.assert_page(self.page("fees_matter_edit", {"matter_id": i["matter"]}, user=self.editor), "matter-edit")
+        self.assertIn("change to move this matter", edit)
+        self.assertIn('aria-label="Move to another firm"', edit)
+        self.assert_no_unlabelled_controls(edit, "matter-edit")
+        other = self.seed["firm_b"].pk
+        query = "?firm=%d" % other
+        moved = self.assert_page(self.page("fees_matter_edit", {"matter_id": i["matter"]}, query=query, user=self.editor), "matter-move")
+        self.assertIn('name="firm_id" value="%d"' % other, moved)
