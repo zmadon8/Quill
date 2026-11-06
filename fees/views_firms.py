@@ -14,14 +14,19 @@ from fees.services import firms
 STATUS_FILTERS = ("all", "active", "archived")
 
 
+def default_list_filter(settings):
+    """The Firms / matters default when the URL names no filter: the Settings choice (all or active)."""
+    return "active" if getattr(settings, "list_default_filter", "all") == "active" else "all"
+
+
 @fees_reader
 @handle_fees_errors()
 @require_safe
 def firm_list(request):
-    profile, _settings = scope.context(request)
-    status = request.GET.get("status", "all")
+    profile, settings = scope.context(request)
+    status = request.GET.get("status")
     if status not in STATUS_FILTERS:
-        status = "all"
+        status = default_list_filter(settings)
     return render_page(
         request,
         "fees/firms.html",
@@ -59,12 +64,24 @@ def firm_new(request):
 @handle_fees_errors()
 @require_safe
 def firm_detail(request, firm_id):
-    profile, _settings = scope.context(request)
+    profile, settings = scope.context(request)
     detail = firms.get_firm(profile, firm_id)
+    shown = request.GET.get("matters")
+    if shown not in ("all", "active"):
+        shown = default_list_filter(settings)
+    rows = detail["matters"]
+    if shown == "active":
+        rows = [row for row in rows if not row["matter"].is_archived]
     return render_page(
         request,
         "fees/firm_detail.html",
-        {"firm": detail["firm"], "groups": detail["groups"], "matter_rows": detail["matters"]},
+        {
+            "firm": detail["firm"],
+            "groups": detail["groups"],
+            "matter_rows": rows,
+            "matters_shown": shown,
+            "matters_filters": ("all", "active"),
+        },
     )
 
 

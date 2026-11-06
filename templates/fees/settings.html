@@ -2,64 +2,67 @@
 {% load static fees_money %}
 {% block page_width %}w-3xl{% endblock %}
 {% block page_title %}Settings - {{ program_label }}{% endblock %}
-{% block page_js %}<script src="{% static 'js/fees/filename-preview.js' %}"></script>{% endblock %}
+{% block page_js %}<script src="{% static 'js/fees/filename-preview.js' %}"></script><script src="{% static 'js/fees/filename-builder.js' %}"></script><script src="{% static 'js/fees/settings-page.js' %}"></script>{% endblock %}
 {% block content %}
 <h1>Settings</h1>
 {% if not can_edit %}<p class="muted">You can read the settings but not change them.</p>{% endif %}
 {% include "fees/_form_errors.html" %}
-<form method="post" action="{% url 'fees_settings' %}">
-  {% csrf_token %}
-  <fieldset><legend>Memo defaults</legend>
-    <p><label>Fee per appearance <input type="text" name="default_fees_per_appearance" value="{{ config.default_fees_per_appearance|fees_plain }}"></label>
-       <label>Fee per conference <input type="text" name="default_fees_per_conference" value="{{ config.default_fees_per_conference|fees_plain }}"></label>
-       <label>Miscellaneous and drafting <input type="text" name="default_fees_misc_drafting" value="{{ config.default_fees_misc_drafting|fees_plain }}"></label></p>
-    <p><label>Court <textarea name="default_court_name" rows="2" cols="40">{{ config.default_court_name }}</textarea></label></p>
-    <p><label>Details, left <textarea name="default_additional_details_left" rows="2" cols="40">{{ config.default_additional_details_left }}</textarea></label>
-       <label>Details, right <textarea name="default_additional_details_right" rows="2" cols="40">{{ config.default_additional_details_right }}</textarea></label></p>
-  </fieldset>
-  <fieldset><legend>Payments and reminders</legend>
-    <p><label>Default TDS rate % <input type="text" name="default_tds_rate" value="{{ config.default_tds_rate|fees_plain }}" size="6"></label>
-       <label>Overdue after (days) <input type="number" min="0" name="overdue_days" value="{{ config.overdue_days }}"></label>
-       <label>Amount received starts as <select name="default_payment_amount">{% for value, label in payment_amount_choices %}<option value="{{ value }}"{% if config.default_payment_amount == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label></p>
-    <p><label><input type="hidden" name="hide_payment_when_paid" value="0"><input type="checkbox" name="hide_payment_when_paid" value="1"{% if config.hide_payment_when_paid %} checked{% endif %}> Hide the payment button on paid memos</label>
-       <label><input type="hidden" name="show_status_dots" value="0"><input type="checkbox" name="show_status_dots" value="1"{% if config.show_status_dots %} checked{% endif %}> Show status markers</label>
-       <label><input type="hidden" name="memo_signature_default" value="0"><input type="checkbox" name="memo_signature_default" value="1"{% if config.memo_signature_default %} checked{% endif %}> Include the signature on new memos</label>
-       <label><input type="hidden" name="default_lines_enabled" value="0"><input type="checkbox" name="default_lines_enabled" value="1"{% if config.default_lines_enabled %} checked{% endif %}> Fee lines on by default</label></p>
-  </fieldset>
-  <fieldset><legend>Display</legend>
-    <p><label>Opens on <select name="default_tab">{% for t in tab_choices %}<option value="{{ t }}"{% if config.default_tab == t %} selected{% endif %}>{{ t|capfirst }}</option>{% endfor %}</select></label>
-       <label>Figures <select name="money_unit">{% for value, label in money_unit_choices %}<option value="{{ value }}"{% if config.money_unit == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label></p>
-    <p><label>Memo lists show <select name="list_default_filter"><option value="all"{% if config.list_default_filter == "all" %} selected{% endif %}>All memos</option><option value="active"{% if config.list_default_filter == "active" %} selected{% endif %}>Active memos</option></select></label></p>
-    <p><label>Suffix, thousands <input type="text" name="money_suffix_thousands" value="{{ config.money_suffix_thousands }}" size="6"></label>
-       <label>lac <input type="text" name="money_suffix_lac" value="{{ config.money_suffix_lac }}" size="6"></label>
-       <label>crore <input type="text" name="money_suffix_crore" value="{{ config.money_suffix_crore }}" size="6"></label></p>
-    <p><label>Initial financial year <input type="text" name="initial_financial_year" value="{{ config.initial_financial_year }}" size="8"></label>
-       <label>Memos from <input type="text" name="memos_start_year" value="{{ config.memos_start_year }}" size="8"></label>
-       <label>Feebook from <input type="text" name="feebook_start_year" value="{{ config.feebook_start_year }}" size="8"></label></p>
-    <p><label><input type="hidden" name="statistics_enabled" value="0"><input type="checkbox" name="statistics_enabled" value="1"{% if config.statistics_enabled %} checked{% endif %}> Statistics page</label>
-       <label><input type="hidden" name="dashboard_kpis_enabled" value="0"><input type="checkbox" name="dashboard_kpis_enabled" value="1"{% if config.dashboard_kpis_enabled %} checked{% endif %}> Dashboard overview</label></p>
-  </fieldset>
-  <fieldset><legend>Word memo file names</legend>
-    <p><label>Owner name in file names <input type="text" name="export_owner_name" value="{{ config.export_owner_name }}" maxlength="80"></label></p>
-    <p><label>File name pattern <input type="text" name="memo_filename_pattern" value="{{ config.memo_filename_pattern }}" size="50" maxlength="200" data-filename-pattern data-preview-url="{% url 'fees_filename_preview' %}"></label>
-       <a href="{% url 'fees_filename_preview' %}?pattern={{ config.memo_filename_pattern|urlencode }}">Preview</a></p>
-    <p class="muted" data-filename-result aria-live="polite"></p>
-  </fieldset>
-  <fieldset><legend>Memo text defaults</legend>
-    <p class="muted">Used by the Word memo when a memo has no text of its own.</p>
-    <p><label>Name <input type="text" name="memo_default_name" value="{{ config.memo_default_name }}" maxlength="120"></label>
-       <label>Designation <input type="text" name="memo_default_designation" value="{{ config.memo_default_designation }}" maxlength="120"></label>
-       <label>PAN <input type="text" name="memo_default_pan" value="{{ config.memo_default_pan }}" size="12" maxlength="20"></label></p>
-    <p><label>Address <textarea name="memo_default_address" rows="3" cols="40">{{ config.memo_default_address }}</textarea></label>
-       <label>Bank details <textarea name="memo_default_bank_details" rows="3" cols="40">{{ config.memo_default_bank_details }}</textarea></label></p>
-  </fieldset>
-  {% if can_edit %}<p><button type="submit">Save settings</button></p>{% endif %}
-</form>
+<nav class="tabs settings-tabs" aria-label="Settings sections">
+  <a href="#settings-defaults" data-settings-tab="defaults" class="on">Defaults</a>
+  <a href="#settings-years" data-settings-tab="years">Start Years &amp; Statistics</a>
+  <a href="#settings-data" data-settings-tab="data">Backup &amp; Data</a>
+  <a href="#settings-other" data-settings-tab="other">Other</a>
+</nav>
+<form method="post" action="{% url 'fees_settings' %}" id="settings-form" data-settings-form>{% csrf_token %}</form>
 
-<section class="settings-box" aria-labelledby="word-template-h">
+<div class="settings-panel" id="settings-defaults" data-settings-panel="defaults">
+<section class="card settings-card" aria-labelledby="fees-h"><h2 id="fees-h">Default Fees</h2>
+  <div class="grid-3">
+    <label>Fees / appearance <input type="text" name="default_fees_per_appearance" form="settings-form" value="{{ config.default_fees_per_appearance|fees_plain }}"></label>
+    <label>Fees / conference <input type="text" name="default_fees_per_conference" form="settings-form" value="{{ config.default_fees_per_conference|fees_plain }}"></label>
+    <label>Misc / draft <input type="text" name="default_fees_misc_drafting" form="settings-form" value="{{ config.default_fees_misc_drafting|fees_plain }}"></label>
+  </div>
+  <p><label><input type="hidden" name="default_lines_enabled" form="settings-form" value="0"><input type="checkbox" name="default_lines_enabled" form="settings-form" value="1"{% if config.default_lines_enabled %} checked{% endif %}> Fee lines on by default</label></p>
+</section>
+
+<section class="card settings-card" aria-labelledby="pay-h"><h2 id="pay-h">Payments</h2>
+  <div class="grid-2">
+    <label>Default TDS rate (%) <input type="text" name="default_tds_rate" form="settings-form" value="{{ config.default_tds_rate|fees_plain }}"></label>
+    <label>Prefill amount received <select name="default_payment_amount" form="settings-form">{% for value, label in payment_amount_choices %}<option value="{{ value }}"{% if config.default_payment_amount == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+  </div>
+  <p class="hint">Applies to every new payment: the Amount Received box starts with this amount.</p>
+  <div class="grid-2">
+    <label>Overdue after (days) <input type="number" min="0" name="overdue_days" form="settings-form" value="{{ config.overdue_days }}"></label>
+  </div>
+  <p><label><input type="hidden" name="hide_payment_when_paid" form="settings-form" value="0"><input type="checkbox" name="hide_payment_when_paid" form="settings-form" value="1"{% if config.hide_payment_when_paid %} checked{% endif %}> Hide the payment button on paid memos</label>
+     <label><input type="hidden" name="show_status_dots" form="settings-form" value="0"><input type="checkbox" name="show_status_dots" form="settings-form" value="1"{% if config.show_status_dots %} checked{% endif %}> Show status markers</label></p>
+  <h3 class="small-caps">Bank accounts</h3>
+  <ul class="chips bank-chips">{% for b in bank_accounts %}<li class="chip"><span>{{ b.name }}</span>
+    {% if can_edit %}<form method="post" action="{% url 'fees_bank_account_rename' b.pk %}" class="inline">{% csrf_token %}<input type="text" name="name" value="{{ b.name }}" aria-label="New name for {{ b.name }}"> <button type="submit" class="small secondary">Rename</button></form>
+    <form method="post" action="{% url 'fees_bank_account_delete' b.pk %}" class="inline">{% csrf_token %}<button type="submit" class="small ghost" aria-label="Remove {{ b.name }}">&times;</button></form>{% endif %}</li>{% empty %}<li class="muted">None.</li>{% endfor %}</ul>
+  {% if can_edit %}<form method="post" action="{% url 'fees_bank_account_add' %}" class="bank-add">{% csrf_token %}<input type="text" name="name" maxlength="200" required placeholder="New bank account" aria-label="New bank account"> <button type="submit">Add</button></form>{% endif %}
+</section>
+
+<section class="card settings-card" aria-labelledby="text-h"><h2 id="text-h">Memo Text Defaults</h2>
+  <p class="hint">Used by new memos and by the Word memo when a memo has no text of its own.</p>
+  <label>Caption <textarea name="default_court_name" form="settings-form" rows="3" cols="40">{{ config.default_court_name }}</textarea></label>
+  <div class="grid-3">
+    <label>Name <input type="text" name="memo_default_name" form="settings-form" value="{{ config.memo_default_name }}" maxlength="120"></label>
+    <label>Designation <input type="text" name="memo_default_designation" form="settings-form" value="{{ config.memo_default_designation }}" maxlength="120"></label>
+    <label>PAN <input type="text" name="memo_default_pan" form="settings-form" value="{{ config.memo_default_pan }}" maxlength="20"></label>
+  </div>
+  <div class="grid-2">
+    <label>Address <textarea name="memo_default_address" form="settings-form" rows="3" cols="40">{{ config.memo_default_address }}</textarea></label>
+    <label>Bank details <textarea name="memo_default_bank_details" form="settings-form" rows="3" cols="40">{{ config.memo_default_bank_details }}</textarea></label>
+  </div>
+  {% if template_info.has_signature %}<p><label><input type="hidden" name="memo_signature_default" form="settings-form" value="0"><input type="checkbox" name="memo_signature_default" form="settings-form" value="1"{% if config.memo_signature_default %} checked{% endif %}> Tick Signature on new memos by default</label></p>
+  {% else %}<p class="hint" data-signature-hint>Upload a signature image in the Word template box to use this.</p>{% endif %}
+</section>
+
+<section class="settings-box settings-card" aria-labelledby="word-template-h">
 <h2 id="word-template-h">Word template</h2>
 <p>{% if template_info.has_template %}Template: {{ template_info.filename }} (<a href="{% url 'fees_template_download' %}">download</a>){% else %}No template uploaded.{% endif %}</p>
-<p><a href="{% url 'fees_template_tags_download' %}">Download the list of template tags (Word)</a></p>
+<p><a class="button small secondary" href="{% url 'fees_template_tags_download' %}">Download list of template tags (.docx)</a></p>
 <p>{% if template_info.has_signature %}Signature image: {{ template_info.signature_filename }} (<a href="{% url 'fees_signature_download' %}">download</a>){% else %}No signature image uploaded.{% endif %}</p>
 {% if can_edit %}
 <form method="post" action="{% url 'fees_template_upload' %}" enctype="multipart/form-data">{% csrf_token %}
@@ -71,11 +74,66 @@
 {% endif %}
 </section>
 
-<h2>Bank accounts</h2>
-<ul>{% for b in bank_accounts %}<li>{{ b.name }}
-  {% if can_edit %}<form method="post" action="{% url 'fees_bank_account_rename' b.pk %}" class="inline">{% csrf_token %}<input type="text" name="name" value="{{ b.name }}" aria-label="New name for {{ b.name }}"> <button type="submit">Rename</button></form>
-  <form method="post" action="{% url 'fees_bank_account_delete' b.pk %}" class="inline">{% csrf_token %}<button type="submit">Remove</button></form>{% endif %}</li>{% empty %}<li>None.</li>{% endfor %}</ul>
-{% if can_edit %}<form method="post" action="{% url 'fees_bank_account_add' %}">{% csrf_token %}<label>New bank account <input type="text" name="name" maxlength="200" required></label> <button type="submit">Add</button></form>{% endif %}
+<section class="card settings-card" aria-labelledby="names-h"><h2 id="names-h">Word memo file names</h2>
+  <label>Owner name in file names <input type="text" name="export_owner_name" form="settings-form" value="{{ config.export_owner_name }}" maxlength="80"></label>
+  <fieldset class="filename-builder" data-filename-builder><legend>File name pattern</legend>
+    <p><input type="text" name="memo_filename_pattern" form="settings-form" value="{{ config.memo_filename_pattern }}" size="50" maxlength="200" aria-label="File name pattern" data-filename-pattern data-preview-url="{% url 'fees_filename_preview' %}">
+       <a href="{% url 'fees_filename_preview' %}?pattern={{ config.memo_filename_pattern|urlencode }}">Preview</a></p>
+    <div data-builder-tools hidden>
+      <p class="small-caps">Ready-made patterns</p>
+      <p class="builder-presets">{% for p in filename_presets %}<button type="button" class="small secondary" data-preset="{{ p.pattern }}">{{ p.label }}</button> {% endfor %}</p>
+      <p class="small-caps">Insert a part</p>
+      <p class="builder-parts">{% for p in filename_parts %}<button type="button" class="small ghost" data-insert="{{ p.text }}">{{ p.label }}</button> {% endfor %}</p>
+      <p><input type="text" size="20" maxlength="40" aria-label="Free text to insert" data-builder-free> <button type="button" class="small secondary" data-builder-free-add>Insert text</button></p>
+    </div>
+    <p class="hint">Parts you can type: {% for t in filename_tokens %}<code>&#123;{{ t }}&#125;</code> {% endfor %}. Wrap a part in [ ] to leave it out when it is empty.</p>
+    <p class="muted" data-filename-result aria-live="polite">{% for e in filename_errors %}{{ e }} {% endfor %}</p>
+  </fieldset>
+</section>
+</div>
 
-{% if can_edit %}<p><a href="{% url 'fees_backup' %}">Backup, restore and clear</a> | <a href="{% url 'fees_import' %}">Import memos</a></p>{% endif %}
+<div class="settings-panel" id="settings-years" data-settings-panel="years">
+<section class="card settings-card" aria-labelledby="years-h"><h2 id="years-h">Start Years</h2>
+  <div class="grid-3">
+    <label>Statistics start year <input type="text" name="initial_financial_year" form="settings-form" value="{{ config.initial_financial_year }}" size="8"></label>
+    <label>Memos start year <input type="text" name="memos_start_year" form="settings-form" value="{{ config.memos_start_year }}" size="8"></label>
+    <label>Feebook start year <input type="text" name="feebook_start_year" form="settings-form" value="{{ config.feebook_start_year }}" size="8"></label>
+  </div>
+  <p class="hint">The first year shown in each area (e.g. 2026-27). Earlier years are hidden from that area's year filter, but the data stays stored.</p>
+</section>
+<section class="card settings-card" aria-labelledby="stats-h"><h2 id="stats-h">Statistics</h2>
+  <p><label><input type="hidden" name="statistics_enabled" form="settings-form" value="0"><input type="checkbox" name="statistics_enabled" form="settings-form" value="1"{% if config.statistics_enabled %} checked{% endif %}> Statistics page</label>
+     <label><input type="hidden" name="dashboard_kpis_enabled" form="settings-form" value="0"><input type="checkbox" name="dashboard_kpis_enabled" form="settings-form" value="1"{% if config.dashboard_kpis_enabled %} checked{% endif %}> Dashboard overview</label></p>
+  {% if config.statistics_enabled %}<p><a href="{% url 'fees_statistics' %}?tab=edit">Edit statistics (working days and adjustments)</a></p>{% endif %}
+</section>
+</div>
+
+<div class="settings-panel" id="settings-data" data-settings-panel="data">
+{% if can_edit %}
+<section class="card settings-card" aria-labelledby="data-h"><h2 id="data-h">Backup and import</h2>
+  <p><a href="{% url 'fees_backup' %}">Backup, restore and clear</a> | <a href="{% url 'fees_import' %}">Import memos</a></p>
+</section>
+<section class="danger-zone settings-card" aria-labelledby="danger-h"><h2 id="danger-h">Danger zone</h2>
+  <p>Clear All Data removes every firm, matter and memo in this profile. Take a backup first.</p>
+  <p><a class="button" href="{% url 'fees_backup' %}#clear">Clear All Data</a></p>
+</section>
+{% else %}<p class="muted">Backup and import are for editors.</p>{% endif %}
+</div>
+
+<div class="settings-panel" id="settings-other" data-settings-panel="other">
+<section class="card settings-card" aria-labelledby="display-h"><h2 id="display-h">Display</h2>
+  <div class="grid-2">
+    <label>Opens on <select name="default_tab" form="settings-form">{% for t in tab_choices %}<option value="{{ t }}"{% if config.default_tab == t %} selected{% endif %}>{{ t|capfirst }}</option>{% endfor %}</select></label>
+    <label>Figures <select name="money_unit" form="settings-form">{% for value, label in money_unit_choices %}<option value="{{ value }}"{% if config.money_unit == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+    <label>Firms and matters: show by default <select name="list_default_filter" form="settings-form"><option value="all"{% if config.list_default_filter == "all" %} selected{% endif %}>All</option><option value="active"{% if config.list_default_filter == "active" %} selected{% endif %}>Active only</option></select></label>
+  </div>
+  <div class="grid-3">
+    <label>Suffix, thousands <input type="text" name="money_suffix_thousands" form="settings-form" value="{{ config.money_suffix_thousands }}" size="6"></label>
+    <label>Suffix, lac <input type="text" name="money_suffix_lac" form="settings-form" value="{{ config.money_suffix_lac }}" size="6"></label>
+    <label>Suffix, crore <input type="text" name="money_suffix_crore" form="settings-form" value="{{ config.money_suffix_crore }}" size="6"></label>
+  </div>
+</section>
+</div>
+
+{% if can_edit %}<div class="save-bar" data-save-bar><span class="dirty-note" data-dirty-note hidden>You have unsaved changes.</span> <button type="submit" form="settings-form" class="primary">Save settings</button></div>{% endif %}
 {% endblock %}

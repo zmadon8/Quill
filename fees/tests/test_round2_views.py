@@ -197,3 +197,26 @@ class MoveMemoViewTests(WriteBase):
         self.assertContains(self.client.get(url), move_url)
         self.client.force_login(self.reader)
         self.assertNotContains(self.client.get(url), move_url)
+
+
+class ListDefaultFilterTests(WriteBase):
+    def test_firms_list_uses_the_setting_unless_the_url_says_otherwise(self):
+        from fees.models import Firm
+        firm = self.seed["matter_1"].firm
+        Firm.objects.filter(pk=firm.pk).update(status="archived")
+        url = reverse("fees_firms")
+        self.assertContains(self.client.get(url), firm.name)
+        FeesSettings.objects.update_or_create(profile=self.profile, defaults={"list_default_filter": "active"})
+        self.assertNotContains(self.client.get(url), 'href="%s"' % reverse("fees_firm_detail", args=[firm.pk]))
+        self.assertContains(self.client.get(url + "?status=all"), 'href="%s"' % reverse("fees_firm_detail", args=[firm.pk]))
+        self.assertContains(self.client.get(url), "Active only")
+
+    def test_firm_page_matters_use_the_setting_unless_the_url_says_otherwise(self):
+        matter = self.seed["matter_1"]
+        Matter.objects.filter(pk=matter.pk).update(is_archived=True)
+        url = reverse("fees_firm_detail", args=[matter.firm_id])
+        link = 'href="%s"' % reverse("fees_matter_detail", args=[matter.pk])
+        self.assertContains(self.client.get(url), link)
+        FeesSettings.objects.update_or_create(profile=self.profile, defaults={"list_default_filter": "active"})
+        self.assertNotContains(self.client.get(url), link)
+        self.assertContains(self.client.get(url + "?matters=all"), link)

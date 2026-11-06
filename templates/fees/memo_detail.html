@@ -10,7 +10,7 @@
   <dt>Financial year</dt><dd>{{ memo.financial_year }}</dd>
   <dt>Group</dt><dd>{{ memo.group_name }}</dd>
   <dt>Addressee</dt><dd>{{ memo.addressee_line1 }}{% if memo.addressee_line2 %}, {{ memo.addressee_line2 }}{% endif %}</dd>
-  <dt>Court</dt><dd>{{ memo.court_name }}</dd>
+  <dt>Caption</dt><dd>{{ memo.court_name }}</dd>
   <dt>Parties</dt><dd>{{ memo.plaintiff_name }} {{ memo.plaintiff_type }} v. {{ memo.defendant_name }} {{ memo.defendant_type }}</dd>
   <dt>Client</dt><dd>{{ memo.client }}</dd>
   <dt>Status</dt><dd>{% include "fees/_memo_status.html" with m=memo %}</dd>

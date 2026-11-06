@@ -12,7 +12,7 @@ from fees import forms, scope
 from fees.decorators import fees_editor, fees_read_write, fees_reader, handle_fees_errors
 from fees.errors import FeesError
 from fees.exports import tag_reference
-from fees.exports.filenames import memo_export_filename, validate_pattern
+from fees.exports.filenames import DEFAULT_PATTERN, PLACEHOLDERS, memo_export_filename, validate_pattern
 from fees.models import BankAccount, Memo
 from fees.pages import DOCX_TYPE, bytes_response, json_ok, render_page
 from fees.services import settings as settings_service
@@ -27,10 +27,40 @@ PAYMENT_AMOUNT_CHOICES = (("zero", "Blank"), ("full", "Full amount due"), ("netO
 MONEY_UNIT_CHOICES = (("full", "Full figures"), ("truncated", "Short (thousand, lac, crore)"))
 
 
+#: Ready-made file name patterns for the builder (each is checked by ``validate_pattern`` in the tests).
+FILENAME_PRESETS = (
+    {"label": "Standard", "pattern": DEFAULT_PATTERN},
+    {"label": "Number and matter", "pattern": "Memo {memo_no}[ of {fy}] {matter}"},
+    {"label": "Date first", "pattern": "{date_iso} {firm} {matter} Memo {memo_no}"},
+    {"label": "Owner and number", "pattern": "{owner} Memo {memo_no}[ of {fy}]"},
+)
+#: Buttons that insert a piece of pattern text at the cursor.
+FILENAME_PARTS = (
+    {"label": "Memo number", "text": "{memo_no}"},
+    {"label": "Financial year", "text": "{fy}"},
+    {"label": "Date (dd.mm.yyyy)", "text": "{date}"},
+    {"label": "Date (yyyy-mm-dd)", "text": "{date_iso}"},
+    {"label": "Today", "text": "{today}"},
+    {"label": "Firm", "text": "{firm}"},
+    {"label": "Matter", "text": "{matter}"},
+    {"label": "Owner name", "text": "{owner}"},
+    {"label": "Optional [ ]", "text": "[]"},
+    {"label": "Space", "text": " "},
+    {"label": "Dash", "text": " - "},
+    {"label": "Underscore", "text": "_"},
+    {"label": "Brackets ( )", "text": "()"},
+)
+
+
 def settings_context(profile):
     """What the Settings page shows besides the form values."""
+    config = settings_service.get_settings(profile)
     return {
-        "config": settings_service.get_settings(profile),
+        "filename_presets": FILENAME_PRESETS,
+        "filename_parts": FILENAME_PARTS,
+        "filename_tokens": PLACEHOLDERS,
+        "filename_errors": validate_pattern(config["memo_filename_pattern"]),
+        "config": config,
         "bank_accounts": settings_service.list_bank_accounts(profile),
         "template_info": word_template.get_template_info(profile),
         "tab_choices": DEFAULT_TAB_CHOICES,
