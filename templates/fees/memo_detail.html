@@ -16,7 +16,7 @@
   <dt>Status</dt><dd>{% include "fees/_memo_status.html" with m=memo %}</dd>
 </dl>
 <h2>Fees</h2>
-<div class="table-wrap"><table class="ledger-table">
+<div class="table-wrap"><table class="ledger-table" data-table-id="memo-payments">
   <caption>Fees on this memo</caption>
   <thead><tr><th scope="col">Item</th><th scope="col" class="money">Count</th><th scope="col" class="money">Rate</th><th scope="col" class="money">Amount</th></tr></thead>
   <tbody>
@@ -34,7 +34,7 @@
   </tfoot>
 </table></div>
 <h2>Payments</h2>
-<div class="table-wrap"><table class="ledger-table">
+<div class="table-wrap"><table class="ledger-table" data-table-id="memo-fees">
   <caption>{{ payments|length }} payment{{ payments|length|pluralize }} on this memo</caption>
   <thead><tr><th scope="col">Date</th><th scope="col">Payee</th><th scope="col">Mode</th><th scope="col" class="money">Amount</th><th scope="col" class="money">TDS</th>{% if can_edit %}<th scope="col"><span class="visually-hidden">Actions</span></th>{% endif %}</tr></thead>
   <tbody>{% for p in payments %}<tr><td>{{ p.date_of_payment|fees_date }}</td><td>{{ p.payee }}</td><td>{{ p.payment_mode }}</td><td class="money">{{ p.amount|fees_money:money_unit }}</td><td class="money">{{ p.tds_amount|fees_money:money_unit }}</td>{% if can_edit %}<td><a href="{% url 'fees_payment_edit' p.id %}" aria-label="Edit payment of {{ p.amount|fees_money:money_unit }} on {{ p.date_of_payment|fees_date }}">Edit</a></td>{% endif %}</tr>{% empty %}<tr><td colspan="6">No payments.</td></tr>{% endfor %}</tbody>

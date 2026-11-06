@@ -5,7 +5,7 @@
 <h1>Import {{ file_name }}</h1>
 <p>{{ info.row_count }} rows found. First rows:</p>
 <div class="table-wrap">
-<table class="ledger-table">
+<table class="ledger-table" data-table-id="import-preview">
   <caption>First rows of {{ file_name }}</caption>
   <thead><tr>{% for h in info.headers %}<th scope="col">{{ h }}</th>{% endfor %}</tr></thead>
   <tbody>{% for row in info.sample_rows %}<tr>{% for cell in row %}<td>{{ cell }}</td>{% endfor %}</tr>{% endfor %}</tbody>

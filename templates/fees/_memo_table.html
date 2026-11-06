@@ -3,7 +3,7 @@
 <div class="table-card">
 {% if legend %}<p class="status-legend" aria-label="Status key"><span class="legend-item"><span class="status-sq sq-paid" aria-hidden="true"></span>Paid</span> <span class="legend-item"><span class="status-sq sq-unpaid" aria-hidden="true"></span>Unpaid</span> <span class="legend-item"><span class="status-sq sq-overdue" aria-hidden="true"></span>Overdue</span> <span class="legend-item"><span class="status-sq sq-written-off" aria-hidden="true"></span>Written Off</span></p>{% endif %}
 <div class="table-wrap">
-<table class="ledger-table" data-fees-columns="{{ table_key|default:'memos' }}">
+<table class="ledger-table" data-fees-columns="{{ table_key|default:'memos' }}" data-table-id="{{ table_key|default:'memos' }}">
   <caption>{{ totals.count }} memo{{ totals.count|pluralize }}</caption>
   <thead><tr><th scope="col" data-col-fixed>No.</th><th scope="col">Date</th>{% if matter_view %}<th scope="col" class="money">Apps</th><th scope="col" class="money">Confs</th><th scope="col" class="money">Drafts</th>{% else %}<th scope="col">Firm</th><th scope="col">Matter</th>{% endif %}<th scope="col" class="money">Total</th><th scope="col" class="money">Net of TDS</th><th scope="col" class="money">Received</th><th scope="col" class="money">TDS</th><th scope="col" class="money">Due</th><th scope="col" data-col-fixed>Status</th>{% if can_edit %}<th scope="col" data-col-fixed><span class="visually-hidden">Actions</span></th>{% endif %}</tr></thead>
   <tbody>

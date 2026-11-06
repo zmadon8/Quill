@@ -6,7 +6,7 @@
 <h1>Year end {{ fy }}</h1>
 <p><a href="{% url 'fees_statistics' %}?fy={{ fy }}">Statistics</a></p>
 <div class="table-wrap">
-<table class="ledger-table"><caption>Year end {{ fy }} summary</caption><tbody>
+<table class="ledger-table" data-table-id="year-end"><caption>Year end {{ fy }} summary</caption><tbody>
   <tr><th scope="row">Memos</th><td>{{ summary.memo_count }}</td></tr>
   <tr><th scope="row">Total billed</th><td>{{ summary.total_billed|fees_money }}</td></tr>
   <tr><th scope="row">Total received</th><td>{{ summary.total_received|fees_money }}</td></tr>

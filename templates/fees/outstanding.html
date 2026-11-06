@@ -13,7 +13,7 @@
 </form>
 <div class="total-card" role="group" aria-label="Grand total"><span class="total-label">Total outstanding, {{ rows|length }} firm{{ rows|length|pluralize }}</span><span class="total-amount">{{ grand_total|fees_money:money_unit }}</span></div>
 <div class="table-card"><div class="table-wrap">
-<table class="ledger-table" data-fees-columns="outstanding-firms">
+<table class="ledger-table" data-fees-columns="outstanding-firms" data-table-id="outstanding-firms">
   <caption>{{ rows|length }} firm{{ rows|length|pluralize }} with fees outstanding, sorted by {% if sort == "name" %}firm name{% else %}amount outstanding{% endif %}</caption>
   <thead><tr><th scope="col" data-col-fixed>Firm</th><th scope="col" class="money">Memos</th><th scope="col" class="money" data-col-fixed>Outstanding</th><th scope="col" data-col-fixed><span class="visually-hidden">View</span></th></tr></thead>
   <tbody>{% for r in rows %}<tr><th scope="row"><a href="{% url 'fees_outstanding_detail' %}?{{ r.detail_query }}" aria-label="{{ r.firm_name }}: memos outstanding">{{ r.firm_name }}</a></th><td class="money">{{ r.memo_count }}</td><td class="money due">{{ r.outstanding|fees_money:money_unit }}</td><td><a class="button small secondary" href="{% url 'fees_outstanding_detail' %}?{{ r.detail_query }}" aria-label="View memos outstanding for {{ r.firm_name }}">View</a></td></tr>{% empty %}<tr><td colspan="4">Nothing outstanding.</td></tr>{% endfor %}</tbody>

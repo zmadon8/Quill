@@ -21,7 +21,7 @@ from django.db import transaction
 from fees.errors import FeesError
 from fees.models import FeesUserPrefs
 
-__all__ = ["KEY_RE", "MIN_PX", "MAX_PX", "MAX_COLUMNS", "MAX_BYTES", "get_prefs", "set_pref"]
+__all__ = ["KEY_RE", "MIN_PX", "MAX_PX", "MAX_COLUMNS", "MAX_BYTES", "get_prefs", "get_all_widths", "set_pref"]
 
 KEY_RE = re.compile(r"^col-widths:[a-z0-9][a-z0-9_-]{0,39}$")
 _COLUMN_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$")
@@ -47,6 +47,16 @@ def get_prefs(profile, user, key):
     key = _check_key(key)
     row = FeesUserPrefs.objects.filter(profile=profile, user=user, key=key).first()
     return dict(row.data) if row is not None and isinstance(row.data, dict) else {}
+
+
+def get_all_widths(profile, user):
+    """Every saved column-width object as ``{table_id: {column: px}}``; one query, read only.
+
+    Rendered into each page so the widths apply before first paint, with no extra request.
+    """
+    prefix = "col-widths:"
+    rows = FeesUserPrefs.objects.filter(profile=profile, user=user, key__startswith=prefix).values_list("key", "data")
+    return {key[len(prefix):]: dict(data) for key, data in rows if isinstance(data, dict)}
 
 
 def _clean(data):

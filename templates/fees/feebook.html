@@ -12,7 +12,7 @@
   <button type="submit">Filter</button>
 </form>
 <div class="table-card"><div class="table-wrap">
-<table class="ledger-table" data-fees-columns="feebook">
+<table class="ledger-table" data-fees-columns="feebook" data-table-id="feebook">
   <caption>{{ totals.count }} payment line{{ totals.count|pluralize }}</caption>
   <thead><tr><th scope="col" data-col-fixed>Date</th><th scope="col" data-col-fixed>Memo</th><th scope="col">Firm</th><th scope="col">Matter</th><th scope="col" class="money">Paid</th><th scope="col" class="money">TDS</th><th scope="col" class="money">Paid + TDS</th><th scope="col">Payee</th><th scope="col">Bank</th><th scope="col">Mode</th><th scope="col">Type</th>{% if can_edit %}<th scope="col" data-col-fixed><span class="visually-hidden">Actions</span></th>{% endif %}</tr></thead>
   <tbody>{% for e in entries %}<tr>

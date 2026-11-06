@@ -37,7 +37,7 @@
 <section aria-labelledby="recent-heading">
 <h2 id="recent-heading">Recently billed matters</h2>
 <div class="table-wrap">
-<table class="ledger-table" data-fees-columns="recent-matters">
+<table class="ledger-table" data-fees-columns="recent-matters" data-table-id="dashboard-recent">
   <caption>The {{ recent_matters|length }} most recently billed matter{{ recent_matters|length|pluralize }}</caption>
   <thead><tr><th scope="col" data-col-fixed>Matter</th><th scope="col">Firm</th><th scope="col">Last memo</th><th scope="col">Date</th><th scope="col" class="money">Memos</th>{% if can_edit %}<th scope="col" data-col-fixed><span class="visually-hidden">Action</span></th>{% endif %}</tr></thead>
   <tbody>{% for r in recent_matters %}<tr><th scope="row"><a href="{% url 'fees_matter_detail' r.matter_id %}">{{ r.matter_name }}</a></th><td><a href="{% url 'fees_firm_detail' r.firm_id %}">{{ r.firm_name }}</a></td><td><a href="{% url 'fees_memo_detail' r.last_memo_id %}">{{ r.last_memo_number }}</a></td><td>{{ r.last_memo_date|fees_date }}</td><td class="money">{{ r.memo_count }}</td>{% if can_edit %}<td class="row-actions">{% if r.is_archived %}<span class="muted">archived</span>{% else %}<a class="button small primary" href="{% url 'fees_memo_new' %}?matter={{ r.matter_id }}" aria-label="New memo for {{ r.matter_name }}">+ Memo</a>{% endif %}</td>{% endif %}</tr>{% empty %}<tr><td colspan="{% if can_edit %}6{% else %}5{% endif %}">No memos yet.</td></tr>{% endfor %}</tbody>

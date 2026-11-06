@@ -13,6 +13,7 @@ from accounts.profiles import request_memberships, request_role
 from accounts.suite import KEY_FEES
 from fees import scope
 from fees.exports.filenames import content_disposition
+from fees.services import prefs
 
 XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 DOCX_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
@@ -54,6 +55,13 @@ def nav_for(request, settings):
     return items
 
 
+def _col_widths(request, profile):
+    user = getattr(request, "user", None)
+    if profile is None or user is None or not user.is_authenticated:
+        return {}
+    return prefs.get_all_widths(profile, user)
+
+
 def render_page(request, template, context=None, status=200):
     """Render a Fee Register page with the profile, settings, role flag and header entries added."""
     profile, settings = scope.context(request)
@@ -66,6 +74,8 @@ def render_page(request, template, context=None, status=200):
         "fees_nav": nav_for(request, settings),
         # The user's other Fee Register profiles, for the header switcher (memberships are cached, so no query).
         "fees_other_profiles": [m.profile for m in request_memberships(request, KEY_FEES)[1:]],
+        # The user's saved column widths per table id, embedded in the page (one small query).
+        "fees_col_widths": _col_widths(request, profile),
     }
     base.update(context or {})
     return render(request, template, base, status=status)
