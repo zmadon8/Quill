@@ -208,9 +208,15 @@ class ValidationTests(TestCase):
 
     def test_memo_filename_pattern_length(self):
         self._expect_invalid({"memo_filename_pattern": "x" * 201})
-        # Under the cap it stores as-is (T5.1 wires the real validator).
-        s = update_settings(self.profile, {"memo_filename_pattern": "{number}"})
-        self.assertEqual(s["memo_filename_pattern"], "{number}")
+        s = update_settings(self.profile, {"memo_filename_pattern": "{memo_no} {matter}"})
+        self.assertEqual(s["memo_filename_pattern"], "{memo_no} {matter}")
+
+    def test_memo_filename_pattern_validated(self):
+        self._expect_invalid({"memo_filename_pattern": "{number}"})
+        self._expect_invalid({"memo_filename_pattern": "Memo {memo_no"})
+        self._expect_invalid({"memo_filename_pattern": "Memo [ of {fy}"})
+        s = update_settings(self.profile, {"memo_filename_pattern": ""})
+        self.assertEqual(s["memo_filename_pattern"], "")
 
 
 # ---------------------------------------------------------------------------

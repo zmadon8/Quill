@@ -34,11 +34,9 @@ field itself (``FeesSettings._meta.get_field(name).get_default()``) so there is
 no duplicated default table to drift. Validation runs per key against the merged
 candidate values; unknown and Electron-only keys are skipped silently.
 
-The memo-filename pattern (``memo_filename_pattern``) will be validated by
-``fees.services.exports.filenames.validate_pattern`` once T5.1 adds it. That
-module does not exist yet, so the import is GUARDED: when it is unavailable the
-pattern is stored as-is (capped at the model's 200 chars) and real validation is
-wired in T5.1. Do NOT create ``filenames.py`` here.
+The memo-filename pattern (``memo_filename_pattern``) is validated by
+``fees.exports.filenames.validate_pattern`` (unknown placeholder, unbalanced brace
+or bracket, over 200 characters); the first error message becomes a 422.
 
 R-DATA-6 (``data_version`` bump): ``update_settings`` and every mutating bank
 operation run in one ``transaction.atomic()`` and call ``touch(profile)`` EXACTLY
@@ -54,6 +52,7 @@ from django.db import transaction
 from django.db.models.functions import Lower
 
 from fees.errors import FeesError
+from fees.exports.filenames import validate_pattern
 from fees.models import BankAccount, FeesSettings, Payment
 from fees.services.memos import touch
 
@@ -269,11 +268,10 @@ def _validate_candidate(key, value):
         text = str(value)
         if len(text) > 200:
             raise _invalid("File-name pattern must be at most 200 characters")
-        # T5.1 wires the real validator; guard the optional import until then.
-        try:
-            from fees.services.exports.filenames import validate_pattern
-        except ImportError:
-            return text
+        errors = validate_pattern(text)
+        if errors:
+            raise _invalid(errors[0])
+        return text
         validate_pattern(text)
         return text
     if key in ("memo_default_name", "memo_default_designation"):
