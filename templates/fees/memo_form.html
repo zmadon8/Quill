@@ -1,22 +1,33 @@
 {% extends "fees/base_fees.html" %}
+{% load static %}
 {% block page_title %}{% if memo %}Edit memo {{ memo.memo_number|default:"(draft)" }}{% else %}New memo{% endif %} - {{ program_label }}{% endblock %}
 {% block content %}
 <h1>{% if memo %}Edit memo {{ memo.memo_number|default:"(draft)" }}{% elif based_on %}New memo based on another{% else %}New memo{% endif %}</h1>
 {% if not can_edit %}<p class="muted">You can read this page but not save it.</p>{% endif %}
 {% if not memo %}
-<form method="get" action="{% url 'fees_memo_new' %}">
+<form method="get" action="{% url 'fees_memo_new' %}" class="filters">
   <label>Start from a matter's defaults <select name="matter"><option value="">Choose</option>{% for m in matter_choices %}<option value="{{ m.pk }}"{% if form.matter_id == m.pk|stringformat:"s" %} selected{% endif %}>{{ m.firm.name }}: {{ m.name }}</option>{% endfor %}</select></label>
   <button type="submit">Load defaults</button>
 </form>
 {% endif %}
 {% include "fees/_form_errors.html" %}
-<form method="post" action="{{ request.path }}">
+<form method="post" action="{{ request.path }}" class="memo-form" id="memo-form" data-memo-form
+      data-totals-url="{% url 'fees_memo_preview_totals' %}"
+      data-number-url="{% url 'fees_memo_preview_number' %}"
+      data-new="{% if memo %}0{% else %}1{% endif %}"
+      data-draft="{% if not memo or memo.is_draft %}1{% else %}0{% endif %}"
+      data-lines-default="{% if fees_settings.default_lines_enabled %}1{% else %}0{% endif %}"
+      data-money-unit="{{ fees_settings.money_unit|default:'full' }}">
   {% csrf_token %}
   {% if based_on %}<input type="hidden" name="based_on" value="{{ based_on }}">{% endif %}
+  <fieldset><legend>Memo</legend>
   {% if memo %}<p>Matter: {{ memo.firm_name }}: {{ memo.matter_name }}</p><input type="hidden" name="matter_id" value="{{ memo.matter_id }}">
   {% else %}<p><label>Matter <select name="matter_id" required><option value="">Choose</option>{% for m in matter_choices %}<option value="{{ m.pk }}"{% if form.matter_id == m.pk|stringformat:"s" %} selected{% endif %}>{{ m.firm.name }}: {{ m.name }}</option>{% endfor %}</select></label></p>{% endif %}
   <p><label>Date <input type="date" name="date" value="{{ form.date }}"></label>
-     {% if not memo or not memo.is_draft %}<label>Custom number (leave blank for the next number) <input type="text" name="custom_memo_number" value="{{ form.custom_memo_number }}" maxlength="100"></label>{% endif %}</p>
+     {% if not memo or not memo.is_draft %}<label>Custom number (leave blank for the next number) <input type="text" name="custom_memo_number" value="{{ form.custom_memo_number }}" maxlength="100" aria-describedby="memo-number-hint"></label>{% endif %}</p>
+  {% if not memo or not memo.is_draft %}<p class="muted" id="memo-number-hint" data-number-hint aria-live="polite">{% if memo %}Memo number {{ memo.memo_number }}.{% else %}The memo number is given when you save.{% endif %}</p>{% endif %}
+  </fieldset>
+  <fieldset><legend>Addressee and cause title</legend>
   <p><label>Addressee <input type="text" name="addressee_line1" value="{{ form.addressee_line1 }}" size="50"></label></p>
   <p><label>Addressee, second line <input type="text" name="addressee_line2" value="{{ form.addressee_line2 }}" size="50"></label></p>
   <p><label>Court <input type="text" name="court_name" value="{{ form.court_name }}" size="50"></label></p>
@@ -25,16 +36,30 @@
   <p><label>Plaintiff <input type="text" name="plaintiff_name" value="{{ form.plaintiff_name }}"></label> <label>as <input type="text" name="plaintiff_type" value="{{ form.plaintiff_type }}" size="14"></label></p>
   <p><label>Defendant <input type="text" name="defendant_name" value="{{ form.defendant_name }}"></label> <label>as <input type="text" name="defendant_type" value="{{ form.defendant_type }}" size="14"></label></p>
   <p><label>Client <input type="text" name="client" value="{{ form.client }}" size="40"></label></p>
+  </fieldset>
   <fieldset><legend>Fees</legend>
+    <div class="fee-line" data-line="appearances">
     <p><label>Appearances <input type="number" min="0" name="num_appearances" value="{{ form.num_appearances }}"></label> <label>at <input type="text" inputmode="decimal" name="fees_per_appearance" value="{{ form.fees_per_appearance }}"></label> <label>dates <input type="text" name="dates_of_appearances" value="{{ form.dates_of_appearances }}"></label> <label>override <input type="text" inputmode="decimal" name="custom_fees_appearances" value="{{ form.custom_fees_appearances }}"></label></p>
+    </div>
+    <div class="fee-line" data-line="conferences">
     <p><label>Conferences <input type="number" min="0" name="num_conferences" value="{{ form.num_conferences }}"></label> <label>at <input type="text" inputmode="decimal" name="fees_per_conference" value="{{ form.fees_per_conference }}"></label> <label>dates <input type="text" name="dates_of_conferences" value="{{ form.dates_of_conferences }}"></label> <label>override <input type="text" inputmode="decimal" name="custom_fees_conferences" value="{{ form.custom_fees_conferences }}"></label></p>
+    </div>
+    <div class="fee-line" data-line="misc">
     <p><label>Drafting and miscellaneous <input type="text" name="misc_drafting_description" value="{{ form.misc_drafting_description }}"></label> <label>amount <input type="text" inputmode="decimal" name="fees_misc_drafting" value="{{ form.fees_misc_drafting }}"></label> <label>drafts <input type="number" min="0" name="num_drafts" value="{{ form.num_drafts }}"></label> <label>override <input type="text" inputmode="decimal" name="custom_fees_misc" value="{{ form.custom_fees_misc }}"></label></p>
+    </div>
     <p><label>Total override (blank or 0 means none) <input type="text" inputmode="decimal" name="custom_total_fees" value="{{ form.custom_total_fees }}"></label></p>
+    <div class="fee-total" data-fee-total hidden>
+      <p><strong>Total fees: <span data-total-figure>0</span></strong></p>
+      <p class="muted" data-total-words aria-live="polite"></p>
+      <p class="muted">A preview. The total is worked out again when you save.</p>
+    </div>
   </fieldset>
   {% if can_edit %}<p>
     {% if not memo or memo.is_draft %}<button type="submit" name="action" value="draft">Save as draft</button>{% endif %}
-    <button type="submit" name="action" value="save">{% if memo and not memo.is_draft %}Save{% else %}Save memo{% endif %}</button>
+    <button type="submit" name="action" value="save" class="primary">{% if memo and not memo.is_draft %}Save{% else %}Save memo{% endif %}</button>
     <a href="{% if memo %}{% url 'fees_memo_detail' memo.id %}{% else %}{% url 'fees_memos' %}{% endif %}">Cancel</a>
+    <span class="muted" data-shortcut-hint hidden>Ctrl+Enter saves.</span>
   </p>{% endif %}
 </form>
 {% endblock %}
+{% block page_js %}{% if can_edit %}<script src="{% static 'js/fees/memo-form.js' %}"></script>{% endif %}{% endblock %}

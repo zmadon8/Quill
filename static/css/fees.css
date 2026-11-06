@@ -82,3 +82,25 @@
   .ledger-table { min-width: 36rem; }
 }
 @media (prefers-reduced-motion: reduce) { .ledger-table tbody tr { transition: none; } }
+
+/* Page action rows, forms and the memo form (Phase 8, T8.2) */
+.page-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; margin: 0 0 1rem; }
+.page-actions .button { display: inline-flex; align-items: center; min-height: var(--tap); padding: 0 .9rem; border: 1px solid var(--hair); background: var(--panel); border-radius: 3px; text-decoration: none; }
+.page-actions .button.primary { border-color: var(--oxblood); color: var(--oxblood); font-weight: 600; }
+.memo-form fieldset, .fees-form fieldset { margin: 0 0 1rem; padding: .75rem 1rem; border: 1px solid var(--hair); }
+.memo-form legend, .fees-form legend { padding: 0 .4rem; font-weight: 600; }
+.memo-form label, .fees-form label { display: inline-flex; flex-direction: column; gap: .15rem; margin: 0 1rem .5rem 0; font-size: var(--small-size); }
+.memo-form label:has(input[type=checkbox]), .fees-form label:has(input[type=checkbox]) { flex-direction: row; align-items: center; gap: .5rem; min-height: var(--tap); }
+.memo-form input[type=text], .memo-form input[type=number], .memo-form input[type=date], .memo-form select, .fees-form input[type=text], .fees-form select { min-height: var(--tap); }
+.memo-form .line-tick { margin: 0 0 .25rem; }
+.memo-form .line-tick label { flex-direction: row; align-items: center; gap: .5rem; min-height: var(--tap); margin: 0; }
+.memo-form .line-tick input { width: 1.25rem; height: 1.25rem; }
+.memo-form .line-off { background: var(--panel); color: var(--muted); }
+.fee-total { margin-top: .75rem; padding: .5rem .75rem; border-top: 3px double var(--ink); }
+.fee-total p { margin: .15rem 0; }
+.fee-total [data-total-figure] { font-variant-numeric: tabular-nums; }
+.inline-forms form.inline { display: inline-flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin: 0 1rem .25rem 0; }
+.group-list { list-style: none; margin: 0 0 1rem; padding: 0; }
+.group-list li { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; padding: .35rem 0; border-bottom: 1px solid var(--hair); }
+.group-list .group-name { min-width: 10rem; font-weight: 600; }
+.danger-zone { margin: 1rem 0; padding: .75rem 1rem; border: 1px solid var(--oxblood); }

@@ -39,6 +39,7 @@ urlpatterns = [
     path("memos/drafts/", views_memos.draft_list, name="fees_memo_drafts"),
     path("memos/new/", views_memos.memo_new, name="fees_memo_new"),
     path("memos/preview-number/", views_memos.preview_number, name="fees_memo_preview_number"),
+    path("memos/preview-totals/", views_memos.preview_totals, name="fees_memo_preview_totals"),
     path("memos/export/", views_exports.memos_export, name="fees_memos_export"),
     path("memos/<int:memo_id>/", views_memos.memo_detail, name="fees_memo_detail"),
     path("memos/<int:memo_id>/edit/", views_memos.memo_edit, name="fees_memo_edit"),

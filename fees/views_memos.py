@@ -9,7 +9,8 @@ from fees import forms, scope
 from fees.decorators import fees_editor, fees_read_write, fees_reader, handle_fees_errors
 from fees.errors import FeesError
 from fees.pages import json_ok, memo_filters, page_number, render_page
-from fees.services import firms, matters, memo_lists, memos, payments
+from fees.services import firms, matters, memo_fees, memo_lists, memos, payments
+from fees.services.fees_in_words import fees_in_words
 from fees.services import settings as settings_service
 from fees.services.financial_year import current_financial_year
 
@@ -217,3 +218,30 @@ def preview_number(request):
     profile, _settings = scope.context(request)
     date = forms.parse_date(request.GET.get("date")) or current_financial_year()
     return json_ok({"number": memos.preview_number(profile, date)})
+
+
+@fees_reader
+@handle_fees_errors(json=True)
+@require_safe
+def preview_totals(request):
+    """JSON: the fees a memo form would save, worked out by the one fee rule, and the total in words.
+
+    Reads only. The form's JavaScript shows this as a preview; the save always recomputes on the server.
+    """
+    data = {}
+    for name in forms.MEMO_COUNT_FIELDS:
+        data[name] = forms.parse_int(request.GET.get(name), name.replace("_", " ").capitalize())
+    for name in forms.MEMO_RATE_FIELDS:
+        data[name] = forms.parse_decimal(request.GET.get(name), name.replace("_", " ").capitalize()) or 0
+    for name in forms.MEMO_CUSTOM_FIELDS:
+        data[name] = forms.parse_decimal(request.GET.get(name), name.replace("_", " ").capitalize())
+    fees = memo_fees.resolve_memo_fees(data)
+    return json_ok(
+        {
+            "fees_appearances": fees.fees_appearances,
+            "fees_conferences": fees.fees_conferences,
+            "fees_misc": fees.fees_misc,
+            "total_fees": fees.total_fees,
+            "words": fees_in_words(max(fees.total_fees, 0)),
+        }
+    )

@@ -175,3 +175,99 @@ class TableFooterTests(UiPageBase):
         self.assertIn('<td class="money">12,34,567</td>', text)
         self.assertIn('<td class="money">50</td>', text)
         self.assertIn('<td colspan="1"></td>', text)
+
+
+class MemoScreenTests(UiPageBase):
+    """T8.2: memo list, drafts, memo form and memo detail."""
+
+    def test_memo_list_has_table_landmarks(self):
+        text = self.assert_page(self.page("fees_memos"), "memos")
+        self.assertIn('<th scope="col" data-col-fixed>No.</th>', text)
+        self.assertIn('<th scope="row" colspan="4">Total (', text)
+        self.assertIn('data-fees-columns="memos"', text)
+        self.assertIn('aria-label="Memo actions"', text)
+        self.assert_no_unlabelled_controls(text, "memos")
+
+    def test_reader_has_no_new_memo_button(self):
+        text = self.html(self.page("fees_memos"))
+        self.assertNotIn(reverse("fees_memo_new"), text)
+        editor = self.html(self.page("fees_memos", user=self.editor))
+        self.assertIn('href="%s"' % reverse("fees_memo_new"), editor)
+
+    def test_status_is_words_as_well_as_a_marker(self):
+        text = self.html(self.page("fees_memos"))
+        self.assertRegex(text, r'<span class="status status-[a-z-]+"><span class="status-sq" aria-hidden="true"></span>[A-Z]')
+
+    def test_drafts_page(self):
+        text = self.assert_page(self.page("fees_memo_drafts"), "drafts")
+        self.assertIn('data-fees-columns="drafts"', text)
+        self.assertIn("status-draft", text)
+        self.assertIn("(draft)", text)
+
+    def test_memo_form_works_without_script(self):
+        text = self.assert_page(self.page("fees_memo_new", user=self.editor), "form")
+        self.assertIn('method="post" action="%s"' % reverse("fees_memo_new"), text)
+        for name in ("matter_id", "date", "num_appearances", "fees_per_appearance", "custom_total_fees"):
+            self.assertIn('name="%s"' % name, text)
+        self.assertIn('name="action" value="draft"', text)
+        self.assertIn('name="action" value="save"', text)
+        self.assertIn("js/fees/memo-form.js", text)
+        # The live total stays hidden until the script shows it.
+        self.assertIn("data-fee-total hidden", text)
+        self.assertIn('data-totals-url="%s"' % reverse("fees_memo_preview_totals"), text)
+        self.assert_no_unlabelled_controls(text, "form")
+
+    def test_reader_sees_the_form_without_the_script_or_save_buttons(self):
+        text = self.assert_page(self.page("fees_memo_new"), "form-reader")
+        self.assertNotIn("memo-form.js", text)
+        self.assertNotIn('name="action"', text)
+
+    def test_edit_form_for_a_numbered_memo_and_a_draft(self):
+        i = self.ids()
+        numbered = self.assert_page(self.page("fees_memo_edit", {"memo_id": i["memo"]}, user=self.editor), "edit")
+        self.assertIn('data-new="0"', numbered)
+        self.assertNotIn('value="draft"', numbered)
+        draft = self.assert_page(self.page("fees_memo_edit", {"memo_id": i["draft"]}, user=self.editor), "edit-draft")
+        self.assertIn('data-draft="1"', draft)
+        self.assertIn('value="draft"', draft)
+
+    def test_preview_totals_uses_the_server_rule(self):
+        self.login(self.reader)
+        response = self.client.get(
+            reverse("fees_memo_preview_totals"),
+            {"num_appearances": "2", "fees_per_appearance": "1,500", "num_conferences": "1", "fees_per_conference": "500",
+             "fees_misc_drafting": "250.50"},
+        )
+        body = response.json()
+        self.assertTrue(body["ok"])
+        self.assertEqual(body["total_fees"], "3750.50")
+        self.assertIn("thousand", body["words"].lower())
+
+    def test_preview_totals_override_and_errors(self):
+        self.login(self.reader)
+        url = reverse("fees_memo_preview_totals")
+        body = self.client.get(url, {"num_appearances": "2", "fees_per_appearance": "100", "custom_total_fees": "999"}).json()
+        self.assertEqual(body["total_fees"], "999.00")
+        bad = self.client.get(url, {"fees_per_appearance": "abc"})
+        self.assertEqual(bad.status_code, 422)
+        self.assertFalse(bad.json()["ok"])
+        self.assertEqual(self.client.post(url).status_code, 405)
+
+    def test_memo_detail_with_payments(self):
+        i = self.ids()
+        text = self.assert_page(self.page("fees_memo_detail", {"memo_id": i["memo"]}), "detail")
+        self.assertIn("<h2>Payments</h2>", text)
+        self.assertIn('<th scope="col" class="money">Amount</th>', text)
+        self.assertIn('<th scope="row" colspan="3">Total fees</th>', text)
+        self.assertNotIn(reverse("fees_payment_new"), text)
+        self.assertNotIn(reverse("fees_memo_edit", kwargs={"memo_id": i["memo"]}), text)
+        self.assertNotIn(reverse("fees_memo_delete", kwargs={"memo_id": i["memo"]}), text)
+
+    def test_memo_detail_for_an_editor_has_the_actions(self):
+        i = self.ids()
+        text = self.assert_page(self.page("fees_memo_detail", {"memo_id": i["memo"]}, user=self.editor), "detail-editor")
+        self.assertIn(reverse("fees_memo_delete", kwargs={"memo_id": i["memo"]}), text)
+        self.assertIn(reverse("fees_payment_new"), text)
+        self.assert_no_unlabelled_controls(text, "detail-editor")
+        draft = self.assert_page(self.page("fees_memo_detail", {"memo_id": i["draft"]}, user=self.editor), "detail-draft")
+        self.assertIn(reverse("fees_memo_finalise", kwargs={"memo_id": i["draft"]}), draft)

@@ -3,8 +3,9 @@
 {% block page_title %}Draft memos - {{ program_label }}{% endblock %}
 {% block content %}
 <h1>Draft memos</h1>
-<p><a href="{% url 'fees_memos' %}">Memos</a>{% if can_edit %} | <a href="{% url 'fees_memo_new' %}">New memo</a>{% endif %}</p>
+<p class="muted">A draft has no memo number yet. Open a draft to finish it.</p>
+<p class="page-actions" role="group" aria-label="Draft actions"><a class="button" href="{% url 'fees_memos' %}">Memos</a>{% if can_edit %} <a class="button primary" href="{% url 'fees_memo_new' %}">New memo</a>{% endif %}</p>
 {% include "fees/_filters_form.html" with show_fy=True %}
-{% include "fees/_memo_table.html" %}
+{% include "fees/_memo_table.html" with table_key="drafts" %}
 {% include "fees/_pager.html" %}
 {% endblock %}

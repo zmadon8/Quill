@@ -1,15 +1,19 @@
 {% load fees_money %}
-<table class="ledger-table">
-  <thead><tr><th>No.</th><th>Date</th><th>Firm</th><th>Matter</th><th>Total</th><th>Net of TDS</th><th>Received</th><th>TDS</th><th>Due</th><th>Status</th></tr></thead>
+{# Memo table. Context: items, totals, money_unit; optional table_key (column menu key), fees_settings (status markers). #}
+<div class="table-wrap">
+<table class="ledger-table" data-fees-columns="{{ table_key|default:'memos' }}">
+  <caption>{{ totals.count }} memo{{ totals.count|pluralize }}</caption>
+  <thead><tr><th scope="col" data-col-fixed>No.</th><th scope="col">Date</th><th scope="col">Firm</th><th scope="col">Matter</th><th scope="col" class="money">Total</th><th scope="col" class="money">Net of TDS</th><th scope="col" class="money">Received</th><th scope="col" class="money">TDS</th><th scope="col" class="money">Due</th><th scope="col" data-col-fixed>Status</th></tr></thead>
   <tbody>
   {% for m in items %}<tr>
-    <td><a href="{% url 'fees_memo_detail' m.id %}">{{ m.memo_number }}</a></td>
+    <td><a href="{% url 'fees_memo_detail' m.id %}">{{ m.memo_number|default:"(draft)" }}</a></td>
     <td>{{ m.date|fees_date }}</td><td>{{ m.firm_name }}</td><td>{{ m.matter_name }}</td>
-    <td>{{ m.total_fees|fees_money:money_unit }}</td><td>{{ m.net_of_tds|fees_money:money_unit }}</td>
-    <td>{{ m.amount_received|fees_money:money_unit }}</td><td>{{ m.amount_tds|fees_money:money_unit }}</td>
-    <td>{{ m.amount_due|fees_money:money_unit }}</td>
-    <td>{% if m.written_off %}Written off{% elif m.is_draft %}Draft{% else %}{{ m.status }}{% if m.is_overdue %} (overdue){% endif %}{% endif %}</td>
+    <td class="money">{{ m.total_fees|fees_money:money_unit }}</td><td class="money">{{ m.net_of_tds|fees_money:money_unit }}</td>
+    <td class="money">{{ m.amount_received|fees_money:money_unit }}</td><td class="money">{{ m.amount_tds|fees_money:money_unit }}</td>
+    <td class="money">{{ m.amount_due|fees_money:money_unit }}</td>
+    <td>{% include "fees/_memo_status.html" with m=m %}</td>
   </tr>{% empty %}<tr><td colspan="10">No memos.</td></tr>{% endfor %}
   </tbody>
-  <tfoot><tr><th colspan="4">Total ({{ totals.count }})</th><th>{{ totals.total_fees|fees_money:money_unit }}</th><th>{{ totals.net_of_tds|fees_money:money_unit }}</th><th>{{ totals.amount_received|fees_money:money_unit }}</th><th>{{ totals.amount_tds|fees_money:money_unit }}</th><th>{{ totals.amount_due|fees_money:money_unit }}</th><th></th></tr></tfoot>
+  <tfoot><tr><th scope="row" colspan="4">Total ({{ totals.count }})</th><td class="money">{{ totals.total_fees|fees_money:money_unit }}</td><td class="money">{{ totals.net_of_tds|fees_money:money_unit }}</td><td class="money">{{ totals.amount_received|fees_money:money_unit }}</td><td class="money">{{ totals.amount_tds|fees_money:money_unit }}</td><td class="money">{{ totals.amount_due|fees_money:money_unit }}</td><td></td></tr></tfoot>
 </table>
+</div>
