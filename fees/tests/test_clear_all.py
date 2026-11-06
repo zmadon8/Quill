@@ -17,7 +17,7 @@ from django.test.utils import CaptureQueriesContext
 from accounts.models import Profile
 from accounts.suite import KEY_FEES
 from backups.models import BackupFile
-from fees.errors import FeesError
+from fees.errors import FeesError, status_for
 from fees.models import (
     Allocation,
     BankAccount,
@@ -130,6 +130,8 @@ class ClearAllTests(TestCase):
         with self.assertRaises(FeesError) as ctx:
             clear_all(self.profile, "Clear-Me", backup_func=boom)
         self.assertEqual(ctx.exception.code, "CLEAR_FAILED")
+        self.assertEqual(ctx.exception.status, 500)
+        self.assertEqual(status_for("CLEAR_FAILED"), 500)
         self.assertIn("nothing was deleted", ctx.exception.message)
         self.assertEqual(counts(self.profile), before)
 
