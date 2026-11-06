@@ -5,6 +5,7 @@
 {% block content %}
 <div class="page-head"><h1>Outstanding memos</h1>
 <p class="page-actions" role="group" aria-label="Outstanding actions"><a class="button" href="{% url 'fees_outstanding_export' %}?{{ query_string }}">Export to Excel</a></p></div>
+<div class="total-card" role="group" aria-label="Grand total"><span class="total-label">Total outstanding, {{ memo_count }} memo{{ memo_count|pluralize }}</span><span class="total-amount">{{ grand_total|fees_money:money_unit }}</span></div>
 <form method="get" class="filters" aria-label="Filter outstanding memos">
   <label>Firm <select name="firm"><option value="">All</option>{% for f in choices.firms %}<option value="{{ f.id }}"{% if filters.firm_id == f.id %} selected{% endif %}>{{ f.name }}</option>{% endfor %}</select></label>
   <label>Group <select name="group"><option value="">All</option>{% for g in choices.partners %}<option value="{{ g.id }}"{% if filters.group_id == g.id %} selected{% endif %}>{{ g.name }}</option>{% endfor %}</select></label>
@@ -26,7 +27,7 @@
 {% else %}
 {# Grouped and In order lists share one form: tick memos and press Pay. It is a plain GET to the payment form, so it works without a script. #}
 {% if can_edit %}<form method="get" action="{% url 'fees_payment_new' %}" data-pay-form>{% endif %}
-{% if can_edit %}<p class="page-actions"><button type="submit" class="primary">Pay ticked memos</button> <span class="muted" data-pay-summary role="status" aria-live="polite">Tick memos to settle them with one payment (up to 5).</span></p>{% endif %}
+{% if can_edit %}<p class="bulk-bar"><button type="submit" class="success">Pay ticked memos</button> <span class="muted" data-pay-summary role="status" aria-live="polite">Tick memos to settle them with one payment (up to 5).</span></p>{% endif %}
 <div class="table-wrap">
 <table class="ledger-table" data-fees-columns="outstanding-{{ view }}">
   <caption>{{ memo_count }} memo{{ memo_count|pluralize }} with fees outstanding{% if view == "flat" %}, in one list{% else %}, grouped by matter{% endif %}</caption>
