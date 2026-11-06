@@ -246,6 +246,10 @@ def _scope_title(profile, scope):
     return "Statement", ""
 
 
+#: Public name for the title resolver, used by the export file names (``fees.exports.xlsx``).
+scope_title = _scope_title
+
+
 def build_statement(profile, scope=None) -> dict:
     """Builds the Statement data for ``scope`` (brief 6.5 / 7.3).
 

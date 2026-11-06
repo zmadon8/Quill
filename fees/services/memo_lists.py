@@ -195,6 +195,23 @@ def list_memos(profile, filters=None, draft_mode="exclude_drafts"):
     return items
 
 
+def iter_memos(profile, filters=None, draft_mode="exclude_drafts", chunk_size=500):
+    """Like ``list_memos`` but yields the list-item dicts one at a time, newest first.
+
+    Same filters, same order, same item dicts; rows are read with ``.iterator(chunk_size)`` so a large export
+    never holds every ``Memo`` object at once (R-NFR-2). Two queries (settings, then the memo rows).
+    """
+    filters = filters or {}
+    default_tds_rate, overdue_days = _settings_for(profile)
+    qs = _filtered_queryset(profile, filters, draft_mode)
+    unpaid_only = bool(filters.get("unpaid_only"))
+    for memo in qs.iterator(chunk_size=chunk_size):
+        item = _row_to_item(memo, default_tds_rate, overdue_days)
+        if unpaid_only and item["status"] != "Unpaid":
+            continue
+        yield item
+
+
 def list_drafts(profile, filters=None):
     """Lists only draft memos (the Draft Memos page). Convenience over ``list_memos``."""
     return list_memos(profile, filters, draft_mode="drafts_only")
