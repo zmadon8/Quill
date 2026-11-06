@@ -3,7 +3,7 @@
 {% block page_title %}Feebook - {{ program_label }}{% endblock %}
 {% block content %}
 <div class="page-head"><h1>Feebook</h1>
-<p class="page-actions" role="group" aria-label="Feebook actions">{% if can_edit %}<a class="button primary" href="{% url 'fees_payment_new' %}">New payment</a> {% endif %}<a class="button" href="{% url 'fees_feebook_export' %}?{{ query_string }}">Export to Excel</a></p></div>
+<p class="page-actions" role="group" aria-label="Feebook actions">{% if can_edit %}<a class="button small success" href="{% url 'fees_payment_new' %}">Add payment</a> {% endif %}<a class="button small secondary" href="{% url 'fees_feebook_export' %}?{{ query_string }}">Export to Excel</a></p></div>
 <form method="get" class="filters" aria-label="Filter the Feebook">
   <label>Financial year <input type="text" name="fy" value="{{ filters.financial_year|default:'' }}" size="8" placeholder="2026-27"></label>
   <label>Firm <select name="firm"><option value="">All</option>{% for f in firm_choices %}<option value="{{ f.pk }}"{% if filters.firm_id == f.pk %} selected{% endif %}>{{ f.name }}</option>{% endfor %}</select></label>
@@ -11,7 +11,7 @@
   <label><input type="checkbox" name="unaccounted" value="1"{% if filters.unaccounted_only %} checked{% endif %}> Unaccounted only</label>
   <button type="submit">Filter</button>
 </form>
-<div class="table-wrap">
+<div class="table-card"><div class="table-wrap">
 <table class="ledger-table" data-fees-columns="feebook">
   <caption>{{ totals.count }} payment line{{ totals.count|pluralize }}</caption>
   <thead><tr><th scope="col" data-col-fixed>Date</th><th scope="col" data-col-fixed>Memo</th><th scope="col">Firm</th><th scope="col">Matter</th><th scope="col" class="money">Paid</th><th scope="col" class="money">TDS</th><th scope="col" class="money">Paid + TDS</th><th scope="col">Payee</th><th scope="col">Bank</th><th scope="col">Mode</th><th scope="col">Type</th>{% if can_edit %}<th scope="col" data-col-fixed><span class="visually-hidden">Actions</span></th>{% endif %}</tr></thead>
@@ -22,11 +22,11 @@
     <td class="money">{{ e.amount_paid|fees_money:money_unit }}</td><td class="money">{{ e.tds|fees_money:money_unit }}</td><td class="money">{{ e.paid_plus_tds|fees_money:money_unit }}</td>
     <td>{{ e.payee }}</td><td>{{ e.bank_account_name|default:"" }}</td><td>{{ e.payment_mode }}</td>
     <td>{{ e.payment_type }}{% if e.group_memo_numbers %} ({{ e.group_memo_numbers|join:", " }}){% endif %}</td>
-    {% if can_edit %}<td><a href="{% url 'fees_payment_edit' e.payment_id %}" aria-label="Edit payment of {{ e.amount_paid|fees_money:money_unit }} on {{ e.date_of_payment|fees_date }}">Edit</a>
+    {% if can_edit %}<td><a class="button small secondary" href="{% url 'fees_payment_edit' e.payment_id %}" aria-label="Edit payment of {{ e.amount_paid|fees_money:money_unit }} on {{ e.date_of_payment|fees_date }}">Edit</a>
       {% if not e.memo_id %}<form method="post" action="{% url 'fees_payment_assign' e.payment_id %}" class="inline">{% csrf_token %}<input type="text" name="memo_number" size="12" placeholder="Memo number" aria-label="Memo number to attach payment of {{ e.amount_paid|fees_money:money_unit }} to"> <button type="submit">Attach</button></form>{% endif %}</td>{% endif %}
   </tr>{% empty %}<tr><td colspan="{% if can_edit %}12{% else %}11{% endif %}">No payments.</td></tr>{% endfor %}</tbody>
   <tfoot><tr><th scope="row" colspan="4">Total ({{ totals.count }})</th><td class="money">{{ totals.amount_paid|fees_money:money_unit }}</td><td class="money">{{ totals.tds|fees_money:money_unit }}</td><td class="money">{{ totals.paid_plus_tds|fees_money:money_unit }}</td><td colspan="{% if can_edit %}5{% else %}4{% endif %}"></td></tr></tfoot>
 </table>
-</div>
+</div></div>
 {% include "fees/_pager.html" %}
 {% endblock %}
