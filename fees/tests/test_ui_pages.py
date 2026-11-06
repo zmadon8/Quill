@@ -16,7 +16,7 @@ from fees.models import FeesSettings, SavedView
 from fees.tests.test_views_read import SeededViewsBase
 
 EM_DASH = "\u2014"
-NAV_LABELS = ["Dashboard", "Statistics", "Memos", "Firms", "Feebook", "Outstanding", "Settings"]
+NAV_LABELS = ["Statistics", "Memos", "Firms", "Feebook", "Outstanding", "Settings"]
 
 
 @override_settings(SECURE_SSL_REDIRECT=False)
@@ -101,7 +101,24 @@ class ShellTests(UiPageBase):
         nav = self.html(self.page("fees_memos"))
         nav = nav[nav.index('<nav class="program-nav"'):nav.index("</nav>")]
         self.assertNotIn(">Statistics</a>", nav)
-        self.assertIn(">Dashboard</a>", nav)
+        self.assertEqual(nav.count(">Dashboard</a>"), 1)
+        self.assertEqual(nav.count('href="%s"' % reverse("fees_dashboard")), 1)
+
+    def test_statistics_entry_is_current_on_the_dashboard_and_statistics_pages(self):
+        FeesSettings.objects.update_or_create(profile=self.profile, defaults={"statistics_enabled": True})
+        for name in ("fees_dashboard", "fees_statistics"):
+            with self.subTest(page=name):
+                text = self.html(self.page(name))
+                nav = text[text.index('<nav class="program-nav"'):text.index("</nav>")]
+                self.assertEqual(nav.count('aria-current="page"'), 1)
+                self.assertRegex(nav, r'<a href="%s" class="on" aria-current="page">Statistics</a>' % re.escape(reverse("fees_dashboard")))
+                self.assertNotIn(">Dashboard</a>", nav)
+
+    def test_body_carries_the_ledger_class_and_stylesheet_order(self):
+        text = self.html(self.page("fees_memos"))
+        self.assertRegex(text, r'<body class="ledger w-\dxl">')
+        self.assertLess(text.index("css/site.css"), text.index("css/ledger.css"))
+        self.assertLess(text.index("css/ledger.css"), text.index("css/fees.css"))
 
     def test_program_name_links_to_the_dashboard(self):
         text = self.html(self.page("fees_firms"))
@@ -554,7 +571,12 @@ class DashboardScreenTests(UiPageBase):
     def test_dashboard_landmarks_and_boxes(self):
         self.settings_on(statistics_enabled=True)
         text = self.assert_page(self.page("fees_dashboard"), "dashboard")
-        self.assertIn('aria-labelledby="summary-heading"', text)
+        self.assertNotIn("At a glance", text)
+        self.assertIn('aria-label="Summary"', text)
+        self.assertIn('aria-label="Statistics sections"', text)
+        self.assertIn('class="on" aria-current="page">Dashboard</a>', text)
+        for label in ("Standard", "Explore"):
+            self.assertIn(">%s</a>" % label, text)
         self.assertIn('aria-labelledby="overview-heading"', text)
         self.assertIn('aria-labelledby="recent-heading"', text)
         self.assertIn('<div class="kpi"><dt><a href="%s">Total outstanding</a></dt>' % reverse("fees_outstanding"), text)
@@ -581,11 +603,16 @@ class DashboardScreenTests(UiPageBase):
         FeesSettings.objects.update_or_create(profile=self.profile, defaults={"dashboard_kpis_enabled": False})
         text = self.assert_page(self.page("fees_dashboard"), "dashboard-off")
         self.assertNotIn("overview-heading", text)
-        self.assertIn("summary-heading", text)
+        self.assertIn('aria-label="Summary"', text)
 
     def test_appearances_box_follows_the_statistics_switch(self):
         self.settings_on(statistics_enabled=False)
-        self.assertNotIn("Appearances this year", self.html(self.page("fees_dashboard")))
+        text = self.html(self.page("fees_dashboard"))
+        self.assertNotIn("Appearances this year", text)
+        # Statistics off: the tab strip holds the Dashboard tab only.
+        self.assertIn(">Dashboard</a>", text)
+        self.assertNotIn(">Standard</a>", text)
+        self.assertNotIn(">Explore</a>", text)
 
     def test_customise_is_for_editors_only_and_posts_to_the_existing_endpoint(self):
         self.settings_on()

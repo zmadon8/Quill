@@ -3,7 +3,10 @@
 {# Fee Register shell on the shared suite shell. A page fills page_title and content (and may set back_url, back_label). #}
 {# Page scripts: a page adds its own <script> inside {% block page_js %}; money.js and columns.js load on every fees page. #}
 {% block program_title %}{% block page_title %}{{ program_label }}{% endblock %}{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'css/fees.css' %}">{% endblock %}
+{# body.ledger scopes the Ledger book design (static/css/ledger.css). A page may set page_width: w-6xl (default), w-5xl, w-4xl or w-3xl. #}
+{% block body_attrs %} class="ledger {% block page_width %}w-6xl{% endblock %}"{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/ledger.css' %}">
+  <link rel="stylesheet" href="{% static 'css/fees.css' %}">{% endblock %}
 {% block program_name %}<a href="{% url 'fees_dashboard' %}">{{ program_label }}</a>{% if fees_profile and not fees_profile.display_name %} <span class="profile-name">&middot; {{ fees_profile.name }}</span>{% endif %}{% if fees_other_profiles %}{% include "diary/_profile_switch.html" with other_profiles=fees_other_profiles %}{% endif %}{% endblock %}
 {% block program_nav %}{% for i in fees_nav %}<a href="{{ i.url }}"{% if i.on %} class="on" aria-current="page"{% endif %}>{{ i.name }}</a>
   {% endfor %}{% endblock %}

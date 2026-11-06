@@ -30,9 +30,9 @@ TAB_URL_NAMES = {
 }
 
 #: Header entries: (key, label, url name, url-name prefixes that mark it current).
+#: Statistics is one entry whose first tab is the Dashboard; with Statistics switched off it reads "Dashboard".
 _NAV = (
-    ("dashboard", "Dashboard", "fees_dashboard", ("fees_dashboard",)),
-    ("statistics", "Statistics", "fees_statistics", ("fees_statistics",)),
+    ("statistics", "Statistics", "fees_dashboard", ("fees_dashboard", "fees_statistics")),
     ("memos", "Memos", "fees_memos", ("fees_memo", "fees_payment")),
     ("firms", "Firms", "fees_firms", ("fees_firm", "fees_matter")),
     ("feebook", "Feebook", "fees_feebook", ("fees_feebook",)),
@@ -43,13 +43,13 @@ _NAV = (
 
 
 def nav_for(request, settings):
-    """The header entries for this page; Statistics is left out when it is switched off in Settings."""
+    """The header entries for this page; the Statistics entry is labelled Dashboard when Statistics is switched off."""
     match = getattr(request, "resolver_match", None)
     current = (match.url_name or "") if match else ""
     items = []
     for key, label, url_name, prefixes in _NAV:
         if key == "statistics" and settings is not None and not settings.statistics_enabled:
-            continue
+            label = "Dashboard"
         items.append({"url": reverse(url_name), "name": label, "on": current.startswith(prefixes)})
     return items
 

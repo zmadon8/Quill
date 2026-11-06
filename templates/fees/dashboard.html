@@ -2,12 +2,12 @@
 {% load fees_money %}
 {% block page_title %}Dashboard - {{ program_label }}{% endblock %}
 {% block content %}
-<h1>Dashboard</h1>
-<section aria-labelledby="summary-heading">
-<h2 id="summary-heading">At a glance</h2>
+<div class="page-head"><h1>{% if fees_settings.statistics_enabled %}Statistics{% else %}Dashboard{% endif %}</h1></div>
+{% include "fees/_stats_tabs.html" with tab="dashboard" %}
+<section aria-label="Summary">
 <dl class="kpi-grid">
   <div class="kpi"><dt><a href="{% url 'fees_outstanding' %}">Total outstanding</a></dt><dd class="money">{{ summary.total_outstanding|fees_money:money_unit }}</dd></div>
-  <div class="kpi"><dt><a href="{% url 'fees_outstanding_detail' %}?overdue=1">Overdue</a></dt><dd class="money">{{ summary.amount_overdue|fees_money:money_unit }}</dd></div>
+  <div class="kpi alert"><dt><a href="{% url 'fees_outstanding_detail' %}?overdue=1">Overdue</a></dt><dd class="money">{{ summary.amount_overdue|fees_money:money_unit }}</dd></div>
   <div class="kpi"><dt><a href="{% url 'fees_memos' %}?unpaid=1">Memos awaiting payment</a></dt><dd class="money">{{ summary.memos_awaiting_payment }}</dd></div>
   <div class="kpi"><dt>Written off</dt><dd class="money">{{ summary.written_off_total|fees_money:money_unit }}</dd></div>
   <div class="kpi"><dt>Billed this month</dt><dd class="money">{{ summary.billed_this_month|fees_money:money_unit }}</dd></div>

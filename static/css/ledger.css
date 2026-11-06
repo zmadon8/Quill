@@ -269,6 +269,9 @@ body.ledger .group-list .group-name { min-width: 10rem; font-weight: 500; }
 body.ledger .inline-forms form.inline, body.ledger form.inline { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 8px 4px 0; }
 
 /* ---- 11. Statistics extras ---- */
+body.ledger .stat-table tbody th[scope=row] { position: sticky; left: 0; z-index: 1; background: var(--card); font-weight: 500; }
+body.ledger .stat-table tbody tr:hover th[scope=row] { background: var(--paper-2); }
+body.ledger .pivot-table tbody td.money:last-child { font-weight: 600; }
 body.ledger .adjust-grid input { text-align: right; font-variant-numeric: tabular-nums; max-width: 100%; }
 body.ledger .saved-views { list-style: none; padding: 0; margin: 0; }
 body.ledger .saved-views li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 4px 0; }

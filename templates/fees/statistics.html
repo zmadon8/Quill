@@ -3,13 +3,10 @@
 {% block page_title %}Statistics - {{ program_label }}{% endblock %}
 {% block content %}
 <h1>Statistics</h1>
-{% if stats_off %}<p class="notice" role="note">Statistics is switched off in Settings.{% if can_edit %} <a href="{% url 'fees_settings' %}">Open Settings</a>{% endif %}</p>
+{% if stats_off %}{% include "fees/_stats_tabs.html" with tab="" %}
+<p class="notice" role="note">Statistics is switched off in Settings.{% if can_edit %} <a href="{% url 'fees_settings' %}">Open Settings</a>{% endif %}</p>
 {% else %}
-<nav class="stat-tabs" aria-label="Statistics sections">
-  <a href="{% url 'fees_statistics' %}?tab=standard&amp;granularity={{ granularity }}&amp;fy={{ fy }}"{% if tab == "standard" %} class="on" aria-current="page"{% endif %}>Standard</a>
-  <a href="{% url 'fees_statistics' %}?tab=edit&amp;fy={{ fy }}"{% if tab == "edit" %} class="on" aria-current="page"{% endif %}>{% if can_edit %}Edit statistics{% else %}Adjustments{% endif %}</a>
-  <a href="{% url 'fees_statistics' %}?tab=explore"{% if tab == "explore" %} class="on" aria-current="page"{% endif %}>Explore</a>
-</nav>
+{% include "fees/_stats_tabs.html" %}
 
 {% if tab == "standard" %}
 <form method="get" class="filters" aria-label="Choose the period">
@@ -20,7 +17,7 @@
 </form>
 <p class="page-actions" role="group" aria-label="Statistics exports"><a class="button" href="{% url 'fees_statistics_export' %}?granularity={{ granularity }}&amp;fy={{ fy }}">Export to Excel</a> <a class="button" href="{% url 'fees_statistics_annual_export' %}?fy={{ fy }}">Annual summary (Excel)</a> <a class="button" href="{% url 'fees_statistics_tax_summary' %}?fy={{ fy }}">Tax summary (text)</a> <a class="button" href="{% url 'fees_statistics_year_end' %}?fy={{ fy }}">Year end</a></p>
 <div class="table-wrap">
-<table class="ledger-table">
+<table class="ledger-table stat-table">
   <caption>Statistics by {% if granularity == "financialYear" %}financial year{% else %}{{ granularity }}{% if granularity == "month" or granularity == "quarter" %} for {{ fy }}{% endif %}{% endif %}</caption>
   <thead><tr><th scope="col">Metric</th>{% for p in stats.periods %}<th scope="col" class="money">{{ p.label }}</th>{% endfor %}</tr></thead>
   <tbody>{% for row in table %}<tr><th scope="row">{{ row.label }}</th>{% for v in row.cells %}<td class="money">{% if row.money %}{{ v|fees_money:money_unit }}{% else %}{{ v|default_if_none:"" }}{% endif %}</td>{% endfor %}</tr>{% endfor %}</tbody>
@@ -65,7 +62,7 @@
 {% if pivot_error %}<p class="notice" role="alert">{{ pivot_error }}</p>{% endif %}
 {% if pivot %}
 <div class="table-wrap">
-<table class="ledger-table pivot-table" id="pivot-table">
+<table class="ledger-table pivot-table stat-table" id="pivot-table">
   <caption>{% for id, label in measures %}{% if id == chosen.measure %}{{ label }}{% endif %}{% endfor %} by {% for id, label in row_dims %}{% if id == chosen.row_dim %}{{ label|lower }}{% endif %}{% endfor %}{% if chosen.col_dim != "none" %}, across {% for id, label in col_dims %}{% if id == chosen.col_dim %}{{ label|lower }}{% endif %}{% endfor %}{% endif %}</caption>
   <thead><tr><th scope="col">Row</th>{% for c in pivot.columns %}<th scope="col" class="money">{{ c.label }}</th>{% endfor %}{% if pivot.columns|length > 1 %}<th scope="col" class="money">Total</th>{% endif %}</tr></thead>
   <tbody>{% for r in pivot.rows %}<tr><th scope="row">{{ r.label }}</th>{% for v in r.values %}<td class="money">{% if pivot.money %}{{ v|fees_money:money_unit }}{% else %}{{ v|floatformat:"-2" }}{% endif %}</td>{% endfor %}{% if pivot.columns|length > 1 %}<td class="money">{% if pivot.money %}{{ r.total|fees_money:money_unit }}{% else %}{{ r.total|floatformat:"-2" }}{% endif %}</td>{% endif %}</tr>{% empty %}<tr><td colspan="{{ pivot.columns|length|add:2 }}">Nothing to show for these choices.</td></tr>{% endfor %}</tbody>
