@@ -664,10 +664,11 @@ class RoleTests(BaseCase):
             call(editor_view, outsider)
         with self.assertRaises(PermissionDenied):
             call(reader_view, outsider)
-        # An Admin whose own membership is Reader may not use editor-only views.
+        # Owner's rule: "an 'Admin' is an 'Admin' for all sub-programs". An Admin whose own membership is Reader
+        # still works as an Editor (this used to be refused).
         ProfileMembership.objects.filter(user=self.admin).update(role="reader")
-        with self.assertRaises(PermissionDenied):
-            call(editor_view, self.admin)
+        self.assertEqual(call(editor_view, self.admin).status_code, 200)
+        self.assertEqual(program_role(self.admin, "diary"), "editor")
 
     def test_header_shows_username_only_and_user_list_shows_role(self):
         self.client.force_login(self.user)

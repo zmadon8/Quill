@@ -15,29 +15,60 @@ from django.db.models import F
 from django.db.models.functions import Lower
 from django.utils import timezone
 
-from .models import ROLE_READER, Profile, ProfileMembership
+from .models import ROLE_EDITOR, ROLE_READER, Profile, ProfileMembership
 from .programs import program_keys
 from .suite import KEY_DIARY, KEY_FEES, get_names
 
 DEFAULT_PROFILE_NAME = "Main"
 
 
-def live_memberships(user, program=KEY_DIARY):
+def live_memberships(user, program=KEY_DIARY, raw=False):
     """Every membership of ``user`` that gives access in ``program`` (live profile, not suspended), the one in use first.
 
     In use: the one switched to most recently; never-used ones follow by profile name. Profiles are loaded too.
     ``program=None`` returns the memberships of every program (one query), in the same order.
+
+    A suite Admin is an Admin in every program (the owner's rule): unless ``raw`` is True they get every live profile
+    of ``program`` as an Editor, with or without a membership (the ones without are unsaved stand-ins). ``raw=True``
+    gives only the stored memberships, with their stored roles (the Users screens). Non-Admins cost one query.
     """
     if user is None or not getattr(user, "pk", None):
         return []
     found = ProfileMembership.objects.filter(user=user, suspended=False, profile__deleted_at__isnull=True)
     if program is not None:
         found = found.filter(program=program)
-    return list(
+    memberships = list(
         found
         .select_related("profile")
         .order_by(F("last_used_at").desc(nulls_last=True), Lower("profile__name"), "pk")
     )
+    if raw or not getattr(user, "is_admin", False):
+        return memberships
+    return _admin_memberships(user, program, memberships)
+
+
+def _admin_memberships(user, program, memberships):
+    """An Admin's view of ``memberships``: Editor everywhere, plus a stand-in for each live profile with no membership.
+
+    Order: the profile used most recently first; then the rest by profile name (so an Admin with no memberships
+    uses the first profile by name).
+    """
+    has = {m.profile_id for m in memberships}
+    for m in memberships:
+        m.role = ROLE_EDITOR  # in memory only: the stored role is untouched
+    profiles = Profile.objects.filter(deleted_at__isnull=True).exclude(pk__in=has)
+    if program is not None:
+        profiles = profiles.filter(program=program)
+    standins = [
+        ProfileMembership(user=user, profile=p, program=p.program, role=ROLE_EDITOR)
+        for p in profiles.order_by(Lower("name"), "pk")
+    ]
+    used = [m for m in memberships if m.last_used_at is not None]
+    rest = sorted(
+        [m for m in memberships if m.last_used_at is None] + standins,
+        key=lambda m: (m.profile.name.lower(), m.profile_id),
+    )
+    return used + rest
 
 
 def get_membership_for(user, program=KEY_DIARY):
@@ -47,7 +78,20 @@ def get_membership_for(user, program=KEY_DIARY):
 
 
 def use_profile(user, profile):
-    """Make ``profile`` the one ``user`` is using (from now on, on every device). False if they may not use it."""
+    """Make ``profile`` the one ``user`` is using (from now on, on every device). False if they may not use it.
+
+    A suite Admin may use any live profile; one without a membership gets a Reader membership to record the choice
+    (they still work as an Editor, since an Admin is an Admin in every program).
+    """
+    if getattr(user, "is_admin", False) and profile.deleted_at is None:
+        membership, _ = ProfileMembership.objects.get_or_create(
+            user=user, profile=profile, defaults={"program": profile.program, "role": ROLE_READER}
+        )
+        if membership.suspended:
+            return False
+        membership.last_used_at = timezone.now()
+        membership.save(update_fields=["last_used_at"])
+        return True
     updated = ProfileMembership.objects.filter(
         user=user, profile=profile, suspended=False, profile__deleted_at__isnull=True
     ).update(last_used_at=timezone.now())

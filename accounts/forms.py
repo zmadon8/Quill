@@ -186,7 +186,7 @@ class UserEditForm(ProfileAccessMixin, forms.ModelForm):
         self.fields["landing_program"].choices = landing.program_choices()
         self.editing_user = editing_user
         self.fields["is_admin"].initial = self.instance.is_superuser
-        self._add_profile_fields({m.profile_id: m.role for m in live_memberships(self.instance)})
+        self._add_profile_fields({m.profile_id: m.role for m in live_memberships(self.instance, raw=True)})
 
     def clean_new_password(self):
         password = self.cleaned_data.get("new_password")
