@@ -257,7 +257,8 @@ class HomeIndexTests(TestCase):
         self.assertLess(header.index("search-toggle"), header.index("home-button"))
         self.assertLess(header.index('class="who"'), header.index("search-toggle"))
         self.assertLess(header.index("home-button"), header.index('aria-label="Sign out"'))  # Sign out: far right
-        self.assertNotIn("<input", header)
+        self.assertNotRegex(header, r'<input(?![^>]*type="hidden")')  # no typing box; Sign out's POST form carries a hidden csrf input
+        self.assertIn('class="link nav-icon signout-button"', header)
         self.client.force_login(self.admin)
         for name in ("user_list", "settings", "backup_list"):
             suite_header = self.client.get(reverse(name)).content.decode().split('<header class="site-header"')[1].split("</header>")[0]

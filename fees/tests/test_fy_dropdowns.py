@@ -92,7 +92,7 @@ class FyDropdownPageTests(WriteBase):
     def test_statistics_uses_drop_downs(self):
         for query in ("?tab=standard", "?tab=explore"):
             html = self.client.get(reverse("fees_statistics") + query).content.decode()
-            self.assertNotRegex(html, r'<input[^>]*name="(fy|from_fy|to_fy)"', query)
+            self.assertNotRegex(html, r'<input(?![^>]*type="hidden")[^>]*name="(fy|from_fy|to_fy)"', query)
         standard = self.client.get(reverse("fees_statistics") + "?tab=standard&fy=2026-27").content.decode()
         self.assertIn('<option value="2026-27" selected>2026-27</option>', standard)
         explore = self.client.get(reverse("fees_statistics") + "?tab=explore&from_fy=2025-26").content.decode()

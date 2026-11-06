@@ -128,7 +128,7 @@ class RunBackupCommandTests(BackupBase):
         call_command("run_backup", stdout=out)
         self.assertEqual(BackupFile.objects.filter(kind="daily").count(), 1)
         self.assertIn("Daily backup OK", out.getvalue())
-        self.assertTrue(BackupLog.objects.filter(kind="prune", success=True).exists())
+        self.assertIn("Old backups removed: 0", out.getvalue())  # one backup is under the keep count: nothing pruned, so no prune log
 
     def test_run_backup_failure_raises_command_error(self):
         with mock.patch("backups.services.serializers.serialize", side_effect=RuntimeError("boom")):
