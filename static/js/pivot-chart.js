@@ -11,13 +11,14 @@
   if (!data || !data.rows || !data.rows.length || !data.columns || !data.columns.length) { return; }
   var NS = "http://www.w3.org/2000/svg";
   var MAX_ROWS = 40;
-  var VARS = ["--oxblood", "--focus", "--amber-line", "--muted", "--ink"];
+  var VARS = ["--chart-1", "--chart-2", "--chart-3", "--chart-4", "--chart-5"];  // oxblood, dark green, ochre, slate blue, rust (ledger.css)
   var canvas = figure.querySelector("[data-chart-canvas]");
   var toggle = tools.querySelector("[data-chart-on]");
   var kind = tools.querySelector("[data-chart-type]");
 
+  var FALLBACK = ["#7A2E2E", "#2F5D3A", "#B7862B", "#4A6075", "#A8532E"];
   function css(name, fallback) {
-    var v = window.getComputedStyle(document.documentElement).getPropertyValue(name);
+    var v = window.getComputedStyle(document.body).getPropertyValue(name);
     return (v && v.trim()) || fallback;
   }
   function num(v) { var n = parseFloat(v); return isNaN(n) ? 0 : n; }
@@ -41,7 +42,7 @@
   function draw() {
     var rows = data.rows.slice(0, MAX_ROWS);
     var series = data.columns.map(function (label, i) {
-      return { label: label, color: css(VARS[i % VARS.length], "#444"), values: rows.map(function (r) { return num(r.values[i]); }) };
+      return { label: label, color: css(VARS[i % VARS.length], FALLBACK[i % FALLBACK.length]), values: rows.map(function (r) { return num(r.values[i]); }) };
     });
     var type = kind ? kind.value : "bar";
     var stacked = type === "stacked";

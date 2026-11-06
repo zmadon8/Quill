@@ -89,6 +89,7 @@
     taken = cents(taken);
     var left = cents(total - taken);
     remaining.hidden = false;
+    remaining.setAttribute("data-state", left === 0 ? "balanced" : "short");
     remaining.textContent = "Allocated " + money(taken) + " of " + money(total) + " (gross). Remaining " + money(left) + (left === 0 ? "." : ". The remainder is not attached to any memo.");
   }
 
