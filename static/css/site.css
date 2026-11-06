@@ -618,3 +618,9 @@ textarea.single-line { display: block; width: 100%; max-width: 28rem; min-height
 .search-tips-table { border-collapse: collapse; margin: .5rem 0; }
 .search-tips-table th, .search-tips-table td { text-align: left; vertical-align: top; padding: .2rem 1rem .2rem 0; font-weight: normal; }
 .search-notice { margin: .5rem 0; font-size: var(--small-size); color: var(--muted); }
+
+/* Justify text (My settings, Display): the text that is normally left-aligned, on screen only. Off unless chosen. */
+@media screen {
+  html.justify-text .item-text, html.justify-text .note-text, html.justify-text .section-header strong, html.justify-text .case-line-body, html.justify-text .case-comment { text-align: justify; }
+  html.justify-text .item-body, html.justify-text .note { text-align: justify; }
+}

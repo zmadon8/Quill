@@ -78,10 +78,12 @@ def current_profile(request):
 
 
 def header_style(request):
-    """``header_words``: True when the signed-in user chose Words for the header bar (My settings); Icons otherwise."""
+    """``header_words``: True when the signed-in user chose Words for the header bar (My settings); Icons otherwise.
+    ``justify_text``: True when they chose to justify text (My settings, Display); base_suite.html puts the class on <html>."""
     user = getattr(request, "user", None)
     words = bool(user is not None and user.is_authenticated and getattr(user, "header_style", "icons") == "words")
-    return {"header_words": words}
+    justify = bool(user is not None and user.is_authenticated and getattr(user, "justify_text", False))
+    return {"header_words": words, "justify_text": justify}
 
 
 #: The main Home page header (D86): each entry is one header item; its tabs are the sub-pages shown across the top of

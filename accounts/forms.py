@@ -232,8 +232,8 @@ class MySettingsForm(forms.ModelForm):
 
     class Meta:
         model = User
-        fields = ("email", "landing_program", "header_style")
-        labels = {"header_style": "Header bar"}
+        fields = ("email", "landing_program", "header_style", "justify_text")
+        labels = {"header_style": "Header bar", "justify_text": "Justify text"}
         widgets = {"header_style": forms.RadioSelect}
 
     def clean_email(self):
@@ -249,6 +249,11 @@ class MySettingsForm(forms.ModelForm):
         self.fields["header_style"].help_text = (
             "Icons: Trash is a dustbin, Export a downward arrow, Help a question mark, Settings a gear, and Search and "
             "Home their usual icons (hover or long-press to see the name). Words: the names instead."
+        )
+        self.fields["justify_text"].required = False
+        self.fields["justify_text"].help_text = (
+            "Lines up the right-hand edge of the text of Items, Sections and Notes on screen. Off: the text is left-aligned. "
+            "The Word export is not affected."
         )
         self.fields["landing_program"].choices = landing.program_choices(landing.programs_for(self.instance))
 

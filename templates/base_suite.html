@@ -1,7 +1,7 @@
 {% load static %}<!DOCTYPE html>
 {# Shared shell for every program in the suite (Option D "Chambers"). A program extends this and fills: #}
 {# program_name, program_nav, page_title; and crumb_nav (the breadcrumb row, only on judgment-list pages). See docs/DESIGN.md "Visual design". #}
-<html lang="en">
+<html lang="en"{% if justify_text %} class="justify-text"{% endif %}>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
