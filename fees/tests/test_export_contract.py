@@ -118,7 +118,9 @@ class ReaderPermissionTests(SeededBase):
                     self.assertIn("filename*=UTF-8''", response["Content-Disposition"])
                     self.assertTrue(b"".join(response.streaming_content))
                 finally:
-                    response.close()
+                    # Close the file only: response.close() sends request_finished, whose receiver
+                    # close_old_connections would close the test database connection.
+                    response.file_to_stream.close()
 
     def test_user_without_membership_gets_403(self):
         from django.core.exceptions import PermissionDenied

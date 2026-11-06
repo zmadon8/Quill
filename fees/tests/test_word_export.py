@@ -230,11 +230,12 @@ class RenderTests(SimpleTestCase):
 
     def test_table_row_with_false_flag_is_dropped(self):
         row = lambda t: f"<w:tr><w:tc>{ds.paragraph(t)}</w:tc></w:tr>"  # noqa: E731
-        body = "<w:tbl>" + row("{{#IF_APP}}one") + row("two{{/IF_APP}}") + row("keep") + "</w:tbl>"
+        body = "<w:tbl>" + row("{{#IF_APP}}first") + row("second{{/IF_APP}}") + row("keep") + "</w:tbl>"
         for flag, expect in ((False, False), (True, True)):
             parts = self.render(ds.document_xml(body), {"IF_APP": flag})
             text = parts["word/document.xml"].decode()
-            self.assertEqual("one" in text, expect)
+            self.assertEqual("first" in text, expect)
+            self.assertEqual("second" in text, expect)
             self.assertIn("keep", text)
 
     def test_too_many_entries_refused(self):
