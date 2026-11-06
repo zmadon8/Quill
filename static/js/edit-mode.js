@@ -293,7 +293,7 @@
       plain.hidden = !heading;
       var citable = whats.indexOf(what()) > -1;
       citeField.classList.toggle("off", !citable);
-      Array.prototype.forEach.call(citeField.querySelectorAll("input, button"), function (n) { n.disabled = !citable; });
+      Array.prototype.forEach.call(citeField.querySelectorAll("input, textarea, button"), function (n) { n.disabled = !citable; });
       // Items and Sections take a Flag (D88); the other kinds hide and disable it.
       var flagBox = form.querySelector("[data-add-flag]");
       if (flagBox) {
@@ -315,11 +315,11 @@
     more.addEventListener("click", function () {
       var first = list.querySelector("[data-cite-row]");
       var row = first.cloneNode(true);
-      Array.prototype.forEach.call(row.querySelectorAll("input"), function (i) { i.value = ""; });
+      Array.prototype.forEach.call(row.querySelectorAll("input, textarea"), function (i) { i.value = ""; i.style.height = ""; });
       var x = el("button", { type: "button", "class": "x-btn", "data-cite-remove": "", title: "Remove this citation", "aria-label": "Remove this citation" }, "\u00d7");
       row.appendChild(x);
       list.appendChild(row);
-      row.querySelector("input").focus();
+      row.querySelector("[name=case_citation]").focus();
     });
     list.addEventListener("click", function (e) {
       var x = e.target.closest("[data-cite-remove]");
@@ -356,7 +356,7 @@
       if (e.key === "Escape") { e.preventDefault(); closeCurrent(false); return; }
       if (e.key !== "Enter" || e.isComposing) { return; }
       var t = e.target;
-      var textual = t === plain || (t.classList && t.classList.contains("rt-area")) || (t.tagName === "INPUT" && t.type === "text");
+      var textual = t === plain || (t.classList && t.classList.contains("rt-area")) || (t.tagName === "INPUT" && t.type === "text") || (t.tagName === "TEXTAREA" && t.hasAttribute("data-single-line"));
       if (!textual) { return; }
       var multi = t.classList && t.classList.contains("rt-area");
       if (e.shiftKey && multi) { return; } // Shift+Enter is a new line
@@ -435,7 +435,7 @@
         var fresh = template.content.firstElementChild.cloneNode(true);
         list.appendChild(fresh);
         if (window.QuillRichText) { window.QuillRichText.initAll(fresh); }
-        fresh.querySelector("input[name=case_citation]").focus();
+        fresh.querySelector("[name=case_citation]").focus();
         card.setAttribute("data-dirty", "1");
         syncLayout();
         return;

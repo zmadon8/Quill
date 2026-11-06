@@ -604,3 +604,16 @@ button.group-switch { border: 0; background: none; padding: 0; font: inherit; fo
 .picker-choice.picker-current, .picker-no.picker-current { background: #1f5fbf; border-color: #1f5fbf; color: #fff; }
 .picker-no.picker-current .meta { color: inherit; }
 .picker-choice.picker-current .meta { color: inherit; }
+
+/* A one-line text box that wraps and grows (desktop citation boxes, static/js/single-line.js). Looks like the text input it replaces. */
+textarea.single-line { display: block; width: 100%; max-width: 28rem; min-height: var(--tap); padding: .4rem .6rem; font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--muted); border-radius: 2px; box-sizing: border-box; resize: none; overflow: hidden; }
+.addform textarea.single-line, .editcard textarea.single-line, .item-editor textarea.single-line { max-width: none; width: 100%; }
+.cite-row textarea.single-line { min-height: 38px; }
+@media (max-width: 599px) { .cite-row textarea.single-line { min-height: 44px; } }
+
+/* Search operators (round diary-round 1.8): the tips panel and the plain-words notice. */
+.search-tips { margin: .5rem 0 1rem; }
+.search-tips summary { cursor: pointer; font-size: var(--small-size); }
+.search-tips-table { border-collapse: collapse; margin: .5rem 0; }
+.search-tips-table th, .search-tips-table td { text-align: left; vertical-align: top; padding: .2rem 1rem .2rem 0; font-weight: normal; }
+.search-notice { margin: .5rem 0; font-size: var(--small-size); color: var(--muted); }

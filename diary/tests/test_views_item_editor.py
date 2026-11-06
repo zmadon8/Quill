@@ -108,15 +108,16 @@ class EditorPageTests(ItemEditorTestCase):
         item, _, _ = self.cited()
         resp = self.client.get(self.editor_url(item))
         self.assertContains(resp, "data-case-list")
-        self.assertContains(resp, 'name="case_citation" value="A v B"')
-        self.assertContains(resp, 'name="case_citation" value="C v D"')
+        self.assertContains(resp, 'data-single-line>A v B</textarea>')
+        self.assertContains(resp, 'data-single-line>C v D</textarea>')
         self.assertContains(resp, "Citation 1")
         self.assertContains(resp, "Citation 2")
         self.assertNotContains(resp, 'name="citation"')
 
     def test_an_item_without_a_citation_still_shows_the_first_citation_box(self):
         resp = self.client.get(self.editor_url(self.one))
-        self.assertContains(resp, 'name="case_citation" value=""')
+        self.assertContains(resp, 'name="case_citation"')
+        self.assertContains(resp, 'data-single-line></textarea>')
         self.assertContains(resp, 'data-case-row', count=2)  # the one shown and the template for new ones
         self.assertContains(resp, "Citation 1")
 
