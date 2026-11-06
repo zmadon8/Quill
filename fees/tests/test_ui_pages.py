@@ -444,3 +444,77 @@ class FeebookAndPaymentTests(UiPageBase):
         source = (Path(fees.__file__).resolve().parent.parent / "static" / "js" / "fees" / "payment-form.js").read_text()
         self.assertNotRegex(source, r"num_appearances\s*\*\s*fees_per_appearance")
         self.assertNotIn(EM_DASH, source)
+
+
+class OutstandingScreenTests(UiPageBase):
+    """T8.5: the firm summary and the detail (grouped, summary and in-order views, tick boxes plus Pay)."""
+
+    def test_firm_summary(self):
+        text = self.assert_page(self.page("fees_outstanding"), "outstanding")
+        self.assertIn('data-fees-columns="outstanding-firms"', text)
+        self.assertIn("<caption>", text)
+        self.assertIn('<th scope="col" class="money" data-col-fixed>Outstanding</th>', text)
+        self.assertIn('<th scope="row">Total</th>', text)
+        self.assertIn(reverse("fees_outstanding_detail") + "?firm=%d" % self.ids()["firm"], text)
+        self.assert_no_unlabelled_controls(text, "outstanding")
+
+    def test_firm_summary_keeps_the_filters_in_the_detail_link(self):
+        text = self.html(self.page("fees_outstanding", query="?overdue=1&written_off=1"))
+        self.assertRegex(text, r'href="%s\?[^"]*overdue=1' % re.escape(reverse("fees_outstanding_detail")))
+
+    def test_detail_grouped_for_a_firm(self):
+        query = "?firm=%d" % self.ids()["firm"]
+        text = self.assert_page(self.page("fees_outstanding_detail", query=query), "detail")
+        self.assertIn('data-fees-columns="outstanding-grouped"', text)
+        self.assertIn('scope="rowgroup"', text)
+        self.assertIn("Subtotal, ", text)
+        self.assertIn("Grand total due", text)
+        self.assertIn('class="crumb-row"', text)
+        self.assertRegex(text, r'<span class="status status-(unpaid|partial|overdue)"><span class="status-sq" aria-hidden="true"></span>')
+        self.assert_no_unlabelled_controls(text, "detail")
+
+    def test_detail_defaults_to_the_flat_list_for_all_firms(self):
+        text = self.assert_page(self.page("fees_outstanding_detail"), "detail-flat")
+        self.assertIn('data-fees-columns="outstanding-flat"', text)
+        self.assertIn('<th scope="col">Matter</th>', text)
+        self.assertNotIn('scope="rowgroup"', text)
+
+    def test_detail_views_and_sorts(self):
+        for view in ("grouped", "summary", "flat"):
+            for sort in ("firm", "group", "matter", "date", "due"):
+                with self.subTest(view=view, sort=sort):
+                    self.assert_page(self.page("fees_outstanding_detail", query="?view=%s&sort=%s" % (view, sort)), view)
+        summary = self.html(self.page("fees_outstanding_detail", query="?view=summary"))
+        self.assertIn('data-fees-columns="outstanding-summary"', summary)
+        self.assertNotIn('name="memo"', summary)
+
+    def test_unknown_view_and_sort_fall_back(self):
+        self.assert_page(self.page("fees_outstanding_detail", query="?view=zzz&sort=zzz"), "fallback")
+
+    def test_reader_has_no_tick_boxes_or_pay(self):
+        text = self.html(self.page("fees_outstanding_detail", query="?view=grouped"))
+        self.assertNotIn('name="memo"', text)
+        self.assertNotIn(reverse("fees_payment_new"), text)
+        self.assertNotIn("outstanding.js", text)
+
+    def test_editor_ticks_go_to_the_payment_form_as_a_plain_get_form(self):
+        text = self.assert_page(self.page("fees_outstanding_detail", query="?view=grouped", user=self.editor), "detail-editor")
+        self.assertIn('<form method="get" action="%s" data-pay-form>' % reverse("fees_payment_new"), text)
+        self.assertRegex(text, r'<input type="checkbox" name="memo" value="\d+" data-due="[\d.]+" aria-label="Select memo ')
+        self.assertIn("Pay ticked memos", text)
+        self.assertIn("js/fees/outstanding.js", text)
+        self.assert_no_unlabelled_controls(text, "detail-editor")
+
+    def test_ticked_memos_open_the_payment_form_with_rows(self):
+        a, b = self.seed["memo_a"], self.seed["memo_b"]
+        self.login(self.editor)
+        response = self.client.get(reverse("fees_payment_new"), {"memo": [a.pk, b.pk]})
+        self.assertEqual(response.status_code, 200)
+
+    def test_export_link_leaves_out_the_view_and_sort(self):
+        text = self.html(self.page("fees_outstanding_detail", query="?view=flat&sort=due&overdue=1"))
+        match = re.search(r'href="%s\?([^"]*)"' % re.escape(reverse("fees_outstanding_export")), text)
+        self.assertIsNotNone(match)
+        self.assertIn("overdue=1", match.group(1))
+        self.assertNotIn("view=", match.group(1))
+        self.assertNotIn("sort=", match.group(1))

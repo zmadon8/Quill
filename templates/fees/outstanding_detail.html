@@ -1,22 +1,49 @@
 {% extends "fees/base_fees.html" %}
-{% load fees_money %}
+{% load static fees_money %}
 {% block page_title %}Outstanding memos - {{ program_label }}{% endblock %}
+{% block crumb_nav %}{% url 'fees_outstanding' as back %}{% include "fees/_back.html" with url=back label="Outstanding by firm" %}{% endblock %}
 {% block content %}
 <h1>Outstanding memos</h1>
-<p><a href="{% url 'fees_outstanding' %}">By firm</a> | <a href="{% url 'fees_outstanding_export' %}?{{ query_string }}">Export to Excel</a></p>
-<form method="get" class="filters">
+<p class="page-actions" role="group" aria-label="Outstanding actions"><a class="button" href="{% url 'fees_outstanding_export' %}?{{ query_string }}">Export to Excel</a></p>
+<form method="get" class="filters" aria-label="Filter outstanding memos">
   <label>Firm <select name="firm"><option value="">All</option>{% for f in choices.firms %}<option value="{{ f.id }}"{% if filters.firm_id == f.id %} selected{% endif %}>{{ f.name }}</option>{% endfor %}</select></label>
+  <label>Group <select name="group"><option value="">All</option>{% for g in choices.partners %}<option value="{{ g.id }}"{% if filters.group_id == g.id %} selected{% endif %}>{{ g.name }}</option>{% endfor %}</select></label>
+  <label>View <select name="view"><option value="grouped"{% if view == "grouped" %} selected{% endif %}>Grouped by matter</option><option value="summary"{% if view == "summary" %} selected{% endif %}>Summary (matter totals)</option><option value="flat"{% if view == "flat" %} selected{% endif %}>In order (flat list)</option></select></label>
+  <label>Sort the flat list by <select name="sort">{% for key, name in sorts %}<option value="{{ key }}"{% if flat_sort == key %} selected{% endif %}>{{ name }}</option>{% endfor %}</select></label>
   <label><input type="checkbox" name="written_off" value="1"{% if filters.include_written_off %} checked{% endif %}> Include written off</label>
   <label><input type="checkbox" name="overdue" value="1"{% if filters.overdue_only %} checked{% endif %}> Overdue only</label>
   <button type="submit">Filter</button>
 </form>
-{% for g in groups %}
-<h2>{{ g.firm_name }}: {{ g.matter_name }}</h2>
-<table class="ledger-table">
-  <thead><tr><th>Memo</th><th>Date</th><th>Total</th><th>Net of TDS</th><th>Paid</th><th>Due</th><th></th></tr></thead>
-  <tbody>{% for e in g.entries %}<tr><td><a href="{% url 'fees_memo_detail' e.memo_id %}">{{ e.memo_number }}</a></td><td>{{ e.date|fees_date }}</td><td>{{ e.total_fees|fees_money:money_unit }}</td><td>{{ e.net_of_tds|fees_money:money_unit }}</td><td>{{ e.amount_paid|fees_money:money_unit }}</td><td>{{ e.due|fees_money:money_unit }}</td><td>{% if e.is_written_off %}Written off{% elif e.is_overdue %}Overdue{% endif %}</td></tr>{% endfor %}</tbody>
-  <tfoot><tr><th colspan="2">Subtotal</th><th>{{ g.subtotal_total|fees_money:money_unit }}</th><th>{{ g.subtotal_net_of_tds|fees_money:money_unit }}</th><th>{{ g.subtotal_paid|fees_money:money_unit }}</th><th>{{ g.subtotal|fees_money:money_unit }}</th><th></th></tr></tfoot>
+{% if view == "summary" %}
+<div class="table-wrap">
+<table class="ledger-table" data-fees-columns="outstanding-summary">
+  <caption>{{ groups|length }} matter{{ groups|length|pluralize }} with fees outstanding</caption>
+  <thead><tr><th scope="col" data-col-fixed>Matter</th><th scope="col">Firm</th><th scope="col">Group</th><th scope="col" class="money">Memos</th><th scope="col" class="money">Total</th><th scope="col" class="money">Net of TDS</th><th scope="col" class="money">Paid</th><th scope="col" class="money" data-col-fixed>Due</th></tr></thead>
+  <tbody>{% for g in groups %}<tr><th scope="row"><a href="{% url 'fees_matter_detail' g.matter_id %}">{{ g.matter_name }}</a></th><td>{{ g.firm_name }}</td><td>{{ g.partner_name }}</td><td class="money">{{ g.entries|length }}</td><td class="money">{{ g.subtotal_total|fees_money:money_unit }}</td><td class="money">{{ g.subtotal_net_of_tds|fees_money:money_unit }}</td><td class="money">{{ g.subtotal_paid|fees_money:money_unit }}</td><td class="money">{{ g.subtotal|fees_money:money_unit }}</td></tr>{% empty %}<tr><td colspan="8">Nothing outstanding.</td></tr>{% endfor %}</tbody>
+  <tfoot><tr><th scope="row" colspan="3">Total due</th><td class="money">{{ memo_count }}</td><td colspan="3"></td><td class="money">{{ grand_total|fees_money:money_unit }}</td></tr></tfoot>
 </table>
-{% empty %}<p>Nothing outstanding.</p>{% endfor %}
-<p><strong>Grand total due: {{ grand_total|fees_money:money_unit }}</strong></p>
+</div>
+{% else %}
+{# Grouped and In order lists share one form: tick memos and press Pay. It is a plain GET to the payment form, so it works without a script. #}
+{% if can_edit %}<form method="get" action="{% url 'fees_payment_new' %}" data-pay-form>{% endif %}
+{% if can_edit %}<p class="page-actions"><button type="submit" class="primary">Pay ticked memos</button> <span class="muted" data-pay-summary role="status" aria-live="polite">Tick memos to settle them with one payment (up to 5).</span></p>{% endif %}
+<div class="table-wrap">
+<table class="ledger-table" data-fees-columns="outstanding-{{ view }}">
+  <caption>{{ memo_count }} memo{{ memo_count|pluralize }} with fees outstanding{% if view == "flat" %}, in one list{% else %}, grouped by matter{% endif %}</caption>
+  <thead><tr>{% if can_edit %}<th scope="col" data-col-fixed><span class="visually-hidden">Select</span></th>{% endif %}<th scope="col" data-col-fixed>Memo</th><th scope="col">Date</th>{% if view == "flat" %}<th scope="col">Firm</th><th scope="col">Group</th><th scope="col">Matter</th>{% endif %}<th scope="col" class="money">Total</th><th scope="col" class="money">Net of TDS</th><th scope="col" class="money">Paid</th><th scope="col" class="money" data-col-fixed>Due</th><th scope="col" data-col-fixed>Status</th></tr></thead>
+  {% if view == "flat" %}
+  <tbody>{% for e in flat_entries %}{% include "fees/_outstanding_row.html" with e=e flat=True %}{% empty %}<tr><td colspan="{% if can_edit %}11{% else %}10{% endif %}">Nothing outstanding.</td></tr>{% endfor %}</tbody>
+  {% else %}
+  {% for g in groups %}<tbody>
+    <tr><th scope="rowgroup" colspan="{% if can_edit %}8{% else %}7{% endif %}">{{ g.firm_name }}: {{ g.matter_name }} <span class="muted">(group {{ g.partner_name }})</span></th></tr>
+    {% for e in g.entries %}{% include "fees/_outstanding_row.html" with e=e flat=False %}{% endfor %}
+    <tr class="subtotal"><th scope="row" colspan="{% if can_edit %}3{% else %}2{% endif %}">Subtotal, {{ g.matter_name }}</th><td class="money">{{ g.subtotal_total|fees_money:money_unit }}</td><td class="money">{{ g.subtotal_net_of_tds|fees_money:money_unit }}</td><td class="money">{{ g.subtotal_paid|fees_money:money_unit }}</td><td class="money">{{ g.subtotal|fees_money:money_unit }}</td><td></td></tr>
+  </tbody>{% empty %}<tbody><tr><td colspan="{% if can_edit %}8{% else %}7{% endif %}">Nothing outstanding.</td></tr></tbody>{% endfor %}
+  {% endif %}
+  <tfoot><tr><th scope="row" colspan="{% if view == 'flat' %}{% if can_edit %}9{% else %}8{% endif %}{% else %}{% if can_edit %}6{% else %}5{% endif %}{% endif %}">Grand total due</th><td class="money">{{ grand_total|fees_money:money_unit }}</td><td></td></tr></tfoot>
+</table>
+</div>
+{% if can_edit %}</form>{% endif %}
+{% endif %}
 {% endblock %}
+{% block page_js %}{% if can_edit %}<script src="{% static 'js/fees/outstanding.js' %}"></script>{% endif %}{% endblock %}
