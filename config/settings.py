@@ -165,7 +165,8 @@ _FEES_DEFAULT_ON = DEBUG or ALLOW_SQLITE or "test" in sys.argv[1:2] or os.enviro
 FEES_ENABLED = (os.environ["FEES_ENABLED"] == "1") if "FEES_ENABLED" in os.environ else _FEES_DEFAULT_ON
 
 # Backup settings (used by the backups app).
-BACKUP_RETENTION_DAYS = max(30, _int("BACKUP_RETENTION_DAYS", 35))
+# Only the newest BACKUP_KEEP_COUNT backups are kept, of every kind (owner decision). Never below 1.
+BACKUP_KEEP_COUNT = max(1, _int("BACKUP_KEEP_COUNT", 30))
 BACKUP_STALE_HOURS = _int("BACKUP_STALE_HOURS", 36)
 # Days a deleted profile can be restored before the purge job removes it for good.
 PROFILE_RETENTION_DAYS = max(1, _int("PROFILE_RETENTION_DAYS", 30))

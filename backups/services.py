@@ -31,7 +31,7 @@ from diary import nested_conversion, review_flags, subtopic_one, topic_one
 from fees.services.heavy import heavy_operation
 
 from . import policy, registry, storage as offsite_storage
-from .models import KEEP_KINDS, BackupFile, BackupLog
+from .models import BackupFile, BackupLog
 
 logger = logging.getLogger(__name__)
 
@@ -291,34 +291,34 @@ def create_backup(kind, user=None, use_applied_state=False):
     except Exception as exc:
         _log_failure(kind, started, exc, user)
         raise
+    # Keep only the newest backups, whatever made this one. Never touches the backup just made and never raises.
+    prune_old_backups(protect_ids=(backup.pk,))
     return backup
 
 
-def prune_old_backups(now=None, retention_days=None):
-    """Delete backups past the retention period (never the newest one, never an import or clear backup).
+def prune_old_backups(keep_count=None, protect_ids=()):
+    """Keep only the newest ``settings.BACKUP_KEEP_COUNT`` backups (default 30) and delete the rest.
 
-    Backups made around a Word import ("Before import" / "After import") or before clearing a profile stay until an Admin deletes them.
-
-    Never raises: a failure is written to the log instead. Returns the number removed.
+    Every kind counts the same (nightly, before update, before restore, manual, and the Before import /
+    After import / Before clearing profile backups too). Never deletes the newest backup or any id in
+    ``protect_ids``. Never raises: a failure is written to the log instead. Returns the number removed.
     """
-    now = now or timezone.now()
-    if retention_days is None:
-        retention_days = settings.BACKUP_RETENTION_DAYS
+    if keep_count is None:
+        keep_count = settings.BACKUP_KEEP_COUNT
     started = timezone.now()
     try:
         with transaction.atomic():
             entries = list(BackupFile.objects.values_list("id", "created_at"))
-            kept = set(BackupFile.objects.filter(kind__in=KEEP_KINDS).values_list("id", flat=True))
-            expired = [i for i in policy.select_expired(entries, now, retention_days) if i not in kept]
+            expired = policy.select_over_count(entries, keep_count, protect_ids)
             if expired:
                 BackupFile.objects.filter(id__in=expired).delete()
-            BackupLog.objects.create(
-                started_at=started,
-                finished_at=timezone.now(),
-                kind="prune",
-                success=True,
-                message=f"Removed {len(expired)} old backup(s).",
-            )
+                BackupLog.objects.create(
+                    started_at=started,
+                    finished_at=timezone.now(),
+                    kind="prune",
+                    success=True,
+                    message=f"Removed {len(expired)} old backup(s); the newest {policy.effective_keep_count(keep_count)} are kept.",
+                )
         return len(expired)
     except Exception as exc:
         logger.exception("Pruning old backups failed")

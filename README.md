@@ -133,7 +133,7 @@ The importer reads `Case Law Diary.docx` and never changes it. It always shows a
 
 1. Remove the sample data from the target profile first (`python manage.py remove_sample_data --profile "Name"`). The import refuses to run into a profile that holds any live diary record, and the dry run says what is in the way.
 2. On Home press **Import**. Choose the profile and the Word file, press **Dry run**, and read it. You can also press **Download dry run** to keep it as a text file. It lists the totals against the figures you approved (41 Subjects, 178 Topics, 323 Sub-topics, 2 Sections, 950 Items; 691 clean and 259 flagged Items; 261 review-marked records), the counts per Subject, why each flagged line is flagged, the 19 colon changes, the blank lines skipped, and the first lines of each Topic.
-3. If the dry run says there are no problems and the profile is ready, run the import in the **Render Shell** (this is the recommended way; the screen does not import, because the import can take longer than the 60-second web request limit): `python manage.py import_docx --profile "Name" --import`. A "Before import" backup is made first (nothing is imported if it fails) and an "After import" backup afterwards. **Download the "Before import" backup from the Backups screen and keep it.** Both stay until an Admin deletes them there. Everything is imported in one step or not at all. Running it again changes nothing.
+3. If the dry run says there are no problems and the profile is ready, run the import in the **Render Shell** (this is the recommended way; the screen does not import, because the import can take longer than the 60-second web request limit): `python manage.py import_docx --profile "Name" --import`. A "Before import" backup is made first (nothing is imported if it fails) and an "After import" backup afterwards. **Download the "Before import" backup from the Backups screen and keep it.** Both count toward the newest-30 backups that are kept, so download the "Before import" one if you want to keep it. Everything is imported in one step or not at all. Running it again changes nothing.
 4. Read the **reconciliation** the command prints, and ask for it again at any time on the Import screen with **Reconcile with profile** (or **Download reconciliation**), or in the Shell with `--reconcile`. It must end with `RESULT: MATCH`. Any difference is listed, never hidden.
 5. The **Review list** (the "Review" link in the diary menu, or the "for review" link on the Subjects page, with a Subject filter) shows the 261 review-marked records with their path and reason, in the order they appear in the Diary (headings alphabetically).
 
@@ -143,7 +143,7 @@ Use this to empty a profile before importing a Word file into it (the import onl
 
 1. On Home press **Profiles**, then **Delete all data** on the profile's row.
 2. Read the preview: it counts every kind of record that will be deleted for good (trashed and imported records and the version history included). Nothing else is touched: other profiles, the profile itself, its name, export name and users stay.
-3. Type the profile's name exactly and press **Delete all data**. A "Before clearing profile" backup is taken first; if it cannot be made, nothing is deleted. Download it from the Backups screen if you want to keep a copy (it is never removed automatically). It is refused while an import into that profile is running.
+3. Type the profile's name exactly and press **Delete all data**. A "Before clearing profile" backup is taken first; if it cannot be made, nothing is deleted. Download it from the Backups screen if you want to keep a copy (like every backup it is removed once more than 30 newer ones exist). It is refused while an import into that profile is running.
 4. The counts are written to the Permanent removal log on the Profiles screen. Then run the dry run and the import as above.
 
 In the Render Shell, `python manage.py import_docx --profile "Name"` (no option) is the dry run, `--import` imports and `--reconcile` compares. Add `--output report.txt` to save the report as a file.
@@ -263,7 +263,7 @@ You normally do not touch these; the Blueprint sets them.
 | `PYTHON_VERSION` | Python version used to build | `render.yaml` |
 | `DJANGO_ALLOWED_HOSTS` | Extra web addresses (your own domain), separated by commas. Render's own address is added automatically. | You, only if you use your own domain |
 | `CSRF_TRUSTED_ORIGINS` | Extra full addresses such as `https://diary.example.com`, separated by commas. Render's own address is added automatically. | You, only if you use your own domain |
-| `BACKUP_RETENTION_DAYS` | How many days to keep backups. Never less than 30. Default 35. | `render.yaml` (35) |
+| `BACKUP_KEEP_COUNT` | How many backups to keep (the newest ones, of every kind, including the ones made before an update, before a restore and around an import). Never less than 1. Default 30. | `render.yaml` (30) |
 | `PROFILE_RETENTION_DAYS` | How many days a deleted profile can be restored before the nightly job removes it for good. Default 30. | `render.yaml` (30) |
 | `BACKUP_STALE_HOURS` | Show the warning bar if there has been no good backup for this many hours. Default 36. | Default |
 | `MAX_BACKUP_UPLOAD_MB` | Largest backup file (uncompressed size) you can upload for a restore. Default 30. | Default |

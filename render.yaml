@@ -23,8 +23,8 @@ services:
         fromDatabase:
           name: judgment-diary-db
           property: connectionString
-      - key: BACKUP_RETENTION_DAYS
-        value: "35"
+      - key: BACKUP_KEEP_COUNT
+        value: "30"
       # Fee Register dark launch (design U11): "0" hides it and makes every /fees/ URL a 404, but keeps the data and
       # the backups working. Change to "1" at the owner's go-ahead.
       - key: FEES_ENABLED
@@ -73,8 +73,8 @@ services:
         fromDatabase:
           name: judgment-diary-db
           property: connectionString
-      - key: BACKUP_RETENTION_DAYS
-        value: "35"
+      - key: BACKUP_KEEP_COUNT
+        value: "30"
       # Days a deleted profile can be restored before it is removed for good.
       - key: PROFILE_RETENTION_DAYS
         value: "30"

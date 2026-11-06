@@ -85,6 +85,7 @@ The Fee Register ships dark: `render.yaml` sets `FEES_ENABLED` to `0`, so every 
 - **Web server:** `gunicorn ... --workers 2 --threads 2 --max-requests 500 --max-requests-jitter 50 --timeout 60`. Two worker processes with two threads each, each restarted after about 500 requests to keep memory steady. There is deliberately no `--preload`.
 - **Static files** (CSS and JavaScript) are served with hashed file names (WhiteNoise `CompressedManifestStaticFilesStorage`), so browsers can cache them for a long time and still pick up changes at the next deploy. `build.sh` runs `collectstatic`, which writes the list of hashed names. Tests use plain storage because they never run `collectstatic`.
 - **Nightly job:** backup, then (only if the backup worked) the deleted-profile purge and the old edit-history purge, then `clearsessions` to remove expired logins. A `clearsessions` problem never hides a failed backup: the job exits with the backup result.
+- **Backups:** only the newest 30 are kept (`BACKUP_KEEP_COUNT`), of every kind, and the pruning runs after every backup is made.
 - **Edit history** is kept for `HISTORY_RETENTION_DAYS` (default 30) days.
 
 ## 6. Everyday safety habits

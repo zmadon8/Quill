@@ -88,7 +88,7 @@ Margin check at the pessimistic end of every range (workers at 110 MB each, mast
 
 Does adding the fee tables to `BACKUP_MODELS` push the backup over budget? **Not at the planning size if R1 is done first; yes without it.** Today's pipeline at 16 MB of fee JSON needs about 100 MB for the fee part alone on top of the diary's 30 to 100 MB, reaching about 130 to 200 MB of transient memory, which with 240 MB steady is 370 to 440 MB. That is inside 512 MB but leaves no room for anything else, and the number grows with every memo. Hence R1 is a **Phase 1 gate** (before any fee data exists), not a later optimisation. For the first year or two (under 1,000 memos, about 1.5 MB of JSON) the extra is about 10 MB and harmless.
 
-Database storage: nightly backups kept 35 days. Fee data at planning size gzips to about 2 to 3 MB, so about 100 MB extra across 35 copies in the `basic-256mb` database. Check the plan's disk size in the Render dashboard; reduce `BACKUP_RETENTION_DAYS` if it gets tight.
+Database storage: the newest 30 backups are kept. Fee data at planning size gzips to about 2 to 3 MB, so about 100 MB extra across 30 copies in the `basic-256mb` database. Check the plan's disk size in the Render dashboard; reduce `BACKUP_KEEP_COUNT` if it gets tight.
 
 ## 6. Rules folded into the spec
 

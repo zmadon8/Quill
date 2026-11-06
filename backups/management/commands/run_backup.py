@@ -5,7 +5,7 @@ from backups import services
 
 
 class Command(BaseCommand):
-    help = "Create the daily backup, then remove backups older than the retention period."
+    help = "Create the daily backup, then keep only the newest backups."
 
     def handle(self, *args, **options):
         try:
