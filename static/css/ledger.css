@@ -396,3 +396,10 @@ body.ledger .search-suggest-option.active { background: var(--paper-2); }
 body.ledger .search-suggest-title { color: var(--ink); }
 body.ledger .search-suggest-sub { color: var(--faint); font-size: .786rem; }
 body.ledger .search-suggest-empty { padding: 10px 12px; color: var(--muted); }
+
+/* Feebook row actions: Edit plus a compact "..." overlay menu. The Attach form used to sit inline in the cell
+   and wrapped to about three lines, making unaccounted rows three times as tall; the menu floats over the table. */
+body.ledger td.row-actions { white-space: nowrap; }
+body.ledger td.row-actions > * { display: inline-block; vertical-align: middle; }
+body.ledger .row-menu > summary::after { content: none; }
+body.ledger .row-menu > .menu { min-width: 14rem; white-space: normal; }

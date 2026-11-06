@@ -408,6 +408,15 @@ class FeebookAndPaymentTests(UiPageBase):
         self.assertIn('aria-label="Edit payment of ', text)
         self.assert_no_unlabelled_controls(text, "feebook-editor")
 
+    def test_feebook_unaccounted_row_actions_are_a_compact_menu(self):
+        """The Attach form lives in a "..." overlay menu, not inline, so the row is no taller than the others."""
+        text = self.html(self.page("fees_feebook", user=self.editor, query="?unaccounted=1"))
+        self.assertIn('class="col-menu row-menu"', text)
+        self.assertIn('title="Attach to a memo"', text)
+        self.assertIn('aria-label="Edit payment of ', text)
+        self.assertIn("/assign/", text)
+        self.assertNotIn('class="inline"', text.split("<tbody>", 1)[-1].split("</tbody>", 1)[0])
+
     def test_payment_form_works_without_script(self):
         text = self.assert_page(self.page("fees_payment_new", user=self.editor), "payment")
         self.assertIn('method="post" action="%s"' % reverse("fees_payment_new"), text)
