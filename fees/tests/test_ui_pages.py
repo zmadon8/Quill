@@ -210,7 +210,19 @@ class MemoScreenTests(UiPageBase):
         self.assertIn('<th scope="row" colspan="4">Total (', text)
         self.assertIn('data-fees-columns="memos"', text)
         self.assertIn('aria-label="Memo actions"', text)
+        self.assertIn('class="status-legend"', text)
+        for word in ("Paid", "Unpaid", "Overdue", "Written Off"):
+            self.assertIn("</span>%s</span>" % word, text)
+        self.assertIn(">Draft memos</a>", text)
+        self.assertNotIn(">Payment</a>", text)
         self.assert_no_unlabelled_controls(text, "memos")
+
+    def test_editor_sees_payment_buttons_unless_hidden_on_paid(self):
+        editor = self.html(self.page("fees_memos", user=self.editor))
+        self.assertIn('class="button small success" href="%s?memo=' % reverse("fees_payment_new"), editor)
+        FeesSettings.objects.update_or_create(profile=self.profile, defaults={"hide_payment_when_paid": True})
+        hidden = self.html(self.page("fees_memos", user=self.editor))
+        self.assertLessEqual(hidden.count('class="button small success"'), editor.count('class="button small success"'))
 
     def test_reader_has_no_new_memo_button(self):
         text = self.html(self.page("fees_memos"))
@@ -302,11 +314,15 @@ class FirmScreenTests(UiPageBase):
 
     def test_firm_list(self):
         text = self.assert_page(self.page("fees_firms"), "firms")
-        self.assertIn('<th scope="col">Firm</th>', text)
+        self.assertIn('class="firm-list"', text)
+        self.assertRegex(text, r'class="firm-status is-(active|archived)">(Active|Archived)</span>')
+        self.assertNotIn("+ Matter", text)
         self.assertIn('aria-label="Show firms"', text)
         self.assertNotIn(reverse("fees_firm_new"), text)
         editor = self.html(self.page("fees_firms", user=self.editor))
         self.assertIn('href="%s"' % reverse("fees_firm_new"), editor)
+        self.assertIn("+ Matter</a>", editor)
+        self.assertIn("+ Memo</a>", editor)
 
     def test_firm_page_for_a_reader_has_no_edit_controls(self):
         i = self.ids()
@@ -341,6 +357,9 @@ class FirmScreenTests(UiPageBase):
         i = self.ids()
         text = self.assert_page(self.page("fees_matter_detail", {"matter_id": i["matter"]}), "matter")
         self.assertIn('data-fees-columns="matter-memos"', text)
+        self.assertIn('<th scope="col" class="money">Apps</th>', text)
+        self.assertIn('<th scope="col" class="money">Confs</th>', text)
+        self.assertNotIn(">Payment</a>", text)
         self.assertNotIn(reverse("fees_matter_archive", kwargs={"matter_id": i["matter"]}), text)
         editor = self.assert_page(self.page("fees_matter_detail", {"matter_id": i["matter"]}, user=self.editor), "matter-editor")
         self.assertIn(reverse("fees_matter_archive", kwargs={"matter_id": i["matter"]}), editor)
@@ -496,7 +515,9 @@ class OutstandingScreenTests(UiPageBase):
         self.assertIn('data-fees-columns="outstanding-firms"', text)
         self.assertIn("<caption>", text)
         self.assertIn('<th scope="col" class="money" data-col-fixed>Outstanding</th>', text)
-        self.assertIn('<th scope="row">Total</th>', text)
+        self.assertRegex(text, r'<th scope="row">Total \(\d+ firms?\)</th>')
+        self.assertIn('class="total-card"', text)
+        self.assertIn('>View</a>', text)
         self.assertIn(reverse("fees_outstanding_detail") + "?firm=%d" % self.ids()["firm"], text)
         self.assert_no_unlabelled_controls(text, "outstanding")
 

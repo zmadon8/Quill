@@ -57,6 +57,27 @@ Dashboard is the first sub-tab of Statistics: `_stats_tabs.html` (Dashboard, Sta
 both pages, and the header has one entry that links to the Dashboard. With Statistics switched off the entry is labelled
 Dashboard, only that tab shows, and the other statistics URLs keep the switched-off message.
 
+## Page structure details (round 2)
+
+- **Memos**: Memos | Draft memos sub-tabs (`.stat-tabs.sub-tabs`), then the table card with a status legend strip
+  (`.status-legend`, squares `.sq-paid/.sq-unpaid/.sq-overdue/.sq-written-off` in the -700 shades). Editors get a green
+  `success` Payment button per row (`?memo=<id>` on the payment form), hidden on paid memos when the "hide payment
+  button on paid memos" setting is on. Draft rows get a primary Edit button. Due is bold.
+- **Matter**: the memo table shows Apps / Confs / Drafts instead of Firm and Matter (`matter_view`), with Payment and
+  Edit row buttons. There is no Duplicate or Copy last memo action in the app yet, so none is drawn.
+- **Statistics, Standard**: the view passes each cell as `{value, overridden, current}` plus a per-metric `total`
+  (`_display_table`); the JSON endpoint still uses the plain `_table`. Current month and Total are tinted
+  (`.current-col`, `.total-col`), future headings are muted (`.future-col`), hand-entered cells are italic oxblood
+  (`.hand`) with a tooltip, and the first column is sticky.
+- **Outstanding**: grand-total card (`.total-card`), a View button per firm row, a "Total (N firms)" double-ruled row,
+  and a bulk bar (`.bulk-bar`) with a success Pay button.
+- **Firms**: rows (`.firm-list`) with oxblood name, Active (green) or Archived (grey) word, and + Matter, + Memo and
+  Archive row buttons for editors. **Firm page**: a top card split by a hairline (notes, group chips), then one card per
+  group with status squares per matter.
+- **Feebook**: Add payment is the success button, Edit is a small secondary button. **Dashboard**: Recently billed
+  matters has a + Memo button per row for editors (archived matters show "archived").
+- **Busy page** uses the shell stylesheets (`body.ledger`) instead of inline CSS.
+
 ## Reusing it for the Diary or Home later
 
 Add `class="ledger"` (plus a width class) to the `<body>` of the page, load `css/ledger.css` after `site.css`, and

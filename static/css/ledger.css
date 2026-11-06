@@ -305,6 +305,60 @@ body.ledger .breadcrumb + .breadcrumb { margin-left: 8px; }
 @media (max-width: 899px) { body.ledger main dl.kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 599px) { body.ledger main dl.kpi-grid { grid-template-columns: minmax(0, 1fr); } }
 
+/* ---- 13b. Round 2 page structure ---- */
+/* Status legend squares use the -700 shades so they read on paper. */
+body.ledger .status-legend { align-items: center; }
+body.ledger .status-legend .legend-item { display: inline-flex; align-items: center; gap: 6px; }
+body.ledger .status-sq.sq-paid { background: #15803D; }
+body.ledger .status-sq.sq-unpaid, body.ledger .status-sq.sq-partial { background: #B45309; }
+body.ledger .status-sq.sq-overdue { background: #B91C1C; }
+body.ledger .status-sq.sq-written-off { background: #374151; }
+body.ledger .status-squares { display: inline-flex; gap: 3px; align-items: center; min-width: 10px; }
+/* Sub-tabs on a hairline (Memos | Draft memos). */
+body.ledger .sub-tabs { margin: 0 0 12px; }
+/* Row buttons stay on one line at the end of the row. */
+body.ledger .row-actions { white-space: nowrap; }
+body.ledger .row-actions form { display: inline; margin: 0; }
+body.ledger .ledger-table td.row-actions { text-align: right; overflow: visible; }
+/* Standard statistics: the current month and the Total column are tinted. */
+body.ledger .stat-table thead th.future-col { color: var(--faint); }
+body.ledger .stat-table :is(td, th).current-col, body.ledger .stat-table :is(td, th).total-col { background: var(--paper-2); }
+body.ledger .stat-table td.total-col { font-weight: 600; }
+body.ledger .stat-table thead th:first-child { position: sticky; left: 0; z-index: 3; }
+body.ledger .stat-table td.hand { font-style: italic; color: var(--accent); cursor: help; }
+/* Outstanding: grand-total card and bulk bar. */
+body.ledger .total-card { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin: 12px 0; padding: 12px 16px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); }
+body.ledger .total-card .total-label { color: var(--ink-3); font-size: 1rem; }
+body.ledger .total-card .total-amount { font-size: 1.43rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+body.ledger .bulk-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: 12px 0 8px; }
+body.ledger .bulk-bar .muted { color: var(--muted); }
+/* Firms list rows. */
+body.ledger .firm-list { list-style: none; margin: 12px 0 0; padding: 0; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); }
+body.ledger .firm-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 8px 12px; border-bottom: 1px solid var(--line); }
+body.ledger .firm-list li:last-child { border-bottom: 0; }
+body.ledger .firm-list .firm-name { flex: 1 1 12rem; color: var(--accent); font-weight: 500; }
+body.ledger .firm-status.is-active { color: #15803D; }
+body.ledger .firm-status.is-archived { color: var(--muted); }
+body.ledger .firm-list .row-actions { margin-left: auto; }
+/* Firm page: top card split by a vertical hairline, group chips, per-group cards. */
+body.ledger .card.firm-top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0; padding: 0; }
+body.ledger .firm-top > * { padding: 16px; }
+body.ledger .firm-top .firm-groups { border-left: 1px solid var(--line); }
+body.ledger .firm-top .firm-groups h2 { margin-top: 0; }
+body.ledger .chips.group-list { background: transparent; border: 0; flex-direction: row; }
+body.ledger .chips.group-list li.chip { padding: 2px 8px; background: var(--paper-2); border: 1px solid var(--line); }
+body.ledger .chips.group-list li.chip input[type=text] { width: 9rem; }
+body.ledger .group-card { margin: 0 0 12px; padding: 0; }
+body.ledger .group-card .group-caption { margin: 0; padding: 8px 12px; font-family: var(--font-sans); font-size: 1rem; font-weight: 600; color: var(--ink-2); border-bottom: 1px solid var(--line); }
+body.ledger .matter-list { list-style: none; margin: 0; padding: 0; }
+body.ledger .matter-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px 12px; border-bottom: 1px solid var(--line); }
+body.ledger .matter-list li:last-child { border-bottom: 0; }
+body.ledger .matter-list .row-actions { margin-left: auto; }
+body.ledger .subtitle { margin: -4px 0 12px; }
+/* Busy page. */
+body.ledger .busy-card { padding: 24px; margin-top: 24px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); }
+@media (max-width: 699px) { body.ledger .card.firm-top { grid-template-columns: minmax(0, 1fr); } body.ledger .firm-top .firm-groups { border-left: 0; border-top: 1px solid var(--line); } }
+
 /* ---- 12. Phone ---- */
 @media (max-width: 899px) {
   body.ledger .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
