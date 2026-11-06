@@ -265,7 +265,10 @@ class ExportContractTests(TestCase):
             for row in rows:
                 for cell in row:
                     self.assertNotIn("sig.png", str(cell))
-                    self.assertNotIn("signature", str(cell).lower())
+                    # The one setting key that names the signature carries a tick, never the image or its name.
+                    text = str(cell).lower().replace("memo_signature_default", "")
+                    self.assertNotIn("signature", text)
+                    self.assertNotIn("fake-signature-image-bytes", text)
 
 
 class ExportEdgeTests(TestCase):

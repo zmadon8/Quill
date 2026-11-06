@@ -1,7 +1,7 @@
 {% load fees_money %}
 {# Memo table. Context: items, totals, money_unit, can_edit; optional table_key (column menu key), matter_view (Apps / Confs / Drafts instead of Firm and Matter), legend (status legend strip), fees_dots, fees_settings (hide_payment_when_paid). #}
 <div class="table-card">
-{% if legend %}<p class="status-legend" aria-label="Status key"><span class="legend-item"><span class="status-sq sq-paid" aria-hidden="true"></span>Paid</span> <span class="legend-item"><span class="status-sq sq-unpaid" aria-hidden="true"></span>Unpaid</span> <span class="legend-item"><span class="status-sq sq-overdue" aria-hidden="true"></span>Overdue</span> <span class="legend-item"><span class="status-sq sq-written-off" aria-hidden="true"></span>Written Off</span></p>{% endif %}
+{% if legend and fees_dots %}<p class="status-legend" aria-label="Status key"><span class="legend-item"><span class="status-sq sq-paid" aria-hidden="true"></span>Paid</span> <span class="legend-item"><span class="status-sq sq-unpaid" aria-hidden="true"></span>Unpaid</span> <span class="legend-item"><span class="status-sq sq-overdue" aria-hidden="true"></span>Overdue</span> <span class="legend-item"><span class="status-sq sq-written-off" aria-hidden="true"></span>Written Off</span></p>{% endif %}
 <div class="table-wrap">
 <table class="ledger-table" data-fees-columns="{{ table_key|default:'memos' }}" data-table-id="{{ table_key|default:'memos' }}">
   <caption>{{ totals.count }} memo{{ totals.count|pluralize }}</caption>

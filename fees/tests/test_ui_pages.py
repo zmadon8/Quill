@@ -161,7 +161,7 @@ class ConfirmPageTests(UiPageBase):
 
         text = render_to_string("fees/busy.html")
         self.assertIn('<html lang="en">', text)
-        self.assertIn('<main id="main">', text)
+        self.assertIn('<main id="main"', text)  # the landmark the skip link targets (it also carries a class)
         self.assertNotIn(EM_DASH, text)
 
 
@@ -715,7 +715,7 @@ class StatisticsPageTests(UiPageBase):
         text = self.assert_page(self.page("fees_statistics", query="?tab=explore"), "explore")
         for name in ("measure", "row_dim", "col_dim", "firm_id", "from_fy", "to_fy"):
             self.assertIn('name="%s"' % name, text)
-        self.assertIn('<table class="ledger-table pivot-table"', text)
+        self.assertIn('<table class="ledger-table pivot-table', text)
         self.assertIn("<caption>Amount Billed by financial year</caption>", text)
         self.assertIn('data-chart-tools hidden', text)
         self.assertIn('data-chart-figure hidden', text)

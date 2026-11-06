@@ -201,11 +201,12 @@ class MoveMemoViewTests(WriteBase):
 
 class ListDefaultFilterTests(WriteBase):
     def test_firms_list_uses_the_setting_unless_the_url_says_otherwise(self):
+        from django.utils.html import escape
         from fees.models import Firm
         firm = self.seed["matter_1"].firm
         Firm.objects.filter(pk=firm.pk).update(status="archived")
         url = reverse("fees_firms")
-        self.assertContains(self.client.get(url), firm.name)
+        self.assertContains(self.client.get(url), escape(firm.name))  # "Alpha & Co" is shown as "Alpha &amp; Co"
         FeesSettings.objects.update_or_create(profile=self.profile, defaults={"list_default_filter": "active"})
         self.assertNotContains(self.client.get(url), 'href="%s"' % reverse("fees_firm_detail", args=[firm.pk]))
         self.assertContains(self.client.get(url + "?status=all"), 'href="%s"' % reverse("fees_firm_detail", args=[firm.pk]))

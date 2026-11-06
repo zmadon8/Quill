@@ -30,7 +30,8 @@ class SettingsScreenTests(UiPageBase):
 
     def test_signature_upload_sits_in_the_word_template_box(self):
         text = self.settings_text(self.editor)
-        box = text[text.index('<section class="settings-box"'):text.index("</section>")]
+        start = text.index('<section class="settings-box')  # the box also carries the settings-card class
+        box = text[start:text.index("</section>", start)]
         self.assertIn(reverse("fees_template_upload"), box)
         self.assertIn(reverse("fees_signature_upload"), box)
         self.assertIn(reverse("fees_template_download"), box)

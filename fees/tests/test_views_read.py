@@ -376,7 +376,7 @@ class JsonShapeTests(SeededViewsBase):
         kinds = {row["kind"] for row in body["results"]}
         self.assertIn("firm", kinds)
         for row in body["results"]:
-            self.assertEqual(set(row), {"kind", "id", "title", "subtitle"})
+            self.assertEqual(set(row), {"kind", "id", "title", "subtitle", "url"})
         self.assertEqual(self.client.get(reverse("fees_search") + "?q=a").json()["results"], [])
 
     def test_statistics_data_shape(self):
