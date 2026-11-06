@@ -16,7 +16,8 @@ from django.db.models.functions import Lower
 from django.utils import timezone
 
 from .models import ROLE_READER, Profile, ProfileMembership
-from .suite import KEY_DIARY, get_names
+from .programs import program_keys
+from .suite import KEY_DIARY, KEY_FEES, get_names
 
 DEFAULT_PROFILE_NAME = "Main"
 
@@ -91,7 +92,8 @@ def request_profile(request, program=KEY_DIARY):
     if not hasattr(request, attr):
         # One query for every program: the header asks for the diary and the Fee Register on each page.
         everything = live_memberships(getattr(request, "user", None), None)
-        for key in {program, KEY_DIARY, *(m.program for m in everything)}:
+        # Every known program is filled in, so asking about one the user has no access to costs nothing more.
+        for key in {program, KEY_DIARY, KEY_FEES, *program_keys(), *(m.program for m in everything)}:
             memberships = [m for m in everything if m.program == key]
             membership = memberships[0] if memberships else None
             setattr(request, f"_memberships_{key}", memberships)
