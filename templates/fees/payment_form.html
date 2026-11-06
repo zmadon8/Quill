@@ -1,0 +1,24 @@
+{% extends "fees/base_fees.html" %}
+{% block page_title %}{% if payment %}Edit payment{% else %}New payment{% endif %} - {{ program_label }}{% endblock %}
+{% block content %}
+<h1>{% if payment %}Edit payment{% else %}New payment{% endif %}</h1>
+{% include "fees/_form_errors.html" %}
+<form method="post" action="{{ request.path }}{% if memo_id %}?memo={{ memo_id }}{% endif %}">
+  {% csrf_token %}
+  <p><label>Amount received (net) <input type="text" inputmode="decimal" name="amount" value="{{ form.amount }}" required></label>
+     <label>Date <input type="date" name="date_of_payment" value="{{ form.date_of_payment }}" required></label></p>
+  <p><label>TDS rate % <input type="text" inputmode="decimal" name="tds_rate" value="{{ form.tds_rate }}" size="6"></label>
+     <label><input type="checkbox" name="auto_tds" value="1"{% if form.auto_tds %} checked{% endif %}> Work out the TDS from the rate</label>
+     <label>TDS amount <input type="text" inputmode="decimal" name="tds_amount" value="{{ form.tds_amount }}"></label></p>
+  <p><label>Payee <input type="text" name="payee" value="{{ form.payee }}" size="40"></label></p>
+  <p><label>Bank account <select name="bank_account_id"><option value="">None</option>{% for b in bank_choices %}<option value="{{ b.pk }}"{% if form.bank_account_id == b.pk|stringformat:"s" %} selected{% endif %}>{{ b.name }}</option>{% endfor %}</select></label>
+     <label>Mode <input type="text" name="payment_mode" value="{{ form.payment_mode }}" size="14"></label></p>
+  <p><label>Details <textarea name="payment_details" rows="2" cols="40">{{ form.payment_details }}</textarea></label></p>
+  <fieldset><legend>Memos this payment settles (leave all blank for an unaccounted payment)</legend>
+    {% for row in form.rows %}<p><label>Memo number <input type="text" name="alloc_memo_{{ forloop.counter0 }}" value="{{ row.memo_number }}" size="14"></label>
+      <label>Amount <input type="text" inputmode="decimal" name="alloc_amount_{{ forloop.counter0 }}" value="{{ row.amount }}" size="10"></label>
+      <label>TDS <input type="text" inputmode="decimal" name="alloc_tds_{{ forloop.counter0 }}" value="{{ row.tds_amount }}" size="10"></label></p>{% endfor %}
+  </fieldset>
+  <p><button type="submit">Save</button> <a href="{% if memo_id %}{% url 'fees_memo_detail' memo_id %}{% else %}{% url 'fees_feebook' %}{% endif %}">Cancel</a></p>
+</form>
+{% endblock %}

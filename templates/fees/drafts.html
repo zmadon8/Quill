@@ -1,0 +1,10 @@
+{% extends "fees/base_fees.html" %}
+{% load fees_money %}
+{% block page_title %}Draft memos - {{ program_label }}{% endblock %}
+{% block content %}
+<h1>Draft memos</h1>
+<p><a href="{% url 'fees_memos' %}">Memos</a>{% if can_edit %} | <a href="{% url 'fees_memo_new' %}">New memo</a>{% endif %}</p>
+{% include "fees/_filters_form.html" with show_fy=True %}
+{% include "fees/_memo_table.html" %}
+{% include "fees/_pager.html" %}
+{% endblock %}

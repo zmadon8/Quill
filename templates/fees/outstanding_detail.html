@@ -1,0 +1,22 @@
+{% extends "fees/base_fees.html" %}
+{% load fees_money %}
+{% block page_title %}Outstanding memos - {{ program_label }}{% endblock %}
+{% block content %}
+<h1>Outstanding memos</h1>
+<p><a href="{% url 'fees_outstanding' %}">By firm</a> | <a href="{% url 'fees_outstanding_export' %}?{{ query_string }}">Export to Excel</a></p>
+<form method="get" class="filters">
+  <label>Firm <select name="firm"><option value="">All</option>{% for f in choices.firms %}<option value="{{ f.id }}"{% if filters.firm_id == f.id %} selected{% endif %}>{{ f.name }}</option>{% endfor %}</select></label>
+  <label><input type="checkbox" name="written_off" value="1"{% if filters.include_written_off %} checked{% endif %}> Include written off</label>
+  <label><input type="checkbox" name="overdue" value="1"{% if filters.overdue_only %} checked{% endif %}> Overdue only</label>
+  <button type="submit">Filter</button>
+</form>
+{% for g in groups %}
+<h2>{{ g.firm_name }}: {{ g.matter_name }}</h2>
+<table class="ledger-table">
+  <thead><tr><th>Memo</th><th>Date</th><th>Total</th><th>Net of TDS</th><th>Paid</th><th>Due</th><th></th></tr></thead>
+  <tbody>{% for e in g.entries %}<tr><td><a href="{% url 'fees_memo_detail' e.memo_id %}">{{ e.memo_number }}</a></td><td>{{ e.date|fees_date }}</td><td>{{ e.total_fees|fees_money:money_unit }}</td><td>{{ e.net_of_tds|fees_money:money_unit }}</td><td>{{ e.amount_paid|fees_money:money_unit }}</td><td>{{ e.due|fees_money:money_unit }}</td><td>{% if e.is_written_off %}Written off{% elif e.is_overdue %}Overdue{% endif %}</td></tr>{% endfor %}</tbody>
+  <tfoot><tr><th colspan="2">Subtotal</th><th>{{ g.subtotal_total|fees_money:money_unit }}</th><th>{{ g.subtotal_net_of_tds|fees_money:money_unit }}</th><th>{{ g.subtotal_paid|fees_money:money_unit }}</th><th>{{ g.subtotal|fees_money:money_unit }}</th><th></th></tr></tfoot>
+</table>
+{% empty %}<p>Nothing outstanding.</p>{% endfor %}
+<p><strong>Grand total due: {{ grand_total|fees_money:money_unit }}</strong></p>
+{% endblock %}

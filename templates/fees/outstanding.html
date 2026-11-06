@@ -1,0 +1,18 @@
+{% extends "fees/base_fees.html" %}
+{% load fees_money %}
+{% block page_title %}Outstanding - {{ program_label }}{% endblock %}
+{% block content %}
+<h1>Outstanding by firm</h1>
+<p><a href="{% url 'fees_outstanding_detail' %}">Memo by memo</a> | <a href="{% url 'fees_outstanding_summary_export' %}?{{ query_string }}">Export to Excel</a> | Sort: <a href="?sort=amount">Amount</a> <a href="?sort=name">Name</a></p>
+<form method="get" class="filters">
+  <input type="hidden" name="sort" value="{{ sort }}">
+  <label><input type="checkbox" name="written_off" value="1"{% if filters.include_written_off %} checked{% endif %}> Include written off</label>
+  <label><input type="checkbox" name="overdue" value="1"{% if filters.overdue_only %} checked{% endif %}> Overdue only</label>
+  <button type="submit">Filter</button>
+</form>
+<table class="ledger-table">
+  <thead><tr><th>Firm</th><th>Memos</th><th>Outstanding</th></tr></thead>
+  <tbody>{% for r in rows %}<tr><td><a href="{% url 'fees_firm_detail' r.firm_id %}">{{ r.firm_name }}</a></td><td>{{ r.memo_count }}</td><td>{{ r.outstanding|fees_money:money_unit }}</td></tr>{% empty %}<tr><td colspan="3">Nothing outstanding.</td></tr>{% endfor %}</tbody>
+  <tfoot><tr><th colspan="2">Total</th><th>{{ grand_total|fees_money:money_unit }}</th></tr></tfoot>
+</table>
+{% endblock %}

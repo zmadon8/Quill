@@ -1,0 +1,57 @@
+{% extends "fees/base_fees.html" %}
+{% block page_title %}Settings - {{ program_label }}{% endblock %}
+{% block content %}
+<h1>Settings</h1>
+{% if not can_edit %}<p class="muted">You can read the settings but not change them.</p>{% endif %}
+{% include "fees/_form_errors.html" %}
+<form method="post" action="{% url 'fees_settings' %}">
+  {% csrf_token %}
+  <fieldset><legend>Memo defaults</legend>
+    <p><label>Fee per appearance <input type="text" name="default_fees_per_appearance" value="{{ config.default_fees_per_appearance }}"></label>
+       <label>Fee per conference <input type="text" name="default_fees_per_conference" value="{{ config.default_fees_per_conference }}"></label>
+       <label>Miscellaneous and drafting <input type="text" name="default_fees_misc_drafting" value="{{ config.default_fees_misc_drafting }}"></label></p>
+    <p><label>Court <input type="text" name="default_court_name" value="{{ config.default_court_name }}" size="40"></label></p>
+    <p><label>Details, left <textarea name="default_additional_details_left" rows="2" cols="40">{{ config.default_additional_details_left }}</textarea></label>
+       <label>Details, right <textarea name="default_additional_details_right" rows="2" cols="40">{{ config.default_additional_details_right }}</textarea></label></p>
+  </fieldset>
+  <fieldset><legend>Payments and reminders</legend>
+    <p><label>Default TDS rate % <input type="text" name="default_tds_rate" value="{{ config.default_tds_rate }}" size="6"></label>
+       <label>Overdue after (days) <input type="number" min="0" name="overdue_days" value="{{ config.overdue_days }}"></label>
+       <label>Amount received starts as <select name="default_payment_amount">{% for value, label in payment_amount_choices %}<option value="{{ value }}"{% if config.default_payment_amount == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label></p>
+    <p><label><input type="checkbox" name="hide_payment_when_paid" value="1"{% if config.hide_payment_when_paid %} checked{% endif %}> Hide the payment button on paid memos</label>
+       <label><input type="checkbox" name="show_status_dots" value="1"{% if config.show_status_dots %} checked{% endif %}> Show status markers</label>
+       <label><input type="checkbox" name="default_lines_enabled" value="1"{% if config.default_lines_enabled %} checked{% endif %}> Fee lines on by default</label></p>
+  </fieldset>
+  <fieldset><legend>Display</legend>
+    <p><label>Opens on <select name="default_tab">{% for t in tab_choices %}<option value="{{ t }}"{% if config.default_tab == t %} selected{% endif %}>{{ t|capfirst }}</option>{% endfor %}</select></label>
+       <label>Figures <select name="money_unit">{% for value, label in money_unit_choices %}<option value="{{ value }}"{% if config.money_unit == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label></p>
+    <p><label>Suffix, thousands <input type="text" name="money_suffix_thousands" value="{{ config.money_suffix_thousands }}" size="6"></label>
+       <label>lac <input type="text" name="money_suffix_lac" value="{{ config.money_suffix_lac }}" size="6"></label>
+       <label>crore <input type="text" name="money_suffix_crore" value="{{ config.money_suffix_crore }}" size="6"></label></p>
+    <p><label>Initial financial year <input type="text" name="initial_financial_year" value="{{ config.initial_financial_year }}" size="8"></label>
+       <label>Memos from <input type="text" name="memos_start_year" value="{{ config.memos_start_year }}" size="8"></label>
+       <label>Feebook from <input type="text" name="feebook_start_year" value="{{ config.feebook_start_year }}" size="8"></label></p>
+    <p><label><input type="checkbox" name="statistics_enabled" value="1"{% if config.statistics_enabled %} checked{% endif %}> Statistics page</label>
+       <label><input type="checkbox" name="dashboard_kpis_enabled" value="1"{% if config.dashboard_kpis_enabled %} checked{% endif %}> Dashboard overview</label></p>
+  </fieldset>
+  <fieldset><legend>Word memo</legend>
+    <p><label>Owner name in file names <input type="text" name="export_owner_name" value="{{ config.export_owner_name }}" maxlength="80"></label></p>
+    <p><label>File name pattern <input type="text" name="memo_filename_pattern" value="{{ config.memo_filename_pattern }}" size="50" maxlength="200"></label> <a href="{% url 'fees_filename_preview' %}?pattern={{ config.memo_filename_pattern|urlencode }}">Preview</a></p>
+    <p><label>Name <input type="text" name="memo_default_name" value="{{ config.memo_default_name }}"></label>
+       <label>Designation <input type="text" name="memo_default_designation" value="{{ config.memo_default_designation }}"></label>
+       <label>PAN <input type="text" name="memo_default_pan" value="{{ config.memo_default_pan }}" size="12"></label></p>
+    <p><label>Address <textarea name="memo_default_address" rows="3" cols="40">{{ config.memo_default_address }}</textarea></label>
+       <label>Bank details <textarea name="memo_default_bank_details" rows="3" cols="40">{{ config.memo_default_bank_details }}</textarea></label></p>
+  </fieldset>
+  {% if can_edit %}<p><button type="submit">Save settings</button></p>{% endif %}
+</form>
+
+<h2>Word template</h2>
+<p>{% if template_info.has_template %}Template: {{ template_info.filename }} (<a href="{% url 'fees_template_download' %}">download</a>){% else %}No template uploaded.{% endif %}
+   {% if template_info.has_signature %}Signature: {{ template_info.signature_filename }} (<a href="{% url 'fees_signature_download' %}">download</a>){% endif %}</p>
+
+<h2>Bank accounts</h2>
+<ul>{% for b in bank_accounts %}<li>{{ b.name }}</li>{% empty %}<li>None.</li>{% endfor %}</ul>
+
+{% if can_edit %}<p><a href="{% url 'fees_backup' %}">Backup, restore and clear</a> | <a href="{% url 'fees_import' %}">Import memos</a></p>{% endif %}
+{% endblock %}

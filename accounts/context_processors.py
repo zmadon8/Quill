@@ -17,6 +17,12 @@ def current_program_key(request):
     namespace = getattr(match, "namespace", "") if match is not None else ""
     if namespace and programs.get_program(namespace) is not None:
         return namespace
+    # A program with no URL namespace (the Fee Register) names its pages ``<key>_...``; the diary's names are
+    # global and unprefixed, so it stays the fallback.
+    url_name = (getattr(match, "url_name", "") or "") if match is not None else ""
+    for key in programs.program_keys():
+        if key != suite.KEY_DIARY and url_name.startswith(f"{key}_"):
+            return key
     return suite.KEY_DIARY
 
 

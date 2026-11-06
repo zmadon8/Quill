@@ -1,0 +1,45 @@
+{% extends "fees/base_fees.html" %}
+{% load fees_money %}
+{% block page_title %}Memo {{ memo.memo_number|default:"(draft)" }} - {{ program_label }}{% endblock %}
+{% block content %}
+<h1>Memo {{ memo.memo_number|default:"(draft)" }}</h1>
+<p><a href="{% url 'fees_memos' %}">Memos</a> | <a href="{% url 'fees_matter_detail' memo.matter_id %}">{{ memo.matter_name }}</a> | <a href="{% url 'fees_firm_detail' memo.firm_id %}">{{ memo.firm_name }}</a></p>
+<dl>
+  <dt>Date</dt><dd>{{ memo.date|fees_date }}</dd>
+  <dt>Financial year</dt><dd>{{ memo.financial_year }}</dd>
+  <dt>Group</dt><dd>{{ memo.group_name }}</dd>
+  <dt>Addressee</dt><dd>{{ memo.addressee_line1 }}{% if memo.addressee_line2 %}, {{ memo.addressee_line2 }}{% endif %}</dd>
+  <dt>Court</dt><dd>{{ memo.court_name }}</dd>
+  <dt>Parties</dt><dd>{{ memo.plaintiff_name }} {{ memo.plaintiff_type }} v. {{ memo.defendant_name }} {{ memo.defendant_type }}</dd>
+  <dt>Client</dt><dd>{{ memo.client }}</dd>
+  <dt>Status</dt><dd>{% if memo.is_draft %}Draft{% elif memo.written_off %}Written off{% else %}{{ memo.status }}{% if memo.is_overdue %} (overdue){% endif %}{% endif %}</dd>
+</dl>
+<table class="ledger-table">
+  <thead><tr><th>Item</th><th>Count</th><th>Rate</th><th>Amount</th></tr></thead>
+  <tbody>
+    <tr><td>Appearances {{ memo.dates_of_appearances }}</td><td>{{ memo.num_appearances }}</td><td>{{ memo.fees_per_appearance|fees_money:money_unit }}</td><td>{{ memo.fees_appearances|fees_money:money_unit }}</td></tr>
+    <tr><td>Conferences {{ memo.dates_of_conferences }}</td><td>{{ memo.num_conferences }}</td><td>{{ memo.fees_per_conference|fees_money:money_unit }}</td><td>{{ memo.fees_conferences|fees_money:money_unit }}</td></tr>
+    <tr><td>{{ memo.misc_drafting_description|default:"Miscellaneous and drafting" }} ({{ memo.num_drafts }} drafts)</td><td></td><td></td><td>{{ memo.fees_misc|fees_money:money_unit }}</td></tr>
+  </tbody>
+  <tfoot>
+    <tr><th colspan="3">Total fees</th><th>{{ memo.total_fees|fees_money:money_unit }}</th></tr>
+    <tr><td colspan="3">Net of TDS</td><td>{{ memo.net_of_tds|fees_money:money_unit }}</td></tr>
+    <tr><td colspan="3">Paid (with TDS)</td><td>{{ memo.amount_paid|fees_money:money_unit }}</td></tr>
+    <tr><td colspan="3">Received</td><td>{{ memo.amount_received|fees_money:money_unit }}</td></tr>
+    <tr><td colspan="3">TDS</td><td>{{ memo.amount_tds|fees_money:money_unit }}</td></tr>
+    <tr><th colspan="3">Due</th><th>{{ memo.amount_due|fees_money:money_unit }}</th></tr>
+  </tfoot>
+</table>
+<h2>Payments</h2>
+<table class="ledger-table">
+  <thead><tr><th>Date</th><th>Payee</th><th>Mode</th><th>Amount</th><th>TDS</th>{% if can_edit %}<th></th>{% endif %}</tr></thead>
+  <tbody>{% for p in payments %}<tr><td>{{ p.date_of_payment|fees_date }}</td><td>{{ p.payee }}</td><td>{{ p.payment_mode }}</td><td>{{ p.amount|fees_money:money_unit }}</td><td>{{ p.tds_amount|fees_money:money_unit }}</td>{% if can_edit %}<td><a href="{% url 'fees_payment_edit' p.id %}">Edit</a></td>{% endif %}</tr>{% empty %}<tr><td colspan="6">No payments.</td></tr>{% endfor %}</tbody>
+</table>
+<p>
+  <a href="{% url 'fees_memo_word' memo.id %}">Word memo</a> |
+  <a href="{% url 'fees_memo_statement' memo.id %}">Statement of the matter (Excel)</a>
+  {% if can_edit %}| <a href="{% url 'fees_memo_edit' memo.id %}">Edit</a>
+  | <a href="{% url 'fees_memo_based_on' memo.id %}">New memo based on this</a>
+  | <a href="{% url 'fees_payment_new' %}?memo={{ memo.id }}">Add payment</a>{% endif %}
+</p>
+{% endblock %}

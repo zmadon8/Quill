@@ -1,0 +1,8 @@
+{% extends "base_suite.html" %}
+{% load fees_money %}
+{# Fee Register shell: plain markup on the shared suite shell. A page fills page_title and content. #}
+{% block program_title %}{% block page_title %}{{ program_label }}{% endblock %}{% endblock %}
+{% block program_name %}<a href="{% url 'fees_landing' %}">{{ program_label }}</a>{% endblock %}
+{% block program_nav %}{% for i in fees_nav %}<a href="{{ i.url }}"{% if i.on %} class="on" aria-current="page"{% endif %}>{{ i.name }}</a>
+  {% endfor %}{% endblock %}
+{% block search_tool %}<form method="get" action="{% url 'fees_search_page' %}" class="inline" role="search"><input type="search" name="q" value="{{ query|default:'' }}" aria-label="Search firms, matters and memos" placeholder="Search"> <button type="submit">Search</button></form>{% endblock %}

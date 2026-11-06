@@ -1,0 +1,10 @@
+{% extends "fees/base_fees.html" %}
+{% load fees_money %}
+{% block page_title %}{{ matter.name }} - {{ program_label }}{% endblock %}
+{% block content %}
+<h1>{{ matter.name }}{% if matter.is_archived %} (archived){% endif %}</h1>
+<p><a href="{% url 'fees_firm_detail' matter.firm_id %}">{{ matter.firm.name }}</a> | {{ matter.group.name }} | <a href="{% url 'fees_matter_statement' matter.pk %}">Statement</a> | <a href="{% url 'fees_matter_ledger' matter.pk %}">Ledger</a>{% if can_edit %} | <a href="{% url 'fees_matter_edit' matter.pk %}">Edit</a>{% if not matter.is_archived %} | <a href="{% url 'fees_memo_new' %}?matter={{ matter.pk }}">New memo</a>{% endif %}{% endif %}</p>
+{% if matter.notes %}<p>{{ matter.notes|linebreaksbr }}</p>{% endif %}
+<h2>Memos</h2>
+{% include "fees/_memo_table.html" %}
+{% endblock %}

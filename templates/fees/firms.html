@@ -1,0 +1,7 @@
+{% extends "fees/base_fees.html" %}
+{% block page_title %}Firms - {{ program_label }}{% endblock %}
+{% block content %}
+<h1>Firms</h1>
+<p>{% if can_edit %}<a href="{% url 'fees_firm_new' %}">New firm</a> | {% endif %}{% for s in status_filters %}{% if s == status %}<strong>{{ s|capfirst }}</strong>{% else %}<a href="?status={{ s }}">{{ s|capfirst }}</a>{% endif %}{% if not forloop.last %} | {% endif %}{% endfor %}</p>
+<ul>{% for f in firm_rows %}<li><a href="{% url 'fees_firm_detail' f.pk %}">{{ f.name }}</a>{% if f.status == 'archived' %} (archived){% endif %}</li>{% empty %}<li>No firms.</li>{% endfor %}</ul>
+{% endblock %}

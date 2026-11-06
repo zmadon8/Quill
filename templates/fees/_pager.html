@@ -1,0 +1,5 @@
+{% if meta.total_pages > 1 %}<nav class="pager" aria-label="Pages">
+  {% if meta.has_prev %}<a href="?{% if query_string %}{{ query_string }}&amp;{% endif %}page={{ meta.page|add:'-1' }}">Previous</a>{% endif %}
+  Page {{ meta.page }} of {{ meta.total_pages }}
+  {% if meta.has_next %}<a href="?{% if query_string %}{{ query_string }}&amp;{% endif %}page={{ meta.page|add:'1' }}">Next</a>{% endif %}
+</nav>{% endif %}

@@ -1,0 +1,17 @@
+{% extends "fees/base_fees.html" %}
+{% load fees_money %}
+{% block page_title %}Statistics - {{ program_label }}{% endblock %}
+{% block content %}
+<h1>Statistics</h1>
+<form method="get" class="filters">
+  <label>Show by <select name="granularity">{% for g in granularities %}<option value="{{ g }}"{% if g == granularity %} selected{% endif %}>{{ g }}</option>{% endfor %}</select></label>
+  <label>Financial year <input type="text" name="fy" value="{{ fy }}" size="8"></label>
+  <button type="submit">Show</button>
+</form>
+<p><a href="{% url 'fees_statistics_export' %}?granularity={{ granularity }}&amp;fy={{ fy }}">Export to Excel</a> | <a href="{% url 'fees_statistics_annual_export' %}?fy={{ fy }}">Annual summary (Excel)</a> | <a href="{% url 'fees_statistics_tax_summary' %}?fy={{ fy }}">Tax summary (text)</a> | <a href="{% url 'fees_statistics_year_end' %}?fy={{ fy }}">Year end</a></p>
+<table class="ledger-table">
+  <thead><tr><th>Metric</th>{% for p in stats.periods %}<th>{{ p.label }}</th>{% endfor %}</tr></thead>
+  <tbody>{% for row in table %}<tr><th scope="row">{{ row.label }}</th>{% for v in row.cells %}<td>{% if row.money %}{{ v|fees_money }}{% else %}{{ v|default_if_none:"" }}{% endif %}</td>{% endfor %}</tr>{% endfor %}</tbody>
+</table>
+{% if saved_views %}<h2>Saved views</h2><ul>{% for v in saved_views %}<li>{{ v.name }}</li>{% endfor %}</ul>{% endif %}
+{% endblock %}

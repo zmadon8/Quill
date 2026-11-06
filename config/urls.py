@@ -11,6 +11,10 @@ urlpatterns = [
     path("caselaw", RedirectView.as_view(pattern_name="diary_home", permanent=True, query_string=True)),
     path("caselaw/", RedirectView.as_view(pattern_name="diary_home", permanent=True, query_string=True)),
     path("caselaw/", include("diary.urls")),
+    # /fees and /fees/ open the Fee Register (the user's chosen first page); the landing page itself is a temporary redirect because the
+    # first page depends on the user's setting.
+    path("fees", RedirectView.as_view(pattern_name="fees_landing", permanent=True, query_string=True)),
+    path("fees/", include("fees.urls")),
     path("", include("backups.urls")),
     path("", include("mailer.urls")),
 ]

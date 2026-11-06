@@ -1,0 +1,8 @@
+{% extends "fees/base_fees.html" %}
+{% block page_title %}Backup - {{ program_label }}{% endblock %}
+{% block content %}
+<h1>Backup</h1>
+<p><a href="{% url 'fees_settings' %}">Settings</a></p>
+<h2>Download a backup</h2>
+<p><a href="{% url 'fees_backup_download' %}">Download an Excel backup</a>. It holds every firm, matter, memo and payment, including payment notes.</p>
+{% endblock %}

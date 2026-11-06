@@ -1,0 +1,11 @@
+{% extends "fees/base_fees.html" %}
+{% load fees_money %}
+{% block page_title %}{{ title }} - {{ program_label }}{% endblock %}
+{% block content %}
+<h1>{{ title }}</h1>
+<p><a href="{% if kind == 'firm' %}{% url 'fees_firm_detail' owner.pk %}{% else %}{% url 'fees_matter_detail' owner.pk %}{% endif %}">Back</a> | <a href="{% if kind == 'firm' %}{% url 'fees_firm_ledger_export' owner.pk %}{% else %}{% url 'fees_matter_ledger_export' owner.pk %}{% endif %}">Export to Excel</a></p>
+<table class="ledger-table">
+  <thead><tr><th>Date</th><th>Particulars</th><th>Matter</th><th>Memo</th><th>Payment</th><th>TDS</th><th>Balance</th></tr></thead>
+  <tbody>{% for r in rows %}<tr><td>{{ r.date|fees_date }}</td><td>{{ r.particulars }}</td><td>{{ r.matter_name }}</td><td>{{ r.memo_amount|fees_money:money_unit }}</td><td>{{ r.payment_amount|fees_money:money_unit }}</td><td>{{ r.tds|fees_money:money_unit }}</td><td>{{ r.balance|fees_money:money_unit }}</td></tr>{% empty %}<tr><td colspan="7">Nothing to show.</td></tr>{% endfor %}</tbody>
+</table>
+{% endblock %}

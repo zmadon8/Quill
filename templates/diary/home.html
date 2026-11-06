@@ -12,7 +12,11 @@
     <button type="submit" name="profile" value="{{ p.pk }}" class="program-link">{% if p.display_name %}{{ p.display_name }}{% else %}{{ diary_name }} &middot; {{ p.name }}{% endif %}</button>
   </form>
   {% endfor %}
-  {% else %}
+  {% endif %}
+  {% if fees_profile %}
+  <a class="program-link" href="{% url 'fees_dashboard' %}">{{ fees_label }}</a>
+  {% endif %}
+  {% if not diary_profile and not fees_profile %}
   <p class="muted">No programs are available to you yet.</p>
   {% endif %}
   <p class="help-link"><a href="{% url 'help' %}">Help: how to use this site</a></p>

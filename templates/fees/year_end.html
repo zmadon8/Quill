@@ -1,0 +1,18 @@
+{% extends "fees/base_fees.html" %}
+{% load fees_money %}
+{% block page_title %}Year end {{ fy }} - {{ program_label }}{% endblock %}
+{% block content %}
+<h1>Year end {{ fy }}</h1>
+<p><a href="{% url 'fees_statistics' %}?fy={{ fy }}">Statistics</a></p>
+<table class="ledger-table"><tbody>
+  <tr><th scope="row">Memos</th><td>{{ summary.memo_count }}</td></tr>
+  <tr><th scope="row">Total billed</th><td>{{ summary.total_billed|fees_money }}</td></tr>
+  <tr><th scope="row">Total received</th><td>{{ summary.total_received|fees_money }}</td></tr>
+  <tr><th scope="row">TDS</th><td>{{ summary.total_tds|fees_money }}</td></tr>
+  <tr><th scope="row">Written off</th><td>{{ summary.total_written_off|fees_money }}</td></tr>
+  <tr><th scope="row">New matters</th><td>{{ summary.new_matters }}</td></tr>
+  <tr><th scope="row">Active firms</th><td>{{ summary.active_firms }}</td></tr>
+  <tr><th scope="row">Appearances</th><td>{{ summary.num_appearances }}</td></tr>
+  <tr><th scope="row">Appearances per week</th><td>{{ summary.appearances_per_week }}</td></tr>
+</tbody></table>
+{% endblock %}

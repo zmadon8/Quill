@@ -1,0 +1,14 @@
+{% extends "fees/base_fees.html" %}
+{% block page_title %}{{ firm.name }} - {{ program_label }}{% endblock %}
+{% block content %}
+<h1>{{ firm.name }}{% if firm.status == 'archived' %} (archived){% endif %}</h1>
+<p><a href="{% url 'fees_firms' %}">Firms</a> | <a href="{% url 'fees_firm_statement' firm.pk %}">Statement</a> | <a href="{% url 'fees_firm_ledger' firm.pk %}">Ledger</a>{% if can_edit %} | <a href="{% url 'fees_firm_edit' firm.pk %}">Edit</a> | <a href="{% url 'fees_matter_new' %}?firm={{ firm.pk }}">New matter</a>{% endif %}</p>
+{% if firm.notes %}<p>{{ firm.notes|linebreaksbr }}</p>{% endif %}
+<h2>Groups</h2>
+<ul>{% for g in groups %}<li>{{ g.name }}</li>{% endfor %}</ul>
+<h2>Matters</h2>
+<table class="ledger-table">
+  <thead><tr><th>Matter</th><th>Status</th></tr></thead>
+  <tbody>{% for row in matter_rows %}<tr><td><a href="{% url 'fees_matter_detail' row.matter.pk %}">{{ row.matter.name }}</a>{% if row.matter.is_archived %} (archived){% endif %}</td><td>{{ row.memo_status|default:"No memos" }}{% if row.has_written_off %} (has write-offs){% endif %}</td></tr>{% empty %}<tr><td colspan="2">No matters.</td></tr>{% endfor %}</tbody>
+</table>
+{% endblock %}

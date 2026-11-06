@@ -16,7 +16,7 @@ from accounts.models import ROLE_EDITOR
 from accounts.models import Profile
 from accounts.permissions import admin_required, reader_required
 from accounts.profiles import request_profile, request_role
-from accounts.suite import KEY_DIARY
+from accounts.suite import KEY_DIARY, KEY_FEES, get_names
 
 from . import reading, undo_session
 from .opening import remember_page
@@ -168,7 +168,13 @@ def home(request):
         target = account_landing.landing_url(request.user)
         if target != reverse("home"):
             return redirect(target)
-    return render(request, "diary/home.html", {"diary_profile": request_profile(request)})
+    context = {"diary_profile": request_profile(request)}
+    fees_profile = request_profile(request, KEY_FEES)
+    if fees_profile is not None:
+        # A Fee Register user gets a button for it; a user without one sees exactly the page they saw before.
+        context["fees_profile"] = fees_profile
+        context["fees_label"] = (fees_profile.display_name or "").strip() or get_names()[KEY_FEES]
+    return render(request, "diary/home.html", context)
 
 
 @reader_required

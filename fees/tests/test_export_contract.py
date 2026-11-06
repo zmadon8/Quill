@@ -2,7 +2,8 @@
 
 * Readers may use every export (R-EX-6): a test-only view built with ``program_reader_required`` serves each
   export; a Reader gets 200, a user with no membership 403, an anonymous user is sent to login.
-  The real views arrive in Phase 7 and must use the same decorator.
+  The real export URLs use the same decorator and are covered in ``test_views_read.py``; this test-only view stays
+  as an independent check of the decorator itself.
 * Exports are pure reads: no ``data_version`` bump and no row changes.
 * ``payment_details`` never appears in any export (sentinel over the bytes of every export), with the full
   backup as a positive control that the sentinel is really in the data.

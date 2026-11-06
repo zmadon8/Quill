@@ -1,0 +1,30 @@
+{% extends "fees/base_fees.html" %}
+{% load fees_money %}
+{% block page_title %}Dashboard - {{ program_label }}{% endblock %}
+{% block content %}
+<h1>Dashboard</h1>
+<table class="ledger-table">
+  <tbody>
+    <tr><th scope="row">Total outstanding</th><td>{{ summary.total_outstanding|fees_money:money_unit }}</td></tr>
+    <tr><th scope="row">Overdue</th><td>{{ summary.amount_overdue|fees_money:money_unit }}</td></tr>
+    <tr><th scope="row">Memos awaiting payment</th><td>{{ summary.memos_awaiting_payment }}</td></tr>
+    <tr><th scope="row">Written off</th><td>{{ summary.written_off_total|fees_money:money_unit }}</td></tr>
+    <tr><th scope="row">Billed this month</th><td>{{ summary.billed_this_month|fees_money:money_unit }}</td></tr>
+    <tr><th scope="row">Billed this year</th><td>{{ summary.billed_this_year|fees_money:money_unit }}</td></tr>
+    <tr><th scope="row">Received this month</th><td>{{ summary.received_this_month|fees_money:money_unit }}</td></tr>
+    <tr><th scope="row">Received this year</th><td>{{ summary.received_this_year|fees_money:money_unit }}</td></tr>
+    <tr><th scope="row">Appearances this year</th><td>{{ summary.appearances_this_year }}</td></tr>
+  </tbody>
+</table>
+{% if kpis_enabled %}
+<h2>Overview</h2>
+<table class="ledger-table" id="kpis">
+  <tbody>{% for k in kpi_rows %}<tr><th scope="row">{{ k.label }}</th><td>{% if k.money %}{{ k.value|fees_money:money_unit }}{% else %}{{ k.value }}{% endif %}</td></tr>{% endfor %}</tbody>
+</table>
+{% endif %}
+<h2>Recent matters</h2>
+<table class="ledger-table">
+  <thead><tr><th>Matter</th><th>Firm</th><th>Last memo</th><th>Date</th><th>Memos</th></tr></thead>
+  <tbody>{% for r in recent_matters %}<tr><td><a href="{% url 'fees_matter_detail' r.matter_id %}">{{ r.matter_name }}</a></td><td><a href="{% url 'fees_firm_detail' r.firm_id %}">{{ r.firm_name }}</a></td><td><a href="{% url 'fees_memo_detail' r.last_memo_id %}">{{ r.last_memo_number }}</a></td><td>{{ r.last_memo_date|fees_date }}</td><td>{{ r.memo_count }}</td></tr>{% empty %}<tr><td colspan="5">No memos yet.</td></tr>{% endfor %}</tbody>
+</table>
+{% endblock %}

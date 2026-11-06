@@ -1,0 +1,27 @@
+{% extends "fees/base_fees.html" %}
+{% load fees_money %}
+{% block page_title %}Feebook - {{ program_label }}{% endblock %}
+{% block content %}
+<h1>Feebook</h1>
+<p>{% if can_edit %}<a href="{% url 'fees_payment_new' %}">New payment</a> | {% endif %}<a href="{% url 'fees_feebook_export' %}?{{ query_string }}">Export to Excel</a></p>
+<form method="get" class="filters">
+  <label>Financial year <input type="text" name="fy" value="{{ filters.financial_year|default:'' }}" size="8" placeholder="2026-27"></label>
+  <label>Firm <select name="firm"><option value="">All</option>{% for f in firm_choices %}<option value="{{ f.pk }}"{% if filters.firm_id == f.pk %} selected{% endif %}>{{ f.name }}</option>{% endfor %}</select></label>
+  <label>Bank <select name="bank"><option value="">All</option>{% for b in bank_choices %}<option value="{{ b.pk }}"{% if filters.bank_account_id == b.pk %} selected{% endif %}>{{ b.name }}</option>{% endfor %}</select></label>
+  <label><input type="checkbox" name="unaccounted" value="1"{% if filters.unaccounted_only %} checked{% endif %}> Unaccounted only</label>
+  <button type="submit">Filter</button>
+</form>
+<table class="ledger-table">
+  <thead><tr><th>Date</th><th>Memo</th><th>Firm</th><th>Matter</th><th>Paid</th><th>TDS</th><th>Total</th><th>Payee</th><th>Bank</th><th>Mode</th><th>Type</th>{% if can_edit %}<th></th>{% endif %}</tr></thead>
+  <tbody>{% for e in entries %}<tr>
+    <td>{{ e.date_of_payment|fees_date }}</td>
+    <td>{% if e.memo_id %}<a href="{% url 'fees_memo_detail' e.memo_id %}">{{ e.memo_number|default:"(draft)" }}</a>{% else %}Unaccounted{% endif %}</td>
+    <td>{{ e.firm_name|default:"" }}</td><td>{{ e.matter_name|default:"" }}</td>
+    <td>{{ e.amount_paid|fees_money:money_unit }}</td><td>{{ e.tds|fees_money:money_unit }}</td><td>{{ e.paid_plus_tds|fees_money:money_unit }}</td>
+    <td>{{ e.payee }}</td><td>{{ e.bank_account_name|default:"" }}</td><td>{{ e.payment_mode }}</td>
+    <td>{{ e.payment_type }}{% if e.group_memo_numbers %} ({{ e.group_memo_numbers|join:", " }}){% endif %}</td>
+    {% if can_edit %}<td><a href="{% url 'fees_payment_edit' e.payment_id %}">Edit</a></td>{% endif %}
+  </tr>{% empty %}<tr><td colspan="12">No payments.</td></tr>{% endfor %}</tbody>
+</table>
+{% include "fees/_pager.html" %}
+{% endblock %}

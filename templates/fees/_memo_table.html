@@ -1,0 +1,15 @@
+{% load fees_money %}
+<table class="ledger-table">
+  <thead><tr><th>No.</th><th>Date</th><th>Firm</th><th>Matter</th><th>Total</th><th>Net of TDS</th><th>Received</th><th>TDS</th><th>Due</th><th>Status</th></tr></thead>
+  <tbody>
+  {% for m in items %}<tr>
+    <td><a href="{% url 'fees_memo_detail' m.id %}">{{ m.memo_number }}</a></td>
+    <td>{{ m.date|fees_date }}</td><td>{{ m.firm_name }}</td><td>{{ m.matter_name }}</td>
+    <td>{{ m.total_fees|fees_money:money_unit }}</td><td>{{ m.net_of_tds|fees_money:money_unit }}</td>
+    <td>{{ m.amount_received|fees_money:money_unit }}</td><td>{{ m.amount_tds|fees_money:money_unit }}</td>
+    <td>{{ m.amount_due|fees_money:money_unit }}</td>
+    <td>{% if m.written_off %}Written off{% elif m.is_draft %}Draft{% else %}{{ m.status }}{% if m.is_overdue %} (overdue){% endif %}{% endif %}</td>
+  </tr>{% empty %}<tr><td colspan="10">No memos.</td></tr>{% endfor %}
+  </tbody>
+  <tfoot><tr><th colspan="4">Total ({{ totals.count }})</th><th>{{ totals.total_fees|fees_money:money_unit }}</th><th>{{ totals.net_of_tds|fees_money:money_unit }}</th><th>{{ totals.amount_received|fees_money:money_unit }}</th><th>{{ totals.amount_tds|fees_money:money_unit }}</th><th>{{ totals.amount_due|fees_money:money_unit }}</th><th></th></tr></tfoot>
+</table>
