@@ -17,7 +17,8 @@
   function num(el) { return !el ? 0 : (M ? M.parse(el.value) : (parseFloat(el.value) || 0)); }
   function cents(x) { return Math.round(x * 100) / 100; }
   function money(x) { return M ? M.formatMoney(x, unit) : String(x); }
-  function fixed(x) { return cents(x).toFixed(2); }
+  // Whole numbers show without decimals; a fraction keeps two places.
+  function fixed(x) { var c = cents(x); return c === Math.round(c) ? String(c) : c.toFixed(2); }
 
   // Net amount grossed up at the rate, like the server: 0 unless 0 < rate < 100.
   function autoTds(amount) {

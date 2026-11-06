@@ -43,6 +43,9 @@ MEMO_CUSTOM_FIELDS = (
 
 
 def _text(value):
+    """A form value as text. A whole-number amount shows without the ``.00`` (item 2.11)."""
+    if isinstance(value, Decimal) and value.is_finite() and value == value.to_integral_value():
+        return str(int(value))
     return "" if value is None else str(value)
 
 

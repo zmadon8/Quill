@@ -1,4 +1,6 @@
 """Template filters for money and dates (design section 3). They only format; they compute nothing."""
+from decimal import Decimal, InvalidOperation
+
 from django import template
 
 from fees.services.money import format_date, format_money
@@ -12,6 +14,20 @@ def fees_money(value, unit="full"):
     if value is None or value == "":
         return ""
     return format_money(value, unit=unit or "full")
+
+
+@register.filter
+def fees_plain(value):
+    """An amount for an input box: a whole number without ``.00``, otherwise as stored (for example 12.5)."""
+    if value is None or value == "":
+        return ""
+    try:
+        number = Decimal(str(value))
+    except InvalidOperation:
+        return value
+    if number.is_finite() and number == number.to_integral_value():
+        return str(int(number))
+    return str(number)
 
 
 @register.filter

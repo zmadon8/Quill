@@ -44,7 +44,7 @@
   <tbody>{% for r in adjustment_rows %}<tr>
     <th scope="row">{{ r.name }}</th>
     {% for c in r.counts %}<td class="money">{% if can_edit %}<input type="text" inputmode="numeric" form="adj-{{ r.month }}" name="{{ c.key }}" value="{{ c.value }}" size="5" aria-label="{{ c.label }}, {{ r.name }}">{% else %}{{ c.value }}{% endif %}</td>{% endfor %}
-    {% for o in r.overrides %}<td class="money">{% if can_edit %}<input type="text" inputmode="decimal" form="adj-{{ r.month }}" name="{{ o.key }}" value="{{ o.value|default_if_none:'' }}" size="8" aria-label="Replace {{ o.label|lower }}, {{ r.name }}">{% else %}{% if o.value is None %}Worked out{% else %}{{ o.value }}{% endif %}{% endif %}</td>{% endfor %}
+    {% for o in r.overrides %}<td class="money">{% if can_edit %}<input type="text" inputmode="decimal" form="adj-{{ r.month }}" name="{{ o.key }}" value="{{ o.value|default_if_none:'' }}" size="8" aria-label="Replace {{ o.label|lower }}, {{ r.name }}">{% else %}{% if o.value is None %}Worked out{% else %}{{ o.value|fees_money:money_unit }}{% endif %}{% endif %}</td>{% endfor %}
     {% if can_edit %}<td><button type="submit" form="adj-{{ r.month }}" aria-label="Save {{ r.name }}">Save</button></td>{% endif %}
   </tr>{% endfor %}</tbody>
 </table>

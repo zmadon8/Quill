@@ -80,3 +80,53 @@ class FormatDateTests(SimpleTestCase):
     def test_from_date_and_datetime(self):
         self.assertEqual(format_date(datetime.date(2026, 7, 5)), "05.07.2026")
         self.assertEqual(format_date(datetime.datetime(2026, 12, 31, 23, 59)), "31.12.2026")
+
+
+class WholeNumberDisplayTests(SimpleTestCase):
+    """Item 2.11: whole numbers show without ``.00`` (rounding is unchanged); exports are not touched."""
+
+    def test_full_mode_never_shows_decimals(self):
+        for value in (Decimal("5000.00"), Decimal("1234567.00"), 5000, "5000.00"):
+            with self.subTest(value=value):
+                self.assertNotIn(".", format_money(value, unit="full"))
+        self.assertEqual(format_money(Decimal("5000.00")), "5,000")
+
+    def test_full_mode_keeps_the_existing_rounding(self):
+        self.assertEqual(format_money(Decimal("100.50")), "101")
+        self.assertEqual(format_money(Decimal("100.49")), "100")
+        self.assertEqual(format_money(Decimal("-0.40")), "0")
+
+    def test_template_filter_uses_full_mode_by_default(self):
+        from fees.templatetags.fees_money import fees_money
+
+        self.assertEqual(fees_money(Decimal("45000.00")), "45,000")
+        self.assertEqual(fees_money(Decimal("45000.00"), "full"), "45,000")
+        self.assertEqual(fees_money(None), "")
+
+    def test_input_filter_drops_a_zero_fraction_only(self):
+        from fees.templatetags.fees_money import fees_plain
+
+        self.assertEqual(fees_plain(Decimal("7000.00")), "7000")
+        self.assertEqual(fees_plain(Decimal("12.50")), "12.50")
+        self.assertEqual(fees_plain(Decimal("0.00")), "0")
+        self.assertEqual(fees_plain(None), "")
+
+    def test_form_values_drop_a_zero_fraction_only(self):
+        from fees import forms
+
+        self.assertEqual(forms._text(Decimal("5000.00")), "5000")
+        self.assertEqual(forms._text(Decimal("12.50")), "12.50")
+        self.assertEqual(forms._text("abc"), "abc")
+        self.assertEqual(forms._text(None), "")
+        self.assertEqual(forms._text(3), "3")
+        form = forms.blank_memo_form({"default_fees_per_appearance": Decimal("1500.00")})
+        self.assertEqual(form["fees_per_appearance"], "1500")
+
+    def test_payment_form_values_drop_the_fraction(self):
+        from fees import forms
+
+        form = forms.payment_form_from_dto({"amount": Decimal("900.00"), "tds_amount": Decimal("100.00"), "tds_rate": Decimal("10.00")})
+        self.assertEqual((form["amount"], form["tds_amount"], form["tds_rate"]), ("900", "100", "10"))
+
+    def test_the_python_helpers_stay_the_rounding_source_of_truth(self):
+        self.assertEqual(round2("1.005"), Decimal("1.01"))

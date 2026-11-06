@@ -1,5 +1,5 @@
 {% extends "fees/base_fees.html" %}
-{% load static %}
+{% load static fees_money %}
 {% block page_title %}Settings - {{ program_label }}{% endblock %}
 {% block page_js %}<script src="{% static 'js/fees/filename-preview.js' %}"></script>{% endblock %}
 {% block content %}
@@ -9,15 +9,15 @@
 <form method="post" action="{% url 'fees_settings' %}">
   {% csrf_token %}
   <fieldset><legend>Memo defaults</legend>
-    <p><label>Fee per appearance <input type="text" name="default_fees_per_appearance" value="{{ config.default_fees_per_appearance }}"></label>
-       <label>Fee per conference <input type="text" name="default_fees_per_conference" value="{{ config.default_fees_per_conference }}"></label>
-       <label>Miscellaneous and drafting <input type="text" name="default_fees_misc_drafting" value="{{ config.default_fees_misc_drafting }}"></label></p>
+    <p><label>Fee per appearance <input type="text" name="default_fees_per_appearance" value="{{ config.default_fees_per_appearance|fees_plain }}"></label>
+       <label>Fee per conference <input type="text" name="default_fees_per_conference" value="{{ config.default_fees_per_conference|fees_plain }}"></label>
+       <label>Miscellaneous and drafting <input type="text" name="default_fees_misc_drafting" value="{{ config.default_fees_misc_drafting|fees_plain }}"></label></p>
     <p><label>Court <textarea name="default_court_name" rows="2" cols="40">{{ config.default_court_name }}</textarea></label></p>
     <p><label>Details, left <textarea name="default_additional_details_left" rows="2" cols="40">{{ config.default_additional_details_left }}</textarea></label>
        <label>Details, right <textarea name="default_additional_details_right" rows="2" cols="40">{{ config.default_additional_details_right }}</textarea></label></p>
   </fieldset>
   <fieldset><legend>Payments and reminders</legend>
-    <p><label>Default TDS rate % <input type="text" name="default_tds_rate" value="{{ config.default_tds_rate }}" size="6"></label>
+    <p><label>Default TDS rate % <input type="text" name="default_tds_rate" value="{{ config.default_tds_rate|fees_plain }}" size="6"></label>
        <label>Overdue after (days) <input type="number" min="0" name="overdue_days" value="{{ config.overdue_days }}"></label>
        <label>Amount received starts as <select name="default_payment_amount">{% for value, label in payment_amount_choices %}<option value="{{ value }}"{% if config.default_payment_amount == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label></p>
     <p><label><input type="hidden" name="hide_payment_when_paid" value="0"><input type="checkbox" name="hide_payment_when_paid" value="1"{% if config.hide_payment_when_paid %} checked{% endif %}> Hide the payment button on paid memos</label>
