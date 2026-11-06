@@ -40,7 +40,8 @@ BACKUP_MODELS = [
     "diary.UserSettings",
     "diary.VersionHistory",
     # Fee Register models (T1.9, design 7.4), parents first so restore inserts a parent before any
-    # child and the reversed delete removes children first. StatsCache is derived data and is never
+    # child and the reversed delete removes children first. StatsCache (derived data) and FeesUserPrefs (per-user UI
+    # state such as column widths; cascade-deleted with the profile or user) are never
     # backed up, so it is deliberately absent here and from OPTIONAL_MODELS and FEES_PROFILE_MODELS.
     "fees.FeesSettings",
     "fees.WordTemplate",

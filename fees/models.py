@@ -10,6 +10,7 @@ works on both PostgreSQL and SQLite. The vestigial desktop columns ``matters.is_
 This module is Phase 1 schema only: there are no services or views here yet, and it does not import
 from ``diary`` (R-SC-3).
 """
+from django.conf import settings
 from django.db import models
 from django.db.models import Q
 from django.db.models.functions import Lower
@@ -48,7 +49,7 @@ class FeesSettings(models.Model):
     default_fees_misc_drafting = money(default=0)
     default_additional_details_left = models.TextField(blank=True, default="")
     default_additional_details_right = models.TextField(blank=True, default="")
-    default_court_name = models.CharField(max_length=300, blank=True, default="")
+    default_court_name = models.TextField(blank=True, default="")  # multi-line Caption
     default_tds_rate = models.DecimalField(max_digits=5, decimal_places=2, default=10)
     overdue_days = models.PositiveIntegerField(default=0)
     default_tab = models.CharField(max_length=20, default="memos")
@@ -64,6 +65,9 @@ class FeesSettings(models.Model):
     default_payment_amount = models.CharField(max_length=10, default="zero")
     show_status_dots = models.BooleanField(default=True)
     dashboard_kpis = models.CharField(max_length=500, blank=True, default="")
+    # Round 2: new memos start with the signature ticked; the memo lists open on "all" or "active".
+    memo_signature_default = models.BooleanField(default=False)
+    list_default_filter = models.CharField(max_length=10, default="all")
     # New web switches (porting brief section 9, design section 2).
     statistics_enabled = models.BooleanField(default=True)
     dashboard_kpis_enabled = models.BooleanField(default=True)
@@ -203,7 +207,7 @@ class Matter(models.Model):
     # Memo defaults (all optional text).
     addressee_line1 = models.CharField(max_length=300, blank=True, default="")
     addressee_line2 = models.CharField(max_length=300, blank=True, default="")
-    court_name = models.CharField(max_length=300, blank=True, default="")
+    court_name = models.TextField(blank=True, default="")  # multi-line Caption
     client = models.CharField(max_length=300, blank=True, default="")
     additional_details_left = models.TextField(blank=True, default="")
     additional_details_right = models.TextField(blank=True, default="")
@@ -249,7 +253,7 @@ class Memo(models.Model):
     # Addressee and case snapshot (taken when the memo is created).
     addressee_line1 = models.CharField(max_length=300)
     addressee_line2 = models.CharField(max_length=300, blank=True, default="")
-    court_name = models.CharField(max_length=300, blank=True, default="")
+    court_name = models.TextField(blank=True, default="")  # multi-line Caption
     additional_details_left = models.TextField(blank=True, default="")
     additional_details_right = models.TextField(blank=True, default="")
     plaintiff_name = models.CharField(max_length=300, blank=True, default="")
@@ -269,6 +273,8 @@ class Memo(models.Model):
     num_drafts = models.IntegerField(default=0)
     written_off = models.BooleanField(default=False)
     is_draft = models.BooleanField(default=False)
+    # Embed the signature image at the MEMO_SIGNATURE tag (only if the profile has a signature).
+    include_signature = models.BooleanField(default=False)
     # Overrides (null means use the computed value; D3: a custom total of 0 is also "no override").
     custom_fees_appearances = money(null=True, blank=True)
     custom_fees_conferences = money(null=True, blank=True)
@@ -484,3 +490,29 @@ class StatsCache(models.Model):
 
     def __str__(self):
         return f"{self.kind} cache of profile {self.profile_id}"
+
+
+class FeesUserPrefs(models.Model):
+    """Per-user, per-profile UI state (for example resized column widths), one JSON object per key.
+
+    This is interface state, not fee data: it is never part of a backup (like ``StatsCache``), is
+    removed by cascade with the profile or the user, and writing it does not touch the cache stamp.
+    """
+
+    profile = profile_fk()
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+"
+    )
+    key = models.CharField(max_length=60)
+    data = models.JSONField(default=dict)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["profile", "user", "key"], name="fees_userprefs_unique_per_profile_user_key"
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.key} prefs of user {self.user_id}"
