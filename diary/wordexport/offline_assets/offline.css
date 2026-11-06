@@ -29,7 +29,7 @@ ul.contents li { padding: .15rem 0; } ul.contents li.l2 { padding-left: 1.5rem; 
 .case-lines .case-line { display: flex; gap: .4rem; margin-left: 1rem; }
 .cite-link { color: var(--focus); }
 .flag-text { display: inline-block; font-family: var(--font-sans); font-size: 1rem; letter-spacing: .08em; text-transform: uppercase; border: 1px solid var(--oxblood); border-radius: 2px; padding: 0 .4rem; color: var(--oxblood); }
-.flag-text.flag-pending { border-color: var(--amber-line); background: var(--amber-bg); color: var(--amber-ink); }
+.flag-text.flag-pending, .flag-text.flag-other { border-color: var(--amber-line); background: var(--amber-bg); color: var(--amber-ink); }
 .note { margin: .3rem 0 .3rem 1rem; padding-left: .7rem; border-left: 3px solid var(--hair); color: var(--muted); }
 .note p { margin: 0 0 .3em; } .see-also { font-family: var(--font-sans); font-size: 1rem; }
 .results li { padding: .6rem 0; border-bottom: 1px solid var(--hair); } .results .where { color: var(--muted); font-family: var(--font-sans); font-size: 1rem; }
