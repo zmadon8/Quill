@@ -291,8 +291,14 @@ def create_memo(profile, data, is_draft=False):
     Numbering, in one ``transaction.atomic()``:
 
     * draft -> no number, ``seq = 0``, FY from the date or the current FY;
+    * else a supplied number of the automatic shape ``YYYY-YY/N`` (owner decision 5)
+      -> a real auto number: its FY must equal the FY of the date, it must be unused,
+      ``seq = N`` and the FY counter becomes ``max(last_seq, N)``
+      (``memo_numbers.resolve_number``);
     * else a supplied custom number -> ``validate_custom_number`` stored verbatim,
-      ``seq = 0``, FY from the date;
+      ``seq = 0``, FY from the date. ``data["force_custom_number"]`` (the importer's
+      ``Numbering = Custom``) keeps even an automatic-shaped text as a custom number
+      and leaves the counter alone;
     * else -> ``next_number(profile, date)`` split into ``FY/seq``.
 
     ``total_fees`` is stored from ``resolve_memo_fees`` (D3); ``amount_paid`` /
@@ -335,11 +341,19 @@ def create_memo(profile, data, is_draft=False):
                 else current_financial_year()
             )
         elif has_custom_number:
-            memo.memo_number = memo_numbers.validate_custom_number(
-                profile, custom_raw
-            )
-            memo.seq = 0
-            memo.financial_year = derive_financial_year(raw_date)
+            fy = derive_financial_year(raw_date)
+            if _read(data, "force_custom_number"):
+                memo.memo_number = memo_numbers.validate_custom_number(
+                    profile, custom_raw
+                )
+                memo.seq = 0
+                memo.financial_year = fy
+            else:
+                (
+                    memo.memo_number,
+                    memo.financial_year,
+                    memo.seq,
+                ) = memo_numbers.resolve_number(profile, custom_raw, fy)
         else:
             number = memo_numbers.next_number(profile, raw_date)
             fy, seq_text = number.rsplit("/", 1)
@@ -390,11 +404,16 @@ def finalize_draft(profile, memo_id, custom_number=None):
 
     with transaction.atomic():
         if has_custom_number:
-            memo.memo_number = memo_numbers.validate_custom_number(
-                profile, custom_number, exclude_memo_id=memo.pk
+            (
+                memo.memo_number,
+                memo.financial_year,
+                memo.seq,
+            ) = memo_numbers.resolve_number(
+                profile,
+                custom_number,
+                derive_financial_year(memo.date),
+                exclude_memo_id=memo.pk,
             )
-            memo.financial_year = derive_financial_year(memo.date)
-            memo.seq = 0
         else:
             number = memo_numbers.next_number(profile, memo.date)
             fy, seq_text = number.rsplit("/", 1)
@@ -434,7 +453,9 @@ def update_memo(profile, memo_id, data):
     * editing a FINALISED memo's date KEEPS its number and ``financial_year``;
     * editing a DRAFT's date RE-DERIVES ``financial_year`` from the new date;
     * a finalised memo may set / keep / clear a custom number: passing
-      ``custom_memo_number`` sets it (``validate_custom_number`` with ``exclude``);
+      ``custom_memo_number`` sets it (``resolve_number`` with ``exclude``: an
+      automatic-shaped value of the memo's own FY becomes a real auto number and
+      raises the counter, any other text is custom and leaves it alone);
       an explicit empty string clears it back to auto for a drafted memo is not
       done here (only drafts auto-number via finalise).
 
@@ -464,11 +485,18 @@ def update_memo(profile, memo_id, data):
         # A finalised memo may set / keep a custom number when one is supplied.
         if not memo.is_draft and "custom_memo_number" in data:
             raw = data["custom_memo_number"]
-            if str(raw or "").strip():
-                memo.memo_number = memo_numbers.validate_custom_number(
-                    profile, raw, exclude_memo_id=memo.pk
+            typed = str(raw or "").strip()
+            # Typing back the memo's own number changes nothing (a custom memo whose
+            # text looks automatic, e.g. a past year's forced custom number, must not
+            # turn into an auto number just because the form sent it again).
+            if typed and typed != memo.memo_number:
+                (
+                    memo.memo_number,
+                    memo.financial_year,
+                    memo.seq,
+                ) = memo_numbers.resolve_number(
+                    profile, typed, memo.financial_year, exclude_memo_id=memo.pk
                 )
-                memo.seq = 0
 
         memo.total_fees = _stored_total_fees(memo)
         memo.save()

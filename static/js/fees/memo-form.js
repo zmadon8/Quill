@@ -139,7 +139,12 @@
     var date = val("date");
     var custom = field("custom_memo_number");
     if (!hint || form.getAttribute("data-new") !== "1" || !url || !window.fetch) { return; }
-    if (custom && custom.value.trim()) { hint.textContent = "This memo will use your custom number."; return; }
+    if (custom && custom.value.trim()) {
+      hint.textContent = /^\d{4}-\d{2}\/\d+$/.test(custom.value.trim())
+        ? "This memo will use this automatic-style number. It must belong to the financial year of the date, and the next automatic number continues after the highest one used."
+        : "This memo will use your custom number.";
+      return;
+    }
     if (!date) { hint.textContent = "The memo number is given when you save."; return; }
     fetch(url + "?date=" + encodeURIComponent(date), { credentials: "same-origin", headers: { Accept: "application/json" } })
       .then(function (r) { return r.json(); })

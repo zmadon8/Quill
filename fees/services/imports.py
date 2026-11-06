@@ -48,8 +48,29 @@ Deviations, all deliberate
 --------------------------
 * Impossible dates (``31/02/2026``, ``2026-02-30``) are rejected with a warning and read as blank.
 * A formula cell reads as its cached result (``data_only``); the original stringified the formula.
-* Memo numbers go through ``memo_numbers.validate_custom_number``, so a custom number that looks like an
-  automatic number (``2025-26/5``) is refused for that row (Q8). The row is skipped with a warning.
+* Memo numbers (owner decision 5). A number of the automatic shape ``YYYY-YY/N`` is KEPT as a real auto
+  number (``seq = N``) when its year part equals the memo date's financial year and it is unused; otherwise
+  the row is skipped with a ``Row N`` warning. Any other text is a custom number (``seq = 0``). The counter
+  of each financial year ends at ``max(last_seq, highest kept N)``; gaps are never filled.
+* Two optional columns. ``numbering``: ``Auto`` (next automatic number, number text ignored with a warning,
+  needs a valid date or the row is a draft), ``Custom`` (store the text as a custom number even when it looks
+  automatic; such a value is refused for the current or a future financial year, because the counter would
+  reach it, and allowed for past years; it never moves the counter), ``Draft`` (no number). Blank decides
+  from the number: automatic shape kept, other text custom, no number gives the next automatic number when
+  the auto-number box is ticked and the date is valid, else a draft. ``order``: a whole number (gaps
+  allowed) that sets the order in which Auto rows get numbers within a financial year; Auto rows without it
+  follow the ones with it, by memo date and then file row.
+* Numbering algorithm (deterministic, collision free, one transaction). When the run can allocate numbers
+  (the auto-number box is ticked or ``numbering`` is mapped) the file is read TWICE. Pass 1 keeps only a
+  few small values per numbered row: the set of reserved number texts (kept automatic numbers and forced
+  Custom texts), the highest kept ``N`` per financial year, and one ``(fy, order, date, row)`` tuple per Auto
+  row. It then locks the ``NumberSequence`` row of each year involved, reads the numbers already used in the
+  database, and hands out ``base + 1``, ``base + 2`` ... in the chosen order, skipping every reserved or used
+  text, where ``base = max(last_seq, highest kept N)``. The result is a ``{row: number}`` map. Pass 2 imports
+  the rows in file order as before; each numbered row claims its number through ``memos.create_memo``, which
+  raises the counter to ``max(last_seq, N)``. A row that fails after planning leaves a gap, never a clash.
+  The file is never read whole (the upload is reopened); a one-shot iterator given to ``import_memos`` is
+  buffered, which only tests do.
 * Ungrouped payments are created as their row is read instead of after the last row (same result, but it
   keeps the queue small); only grouped rows are queued, as small tuples.
 * ``data_version`` is bumped ONCE for the whole import (R-IM-3), although each service call stamps it.
@@ -61,7 +82,6 @@ import codecs
 import contextlib
 import csv
 import datetime
-import itertools
 import os
 import re
 import zipfile
@@ -70,9 +90,10 @@ from decimal import Decimal, InvalidOperation
 from django.db import DataError, IntegrityError, transaction
 
 from fees.errors import FeesError
-from fees.models import FeesSettings, Firm, Group, Matter
-from fees.services import memo_fees, memos, payments
+from fees.models import FeesSettings, Firm, Group, Matter, Memo, NumberSequence
+from fees.services import memo_fees, memo_numbers, memos, payments
 from fees.services.excel_restore import MAX_UNCOMPRESSED_BYTES
+from fees.services.financial_year import current_financial_year, derive_financial_year
 from fees.services.heavy import Busy, heavy_operation  # noqa: F401 (Busy is part of the contract)
 from fees.services.money import round2
 
@@ -126,6 +147,8 @@ IMPORT_FIELDS = (
     ("matter_name", "Matter / case name", "Who", True),
     ("memo_number", "Memo number (blank gives a draft)", "Memo", False),
     ("date", "Memo date", "Memo", False),
+    ("numbering", "Numbering (Auto, Custom or Draft)", "Memo", False),
+    ("order", "Order for automatic numbers (whole number)", "Memo", False),
     ("total_fees", "Total fee (overrides breakup)", "Fees", False),
     ("num_appearances", "No. of appearances", "Fees breakup", False),
     ("fees_per_appearance", "Fee per appearance", "Fees breakup", False),
@@ -154,6 +177,8 @@ _NEEDLES = {
     "matter_name": ("=matter name", "matter", "case", "=title"),
     "memo_number": ("=memo no.", "memo no", "memo number", "bill no", "invoice"),
     "date": ("=date", "memo date"),
+    "numbering": ("=numbering", "=numbering type", "=number type"),
+    "order": ("=order", "=numbering order", "=number order", "=auto order"),
     "num_appearances": ("=appearances", "no. of appearances", "num appearance", "appearance"),
     "fees_per_appearance": ("per appearance", "appearance fee", "rate"),
     "num_conferences": ("=conferences", "no. of conferences", "conference"),
@@ -539,10 +564,16 @@ class _Importer:
         self.group_counts = {}  # firm id -> groups known
         self.matters = {}  # (firm id, lower name) -> [matter id, has court, has client]
         self.grouped = {}  # payment group -> [(memo id, net, tds, date, payee, row no)]
+        self.quiet = False  # true during the planning pass, which must not warn
+        self.assigned = {}  # row no -> planned automatic number text
+        # The planning pass is needed only when the run can hand out new automatic numbers.
+        self.needs_plan = self.auto_number or "numbering" in self.mapping
 
     # -- small helpers -----------------------------------------------------
 
     def warn(self, text):
+        if self.quiet:
+            return
         self.warnings_total += 1
         if len(self.warnings) < MAX_WARNINGS:
             self.warnings.append(text)
@@ -642,6 +673,114 @@ class _Importer:
             Matter.objects.filter(pk=entry[0]).update(**updates)
         return entry[0]
 
+    # -- numbering (owner decision 5) ----------------------------------------
+
+    def decide(self, row, row_no, number_raw, date_iso):
+        """What to do about the memo number of a row: ``(kind, text)``.
+
+        ``kind`` is ``draft`` (no number), ``custom`` (other text, ``seq = 0``), ``keep`` (an automatic-shaped
+        number kept as a real auto number), ``forced`` (automatic-shaped text forced to be custom) or ``alloc``
+        (a new automatic number from the plan; ``text`` is ``None``). Warns (unless quiet) and may raise
+        ``_RowSkip``.
+        """
+        mode = (self.get(row, "numbering") or "").lower()
+        if mode and mode not in ("auto", "custom", "draft"):
+            self.warn(f'Row {row_no}: Numbering "{self.get(row, "numbering")}" is not Auto, Custom or Draft, '
+                      "so it was ignored.")
+            mode = ""
+        if mode == "draft":
+            if number_raw:
+                self.warn(f'Row {row_no}: Numbering is Draft, so the number "{number_raw}" was ignored.')
+            return "draft", None
+        if mode == "auto":
+            if number_raw:
+                self.warn(f'Row {row_no}: Numbering is Auto, so the number "{number_raw}" was ignored '
+                          "and the next automatic number is used.")
+            if not date_iso:
+                self.warn(f"Row {row_no}: Numbering is Auto but there is no valid date, imported as draft.")
+                return "draft", None
+            return "alloc", None
+        if mode == "custom" and not number_raw:
+            self.warn(f"Row {row_no}: Numbering is Custom but the number is blank, imported as draft.")
+            return "draft", None
+        if number_raw:
+            if not date_iso:
+                self.warn(f'Row {row_no}: memo "{number_raw}" has no valid date, imported as draft.')
+                return "draft", None
+            parsed = memo_numbers.parse_auto_number(number_raw)
+            if parsed is None:
+                return "custom", number_raw
+            if mode == "custom":
+                if int(parsed[0][:4]) >= int(current_financial_year()[:4]):
+                    raise _RowSkip(
+                        f'the number "{number_raw}" looks automatic and belongs to the current or a future '
+                        f"financial year ({parsed[0]}), so it cannot be forced to be a custom number. "
+                        "Leave Numbering blank or use Auto to keep it as an automatic number."
+                    )
+                return "forced", number_raw
+            return "keep", number_raw
+        if self.auto_number and date_iso:
+            return "alloc", None
+        return "draft", None
+
+    def order_of(self, row, row_no):
+        """The ``order`` column as a whole number, or ``None`` (blank, not mapped or not a whole number)."""
+        raw = self.get(row, "order")
+        if not raw:
+            return None
+        if not re.fullmatch(r"[+-]?\d{1,9}", raw):
+            self.warn(f'Row {row_no}: order "{raw}" is not a whole number, so it was ignored.')
+            return None
+        return int(raw)
+
+    def plan(self, rows):
+        """Pass 1: reserve kept numbers and plan the automatic ones (see the module docstring)."""
+        self.quiet = True
+        reserved = set()
+        highest = {}  # fy -> highest kept N
+        wanted = {}  # fy -> [(has no order, order, date, row no)]
+        try:
+            for index, row in enumerate(rows):
+                row_no = index + 2
+                if not self.get(row, "firm_name") or not self.get(row, "matter_name"):
+                    continue
+                iso, _impossible = parse_date(self.get(row, "date"))
+                try:
+                    kind, text = self.decide(row, row_no, self.get(row, "memo_number"), iso)
+                except _RowSkip:
+                    continue
+                if kind in ("keep", "forced"):
+                    if text in reserved:
+                        continue  # the first one wins; pass 2 refuses the later copy as already in use
+                    reserved.add(text)
+                    fy, seq = memo_numbers.parse_auto_number(text)
+                    if (kind == "keep" and fy == derive_financial_year(iso)
+                            and 1 <= seq <= memo_numbers.MAX_AUTO_SEQ):
+                        highest[fy] = max(highest.get(fy, 0), seq)
+                elif kind == "alloc":
+                    order = self.order_of(row, row_no)
+                    wanted.setdefault(derive_financial_year(iso), []).append(
+                        (order is None, order or 0, iso, row_no)
+                    )
+        finally:
+            self.quiet = False
+        for fy, items in wanted.items():
+            # Lock the counter row so nobody else takes a number between the plan and the claims.
+            counter, _created = NumberSequence.objects.select_for_update().get_or_create(
+                profile=self.profile, financial_year=fy, defaults={"last_seq": 0}
+            )
+            used = set(
+                Memo.objects.filter(profile=self.profile, memo_number__startswith=f"{fy}/")
+                .values_list("memo_number", flat=True)
+            )
+            items.sort()
+            seq = max(counter.last_seq, highest.get(fy, 0))
+            for _no_order, _order, _iso, row_no in items:
+                seq += 1
+                while f"{fy}/{seq}" in reserved or f"{fy}/{seq}" in used:
+                    seq += 1
+                self.assigned[row_no] = f"{fy}/{seq}"
+
     # -- one row -----------------------------------------------------------
 
     def process(self, row, row_no):
@@ -680,16 +819,16 @@ class _Importer:
             self.limit(label, value, "text")
 
         date_iso = self.date(row, "date", row_no)
-        has_number = bool(number_raw)
-        auto_number_row = self.auto_number and not has_number and bool(date_iso)
-        is_draft = not has_number and not auto_number_row
-        if has_number and not date_iso:
-            self.warn(f'Row {row_no}: memo "{number_raw}" has no valid date, imported as draft.')
-            is_draft = True
+        kind, number_text = self.decide(row, row_no, number_raw, date_iso)
+        is_draft = kind == "draft"
+        if kind == "alloc":
+            self.order_of(row, row_no)  # only to warn about an unreadable order value
+            number_text = self.assigned.get(row_no)  # None falls back to the next number at save time
 
         data = {
             "date": date_iso or _today(),
-            "custom_memo_number": number_raw if has_number else None,
+            "custom_memo_number": number_text,
+            "force_custom_number": kind == "forced",
             "addressee_line1": firm_name,
             "court_name": court,
             "client": client,
@@ -828,10 +967,14 @@ def import_memos(profile, rows, mapping, auto_number=False):
     """
     _validate_mapping(mapping)
     importer = _Importer(profile, mapping, auto_number)
+    if importer.needs_plan and iter(rows) is rows:
+        rows = list(rows)  # a one-shot iterator cannot be read twice; files are reopened instead
     with transaction.atomic():
         # Lock the settings row so a concurrent change waits and the single bump below is exact.
         settings, _created = FeesSettings.objects.select_for_update().get_or_create(profile=profile)
         start_version = settings.data_version
+        if importer.needs_plan:
+            importer.plan(rows)
         for index, row in enumerate(rows):
             importer.process(row, index + 2)
         importer.finish_groups()
@@ -845,6 +988,20 @@ def _dict_rows(rows, headers):
     positions = [(header, index) for index, header in enumerate(headers) if header]
     for cells in rows:
         yield {header: (cells[index] if index < len(cells) else "") for header, index in positions}
+
+
+class _FileRows:
+    """The data rows of an upload as dicts. Every ``iter()`` reopens the file, so the numbering plan can read it twice."""
+
+    def __init__(self, source, kind, header):
+        self.source = source
+        self.kind = kind
+        self.header = header
+
+    def __iter__(self):
+        with contextlib.closing(iter_rows(self.source, self.kind)) as rows:
+            next(rows, None)  # the header
+            yield from _dict_rows(rows, self.header)
 
 
 def run_import(profile, source, mapping, auto_number=False, kind=None):
@@ -864,9 +1021,7 @@ def run_import(profile, source, mapping, auto_number=False, kind=None):
             first = next(rows, None)
             if first is None:
                 raise _fail("The file needs a header row and at least one data row.")
-            try:
-                return import_memos(
-                    profile, _dict_rows(itertools.chain([first], rows), header), mapping, auto_number
-                )
-            except (DataError, IntegrityError) as exc:
-                raise _fail("The import could not be saved, so nothing was imported.") from exc
+        try:
+            return import_memos(profile, _FileRows(source, kind, header), mapping, auto_number)
+        except (DataError, IntegrityError) as exc:
+            raise _fail("The import could not be saved, so nothing was imported.") from exc

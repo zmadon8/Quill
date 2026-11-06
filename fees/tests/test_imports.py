@@ -6,9 +6,9 @@ formula cached results), the size, row, column and cell caps, the heavy lock, a 
 read whole, per-row rules and payment groups, one transaction and one ``data_version`` bump, owner isolation,
 a seeded property loop and the memory gates (under 25 MB on a large generated file).
 
-Memo numbers in the fixtures are not of the form ``YYYY-YY/N``: the Q8 rule (R-NUM-3) refuses a custom number
-that looks like an automatic one, so the originals ``2025-26/1`` become ``INV-1`` here, and one test pins the
-refusal.
+Memo numbers in most fixtures are not of the form ``YYYY-YY/N``. Owner decision 5: a number of that shape is
+KEPT as a real auto number when its year matches the memo date and it is unused, and the ``numbering`` and
+``order`` columns steer the numbers (``NumberingColumnsTests``).
 
 Files are built with ``csv`` and ``openpyxl`` (write-only) in a temporary directory; ``openpyxl`` is imported
 inside the helpers, like the application code.
@@ -32,8 +32,9 @@ from django.test.utils import CaptureQueriesContext
 from accounts.models import Profile
 from accounts.suite import KEY_FEES
 from fees.errors import FeesError
-from fees.models import Allocation, FeesSettings, Firm, Group, Matter, Memo, Payment
+from fees.models import Allocation, FeesSettings, Firm, Group, Matter, Memo, NumberSequence, Payment
 from fees.services import imports, matters, memo_fees, memos
+from fees.services.financial_year import current_financial_year
 from fees.services.heavy import Busy
 from fees.services.imports import (
     DEFAULT_GROUP_NAME,
@@ -226,7 +227,7 @@ class GuessTests(SimpleTestCase):
 
     def test_every_field_has_an_entry(self):
         self.assertEqual(set(guess_mapping([])), {field[0] for field in imports.IMPORT_FIELDS})
-        self.assertEqual(len(imports.IMPORT_FIELDS), 22)
+        self.assertEqual(len(imports.IMPORT_FIELDS), 24)
 
 
 # ---------------------------------------------------------------------------
@@ -576,16 +577,40 @@ class ImportMemosTests(TestCase):
         self.assertEqual(delta.amount_paid, delta.total_fees)  # fully paid
         self.assertEqual(self.memo_by_number("INV-2").amount_paid, Decimal("0.00"))
 
-    def test_q8_a_number_that_looks_automatic_is_refused_for_that_row(self):
+    def test_an_automatic_shaped_number_with_a_matching_year_is_kept_as_an_auto_number(self):
         rows = [
-            {"Firm": "F", "Matter": "M", "No": "2025-26/1", "Date": "2025-06-10", "Total": "1000", "Paid": "0"},
+            {"Firm": "F", "Matter": "M", "No": "2025-26/5", "Date": "2025-06-10", "Total": "1000", "Paid": "0"},
+            {"Firm": "F", "Matter": "M", "No": "INV-2", "Date": "2025-06-11", "Total": "1000", "Paid": "0"},
+        ]
+        result = import_memos(self.profile, rows, BASE_MAPPING)
+        self.assertEqual(result["memos_created"], 2)
+        self.assertEqual(result["warnings"], [])
+        kept = self.memo_by_number("2025-26/5")
+        self.assertEqual((kept.seq, kept.financial_year), (5, "2025-26"))
+        self.assertEqual(self.memo_by_number("INV-2").seq, 0)
+        self.assertEqual(NumberSequence.objects.get(profile=self.profile, financial_year="2025-26").last_seq, 5)
+
+    def test_an_automatic_shaped_number_with_the_wrong_year_skips_the_row(self):
+        rows = [
+            {"Firm": "F", "Matter": "M", "No": "2024-25/1", "Date": "2025-06-10", "Total": "1000", "Paid": "0"},
             {"Firm": "F", "Matter": "M", "No": "INV-2", "Date": "2025-06-11", "Total": "1000", "Paid": "0"},
         ]
         result = import_memos(self.profile, rows, BASE_MAPPING)
         self.assertEqual(result["memos_created"], 1)
         self.assertEqual(len(result["warnings"]), 1)
         self.assertTrue(result["warnings"][0].startswith("Row 2: "))
-        self.assertIn("automatic number", result["warnings"][0])
+        self.assertIn("2024-25", result["warnings"][0])
+        self.assertFalse(NumberSequence.objects.filter(profile=self.profile).exists())
+
+    def test_a_duplicate_automatic_shaped_number_skips_the_second_row(self):
+        rows = [
+            {"Firm": "F", "Matter": "M", "No": "2025-26/5", "Date": "2025-06-10", "Total": "1000", "Paid": "0"},
+            {"Firm": "F", "Matter": "M", "No": "2025-26/5", "Date": "2025-06-11", "Total": "1000", "Paid": "0"},
+        ]
+        result = import_memos(self.profile, rows, BASE_MAPPING)
+        self.assertEqual(result["memos_created"], 1)
+        self.assertTrue(result["warnings"][0].startswith("Row 3: "))
+        self.assertIn("already in use", result["warnings"][0])
 
     def test_reuses_an_existing_firm_and_matter_case_insensitively(self):
         rows = [
@@ -928,6 +953,168 @@ class ImportMemosTests(TestCase):
 # ---------------------------------------------------------------------------
 # run_import over real files, the heavy lock and the mapping check
 # ---------------------------------------------------------------------------
+
+NUM_MAPPING = {"firm_name": "Firm", "matter_name": "Matter", "date": "Date", "total_fees": "Total",
+               "memo_number": "No", "numbering": "Numbering", "order": "Order"}
+
+
+def num_row(no="", date="2025-06-10", numbering="", order="", firm="F"):
+    return {"Firm": firm, "Matter": "M", "Date": date, "Total": "100", "No": no, "Numbering": numbering,
+            "Order": order}
+
+
+class NumberingColumnsTests(TestCase):
+    """Owner decision 5: kept automatic numbers, the Numbering and Order columns, counters and gaps."""
+
+    def setUp(self):
+        self.profile = fees_profile("import-numbering")
+
+    def numbers(self):
+        return list(Memo.objects.filter(profile=self.profile).order_by("pk").values_list("memo_number", flat=True))
+
+    def counter(self, fy="2025-26"):
+        row = NumberSequence.objects.filter(profile=self.profile, financial_year=fy).first()
+        return row.last_seq if row else None
+
+    def test_kept_numbers_set_the_counter_and_new_ones_continue_after_the_highest(self):
+        rows = [num_row("2025-26/3"), num_row("2025-26/9"), num_row(numbering="Auto"), num_row(numbering="Auto")]
+        result = import_memos(self.profile, rows, NUM_MAPPING)
+        self.assertEqual(result["warnings"], [])
+        self.assertEqual(self.numbers(), ["2025-26/3", "2025-26/9", "2025-26/10", "2025-26/11"])
+        self.assertEqual(self.counter(), 11)
+        # Gaps stay: 1, 2 and 4 to 8 are never handed out; the next import continues after 11.
+        import_memos(self.profile, [num_row(numbering="Auto")], NUM_MAPPING)
+        self.assertEqual(self.numbers()[-1], "2025-26/12")
+
+    def test_a_kept_number_after_the_auto_ones_in_the_file_does_not_collide(self):
+        rows = [num_row(numbering="Auto"), num_row(numbering="Auto"), num_row("2025-26/1"), num_row("2025-26/2")]
+        result = import_memos(self.profile, rows, NUM_MAPPING)
+        self.assertEqual(result["warnings"], [])
+        self.assertEqual(sorted(self.numbers()), ["2025-26/1", "2025-26/2", "2025-26/3", "2025-26/4"])
+        self.assertEqual(self.numbers()[2:], ["2025-26/1", "2025-26/2"])  # the kept ones keep their numbers
+        self.assertEqual(self.counter(), 4)
+
+    def test_auto_rows_are_numbered_by_date_then_file_row_without_an_order_column(self):
+        rows = [num_row(date="2025-09-01", numbering="Auto"), num_row(date="2025-05-01", numbering="Auto"),
+                num_row(date="2025-05-01", numbering="Auto")]
+        import_memos(self.profile, rows, NUM_MAPPING)
+        self.assertEqual(self.numbers(), ["2025-26/3", "2025-26/1", "2025-26/2"])
+
+    def test_the_order_column_sets_the_numbering_order_gaps_allowed(self):
+        rows = [num_row(numbering="Auto", order="30"), num_row(numbering="Auto", order="5"),
+                num_row(numbering="Auto", order="10"), num_row(numbering="Auto")]
+        import_memos(self.profile, rows, NUM_MAPPING)
+        self.assertEqual(self.numbers(), ["2025-26/3", "2025-26/1", "2025-26/2", "2025-26/4"])
+
+    def test_an_unreadable_order_is_ignored_with_a_warning(self):
+        result = import_memos(self.profile, [num_row(numbering="Auto", order="abc")], NUM_MAPPING)
+        self.assertEqual(self.numbers(), ["2025-26/1"])
+        self.assertEqual(len(result["warnings"]), 1)
+        self.assertIn("order", result["warnings"][0])
+
+    def test_orders_apply_within_each_financial_year(self):
+        rows = [num_row(date="2026-05-01", numbering="Auto", order="1"), num_row(numbering="Auto", order="2")]
+        import_memos(self.profile, rows, NUM_MAPPING)
+        self.assertEqual(self.numbers(), ["2026-27/1", "2025-26/1"])
+
+    def test_auto_ignores_the_number_text_with_a_warning(self):
+        result = import_memos(self.profile, [num_row("INV-7", numbering="auto")], NUM_MAPPING)
+        self.assertEqual(self.numbers(), ["2025-26/1"])
+        self.assertEqual(len(result["warnings"]), 1)
+        self.assertIn("INV-7", result["warnings"][0])
+
+    def test_auto_without_a_valid_date_is_a_draft_with_a_warning(self):
+        result = import_memos(self.profile, [num_row(date="", numbering="Auto")], NUM_MAPPING)
+        self.assertTrue(Memo.objects.get(profile=self.profile).is_draft)
+        self.assertEqual(len(result["warnings"]), 1)
+
+    def test_auto_works_without_the_auto_number_box(self):
+        import_memos(self.profile, [num_row(), num_row(numbering="Auto")], NUM_MAPPING, auto_number=False)
+        self.assertEqual(Memo.objects.filter(profile=self.profile, is_draft=True).count(), 1)
+        self.assertEqual(self.numbers()[1], "2025-26/1")
+
+    def test_draft_imports_as_a_draft_and_ignores_the_number(self):
+        result = import_memos(self.profile, [num_row("INV-1", numbering="DRAFT")], NUM_MAPPING)
+        memo = Memo.objects.get(profile=self.profile)
+        self.assertTrue(memo.is_draft)
+        self.assertIsNone(memo.memo_number)
+        self.assertEqual(len(result["warnings"]), 1)
+
+    def test_custom_keeps_other_text_as_custom_and_a_blank_number_is_a_draft(self):
+        result = import_memos(self.profile, [num_row("INV-1", numbering="Custom"), num_row(numbering="Custom")], NUM_MAPPING)
+        self.assertEqual(self.numbers(), ["INV-1", None])
+        self.assertEqual(Memo.objects.get(memo_number="INV-1", profile=self.profile).seq, 0)
+        self.assertEqual(len(result["warnings"]), 1)
+
+    def test_forced_custom_of_a_past_year_is_allowed_and_does_not_move_the_counter(self):
+        result = import_memos(self.profile, [num_row("2020-21/5", date="2025-06-10", numbering="Custom")], NUM_MAPPING)
+        self.assertEqual(result["warnings"], [])
+        memo = Memo.objects.get(profile=self.profile)
+        self.assertEqual((memo.memo_number, memo.seq), ("2020-21/5", 0))
+        self.assertFalse(NumberSequence.objects.filter(profile=self.profile).exists())
+
+    def test_forced_custom_of_the_current_or_a_future_year_is_refused(self):
+        current = current_financial_year()
+        future = f"{int(current[:4]) + 1}-{(int(current[:4]) + 2) % 100:02d}"
+        result = import_memos(self.profile, [num_row(f"{current}/5", numbering="Custom"),
+                                             num_row(f"{future}/1", numbering="Custom")], NUM_MAPPING)
+        self.assertEqual(result["memos_created"], 0)
+        self.assertEqual(len(result["warnings"]), 2)
+        self.assertIn("current or a future", result["warnings"][0])
+
+    def test_auto_numbers_skip_a_forced_custom_text_of_the_same_shape(self):
+        # A forced custom text is only allowed for a past year, so use a past year.
+        rows = [num_row("2020-21/1", date="2020-06-01", numbering="Custom"),
+                num_row(date="2020-06-02", numbering="Auto")]
+        import_memos(self.profile, rows, NUM_MAPPING)
+        self.assertEqual(self.numbers(), ["2020-21/1", "2020-21/2"])
+
+    def test_existing_database_numbers_are_never_reused(self):
+        import_memos(self.profile, [num_row("2025-26/2"), num_row(numbering="Auto")], NUM_MAPPING)
+        result = import_memos(self.profile, [num_row("2025-26/2"), num_row(numbering="Auto")], NUM_MAPPING)
+        self.assertEqual(result["memos_created"], 1)
+        self.assertIn("already in use", result["warnings"][0])
+        self.assertEqual(self.numbers(), ["2025-26/2", "2025-26/3", "2025-26/4"])
+
+    def test_the_auto_number_box_numbers_blank_rows_by_date_and_keeps_typed_numbers(self):
+        rows = [num_row(date="2025-08-01"), num_row("2025-26/4", date="2025-09-01"), num_row("INV-1", date="2025-07-01"),
+                num_row(date="2025-07-01")]
+        import_memos(self.profile, rows, NUM_MAPPING, auto_number=True)
+        self.assertEqual(self.numbers(), ["2025-26/6", "2025-26/4", "INV-1", "2025-26/5"])
+
+    def test_unknown_numbering_value_is_ignored_with_a_warning(self):
+        result = import_memos(self.profile, [num_row("INV-1", numbering="maybe")], NUM_MAPPING)
+        self.assertEqual(self.numbers(), ["INV-1"])
+        self.assertEqual(len(result["warnings"]), 1)
+
+    def test_payment_follows_a_numbered_row(self):
+        mapping = {**NUM_MAPPING, "amount_paid": "Paid"}
+        row = {**num_row(numbering="Auto"), "Paid": "100"}
+        result = import_memos(self.profile, [row], mapping)
+        self.assertEqual(result["payments_created"], 1)
+
+    def test_a_one_shot_iterator_is_buffered_for_the_planning_pass(self):
+        rows = iter([num_row(numbering="Auto"), num_row("2025-26/4")])
+        import_memos(self.profile, rows, NUM_MAPPING)
+        self.assertEqual(self.numbers(), ["2025-26/5", "2025-26/4"])
+
+    def test_run_import_over_a_csv_file_with_the_numbering_columns(self):
+        text = ("Firm,Matter,Date,Total,Memo No.,Numbering,Order\n"
+                "F,M,2025-06-10,100,,Auto,2\n"
+                "F,M,2025-06-11,100,2025-26/7,,\n"
+                "F,M,2025-06-12,100,,Auto,1\n")
+        upload = SimpleUploadedFile("n.csv", text.encode("utf-8"))
+        mapping = {"firm_name": "Firm", "matter_name": "Matter", "date": "Date", "total_fees": "Total",
+                   "memo_number": "Memo No.", "numbering": "Numbering", "order": "Order"}
+        result = run_import(self.profile, upload, mapping)
+        self.assertEqual(result["memos_created"], 3)
+        self.assertEqual(self.numbers(), ["2025-26/9", "2025-26/7", "2025-26/8"])
+
+    def test_the_new_columns_are_guessed_only_from_exact_headers(self):
+        guess = guess_mapping(["Firm", "Matter", "Numbering", "Order", "Memo No."])
+        self.assertEqual((guess["numbering"], guess["order"], guess["memo_number"]), ("Numbering", "Order", "Memo No."))
+        self.assertIsNone(guess_mapping(["Firm", "Matter", "Reorder level"])["order"])
+
 
 class RunImportTests(TempDirMixin, TestCase):
     HEADER = ["Firm", "Matter", "Memo No.", "Date", "Total Fees", "Amount Paid", "Payment Group"]

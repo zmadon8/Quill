@@ -194,6 +194,91 @@ class CustomMemoNumberTests(TestCase):
         self.assertEqual(ctx.exception.code, "INVALID_MEMO")
 
 
+class KeptAutoNumberMemoTests(TestCase):
+    """Owner decision 5: typing an automatic-shaped number on create, finalise and edit."""
+
+    def setUp(self):
+        self.profile = fees_profile()
+        _, _, self.matter = seed_matter(self.profile)
+
+    def counter(self, fy="2026-27"):
+        return NumberSequence.objects.get(profile=self.profile, financial_year=fy).last_seq
+
+    def test_typed_auto_number_is_a_real_auto_number_and_moves_the_counter(self):
+        memo = memos.create_memo(
+            self.profile, base_input(self.matter.pk, custom_memo_number=" 2026-27/10 ")
+        )
+        self.assertEqual((memo.memo_number, memo.seq, memo.financial_year), ("2026-27/10", 10, "2026-27"))
+        self.assertFalse(memos.get_memo(self.profile, memo.pk)["is_custom_number"])
+        self.assertEqual(self.counter(), 10)
+        nxt = memos.create_memo(self.profile, base_input(self.matter.pk, date="2026-08-01"))
+        self.assertEqual(nxt.memo_number, "2026-27/11")
+
+    def test_a_lower_typed_number_does_not_lower_the_counter(self):
+        memos.create_memo(self.profile, base_input(self.matter.pk, custom_memo_number="2026-27/10"))
+        memos.create_memo(self.profile, base_input(self.matter.pk, custom_memo_number="2026-27/2"))
+        self.assertEqual(self.counter(), 10)
+
+    def test_wrong_financial_year_is_refused(self):
+        with self.assertRaises(FeesError) as ctx:
+            memos.create_memo(self.profile, base_input(self.matter.pk, custom_memo_number="2025-26/3"))
+        self.assertEqual(ctx.exception.code, "INVALID_MEMO")
+        self.assertFalse(Memo.objects.filter(profile=self.profile).exists())
+        self.assertFalse(NumberSequence.objects.filter(profile=self.profile).exists())
+
+    def test_a_number_already_used_is_refused(self):
+        memos.create_memo(self.profile, base_input(self.matter.pk, custom_memo_number="2026-27/4"))
+        with self.assertRaises(FeesError) as ctx:
+            memos.create_memo(self.profile, base_input(self.matter.pk, custom_memo_number="2026-27/4"))
+        self.assertIn("already in use", ctx.exception.message)
+
+    def test_finalise_with_a_typed_auto_number(self):
+        draft = memos.save_draft(self.profile, base_input(self.matter.pk))
+        memo = memos.finalize_draft(self.profile, draft.pk, custom_number="2026-27/6")
+        self.assertEqual((memo.memo_number, memo.seq), ("2026-27/6", 6))
+        self.assertEqual(self.counter(), 6)
+
+    def test_finalise_with_the_wrong_year_is_refused_and_stays_a_draft(self):
+        draft = memos.save_draft(self.profile, base_input(self.matter.pk))
+        with self.assertRaises(FeesError):
+            memos.finalize_draft(self.profile, draft.pk, custom_number="2027-28/1")
+        self.assertTrue(Memo.objects.get(pk=draft.pk).is_draft)
+
+    def test_editing_a_number_to_an_auto_number_raises_the_counter(self):
+        memo = memos.create_memo(self.profile, base_input(self.matter.pk))
+        updated = memos.update_memo(self.profile, memo.pk, base_input(self.matter.pk, custom_memo_number="2026-27/20"))
+        self.assertEqual((updated.memo_number, updated.seq), ("2026-27/20", 20))
+        self.assertEqual(self.counter(), 20)
+
+    def test_editing_away_from_an_auto_number_never_lowers_the_counter(self):
+        memos.create_memo(self.profile, base_input(self.matter.pk))
+        second = memos.create_memo(self.profile, base_input(self.matter.pk, date="2026-08-01"))
+        updated = memos.update_memo(self.profile, second.pk, base_input(self.matter.pk, custom_memo_number="INV-9"))
+        self.assertEqual((updated.memo_number, updated.seq), ("INV-9", 0))
+        self.assertEqual(self.counter(), 2)
+        third = memos.create_memo(self.profile, base_input(self.matter.pk, date="2026-09-01"))
+        self.assertEqual(third.memo_number, "2026-27/3")  # 2026-27/2 is never reused
+
+    def test_sending_the_memos_own_custom_text_back_changes_nothing(self):
+        memo = Memo.objects.create(
+            profile=self.profile, matter=self.matter, firm=self.matter.firm, group=self.matter.group,
+            financial_year="2026-27", date=datetime.date(2026, 7, 15), addressee_line1="A",
+            memo_number="2020-21/5", seq=0, is_draft=False,
+        )
+        updated = memos.update_memo(self.profile, memo.pk, base_input(self.matter.pk, custom_memo_number="2020-21/5"))
+        self.assertEqual((updated.memo_number, updated.seq, updated.financial_year), ("2020-21/5", 0, "2026-27"))
+        self.assertFalse(NumberSequence.objects.filter(profile=self.profile).exists())
+
+    def test_editing_to_another_year_auto_number_is_refused(self):
+        memo = memos.create_memo(self.profile, base_input(self.matter.pk))
+        with self.assertRaises(FeesError):
+            memos.update_memo(self.profile, memo.pk, base_input(self.matter.pk, custom_memo_number="2025-26/1"))
+
+    def test_preview_still_reads_the_counter(self):
+        memos.create_memo(self.profile, base_input(self.matter.pk, custom_memo_number="2026-27/7"))
+        self.assertEqual(memos.preview_number(self.profile, "2026-07-15"), "2026-27/8")
+
+
 # ---------------------------------------------------------------------------
 # Drafts and finalise
 # ---------------------------------------------------------------------------

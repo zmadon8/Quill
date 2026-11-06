@@ -3,7 +3,7 @@
 Ports ``memoNumberService.test.ts`` (auto numbers increment per FY, a new FY
 restarts at ``/1``, preview is read-only and does not create a row, deleted
 numbers are never reused) and the custom-number rules ported from
-``assignCustomMemoNumber`` (R-NUM-3 and brief 15 Q8). The ``memoNumber`` property
+``assignCustomMemoNumber`` (R-NUM-3; owner decision 5 replaced the Q8 refusal of auto-shaped numbers). The ``memoNumber`` property
 test becomes a seeded ``random.Random`` loop (U8: Hypothesis not approved), 200
 cases, asserting the FY prefix always matches ``derive_financial_year`` and that
 numbers within an FY are strictly increasing and never reused.
@@ -32,10 +32,14 @@ from fees.errors import FeesError
 from fees.models import Memo, NumberSequence
 from fees.services.financial_year import derive_financial_year
 from fees.services.memo_numbers import (
+    claim_auto_number,
     find_memo_id_by_number,
     is_custom_number,
     next_number,
+    parse_auto_number,
     preview_next_number,
+    raise_counter,
+    resolve_number,
     validate_custom_number,
 )
 
@@ -191,11 +195,15 @@ class ValidateCustomNumberTests(TestCase):
         value = "x" * 100
         self.assertEqual(validate_custom_number(self.profile, value), value)
 
-    def test_value_shaped_like_an_auto_number_is_rejected_q8(self):
-        with self.assertRaises(FeesError) as ctx:
-            validate_custom_number(self.profile, "2026-27/5")
-        self.assertEqual(ctx.exception.code, "INVALID_MEMO")
-        self.assertIn("YYYY-YY/N", ctx.exception.message)
+    def test_value_shaped_like_an_auto_number_is_no_longer_refused_here(self):
+        # Owner decision 5: callers route auto-shaped text to claim_auto_number first;
+        # the forced-Custom import path may still store it as custom text.
+        self.assertEqual(validate_custom_number(self.profile, "2022-23/5"), "2022-23/5")
+
+    def test_auto_shaped_custom_text_is_still_unique(self):
+        make_memo(self.profile, memo_number="2022-23/5")
+        with self.assertRaises(FeesError):
+            validate_custom_number(self.profile, "2022-23/5")
 
     def test_duplicate_on_another_memo_is_rejected(self):
         make_memo(self.profile, memo_number="CUSTOM-1")
@@ -223,6 +231,80 @@ class ValidateCustomNumberTests(TestCase):
             validate_custom_number(self.profile, "KEEP-1", exclude_memo_id=memo.pk),
             "KEEP-1",
         )
+
+
+class KeptAutoNumberTests(TestCase):
+    """Owner decision 5, Option A: an auto-shaped number is accepted as a real auto number."""
+
+    def setUp(self):
+        self.profile = fees_profile()
+
+    def counter(self, fy="2026-27"):
+        row = NumberSequence.objects.filter(profile=self.profile, financial_year=fy).first()
+        return row.last_seq if row else None
+
+    def test_parse_auto_number(self):
+        self.assertEqual(parse_auto_number(" 2026-27/12 "), ("2026-27", 12))
+        for text in ("INV-1", "2026-27", "2026-27/", "2026-27/x", "26-27/1", "2026-27/1/2", None, ""):
+            self.assertIsNone(parse_auto_number(text), text)
+
+    def test_kept_number_is_stored_as_auto_and_sets_the_counter(self):
+        self.assertEqual(claim_auto_number(self.profile, "2026-27/7", "2026-27"), ("2026-27/7", "2026-27", 7))
+        self.assertEqual(self.counter(), 7)
+
+    def test_next_number_is_the_highest_plus_one_and_gaps_stay(self):
+        claim_auto_number(self.profile, "2026-27/7", "2026-27")
+        self.assertEqual(next_number(self.profile, "2026-07-15"), "2026-27/8")
+        # 1 to 6 are never handed out.
+        self.assertEqual(next_number(self.profile, "2026-07-16"), "2026-27/9")
+
+    def test_a_lower_number_does_not_lower_the_counter(self):
+        claim_auto_number(self.profile, "2026-27/9", "2026-27")
+        claim_auto_number(self.profile, "2026-27/3", "2026-27")
+        self.assertEqual(self.counter(), 9)
+        self.assertEqual(next_number(self.profile, "2026-07-15"), "2026-27/10")
+
+    def test_counter_is_raised_from_an_existing_row_only_when_higher(self):
+        next_number(self.profile, "2026-07-15")
+        next_number(self.profile, "2026-07-15")
+        raise_counter(self.profile, "2026-27", 1)
+        self.assertEqual(self.counter(), 2)
+        raise_counter(self.profile, "2026-27", 40)
+        self.assertEqual(self.counter(), 40)
+
+    def test_financial_year_mismatch_is_refused(self):
+        with self.assertRaises(FeesError) as ctx:
+            claim_auto_number(self.profile, "2025-26/4", "2026-27")
+        self.assertEqual(ctx.exception.code, "INVALID_MEMO")
+        self.assertIn("2025-26", ctx.exception.message)
+        self.assertIsNone(self.counter("2025-26"))
+
+    def test_a_number_already_used_is_refused(self):
+        make_memo(self.profile, memo_number="2026-27/4", seq=4)
+        with self.assertRaises(FeesError) as ctx:
+            claim_auto_number(self.profile, "2026-27/4", "2026-27")
+        self.assertIn("already in use", ctx.exception.message)
+
+    def test_a_memo_may_claim_its_own_number_when_excluded(self):
+        memo = make_memo(self.profile, memo_number="2026-27/4", seq=4)
+        self.assertEqual(
+            claim_auto_number(self.profile, "2026-27/4", "2026-27", exclude_memo_id=memo.pk)[2], 4
+        )
+
+    def test_non_canonical_sequences_are_refused(self):
+        for text in ("2026-27/0", "2026-27/007", "2026-27/1000000000"):
+            with self.assertRaises(FeesError, msg=text):
+                claim_auto_number(self.profile, text, "2026-27")
+
+    def test_resolve_number_routes_auto_shape_and_custom_text(self):
+        self.assertEqual(resolve_number(self.profile, "2026-27/5", "2026-27"), ("2026-27/5", "2026-27", 5))
+        self.assertEqual(resolve_number(self.profile, " INV-5 ", "2026-27"), ("INV-5", "2026-27", 0))
+        self.assertEqual(self.counter(), 5)  # the custom text did not move it
+
+    def test_next_number_steps_past_a_custom_text_of_the_same_shape(self):
+        make_memo(self.profile, memo_number="2026-27/1", seq=0)
+        self.assertEqual(next_number(self.profile, "2026-07-15"), "2026-27/2")
+        self.assertEqual(self.counter(), 2)
 
 
 class IsCustomNumberTests(TestCase):
@@ -365,3 +447,45 @@ class ConcurrencyTests(TransactionTestCase):
         self.assertEqual(seqs, list(range(1, workers + 1)))
         row = NumberSequence.objects.get(profile=profile, financial_year="2026-27")
         self.assertEqual(row.last_seq, workers)
+
+
+@POSTGRES_ONLY
+class KeptNumberConcurrencyTests(TransactionTestCase):
+    """Concurrent raise_counter calls end at the maximum and next_number never collides (PostgreSQL only)."""
+
+    def test_concurrent_raises_and_allocations_stay_consistent(self):
+        profile = fees_profile()
+        raise_counter(profile, "2026-27", 1)
+        values = [5, 50, 20, 35, 8, 41]
+        allocated = []
+        errors = []
+        start = threading.Barrier(len(values) + 2)
+
+        def raiser(value):
+            try:
+                start.wait()
+                raise_counter(profile, "2026-27", value)
+            except Exception as exc:  # noqa: BLE001
+                errors.append(exc)
+            finally:
+                connections.close_all()
+
+        def allocator():
+            try:
+                start.wait()
+                allocated.append(next_number(profile, "2026-27"))
+            except Exception as exc:  # noqa: BLE001
+                errors.append(exc)
+            finally:
+                connections.close_all()
+
+        threads = [threading.Thread(target=raiser, args=(v,)) for v in values]
+        threads += [threading.Thread(target=allocator) for _ in range(2)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        self.assertEqual(errors, [])
+        self.assertEqual(len(set(allocated)), 2)
+        row = NumberSequence.objects.get(profile=profile, financial_year="2026-27")
+        self.assertGreaterEqual(row.last_seq, 50)
