@@ -395,6 +395,7 @@ SETTINGS_NUMBERS = (
     "default_fees_misc_drafting",
     "default_tds_rate",
     "overdue_days",
+    "items_per_page",
 )
 
 

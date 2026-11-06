@@ -1,0 +1,208 @@
+"""Financial year drop-downs and the Items per page setting (owner round)."""
+import datetime
+import re
+
+from django.test import TestCase
+from django.urls import reverse
+
+from accounts.models import Profile
+from accounts.suite import KEY_FEES
+from fees.models import FeesSettings, Memo
+from fees.services import fy_options, memo_lists
+from fees.services.financial_year import current_financial_year
+from fees.tests.test_views_write import WriteBase
+
+NOW = datetime.date(2026, 8, 1)  # the financial year 2026-27
+
+
+class FyOptionsServiceTests(TestCase):
+    def setUp(self):
+        self.profile = Profile.objects.create(program=KEY_FEES, name="Fy-Options")
+
+    def test_no_data_offers_only_the_current_year(self):
+        self.assertEqual(fy_options.financial_year_options(self.profile, now=NOW), ["2026-27"])
+
+    def test_start_year_options_reach_ten_years_back_without_data(self):
+        options = fy_options.start_year_options(self.profile, now=NOW)
+        self.assertEqual(options[0], "2026-27")
+        self.assertEqual(options[-1], "2016-17")
+        self.assertEqual(len(options), 11)
+
+    def test_saved_values_outside_the_range_are_kept(self):
+        options = fy_options.start_year_options(self.profile, selected=("2030-31", "2010-11", "bogus"), now=NOW)
+        self.assertEqual(options[0], "2030-31")
+        self.assertEqual(options[-1], "2010-11")
+        self.assertNotIn("bogus", options)
+
+    def test_label_check(self):
+        self.assertTrue(fy_options.is_financial_year_label("2026-27"))
+        self.assertTrue(fy_options.is_financial_year_label("2099-00"))
+        for bad in ("", None, "2026", "2026-28", "26-27", "2026-27x"):
+            self.assertFalse(fy_options.is_financial_year_label(bad), bad)
+
+
+class FyDropdownPageTests(WriteBase):
+    def data_years(self):
+        labels = Memo.objects.filter(profile=self.profile, is_draft=False).values_list("financial_year", flat=True)
+        return {label for label in labels if fy_options.is_financial_year_label(label)}
+
+    def select_for(self, html, name):
+        match = re.search(r'<select name="%s"[^>]*>(.*?)</select>' % name, html, re.S)
+        self.assertIsNotNone(match, name)
+        return match.group(1)
+
+    def values(self, select_html):
+        return re.findall(r'<option value="([^"]*)"', select_html)
+
+    def test_memos_drafts_and_feebook_use_a_drop_down_newest_first(self):
+        FeesSettings.objects.update_or_create(
+            profile=self.profile, defaults={"memos_start_year": "2000-01", "feebook_start_year": "2000-01"}
+        )
+        for name in ("fees_memos", "fees_memo_drafts", "fees_feebook"):
+            html = self.client.get(reverse(name)).content.decode()
+            self.assertNotRegex(html, r'<input[^>]*name="fy"', name)
+            values = self.values(self.select_for(html, "fy"))
+            self.assertEqual(values[0], "", name)  # All years
+            self.assertIn("All years", html)
+            years = values[1:]
+            self.assertEqual(years, sorted(years, reverse=True), name)
+            self.assertIn(current_financial_year(), years, name)
+            for year in self.data_years():
+                self.assertIn(year, years, name)
+
+    def test_the_chosen_year_stays_selected_even_when_it_has_no_data(self):
+        html = self.client.get(reverse("fees_memos"), {"fy": "2015-16"}).content.decode()
+        self.assertIn('<option value="2015-16" selected>2015-16</option>', html)
+
+    def test_years_before_the_start_year_are_not_offered(self):
+        FeesSettings.objects.update_or_create(profile=self.profile, defaults={"memos_start_year": current_financial_year()})
+        html = self.client.get(reverse("fees_memos")).content.decode()
+        years = self.values(self.select_for(html, "fy"))[1:]
+        self.assertTrue(years)
+        for year in years:
+            self.assertGreaterEqual(year, current_financial_year())
+
+    def test_filtering_by_a_year_still_uses_the_fy_parameter(self):
+        year = sorted(self.data_years())[0]
+        response = self.client.get(reverse("fees_memos"), {"fy": year})
+        self.assertEqual(response.status_code, 200)
+        for item in response.context["items"]:
+            self.assertEqual(item["financial_year"], year)
+
+    def test_statistics_uses_drop_downs(self):
+        for query in ("?tab=standard", "?tab=explore"):
+            html = self.client.get(reverse("fees_statistics") + query).content.decode()
+            self.assertNotRegex(html, r'<input[^>]*name="(fy|from_fy|to_fy)"', query)
+        standard = self.client.get(reverse("fees_statistics") + "?tab=standard&fy=2026-27").content.decode()
+        self.assertIn('<option value="2026-27" selected>2026-27</option>', standard)
+        explore = self.client.get(reverse("fees_statistics") + "?tab=explore&from_fy=2025-26").content.decode()
+        self.assertIn("Earliest", explore)
+        self.assertIn("Latest", explore)
+        self.assertIn('<option value="2025-26" selected>2025-26</option>', self.select_for(explore, "from_fy"))
+        self.assertTrue(self.select_for(explore, "to_fy"))
+
+    def test_settings_start_years_are_drop_downs(self):
+        html = self.client.get(reverse("fees_settings")).content.decode()
+        for name in ("initial_financial_year", "memos_start_year", "feebook_start_year"):
+            self.assertNotRegex(html, r'<input[^>]*name="%s"' % name, name)
+            select = self.select_for(html, name)
+            self.assertIn('<option value="2026-27" selected>2026-27</option>', select, name)
+            years = self.values(select)
+            self.assertEqual(years, sorted(years, reverse=True), name)
+
+    def test_a_start_year_chosen_from_the_drop_down_is_saved(self):
+        self.post("fees_settings", {"memos_start_year": "2024-25"})
+        self.assertEqual(FeesSettings.objects.get(profile=self.profile).memos_start_year, "2024-25")
+        html = self.client.get(reverse("fees_settings")).content.decode()
+        self.assertIn('<option value="2024-25" selected>2024-25</option>', self.select_for(html, "memos_start_year"))
+
+
+class ItemsPerPageTests(WriteBase):
+    def set_per_page(self, value):
+        FeesSettings.objects.update_or_create(profile=self.profile, defaults={"items_per_page": value})
+
+    def memo_count(self, drafts=False):
+        return Memo.objects.filter(profile=self.profile, is_draft=drafts).count()
+
+    def test_page_size_for(self):
+        self.assertIsNone(memo_lists.page_size_for(0))
+        self.assertIsNone(memo_lists.page_size_for(None))
+        self.assertIsNone(memo_lists.page_size_for(-5))
+        self.assertEqual(memo_lists.page_size_for(25), 25)
+        self.assertEqual(memo_lists.page_size_for(5000), 1000)
+
+    def test_the_default_is_fifty(self):
+        self.assertEqual(FeesSettings._meta.get_field("items_per_page").get_default(), 50)
+
+    def test_memos_break_into_pages_of_the_chosen_size(self):
+        for _ in range(3):
+            self.new_memo()
+        total = self.memo_count()
+        self.assertGreaterEqual(total, 4)
+        self.set_per_page(2)
+        response = self.client.get(reverse("fees_memos"))
+        self.assertEqual(len(response.context["items"]), 2)
+        self.assertEqual(response.context["meta"]["total_pages"], (total + 1) // 2)
+        self.assertEqual(response.context["totals"]["count"], total)  # footer covers the whole filtered set
+        self.assertContains(response, "Page 1 of %d" % ((total + 1) // 2))
+        second = self.client.get(reverse("fees_memos"), {"page": 2})
+        self.assertEqual(second.context["meta"]["page"], 2)
+
+    def test_all_shows_everything_on_one_page(self):
+        for _ in range(3):
+            self.new_memo()
+        self.set_per_page(0)
+        response = self.client.get(reverse("fees_memos"))
+        self.assertEqual(len(response.context["items"]), self.memo_count())
+        self.assertEqual(response.context["meta"]["total_pages"], 1)
+        self.assertNotContains(response, 'aria-label="Pages"')
+
+    def test_totals_are_the_same_whatever_the_page_size(self):
+        for _ in range(2):
+            self.new_memo()
+        everything = self.client.get(reverse("fees_memos")).context["totals"]
+        self.set_per_page(1)
+        paged = self.client.get(reverse("fees_memos")).context["totals"]
+        self.assertEqual(everything, paged)
+
+    def test_drafts_use_the_setting(self):
+        for _ in range(2):
+            self.post("fees_memo_new", {
+                "matter_id": str(self.seed["matter_1"].pk), "date": "", "addressee_line1": "Draft", "num_appearances": "1",
+                "fees_per_appearance": "1000", "action": "draft",
+            })
+        drafts = self.memo_count(drafts=True)
+        self.assertGreaterEqual(drafts, 2)
+        self.set_per_page(1)
+        response = self.client.get(reverse("fees_memo_drafts"))
+        self.assertEqual(len(response.context["items"]), 1)
+        self.assertEqual(response.context["totals"]["count"], drafts)
+
+    def test_feebook_uses_the_setting(self):
+        everything = self.client.get(reverse("fees_feebook")).context
+        total = everything["totals"]["count"]
+        self.assertGreaterEqual(total, 2)
+        self.set_per_page(1)
+        response = self.client.get(reverse("fees_feebook"))
+        self.assertEqual(len(response.context["entries"]), 1)
+        self.assertEqual(response.context["meta"]["total_pages"], total)
+        self.assertEqual(response.context["totals"], everything["totals"])
+        self.set_per_page(0)
+        self.assertEqual(len(self.client.get(reverse("fees_feebook")).context["entries"]), total)
+
+    def test_the_setting_is_saved_from_settings_and_shows_all_for_zero(self):
+        self.post("fees_settings", {"items_per_page": "All"})
+        self.assertEqual(FeesSettings.objects.get(profile=self.profile).items_per_page, 0)
+        html = self.client.get(reverse("fees_settings")).content.decode()
+        self.assertIn('name="items_per_page"', html)
+        self.assertRegex(html, r'name="items_per_page"[^>]*value="All"')
+        self.post("fees_settings", {"items_per_page": "25"})
+        self.assertEqual(FeesSettings.objects.get(profile=self.profile).items_per_page, 25)
+        html = self.client.get(reverse("fees_settings")).content.decode()
+        self.assertRegex(html, r'name="items_per_page"[^>]*value="25"')
+
+    def test_a_bad_value_is_refused_and_nothing_changes(self):
+        response = self.post("fees_settings", {"items_per_page": "1001"})
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(FeesSettings.objects.get(profile=self.profile).items_per_page, 50)
+        self.assertEqual(self.post("fees_settings", {"items_per_page": "lots"}).status_code, 422)

@@ -1138,3 +1138,14 @@ Owner instruction, verbatim: "I like the fee register desktop app's design a lot
 - Owner settings are unchanged: Words or Logo per program, Links toggle, justify text, view whole subject, Icons or Words header.
 - Test changes made for the redesign: the edit-mode body class is now `look edit-on` (`diary/tests/test_views_edit.py`).
 - The offline copy (`diary/wordexport/offline_assets/offline.css`) was recoloured to the same palette and fonts; its structure is unchanged. The Word export is untouched.
+
+
+## Round: financial year drop-downs, items per page, Edit Statistics in Settings, Log out icon
+
+Owner instructions, verbatim: "When selecting the financial year, there should be a drop down menu, not a place to type. Give me an option in settings, to Display all memos / payments for a financial year in one page, or to break it up into pages of a custom number of items." Then: "Sign out should also ALWAYS be a logo" and "In 'Statistics', move 'Edit Statistics' to Settings > Start Years & Statistics".
+
+- Every financial year box is a drop-down of `YYYY-YY` labels, newest first (`fees/services/fy_options.py`, `templates/fees/_fy_select.html`). Filters on Memos, Drafts, Feebook and Statistics list the years the profile has memos in plus the current year, never earlier than the area's start year (Memos, Feebook or Statistics start year), and always keep the year already chosen. Memos, Drafts and Feebook add "All years"; the Explore tab adds "Earliest" and "Latest". The Settings start-year drop-downs run from the earliest year with data (ten years back when there is none) to the current year. The `fy`, `from_fy` and `to_fy` query names and values are unchanged.
+- New setting `items_per_page` (Settings > Other > Display), default 50. 0 or "All" puts everything on one page; otherwise the page holds that many rows, at most 1000. It applies to Memos, Drafts and Feebook; totals and footers always cover the whole filtered set. Outstanding does not page. The Excel backup carries it in the `WebSettings` sheet (web-only key); an older file restores to 50.
+- Edit Statistics (working days, extra counts and replacements) is no longer a Statistics tab; it sits in Settings > Start Years & Statistics. `?tab=edit` on the Statistics page now shows the Standard tab. Saving a month returns to that Settings tab. The save route `fees_settings_statistics_grid` is unchanged.
+- Log out on the Home page is always the icon, in Words mode too.
+- Test changes: `fees.tests.test_ui_pages` (the Edit grid tests now use Settings), `fees.tests.test_ui_screens` and `fees.tests.test_round2_views` (the `?tab=edit` entries now point at Settings), `accounts.tests.test_header_style.test_words_on_the_home_page` (Log out stays an icon), the `WebSettings` key list in `fees.tests.test_excel_backup`.

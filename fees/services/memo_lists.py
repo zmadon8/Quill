@@ -49,8 +49,12 @@ __all__ = [
     "list_recent_matters",
     "footer_totals",
     "paginate",
+    "page_size_for",
     "FOOTER_FIELDS",
 ]
+
+#: The most rows one page may hold, whatever the Items per page setting says.
+MAX_PAGE_SIZE = 1000
 
 #: Valid draft-handling modes (mirror the original ``draftMode``).
 _DRAFT_MODES = ("exclude_drafts", "drafts_only", "all")
@@ -283,6 +287,18 @@ def paginate(items, page=1, page_size=None):
         "has_next": current < total_pages,
     }
     return page_items, meta
+
+
+def page_size_for(items_per_page):
+    """The ``page_size`` for ``paginate`` from the Items per page setting.
+
+    0 (or nothing) means everything on one page, so ``None``; anything else is that many rows, at most 1000.
+    """
+    try:
+        number = int(items_per_page or 0)
+    except (TypeError, ValueError):
+        return None
+    return None if number <= 0 else min(number, MAX_PAGE_SIZE)
 
 
 def list_recent_matters(profile, limit=10):

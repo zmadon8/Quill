@@ -1,0 +1,22 @@
+{% load fees_money %}
+{# Edit statistics: the twelve month rows of one financial year. Context: fy, fy_options, adjustment_rows, can_edit, money_unit. #}
+<form method="get" action="{% url 'fees_settings' %}#settings-years" class="filters" aria-label="Choose the financial year">
+  {% include "fees/_fy_select.html" with name="fy" label="Financial year" options=fy_options selected=fy %}
+  <button type="submit">Show</button>
+</form>
+{% if can_edit %}<p>Working days and extra counts are added to what the memos give. A figure typed under Replace takes the place of the figure worked out for that month; leave it blank to use the worked out figure. Each month has its own Save button.</p>
+{% else %}<p>These are the adjustments saved for {{ fy }}. Only an Editor can change them.</p>{% endif %}
+{% if can_edit %}{% for r in adjustment_rows %}<form id="adj-{{ r.month }}" method="post" action="{% url 'fees_settings_statistics_grid' %}">{% csrf_token %}<input type="hidden" name="return_to" value="settings"><input type="hidden" name="fy" value="{{ fy }}"><input type="hidden" name="month" value="{{ r.month }}"></form>
+{% endfor %}{% endif %}
+<div class="table-wrap">
+<table class="ledger-table adjust-grid" data-fees-columns="statistics-adjustments" data-table-id="statistics-adjustments">
+  <caption>Monthly adjustments for {{ fy }}, April to March</caption>
+  <thead><tr><th scope="col">Month</th>{% with first=adjustment_rows.0 %}{% for c in first.counts %}<th scope="col" class="money">{{ c.label }}</th>{% endfor %}{% for o in first.overrides %}<th scope="col" class="money">Replace {{ o.label|lower }}</th>{% endfor %}{% endwith %}{% if can_edit %}<th scope="col"><span class="visually-hidden">Save</span></th>{% endif %}</tr></thead>
+  <tbody>{% for r in adjustment_rows %}<tr>
+    <th scope="row">{{ r.name }}</th>
+    {% for c in r.counts %}<td class="money">{% if can_edit %}<input type="text" inputmode="numeric" form="adj-{{ r.month }}" name="{{ c.key }}" value="{{ c.value }}" size="5" aria-label="{{ c.label }}, {{ r.name }}">{% else %}{{ c.value }}{% endif %}</td>{% endfor %}
+    {% for o in r.overrides %}<td class="money">{% if can_edit %}<input type="text" inputmode="decimal" form="adj-{{ r.month }}" name="{{ o.key }}" value="{{ o.value|default_if_none:'' }}" size="8" aria-label="Replace {{ o.label|lower }}, {{ r.name }}">{% else %}{% if o.value is None %}Worked out{% else %}{{ o.value|fees_money:money_unit }}{% endif %}{% endif %}</td>{% endfor %}
+    {% if can_edit %}<td><button type="submit" form="adj-{{ r.month }}" aria-label="Save {{ r.name }}">Save</button></td>{% endif %}
+  </tr>{% endfor %}</tbody>
+</table>
+</div>

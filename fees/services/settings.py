@@ -91,6 +91,9 @@ _MONEY_UNIT_CHOICES = frozenset(("full", "truncated"))
 _LIST_FILTER_CHOICES = frozenset(("all", "active"))
 _PAYMENT_AMOUNT_CHOICES = frozenset(("zero", "full", "netOfTds"))
 
+#: The most rows a page may hold (0 means everything on one page).
+MAX_ITEMS_PER_PAGE = 1000
+
 #: The financial-year format: YYYY-YY (ported from the original regex).
 _FY_RE = re.compile(r"^(\d{4})-(\d{2})$")
 
@@ -123,6 +126,7 @@ SETTINGS_KEYS = frozenset(
         "dashboard_kpis_enabled",
         "memo_signature_default",
         "list_default_filter",
+        "items_per_page",
         "export_owner_name",
         "memo_filename_pattern",
         "memo_default_name",
@@ -206,6 +210,18 @@ def _validate_candidate(key, value):
         if days < 0 or days > 3650:
             raise _invalid(message)
         return days
+    if key == "items_per_page":
+        message = f"Items per page must be a whole number between 0 and {MAX_ITEMS_PER_PAGE}, or All"
+        if str(value).strip().lower() == "all":
+            return 0
+        try:
+            number = float(value)
+            whole = number == int(number)
+        except (ValueError, TypeError, OverflowError) as exc:
+            raise _invalid(message) from exc
+        if not whole or number < 0 or number > MAX_ITEMS_PER_PAGE:
+            raise _invalid(message)
+        return int(number)
     if key == "default_tab":
         if value not in _DEFAULT_TAB_CHOICES:
             raise _invalid("Invalid default page")

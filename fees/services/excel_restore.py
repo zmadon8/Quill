@@ -467,6 +467,21 @@ def _memo_flags(workbook, found):
     return flags, default
 
 
+def _items_per_page(value):
+    """The rows-per-page value of a ``WebSettings`` cell (0 to 1000, ``All`` is 0), or None when unusable."""
+    text = _text(value).strip().lower()
+    if text == "all":
+        return 0
+    try:
+        number = float(text)
+        whole = number == int(number)
+    except (ValueError, OverflowError):
+        return None
+    if not whole or not 0 <= number <= 1000:
+        return None
+    return int(number)
+
+
 def _apply_web_settings(settings, workbook, found=None):
     """Apply the ``WebSettings`` sheet (key, value) when present; unknown keys are ignored."""
     if found is None:
@@ -478,6 +493,10 @@ def _apply_web_settings(settings, workbook, found=None):
         settings.memo_signature_default = _bool(found["memo_signature_default"], default=False)
     if _text(found.get("list_default_filter")).strip() in ("all", "active"):
         settings.list_default_filter = _text(found["list_default_filter"]).strip()
+    if "items_per_page" in found:
+        per_page = _items_per_page(found["items_per_page"])
+        if per_page is not None:
+            settings.items_per_page = per_page
     for key in _WEB_TEXT_KEYS:
         if key in found:
             text = _text(found[key])

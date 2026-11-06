@@ -860,6 +860,25 @@ class SignatureFlagRestoreTests(TestCase):
         saved = FeesSettings.objects.get(profile=profile)
         self.assertFalse(saved.memo_signature_default)
         self.assertEqual(saved.list_default_filter, "all")
+        self.assertEqual(saved.items_per_page, 50)
+
+    def test_items_per_page_round_trips_through_web_settings(self):
+        source = fees_profile("PerPage-Source")
+        seed_web_data(source)
+        FeesSettings.objects.update_or_create(profile=source, defaults={"items_per_page": 0})
+        target = fees_profile("PerPage-Target")
+        out = export_of(source)
+        restore(target, out)
+        out.close()
+        self.assertEqual(FeesSettings.objects.get(profile=target).items_per_page, 0)
+
+    def test_items_per_page_reads_numbers_and_all_and_ignores_bad_values(self):
+        for cell, expected in ((25, 25), ("40", 40), ("All", 0), (1000, 1000), (1001, 50), ("many", 50), (-3, 50), (2.5, 50)):
+            sheets = minimal_sheets(1)
+            sheets["WebSettings"] = [["key", "value"], ["items_per_page", cell]]
+            profile = fees_profile("PerPage-%s" % cell)
+            restore(profile, build_workbook(sheets))
+            self.assertEqual(FeesSettings.objects.get(profile=profile).items_per_page, expected, cell)
 
     def test_flag_sheet_overrides_the_default_per_memo(self):
         sheets = minimal_sheets(2)

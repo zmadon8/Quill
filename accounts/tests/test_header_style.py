@@ -199,9 +199,15 @@ class SuiteHeaderTests(TestCase):
     def test_words_on_the_home_page(self):
         suite.set_brand_modes({suite.KEY_HOME: "words"})
         nav = re.sub(r"<[^>]*>", " ", self.header().split('class="program-nav"')[1])
-        for word in self.GROUPS + ("Log out",):
+        for word in self.GROUPS:
             self.assertIn(word, nav, word)
-        self.assertNotIn("nav-icon", self.header())
+        # Log out is always the logo, never the words, even in Words mode.
+        self.assertNotIn("Log out", nav)
+        header = self.header()
+        logout = re.search(r'<button type="submit" class="link nav-icon" aria-label="Log out" title="Log out">(.*?)</button>', header, re.S)
+        self.assertIsNotNone(logout)
+        self.assertIn("<svg", logout.group(1))
+        self.assertEqual(header.count("nav-icon"), 1)
 
     def test_each_merged_page_has_its_tabs_and_the_header_item_stays_marked(self):
         for name in ("user_list", "profile_list", "settings", "backup_list", "backup_email", "import_word", "user_create"):

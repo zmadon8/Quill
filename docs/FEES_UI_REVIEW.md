@@ -10,7 +10,7 @@ Sign-in: use a user with a Fee Register profile. Sample paths use id 1; take rea
 | --- | --- | --- | --- |
 | Dashboard | `/fees/dashboard/` | `fees_dashboard` | R |
 | Statistics, Standard | `/fees/statistics/` | `fees_statistics` | R |
-| Statistics, Edit | `/fees/statistics/?tab=edit` | `fees_statistics` | R reads, E saves |
+| Settings, Start Years & Statistics (Edit statistics) | `/fees/settings/` | `fees_settings` | R reads, E saves |
 | Statistics, Explore | `/fees/statistics/?tab=explore` | `fees_statistics` | R |
 | Year end | `/fees/statistics/year-end/?fy=2026-27` | `fees_statistics_year_end` | R |
 | Memos | `/fees/memos/` | `fees_memos` | R |
@@ -107,7 +107,7 @@ HTML page weight could not be measured without a running server. Pages are serve
 - Payment prefill is server side (`?memo=ID`, repeated or comma separated, up to 5 memos), not a JSON call. Payee chips need the matters of the memos.
 - Outstanding "Pay" is a plain GET form that opens the payment form with the ticked memos.
 - Dashboard "Appearances" box is hidden when the Statistics switch is off; Statistics is left out of the nav too. With Statistics off nothing is computed: the Statistics pages, year end, exports and pivot answer `STATISTICS_DISABLED` (HTTP 409, "Statistics is switched off in Settings.") (owner decision 3).
-- Statistics tabs are chosen with `?tab=` (standard, edit, explore); all are server rendered and forms post back to the existing endpoints with `return_to=statistics`.
+- Statistics tabs are chosen with `?tab=` (standard, explore); all are server rendered and forms post back to the existing endpoints with `return_to=statistics`.
 - Explore chart is off by default, offers bars, stacked bars and line only, and uses the host palette. Chart labels are 16 px, so the chart is wider than a phone and scrolls inside its box.
 - Settings: Reader sees values read only. The Fee Register tab in the suite Settings group is a link to the fees Settings page, not a copy of it. The Word template box holds the template and the signature image.
 - Status is a square plus a word (paid, partial, unpaid, overdue, draft, written off, unaccounted). Settings > Show status markers (owner decision 4) removes the square from every page (memos, drafts, memo detail, matter, outstanding, feebook); the word and the Status column stay. Exports are unaffected. The page context carries one `fees_dots` flag read from the settings already loaded for the request, so there is no extra query.

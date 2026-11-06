@@ -95,17 +95,19 @@
 <div class="settings-panel" id="settings-years" data-settings-panel="years">
 <section class="card settings-card" aria-labelledby="years-h"><h2 id="years-h">Start Years</h2>
   <div class="grid-3">
-    <label>Statistics start year <input type="text" name="initial_financial_year" form="settings-form" value="{{ config.initial_financial_year }}" size="8"></label>
-    <label>Memos start year <input type="text" name="memos_start_year" form="settings-form" value="{{ config.memos_start_year }}" size="8"></label>
-    <label>Feebook start year <input type="text" name="feebook_start_year" form="settings-form" value="{{ config.feebook_start_year }}" size="8"></label>
+    {% include "fees/_fy_select.html" with name="initial_financial_year" label="Statistics start year" options=start_year_options selected=config.initial_financial_year form_id="settings-form" %}
+    {% include "fees/_fy_select.html" with name="memos_start_year" label="Memos start year" options=start_year_options selected=config.memos_start_year form_id="settings-form" %}
+    {% include "fees/_fy_select.html" with name="feebook_start_year" label="Feebook start year" options=start_year_options selected=config.feebook_start_year form_id="settings-form" %}
   </div>
-  <p class="hint">The first year shown in each area (e.g. 2026-27). Earlier years are hidden from that area's year filter, but the data stays stored.</p>
+  <p class="hint">The first year shown in each area (e.g. 2026-27). Earlier years are hidden from that area's year drop-down, but the data stays stored.</p>
 </section>
 <section class="card settings-card" aria-labelledby="stats-h"><h2 id="stats-h">Statistics</h2>
   <p><label><input type="hidden" name="statistics_enabled" form="settings-form" value="0"><input type="checkbox" name="statistics_enabled" form="settings-form" value="1"{% if config.statistics_enabled %} checked{% endif %}> Statistics page</label>
      <label><input type="hidden" name="dashboard_kpis_enabled" form="settings-form" value="0"><input type="checkbox" name="dashboard_kpis_enabled" form="settings-form" value="1"{% if config.dashboard_kpis_enabled %} checked{% endif %}> Dashboard overview</label></p>
-  {% if config.statistics_enabled %}<p><a href="{% url 'fees_statistics' %}?tab=edit">Edit statistics (working days and adjustments)</a></p>{% endif %}
 </section>
+{% if config.statistics_enabled %}<section class="card settings-card" aria-labelledby="edit-stats-h"><h2 id="edit-stats-h">Edit Statistics</h2>
+{% include "fees/_adjustment_grid.html" %}
+</section>{% endif %}
 </div>
 
 <div class="settings-panel" id="settings-data" data-settings-panel="data">
@@ -127,7 +129,9 @@
     <label>Opens on <select name="default_tab" form="settings-form">{% for t in tab_choices %}<option value="{{ t }}"{% if config.default_tab == t %} selected{% endif %}>{{ t|capfirst }}</option>{% endfor %}</select></label>
     <label>Figures <select name="money_unit" form="settings-form">{% for value, label in money_unit_choices %}<option value="{{ value }}"{% if config.money_unit == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
     <label>Firms and matters: show by default <select name="list_default_filter" form="settings-form"><option value="all"{% if config.list_default_filter == "all" %} selected{% endif %}>All</option><option value="active"{% if config.list_default_filter == "active" %} selected{% endif %}>Active only</option></select></label>
+    <label>Items per page <input type="text" inputmode="numeric" name="items_per_page" form="settings-form" value="{% if config.items_per_page == 0 %}All{% else %}{{ config.items_per_page }}{% endif %}" size="6"></label>
   </div>
+  <p class="hint">How many memos or payments Memos, Drafts and Feebook show on one page. Type All (or 0) to show a whole financial year on one page; the most you can type is 1000. Totals always cover every row that matches the filters.</p>
   <div class="grid-3">
     <label>Suffix, thousands <input type="text" name="money_suffix_thousands" form="settings-form" value="{{ config.money_suffix_thousands }}" size="6"></label>
     <label>Suffix, lac <input type="text" name="money_suffix_lac" form="settings-form" value="{{ config.money_suffix_lac }}" size="6"></label>

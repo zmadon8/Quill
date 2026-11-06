@@ -1,0 +1,2 @@
+{# A financial year drop-down. Context: name, label, options (YYYY-YY, newest first), selected; optional all_label (adds a blank "All" choice), form_id. #}
+<label>{{ label }} <select name="{{ name }}"{% if form_id %} form="{{ form_id }}"{% endif %}>{% if all_label %}<option value="">{{ all_label }}</option>{% endif %}{% for year in options %}<option value="{{ year }}"{% if year == selected %} selected{% endif %}>{{ year }}</option>{% endfor %}</select></label>

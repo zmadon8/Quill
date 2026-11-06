@@ -68,6 +68,8 @@ class FeesSettings(models.Model):
     # Round 2: new memos start with the signature ticked; the Firms and matters lists open on "all" or "active".
     memo_signature_default = models.BooleanField(default=False)
     list_default_filter = models.CharField(max_length=10, default="all")
+    # Owner round: rows per page on Memos, Drafts and Feebook; 0 shows everything on one page (at most 1000).
+    items_per_page = models.PositiveIntegerField(default=50)
     # New web switches (porting brief section 9, design section 2).
     statistics_enabled = models.BooleanField(default=True)
     dashboard_kpis_enabled = models.BooleanField(default=True)

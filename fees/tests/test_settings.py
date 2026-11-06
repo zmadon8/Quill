@@ -167,6 +167,16 @@ class ValidationTests(TestCase):
         self._expect_invalid({"overdue_days": 4000})
         self._expect_invalid({"overdue_days": 1.5})
 
+    def test_items_per_page(self):
+        self.assertEqual(get_settings(self.profile)["items_per_page"], 50)
+        for value, expected in ((25, 25), ("30", 30), (0, 0), ("All", 0), (" all ", 0), (1000, 1000)):
+            self.assertEqual(update_settings(self.profile, {"items_per_page": value})["items_per_page"], expected)
+        self._expect_invalid({"items_per_page": -1})
+        self._expect_invalid({"items_per_page": 1001})
+        self._expect_invalid({"items_per_page": 2.5})
+        self._expect_invalid({"items_per_page": "many"})
+        self.assertEqual(update_settings(self.profile, {"items_per_page": None})["items_per_page"], 50)
+
     def test_default_tab(self):
         self._expect_invalid({"default_tab": "nope"})
         # A valid tab is accepted.

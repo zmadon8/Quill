@@ -13,7 +13,7 @@ from fees.decorators import fees_editor, fees_read_write, fees_reader, handle_fe
 from fees.errors import FeesError
 from fees.exports import tax_summary, xlsx
 from fees.pages import TEXT_TYPE, XLSX_TYPE, file_response, flag, int_or_none, json_ok, render_page
-from fees.services import firms, statistics
+from fees.services import firms, fy_options, statistics
 from fees.services.financial_year import current_financial_year
 from fees.services.heavy import heavy_operation
 
@@ -27,7 +27,7 @@ _OPTION_FLAGS = (
 )
 
 
-_TABS = ("standard", "edit", "explore")
+_TABS = ("standard", "explore")
 #: Fiscal-year order of the calendar months (April first).
 FY_MONTHS = (4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3)
 MONTH_NAMES = (
@@ -80,12 +80,13 @@ def ensure_statistics_on(config):
 
 def is_page_post(request):
     """True when a form on the Statistics page posted (it wants a redirect back, not JSON)."""
-    return request.POST.get("return_to") == "statistics"
+    return request.POST.get("return_to") in ("statistics", "settings")
 
 
-def page_post(request, action, done, **query):
+def page_post(request, action, done, _to="fees_statistics", _fragment="", **query):
+    """Run ``action`` for a page form: flash ``done`` or its error and go back to the page ``_to``
+    (the Statistics page unless told otherwise; ``_fragment`` such as ``#settings-years`` is added last)."""
     query = {k: v for k, v in query.items() if not k.endswith("fy") or v == "" or _FY_RE.match(v)}
-    """Run ``action`` for a page form: flash ``done`` or its error and go back to the Statistics page."""
     try:
         action()
         messages.success(request, done)
@@ -93,7 +94,7 @@ def page_post(request, action, done, **query):
         if err.status == 404:
             raise Http404(err.message) from err
         messages.error(request, err.message)
-    return redirect(reverse("fees_statistics") + "?" + urlencode(query))
+    return redirect(reverse(_to) + "?" + urlencode(query) + _fragment)
 
 
 def financial_year_param(query, key="fy", default=True):
@@ -165,7 +166,7 @@ def _display_table(stats):
     return rows
 
 
-def _adjustment_rows(profile, fy):
+def adjustment_rows(profile, fy):
     """Twelve month rows in financial-year order, each with the saved adjustment values (blank when none)."""
     saved = {row["month"]: row for row in statistics.list_adjustments(profile, fy)}
     rows = []
@@ -261,16 +262,18 @@ def statistics_page(request):
         "granularities": _GRANULARITIES,
         "money_unit": config.money_unit,
         "months": MONTH_NAMES,
+        "fy_options": fy_options.financial_year_options(profile, config.initial_financial_year, fy),
     }
     if tab == "standard":
         stats = statistics.get_period_statistics(
             profile, granularity, None if granularity == "financialYear" else fy, stat_options(request.GET)
         )
         context.update({"stats": stats, "table": _display_table(stats)})
-    elif tab == "edit":
-        context["adjustment_rows"] = _adjustment_rows(profile, fy)
     else:
         context.update(_explore_context(profile, request.GET))
+        context["fy_options"] = fy_options.financial_year_options(
+            profile, config.initial_financial_year, (fy, context["chosen"]["from_fy"], context["chosen"]["to_fy"])
+        )
         context.update(
             measures=MEASURES, row_dims=ROW_DIMS, col_dims=COL_DIMS,
             saved_views=[dict(v, query=saved_view_query(v)) for v in statistics.list_saved_views(profile)],

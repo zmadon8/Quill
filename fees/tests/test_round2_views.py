@@ -236,7 +236,7 @@ class ResizableColumnsAndSearchTests(WriteBase):
             reverse("fees_outstanding_detail"),
             reverse("fees_feebook"),
             reverse("fees_statistics") + "?tab=standard",
-            reverse("fees_statistics") + "?tab=edit",
+            reverse("fees_settings") + "?fy=2026-27",
             reverse("fees_statistics") + "?tab=explore",
             reverse("fees_matter_detail", args=[seed["matter_1"].pk]),
             reverse("fees_firm_ledger", args=[seed["firm_a"].pk]),

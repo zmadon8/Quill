@@ -9,13 +9,12 @@ from fees import forms, scope
 from fees.decorators import fees_editor, fees_read_write, fees_reader, handle_fees_errors
 from fees.errors import FeesError
 from fees.pages import json_ok, memo_filters, page_number, render_page
-from fees.services import firms, matters, memo_fees, memo_lists, memos, payments
+from fees.services import firms, fy_options, matters, memo_fees, memo_lists, memos, payments
 from fees.services.fees_in_words import fees_in_words
 from fees.services import settings as settings_service
 from fees.services import word_template
 from fees.services.financial_year import current_financial_year
 
-PAGE_SIZE = 50
 #: Every input name on the memo form (used to show back what the user typed after a failed save).
 FORM_FIELDS = (
     ("date", "matter_id", "custom_memo_number")
@@ -30,7 +29,9 @@ def _list_page(request, draft_mode, template):
     profile, settings = scope.context(request)
     filters = memo_filters(request.GET)
     items = memo_lists.list_memos(profile, filters, draft_mode=draft_mode)
-    page_items, meta = memo_lists.paginate(items, page_number(request.GET), PAGE_SIZE)
+    page_items, meta = memo_lists.paginate(
+        items, page_number(request.GET), memo_lists.page_size_for(settings.items_per_page)
+    )
     return render_page(
         request,
         template,
@@ -40,6 +41,9 @@ def _list_page(request, draft_mode, template):
             "totals": memo_lists.footer_totals(items),
             "filters": filters,
             "firm_choices": firms.list_firms(profile),
+            "fy_options": fy_options.financial_year_options(
+                profile, settings.memos_start_year, filters.get("financial_year")
+            ),
             "money_unit": settings.money_unit,
             "query_string": _without_page(request),
         },

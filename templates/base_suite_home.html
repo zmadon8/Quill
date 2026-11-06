@@ -1,13 +1,13 @@
 {% extends "base_suite.html" %}
-{# Suite level pages (the Home program picker and the Users screens): slim top row with Profiles, Users and Settings (Admin only), the user name and, on the Home page only, Log out. Every other suite page ends with the Home icon instead. No diary nav and no breadcrumb. Back sits in the top row, as everywhere. #}
+{# Suite level pages (the Home program picker and the Users screens): slim top row with Profiles, Users and Settings (Admin only), the user name and, on the Home page only, the Log out icon (always an icon, never the words). Every other suite page ends with the Home icon instead. No diary nav and no breadcrumb. Back sits in the top row, as everywhere. #}
 {% block program_name %}<a href="{% url 'home' %}?home=1" title="Go to Home (&#8997;H)" aria-label="Go to Home">{{ home_name }}</a>{% endblock %}
 {# Words or Logo for these pages is the Home choice (Admins > Page Names), whatever the diary or the Fee Register use. #}
 {% block program_nav %}{% with header_words=home_header_words %}{% for i in suite_nav %}{% include "_nav_item.html" with url=i.url name=i.name icon=i.icon on=i.on %}
   {% endfor %}{% endwith %}{% endblock %}
 {# Sub-pages of a merged page (Users & Profiles, Backups & Import, Settings: D86), as tabs under the header. #}
 {% block crumb_nav %}{% if suite_tabs %}<nav class="subnav" aria-label="Sections of this page">{% for t in suite_tabs %}<a href="{{ t.url }}"{% if t.on %} class="on" aria-current="page"{% endif %}>{{ t.name }}</a>{% endfor %}</nav>{% endif %}{% if suite_subtabs %}<nav class="subnav" aria-label="Sections of the Case Law Diary settings">{% for t in suite_subtabs %}<a href="{{ t.url }}"{% if t.on %} class="on" aria-current="page"{% endif %}>{{ t.name }}</a>{% endfor %}</nav>{% endif %}{% endblock %}
-{# Log out appears only on the suite Home page (round 11); every other page has the Home icon at the far right. #}
+{# Log out appears only on the suite Home page (round 11) and is always the logo, in Words mode too; every other page has the Home icon at the far right. #}
 {% block nav_end %}{% with header_words=home_header_words %}{% if request.resolver_match.url_name == 'home' %}<form method="post" action="{% url 'logout' %}" class="inline">
           {% csrf_token %}
-          <button type="submit" class="link{% if not header_words %} nav-icon{% endif %}" aria-label="Log out" title="Log out">{% if header_words %}Log out{% else %}{% include "icons/logout.svg.html" %}{% endif %}</button>
+          <button type="submit" class="link nav-icon" aria-label="Log out" title="Log out">{% include "icons/logout.svg.html" %}</button>
         </form>{% else %}{% include "_home_button.html" %}{% endif %}{% endwith %}{% endblock %}

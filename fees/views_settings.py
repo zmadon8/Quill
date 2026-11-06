@@ -16,8 +16,9 @@ from fees.exports.filenames import DEFAULT_PATTERN, PLACEHOLDERS, memo_export_fi
 from fees.models import BankAccount, Memo
 from fees.pages import DOCX_TYPE, bytes_response, json_ok, render_page
 from fees.services import settings as settings_service
-from fees.services import statistics, word_template
-from fees.views_statistics import ensure_statistics_on, financial_year_param, is_page_post, page_post
+from fees.services import fy_options, statistics, word_template
+from fees.services.financial_year import current_financial_year
+from fees.views_statistics import adjustment_rows, ensure_statistics_on, financial_year_param, is_page_post, page_post
 
 #: Largest Word template accepted (the template prepare step has its own, tighter limits).
 MAX_TEMPLATE_UPLOAD = 20 * 1024 * 1024
@@ -52,21 +53,37 @@ FILENAME_PARTS = (
 )
 
 
-def settings_context(profile):
-    """What the Settings page shows besides the form values."""
+def settings_context(profile, fy=None):
+    """What the Settings page shows besides the form values.
+
+    ``fy`` is the financial year of the Edit statistics grid (the current year when not given); the grid is
+    built only while Statistics is switched on.
+    """
     config = settings_service.get_settings(profile)
-    return {
+    context = {
         "filename_presets": FILENAME_PRESETS,
         "filename_parts": FILENAME_PARTS,
         "filename_tokens": PLACEHOLDERS,
         "filename_errors": validate_pattern(config["memo_filename_pattern"]),
         "config": config,
+        "start_year_options": fy_options.start_year_options(
+            profile, (config["initial_financial_year"], config["memos_start_year"], config["feebook_start_year"])
+        ),
         "bank_accounts": settings_service.list_bank_accounts(profile),
         "template_info": word_template.get_template_info(profile),
         "tab_choices": DEFAULT_TAB_CHOICES,
         "payment_amount_choices": PAYMENT_AMOUNT_CHOICES,
         "money_unit_choices": MONEY_UNIT_CHOICES,
+        "money_unit": config["money_unit"],
     }
+    if config["statistics_enabled"]:
+        fy = fy or current_financial_year()
+        context.update(
+            fy=fy,
+            fy_options=fy_options.financial_year_options(profile, config["initial_financial_year"], fy),
+            adjustment_rows=adjustment_rows(profile, fy),
+        )
+    return context
 
 
 @fees_read_write
@@ -85,7 +102,9 @@ def settings_page(request):
             return render_page(request, "fees/settings.html", context, status=err.status)
         messages.success(request, "Settings saved.")
         return redirect("fees_settings")
-    return render_page(request, "fees/settings.html", settings_context(profile))
+    return render_page(
+        request, "fees/settings.html", settings_context(profile, financial_year_param(request.GET, default=False))
+    )
 
 
 def _bank_account_or_404(profile, account_id):
@@ -264,7 +283,7 @@ def statistics_grid(request):
 
         if is_page_post(request):
             fy = post.get("fy") or ""
-            return page_post(request, save, "Adjustments saved.", tab="edit", fy=fy)
+            return page_post(request, save, "Adjustments saved.", _to="fees_settings", _fragment="#settings-years", fy=fy)
         fy = save()
         return json_ok({"financial_year": fy, "adjustments": statistics.list_adjustments(profile, fy)})
     ensure_statistics_on(config)

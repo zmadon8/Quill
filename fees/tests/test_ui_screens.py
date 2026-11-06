@@ -17,7 +17,7 @@ from fees.tests.test_view_permissions import A, ROUTES, RW
 SCREENS = (
     ("fees_dashboard", None, "", False),
     ("fees_statistics", None, "", False),
-    ("fees_statistics", None, "?tab=edit", False),
+    ("fees_settings", None, "?fy=2026-27", False),
     ("fees_statistics", None, "?tab=explore&measure=billed&row_dim=financialYear&col_dim=none", False),
     ("fees_statistics_year_end", None, "?fy=2026-27", False),
     ("fees_memos", None, "", False),
