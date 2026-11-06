@@ -5,6 +5,7 @@ Thin views: they read through ``fees.services`` and hand the result to a templat
 """
 from django.contrib import messages
 from django.shortcuts import redirect
+from django.urls import reverse
 from django.views.decorators.http import require_POST, require_safe
 
 from fees import scope
@@ -19,13 +20,6 @@ def selected_kpis(config):
     return dashboard.selected_kpi_ids(config)
 
 
-def kpi_label(kpi):
-    """A KPI id in words: ``billed_last30`` -> ``Billed, last 30 days``."""
-    words = kpi.replace("_last30", ", last 30 days").replace("_this_month", ", this month").replace("_this_year", ", this year")
-    words = words.replace("_", " ")
-    return words[:1].upper() + words[1:]
-
-
 def _kpi_rows(values, chosen):
     rows = []
     for kpi in chosen:
@@ -33,7 +27,7 @@ def _kpi_rows(values, chosen):
         rows.append(
             {
                 "id": kpi,
-                "label": kpi_label(kpi),
+                "label": dashboard.KPI_LABELS[kpi],
                 "value": value,
                 "money": isinstance(value, str),
             }
@@ -56,20 +50,27 @@ def landing(request):
 def dashboard_page(request):
     profile, _settings = scope.context(request)
     config = settings_service.get_settings(profile)
-    summary = dashboard.get_dashboard_summary(profile, settings=config)
     kpis = dashboard.get_dashboard_kpis(profile, settings=config)
     chosen = selected_kpis(config)
     return render_page(
         request,
         "fees/dashboard.html",
         {
-            "summary": summary,
             "kpi_rows": _kpi_rows(kpis, chosen),
             "kpis_enabled": bool(config.get("dashboard_kpis_enabled", True)),
-            "kpi_choices": [
-                {"id": kpi, "label": kpi_label(kpi), "on": kpi in chosen}
-                for kpi in dashboard.KPI_IDS
+            "kpi_groups": [
+                {
+                    "title": title,
+                    "items": [{"id": kpi, "label": dashboard.KPI_LABELS[kpi], "on": kpi in chosen} for kpi in ids],
+                }
+                for title, ids in dashboard.KPI_DISPLAY_GROUPS
             ],
+            "kpi_order": [
+                {"id": kpi, "label": dashboard.KPI_LABELS[kpi], "first": i == 0, "last": i == len(chosen) - 1}
+                for i, kpi in enumerate(chosen)
+            ],
+            "kpi_order_value": ",".join(chosen),
+            "customise_open": request.GET.get("customise") == "1",
             "recent_matters": memo_lists.list_recent_matters(profile),
             "money_unit": config.get("money_unit", "full"),
         },
@@ -80,12 +81,20 @@ def dashboard_page(request):
 @handle_fees_errors()
 @require_POST
 def save_kpis(request):
-    """Save which Overview figures the Dashboard shows. Nothing ticked means all of them."""
+    """Save which boxes the Dashboard shows and in what order. Nothing ticked means all of them.
+
+    The arrow buttons work without JavaScript: they submit the form with ``move=<id>:up|down``.
+    """
     profile, _settings = scope.context(request)
-    ticked = set(request.POST.getlist("kpi"))
-    chosen = [kpi for kpi in dashboard.KPI_IDS if kpi in ticked]
+    chosen = dashboard.order_kpis(
+        request.POST.getlist("kpi"),
+        [k for k in request.POST.get("order", "").split(",") if k],
+        request.POST.get("move", ""),
+    )
     settings_service.update_settings(profile, {"dashboard_kpis": ",".join(chosen)})
-    messages.success(request, "Dashboard figures saved.")
+    if request.POST.get("move"):
+        return redirect(reverse("fees_dashboard") + "?customise=1#kpis")
+    messages.success(request, "Dashboard boxes saved.")
     return redirect("fees_dashboard")
 
 

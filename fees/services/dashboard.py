@@ -93,6 +93,9 @@ __all__ = [
     "get_dashboard_kpis",
     "selected_kpi_ids",
     "KPI_GROUPS",
+    "KPI_DISPLAY_GROUPS",
+    "KPI_LABELS",
+    "order_kpis",
 ]
 
 _ZERO = Decimal("0")
@@ -160,6 +163,65 @@ KPI_GROUPS = {
     "appearances_this_year": "appearances",
 }
 
+#: The Customise panel's groups, in display order: (group title, KPI ids). Every id in ``KPI_IDS``
+#: sits in exactly one group (a test holds that).
+KPI_DISPLAY_GROUPS = (
+    ("Billing", ("billed_this_month", "billed_this_year", "billed_last30")),
+    ("Receipts", ("received_this_month", "received_this_year", "received_last30")),
+    ("Memos", ("memos_this_month", "memos_this_year", "memos_last30")),
+    (
+        "Appearances & work",
+        (
+            "appearances_this_month",
+            "appearances_this_year",
+            "appearances_last30",
+            "conferences_this_month",
+            "conferences_this_year",
+            "conferences_last30",
+            "drafts_this_year",
+            "drafts_last30",
+        ),
+    ),
+    (
+        "Outstanding",
+        (
+            "total_outstanding",
+            "amount_overdue",
+            "memos_awaiting_payment",
+            "written_off_total",
+            "draft_memos_count",
+            "draft_memos_total",
+        ),
+    ),
+)
+
+#: The words shown for each KPI id, in the boxes and in the Customise panel.
+KPI_LABELS = {
+    "billed_this_month": "Billed This Month",
+    "billed_this_year": "Billed This Year",
+    "billed_last30": "Billed (Last 30 Days)",
+    "received_this_month": "Received This Month",
+    "received_this_year": "Received This Year",
+    "received_last30": "Received (Last 30 Days)",
+    "memos_this_month": "Memos This Month",
+    "memos_this_year": "Memos This Year",
+    "memos_last30": "Memos (Last 30 Days)",
+    "appearances_this_month": "Appearances This Month",
+    "appearances_this_year": "Appearances This Year",
+    "appearances_last30": "Appearances (Last 30 Days)",
+    "conferences_this_month": "Conferences This Month",
+    "conferences_this_year": "Conferences This Year",
+    "conferences_last30": "Conferences (Last 30 Days)",
+    "drafts_this_year": "Drafts (Documents) This Year",
+    "drafts_last30": "Drafts (Documents), Last 30 Days",
+    "total_outstanding": "Total Outstanding",
+    "amount_overdue": "Amount Overdue",
+    "memos_awaiting_payment": "Memos Awaiting Payment",
+    "written_off_total": "Written Off",
+    "draft_memos_count": "Draft Memos",
+    "draft_memos_total": "Draft Memos Total",
+}
+
 #: The money KPI ids (serialised as ``str(Decimal)`` in the cached / returned
 #: catalogue); every other id is a plain integer count.
 _MONEY_KPIS = frozenset(
@@ -196,8 +258,28 @@ def selected_kpi_ids(settings):
     Unknown ids are dropped; an empty or missing selection means every KPI (the default).
     """
     chosen = [k.strip() for k in str((settings or {}).get("dashboard_kpis") or "").split(",")]
-    chosen = [k for k in chosen if k in KPI_GROUPS]
+    chosen = list(dict.fromkeys(k for k in chosen if k in KPI_GROUPS))
     return chosen or list(KPI_IDS)
+
+
+def order_kpis(ticked, previous=(), move=""):
+    """The saved KPI order from a Customise submission.
+
+    ``ticked`` are the ticked ids (form order); ``previous`` the order the page showed (the hidden
+    ``order`` field, kept in step by the JavaScript); ``move`` an optional ``"<id>:up"`` or
+    ``"<id>:down"`` from a no-JavaScript arrow button. Unticked ids drop out, newly ticked ids go to
+    the end, unknown ids are ignored.
+    """
+    ticked = list(dict.fromkeys(k for k in ticked if k in KPI_GROUPS))
+    order = [k for k in dict.fromkeys(previous) if k in ticked]
+    order += [k for k in ticked if k not in order]
+    kpi, _sep, direction = str(move or "").partition(":")
+    if kpi in order and direction in ("up", "down"):
+        i = order.index(kpi)
+        j = i - 1 if direction == "up" else i + 1
+        if 0 <= j < len(order):
+            order[i], order[j] = order[j], order[i]
+    return order
 
 
 def local_iso(d) -> str:
@@ -533,8 +615,9 @@ def get_dashboard_kpis(profile, now=None, settings=None):
 
     today = _as_date(now)
     selected = selected_kpi_ids(settings)
-    # The selected ids are part of the cache key, so a changed selection never reads a stale shape.
-    params = {"view": "kpis", "today": local_iso(today), "ids": ",".join(sorted(selected))}
+    # The selected ids, in their saved order, are part of the cache key, so a changed selection or
+    # order never reads a stale shape.
+    params = {"view": "kpis", "today": local_iso(today), "ids": ",".join(selected)}
 
     def compute():
         return _compute_kpis(profile, today, settings, selected)

@@ -1,35 +1,36 @@
 {% extends "fees/base_fees.html" %}
-{% load fees_money %}
+{% load fees_money static %}
 {% block page_title %}Dashboard - {{ program_label }}{% endblock %}
 {% block content %}
 <div class="page-head"><h1>{% if fees_settings.statistics_enabled %}Statistics{% else %}Dashboard{% endif %}</h1></div>
 {% include "fees/_stats_tabs.html" with tab="dashboard" %}
-<section aria-label="Summary">
-<dl class="kpi-grid">
-  <div class="kpi"><dt><a href="{% url 'fees_outstanding' %}">Total outstanding</a></dt><dd class="money">{{ summary.total_outstanding|fees_money:money_unit }}</dd></div>
-  <div class="kpi alert"><dt><a href="{% url 'fees_outstanding_detail' %}?overdue=1">Overdue</a></dt><dd class="money">{{ summary.amount_overdue|fees_money:money_unit }}</dd></div>
-  <div class="kpi"><dt><a href="{% url 'fees_memos' %}?unpaid=1">Memos awaiting payment</a></dt><dd class="money">{{ summary.memos_awaiting_payment }}</dd></div>
-  <div class="kpi"><dt>Written off</dt><dd class="money">{{ summary.written_off_total|fees_money:money_unit }}</dd></div>
-  <div class="kpi"><dt>Billed this month</dt><dd class="money">{{ summary.billed_this_month|fees_money:money_unit }}</dd></div>
-  <div class="kpi"><dt>Billed this year</dt><dd class="money">{{ summary.billed_this_year|fees_money:money_unit }}</dd></div>
-  <div class="kpi"><dt>Received this month</dt><dd class="money">{{ summary.received_this_month|fees_money:money_unit }}</dd></div>
-  <div class="kpi"><dt>Received this year</dt><dd class="money">{{ summary.received_this_year|fees_money:money_unit }}</dd></div>
-  {% if fees_settings.statistics_enabled %}<div class="kpi"><dt>Appearances this year</dt><dd class="money">{{ summary.appearances_this_year }}</dd></div>{% endif %}
-</dl>
-</section>
 {% if kpis_enabled %}
-<section aria-labelledby="overview-heading" id="kpis">
-<h2 id="overview-heading">Overview</h2>
+<section aria-label="Dashboard boxes" id="kpis">
 <dl class="kpi-grid">{% for k in kpi_rows %}<div class="kpi"><dt>{{ k.label }}</dt><dd class="money">{% if k.money %}{{ k.value|fees_money:money_unit }}{% else %}{{ k.value }}{% endif %}</dd></div>{% endfor %}</dl>
 {% if can_edit %}
-<details class="kpi-customise">
-  <summary>Customise the overview</summary>
-  <form method="post" action="{% url 'fees_dashboard_kpis' %}" class="fees-form">{% csrf_token %}
-    <fieldset><legend>Figures to show in the overview (none ticked shows all)</legend>
-    {% for k in kpi_choices %}<label><input type="checkbox" name="kpi" value="{{ k.id }}"{% if k.on %} checked{% endif %}> {{ k.label }}</label>
-    {% endfor %}</fieldset>
-    <button type="submit" class="primary">Save figures</button>
+<details class="kpi-customise"{% if customise_open %} open{% endif %}>
+  <summary>Customise</summary>
+  <form method="post" action="{% url 'fees_dashboard_kpis' %}" class="fees-form kpi-customise-form" data-kpi-customise>{% csrf_token %}
+    <button type="submit" class="visually-hidden" tabindex="-1" aria-hidden="true">Save boxes</button>
+    <input type="hidden" name="order" value="{{ kpi_order_value }}">
+    <h2 class="kpi-customise-title">Customise Overview boxes</h2>
+    <div class="kpi-customise-cols">
+      <div class="kpi-pick">
+        {% for g in kpi_groups %}<fieldset class="kpi-group"><legend>{{ g.title }}</legend>
+        {% for k in g.items %}<label><input type="checkbox" name="kpi" value="{{ k.id }}"{% if k.on %} checked{% endif %}> {{ k.label }}</label>
+        {% endfor %}</fieldset>
+        {% endfor %}
+      </div>
+      <div class="kpi-order">
+        <h3>Order</h3>
+        <ol class="kpi-order-list" data-kpi-order>{% for k in kpi_order %}<li data-kpi="{{ k.id }}"><span>{{ k.label }}</span>
+          <span class="kpi-order-arrows"><button type="submit" name="move" value="{{ k.id }}:up" class="kpi-arrow" aria-label="Move {{ k.label }} up"{% if k.first %} disabled{% endif %}>&#9650;</button><button type="submit" name="move" value="{{ k.id }}:down" class="kpi-arrow" aria-label="Move {{ k.label }} down"{% if k.last %} disabled{% endif %}>&#9660;</button></span></li>{% endfor %}</ol>
+        <p class="muted">Ticking a box adds it to the end. With none ticked, every box shows.</p>
+      </div>
+    </div>
+    <button type="submit" class="primary">Save boxes</button>
   </form>
+  <script src="{% static 'js/fees/dashboard-kpis.js' %}"></script>
 </details>
 {% endif %}
 </section>

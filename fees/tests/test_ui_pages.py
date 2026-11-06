@@ -13,6 +13,7 @@ from django.urls import reverse
 from django.utils.html import escape
 
 from fees.models import FeesSettings, SavedView
+from fees.services import dashboard
 from fees.tests.test_views_read import SeededViewsBase
 
 EM_DASH = "\u2014"
@@ -602,43 +603,45 @@ class DashboardScreenTests(UiPageBase):
         self.settings_on(statistics_enabled=True)
         text = self.assert_page(self.page("fees_dashboard"), "dashboard")
         self.assertNotIn("At a glance", text)
-        self.assertIn('aria-label="Summary"', text)
+        self.assertNotIn('aria-label="Summary"', text)
+        self.assertNotIn("Overview</h2>", text)
+        self.assertNotIn('id="overview-heading"', text)
         self.assertIn('aria-label="Statistics sections"', text)
         self.assertIn('class="on" aria-current="page">Dashboard</a>', text)
         for label in ("Standard", "Explore"):
             self.assertIn(">%s</a>" % label, text)
-        self.assertIn('aria-labelledby="overview-heading"', text)
+        self.assertIn('aria-label="Dashboard boxes"', text)
         self.assertIn('aria-labelledby="recent-heading"', text)
-        self.assertIn('<div class="kpi"><dt><a href="%s">Total outstanding</a></dt>' % reverse("fees_outstanding"), text)
-        self.assertIn("Appearances this year", text)
+        self.assertIn("<dt>Total Outstanding</dt>", text)
+        self.assertIn("<dt>Appearances This Year</dt>", text)
         self.assertIn('<th scope="col" class="money">Memos</th>', text)
         self.assertIn("<caption>", text)
 
-    def test_overview_shows_every_figure_when_the_saved_list_is_empty_or_unknown(self):
+    def test_boxes_show_every_figure_when_the_saved_list_is_empty_or_unknown(self):
         self.settings_on(dashboard_kpis="")
         text = self.html(self.page("fees_dashboard"))
-        self.assertIn("Billed, last 30 days", text)
-        self.assertIn("Memos awaiting payment", text)
+        self.assertIn("<dt>Billed (Last 30 Days)</dt>", text)
+        self.assertIn("<dt>Memos Awaiting Payment</dt>", text)
         self.settings_on(dashboard_kpis="nonsense")
-        self.assertIn("Billed, last 30 days", self.html(self.page("fees_dashboard")))
+        self.assertIn("<dt>Billed (Last 30 Days)</dt>", self.html(self.page("fees_dashboard")))
 
-    def test_overview_shows_only_the_chosen_figures_in_order(self):
-        self.settings_on(dashboard_kpis="billed_this_year,drafts_last30")
+    def test_boxes_follow_the_saved_selection_and_order(self):
+        self.settings_on(dashboard_kpis="drafts_last30,billed_this_year")
         text = self.html(self.page("fees_dashboard"))
-        overview = text[text.index('id="overview-heading"'):text.index('id="recent-heading"')]
-        self.assertLess(overview.index("Billed, this year"), overview.index("Drafts, last 30 days"))
-        self.assertNotIn("Billed, last 30 days", overview)
+        boxes = text[text.index('aria-label="Dashboard boxes"'):text.index('id="recent-heading"')]
+        grid = boxes[:boxes.index("</dl>")]
+        self.assertLess(grid.index("Drafts (Documents), Last 30 Days"), grid.index("Billed This Year"))
+        self.assertNotIn("Billed (Last 30 Days)", grid)
 
-    def test_overview_can_be_switched_off(self):
+    def test_boxes_can_be_switched_off(self):
         FeesSettings.objects.update_or_create(profile=self.profile, defaults={"dashboard_kpis_enabled": False})
         text = self.assert_page(self.page("fees_dashboard"), "dashboard-off")
-        self.assertNotIn("overview-heading", text)
-        self.assertIn('aria-label="Summary"', text)
+        self.assertNotIn('aria-label="Dashboard boxes"', text)
+        self.assertNotIn('class="kpi-grid"', text)
 
-    def test_appearances_box_follows_the_statistics_switch(self):
+    def test_statistics_switch_trims_the_tab_strip(self):
         self.settings_on(statistics_enabled=False)
         text = self.html(self.page("fees_dashboard"))
-        self.assertNotIn("Appearances this year", text)
         # Statistics off: the tab strip holds the Dashboard tab only.
         self.assertIn(">Dashboard</a>", text)
         self.assertNotIn(">Standard</a>", text)
@@ -651,9 +654,39 @@ class DashboardScreenTests(UiPageBase):
         self.assertNotIn('name="kpi"', reader)
         editor = self.assert_page(self.page("fees_dashboard", user=self.editor), "dashboard-editor")
         self.assertIn('<details class="kpi-customise">', editor)
+        self.assertIn("<summary>Customise</summary>", editor)
+        self.assertIn("Customise Overview boxes", editor)
         self.assertIn('method="post" action="%s"' % reverse("fees_dashboard_kpis"), editor)
-        self.assertIn('<button type="submit" class="primary">Save figures</button>', editor)
-        self.assertGreater(editor.count('name="kpi"'), 5)
+        self.assertIn('<button type="submit" class="primary">Save boxes</button>', editor)
+        self.assertEqual(editor.count('name="kpi"'), len(dashboard.KPI_IDS))
+        self.assertIn("js/fees/dashboard-kpis.js", editor)
+
+    def test_customise_groups_cover_every_kpi_and_the_order_list_has_arrows(self):
+        self.settings_on(dashboard_kpis="billed_this_year,memos_last30,drafts_last30")
+        editor = self.html(self.page("fees_dashboard", user=self.editor))
+        for title in ("Billing", "Receipts", "Memos", "Appearances &amp; work", "Outstanding"):
+            self.assertIn("<legend>%s</legend>" % title, editor)
+        for kpi in dashboard.KPI_IDS:
+            self.assertIn('name="kpi" value="%s"' % kpi, editor)
+        self.assertIn("<h3>Order</h3>", editor)
+        self.assertIn('name="order" value="billed_this_year,memos_last30,drafts_last30"', editor)
+        # No JavaScript needed: the first Up and the last Down arrows are disabled, the rest submit.
+        self.assertRegex(editor, r'value="billed_this_year:up"[^>]*disabled')
+        self.assertRegex(editor, r'value="drafts_last30:down"[^>]*disabled')
+        self.assertNotRegex(editor, r'value="memos_last30:up"[^>]*disabled')
+        self.assertNotRegex(editor, r'value="memos_last30:down"[^>]*disabled')
+
+    def test_arrow_button_post_reorders_and_reopens_the_panel(self):
+        self.settings_on(dashboard_kpis="billed_this_year,memos_last30")
+        self.login(self.editor)
+        response = self.client.post(
+            reverse("fees_dashboard_kpis"),
+            {"kpi": ["billed_this_year", "memos_last30"], "order": "billed_this_year,memos_last30", "move": "memos_last30:up"},
+        )
+        self.assertEqual(response.status_code, 302)
+        page = self.html(self.client.get(response["Location"]))
+        self.assertIn('<details class="kpi-customise" open>', page)
+        self.assertIn('name="order" value="memos_last30,billed_this_year"', page)
 
     def test_recent_matters_link_to_matter_firm_and_memo(self):
         i = self.ids()
@@ -662,11 +695,9 @@ class DashboardScreenTests(UiPageBase):
         self.assertIn(reverse("fees_firm_detail", kwargs={"firm_id": i["firm"]}), text)
 
     def test_kpi_labels_are_words(self):
-        from fees.views_dashboard import kpi_label
-
-        self.assertEqual(kpi_label("billed_last30"), "Billed, last 30 days")
-        self.assertEqual(kpi_label("memos_this_month"), "Memos, this month")
-        self.assertEqual(kpi_label("memos_awaiting_payment"), "Memos awaiting payment")
+        self.assertEqual(dashboard.KPI_LABELS["billed_last30"], "Billed (Last 30 Days)")
+        self.assertEqual(dashboard.KPI_LABELS["memos_this_month"], "Memos This Month")
+        self.assertEqual(dashboard.KPI_LABELS["memos_awaiting_payment"], "Memos Awaiting Payment")
 
 
 class StatisticsPageTests(UiPageBase):

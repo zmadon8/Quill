@@ -623,10 +623,29 @@ class SettingsWriteTests(WriteBase):
         self.assertEqual(response.status_code, 302)
         self.assertTrue(any("signature" in m.lower() for m in self.messages(response)))
 
-    def test_dashboard_kpi_selection(self):
-        response = self.post("fees_dashboard_kpis", {"kpi": ["billed_this_year", "billed_this_month", "bogus"]})
+    def test_dashboard_kpi_selection_keeps_the_order_sent(self):
+        response = self.post(
+            "fees_dashboard_kpis",
+            {"kpi": ["billed_this_month", "billed_this_year", "bogus"], "order": "billed_this_year,billed_this_month"},
+        )
         self.assertRedirects(response, reverse("fees_dashboard"), fetch_redirect_response=False)
-        self.assertEqual(self.config().dashboard_kpis, "billed_this_month,billed_this_year")
+        self.assertEqual(self.config().dashboard_kpis, "billed_this_year,billed_this_month")
+
+    def test_dashboard_kpi_ticking_appends_and_unticking_removes(self):
+        self.post("fees_dashboard_kpis", {"kpi": ["memos_last30", "billed_this_year", "drafts_last30"], "order": "memos_last30,billed_this_year,drafts_last30"})
+        self.post("fees_dashboard_kpis", {"kpi": ["memos_last30", "drafts_last30", "amount_overdue"], "order": "memos_last30,billed_this_year,drafts_last30"})
+        self.assertEqual(self.config().dashboard_kpis, "memos_last30,drafts_last30,amount_overdue")
+
+    def test_dashboard_kpi_arrow_buttons_work_without_javascript(self):
+        data = {"kpi": ["billed_this_year", "memos_last30", "drafts_last30"], "order": "billed_this_year,memos_last30,drafts_last30"}
+        response = self.post("fees_dashboard_kpis", dict(data, move="drafts_last30:up"))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("customise=1", response["Location"])
+        self.assertEqual(self.config().dashboard_kpis, "billed_this_year,drafts_last30,memos_last30")
+        self.post("fees_dashboard_kpis", dict(data, move="billed_this_year:up"))
+        self.assertEqual(self.config().dashboard_kpis, "billed_this_year,memos_last30,drafts_last30")
+        self.post("fees_dashboard_kpis", dict(data, move="drafts_last30:down"))
+        self.assertEqual(self.config().dashboard_kpis, "billed_this_year,memos_last30,drafts_last30")
 
     def test_dashboard_kpi_get_is_still_json(self):
         self.assertEqual(self.client.get(reverse("fees_dashboard_kpis")).json()["ok"], True)

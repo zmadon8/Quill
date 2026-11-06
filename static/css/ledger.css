@@ -403,3 +403,18 @@ body.ledger td.row-actions { white-space: nowrap; }
 body.ledger td.row-actions > * { display: inline-block; vertical-align: middle; }
 body.ledger .row-menu > summary::after { content: none; }
 body.ledger .row-menu > .menu { min-width: 14rem; white-space: normal; }
+
+/* ---- Dashboard Customise panel: grouped tick boxes on the left, the box order on the right ---- */
+body.ledger .kpi-customise-title { margin: 0 0 12px; font-size: 1.1rem; }
+body.ledger .kpi-customise-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; margin-bottom: 12px; }
+body.ledger .kpi-group { border: 0; margin: 0 0 12px; padding: 0; }
+body.ledger .kpi-group legend { padding: 0; margin-bottom: 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+body.ledger .kpi-group label { display: block; padding: 2px 0; }
+body.ledger .kpi-order h3 { margin: 0 0 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+body.ledger .kpi-order-list { list-style: none; margin: 0; padding: 0; }
+body.ledger .kpi-order-list li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 0; border-top: 1px solid var(--line); }
+body.ledger .kpi-order-list li:last-child { border-bottom: 1px solid var(--line); }
+body.ledger .kpi-order-arrows { display: inline-flex; gap: 4px; }
+body.ledger .kpi-arrow { min-height: 0; padding: 2px 8px; font-size: .75rem; line-height: 1.2; }
+body.ledger .kpi-arrow:disabled { opacity: .35; cursor: default; }
+@media (max-width: 40rem) { body.ledger .kpi-customise-cols { grid-template-columns: 1fr; } }

@@ -344,6 +344,46 @@ class SelectedKpiGroupsTests(TestCase):
         again = dashboard.get_dashboard_kpis(self.profile, NOW, settings=_config("memos_this_month"))
         self.assertEqual(again, first)
 
+    def test_the_cache_key_includes_the_order(self):
+        a = dashboard.get_dashboard_kpis(self.profile, NOW, settings=_config("memos_this_month,billed_this_month"))
+        b = dashboard.get_dashboard_kpis(self.profile, NOW, settings=_config("billed_this_month,memos_this_month"))
+        self.assertEqual(list(a), ["memos_this_month", "billed_this_month"])
+        self.assertEqual(list(b), ["billed_this_month", "memos_this_month"])
+
+
+class KpiOrderingTests(TestCase):
+    def test_every_kpi_id_sits_in_exactly_one_display_group_and_has_a_label(self):
+        grouped = [kpi for _title, ids in dashboard.KPI_DISPLAY_GROUPS for kpi in ids]
+        self.assertEqual(sorted(grouped), sorted(dashboard.KPI_IDS))
+        self.assertEqual(len(grouped), len(set(grouped)))
+        self.assertEqual(set(dashboard.KPI_LABELS), set(dashboard.KPI_IDS))
+        self.assertEqual(
+            [title for title, _ids in dashboard.KPI_DISPLAY_GROUPS],
+            ["Billing", "Receipts", "Memos", "Appearances & work", "Outstanding"],
+        )
+
+    def test_saved_order_is_kept_and_duplicates_dropped(self):
+        config = {"dashboard_kpis": "memos_last30,billed_this_year,memos_last30"}
+        self.assertEqual(dashboard.selected_kpi_ids(config), ["memos_last30", "billed_this_year"])
+
+    def test_order_kpis(self):
+        self.assertEqual(
+            dashboard.order_kpis(["a_bogus", "billed_this_year", "memos_last30"], ["memos_last30", "billed_this_year"]),
+            ["memos_last30", "billed_this_year"],
+        )
+        self.assertEqual(
+            dashboard.order_kpis(["billed_this_year", "memos_last30", "amount_overdue"], ["memos_last30", "billed_this_year"]),
+            ["memos_last30", "billed_this_year", "amount_overdue"],
+        )
+        self.assertEqual(
+            dashboard.order_kpis(["billed_this_year", "memos_last30"], ["billed_this_year", "memos_last30"], "memos_last30:up"),
+            ["memos_last30", "billed_this_year"],
+        )
+        self.assertEqual(
+            dashboard.order_kpis(["billed_this_year", "memos_last30"], ["billed_this_year", "memos_last30"], "billed_this_year:up"),
+            ["billed_this_year", "memos_last30"],
+        )
+
 
 # ---------------------------------------------------------------------------
 # Memory gate (tagged `memory`): the dashboard KPIs under 3 MB.
