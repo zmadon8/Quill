@@ -1,6 +1,7 @@
 /* Ledger book design system (docs/FEES_DESIGN_SYSTEM.md).
    Every rule is scoped under body.ledger, so a page adopts the design by adding the class "ledger" to <body>
-   (the Fee Register does through base_fees.html). Loaded after tokens.css and site.css. Warm paper, black ink, one
+   (the Fee Register does through base_fees.html). Loaded after tokens.css, site.css and design.css (the shared shell: top bar, tabs, links, headings, focus ring,
+   which also serves the Home and Case Law Diary pages). Warm paper, black ink, one
    oxblood accent, flat 2px corners, hairline rules, a double rule above totals, tabular figures.
 
    FONTS: no web fonts are bundled (no network at build time), so the stacks below fall back to Georgia and the system
@@ -30,41 +31,17 @@ body.ledger {
   font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1, "calt" 1; -webkit-font-smoothing: antialiased;
 }
 @media (max-width: 599px), (pointer: coarse) { body.ledger { --tap: 44px; } }
-body.ledger ::selection { background: #E6CFCF; }
-body.ledger :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+body.ledger h1, body.ledger h2, body.ledger h3 { font-family: var(--font-serif); font-weight: 500; letter-spacing: -.005em; color: var(--ink); }
 body.ledger a { color: var(--accent-hover); text-decoration: none; }
 body.ledger a:hover { text-decoration: underline; }
-body.ledger h1, body.ledger h2, body.ledger h3 { font-family: var(--font-serif); font-weight: 500; letter-spacing: -.005em; color: var(--ink); }
 body.ledger .muted, body.ledger .hint { color: var(--muted); }
 body.ledger .hint { font-size: .857rem; color: var(--faint); }
 
 /* ---- 2. Shell: top bar, tabs, back bar, page widths ---- */
 body.ledger .page { max-width: none; padding: 0 0 4rem; }
-body.ledger .site-header { padding: 0 24px; gap: 0 24px; align-items: stretch; justify-content: flex-start; flex-wrap: wrap; background: var(--paper); border-bottom: 1px solid var(--ink); }
-body.ledger .brand-row { padding: 8px 0; align-self: center; flex-wrap: nowrap; gap: .5rem 1rem; }
-body.ledger .brand { font-family: var(--font-serif); font-style: italic; font-size: 1.43rem; line-height: 1.2; }
-body.ledger .brand a { color: var(--ink); border-bottom: 0; }
-body.ledger .brand a:hover { color: var(--accent); text-decoration: none; }
-body.ledger .brand .profile-name { font-family: var(--font-sans); font-style: normal; font-size: .857rem; color: var(--muted); }
-body.ledger .history-buttons { gap: 2px; }
-body.ledger .back-button, body.ledger .forward-button { width: 28px; min-width: 28px; height: 28px; border: 0; background: transparent; color: var(--muted); }
-body.ledger .back-button:hover, body.ledger .forward-button:hover { color: var(--ink); background: var(--paper-2); }
-body.ledger .program-nav { flex: 1 1 auto; align-items: stretch; gap: 0 20px; font-size: 1rem; }
-body.ledger .program-nav a:not(.home-button) { padding: 12px 2px 10px; min-height: 0; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; }
-body.ledger .program-nav a:not(.home-button):hover { color: var(--ink); text-decoration: none; }
-body.ledger .program-nav a.on { color: var(--ink); font-weight: 600; border-bottom-color: var(--accent); }
-body.ledger .program-nav .who { margin-left: auto; align-self: center; color: var(--muted); font-size: .857rem; }
-body.ledger .program-nav .icon-tool, body.ledger .program-nav .home-button { align-self: center; height: 30px; min-width: 30px; width: auto; border: 0; background: transparent; color: var(--ink-2); border-radius: var(--radius); }
-body.ledger .program-nav .home-button { padding: 0 .5rem; color: var(--muted); }
-body.ledger .program-nav .icon-tool:hover, body.ledger .program-nav .home-button:hover { background: var(--paper-2); color: var(--ink); text-decoration: none; }
-body.ledger .program-nav .word-tool { align-self: center; color: var(--muted); }
-body.ledger .search-pop { background: var(--white); border: 1px solid var(--line-strong); border-top: 0; box-shadow: var(--shadow-float); padding: 8px 24px; }
-body.ledger .fees-search-form input[type=search] { border: 0; border-bottom: 1px solid var(--ink); border-radius: 0; background: transparent; padding-left: 4px; }
-body.ledger .fees-search-form input[type=search]:focus { box-shadow: none; }
 body.ledger .crumb-row { position: static; background: var(--paper); border-bottom: 1px solid var(--line); padding: 6px 24px; min-height: 0; }
 body.ledger .breadcrumb a { min-height: 0; line-height: 1.5; font-weight: 700; color: var(--ink); }
 body.ledger .breadcrumb a:hover { color: var(--accent); text-decoration: none; }
-body.ledger .banner-warning { margin: 0; }
 body.ledger main { box-sizing: border-box; max-width: 72rem; margin: 0 auto; padding: 20px 24px 0; }
 body.ledger.w-6xl main { max-width: 82.286rem; }  /* 1152px at the 14px root */
 body.ledger.w-5xl main { max-width: 73.143rem; }  /* 1024px */
