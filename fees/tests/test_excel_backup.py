@@ -265,9 +265,13 @@ class ExportContractTests(TestCase):
             for row in rows:
                 for cell in row:
                     self.assertNotIn("sig.png", str(cell))
-                    # The one setting key that names the signature carries a tick, never the image or its name.
-                    text = str(cell).lower().replace("memo_signature_default", "")
+                    # Only two names mention the signature: the WebSettings key and the WebMemoFlags
+                    # column header. Both carry a tick, never the image, its filename or content type.
+                    text = str(cell).lower()
+                    if text in ("memo_signature_default", "include_signature"):
+                        continue
                     self.assertNotIn("signature", text)
+                    self.assertNotIn("image/png", text)
                     self.assertNotIn("fake-signature-image-bytes", text)
 
 
