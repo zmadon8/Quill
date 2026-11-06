@@ -49,6 +49,9 @@ MESSAGES = {
     "NO_TEMPLATE": "No Word template has been uploaded yet.",
     "RESTORE_FAILED": "The backup file could not be read.",
     "EXPORT_FAILED": "There is nothing to export.",
+    "INVALID_TEMPLATE": "The Word template could not be used.",
+    "INVALID_SIGNATURE": "The signature must be a PNG or JPEG image of at most 2 MB.",
+    "SIGNATURE_NOT_FOUND": "No signature image has been uploaded yet.",
 }
 
 
