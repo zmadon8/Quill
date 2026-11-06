@@ -126,6 +126,15 @@ class CreateMemoTests(TestCase):
             memos.create_memo(self.profile, base_input(archived.pk))
         self.assertEqual(ctx.exception.code, "MATTER_ARCHIVED")
 
+    def test_overlong_court_name_rejected(self):
+        with self.assertRaises(FeesError) as ctx:
+            memos.create_memo(
+                self.profile,
+                base_input(self.matter.pk, court_name="x" * (memos.MAX_MEMO_TEXT + 1)),
+            )
+        self.assertEqual(ctx.exception.code, "INVALID_MEMO")
+        self.assertIn("Court name", ctx.exception.message)
+
     def test_missing_date_rejected(self):
         with self.assertRaises(FeesError) as ctx:
             memos.create_memo(self.profile, base_input(self.matter.pk, date=""))

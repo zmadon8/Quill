@@ -88,6 +88,9 @@ _SNAPSHOT_FIELDS = (
     "client",
 )
 
+#: Longest allowed caption text (same cap as the Settings default caption fields).
+MAX_MEMO_TEXT = 4000
+
 #: The fee-line and detail fields copied from the input (counts, rates, dates
 #: text, misc, num_drafts).
 _LINE_FIELDS = (
@@ -248,6 +251,12 @@ def _apply_input_fields(memo, data):
     overrides pass through verbatim (None means "no override"). ``addressee_line1``
     is required by the model, so a missing value stores ``""`` too.
     """
+    court_name = data.get("court_name")
+    if court_name is not None and len(str(court_name)) > MAX_MEMO_TEXT:
+        raise FeesError(
+            "INVALID_MEMO",
+            f"Court name must be at most {MAX_MEMO_TEXT} characters",
+        )
     for field in _SNAPSHOT_FIELDS:
         if field not in data:
             continue

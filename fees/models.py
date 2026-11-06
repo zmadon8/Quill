@@ -65,7 +65,7 @@ class FeesSettings(models.Model):
     default_payment_amount = models.CharField(max_length=10, default="zero")
     show_status_dots = models.BooleanField(default=True)
     dashboard_kpis = models.CharField(max_length=500, blank=True, default="")
-    # Round 2: new memos start with the signature ticked; the memo lists open on "all" or "active".
+    # Round 2: new memos start with the signature ticked; the Firms and matters lists open on "all" or "active".
     memo_signature_default = models.BooleanField(default=False)
     list_default_filter = models.CharField(max_length=10, default="all")
     # New web switches (porting brief section 9, design section 2).

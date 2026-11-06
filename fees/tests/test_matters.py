@@ -135,6 +135,33 @@ class CreateMatterTests(TestCase):
 # ---------------------------------------------------------------------------
 
 
+class CourtNameLengthTests(TestCase):
+    def setUp(self):
+        self.profile = fees_profile()
+        self.firm = create_firm(self.profile, "Acme")
+        self.group = self.firm.groups.first()
+
+    def test_overlong_court_name_rejected(self):
+        from fees.services.memos import MAX_MEMO_TEXT
+
+        with self.assertRaises(FeesError) as ctx:
+            create_matter(
+                self.profile, self.firm.pk, self.group.pk, "M",
+                court_name="x" * (MAX_MEMO_TEXT + 1),
+            )
+        self.assertEqual(ctx.exception.code, "INVALID_MATTER")
+        self.assertFalse(Matter.objects.filter(profile=self.profile).exists())
+
+    def test_court_name_at_limit_accepted(self):
+        from fees.services.memos import MAX_MEMO_TEXT
+
+        matter = create_matter(
+            self.profile, self.firm.pk, self.group.pk, "M",
+            court_name="x" * MAX_MEMO_TEXT,
+        )
+        self.assertEqual(len(matter.court_name), MAX_MEMO_TEXT)
+
+
 class MatterCaseInsensitiveUniquenessTests(TestCase):
     def setUp(self):
         self.profile = fees_profile()

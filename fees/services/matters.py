@@ -31,7 +31,7 @@ from django.db.models.functions import Lower
 
 from fees.errors import FeesError
 from fees.models import Firm, Group, Matter, Memo
-from fees.services.memos import touch
+from fees.services.memos import MAX_MEMO_TEXT, touch
 
 __all__ = [
     "MAX_MATTER_NAME",
@@ -96,6 +96,12 @@ def _group_in_firm_or_raise(profile, firm_id, group_id):
 def _collect_memo_defaults(values):
     """Picks the memo-default fields present in ``values`` (a dict), trimming short_name."""
     out = {}
+    court_name = values.get("court_name")
+    if court_name is not None and len(str(court_name)) > MAX_MEMO_TEXT:
+        raise FeesError(
+            "INVALID_MATTER",
+            f"Court name must be at most {MAX_MEMO_TEXT} characters",
+        )
     for field in MEMO_DEFAULT_FIELDS:
         if field not in values:
             continue
