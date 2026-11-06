@@ -36,7 +36,7 @@
   <tbody>{% for e in flat_entries %}{% include "fees/_outstanding_row.html" with e=e flat=True %}{% empty %}<tr><td colspan="{% if can_edit %}11{% else %}10{% endif %}">Nothing outstanding.</td></tr>{% endfor %}</tbody>
   {% else %}
   {% for g in groups %}<tbody>
-    <tr><th scope="rowgroup" colspan="{% if can_edit %}8{% else %}7{% endif %}">{{ g.firm_name }}: {{ g.matter_name }} <span class="muted">(group {{ g.partner_name }})</span></th></tr>
+    <tr><th scope="rowgroup" colspan="{% if can_edit %}8{% else %}7{% endif %}">{{ g.firm_name }}: {{ g.matter_name }} <span class="muted">({{ g.partner_name }})</span></th></tr>
     {% for e in g.entries %}{% include "fees/_outstanding_row.html" with e=e flat=False %}{% endfor %}
     <tr class="subtotal"><th scope="row" colspan="{% if can_edit %}3{% else %}2{% endif %}">Subtotal, {{ g.matter_name }}</th><td class="money">{{ g.subtotal_total|fees_money:money_unit }}</td><td class="money">{{ g.subtotal_net_of_tds|fees_money:money_unit }}</td><td class="money">{{ g.subtotal_paid|fees_money:money_unit }}</td><td class="money">{{ g.subtotal|fees_money:money_unit }}</td><td></td></tr>
   </tbody>{% empty %}<tbody><tr><td colspan="{% if can_edit %}8{% else %}7{% endif %}">Nothing outstanding.</td></tr></tbody>{% endfor %}
