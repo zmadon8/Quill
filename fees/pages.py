@@ -9,7 +9,7 @@ from django.shortcuts import render
 from django.urls import reverse
 
 from accounts.models import ROLE_EDITOR
-from accounts.profiles import request_role
+from accounts.profiles import request_memberships, request_role
 from accounts.suite import KEY_FEES
 from fees import scope
 from fees.exports.filenames import content_disposition
@@ -64,6 +64,8 @@ def render_page(request, template, context=None, status=200):
         "fees_dots": settings is None or settings.show_status_dots,
         "can_edit": request_role(request, KEY_FEES) == ROLE_EDITOR,
         "fees_nav": nav_for(request, settings),
+        # The user's other Fee Register profiles, for the header switcher (memberships are cached, so no query).
+        "fees_other_profiles": [m.profile for m in request_memberships(request, KEY_FEES)[1:]],
     }
     base.update(context or {})
     return render(request, template, base, status=status)

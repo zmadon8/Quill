@@ -6,18 +6,19 @@
 <p><a class="button" href="{% url 'profile_create' %}">New profile</a></p>
 <div class="table-wrap">
 <table>
-  <thead><tr><th>Name</th><th>Display Name</th><th>Users</th><th>Subjects</th><th></th></tr></thead>
+  <thead><tr><th>Name</th>{% if show_program %}<th>Program</th>{% endif %}<th>Display Name</th><th>Users</th><th>Subjects</th><th></th></tr></thead>
   <tbody>
   {% for p in profiles %}
     <tr>
       <td>{{ p.name }}</td>
+      {% if show_program %}<td>{{ p.program_name }}</td>{% endif %}
       <td>{{ p.display_name|default:"-" }}</td>
       <td>{{ p.member_count }}</td>
-      <td>{{ p.subject_count }}</td>
-      <td><a href="{% url 'profile_edit' p.pk %}">Rename</a> | <a href="{% url 'offline_link_admin' p.pk %}">Offline link</a> | <a href="{% url 'profile_clear' p.pk %}">Delete all data</a> | <a href="{% url 'profile_delete' p.pk %}">Delete</a></td>
+      <td>{{ p.subject_count }}{% if p.program != "diary" %} memo{{ p.subject_count|pluralize }}{% endif %}</td>
+      <td><a href="{% url 'profile_edit' p.pk %}">Rename</a>{% if p.program == "diary" %} | <a href="{% url 'offline_link_admin' p.pk %}">Offline link</a> | <a href="{% url 'profile_clear' p.pk %}">Delete all data</a>{% endif %} | <a href="{% url 'profile_delete' p.pk %}">Delete</a></td>
     </tr>
   {% empty %}
-    <tr><td colspan="5">No profiles yet.</td></tr>
+    <tr><td colspan="{% if show_program %}6{% else %}5{% endif %}">No profiles yet.</td></tr>
   {% endfor %}
   </tbody>
 </table>
@@ -33,7 +34,7 @@
   {% for p in deleted_profiles %}
     <tr>
       <td>{{ p.name }}</td>
-      <td>{{ diary_name }}</td>
+      <td>{{ p.program_name }}</td>
       <td>{{ p.deleted_at|date:"Y-m-d H:i" }}</td>
       <td>{{ p.deleted_by.username|default:"-" }}</td>
       <td>{{ p.member_count }}</td>

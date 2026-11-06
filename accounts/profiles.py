@@ -141,10 +141,17 @@ def set_user_profile(user, profile, role=ROLE_READER, program=KEY_DIARY):
 
 
 def profile_usage(profile):
-    """(members, live diary subjects) counts, used to refuse deleting a profile in use."""
+    """(members, live records) counts, used to refuse deleting a profile in use.
+
+    Records are the diary's Subjects, or a Fee Register profile's Memos.
+    """
+    members = ProfileMembership.objects.filter(profile=profile, user__deleted_at__isnull=True).count()
+    if profile.program == KEY_FEES:
+        from fees.models import Memo
+
+        return members, Memo.objects.filter(profile=profile).count()
     from diary.models import Subject
 
-    members = ProfileMembership.objects.filter(profile=profile, user__deleted_at__isnull=True).count()
     subjects = Subject.objects.filter(profile=profile, deleted_at__isnull=True).count()
     return members, subjects
 

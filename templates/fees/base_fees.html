@@ -4,7 +4,7 @@
 {# Page scripts: a page adds its own <script> inside {% block page_js %}; money.js and columns.js load on every fees page. #}
 {% block program_title %}{% block page_title %}{{ program_label }}{% endblock %}{% endblock %}
 {% block extra_css %}<link rel="stylesheet" href="{% static 'css/fees.css' %}">{% endblock %}
-{% block program_name %}<a href="{% url 'fees_dashboard' %}">{{ program_label }}</a>{% endblock %}
+{% block program_name %}<a href="{% url 'fees_dashboard' %}">{{ program_label }}</a>{% if fees_profile and not fees_profile.display_name %} <span class="profile-name">&middot; {{ fees_profile.name }}</span>{% endif %}{% if fees_other_profiles %}{% include "diary/_profile_switch.html" with other_profiles=fees_other_profiles %}{% endif %}{% endblock %}
 {% block program_nav %}{% for i in fees_nav %}<a href="{{ i.url }}"{% if i.on %} class="on" aria-current="page"{% endif %}>{{ i.name }}</a>
   {% endfor %}{% endblock %}
 {% block search_tool %}<button type="button" class="{% if header_words %}word-tool{% else %}icon-tool{% endif %} search-toggle" id="search-toggle" data-search-toggle aria-controls="search-pop" aria-expanded="false" aria-label="Search" title="Search (&#8997;F)">{% if header_words %}Search{% else %}<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><circle cx="10.5" cy="10.5" r="6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M15 15l5.5 5.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>{% endif %}</button>{% endblock %}

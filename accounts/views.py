@@ -12,7 +12,7 @@ from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
-from . import landing, programs, user_trash
+from . import landing, programs, suite, user_trash
 from .clear import ClearRefused, clear_preview, clear_profile
 from .forms import MySettingsForm, UsernamePasswordResetForm, _client_ip, ProfileForm, SuiteNamesForm, UserCreateForm, UserEditForm
 from .models import ROLE_EDITOR, OfflineLink, Profile, ProfileMembership, PurgeLog, ResetRequest, prune_reset_requests
@@ -326,15 +326,19 @@ def suite_settings(request):
     return render(request, "accounts/settings.html", {"form": form})
 
 
-def _live_profiles():
-    return Profile.objects.filter(program__in=programs.program_keys(), deleted_at__isnull=True)
+def _live_profiles(program=None):
+    """Live profiles of every enabled program, or only of ``program`` (the diary-only actions below)."""
+    keys = programs.enabled_program_keys() if program is None else [program]
+    return Profile.objects.filter(program__in=keys, deleted_at__isnull=True)
 
 
 @admin_required
 def profile_list(request):
     profiles = list(_live_profiles().order_by("name"))
+    names = suite.get_names()
     for p in profiles:
         p.member_count, p.subject_count = profile_usage(p)
+        p.program_name = names.get(p.program, p.program)
     deleted = list(
         Profile.objects.filter(program__in=programs.program_keys(), deleted_at__isnull=False)
         .select_related("deleted_by")
@@ -343,11 +347,13 @@ def profile_list(request):
     for p in deleted:
         p.days_left = days_left(p)
         p.member_count, p.subject_count = profile_usage(p)
+        p.program_name = names.get(p.program, p.program)
     return render(
         request,
         "accounts/profile_list.html",
         {
             "profiles": profiles,
+            "show_program": len(programs.enabled_program_keys()) > 1 or any(p.program != suite.KEY_DIARY for p in profiles + deleted),
             "deleted_profiles": deleted,
             "retention_days": retention_days(),
             "purge_logs": PurgeLog.objects.order_by("-ran_at", "-id")[:10],
@@ -439,7 +445,7 @@ def profile_restore(request, pk):
 @require_http_methods(["GET", "POST"])
 def profile_clear(request, pk):
     """Delete ALL diary data in a profile (Admin only). Preview first; the profile name must be typed."""
-    target = get_object_or_404(_live_profiles(), pk=pk)
+    target = get_object_or_404(_live_profiles(suite.KEY_DIARY), pk=pk)
     rows = clear_preview(target)
     total = sum(number for _name, number in rows)
     if request.method == "POST":
@@ -466,7 +472,7 @@ def offline_link_admin(request, pk):
     """Round 21 (D100): make, switch on or off, renew and refresh the secret Offline link of one profile (Admin only)."""
     from diary.offline_link import make_copy  # lazy: diary imports accounts
 
-    target = get_object_or_404(_live_profiles(), pk=pk)
+    target = get_object_or_404(_live_profiles(suite.KEY_DIARY), pk=pk)
     link = OfflineLink.objects.filter(profile=target).select_related("made_by").defer("copy_data").first()
     if request.method == "POST":
         action = request.POST.get("action", "")

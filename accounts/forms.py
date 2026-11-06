@@ -83,6 +83,10 @@ class ProfileAccessMixin:
     def _add_profile_fields(self, current=None):
         current = current or {}
         self.access_profiles = list(_live_profiles())
+        # Other enabled programs (the Fee Register) get their own profile choices after the diary's.
+        for key in programs.enabled_program_keys():
+            if key != suite.KEY_DIARY:
+                self.access_profiles.extend(_live_profiles(key))
         for profile in self.access_profiles:
             self.fields[f"{PROFILE_FIELD_PREFIX}{profile.pk}"] = forms.ChoiceField(
                 choices=PROFILE_ACCESS_CHOICES, required=False, label=profile.name,
@@ -90,22 +94,40 @@ class ProfileAccessMixin:
             )
 
     def profile_fields(self):
-        """The per-profile fields, for the template (in profile name order)."""
-        return [self[f"{PROFILE_FIELD_PREFIX}{p.pk}"] for p in self.access_profiles]
+        """The Case Law Diary per-profile fields, for the template (in profile name order)."""
+        return [self[f"{PROFILE_FIELD_PREFIX}{p.pk}"] for p in self.access_profiles if p.program == suite.KEY_DIARY]
+
+    def program_profile_groups(self):
+        """[(program name, [fields])] for each other program that has live profiles (the Fee Register)."""
+        names = suite.get_names()
+        groups = []
+        for key in programs.enabled_program_keys():
+            if key == suite.KEY_DIARY:
+                continue
+            fields = [self[f"{PROFILE_FIELD_PREFIX}{p.pk}"] for p in self.access_profiles if p.program == key]
+            groups.append((names.get(key, key), fields))
+        return groups
 
     def other_fields(self):
         """Every other field, in form order."""
         names = {f"{PROFILE_FIELD_PREFIX}{p.pk}" for p in self.access_profiles}
         return [field for field in self if field.name not in names]
 
-    def chosen_roles(self):
-        """{profile: role} for every profile given Editor or Reader."""
+    def chosen_roles(self, program=suite.KEY_DIARY):
+        """{profile: role} for every profile of ``program`` given Editor or Reader."""
         roles = {}
         for profile in self.access_profiles:
+            if profile.program != program:
+                continue
             role = self.cleaned_data.get(f"{PROFILE_FIELD_PREFIX}{profile.pk}") or ""
             if role:
                 roles[profile] = role
         return roles
+
+    def save_profile_access(self, user):
+        """Store the chosen roles, one program at a time (a user's profiles of one program are replaced together)."""
+        for key in programs.enabled_program_keys():
+            set_user_profiles(user, self.chosen_roles(key), key)
 
 
 def _admin_field():
@@ -158,7 +180,7 @@ class UserCreateForm(ProfileAccessMixin, UserCreationForm):
         if commit:
             with transaction.atomic():
                 user.save()
-                set_user_profiles(user, self.chosen_roles())
+                self.save_profile_access(user)
         return user
 
 
@@ -186,7 +208,7 @@ class UserEditForm(ProfileAccessMixin, forms.ModelForm):
         self.fields["landing_program"].choices = landing.program_choices()
         self.editing_user = editing_user
         self.fields["is_admin"].initial = self.instance.is_superuser
-        self._add_profile_fields({m.profile_id: m.role for m in live_memberships(self.instance)})
+        self._add_profile_fields({m.profile_id: m.role for m in live_memberships(self.instance, None)})
 
     def clean_new_password(self):
         password = self.cleaned_data.get("new_password")
@@ -221,7 +243,7 @@ class UserEditForm(ProfileAccessMixin, forms.ModelForm):
         if commit:
             with transaction.atomic():
                 user.save()
-                set_user_profiles(user, self.chosen_roles())
+                self.save_profile_access(user)
         return user
 
 
@@ -257,13 +279,25 @@ class ProfileForm(forms.ModelForm):
     """Create or rename a profile, and set its Display Name. Names are unique among live profiles of the
     same program, ignoring case.
 
-    A new profile belongs to ``program`` (the diary by default, the only registered program today; a later
-    step adds a program select). Editing or restoring keeps the profile's own program.
+    A new profile belongs to ``program`` (the diary by default). When the Fee Register is switched on, creating
+    one offers a Program select (Case Law Diary or Fee Register); with only the diary the form is as before.
+    Editing or restoring keeps the profile's own program.
     """
+
+    field_order = ["program", "name", "display_name"]
 
     def __init__(self, *args, program=suite.KEY_DIARY, **kwargs):
         super().__init__(*args, **kwargs)
         self.program = self.instance.program if self.instance.pk else program
+        keys = programs.enabled_program_keys()
+        if self.instance.pk or len(keys) < 2:
+            del self.fields["program"]
+        else:
+            names = suite.get_names()
+            self.fields["program"].choices = [(k, names.get(k, k)) for k in keys]
+            self.fields["program"].initial = program
+
+    program = forms.ChoiceField(label="Program", choices=[])
 
     class Meta:
         model = Profile
@@ -275,6 +309,10 @@ class ProfileForm(forms.ModelForm):
 
     def clean_display_name(self):
         return " ".join((self.cleaned_data.get("display_name") or "").split())
+
+    def clean_program(self):
+        self.program = self.cleaned_data["program"]  # a valid choice (enabled programs only); used by clean_name
+        return self.program
 
     def clean_name(self):
         name = " ".join((self.cleaned_data.get("name") or "").split())
