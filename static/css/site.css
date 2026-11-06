@@ -599,3 +599,8 @@ button.group-switch { border: 0; background: none; padding: 0; font: inherit; fo
 .flag-field .flag-line { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
 .flag-field select { min-height: var(--tap); }
 .flag-field input[type=text] { flex: 1 1 14rem; width: auto; }
+
+/* Move to and Demote pickers: the place the record is in now is blue (red is kept for alerts and danger). */
+.picker-choice.picker-current, .picker-no.picker-current { background: #1f5fbf; border-color: #1f5fbf; color: #fff; }
+.picker-no.picker-current .meta { color: inherit; }
+.picker-choice.picker-current .meta { color: inherit; }

@@ -4,10 +4,10 @@
   <li class="picker-node depth-{{ n.depth }}"{% if n.children %} data-picker-node{% endif %}>
     <div class="picker-row">
       {% if n.children %}<button type="button" class="picker-toggle" data-picker-toggle hidden aria-expanded="true" aria-controls="{{ n.open_id }}" aria-label="Show or hide what is inside {{ n.label }}"><span aria-hidden="true" class="toc-chevron"></span></button>{% else %}<span class="picker-spacer"></span>{% endif %}
-      {% if n.pick %}<button type="submit" name="parent" value="{{ n.type }}:{{ n.id }}" class="picker-choice">{{ n.label }} <span class="meta">{{ n.kind_name }}{% if n.current %} &middot; current{% endif %}</span></button>
-      {% else %}<span class="picker-no">{{ n.label }} <span class="meta">{{ n.kind_name }}{% if n.current %} &middot; current{% endif %}</span></span>{% endif %}
+      {% if n.pick %}<button type="submit" {% if by_id %}name="target" value="{{ n.id }}"{% else %}name="parent" value="{{ n.type }}:{{ n.id }}"{% endif %} class="picker-choice{% if n.current %} picker-current{% endif %}">{{ n.label }} <span class="meta">{{ n.kind_name }}{% if n.current %} &middot; current{% endif %}</span></button>
+      {% else %}<span class="picker-no{% if n.current %} picker-current{% endif %}">{{ n.label }} <span class="meta">{{ n.kind_name }}{% if n.current %} &middot; current{% endif %}</span></span>{% endif %}
     </div>
-    {% if n.children %}{% include "diary/_picker_nodes.html" with nodes=n.children sub_id=n.open_id %}{% endif %}
+    {% if n.children %}{% include "diary/_picker_nodes.html" with nodes=n.children sub_id=n.open_id by_id=by_id %}{% endif %}
   </li>
   {% endfor %}
 </ul>
