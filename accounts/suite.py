@@ -18,13 +18,36 @@ DEFAULT_NAMES = {
 MAX_NAME_LENGTH = 60
 
 
+#: Header bar style per program (round 20, 3.1): Words (the names as words) or Logo (the icons). Suite-wide, for
+#: everyone, set by an Admin on Admins > Page Names. Stored in ``SuiteName`` rows keyed ``brand_<key>`` (the mode is
+#: kept in ``display_name``), so no new table is needed; ``get_names`` ignores them. No row means Logo, the old default.
+BRAND_WORDS = "words"
+BRAND_LOGO = "logo"
+BRAND_MODES = (BRAND_WORDS, BRAND_LOGO)
+BRAND_KEYS = (KEY_HOME, KEY_DIARY, KEY_FEES)
+BRAND_PREFIX = "brand_"
+
+
+def read_all():
+    """Return ``(names, brand_modes)`` from one query: ``{key: display_name}`` and ``{key: "words" | "logo"}``.
+
+    Defaults fill every missing row. The context processors use this so a page asks the table once.
+    """
+    names = dict(DEFAULT_NAMES)
+    modes = {key: BRAND_LOGO for key in BRAND_KEYS}
+    wanted = [*DEFAULT_NAMES, *(BRAND_PREFIX + key for key in BRAND_KEYS)]
+    for row in SuiteName.objects.filter(key__in=wanted):
+        if row.key in DEFAULT_NAMES:
+            if row.display_name.strip():
+                names[row.key] = row.display_name
+        elif row.display_name in BRAND_MODES:
+            modes[row.key[len(BRAND_PREFIX):]] = row.display_name
+    return names, modes
+
+
 def get_names():
     """Return ``{key: display_name}`` for every key, using defaults for missing rows."""
-    names = dict(DEFAULT_NAMES)
-    for row in SuiteName.objects.filter(key__in=DEFAULT_NAMES):
-        if row.display_name.strip():
-            names[row.key] = row.display_name
-    return names
+    return read_all()[0]
 
 
 def set_names(new_names):
@@ -32,3 +55,15 @@ def set_names(new_names):
     for key, value in new_names.items():
         if key in DEFAULT_NAMES:
             SuiteName.objects.update_or_create(key=key, defaults={"display_name": value})
+
+
+def get_brand_modes():
+    """Return ``{key: "words" | "logo"}`` for Home, the Case Law Diary and the Fee Register (Logo when not set)."""
+    return read_all()[1]
+
+
+def set_brand_modes(new_modes):
+    """Store ``{key: mode}`` (only known keys and modes)."""
+    for key, mode in new_modes.items():
+        if key in BRAND_KEYS and mode in BRAND_MODES:
+            SuiteName.objects.update_or_create(key=BRAND_PREFIX + key, defaults={"display_name": mode})

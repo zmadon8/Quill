@@ -38,6 +38,8 @@ class User(AbstractUser):
     HEADER_ICONS, HEADER_WORDS = "icons", "words"
     HEADER_STYLE_CHOICES = [(HEADER_ICONS, "Icons"), (HEADER_WORDS, "Words")]
     header_style = models.CharField(max_length=10, choices=HEADER_STYLE_CHOICES, default=HEADER_ICONS)
+    # Diary round (1.5): justify the text that is normally left-aligned. On screen only; off unless chosen (My settings, Display).
+    justify_text = models.BooleanField(default=False)
     # Round 18 (D94): a deleted user is kept for USER_RETENTION_DAYS so an Admin can restore them. While deleted they
     # cannot sign in (is_active is off) and keep their username and email address; ``was_active`` is what Restore puts
     # back. Who deleted them is kept as a name (not a link), so a backup file never depends on the order users load in.

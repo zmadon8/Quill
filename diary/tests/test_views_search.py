@@ -135,3 +135,27 @@ class SearchViewTests(TestCase):
         self.assertContains(resp, 'href="%s#n-item-%d"' % (reverse("read_subject", args=[self.subject.pk]), self.cited.pk))
         page = self.client.get(reverse("read_subject", args=[self.subject.pk]))
         self.assertContains(page, 'id="n-item-%d"' % self.cited.pk)
+
+    def test_operators_through_the_page(self):
+        resp = self.get(q="damages OR performance -zzzz")
+        self.assertContains(resp, "2 results")
+        self.assertNotContains(resp, "search-notice")
+        self.assertContains(self.get(q="damages -damages"), "No results")
+
+    def test_malformed_query_shows_a_notice_and_still_searches(self):
+        resp = self.get(q="damages OR")
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "search-notice")
+        self.assertContains(resp, "1 result<")
+        self.assertContains(resp, "<mark>Damages</mark>")
+
+    def test_search_tips_panel_is_on_the_page(self):
+        self.assertContains(self.get(), 'id="search-tips"')
+        self.assertContains(self.get(q="damages"), "Search tips")
+
+    def test_notice_on_flags_page(self):
+        self.client.force_login(self.reader)
+        resp = self.client.get(reverse("flags"), {"q": "(damages"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "search-notice")
+

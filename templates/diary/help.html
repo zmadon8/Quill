@@ -30,9 +30,21 @@
 
   <h2 id="h-search">Search</h2>
   <p>Type a word or part of a word. Capital letters and punctuation do not matter. Put exact phrases in quotation marks. You can narrow a search by Subject and see the results in context.</p>
+  <p>Search understands a few simple operators (the <strong>Search tips</strong> panel under the search box lists them):</p>
+  <ul>
+    <li><em>fraud forgery</em>: both words (AND is the default).</li>
+    <li><em>fraud OR forgery</em>: either word. Write OR, AND and NOT in capital letters.</li>
+    <li><em>fraud -criminal</em> or <em>fraud NOT criminal</em>: leaves out results that have the word.</li>
+    <li><em>"scc 49"</em>: the exact phrase. <em>(fraud OR forgery) -criminal</em>: brackets group words.</li>
+    <li><em>arbitra*</em>: words that start with these letters.</li>
+    <li><em>SCC 2016</em>: finds citations holding those words and numbers.</li>
+    <li><em>subject:Arbitration fraud</em>: only in Subjects with that name (<em>subject:"Civil Procedure"</em> for several words).</li>
+    <li><em>flag:pending</em>, <em>flag:review</em> (overruled or doubted) or <em>flag:other</em>: only flagged records of that kind.</li>
+  </ul>
+  <p>If a search cannot be understood (for example a bracket that is never closed), it is run as plain words and a short note says so. Words you left out are not highlighted.</p>
 
   <h2 id="h-settings">Settings</h2>
-  <p><strong>Settings</strong> (the gear in the diary) opens the <strong>Settings</strong> area. On the Home page the header has <strong>Settings</strong>: <strong>Account</strong> (your email address, used by <strong>Forgot my password</strong> on the login page, where you type your username; and <strong>Change my password</strong>) and <strong>Display</strong> (icons or words in the header bar, what opens after you log in, and the diary's own settings: the name shown at the top and how Contents links open, which only Editors can change). A third tab named after the diary ({{ diary_name }}) holds <strong>Numbers</strong> (how numbers look) and <strong>Edits</strong> (your own changes, newest first). The file name and the date used for Word files are on the <strong>Export</strong> page. Tick <strong>Remember me</strong> when logging in to stay signed in for 30 days on your own device.</p>
+  <p><strong>Settings</strong> (the gear in the diary) opens the <strong>Settings</strong> area. On the Home page the header has <strong>Settings</strong>: <strong>Account</strong> (your email address, used by <strong>Forgot my password</strong> on the login page, where you type your username; and <strong>Change my password</strong>) and <strong>Display</strong> (what opens after you log in, and the diary's own settings: the name shown at the top and how Contents links open, which only Editors can change). A third tab named after the diary ({{ diary_name }}) holds <strong>Numbers</strong> (how numbers look) and <strong>Edits</strong> (your own changes, newest first). Whether the header bar shows icons or words is set by an Admin for everyone, on <strong>Admins</strong> &gt; <strong>Page Names</strong>. The file name and the date used for Word files are on the <strong>Export</strong> page. Tick <strong>Remember me</strong> when logging in to stay signed in for 30 days on your own device.</p>
 
   <h2 id="h-people">Profiles and users</h2>
   <p>A <strong>profile</strong> is a separate notebook of diary entries. A person may be given one or several profiles, as Reader or Editor in each. With several, the small arrow next to the name at the top of the diary (or the buttons on the Home page) switches between them; the one used last opens next time. The Admin makes profiles under <strong>Admins</strong>, tab <strong>Profiles</strong>, and, on its <strong>Users</strong> tab, adds people, changes passwords and chooses their profiles and roles. A deleted user can be restored from <strong>Deleted users</strong> on that tab for 30 days. Roles: <strong>Reader</strong> reads only, <strong>Editor</strong> reads and edits, <strong>Admin</strong> does everything including users and backups. If you see "No profile assigned", ask the Admin.</p>

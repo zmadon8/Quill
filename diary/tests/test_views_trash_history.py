@@ -203,13 +203,13 @@ class PermanentDeleteTests(TrashTestCase):
         self.assertEqual(self.perm(self.one, self.client, confirmed="1").status_code, 403)
         self.assertTrue(Item._base_manager.filter(pk=self.one.pk).exists())
 
-    def test_an_admin_who_is_only_a_reader_of_the_profile_gets_403(self):
+    def test_an_admin_who_is_only_a_reader_of_the_profile_is_still_an_admin(self):
+        # Owner's rule: "an 'Admin' is an 'Admin' for all sub-programs" (this used to be a 403).
         reader_admin = join_main(User.objects.create_user("rootr", password=PASSWORD, is_superuser=True), "reader")
         client = Client()
         client.force_login(reader_admin)
         svc.delete(self.profile, self.user, "item", self.one.pk)
-        self.assertEqual(self.perm(self.one, client, confirmed="1").status_code, 403)
-        self.assertTrue(Item._base_manager.filter(pk=self.one.pk).exists())
+        self.assertEqual(self.perm(self.one, client, confirmed="1").status_code, 302)
 
     def test_the_admin_sees_the_button_and_editors_do_not(self):
         svc.delete(self.profile, self.user, "item", self.one.pk)

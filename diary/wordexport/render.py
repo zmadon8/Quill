@@ -122,6 +122,8 @@ class Renderer:
     def item_runs(self, item):
         runs = html_runs(item.html)
         has = bool(runs) and any(r.text.strip() for r in runs)
+        if has and len(item.cases) > 1 and item.layout == "lines" and not "".join(r.text for r in runs).rstrip().endswith(":"):
+            runs.append(dw.Run(":"))  # the citations follow on their own lines
         if item.cases and item.layout != "lines":
             if has:
                 runs.append(dw.Run(" - "))

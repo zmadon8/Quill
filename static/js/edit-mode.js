@@ -293,7 +293,7 @@
       plain.hidden = !heading;
       var citable = whats.indexOf(what()) > -1;
       citeField.classList.toggle("off", !citable);
-      Array.prototype.forEach.call(citeField.querySelectorAll("input, button"), function (n) { n.disabled = !citable; });
+      Array.prototype.forEach.call(citeField.querySelectorAll("input, textarea, button"), function (n) { n.disabled = !citable; });
       // Items and Sections take a Flag (D88); the other kinds hide and disable it.
       var flagBox = form.querySelector("[data-add-flag]");
       if (flagBox) {
@@ -315,11 +315,11 @@
     more.addEventListener("click", function () {
       var first = list.querySelector("[data-cite-row]");
       var row = first.cloneNode(true);
-      Array.prototype.forEach.call(row.querySelectorAll("input"), function (i) { i.value = ""; });
+      Array.prototype.forEach.call(row.querySelectorAll("input, textarea"), function (i) { i.value = ""; i.style.height = ""; });
       var x = el("button", { type: "button", "class": "x-btn", "data-cite-remove": "", title: "Remove this citation", "aria-label": "Remove this citation" }, "\u00d7");
       row.appendChild(x);
       list.appendChild(row);
-      row.querySelector("input").focus();
+      row.querySelector("[name=case_citation]").focus();
     });
     list.addEventListener("click", function (e) {
       var x = e.target.closest("[data-cite-remove]");
@@ -336,25 +336,27 @@
         body.set("text", plain.value);
         body.delete("case_citation"); body.delete("case_comment");
       }
-      var chosen = form.querySelector("input[name=choice]:checked");
-      var choice = chosen ? chosen.value : "";
       busy = true;
       request(form.action, { method: "POST", body: body }).then(function (result) {
         busy = false;
         if (!(result.data && result.data.ok)) { failed(form, result); return; }
-        saved(result.data, choice);
+        saved(result.data);
       }).catch(function () {
         busy = false;
         showErrors(form, ["Could not reach the server. Nothing was added."]);
       });
     }
     form.addEventListener("submit", function (e) { e.preventDefault(); submit(); });
+    // Cancel closes the form (it had no handler before, so only Esc worked); a typed-in form asks first.
+    form.addEventListener("click", function (e) {
+      if (e.target.closest("[data-inline-cancel]")) { e.preventDefault(); closeCurrent(false); }
+    });
 
     form.addEventListener("keydown", function (e) {
       if (e.key === "Escape") { e.preventDefault(); closeCurrent(false); return; }
       if (e.key !== "Enter" || e.isComposing) { return; }
       var t = e.target;
-      var textual = t === plain || (t.classList && t.classList.contains("rt-area")) || (t.tagName === "INPUT" && t.type === "text");
+      var textual = t === plain || (t.classList && t.classList.contains("rt-area")) || (t.tagName === "INPUT" && t.type === "text") || (t.tagName === "TEXTAREA" && t.hasAttribute("data-single-line"));
       if (!textual) { return; }
       var multi = t.classList && t.classList.contains("rt-area");
       if (e.shiftKey && multi) { return; } // Shift+Enter is a new line
@@ -363,16 +365,12 @@
     });
   }
 
-  /* After a save: put the new row in place, close the form and open the next blank one under the new row. */
-  function saved(data, choice) {
+  /* After a save: close the form and put the new row in place. It does not open another blank form. */
+  function saved(data) {
     updateUndo(data.undo);
     if (data.reload) { window.location.reload(); return; }
-    var wasHeading = !data.html;
     closeCurrent(true);
-    var row = applyRow(data);
-    if (!row || wasHeading) { return; }
-    var next = row.querySelector(":scope > [data-row-actions] [data-add-here]");
-    if (next) { openAdd(next, choice); }
+    applyRow(data);
   }
 
   // ---- "Edit": the editing card ----
@@ -437,7 +435,7 @@
         var fresh = template.content.firstElementChild.cloneNode(true);
         list.appendChild(fresh);
         if (window.QuillRichText) { window.QuillRichText.initAll(fresh); }
-        fresh.querySelector("input[name=case_citation]").focus();
+        fresh.querySelector("[name=case_citation]").focus();
         card.setAttribute("data-dirty", "1");
         syncLayout();
         return;

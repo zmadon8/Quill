@@ -1094,14 +1094,15 @@ class ProfileScopingTests(TestCase):
         self.assertNotContains(resp, "No programs are available")
         self.assertContains(resp, 'href="%s"' % reverse("diary_home"))
 
-    def test_home_hides_program_for_admin_without_profile(self):
+    def test_home_shows_program_to_admin_without_membership(self):
+        # Owner's rule: "an 'Admin' is an 'Admin' for all sub-programs" (this used to hide the program and give a 403).
         admin = User.objects.create_user("rootless", password=PASSWORD, is_superuser=True)
         self.client.force_login(admin)
         resp = self.client.get(reverse("home"))
-        self.assertContains(resp, "No programs are available to you yet.")
-        self.assertNotContains(resp, 'href="%s"' % reverse("diary_home"))
+        self.assertNotContains(resp, "No programs are available to you yet.")
+        self.assertContains(resp, 'href="%s"' % reverse("diary_home"))
         self.assertContains(resp, 'href="%s"' % reverse("user_list"))
-        self.assertEqual(self.client.get(reverse("diary_home")).status_code, 403)
+        self.assertEqual(self.client.get(reverse("diary_home")).status_code, 200)
 
     def test_deleted_profile_means_no_access(self):
         from django.utils import timezone

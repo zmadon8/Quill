@@ -208,7 +208,8 @@ class UserEditForm(ProfileAccessMixin, forms.ModelForm):
         self.fields["landing_program"].choices = landing.program_choices()
         self.editing_user = editing_user
         self.fields["is_admin"].initial = self.instance.is_superuser
-        self._add_profile_fields({m.profile_id: m.role for m in live_memberships(self.instance, None)})
+        # Stored roles of every program (the diary and the Fee Register), not the Admin-everywhere view.
+        self._add_profile_fields({m.profile_id: m.role for m in live_memberships(self.instance, None, raw=True)})
 
     def clean_new_password(self):
         password = self.cleaned_data.get("new_password")
@@ -254,23 +255,19 @@ class MySettingsForm(forms.ModelForm):
 
     class Meta:
         model = User
-        fields = ("email", "landing_program", "header_style")
-        labels = {"header_style": "Header bar"}
-        widgets = {"header_style": forms.RadioSelect}
+        fields = ("email", "landing_program", "justify_text")
+        labels = {"justify_text": "Justify text"}
 
     def clean_email(self):
         return _clean_unique_email(self)
 
-    def clean_header_style(self):
-        return self.cleaned_data.get("header_style") or self.instance.header_style or User.HEADER_ICONS
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["email"].help_text = "Used only to email you a link if you forget your password."
-        self.fields["header_style"].required = False  # not posted: keep the current choice (see clean_header_style)
-        self.fields["header_style"].help_text = (
-            "Icons: Trash is a dustbin, Export a downward arrow, Help a question mark, Settings a gear, and Search and "
-            "Home their usual icons (hover or long-press to see the name). Words: the names instead."
+        self.fields["justify_text"].required = False
+        self.fields["justify_text"].help_text = (
+            "Lines up the right-hand edge of the text of Items, Sections and Notes on screen. Off: the text is left-aligned. "
+            "The Word export is not affected."
         )
         self.fields["landing_program"].choices = landing.program_choices(landing.programs_for(self.instance))
 
@@ -361,6 +358,16 @@ class SuiteNamesForm(forms.Form):
             self.fields[field_name] = forms.CharField(
                 label=label, max_length=suite.MAX_NAME_LENGTH, initial=names.get(key, ""),
             )
+        # Words or Logo for the header bar of Home and each program on offer (round 20, 3.1; the Fee Register only
+        # while that program is switched on). Not posted: the current choice is kept.
+        self.brand_keys = [suite.KEY_HOME, *programs.enabled_program_keys()]
+        modes = suite.get_brand_modes()
+        for key in self.brand_keys:
+            self.fields[self._brand_field(key)] = forms.ChoiceField(
+                label=f"{names.get(key, key)} header bar", required=False, initial=modes.get(key, suite.BRAND_LOGO),
+                choices=[(suite.BRAND_WORDS, "Words"), (suite.BRAND_LOGO, "Logo")], widget=forms.RadioSelect,
+                help_text="Words: Trash, Export, Help, Settings and the other items as words. Logo: as icons.",
+            )
 
     @staticmethod
     def _name_keys():
@@ -370,6 +377,10 @@ class SuiteNamesForm(forms.Form):
     @staticmethod
     def _field_name(key):
         return f"{key}_name"
+
+    @staticmethod
+    def _brand_field(key):
+        return f"{key}_brand"
 
     def _clash_label(self, key):
         """The human label used in the "same name as" message for ``key``."""
@@ -397,6 +408,10 @@ class SuiteNamesForm(forms.Form):
     def save(self):
         suite.set_names(
             {key: " ".join(self.cleaned_data[self._field_name(key)].split()) for key in self.name_keys}
+        )
+        suite.set_brand_modes(
+            {key: self.cleaned_data[self._brand_field(key)] for key in self.brand_keys
+             if self.cleaned_data.get(self._brand_field(key))}
         )
 
 

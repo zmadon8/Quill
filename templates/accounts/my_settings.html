@@ -23,15 +23,12 @@
     <p><a class="button" href="{% url 'password_change' %}">Change my password</a></p>
   </section>
   </div>
-  <div class="settings-tab" data-settings-tab="display"{% if tab != "display" and not form.header_style.errors and not form.landing_program.errors and not diary_form.opening_page.errors and not diary_form.opening_subject.errors and not profile_form.errors %} hidden{% endif %}>
+  <div class="settings-tab" data-settings-tab="display"{% if tab != "display" and not form.justify_text.errors and not form.landing_program.errors and not diary_form.opening_page.errors and not diary_form.opening_subject.errors and not profile_form.errors %} hidden{% endif %}>
   <section class="settings-section">
-    <h2>Header bar</h2>
-    {{ form.header_style.errors }}
-    <fieldset class="header-style-choice">
-      <legend class="visually-hidden">{{ form.header_style.label }}</legend>
-      {% for radio in form.header_style %}<label class="search-check">{{ radio.tag }} {{ radio.choice_label }}</label> {% endfor %}
-    </fieldset>
-    <p class="field-help">{{ form.header_style.help_text }}</p>
+    <h2>Justify text</h2>
+    {{ form.justify_text.errors }}
+    <p><label class="search-check">{{ form.justify_text }} {{ form.justify_text.label }}</label></p>
+    <p class="field-help">{{ form.justify_text.help_text }}</p>
   </section>
   <section class="settings-section">
     <h2>Open after login</h2>

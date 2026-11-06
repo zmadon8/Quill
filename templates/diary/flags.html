@@ -20,6 +20,7 @@
     </div>
   </form>
   <div data-search-results>
+  {% include "diary/_search_notice.html" %}
   {% if results %}
   <div class="search-head"><p class="meta search-count">{{ total }} flagged record{{ total|pluralize }}{% if q %} matching &ldquo;{{ q }}&rdquo;{% endif %}</p></div>
   {% include "diary/_grouped_results.html" %}

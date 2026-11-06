@@ -30,7 +30,7 @@
         list.appendChild(clone);
         if (window.QuillRichText) { window.QuillRichText.initAll(clone); }
         renumber();
-        clone.querySelector("input[name=case_citation]").focus();
+        clone.querySelector("[name=case_citation]").focus();
       } else if (row && button.hasAttribute("data-case-remove")) {
         var id = row.querySelector("input[name=case_id]").value;
         if (id) {

@@ -564,3 +564,88 @@ class SearchPageTests(SearchTestBase):
     def test_headers_param_is_passed_through(self):
         resp = self.client.get(reverse("search"), {"q": "Pangolin", "headers": "1"})
         self.assertContains(resp, "No results")
+
+
+class OperatorSearchTests(SearchTestBase):
+    """The operators through run_search (round diary-round 1.8)."""
+
+    def setUp(self):
+        super().setUp()
+        self.fraud = self.item("Fraud in an arbitration clause")
+        self.both = self.item("Fraud and forgery together", flag="pending", flag_text="ask")
+        self.forgery = self.item("Forgery only", flag="overruled", flag_text="")
+        self.case(self.fraud, "(2016) 4 SCC 12")
+        self.other_subject = Subject.objects.create(profile=self.profile, name="Contracts", landing_position=2)
+        self.other_topic = Topic.objects.create(profile=self.profile, subject=self.other_subject, name="Remedies")
+        self.elsewhere = self.item("Fraud elsewhere", topic=self.other_topic, flag="other", flag_text="check")
+
+    def labels(self, query, **kwargs):
+        return {r.label for r in self.search(query, **kwargs)}
+
+    def test_and_or(self):
+        self.assertEqual(self.labels("fraud forgery"), {"Fraud and forgery together"})
+        self.assertEqual(self.labels("fraud AND forgery"), {"Fraud and forgery together"})
+        self.assertEqual(self.labels("arbitration OR forgery"), {
+            "Fraud in an arbitration clause", "Fraud and forgery together", "Forgery only"})
+
+    def test_not(self):
+        expected = {"Fraud in an arbitration clause", "Fraud elsewhere"}
+        self.assertEqual(self.labels("fraud -forgery"), expected)
+        self.assertEqual(self.labels("fraud NOT forgery"), expected)
+
+    def test_not_alone_lists_records_without_the_word(self):
+        labels = self.labels("-fraud")
+        self.assertNotIn("Fraud elsewhere", labels)
+        self.assertIn("Forgery only", labels)
+        self.assertIn("Zebra Subject", labels)
+
+    def test_phrase_and_brackets(self):
+        self.assertEqual(self.labels('"fraud and forgery"'), {"Fraud and forgery together"})
+        self.assertEqual(self.labels("(clause OR together) fraud"), {
+            "Fraud in an arbitration clause", "Fraud and forgery together"})
+
+    def test_prefix(self):
+        self.assertEqual(self.labels("arbitra*"), {"Fraud in an arbitration clause"})
+        self.assertEqual(self.labels("rbitra*"), set())
+
+    def test_citation_search(self):
+        self.assertEqual(self.labels("SCC 2016"), {"Fraud in an arbitration clause"})
+        self.assertEqual(self.labels("SCC 2016 -forgery"), {"Fraud in an arbitration clause"})
+
+    def test_subject_scope(self):
+        self.assertEqual(self.labels("subject:Contracts fraud"), {"Fraud elsewhere"})
+        self.assertEqual(self.labels("subject:zebra fraud"), {
+            "Fraud in an arbitration clause", "Fraud and forgery together"})
+        self.assertEqual(self.labels('subject:"Zebra Subject" forgery'), {
+            "Fraud and forgery together", "Forgery only"})
+        self.assertEqual(self.labels("subject:nosuchsubject fraud"), set())
+
+    def test_flag_filter(self):
+        self.assertEqual(self.labels("flag:pending"), {"Fraud and forgery together"})
+        self.assertEqual(self.labels("flag:review"), {"Forgery only"})
+        self.assertEqual(self.labels("flag:other fraud"), {"Fraud elsewhere"})
+        self.assertEqual(self.labels("flag:pending forgery"), {"Fraud and forgery together"})
+        self.assertEqual(self.labels("flag:pending fraud OR forgery -zzz"), {"Fraud and forgery together"})
+
+    def test_flag_filter_with_the_flags_page_kind(self):
+        self.assertEqual(self.labels("", flags_only=True, flag_kind="pending"), {"Fraud and forgery together"})
+        self.assertEqual(self.labels("flag:review", flags_only=True, flag_kind="pending"), set())
+
+    def test_only_positive_terms_highlighted(self):
+        result = self.search("fraud -forgery")[0]
+        self.assertEqual([t for t, on in result.segments if on], ["Fraud"])
+
+    def test_malformed_query_does_not_error_and_searches_plain_words(self):
+        for query in ["fraud OR", "(fraud", "fraud)", "flag:bogus", "()", "NOT", "-flag:pending"]:
+            self.search(query)
+        self.assertEqual(self.labels("fraud OR"), {
+            "Fraud in an arbitration clause", "Fraud and forgery together", "Fraud elsewhere"})
+        self.assertEqual(self.labels("(fraud forgery"), {"Fraud and forgery together"})
+
+    def test_operator_search_uses_the_same_number_of_queries(self):
+        with CaptureQueriesContext(connection) as plain:
+            self.search("fraud")
+        with CaptureQueriesContext(connection) as operators:
+            self.search("(fraud OR forgery) -zzz subject:zebra flag:pending")
+        self.assertEqual(len(plain), len(operators))
+

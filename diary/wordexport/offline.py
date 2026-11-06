@@ -8,6 +8,7 @@ runs in the reader's browser. Nothing in it can change the diary, and no edit co
 Every piece of text from the diary is escaped, except rich text, which goes through ``richtext.sanitise_html`` (only
 p, br, b, i, u). A citation's web address becomes a link only if it starts with http:// or https://.
 """
+import re
 from html import escape
 from pathlib import Path
 
@@ -85,8 +86,11 @@ class _Builder:
     # -- items ------------------------------------------------------------------------------------
     def item(self, item, label, indented):
         text = sanitise_html(item.html) if _plain_has_text(item.html) else ""
-        body = [f'<span class="item-text">{text}</span>' if text else ""]
         lines = len(item.cases) > 1 and item.layout == "lines"
+        colon = ""
+        if text and lines and not re.sub(r"<[^>]*>", "", text).rstrip().endswith(":"):
+            colon = '<span class="item-colon">:</span>'  # the citations follow on their own lines
+        body = [f'<span class="item-text">{text}{colon}</span>' if text else ""]
         labels = numbering.number_siblings(len(item.cases), self.fmts["multi_citation_format"]) if len(item.cases) > 1 \
             else [""] * len(item.cases)
         if item.cases and lines:

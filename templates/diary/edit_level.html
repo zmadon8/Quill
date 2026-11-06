@@ -13,17 +13,14 @@
   <form method="post" action="{% url 'edit_level' %}" class="edit-form">
     {% csrf_token %}
     {% for name, value in fields %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
-    {% if wants_target %}
-    <label>Goes under this {{ target_kind_name }}
-      <select name="target" required>
-        <option value="">Choose a {{ target_kind_name }}&hellip;</option>
-        {% for pk, name in options %}<option value="{{ pk }}"{% if pk == chosen %} selected{% endif %}>{{ name }}</option>{% endfor %}
-      </select>
-    </label>
-    {% if not options %}<p class="meta">There is no {{ target_kind_name }} it can go under.</p>{% endif %}
+    {% if wants_target and chosen is None %}
+    <p>Choose the {{ target_kind_name }} it goes under. The one it is in now is shown in blue.</p>
+    {% if tree %}{% include "diary/_picker_box.html" with by_id=True %}{% else %}<p class="meta">There is no {{ target_kind_name }} it can go under.</p>{% endif %}
+    {% else %}
+    {% if wants_target %}<input type="hidden" name="target" value="{{ chosen }}"><p>It goes under the {{ target_kind_name }} &ldquo;{{ chosen_label }}&rdquo;.</p>{% endif %}
+    <button type="submit" name="confirmed" value="1">{% if direction == "promote" %}Promote{% else %}Demote{% endif %}</button>
+    {% if wants_target %}<button type="submit" name="target" value="" formnovalidate>Choose another {{ target_kind_name }}</button>{% endif %}
     {% endif %}
-    <button type="submit" name="confirmed" value="1"{% if wants_target and not options %} disabled{% endif %}>{% if direction == "promote" %}Promote{% else %}Demote{% endif %}</button>
-    {% if wants_target %}<button type="submit" formnovalidate>Show what changes</button>{% endif %}
     <a class="button" href="{{ next_url }}">Cancel</a>
   </form>
 </div>

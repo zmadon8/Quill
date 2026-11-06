@@ -383,8 +383,9 @@ class ViewTests(ExportCase):
                 self.assertNotIn("type=view&amp;", body)
 
     def test_settings_gear_is_named_settings(self):
-        self.editor.header_style = "words"  # D84: with Words the link reads "Settings"; with Icons it is a gear named Settings
-        self.editor.save(update_fields=["header_style"])
+        from accounts import suite
+
+        suite.set_brand_modes({suite.KEY_DIARY: "words"})  # D84: with Words the link reads "Settings"; with Icons it is a gear named Settings
         body = self.login(self.editor).get(reverse("diary_home")).content.decode()
         self.assertRegex(body, r'<a href="[^"]*"[^>]*aria-label="Settings"[^>]*>Settings</a>')
         self.assertNotIn("Profile settings", body)

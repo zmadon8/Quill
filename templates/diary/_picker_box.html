@@ -1,0 +1,6 @@
+{# The step-by-step place picker, shared by Move to and Demote. Context: tree (from views_edit.picker_tree); the page supplies the form around it and by_id (Demote: each choice posts target=id; otherwise parent=type:id). #}
+<p class="picker-controls" data-picker-controls hidden>
+  <button type="button" data-picker-expand-all>Expand all</button>
+  <button type="button" data-picker-collapse-all>Collapse all</button>
+</p>
+<div data-picker>{% include "diary/_picker_nodes.html" with nodes=tree by_id=by_id %}</div>

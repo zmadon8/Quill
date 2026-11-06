@@ -69,19 +69,19 @@ class SettingsTabsTests(TestCase):
         self.assertEqual(self.visible("export"), {"account"})  # round 18: Word export moved to the Export page
         self.assertEqual(self.visible("bogus"), {"account"})
         html = self.client.get(reverse("my_settings"), {"tab": "numbers"}).content.decode()
-        for field in ('name="email"', 'name="header_style"', 'name="topic_format"', 'name="diary-view_whole_subject"',
+        for field in ('name="email"', 'name="justify_text"', 'name="topic_format"', 'name="diary-view_whole_subject"',
                       'name="tab" value="numbers"'):
             self.assertIn(field, html)
         self.assertNotIn('name="export_date_format"', html)
 
     def test_saving_a_tab_keeps_the_others_and_returns_to_it(self):
-        self.client.post(reverse("my_settings"), {"tab": "display", "email": "e@example.com", "header_style": "words",
+        self.client.post(reverse("my_settings"), {"tab": "display", "email": "e@example.com",
                                                   "landing_program": ""})
         resp = self.client.post(reverse("my_settings"), {"tab": "display", "email": "e@example.com",
-                                                         "header_style": "words", "landing_program": ""})
+                                                         "landing_program": ""})
         self.assertRedirects(resp, reverse("my_settings") + "?tab=display", fetch_redirect_response=False)
         self.user.refresh_from_db()
-        self.assertEqual((self.user.header_style, self.user.email), ("words", "e@example.com"))
+        self.assertEqual(self.user.email, "e@example.com")
 
     def test_the_gear_and_home_open_the_settings_area(self):
         diary = self.client.get(reverse("diary_home")).content.decode()
