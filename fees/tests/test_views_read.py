@@ -10,7 +10,7 @@ from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.contrib.messages import get_messages
-from django.test import SimpleTestCase, TestCase
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 
 from accounts.models import ROLE_EDITOR, ROLE_READER, Profile, ProfileMembership
@@ -33,6 +33,7 @@ def make_user(name, profile=None, role=None):
     return user
 
 
+@override_settings(SECURE_SSL_REDIRECT=False)
 class SeededViewsBase(TestCase):
     """A seeded Fee Register profile with a Reader, an Editor, an outsider and a second seeded profile."""
 
@@ -233,19 +234,35 @@ class LandingTests(SeededViewsBase):
         self.assertEqual(response.status_code, 301)
         self.assertEqual(response["Location"], "/fees/")
 
-    def test_landing_url_for_a_fees_user_is_the_dashboard(self):
+    def test_landing_url_for_a_fees_user_is_the_landing_redirect(self):
         from accounts import landing
 
         self.editor.landing_program = KEY_FEES
         self.editor.save()
-        self.assertEqual(landing.landing_url(self.editor), reverse("fees_dashboard"))
+        self.assertEqual(landing.landing_url(self.editor), reverse("fees_landing"))
+
+
+class ReadOnlyGetTests(SeededViewsBase):
+    def test_a_readers_first_get_creates_no_settings_row(self):
+        from fees.models import FeesSettings
+
+        FeesSettings.objects.filter(profile=self.profile).delete()
+        self.login(self.reader)
+        self.assertEqual(self.client.get(reverse("fees_firms")).status_code, 200)
+        self.assertEqual(self.client.get(reverse("fees_memos")).status_code, 200)
+        self.assertFalse(FeesSettings.objects.filter(profile=self.profile).exists())
+
+    def test_head_is_allowed_wherever_get_is(self):
+        self.login(self.editor)
+        for name in ("fees_firms", "fees_statistics", "fees_search_page", "fees_firm_new", "fees_backup"):
+            self.assertEqual(self.client.head(reverse(name)).status_code, 200, name)
 
 
 class HomeButtonTests(SeededViewsBase):
     def test_fees_user_sees_the_fees_button(self):
         self.login(self.reader)
         response = self.client.get(reverse("home") + "?home=1")
-        self.assertContains(response, 'href="%s"' % reverse("fees_dashboard"))
+        self.assertContains(response, 'href="%s"' % reverse("fees_landing"))
         self.assertNotContains(response, "No programs are available")
 
     def test_diary_only_user_sees_no_fees_button(self):

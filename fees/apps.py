@@ -29,9 +29,10 @@ FEES_PROFILE_MODELS = [
     "fees.SavedView",
 ]
 
-#: The URL name of the Fee Register's first page. The views arrive in Phase 7; registration stores the
-#: name only and never resolves it, so referencing it now does not break ``reverse`` at startup.
-FEES_LANDING_URL_NAME = "fees_dashboard"
+#: The URL name of the Fee Register's first page: ``fees_landing`` redirects to the user's chosen
+#: ``default_tab``. Registration stores the name only and never resolves it, so it does not touch
+#: ``reverse`` at startup.
+FEES_LANDING_URL_NAME = "fees_landing"
 
 
 def _fees_profile_models():

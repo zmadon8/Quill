@@ -2,7 +2,7 @@
 from django.contrib import messages
 from django.http import Http404
 from django.shortcuts import redirect
-from django.views.decorators.http import require_GET, require_http_methods, require_POST
+from django.views.decorators.http import require_http_methods, require_safe, require_POST
 
 from fees import forms, scope
 from fees.decorators import fees_editor, fees_read_write, fees_reader, handle_fees_errors
@@ -16,7 +16,7 @@ STATUS_FILTERS = ("all", "active", "archived")
 
 @fees_reader
 @handle_fees_errors()
-@require_GET
+@require_safe
 def firm_list(request):
     profile, _settings = scope.context(request)
     status = request.GET.get("status", "all")
@@ -41,7 +41,7 @@ def _failed(request, err, firm, form):
 
 @fees_read_write
 @handle_fees_errors()
-@require_http_methods(["GET", "POST"])
+@require_http_methods(["GET", "HEAD", "POST"])
 def firm_new(request):
     if request.method == "POST":
         profile, _settings = scope.context(request)
@@ -57,7 +57,7 @@ def firm_new(request):
 
 @fees_reader
 @handle_fees_errors()
-@require_GET
+@require_safe
 def firm_detail(request, firm_id):
     profile, _settings = scope.context(request)
     detail = firms.get_firm(profile, firm_id)
@@ -70,7 +70,7 @@ def firm_detail(request, firm_id):
 
 @fees_read_write
 @handle_fees_errors()
-@require_http_methods(["GET", "POST"])
+@require_http_methods(["GET", "HEAD", "POST"])
 def firm_edit(request, firm_id):
     profile, _settings = scope.context(request)
     firm = firms.get_firm(profile, firm_id)["firm"]

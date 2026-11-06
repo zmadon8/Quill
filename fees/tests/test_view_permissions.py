@@ -13,7 +13,7 @@ when a row names a route that no longer exists), so a new endpoint cannot ship u
 from unittest import mock
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from accounts.models import ROLE_EDITOR, ROLE_READER, Profile, ProfileMembership
@@ -101,14 +101,17 @@ ROUTES = {
     "fees_backup_download": (E, ""),
     "fees_backup_restore": (E, ""),
     "fees_backup_clear": (E, ""),
+    "fees_backup_restored": (E, ""),
+    "fees_backup_cleared": (E, ""),
     "fees_import": (E, ""),
     "fees_import_inspect": (W, ""),
     "fees_import_run": (W, ""),
 }
 
 
-# Routes whose GET is a redirect for every member (the landing page opens the default tab).
-REDIRECTS = {"fees_landing"}
+# Routes whose GET is a redirect for every member allowed in (the landing page opens the default tab; a
+# result page with no finished job in the session goes back to the backup page).
+REDIRECTS = {"fees_landing", "fees_backup_restored", "fees_backup_cleared"}
 
 # Editor-only routes that also accept POST (the rest of the E routes are GET only).
 E_POST = {"fees_payment_new", "fees_payment_edit", "fees_backup_restore", "fees_backup_clear"}
@@ -163,6 +166,7 @@ class RouteTableTests(TestCase):
             self.assertLessEqual(set(params), known, name)
 
 
+@override_settings(SECURE_SSL_REDIRECT=False)
 class PermissionBase(TestCase):
     def setUp(self):
         self.profile = Profile.objects.create(program=KEY_FEES, name="Perm-Fees")

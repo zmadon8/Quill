@@ -312,7 +312,7 @@ class ProgramRegistrationTests(TestCase):
         program = programs.get_program(KEY_FEES)
         self.assertIsNotNone(program)
         self.assertEqual(program.key, KEY_FEES)
-        self.assertEqual(program.landing_url_name, "fees_dashboard")
+        self.assertEqual(program.landing_url_name, "fees_landing")
 
     def test_fees_profile_models_are_lazy_labels(self):
         program = programs.get_program(KEY_FEES)
@@ -322,12 +322,13 @@ class ProgramRegistrationTests(TestCase):
         # The diary is unaffected.
         self.assertEqual(programs.get_program(KEY_DIARY).key, KEY_DIARY)
 
-    def test_registration_did_not_call_reverse(self):
-        # The landing URL name is stored as a string; no fees URL is resolvable yet.
-        from django.urls import NoReverseMatch, reverse
+    def test_registration_stores_the_landing_name_as_a_string(self):
+        # Registration only records the name (no reverse at startup); the URLs exist now, so it resolves.
+        from django.urls import reverse
 
-        with self.assertRaises(NoReverseMatch):
-            reverse("fees_dashboard")
+        name = programs.get_program(KEY_FEES).landing_url_name
+        self.assertIsInstance(name, str)
+        self.assertTrue(reverse(name).startswith("/fees"))
 
 
 class CrossProgramTests(TestCase):

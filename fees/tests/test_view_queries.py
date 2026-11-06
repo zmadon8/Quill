@@ -10,7 +10,7 @@ number of financial years is fixed (2) so a per-year query does not look like a 
 """
 from django.contrib.auth import get_user_model
 from django.db import connection
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
@@ -53,6 +53,7 @@ def fill(name, rows):
     return profile, user
 
 
+@override_settings(SECURE_SSL_REDIRECT=False)
 class QueryCountTests(TestCase):
     @classmethod
     def setUpTestData(cls):

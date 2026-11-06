@@ -1,5 +1,5 @@
 """Outstanding memos: the firm summary and the detail grouped by matter."""
-from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_safe
 
 from fees import scope
 from fees.decorators import fees_reader, handle_fees_errors
@@ -15,7 +15,7 @@ def _scope_choices(profile, filters):
 
 @fees_reader
 @handle_fees_errors()
-@require_GET
+@require_safe
 def outstanding_summary(request):
     profile, settings = scope.context(request)
     filters = outstanding_filters(request.GET)
@@ -37,7 +37,7 @@ def outstanding_summary(request):
 
 @fees_reader
 @handle_fees_errors()
-@require_GET
+@require_safe
 def outstanding_detail(request):
     profile, settings = scope.context(request)
     filters = outstanding_filters(request.GET)

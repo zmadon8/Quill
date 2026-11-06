@@ -2,7 +2,7 @@
 from django.contrib import messages
 from django.http import Http404
 from django.shortcuts import redirect
-from django.views.decorators.http import require_GET, require_http_methods, require_POST
+from django.views.decorators.http import require_http_methods, require_safe, require_POST
 
 from fees import forms, scope
 from fees.decorators import fees_editor, handle_fees_errors
@@ -71,7 +71,7 @@ def _data(request, profile):
 
 @fees_editor
 @handle_fees_errors()
-@require_http_methods(["GET", "POST"])
+@require_http_methods(["GET", "HEAD", "POST"])
 def payment_new(request):
     profile, _settings = scope.context(request)
     memo_id = int_or_none(request.GET.get("memo"))
@@ -94,7 +94,7 @@ def payment_new(request):
 
 @fees_editor
 @handle_fees_errors()
-@require_http_methods(["GET", "POST"])
+@require_http_methods(["GET", "HEAD", "POST"])
 def payment_edit(request, payment_id):
     profile, _settings = scope.context(request)
     dto = payment_or_404(profile, payment_id)
@@ -141,7 +141,7 @@ def payment_assign(request, payment_id):
 
 @fees_editor
 @handle_fees_errors(json=True)
-@require_GET
+@require_safe
 def payees(request):
     """JSON: payee names used before on payments for the given matters (``?matters=1,2``)."""
     profile, _settings = scope.context(request)

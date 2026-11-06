@@ -1,5 +1,5 @@
 """Feebook: every payment against the memos it settled, and the unaccounted payments."""
-from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_safe
 
 from fees import scope
 from fees.decorators import fees_reader, handle_fees_errors
@@ -12,7 +12,7 @@ PAGE_SIZE = 50
 
 @fees_reader
 @handle_fees_errors()
-@require_GET
+@require_safe
 def feebook_page(request):
     profile, settings = scope.context(request)
     filters = feebook_filters(request.GET)

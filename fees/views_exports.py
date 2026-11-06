@@ -1,5 +1,5 @@
 """Excel and Word exports. Every export is a GET and a pure read, so a Reader may use them (R-EX-6)."""
-from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_safe
 
 from fees import scope
 from fees.decorators import fees_reader, handle_fees_errors
@@ -11,7 +11,7 @@ from fees.views_ledger import scope_for
 
 @fees_reader
 @handle_fees_errors()
-@require_GET
+@require_safe
 def memo_word(request, memo_id):
     profile, _settings = scope.context(request)
     memos.get_memo(profile, memo_id)  # another profile's memo is a 404 before any template work
@@ -20,7 +20,7 @@ def memo_word(request, memo_id):
 
 @fees_reader
 @handle_fees_errors()
-@require_GET
+@require_safe
 def memos_export(request):
     profile, _settings = scope.context(request)
     return file_response(xlsx.export_memos(profile, memo_filters(request.GET)), XLSX_TYPE)
@@ -28,7 +28,7 @@ def memos_export(request):
 
 @fees_reader
 @handle_fees_errors()
-@require_GET
+@require_safe
 def memo_statement(request, memo_id):
     """The Statement workbook of the memo's matter."""
     profile, _settings = scope.context(request)
@@ -38,7 +38,7 @@ def memo_statement(request, memo_id):
 
 @fees_reader
 @handle_fees_errors()
-@require_GET
+@require_safe
 def firm_statement_export(request, firm_id):
     profile, _settings = scope.context(request)
     ledger_scope, _owner = scope_for(profile, "firm", firm_id)
@@ -47,7 +47,7 @@ def firm_statement_export(request, firm_id):
 
 @fees_reader
 @handle_fees_errors()
-@require_GET
+@require_safe
 def firm_ledger_export(request, firm_id):
     profile, _settings = scope.context(request)
     ledger_scope, _owner = scope_for(profile, "firm", firm_id)
@@ -56,7 +56,7 @@ def firm_ledger_export(request, firm_id):
 
 @fees_reader
 @handle_fees_errors()
-@require_GET
+@require_safe
 def matter_statement_export(request, matter_id):
     profile, _settings = scope.context(request)
     ledger_scope, _owner = scope_for(profile, "matter", matter_id)
@@ -65,7 +65,7 @@ def matter_statement_export(request, matter_id):
 
 @fees_reader
 @handle_fees_errors()
-@require_GET
+@require_safe
 def matter_ledger_export(request, matter_id):
     profile, _settings = scope.context(request)
     ledger_scope, _owner = scope_for(profile, "matter", matter_id)
@@ -74,7 +74,7 @@ def matter_ledger_export(request, matter_id):
 
 @fees_reader
 @handle_fees_errors()
-@require_GET
+@require_safe
 def feebook_export(request):
     profile, _settings = scope.context(request)
     return file_response(xlsx.export_feebook(profile, feebook_filters(request.GET)), XLSX_TYPE)
@@ -82,7 +82,7 @@ def feebook_export(request):
 
 @fees_reader
 @handle_fees_errors()
-@require_GET
+@require_safe
 def outstanding_export(request):
     profile, _settings = scope.context(request)
     return file_response(xlsx.export_outstanding(profile, outstanding_filters(request.GET)), XLSX_TYPE)
@@ -90,7 +90,7 @@ def outstanding_export(request):
 
 @fees_reader
 @handle_fees_errors()
-@require_GET
+@require_safe
 def outstanding_summary_export(request):
     profile, _settings = scope.context(request)
     sort = "name" if request.GET.get("sort") == "name" else "amount"

@@ -10,7 +10,7 @@ from unittest import mock
 from django.contrib.auth import get_user_model
 from django.contrib.messages import get_messages
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import Client, TestCase
+from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
 from accounts.models import ROLE_EDITOR, ROLE_READER, Profile, ProfileMembership
@@ -46,6 +46,7 @@ def make_user(name, profile=None, role=None):
     return user
 
 
+@override_settings(SECURE_SSL_REDIRECT=False)
 class WriteBase(TestCase):
     def setUp(self):
         self.profile = Profile.objects.create(program=KEY_FEES, name="Write-Fees")
@@ -716,9 +717,17 @@ class BackupWriteTests(WriteBase):
                 "fees_backup_restore",
                 {"action": "restore", "file": self.upload(data), "confirmation": RESTORE_CONFIRMATION},
             )
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, "fees/restore_result.html")
+        # Post/redirect/get: the result is a page of its own, so a refresh does not repeat the restore.
+        self.assertRedirects(response, reverse("fees_backup_restored"), fetch_redirect_response=False)
         self.assertEqual(self.counts(), before)
+        page = self.client.get(reverse("fees_backup_restored"))
+        self.assertEqual(page.status_code, 200)
+        self.assertTemplateUsed(page, "fees/restore_result.html")
+        self.assertEqual(self.client.get(reverse("fees_backup_restored")).status_code, 200)
+
+    def test_restore_result_page_without_a_job_goes_to_the_backup_page(self):
+        response = self.client.get(reverse("fees_backup_restored"))
+        self.assertRedirects(response, reverse("fees_backup"), fetch_redirect_response=False)
 
     def test_restore_of_a_damaged_file_is_a_message(self):
         before = self.counts()
@@ -763,11 +772,17 @@ class BackupWriteTests(WriteBase):
     def test_clear_with_the_profile_name(self):
         with mock.patch("fees.services.clear_all._default_backup", return_value=None):
             response = self.post("fees_backup_clear", {"confirmation": " Write-Fees "})
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, "fees/clear_result.html")
+        self.assertRedirects(response, reverse("fees_backup_cleared"), fetch_redirect_response=False)
+        page = self.client.get(reverse("fees_backup_cleared"))
+        self.assertEqual(page.status_code, 200)
+        self.assertTemplateUsed(page, "fees/clear_result.html")
         self.assertEqual(self.counts(), (0, 0, 0))
         # The other profile is untouched.
         self.assertTrue(Memo.objects.filter(profile=self.other_profile).exists())
+
+    def test_clear_result_page_without_a_job_goes_to_the_backup_page(self):
+        response = self.client.get(reverse("fees_backup_cleared"))
+        self.assertRedirects(response, reverse("fees_backup"), fetch_redirect_response=False)
 
     def test_clear_busy_is_the_503_page(self):
         with mock.patch("fees.views_backup.clear_all.clear_all", side_effect=Busy()):

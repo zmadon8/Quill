@@ -14,7 +14,7 @@
   {% endfor %}
   {% endif %}
   {% if fees_profile %}
-  <a class="program-link" href="{% url 'fees_dashboard' %}">{{ fees_label }}</a>
+  <a class="program-link" href="{% url 'fees_landing' %}">{{ fees_label }}</a>
   {% endif %}
   {% if not diary_profile and not fees_profile %}
   <p class="muted">No programs are available to you yet.</p>

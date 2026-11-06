@@ -5,7 +5,7 @@ Thin views: they read through ``fees.services`` and hand the result to a templat
 """
 from django.contrib import messages
 from django.shortcuts import redirect
-from django.views.decorators.http import require_GET, require_POST
+from django.views.decorators.http import require_POST, require_safe
 
 from fees import scope
 from fees.decorators import fees_editor, fees_reader, handle_fees_errors
@@ -37,6 +37,7 @@ def _kpi_rows(values, chosen):
 
 
 @fees_reader
+@require_safe
 def landing(request):
     """``/fees/``: open the user's chosen first page (the ``default_tab`` setting)."""
     _profile, settings = scope.context(request)
@@ -46,6 +47,7 @@ def landing(request):
 
 @fees_reader
 @handle_fees_errors()
+@require_safe
 def dashboard_page(request):
     profile, _settings = scope.context(request)
     config = settings_service.get_settings(profile)
@@ -84,7 +86,7 @@ def save_kpis(request):
 
 @fees_reader
 @handle_fees_errors(json=True)
-@require_GET
+@require_safe
 def kpi_json(request):
     """JSON: every KPI and the saved selection."""
     profile, _settings = scope.context(request)

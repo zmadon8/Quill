@@ -6,7 +6,7 @@ from types import SimpleNamespace
 from django.contrib import messages
 from django.http import Http404
 from django.shortcuts import redirect
-from django.views.decorators.http import require_GET, require_http_methods, require_POST
+from django.views.decorators.http import require_http_methods, require_safe, require_POST
 
 from fees import forms, scope
 from fees.decorators import fees_editor, fees_read_write, fees_reader, handle_fees_errors
@@ -40,7 +40,7 @@ def settings_context(profile):
 
 @fees_read_write
 @handle_fees_errors()
-@require_http_methods(["GET", "POST"])
+@require_http_methods(["GET", "HEAD", "POST"])
 def settings_page(request):
     profile, _settings = scope.context(request)
     if request.method == "POST":
@@ -131,7 +131,7 @@ def signature_upload(request):
 
 @fees_reader
 @handle_fees_errors()
-@require_GET
+@require_safe
 def template_download(request):
     profile, _settings = scope.context(request)
     name, data = word_template.download_template(profile)
@@ -140,7 +140,7 @@ def template_download(request):
 
 @fees_reader
 @handle_fees_errors()
-@require_GET
+@require_safe
 def signature_download(request):
     profile, _settings = scope.context(request)
     name, content_type, data = word_template.download_signature(profile)
@@ -162,7 +162,7 @@ def _sample_memo():
 
 @fees_reader
 @handle_fees_errors(json=True)
-@require_GET
+@require_safe
 def filename_preview(request):
     """JSON: the file name a memo would get with ``?pattern=``. Uses the same function as the real export."""
     profile, settings = scope.context(request)
@@ -190,7 +190,7 @@ def _optional(text, parse):
 
 @fees_read_write
 @handle_fees_errors(json=True)
-@require_http_methods(["GET", "POST"])
+@require_http_methods(["GET", "HEAD", "POST"])
 def statistics_grid(request):
     """JSON: the month-by-month adjustments of one financial year (GET); save one month (POST, Editor)."""
     profile, _settings = scope.context(request)

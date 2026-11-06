@@ -1,5 +1,5 @@
 """Statement and Ledger pages for a firm or a matter."""
-from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_safe
 
 from fees import scope
 from fees.decorators import fees_reader, handle_fees_errors
@@ -37,27 +37,27 @@ def _page(request, kind, object_id, what):
 
 @fees_reader
 @handle_fees_errors()
-@require_GET
+@require_safe
 def firm_statement(request, firm_id):
     return _page(request, "firm", firm_id, "statement")
 
 
 @fees_reader
 @handle_fees_errors()
-@require_GET
+@require_safe
 def firm_ledger(request, firm_id):
     return _page(request, "firm", firm_id, "ledger")
 
 
 @fees_reader
 @handle_fees_errors()
-@require_GET
+@require_safe
 def matter_statement(request, matter_id):
     return _page(request, "matter", matter_id, "statement")
 
 
 @fees_reader
 @handle_fees_errors()
-@require_GET
+@require_safe
 def matter_ledger(request, matter_id):
     return _page(request, "matter", matter_id, "ledger")

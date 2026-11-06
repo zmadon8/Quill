@@ -3,7 +3,7 @@ from django.contrib import messages
 from django.db import transaction
 from django.http import Http404
 from django.shortcuts import redirect
-from django.views.decorators.http import require_GET, require_http_methods, require_POST
+from django.views.decorators.http import require_http_methods, require_safe, require_POST
 
 from fees import forms, scope
 from fees.decorators import fees_editor, fees_read_write, fees_reader, handle_fees_errors
@@ -52,21 +52,21 @@ def _without_page(request):
 
 @fees_reader
 @handle_fees_errors()
-@require_GET
+@require_safe
 def memo_list(request):
     return _list_page(request, "exclude_drafts", "fees/memos.html")
 
 
 @fees_reader
 @handle_fees_errors()
-@require_GET
+@require_safe
 def draft_list(request):
     return _list_page(request, "drafts_only", "fees/drafts.html")
 
 
 @fees_reader
 @handle_fees_errors()
-@require_GET
+@require_safe
 def memo_detail(request, memo_id):
     profile, settings = scope.context(request)
     memo = memos.get_memo(profile, memo_id)
@@ -124,7 +124,7 @@ def _create(request, based_on=None):
 
 @fees_read_write
 @handle_fees_errors()
-@require_http_methods(["GET", "POST"])
+@require_http_methods(["GET", "HEAD", "POST"])
 def memo_new(request):
     if request.method == "POST":
         return _create(request)
@@ -139,7 +139,7 @@ def memo_new(request):
 
 @fees_read_write
 @handle_fees_errors()
-@require_http_methods(["GET", "POST"])
+@require_http_methods(["GET", "HEAD", "POST"])
 def memo_edit(request, memo_id):
     profile, _settings = scope.context(request)
     detail = memos.get_memo(profile, memo_id)
@@ -164,7 +164,7 @@ def memo_edit(request, memo_id):
 
 @fees_read_write
 @handle_fees_errors()
-@require_http_methods(["GET", "POST"])
+@require_http_methods(["GET", "HEAD", "POST"])
 def memo_based_on(request, memo_id):
     profile, _settings = scope.context(request)
     if request.method == "POST":
@@ -210,7 +210,7 @@ def memo_finalise(request, memo_id):
 
 @fees_reader
 @handle_fees_errors(json=True)
-@require_GET
+@require_safe
 def preview_number(request):
     """JSON: the number the next memo of a date would get. Reads only; nothing is reserved."""
     profile, _settings = scope.context(request)

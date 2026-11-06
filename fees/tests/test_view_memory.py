@@ -6,7 +6,7 @@ into memory, or built a second copy of the rows, would show up. The cap is 16 MB
 a little room for the test client, session and middleware.
 """
 from django.contrib.auth import get_user_model
-from django.test import TestCase, tag
+from django.test import TestCase, override_settings, tag
 from django.urls import reverse
 
 from accounts.models import ROLE_READER, Profile, ProfileMembership
@@ -18,6 +18,7 @@ User = get_user_model()
 
 
 @tag("memory")
+@override_settings(SECURE_SSL_REDIRECT=False)
 class ViewExportMemoryTests(TestCase):
     def test_memos_export_view_peaks_under_16_mb(self):
         profile = Profile.objects.create(program=KEY_FEES, name="mem-view-xlsx")

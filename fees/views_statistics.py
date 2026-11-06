@@ -1,7 +1,7 @@
 """Statistics: the period table, the pivot, saved views, the year-end page and the statistics exports."""
 import re
 
-from django.views.decorators.http import require_http_methods, require_POST
+from django.views.decorators.http import require_http_methods, require_POST, require_safe
 
 from fees import scope
 from fees.decorators import fees_editor, fees_read_write, fees_reader, handle_fees_errors
@@ -65,6 +65,7 @@ def _table(stats):
 
 @fees_reader
 @handle_fees_errors()
+@require_safe
 def statistics_page(request):
     profile, _settings = scope.context(request)
     granularity = granularity_param(request.GET)
@@ -88,6 +89,7 @@ def statistics_page(request):
 
 @fees_reader
 @handle_fees_errors(json=True)
+@require_safe
 def data(request):
     """JSON: the period table."""
     profile, _settings = scope.context(request)
@@ -101,6 +103,7 @@ def data(request):
 
 @fees_reader
 @handle_fees_errors(json=True)
+@require_safe
 def explore(request):
     """JSON: a pivot of one measure over a row dimension and an optional column dimension."""
     profile, _settings = scope.context(request)
@@ -122,7 +125,7 @@ def explore(request):
 
 @fees_read_write
 @handle_fees_errors(json=True)
-@require_http_methods(["GET", "POST"])
+@require_http_methods(["GET", "HEAD", "POST"])
 def saved_views(request):
     """JSON: the saved pivot views (GET); save a new one (POST, Editor)."""
     profile, _settings = scope.context(request)
@@ -154,6 +157,7 @@ def saved_view_delete(request, view_id):
 
 @fees_reader
 @handle_fees_errors()
+@require_safe
 def year_end(request):
     profile, _settings = scope.context(request)
     fy = financial_year_param(request.GET)
@@ -163,6 +167,7 @@ def year_end(request):
 
 @fees_reader
 @handle_fees_errors()
+@require_safe
 def export_statistics(request):
     profile, _settings = scope.context(request)
     granularity = granularity_param(request.GET)
@@ -175,6 +180,7 @@ def export_statistics(request):
 
 @fees_reader
 @handle_fees_errors()
+@require_safe
 def export_annual(request):
     profile, _settings = scope.context(request)
     fy = financial_year_param(request.GET)
@@ -185,6 +191,7 @@ def export_annual(request):
 
 @fees_reader
 @handle_fees_errors()
+@require_safe
 def export_tax_summary(request):
     profile, _settings = scope.context(request)
     fy = financial_year_param(request.GET)

@@ -4,7 +4,7 @@ Step 1 (``inspect``) reads the headers and a few sample rows and guesses which c
 imports with the mapping the user confirmed. The file is sent again with step 2, so the server keeps no upload
 between requests. Both steps hold the one-at-a-time lock (``Busy`` gives the 503 page).
 """
-from django.views.decorators.http import require_GET, require_POST
+from django.views.decorators.http import require_POST, require_safe
 
 from fees import scope
 from fees.decorators import fees_editor, handle_fees_errors
@@ -15,7 +15,7 @@ from fees.services import imports
 
 @fees_editor
 @handle_fees_errors()
-@require_GET
+@require_safe
 def import_page(request):
     return render_page(request, "fees/import.html")
 

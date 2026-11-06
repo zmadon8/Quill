@@ -8,7 +8,7 @@ from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from accounts.models import ROLE_EDITOR, Profile, ProfileMembership
@@ -22,6 +22,7 @@ User = get_user_model()
 PASSWORD = "x-Test-Pw-1"
 
 
+@override_settings(SECURE_SSL_REDIRECT=False)
 class FlowBase(TestCase):
     def setUp(self):
         self.profile = Profile.objects.create(program=KEY_FEES, name="Flow-Fees")
@@ -284,7 +285,8 @@ class BackupRoundTripFlowTests(FlowBase):
                     "confirmation": RESTORE_CONFIRMATION,
                 },
             )
-        self.assertEqual(response.status_code, 200)
+        self.assertRedirects(response, reverse("fees_backup_restored"), fetch_redirect_response=False)
+        self.assertEqual(self.get("fees_backup_restored").status_code, 200)
 
         numbers_after = sorted(Memo.objects.filter(profile=self.profile).values_list("memo_number", flat=True))
         self.assertEqual(numbers_after, numbers_before)

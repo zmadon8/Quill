@@ -2,7 +2,7 @@
 from django.contrib import messages
 from django.http import Http404
 from django.shortcuts import redirect
-from django.views.decorators.http import require_GET, require_http_methods, require_POST
+from django.views.decorators.http import require_http_methods, require_safe, require_POST
 
 from fees import forms, scope
 from fees.decorators import fees_editor, fees_read_write, fees_reader, handle_fees_errors
@@ -56,7 +56,7 @@ def _failed(request, err, matter):
 
 @fees_read_write
 @handle_fees_errors()
-@require_http_methods(["GET", "POST"])
+@require_http_methods(["GET", "HEAD", "POST"])
 def matter_new(request):
     profile, _settings = scope.context(request)
     if request.method == "POST":
@@ -78,7 +78,7 @@ def matter_new(request):
 
 @fees_reader
 @handle_fees_errors()
-@require_GET
+@require_safe
 def matter_detail(request, matter_id):
     profile, settings = scope.context(request)
     matter = matters.get_matter(profile, matter_id)
@@ -97,7 +97,7 @@ def matter_detail(request, matter_id):
 
 @fees_read_write
 @handle_fees_errors()
-@require_http_methods(["GET", "POST"])
+@require_http_methods(["GET", "HEAD", "POST"])
 def matter_edit(request, matter_id):
     profile, _settings = scope.context(request)
     matter = matters.get_matter(profile, matter_id)
