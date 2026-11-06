@@ -12,7 +12,7 @@
     <p><label>Fee per appearance <input type="text" name="default_fees_per_appearance" value="{{ config.default_fees_per_appearance }}"></label>
        <label>Fee per conference <input type="text" name="default_fees_per_conference" value="{{ config.default_fees_per_conference }}"></label>
        <label>Miscellaneous and drafting <input type="text" name="default_fees_misc_drafting" value="{{ config.default_fees_misc_drafting }}"></label></p>
-    <p><label>Court <input type="text" name="default_court_name" value="{{ config.default_court_name }}" size="40"></label></p>
+    <p><label>Court <textarea name="default_court_name" rows="2" cols="40">{{ config.default_court_name }}</textarea></label></p>
     <p><label>Details, left <textarea name="default_additional_details_left" rows="2" cols="40">{{ config.default_additional_details_left }}</textarea></label>
        <label>Details, right <textarea name="default_additional_details_right" rows="2" cols="40">{{ config.default_additional_details_right }}</textarea></label></p>
   </fieldset>
@@ -22,11 +22,13 @@
        <label>Amount received starts as <select name="default_payment_amount">{% for value, label in payment_amount_choices %}<option value="{{ value }}"{% if config.default_payment_amount == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label></p>
     <p><label><input type="hidden" name="hide_payment_when_paid" value="0"><input type="checkbox" name="hide_payment_when_paid" value="1"{% if config.hide_payment_when_paid %} checked{% endif %}> Hide the payment button on paid memos</label>
        <label><input type="hidden" name="show_status_dots" value="0"><input type="checkbox" name="show_status_dots" value="1"{% if config.show_status_dots %} checked{% endif %}> Show status markers</label>
+       <label><input type="hidden" name="memo_signature_default" value="0"><input type="checkbox" name="memo_signature_default" value="1"{% if config.memo_signature_default %} checked{% endif %}> Include the signature on new memos</label>
        <label><input type="hidden" name="default_lines_enabled" value="0"><input type="checkbox" name="default_lines_enabled" value="1"{% if config.default_lines_enabled %} checked{% endif %}> Fee lines on by default</label></p>
   </fieldset>
   <fieldset><legend>Display</legend>
     <p><label>Opens on <select name="default_tab">{% for t in tab_choices %}<option value="{{ t }}"{% if config.default_tab == t %} selected{% endif %}>{{ t|capfirst }}</option>{% endfor %}</select></label>
        <label>Figures <select name="money_unit">{% for value, label in money_unit_choices %}<option value="{{ value }}"{% if config.money_unit == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label></p>
+    <p><label>Memo lists show <select name="list_default_filter"><option value="all"{% if config.list_default_filter == "all" %} selected{% endif %}>All memos</option><option value="active"{% if config.list_default_filter == "active" %} selected{% endif %}>Active memos</option></select></label></p>
     <p><label>Suffix, thousands <input type="text" name="money_suffix_thousands" value="{{ config.money_suffix_thousands }}" size="6"></label>
        <label>lac <input type="text" name="money_suffix_lac" value="{{ config.money_suffix_lac }}" size="6"></label>
        <label>crore <input type="text" name="money_suffix_crore" value="{{ config.money_suffix_crore }}" size="6"></label></p>

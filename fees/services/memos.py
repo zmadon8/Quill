@@ -66,6 +66,7 @@ __all__ = [
     "update_memo",
     "set_memo_written_off",
     "delete_memo",
+    "move_memo",
     "create_based_on",
     "preview_number",
     "get_memo",
@@ -268,6 +269,8 @@ def _apply_input_fields(memo, data):
     for field in _CUSTOM_FIELDS:
         if field in data:
             setattr(memo, field, data[field])
+    if "include_signature" in data:
+        memo.include_signature = bool(data["include_signature"])
 
 
 def _stored_total_fees(memo):
@@ -583,6 +586,36 @@ def delete_memo(profile, memo_id):
 
 
 # ---------------------------------------------------------------------------
+# Move to another matter
+# ---------------------------------------------------------------------------
+
+def move_memo(profile, memo_id, target_matter_id):
+    """Moves a memo to another matter of the same profile and returns the ``Memo``.
+
+    ``MEMO_NOT_FOUND`` if the memo is missing / not in profile; ``MATTER_NOT_FOUND`` if the target
+    matter is missing / not in profile; ``MATTER_ARCHIVED`` if the target is archived. The memo's
+    ``matter``, ``firm`` and ``group`` follow the target (R-DATA-5). The number, financial year,
+    fee lines, totals and payments are untouched, so no stored total changes. Moving a memo to its
+    own matter is a no-op that still succeeds. One transaction; ``data_version`` bumped once.
+    """
+    memo = Memo.objects.filter(profile=profile, pk=memo_id).first()
+    if memo is None:
+        raise FeesError("MEMO_NOT_FOUND", f"Memo {memo_id} not found")
+    target = Matter.objects.filter(profile=profile, pk=target_matter_id).first()
+    if target is None:
+        raise FeesError("MATTER_NOT_FOUND", f"Matter {target_matter_id} not found")
+    if target.is_archived:
+        raise FeesError("MATTER_ARCHIVED", "A memo can only be moved to an Active Matter")
+    with transaction.atomic():
+        memo.matter = target
+        memo.firm_id = target.firm_id
+        memo.group_id = target.group_id
+        memo.save(update_fields=["matter", "firm", "group", "updated_at"])
+        touch(profile)
+    return memo
+
+
+# ---------------------------------------------------------------------------
 # Create Based On (returns FORM DATA, not a saved memo)
 # ---------------------------------------------------------------------------
 
@@ -606,6 +639,7 @@ def create_based_on(profile, source_memo_id):
     }
     for field in _SNAPSHOT_FIELDS + _LINE_FIELDS + _CUSTOM_FIELDS:
         form[field] = getattr(src, field)
+    form["include_signature"] = src.include_signature
     return form
 
 
@@ -711,6 +745,7 @@ def get_memo(profile, memo_id):
         "custom_fees_misc": memo.custom_fees_misc,
         "custom_total_fees": memo.custom_total_fees,
         "is_draft": memo.is_draft,
+        "include_signature": memo.include_signature,
         "fees_appearances": fees.fees_appearances,
         "fees_conferences": fees.fees_conferences,
         "fees_misc": fees.fees_misc,

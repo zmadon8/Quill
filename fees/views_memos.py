@@ -12,6 +12,7 @@ from fees.pages import json_ok, memo_filters, page_number, render_page
 from fees.services import firms, matters, memo_fees, memo_lists, memos, payments
 from fees.services.fees_in_words import fees_in_words
 from fees.services import settings as settings_service
+from fees.services import word_template
 from fees.services.financial_year import current_financial_year
 
 PAGE_SIZE = 50
@@ -92,6 +93,7 @@ def _form_page(request, form, memo=None, based_on=None, errors=None, status=200)
             "memo": memo,
             "based_on": based_on,
             "matter_choices": matters.list_matters(profile, status_filter="active"),
+            "has_signature": word_template.has_signature(profile),
             "errors": errors or [],
         },
         status=status,
@@ -112,7 +114,7 @@ def _saved(request, memo):
 
 def _create(request, based_on=None):
     profile, _settings = scope.context(request)
-    form = forms.echo_form(request.POST, FORM_FIELDS)
+    form = forms.echo_memo_form(request.POST, FORM_FIELDS)
     try:
         data = forms.memo_data_from_post(request.POST)
         if data["matter_id"] is None:
@@ -146,7 +148,7 @@ def memo_edit(request, memo_id):
     detail = memos.get_memo(profile, memo_id)
     if request.method == "GET":
         return _form_page(request, forms.memo_form_from_detail(detail), memo=detail)
-    form = forms.echo_form(request.POST, FORM_FIELDS)
+    form = forms.echo_memo_form(request.POST, FORM_FIELDS)
     try:
         data = forms.memo_data_from_post(request.POST)
         data["matter_id"] = detail["matter_id"]  # a memo never changes matter

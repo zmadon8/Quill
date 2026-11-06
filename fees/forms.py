@@ -60,6 +60,7 @@ def blank_memo_form(config):
         fees_per_conference=_text(config.get("default_fees_per_conference", "0")),
         fees_misc_drafting=_text(config.get("default_fees_misc_drafting", "0")),
         court_name=_text(config.get("default_court_name", "")),
+        include_signature="1" if config.get("memo_signature_default") else "",
         additional_details_left=_text(config.get("default_additional_details_left", "")),
         additional_details_right=_text(config.get("default_additional_details_right", "")),
     )
@@ -89,6 +90,14 @@ def memo_form_from_detail(detail):
     form["date"] = date.isoformat() if hasattr(date, "isoformat") else _text(date)
     form["matter_id"] = _text(detail.get("matter_id"))
     form["custom_memo_number"] = _text(detail.get("custom_memo_number"))
+    form["include_signature"] = "1" if detail.get("include_signature") else ""
+    return form
+
+
+def echo_memo_form(post, names):
+    """``echo_form`` for the memo form, plus the signature box (the last posted value wins)."""
+    form = echo_form(post, names)
+    form["include_signature"] = "1" if post.getlist("include_signature")[-1:] == ["1"] else ""
     return form
 
 
@@ -262,6 +271,10 @@ def memo_data_from_post(post):
         data[name] = parse_decimal(post.get(name), name.replace("_", " ").capitalize()) or Decimal("0")
     for name in MEMO_CUSTOM_FIELDS:
         data[name] = parse_decimal(post.get(name), name.replace("_", " ").capitalize())
+    # The signature box is sent (a hidden 0 before the box) only when the profile has a signature
+    # image; when absent the memo keeps what it has.
+    if "include_signature" in post:
+        data["include_signature"] = post.getlist("include_signature")[-1] == "1"
     return data
 
 
@@ -347,6 +360,7 @@ SETTINGS_FLAGS = (
     "show_status_dots",
     "statistics_enabled",
     "dashboard_kpis_enabled",
+    "memo_signature_default",
 )
 #: Settings keys that are text or choices (passed through as typed; the service validates them).
 SETTINGS_TEXT = (
@@ -354,6 +368,7 @@ SETTINGS_TEXT = (
     "default_additional_details_left",
     "default_additional_details_right",
     "default_tab",
+    "list_default_filter",
     "initial_financial_year",
     "memos_start_year",
     "feebook_start_year",

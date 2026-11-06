@@ -17,8 +17,10 @@ Public functions (every one takes ``profile`` first):
   one. Failures are ``INVALID_SIGNATURE`` (422).
 * ``download_signature(profile)``: ``(filename, content_type, bytes)``; ``SIGNATURE_NOT_FOUND`` (404)
   when none.
+* ``has_signature(profile)``: whether a signature image is stored (cheap query).
 * ``render_memo_docx(profile, memo_id)``: ``(file_name, TemporaryFile)`` for one memo, using the
-  prepared template, the placeholder map and the memo file name pattern. Read only.
+  prepared template, the placeholder map and the memo file name pattern. The signature picture is
+  embedded only when the memo has ``include_signature`` set and an image is stored. Read only.
 
 Each mutator runs in one ``transaction.atomic()`` and calls ``memos.touch(profile)`` once (R-DATA-6).
 Payment data is never part of an export.
@@ -42,6 +44,7 @@ __all__ = [
     "download_signature",
     "download_template",
     "get_template_info",
+    "has_signature",
     "render_memo_docx",
     "upload_signature",
     "upload_template",
@@ -125,6 +128,15 @@ def get_template_info(profile):
         "signature_filename": row.signature_filename if has_signature else "",
         "signature_content_type": row.signature_content_type if has_signature else "",
     }
+
+
+def has_signature(profile):
+    """Whether the profile has a stored signature image. A cheap read (no bytes are loaded)."""
+    return (
+        WordTemplate.objects.filter(profile=profile, signature_data__isnull=False)
+        .exclude(signature_filename="")
+        .exists()
+    )
 
 
 def download_template(profile):
@@ -220,5 +232,7 @@ def render_memo_docx(profile, memo_id):
     settings_row, _created = FeesSettings.objects.get_or_create(profile=profile)
     memo = Memo.objects.select_related("matter", "firm", "group").get(profile=profile, pk=memo_id)
     mapping = build_placeholder_map(detail, settings_row)
-    rendered = word.render(_bytes(row.prepared), mapping, _signature_of(row))
+    # The picture is embedded only when this memo asks for it; otherwise the tag renders empty.
+    signature = _signature_of(row) if memo.include_signature else None
+    rendered = word.render(_bytes(row.prepared), mapping, signature)
     return memo_export_filename(memo, settings_row), rendered

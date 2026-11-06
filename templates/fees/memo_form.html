@@ -26,11 +26,12 @@
   <p><label>Date <input type="date" name="date" value="{{ form.date }}"></label>
      {% if not memo or not memo.is_draft %}<label>Custom number (leave blank for the next number) <input type="text" name="custom_memo_number" value="{{ form.custom_memo_number }}" maxlength="100" aria-describedby="memo-number-hint"></label>{% endif %}</p>
   {% if not memo or not memo.is_draft %}<p class="muted" id="memo-number-hint" data-number-hint aria-live="polite">{% if memo %}Memo number {{ memo.memo_number }}.{% else %}The memo number is given when you save.{% endif %}</p>{% endif %}
+  {% if has_signature %}<p><label><input type="hidden" name="include_signature" value="0"><input type="checkbox" name="include_signature" value="1"{% if form.include_signature %} checked{% endif %}> Include the signature on the Word memo</label></p>{% endif %}
   </fieldset>
   <fieldset><legend>Addressee and cause title</legend>
   <p><label>Addressee <input type="text" name="addressee_line1" value="{{ form.addressee_line1 }}" size="50"></label></p>
   <p><label>Addressee, second line <input type="text" name="addressee_line2" value="{{ form.addressee_line2 }}" size="50"></label></p>
-  <p><label>Court <input type="text" name="court_name" value="{{ form.court_name }}" size="50"></label></p>
+  <p><label>Court <textarea name="court_name" rows="2" cols="50">{{ form.court_name }}</textarea></label></p>
   <p><label>Details, left <textarea name="additional_details_left" rows="2" cols="40">{{ form.additional_details_left }}</textarea></label>
      <label>Details, right <textarea name="additional_details_right" rows="2" cols="40">{{ form.additional_details_right }}</textarea></label></p>
   <p><label>Plaintiff <input type="text" name="plaintiff_name" value="{{ form.plaintiff_name }}"></label> <label>as <input type="text" name="plaintiff_type" value="{{ form.plaintiff_type }}" size="14"></label></p>

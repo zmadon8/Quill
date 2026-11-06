@@ -88,6 +88,7 @@ _DEFAULT_TAB_CHOICES = frozenset(
     ("memos", "dashboard", "statistics", "firms", "feebook", "outstanding", "settings")
 )
 _MONEY_UNIT_CHOICES = frozenset(("full", "truncated"))
+_LIST_FILTER_CHOICES = frozenset(("all", "active"))
 _PAYMENT_AMOUNT_CHOICES = frozenset(("zero", "full", "netOfTds"))
 
 #: The financial-year format: YYYY-YY (ported from the original regex).
@@ -120,6 +121,8 @@ SETTINGS_KEYS = frozenset(
         "dashboard_kpis",
         "statistics_enabled",
         "dashboard_kpis_enabled",
+        "memo_signature_default",
+        "list_default_filter",
         "export_owner_name",
         "memo_filename_pattern",
         "memo_default_name",
@@ -237,8 +240,8 @@ def _validate_candidate(key, value):
         return text
     if key == "default_court_name":
         text = str(value)
-        if len(text) > 300:
-            raise _invalid("Court name must be at most 300 characters")
+        if len(text) > MAX_MEMO_TEXT:
+            raise _invalid(f"Caption must be at most {MAX_MEMO_TEXT} characters")
         return text
     if key in (
         "default_fees_per_appearance",
@@ -255,8 +258,13 @@ def _validate_candidate(key, value):
         "show_status_dots",
         "statistics_enabled",
         "dashboard_kpis_enabled",
+        "memo_signature_default",
     ):
         return bool(value)
+    if key == "list_default_filter":
+        if value not in _LIST_FILTER_CHOICES:
+            raise _invalid("Invalid default list filter")
+        return value
     if key == "dashboard_kpis":
         return str(value)
     if key == "export_owner_name":
