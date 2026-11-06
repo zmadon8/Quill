@@ -22,6 +22,7 @@ _EXACT_STATUS = {
     "TOO_MANY_PARTNERS": 422,
     "NO_TEMPLATE": 422,
     "RESTORE_FAILED": 422,
+    "IMPORT_FAILED": 422,
     "EXPORT_FAILED": 400,
     "CLEAR_FAILED": 500,
 }
@@ -48,6 +49,7 @@ MESSAGES = {
     "TOO_MANY_PARTNERS": "This firm already has the most groups allowed.",
     "NO_TEMPLATE": "No Word template has been uploaded yet.",
     "RESTORE_FAILED": "The backup file could not be read.",
+    "IMPORT_FAILED": "The spreadsheet could not be imported.",
     "EXPORT_FAILED": "There is nothing to export.",
     "INVALID_TEMPLATE": "The Word template could not be used.",
     "INVALID_SIGNATURE": "The signature must be a PNG or JPEG image of at most 2 MB.",
