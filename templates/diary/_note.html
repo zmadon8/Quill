@@ -1,4 +1,4 @@
-<div class="note{% if b.indent %} under-section{% endif %}" id="{{ b.anchor }}">
+<div class="note{% if b.indent %} under-section{% endif %}{% if b.heading_note %} heading-note{% endif %}" id="{{ b.anchor }}">
   <span class="note-text">{{ b.text }}</span>
   {% for link in b.links %}
   <span class="see-also">&#128279; See also: {% if link.url %}<a href="{{ link.url }}">{{ link.path }}</a>{% else %}<span class="target-gone">{{ link.path }} <em>(target deleted)</em></span>{% endif %}</span>

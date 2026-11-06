@@ -160,6 +160,7 @@ button.program-link { width: 100%; text-align: left; background: none; cursor: p
 .linked-line { display: block; }
 .linked-line a { display: inline-block; min-height: var(--tap); line-height: var(--tap); color: var(--oxblood); }
 .note-edit { margin: .25rem 0; }
+.note.heading-note { margin-left: 1.25rem; }
 .contents-panel { display: none; position: fixed; inset: 0 0 0 auto; width: min(22rem, 90vw); z-index: 30; overflow-y: auto; padding: 1rem; background: var(--panel); box-shadow: -2px 0 8px rgba(0,0,0,.3); }
 .contents-panel.open { display: block; }
 .contents-panel h2 { font-size: var(--small-size); font-family: var(--font-sans); font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }

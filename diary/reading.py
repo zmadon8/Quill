@@ -314,12 +314,17 @@ def _note_block(note, data):
             "text": _html(note.text), "links": links, "linked_from": []}
 
 
-def _container_blocks(key, depth, data, fmts):
+def _container_blocks(key, depth, data, fmts, notes_first=False):
+    """The Items, Sections and Notes of one heading. With ``notes_first`` (a Topic or Sub-topic) the heading's own Notes come
+    straight after the heading, marked ``heading_note`` so the page indents them under it; otherwise they come last."""
     entries = [("item", i) for i in data.items_by.get(key, [])] + [("section", s) for s in data.sections_by.get(key, [])]
     entries.sort(key=lambda e: (e[1].position, 0 if e[0] == "section" else 1, e[1].pk))
     kinds = [numbering.SECTION if k == "section" else numbering.ITEM for k, o in entries]
     labels = numbering.number_children(kinds, fmts["item_format"], fmts["section_format"])
     blocks = []
+    if notes_first:
+        blocks.extend(_note_block(n, data) | {"depth": depth, "indent": False, "heading_note": True}
+                      for n in data.notes_by.get(key, []))
     under_section = False
     for (kind, obj), label in zip(entries, labels):
         if kind == "section":
@@ -341,7 +346,8 @@ def _container_blocks(key, depth, data, fmts):
                           for n in data.notes_by.get(("section", obj.pk), []))
         else:
             blocks.append(_item_block(obj, data, fmts, label, depth, under_section))
-    blocks.extend(_note_block(n, data) | {"depth": depth, "indent": False} for n in data.notes_by.get(key, []))
+    if not notes_first:
+        blocks.extend(_note_block(n, data) | {"depth": depth, "indent": False} for n in data.notes_by.get(key, []))
     return blocks
 
 
@@ -354,11 +360,11 @@ def _heading(kind, obj, label, depth, data):
 
 
 def _subtopic_blocks(sub, label, data, fmts, depth):
-    return [_heading("subtopic", sub, label, depth, data)] + _container_blocks(("subtopic", sub.pk), depth, data, fmts)
+    return [_heading("subtopic", sub, label, depth, data)] + _container_blocks(("subtopic", sub.pk), depth, data, fmts, notes_first=True)
 
 
 def _topic_blocks(topic, label, data, fmts, depth):
-    blocks = [_heading("topic", topic, label, depth, data)] + _container_blocks(("topic", topic.pk), depth, data, fmts)
+    blocks = [_heading("topic", topic, label, depth, data)] + _container_blocks(("topic", topic.pk), depth, data, fmts, notes_first=True)
     subs = data.subtopics_by.get(("topic", topic.pk), [])
     for sub, sub_label in zip(subs, numbering.number_siblings(len(subs), fmts["subtopic_format"])):
         blocks.extend(_subtopic_blocks(sub, sub_label, data, fmts, depth + 1))
