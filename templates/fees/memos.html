@@ -2,8 +2,8 @@
 {% load fees_money %}
 {% block page_title %}Memos - {{ program_label }}{% endblock %}
 {% block content %}
-<h1>Memos</h1>
-<p class="page-actions" role="group" aria-label="Memo actions">{% if can_edit %}<a class="button primary" href="{% url 'fees_memo_new' %}">New memo</a> {% endif %}<a class="button" href="{% url 'fees_memo_drafts' %}">Drafts</a> <a class="button" href="{% url 'fees_memos_export' %}?{{ query_string }}">Export to Excel</a></p>
+<div class="page-head"><h1>Memos</h1>
+<p class="page-actions" role="group" aria-label="Memo actions">{% if can_edit %}<a class="button primary" href="{% url 'fees_memo_new' %}">New memo</a> {% endif %}<a class="button" href="{% url 'fees_memo_drafts' %}">Drafts</a> <a class="button" href="{% url 'fees_memos_export' %}?{{ query_string }}">Export to Excel</a></p></div>
 {% include "fees/_filters_form.html" with show_fy=True show_unpaid=True %}
 {% include "fees/_memo_table.html" with table_key="memos" %}
 {% include "fees/_pager.html" %}

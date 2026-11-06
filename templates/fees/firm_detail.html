@@ -1,9 +1,10 @@
 {% extends "fees/base_fees.html" %}
+{% block page_width %}w-5xl{% endblock %}
 {% block page_title %}{{ firm.name }} - {{ program_label }}{% endblock %}
 {% block crumb_nav %}{% url 'fees_firms' as firms_url %}{% include "fees/_back.html" with url=firms_url label="Firms" %}{% endblock %}
 {% block content %}
-<h1>{{ firm.name }}{% if firm.status == 'archived' %} (archived){% endif %}</h1>
-<p class="page-actions" role="group" aria-label="Firm actions"><a class="button" href="{% url 'fees_firm_statement' firm.pk %}">Statement</a> <a class="button" href="{% url 'fees_firm_ledger' firm.pk %}">Ledger</a>{% if can_edit %} <a class="button" href="{% url 'fees_firm_edit' firm.pk %}">Edit firm</a> <a class="button primary" href="{% url 'fees_matter_new' %}?firm={{ firm.pk }}">New matter</a>{% endif %}</p>
+<div class="page-head"><h1>{{ firm.name }}{% if firm.status == 'archived' %} (archived){% endif %}</h1>
+<p class="page-actions" role="group" aria-label="Firm actions"><a class="button" href="{% url 'fees_firm_statement' firm.pk %}">Statement</a> <a class="button" href="{% url 'fees_firm_ledger' firm.pk %}">Ledger</a>{% if can_edit %} <a class="button" href="{% url 'fees_firm_edit' firm.pk %}">Edit firm</a> <a class="button primary" href="{% url 'fees_matter_new' %}?firm={{ firm.pk }}">New matter</a>{% endif %}</p></div>
 {% if firm.notes %}<p>{{ firm.notes|linebreaksbr }}</p>{% endif %}
 <section aria-labelledby="groups-heading">
 <h2 id="groups-heading">Groups</h2>

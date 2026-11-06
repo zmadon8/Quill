@@ -1,9 +1,10 @@
 {% extends "fees/base_fees.html" %}
 {% load fees_money %}
+{% block page_width %}w-4xl{% endblock %}
 {% block page_title %}Memo {{ memo.memo_number|default:"(draft)" }} - {{ program_label }}{% endblock %}
 {% block content %}
-<h1>Memo {{ memo.memo_number|default:"(draft)" }}</h1>
-<p class="page-actions"><span class="visually-hidden">Related pages: </span><a href="{% url 'fees_memos' %}">Memos</a> | <a href="{% url 'fees_matter_detail' memo.matter_id %}">{{ memo.matter_name }}</a> | <a href="{% url 'fees_firm_detail' memo.firm_id %}">{{ memo.firm_name }}</a></p>
+<div class="page-head"><h1>Memo {{ memo.memo_number|default:"(draft)" }}</h1>
+<p class="page-actions"><span class="visually-hidden">Related pages: </span><a href="{% url 'fees_memos' %}">Memos</a> | <a href="{% url 'fees_matter_detail' memo.matter_id %}">{{ memo.matter_name }}</a> | <a href="{% url 'fees_firm_detail' memo.firm_id %}">{{ memo.firm_name }}</a></p></div>
 <dl>
   <dt>Date</dt><dd>{{ memo.date|fees_date }}</dd>
   <dt>Financial year</dt><dd>{{ memo.financial_year }}</dd>

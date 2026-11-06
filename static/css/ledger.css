@@ -286,6 +286,25 @@ body.ledger .chart-legend i { display: inline-block; width: 10px; height: 10px; 
 body.ledger [data-filename-result] { min-height: 1.4em; }
 body.ledger .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
+/* ---- 13. Page-by-page additions ---- */
+body.ledger .table-tools { justify-content: flex-end; margin: 0 0 -8px; }
+body.ledger .modal fieldset { background: var(--paper); border-radius: var(--radius); }
+body.ledger .modal-footer { align-items: center; margin-top: 8px; }
+body.ledger .danger-zone :is(button, .button) { background: #991B1B; border-color: #991B1B; color: var(--paper); }
+body.ledger .danger-zone :is(button, .button):hover { background: #7F1D1D; border-color: #7F1D1D; }
+body.ledger .ledger-table th[scope=rowgroup] { padding: 12px 12px 6px; font-family: var(--font-serif); font-size: 1.07rem; font-weight: 500; letter-spacing: normal; text-transform: none; color: var(--ink); background: var(--paper); border-bottom: 2px solid var(--ink); white-space: nowrap; }
+body.ledger .ledger-table .subtotal :is(td, th) { border-top: 1px solid var(--ink); }
+body.ledger main dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; margin: 0; }
+body.ledger main dl.kpi-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; }
+body.ledger main dt { color: var(--muted); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; align-self: center; }
+body.ledger main dd { margin: 0; }
+body.ledger .memo-form .fee-line { margin: 0 0 8px; }
+body.ledger .memo-form p { margin: 0 0 8px; }
+body.ledger .memo-form .button-bar { margin-bottom: 0; }
+body.ledger .breadcrumb + .breadcrumb { margin-left: 8px; }
+@media (max-width: 899px) { body.ledger main dl.kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 599px) { body.ledger main dl.kpi-grid { grid-template-columns: minmax(0, 1fr); } }
+
 /* ---- 12. Phone ---- */
 @media (max-width: 899px) {
   body.ledger .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }

@@ -1,4 +1,5 @@
 {% extends "fees/base_fees.html" %}
+{% block page_width %}w-4xl{% endblock %}
 {% block page_title %}{% if firm %}Edit firm{% else %}New firm{% endif %} - {{ program_label }}{% endblock %}
 {% block crumb_nav %}{% if firm %}{% url 'fees_firm_detail' firm.pk as back %}{% include "fees/_back.html" with url=back label=firm.name %}{% else %}{% url 'fees_firms' as back %}{% include "fees/_back.html" with url=back label="Firms" %}{% endif %}{% endblock %}
 {% block content %}

@@ -1,4 +1,5 @@
 {% extends "fees/base_fees.html" %}
+{% block page_width %}w-4xl{% endblock %}
 {% block page_title %}{% if matter %}Edit matter{% else %}New matter{% endif %} - {{ program_label }}{% endblock %}
 {% block crumb_nav %}{% if matter %}{% url 'fees_matter_detail' matter.pk as back %}{% include "fees/_back.html" with url=back label=matter.name %}{% else %}{% url 'fees_firms' as back %}{% include "fees/_back.html" with url=back label="Firms" %}{% endif %}{% endblock %}
 {% block content %}

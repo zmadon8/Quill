@@ -1,5 +1,6 @@
 {% extends "fees/base_fees.html" %}
 {% load static %}
+{% block page_width %}w-4xl{% endblock %}
 {% block page_title %}{% if memo %}Edit memo {{ memo.memo_number|default:"(draft)" }}{% else %}New memo{% endif %} - {{ program_label }}{% endblock %}
 {% block content %}
 <h1>{% if memo %}Edit memo {{ memo.memo_number|default:"(draft)" }}{% elif based_on %}New memo based on another{% else %}New memo{% endif %}</h1>
@@ -55,11 +56,11 @@
       <p class="muted">A preview. The total is worked out again when you save.</p>
     </div>
   </fieldset>
-  {% if can_edit %}<p>
+  {% if can_edit %}<p class="button-bar">
+    <span class="muted" data-shortcut-hint hidden>Ctrl+Enter saves.</span>
+    <a class="button" href="{% if memo %}{% url 'fees_memo_detail' memo.id %}{% else %}{% url 'fees_memos' %}{% endif %}">Cancel</a>
     {% if not memo or memo.is_draft %}<button type="submit" name="action" value="draft">Save as draft</button>{% endif %}
     <button type="submit" name="action" value="save" class="primary">{% if memo and not memo.is_draft %}Save{% else %}Save memo{% endif %}</button>
-    <a href="{% if memo %}{% url 'fees_memo_detail' memo.id %}{% else %}{% url 'fees_memos' %}{% endif %}">Cancel</a>
-    <span class="muted" data-shortcut-hint hidden>Ctrl+Enter saves.</span>
   </p>{% endif %}
 </form>
 {% endblock %}

@@ -1,4 +1,5 @@
 {% extends "fees/base_fees.html" %}
+{% block page_width %}w-4xl{% endblock %}
 {% block page_title %}Move memo {{ memo.memo_number|default:"(draft)" }} - {{ program_label }}{% endblock %}
 {% block crumb_nav %}{% url 'fees_memo_detail' memo.id as back %}{% include "fees/_back.html" with url=back label="Memo" %}{% endblock %}
 {% block content %}

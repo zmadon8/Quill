@@ -2,8 +2,8 @@
 {% load fees_money %}
 {% block page_title %}Feebook - {{ program_label }}{% endblock %}
 {% block content %}
-<h1>Feebook</h1>
-<p class="page-actions" role="group" aria-label="Feebook actions">{% if can_edit %}<a class="button primary" href="{% url 'fees_payment_new' %}">New payment</a> {% endif %}<a class="button" href="{% url 'fees_feebook_export' %}?{{ query_string }}">Export to Excel</a></p>
+<div class="page-head"><h1>Feebook</h1>
+<p class="page-actions" role="group" aria-label="Feebook actions">{% if can_edit %}<a class="button primary" href="{% url 'fees_payment_new' %}">New payment</a> {% endif %}<a class="button" href="{% url 'fees_feebook_export' %}?{{ query_string }}">Export to Excel</a></p></div>
 <form method="get" class="filters" aria-label="Filter the Feebook">
   <label>Financial year <input type="text" name="fy" value="{{ filters.financial_year|default:'' }}" size="8" placeholder="2026-27"></label>
   <label>Firm <select name="firm"><option value="">All</option>{% for f in firm_choices %}<option value="{{ f.pk }}"{% if filters.firm_id == f.pk %} selected{% endif %}>{{ f.name }}</option>{% endfor %}</select></label>

@@ -3,8 +3,8 @@
 {% block page_title %}Outstanding memos - {{ program_label }}{% endblock %}
 {% block crumb_nav %}{% url 'fees_outstanding' as back %}{% include "fees/_back.html" with url=back label="Outstanding by firm" %}{% endblock %}
 {% block content %}
-<h1>Outstanding memos</h1>
-<p class="page-actions" role="group" aria-label="Outstanding actions"><a class="button" href="{% url 'fees_outstanding_export' %}?{{ query_string }}">Export to Excel</a></p>
+<div class="page-head"><h1>Outstanding memos</h1>
+<p class="page-actions" role="group" aria-label="Outstanding actions"><a class="button" href="{% url 'fees_outstanding_export' %}?{{ query_string }}">Export to Excel</a></p></div>
 <form method="get" class="filters" aria-label="Filter outstanding memos">
   <label>Firm <select name="firm"><option value="">All</option>{% for f in choices.firms %}<option value="{{ f.id }}"{% if filters.firm_id == f.id %} selected{% endif %}>{{ f.name }}</option>{% endfor %}</select></label>
   <label>Group <select name="group"><option value="">All</option>{% for g in choices.partners %}<option value="{{ g.id }}"{% if filters.group_id == g.id %} selected{% endif %}>{{ g.name }}</option>{% endfor %}</select></label>

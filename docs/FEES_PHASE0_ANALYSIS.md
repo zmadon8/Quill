@@ -261,7 +261,7 @@ Summary here, full detail in [FEES_RAM_BUDGET.md](FEES_RAM_BUDGET.md). Steady st
 
 | Id | Question | Answer (adopted) |
 |---|---|---|
-| U1 | Data-table text size: 15 px exception for Fee Register tables, or stay at 16 px? | 15 px in data tables only |
+| U1 | Data-table text size: 15 px exception for Fee Register tables, or stay at 16 px? | 15 px in data tables only | **Superseded (round 2): the owner asked for the desktop Ledger book design wholesale; see docs/FEES_DESIGN_SYSTEM.md (14 px root).**
 | U2 | Status marker: square plus word in Fee Register tables (host pills untouched)? | Yes |
 | U3 | Fonts: host stacks (no web fonts)? | Yes |
 | U4 | Focus ring: host blue? | Yes |

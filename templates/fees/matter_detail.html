@@ -1,5 +1,6 @@
 {% extends "fees/base_fees.html" %}
 {% load fees_money %}
+{% block page_width %}w-5xl{% endblock %}
 {% block page_title %}{{ matter.name }} - {{ program_label }}{% endblock %}
 {% block crumb_nav %}{% url 'fees_firm_detail' matter.firm_id as back %}{% include "fees/_back.html" with url=back label=matter.firm.name %}{% endblock %}
 {% block content %}
