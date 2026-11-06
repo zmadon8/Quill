@@ -62,6 +62,11 @@ def statistics_on(profile):
     FeesSettings.objects.filter(profile=profile).update(statistics_enabled=True)
 
 
+def status_dots_on(profile):
+    """Switch Show status markers on for a seeded profile (the seed leaves it off, like statistics)."""
+    FeesSettings.objects.filter(profile=profile).update(show_status_dots=True)
+
+
 def seed_web_data(profile):
     """Fill ``profile`` through the services. Returns a dict of the interesting objects."""
     firm_a = firms.create_firm(profile, "Alpha & Co")

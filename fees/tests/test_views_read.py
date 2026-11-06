@@ -51,6 +51,7 @@ class SeededViewsBase(TestCase):
         self.other_seed = xs.seed_web_data(self.other_profile)
         xs.statistics_on(self.profile)
         xs.statistics_on(self.other_profile)
+        xs.status_dots_on(self.profile)
 
     def login(self, user):
         self.client.force_login(user)

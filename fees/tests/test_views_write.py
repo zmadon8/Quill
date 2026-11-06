@@ -56,6 +56,8 @@ class WriteBase(TestCase):
         self.outsider = make_user("outsider-w")
         self.other_profile = Profile.objects.create(program=KEY_FEES, name="Other-Write")
         self.other_seed = xs.seed_web_data(self.other_profile)
+        xs.statistics_on(self.profile)
+        xs.statistics_on(self.other_profile)
         self.client.force_login(self.editor)
 
     def post(self, name, data=None, kwargs=None, **extra):
