@@ -62,6 +62,24 @@ You do not touch code. The steps are:
 
 **To redeploy.** Merge the fix, then deploy as in section 5. The backup `pre_migration` is taken first as usual. If it stops again, copy the error line and send it; the data will again be untouched.
 
+## 5c. Releasing the Fee Register (/fees/)
+
+The Fee Register ships dark: `render.yaml` sets `FEES_ENABLED` to `0`, so every `/fees/` address is "not found" and no button or tab shows, while its tables, backups and restores keep working. At the owner's go-ahead:
+
+1. **Merge** the pull request. Render deploys it; the update step `migrate_with_backup` takes a "Before update" backup first and stops if it fails.
+2. In Render, open the web service, **Environment**, set `FEES_ENABLED` to `1` (and change the value in `render.yaml` so the next Blueprint sync does not set it back to `0`). It redeploys.
+3. **Once**, in the web service **Shell**:
+
+   ```
+   python manage.py create_fees_user --username Ziyad --profile Ziyad-Fees --make-admin
+   ```
+
+   This only attaches the `Ziyad-Fees` profile and its membership to the existing user `Ziyad`. It creates no user.
+4. Log in as Ziyad, open **Fees**, then **Settings > Backup** and restore the desktop backup. Compare the key figures (KPIs) with the desktop program.
+5. Optional checks in the Shell: `python manage.py fees_check` (read-only, prints any memo whose stored totals disagree with a recomputation) and, to measure memory with the real instance, `python manage.py fees_memory_bench` (uses a throwaway profile, leaves no data; see `docs/FEES_RAM_BUDGET.md`).
+
+`FEES_ENABLED` when not set: on for developer mode (`DJANGO_DEBUG` or `DJANGO_ALLOW_SQLITE`) and tests, off in production. `MAX_BACKUP_UPLOAD_MB` is 30 by default (the uncompressed size of an uploaded backup). The server settings in section 5a (workers, threads, `--max-requests`, no `--preload`) are unchanged; memory levers are only applied after measuring and with the owner's approval.
+
 ## 5a. Server settings chosen for a small plan
 
 - **Web server:** `gunicorn ... --workers 2 --threads 2 --max-requests 500 --max-requests-jitter 50 --timeout 60`. Two worker processes with two threads each, each restarted after about 500 requests to keep memory steady. There is deliberately no `--preload`.

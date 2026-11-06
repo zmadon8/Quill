@@ -192,6 +192,53 @@ There are no users at first, so you create the first Admin from Render:
 3. You should see "Admin yourname created." This command refuses to run once any user exists, so it cannot be misused later.
 4. Save the password in a password manager.
 
+### Fee Register (the Fees program)
+
+The Fee Register is a second program in the same site, at `/fees/` (Firms, Matters, Memos, Payments, Outstanding, Fee book, Statistics, Search, Settings, Word and Excel exports, import, and an Excel backup and restore). It is behind the `FEES_ENABLED` switch.
+
+**`FEES_ENABLED`.** Not set: on in developer mode (`DJANGO_DEBUG` or `DJANGO_ALLOW_SQLITE`) and in tests, off in production. `1` turns it on, any other value turns it off. While off, every `/fees/` address says not found and there is no button or tab for it, but the data and the backups keep working. `render.yaml` sets `0` until the owner's go-ahead.
+
+**Release steps (once, at the go-ahead):**
+
+1. Merge the pull request. Render deploys it and `migrate_with_backup` takes a safety backup before the database changes.
+2. In Render, on the web service, under **Environment**, set `FEES_ENABLED` to `1` and let it redeploy.
+3. Once, in the web service **Shell**: `python manage.py create_fees_user --username Ziyad --profile Ziyad-Fees --make-admin`. It only attaches the `Ziyad-Fees` profile and membership to the existing user `Ziyad` and creates no user.
+4. Log in, open Fees, then **Settings > Backup** and restore the desktop backup (`.xlsx`). Compare the key figures (KPIs) with the desktop program.
+
+**New management commands** (run in the Shell or locally):
+
+| Command | What it does |
+|---|---|
+| `create_fees_user --username U --profile P [--make-admin / --no-admin] [--reset-password] [--create-missing]` | Attaches a Fee Register profile and Editor membership to an existing user. Never creates a user unless `--create-missing`. |
+| `fees_check [--profile ID]` | Read-only. Recomputes every memo total and paid amount and prints any mismatch; exits non-zero if any. |
+| `fees_memory_bench [--dataset-size small] [--memos N --payments N --allocations N --seed N] [--skip-build]` | Measures peak memory of the heavy operations on a planning-size dataset in a throwaway profile (rolled back, leaves no data). Prints `BENCH <operation> ...` lines. CI runs it, non-blocking. See `docs/FEES_RAM_BUDGET.md`. |
+
+**Run it on your own computer.** Python 3.12 and `pip install -r requirements.txt` first. On Mac or Linux (bash):
+
+```
+export DJANGO_DEBUG=1
+export DJANGO_ALLOW_SQLITE=1
+python manage.py migrate
+DJANGO_SUPERUSER_USERNAME=Ziyad DJANGO_SUPERUSER_PASSWORD='a long password here' python manage.py create_first_admin
+python manage.py create_fees_user --username Ziyad --profile Ziyad-Fees --make-admin
+python manage.py runserver
+```
+
+On Windows (PowerShell):
+
+```
+$env:DJANGO_DEBUG = "1"
+$env:DJANGO_ALLOW_SQLITE = "1"
+python manage.py migrate
+$env:DJANGO_SUPERUSER_USERNAME = "Ziyad"
+$env:DJANGO_SUPERUSER_PASSWORD = "a long password here"
+python manage.py create_first_admin
+python manage.py create_fees_user --username Ziyad --profile Ziyad-Fees --make-admin
+python manage.py runserver
+```
+
+Then open `http://127.0.0.1:8000/fees/`. With these developer variables set the Fee Register is on without `FEES_ENABLED`.
+
 ### Check that everything works
 
 1. Open the address and **log in** as your Admin.
@@ -218,7 +265,7 @@ You normally do not touch these; the Blueprint sets them.
 | `BACKUP_RETENTION_DAYS` | How many days to keep backups. Never less than 30. Default 35. | `render.yaml` (35) |
 | `PROFILE_RETENTION_DAYS` | How many days a deleted profile can be restored before the nightly job removes it for good. Default 30. | `render.yaml` (30) |
 | `BACKUP_STALE_HOURS` | Show the warning bar if there has been no good backup for this many hours. Default 36. | Default |
-| `MAX_BACKUP_UPLOAD_MB` | Largest backup file you can upload for a restore. Default 100. | Default |
+| `MAX_BACKUP_UPLOAD_MB` | Largest backup file (uncompressed size) you can upload for a restore. Default 30. | Default |
 | `FEES_ENABLED` | `1` shows the Fee Register; `0` hides it (no button, no tab, every `/fees/` address says not found) while keeping its data and backups. Default off on Render, on for developer mode and tests. | `render.yaml` (0 until the go-ahead) |
 | `DJANGO_DEBUG` | `1` turns on developer mode. Never set this on Render. | Developers only, on their own computer |
 | `DJANGO_ALLOW_SQLITE` | `1` lets the app use a throwaway local database. Never set this on Render. | Developers only |

@@ -67,6 +67,7 @@ Text:
 Reader versus Editor:
 
 - [ ] Reader sees no New memo, Pay, Edit, Delete, Save settings, Backup, Import, tick boxes or groups panel. Reader opening Backup or Import gets "not allowed".
+- [ ] A Reader may open the New payment and Edit payment forms (to look at a payment) but cannot save: a posted save is refused.
 - [ ] Editor sees all of them on the same pages.
 - [ ] Settings for a Reader shows the values and the line "You can read the settings but not change them."
 
@@ -105,7 +106,7 @@ HTML page weight could not be measured without a running server. Pages are serve
 - Memo form works without JavaScript (the total is worked out on the server on save); with script it shows a live total, words, number preview and a leave warning. New endpoint `fees_memo_preview_totals` serves the live total from the server rule, so the browser never repeats the fee rule.
 - Payment prefill is server side (`?memo=ID`, repeated or comma separated, up to 5 memos), not a JSON call. Payee chips need the matters of the memos.
 - Outstanding "Pay" is a plain GET form that opens the payment form with the ticked memos.
-- Dashboard "Appearances" box is hidden when the Statistics switch is off; Statistics is left out of the nav too.
+- Dashboard "Appearances" box is hidden when the Statistics switch is off; Statistics is left out of the nav too. With Statistics off nothing is computed: the Statistics pages, year end, exports and pivot answer `STATISTICS_DISABLED` (HTTP 409, "Statistics is switched off in Settings.") (owner decision 3).
 - Statistics tabs are chosen with `?tab=` (standard, edit, explore); all are server rendered and forms post back to the existing endpoints with `return_to=statistics`.
 - Explore chart is off by default, offers bars, stacked bars and line only, and uses the host palette. Chart labels are 16 px, so the chart is wider than a phone and scrolls inside its box.
 - Settings: Reader sees values read only. The Fee Register tab in the suite Settings group is a link to the fees Settings page, not a copy of it. The Word template box holds the template and the signature image.
