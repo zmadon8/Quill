@@ -132,3 +132,8 @@
 .pivot-chart figcaption { color: var(--muted); font-size: var(--small-size); }
 .chart-legend { list-style: none; display: flex; flex-wrap: wrap; gap: .25rem 1rem; padding: 0; margin: .5rem 0 0; font-size: var(--small-size); }
 .chart-legend i { display: inline-block; width: .9rem; height: .9rem; margin-right: .35rem; vertical-align: -.1rem; border: 1px solid var(--ink); }
+
+/* Settings (T8.8) */
+.settings-box { margin: 1.5rem 0; padding: .5rem 1rem 1rem; border: 1px solid var(--hair); }
+.settings-box form { margin: .5rem 0; }
+[data-filename-result] { min-height: 1.4em; }

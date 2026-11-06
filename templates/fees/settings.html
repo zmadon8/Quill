@@ -1,5 +1,7 @@
 {% extends "fees/base_fees.html" %}
+{% load static %}
 {% block page_title %}Settings - {{ program_label }}{% endblock %}
+{% block page_js %}<script src="{% static 'js/fees/filename-preview.js' %}"></script>{% endblock %}
 {% block content %}
 <h1>Settings</h1>
 {% if not can_edit %}<p class="muted">You can read the settings but not change them.</p>{% endif %}
@@ -34,22 +36,27 @@
     <p><label><input type="hidden" name="statistics_enabled" value="0"><input type="checkbox" name="statistics_enabled" value="1"{% if config.statistics_enabled %} checked{% endif %}> Statistics page</label>
        <label><input type="hidden" name="dashboard_kpis_enabled" value="0"><input type="checkbox" name="dashboard_kpis_enabled" value="1"{% if config.dashboard_kpis_enabled %} checked{% endif %}> Dashboard overview</label></p>
   </fieldset>
-  <fieldset><legend>Word memo</legend>
+  <fieldset><legend>Word memo file names</legend>
     <p><label>Owner name in file names <input type="text" name="export_owner_name" value="{{ config.export_owner_name }}" maxlength="80"></label></p>
-    <p><label>File name pattern <input type="text" name="memo_filename_pattern" value="{{ config.memo_filename_pattern }}" size="50" maxlength="200"></label> <a href="{% url 'fees_filename_preview' %}?pattern={{ config.memo_filename_pattern|urlencode }}">Preview</a></p>
-    <p><label>Name <input type="text" name="memo_default_name" value="{{ config.memo_default_name }}"></label>
-       <label>Designation <input type="text" name="memo_default_designation" value="{{ config.memo_default_designation }}"></label>
-       <label>PAN <input type="text" name="memo_default_pan" value="{{ config.memo_default_pan }}" size="12"></label></p>
+    <p><label>File name pattern <input type="text" name="memo_filename_pattern" value="{{ config.memo_filename_pattern }}" size="50" maxlength="200" data-filename-pattern data-preview-url="{% url 'fees_filename_preview' %}"></label>
+       <a href="{% url 'fees_filename_preview' %}?pattern={{ config.memo_filename_pattern|urlencode }}">Preview</a></p>
+    <p class="muted" data-filename-result aria-live="polite"></p>
+  </fieldset>
+  <fieldset><legend>Memo text defaults</legend>
+    <p class="muted">Used by the Word memo when a memo has no text of its own.</p>
+    <p><label>Name <input type="text" name="memo_default_name" value="{{ config.memo_default_name }}" maxlength="120"></label>
+       <label>Designation <input type="text" name="memo_default_designation" value="{{ config.memo_default_designation }}" maxlength="120"></label>
+       <label>PAN <input type="text" name="memo_default_pan" value="{{ config.memo_default_pan }}" size="12" maxlength="20"></label></p>
     <p><label>Address <textarea name="memo_default_address" rows="3" cols="40">{{ config.memo_default_address }}</textarea></label>
        <label>Bank details <textarea name="memo_default_bank_details" rows="3" cols="40">{{ config.memo_default_bank_details }}</textarea></label></p>
   </fieldset>
   {% if can_edit %}<p><button type="submit">Save settings</button></p>{% endif %}
 </form>
 
-<h2>Word template</h2>
-<p>{% if template_info.has_template %}Template: {{ template_info.filename }} (<a href="{% url 'fees_template_download' %}">download</a>){% else %}No template uploaded.{% endif %}
-   {% if template_info.has_signature %}Signature: {{ template_info.signature_filename }} (<a href="{% url 'fees_signature_download' %}">download</a>){% endif %}</p>
-
+<section class="settings-box" aria-labelledby="word-template-h">
+<h2 id="word-template-h">Word template</h2>
+<p>{% if template_info.has_template %}Template: {{ template_info.filename }} (<a href="{% url 'fees_template_download' %}">download</a>){% else %}No template uploaded.{% endif %}</p>
+<p>{% if template_info.has_signature %}Signature image: {{ template_info.signature_filename }} (<a href="{% url 'fees_signature_download' %}">download</a>){% else %}No signature image uploaded.{% endif %}</p>
 {% if can_edit %}
 <form method="post" action="{% url 'fees_template_upload' %}" enctype="multipart/form-data">{% csrf_token %}
   <label>Upload a Word template (.docx) <input type="file" name="file" accept=".docx" required></label> <button type="submit">Upload template</button>
@@ -58,6 +65,7 @@
   <label>Upload a signature image (PNG or JPEG, at most 2 MB) <input type="file" name="file" accept=".png,.jpg,.jpeg" required></label> <button type="submit">Upload signature</button>
 </form>
 {% endif %}
+</section>
 
 <h2>Bank accounts</h2>
 <ul>{% for b in bank_accounts %}<li>{{ b.name }}
