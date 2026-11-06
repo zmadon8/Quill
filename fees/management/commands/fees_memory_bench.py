@@ -1,28 +1,31 @@
-"""Measure the real Fee Register memory baseline on a live-like instance (T1.6, R-NFR-7).
+"""Measure the Fee Register's heavy operations against the RAM budget caps (T1.6, T9.3, R-NFR-7).
 
-This is a manual tool, never wired into CI or ``manage.py test``. CI only needs it to import cleanly
-(``manage.py check`` loads it); the authoritative RSS numbers come from a Render Shell run with the
-owner's help, as the RAM budget (section 8 and 9) describes.
+Run it on a machine with the project's requirements installed (CI after the tests, or a Render Shell)::
 
-What it does:
+    python manage.py fees_memory_bench
+    python manage.py fees_memory_bench --dataset-size small      # quick 200/200/200 run
+    python manage.py fees_memory_bench --skip-build              # startup and openpyxl cost only
 
-* Reports the steady-state / import cost of the process: the startup RSS high-water mark from
-  ``resource.getrusage(RUSAGE_SELF).ru_maxrss`` and the resident cost of importing ``openpyxl``
-  (imported lazily, inside ``handle``, with RSS read before and after) so the "openpyxl resident"
-  number in the RAM budget can be filled in.
-* Builds the planning dataset (``fees.tests.datasets.build_planning_dataset``) in a throwaway fees
-  profile inside a transaction that is rolled back, and reports the peak Python allocations of that
-  build using the shared ``fees.tests.memory.assert_peak_under`` helper. Nothing is left behind.
-* Prints a readable table of operation name, peak Python allocations (MB) and process RSS (MB), and
-  exits non-zero if any measured peak exceeds its cap.
+It builds the planning dataset (``fees.tests.datasets.build_planning_dataset``) in a throwaway fees
+profile and times each heavy operation built since Phase 1: statistics, dashboard, pivot, Excel export,
+annual summary, Word render, Excel import and Excel restore. Everything runs inside one transaction
+that is rolled back at the end, so the command creates its own temporary profile and data, leaves
+nothing behind and never reads or changes any other profile's data. Each operation runs inside its own
+savepoint, so one failing operation cannot break the next.
 
-The heavy operations (statistics, dashboard, pivot, Excel export/import, suite restore, Word export)
-are built in Phases 2 to 8; this skeleton keeps a registry so each phase can append its own
-``(name, callable, cap_mb)`` entry without touching the reporting code. It does not import or call any
-not-yet-existing service.
+Output is one machine-readable line per operation, then a final ``BENCH done`` line::
 
-``openpyxl`` is imported lazily inside ``handle`` and never at module top, so loading this command
-module (which ``manage.py check`` does) does not pull ``openpyxl`` into the worker.
+    BENCH <operation> rss_peak_mb=<x> tracemalloc_peak_mb=<y> cap_mb=<z> status=<OK|OVER|ERROR>
+
+``tracemalloc_peak_mb`` is the peak of Python allocations inside the operation (the figure the caps in
+docs/FEES_RAM_BUDGET.md section 3 are written against); ``status`` compares it with ``cap_mb``.
+``rss_peak_mb`` is the whole process's ``ru_maxrss`` high-water mark after the operation, for
+information, so it only ever rises through the run. Lines beginning ``INFO`` give the startup RSS and
+the resident cost of importing ``openpyxl``. The command never prints environment variables or
+settings. It exits non-zero if any operation is OVER or ERROR.
+
+``openpyxl`` and the services are imported lazily, inside functions, so loading this module (which
+``manage.py check`` does) does not pull ``openpyxl`` into the worker.
 """
 import argparse
 
@@ -31,19 +34,32 @@ try:  # ``resource`` is POSIX-only; on a platform without it the RSS columns rea
 except ImportError:  # pragma: no cover - platform dependent
     resource = None
 
+import tempfile
+from pathlib import Path
+
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
-
-# Planning-size defaults (RAM budget section 3 and 8). A unittest case shim so the shared
-# ``assert_peak_under`` helper, which calls ``testcase.fail``, can be used outside a test run.
+# Planning-size defaults (RAM budget section 3 and 8).
 _PLANNING_MEMOS = 6000
 _PLANNING_PAYMENTS = 8000
 _PLANNING_ALLOCATIONS = 9000
+# Rows in the generated import file (the same size the import memory test uses).
+_IMPORT_ROWS = 3000
 
-# Generous caps for the skeleton. The dataset build is a bulk load, not a guarded heavy operation, so
-# its cap is deliberately loose; Phase 2 onward will add the real per-operation caps from section 3.
-_DATASET_BUILD_CAP_MB = 200.0
+# Caps in MB from RAM budget section 3. The dataset build is a bulk load, not a guarded heavy
+# operation, so its cap is deliberately loose.
+_CAPS = {
+    "dataset_build": 200.0,
+    "statistics": 5.0,
+    "dashboard": 3.0,
+    "pivot": 8.0,
+    "excel_export": 12.0,
+    "annual_summary": 20.0,
+    "word_render": 2.0,
+    "excel_import": 25.0,
+    "excel_restore": 40.0,
+}
 
 
 class _PeakFail(Exception):
@@ -54,30 +70,89 @@ class _BenchCase:
     """A tiny stand-in for a ``TestCase`` so ``fees.tests.memory.assert_peak_under`` works here.
 
     ``assert_peak_under`` only ever calls ``testcase.fail(message)``; this turns that into an
-    exception the command can catch and turn into a readable row plus a non-zero exit.
+    exception the command can catch and report as an ``OVER`` line.
     """
 
     def fail(self, message):
         raise _PeakFail(message)
 
 
+class _Rollback(Exception):
+    """Raised at the end of the run to roll the whole transaction back and discard every bench row."""
+
+
 def _rss_mb():
     """Process peak RSS in MB from ``getrusage`` where available, else ``None``.
 
-    ``ru_maxrss`` is kilobytes on Linux (what CI and Render measure) and bytes on macOS; this returns
-    the Linux reading. It is a high-water mark, so it only ever rises during the run.
+    ``ru_maxrss`` is kilobytes on Linux (what CI and Render measure). It is a high-water mark, so it
+    only ever rises during the run.
     """
     if resource is None:  # pragma: no cover - platform dependent
         return None
     return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024
 
 
+def _fmt(value):
+    return f"{value:.1f}" if value is not None else "n/a"
+
+
+def _import_rows(count):
+    yield ["Firm", "Partner", "Matter", "Memo No.", "Date", "Total Fees", "Amount Paid", "Payment Date", "Payment Group", "Client"]
+    for index in range(count):
+        yield [
+            f"Firm {index % 60}",
+            f"Partner {index % 3}",
+            f"Matter {index % 400}",
+            f"INV-{index}",
+            f"{(index % 28) + 1:02d}/{(index % 12) + 1:02d}/2025",
+            "12,000",
+            "10800" if index % 2 == 0 else "0",
+            "2025-12-01",
+            f"G{index // 50}" if index % 5 == 0 else "",
+            f"Client {index % 400}",
+        ]
+
+
+def _sample_memo():
+    """A fully filled memo dict for the Word placeholder map (same shape the Word tests use)."""
+    import datetime
+    from decimal import Decimal
+
+    return {
+        "date": datetime.date(2026, 7, 15),
+        "memo_number": "2026-27/1",
+        "addressee_line1": "Acme Legal",
+        "addressee_line2": "Mumbai",
+        "matter_name": "Acme v Beta",
+        "matter_short_name": None,
+        "court_name": "High Court",
+        "plaintiff_name": "Acme",
+        "plaintiff_type": "Plaintiff",
+        "defendant_name": "",
+        "defendant_type": "",
+        "client": "Acme",
+        "num_appearances": 2,
+        "fees_per_appearance": Decimal("5000"),
+        "fees_appearances": Decimal("10000"),
+        "dates_of_appearances": "1 Jan",
+        "num_conferences": 1,
+        "fees_per_conference": Decimal("3000"),
+        "fees_conferences": Decimal("3000"),
+        "dates_of_conferences": "2 Jan",
+        "misc_drafting_description": "Drafting",
+        "fees_misc_drafting": Decimal("1000"),
+        "total_fees": Decimal("14000"),
+    }
+
+
 class Command(BaseCommand):
     help = (
-        "Measure the real Fee Register memory baseline: startup RSS, the resident cost of importing "
-        "openpyxl, and the peak allocations of building the planning dataset in a rolled-back "
-        "transaction. Manual tool for Render Shell and local runs; it is never part of CI or "
-        "manage.py test and it leaves no data behind."
+        "Measure peak memory of the Fee Register's heavy operations (statistics, dashboard, pivot, "
+        "Excel export, annual summary, Word render, Excel import, Excel restore) on the planning "
+        "dataset and compare each with its cap in docs/FEES_RAM_BUDGET.md. Builds its own temporary "
+        "profile inside a transaction that is rolled back, so it leaves no data and touches no other "
+        "profile. Prints one 'BENCH <operation> ...' line per operation and a final 'BENCH done'. "
+        "Exits non-zero if any operation is over its cap."
     )
 
     def add_arguments(self, parser):
@@ -120,34 +195,27 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         memos, payments, allocations = self._resolve_sizes(options)
-        seed = options["seed"]
-        skip_build = options["skip_build"]
+        self.sizes = (memos, payments, allocations, options["seed"])
+        self.failures = []
 
-        rows = []  # (operation name, peak Python allocations MB or None, process RSS MB or None)
-        failures = []
+        self.stdout.write(f"INFO startup_rss_mb={_fmt(_rss_mb())}")
+        self.stdout.write(f"INFO openpyxl_resident_mb={_fmt(self._measure_openpyxl_resident())}")
 
-        startup_rss = _rss_mb()
-        rows.append(("startup (apps loaded, no openpyxl)", None, startup_rss))
+        if not options["skip_build"]:
+            with tempfile.TemporaryDirectory() as tmp:
+                self.tmp = Path(tmp)
+                try:
+                    # One outer transaction for the whole run: every row the bench creates, in the
+                    # throwaway profile only, is discarded when _Rollback leaves the block.
+                    with transaction.atomic():
+                        self._run_all()
+                        raise _Rollback
+                except _Rollback:
+                    pass
 
-        openpyxl_resident = self._measure_openpyxl_resident()
-        rows.append(("openpyxl import (resident delta)", openpyxl_resident, _rss_mb()))
-
-        if skip_build:
-            self.stdout.write("Skipping the dataset build (--skip-build); import cost only.")
-        else:
-            for name, func, cap_mb in self._operations(memos, payments, allocations, seed):
-                peak_mb, over = self._run_operation(name, func, cap_mb)
-                rows.append((name, peak_mb, _rss_mb()))
-                if over:
-                    failures.append(name)
-
-        self._print_table(rows)
-        self._print_guidance()
-
-        if failures:
-            raise CommandError(
-                "Peak over cap for: " + ", ".join(failures) + ". See the table above."
-            )
+        self.stdout.write("BENCH done")
+        if self.failures:
+            raise CommandError("Over cap or failed: " + ", ".join(self.failures))
 
     # -- dataset sizing ---------------------------------------------------------------------------
 
@@ -157,111 +225,195 @@ class Command(BaseCommand):
             return 200, 200, 200
         return options["memos"], options["payments"], options["allocations"]
 
-    # -- operation registry -----------------------------------------------------------------------
+    # -- the operations ---------------------------------------------------------------------------
 
-    def _operations(self, memos, payments, allocations, seed):
-        """The list of ``(name, callable, cap_mb)`` benchmarks.
+    def _run_all(self):
+        """Create the throwaway profiles, then run each operation in turn.
 
-        Today it is only the planning-dataset build. Phases 2 to 8 append their heavy operations here
-        (statistics, dashboard, pivot, Excel export/import, suite restore, Word export) with the caps
-        from RAM budget section 3, each measuring inside its own rolled-back transaction or against a
-        dataset this command already built. Do not import not-yet-existing services at module top.
-        """
-        return [
-            (
-                "dataset build (planning size)",
-                lambda: self._build_dataset(memos, payments, allocations, seed),
-                _DATASET_BUILD_CAP_MB,
-            ),
-        ]
-
-    def _build_dataset(self, memos, payments, allocations, seed):
-        """Build the planning dataset in a throwaway profile inside a rolled-back transaction.
-
-        ``transaction.set_rollback(True)`` marks the atomic block to roll back on exit, so every row
-        created here (the profile and all its fee rows) is discarded and the command leaves the real
-        instance exactly as it found it. Imports are local so loading the module stays cheap.
+        Each entry is ``(name, prepare)``. ``prepare`` does the unmeasured set-up and returns the
+        callable to measure. Excel restore is last because it replaces the planning profile's data.
         """
         from accounts.models import Profile
         from accounts.suite import KEY_FEES
-        from fees.tests.datasets import build_planning_dataset
 
-        with transaction.atomic():
-            profile = Profile.objects.create(
-                program=KEY_FEES, name="__fees_memory_bench throwaway__"
-            )
-            summary = build_planning_dataset(
-                profile,
-                memos=memos,
-                payments=payments,
-                allocations=allocations,
-                seed=seed,
-            )
-            self.stdout.write(
-                "Built in a rolled-back transaction: "
-                + ", ".join(f"{k}={v}" for k, v in summary.items())
-            )
-            transaction.set_rollback(True)
+        self.planning = Profile.objects.create(program=KEY_FEES, name="__fees_memory_bench planning__")
+        self.import_profile = Profile.objects.create(program=KEY_FEES, name="__fees_memory_bench import__")
+        steps = [
+            ("dataset_build", self._prepare_build),
+            ("statistics", self._prepare_statistics),
+            ("dashboard", self._prepare_dashboard),
+            ("pivot", self._prepare_pivot),
+            ("excel_export", self._prepare_export),
+            ("annual_summary", self._prepare_annual),
+            ("word_render", self._prepare_word),
+            ("excel_import", self._prepare_import),
+            ("excel_restore", self._prepare_restore),
+        ]
+        built = False
+        for name, prepare in steps:
+            if name != "dataset_build" and not built:
+                self._report(name, None, None, "ERROR")
+                self.failures.append(name)
+                continue
+            if self._measure(name, prepare) and name == "dataset_build":
+                built = True
 
-    def _run_operation(self, name, func, cap_mb):
-        """Run one benchmark under ``assert_peak_under``; return (peak MB or None, over-cap bool)."""
+    def _measure(self, name, prepare):
+        """Prepare and measure one operation, print its BENCH line, return True if it ran cleanly."""
         from fees.tests.memory import assert_peak_under
 
-        case = _BenchCase()
-        over = False
-        peak_mb = None
+        cap = _CAPS[name]
+        peak = None
+        status = "OK"
         try:
-            with assert_peak_under(case, cap_mb) as peak_box:
-                func()
-            peak_mb = peak_box[0]
-        except _PeakFail as exc:
-            over = True
-            peak_mb = peak_box[0] if peak_box else None
-            self.stderr.write(self.style.ERROR(f"{name}: {exc}"))
-        return peak_mb, over
+            with transaction.atomic():  # a savepoint: a failed operation cannot poison the next one
+                func = prepare()
+                case = _BenchCase()
+                try:
+                    with assert_peak_under(case, cap) as peak_box:
+                        func()
+                    peak = peak_box[0]
+                except _PeakFail:
+                    peak = peak_box[0]
+                    status = "OVER"
+        except Exception as exc:  # noqa: BLE001 - one broken operation must not stop the others
+            status = "ERROR"
+            self.stderr.write(f"{name}: {type(exc).__name__}: {exc}")
+        self._report(name, peak, cap, status)
+        if status != "OK":
+            self.failures.append(name)
+        return status != "ERROR"
+
+    def _report(self, name, peak, cap, status):
+        cap_text = _fmt(cap) if cap is not None else _fmt(_CAPS[name])
+        self.stdout.write(
+            f"BENCH {name} rss_peak_mb={_fmt(_rss_mb())} tracemalloc_peak_mb={_fmt(peak)} "
+            f"cap_mb={cap_text} status={status}"
+        )
+
+    def _prepare_build(self):
+        from fees.tests.datasets import build_planning_dataset
+
+        memos, payments, allocations, seed = self.sizes
+
+        def run():
+            build_planning_dataset(
+                self.planning, memos=memos, payments=payments, allocations=allocations, seed=seed
+            )
+
+        return run
+
+    def _prepare_statistics(self):
+        from fees.services.statistics import get_period_statistics
+
+        return lambda: get_period_statistics(self.planning, "financialYear", None, {})
+
+    def _prepare_dashboard(self):
+        from fees.services import dashboard
+
+        on = {
+            "dashboard_kpis_enabled": True,
+            "statistics_enabled": True,
+            "overdue_days": 0,
+            "initial_financial_year": "2015-16",
+        }
+        return lambda: dashboard.get_dashboard_kpis(self.planning, settings=on)
+
+    def _prepare_pivot(self):
+        from fees.services.statistics import get_pivot
+
+        options = {"measure": "billed", "row_dim": "month", "col_dim": "financialYear"}
+        return lambda: get_pivot(self.planning, options)
+
+    def _prepare_export(self):
+        from fees.services.excel_backup import export_workbook
+
+        def run():
+            out = export_workbook(self.planning)
+            out.close()
+
+        return run
+
+    def _prepare_annual(self):
+        from fees.exports import xlsx
+        from fees.models import Memo
+
+        fy = (
+            Memo.objects.filter(profile=self.planning)
+            .order_by("-financial_year")
+            .values_list("financial_year", flat=True)
+            .first()
+        )
+
+        def run():
+            _name, out = xlsx.export_annual_summary(self.planning, fy)
+            out.close()
+
+        return run
+
+    def _prepare_word(self):
+        from fees.exports import images, template_prep, word
+        from fees.exports.placeholders import build_placeholder_map
+        from fees.tests import docx_support
+
+        fixture = Path(__file__).resolve().parents[2] / "tests" / "fixtures" / "Template 2-11-2026 (short tags).docx"
+        prepared, _tags = template_prep.prepare(fixture.read_bytes())
+        mapping = build_placeholder_map(_sample_memo())
+        data = docx_support.png_bytes(600, 200)
+        content_type, extension, width, height = images.inspect_image(data)
+        signature = word.Signature(content_type, extension, data, width, height)
+
+        def run():
+            out = word.render(prepared, mapping, signature)
+            out.close()
+
+        return run
+
+    def _prepare_import(self):
+        from openpyxl import Workbook
+
+        from fees.services.imports import inspect_file, run_import
+
+        memos = self.sizes[0]
+        path = str(self.tmp / "bench_import.xlsx")
+        workbook = Workbook(write_only=True)
+        sheet = workbook.create_sheet()
+        for row in _import_rows(min(_IMPORT_ROWS, max(memos, 1))):
+            sheet.append(row)
+        workbook.save(path)
+        mapping = inspect_file(path)["mapping"]
+        return lambda: run_import(self.import_profile, path, mapping)
+
+    def _prepare_restore(self):
+        from fees.services.excel_backup import export_workbook
+        from fees.services.excel_restore import RESTORE_CONFIRMATION, restore_workbook
+
+        out = export_workbook(self.planning)
+
+        def run():
+            try:
+                # No safety backup: the throwaway profile has nothing worth keeping.
+                restore_workbook(self.planning, out, RESTORE_CONFIRMATION, backup_func=lambda kind, user: None)
+            finally:
+                out.close()
+
+        return run
 
     # -- openpyxl resident cost -------------------------------------------------------------------
 
     def _measure_openpyxl_resident(self):
         """Resident RSS cost of importing ``openpyxl``, measured by reading RSS before and after.
 
-        The import is lazy (here, never at module top) so this command module can be loaded without
-        pulling ``openpyxl`` into a worker. Returns the RSS delta in MB, or ``None`` when ``resource``
-        is unavailable. ``ru_maxrss`` is a high-water mark, so the delta is a floor on the true cost.
+        The import is lazy (here, never at module top). Returns the RSS delta in MB, or ``None`` when
+        ``resource`` or ``openpyxl`` is unavailable. ``ru_maxrss`` is a high-water mark, so the delta
+        is a floor on the true cost.
         """
         before = _rss_mb()
         try:
             import openpyxl  # noqa: F401  (imported only to measure its resident cost)
         except ImportError:
-            self.stderr.write(
-                self.style.WARNING("openpyxl is not installed; skipping its resident-cost measurement.")
-            )
             return None
         after = _rss_mb()
         if before is None or after is None:
             return None
         return max(0.0, after - before)
-
-    # -- reporting --------------------------------------------------------------------------------
-
-    def _print_table(self, rows):
-        """Print the operation / peak-allocations / RSS table in a fixed-width, readable layout."""
-        self.stdout.write("")
-        header = f"{'operation':44} {'peak alloc (MB)':>16} {'process RSS (MB)':>18}"
-        self.stdout.write(header)
-        self.stdout.write("-" * len(header))
-        for name, peak_mb, rss_mb in rows:
-            peak_text = f"{peak_mb:.1f}" if peak_mb is not None else "n/a"
-            rss_text = f"{rss_mb:.0f}" if rss_mb is not None else "n/a"
-            self.stdout.write(f"{name:44} {peak_text:>16} {rss_text:>18}")
-        self.stdout.write("")
-
-    def _print_guidance(self):
-        """Repeat the decision rule so a Render Shell operator sees it next to the numbers."""
-        self.stdout.write(
-            "Decision rule (RAM budget section 7 and 9): if the worker baseline RSS is above 130 MB "
-            "or the openpyxl resident delta is above 35 MB, apply the section 7 levers "
-            "(MALLOC_ARENA_MAX=2, gunicorn --preload, or 1 worker with 4 threads). Each is a separate, "
-            "owner-approved render.yaml or env change. Record the numbers in the 'Measured baseline' "
-            "section of docs/FEES_RAM_BUDGET.md; do not fabricate them."
-        )

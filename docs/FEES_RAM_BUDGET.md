@@ -164,8 +164,8 @@ python -c "import resource, django, os; os.environ['DJANGO_SETTINGS_MODULE']='co
 # 3. The same, then openpyxl, to get the openpyxl resident delta.
 python -c "import resource, openpyxl; print(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss//1024, 'MB')"
 
-# 4. The bench command: startup RSS, openpyxl resident delta, and the dataset-build peak,
-#    built in a throwaway profile inside a transaction that rolls back (leaves no data).
+# 4. The bench command: startup RSS, openpyxl resident delta, and the peak of each heavy operation
+#    on the planning dataset, built in a throwaway profile inside a transaction that rolls back (leaves no data).
 python manage.py fees_memory_bench
 #    Scale it down for a quick check on a small instance:
 python manage.py fees_memory_bench --dataset-size small
@@ -173,11 +173,11 @@ python manage.py fees_memory_bench --dataset-size small
 python manage.py fees_memory_bench --skip-build
 ```
 
-`fees_memory_bench` is a manual tool. It is not part of CI or `manage.py test`; CI only confirms it imports (via `manage.py check`). It exits non-zero only if a measured peak is over its cap; the dataset-build cap is deliberately generous because the build is a bulk load, not a guarded heavy operation.
+`fees_memory_bench` is not part of `manage.py test`. CI runs it as a separate non-blocking step after the tests (`continue-on-error`), and also confirms it imports (via `manage.py check`). It exits non-zero if a measured peak is over its cap or an operation fails; the dataset-build cap is deliberately generous because the build is a bulk load, not a guarded heavy operation.
 
 ### Results
 
-Fill each cell from the commands above. Leave it as "to be measured" until the real run. The "heavy operation" rows below the dataset build are built in later phases; mark each with the phase that produces it and fill the peak when that phase's `fees_memory_bench` entry and memory test exist.
+Fill each cell from the commands above. Leave it as "to be measured" until the real run. The per-operation rows are also in the bench table below, with the exact operation names the bench prints.
 
 | Measurement | Source | Cap or target | Measured |
 |---|---|---|---|
@@ -196,6 +196,22 @@ Fill each cell from the commands above. Leave it as "to be measured" until the r
 | Word export peak | Phase 5 (T5.2, T5.6) | 2 MB | Phase 5 |
 | Suite backup build peak | Phase 1 (T1.4, T1.9) | 15 MB | to be measured |
 | Suite restore peak | Phase 4 | 60 MB | Phase 4 |
+
+### Bench results per operation (T9.3)
+
+`python manage.py fees_memory_bench` prints one `BENCH <operation> rss_peak_mb=<x> tracemalloc_peak_mb=<y> cap_mb=<z> status=<OK|OVER|ERROR>` line per operation, then `BENCH done`. The CI workflow runs it (non-blocking) after the tests. The row names below are exactly the operation names in those lines. `tracemalloc peak` is compared with the cap; `RSS high-water` is the whole process after the operation and only rises through the run. Fill the cells from a real run; do not estimate.
+
+| Operation | Cap (MB) | tracemalloc peak (MB) | RSS high-water (MB) |
+|---|---|---|---|
+| dataset_build | 200 | to be measured | to be measured |
+| statistics | 5 | to be measured | to be measured |
+| dashboard | 3 | to be measured | to be measured |
+| pivot | 8 | to be measured | to be measured |
+| excel_export | 12 | to be measured | to be measured |
+| annual_summary | 20 | to be measured | to be measured |
+| word_render | 2 | to be measured | to be measured |
+| excel_import | 25 | to be measured | to be measured |
+| excel_restore | 40 | to be measured | to be measured |
 
 ### Decision rule
 

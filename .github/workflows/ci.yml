@@ -43,6 +43,14 @@ jobs:
         run: python manage.py makemigrations --check --dry-run
       - name: Tests
         run: python manage.py test
+      # Non-blocking: reports peak memory per heavy Fee Register operation against the caps in
+      # docs/FEES_RAM_BUDGET.md. The tests only migrate their own test database, so the main one is
+      # migrated first. The bench builds a throwaway profile in a rolled-back transaction.
+      - name: Fee Register memory bench
+        continue-on-error: true
+        run: |
+          python manage.py migrate
+          python manage.py fees_memory_bench
       - name: Lint
         if: always()
         run: ruff check --select F,E9 .
