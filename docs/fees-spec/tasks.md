@@ -145,7 +145,7 @@ Each screen: template, CSS, small JS, accessibility check, review stop optional 
 
 - [ ] T9.1 Smoke test per `reference/PROJECT_STATUS.md`: add firm, group, matter, memo, payment, export Word; plus restore, export Excel, statistics, search, reader role, second profile.
 - [ ] T9.2 `render.yaml` / environment changes proposed by the RAM levers (only those the owner approved), `FEES_ENABLED` flag if wanted (U11), README/docs updates (`README.md`, `docs/HOSTING_AND_DEPLOY.md`: new command, new URL, how to run `create_fees_user` once).
-- [ ] T9.3 Final `fees_memory_bench` and full CI run; record numbers in `docs/FEES_RAM_BUDGET.md`.
+- [x] T9.3 Final `fees_memory_bench` and full CI run; record numbers in `docs/FEES_RAM_BUDGET.md`.
 - [ ] **STOP P9: report to the owner. Do not deploy.**
 
 ## Phase 10: release (only on the owner's explicit go-ahead)

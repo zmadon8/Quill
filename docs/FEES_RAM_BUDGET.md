@@ -18,7 +18,7 @@ Related: [FEES_PHASE0_ANALYSIS.md](FEES_PHASE0_ANALYSIS.md), `docs/EFFICIENCY_RE
 
 These numbers are real but synthetic (plain dicts, not Django model instances; the Django serialiser adds more on top). They show the *shape*: today's backup build is proportional to data size times about 6 (more with the Django serialiser), a streaming writer is constant, Word rendering is negligible.
 
-Everything labelled "est." below is an **estimate**, not a measurement, taken from `docs/EFFICIENCY_REPORT.md` (70 to 110 MB per worker for the diary) and typical figures for Django 5.1 on Python 3.12. Task T1.6 in the spec measures the real numbers (RSS and PSS per process) on the first deploy-like run and **replaces every estimate in this file**. Treat estimates as accurate to a factor of about 1.5.
+Everything labelled "est." below is an **estimate**, not a measurement, taken from `docs/EFFICIENCY_REPORT.md` (70 to 110 MB per worker for the diary) and typical figures for Django 5.1 on Python 3.12. Task T1.6 in the spec measures the real numbers (RSS and PSS per process) on the first deploy-like run and **replaces every estimate in this file**. Treat estimates as accurate to a factor of about 1.5. Section 10 now holds the numbers measured on CI (single process, not gunicorn); where one clearly supersedes an estimate it is marked "measured on CI" in sections 2 to 4. Nothing here has been measured on Render yet.
 
 ## 2. Steady state (nothing heavy running)
 
@@ -26,7 +26,7 @@ Everything labelled "est." below is an **estimate**, not a measurement, taken fr
 |---|---|---|
 | Gunicorn master | 25 MB | est. |
 | Worker baseline today (Django, accounts, backups, diary, mailer, templates, psycopg) | 70 to 110 MB, use 100 | EFFICIENCY_REPORT |
-| Added per worker by the `fees` app (modules, models, templates cache, services; **no** openpyxl) | 5 to 12 MB, use 8 | est. |
+| Added per worker by the `fees` app (modules, models, templates cache, services; **no** openpyxl) | 5 to 12 MB, use 8 | est. (measured on CI: whole process 61.0 MB at startup with all apps loaded, single process, not gunicorn; see section 10) |
 | Two workers | 2 x 108 = 216 MB | |
 | **Steady total** | **about 240 MB** (range 190 to 290) | |
 | Free of the 512 MB | about 270 MB | |
@@ -52,7 +52,7 @@ Postgres connections: `CONN_MAX_AGE` is not set (default 0), so each request ope
 | Suite restore | 60 to 200 MB diary, plus fees about 100 MB | under 60 MB after R3 and R4 | cap on decompressed size, per-model chunking |
 | Off-site upload / email backup | holds the gzip bytes (a few MB) | same | n/a |
 | Backup download | `io.BytesIO(bytes(backup.data))` copies the stored gzip twice | stream from the DB value once | use `HttpResponse(bytes)` once or a chunked iterator; est. 2 to 3 times the gzip size |
-| `openpyxl` import in a worker | +15 to 25 MB (est.) resident in that worker | only in workers that serve an export, released at recycle | lazy import, `--max-requests` recycle |
+| `openpyxl` import in a worker | +15 to 25 MB (est.; measured on CI: 4.9 MB, see section 10) resident in that worker | only in workers that serve an export, released at recycle | lazy import, `--max-requests` recycle |
 
 ## 4. The budget
 
@@ -144,9 +144,9 @@ python -c "import resource, openpyxl; print(resource.getrusage(resource.RUSAGE_S
 
 Record results in a new section at the end of this file. If "worker baseline" is above 130 MB or "openpyxl" above 35 MB, apply the section 7 levers before Phase 2 starts.
 
-## 10. Measured baseline (to be filled from a real run)
+## 10. Measured baseline (CI measured, Render pending)
 
-**Status: pending.** These numbers have not been measured yet. The planning sandbox had no network, so Django, psycopg and openpyxl could not be installed and the real application could not start (section 1). Task T1.6 provides the tool; the authoritative numbers come from a run on CI and, with the owner's help, once on Render's Shell against the live-like instance. Until then every cell below is a placeholder and **must not be guessed or filled with an estimate**. When the run happens, replace the placeholders here and then the estimates in sections 2 to 4.
+**Status: measured on CI; the Render measurement is still pending.** The numbers below come from the GitHub Actions run of commit `2b3946d` (ubuntu-latest runner, Python 3.12, PostgreSQL 16 service) running `python manage.py fees_memory_bench` on the planning dataset from `fees/tests/datasets.py` `build_planning_dataset`: 6,000 memos, 8,000 payments, 9,000 allocations. This is **one Python process running the management command on a CI runner, not Render's gunicorn workers**. It shows the cost of the code and the dataset, but it is not the worker RSS under gunicorn. Measuring the gunicorn master and worker RSS and PSS on Render's Shell (commands 1 and 2 below) remains the owner's Phase 10 step. No Render number is recorded here and none must be guessed.
 
 ### Commands to run
 
@@ -177,41 +177,49 @@ python manage.py fees_memory_bench --skip-build
 
 ### Results
 
-Fill each cell from the commands above. Leave it as "to be measured" until the real run. The per-operation rows are also in the bench table below, with the exact operation names the bench prints.
+Cells marked "CI" are measured on the CI run described above (single process, not gunicorn). Cells marked "Render pending" need the owner's Render Shell run in Phase 10. The per-operation rows are also in the bench table below, with the exact operation names the bench prints.
 
 | Measurement | Source | Cap or target | Measured |
 |---|---|---|---|
-| Gunicorn master RSS | command 1 | section 2 est. 25 MB | to be measured |
-| Worker baseline RSS (both programs loaded, no openpyxl) | command 1, command 2 | decision rule: 130 MB | to be measured |
-| Worker baseline PSS (both programs loaded) | command 1 (`pss`) | informational | to be measured |
-| openpyxl resident delta | command 3, command 4 | decision rule: 35 MB | to be measured |
-| Dataset build peak (planning size) | command 4 | generous skeleton cap 200 MB | to be measured |
-| Statistics peak | Phase 3 (T3.8) | 5 MB | Phase 3 |
-| Dashboard peak | Phase 3 (T3.7) | 3 MB | Phase 3 |
-| Pivot peak | Phase 3 (T3.8) | 8 MB | Phase 3 |
-| Excel export peak | Phase 5 (T5.3, T5.6) | 12 MB | Phase 5 |
-| Annual summary export peak | Phase 5 (T5.3, T5.6) | 20 MB | Phase 5 |
-| Excel import peak | Phase 6 (T6.2) | 25 MB | Phase 6 |
-| Excel restore peak | Phase 4 (T4.2, T4.5) | 40 MB | Phase 4 |
-| Word export peak | Phase 5 (T5.2, T5.6) | 2 MB | Phase 5 |
-| Suite backup build peak | Phase 1 (T1.4, T1.9) | 15 MB | to be measured |
-| Suite restore peak | Phase 4 | 60 MB | Phase 4 |
+| Gunicorn master RSS | command 1 | section 2 est. 25 MB | Render pending |
+| Worker baseline RSS (both programs loaded, no openpyxl) | command 1, command 2 | decision rule: 130 MB | 61.0 MB startup RSS (CI, single process); gunicorn worker RSS Render pending |
+| Worker baseline PSS (both programs loaded) | command 1 (`pss`) | informational | Render pending |
+| openpyxl resident delta | command 3, command 4 | decision rule: 35 MB | 4.9 MB (CI) |
+| Dataset build peak (planning size) | command 4 | generous skeleton cap 200 MB | tracemalloc 30.9 MB, process RSS high-water 139.2 MB (CI) |
+| Statistics peak | Phase 3 (T3.8) | 5 MB | 0.4 MB tracemalloc (CI) |
+| Dashboard peak | Phase 3 (T3.7) | 3 MB | 2.9 MB tracemalloc (CI) |
+| Pivot peak | Phase 3 (T3.8) | 8 MB | 0.3 MB tracemalloc (CI) |
+| Excel export peak | Phase 5 (T5.3, T5.6) | 12 MB | 1.3 MB tracemalloc (CI) |
+| Annual summary export peak | Phase 5 (T5.3, T5.6) | 20 MB | 4.4 MB tracemalloc (CI) |
+| Excel import peak | Phase 6 (T6.2) | 25 MB | 2.6 MB tracemalloc (CI) |
+| Excel restore peak | Phase 4 (T4.2, T4.5) | 40 MB | 9.8 MB tracemalloc (CI) |
+| Word export peak | Phase 5 (T5.2, T5.6) | 2 MB | 0.5 MB tracemalloc (CI) |
+| Suite backup build peak | Phase 1 (T1.4, T1.9) | 15 MB | not in the CI bench; Render pending |
+| Suite restore peak | Phase 4 | 60 MB | not in the CI bench; Render pending |
 
 ### Bench results per operation (T9.3)
 
-`python manage.py fees_memory_bench` prints one `BENCH <operation> rss_peak_mb=<x> tracemalloc_peak_mb=<y> cap_mb=<z> status=<OK|OVER|ERROR>` line per operation, then `BENCH done`. The CI workflow runs it (non-blocking) after the tests. The row names below are exactly the operation names in those lines. `tracemalloc peak` is compared with the cap; `RSS high-water` is the whole process after the operation and only rises through the run. Fill the cells from a real run; do not estimate.
+`python manage.py fees_memory_bench` prints one `BENCH <operation> rss_peak_mb=<x> tracemalloc_peak_mb=<y> cap_mb=<z> status=<OK|OVER|ERROR>` line per operation, then `BENCH done`. The CI workflow runs it (non-blocking) after the tests. The row names below are exactly the operation names in those lines. `tracemalloc peak` is compared with the cap; `RSS high-water` is the whole process after the operation and only rises through the run.
+
+Measured on CI (commit `2b3946d`, ubuntu-latest, Python 3.12, PostgreSQL 16, planning dataset of 6,000 memos, 8,000 payments, 9,000 allocations). All nine operations are `status=OK`. Startup RSS was 61.0 MB and the openpyxl resident delta was 4.9 MB.
 
 | Operation | Cap (MB) | tracemalloc peak (MB) | RSS high-water (MB) |
 |---|---|---|---|
-| dataset_build | 200 | to be measured | to be measured |
-| statistics | 5 | to be measured | to be measured |
-| dashboard | 3 | to be measured | to be measured |
-| pivot | 8 | to be measured | to be measured |
-| excel_export | 12 | to be measured | to be measured |
-| annual_summary | 20 | to be measured | to be measured |
-| word_render | 2 | to be measured | to be measured |
-| excel_import | 25 | to be measured | to be measured |
-| excel_restore | 40 | to be measured | to be measured |
+| dataset_build | 200 | 30.9 | 139.2 |
+| statistics | 5 | 0.4 | 139.2 |
+| dashboard | 3 | 2.9 | 139.2 |
+| pivot | 8 | 0.3 | 139.2 |
+| excel_export | 12 | 1.3 | 139.2 |
+| annual_summary | 20 | 4.4 | 139.2 |
+| word_render | 2 | 0.5 | 139.2 |
+| excel_import | 25 | 2.6 | 139.2 |
+| excel_restore | 40 | 9.8 | 139.2 |
+
+Reading the table:
+
+- `rss_peak_mb` is the process high-water mark. It was already reached during `dataset_build` (bulk loading the planning dataset), so 139.2 MB repeats on every later row and is **not a per-operation figure**. The per-operation figure is `tracemalloc_peak_mb`.
+- Startup RSS of 61.0 MB is far under the 130 MB decision rule, and openpyxl adds about 5 MB, under the 35 MB rule. On these numbers no RAM lever (U10: `--preload`, `MALLOC_ARENA_MAX`, worker or thread changes) is needed. This is a CI single-process figure; the Render gunicorn worker RSS decides it for real.
+- The dashboard is at 2.9 of its 3 MB cap on the planning dataset, which is about 20 times the owner's real register of 312 memos. It is the one to watch if the dashboard queries change.
 
 ### Decision rule
 
