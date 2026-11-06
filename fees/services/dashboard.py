@@ -91,6 +91,8 @@ __all__ = [
     "local_iso",
     "get_dashboard_summary",
     "get_dashboard_kpis",
+    "selected_kpi_ids",
+    "KPI_GROUPS",
 ]
 
 _ZERO = Decimal("0")
@@ -127,6 +129,37 @@ KPI_IDS = (
     "draft_memos_total",
 )
 
+#: Which computation produces each KPI id. ``get_dashboard_kpis`` runs only the groups that the
+#: selected ids need, so an unselected group issues no queries (owner items 2.4 and 2.12):
+#: ``summary`` is the one pass over non-draft memos (``get_dashboard_summary``), ``activity`` the
+#: pass over all memos for counts and last-30-day billing, ``received30`` one allocation
+#: aggregate, ``appearances`` the statistics engine.
+KPI_GROUPS = {
+    "billed_this_month": "summary",
+    "billed_this_year": "summary",
+    "received_this_month": "summary",
+    "received_this_year": "summary",
+    "total_outstanding": "summary",
+    "amount_overdue": "summary",
+    "memos_awaiting_payment": "summary",
+    "written_off_total": "summary",
+    "billed_last30": "activity",
+    "memos_this_month": "activity",
+    "memos_this_year": "activity",
+    "memos_last30": "activity",
+    "appearances_last30": "activity",
+    "conferences_this_month": "activity",
+    "conferences_this_year": "activity",
+    "conferences_last30": "activity",
+    "drafts_this_year": "activity",
+    "drafts_last30": "activity",
+    "draft_memos_count": "activity",
+    "draft_memos_total": "activity",
+    "received_last30": "received30",
+    "appearances_this_month": "appearances",
+    "appearances_this_year": "appearances",
+}
+
 #: The money KPI ids (serialised as ``str(Decimal)`` in the cached / returned
 #: catalogue); every other id is a plain integer count.
 _MONEY_KPIS = frozenset(
@@ -155,6 +188,16 @@ def _empty_kpis():
 
 #: Convenience module-level snapshot of the off-switch result (read-only use).
 EMPTY_KPIS = _empty_kpis()
+
+
+def selected_kpi_ids(settings):
+    """The KPI ids the user chose (the comma list in ``dashboard_kpis``), in saved order.
+
+    Unknown ids are dropped; an empty or missing selection means every KPI (the default).
+    """
+    chosen = [k.strip() for k in str((settings or {}).get("dashboard_kpis") or "").split(",")]
+    chosen = [k for k in chosen if k in KPI_GROUPS]
+    return chosen or list(KPI_IDS)
 
 
 def local_iso(d) -> str:
@@ -233,7 +276,7 @@ def stats_appearances(profile, now, *, enabled=True):
     return {"month": month_value, "year": year_value}
 
 
-def get_dashboard_summary(profile, now=None, settings=None):
+def get_dashboard_summary(profile, now=None, settings=None, with_appearances=True):
     """The headline Dashboard figures (ports ``getDashboardSummary``).
 
     Reads every non-draft memo ONCE (the stored ``total_fees`` plus
@@ -251,7 +294,8 @@ def get_dashboard_summary(profile, now=None, settings=None):
 
     ``settings`` may be a pre-read settings dict (to avoid the get-or-create read
     and to honour the ``statistics_enabled`` switch without a second hop); when
-    None it is read with ``get_settings``.
+    None it is read with ``get_settings``. ``with_appearances=False`` skips the statistics engine
+    (``appearances_this_year`` is then 0); the KPI catalogue uses that and asks for appearances itself.
     """
     if settings is None:
         settings = get_settings(profile)
@@ -319,9 +363,11 @@ def get_dashboard_summary(profile, now=None, settings=None):
     fy_end = f"{fy_start_year + 1}-03-31"
     received_this_year = _gross_received_between(profile, fy_start, fy_end)
 
-    appearances_this_year = stats_appearances(
-        profile, today, enabled=statistics_enabled
-    )["year"]
+    appearances_this_year = (
+        stats_appearances(profile, today, enabled=statistics_enabled)["year"]
+        if with_appearances
+        else 0
+    )
 
     return {
         "total_outstanding": total_outstanding,
@@ -336,15 +382,8 @@ def get_dashboard_summary(profile, now=None, settings=None):
     }
 
 
-def _compute_kpis(profile, today, settings):
-    """Builds the full KPI catalogue as a JSON-safe dict (money as str, counts int).
-
-    ``today`` is already a local ``date``; ``settings`` is the resolved settings
-    dict. Honours ``statistics_enabled`` for the appearances figures.
-    """
-    statistics_enabled = bool(settings.get("statistics_enabled", True))
-    base = get_dashboard_summary(profile, today, settings=settings)
-
+def _compute_activity(profile, today):
+    """The ``activity`` group: counts and last-30-day billing from one pass over the memos."""
     today_iso = local_iso(today)
     start30 = local_iso(today - datetime.timedelta(days=29))
     fy = derive_financial_year(today_iso)
@@ -405,41 +444,53 @@ def _compute_kpis(profile, today, settings):
             drafts_last30 += num_drafts
             billed_last30 = round2(billed_last30 + total)
 
-    received_last30 = _gross_received_between(profile, start30, today_iso)
-    appearances = stats_appearances(profile, today, enabled=statistics_enabled)
-
-    values = {
-        "billed_this_month": base["billed_this_month"],
-        "billed_this_year": base["billed_this_year"],
+    return {
         "billed_last30": billed_last30,
-        "received_this_month": base["received_this_month"],
-        "received_this_year": base["received_this_year"],
-        "received_last30": received_last30,
         "memos_this_month": memos_this_month,
         "memos_this_year": memos_this_year,
         "memos_last30": memos_last30,
-        "appearances_this_month": appearances["month"],
-        "appearances_this_year": appearances["year"],
         "appearances_last30": appearances_last30,
         "conferences_this_month": conferences_this_month,
         "conferences_this_year": conferences_this_year,
         "conferences_last30": conferences_last30,
         "drafts_this_year": drafts_this_year,
         "drafts_last30": drafts_last30,
-        "total_outstanding": base["total_outstanding"],
-        "amount_overdue": base["amount_overdue"],
-        "memos_awaiting_payment": base["memos_awaiting_payment"],
-        "written_off_total": base["written_off_total"],
         "draft_memos_count": draft_memos_count,
         "draft_memos_total": draft_memos_total,
     }
-    return _to_json_safe(values)
 
 
-def _to_json_safe(values):
-    """Serialises a KPI value map to JSON-safe form: money as str, counts as int."""
+def _compute_kpis(profile, today, settings, selected=None):
+    """Builds the selected part of the KPI catalogue as a JSON-safe dict (money as str, counts int).
+
+    ``today`` is already a local ``date``; ``settings`` is the resolved settings dict; ``selected`` is
+    the list of KPI ids wanted (every id when None). Only the groups the selection needs are computed
+    (see ``KPI_GROUPS``), so an unselected group issues no queries. Honours ``statistics_enabled``
+    for the appearances figures.
+    """
+    selected = list(KPI_IDS) if selected is None else list(selected)
+    groups = {KPI_GROUPS[kpi] for kpi in selected}
+    values = {}
+    if "summary" in groups:
+        values.update(get_dashboard_summary(profile, today, settings=settings, with_appearances=False))
+    if "activity" in groups:
+        values.update(_compute_activity(profile, today))
+    if "received30" in groups:
+        start30 = local_iso(today - datetime.timedelta(days=29))
+        values["received_last30"] = _gross_received_between(profile, start30, local_iso(today))
+    if "appearances" in groups:
+        appearances = stats_appearances(
+            profile, today, enabled=bool(settings.get("statistics_enabled", True))
+        )
+        values["appearances_this_month"] = appearances["month"]
+        values["appearances_this_year"] = appearances["year"]
+    return _to_json_safe(values, selected)
+
+
+def _to_json_safe(values, ids=KPI_IDS):
+    """Serialises the KPI values for ``ids`` to JSON-safe form: money as str, counts as int."""
     out = {}
-    for kpi in KPI_IDS:
+    for kpi in ids:
         value = values[kpi]
         if kpi in _MONEY_KPIS:
             out[kpi] = str(round2(value))
@@ -470,6 +521,10 @@ def get_dashboard_kpis(profile, now=None, settings=None):
     "Last 30 days" is the 30 calendar days ending today inclusive, by memo date
     for billed / counts and by payment date for received. ``statistics_enabled``
     gates the appearances figures (reported 0 when off).
+
+    Only the KPI ids the user selected (``dashboard_kpis`` in the settings, every id when none) are
+    computed and returned; a group nobody selected is never queried (items 2.4 and 2.12). The
+    switch-off result stays the full zeroed catalogue.
     """
     if settings is None:
         settings = get_settings(profile)
@@ -477,10 +532,12 @@ def get_dashboard_kpis(profile, now=None, settings=None):
         return _empty_kpis()
 
     today = _as_date(now)
-    params = {"view": "kpis", "today": local_iso(today)}
+    selected = selected_kpi_ids(settings)
+    # The selected ids are part of the cache key, so a changed selection never reads a stale shape.
+    params = {"view": "kpis", "today": local_iso(today), "ids": ",".join(sorted(selected))}
 
     def compute():
-        return _compute_kpis(profile, today, settings)
+        return _compute_kpis(profile, today, settings, selected)
 
     return stats_cache.get_or_compute(
         profile, "dashboard", params, compute, today_sensitive=True

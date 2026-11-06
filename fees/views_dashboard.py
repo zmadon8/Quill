@@ -16,9 +16,7 @@ from fees.services import settings as settings_service
 
 def selected_kpis(config):
     """The KPI ids to show, in the saved order; every KPI when none is saved."""
-    chosen = [k.strip() for k in str(config.get("dashboard_kpis") or "").split(",")]
-    chosen = [k for k in chosen if k in dashboard.KPI_IDS]
-    return chosen or list(dashboard.KPI_IDS)
+    return dashboard.selected_kpi_ids(config)
 
 
 def kpi_label(kpi):

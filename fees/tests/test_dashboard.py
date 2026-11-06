@@ -30,6 +30,7 @@ last-30-days window deterministic.
 """
 import datetime
 from decimal import Decimal
+from unittest import mock
 
 from django.test import TestCase, tag
 
@@ -273,6 +274,75 @@ class AppearancesAgreementTests(TestCase):
         summary = dashboard.get_dashboard_summary(self.profile, NOW)
         # 3 real + 4 extra = 7, proving the dashboard reads the statistics engine.
         self.assertEqual(summary["appearances_this_year"], 7)
+
+
+# ---------------------------------------------------------------------------
+# Only the selected KPI groups are computed (items 2.4 and 2.12).
+# ---------------------------------------------------------------------------
+
+def _config(selection=""):
+    return {
+        "dashboard_kpis_enabled": True,
+        "statistics_enabled": True,
+        "overdue_days": 0,
+        "dashboard_kpis": selection,
+    }
+
+
+class SelectedKpiGroupsTests(TestCase):
+    def setUp(self):
+        self.profile = fees_profile("Sel-Dash")
+        early_initial_fy(self.profile)
+        firm = make_firm(self.profile)
+        group = make_group(self.profile, firm)
+        matter = make_matter(self.profile, firm, group)
+        make_memo(self.profile, matter, "2026-02-10", apps=2, misc=1000)
+
+    def test_selected_ids_drop_unknown_and_default_to_everything(self):
+        self.assertEqual(dashboard.selected_kpi_ids({}), list(dashboard.KPI_IDS))
+        self.assertEqual(dashboard.selected_kpi_ids({"dashboard_kpis": "nope, memos_last30"}), ["memos_last30"])
+        self.assertEqual(dashboard.selected_kpi_ids({"dashboard_kpis": "nope"}), list(dashboard.KPI_IDS))
+
+    def test_every_kpi_id_belongs_to_a_group(self):
+        self.assertEqual(set(dashboard.KPI_GROUPS), set(dashboard.KPI_IDS))
+
+    def test_only_the_received_group_runs_for_received_last30(self):
+        with mock.patch.object(dashboard, "_compute_activity", side_effect=AssertionError("activity")), \
+                mock.patch.object(dashboard, "get_dashboard_summary", side_effect=AssertionError("summary")), \
+                mock.patch.object(dashboard, "stats_appearances", side_effect=AssertionError("appearances")):
+            result = dashboard.get_dashboard_kpis(self.profile, NOW, settings=_config("received_last30"))
+        self.assertEqual(list(result), ["received_last30"])
+        self.assertEqual(result["received_last30"], "0.00")
+
+    def test_activity_only_selection_skips_summary_and_statistics(self):
+        with mock.patch.object(dashboard, "get_dashboard_summary", side_effect=AssertionError("summary")), \
+                mock.patch.object(dashboard, "stats_appearances", side_effect=AssertionError("appearances")):
+            result = dashboard.get_dashboard_kpis(self.profile, NOW, settings=_config("memos_this_month"))
+        self.assertEqual(result, {"memos_this_month": 1})
+
+    def test_summary_only_selection_does_not_call_the_statistics_engine(self):
+        with mock.patch.object(dashboard, "stats_appearances", side_effect=AssertionError("appearances")), \
+                mock.patch.object(dashboard, "_compute_activity", side_effect=AssertionError("activity")):
+            result = dashboard.get_dashboard_kpis(self.profile, NOW, settings=_config("billed_this_month"))
+        self.assertEqual(result, {"billed_this_month": "1000.00"})
+
+    def test_appearances_selection_uses_the_statistics_engine_only(self):
+        with mock.patch.object(dashboard, "get_dashboard_summary", side_effect=AssertionError("summary")), \
+                mock.patch.object(dashboard, "_compute_activity", side_effect=AssertionError("activity")):
+            result = dashboard.get_dashboard_kpis(self.profile, NOW, settings=_config("appearances_this_year"))
+        self.assertEqual(list(result), ["appearances_this_year"])
+
+    def test_default_selection_returns_the_whole_catalogue(self):
+        result = dashboard.get_dashboard_kpis(self.profile, NOW, settings=_config(""))
+        self.assertEqual(set(result), set(dashboard.KPI_IDS))
+
+    def test_a_changed_selection_is_not_served_from_the_other_selection_cache(self):
+        first = dashboard.get_dashboard_kpis(self.profile, NOW, settings=_config("memos_this_month"))
+        second = dashboard.get_dashboard_kpis(self.profile, NOW, settings=_config("billed_this_month"))
+        self.assertEqual(list(first), ["memos_this_month"])
+        self.assertEqual(list(second), ["billed_this_month"])
+        again = dashboard.get_dashboard_kpis(self.profile, NOW, settings=_config("memos_this_month"))
+        self.assertEqual(again, first)
 
 
 # ---------------------------------------------------------------------------
