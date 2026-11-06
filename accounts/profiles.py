@@ -50,8 +50,8 @@ def live_memberships(user, program=KEY_DIARY, raw=False):
 def _admin_memberships(user, program, memberships):
     """An Admin's view of ``memberships``: Editor everywhere, plus a stand-in for each live profile with no membership.
 
-    Order: the profile used most recently first; then the rest by profile name (so an Admin with no memberships
-    uses the first profile by name).
+    Order: the Admin's own memberships (the profile used most recently first, then by name), then the other profiles
+    by name. So an Admin with no memberships uses the first profile by name until they switch to another.
     """
     has = {m.profile_id for m in memberships}
     for m in memberships:
@@ -63,12 +63,8 @@ def _admin_memberships(user, program, memberships):
         ProfileMembership(user=user, profile=p, program=p.program, role=ROLE_EDITOR)
         for p in profiles.order_by(Lower("name"), "pk")
     ]
-    used = [m for m in memberships if m.last_used_at is not None]
-    rest = sorted(
-        [m for m in memberships if m.last_used_at is None] + standins,
-        key=lambda m: (m.profile.name.lower(), m.profile_id),
-    )
-    return used + rest
+    # Their own profiles come first (already in order); profiles they have no membership in follow, by name.
+    return memberships + standins
 
 
 def get_membership_for(user, program=KEY_DIARY):

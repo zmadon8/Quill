@@ -26,15 +26,27 @@ def current_program_key(request):
     return suite.KEY_DIARY
 
 
+def _read(request):
+    """``(names, brand_modes)`` for this request from one query, cached on the request. Never raises."""
+    cached = getattr(request, "_suite_all", None)
+    if cached is None:
+        try:
+            cached = suite.read_all()
+        except Exception:
+            logger.exception("Could not read the suite display names")
+            cached = (dict(suite.DEFAULT_NAMES), {key: suite.BRAND_LOGO for key in suite.BRAND_KEYS})
+        request._suite_all = cached
+        request._suite_names = cached[0]  # reused by program_label so the page does not query twice
+    return cached
+
+
 def suite_names(request):
-    """Expose the display names to every template as ``home_name`` and ``diary_name``."""
-    try:
-        names = suite.get_names()
-        request._suite_names = names  # reused by program_label so the page does not query twice
-    except Exception:
-        logger.exception("Could not read the suite display names")
-        names = dict(suite.DEFAULT_NAMES)
-    return {"home_name": names[suite.KEY_HOME], "diary_name": names[suite.KEY_DIARY]}
+    """Expose the display names to every template as ``home_name`` and ``diary_name``, and the suite-wide header bar
+    choice (Words or Logo, set on Admins > Page Names) as ``suite_brand`` (``{"home"|"diary"|"fees": "words"|"logo"}``)
+    and ``home_header_words`` (True when Home, Admins, Settings and Help pages show words)."""
+    names, modes = _read(request)
+    return {"home_name": names[suite.KEY_HOME], "diary_name": names[suite.KEY_DIARY], "suite_brand": modes,
+            "home_header_words": modes[suite.KEY_HOME] == suite.BRAND_WORDS}
 
 
 def _names():
@@ -78,12 +90,16 @@ def current_profile(request):
 
 
 def header_style(request):
-    """``header_words``: True when the signed-in user chose Words for the header bar (My settings); Icons otherwise.
-    ``justify_text``: True when they chose to justify text (My settings, Display); base_suite.html puts the class on <html>."""
+    """``header_words``: True when the header bar shows words instead of icons (Logo) on this page. The choice is
+    suite-wide (Admins > Page Names), per program: the Fee Register's pages use its choice, every other page the Case
+    Law Diary's; base_suite_home.html swaps in the Home choice (``home_header_words``) for the Home, Admins, Settings and
+    Help pages. No extra query (shared with ``suite_names``).
+    ``justify_text``: True when the signed-in user chose to justify text (My settings, Display); base_suite.html puts the class on <html>."""
     user = getattr(request, "user", None)
-    words = bool(user is not None and user.is_authenticated and getattr(user, "header_style", "icons") == "words")
+    program = current_program_key(request)
+    mode = _read(request)[1].get(program, suite.BRAND_LOGO)
     justify = bool(user is not None and user.is_authenticated and getattr(user, "justify_text", False))
-    return {"header_words": words, "justify_text": justify}
+    return {"header_words": mode == suite.BRAND_WORDS, "justify_text": justify}
 
 
 #: The main Home page header (D86): each entry is one header item; its tabs are the sub-pages shown across the top of
