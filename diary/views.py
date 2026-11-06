@@ -12,6 +12,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
 from accounts import landing as account_landing
+from accounts import programs
 from accounts.models import ROLE_EDITOR
 from accounts.models import Profile
 from accounts.permissions import admin_required, reader_required
@@ -170,7 +171,7 @@ def home(request):
             return redirect(target)
     context = {"diary_profile": request_profile(request)}
     fees_profile = request_profile(request, KEY_FEES)
-    if fees_profile is not None:
+    if fees_profile is not None and programs.fees_enabled():
         # A Fee Register user gets a button for it; a user without one sees exactly the page they saw before.
         context["fees_profile"] = fees_profile
         context["fees_label"] = (fees_profile.display_name or "").strip() or get_names()[KEY_FEES]

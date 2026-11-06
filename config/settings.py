@@ -69,6 +69,7 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
+    "fees.middleware.FeesEnabledMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
@@ -154,6 +155,14 @@ STORAGES = {
 # Tests and CI never run collectstatic, so they use plain storage (the manifest storage would fail without it).
 if "test" in sys.argv[1:2] or os.environ.get("DJANGO_TESTING") == "1":
     STORAGES["staticfiles"] = {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"}
+
+# Fee Register dark-launch flag (design U11). When False the Fee Register is invisible and unreachable: no Home
+# button, no Settings tab, no landing choice, every /fees/ URL is a 404. The fees tables, migrations and the suite
+# backup and restore still work, so data is never lost. FEES_ENABLED=1 turns it on, any other set value turns it off.
+# When the variable is not set the default is ON for developer mode (DJANGO_DEBUG or DJANGO_ALLOW_SQLITE) and for
+# the test runner, and OFF in production. render.yaml sets "0" until the owner's go-ahead; then set it to "1".
+_FEES_DEFAULT_ON = DEBUG or ALLOW_SQLITE or "test" in sys.argv[1:2] or os.environ.get("DJANGO_TESTING") == "1"
+FEES_ENABLED = (os.environ["FEES_ENABLED"] == "1") if "FEES_ENABLED" in os.environ else _FEES_DEFAULT_ON
 
 # Backup settings (used by the backups app).
 BACKUP_RETENTION_DAYS = max(30, _int("BACKUP_RETENTION_DAYS", 35))

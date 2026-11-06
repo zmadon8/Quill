@@ -12,12 +12,12 @@ from .profiles import get_profile_for
 def program_keys():
     """Programs in the order they are offered. Derived from the registry on every call, so a program that
     registers itself from its app ``ready()`` (after this module is imported) still appears here."""
-    return programs.program_keys()
+    return programs.enabled_program_keys()
 
 
 def landing_url_name(key):
     """The URL name of ``key``'s first page, or None if the program is not registered."""
-    program = programs.get_program(key)
+    program = programs.get_program(key) if programs.is_enabled(key) else None
     return program.landing_url_name if program is not None else None
 
 

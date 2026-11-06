@@ -12,7 +12,7 @@ returns the diary and nothing else.
 from dataclasses import dataclass
 from typing import Callable
 
-from .suite import KEY_DIARY
+from .suite import KEY_DIARY, KEY_FEES
 
 
 @dataclass(frozen=True)
@@ -57,6 +57,24 @@ def register_program(program):
     """
     PROGRAMS[program.key] = program
     return program
+
+
+def fees_enabled():
+    """True when the Fee Register is switched on (``settings.FEES_ENABLED``, read on every call)."""
+    from django.conf import settings
+
+    return bool(getattr(settings, "FEES_ENABLED", True))
+
+
+def is_enabled(key):
+    """True when program ``key`` is offered to users. Only the Fee Register can be switched off."""
+    return key != KEY_FEES or fees_enabled()
+
+
+def enabled_program_keys():
+    """The registered program keys that are switched on, in registration order. Use this for anything that
+    offers or opens a program; use ``program_keys`` where existing data must still be reached."""
+    return [key for key in PROGRAMS if is_enabled(key)]
 
 
 def program_keys():

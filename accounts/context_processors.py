@@ -194,7 +194,7 @@ def suite_nav(request):
         if who == "admin":
             return user.is_admin
         if who == "fees":
-            return request_profile(request, suite.KEY_FEES) is not None
+            return programs.fees_enabled() and request_profile(request, suite.KEY_FEES) is not None
         if who == "profile":
             if has_profile is None:
                 has_profile = request_profile(request) is not None

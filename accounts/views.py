@@ -185,7 +185,7 @@ def profile_switch(request):
     from diary.params import safe_int
 
     profile = Profile.objects.filter(
-        pk=safe_int(request.POST.get("profile", "")), program__in=programs.program_keys()
+        pk=safe_int(request.POST.get("profile", "")), program__in=programs.enabled_program_keys()
     ).first()
     if profile is None or not use_profile(request.user, profile):
         messages.error(request, "You do not have that profile.")

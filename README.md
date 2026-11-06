@@ -219,6 +219,7 @@ You normally do not touch these; the Blueprint sets them.
 | `PROFILE_RETENTION_DAYS` | How many days a deleted profile can be restored before the nightly job removes it for good. Default 30. | `render.yaml` (30) |
 | `BACKUP_STALE_HOURS` | Show the warning bar if there has been no good backup for this many hours. Default 36. | Default |
 | `MAX_BACKUP_UPLOAD_MB` | Largest backup file you can upload for a restore. Default 100. | Default |
+| `FEES_ENABLED` | `1` shows the Fee Register; `0` hides it (no button, no tab, every `/fees/` address says not found) while keeping its data and backups. Default off on Render, on for developer mode and tests. | `render.yaml` (0 until the go-ahead) |
 | `DJANGO_DEBUG` | `1` turns on developer mode. Never set this on Render. | Developers only, on their own computer |
 | `DJANGO_ALLOW_SQLITE` | `1` lets the app use a throwaway local database. Never set this on Render. | Developers only |
 | `DJANGO_SUPERUSER_USERNAME`, `DJANGO_SUPERUSER_PASSWORD` | Used once, typed in the Shell, to create the first Admin | You, once |
