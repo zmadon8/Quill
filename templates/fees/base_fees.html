@@ -14,5 +14,7 @@
 {% block search_panel %}<div class="search-pop" id="search-pop" hidden><form class="fees-search-form" role="search" method="get" action="{% url 'fees_search_page' %}"><label class="visually-hidden" for="search-pop-q">Search firms, matters and memos</label><input type="search" id="search-pop-q" name="q" value="{{ query|default:'' }}" placeholder="Search firms, matters and memos&hellip;" autocomplete="off" data-search-popup-input><button type="submit" class="primary">Search</button></form></div>{% endblock %}
 {% block crumb_nav %}{% if back_url %}<div class="crumb-row"><nav class="breadcrumb" aria-label="Back"><a href="{{ back_url }}">&larr; {{ back_label|default:"Back" }}</a></nav></div>{% endif %}{% endblock %}
 {% block extra_js %}<script src="{% static 'js/fees/money.js' %}"></script>
-<script src="{% static 'js/fees/columns.js' %}"></script>
+{{ fees_col_widths|json_script:"fees-col-widths" }}
+<script src="{% static 'js/fees/columns.js' %}" data-prefs-url="{% url 'fees_prefs' %}"></script>
+<script src="{% static 'js/fees/search-suggest.js' %}" data-search-url="{% url 'fees_search' %}"></script>
 {% block page_js %}{% endblock %}{% endblock %}

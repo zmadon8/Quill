@@ -13,7 +13,7 @@
   <label>Backup file (.xlsx) <input type="file" name="file" accept=".xlsx" required></label>
   <button type="submit">Check the file</button>
 </form>
-<h2>Clear all data</h2>
+<h2 id="clear">Clear all data</h2>
 <p>Deletes every firm, matter, memo and payment, and resets the settings. A safety backup is made first.</p>
 <p><a href="{% url 'fees_backup_clear' %}">Clear all data</a></p>
 {% endblock %}

@@ -220,3 +220,83 @@ class ListDefaultFilterTests(WriteBase):
         FeesSettings.objects.update_or_create(profile=self.profile, defaults={"list_default_filter": "active"})
         self.assertNotContains(self.client.get(url), link)
         self.assertContains(self.client.get(url + "?matters=all"), link)
+
+
+class ResizableColumnsAndSearchTests(WriteBase):
+    """Items 2.14 and 2.15: stable table ids, the embedded widths, the search url and the combobox wiring."""
+
+    def table_pages(self):
+        seed = self.seed
+        return [
+            reverse("fees_memos"),
+            reverse("fees_memo_drafts"),
+            reverse("fees_dashboard"),
+            reverse("fees_outstanding"),
+            reverse("fees_outstanding_detail"),
+            reverse("fees_feebook"),
+            reverse("fees_statistics") + "?tab=standard",
+            reverse("fees_statistics") + "?tab=edit",
+            reverse("fees_statistics") + "?tab=explore",
+            reverse("fees_matter_detail", args=[seed["matter_1"].pk]),
+            reverse("fees_firm_ledger", args=[seed["firm_a"].pk]),
+            reverse("fees_firm_statement", args=[seed["firm_a"].pk]),
+            reverse("fees_search_page") + "?q=Alpha",
+        ]
+
+    def test_every_table_has_a_stable_id(self):
+        import re
+
+        for url in self.table_pages():
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200, url)
+            html = response.content.decode()
+            for tag in re.findall(r"<table\b[^>]*>", html):
+                self.assertRegex(tag, r'data-table-id="[a-z0-9][a-z0-9_-]{0,39}"', f"{url}: {tag}")
+            again = re.findall(r'data-table-id="([^"]+)"', self.client.get(url).content.decode())
+            self.assertEqual(again, re.findall(r'data-table-id="([^"]+)"', html), url)
+
+    def test_the_main_lists_use_the_agreed_ids(self):
+        for url, table_id in (
+            (reverse("fees_memos"), "memos"),
+            (reverse("fees_memo_drafts"), "drafts"),
+            (reverse("fees_feebook"), "feebook"),
+            (reverse("fees_outstanding"), "outstanding-firms"),
+            (reverse("fees_dashboard"), "dashboard-recent"),
+            (reverse("fees_matter_detail", args=[self.seed["matter_1"].pk]), "matter-memos"),
+        ):
+            self.assertContains(self.client.get(url), f'data-table-id="{table_id}"')
+
+    def test_prefs_round_trip_per_user_and_profile(self):
+        url = reverse("fees_prefs")
+        saved = self.client.post(
+            url, data='{"key": "col-widths:memos", "data": {"date": 150}}', content_type="application/json"
+        )
+        self.assertEqual(saved.status_code, 200)
+        self.assertEqual(self.client.get(url, {"key": "col-widths:memos"}).json()["data"], {"date": 150})
+        # The saved widths are embedded in the page for the user who saved them ...
+        self.assertContains(self.client.get(reverse("fees_memos")), '"memos": {"date": 150}')
+        # ... and not for another user of the same profile.
+        self.client.force_login(self.reader)
+        self.assertEqual(self.client.get(url, {"key": "col-widths:memos"}).json()["data"], {})
+        self.assertNotContains(self.client.get(reverse("fees_memos")), '"date": 150')
+
+    def test_the_page_loads_the_scripts_and_the_widths_json(self):
+        html = self.client.get(reverse("fees_memos")).content.decode()
+        self.assertIn('id="fees-col-widths"', html)
+        self.assertIn("js/fees/columns.js", html)
+        self.assertIn("js/fees/search-suggest.js", html)
+        self.assertIn('data-prefs-url="%s"' % reverse("fees_prefs"), html)
+        self.assertIn('data-search-url="%s"' % reverse("fees_search"), html)
+
+    def test_search_results_carry_the_item_url(self):
+        firm = self.seed["firm_a"]
+        data = self.client.get(reverse("fees_search"), {"q": firm.name}).json()
+        hit = [r for r in data["results"] if r["kind"] == "firm" and r["id"] == firm.pk][0]
+        self.assertEqual(hit["url"], reverse("fees_firm_detail", args=[firm.pk]))
+        for r in data["results"]:
+            self.assertTrue(r["url"].startswith("/"))
+        self.client.force_login(self.reader)
+        self.assertEqual(self.client.get(reverse("fees_search"), {"q": firm.name}).status_code, 200)
+
+    def test_clear_all_data_anchor_exists_on_the_backup_page(self):
+        self.assertContains(self.client.get(reverse("fees_backup")), 'id="clear"')

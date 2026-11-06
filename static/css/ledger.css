@@ -399,3 +399,23 @@ body.ledger .filename-builder { border: 0; padding: 0; margin: 8px 0 0; }
 body.ledger .save-bar { position: sticky; bottom: 0; display: flex; justify-content: flex-end; align-items: center; gap: 12px; padding: 12px 0; background: var(--paper); border-top: 1px solid var(--line); }
 body.ledger .save-bar .dirty-note { color: var(--accent); font-size: .857rem; }
 @media (max-width: 640px) { body.ledger .settings-card :is(.grid-2, .grid-3) { grid-template-columns: 1fr; } }
+
+/* Resizable columns (columns.js): grab handle on each heading edge, fixed layout once a width is set. */
+body.ledger .ledger-table.fixed-cols { table-layout: fixed; max-width: none; }
+body.ledger .ledger-table.fixed-cols :is(td, th) { max-width: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body.ledger .ledger-table col.col-hidden { display: none; }
+body.ledger .ledger-table th .col-resizer { position: absolute; top: 0; right: 0; bottom: 0; width: 8px; cursor: col-resize; touch-action: none; user-select: none; }
+body.ledger .ledger-table th .col-resizer::after { content: ""; position: absolute; top: 25%; bottom: 25%; right: 3px; width: 2px; background: var(--line-strong); border-radius: 1px; }
+body.ledger .ledger-table th .col-resizer:hover::after, body.ledger .ledger-table th .col-resizer.active::after { background: var(--accent); }
+body.ledger .col-menu .col-reset { display: block; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line); background: transparent; border-left: 0; border-right: 0; border-bottom: 0; color: var(--accent-hover); font-size: .857rem; cursor: pointer; text-align: left; width: 100%; }
+
+/* Search suggestions (search-suggest.js): a dropdown that floats above the page under the search box. */
+body.ledger .search-pop form { position: relative; }
+body.ledger .search-suggest { position: absolute; left: 0; right: 0; top: 100%; z-index: 60; max-height: 60vh; overflow: auto; background: var(--white); border: 1px solid var(--line-strong); border-radius: var(--radius); box-shadow: var(--shadow-float); text-align: left; }
+body.ledger .search-suggest[hidden] { display: none; }
+body.ledger .search-suggest-head { padding: 8px 12px 4px; color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+body.ledger .search-suggest-option { display: flex; flex-direction: column; gap: 1px; padding: 6px 12px; cursor: pointer; }
+body.ledger .search-suggest-option.active { background: var(--paper-2); }
+body.ledger .search-suggest-title { color: var(--ink); }
+body.ledger .search-suggest-sub { color: var(--faint); font-size: .786rem; }
+body.ledger .search-suggest-empty { padding: 10px 12px; color: var(--muted); }
