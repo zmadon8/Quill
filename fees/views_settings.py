@@ -16,7 +16,7 @@ from fees.models import BankAccount, Memo
 from fees.pages import DOCX_TYPE, bytes_response, json_ok, render_page
 from fees.services import settings as settings_service
 from fees.services import statistics, word_template
-from fees.views_statistics import financial_year_param
+from fees.views_statistics import financial_year_param, is_page_post, page_post
 
 #: Largest Word template accepted (the template prepare step has its own, tighter limits).
 MAX_TEMPLATE_UPLOAD = 20 * 1024 * 1024
@@ -188,6 +188,28 @@ def _optional(text, parse):
     return parse(value) if value else None
 
 
+def _save_adjustment(profile, post):
+    """Save one month of the statistics grid from posted form values; returns its financial year."""
+    month = forms.parse_int(post.get("month"), "Month", default=0)
+    if not 1 <= month <= 12:
+        raise FeesError("INVALID_MONTH", "Month must be from 1 to 12.")
+    fy = financial_year_param(post)
+    adjustment = {
+        "financial_year": fy,
+        "month": month,
+        "working_days": forms.parse_int(post.get("working_days"), "Working days"),
+        "extra_appearances": forms.parse_int(post.get("extra_appearances"), "Extra appearances"),
+        "extra_conferences": forms.parse_int(post.get("extra_conferences"), "Extra conferences"),
+        "extra_drafts": forms.parse_int(post.get("extra_drafts"), "Extra drafts"),
+    }
+    for key in ("override_appearances", "override_conferences", "override_drafts"):
+        adjustment[key] = _optional(post.get(key), lambda v, k=key: forms.parse_int(v, k))
+    for key in ("override_billed", "override_received", "override_received_plus_tds"):
+        adjustment[key] = forms.parse_decimal(post.get(key), key)
+    statistics.save_adjustment(profile, adjustment)
+    return fy
+
+
 @fees_read_write
 @handle_fees_errors(json=True)
 @require_http_methods(["GET", "HEAD", "POST"])
@@ -196,23 +218,10 @@ def statistics_grid(request):
     profile, _settings = scope.context(request)
     if request.method == "POST":
         post = request.POST
-        month = forms.parse_int(post.get("month"), "Month", default=0)
-        if not 1 <= month <= 12:
-            raise FeesError("INVALID_MONTH", "Month must be from 1 to 12.")
-        fy = financial_year_param(post)
-        adjustment = {
-            "financial_year": fy,
-            "month": month,
-            "working_days": forms.parse_int(post.get("working_days"), "Working days"),
-            "extra_appearances": forms.parse_int(post.get("extra_appearances"), "Extra appearances"),
-            "extra_conferences": forms.parse_int(post.get("extra_conferences"), "Extra conferences"),
-            "extra_drafts": forms.parse_int(post.get("extra_drafts"), "Extra drafts"),
-        }
-        for key in ("override_appearances", "override_conferences", "override_drafts"):
-            adjustment[key] = _optional(post.get(key), lambda v, k=key: forms.parse_int(v, k))
-        for key in ("override_billed", "override_received", "override_received_plus_tds"):
-            adjustment[key] = forms.parse_decimal(post.get(key), key)
-        statistics.save_adjustment(profile, adjustment)
+        if is_page_post(request):
+            fy = post.get("fy") or ""
+            return page_post(request, lambda: _save_adjustment(profile, post), "Adjustments saved.", tab="edit", fy=fy)
+        fy = _save_adjustment(profile, post)
         return json_ok({"financial_year": fy, "adjustments": statistics.list_adjustments(profile, fy)})
     fy = financial_year_param(request.GET)
     return json_ok({"financial_year": fy, "adjustments": statistics.list_adjustments(profile, fy)})

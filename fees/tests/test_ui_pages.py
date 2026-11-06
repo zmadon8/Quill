@@ -9,7 +9,7 @@ import re
 from django.test import override_settings
 from django.urls import reverse
 
-from fees.models import FeesSettings
+from fees.models import FeesSettings, SavedView
 from fees.tests.test_views_read import SeededViewsBase
 
 EM_DASH = "\u2014"
@@ -585,3 +585,122 @@ class DashboardScreenTests(UiPageBase):
         self.assertEqual(kpi_label("billed_last30"), "Billed, last 30 days")
         self.assertEqual(kpi_label("memos_this_month"), "Memos, this month")
         self.assertEqual(kpi_label("memos_awaiting_payment"), "Memos awaiting payment")
+
+
+class StatisticsPageTests(UiPageBase):
+    def test_standard_tab_renders_for_reader_and_editor(self):
+        for user in (self.reader, self.editor):
+            text = self.assert_page(self.page("fees_statistics", query="?granularity=month&fy=2026-27", user=user), "stats")
+            self.assertIn('aria-label="Statistics sections"', text)
+            self.assertIn('aria-current="page">Standard</a>', text)
+            self.assertIn("<caption>Statistics by month for 2026-27</caption>", text)
+            self.assertIn('<th scope="row">Amount Billed</th>', text)
+            self.assertIn('class="money"', text)
+            self.assertIn(reverse("fees_statistics_export"), text)
+            self.assert_no_unlabelled_controls(text, "stats")
+
+    def test_tab_names_differ_by_role(self):
+        self.assertIn(">Adjustments</a>", self.html(self.page("fees_statistics")))
+        self.assertIn(">Edit statistics</a>", self.html(self.page("fees_statistics", user=self.editor)))
+
+    def test_edit_tab_is_a_form_grid_for_editors_and_read_only_for_readers(self):
+        editor = self.assert_page(self.page("fees_statistics", query="?tab=edit&fy=2026-27", user=self.editor), "edit")
+        self.assertEqual(editor.count('id="adj-'), 12)
+        self.assertIn('action="%s"' % reverse("fees_settings_statistics_grid"), editor)
+        self.assertIn('name="return_to" value="statistics"', editor)
+        self.assertIn('aria-label="Working days, April"', editor)
+        self.assertIn('aria-label="Replace billed, March"', editor)
+        self.assertLess(editor.index(">April</th>"), editor.index(">March</th>"))
+        self.assert_no_unlabelled_controls(editor, "edit")
+        reader = self.assert_page(self.page("fees_statistics", query="?tab=edit&fy=2026-27"), "edit-reader")
+        self.assertNotIn("<form id=\"adj-", reader)
+        self.assertNotIn('name="working_days"', reader)
+        self.assertIn("Only an Editor can change them", reader)
+
+    def test_edit_form_saves_a_month_and_goes_back_to_the_grid(self):
+        self.login(self.editor)
+        response = self.client.post(
+            reverse("fees_settings_statistics_grid"),
+            {"return_to": "statistics", "fy": "2026-27", "month": "4", "working_days": "21", "override_billed": "5000"},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], reverse("fees_statistics") + "?tab=edit&fy=2026-27")
+        text = self.html(self.client.get(response["Location"]))
+        self.assertIn('name="working_days" value="21"', text)
+        self.assertIn('value="5000', text)
+        self.assertIn("Adjustments saved.", text)
+
+    def test_edit_form_error_is_a_message_not_json(self):
+        self.login(self.editor)
+        response = self.client.post(
+            reverse("fees_settings_statistics_grid"), {"return_to": "statistics", "fy": "2026-27", "month": "4", "working_days": "x"}
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("Working days must be a whole number.", self.html(self.client.get(response["Location"])))
+
+    def test_explore_tab_shows_form_table_and_off_by_default_chart(self):
+        text = self.assert_page(self.page("fees_statistics", query="?tab=explore"), "explore")
+        for name in ("measure", "row_dim", "col_dim", "firm_id", "from_fy", "to_fy"):
+            self.assertIn('name="%s"' % name, text)
+        self.assertIn('<table class="ledger-table pivot-table"', text)
+        self.assertIn("<caption>Amount Billed by financial year</caption>", text)
+        self.assertIn('data-chart-tools hidden', text)
+        self.assertIn('data-chart-figure hidden', text)
+        self.assertNotIn("data-chart-on checked", text)
+        self.assertIn('id="pivot-data"', text)
+        self.assertIn("js/pivot-chart.js", text)
+        self.assert_no_unlabelled_controls(text, "explore")
+
+    def test_explore_pivot_follows_the_query(self):
+        text = self.html(self.page("fees_statistics", query="?tab=explore&measure=memos&row_dim=firm&col_dim=none"))
+        self.assertIn("<caption>Memos (count) by firm</caption>", text)
+        self.assertIn(self.seed["firm_a"].name, text)
+
+    def test_explore_explains_a_pivot_that_cannot_be_made(self):
+        text = self.assert_page(self.page("fees_statistics", query="?tab=explore&measure=feesPerWeek&row_dim=firm"), "per-week")
+        self.assertIn('role="alert"', text)
+        self.assertIn("Per-week measures need Month, Quarter or Financial Year rows.", text)
+        self.assertNotIn("js/pivot-chart.js", text)
+
+    def test_saved_views_are_listed_for_all_and_managed_by_editors(self):
+        editor = self.assert_page(self.page("fees_statistics", query="?tab=explore", user=self.editor), "views-editor")
+        view = SavedView.objects.get(profile=self.profile)
+        self.assertIn(view.name, editor)
+        self.assertIn(reverse("fees_statistics_view_delete", kwargs={"view_id": view.pk}), editor)
+        self.assertIn('action="%s"' % reverse("fees_statistics_views"), editor)
+        self.assertIn('aria-label="Save this pivot as a view"', editor)
+        reader = self.assert_page(self.page("fees_statistics", query="?tab=explore"), "views-reader")
+        self.assertIn(view.name, reader)
+        self.assertNotIn(reverse("fees_statistics_view_delete", kwargs={"view_id": view.pk}), reader)
+        self.assertNotIn('name="name"', reader)
+
+    def test_saving_and_deleting_a_view_from_the_page(self):
+        self.login(self.editor)
+        saved = self.client.post(
+            reverse("fees_statistics_views"),
+            {"return_to": "statistics", "name": "Page view", "measure": "memos", "row_dim": "firm", "col_dim": "none"},
+        )
+        self.assertEqual(saved.status_code, 302)
+        self.assertIn("tab=explore", saved["Location"])
+        view = SavedView.objects.get(profile=self.profile, name="Page view")
+        self.assertIn("View saved.", self.html(self.client.get(saved["Location"])))
+        deleted = self.client.post(
+            reverse("fees_statistics_view_delete", kwargs={"view_id": view.pk}), {"return_to": "statistics"}
+        )
+        self.assertEqual(deleted.status_code, 302)
+        self.assertFalse(SavedView.objects.filter(pk=view.pk).exists())
+
+    def test_a_blank_view_name_is_a_message(self):
+        self.login(self.editor)
+        response = self.client.post(
+            reverse("fees_statistics_views"), {"return_to": "statistics", "name": " ", "measure": "billed", "row_dim": "month", "col_dim": "none"}
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(SavedView.objects.filter(profile=self.profile).count(), 1)
+
+    def test_page_still_answers_when_statistics_is_switched_off(self):
+        FeesSettings.objects.update_or_create(profile=self.profile, defaults={"statistics_enabled": False})
+        text = self.assert_page(self.page("fees_statistics"), "off")
+        self.assertIn("Statistics is switched off in Settings", text)
+        nav = text[text.index('<nav class="program-nav"'):text.index("</nav>")]
+        self.assertNotIn(">Statistics</a>", nav)

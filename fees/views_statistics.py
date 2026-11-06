@@ -1,6 +1,11 @@
 """Statistics: the period table, the pivot, saved views, the year-end page and the statistics exports."""
 import re
+from urllib.parse import urlencode
 
+from django.contrib import messages
+from django.http import Http404
+from django.shortcuts import redirect
+from django.urls import reverse
 from django.views.decorators.http import require_http_methods, require_POST, require_safe
 
 from fees import scope
@@ -20,6 +25,65 @@ _OPTION_FLAGS = (
     "exclude_current_month",
     "include_drafts",
 )
+
+
+_TABS = ("standard", "edit", "explore")
+#: Fiscal-year order of the calendar months (April first).
+FY_MONTHS = (4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3)
+MONTH_NAMES = (
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+)
+MEASURES = (
+    ("billed", "Amount Billed"),
+    ("received", "Amount Received"),
+    ("receivedPlusTds", "Received + TDS"),
+    ("appearances", "Appearances"),
+    ("conferences", "Conferences"),
+    ("drafts", "Drafts"),
+    ("memos", "Memos (count)"),
+    ("matters", "Matters (distinct)"),
+    ("mattersNew", "Matters (new)"),
+    ("appearancesPerWeek", "Appearances / Week (time rows)"),
+    ("feesPerWeek", "Fees / Week (time rows)"),
+)
+ROW_DIMS = (
+    ("month", "Month"),
+    ("quarter", "Quarter"),
+    ("financialYear", "Financial Year"),
+    ("calendarMonth", "Calendar Month (across years)"),
+    ("firm", "Firm"),
+    ("partner", "Group"),
+    ("matter", "Matter"),
+)
+COL_DIMS = (
+    ("none", "None (single column)"),
+    ("financialYear", "Financial Year"),
+    ("calendarMonth", "Calendar Month"),
+)
+_ADJUSTMENT_COUNTS = ("working_days", "extra_appearances", "extra_conferences", "extra_drafts")
+_ADJUSTMENT_OVERRIDES = (
+    "override_appearances", "override_conferences", "override_drafts",
+    "override_billed", "override_received", "override_received_plus_tds",
+)
+
+
+def is_page_post(request):
+    """True when a form on the Statistics page posted (it wants a redirect back, not JSON)."""
+    return request.POST.get("return_to") == "statistics"
+
+
+def page_post(request, action, done, **query):
+    query = {k: v for k, v in query.items() if not k.endswith("fy") or v == "" or _FY_RE.match(v)}
+    """Run ``action`` for a page form: flash ``done`` or its error and go back to the Statistics page."""
+    try:
+        action()
+        messages.success(request, done)
+    except FeesError as err:
+        if err.status == 404:
+            raise Http404(err.message) from err
+        messages.error(request, err.message)
+    return redirect(reverse("fees_statistics") + "?" + urlencode(query))
 
 
 def financial_year_param(query, key="fy", default=True):
@@ -63,28 +127,115 @@ def _table(stats):
     return rows
 
 
+def _adjustment_rows(profile, fy):
+    """Twelve month rows in financial-year order, each with the saved adjustment values (blank when none)."""
+    saved = {row["month"]: row for row in statistics.list_adjustments(profile, fy)}
+    rows = []
+    for month in FY_MONTHS:
+        row = saved.get(month) or {}
+        rows.append(
+            {
+                "month": month,
+                "name": MONTH_NAMES[month - 1],
+                "counts": [
+                    {"key": key, "label": key.replace("_", " ").capitalize(), "value": row.get(key, 0)}
+                    for key in _ADJUSTMENT_COUNTS
+                ],
+                "overrides": [
+                    {"key": key, "label": key[len("override_"):].replace("_", " ").capitalize(), "value": row.get(key)}
+                    for key in _ADJUSTMENT_OVERRIDES
+                ],
+            }
+        )
+    return rows
+
+
+def _choice(query, key, choices, default):
+    value = (query.get(key) or default).strip()
+    return value if value in dict(choices) else default
+
+
+def _explore_context(profile, query):
+    """The Explore tab: the chosen pivot settings, the pivot as table rows, and the saved views with their links."""
+    chosen = {
+        "measure": _choice(query, "measure", MEASURES, "billed"),
+        "row_dim": _choice(query, "row_dim", ROW_DIMS, "financialYear"),
+        "col_dim": _choice(query, "col_dim", COL_DIMS, "none"),
+        "from_fy": financial_year_param(query, "from_fy", default=False) or "",
+        "to_fy": financial_year_param(query, "to_fy", default=False) or "",
+        "firm_id": int_or_none(query.get("firm_id")),
+    }
+    req = {key: chosen[key] for key in ("measure", "row_dim", "col_dim")}
+    for key in ("from_fy", "to_fy", "firm_id"):
+        if chosen[key]:
+            req[key] = chosen[key]
+    context = {"chosen": chosen, "firm_choices": firms.list_firms(profile), "pivot": None, "pivot_error": ""}
+    try:
+        pivot = statistics.get_pivot(profile, req)
+    except FeesError as err:
+        if err.status == 404:
+            raise
+        context["pivot_error"] = err.message
+        return context
+    columns = pivot["columns"]
+    rows = [
+        {"label": row["label"], "values": [row["cells"].get(col["key"]) for col in columns], "total": row["total"]}
+        for row in pivot["rows"]
+    ]
+    context["pivot"] = {
+        "money": pivot["money"],
+        "columns": columns,
+        "rows": rows,
+        "totals": [pivot["column_totals"].get(col["key"]) for col in columns],
+        "grand_total": pivot["grand_total"],
+    }
+    context["chart_data"] = {
+        "money": pivot["money"],
+        "columns": [col["label"] for col in columns],
+        "rows": [{"label": row["label"], "values": row["values"]} for row in rows],
+    }
+    return context
+
+
+def saved_view_query(view):
+    """The Explore link that opens a saved view."""
+    query = {"tab": "explore", "measure": view["measure"], "row_dim": view["row_dim"], "col_dim": view["col_dim"]}
+    for key in ("from_fy", "to_fy", "firm_id"):
+        if view.get(key):
+            query[key] = view[key]
+    return urlencode(query)
+
+
 @fees_reader
 @handle_fees_errors()
 @require_safe
 def statistics_page(request):
-    profile, _settings = scope.context(request)
+    profile, config = scope.context(request)
+    tab = _choice(request.GET, "tab", [(t, t) for t in _TABS], "standard")
     granularity = granularity_param(request.GET)
     fy = financial_year_param(request.GET)
-    stats = statistics.get_period_statistics(
-        profile, granularity, None if granularity == "financialYear" else fy, stat_options(request.GET)
-    )
-    return render_page(
-        request,
-        "fees/statistics.html",
-        {
-            "granularity": granularity,
-            "fy": fy,
-            "stats": stats,
-            "table": _table(stats),
-            "granularities": _GRANULARITIES,
-            "saved_views": statistics.list_saved_views(profile),
-        },
-    )
+    context = {
+        "tab": tab,
+        "granularity": granularity,
+        "fy": fy,
+        "granularities": _GRANULARITIES,
+        "money_unit": config.money_unit,
+        "months": MONTH_NAMES,
+    }
+    if tab == "standard":
+        stats = statistics.get_period_statistics(
+            profile, granularity, None if granularity == "financialYear" else fy, stat_options(request.GET)
+        )
+        context.update({"stats": stats, "table": _table(stats)})
+    elif tab == "edit":
+        context["adjustment_rows"] = _adjustment_rows(profile, fy)
+    else:
+        context.update(_explore_context(profile, request.GET))
+        context.update(
+            measures=MEASURES, row_dims=ROW_DIMS, col_dims=COL_DIMS,
+            saved_views=[dict(v, query=saved_view_query(v)) for v in statistics.list_saved_views(profile)],
+        )
+    return render_page(request, "fees/statistics.html", context)
 
 
 @fees_reader
@@ -131,19 +282,30 @@ def saved_views(request):
     profile, _settings = scope.context(request)
     if request.method == "POST":
         post = request.POST
-        view_input = {
-            "name": post.get("name", ""),
-            "measure": (post.get("measure") or "").strip(),
-            "row_dim": (post.get("row_dim") or "").strip(),
-            "col_dim": (post.get("col_dim") or "").strip(),
-            "from_fy": financial_year_param(post, "from_fy", default=False) or "",
-            "to_fy": financial_year_param(post, "to_fy", default=False) or "",
-        }
-        firm_id = int_or_none(post.get("firm_id"))
-        if firm_id is not None:
-            firms.get_firm(profile, firm_id)  # another profile's firm is a 404
-            view_input["firm_id"] = firm_id
-        return json_ok({"views": statistics.save_saved_view(profile, view_input)}, status=201)
+
+        def save():
+            view_input = {
+                "name": post.get("name", ""),
+                "measure": (post.get("measure") or "").strip(),
+                "row_dim": (post.get("row_dim") or "").strip(),
+                "col_dim": (post.get("col_dim") or "").strip(),
+            }
+            for key in ("from_fy", "to_fy"):
+                view_input[key] = financial_year_param(post, key, default=False) or ""
+            firm_id = int_or_none(post.get("firm_id"))
+            if firm_id is not None:
+                firms.get_firm(profile, firm_id)  # another profile's firm is a 404
+                view_input["firm_id"] = firm_id
+            statistics.save_saved_view(profile, view_input)
+
+        if is_page_post(request):
+            back = {"tab": "explore"}
+            for key in ("measure", "row_dim", "col_dim", "from_fy", "to_fy", "firm_id"):
+                if post.get(key):
+                    back[key] = post.get(key)
+            return page_post(request, save, "View saved.", **back)
+        save()
+        return json_ok({"views": statistics.list_saved_views(profile)}, status=201)
     return json_ok({"views": statistics.list_saved_views(profile)})
 
 
@@ -152,6 +314,8 @@ def saved_views(request):
 @require_POST
 def saved_view_delete(request, view_id):
     profile, _settings = scope.context(request)
+    if is_page_post(request):
+        return page_post(request, lambda: statistics.delete_saved_view(profile, view_id), "View deleted.", tab="explore")
     return json_ok({"views": statistics.delete_saved_view(profile, view_id)})
 
 
