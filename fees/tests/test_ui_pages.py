@@ -438,8 +438,26 @@ class FeebookAndPaymentTests(UiPageBase):
         self.assertIn('role="alert"', text)
         self.assertIn('data-matters="%d"' % self.ids()["matter"], text)
 
-    def test_reader_cannot_open_the_payment_form(self):
-        self.assertEqual(self.page("fees_payment_new").status_code, 403)
+    def test_reader_opens_the_payment_form_read_only(self):
+        for name, kwargs in (("fees_payment_new", None), ("fees_payment_edit", {"payment_id": self.ids()["payment"]})):
+            response = self.page(name, kwargs)
+            self.assertEqual(response.status_code, 200, name)
+            text = self.html(response)
+            self.assertIn("Only Editors can save a payment", text, name)
+            self.assertNotIn('<button type="submit" class="primary">Save</button>', text, name)
+            self.assertNotIn("Delete payment", text, name)
+            self.assertNotIn("js/fees/payment-form.js", text, name)
+
+    def test_editor_sees_save_on_the_payment_form(self):
+        text = self.html(self.page("fees_payment_new", user=self.editor))
+        self.assertIn('<button type="submit" class="primary">Save</button>', text)
+        self.assertNotIn("Only Editors can save a payment", text)
+
+    def test_reader_cannot_save_a_payment(self):
+        self.login(self.reader)
+        self.assertEqual(self.client.post(reverse("fees_payment_new"), {}).status_code, 403)
+        edit = reverse("fees_payment_edit", kwargs={"payment_id": self.ids()["payment"]})
+        self.assertEqual(self.client.post(edit, {}).status_code, 403)
 
     def test_payment_script_does_not_use_the_single_fee_rule(self):
         from pathlib import Path

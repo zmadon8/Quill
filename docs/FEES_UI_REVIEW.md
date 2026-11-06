@@ -19,8 +19,8 @@ Sign-in: use a user with a Fee Register profile. Sample paths use id 1; take rea
 | Memo | `/fees/memos/1/` | `fees_memo_detail` | R |
 | Edit memo | `/fees/memos/1/edit/` | `fees_memo_edit` | E |
 | New memo based on another | `/fees/memos/1/based-on/` | `fees_memo_based_on` | E |
-| New payment | `/fees/payments/new/` | `fees_payment_new` | E |
-| Edit payment | `/fees/payments/1/edit/` | `fees_payment_edit` | E |
+| New payment | `/fees/payments/new/` | `fees_payment_new` | RW (Reader opens, Editor saves) |
+| Edit payment | `/fees/payments/1/edit/` | `fees_payment_edit` | RW (Reader opens, Editor saves) |
 | Firms | `/fees/firms/` | `fees_firms` | R |
 | New firm, Edit firm | `/fees/firms/new/`, `/fees/firms/1/edit/` | `fees_firm_new`, `fees_firm_edit` | E |
 | Firm (with Groups panel) | `/fees/firms/1/` | `fees_firm_detail` | R, groups E |

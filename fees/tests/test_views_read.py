@@ -89,6 +89,9 @@ class RouteTests(SeededViewsBase):
                 ("fees_memo_edit", {"memo_id": i["memo"]}, ""),
                 ("fees_memo_edit", {"memo_id": i["draft"]}, ""),
                 ("fees_memo_based_on", {"memo_id": i["memo"]}, ""),
+                ("fees_payment_new", {}, ""),
+                ("fees_payment_new", {}, "?memo=%d" % i["memo"]),
+                ("fees_payment_edit", {"payment_id": i["payment"]}, ""),
                 ("fees_firms", {}, ""),
                 ("fees_firms", {}, "?status=archived"),
                 ("fees_firm_new", {}, ""),
@@ -143,9 +146,6 @@ class RouteTests(SeededViewsBase):
         i = self.ids()
         return {
             "html": [
-                ("fees_payment_new", {}, ""),
-                ("fees_payment_new", {}, "?memo=%d" % i["memo"]),
-                ("fees_payment_edit", {"payment_id": i["payment"]}, ""),
                 ("fees_backup", {}, ""),
                 ("fees_import", {}, ""),
             ],

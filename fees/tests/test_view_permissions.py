@@ -57,9 +57,9 @@ ROUTES = {
     "fees_memo_based_on": (RW, ""),
     "fees_memo_word": (R, ""),
     "fees_memo_statement": (R, ""),
-    "fees_payment_new": (E, ""),
+    "fees_payment_new": (RW, ""),
     "fees_payment_payees": (E, "?matters=%(matter_id)d"),
-    "fees_payment_edit": (E, ""),
+    "fees_payment_edit": (RW, ""),
     "fees_payment_delete": (W, ""),
     "fees_payment_assign": (W, ""),
     "fees_firms": (R, ""),
@@ -119,8 +119,8 @@ FIXTURE = Path(__file__).parent / "fixtures" / "Template 2-11-2026 (short tags).
 
 REDIRECTS = {"fees_landing", "fees_backup_restore", "fees_backup_restored", "fees_backup_cleared"}
 
-# Editor-only routes that also accept POST (the rest of the E routes are GET only).
-E_POST = {"fees_payment_new", "fees_payment_edit", "fees_backup_restore", "fees_backup_clear"}
+# Editor-only routes that also accept POST (the payment forms are RW: a Reader may open them, only an Editor saves) (the rest of the E routes are GET only).
+E_POST = {"fees_backup_restore", "fees_backup_clear"}
 
 
 def route_names():

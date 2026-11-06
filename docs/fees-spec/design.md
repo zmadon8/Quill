@@ -90,7 +90,7 @@ Names are `fees_<name>`. R = reader, E = editor.
 | Statistics | `statistics/`, `statistics/data/` (JSON period table), `statistics/explore/` (JSON pivot), `statistics/views/` (saved views CRUD), `statistics/year-end/`, `statistics/export/`, `statistics/annual-export/`, `statistics/tax-summary/` | GET/POST | R (views CRUD: E) |
 | Memos | `memos/`, `memos/drafts/`, `memos/new/`, `memos/<id>/`, `memos/<id>/edit/`, `memos/<id>/delete/`, `memos/<id>/write-off/`, `memos/<id>/finalise/`, `memos/<id>/based-on/`, `memos/preview-number/` | GET/POST | R read, E write |
 | Memo export | `memos/<id>/word/`, `memos/export/` (Excel list), `memos/<id>/statement/` | GET | R |
-| Payments | `payments/new/`, `payments/<id>/edit/`, `payments/<id>/delete/`, `payments/<id>/assign/`, `payments/payees/` (JSON) | GET/POST | E |
+| Payments | `payments/new/`, `payments/<id>/edit/`, `payments/<id>/delete/`, `payments/<id>/assign/`, `payments/payees/` (JSON) | GET/POST | new and edit: R opens the form, E saves; delete, assign, payees: E |
 | Firms | `firms/`, `firms/new/`, `firms/<id>/`, `firms/<id>/edit/`, `firms/<id>/status/`, `firms/<id>/groups/…` (add, rename, remove), `firms/<id>/statement/`, `firms/<id>/ledger/` | GET/POST | R read, E write |
 | Matters | `matters/new/`, `matters/<id>/`, `matters/<id>/edit/`, `matters/<id>/archive/`, `matters/<id>/ledger/`, `matters/<id>/statement/` | GET/POST | R read, E write |
 | Feebook | `feebook/`, `feebook/export/` | GET | R |

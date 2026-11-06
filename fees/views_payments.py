@@ -1,11 +1,12 @@
-"""Payment pages: the new and edit forms, delete, assign, and the payee suggestions. Editors only (design section 5)."""
+"""Payment pages: the new and edit forms, delete, assign, and the payee suggestions. Readers may open the new and edit forms (GET) but only an Editor may save; delete, assign and the payee
+suggestions are Editor-only (design section 5)."""
 from django.contrib import messages
 from django.http import Http404
 from django.shortcuts import redirect
 from django.views.decorators.http import require_http_methods, require_safe, require_POST
 
 from fees import forms, scope
-from fees.decorators import fees_editor, handle_fees_errors
+from fees.decorators import fees_editor, fees_read_write, handle_fees_errors
 from fees.errors import FeesError
 from fees.models import Memo, Payment
 from fees.pages import int_list, int_or_none, json_ok, render_page
@@ -91,7 +92,7 @@ def _data(request, profile):
     return forms.payment_data_from_post(request.POST, profile, bank_ids)
 
 
-@fees_editor
+@fees_read_write
 @handle_fees_errors()
 @require_http_methods(["GET", "HEAD", "POST"])
 def payment_new(request):
@@ -115,7 +116,7 @@ def payment_new(request):
     return _form_page(request, forms.multi_memo_payment_form(config, found), memo_ids=memo_ids)
 
 
-@fees_editor
+@fees_read_write
 @handle_fees_errors()
 @require_http_methods(["GET", "HEAD", "POST"])
 def payment_edit(request, payment_id):

@@ -4,6 +4,7 @@
 {% block crumb_nav %}{% if memo_id %}{% url 'fees_memo_detail' memo_id as back %}{% include "fees/_back.html" with url=back label="Memo" %}{% else %}{% url 'fees_feebook' as back %}{% include "fees/_back.html" with url=back label="Feebook" %}{% endif %}{% endblock %}
 {% block content %}
 <h1>{% if payment %}Edit payment{% else %}New payment{% endif %}</h1>
+{% if not can_edit %}<p class="muted">You can read this page but not save it. Only Editors can save a payment.</p>{% endif %}
 {% include "fees/_form_errors.html" %}
 <form method="post" action="{{ request.path }}{% if memo_query %}?{{ memo_query }}{% endif %}" class="fees-form payment-form" id="payment-form" data-payment-form
       data-payees-url="{% url 'fees_payment_payees' %}" data-matters="{{ matter_ids }}" data-money-unit="{{ fees_settings.money_unit|default:'full' }}">
@@ -30,13 +31,13 @@
       <label>TDS <input type="text" inputmode="decimal" name="alloc_tds_{{ forloop.counter0 }}" value="{{ row.tds_amount }}" size="10" aria-label="TDS, row {{ forloop.counter }}"></label></p>{% endfor %}
     <p class="muted" data-remaining role="status" aria-live="polite" hidden></p>
   </fieldset>
-  <p><button type="submit" class="primary">Save</button> <a href="{% if memo_id %}{% url 'fees_memo_detail' memo_id %}{% else %}{% url 'fees_feebook' %}{% endif %}">Cancel</a></p>
+  <p>{% if can_edit %}<button type="submit" class="primary">Save</button> {% endif %}<a href="{% if memo_id %}{% url 'fees_memo_detail' memo_id %}{% else %}{% url 'fees_feebook' %}{% endif %}">{% if can_edit %}Cancel{% else %}Back{% endif %}</a></p>
 </form>
-{% if payment %}
+{% if payment and can_edit %}
 <form method="post" action="{% url 'fees_payment_delete' payment.id %}" class="fees-form danger-zone">{% csrf_token %}
   <label><input type="checkbox" name="confirm" value="1" required> Yes, delete this payment</label>
   <button type="submit">Delete payment</button>
 </form>
 {% endif %}
 {% endblock %}
-{% block page_js %}<script src="{% static 'js/fees/payment-form.js' %}"></script>{% endblock %}
+{% block page_js %}{% if can_edit %}<script src="{% static 'js/fees/payment-form.js' %}"></script>{% endif %}{% endblock %}
