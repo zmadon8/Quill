@@ -593,8 +593,8 @@ html.links-off .links-toggle.nav-word .links-state::after { width: 100%; transfo
 .search-history-list li a { flex: 1 1 auto; overflow-wrap: anywhere; }
 button.group-switch { border: 0; background: none; padding: 0; font: inherit; font-size: var(--small-size); }
 .search-url { margin: .2rem 0 0; font-size: var(--small-size); overflow-wrap: anywhere; }
-/* Flags (D88): Pending in amber, the others in the flag colour. */
-.flag-text.flag-pending { border-color: var(--amber-line); background: var(--amber-bg); color: var(--amber-ink); }
+/* Flags (D88): Pending and Other share the amber (yellow) box; Overruled and Doubted keep the flag colour. */
+.flag-text.flag-pending, .flag-text.flag-other { border-color: var(--amber-line); background: var(--amber-bg); color: var(--amber-ink); }
 .section-header .flag-text { font-weight: 400; }
 .flag-field .flag-line { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
 .flag-field select { min-height: var(--tap); }
