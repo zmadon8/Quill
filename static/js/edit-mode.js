@@ -336,19 +336,21 @@
         body.set("text", plain.value);
         body.delete("case_citation"); body.delete("case_comment");
       }
-      var chosen = form.querySelector("input[name=choice]:checked");
-      var choice = chosen ? chosen.value : "";
       busy = true;
       request(form.action, { method: "POST", body: body }).then(function (result) {
         busy = false;
         if (!(result.data && result.data.ok)) { failed(form, result); return; }
-        saved(result.data, choice);
+        saved(result.data);
       }).catch(function () {
         busy = false;
         showErrors(form, ["Could not reach the server. Nothing was added."]);
       });
     }
     form.addEventListener("submit", function (e) { e.preventDefault(); submit(); });
+    // Cancel closes the form (it had no handler before, so only Esc worked); a typed-in form asks first.
+    form.addEventListener("click", function (e) {
+      if (e.target.closest("[data-inline-cancel]")) { e.preventDefault(); closeCurrent(false); }
+    });
 
     form.addEventListener("keydown", function (e) {
       if (e.key === "Escape") { e.preventDefault(); closeCurrent(false); return; }
@@ -363,16 +365,12 @@
     });
   }
 
-  /* After a save: put the new row in place, close the form and open the next blank one under the new row. */
-  function saved(data, choice) {
+  /* After a save: close the form and put the new row in place. It does not open another blank form. */
+  function saved(data) {
     updateUndo(data.undo);
     if (data.reload) { window.location.reload(); return; }
-    var wasHeading = !data.html;
     closeCurrent(true);
-    var row = applyRow(data);
-    if (!row || wasHeading) { return; }
-    var next = row.querySelector(":scope > [data-row-actions] [data-add-here]");
-    if (next) { openAdd(next, choice); }
+    applyRow(data);
   }
 
   // ---- "Edit": the editing card ----
