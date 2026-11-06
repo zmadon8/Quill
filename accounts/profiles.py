@@ -25,13 +25,15 @@ def live_memberships(user, program=KEY_DIARY):
     """Every membership of ``user`` that gives access in ``program`` (live profile, not suspended), the one in use first.
 
     In use: the one switched to most recently; never-used ones follow by profile name. Profiles are loaded too.
+    ``program=None`` returns the memberships of every program (one query), in the same order.
     """
     if user is None or not getattr(user, "pk", None):
         return []
+    found = ProfileMembership.objects.filter(user=user, suspended=False, profile__deleted_at__isnull=True)
+    if program is not None:
+        found = found.filter(program=program)
     return list(
-        ProfileMembership.objects.filter(
-            user=user, program=program, suspended=False, profile__deleted_at__isnull=True
-        )
+        found
         .select_related("profile")
         .order_by(F("last_used_at").desc(nulls_last=True), Lower("profile__name"), "pk")
     )
@@ -87,11 +89,14 @@ def request_profile(request, program=KEY_DIARY):
     """The signed-in user's profile for ``program``, looked up once per request (None if none)."""
     attr = f"_profile_{program}"
     if not hasattr(request, attr):
-        memberships = live_memberships(getattr(request, "user", None), program)
-        membership = memberships[0] if memberships else None
-        setattr(request, f"_memberships_{program}", memberships)
-        setattr(request, f"_membership_{program}", membership)
-        setattr(request, attr, membership.profile if membership else None)
+        # One query for every program: the header asks for the diary and the Fee Register on each page.
+        everything = live_memberships(getattr(request, "user", None), None)
+        for key in {program, KEY_DIARY, *(m.program for m in everything)}:
+            memberships = [m for m in everything if m.program == key]
+            membership = memberships[0] if memberships else None
+            setattr(request, f"_memberships_{key}", memberships)
+            setattr(request, f"_membership_{key}", membership)
+            setattr(request, f"_profile_{key}", membership.profile if membership else None)
     return getattr(request, attr)
 
 

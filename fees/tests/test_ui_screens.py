@@ -11,6 +11,7 @@ from django.urls import get_resolver, reverse
 
 from fees.services.excel_restore import RESTORE_CONFIRMATION
 from fees.tests.test_ui_pages import EM_DASH, UiPageBase
+from fees.tests.test_view_permissions import ROUTES, RW
 
 # Screens a signed-in user opens with GET, as (url name, needs an id of this kind, query, editor only).
 SCREENS = (
@@ -51,7 +52,7 @@ SCREENS = (
 # Routes that are not screens: redirects, JSON, downloads, and POST-only actions. The result pages that only
 # exist after a POST (import map, import result, restore preview, restored, cleared) are tested below.
 NOT_PAGES = {
-    "fees_landing", "fees_dashboard_kpis", "fees_statistics_data", "fees_statistics_views", "fees_statistics_view_delete",
+    "fees_landing", "fees_dashboard_kpis", "fees_statistics_data", "fees_statistics_explore", "fees_statistics_views", "fees_statistics_view_delete",
     "fees_statistics_export", "fees_statistics_annual_export", "fees_statistics_tax_summary", "fees_memo_preview_number",
     "fees_memo_preview_totals", "fees_memos_export", "fees_memo_delete", "fees_memo_write_off", "fees_memo_finalise",
     "fees_memo_word", "fees_memo_statement", "fees_payment_payees", "fees_payment_delete", "fees_payment_assign",
@@ -129,7 +130,8 @@ class EveryScreenTests(UiPageBase):
 
     def test_editor_only_screens_are_closed_to_a_reader(self):
         for name, kind, query, editor_only in SCREENS:
-            if not editor_only or name == "fees_matter_new":
+            # Forms whose GET is open to a Reader (permissions table "RW": only the POST is Editor-only) show 200.
+            if not editor_only or ROUTES[name][0] == RW:
                 continue
             response = self.page(name, self.kwargs_for(kind), query)
             self.assertEqual(response.status_code, 403, name)

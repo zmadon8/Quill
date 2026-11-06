@@ -47,6 +47,7 @@ ROUTES = {
     "fees_memo_drafts": (R, ""),
     "fees_memo_new": (RW, ""),
     "fees_memo_preview_number": (R, "?date=2026-07-15"),
+    "fees_memo_preview_totals": (R, "?num_appearances=1&fees_per_appearance=1000"),
     "fees_memos_export": (R, ""),
     "fees_memo_detail": (R, ""),
     "fees_memo_edit": (RW, ""),

@@ -8,6 +8,7 @@ import re
 
 from django.test import override_settings
 from django.urls import reverse
+from django.utils.html import escape
 
 from fees.models import FeesSettings, SavedView
 from fees.tests.test_views_read import SeededViewsBase
@@ -74,7 +75,9 @@ class ShellTests(UiPageBase):
     def test_every_page_has_the_shell(self):
         for name, query in self.PAGES:
             with self.subTest(page=name):
-                self.assert_page(self.page(name, query=query), name)
+                # Backup carries payment details, so it is open to an Editor only (Readers get 403).
+                user = self.editor if name == "fees_backup" else None
+                self.assert_page(self.page(name, query=query, user=user), name)
 
     def test_search_and_filter_inputs_are_labelled(self):
         for name, query in (("fees_memos", ""), ("fees_search_page", "?q=alpha")):
@@ -82,6 +85,8 @@ class ShellTests(UiPageBase):
                 self.assert_no_unlabelled_controls(self.html(self.page(name, query=query)), name)
 
     def test_program_nav_order_and_current_page(self):
+        # The seeded profile has Statistics switched off, which leaves it out of the menu; switch it on.
+        FeesSettings.objects.update_or_create(profile=self.profile, defaults={"statistics_enabled": True})
         text = self.html(self.page("fees_memos"))
         nav = text[text.index('<nav class="program-nav"'):text.index("</nav>")]
         positions = [nav.index(">%s</a>" % label) for label in NAV_LABELS]
@@ -654,7 +659,7 @@ class StatisticsPageTests(UiPageBase):
     def test_explore_pivot_follows_the_query(self):
         text = self.html(self.page("fees_statistics", query="?tab=explore&measure=memos&row_dim=firm&col_dim=none"))
         self.assertIn("<caption>Memos (count) by firm</caption>", text)
-        self.assertIn(self.seed["firm_a"].name, text)
+        self.assertIn(escape(self.seed["firm_a"].name), text)  # "Alpha & Co" is shown as "Alpha &amp; Co"
 
     def test_explore_explains_a_pivot_that_cannot_be_made(self):
         text = self.assert_page(self.page("fees_statistics", query="?tab=explore&measure=feesPerWeek&row_dim=firm"), "per-week")
