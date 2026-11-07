@@ -2,7 +2,7 @@
 {% block page_width %}w-4xl{% endblock %}
 {% block page_title %}Firms - {{ program_label }}{% endblock %}
 {% block content %}
-<h1>Firms</h1>
+<h1 class="visually-hidden">Firms</h1>
 <div class="page-actions">{% if can_edit %}<a class="button primary" href="{% url 'fees_firm_new' %}">New Firm</a>{% endif %}
 <nav aria-label="Show firms">{% for s in status_filters %}{% if s == status %}<strong aria-current="true">{% if s == 'active' %}Active Only{% else %}{{ s|capfirst }}{% endif %}</strong>{% else %}<a href="?status={{ s }}">{% if s == 'active' %}Active Only{% else %}{{ s|capfirst }}{% endif %}</a>{% endif %}{% if not forloop.last %} | {% endif %}{% endfor %}</nav></div>
 <ul class="firm-list" aria-label="{{ firm_rows|length }} firm{{ firm_rows|length|pluralize }} shown ({{ status }})">

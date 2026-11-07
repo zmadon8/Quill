@@ -1,7 +1,7 @@
 {% extends "base_suite_home.html" %}
 {% block title %}Profiles - {{ diary_name }}{% endblock %}
 {% block content %}
-<h1>Profiles</h1>
+<h1 class="visually-hidden">Profiles</h1>
 <p>A profile is a separate data space inside {{ diary_name }}. A user may have several profiles, with a role in each (set on the Users tab).</p>
 <p><a class="button" href="{% url 'profile_create' %}">New Profile</a></p>
 <div class="table-wrap">

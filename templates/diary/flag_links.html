@@ -3,7 +3,7 @@
 {% block content %}
 <div class="home-column search-page">
   {% include "diary/_flags_tabs.html" %}
-  <h1>Hyperlinks</h1>
+  <h1 class="visually-hidden">Hyperlinks</h1>
   <form class="search-form" role="search" method="get" action="{% url 'flag_links' %}">
     <div class="search-row">
       <label class="visually-hidden" for="links-q">{% if which == "with" %}Search the link addresses{% else %}Search the citations{% endif %}</label>

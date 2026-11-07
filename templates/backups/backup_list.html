@@ -2,7 +2,7 @@
 {% load static %}
 {% block title %}Backups - {{ program_label }}{% endblock %}
 {% block content %}
-<h1>Backups</h1>
+<h1 class="visually-hidden">Backups</h1>
 <div class="settings-layout" data-settings-sections data-initial="{{ tab }}">
 <nav class="settings-nav" aria-label="Sections of Backups">
   <a href="?tab=saved" data-section-link="saved"{% if tab == "saved" %} class="on" aria-current="page"{% endif %}>Saved Backups</a>

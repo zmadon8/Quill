@@ -390,3 +390,5 @@ body.ledger .kpi-order-arrows { display: inline-flex; gap: 4px; }
 body.ledger .kpi-arrow { min-height: 0; padding: 2px 8px; font-size: .75rem; line-height: 1.2; }
 body.ledger .kpi-arrow:disabled { opacity: .35; cursor: default; }
 @media (max-width: 40rem) { body.ledger .kpi-customise-cols { grid-template-columns: 1fr; } }
+/* A page title already shown by the header or the underlined sub-tab is kept for screen readers only (docs/DESIGN.md). */
+body.ledger .page-head > h1.visually-hidden + .page-actions { margin-left: auto; }

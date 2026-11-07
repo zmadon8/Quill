@@ -48,7 +48,7 @@ class UiPageBase(SeededViewsBase):
         self.assertIn('<header class="site-header"', text, label)
         self.assertIn('<nav class="program-nav" aria-label="Main">', text, label)
         self.assertIn("css/fees.css", text, label)
-        self.assertGreaterEqual(len(re.findall(r"<h1[ >]", text)), 1, label)
+        self.assertEqual(len(re.findall(r"<h1[ >]", text)), 1, label)  # exactly one, visible or visually hidden
         return text
 
     def assert_no_unlabelled_controls(self, text, label=""):

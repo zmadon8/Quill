@@ -2,7 +2,7 @@
 {% load fees_money static %}
 {% block page_title %}Dashboard - {{ program_label }}{% endblock %}
 {% block content %}
-<div class="page-head"><h1>{% if fees_settings.statistics_enabled %}Statistics{% else %}Dashboard{% endif %}</h1></div>
+<div class="page-head"><h1 class="visually-hidden">{% if fees_settings.statistics_enabled %}Statistics{% else %}Dashboard{% endif %}</h1></div>
 {% include "fees/_stats_tabs.html" with tab="dashboard" %}
 {% if kpis_enabled %}
 <section aria-label="Dashboard boxes" id="kpis">

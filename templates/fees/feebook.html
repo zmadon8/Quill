@@ -2,7 +2,7 @@
 {% load fees_money %}
 {% block page_title %}Feebook - {{ program_label }}{% endblock %}
 {% block content %}
-<div class="page-head"><h1>Feebook</h1>
+<div class="page-head"><h1 class="visually-hidden">Feebook</h1>
 <p class="page-actions" role="group" aria-label="Feebook actions">{% if can_edit %}<a class="button small success" href="{% url 'fees_payment_new' %}">Add Payment</a> {% endif %}<a class="button small secondary" href="{% url 'fees_feebook_export' %}?{{ query_string }}">Export To Excel</a></p></div>
 <form method="get" class="filters" aria-label="Filter the Feebook">
   {% include "fees/_fy_select.html" with name="fy" label="Financial Year" options=fy_options selected=filters.financial_year all_label="All Years" %}

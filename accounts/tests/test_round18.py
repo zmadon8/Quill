@@ -139,7 +139,7 @@ class PageNamesTests(TestCase):
         admin = join_main(User.objects.create_user("boss", password=PASSWORD, is_superuser=True), "editor")
         self.client.force_login(admin)
         body = self.client.get(reverse("settings")).content.decode()
-        self.assertIn("<h1>Appearance</h1>", body)
+        self.assertIn('<h1 class="visually-hidden">Appearance</h1>', body)  # the underlined tab already names the page
         self.assertIn("Everyone", body)
         self.assertIn("Home page name", body)
         self.assertIn("Case law diary name", body)

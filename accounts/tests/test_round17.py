@@ -140,7 +140,7 @@ class MyEditsTests(TestCase):
         resp = self.client.get(reverse("diary_history"))
         self.assertEqual(resp.status_code, 200)
         html = resp.content.decode()
-        self.assertIn("<h1>History</h1>", html)  # "My edits" is now History in the diary menu
+        self.assertIn('<h1 class="visually-hidden">History</h1>', html)  # "My edits" is now History in the diary menu
         self.assertNotIn("Theirs", html)
         self.assertLess(html.index("Changed Item"), html.index("Added Item"))
         self.assertLess(html.index("Added Item"), html.index("Added Topic"))

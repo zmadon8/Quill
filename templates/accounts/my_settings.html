@@ -2,7 +2,7 @@
 {% load static %}
 {% block title %}My settings - {{ diary_name }}{% endblock %}
 {% block content %}
-<h1>My settings</h1>
+<h1{% if suite_tabs %} class="visually-hidden"{% endif %}>My settings</h1>
 <p class="field-help">Everything here is only yours. The settings everyone in a profile shares are on each program's own Settings tab.</p>
 {# Left-hand sections, each its own form with its own Save (static/js/settings-sections.js shows one at a time and warns about unsaved changes). Without JavaScript all sections are shown one under the other. #}
 <div class="settings-layout" data-settings-sections data-initial="{{ tab }}">

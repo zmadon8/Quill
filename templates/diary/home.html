@@ -2,7 +2,7 @@
 {% block title %}{{ home_name }}{% endblock %}
 {% block content %}
 <div class="launcher">
-  <h1>Programs</h1>
+  <h1{% if home_header_words %} class="visually-hidden"{% endif %}>Programs</h1>
   {% if diary_profile %}
   <a class="program-link" href="{% url 'diary_home' %}">{% if other_profiles and not diary_profile.display_name %}{{ diary_name }} &middot; {{ diary_profile.name }}{% else %}{{ program_label }}{% endif %}</a>
   {# Round 18 (D95): someone with several profiles opens any of them from here; the one used last is the button above. #}

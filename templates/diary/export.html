@@ -2,7 +2,7 @@
 {% block title %}Export - {{ program_label }}{% endblock %}
 {% block content %}
 <div class="home-column export-page">
-  <h1>Export</h1>
+  <h1{% if header_words %} class="visually-hidden"{% endif %}>Export</h1>
   <p class="meta">Files cover this profile only ({{ request.profile.name }}), without anything in the Trash. Numbers follow your number formats on My settings at the moment of export.</p>
 
   <form method="get" action="{% url 'export_download' %}" class="stack export-form">

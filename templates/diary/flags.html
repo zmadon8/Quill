@@ -3,7 +3,7 @@
 {% block content %}
 <div class="home-column search-page">
   {% include "diary/_flags_tabs.html" %}
-  <h1>Flags</h1>
+  <h1 class="visually-hidden">Flags</h1>
   <form class="search-form" role="search" method="get" action="{% url 'flags' %}">
     <div class="search-row">
       <label class="visually-hidden" for="flags-q">Search the text beside the flags</label>

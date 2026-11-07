@@ -2,7 +2,7 @@
 {% block title %}Trash{% endblock %}
 {% block content %}
 <div class="home-column trash-page">
-  <h1>Trash</h1>
+  <h1{% if header_words %} class="visually-hidden"{% endif %}>Trash</h1>
   <p class="hint">Deleted records wait here. Restore brings back a record together with what was deleted with it, in its old place. Deleting for good is for the Admin only and cannot be undone.</p>
   {% if entries %}
   <ul class="trash-list">

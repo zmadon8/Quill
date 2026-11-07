@@ -1256,3 +1256,25 @@ Owner: "In feebook, for an unaccounted memo, remove the tab to 'Attach Memo numb
 - The "..." More actions menu (Memo number box and Attach button) is gone from every Feebook row. The row keeps its Edit button; the payment edit form allocates the payment to memos. The Memo column still shows plain "Unaccounted".
 - The `fees_payment_assign` route and view are unchanged (nothing on the Feebook links to it now). The `.row-menu` CSS and the row-menu overlay code in `static/js/fees/columns.js` were removed; the Columns menu (`.col-menu`) is unaffected.
 - Test fix: the Feebook unaccounted page was listed as a page that must show a `status-sq` marker, but its only status is the plain "Unaccounted" text (no marker, by the owner rule). It now sits with the pages checked only with markers off.
+
+## Page titles that repeat the header or the sub-tab (owner rule)
+
+Owner: "pages need not have their names displayed at the top of the page, as the names would already be displayed either in the Header bar or in the sub-tab bar, underlined, and which makes it clear what we are looking at."
+
+The orchestrator proposed removing such titles, keeping the title where it is the only visible name, and treating icon-only header entries as a condition on the Words / Logo choice. Owner: "Go ahead with your suggestions".
+
+How it is built:
+
+- Every page keeps exactly one `<h1>` for screen readers. Where the visible title is removed the `<h1>` gets the existing `visually-hidden` class (the `<title>` element is unchanged). Buttons that shared the title row (for example Export To Excel, New Memo) stay in the row, right-aligned (`static/css/ledger.css`).
+- The decision is made in each template from the nav data, with no extra query: unconditional where the underlined entry is always words (Fee Register header entries, and every sub-tab), or `header_words` / `home_header_words` where the entry is an icon under Logo.
+
+Visually hidden (the underlined header entry or sub-tab says the same):
+
+- Fee Register: Statistics and its Dashboard, Standard and Explore tabs (not when Statistics is switched off, where the notice page keeps its title); Memos; Draft memos; Firms; Feebook; Settings.
+- Admins: Users, Profiles, Appearance, Backups (Saved Backups and Email Backups are sections of that page).
+- Settings: My settings (when the Settings sub-tab bar shows).
+- Case Law Diary: Flags and Hyperlinks.
+
+Visually hidden only when the header shows words (kept when icons are shown): Home "Programs" (Home choice), Case Law Diary Trash, History, Export, Settings (Case Law Diary settings, Reading and Data sections) and Help (Home choice for Help).
+
+Kept visible (the title is the only visible name): Fee Register Outstanding by firm and Outstanding memos (the tab says "Outstanding"), memo, firm, matter and payment pages and forms, ledger, statement, Move Memo, Year End, Search, Backup, Import, Restore and Clear pages; the diary Index of Subjects, Subject pages, editors, Move, Link and Confirm pages, conflict pages, item history and versions, Trash sub-pages, Import from Word, Offline Link, and Search (the magnifier is always an icon); Admin user and profile forms, delete, clear and restore pages; Password change; sign-in, forgot password, error and busy pages.

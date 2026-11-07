@@ -62,7 +62,7 @@ class HelpAndHintTests(TestCase):
     def test_help_covers_each_topic_and_has_one_h1(self):
         resp = self.client.get(reverse("help"))
         self.assertEqual(resp.status_code, 200)
-        self.assertContains(resp, "<h1>Help</h1>", count=1, html=True)
+        self.assertContains(resp, '<h1 class="visually-hidden">Help</h1>', count=1, html=True)
         for heading in ("Trash and Undo", "Search", "Settings", "Profiles and users", "Backups and restore",
                         "Export to Word", "Import from Word", "Editing"):
             self.assertContains(resp, heading)

@@ -3,7 +3,7 @@
 {% block extra_css %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/ledger-statistics.css' %}">{% endblock %}
 {% block page_title %}Statistics - {{ program_label }}{% endblock %}
 {% block content %}
-<h1>Statistics</h1>
+<h1{% if not stats_off %} class="visually-hidden"{% endif %}>Statistics</h1>
 {% if stats_off %}{% include "fees/_stats_tabs.html" with tab="" %}
 <p class="notice" role="note">Statistics is switched off in Settings.{% if can_edit %} <a href="{% url 'fees_settings' %}">Open Settings</a>{% endif %}</p>
 {% else %}

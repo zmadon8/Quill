@@ -123,6 +123,24 @@ class EveryScreenTests(UiPageBase):
             text = self.render(name, kind, query, self.admin if ROUTES[name][0] == A else self.editor)
             self.check_structure(text, name)
 
+    def test_titles_repeating_the_header_or_tab_are_visually_hidden(self):
+        """The header entry or sub-tab underlined on these pages already names them, so the title is for screen readers only."""
+        for name, query, title in (("fees_memos", "", "Memos"), ("fees_memo_drafts", "", "Draft memos"),
+                                   ("fees_firms", "", "Firms"), ("fees_feebook", "", "Feebook"),
+                                   ("fees_settings", "", "Settings"), ("fees_dashboard", "", "Statistics"),
+                                   ("fees_statistics", "?tab=standard", "Statistics")):
+            text = self.render(name, None, query, self.editor)
+            self.assertRegex(text, r'<h1 class="visually-hidden">%s</h1>' % title, name)
+
+    def test_titles_that_are_the_only_visible_name_stay_visible(self):
+        for name, kind, query, title in (("fees_outstanding", None, "", "Outstanding by firm"),
+                                         ("fees_outstanding_detail", None, "", "Outstanding memos"),
+                                         ("fees_memo_new", None, "", "New memo"),
+                                         ("fees_firm_new", None, "", "New firm"),
+                                         ("fees_backup", None, "", "Backup")):
+            text = self.render(name, kind, query, self.admin if ROUTES[name][0] == A else self.editor)
+            self.assertIn("<h1>%s</h1>" % title, text, name)
+
     def test_reader_screens_render_for_a_reader(self):
         for name, kind, query, editor_only in SCREENS:
             if editor_only:

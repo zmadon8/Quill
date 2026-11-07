@@ -3,7 +3,7 @@
 {% block title %}Settings - {{ program_label }}{% endblock %}
 {% block content %}
 <div class="home-column">
-<h1>{{ diary_name }} settings</h1>
+<h1{% if header_words %} class="visually-hidden"{% endif %}>{{ diary_name }} settings</h1>
 <p class="setting-help">These are shared by everyone using the profile <strong>{{ request.profile.name }}</strong>. Your own choices (opening page, number formats, date in file names) are on <a href="{% url 'my_settings' %}?tab=diary">My settings</a>.</p>
 {% if not can_change %}<p class="read-only-note">You can read these settings but not change them. Only the Editors of this profile can.</p>{% endif %}
 <div class="settings-layout" data-settings-sections data-initial="{{ tab }}">
