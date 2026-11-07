@@ -181,7 +181,12 @@ class FeebookTests(XlsxBase):
         types = {r[9].value for r in rows[1:]}
         self.assertEqual(types, {"Single", "Multiple"})
         unaccounted = next(r for r in rows[1:] if r[3].value == "Unknown payer")
-        self.assertIn(unaccounted[1].value, (None, ""))
+        self.assertEqual(unaccounted[1].value, "Unaccounted")
+        # Every other row carries a real memo number, never the word.
+        others = [r[1].value for r in rows[1:] if r is not unaccounted]
+        self.assertTrue(others)
+        self.assertNotIn("Unaccounted", others)
+        self.assertTrue(all(others))
         self.assertEqual(unaccounted[0].value, "09.08.2026")
 
     def test_visible_columns_keep_date_and_memo(self):
