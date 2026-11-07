@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from fees.models import Allocation, Firm, Group, Memo, Payment
 from fees.services.financial_year import derive_financial_year
+from fees.services.settings import get_settings
 
 __all__ = ["default_year", "memo_options", "feebook_options", "explore_options", "narrow_outstanding_choices"]
 
@@ -84,6 +85,9 @@ def feebook_options(profile, filters, bank_accounts):
         "date_of_payment", "bank_account_id"
     ).distinct():
         rows.append((derive_financial_year(day), None, None, bank_id))
+    # The Feebook list never shows payments before the Initial-FY cutoff, so no drop-down may offer them either.
+    cutoff = get_settings(profile)["feebook_start_year"]
+    rows = [r for r in rows if r[0] >= cutoff]
     fy = filters.get("financial_year")
     firm_id = filters.get("firm_id")
     bank_id = filters.get("bank_account_id")

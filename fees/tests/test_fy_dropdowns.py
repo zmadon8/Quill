@@ -295,11 +295,23 @@ class DefaultYearTests(WriteBase):
         self.assertEqual(len(response.context["entries"]), 1)
 
     def test_feebook_opens_on_the_newest_year_with_payments_when_the_current_year_is_empty(self):
+        FeesSettings.objects.update_or_create(profile=self.profile, defaults={"feebook_start_year": "2020-21"})
         self.pay("2025-06-09")
         self.pay("2023-06-09")
         response = self.open("fees_feebook")
         self.assertEqual(response.context["filters"]["financial_year"], "2025-26")
         self.assertEqual(len(response.context["entries"]), 1)
+
+    def test_feebook_never_offers_or_defaults_to_a_year_before_its_start_year(self):
+        FeesSettings.objects.update_or_create(profile=self.profile, defaults={"feebook_start_year": "2025-26"})
+        self.pay("2025-06-09")
+        self.pay("2023-06-09")
+        response = self.open("fees_feebook")
+        self.assertEqual(response.context["filters"]["financial_year"], "2025-26")
+        self.assertEqual(len(response.context["entries"]), 1)
+        html = response.content.decode()
+        self.assertNotIn('<option value="2023-24"', html)
+        self.assertEqual(filter_options.feebook_options(self.profile, {}, [])["years"], {"2025-26"})
 
     def test_feebook_opens_on_all_years_when_there_are_no_payments(self):
         self.assertNotIn("financial_year", self.open("fees_feebook").context["filters"])
