@@ -10,13 +10,18 @@ class SettingsScreenTests(UiPageBase):
 
     def test_every_section_renders_for_an_editor(self):
         text = self.settings_text(self.editor)
-        self.assertNotIn(">Danger zone</h2>", text)  # clear-all is Admin only
+        self.assertNotIn(">Danger zone</h3>", text)  # restore, import and clear-all are Admin only
         text = self.settings_text(self.admin)
-        for heading in ("Default Fees", "Payments", "Memo Text Defaults", "Word memo file names", "Start Years",
-                        "Statistics", "Display", "Word template", "Danger zone"):
+        for heading in ("Memos", "Payments", "Word documents", "Years and statistics", "Display", "Data",
+                        "Word template", "Edit Statistics"):
             self.assertIn(">%s</h2>" % heading, text, heading)
-        for tab in ("defaults", "years", "data", "other"):
-            self.assertIn('data-settings-tab="%s"' % tab, text, tab)
+        for heading in ("Default fees", "Memo text defaults", "Danger zone"):
+            self.assertIn(">%s</h3>" % heading, text, heading)
+        for key in ("memos", "payments", "word", "years", "display", "data"):
+            self.assertIn('data-section="%s"' % key, text, key)
+            self.assertIn('data-section-link="%s"' % key, text, key)
+        self.assertIn("1 Memos</a>", text)
+        self.assertIn("6 Data</a>", text)
         self.assertIn("Bank accounts</h3>", text)
         self.assertIn("You have unsaved changes.", text)
         for name in ("export_owner_name", "memo_filename_pattern", "memo_default_name", "memo_default_designation",
@@ -29,6 +34,28 @@ class SettingsScreenTests(UiPageBase):
         self.assertNotIn("default_additional_details_left", text)
         self.assertNotIn("default_additional_details_right", text)
         self.assertIn('<textarea name="memo_default_bank_details"', text)
+
+    def test_each_section_is_its_own_form_with_its_own_save_and_warning(self):
+        text = self.settings_text(self.editor)
+        self.assertEqual(text.count("data-section-form"), 5)  # Data has no settings form, only downloads
+        self.assertEqual(text.count("You have unsaved changes."), 5)
+        for key in ("memos", "payments", "word", "years", "display"):
+            self.assertIn('<input type="hidden" name="tab" value="%s">' % key, text, key)
+        self.assertIn("js/settings-sections.js", text)
+
+    def test_every_setting_has_a_help_line_and_a_who_tag(self):
+        text = self.settings_text(self.editor)
+        self.assertGreaterEqual(text.count('class="setting-row"'), 25)
+        self.assertGreaterEqual(text.count("Everyone in this profile"), 25)
+        self.assertNotIn('class="who-tag who-you"', text)  # nothing here is personal: that is on My settings
+        for row in text.split('class="setting-row"')[1:]:
+            self.assertIn("setting-help", row.split("</div>")[0], row[:80])
+
+    def test_opening_page_and_items_per_page_use_the_shared_names(self):
+        text = self.settings_text(self.editor)
+        self.assertIn("Opening page <select", text)
+        self.assertIn("Items per page <input", text)
+        self.assertIn(reverse("my_settings") + "?tab=fees", text)
 
     def test_signature_upload_sits_in_the_word_template_box(self):
         text = self.settings_text(self.editor)
@@ -48,23 +75,55 @@ class SettingsScreenTests(UiPageBase):
     def test_reader_sees_values_but_no_editing_controls(self):
         text = self.settings_text(self.reader)
         self.assertIn("You can read the settings but not change them.", text)
-        self.assertNotIn("Save settings", text)
+        self.assertNotIn(">Save</button>", text)
+        self.assertNotIn("You have unsaved changes.", text)
+        self.assertIn("<fieldset class=\"section-fields\" disabled>", text)
         for url in ("fees_template_upload", "fees_signature_upload", "fees_bank_account_add", "fees_backup", "fees_import"):
             self.assertNotIn('"%s"' % reverse(url), text, url)
 
-    def test_editor_sees_save_backup_and_import(self):
+    def test_a_reader_cannot_save_a_section(self):
+        self.login(self.reader)
+        for tab in ("memos", "display"):
+            response = self.client.post(reverse("fees_settings"), {"tab": tab, "overdue_days": "99"})
+            self.assertEqual(response.status_code, 403, tab)
+        from fees.models import FeesSettings
+        self.assertNotEqual(FeesSettings.objects.get(profile=self.profile).overdue_days, 99)
+
+    def test_saving_a_section_returns_to_it_and_changes_only_its_fields(self):
+        from fees.models import FeesSettings
+        before = FeesSettings.objects.get(profile=self.profile)
+        self.login(self.editor)
+        response = self.client.post(reverse("fees_settings"), {"tab": "payments", "overdue_days": "77"})
+        self.assertRedirects(response, reverse("fees_settings") + "?tab=payments", fetch_redirect_response=False)
+        after = FeesSettings.objects.get(profile=self.profile)
+        self.assertEqual(after.overdue_days, 77)
+        self.assertEqual(after.default_court_name, before.default_court_name)
+        self.assertEqual(after.items_per_page, before.items_per_page)
+
+    def test_a_failed_save_shows_the_error_and_keeps_the_section(self):
+        self.login(self.editor)
+        response = self.client.post(reverse("fees_settings"), {"tab": "payments", "overdue_days": "many"})
+        self.assertEqual(response.status_code, 422)
+        self.assertIn('data-initial="payments"', response.content.decode())
+
+    def test_editor_sees_save_backup_and_import_is_admin_only(self):
         text = self.settings_text(self.editor)
-        self.assertIn("Save settings", text)
+        self.assertIn(">Save</button>", text)
         self.assertIn(reverse("fees_backup"), text)
+        self.assertIn(reverse("fees_backup_download"), text)
         self.assertIn(reverse("fees_bank_account_add"), text)
         # Import and clear-all are for the Admin only, so an Editor does not see those controls.
         self.assertNotIn('"%s"' % reverse("fees_import"), text)
         self.assertNotIn("Clear All Data", text)
+        self.assertNotIn("red-box", text)
 
-    def test_admin_sees_import_and_clear_all(self):
+    def test_admin_sees_import_and_clear_all_in_a_red_box_at_the_bottom_of_data(self):
         text = self.settings_text(self.admin)
         self.assertIn(reverse("fees_import"), text)
         self.assertIn("Clear All Data", text)
+        data = text.split('data-section="data"')[1]
+        self.assertIn('class="red-box danger-zone"', data)
+        self.assertLess(data.index("Download an Excel backup"), data.index("red-box"))
 
     def test_reader_cannot_open_backup_or_import(self):
         for name in ("fees_backup", "fees_import"):

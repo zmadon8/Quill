@@ -57,10 +57,13 @@
     });
   });
 
-  var wanted = "";
+  // Which section opens: the address fragment (#section-x, or #settings-x as the Fee Register used before), else ?tab=x,
+  // else the section the server marked (data-initial, e.g. after a Save that had an error), else the first.
+  var wanted = root.getAttribute("data-initial") || "";
   var match = /[?&]tab=([^&#]*)/.exec(window.location.search || "");
   if (match) { wanted = decodeURIComponent(match[1]); }
-  if ((window.location.hash || "").indexOf("#section-") === 0) { wanted = window.location.hash.slice("#section-".length); }
+  var hash = /^#(?:section|settings)-(.+)$/.exec(window.location.hash || "");
+  if (hash) { wanted = hash[1]; }
   show(wanted);
 
   var mark = function (event) {

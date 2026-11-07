@@ -5,7 +5,7 @@
 <h1>My settings</h1>
 <p class="field-help">Everything here is only yours. The settings everyone in a profile shares are on each program's own Settings tab.</p>
 {# Left-hand sections, each its own form with its own Save (static/js/settings-sections.js shows one at a time and warns about unsaved changes). Without JavaScript all sections are shown one under the other. #}
-<div class="settings-layout" data-settings-sections>
+<div class="settings-layout" data-settings-sections data-initial="{{ tab }}">
   <nav class="settings-nav" aria-label="Sections of My settings">
     {% for key in sections %}<a href="?tab={{ key }}" data-section-link="{{ key }}"{% if key == tab %} class="on" aria-current="page"{% endif %}>{% if key == "account" %}Account{% elif key == "display" %}Display{% elif key == "diary" %}{{ diary_name }}{% else %}{{ fees_name }}{% endif %}</a>
     {% endfor %}

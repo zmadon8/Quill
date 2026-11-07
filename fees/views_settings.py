@@ -6,6 +6,7 @@ from types import SimpleNamespace
 from django.contrib import messages
 from django.http import Http404
 from django.shortcuts import redirect
+from django.urls import reverse
 from django.views.decorators.http import require_http_methods, require_safe, require_POST
 
 from fees import forms, scope
@@ -23,6 +24,8 @@ from fees.views_statistics import adjustment_rows, ensure_statistics_on, financi
 #: Largest Word template accepted (the template prepare step has its own, tighter limits).
 MAX_TEMPLATE_UPLOAD = 20 * 1024 * 1024
 
+#: The left-hand sections of the Settings page, in order (the numbers in the menu are 1 to 6).
+SETTINGS_SECTIONS = ("memos", "payments", "word", "years", "display", "data")
 DEFAULT_TAB_CHOICES = ("memos", "dashboard", "statistics", "firms", "feebook", "outstanding", "settings")
 PAYMENT_AMOUNT_CHOICES = (("zero", "Blank"), ("full", "Full amount due"), ("netOfTds", "Amount due less TDS"))
 MONEY_UNIT_CHOICES = (("full", "Full figures"), ("truncated", "Short (thousand, lac, crore)"))
@@ -53,7 +56,7 @@ FILENAME_PARTS = (
 )
 
 
-def settings_context(profile, fy=None):
+def settings_context(profile, fy=None, tab="memos"):
     """What the Settings page shows besides the form values.
 
     ``fy`` is the financial year of the Edit statistics grid (the current year when not given); the grid is
@@ -75,6 +78,7 @@ def settings_context(profile, fy=None):
         "payment_amount_choices": PAYMENT_AMOUNT_CHOICES,
         "money_unit_choices": MONEY_UNIT_CHOICES,
         "money_unit": config["money_unit"],
+        "tab": tab if tab in SETTINGS_SECTIONS else "memos",
     }
     if config["statistics_enabled"]:
         fy = fy or current_financial_year()
@@ -91,19 +95,22 @@ def settings_context(profile, fy=None):
 @require_http_methods(["GET", "HEAD", "POST"])
 def settings_page(request):
     profile, _settings = scope.context(request)
+    tab = request.POST.get("tab") or request.GET.get("tab") or ""
     if request.method == "POST":
         try:
             settings_service.update_settings(profile, forms.settings_data_from_post(request.POST))
         except FeesError as err:
             if err.status == 404:
                 raise Http404(err.message) from err
-            context = settings_context(profile)
+            context = settings_context(profile, tab=tab)
             context["errors"] = [err.message]
             return render_page(request, "fees/settings.html", context, status=err.status)
         messages.success(request, "Settings saved.")
-        return redirect("fees_settings")
+        # A save from one section returns to that section; an older form that names none returns to the page.
+        return redirect(f"{reverse('fees_settings')}?tab={tab}" if tab in SETTINGS_SECTIONS else "fees_settings")
     return render_page(
-        request, "fees/settings.html", settings_context(profile, financial_year_param(request.GET, default=False))
+        request, "fees/settings.html",
+        settings_context(profile, financial_year_param(request.GET, default=False), tab=tab),
     )
 
 
