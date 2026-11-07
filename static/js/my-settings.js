@@ -1,6 +1,6 @@
 (function () {
   "use strict";
-  var form = document.querySelector("form.settings-form");
+  var form = document.querySelector("form[data-preview-url]");
   if (!form) { return; }
 
   // The Subject dropdown shows only for "A chosen Subject".

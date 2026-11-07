@@ -1,0 +1,1 @@
+{# Who a setting affects. Context: who = "you" (Only you), "profile" (Everyone in this profile) or anything else (Everyone). #}{% if who == "you" %}<span class="who-tag who-you">Only you</span>{% elif who == "profile" %}<span class="who-tag who-profile">Everyone in this profile</span>{% else %}<span class="who-tag who-all">Everyone</span>{% endif %}

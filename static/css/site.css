@@ -624,3 +624,24 @@ textarea.single-line { display: block; width: 100%; max-width: 28rem; min-height
   html.justify-text .item-text, html.justify-text .note-text, html.justify-text .section-header strong, html.justify-text .case-line-body, html.justify-text .case-comment { text-align: justify; }
   html.justify-text .item-body, html.justify-text .note { text-align: justify; }
 }
+
+/* Settings pages with left-hand sections (My settings, Case Law Diary settings, Fee Register settings). Every section is its own form with its own Save; static/js/settings-sections.js shows one section at a time (all are shown, one under the other, without JavaScript). */
+.settings-layout { display: grid; grid-template-columns: 13rem minmax(0, 1fr); gap: 0 2rem; align-items: start; }
+.settings-nav { display: flex; flex-direction: column; gap: .25rem; position: sticky; top: .5rem; }
+.settings-nav a { padding: .4rem .6rem; border-left: 3px solid transparent; text-decoration: none; color: inherit; }
+.settings-nav a.on { border-left-color: var(--accent, currentColor); font-weight: 600; }
+.settings-nav a.danger-link { color: #991B1B; }
+.settings-panel-body[hidden] { display: none; }
+.settings-section-form { margin: 0 0 1.5rem; }
+.settings-section-form fieldset.section-fields { border: 0; margin: 0; padding: 0; min-width: 0; }
+.setting-row { margin: 0 0 1rem; }
+.setting-row > label, .setting-row > .setting-label { display: block; font-weight: 600; }
+.setting-help { display: block; font-size: var(--small-size, .875rem); color: var(--muted); margin-top: .15rem; }
+.who-tag { display: inline-block; margin-left: .5rem; padding: 0 .5rem; border: 1px solid var(--line, #ccc); border-radius: 999px; font-size: .75rem; font-weight: 400; color: var(--muted); white-space: nowrap; }
+.who-tag.who-you { border-color: var(--accent, currentColor); }
+.section-actions { display: flex; align-items: center; gap: 1rem; margin-top: 1rem; }
+.dirty-note { color: var(--accent, inherit); font-size: .875rem; }
+.read-only-note { color: var(--muted); }
+.red-box { margin: 1.5rem 0; padding: .75rem 1rem; background: #FEF8F8; border: 2px solid #FECACA; border-radius: 6px; }
+.red-box :is(h2, h3, legend) { color: #991B1B; }
+@media (max-width: 720px) { .settings-layout { grid-template-columns: 1fr; } .settings-nav { position: static; flex-direction: row; flex-wrap: wrap; } }

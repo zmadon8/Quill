@@ -11,7 +11,7 @@ from django.views.decorators.http import require_POST, require_safe
 from fees import scope
 from fees.decorators import fees_editor, fees_reader, handle_fees_errors
 from fees.pages import TAB_URL_NAMES, json_ok, render_page
-from fees.services import dashboard, memo_lists
+from fees.services import dashboard, memo_lists, prefs
 from fees.services import settings as settings_service
 
 
@@ -39,8 +39,9 @@ def _kpi_rows(values, chosen):
 @require_safe
 def landing(request):
     """``/fees/``: open the user's chosen first page (the ``default_tab`` setting)."""
-    _profile, settings = scope.context(request)
-    name = TAB_URL_NAMES.get(getattr(settings, "default_tab", ""), "fees_memos")
+    profile, settings = scope.context(request)
+    tab = prefs.personal_default_tab(profile, request.user, settings) if profile is not None else ""
+    name = TAB_URL_NAMES.get(tab, "fees_memos")
     return redirect(name)
 
 

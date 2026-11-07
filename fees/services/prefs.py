@@ -21,7 +21,10 @@ from django.db import transaction
 from fees.errors import FeesError
 from fees.models import FeesUserPrefs
 
-__all__ = ["KEY_RE", "MIN_PX", "MAX_PX", "MAX_COLUMNS", "MAX_BYTES", "get_prefs", "get_all_widths", "set_pref"]
+__all__ = [
+    "KEY_RE", "MIN_PX", "MAX_PX", "MAX_COLUMNS", "MAX_BYTES", "SETTINGS_KEY", "get_prefs", "get_all_widths", "set_pref",
+    "get_personal", "set_personal", "personal_default_tab", "personal_items_per_page",
+]
 
 KEY_RE = re.compile(r"^col-widths:[a-z0-9][a-z0-9_-]{0,39}$")
 _COLUMN_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$")
@@ -87,3 +90,60 @@ def set_pref(profile, user, key, data):
             profile=profile, user=user, key=key, defaults={"data": clean}
         )
     return clean
+
+
+# ---------------------------------------------------------------------------
+# My settings: the two personal Fee Register choices (Opening page, Items per page)
+# ---------------------------------------------------------------------------
+
+#: The ``FeesUserPrefs`` key holding a user's personal Fee Register settings: ``{"default_tab": ..., "items_per_page": ...}``.
+#: It is not reachable through ``set_pref`` / the prefs endpoint (their keys are column widths only); only
+#: ``set_personal`` writes it, after the same validation as the profile settings.
+SETTINGS_KEY = "settings"
+_PERSONAL_FIELDS = ("default_tab", "items_per_page")
+
+
+def get_personal(profile, user):
+    """The user's saved personal settings, only the known keys present ({} when none). Read only."""
+    row = FeesUserPrefs.objects.filter(profile=profile, user=user, key=SETTINGS_KEY).first()
+    data = row.data if row is not None and isinstance(row.data, dict) else {}
+    return {name: data[name] for name in _PERSONAL_FIELDS if name in data}
+
+
+def set_personal(profile, user, data):
+    """Saves the personal Opening page and/or Items per page; returns the stored object.
+
+    A key given as ``None`` is removed, so the profile's value (then the default) applies again. Each value is checked
+    exactly like the profile setting of the same name (a bad value raises ``FeesError`` 422). No ``touch``: this is
+    one person's preference, not fee data, and a Reader may keep their own.
+    """
+    from fees.services import settings as settings_service  # lazy: keeps this module's import light
+
+    clean = get_personal(profile, user)
+    for name in _PERSONAL_FIELDS:
+        if name not in data:
+            continue
+        if data[name] is None:
+            clean.pop(name, None)
+        else:
+            clean[name] = settings_service._validate_candidate(name, data[name])
+    with transaction.atomic():
+        FeesUserPrefs.objects.update_or_create(
+            profile=profile, user=user, key=SETTINGS_KEY, defaults={"data": clean}
+        )
+    return clean
+
+
+def personal_default_tab(profile, user, settings):
+    """The Opening page for this user: their own choice, else the profile's ``default_tab``, else ``memos``."""
+    own = get_personal(profile, user).get("default_tab")
+    return own or getattr(settings, "default_tab", "") or "memos"
+
+
+def personal_items_per_page(profile, user, settings):
+    """Items per page for this user (0 means All): their own choice, else the profile's value, else 50."""
+    own = get_personal(profile, user).get("items_per_page")
+    if own is not None:
+        return own
+    value = getattr(settings, "items_per_page", None)
+    return 50 if value is None else value

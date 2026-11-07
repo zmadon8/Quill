@@ -57,31 +57,49 @@ class SettingsTabsTests(TestCase):
         self.user = join_main(User.objects.create_user("eddie", password=PASSWORD, email="e@example.com"), "editor")
         self.client.force_login(self.user)
 
-    def visible(self, tab):
-        html = self.client.get(reverse("my_settings"), {"tab": tab}).content.decode()
-        return {name for name in ("account", "display", "numbers", "export")
-                if f'data-settings-tab="{name}">' in html}
+    def sections(self, tab=None):
+        html = self.client.get(reverse("my_settings"), {"tab": tab} if tab else {}).content.decode()
+        return html, {name for name in ("account", "display", "diary", "fees") if f'data-section="{name}"' in html}
 
-    def test_one_tab_at_a_time_and_every_field_stays_in_the_form(self):
-        self.assertEqual(self.visible("account"), {"account"})
-        self.assertEqual(self.visible("display"), {"display"})
-        self.assertEqual(self.visible("numbers"), {"numbers"})
-        self.assertEqual(self.visible("export"), {"account"})  # round 18: Word export moved to the Export page
-        self.assertEqual(self.visible("bogus"), {"account"})
-        html = self.client.get(reverse("my_settings"), {"tab": "numbers"}).content.decode()
-        for field in ('name="email"', 'name="justify_text"', 'name="topic_format"', 'name="diary-view_whole_subject"',
-                      'name="tab" value="numbers"'):
+    def test_left_hand_sections_each_with_their_own_form_and_save(self):
+        html, found = self.sections()
+        self.assertEqual(found, {"account", "display", "diary"})  # the Fee Register section needs a Fee Register profile
+        self.assertEqual(html.count("data-section-form"), 3)
+        self.assertEqual(html.count(">Save</button>"), 3)
+        self.assertEqual(html.count("You have unsaved changes."), 3)
+        for field in ('name="email"', 'name="justify_text"', 'name="topic_format"', 'name="tab" value="diary"'):
             self.assertIn(field, html)
-        self.assertNotIn('name="export_date_format"', html)
+        self.assertNotIn('name="diary-view_whole_subject"', html)  # reading is a Case Law Diary settings (profile) choice
+        self.assertNotIn('name="export_date_format"', html.split('data-section="account"')[1].split('data-section="diary"')[0])
+        self.assertIn('data-section-link="diary"', html)
 
-    def test_saving_a_tab_keeps_the_others_and_returns_to_it(self):
-        self.client.post(reverse("my_settings"), {"tab": "display", "email": "e@example.com",
-                                                  "landing_program": ""})
-        resp = self.client.post(reverse("my_settings"), {"tab": "display", "email": "e@example.com",
-                                                         "landing_program": ""})
-        self.assertRedirects(resp, reverse("my_settings") + "?tab=display", fetch_redirect_response=False)
+    def test_the_section_asked_for_is_marked_and_an_old_tab_name_still_works(self):
+        html, _found = self.sections("display")
+        self.assertIn('data-section-link="display" class="on" aria-current="page"', html)
+        html, _found = self.sections("numbers")  # the old name of the Case Law Diary tab
+        self.assertIn('data-section-link="diary" class="on" aria-current="page"', html)
+        html, _found = self.sections("bogus")
+        self.assertIn('data-section-link="account" class="on" aria-current="page"', html)
+
+    def test_every_setting_has_help_and_a_who_tag(self):
+        html, _found = self.sections()
+        self.assertGreaterEqual(html.count("setting-help"), 8)
+        self.assertGreaterEqual(html.count("Only you"), 8)
+        self.assertNotIn("Everyone in this profile", html)  # nothing shared lives on My settings
+
+    def test_saving_a_section_keeps_the_others_and_returns_to_it(self):
+        self.user.justify_text = True
+        self.user.save()
+        resp = self.client.post(reverse("my_settings"), {"tab": "account", "email": "e@example.com"})
+        self.assertRedirects(resp, reverse("my_settings"), fetch_redirect_response=False)
         self.user.refresh_from_db()
         self.assertEqual(self.user.email, "e@example.com")
+        self.assertTrue(self.user.justify_text)  # the Display section was not posted, so it is untouched
+        resp = self.client.post(reverse("my_settings"), {"tab": "display", "landing_program": ""})
+        self.assertRedirects(resp, reverse("my_settings") + "?tab=display", fetch_redirect_response=False)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.email, "e@example.com")  # the Account section is untouched
+        self.assertFalse(self.user.justify_text)  # an unticked box in the posted section turns it off
 
     def test_the_gear_and_home_open_the_settings_area(self):
         from accounts import suite

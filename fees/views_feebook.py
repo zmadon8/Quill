@@ -4,7 +4,7 @@ from django.views.decorators.http import require_safe
 from fees import scope
 from fees.decorators import fees_reader, handle_fees_errors
 from fees.pages import feebook_filters, page_number, render_page
-from fees.services import feebook, firms, fy_options, memo_lists
+from fees.services import feebook, firms, fy_options, memo_lists, prefs
 from fees.services import settings as settings_service
 
 
@@ -20,7 +20,7 @@ def feebook_page(request):
     }
     totals["count"] = len(entries)
     page_items, meta = memo_lists.paginate(
-        entries, page_number(request.GET), memo_lists.page_size_for(settings.items_per_page)
+        entries, page_number(request.GET), memo_lists.page_size_for(prefs.personal_items_per_page(profile, request.user, settings))
     )
     query = request.GET.copy()
     query.pop("page", None)

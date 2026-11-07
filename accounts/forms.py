@@ -263,13 +263,29 @@ class MySettingsForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["email"].help_text = "Used only to email you a link if you forget your password."
-        self.fields["justify_text"].required = False
-        self.fields["justify_text"].help_text = (
-            "Lines up the right-hand edge of the text of Items, Sections and Notes on screen. Off: the text is left-aligned. "
-            "The Word export is not affected."
-        )
+        if "email" in self.fields:
+            self.fields["email"].help_text = "Used only to email you a link if you forget your password."
+        if "justify_text" in self.fields:
+            self.fields["justify_text"].required = False
+            self.fields["justify_text"].help_text = (
+                "Lines up the right-hand edge of the text of Items, Sections and Notes on screen. Off: the text is left-aligned. "
+                "The Word export is not affected."
+            )
         self.fields["landing_program"].choices = landing.program_choices(landing.programs_for(self.instance))
+
+
+class MyAccountForm(MySettingsForm):
+    """The Account section of My settings: the email address only."""
+
+    class Meta(MySettingsForm.Meta):
+        fields = ("email",)
+
+
+class MyDisplayForm(MySettingsForm):
+    """The Display section of My settings: where to land after login and justified text."""
+
+    class Meta(MySettingsForm.Meta):
+        fields = ("landing_program", "justify_text")
 
 
 class ProfileForm(forms.ModelForm):

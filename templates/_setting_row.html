@@ -1,0 +1,6 @@
+{# One setting of a Django form: label, control, one line of help and who it affects. Context: f (bound field), help, who ("you", "profile" or "all"), checkbox (optional, True for a single tick box). #}<div class="setting-row">
+  {{ f.errors }}
+  {% if checkbox %}<label class="search-check" for="{{ f.id_for_label }}">{{ f }} {{ f.label }}</label>{% include "_who_tag.html" %}{% else %}<label for="{{ f.id_for_label }}">{{ f.label }}</label>{% include "_who_tag.html" %}
+  {{ f }}{% endif %}
+  <span class="setting-help">{{ help }}</span>
+</div>

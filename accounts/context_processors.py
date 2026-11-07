@@ -45,7 +45,8 @@ def suite_names(request):
     choice (Words or Logo, set on Admins > Page Names) as ``suite_brand`` (``{"home"|"diary"|"fees": "words"|"logo"}``)
     and ``home_header_words`` (True when Home, Admins, Settings and Help pages show words)."""
     names, modes = _read(request)
-    return {"home_name": names[suite.KEY_HOME], "diary_name": names[suite.KEY_DIARY], "suite_brand": modes,
+    return {"home_name": names[suite.KEY_HOME], "diary_name": names[suite.KEY_DIARY], "fees_name": names[suite.KEY_FEES],
+            "suite_brand": modes,
             "home_header_words": modes[suite.KEY_HOME] == suite.BRAND_WORDS}
 
 

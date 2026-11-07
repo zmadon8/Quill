@@ -1,4 +1,3 @@
-import copy
 import logging
 from datetime import timedelta
 
@@ -14,8 +13,8 @@ from django.views.decorators.http import require_GET, require_http_methods, requ
 
 from . import landing, programs, suite, user_trash
 from .clear import ClearRefused, clear_preview, clear_profile
-from .forms import MySettingsForm, UsernamePasswordResetForm, _client_ip, ProfileForm, SuiteNamesForm, UserCreateForm, UserEditForm
-from .models import ROLE_EDITOR, OfflineLink, Profile, ProfileMembership, PurgeLog, ResetRequest, prune_reset_requests
+from .forms import MyAccountForm, MyDisplayForm, UsernamePasswordResetForm, _client_ip, ProfileForm, SuiteNamesForm, UserCreateForm, UserEditForm
+from .models import OfflineLink, Profile, ProfileMembership, PurgeLog, ResetRequest, prune_reset_requests
 from .permissions import admin_required
 from .profiles import (
     days_left,
@@ -24,7 +23,6 @@ from .profiles import (
     name_clash,
     profile_usage,
     request_profile,
-    request_role,
     restore_profile,
     retention_days,
     use_profile,
@@ -127,51 +125,77 @@ class ForgotPasswordView(auth_views.PasswordResetView):
             return self.form_invalid(form)
 
 
+#: Old ``?tab=`` names from before the sections: "numbers" was the Case Law Diary tab.
+SECTION_ALIASES = {"numbers": "diary"}
+
+
 @login_required
 @require_http_methods(["GET", "POST"])
 def my_settings(request):
-    """Settings for every signed-in user: Account and Display (Settings tabs), and Numbers (the Case Law Diary tab).
+    """My settings: everything that is only mine, in sections with a Save each (the user name in the header opens it).
 
-    Display also holds the diary's own settings (Display Name, what the Contents links open; round 18, D96): they belong
-    to the profile, so everyone in it sees them and only its Editors can change them.
+    Account (email, password), Display (open after login, justify text), Case Law Diary (opening page, number formats,
+    date in Word file names: ``diary.UserSettings``) and Fee Register (Opening page, Items per page: ``FeesUserPrefs``
+    key ``settings``). The last two show only for a user who can open that program. The program-wide choices (reading,
+    Word import, the Fee Register's memos and payments ...) are on each program's own Settings tab.
+
+    A POST names the section it saves (``tab``) and checks only that section's form. A POST naming no section (an
+    older form) saves the Account, Display and Case Law Diary fields it carries, as before.
     """
-    from diary.forms import DiarySettingsForm, ProfileSettingsForm, preview_rows  # lazy: diary imports accounts
+    from diary.forms import DiarySettingsForm, preview_rows  # lazy: diary imports accounts
 
-    form = MySettingsForm(request.POST or None, instance=request.user)
     profile = request_profile(request)
-    diary_form = DiarySettingsForm(request.POST or None, user=request.user, profile=profile) if profile else None
-    can_edit_profile = profile is not None and request_role(request) == ROLE_EDITOR
-    # A copy, so an invalid POST does not change the header of the page shown with the errors. Only checked when the
-    # page sent it (its select is always sent), so a save from somewhere else never resets these shared settings.
-    sent = request.method == "POST" and "diary-view_whole_subject" in request.POST
-    profile_form = ProfileSettingsForm(request.POST if sent else None, instance=copy.copy(profile), prefix="diary") \
-        if can_edit_profile else None
-    # One tab at a time. Every field stays in the form (the other tabs are only hidden), so a Save never changes what
-    # is on a tab you did not open.
-    tab = request.POST.get("tab") or request.GET.get("tab") or "account"
-    tabs = ["account", "display"] + (["numbers"] if diary_form is not None else [])
-    if tab not in tabs:
+    fees_profile = request_profile(request, suite.KEY_FEES) if programs.fees_enabled() else None
+    sections = ["account", "display"] + (["diary"] if profile else []) + (["fees"] if fees_profile else [])
+    posted = SECTION_ALIASES.get(request.POST.get("tab") or "", request.POST.get("tab") or "")
+    if posted not in sections:
+        posted = ""  # an older form (or a section this user does not have): the legacy fields are saved
+    asked = request.POST.get("tab") or request.GET.get("tab") or ""
+    tab = posted or SECTION_ALIASES.get(asked, asked)
+    if tab not in sections:
         tab = "account"
-    if request.method == "POST":
-        # Every form is checked so that every error is shown at once; nothing is saved unless all are fine.
-        extras = [f for f in (diary_form, profile_form) if f is not None and f.is_bound]
-        valid = form.is_valid()
-        for extra in extras:
-            valid = extra.is_valid() and valid
+
+    post = request.POST if request.method == "POST" else None
+
+    def bound_for(*keys):
+        """The POST data for the form of a section: only when that section (or an older, unnamed form) was posted."""
+        return post if post is not None and posted in keys else None
+
+    account_form = MyAccountForm(bound_for("account", ""), instance=request.user)
+    display_form = MyDisplayForm(bound_for("display", ""), instance=request.user)
+    diary_form = (
+        DiarySettingsForm(bound_for("diary", ""), user=request.user, profile=profile) if profile else None
+    )
+    fees_form = None
+    if fees_profile:
+        from fees.models import FeesSettings
+        from fees.personal_form import FeesPersonalForm
+
+        fees_form = FeesPersonalForm(
+            bound_for("fees"), prefix="fees", profile=fees_profile, user=request.user,
+            fees_settings=FeesSettings.objects.filter(profile=fees_profile).first(),
+        )
+    if post is not None:
+        # Every form of the section is checked so that every error is shown at once; nothing is saved unless all are fine.
+        checked = [f for f in (account_form, display_form, diary_form, fees_form) if f is not None and f.is_bound]
+        valid = True
+        for one in checked:
+            valid = one.is_valid() and valid
         if valid:
-            form.save()
-            for extra in extras:
-                extra.save()
+            for one in checked:
+                one.save()
             messages.success(request, "Settings saved.")
             return redirect(reverse("my_settings") + ("" if tab == "account" else f"?tab={tab}"))
     return render(
         request,
         "accounts/my_settings.html",
         {
-            "form": form,
+            "account_form": account_form,
+            "display_form": display_form,
             "diary_form": diary_form,
-            "profile_form": profile_form,
+            "fees_form": fees_form,
             "diary_profile": profile,
+            "sections": sections,
             "tab": tab,
             "preview": preview_rows(diary_form.effective()) if diary_form is not None else [],
         },
