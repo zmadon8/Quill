@@ -1,4 +1,5 @@
 """Record when a signed-in user was last seen, for the Active Now panel on Home."""
+from django.db import DatabaseError
 from django.utils import timezone
 
 from .models import User
@@ -25,6 +26,9 @@ class LastSeenMiddleware:
                 now = timezone.now()
                 seen = user.last_seen_at
                 if seen is None or (now - seen).total_seconds() >= TOUCH_SECONDS:
-                    User.objects.filter(pk=user.pk).update(last_seen_at=now)
-                    user.last_seen_at = now
+                    try:
+                        User.objects.filter(pk=user.pk).update(last_seen_at=now)
+                        user.last_seen_at = now
+                    except DatabaseError:
+                        pass  # presence is a convenience: fail open (locked or read-only database)
         return self.get_response(request)

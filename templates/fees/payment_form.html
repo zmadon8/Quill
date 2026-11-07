@@ -28,9 +28,9 @@
   <p><label>Additional Details <textarea name="payment_details" rows="2" cols="40">{{ form.payment_details }}</textarea></label></p>
   </fieldset>
   <fieldset class="alloc-set" data-alloc-set data-max-rows="{{ max_allocations }}"><legend>Allocate To Memos</legend>
-    <p class="alloc-head"><span class="muted">Leave every row blank for an unaccounted payment.</span> <button type="button" class="alloc-add" data-alloc-add hidden>+ Memo</button></p>
+    <p class="alloc-head"><span class="muted">Leave every row blank for an unaccounted payment.</span>{% if can_edit %} <button type="button" class="alloc-add" data-alloc-add hidden>+ Memo</button>{% endif %}</p>
     <div data-alloc-rows>{% for row in form.rows %}{% include "fees/_alloc_row.html" with i=forloop.counter0 n=forloop.counter %}{% endfor %}</div>
-    <p class="alloc-more"><button type="submit" name="add_row" value="1" formnovalidate data-alloc-add-nojs>Add Another Memo</button></p>
+    {% if can_edit %}<p class="alloc-more"><button type="submit" name="add_row" value="1" formnovalidate data-alloc-add-nojs>Add Another Memo</button></p>{% endif %}
     <p class="muted" data-remaining role="status" aria-live="polite" hidden></p>
     <template data-alloc-template>{% include "fees/_alloc_row.html" with i="__i__" n="" row=None %}</template>
   </fieldset>

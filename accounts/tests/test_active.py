@@ -1,5 +1,6 @@
 """Who is active: last_seen_at throttle, the Can See Who Is Active toggle, and the Home panel."""
 from datetime import timedelta
+from unittest import mock
 
 from django.db import connection
 from django.test import TestCase, override_settings
@@ -61,7 +62,9 @@ class ActivePanelTests(TestCase):
         cls.admin = join_main(User.objects.create_user("boss", password=PASSWORD, is_superuser=True), "editor")
         cls.allowed = join_main(User.objects.create_user("watcher", password=PASSWORD, can_see_active=True))
         cls.other = join_main(User.objects.create_user("plain", password=PASSWORD))
-        now = timezone.now()
+        # Anchored to mid-day so a run just after local midnight cannot misclassify rows.
+        now = timezone.localtime(timezone.now()).replace(hour=12, minute=0, second=0, microsecond=0)
+        cls.noon = now
         cls.now_user = join_main(User.objects.create_user("nina", password=PASSWORD, first_name="Nina", last_name="Now"))
         cls.later_user = join_main(User.objects.create_user("earl", password=PASSWORD))
         cls.old_user = join_main(User.objects.create_user("olga", password=PASSWORD))
@@ -73,7 +76,8 @@ class ActivePanelTests(TestCase):
 
     def home(self, user):
         self.client.force_login(user)
-        return self.client.get(reverse("home") + "?home=1")
+        with mock.patch("django.utils.timezone.now", return_value=self.noon):
+            return self.client.get(reverse("home") + "?home=1")
 
     def test_admin_sees_it_without_the_toggle(self):
         self.assertFalse(self.admin.can_see_active)
