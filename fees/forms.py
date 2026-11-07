@@ -5,6 +5,7 @@ There is no fee arithmetic here. A form carries the counts and rates the user ty
 worked out by ``fees.services.memo_fees`` when the memo is saved.
 """
 import datetime
+import re
 from decimal import Decimal, InvalidOperation
 
 from fees.errors import FeesError
@@ -160,13 +161,31 @@ def parse_int(text, label="Number", default=0):
 # Payment form values
 # ---------------------------------------------------------------------------
 
-#: How many memo rows a payment form shows (a payment may be split over several memos).
-PAYMENT_ROWS = 5
+#: How many memo rows a payment form shows at least (a payment may be split over any number of memos, up to
+#: ``payment_service.MAX_ALLOCATIONS``).
+PAYMENT_ROWS = 3
+
+_ROW_KEY = re.compile(r"^alloc_(?:memo|amount|tds)_(\d+)$")
 
 
 def _padded(rows):
-    rows = list(rows)[:PAYMENT_ROWS]
-    return rows + [{"memo_number": "", "amount": "", "tds_amount": ""}] * (PAYMENT_ROWS - len(rows))
+    rows = list(rows)
+    return rows + [{"memo_number": "", "amount": "", "tds_amount": ""} for _ in range(PAYMENT_ROWS - len(rows))]
+
+
+def blank_rows():
+    """The empty memo rows a new payment form starts with."""
+    return _padded([])
+
+
+def posted_row_indexes(post):
+    """The row numbers present in a submitted payment form, in order (rows may be any number)."""
+    found = set()
+    for key in post.keys():
+        match = _ROW_KEY.match(key)
+        if match:
+            found.add(int(match.group(1)))
+    return sorted(found)
 
 
 def blank_payment_form(config, memo=None, prefill=None):
@@ -307,7 +326,7 @@ def payment_data_from_post(post, profile, bank_ids):
         "payment_details": clean_text(post, "payment_details", Payment),
     }
     rows = []
-    for i in range(PAYMENT_ROWS):
+    for i in posted_row_indexes(post):
         number = (post.get(f"alloc_memo_{i}") or "").strip()
         row_amount = parse_decimal(post.get(f"alloc_amount_{i}"), "Memo amount")
         row_tds = parse_decimal(post.get(f"alloc_tds_{i}"), "Memo TDS")
@@ -317,6 +336,11 @@ def payment_data_from_post(post, profile, bank_ids):
         if memo_id is None:
             raise FeesError("INVALID_PAYMENT", f'There is no numbered memo "{number}".')
         rows.append({"memo_id": memo_id, "amount": row_amount, "tds_amount": row_tds})
+        if len(rows) > payment_service.MAX_ALLOCATIONS:
+            raise FeesError(
+                "INVALID_PAYMENT",
+                f"A payment can be split over at most {payment_service.MAX_ALLOCATIONS} memos.",
+            )
     if len(rows) == 1:
         if rows[0]["amount"] is None and amount is not None:
             rows[0]["amount"] = amount

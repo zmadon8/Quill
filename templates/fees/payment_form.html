@@ -10,6 +10,7 @@
 <form method="post" action="{{ request.path }}{% if memo_query %}?{{ memo_query }}{% endif %}" class="fees-form payment-form modal" id="payment-form" data-payment-form
       data-payees-url="{% url 'fees_payment_payees' %}" data-matters="{{ matter_ids }}" data-money-unit="{{ fees_settings.money_unit|default:'full' }}">
   {% csrf_token %}
+  {% if can_edit %}<button type="submit" class="alloc-default-submit" tabindex="-1" aria-hidden="true">Save</button>{% endif %}
   <fieldset><legend>Payment</legend>
   <p><label>Amount received (net) <input type="text" inputmode="decimal" name="amount" value="{{ form.amount }}" required></label>
      <label>Date <input type="date" name="date_of_payment" value="{{ form.date_of_payment }}" required></label></p>
@@ -26,11 +27,12 @@
      <label>Mode <input type="text" name="payment_mode" value="{{ form.payment_mode }}" size="14"></label></p>
   <p><label>Additional Details <textarea name="payment_details" rows="2" cols="40">{{ form.payment_details }}</textarea></label></p>
   </fieldset>
-  <fieldset><legend>Memos this payment settles (leave all blank for an unaccounted payment)</legend>
-    {% for row in form.rows %}<p class="alloc-row" data-alloc-row><label>Memo number <input type="text" name="alloc_memo_{{ forloop.counter0 }}" value="{{ row.memo_number }}" size="14" aria-label="Memo number, row {{ forloop.counter }}"></label>
-      <label>Amount <input type="text" inputmode="decimal" name="alloc_amount_{{ forloop.counter0 }}" value="{{ row.amount }}" size="10" aria-label="Amount, row {{ forloop.counter }}"></label>
-      <label>TDS <input type="text" inputmode="decimal" name="alloc_tds_{{ forloop.counter0 }}" value="{{ row.tds_amount }}" size="10" aria-label="TDS, row {{ forloop.counter }}"></label></p>{% endfor %}
+  <fieldset class="alloc-set" data-alloc-set data-max-rows="{{ max_allocations }}"><legend>Allocate To Memos</legend>
+    <p class="alloc-head"><span class="muted">Leave every row blank for an unaccounted payment.</span> <button type="button" class="alloc-add" data-alloc-add hidden>+ Memo</button></p>
+    <div data-alloc-rows>{% for row in form.rows %}{% include "fees/_alloc_row.html" with i=forloop.counter0 n=forloop.counter %}{% endfor %}</div>
+    <p class="alloc-more"><button type="submit" name="add_row" value="1" formnovalidate data-alloc-add-nojs>Add Another Memo</button></p>
     <p class="muted" data-remaining role="status" aria-live="polite" hidden></p>
+    <template data-alloc-template>{% include "fees/_alloc_row.html" with i="__i__" n="" row=None %}</template>
   </fieldset>
   <p class="modal-footer">{% if can_edit %}<a class="button" href="{% if memo_id %}{% url 'fees_memo_detail' memo_id %}{% else %}{% url 'fees_feebook' %}{% endif %}">Cancel</a> <button type="submit" class="primary">Save</button>{% else %}<a class="button" href="{% if memo_id %}{% url 'fees_memo_detail' memo_id %}{% else %}{% url 'fees_feebook' %}{% endif %}">Back</a>{% endif %}</p>
 </form>

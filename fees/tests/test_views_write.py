@@ -308,6 +308,41 @@ class PaymentWriteTests(WriteBase):
         self.assertEqual(self.post("fees_payment_new", self.payment_post(amount="")).status_code, 422)
         self.assertEqual(self.post("fees_payment_new", self.payment_post(date_of_payment="2026-02-30")).status_code, 422)
 
+    def test_payment_over_more_than_five_memos(self):
+        found = [self.new_memo() for _ in range(7)]
+        data = self.payment_post(amount="700", auto_tds="", tds_rate="0")
+        for i, memo in enumerate(found):
+            data["alloc_memo_%d" % i] = memo.memo_number
+            data["alloc_amount_%d" % i] = "100"
+        response = self.post("fees_payment_new", data)
+        self.assertRedirects(response, reverse("fees_feebook"), fetch_redirect_response=False)
+        self.assertEqual(Allocation.objects.filter(memo__in=found).count(), 7)
+
+    def test_rows_may_be_numbered_with_gaps(self):
+        first, second = self.new_memo(), self.new_memo()
+        data = self.payment_post(
+            amount="500", auto_tds="", tds_rate="0",
+            alloc_memo_1=first.memo_number, alloc_amount_1="200",
+            alloc_memo_9=second.memo_number, alloc_amount_9="300",
+        )
+        self.assertEqual(self.post("fees_payment_new", data).status_code, 302)
+        self.assertEqual(Allocation.objects.get(memo=second).amount, Decimal("300.00"))
+
+    def payment_with_rows(self, count):
+        memo = self.new_memo()
+        data = self.payment_post(amount=str(count), auto_tds="", tds_rate="0")
+        for i in range(count):
+            data["alloc_memo_%d" % i] = memo.memo_number
+            data["alloc_amount_%d" % i] = "1"
+        return data
+
+    def test_two_hundred_and_one_rows_are_refused_with_a_clear_error(self):
+        before = Payment.objects.filter(profile=self.profile).count()
+        response = self.post("fees_payment_new", self.payment_with_rows(201))
+        self.assertEqual(response.status_code, 422)
+        self.assertContains(response, "at most 200 memos", status_code=422)
+        self.assertEqual(Payment.objects.filter(profile=self.profile).count(), before)
+
     def test_unknown_memo_number_is_a_validation_error(self):
         response = self.post("fees_payment_new", self.payment_post(alloc_memo_0="NO-SUCH-NUMBER"))
         self.assertEqual(response.status_code, 422)

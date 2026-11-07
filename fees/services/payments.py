@@ -164,6 +164,10 @@ def _is_real_date(value) -> bool:
         return False
 
 
+#: The most memos one payment may be split over (a safety cap; there is no other limit).
+MAX_ALLOCATIONS = 200
+
+
 def validate_payment(data) -> None:
     """Validates a payment input per R-PAY-2, raising ``INVALID_PAYMENT`` on failure.
 
@@ -186,6 +190,13 @@ def validate_payment(data) -> None:
         rate_dec = Decimal(str(rate))
         if rate_dec < 0 or rate_dec >= 100:
             raise FeesError("INVALID_PAYMENT", "TDS rate must be between 0 and 100")
+
+    allocations = _get(data, "allocations")
+    if allocations and len(allocations) > MAX_ALLOCATIONS:
+        raise FeesError(
+            "INVALID_PAYMENT",
+            f"A payment can be split over at most {MAX_ALLOCATIONS} memos; this one has {len(allocations)}.",
+        )
 
 
 # ---------------------------------------------------------------------------

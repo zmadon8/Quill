@@ -322,6 +322,33 @@ class AddPaymentTests(TestCase):
         self.assertEqual(memos.get_memo(self.profile, self.b.pk)["status"], "Paid")
         self.assertEqual(memos.get_memo(self.profile, self.b.pk)["amount_paid"], Decimal("3000.00"))
 
+    def test_more_than_five_allocations_save(self):
+        extra = [memo_with_total(self.profile, self.matter, 100) for _ in range(5)]
+        memo_list = [self.a, self.b] + extra
+        pay = payments.add_payment(
+            self.profile,
+            {
+                "amount": 8500,
+                "date_of_payment": "2026-08-01",
+                "allocations": [
+                    {"memo_id": m.pk, "amount": {self.a.pk: 5000, self.b.pk: 3000}.get(m.pk, 100), "tds_amount": 0}
+                    for m in memo_list
+                ],
+            },
+        )
+        self.assertEqual(len(pay["allocations"]), 7)
+        for m in memo_list:
+            self.assertEqual(memos.get_memo(self.profile, m.pk)["status"], "Paid")
+
+    def test_two_hundred_allocations_pass_validation_and_201_is_refused(self):
+        rows = [{"memo_id": self.a.pk, "amount": 1, "tds_amount": 0}] * payments.MAX_ALLOCATIONS
+        payments.validate_payment({"amount": 200, "date_of_payment": "2026-08-01", "allocations": rows})
+        too_many = rows + [{"memo_id": self.a.pk, "amount": 1, "tds_amount": 0}]
+        with self.assertRaises(FeesError) as caught:
+            payments.add_payment(self.profile, {"amount": 201, "date_of_payment": "2026-08-01", "allocations": too_many})
+        self.assertEqual(caught.exception.code, "INVALID_PAYMENT")
+        self.assertIn("at most 200", caught.exception.message)
+
     def test_no_allocations_is_unaccounted(self):
         pay = payments.add_payment(
             self.profile, {"amount": 1000, "date_of_payment": "2026-08-01"}

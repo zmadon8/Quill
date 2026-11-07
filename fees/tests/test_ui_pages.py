@@ -12,8 +12,9 @@ from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils.html import escape
 
-from fees.models import FeesSettings, SavedView
-from fees.services import dashboard
+from fees.models import FeesSettings, Payment, SavedView
+from fees.services import dashboard, memos, payments
+from fees.tests import xlsx_support as xs
 from fees.tests.test_views_read import SeededViewsBase
 
 EM_DASH = "\u2014"
@@ -432,7 +433,7 @@ class FeebookAndPaymentTests(UiPageBase):
         text = self.assert_page(self.page("fees_payment_new", user=self.editor), "payment")
         self.assertIn('method="post" action="%s"' % reverse("fees_payment_new"), text)
         for name in ("amount", "date_of_payment", "tds_rate", "auto_tds", "tds_amount", "payee", "bank_account_id",
-                     "alloc_memo_0", "alloc_amount_0", "alloc_tds_0", "alloc_memo_4"):
+                     "alloc_memo_0", "alloc_amount_0", "alloc_tds_0", "alloc_memo_2"):
             self.assertIn('name="%s"' % name, text)
         self.assertIn('<button type="submit" class="primary">Save</button>', text)
         self.assertIn("js/fees/payment-form.js", text)
@@ -464,10 +465,98 @@ class FeebookAndPaymentTests(UiPageBase):
         self.assertIn("?memo=%d&amp;memo=%d" % (a.pk, b.pk), text)
         self.assertIn('data-matters="%d"' % self.ids()["matter"], text)
 
-    def test_several_memos_are_capped_at_the_rows_and_junk_is_ignored(self):
+    def test_repeated_and_junk_memo_values_are_ignored(self):
         a = self.seed["memo_a"]
         text = self.assert_page(self.page("fees_payment_new", query="?memo=%d,x,%d" % (a.pk, a.pk), user=self.editor), "payment-dup")
         self.assertIn('name="alloc_memo_0"', text)
+        self.assertEqual(text.count("?memo=%d" % a.pk), 1)
+
+    def new_memos(self, count, **over):
+        return [memos.create_memo(self.profile, xs.memo_input(self.seed["matter_1"].pk, **over)) for _ in range(count)]
+
+    def test_payment_form_takes_more_than_five_memos_from_the_query(self):
+        found = self.new_memos(7)
+        query = "?" + "&".join("memo=%d" % m.pk for m in found)
+        text = self.assert_page(self.page("fees_payment_new", query=query, user=self.editor), "payment-seven")
+        for i, m in enumerate(found):
+            self.assertRegex(text, r'<option value="%s" data-due="[^"]*" selected>' % re.escape(m.memo_number))
+            self.assertIn('name="alloc_memo_%d"' % i, text)
+        self.assertEqual(text.count("data-alloc-row>"), 7 + 1)  # the seven rows and the script's template row
+
+    def test_each_row_is_a_separate_block_with_its_number(self):
+        text = self.html(self.page("fees_payment_new", user=self.editor))
+        self.assertEqual(text.count('<div class="alloc-row" data-alloc-row>'), 3 + 1)
+        for n in (1, 2, 3):
+            self.assertIn('<span data-row-no>%d</span>' % n, text)
+        self.assertIn("<legend>Allocate To Memos</legend>", text)
+        self.assertIn("+ Memo</button>", text)
+
+    def test_memo_options_show_number_matter_and_amount_due(self):
+        memo = self.new_memos(1, date="2030-03-01")[0]
+        text = self.html(self.page("fees_payment_new", user=self.editor))
+        label = escape("%s \u00b7 %s (Rs 14,000 Due)" % (memo.memo_number, self.seed["matter_1"].name))
+        self.assertIn('<option value="%s" data-due="14000.00">%s</option>' % (memo.memo_number, label), text)
+        self.assertIn('<option value="">Select...</option>', text)
+
+    def test_memo_options_leave_out_drafts_written_off_and_paid_memos(self):
+        paid = self.new_memos(1)[0]
+        payments.add_payment_to_memo(self.profile, paid.pk, {"amount": 14000, "date_of_payment": "2026-08-01"})
+        written_off = self.seed["memo_c"]
+        written_off.refresh_from_db()
+        text = self.html(self.page("fees_payment_new", user=self.editor))
+        self.assertNotIn('<option value="%s"' % paid.memo_number, text)
+        self.assertNotIn('<option value="%s"' % written_off.memo_number, text)
+
+    def test_memo_options_are_newest_first_and_the_known_matter_comes_first(self):
+        newest = memos.create_memo(self.profile, xs.memo_input(self.seed["matter_3"].pk, date="2031-01-01"))
+        older = memos.create_memo(self.profile, xs.memo_input(self.seed["matter_1"].pk, date="2029-01-01"))
+        oldest = memos.create_memo(self.profile, xs.memo_input(self.seed["matter_1"].pk, date="2028-01-01"))
+        text = self.html(self.page("fees_payment_new", user=self.editor))
+        order = [text.index('<option value="%s"' % m.memo_number) for m in (newest, older, oldest)]
+        self.assertEqual(order, sorted(order))
+        known = self.html(self.page("fees_payment_new", query="?memo=%d" % oldest.pk, user=self.editor))
+        place = {m.memo_number: known.index('<option value="%s"' % m.memo_number) for m in (newest, older, oldest)}
+        self.assertLess(place[older.memo_number], place[newest.memo_number])
+        self.assertLess(place[oldest.memo_number], place[newest.memo_number])
+
+    def test_editing_keeps_an_already_paid_memo_in_the_list(self):
+        memo = self.new_memos(1)[0]
+        dto = payments.add_payment_to_memo(self.profile, memo.pk, {"amount": 14000, "date_of_payment": "2026-08-01"})
+        text = self.html(self.page("fees_payment_edit", {"payment_id": dto["id"]}, user=self.editor))
+        self.assertRegex(text, r'<option value="%s" data-due="0.00" selected>[^<]*\(Rs 0 Due\)</option>' % re.escape(memo.memo_number))
+
+    def test_options_cost_one_query_however_many_rows(self):
+        found = self.new_memos(6)
+        few = "?memo=%d" % found[0].pk
+        many = "?" + "&".join("memo=%d" % m.pk for m in found)
+        self.login(self.editor)
+        url = reverse("fees_payment_new")
+        self.client.get(url + few)
+        with CaptureQueriesContext(connection) as one:
+            self.client.get(url + few)
+        with CaptureQueriesContext(connection) as six:
+            self.client.get(url + many)
+        # Each memo named in the query is read once for its prefill; the option list adds nothing per row.
+        self.assertLessEqual(len(six), len(one) + 5 * 6)
+
+    def test_add_another_memo_without_script_adds_an_empty_row_and_saves_nothing(self):
+        a = self.seed["memo_a"]
+        a.refresh_from_db()
+        self.login(self.editor)
+        before = Payment.objects.filter(profile=self.profile).count()
+        response = self.client.post(
+            reverse("fees_payment_new"),
+            {"amount": "100", "tds_rate": "0", "date_of_payment": "2026-09-01", "alloc_memo_0": a.memo_number,
+             "alloc_amount_0": "100", "alloc_memo_1": "", "alloc_memo_2": "", "add_row": "1"},
+        )
+        self.assertEqual(response.status_code, 200)
+        text = self.html(response)
+        self.assertIn('name="alloc_memo_3"', text)
+        self.assertNotIn('name="alloc_memo_4"', text)
+        self.assertIn('name="alloc_amount_0" value="100"', text)
+        self.assertRegex(text, r'<option value="%s" data-due="[^"]*" selected>' % re.escape(a.memo_number))
+        self.assertIn('name="add_row" value="1"', text)
+        self.assertEqual(Payment.objects.filter(profile=self.profile).count(), before)
 
     def test_payment_edit_form(self):
         i = self.ids()
