@@ -15,26 +15,56 @@ from django.db.models import F
 from django.db.models.functions import Lower
 from django.utils import timezone
 
-from .models import ROLE_READER, Profile, ProfileMembership
-from .suite import KEY_DIARY, get_names
+from .models import ROLE_EDITOR, ROLE_READER, Profile, ProfileMembership
+from .programs import program_keys
+from .suite import KEY_DIARY, KEY_FEES, get_names
 
 DEFAULT_PROFILE_NAME = "Main"
 
 
-def live_memberships(user, program=KEY_DIARY):
+def live_memberships(user, program=KEY_DIARY, raw=False):
     """Every membership of ``user`` that gives access in ``program`` (live profile, not suspended), the one in use first.
 
     In use: the one switched to most recently; never-used ones follow by profile name. Profiles are loaded too.
+    ``program=None`` returns the memberships of every program (one query), in the same order.
+
+    A suite Admin is an Admin in every program (the owner's rule): unless ``raw`` is True they get every live profile
+    of ``program`` as an Editor, with or without a membership (the ones without are unsaved stand-ins). ``raw=True``
+    gives only the stored memberships, with their stored roles (the Users screens). Non-Admins cost one query.
     """
     if user is None or not getattr(user, "pk", None):
         return []
-    return list(
-        ProfileMembership.objects.filter(
-            user=user, program=program, suspended=False, profile__deleted_at__isnull=True
-        )
+    found = ProfileMembership.objects.filter(user=user, suspended=False, profile__deleted_at__isnull=True)
+    if program is not None:
+        found = found.filter(program=program)
+    memberships = list(
+        found
         .select_related("profile")
         .order_by(F("last_used_at").desc(nulls_last=True), Lower("profile__name"), "pk")
     )
+    if raw or not getattr(user, "is_admin", False):
+        return memberships
+    return _admin_memberships(user, program, memberships)
+
+
+def _admin_memberships(user, program, memberships):
+    """An Admin's view of ``memberships``: Editor everywhere, plus a stand-in for each live profile with no membership.
+
+    Order: the Admin's own memberships (the profile used most recently first, then by name), then the other profiles
+    by name. So an Admin with no memberships uses the first profile by name until they switch to another.
+    """
+    has = {m.profile_id for m in memberships}
+    for m in memberships:
+        m.role = ROLE_EDITOR  # in memory only: the stored role is untouched
+    profiles = Profile.objects.filter(deleted_at__isnull=True).exclude(pk__in=has)
+    if program is not None:
+        profiles = profiles.filter(program=program)
+    standins = [
+        ProfileMembership(user=user, profile=p, program=p.program, role=ROLE_EDITOR)
+        for p in profiles.order_by(Lower("name"), "pk")
+    ]
+    # Their own profiles come first (already in order); profiles they have no membership in follow, by name.
+    return memberships + standins
 
 
 def get_membership_for(user, program=KEY_DIARY):
@@ -44,7 +74,20 @@ def get_membership_for(user, program=KEY_DIARY):
 
 
 def use_profile(user, profile):
-    """Make ``profile`` the one ``user`` is using (from now on, on every device). False if they may not use it."""
+    """Make ``profile`` the one ``user`` is using (from now on, on every device). False if they may not use it.
+
+    A suite Admin may use any live profile; one without a membership gets a Reader membership to record the choice
+    (they still work as an Editor, since an Admin is an Admin in every program).
+    """
+    if getattr(user, "is_admin", False) and profile.deleted_at is None:
+        membership, _ = ProfileMembership.objects.get_or_create(
+            user=user, profile=profile, defaults={"program": profile.program, "role": ROLE_READER}
+        )
+        if membership.suspended:
+            return False
+        membership.last_used_at = timezone.now()
+        membership.save(update_fields=["last_used_at"])
+        return True
     updated = ProfileMembership.objects.filter(
         user=user, profile=profile, suspended=False, profile__deleted_at__isnull=True
     ).update(last_used_at=timezone.now())
@@ -87,11 +130,15 @@ def request_profile(request, program=KEY_DIARY):
     """The signed-in user's profile for ``program``, looked up once per request (None if none)."""
     attr = f"_profile_{program}"
     if not hasattr(request, attr):
-        memberships = live_memberships(getattr(request, "user", None), program)
-        membership = memberships[0] if memberships else None
-        setattr(request, f"_memberships_{program}", memberships)
-        setattr(request, f"_membership_{program}", membership)
-        setattr(request, attr, membership.profile if membership else None)
+        # One query for every program: the header asks for the diary and the Fee Register on each page.
+        everything = live_memberships(getattr(request, "user", None), None)
+        # Every known program is filled in, so asking about one the user has no access to costs nothing more.
+        for key in {program, KEY_DIARY, KEY_FEES, *program_keys(), *(m.program for m in everything)}:
+            memberships = [m for m in everything if m.program == key]
+            membership = memberships[0] if memberships else None
+            setattr(request, f"_memberships_{key}", memberships)
+            setattr(request, f"_membership_{key}", membership)
+            setattr(request, f"_profile_{key}", membership.profile if membership else None)
     return getattr(request, attr)
 
 
@@ -134,12 +181,46 @@ def set_user_profile(user, profile, role=ROLE_READER, program=KEY_DIARY):
 
 
 def profile_usage(profile):
-    """(members, live diary subjects) counts, used to refuse deleting a profile in use."""
+    """(members, live records) counts, used to refuse deleting a profile in use.
+
+    Records are the diary's Subjects, or a Fee Register profile's Memos.
+    """
+    members = ProfileMembership.objects.filter(profile=profile, user__deleted_at__isnull=True).count()
+    if profile.program == KEY_FEES:
+        from fees.models import Memo
+
+        return members, Memo.objects.filter(profile=profile).count()
     from diary.models import Subject
 
-    members = ProfileMembership.objects.filter(profile=profile, user__deleted_at__isnull=True).count()
     subjects = Subject.objects.filter(profile=profile, deleted_at__isnull=True).count()
     return members, subjects
+
+
+def profile_usage_map(profiles):
+    """``{profile pk: (members, records)}`` for many profiles in two grouped queries (no per-profile queries)."""
+    from django.db.models import Count
+
+    profiles = list(profiles)
+    pks = [p.pk for p in profiles]
+    members = dict(
+        ProfileMembership.objects.filter(profile_id__in=pks, user__deleted_at__isnull=True)
+        .values_list("profile_id").annotate(n=Count("pk")).order_by()
+    )
+    fees_pks = [p.pk for p in profiles if p.program == KEY_FEES]
+    diary_pks = [p.pk for p in profiles if p.program != KEY_FEES]
+    records = {}
+    if fees_pks:
+        from fees.models import Memo
+
+        records.update(Memo.objects.filter(profile_id__in=fees_pks).values_list("profile_id").annotate(n=Count("pk")).order_by())
+    if diary_pks:
+        from diary.models import Subject
+
+        records.update(
+            Subject.objects.filter(profile_id__in=diary_pks, deleted_at__isnull=True)
+            .values_list("profile_id").annotate(n=Count("pk")).order_by()
+        )
+    return {pk: (members.get(pk, 0), records.get(pk, 0)) for pk in pks}
 
 
 def retention_days():

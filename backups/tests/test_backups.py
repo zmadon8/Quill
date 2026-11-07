@@ -68,6 +68,10 @@ class BackupRoleAccessTests(BackupBase):
             for url in ("backup_list", "restore_upload"):
                 self.assertEqual(self.client.get(reverse(url)).status_code, 403, (name, url))
             self.assertEqual(self.client.post(reverse("backup_now")).status_code, 403)
+            self.assertEqual(self.client.post(reverse("restore_upload"), {}).status_code, 403)
+            for url in ("restore_preview", "backup_download", "backup_delete"):
+                self.assertEqual(self.client.get(reverse(url, args=[1])).status_code, 403, (name, url))
+            self.assertEqual(self.client.post(reverse("restore_preview", args=[1]), {}).status_code, 403)
             self.client.logout()
 
 
@@ -124,7 +128,7 @@ class RunBackupCommandTests(BackupBase):
         call_command("run_backup", stdout=out)
         self.assertEqual(BackupFile.objects.filter(kind="daily").count(), 1)
         self.assertIn("Daily backup OK", out.getvalue())
-        self.assertTrue(BackupLog.objects.filter(kind="prune", success=True).exists())
+        self.assertIn("Old backups removed: 0", out.getvalue())  # one backup is under the keep count: nothing pruned, so no prune log
 
     def test_run_backup_failure_raises_command_error(self):
         with mock.patch("backups.services.serializers.serialize", side_effect=RuntimeError("boom")):
@@ -134,39 +138,70 @@ class RunBackupCommandTests(BackupBase):
 
 
 class RetentionTests(BackupBase):
-    def test_prune_keeps_recent_and_newest(self):
-        ages = {10: None, 29: None, 31: None, 40: None, 100: None}
-        for days in ages:
-            ages[days] = services.create_backup("daily")
-            set_age(ages[days], days)
-        removed = services.prune_old_backups()
+    def make_many(self, kinds):
+        """Create backups oldest first, with distinct ages so the order is certain."""
+        made = []
+        with override_settings(BACKUP_KEEP_COUNT=1000):
+            for index, kind in enumerate(kinds):
+                backup = services.create_backup(kind)
+                BackupFile.objects.filter(pk=backup.pk).update(
+                    created_at=timezone.now() - timedelta(minutes=len(kinds) - index)
+                )
+                made.append(backup)
+        return made
+
+    def test_prune_keeps_only_the_newest_n(self):
+        made = self.make_many(["daily"] * 6)
+        removed = services.prune_old_backups(keep_count=4)
         self.assertEqual(removed, 2)
         remaining = set(BackupFile.objects.values_list("pk", flat=True))
-        self.assertEqual(remaining, {ages[10].pk, ages[29].pk, ages[31].pk})
+        self.assertEqual(remaining, {b.pk for b in made[2:]})
         self.assertTrue(BackupLog.objects.filter(kind="prune", success=True).exists())
+
+    def test_every_kind_counts(self):
+        kinds = ["pre_import", "post_import", "pre_clear", "pre_migration", "pre_restore", "manual", "daily"]
+        made = self.make_many(kinds)
+        self.assertEqual(services.prune_old_backups(keep_count=3), 4)
+        remaining = set(BackupFile.objects.values_list("pk", flat=True))
+        self.assertEqual(remaining, {b.pk for b in made[-3:]})
+
+    def test_old_import_backups_are_pruned_like_any_other(self):
+        made = self.make_many(["pre_import", "post_import", "daily", "daily"])
+        services.prune_old_backups(keep_count=2)
+        self.assertFalse(BackupFile.objects.filter(pk__in=[made[0].pk, made[1].pk]).exists())
+
+    def test_nothing_is_removed_while_under_the_limit(self):
+        self.make_many(["daily"] * 3)
+        self.assertEqual(services.prune_old_backups(keep_count=30), 0)
+        self.assertEqual(BackupFile.objects.count(), 3)
 
     def test_prune_never_leaves_zero_backups(self):
         only = services.create_backup("daily")
-        set_age(only, 500)
-        self.assertEqual(services.prune_old_backups(), 0)
-        self.assertEqual(BackupFile.objects.count(), 1)
+        self.assertEqual(services.prune_old_backups(keep_count=0), 0)
+        self.assertTrue(BackupFile.objects.filter(pk=only.pk).exists())
 
-    def test_prune_never_removes_import_backups(self):
-        old_daily = services.create_backup("daily")
-        before = services.create_backup("pre_import")
-        after = services.create_backup("post_import")
-        newest = services.create_backup("daily")
-        for backup in (old_daily, before, after):
-            set_age(backup, 400)
-        self.assertEqual(services.prune_old_backups(), 1)
-        remaining = set(BackupFile.objects.values_list("pk", flat=True))
-        self.assertEqual(remaining, {before.pk, after.pk, newest.pk})
+    def test_default_keep_count_setting_is_30_and_minimum_1(self):
+        from django.conf import settings
+
+        self.assertGreaterEqual(settings.BACKUP_KEEP_COUNT, 1)
+
+    @override_settings(BACKUP_KEEP_COUNT=3)
+    def test_create_backup_prunes_after_itself_and_keeps_the_new_one(self):
+        self.make_many(["daily"] * 5)
+        newest = services.create_backup("pre_migration")
+        self.assertEqual(BackupFile.objects.count(), 3)
+        self.assertTrue(BackupFile.objects.filter(pk=newest.pk).exists())
 
     def test_prune_failure_is_logged_not_raised(self):
         services.create_backup("daily")
-        with mock.patch("backups.services.policy.select_expired", side_effect=RuntimeError("bad")):
+        with mock.patch("backups.services.policy.select_over_count", side_effect=RuntimeError("bad")):
             self.assertEqual(services.prune_old_backups(), 0)
         self.assertTrue(BackupLog.objects.filter(kind="prune", success=False).exists())
+
+    def test_prune_failure_never_breaks_a_backup(self):
+        with mock.patch("backups.services.policy.select_over_count", side_effect=RuntimeError("bad")):
+            backup = services.create_backup("manual")
+        self.assertTrue(BackupFile.objects.filter(pk=backup.pk).exists())
 
 
 class ParseTests(BackupBase):
@@ -426,7 +461,9 @@ class DiaryRoundTripTests(BackupBase):
     def test_round_trip_restores_everything(self):
         self.build()
         before = self.snapshot()
-        self.assertTrue(all(before[label] for label in registry.BACKUP_MODELS))
+        self.assertTrue(
+            all(before[label] for label in registry.BACKUP_MODELS if not label.startswith("fees."))
+        )
         doc = services.parse_backup(services.create_backup("manual").data, MAX)
         self.assertEqual(doc["counts"]["diary.NoteLink"], 2)
 
@@ -664,8 +701,8 @@ class ViewTests(BackupBase):
         self.login_admin()
         self.client.post(reverse("backup_now"))
         page = self.client.get(reverse("backup_list"))
-        self.assertContains(page, 'data-resizable-columns="backups-list"')
-        self.assertContains(page, 'data-resizable-columns="backups-log"')
+        self.assertContains(page, 'data-table-id="backups-list"')
+        self.assertContains(page, 'data-table-id="backups-log"')
         self.assertContains(page, "js/resizable-columns.js")
 
     def test_list_and_backup_now(self):

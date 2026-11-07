@@ -1,0 +1,1 @@
+{# Header, right side, first item: the signed-in user's name, linking to My settings. #}<a class="who" href="{% url 'my_settings' %}" title="My settings" aria-label="{{ user.get_full_name|default:user.username }}: my settings">{{ user.get_full_name|default:user.username }}</a>

@@ -67,7 +67,7 @@ class HyperlinkEditingTests(ItemEditorTestCase):
                                                (None, "", "", EXACT)]))
         self.assertEqual(Case._base_manager.filter(item=item, deleted_at__isnull=True, url=EXACT).count(), 1)
 
-    def test_the_reading_view_links_the_citation_and_the_header_has_the_switch(self):
+    def test_the_reading_view_links_the_citation_and_the_bar_has_the_switch(self):
         item, first, second = self.cited()
         Case.objects.filter(pk=first.pk).update(url=EXACT)
         html = self.client.get(reverse("read_topic", args=[self.topic.pk])).content.decode()
@@ -78,6 +78,21 @@ class HyperlinkEditingTests(ItemEditorTestCase):
         self.assertIn('role="switch"', html)
         self.assertIn('localStorage.getItem("quill.links")', html)  # applied before the page is drawn: no reload
         self.assertIn("js/keep-place.js", html)
+
+    def test_the_links_toggle_sits_on_the_edit_bar_left_of_edit_for_an_editor(self):
+        # The toggle moved from the header onto the same bar as Edit, just to its left.
+        html = self.client.get(reverse("read_topic", args=[self.topic.pk]) + "?edit=1").content.decode()
+        self.assertIn('data-bar-tools', html)
+        self.assertIn('data-links-toggle', html)
+        self.assertIn('data-edit-switch', html)
+        self.assertLess(html.index('data-links-toggle'), html.index('data-edit-switch'))  # Links is left of Edit
+
+    def test_a_reader_still_gets_the_links_toggle_on_a_reading_page(self):
+        # Readers have no Edit button, but the Links toggle still works for them on reading pages.
+        html = self.reader_client.get(reverse("read_topic", args=[self.topic.pk])).content.decode()
+        self.assertIn('data-bar-tools', html)
+        self.assertIn('data-links-toggle', html)
+        self.assertNotIn('data-edit-switch', html)
 
     def test_history_and_undo_carry_the_address(self):
         item, first, second = self.cited()

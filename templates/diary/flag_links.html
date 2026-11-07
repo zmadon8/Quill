@@ -3,7 +3,7 @@
 {% block content %}
 <div class="home-column search-page">
   {% include "diary/_flags_tabs.html" %}
-  <h1>Hyperlinks</h1>
+  <h1 class="visually-hidden">Hyperlinks</h1>
   <form class="search-form" role="search" method="get" action="{% url 'flag_links' %}">
     <div class="search-row">
       <label class="visually-hidden" for="links-q">{% if which == "with" %}Search the link addresses{% else %}Search the citations{% endif %}</label>
@@ -17,6 +17,7 @@
     </div>
   </form>
   <div data-search-results>
+  {% include "diary/_search_notice.html" %}
   {% if results %}
   <div class="search-head"><p class="meta search-count">{{ total }} citation{{ total|pluralize }} {% if which == "with" %}with{% else %}without{% endif %} a link{% if q %} matching &ldquo;{{ q }}&rdquo;{% endif %}</p></div>
   {% include "diary/_grouped_results.html" %}

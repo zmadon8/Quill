@@ -7,7 +7,7 @@
   <p><a href="{{ back }}">Back to reading</a> &middot; <a href="{% url 'history' 'item' item.pk %}?next={{ back|urlencode }}">History</a></p>
   {% if theirs %}
   <details class="saved-version" open>
-    <summary>The saved version (version {{ item.version }}), for comparison</summary>
+    <summary>The Saved Version (Version {{ item.version }}), For Comparison</summary>
     <p><strong>Text:</strong> {{ item.text|richhtml }}</p>
     <p><strong>Flag:</strong> {{ item.get_flag_display }}{% if item.flag_text %}: {{ item.flag_text }}{% endif %}</p>
   </details>
@@ -39,14 +39,14 @@
               <button type="button" class="small danger" data-case-remove aria-label="Remove this citation">Remove</button>
             </span>
           </div>
-          <label>Citation <input type="text" name="case_citation" value="{{ row.citation }}" maxlength="1000" placeholder="Case name [(2020) 1 SCC 1]"></label>
+          <label>Citation <textarea name="case_citation" class="single-line" rows="1" maxlength="1000" placeholder="Case name [(2020) 1 SCC 1]" data-single-line>{{ row.citation }}</textarea></label>
           <label>Link (optional) <input type="url" name="case_url" maxlength="2000" value="{{ row.url|default_if_none:'' }}" placeholder="Link (optional): https://..." aria-label="Web address of this citation (optional)" autocapitalize="off" autocorrect="off" spellcheck="false"></label>
           <div class="field-label">Comment (optional)</div>
           {% include "diary/_richtext_field.html" with rname="case_comment" rvalue=row.comment rlabel="Citation comment" rhint="Comment (optional)" rrows=3 %}
         </li>
         {% endfor %}
       </ol>
-      <button type="button" data-case-add>Add a citation</button>
+      <button type="button" data-case-add>Add A Citation</button>
       <template data-case-template>
         <li class="case-row" data-case-row>
           <input type="hidden" name="case_id" value="">
@@ -58,7 +58,7 @@
               <button type="button" class="small danger" data-case-remove aria-label="Remove this citation">Remove</button>
             </span>
           </div>
-          <label>Citation <input type="text" name="case_citation" value="" maxlength="1000" placeholder="Case name [(2020) 1 SCC 1]"></label>
+          <label>Citation <textarea name="case_citation" class="single-line" rows="1" maxlength="1000" placeholder="Case name [(2020) 1 SCC 1]" data-single-line></textarea></label>
           <label>Link (optional) <input type="url" name="case_url" maxlength="2000" value="" placeholder="Link (optional): https://..." aria-label="Web address of this citation (optional)" autocapitalize="off" autocorrect="off" spellcheck="false"></label>
           <div class="field-label">Comment (optional)</div>
           <div class="rt" data-richtext><textarea class="rt-source" name="case_comment" rows="3" aria-label="Citation comment" placeholder="Comment (optional)"></textarea></div>
@@ -94,7 +94,7 @@
     </dl>
     {% if item.original_line %}
     <details open class="original-line">
-      <summary>Original Word line (read only)</summary>
+      <summary>Original Word Line (Read Only)</summary>
       <p class="original-text">{{ item.original_line }}</p>
     </details>
     {% endif %}
@@ -103,5 +103,6 @@
 {% endblock %}
 {% block extra_js %}
 <script src="{% static 'js/richtext-editor.js' %}"></script>
+<script src="{% static 'js/single-line.js' %}"></script>
 <script src="{% static 'js/item-editor.js' %}"></script>
 {% endblock %}

@@ -127,7 +127,7 @@ class RestoreTests(TrashTestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertTemplateUsed(resp, "diary/trash_parents.html")
         self.assertEqual(resp.context["chain"], [{"kind_name": "Topic", "label": "Formation"}])
-        self.assertContains(resp, "Restore them too")
+        self.assertContains(resp, "Restore Them Too")
         self.assertIsNotNone(self.get(self.one).deleted_at)
         self.assertIsNotNone(self.get(self.topic).deleted_at)
 
@@ -188,7 +188,7 @@ class RestoreTests(TrashTestCase):
         stale["version"] -= 1
         resp = self.trash_post("trash_restore", stale)
         self.assertEqual(resp.status_code, 409)
-        self.assertContains(resp, "Keep mine", status_code=409)
+        self.assertContains(resp, "Keep Mine", status_code=409)
         self.assertIsNotNone(self.get(self.one).deleted_at)
         self.assertEqual(self.resend(resp).status_code, 302)
         self.assertIsNone(self.get(self.one).deleted_at)
@@ -203,18 +203,18 @@ class PermanentDeleteTests(TrashTestCase):
         self.assertEqual(self.perm(self.one, self.client, confirmed="1").status_code, 403)
         self.assertTrue(Item._base_manager.filter(pk=self.one.pk).exists())
 
-    def test_an_admin_who_is_only_a_reader_of_the_profile_gets_403(self):
+    def test_an_admin_who_is_only_a_reader_of_the_profile_is_still_an_admin(self):
+        # Owner's rule: "an 'Admin' is an 'Admin' for all sub-programs" (this used to be a 403).
         reader_admin = join_main(User.objects.create_user("rootr", password=PASSWORD, is_superuser=True), "reader")
         client = Client()
         client.force_login(reader_admin)
         svc.delete(self.profile, self.user, "item", self.one.pk)
-        self.assertEqual(self.perm(self.one, client, confirmed="1").status_code, 403)
-        self.assertTrue(Item._base_manager.filter(pk=self.one.pk).exists())
+        self.assertEqual(self.perm(self.one, client, confirmed="1").status_code, 302)
 
     def test_the_admin_sees_the_button_and_editors_do_not(self):
         svc.delete(self.profile, self.user, "item", self.one.pk)
-        self.assertContains(self.admin_client.get(self.trash_url), "Delete permanently")
-        self.assertNotContains(self.client.get(self.trash_url), "Delete permanently")
+        self.assertContains(self.admin_client.get(self.trash_url), "Delete Permanently")
+        self.assertNotContains(self.client.get(self.trash_url), "Delete Permanently")
 
     def test_the_first_press_names_what_is_lost_and_deletes_nothing(self):
         self.delete_topic()
@@ -224,7 +224,7 @@ class PermanentDeleteTests(TrashTestCase):
         self.assertEqual(resp.context["total"], 6)
         self.assertIn(("Item", 4), resp.context["counts"])
         self.assertContains(resp, "Formation")
-        self.assertContains(resp, "Yes, delete these 6 records permanently")
+        self.assertContains(resp, "Yes, Delete These 6 Records Permanently")
         self.assertTrue(Topic._base_manager.filter(pk=self.topic.pk).exists())
 
     def test_the_second_confirmation_deletes_the_whole_batch_for_good_but_keeps_history(self):
@@ -249,7 +249,7 @@ class PermanentDeleteTests(TrashTestCase):
             resp = self.perm(self.one, **extra)
             self.assertContains(resp, "points here", status_code=resp.status_code)
             self.assertContains(resp, "Refused", status_code=resp.status_code)
-            self.assertNotContains(resp, "Yes, delete", status_code=resp.status_code)
+            self.assertNotContains(resp, "Yes, Delete", status_code=resp.status_code)
         self.assertEqual(self.perm(self.one, confirmed="1").status_code, 409)
         self.assertTrue(Item._base_manager.filter(pk=self.one.pk).exists())
         self.assertTrue(NoteLink._base_manager.filter(note=other).exists())
@@ -288,7 +288,7 @@ class HistoryTests(TrashTestCase):
         resp = self.client.get(reverse("history_version", args=["item", self.one.pk, 2]))
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "second")
-        self.assertContains(resp, "Restore this version")
+        self.assertContains(resp, "Restore This Version")
         names = [f["name"] for f in resp.context["fields"]]
         self.assertIn("text", names)
         self.assertIn("citation", names)
@@ -309,7 +309,7 @@ class HistoryTests(TrashTestCase):
 
     def test_the_current_version_has_no_restore_button(self):
         resp = self.client.get(reverse("history_version", args=["item", self.one.pk, 3]))
-        self.assertNotContains(resp, "Restore this version")
+        self.assertNotContains(resp, "Restore This Version")
 
     def test_a_missing_version_is_404(self):
         self.assertEqual(self.client.get(reverse("history_version", args=["item", self.one.pk, 99])).status_code, 404)
@@ -427,7 +427,7 @@ class UndoViewTests(TrashTestCase):
         resp = self.undo(self.groups()[-1])
         self.assertEqual(resp.status_code, 200)
         self.assertTemplateUsed(resp, "diary/undo_confirm.html")
-        self.assertContains(resp, "Undo anyway")
+        self.assertContains(resp, "Undo Anyway")
         self.assertEqual([c["id"] for c in resp.context["changed"]], [self.one.pk])
         self.assertIn("later", self.get(self.one).text)
         resp = self.undo(self.groups()[-1], force="1")
@@ -461,7 +461,7 @@ class ConflictScreenTests(TrashTestCase):
         self.assertEqual(resp.status_code, 409)
         self.assertContains(resp, "This Topic has changed", status_code=409)
         self.assertEqual(resp.context["rows"], [("Name", "Mine", "Changed elsewhere", True)])
-        for text in ("Keep mine", "Keep theirs", "Edit and merge", "Changed elsewhere"):
+        for text in ("Keep Mine", "Keep Theirs", "Edit and merge", "Changed elsewhere"):
             self.assertContains(resp, text, status_code=409)
         self.assertEqual(self.get(self.topic).name, "Changed elsewhere")
 
@@ -492,7 +492,7 @@ class ConflictScreenTests(TrashTestCase):
         resp = self.post("edit_rename", {**stale, "name": "Mine"})
         self.assertEqual(resp.context["merge"]["type"], "fields")
         self.assertEqual(resp.context["merge"]["value"], "Mine")
-        self.assertContains(resp, "Save merged", status_code=409)
+        self.assertContains(resp, "Save Merged", status_code=409)
         self.assertEqual(self.resend(resp, name="Mine and theirs").status_code, 302)
         self.assertEqual(self.get(self.topic).name, "Mine and theirs")
 
@@ -525,7 +525,7 @@ class ConflictScreenTests(TrashTestCase):
         merge = resp.context["merge"]
         self.assertEqual(merge["type"], "picker")
         self.assertEqual(int(dict(merge["fields"])["version"]), self.get(self.sec).version)
-        self.assertContains(resp, "Choose the place again", status_code=409)
+        self.assertContains(resp, "Choose The Place Again", status_code=409)
         picker = self.client.post(reverse("edit_move_to"), dict(merge["fields"]))
         self.assertEqual(picker.status_code, 200)
 
@@ -552,7 +552,7 @@ class ConflictScreenTests(TrashTestCase):
         self.assertTemplateUsed(merged, "diary/item_editor.html")
         self.assertContains(merged, "My typed words")
         self.assertContains(merged, "My citation")
-        self.assertContains(merged, "The saved version")
+        self.assertContains(merged, "The Saved Version")
         self.assertContains(merged, f'name="version" value="{current}"')
         self.assertEqual(self.get(self.one).version, current)
         saved = self.client.post(self.editor_url(self.one), {

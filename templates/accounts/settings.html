@@ -1,8 +1,10 @@
 {% extends "base_suite_home.html" %}
-{% block title %}Page Names - {{ home_name }}{% endblock %}
+{% block title %}Appearance - {{ home_name }}{% endblock %}
 {% block content %}
-<h1>Page Names</h1>
-<p>The names everyone sees. <strong>Home page name</strong> is the name of the first page after login (top left on the Home, Admins, General and Help pages). <strong>Case law diary name</strong> is the diary&rsquo;s name: top left on its pages (unless a profile has its own Display Name), in page titles, as the Settings item for the diary, and at the start of exported file names (unless a profile has its own). Only the displayed names change; nothing else is affected.</p>
+<h1 class="visually-hidden">Appearance</h1>
+<p class="setting-help">Everything on this page is a choice for {% include "_who_tag.html" with who="all" %}: the names and the header bar are the same for every user.</p>
+<p>The names everyone sees. <strong>Home page name</strong> is the name of the first page after login (top left on the Home, Admins, Settings and Help pages). <strong>Case law diary name</strong> is the diary&rsquo;s name: top left on its pages (unless a profile has its own Display Name), in page titles, as the Settings item for the diary, and at the start of exported file names (unless a profile has its own). Only the displayed names change; nothing else is affected.</p>
+<p>Each <strong>header bar</strong> setting chooses Words or Logo (icons) for the header bar of that page group, for everyone. It used to be a personal setting on the Display tab.</p>
 <form method="post" class="stack">
   {% csrf_token %}
   {{ form.as_p }}

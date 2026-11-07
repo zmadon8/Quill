@@ -32,11 +32,21 @@ def _max_bytes():
     return settings.MAX_BACKUP_UPLOAD_MB * 1024 * 1024
 
 
-@admin_required
-def backup_list(request):
+def render_backup_page(request, email_form=None, tab="saved"):
+    """The Admin Backups page: saved backups, and (a second section) email backups. ``email_form`` is a bound form after
+    an error in the email section."""
+    from mailer.views import email_context  # lazy: mailer imports accounts only
+
     backups = BackupFile.objects.defer("data").order_by("-created_at", "-id")
     logs = BackupLog.objects.select_related("created_by").order_by("-started_at", "-id")[:30]
-    return render(request, "backups/backup_list.html", {"backups": backups, "logs": logs, "offsite": services.offsite_status()})
+    return render(request, "backups/backup_list.html", {
+        "backups": backups, "logs": logs, "offsite": services.offsite_status(), "tab": tab, **email_context(email_form),
+    })
+
+
+@admin_required
+def backup_list(request):
+    return render_backup_page(request, tab="email" if request.GET.get("tab") == "email" else "saved")
 
 
 @admin_required
@@ -54,8 +64,9 @@ def backup_now(request):
 @admin_required
 def backup_download(request, pk):
     backup = get_object_or_404(BackupFile, pk=pk)
+    # Wrap the stored gzip bytes once (R2): the memoryview is sent straight out, no second copy.
     return FileResponse(
-        io.BytesIO(bytes(backup.data)),
+        io.BytesIO(backup.data if isinstance(backup.data, bytes) else bytes(backup.data)),
         as_attachment=True,
         filename=backup.filename,
         content_type="application/octet-stream",
@@ -125,9 +136,20 @@ def restore_preview(request, pk):
         messages.error(request, str(exc))
         return redirect("backup_list")
 
+    will_empty = services.models_that_would_empty(document)
+
     if request.method == "POST":
         if request.POST.get("confirm", "").strip() != CONFIRM_WORD:
             messages.error(request, f"Nothing was changed. Type the word {CONFIRM_WORD} to confirm.")
+            return redirect("restore_preview", pk=pk)
+        # R-BK-4: if the file lacks record types that currently hold data, restoring would empty them.
+        # Require the extra tick box before that destruction may proceed.
+        if will_empty and not request.POST.get("empty_confirm"):
+            messages.error(
+                request,
+                "Nothing was changed. This file does not contain some record types that currently "
+                "hold data. Tick the extra box to confirm you want those records emptied.",
+            )
             return redirect("restore_preview", pk=pk)
         try:
             services.restore_backup(document, request.user)
@@ -154,5 +176,6 @@ def restore_preview(request, pk):
                 services.review_flags.describe(document.get("review_mapping") or services.review_flags.new_stats()),
             ])),
             "confirm_word": CONFIRM_WORD,
+            "will_empty": will_empty,
         },
     )

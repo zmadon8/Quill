@@ -44,6 +44,9 @@ class HomeIndexTests(TestCase):
     @classmethod
     def setUpTestData(cls):
         from django.utils import timezone
+        from accounts import suite
+
+        suite.set_brand_modes({key: suite.BRAND_LOGO for key in suite.BRAND_KEYS})  # these tests check the icons; Words is the default
 
         cls.reader = join_main(User.objects.create_user("rita", password=PASSWORD))
         cls.admin = join_main(User.objects.create_user("adam", password=PASSWORD, is_superuser=True), "editor")
@@ -160,14 +163,12 @@ class HomeIndexTests(TestCase):
         resp = self.client.get(reverse("login"))
         self.assertEqual(resp.status_code, 200)
         self.assertNotContains(resp, "Case Law Diary")
-        self.assertContains(resp, "Log in")
+        self.assertContains(resp, "Log In")
 
-    def test_username_shown_on_suite_pages_but_not_inside_the_program(self):
+    def test_username_shown_on_the_right_of_every_page(self):
         self.client.force_login(self.reader)
-        home = self.client.get(reverse("home"))
-        self.assertContains(home, 'class="who"')
-        for name in ("diary_home", "search"):
-            self.assertNotContains(self.client.get(reverse(name)), 'class="who"', msg_prefix=name)
+        for name in ("home", "diary_home", "search"):
+            self.assertContains(self.client.get(reverse(name)), 'class="who"', msg_prefix=name)
 
     def test_home_is_program_picker(self):
         self.client.force_login(self.reader)
@@ -241,9 +242,9 @@ class HomeIndexTests(TestCase):
         self.assertIn('<a href="%s" title="Home"' % reverse("diary_home"), header)
         self.assertIn("data-search-toggle", header)
         self.assertIn('aria-label="Search"', header)
-        self.assertNotIn("Log out", nav)
+        self.assertIn('aria-label="Sign out"', nav)  # on the right of every header
 
-    def test_home_icon_is_last_in_the_header_and_log_out_only_on_suite_home(self):
+    def test_header_right_side_is_name_search_home_sign_out_on_every_page(self):
         self.client.force_login(self.reader)
         header = self.client.get(reverse("diary_home")).content.decode().split('<header class="site-header"')[1].split("</header>")[0]
         self.assertIn('class="home-button" href="%s?home=1"' % reverse("home"), header)
@@ -254,17 +255,20 @@ class HomeIndexTests(TestCase):
         self.assertLess(header.index("data-forward"), header.index("home-button"))
         self.assertGreater(header.index("search-toggle"), header.index("Help"))
         self.assertLess(header.index("search-toggle"), header.index("home-button"))
-        self.assertNotIn("Log out", header)
-        self.assertNotIn("<input", header)
+        self.assertLess(header.index('class="who"'), header.index("search-toggle"))
+        self.assertLess(header.index("home-button"), header.index('aria-label="Sign out"'))  # Sign out: far right
+        self.assertNotRegex(header, r'<input(?![^>]*type="hidden")')  # no typing box; Sign out's POST form carries a hidden csrf input
+        self.assertIn('class="link nav-icon signout-button"', header)
         self.client.force_login(self.admin)
         for name in ("user_list", "settings", "backup_list"):
             suite_header = self.client.get(reverse(name)).content.decode().split('<header class="site-header"')[1].split("</header>")[0]
             self.assertIn('class="home-button" href="%s?home=1"' % reverse("home"), suite_header, name)
             self.assertLess(suite_header.index("data-forward"), suite_header.index("home-button"), name)
-            self.assertNotIn("Log out", suite_header, name)
+            self.assertLess(suite_header.index("home-button"), suite_header.index('aria-label="Sign out"'), name)
+            self.assertLess(suite_header.index('class="who"'), suite_header.index("home-button"), name)
         home_header = self.client.get(reverse("home") + "?home=1").content.decode().split('<header class="site-header"')[1].split("</header>")[0]
-        self.assertIn("Log out", home_header)
-        self.assertNotIn("home-button", home_header)
+        self.assertIn('aria-label="Sign out"', home_header)
+        self.assertIn("home-button", home_header)
 
     def _choose_landing(self, user, key="diary"):
         User.objects.filter(pk=user.pk).update(landing_program=key)
@@ -320,7 +324,7 @@ class HomeIndexTests(TestCase):
         nav = self.client.get(reverse("home")).content.decode().split('class="program-nav"')[1].split("</nav>")[0]
         self.assertIn(reverse("user_list"), nav)
         self.assertIn("adam", nav)
-        self.assertIn("Log out", nav)
+        self.assertIn('aria-label="Sign out"', nav)
         self.assertIn('aria-label="Admins"', nav)  # D96: Backups is a tab of Admins
         for gone in (reverse("search"), reverse("diary_home")):
             self.assertNotIn(gone, nav)
@@ -367,8 +371,8 @@ class HomeIndexTests(TestCase):
                 self.assertEqual(button.count("<svg"), 1, name)
                 inner = button.split(">", 1)[1].rsplit("</button>", 1)[0]
                 self.assertEqual(re.sub(r"<svg.*?</svg>", "", inner, flags=re.S).strip(), "", name)
-            # The Home icon is on every page except the suite Home; the Search magnifier only on program (diary) pages.
-            self.assertEqual(header.count('class="home-button"'), 0 if name == "home" else 1, name)
+            # The Home icon is on every page; the Search magnifier only on program (diary) pages.
+            self.assertEqual(header.count('class="home-button"'), 1, name)
             self.assertEqual(header.count("data-search-toggle"), 1 if name == "diary_home" else 0, name)
             # Icons are the default header bar (D84): Trash, Export, Help and Settings are icons on diary pages too.
             self.assertEqual(header.count("<svg") - 2, header.count('class="home-button"') + header.count("data-search-toggle")
@@ -512,6 +516,31 @@ class ReadingScreenTests(TestCase):
         html = self.client.get(reverse("read_topic", args=[self.clause.topic_id])).content.decode()
         self.assertIn(reverse("read_subtopic", args=[self.clause.pk]), html.split('class="toc-box"')[1])
 
+    def test_subjects_page_click_opens_whole_subject_under_yes_and_contents_under_no(self):
+        # Round 19 (user item 4): the Display Yes/No toggle (reading_all_mode always_on/always_off) decides what a
+        # Subject link on the Subjects page (diary_home) and in the side panel opens. This exercises the real
+        # template conditional {% if subject_opens_whole %}read_subject{% else %}subject_contents{% endif %}; it
+        # would fail if that conditional (and its subject_opens_whole context key) were reverted.
+        self.client.force_login(self.users["reader"])
+        whole = reverse("read_subject", args=[self.contract.pk])
+        scoped = reverse("subject_contents", args=[self.contract.pk])
+
+        Profile.objects.filter(pk=main_profile().pk).update(reading_all_mode="always_on")
+        index = self.client.get(reverse("diary_home")).content.decode()
+        self.assertIn('<a href="%s"><span class="name">%s</span>' % (whole, self.contract.name), index)
+        self.assertNotIn('<a href="%s"><span class="name">%s</span>' % (scoped, self.contract.name), index)
+        # The side panel on the (scoped) Contents page also opens the whole Subject.
+        panel = self.client.get(scoped).content.decode().split("data-panel-subjects")[1]
+        self.assertIn('<a href="%s"' % whole, panel)
+        self.assertNotIn('<a href="%s"' % scoped, panel)
+
+        Profile.objects.filter(pk=main_profile().pk).update(reading_all_mode="always_off")
+        index = self.client.get(reverse("diary_home")).content.decode()
+        self.assertIn('<a href="%s"><span class="name">%s</span>' % (scoped, self.contract.name), index)
+        self.assertNotIn('<a href="%s"><span class="name">%s</span>' % (whole, self.contract.name), index)
+        panel = self.client.get(scoped).content.decode().split("data-panel-subjects")[1]
+        self.assertIn('<a href="%s"' % scoped, panel)
+
     def test_contents_lists_topics_and_subtopics(self):
         self.client.force_login(self.users["reader"])
         resp = self.client.get(reverse("subject_contents", args=[self.contract.pk]))
@@ -575,11 +604,15 @@ class ReadingScreenTests(TestCase):
         topic = Topic.objects.get(name="Remedies")
         for url in (reverse("read_subject", args=[self.contract.pk]), reverse("read_topic", args=[topic.pk])):
             html = self.client.get(url).content.decode()
-            crumb = html.split('class="crumb-row"')[1].split("</div>")[0]
+            # The crumb-row holds several nested divs now (the Edit bar's bar-tools, which carries the Links toggle).
+            # Capture the whole header row, from class="crumb-row" up to the reader layout that follows it.
+            crumb = html.split('class="crumb-row"')[1].split("reader-layout")[0]
             self.assertEqual(html.count("data-contents-toggle"), 1, url)
             self.assertIn("data-contents-toggle", crumb, url)
             self.assertIn('aria-controls="contents-panel" aria-expanded="false" aria-label="Contents"', crumb, url)
-            button = crumb.split("<button")[2]  # the first button is Show header
+            # Pick the Contents button by its marker, not by position: the Links toggle now sits before it.
+            button = "<button" + crumb.split("<button")[-1].split("</button>")[0]
+            self.assertIn("data-contents-toggle", button, url)  # it really is the Contents button
             self.assertEqual(button.count("<circle"), 3, url)  # three dots
             self.assertEqual(button.count("<path"), 1, url)  # and three lines
             self.assertIn("M10 6h11M10 12h11M10 18h11", button, url)
@@ -717,9 +750,9 @@ class ReadingScreenTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertNotContains(resp, "Case Law Diary")
 
-    def test_username_hidden_inside_program_but_shown_on_suite_pages(self):
+    def test_username_shown_inside_program_and_on_suite_pages(self):
         self.client.force_login(self.users["reader"])
-        self.assertNotContains(self.client.get(reverse("read_subject", args=[self.contract.pk])), 'class="who"')
+        self.assertContains(self.client.get(reverse("read_subject", args=[self.contract.pk])), 'class="who"')
         self.assertContains(self.client.get(reverse("home")), "reader")
 
     def test_cross_reference_links_point_into_the_whole_subject_page(self):
@@ -1065,14 +1098,15 @@ class ProfileScopingTests(TestCase):
         self.assertNotContains(resp, "No programs are available")
         self.assertContains(resp, 'href="%s"' % reverse("diary_home"))
 
-    def test_home_hides_program_for_admin_without_profile(self):
+    def test_home_shows_program_to_admin_without_membership(self):
+        # Owner's rule: "an 'Admin' is an 'Admin' for all sub-programs" (this used to hide the program and give a 403).
         admin = User.objects.create_user("rootless", password=PASSWORD, is_superuser=True)
         self.client.force_login(admin)
         resp = self.client.get(reverse("home"))
-        self.assertContains(resp, "No programs are available to you yet.")
-        self.assertNotContains(resp, 'href="%s"' % reverse("diary_home"))
+        self.assertNotContains(resp, "No programs are available to you yet.")
+        self.assertContains(resp, 'href="%s"' % reverse("diary_home"))
         self.assertContains(resp, 'href="%s"' % reverse("user_list"))
-        self.assertEqual(self.client.get(reverse("diary_home")).status_code, 403)
+        self.assertEqual(self.client.get(reverse("diary_home")).status_code, 200)
 
     def test_deleted_profile_means_no_access(self):
         from django.utils import timezone

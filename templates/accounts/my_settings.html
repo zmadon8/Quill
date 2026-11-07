@@ -2,107 +2,105 @@
 {% load static %}
 {% block title %}My settings - {{ diary_name }}{% endblock %}
 {% block content %}
-<h1>Settings</h1>
-{# Round 17 (D93) / round 18 (D96): one tab at a time (the tabs are under the header: Account and Display under General, Numbers under the Case Law Diary item). Every field stays in the form; the other tabs are only hidden, so Save never changes a tab you did not open. A tab with an error is shown. #}
-<form method="post" class="stack settings-form" data-preview-url="{% url 'format_preview' %}">
-  {% csrf_token %}
-  <input type="hidden" name="tab" value="{{ tab }}">
-  {% if form.non_field_errors %}{{ form.non_field_errors }}{% endif %}
-  <div class="settings-tab" data-settings-tab="account"{% if tab != "account" and not form.email.errors %} hidden{% endif %}>
-  <section class="settings-section">
-    <h2>My email address</h2>
-    <p>
-      {{ form.email.errors }}
-      <label for="{{ form.email.id_for_label }}">{{ form.email.label }}</label>
-      {{ form.email }}
-      <span class="field-help">{{ form.email.help_text }}</span>
-    </p>
-  </section>
-  <section class="settings-section">
-    <h2>My password</h2>
-    <p><a class="button" href="{% url 'password_change' %}">Change my password</a></p>
-  </section>
-  </div>
-  <div class="settings-tab" data-settings-tab="display"{% if tab != "display" and not form.header_style.errors and not form.landing_program.errors and not diary_form.opening_page.errors and not diary_form.opening_subject.errors and not profile_form.errors %} hidden{% endif %}>
-  <section class="settings-section">
-    <h2>Header bar</h2>
-    {{ form.header_style.errors }}
-    <fieldset class="header-style-choice">
-      <legend class="visually-hidden">{{ form.header_style.label }}</legend>
-      {% for radio in form.header_style %}<label class="search-check">{{ radio.tag }} {{ radio.choice_label }}</label> {% endfor %}
-    </fieldset>
-    <p class="field-help">{{ form.header_style.help_text }}</p>
-  </section>
-  <section class="settings-section">
-    <h2>Open after login</h2>
-    <p>
-      {{ form.landing_program.errors }}
-      <label for="{{ form.landing_program.id_for_label }}">{{ form.landing_program.label }}</label>
-      {{ form.landing_program }}
-    </p>
-    {% if diary_form %}
-    <div data-opening>
-      <p>
-        {{ diary_form.opening_page.errors }}
-        <label for="{{ diary_form.opening_page.id_for_label }}">Page inside {{ diary_name }}</label>
-        {{ diary_form.opening_page }}
-        <span class="field-help">Used when {{ diary_name }} is chosen above.</span>
-      </p>
-      <p data-opening-subject>
-        {{ diary_form.opening_subject.errors }}
-        <label for="{{ diary_form.opening_subject.id_for_label }}">Subject to open</label>
-        {{ diary_form.opening_subject }}
-      </p>
+<h1{% if suite_tabs %} class="visually-hidden"{% endif %}>My settings</h1>
+<p class="field-help">Everything here is only yours. The settings everyone in a profile shares are on each program's own Settings tab.</p>
+{# Left-hand sections, each its own form with its own Save (static/js/settings-sections.js shows one at a time and warns about unsaved changes). Without JavaScript all sections are shown one under the other. #}
+<div class="settings-layout" data-settings-sections data-initial="{{ tab }}">
+  <nav class="settings-nav" aria-label="Sections of My settings">
+    {% for key in sections %}<a href="?tab={{ key }}" data-section-link="{{ key }}"{% if key == tab %} class="on" aria-current="page"{% endif %}>{% if key == "account" %}Account{% elif key == "display" %}Display{% elif key == "diary" %}{{ diary_name }}{% else %}{{ fees_name }}{% endif %}</a>
+    {% endfor %}
+  </nav>
+  <div class="settings-panels">
+
+  <section class="settings-panel-body" data-section="account" id="section-account">
+    <h2>Account</h2>
+    <form method="post" action="{% url 'my_settings' %}" class="stack settings-section-form" data-section-form>
+      {% csrf_token %}
+      <input type="hidden" name="tab" value="account">
+      {% if account_form.non_field_errors %}{{ account_form.non_field_errors }}{% endif %}
+      {% include "_setting_row.html" with f=account_form.email help=account_form.email.help_text who="you" %}
+      <p class="section-actions"><button type="submit">Save</button> <span class="dirty-note" data-dirty-note hidden>You have unsaved changes.</span></p>
+    </form>
+    <div class="setting-row">
+      <span class="setting-label">My password</span>{% include "_who_tag.html" with who="you" %}
+      <p><a class="button" href="{% url 'password_change' %}">Change My Password</a></p>
+      <span class="setting-help">Opens a page where you enter your old password and choose a new one.</span>
     </div>
-    {% endif %}
   </section>
-  {% if diary_profile %}
-  {# Round 18 (D96): the diary's own settings (the old Diary tab). They belong to the profile: everyone in it sees them; only its Editors change them. #}
-  <section class="settings-section" data-diary-settings>
-    <h2>{{ diary_name }}</h2>
-    <p class="field-help">For the profile <strong>{{ diary_profile.name }}</strong>: everyone using it sees these.{% if not profile_form %} Only its Editors can change them.{% endif %}</p>
-    {% if profile_form %}
-    {{ profile_form.non_field_errors }}
-    {% for f in profile_form %}{{ f.as_field_group }}{% endfor %}
-    {% else %}
-    <p>Display Name: <strong>{% if diary_profile.display_name %}{{ diary_profile.display_name }}{% else %}(none: the header shows {{ diary_name }} &middot; {{ diary_profile.name }}){% endif %}</strong></p>
-    <p>Contents links open: <strong>{{ diary_profile.get_reading_all_mode_display }}</strong></p>
-    <p>With no last view yet, Contents links open the whole Subject (used only with "The view I used last"): <strong>{% if diary_profile.reading_all_default %}Yes{% else %}No{% endif %}</strong></p>
-    {% endif %}
+
+  <section class="settings-panel-body" data-section="display" id="section-display">
+    <h2>Display</h2>
+    <form method="post" action="{% url 'my_settings' %}" class="stack settings-section-form" data-section-form>
+      {% csrf_token %}
+      <input type="hidden" name="tab" value="display">
+      {% if display_form.non_field_errors %}{{ display_form.non_field_errors }}{% endif %}
+      {% include "_setting_row.html" with f=display_form.justify_text help=display_form.justify_text.help_text who="you" checkbox=True %}
+      {% include "_setting_row.html" with f=display_form.landing_program help="The program that opens when you sign in. Leave blank to see Home." who="you" %}
+      <p class="section-actions"><button type="submit">Save</button> <span class="dirty-note" data-dirty-note hidden>You have unsaved changes.</span></p>
+    </form>
   </section>
-  {% endif %}
-  </div>
+
   {% if diary_form %}
-  <div class="settings-tab" data-settings-tab="numbers"{% if tab != "numbers" %} hidden{% endif %}>
-  <section class="settings-section">
-    <h2>Number formats</h2>
-    <p class="field-help">Changing formats changes how numbers are shown (on screen and in the Word export) but never your stored data.</p>
-    <div class="format-layout">
-      <div class="format-fields">
-        <fieldset>
-          <legend>Headings</legend>
-          {% include "accounts/_field_row.html" with f=diary_form.topic_format %}
-          {% include "accounts/_field_row.html" with f=diary_form.subtopic_format %}
-        </fieldset>
-        <fieldset>
-          <legend>Sections and Items</legend>
-          {% include "accounts/_field_row.html" with f=diary_form.section_format %}
-          {% include "accounts/_field_row.html" with f=diary_form.item_format %}
-          {% include "accounts/_field_row.html" with f=diary_form.multi_citation_format %}
-        </fieldset>
-        <p><button type="button" class="secondary" data-standard-formats>Use the standard formats</button></p>
+  <section class="settings-panel-body" data-section="diary" id="section-diary">
+    <h2>{{ diary_name }}</h2>
+    <p class="setting-help">These follow you into every {{ diary_name }} profile you use. Changing formats changes how numbers are shown (on screen and in the Word export) but never your stored data.</p>
+    <form method="post" action="{% url 'my_settings' %}" class="stack settings-section-form" data-section-form data-preview-url="{% url 'format_preview' %}">
+      {% csrf_token %}
+      <input type="hidden" name="tab" value="diary">
+      {% if diary_form.non_field_errors %}{{ diary_form.non_field_errors }}{% endif %}
+      <div data-opening>
+        {% include "_setting_row.html" with f=diary_form.opening_page help="The page that opens first when you enter this program. It is used when this program is chosen under Display." who="you" %}
+        <div class="setting-row" data-opening-subject>
+          {{ diary_form.opening_subject.errors }}
+          <label for="{{ diary_form.opening_subject.id_for_label }}">Subject to open</label>{% include "_who_tag.html" with who="you" %}
+          {{ diary_form.opening_subject }}
+          <span class="setting-help">Only used when the opening page is A chosen Subject.</span>
+        </div>
       </div>
-      <div class="format-preview-box" aria-live="polite">
-        <h3>Preview</h3>
-        <div data-preview>{% include "accounts/_format_preview.html" %}</div>
-        <p class="field-help">Updates as you choose. Without JavaScript it updates after you save.</p>
+      <h3>Number formats</h3>
+      <div class="format-layout">
+        <div class="format-fields">
+          <fieldset>
+            <legend>Headings</legend>
+            {% include "_setting_row.html" with f=diary_form.topic_format help="How Topics are numbered." who="you" %}
+            {% include "_setting_row.html" with f=diary_form.subtopic_format help="How Sub-topics are numbered." who="you" %}
+          </fieldset>
+          <fieldset>
+            <legend>Sections and Items</legend>
+            {% include "_setting_row.html" with f=diary_form.section_format help="How Sections are numbered." who="you" %}
+            {% include "_setting_row.html" with f=diary_form.item_format help="How Items are numbered." who="you" %}
+            {% include "_setting_row.html" with f=diary_form.multi_citation_format help="How the citations of an Item with several are numbered." who="you" %}
+          </fieldset>
+          <p><button type="button" class="secondary" data-standard-formats>Use The Standard Formats</button></p>
+        </div>
+        <div class="format-preview-box" aria-live="polite">
+          <h3>Preview</h3>
+          <div data-preview>{% include "accounts/_format_preview.html" %}</div>
+          <p class="field-help">Updates as you choose. Without JavaScript it updates after you save.</p>
+        </div>
       </div>
-    </div>
+      {% include "_setting_row.html" with f=diary_form.export_date_format help="The date at the end of the Word file names you export, and on the front page. The time zone is India (Asia/Kolkata, IST)." who="you" %}
+      <p class="section-actions"><button type="submit">Save</button> <span class="dirty-note" data-dirty-note hidden>You have unsaved changes.</span></p>
+    </form>
   </section>
-  </div>
   {% endif %}
-  <button type="submit">Save</button>
-  <a href="{% url 'home' %}?home=1">Cancel</a>
-</form>
+
+  {% if fees_form %}
+  <section class="settings-panel-body" data-section="fees" id="section-fees">
+    <h2>{{ fees_name }}</h2>
+    <p class="setting-help">Your own choices for the {{ fees_name }}. Leave a box blank to use the profile's choice.</p>
+    <form method="post" action="{% url 'my_settings' %}" class="stack settings-section-form" data-section-form>
+      {% csrf_token %}
+      <input type="hidden" name="tab" value="fees">
+      {% if fees_form.non_field_errors %}{{ fees_form.non_field_errors }}{% endif %}
+      {% include "_setting_row.html" with f=fees_form.default_tab help="The page the Fee Register opens on." who="you" %}
+      {% include "_setting_row.html" with f=fees_form.items_per_page help="How many memos or payments one page of Memos, Drafts and Feebook shows. Type All to show a whole financial year on one page; the most you can type is 1000." who="you" %}
+      <p class="section-actions"><button type="submit">Save</button> <span class="dirty-note" data-dirty-note hidden>You have unsaved changes.</span></p>
+    </form>
+  </section>
+  {% endif %}
+
+  </div>
+</div>
 {% endblock %}
-{% block extra_js %}<script src="{% static 'js/my-settings.js' %}"></script>{% endblock %}
+{% block extra_js %}<script src="{% static 'js/my-settings.js' %}"></script><script src="{% static 'js/settings-sections.js' %}"></script>{% endblock %}

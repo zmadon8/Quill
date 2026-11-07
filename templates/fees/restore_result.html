@@ -1,0 +1,11 @@
+{% extends "fees/base_fees.html" %}
+{% block page_width %}w-3xl{% endblock %}
+{% block page_title %}Restored - {{ program_label }}{% endblock %}
+{% block content %}
+<h1>Restored</h1>
+<p>{{ result.rows_imported }} rows were restored. A safety backup of the earlier data was made first.</p>
+<ul>{% for label, count in result.counts.items %}<li>{{ label }}: {{ count }}</li>{% endfor %}</ul>
+<p>Consistency check: {% if result.fees_check.ok %}no problems found{% else %}{{ result.fees_check.mismatches }} memo totals did not match{% endif %} ({{ result.fees_check.memos_checked }} memos checked).</p>
+{% if result.warnings %}<h2>Warnings</h2><ul>{% for w in result.warnings %}<li>{{ w }}</li>{% endfor %}</ul>{% endif %}
+<p><a href="{% url 'fees_dashboard' %}">Dashboard</a></p>
+{% endblock %}

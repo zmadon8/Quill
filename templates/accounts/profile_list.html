@@ -1,23 +1,24 @@
 {% extends "base_suite_home.html" %}
 {% block title %}Profiles - {{ diary_name }}{% endblock %}
 {% block content %}
-<h1>Profiles</h1>
+<h1 class="visually-hidden">Profiles</h1>
 <p>A profile is a separate data space inside {{ diary_name }}. A user may have several profiles, with a role in each (set on the Users tab).</p>
-<p><a class="button" href="{% url 'profile_create' %}">New profile</a></p>
+<p><a class="button" href="{% url 'profile_create' %}">New Profile</a></p>
 <div class="table-wrap">
-<table>
-  <thead><tr><th>Name</th><th>Display Name</th><th>Users</th><th>Subjects</th><th></th></tr></thead>
+<table data-table-id="admin-profiles">
+  <thead><tr>{% include "accounts/_sort_headers.html" %}<th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
   <tbody>
   {% for p in profiles %}
     <tr>
       <td>{{ p.name }}</td>
+      {% if show_program %}<td>{{ p.program_name }}</td>{% endif %}
       <td>{{ p.display_name|default:"-" }}</td>
       <td>{{ p.member_count }}</td>
-      <td>{{ p.subject_count }}</td>
-      <td><a href="{% url 'profile_edit' p.pk %}">Rename</a> | <a href="{% url 'offline_link_admin' p.pk %}">Offline link</a> | <a href="{% url 'profile_clear' p.pk %}">Delete all data</a> | <a href="{% url 'profile_delete' p.pk %}">Delete</a></td>
+      <td>{{ p.subject_count }}{% if p.program != "diary" %} memo{{ p.subject_count|pluralize }}{% endif %}</td>
+      <td><a href="{% url 'profile_edit' p.pk %}">Rename</a>{% if p.program == "diary" %} | <a href="{% url 'offline_link_admin' p.pk %}">Offline link</a> | <a href="{% url 'profile_clear' p.pk %}">Delete all data</a>{% endif %} | <a href="{% url 'profile_delete' p.pk %}">Delete</a></td>
     </tr>
   {% empty %}
-    <tr><td colspan="5">No profiles yet.</td></tr>
+    <tr><td colspan="{% if show_program %}6{% else %}5{% endif %}">No profiles yet.</td></tr>
   {% endfor %}
   </tbody>
 </table>
@@ -27,13 +28,13 @@
 <p>A deleted profile can be restored for {{ retention_days }} day{{ retention_days|pluralize }}. After that it is removed for good, with all its data, by the nightly job (and only after a successful backup that day).</p>
 {% if deleted_profiles %}
 <div class="table-wrap">
-<table>
+<table data-table-id="admin-profiles-deleted">
   <thead><tr><th>Name</th><th>Program</th><th>Deleted (IST)</th><th>Deleted by</th><th>Users</th><th>Days left</th><th></th></tr></thead>
   <tbody>
   {% for p in deleted_profiles %}
     <tr>
       <td>{{ p.name }}</td>
-      <td>{{ diary_name }}</td>
+      <td>{{ p.program_name }}</td>
       <td>{{ p.deleted_at|date:"Y-m-d H:i" }}</td>
       <td>{{ p.deleted_by.username|default:"-" }}</td>
       <td>{{ p.member_count }}</td>
@@ -56,7 +57,7 @@
 <h2>Permanent removal log</h2>
 {% if purge_logs %}
 <div class="table-wrap">
-<table>
+<table data-table-id="admin-profiles-purge-log">
   <thead><tr><th>Time (IST)</th><th>Result</th><th>Details</th></tr></thead>
   <tbody>
   {% for log in purge_logs %}

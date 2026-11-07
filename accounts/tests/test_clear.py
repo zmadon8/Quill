@@ -98,8 +98,6 @@ class ClearProfileTests(TestCase):
         backup = BackupFile.objects.get(kind="pre_clear")
         self.assertEqual(backup.get_kind_display(), "Before clearing profile")
         self.assertEqual(backup.record_counts["diary.Subject"], 6)
-        old = timezone.now() - datetime.timedelta(days=400)
-        BackupFile.objects.filter(pk=backup.pk).update(created_at=old)
         services.create_backup("daily")
         services.prune_old_backups()
         self.assertTrue(BackupFile.objects.filter(pk=backup.pk).exists())

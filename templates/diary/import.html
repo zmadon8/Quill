@@ -8,16 +8,16 @@
   {% csrf_token %}
   <p><label for="id_profile">Profile to import into</label><br>
   <select name="profile" id="id_profile">
-    <option value="">- choose -</option>
+    <option value="">- Choose -</option>
     {% for p in profiles %}<option value="{{ p.pk }}"{% if chosen and chosen.pk == p.pk %} selected{% endif %}>{{ p.name }}</option>{% endfor %}
   </select></p>
   <p><label for="id_file">Word file (.docx, up to {{ max_mb }} MB)</label><br>
   <input type="file" name="file" id="id_file" accept=".docx" required></p>
   <p>
-    <button type="submit" name="action" value="dry_run" class="primary">Dry run</button>
-    <button type="submit" name="action" value="dry_run_download">Download dry run</button>
-    <button type="submit" name="action" value="reconcile">Reconcile with profile</button>
-    <button type="submit" name="action" value="reconcile_download">Download reconciliation</button>
+    <button type="submit" name="action" value="dry_run" class="primary">Dry Run</button>
+    <button type="submit" name="action" value="dry_run_download">Download Dry Run</button>
+    <button type="submit" name="action" value="reconcile">Reconcile With Profile</button>
+    <button type="submit" name="action" value="reconcile_download">Download Reconciliation</button>
   </p>
 </form>
 

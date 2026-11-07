@@ -1,0 +1,13 @@
+{% extends "fees/base_fees.html" %}
+{% block page_width %}w-4xl{% endblock %}
+{% block page_title %}Firms - {{ program_label }}{% endblock %}
+{% block content %}
+<h1 class="visually-hidden">Firms</h1>
+<div class="page-actions">{% if can_edit %}<a class="button primary" href="{% url 'fees_firm_new' %}">New Firm</a>{% endif %}
+<nav aria-label="Show firms">{% for s in status_filters %}{% if s == status %}<strong aria-current="true">{% if s == 'active' %}Active Only{% else %}{{ s|capfirst }}{% endif %}</strong>{% else %}<a href="?status={{ s }}">{% if s == 'active' %}Active Only{% else %}{{ s|capfirst }}{% endif %}</a>{% endif %}{% if not forloop.last %} | {% endif %}{% endfor %}</nav></div>
+<ul class="firm-list" aria-label="{{ firm_rows|length }} firm{{ firm_rows|length|pluralize }} shown ({{ status }})">
+  {% for f in firm_rows %}<li><a class="firm-name" href="{% url 'fees_firm_detail' f.pk %}">{{ f.name }}</a>
+    <span class="firm-status {% if f.status == 'archived' %}is-archived{% else %}is-active{% endif %}">{% if f.status == 'archived' %}Archived{% else %}Active{% endif %}</span>
+    {% if can_edit %}<span class="row-actions"><a class="button small secondary" href="{% url 'fees_matter_new' %}?firm={{ f.pk }}" aria-label="New matter for {{ f.name }}">+ Matter</a> <a class="button small primary" href="{% url 'fees_memo_new' %}" aria-label="New memo for {{ f.name }}">+ Memo</a> {% if f.status != 'archived' %}<form method="post" action="{% url 'fees_firm_status' f.pk %}" class="inline">{% csrf_token %}<input type="hidden" name="status" value="archived"><button type="submit" class="small ghost" aria-label="Archive {{ f.name }}">Archive</button></form>{% endif %}</span>{% endif %}</li>{% empty %}<li class="muted">No firms.</li>{% endfor %}
+</ul>
+{% endblock %}

@@ -17,18 +17,18 @@
         <form method="post" action="{% url 'edit_note_link' %}">
           {% csrf_token %}
           <input type="hidden" name="op" value="purge"><input type="hidden" name="link" value="{{ l.link_id }}"><input type="hidden" name="next" value="{{ back }}">
-          <button type="submit" class="edit-btn danger">Remove this link for good</button>
+          <button type="submit" class="edit-btn danger">Remove This Link For Good</button>
         </form>
       </div>
     </li>{% endfor %}
   </ul>
-  <p><a class="button" href="{{ back }}">Back to the Trash</a></p>
+  <p><a class="button" href="{{ back }}">Back To The Trash</a></p>
   {% else %}
   <form method="post" action="{% url 'trash_permanent' %}" class="edit-confirm">
     {% csrf_token %}
     <input type="hidden" name="kind" value="{{ kind }}"><input type="hidden" name="id" value="{{ id }}">
     <input type="hidden" name="confirmed" value="1"><input type="hidden" name="next" value="{{ back }}">
-    <button type="submit" class="danger">Yes, delete these {{ total }} record{{ total|pluralize }} permanently</button>
+    <button type="submit" class="danger">Yes, Delete These {{ total }} Record{{ total|pluralize }} Permanently</button>
     <a class="button" href="{{ back }}">Cancel</a>
   </form>
   {% endif %}

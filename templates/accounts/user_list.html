@@ -1,11 +1,11 @@
 {% extends "base_suite_home.html" %}
 {% block title %}Users - {{ diary_name }}{% endblock %}
 {% block content %}
-<h1>Users</h1>
-<p><a class="button" href="{% url 'user_create' %}">New user</a></p>
+<h1 class="visually-hidden">Users</h1>
+<p><a class="button" href="{% url 'user_create' %}">New User</a></p>
 <div class="table-wrap">
-<table>
-  <thead><tr><th>Username</th><th>Admin</th><th>Profiles (role)</th><th>Active</th><th>Last login</th><th></th></tr></thead>
+<table data-table-id="admin-users">
+  <thead><tr>{% include "accounts/_sort_headers.html" %}<th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
   <tbody>
   {% for u in users %}
     <tr>
@@ -26,7 +26,7 @@
 {% if deleted_users %}
 <p class="meta">A deleted user cannot sign in. Restore brings them back exactly as they were. After {{ user_retention_days }} days they are removed for good (only after a successful backup that night).</p>
 <div class="table-wrap">
-<table data-deleted-users>
+<table data-deleted-users data-table-id="admin-users-deleted">
   <thead><tr><th>Username</th><th>Profiles (role)</th><th>Deleted</th><th>By</th><th>Days left</th><th></th></tr></thead>
   <tbody>
   {% for u in deleted_users %}

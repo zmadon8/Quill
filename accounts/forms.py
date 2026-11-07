@@ -3,13 +3,14 @@ from datetime import timedelta
 from django import forms
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.template import loader
 from django.contrib.auth.forms import AuthenticationForm, PasswordResetForm, UserCreationForm
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
-from . import landing, suite
+from . import landing, programs, suite
 from .models import (
     ROLE_CHOICES,
     FailedLogin,
@@ -82,7 +83,11 @@ class ProfileAccessMixin:
 
     def _add_profile_fields(self, current=None):
         current = current or {}
-        self.access_profiles = list(_live_diary_profiles())
+        self.access_profiles = list(_live_profiles())
+        # Other enabled programs (the Fee Register) get their own profile choices after the diary's.
+        for key in programs.enabled_program_keys():
+            if key != suite.KEY_DIARY:
+                self.access_profiles.extend(_live_profiles(key))
         for profile in self.access_profiles:
             self.fields[f"{PROFILE_FIELD_PREFIX}{profile.pk}"] = forms.ChoiceField(
                 choices=PROFILE_ACCESS_CHOICES, required=False, label=profile.name,
@@ -90,22 +95,40 @@ class ProfileAccessMixin:
             )
 
     def profile_fields(self):
-        """The per-profile fields, for the template (in profile name order)."""
-        return [self[f"{PROFILE_FIELD_PREFIX}{p.pk}"] for p in self.access_profiles]
+        """The Case Law Diary per-profile fields, for the template (in profile name order)."""
+        return [self[f"{PROFILE_FIELD_PREFIX}{p.pk}"] for p in self.access_profiles if p.program == suite.KEY_DIARY]
+
+    def program_profile_groups(self):
+        """[(program name, [fields])] for each other program that has live profiles (the Fee Register)."""
+        names = suite.get_names()
+        groups = []
+        for key in programs.enabled_program_keys():
+            if key == suite.KEY_DIARY:
+                continue
+            fields = [self[f"{PROFILE_FIELD_PREFIX}{p.pk}"] for p in self.access_profiles if p.program == key]
+            groups.append((names.get(key, key), fields))
+        return groups
 
     def other_fields(self):
         """Every other field, in form order."""
         names = {f"{PROFILE_FIELD_PREFIX}{p.pk}" for p in self.access_profiles}
         return [field for field in self if field.name not in names]
 
-    def chosen_roles(self):
-        """{profile: role} for every profile given Editor or Reader."""
+    def chosen_roles(self, program=suite.KEY_DIARY):
+        """{profile: role} for every profile of ``program`` given Editor or Reader."""
         roles = {}
         for profile in self.access_profiles:
+            if profile.program != program:
+                continue
             role = self.cleaned_data.get(f"{PROFILE_FIELD_PREFIX}{profile.pk}") or ""
             if role:
                 roles[profile] = role
         return roles
+
+    def save_profile_access(self, user):
+        """Store the chosen roles, one program at a time (a user's profiles of one program are replaced together)."""
+        for key in programs.enabled_program_keys():
+            set_user_profiles(user, self.chosen_roles(key), key)
 
 
 def _admin_field():
@@ -124,8 +147,9 @@ def _landing_field(programs=None):
     )
 
 
-def _live_diary_profiles():
-    return Profile.objects.filter(program=suite.KEY_DIARY, deleted_at__isnull=True).order_by("name")
+def _live_profiles(program=suite.KEY_DIARY):
+    """Live profiles of ``program`` in name order (the default program is the diary, as before)."""
+    return Profile.objects.filter(program=program, deleted_at__isnull=True).order_by("name")
 
 
 def _clean_unique_email(form):
@@ -141,7 +165,7 @@ class UserCreateForm(ProfileAccessMixin, UserCreationForm):
 
     class Meta:
         model = User
-        fields = ("username", "email")
+        fields = ("username", "email", "can_see_active")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -157,7 +181,7 @@ class UserCreateForm(ProfileAccessMixin, UserCreationForm):
         if commit:
             with transaction.atomic():
                 user.save()
-                set_user_profiles(user, self.chosen_roles())
+                self.save_profile_access(user)
         return user
 
 
@@ -174,7 +198,7 @@ class UserEditForm(ProfileAccessMixin, forms.ModelForm):
 
     class Meta:
         model = User
-        fields = ("username", "email", "is_active", "landing_program")
+        fields = ("username", "email", "is_active", "landing_program", "can_see_active")
 
     def clean_email(self):
         return _clean_unique_email(self)
@@ -185,7 +209,8 @@ class UserEditForm(ProfileAccessMixin, forms.ModelForm):
         self.fields["landing_program"].choices = landing.program_choices()
         self.editing_user = editing_user
         self.fields["is_admin"].initial = self.instance.is_superuser
-        self._add_profile_fields({m.profile_id: m.role for m in live_memberships(self.instance)})
+        # Stored roles of every program (the diary and the Fee Register), not the Admin-everywhere view.
+        self._add_profile_fields({m.profile_id: m.role for m in live_memberships(self.instance, None, raw=True)})
 
     def clean_new_password(self):
         password = self.cleaned_data.get("new_password")
@@ -220,7 +245,7 @@ class UserEditForm(ProfileAccessMixin, forms.ModelForm):
         if commit:
             with transaction.atomic():
                 user.save()
-                set_user_profiles(user, self.chosen_roles())
+                self.save_profile_access(user)
         return user
 
 
@@ -231,29 +256,63 @@ class MySettingsForm(forms.ModelForm):
 
     class Meta:
         model = User
-        fields = ("email", "landing_program", "header_style")
-        labels = {"header_style": "Header bar"}
-        widgets = {"header_style": forms.RadioSelect}
+        fields = ("email", "landing_program", "justify_text")
+        labels = {"justify_text": "Justify text"}
 
     def clean_email(self):
         return _clean_unique_email(self)
 
-    def clean_header_style(self):
-        return self.cleaned_data.get("header_style") or self.instance.header_style or User.HEADER_ICONS
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["email"].help_text = "Used only to email you a link if you forget your password."
-        self.fields["header_style"].required = False  # not posted: keep the current choice (see clean_header_style)
-        self.fields["header_style"].help_text = (
-            "Icons: Trash is a dustbin, Export a downward arrow, Help a question mark, Settings a gear, and Search and "
-            "Home their usual icons (hover or long-press to see the name). Words: the names instead."
-        )
+        if "email" in self.fields:
+            self.fields["email"].help_text = "Used only to email you a link if you forget your password."
+        if "justify_text" in self.fields:
+            self.fields["justify_text"].required = False
+            self.fields["justify_text"].help_text = (
+                "Lines up the right-hand edge of the text of Items, Sections and Notes on screen. Off: the text is left-aligned. "
+                "The Word export is not affected."
+            )
         self.fields["landing_program"].choices = landing.program_choices(landing.programs_for(self.instance))
 
 
+class MyAccountForm(MySettingsForm):
+    """The Account section of My settings: the email address only."""
+
+    class Meta(MySettingsForm.Meta):
+        fields = ("email",)
+
+
+class MyDisplayForm(MySettingsForm):
+    """The Display section of My settings: where to land after login and justified text."""
+
+    class Meta(MySettingsForm.Meta):
+        fields = ("landing_program", "justify_text")
+
+
 class ProfileForm(forms.ModelForm):
-    """Create or rename a Case Law Diary profile, and set its Display Name. Names are unique among live profiles, ignoring case."""
+    """Create or rename a profile, and set its Display Name. Names are unique among live profiles of the
+    same program, ignoring case.
+
+    A new profile belongs to ``program`` (the diary by default). When the Fee Register is switched on, creating
+    one offers a Program select (Case Law Diary or Fee Register); with only the diary the form is as before.
+    Editing or restoring keeps the profile's own program.
+    """
+
+    field_order = ["program", "name", "display_name"]
+
+    def __init__(self, *args, program=suite.KEY_DIARY, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.program = self.instance.program if self.instance.pk else program
+        keys = programs.enabled_program_keys()
+        if self.instance.pk or len(keys) < 2:
+            del self.fields["program"]
+        else:
+            names = suite.get_names()
+            self.fields["program"].choices = [(k, names.get(k, k)) for k in keys]
+            self.fields["program"].initial = program
+
+    # Not required: a post without a Program (the diary-only screen, older clients) creates a Case Law Diary profile.
+    program = forms.ChoiceField(label="Program", choices=[], required=False)
 
     class Meta:
         model = Profile
@@ -266,11 +325,16 @@ class ProfileForm(forms.ModelForm):
     def clean_display_name(self):
         return " ".join((self.cleaned_data.get("display_name") or "").split())
 
+    def clean_program(self):
+        # A valid choice (enabled programs only), or the diary when none was posted; used by clean_name.
+        self.program = self.cleaned_data.get("program") or suite.KEY_DIARY
+        return self.program
+
     def clean_name(self):
         name = " ".join((self.cleaned_data.get("name") or "").split())
         if not name:
             raise ValidationError("Enter a name.")
-        clash = Profile.objects.filter(program=suite.KEY_DIARY, name__iexact=name, deleted_at__isnull=True)
+        clash = Profile.objects.filter(program=self.program, name__iexact=name, deleted_at__isnull=True)
         if self.instance.pk:
             clash = clash.exclude(pk=self.instance.pk)
         if clash.exists():
@@ -279,28 +343,81 @@ class ProfileForm(forms.ModelForm):
 
     def save(self, commit=True):
         profile = super().save(commit=False)
-        profile.program = suite.KEY_DIARY
+        profile.program = self.program
         if commit:
             profile.save()
         return profile
 
 
+#: The field label and the clash-message label for the Home page and each known program key. New programs
+#: fall back to "<display name> name" / "<display name>" if not listed here, so the form keeps working even
+#: before a key is given a bespoke label.
+SUITE_NAME_LABELS = {
+    suite.KEY_HOME: ("Home page name", "Home page"),
+    suite.KEY_DIARY: ("Case law diary name", "Case law diary"),
+}
+
+
 class SuiteNamesForm(forms.Form):
-    """Rename the Home page and each program. Names are shared by every user."""
+    """Rename the Home page and each registered program. Names are shared by every user.
 
-    home_name = forms.CharField(label="Home page name", max_length=suite.MAX_NAME_LENGTH)
-    diary_name = forms.CharField(label="Case law diary name", max_length=suite.MAX_NAME_LENGTH)
+    One text field is built per key: the Home page is always shown, and each program registered in
+    ``accounts.programs`` gets a field. While a program (such as the Fee Register) is not yet registered
+    it has no field here, so the screen stays exactly as before. The field for key ``k`` is named
+    ``<k>_name`` (so ``home_name`` and ``diary_name`` keep their names and behaviour).
+    """
 
-    FIELD_KEYS = {"home_name": suite.KEY_HOME, "diary_name": suite.KEY_DIARY}
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.name_keys = self._name_keys()
+        names = suite.get_names()
+        for key in self.name_keys:
+            field_name = self._field_name(key)
+            label = SUITE_NAME_LABELS.get(key, (f"{names.get(key, key)} name", None))[0]
+            self.fields[field_name] = forms.CharField(
+                label=label, max_length=suite.MAX_NAME_LENGTH, initial=names.get(key, ""),
+            )
+        # Words or Logo for the header bar of Home and each program on offer (round 20, 3.1; the Fee Register only
+        # while that program is switched on). Not posted: the current choice is kept.
+        self.brand_keys = [suite.KEY_HOME, *programs.enabled_program_keys()]
+        modes = suite.get_brand_modes()
+        for key in self.brand_keys:
+            self.fields[self._brand_field(key)] = forms.ChoiceField(
+                label=f"{names.get(key, key)} header bar", required=False, initial=modes.get(key, suite.BRAND_WORDS),
+                choices=[(suite.BRAND_WORDS, "Words"), (suite.BRAND_LOGO, "Logo")], widget=forms.RadioSelect,
+                help_text="Words: Trash, Export, Help, Settings and the other items as words. Logo: as icons.",
+            )
+
+    @staticmethod
+    def _name_keys():
+        """The Home page followed by every registered program key."""
+        return [suite.KEY_HOME, *programs.program_keys()]
+
+    @staticmethod
+    def _field_name(key):
+        return f"{key}_name"
+
+    @staticmethod
+    def _brand_field(key):
+        return f"{key}_brand"
+
+    def _clash_label(self, key):
+        """The human label used in the "same name as" message for ``key``."""
+        bespoke = SUITE_NAME_LABELS.get(key)
+        if bespoke is not None:
+            return bespoke[1]
+        return suite.get_names().get(key, key)
 
     def clean(self):
         cleaned = super().clean()
         seen = {}
-        for field, label in (("home_name", "Home page"), ("diary_name", "Case law diary")):
+        for key in self.name_keys:
+            field = self._field_name(key)
             value = cleaned.get(field)
             if not value:
                 continue
             folded = " ".join(value.split()).casefold()
+            label = self._clash_label(key)
             if folded in seen:
                 self.add_error(field, f"{label} cannot have the same name as {seen[folded]}.")
             else:
@@ -309,7 +426,11 @@ class SuiteNamesForm(forms.Form):
 
     def save(self):
         suite.set_names(
-            {key: " ".join(self.cleaned_data[field].split()) for field, key in self.FIELD_KEYS.items()}
+            {key: " ".join(self.cleaned_data[self._field_name(key)].split()) for key in self.name_keys}
+        )
+        suite.set_brand_modes(
+            {key: self.cleaned_data[self._brand_field(key)] for key in self.brand_keys
+             if self.cleaned_data.get(self._brand_field(key))}
         )
 
 
@@ -335,4 +456,17 @@ class UsernamePasswordResetForm(PasswordResetForm):
         user = User._default_manager.filter(username__iexact=(username or "").strip(), is_active=True).first()
         if user is not None and user.has_usable_password() and (user.email or "").strip():
             yield user
+
+    def send_mail(self, subject_template_name, email_template_name, context, from_email, to_email, html_email_template_name=None):
+        """Same as Django's, but From (and Reply-To) come from the shared helper, as for the backup emails."""
+        from mailer import sender  # lazy: keeps this module's imports light
+
+        subject = "".join(loader.render_to_string(subject_template_name, context).splitlines())
+        message = sender.build_message(subject, loader.render_to_string(email_template_name, context), [to_email])
+        if html_email_template_name is not None:
+            from django.core.mail import EmailMultiAlternatives
+
+            message = EmailMultiAlternatives(subject, message.body, message.from_email, [to_email], reply_to=message.reply_to)
+            message.attach_alternative(loader.render_to_string(html_email_template_name, context), "text/html")
+        message.send()
 

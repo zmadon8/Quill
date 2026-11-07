@@ -1,0 +1,10 @@
+<div class="email-diagnostics" data-email-diagnostics>
+<h3>How this server sends email</h3>
+<ul>
+  <li>Server: <code>{{ email_diag.host }}</code>, port <code>{{ email_diag.port }}</code>, security: {{ email_diag.security }}</li>
+  <li>Login user: <code>{{ email_diag.user }}</code> (the password is never shown)</li>
+  <li>Emails are sent From: <code>{{ email_diag.from_email }}</code></li>
+</ul>
+{% for warning in email_diag.warnings %}<p class="error" role="alert">{{ warning }}</p>{% endfor %}
+<p class="meta">These values are read from the service this page runs on (the web service). The nightly job that sends scheduled backups is a separate Render service, and this page cannot see its settings. Set the same email variables (<code>EMAIL_HOST</code>, <code>EMAIL_PORT</code>, <code>EMAIL_HOST_USER</code>, <code>EMAIL_HOST_PASSWORD</code>, <code>DEFAULT_FROM_EMAIL</code>) on BOTH the web service and the cron job. See <code>docs/EMAIL.md</code>.</p>
+</div>

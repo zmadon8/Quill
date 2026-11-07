@@ -9,6 +9,6 @@
     <ol class="search-results cards">
       {% for r in results %}{% include "diary/_result_card.html" %}{% endfor %}
     </ol>
-    {% if has_more %}<p class="search-more"><a class="button" href="{{ more_url }}">Show more</a> <span class="meta">Showing {{ results|length }} of {{ shown_total }}</span></p>{% endif %}
+    {% if has_more %}<p class="search-more"><a class="button" href="{{ more_url }}">Show More</a> <span class="meta">Showing {{ results|length }} of {{ shown_total }}</span></p>{% endif %}
   </div>
 </div>

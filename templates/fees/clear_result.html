@@ -1,0 +1,8 @@
+{% extends "fees/base_fees.html" %}
+{% block page_width %}w-3xl{% endblock %}
+{% block page_title %}Cleared - {{ program_label }}{% endblock %}
+{% block content %}
+<h1>All data cleared</h1>
+<ul>{% for label, count in result.counts.items %}<li>{{ label }}: {{ count }}</li>{% endfor %}</ul>
+<p><a href="{% url 'fees_dashboard' %}">Dashboard</a></p>
+{% endblock %}

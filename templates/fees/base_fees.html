@@ -1,0 +1,20 @@
+{% extends "base_suite.html" %}
+{% load static fees_money %}
+{# Fee Register shell on the shared suite shell. A page fills page_title and content (and may set back_url, back_label). #}
+{# Page scripts: a page adds its own <script> inside {% block page_js %}; money.js and columns.js load on every fees page. #}
+{% block program_title %}{% block page_title %}{{ program_label }}{% endblock %}{% endblock %}
+{# body.ledger scopes the Ledger book design (static/css/ledger.css). A page may set page_width: w-6xl (default), w-5xl, w-4xl or w-3xl. #}
+{% block body_attrs %} class="ledger {% block page_width %}w-6xl{% endblock %}"{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/ledger.css' %}">
+  <link rel="stylesheet" href="{% static 'css/fees.css' %}">{% endblock %}
+{% block program_name %}<a href="{% url 'fees_dashboard' %}">{{ program_label }}</a>{% if fees_profile and not fees_profile.display_name %} <span class="profile-name">&middot; {{ fees_profile.name }}</span>{% endif %}{% if fees_other_profiles %}{% include "diary/_profile_switch.html" with other_profiles=fees_other_profiles %}{% endif %}{% endblock %}
+{% block program_nav %}{% for i in fees_nav %}<a href="{{ i.url }}"{% if i.on %} class="on" aria-current="page"{% endif %}>{{ i.name }}</a>
+  {% endfor %}{% endblock %}
+{% block search_tool %}{% include "_search_button.html" with popup=True %}{% endblock %}
+{% block search_panel %}<div class="search-pop" id="search-pop" hidden><form class="fees-search-form" role="search" method="get" action="{% url 'fees_search_page' %}"><label class="visually-hidden" for="search-pop-q">Search firms, matters and memos</label><input type="search" id="search-pop-q" name="q" value="{{ query|default:'' }}" placeholder="Search firms, matters and memos&hellip;" autocomplete="off" data-search-popup-input><button type="submit" class="primary">Search</button></form></div>{% endblock %}
+{% block crumb_nav %}{% if back_url %}<div class="crumb-row"><nav class="breadcrumb" aria-label="Back"><a href="{{ back_url }}">&larr; {{ back_label|default:"Back" }}</a></nav></div>{% endif %}{% endblock %}
+{% block extra_js %}<script src="{% static 'js/fees/money.js' %}"></script>
+{{ fees_col_widths|json_script:"fees-col-widths" }}
+<script src="{% static 'js/fees/columns.js' %}" data-prefs-url="{% url 'fees_prefs' %}"></script>
+<script src="{% static 'js/fees/search-suggest.js' %}" data-search-url="{% url 'fees_search' %}"></script>
+{% block page_js %}{% endblock %}{% endblock %}

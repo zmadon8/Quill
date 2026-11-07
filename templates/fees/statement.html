@@ -1,0 +1,17 @@
+{% extends "fees/base_fees.html" %}
+{% load fees_money %}
+{% block page_width %}w-5xl{% endblock %}
+{% block page_title %}{{ statement.title }} - {{ program_label }}{% endblock %}
+{% block content %}
+<h1>{{ statement.title }}</h1>
+{% if statement.subtitle %}<p>{{ statement.subtitle }}</p>{% endif %}
+<p><a href="{% if kind == 'firm' %}{% url 'fees_firm_detail' owner.pk %}{% else %}{% url 'fees_matter_detail' owner.pk %}{% endif %}">Back</a> | <a href="{% if kind == 'firm' %}{% url 'fees_firm_statement_export' owner.pk %}{% else %}{% url 'fees_matter_statement_export' owner.pk %}{% endif %}">Export to Excel</a></p>
+<div class="table-wrap">
+<table class="ledger-table" data-table-id="statement">
+  <caption>{{ statement.title }}: memos with total, paid and outstanding</caption>
+  <thead><tr><th scope="col">Memo</th><th scope="col">Date</th><th scope="col">Matter</th><th scope="col" class="money">Total</th><th scope="col" class="money">Paid</th><th scope="col" class="money">Outstanding</th><th scope="col">Status</th></tr></thead>
+  <tbody>{% for r in statement.rows %}<tr><td>{{ r.memo_number }}</td><td>{{ r.date|fees_date }}</td><td>{{ r.matter_name }}</td><td class="money">{{ r.total|fees_money:money_unit }}</td><td class="money">{{ r.paid|fees_money:money_unit }}</td><td class="money">{{ r.outstanding|fees_money:money_unit }}</td><td>{{ r.status }}</td></tr>{% empty %}<tr><td colspan="7">No memos.</td></tr>{% endfor %}</tbody>
+  <tfoot><tr><th scope="row" colspan="3">Total ({{ statement.totals.count }})</th><td class="money">{{ statement.totals.total_billed|fees_money:money_unit }}</td><td class="money">{{ statement.totals.total_paid|fees_money:money_unit }}</td><td class="money">{{ statement.totals.total_outstanding|fees_money:money_unit }}</td><td></td></tr></tfoot>
+</table>
+</div>
+{% endblock %}

@@ -39,7 +39,9 @@ urlpatterns = [
     path("history/<str:kind>/<int:pk>/", views_history.history, name="history"),
     path("history/<str:kind>/<int:pk>/<int:version>/", views_history.history_version, name="history_version"),
     path("history/restore/", views_history.history_restore, name="history_restore"),
-    path("my-edits/", views_history.my_edits, name="my_edits"),
+    path("history/", views_history.my_edits, name="diary_history"),
+    # The old "My edits" address and URL name still work: they redirect to History (the diary menu).
+    path("my-edits/", RedirectView.as_view(pattern_name="diary_history", permanent=True, query_string=True), name="my_edits"),
     path("export/", views_export.export_page, name="export"),
     path("export/download/", views_export.export_download, name="export_download"),
     path("export/settings/", views_export.export_settings, name="export_settings"),

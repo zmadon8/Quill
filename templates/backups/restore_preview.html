@@ -9,8 +9,20 @@
   <p>Anyone whose account is not in the file will be signed out and removed.</p>
 </div>
 {% if legacy_note %}<div class="warning-box"><p><strong>This is an older backup.</strong> {{ legacy_note }} The counts below already include these changes.</p></div>{% endif %}
+{% if will_empty %}
+<div class="warning-box" style="border-color: #b00020; border-left-color: #b00020; color: #b00020;">
+  <p><strong>Warning: this file does not contain some record types that currently hold data.</strong></p>
+  <p>Restoring will permanently empty the following, which are not in this backup:</p>
+  <ul>
+  {% for w in will_empty %}
+    <li>{{ w.program }}: {{ w.name }} ({{ w.count_now }} record{{ w.count_now|pluralize }} now)</li>
+  {% endfor %}
+  </ul>
+  <p>The safety backup taken first will still contain this data, so it can be recovered by restoring that safety backup.</p>
+</div>
+{% endif %}
 <div class="table-wrap">
-<table>
+<table data-table-id="restore-preview-records">
   <thead><tr><th>Record type</th><th>In file</th><th>In database now</th><th>Would be added</th><th>Would be removed</th><th>Unchanged or overwritten</th></tr></thead>
   <tbody>
   {% for row in rows %}
@@ -31,7 +43,7 @@
 {% if profiles %}
 <h2>Profiles in the file</h2>
 <div class="table-wrap">
-<table>
+<table data-table-id="restore-preview-profiles">
   <thead><tr><th>Profile</th><th>Program</th><th>Users</th><th>Records</th></tr></thead>
   <tbody>
   {% for p in profiles %}
@@ -45,7 +57,11 @@
   {% csrf_token %}
   <p><label for="confirm">To go ahead, type the word <strong>{{ confirm_word }}</strong>:</label><br>
   <input type="text" id="confirm" name="confirm" autocomplete="off"></p>
-  <button type="submit" class="danger">Restore now</button>
+  {% if will_empty %}
+  <p><label for="empty_confirm"><input type="checkbox" id="empty_confirm" name="empty_confirm" value="yes">
+  I understand that the record types listed in red above will be emptied.</label></p>
+  {% endif %}
+  <button type="submit" class="danger">Restore Now</button>
   <a href="{% url 'backup_list' %}">Cancel</a>
 </form>
 {% endblock %}

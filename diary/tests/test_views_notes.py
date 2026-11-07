@@ -147,8 +147,8 @@ class EditorTests(NoteViewCase):
         self.link("section", self.sec)
         resp = self.client.get(self.url(), {"next": self.next})
         self.assertContains(resp, "Remember")
-        self.assertContains(resp, "Add a link")
-        self.assertContains(resp, "Move to")
+        self.assertContains(resp, "Add A Link")
+        self.assertContains(resp, "Move To")
         self.assertContains(resp, "History")
         self.assertContains(resp, "Delete")
         self.assertContains(resp, "Move this link up", count=2)
@@ -166,7 +166,7 @@ class EditorTests(NoteViewCase):
         svc.edit(self.profile, self.user, "note", self.note.pk, {"text": "<p>Theirs</p>"})
         resp = self.client.post(self.url(), {"text": "<p>Mine</p>", "version": 1, "next": self.next})
         self.assertEqual(resp.status_code, 409)
-        self.assertContains(resp, "Edit and merge", status_code=409)
+        self.assertContains(resp, "Edit And Merge", status_code=409)
         self.assertEqual(self.get(self.note).text_plain, "Theirs")
 
     def test_keep_mine_after_a_conflict_saves_over_it(self):
@@ -180,7 +180,7 @@ class EditorTests(NoteViewCase):
         conflict = self.client.post(self.url(), {"text": "<p>Mine</p>", "version": 1, "next": self.next})
         merged = self.resend(conflict, merge="1")
         self.assertContains(merged, "Mine")
-        self.assertContains(merged, "The saved version")
+        self.assertContains(merged, "The Saved Version")
 
     def test_a_note_in_trash_has_no_editor(self):
         svc.delete(self.profile, self.user, "note", self.note.pk)
@@ -384,11 +384,17 @@ class DisplayTests(NoteViewCase):
         self.assertLess(html.index('id="n-item-%d"' % self.one.pk), html.index("beneath one"))
         self.assertLess(html.index("beneath one"), html.index('id="n-item-%d"' % self.two.pk))
 
-    def test_notes_come_after_the_items_and_sections_and_before_the_child_headings(self):
+    def test_notes_come_directly_under_their_heading_before_the_items_and_the_child_headings(self):
+        # Owner item 1.7: a note sits directly under the Topic or Sub-topic heading it belongs to.
         sub = self.make("subtopic", ("topic", self.topic.pk), name="Offer heading")
         html = self.read()
-        self.assertLess(html.index('id="n-item-%d"' % self.four.pk), html.index('id="n-note-%d"' % self.note.pk))
-        self.assertLess(html.index('id="n-note-%d"' % self.note.pk), html.index('id="n-subtopic-%d"' % sub.pk))
+        heading = html.index('id="n-topic-%d"' % self.topic.pk)
+        note = html.index('id="n-note-%d"' % self.note.pk)
+        self.assertLess(heading, note)
+        self.assertLess(note, html.index('id="n-item-%d"' % self.one.pk))
+        self.assertLess(note, html.index('id="n-section-%d"' % self.sec.pk))
+        self.assertLess(note, html.index('id="n-item-%d"' % self.four.pk))
+        self.assertLess(note, html.index('id="n-subtopic-%d"' % sub.pk))
 
     def test_notes_reorder_among_themselves(self):
         second = self.make("note", ("topic", self.topic.pk), text="<p>Second note</p>")
@@ -449,8 +455,8 @@ class TrashAndPermanentDeleteTests(NoteViewCase):
         self.assertContains(resp, "Remember", status_code=409)
         self.assertContains(resp, f"purpose=retarget&amp;link={a.pk}", status_code=409)
         self.assertContains(resp, f'name="link" value="{a.pk}"', status_code=409)
-        self.assertContains(resp, "Remove this link for good", status_code=409)
-        self.assertNotContains(resp, "Yes, delete", status_code=409)
+        self.assertContains(resp, "Remove This Link For Good", status_code=409)
+        self.assertNotContains(resp, "Yes, Delete", status_code=409)
 
     def test_after_the_link_is_removed_the_permanent_delete_goes_through(self):
         a = self.link("item", self.one)

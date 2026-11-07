@@ -19,7 +19,7 @@
       {% for row in rows %}{% include "diary/_inline_case_row.html" %}{% endfor %}
     </ul>
     <template data-case-template>{% include "diary/_inline_case_row.html" with row=None %}</template>
-    <button type="button" class="linkish" data-case-add>+ another citation</button>
+    <button type="button" class="linkish" data-case-add>+ Another Citation</button>
   </div>
   <div class="fld" data-layout-control{% if rows|length < 2 %} hidden{% endif %}>
     <span class="field-label">Show citations</span>
@@ -42,12 +42,12 @@
     <details class="more-wrap" data-more>
       <summary title="More actions">More</summary>
       <div class="menu" role="menu">
-        {% if can_move %}<button type="submit" role="menuitem" formaction="{% url 'edit_move_to' %}" data-more-action="move_to">Move to&hellip;</button>{% endif %}
-        {% if can_shift %}<button type="submit" role="menuitem" formaction="{% url 'edit_move' %}" name="direction" value="up" data-more-action="up">Move up</button>
-        <button type="submit" role="menuitem" formaction="{% url 'edit_move' %}" name="direction" value="down" data-more-action="down">Move down</button>{% endif %}
-        {% if can_promote %}<button type="submit" role="menuitem" formaction="{% url 'edit_level' %}" name="direction" value="promote" data-more-action="promote">Promote to {{ promote_to }}&hellip;</button>{% endif %}
-        {% if can_demote %}<button type="submit" role="menuitem" formaction="{% url 'edit_level' %}" name="direction" value="demote" data-more-action="demote">Demote to {{ demote_to }}&hellip;</button>{% endif %}
-        {% if kind == "subject" %}<button type="submit" role="menuitem" formaction="{% url 'edit_landing' %}" name="show" value="{% if landing %}0{% else %}1{% endif %}" data-more-action="landing">{% if landing %}Put under Other Subjects{% else %}Show on the Subjects page{% endif %}</button>{% endif %}
+        {% if can_move %}<button type="submit" role="menuitem" formaction="{% url 'edit_move_to' %}" data-more-action="move_to">Move To&hellip;</button>{% endif %}
+        {% if can_shift %}<button type="submit" role="menuitem" formaction="{% url 'edit_move' %}" name="direction" value="up" data-more-action="up">Move Up</button>
+        <button type="submit" role="menuitem" formaction="{% url 'edit_move' %}" name="direction" value="down" data-more-action="down">Move Down</button>{% endif %}
+        {% if can_promote %}<button type="submit" role="menuitem" formaction="{% url 'edit_level' %}" name="direction" value="promote" data-more-action="promote">Promote To {{ promote_to }}&hellip;</button>{% endif %}
+        {% if can_demote %}<button type="submit" role="menuitem" formaction="{% url 'edit_level' %}" name="direction" value="demote" data-more-action="demote">Demote To {{ demote_to }}&hellip;</button>{% endif %}
+        {% if kind == "subject" %}<button type="submit" role="menuitem" formaction="{% url 'edit_landing' %}" name="show" value="{% if landing %}0{% else %}1{% endif %}" data-more-action="landing">{% if landing %}Put Under Other Subjects{% else %}Show On The Subjects Page{% endif %}</button>{% endif %}
         <a role="menuitem" href="{% url 'history' kind record.pk %}?next={{ back|urlencode }}" data-more-action="history">History</a>
         <hr>
         <button type="submit" role="menuitem" class="danger-item" formaction="{% url 'edit_delete' %}" data-more-action="delete"><span>Delete</span><small>goes to Trash &middot; Undo available</small></button>

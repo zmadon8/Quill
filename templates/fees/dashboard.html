@@ -1,0 +1,49 @@
+{% extends "fees/base_fees.html" %}
+{% load fees_money static %}
+{% block page_title %}Dashboard - {{ program_label }}{% endblock %}
+{% block content %}
+<div class="page-head"><h1 class="visually-hidden">{% if fees_settings.statistics_enabled %}Statistics{% else %}Dashboard{% endif %}</h1></div>
+{% include "fees/_stats_tabs.html" with tab="dashboard" %}
+{% if kpis_enabled %}
+<section aria-label="Dashboard boxes" id="kpis">
+<dl class="kpi-grid">{% for k in kpi_rows %}<div class="kpi"><dt>{{ k.label }}</dt><dd class="money">{% if k.money %}{{ k.value|fees_money:money_unit }}{% else %}{{ k.value }}{% endif %}</dd></div>{% endfor %}</dl>
+{% if can_edit %}
+<details class="kpi-customise"{% if customise_open %} open{% endif %}>
+  <summary>Customise</summary>
+  <form method="post" action="{% url 'fees_dashboard_kpis' %}" class="fees-form kpi-customise-form" data-kpi-customise>{% csrf_token %}
+    <button type="submit" class="visually-hidden" tabindex="-1" aria-hidden="true">Save Boxes</button>
+    <input type="hidden" name="order" value="{{ kpi_order_value }}">
+    <h2 class="kpi-customise-title">Customise Overview boxes</h2>
+    <div class="kpi-customise-cols">
+      <div class="kpi-pick">
+        {% include "_select_all_none.html" with name="kpi" label="the Overview boxes" submit=True %}
+        {% for g in kpi_groups %}<fieldset class="kpi-group"><legend>{{ g.title }}</legend>
+        {% for k in g.items %}<label><input type="checkbox" name="kpi" value="{{ k.id }}"{% if k.on %} checked{% endif %}> {{ k.label }}</label>
+        {% endfor %}</fieldset>
+        {% endfor %}
+      </div>
+      <div class="kpi-order">
+        <h3>Order</h3>
+        <ol class="kpi-order-list" data-kpi-order>{% for k in kpi_order %}<li data-kpi="{{ k.id }}"><span>{{ k.label }}</span>
+          <span class="kpi-order-arrows"><button type="submit" name="move" value="{{ k.id }}:up" class="kpi-arrow" aria-label="Move {{ k.label }} up"{% if k.first %} disabled{% endif %}>&#9650;</button><button type="submit" name="move" value="{{ k.id }}:down" class="kpi-arrow" aria-label="Move {{ k.label }} down"{% if k.last %} disabled{% endif %}>&#9660;</button></span></li>{% endfor %}</ol>
+        <p class="muted">Ticking a box adds it to the end. With none ticked, every box shows.</p>
+      </div>
+    </div>
+    <button type="submit" class="primary">Save Boxes</button>
+  </form>
+  <script src="{% static 'js/fees/dashboard-kpis.js' %}"></script>
+</details>
+{% endif %}
+</section>
+{% endif %}
+<section aria-labelledby="recent-heading">
+<h2 id="recent-heading">Recently billed matters</h2>
+<div class="table-wrap">
+<table class="ledger-table" data-fees-columns="recent-matters" data-table-id="dashboard-recent">
+  <caption>The {{ recent_matters|length }} most recently billed matter{{ recent_matters|length|pluralize }}</caption>
+  <thead><tr><th scope="col" data-col-fixed>Matter</th><th scope="col">Firm</th><th scope="col">Last memo</th><th scope="col">Date</th><th scope="col" class="money">Memos</th>{% if can_edit %}<th scope="col" data-col-fixed><span class="visually-hidden">Action</span></th>{% endif %}</tr></thead>
+  <tbody>{% for r in recent_matters %}<tr><th scope="row"><a href="{% url 'fees_matter_detail' r.matter_id %}">{{ r.matter_name }}</a></th><td><a href="{% url 'fees_firm_detail' r.firm_id %}">{{ r.firm_name }}</a></td><td><a href="{% url 'fees_memo_detail' r.last_memo_id %}">{{ r.last_memo_number }}</a></td><td>{{ r.last_memo_date|fees_date }}</td><td class="money">{{ r.memo_count }}</td>{% if can_edit %}<td class="row-actions">{% if r.is_archived %}<span class="muted">archived</span>{% else %}<a class="button small primary" href="{% url 'fees_memo_new' %}?matter={{ r.matter_id }}" aria-label="New memo for {{ r.matter_name }}">+ Memo</a>{% endif %}</td>{% endif %}</tr>{% empty %}<tr><td colspan="{% if can_edit %}6{% else %}5{% endif %}">No memos yet.</td></tr>{% endfor %}</tbody>
+</table>
+</div>
+</section>
+{% endblock %}

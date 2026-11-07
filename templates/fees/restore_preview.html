@@ -1,0 +1,20 @@
+{% extends "fees/base_fees.html" %}
+{% load fees_money %}
+{% block page_width %}w-3xl{% endblock %}
+{% block page_title %}Restore - {{ program_label }}{% endblock %}
+{% block content %}
+<h1>Restore from {{ file_name }}</h1>
+<p><a href="{% url 'fees_backup' %}">Back</a></p>
+<h2>The file holds</h2>
+<ul>{% for sheet, count in preview.sheets.items %}<li>{{ sheet }}: {{ count }}</li>{% endfor %}</ul>
+<p>Memos from {{ preview.memo_date_min|default:"none" }} to {{ preview.memo_date_max|default:"none" }}. Total fees {{ preview.total_fees|fees_money }}. Payments {{ preview.payments_total|fees_money }}.</p>
+{% if preview.missing_optional %}<p>Not in the file: {{ preview.missing_optional|join:", " }}.</p>{% endif %}
+<h2>Restoring will delete what you have now</h2>
+<div class="confirm warning-box" role="alert"><ul>{% for label, count in preview.replaces.items %}<li>{{ label }}: {{ count }}</li>{% endfor %}</ul></div>
+<form method="post" action="{% url 'fees_backup_restore' %}" enctype="multipart/form-data" class="confirm-form stack">{% csrf_token %}
+  <input type="hidden" name="action" value="restore">
+  <p><label>Choose the same file again <input type="file" name="file" accept=".xlsx" required></label></p>
+  <p><label>Type <strong>{{ restore_phrase }}</strong> to confirm <input type="text" name="confirmation" autocomplete="off" required size="30"></label></p>
+  <p class="actions"><button type="submit" class="danger">Restore</button> <a class="button" href="{% url 'fees_backup' %}">Cancel</a></p>
+</form>
+{% endblock %}

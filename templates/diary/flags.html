@@ -3,7 +3,7 @@
 {% block content %}
 <div class="home-column search-page">
   {% include "diary/_flags_tabs.html" %}
-  <h1>Flags</h1>
+  <h1 class="visually-hidden">Flags</h1>
   <form class="search-form" role="search" method="get" action="{% url 'flags' %}">
     <div class="search-row">
       <label class="visually-hidden" for="flags-q">Search the text beside the flags</label>
@@ -20,6 +20,7 @@
     </div>
   </form>
   <div data-search-results>
+  {% include "diary/_search_notice.html" %}
   {% if results %}
   <div class="search-head"><p class="meta search-count">{{ total }} flagged record{{ total|pluralize }}{% if q %} matching &ldquo;{{ q }}&rdquo;{% endif %}</p></div>
   {% include "diary/_grouped_results.html" %}

@@ -8,8 +8,10 @@ import hashlib
 import json
 import logging
 import re
+import tempfile
 import zlib
 
+from django.apps import apps
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core import serializers
@@ -26,8 +28,10 @@ from accounts.suite import KEY_DIARY as DEFAULT_PROGRAM
 from diary import legacy_merge as legacy
 from diary import nested_conversion, review_flags, subtopic_one, topic_one
 
+from fees.services.heavy import heavy_operation
+
 from . import policy, registry, storage as offsite_storage
-from .models import KEEP_KINDS, BackupFile, BackupLog
+from .models import BackupFile, BackupLog
 
 logger = logging.getLogger(__name__)
 
@@ -74,30 +78,57 @@ def applied_state_apps():
     return loader.project_state(nodes).apps
 
 
+def _backup_labels(app_registry=None):
+    """Labels that make up the ``models`` section, in backup order (parents first).
+
+    Registry models missing from a historical state have no table yet, so they are recorded as empty.
+    Optional models stay out of the file then, so an older state is read as an older backup.
+    """
+    seeded = [
+        label
+        for label in registry.BACKUP_MODELS
+        if not (label in registry.OPTIONAL_MODELS and app_registry is not None)
+    ]
+    present = {model._meta.label for model in registry.get_models(app_registry)}
+    # A model present in the state but somehow not pre-seeded (future-proofing) is still appended.
+    for label in present:
+        if label not in seeded:
+            seeded.append(label)
+    return seeded
+
+
+def _serialize_model_records(model):
+    """Serialise one model to a list of record dicts, exactly as the backup file stores them.
+
+    Same field selection, ordering and encoder as the streaming writer, so a caller can compare the
+    two builders record by record.
+    """
+    text = serializers.serialize(
+        "json",
+        model._default_manager.order_by("pk"),
+        fields=registry.field_names(model),
+        use_natural_foreign_keys=False,
+        use_natural_primary_keys=False,
+        cls=_ExactJSONEncoder,
+    )
+    return json.loads(text)
+
+
 def _build_document(now, app_registry=None):
+    """Build the whole backup document in memory.
+
+    Kept as the reference builder: the streaming ``write_document`` must produce a gzip whose parsed
+    content equals this document. ``create_backup`` uses the streaming writer; the equality is a test.
+    """
     models_out = {}
     counts = {}
-    # Registry models missing from the historical state have no table yet: record them as empty.
-    # Optional models stay out of the file then, so an older state is read as an older backup.
-    for label in registry.BACKUP_MODELS:
-        if label in registry.OPTIONAL_MODELS and app_registry is not None:
-            continue
+    for label in _backup_labels(app_registry):
         models_out[label] = []
         counts[label] = 0
     for model in registry.get_models(app_registry):
-        label = model._meta.label
-        models_out.setdefault(label, [])
-        text = serializers.serialize(
-            "json",
-            model._default_manager.order_by("pk"),
-            fields=registry.field_names(model),
-            use_natural_foreign_keys=False,
-            use_natural_primary_keys=False,
-            cls=_ExactJSONEncoder,
-        )
-        records = json.loads(text)
-        models_out[label] = records
-        counts[label] = len(records)
+        records = _serialize_model_records(model)
+        models_out[model._meta.label] = records
+        counts[model._meta.label] = len(records)
     document = {
         "format": FORMAT_MARKER,
         "format_version": FORMAT_VERSION,
@@ -106,6 +137,88 @@ def _build_document(now, app_registry=None):
         "counts": counts,
     }
     return document, counts
+
+
+def _iter_model_record_chunks(model, chunk_size=500):
+    """Yield already-serialised record JSON text for ``model``, a chunk at a time.
+
+    Each yielded string is the inner text of a JSON array (no surrounding brackets), so chunks can be
+    joined with commas straight into the file. ``queryset.iterator`` keeps only one chunk of rows in
+    memory at a time, and the serialiser is given the same fields and encoder as ``_build_document``.
+    """
+    field_names = registry.field_names(model)
+    queryset = model._default_manager.order_by("pk")
+    for rows in _chunked(queryset.iterator(chunk_size=chunk_size), chunk_size):
+        text = serializers.serialize(
+            "json",
+            rows,
+            fields=field_names,
+            use_natural_foreign_keys=False,
+            use_natural_primary_keys=False,
+            cls=_ExactJSONEncoder,
+        )
+        # serializers.serialize returns "[ {..}, {..} ]"; drop the brackets, keep the records.
+        inner = text.strip()
+        inner = inner[1:-1] if inner.startswith("[") and inner.endswith("]") else inner
+        count = len(rows)
+        yield inner, count
+
+
+def _chunked(iterable, size):
+    """Group an iterable into lists of at most ``size`` items (one chunk alive at a time)."""
+    chunk = []
+    for item in iterable:
+        chunk.append(item)
+        if len(chunk) >= size:
+            yield chunk
+            chunk = []
+    if chunk:
+        yield chunk
+
+
+def write_document(fileobj, now, app_registry=None):
+    """Stream the backup document as gzip-compressed JSON into ``fileobj``. Returns ``counts``.
+
+    Writes the exact same document layout as ``_build_document`` (``format``, ``format_version``,
+    ``created_at``, ``models`` then ``counts``), one model at a time and, within a model, one chunk of
+    500 rows at a time via ``queryset.iterator``. The peak memory is a single chunk plus the gzip
+    window, not several whole copies of the data. ``counts`` is written after ``models``; key order
+    inside the JSON object is irrelevant to ``parse_backup``, which reads a dict.
+    """
+    labels = _backup_labels(app_registry)
+    present = {model._meta.label: model for model in registry.get_models(app_registry)}
+    counts = {label: 0 for label in labels}
+    gz = gzip.GzipFile(fileobj=fileobj, mode="wb", mtime=0)
+    try:
+        def write(text):
+            gz.write(text.encode("utf-8"))
+
+        write("{")
+        write('"format": ' + json.dumps(FORMAT_MARKER) + ", ")
+        write('"format_version": ' + json.dumps(FORMAT_VERSION) + ", ")
+        write('"created_at": ' + json.dumps(now.isoformat()) + ", ")
+        write('"models": {')
+        for label_index, label in enumerate(labels):
+            if label_index:
+                write(", ")
+            write(json.dumps(label) + ": [")
+            model = present.get(label)
+            if model is not None:
+                first = True
+                for inner, count in _iter_model_record_chunks(model):
+                    if inner:
+                        if not first:
+                            write(", ")
+                        write(inner)
+                        first = False
+                    counts[label] += count
+            write("]")
+        write("}, ")
+        write('"counts": ' + json.dumps(counts))
+        write("}")
+    finally:
+        gz.close()
+    return counts
 
 
 def _log_failure(kind, started, exc, user):
@@ -134,67 +247,78 @@ def create_backup(kind, user=None, use_applied_state=False):
     """
     started = timezone.now()
     try:
-        app_registry = applied_state_apps() if use_applied_state else None
-        outermost = not connection.in_atomic_block
-        with transaction.atomic():
-            if outermost and connection.vendor == "postgresql":
-                # One consistent snapshot for every model (needs to be the first statement).
-                with connection.cursor() as cursor:
-                    cursor.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
-            document, counts = _build_document(started, app_registry)
-            raw = gzip.compress(json.dumps(document).encode("utf-8"))
-            filename = f"judgment-diary-backup-{timezone.localtime(started):%Y%m%d-%H%M%S}-{kind}.json.gz"
-            backup = BackupFile.objects.create(
-                created_at=started,
-                kind=kind,
-                filename=filename,
-                data=raw,
-                size_bytes=len(raw),
-                sha256=hashlib.sha256(raw).hexdigest(),
-                record_counts=counts,
-                created_by=user,
-            )
-            BackupLog.objects.create(
-                started_at=started,
-                finished_at=timezone.now(),
-                kind=kind,
-                success=True,
-                message=f"Backup created: {sum(counts.values())} records.",
-                size_bytes=len(raw),
-                backup=backup,
-                created_by=user,
-            )
+        # R-NFR-6: only one heavy suite operation at a time. "suite_backup" is shared
+        # with restore so a backup and a restore cannot run at once. The pre-restore
+        # safety backup runs inside restore_backup on the same session; PostgreSQL
+        # advisory locks are re-entrant and counted, so this nested acquire succeeds
+        # and each finally releases once, keeping the count balanced.
+        with heavy_operation("suite_backup"):
+            app_registry = applied_state_apps() if use_applied_state else None
+            outermost = not connection.in_atomic_block
+            with transaction.atomic():
+                if outermost and connection.vendor == "postgresql":
+                    # One consistent snapshot for every model (needs to be the first statement).
+                    with connection.cursor() as cursor:
+                        cursor.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
+                # Stream the gzip into a spooled temp file (in memory up to 2 MB, then on disk), so the
+                # peak is one chunk of rows, not several whole copies. Read the finished bytes back once
+                # for storage, so BackupFile.data, size_bytes and sha256 are identical to before.
+                with tempfile.SpooledTemporaryFile(max_size=2 * 1024 * 1024) as spool:
+                    counts = write_document(spool, started, app_registry)
+                    spool.seek(0)
+                    raw = spool.read()
+                filename = f"judgment-diary-backup-{timezone.localtime(started):%Y%m%d-%H%M%S}-{kind}.json.gz"
+                backup = BackupFile.objects.create(
+                    created_at=started,
+                    kind=kind,
+                    filename=filename,
+                    data=raw,
+                    size_bytes=len(raw),
+                    sha256=hashlib.sha256(raw).hexdigest(),
+                    record_counts=counts,
+                    created_by=user,
+                )
+                BackupLog.objects.create(
+                    started_at=started,
+                    finished_at=timezone.now(),
+                    kind=kind,
+                    success=True,
+                    message=f"Backup created: {sum(counts.values())} records.",
+                    size_bytes=len(raw),
+                    backup=backup,
+                    created_by=user,
+                )
     except Exception as exc:
         _log_failure(kind, started, exc, user)
         raise
+    # Keep only the newest backups, whatever made this one. Never touches the backup just made and never raises.
+    prune_old_backups(protect_ids=(backup.pk,))
     return backup
 
 
-def prune_old_backups(now=None, retention_days=None):
-    """Delete backups past the retention period (never the newest one, never an import or clear backup).
+def prune_old_backups(keep_count=None, protect_ids=()):
+    """Keep only the newest ``settings.BACKUP_KEEP_COUNT`` backups (default 30) and delete the rest.
 
-    Backups made around a Word import ("Before import" / "After import") or before clearing a profile stay until an Admin deletes them.
-
-    Never raises: a failure is written to the log instead. Returns the number removed.
+    Every kind counts the same (nightly, before update, before restore, manual, and the Before import /
+    After import / Before clearing profile backups too). Never deletes the newest backup or any id in
+    ``protect_ids``. Never raises: a failure is written to the log instead. Returns the number removed.
     """
-    now = now or timezone.now()
-    if retention_days is None:
-        retention_days = settings.BACKUP_RETENTION_DAYS
+    if keep_count is None:
+        keep_count = settings.BACKUP_KEEP_COUNT
     started = timezone.now()
     try:
         with transaction.atomic():
             entries = list(BackupFile.objects.values_list("id", "created_at"))
-            kept = set(BackupFile.objects.filter(kind__in=KEEP_KINDS).values_list("id", flat=True))
-            expired = [i for i in policy.select_expired(entries, now, retention_days) if i not in kept]
+            expired = policy.select_over_count(entries, keep_count, protect_ids)
             if expired:
                 BackupFile.objects.filter(id__in=expired).delete()
-            BackupLog.objects.create(
-                started_at=started,
-                finished_at=timezone.now(),
-                kind="prune",
-                success=True,
-                message=f"Removed {len(expired)} old backup(s).",
-            )
+                BackupLog.objects.create(
+                    started_at=started,
+                    finished_at=timezone.now(),
+                    kind="prune",
+                    success=True,
+                    message=f"Removed {len(expired)} old backup(s); the newest {policy.effective_keep_count(keep_count)} are kept.",
+                )
         return len(expired)
     except Exception as exc:
         logger.exception("Pruning old backups failed")
@@ -412,6 +536,47 @@ def _file_has_active_admin(document):
     return False
 
 
+def _program_of_label(label):
+    """A short program name for the app a backup label belongs to, for the restore warning box."""
+    app_label = label.split(".", 1)[0]
+    return {
+        "diary": "Case Law Diary",
+        "fees": "Fee Register",
+        "accounts": "Accounts",
+    }.get(app_label, app_label)
+
+
+def models_that_would_empty(document):
+    """Record types a restore would wipe because the file lacks them but the database has rows (R-BK-4).
+
+    One dict per optional model that is both absent from ``document["models"]`` AND currently has at
+    least one row: ``{label, name, program, count_now}``. ``name`` is the model's plural verbose name,
+    ``program`` names the program the record type belongs to. Used by the restore preview to warn that
+    restoring an older file (for example one taken before the Fee Register existed) would discard data
+    that is only in the database, and to require an extra confirmation before it may proceed.
+    """
+    models_in_file = document.get("models", {})
+    warnings = []
+    for label in registry.BACKUP_MODELS:
+        if label not in registry.OPTIONAL_MODELS or label in models_in_file:
+            continue
+        try:
+            model = apps.get_model(label)
+        except LookupError:
+            continue
+        count_now = model._default_manager.count()
+        if count_now:
+            warnings.append(
+                {
+                    "label": label,
+                    "name": model._meta.verbose_name_plural.title(),
+                    "program": _program_of_label(label),
+                    "count_now": count_now,
+                }
+            )
+    return warnings
+
+
 def preview_restore(document):
     """Describe what a restore would change, one row per record type."""
     rows = []
@@ -463,11 +628,21 @@ def restore_backup(document, user):
 
     started = timezone.now()
     try:
-        with transaction.atomic():
+        # R-NFR-6: guard the destructive restore. The pre-restore safety backup above
+        # has already finished and released its own "suite_backup" lock, so this takes
+        # "suite_restore" cleanly; a backup or restore on another connection is refused.
+        with heavy_operation("suite_restore"), transaction.atomic():
             batches = []
             for model in registry.get_models():
                 records = document["models"].get(model._meta.label, [])
-                batches.append((model, list(serializers.deserialize("json", json.dumps(records)))))
+                # R4: deserialise in chunks of 500 rather than json.dumps-ing a whole model at once,
+                # so the largest live text is one chunk. The deserialised objects are collected exactly
+                # as before (delete order, saves, counts and sequence reset are unchanged).
+                objects = []
+                for start in range(0, len(records), 500):
+                    chunk = records[start:start + 500]
+                    objects.extend(serializers.deserialize("json", json.dumps(chunk)))
+                batches.append((model, objects))
             for model, _objects in reversed(batches):
                 model._default_manager.all().delete()
             for _model, objects in batches:

@@ -4,10 +4,9 @@
 uses the profile (Admin, Editor or Reader) may make every export: Full, by Subject, a Subject, a Current View, and the
 Offline copy of the whole diary or of a part (D98).
 """
+import copy
 import logging
 import time
-
-from urllib.parse import urlencode
 
 from django.contrib import messages
 from django.http import Http404, HttpResponse
@@ -18,12 +17,12 @@ from django.views.decorators.http import require_POST
 
 from accounts.profiles import effective_export_name, export_file_name
 
-from .forms import ExportSettingsForm
+from .forms import ExportSettingsForm, ProfileSettingsForm
 
 from .models import Subject
 from .params import safe_int
 from .sorting import sort_headings
-from .views import profile_required
+from .views import profile_required, render_settings_page, user_can_edit
 from .wordexport import service
 
 logger = logging.getLogger(__name__)
@@ -57,21 +56,20 @@ def _file_settings(request, form=None):
             "file_replaced": naming.replacements(effective_export_name(shown))}
 
 
-def _back_to_export(request):
-    keep = {key: request.POST[key] for key in ("kind", "pk") if request.POST.get(key)}
-    return reverse("export") + ("?" + urlencode(keep) if keep else "")
-
-
 @profile_required
 @require_POST
 def export_settings(request):
-    """Save the export file name (the profile's; any member may change it) and my date format."""
+    """Save the export file name (the profile's; only its Editors change it). It is a section of Case Law Diary settings >
+    Data, so a save returns there. My date format is on My settings; a client that still posts it here is accepted."""
+    if not user_can_edit(request):
+        return render(request, "403.html", status=403)
     form = ExportSettingsForm(request.POST, user=request.user, profile=request.profile)
     if form.is_valid():
         form.save()
-        messages.success(request, "Export settings saved.")
-        return redirect(_back_to_export(request))
-    return _render_page(request, request.POST.get("kind", ""), request.POST.get("pk", ""), form)
+        messages.success(request, "Export file name saved.")
+        return redirect(reverse("profile_settings") + "?tab=data")
+    return render_settings_page(request, "data", True, ProfileSettingsForm(
+        instance=copy.copy(request.profile), prefix="diary"), form)
 
 
 @profile_required
@@ -79,7 +77,7 @@ def export_page(request):
     return _render_page(request, request.GET.get("kind", ""), request.GET.get("pk", ""))
 
 
-def _render_page(request, kind, pk, file_form=None):
+def _render_page(request, kind, pk):
     kind, pk, path = _scope(request, kind, pk)
     subjects = Subject.objects.filter(profile=request.profile, deleted_at__isnull=True)
     main = sort_headings(subjects.filter(show_on_landing=True))
@@ -89,7 +87,6 @@ def _render_page(request, kind, pk, file_form=None):
         "main_subjects": main, "other_subjects": other,
         # Flags are included unless the page is opened with review=0 (checked by default; "review" is the old name, D88).
         "include_review": request.GET.get("review") != "0",
-        **_file_settings(request, file_form),
     })
 
 

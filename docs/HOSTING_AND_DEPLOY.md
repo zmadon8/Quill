@@ -62,11 +62,30 @@ You do not touch code. The steps are:
 
 **To redeploy.** Merge the fix, then deploy as in section 5. The backup `pre_migration` is taken first as usual. If it stops again, copy the error line and send it; the data will again be untouched.
 
+## 5c. Releasing the Fee Register (/fees/)
+
+The Fee Register ships dark: `render.yaml` sets `FEES_ENABLED` to `0`, so every `/fees/` address is "not found" and no button or tab shows, while its tables, backups and restores keep working. At the owner's go-ahead:
+
+1. **Merge** the pull request. Render deploys it; the update step `migrate_with_backup` takes a "Before update" backup first and stops if it fails.
+2. In Render, open the web service, **Environment**, set `FEES_ENABLED` to `1` (and change the value in `render.yaml` so the next Blueprint sync does not set it back to `0`). It redeploys.
+3. **Once**, in the web service **Shell**:
+
+   ```
+   python manage.py create_fees_user --username Ziyad --profile Ziyad-Fees --make-admin
+   ```
+
+   This only attaches the `Ziyad-Fees` profile and its membership to the existing user `Ziyad`. It creates no user.
+4. Log in as Ziyad, open **Fees**, then **Settings > Backup** and restore the desktop backup. Compare the key figures (KPIs) with the desktop program.
+5. Optional checks in the Shell: `python manage.py fees_check` (read-only, prints any memo whose stored totals disagree with a recomputation) and, to measure memory with the real instance, `python manage.py fees_memory_bench` (uses a throwaway profile, leaves no data; see `docs/FEES_RAM_BUDGET.md`).
+
+`FEES_ENABLED` when not set: on for developer mode (`DJANGO_DEBUG` or `DJANGO_ALLOW_SQLITE`) and tests, off in production. `MAX_BACKUP_UPLOAD_MB` is 30 by default (the uncompressed size of an uploaded backup). The server settings in section 5a (workers, threads, `--max-requests`, no `--preload`) are unchanged; memory levers are only applied after measuring and with the owner's approval.
+
 ## 5a. Server settings chosen for a small plan
 
 - **Web server:** `gunicorn ... --workers 2 --threads 2 --max-requests 500 --max-requests-jitter 50 --timeout 60`. Two worker processes with two threads each, each restarted after about 500 requests to keep memory steady. There is deliberately no `--preload`.
 - **Static files** (CSS and JavaScript) are served with hashed file names (WhiteNoise `CompressedManifestStaticFilesStorage`), so browsers can cache them for a long time and still pick up changes at the next deploy. `build.sh` runs `collectstatic`, which writes the list of hashed names. Tests use plain storage because they never run `collectstatic`.
 - **Nightly job:** backup, then (only if the backup worked) the deleted-profile purge and the old edit-history purge, then `clearsessions` to remove expired logins. A `clearsessions` problem never hides a failed backup: the job exits with the backup result.
+- **Backups:** only the newest 30 are kept (`BACKUP_KEEP_COUNT`), of every kind, and the pruning runs after every backup is made.
 - **Edit history** is kept for `HISTORY_RETENTION_DAYS` (default 30) days.
 
 ## 6. Everyday safety habits
@@ -103,6 +122,19 @@ Keep a bucket lifecycle or versioning rule off unless you want extra copies kept
 ## 6a2. Email (Forgot my password, emailed backups)
 
 Optional and off until `EMAIL_HOST` is set. See `docs/EMAIL.md` for the settings, the Admin screen and privacy notes. Set the `EMAIL_*` variables on both the web service and the nightly cron job.
+
+## 6c. Database storage (why the disk looks full, and how to shrink it)
+
+**What uses the space.** Each nightly backup is stored inside the database as one compressed file, and the newest 30 are kept (`BACKUP_KEEP_COUNT`). Backups never contain other backups or the backup history. The real diary and fee data are usually a few MB, so a healthy database is normally tens or a few hundred MB. A very large size almost always means space that was freed by deleting rows (old backups, old edit history, sessions) but never handed back. PostgreSQL reuses that space for new rows, but only gives it back to the disk after a `VACUUM FULL`. Large backup files are stored out of line (TOAST), which makes this effect bigger.
+
+**Steps**
+
+1. Open the Shell of the web service in the Render dashboard and run `python manage.py db_storage_report`. It prints sizes and row counts only, never your data. Look at the database size, the largest tables, and "Sum of stored data" for the backups.
+2. If the backups are small but the database is large, the difference is unreclaimed space. When nobody is using the site, run `python manage.py db_reclaim_space` (a dry run that changes nothing), then `python manage.py db_reclaim_space --confirm`. It locks each table for seconds to minutes, so pick a quiet time. Add other large tables from the report with `--tables name1 name2`.
+3. Run `db_storage_report` again to see the new size.
+4. To grow more slowly, lower `BACKUP_KEEP_COUNT` on the web service and the nightly job (for example 10 or 15), or rely on the off-site and emailed copies (sections 6a and 6a2) and keep few copies inside the database. Run the reclaim step again after lowering it.
+
+The disk size of the database can be increased in the Render dashboard, but it usually cannot be decreased, so check the Render dashboard for what your plan allows before relying on it. If the size is still far above the report's figures after a reclaim, contact Render support.
 
 ## 6b. Final backup rehearsal (Milestone 7)
 

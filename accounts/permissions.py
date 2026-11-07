@@ -25,7 +25,8 @@ def _role_required(check):
 def program_role(user, program):
     """The user's role ("editor" or "reader") in ``program``, or None if they have no profile there.
 
-    Admin is not a role here: an Admin works inside a program with the role of their own membership.
+    A suite Admin is an Editor in every program and profile, with or without a membership (the owner's rule, "an
+    'Admin' is an 'Admin' for all sub-programs"); that is applied in ``accounts.profiles.live_memberships``.
     """
     membership = get_membership_for(user, program)
     return membership.role if membership else None

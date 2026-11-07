@@ -1,12 +1,11 @@
-{% extends "base_suite_home.html" %}
-{% block title %}My edits - {{ program_label }}{% endblock %}
+{% extends "base.html" %}
+{% block title %}History - {{ program_label }}{% endblock %}
 {% block content %}
-<h1>Settings</h1>
-<h2>My edits</h2>
+<h1{% if header_words %} class="visually-hidden"{% endif %}>History</h1>
 <p class="meta">Your own changes in {{ program_label }}, newest first (times in IST). An action that changed several records at once, such as deleting a Topic with its Items, is one line. Edits older than {{ retention_days }} days are removed from the history (the latest version of every record is always kept).</p>
 {% if actions %}
 <div class="table-wrap">
-<table class="my-edits" data-resizable-columns="my-edits">
+<table class="my-edits" data-table-id="my-edits">
   <thead><tr><th>When</th><th>What I did</th><th>Record</th><th></th></tr></thead>
   <tbody>
   {% for a in actions %}
@@ -20,7 +19,7 @@
   </tbody>
 </table>
 </div>
-{% if has_more %}<p><a class="button" href="{{ more_url }}">Show more</a></p>{% endif %}
+{% if has_more %}<p><a class="button" href="{{ more_url }}">Show More</a></p>{% endif %}
 {% else %}
 <p class="empty">You have not changed anything yet{% if retention_days %} in the last {{ retention_days }} days{% endif %}.</p>
 {% endif %}

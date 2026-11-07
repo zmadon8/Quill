@@ -2,8 +2,9 @@
 
 BACKUP_MODELS is ordered parents first (a model must come after every model it
 points to). The diary models come after accounts.User (they point to it) and
-keep parents before children; any new model must be appended here. Restore deletes in
-reverse order and loads in this order.
+keep parents before children; the Fee Register models follow the diary models and
+keep the same parents-first rule. Any new model must be appended here. Restore
+deletes in reverse order and loads in this order.
 
 Deliberately NOT in a backup file:
   * FailedLogin and ResetRequest (short-lived login and password-reset throttling),
@@ -38,13 +39,55 @@ BACKUP_MODELS = [
     "diary.NoteLink",
     "diary.UserSettings",
     "diary.VersionHistory",
+    # Fee Register models (T1.9, design 7.4), parents first so restore inserts a parent before any
+    # child and the reversed delete removes children first. StatsCache (derived data) and FeesUserPrefs (per-user UI
+    # state such as column widths; cascade-deleted with the profile or user) are never
+    # backed up, so it is deliberately absent here and from OPTIONAL_MODELS and FEES_PROFILE_MODELS.
+    "fees.FeesSettings",
+    "fees.WordTemplate",
+    "fees.BankAccount",
+    "fees.Firm",
+    "fees.Group",
+    "fees.Matter",
+    "fees.Memo",
+    "fees.NumberSequence",
+    "fees.Payment",
+    "fees.Allocation",
+    "fees.PeriodAdjustment",
+    "fees.SavedView",
+]
+
+#: The Fee Register model labels added to ``BACKUP_MODELS`` (T1.9). Kept as a named list so the
+#: optional-model set and the restore guard can refer to exactly the fee models in one place.
+FEES_BACKUP_MODELS = [
+    "fees.FeesSettings",
+    "fees.WordTemplate",
+    "fees.BankAccount",
+    "fees.Firm",
+    "fees.Group",
+    "fees.Matter",
+    "fees.Memo",
+    "fees.NumberSequence",
+    "fees.Payment",
+    "fees.Allocation",
+    "fees.PeriodAdjustment",
+    "fees.SavedView",
 ]
 
 #: Models an older backup file may lack. Restoring such a file empties the table, so the built-in
 #: defaults apply (a backup made before the Settings page existed has no display names). Profiles and
 #: memberships are optional too, and so are Trash batches (added in Milestone 3; an older file simply has none): see ``services.upgrade_old_document`` for how an older file is
 #: given a default "Main" profile.
-OPTIONAL_MODELS = {"accounts.SuiteName", "accounts.Profile", "accounts.ProfileMembership", "diary.TrashBatch"}
+#: Every fee model is optional too: a backup taken before the Fee Register existed has none of these
+#: sections, and restoring such a file simply empties the fee tables (the restore guard R-BK-4 warns
+#: when that would discard current fee data).
+OPTIONAL_MODELS = {
+    "accounts.SuiteName",
+    "accounts.Profile",
+    "accounts.ProfileMembership",
+    "diary.TrashBatch",
+    *FEES_BACKUP_MODELS,
+}
 
 #: Diary models that carry a ``profile`` column. An older backup lacks it; such rows go into "Main".
 PROFILE_MODELS = [
@@ -59,6 +102,56 @@ PROFILE_MODELS = [
     "diary.NoteLink",
     "diary.VersionHistory",
 ]
+
+
+#: Fee Register models that carry a ``profile`` column, parents first (same order as in
+#: ``BACKUP_MODELS``). This is a SEPARATE list from the diary ``PROFILE_MODELS`` so
+#: ``services.upgrade_old_document`` (which assigns unassigned diary rows to the diary "Main" profile)
+#: never iterates over fee models. ``StatsCache`` is derived data and is not listed. All 12 fee models
+#: are profile-scoped, so this is the same set as ``FEES_BACKUP_MODELS``.
+FEES_PROFILE_MODELS = [
+    "fees.FeesSettings",
+    "fees.WordTemplate",
+    "fees.BankAccount",
+    "fees.Firm",
+    "fees.Group",
+    "fees.Matter",
+    "fees.Memo",
+    "fees.NumberSequence",
+    "fees.Payment",
+    "fees.Allocation",
+    "fees.PeriodAdjustment",
+    "fees.SavedView",
+]
+
+
+#: Profile-scoped model labels per program key, parents first (the same order as in ``BACKUP_MODELS``).
+#: ``profile_models_for`` turns the labels into model classes in the order the profile purge and clear
+#: delete them (children first). The diary and the Fee Register each have their own list; a profile's
+#: ``program`` picks the list, so purge and clear of a fees profile delete only fee rows.
+PROGRAM_PROFILE_MODELS = {
+    "diary": PROFILE_MODELS,
+    "fees": FEES_PROFILE_MODELS,
+}
+
+
+def profile_models_for(program, app_registry=None):
+    """Model classes carrying a ``profile`` column for ``program``, in delete order (children first).
+
+    Returns an empty list for an unknown program. The order is the reverse of the parents-first label
+    list, so a caller can delete rows straight down the list; this matches the order the profile purge
+    and clear used before the registry existed.
+    """
+    app_registry = app_registry or apps
+    labels = PROGRAM_PROFILE_MODELS.get(program, [])
+    models = []
+    for label in reversed(labels):
+        try:
+            models.append(app_registry.get_model(label))
+        except LookupError:
+            if app_registry is apps:
+                raise
+    return models
 
 
 def get_models(app_registry=None):

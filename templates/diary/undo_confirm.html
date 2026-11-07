@@ -8,7 +8,7 @@
   <form method="post" action="{% url 'edit_undo' %}" class="edit-confirm">
     {% csrf_token %}
     <input type="hidden" name="group" value="{{ group }}"><input type="hidden" name="force" value="1"><input type="hidden" name="next" value="{{ next_url }}">
-    <button type="submit" class="danger">Undo anyway</button>
+    <button type="submit" class="danger">Undo Anyway</button>
     <a class="button" href="{{ next_url }}">Cancel</a>
   </form>
 </div>

@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     "accounts",
     "backups",
     "diary",
+    "fees",
     "mailer",
 ]
 
@@ -68,6 +69,8 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
+    "fees.middleware.FeesEnabledMiddleware",
+    "accounts.middleware.LastSeenMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
@@ -154,8 +157,17 @@ STORAGES = {
 if "test" in sys.argv[1:2] or os.environ.get("DJANGO_TESTING") == "1":
     STORAGES["staticfiles"] = {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"}
 
+# Fee Register dark-launch flag (design U11). When False the Fee Register is invisible and unreachable: no Home
+# button, no Settings tab, no landing choice, every /fees/ URL is a 404. The fees tables, migrations and the suite
+# backup and restore still work, so data is never lost. FEES_ENABLED=1 turns it on, any other set value turns it off.
+# When the variable is not set the default is ON for developer mode (DJANGO_DEBUG or DJANGO_ALLOW_SQLITE) and for
+# the test runner, and OFF in production. render.yaml sets "0" until the owner's go-ahead; then set it to "1".
+_FEES_DEFAULT_ON = DEBUG or ALLOW_SQLITE or "test" in sys.argv[1:2] or os.environ.get("DJANGO_TESTING") == "1"
+FEES_ENABLED = (os.environ["FEES_ENABLED"] == "1") if "FEES_ENABLED" in os.environ else _FEES_DEFAULT_ON
+
 # Backup settings (used by the backups app).
-BACKUP_RETENTION_DAYS = max(30, _int("BACKUP_RETENTION_DAYS", 35))
+# Only the newest BACKUP_KEEP_COUNT backups are kept, of every kind (owner decision). Never below 1.
+BACKUP_KEEP_COUNT = max(1, _int("BACKUP_KEEP_COUNT", 30))
 BACKUP_STALE_HOURS = _int("BACKUP_STALE_HOURS", 36)
 # Days a deleted profile can be restored before the purge job removes it for good.
 PROFILE_RETENTION_DAYS = max(1, _int("PROFILE_RETENTION_DAYS", 30))
@@ -163,7 +175,7 @@ PROFILE_RETENTION_DAYS = max(1, _int("PROFILE_RETENTION_DAYS", 30))
 USER_RETENTION_DAYS = max(1, _int("USER_RETENTION_DAYS", 30))
 # Days of edit history kept; older versions are purged nightly (the newest version of every record is always kept).
 HISTORY_RETENTION_DAYS = max(1, _int("HISTORY_RETENTION_DAYS", 30))
-MAX_BACKUP_UPLOAD_MB = _int("MAX_BACKUP_UPLOAD_MB", 100)
+MAX_BACKUP_UPLOAD_MB = _int("MAX_BACKUP_UPLOAD_MB", 30)
 # Off-site copies: how many days to keep them (the storage itself is chosen by OFFSITE_BACKUP_* env vars).
 OFFSITE_BACKUP_RETENTION_DAYS = max(30, _int("OFFSITE_BACKUP_RETENTION_DAYS", 90))
 
