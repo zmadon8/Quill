@@ -6,7 +6,7 @@ from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import admin_required
 
-from . import services
+from . import sender, services
 from .forms import EmailBackupForm
 from .models import EmailBackupSchedule
 
@@ -17,7 +17,7 @@ def email_context(form=None):
     return {
         "email_form": form or EmailBackupForm(instance=schedule), "schedule": schedule,
         "configured": services.is_configured(), "max_mb": settings.EMAIL_BACKUP_MAX_MB,
-        "due": services.is_due(schedule), "backup_size": services.newest_backup_size(),
+        "due": services.is_due(schedule), "email_diag": sender.diagnostics(), "backup_size": services.newest_backup_size(),
     }
 
 

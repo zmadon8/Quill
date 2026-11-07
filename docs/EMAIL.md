@@ -73,6 +73,36 @@ The screen shows the reason. The usual ones:
 * **The test works but the nightly backup email does not arrive**: the cron job is missing the five values (step D4). The Admin warning bar and **Email backups > Last send** show the reason.
 * **Gmail says the attachment is too big**: lower `EMAIL_BACKUP_MAX_MB`, or choose **Both, in separate emails**.
 
+## 1d. Gmail: "550 5.7.30 ... DKIM authentication didn't pass" (plain words)
+
+**What the message means.** The bounce comes from Gmail's receiving servers, not from this site. Gmail says: "this email claims to be From a gmail.com address, but it did not come through Google's own sending servers signed by Google". Only Google can sign mail for gmail.com. So the message is rejected, whoever the recipient is on Gmail.
+
+**What passes.** Mail sent by logging in to `smtp.gmail.com` with the same account's app password, From that same address. Google signs it, so it passes. A personal, free Gmail account is enough. A third-party relay (Brevo, Render, Mailgun, SES and so on) can no longer send as a gmail.com address to Gmail recipients: it cannot sign for gmail.com.
+
+**Why it happens here, most likely.** The bounce arrives as an email some time after the send, which means the message was accepted by a server that is not Gmail's own and then rejected later. So the site (or only the nightly job) is not logging in to `smtp.gmail.com`. The usual reasons:
+1. One of the two Render services (the web service **judgment-diary** and the cron job **judgment-diary-daily-backup**) has a different `EMAIL_HOST` (for example a Brevo value left from an earlier try), or has the email variables missing or old. This explains "sometimes": the web service may send password resets correctly while the cron job (the backup emails) does not, or the other way round. The two services do not share settings, and this page can only see the web service.
+2. `DEFAULT_FROM_EMAIL` is a gmail.com address but a different one from `EMAIL_HOST_USER`.
+
+The app now protects against reason 2: when `EMAIL_HOST` is `smtp.gmail.com` (or `smtp.googlemail.com`) every email (backups, test email, password reset) is sent From the login address (`EMAIL_HOST_USER`) and Reply-To the same address; the display name is kept. It cannot fix reason 1 for you; you must set the variables on both services.
+
+**Exact steps for a personal Gmail account (free).**
+1. In your Google Account, turn on **2-Step Verification** (Security > 2-Step Verification). Then open myaccount.google.com/apppasswords, create an app password named `Case Law Diary` and copy the 16 letters.
+2. On Render open the web service **judgment-diary** > **Environment** and set exactly these five values, then **Save**:
+   * `EMAIL_HOST` = `smtp.gmail.com`
+   * `EMAIL_PORT` = `587`
+   * `EMAIL_HOST_USER` = `you@gmail.com` (your Gmail address)
+   * `EMAIL_HOST_PASSWORD` = the app password
+   * `DEFAULT_FROM_EMAIL` = `Case Law Diary <you@gmail.com>` (the same address), or leave it empty
+3. Remove any other email values: no Brevo host, no `EMAIL_USE_SSL=1` together with port 587, no old `EMAIL_HOST_USER`.
+4. Open the cron job **judgment-diary-daily-backup** > **Environment** and set the **same five values** the same way. Save. Both services must match. This is the step most often missed.
+5. Wait until both show **Live** (the cron job picks the values up on its next run).
+6. In the diary, as Admin, open **Admin > Backups > Email backups**. The box "How this server sends email" must show `smtp.gmail.com`, port 587, security TLS, your Gmail address as login and as From, and no red warning. Press **Send a test email**. The green message names the From address and server used.
+7. To prove the cron job too, open the cron job in Render and press **Trigger Run**, or in its Shell run `python manage.py send_email_backups --force`. The result appears under **Last send** on the Email backups page. If it fails, the text now includes the server's own error (code and message, never the password).
+
+**Limits.** A personal Gmail account may send about 500 emails a day (this site sends a few) and Gmail refuses a message above 25 MB. The default `EMAIL_BACKUP_MAX_MB` of 15 is fine (files grow by about a third when sent). If a backup is larger, choose **Both, in separate emails**.
+
+**Still failing?** Look at the diagnostics box. "From address differs from the Gmail login, fixed to the login address" is only information. "Using a Gmail From address with a non-Gmail server" means the bounce will keep coming until the host is `smtp.gmail.com`. "No email server configured" means `EMAIL_HOST` is empty on the web service. A bounce can arrive after the app has already shown "sent": the app cannot see bounces, so check your inbox for them after the first scheduled send.
+
 ## 2. Forgot my password
 
 * Every person can add their email address under **Settings > My settings**; the Admin can add it under **Users & Profiles > Users**. An address can belong to one account only.
@@ -99,4 +129,4 @@ A backup file holds the whole diary and every user's scrambled password. A Word 
 
 ## Code
 
-`mailer/services.py` (sending, recipients, when a send is due), `mailer/models.py` (one settings row), `mailer/views.py` and `templates/mailer/backup_email.html` (the Admin screen), `mailer/management/commands/send_email_backups.py` (the nightly job), `accounts/views.py` (`ForgotPasswordView`) and `templates/registration/password_reset_*` (the reset pages and email text).
+`mailer/sender.py` (the one place that decides the From address, the diagnostics and the SMTP error text), `mailer/services.py` (sending, recipients, when a send is due), `mailer/models.py` (one settings row), `mailer/views.py` and `templates/mailer/_email_diagnostics.html` (the diagnostics box on Admin > Backups > Email backups), `mailer/management/commands/send_email_backups.py` (the nightly job), `accounts/views.py` (`ForgotPasswordView`) and `templates/registration/password_reset_*` (the reset pages and email text).

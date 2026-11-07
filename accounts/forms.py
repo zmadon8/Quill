@@ -3,6 +3,7 @@ from datetime import timedelta
 from django import forms
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.template import loader
 from django.contrib.auth.forms import AuthenticationForm, PasswordResetForm, UserCreationForm
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
@@ -455,4 +456,17 @@ class UsernamePasswordResetForm(PasswordResetForm):
         user = User._default_manager.filter(username__iexact=(username or "").strip(), is_active=True).first()
         if user is not None and user.has_usable_password() and (user.email or "").strip():
             yield user
+
+    def send_mail(self, subject_template_name, email_template_name, context, from_email, to_email, html_email_template_name=None):
+        """Same as Django's, but From (and Reply-To) come from the shared helper, as for the backup emails."""
+        from mailer import sender  # lazy: keeps this module's imports light
+
+        subject = "".join(loader.render_to_string(subject_template_name, context).splitlines())
+        message = sender.build_message(subject, loader.render_to_string(email_template_name, context), [to_email])
+        if html_email_template_name is not None:
+            from django.core.mail import EmailMultiAlternatives
+
+            message = EmailMultiAlternatives(subject, message.body, message.from_email, [to_email], reply_to=message.reply_to)
+            message.attach_alternative(loader.render_to_string(html_email_template_name, context), "text/html")
+        message.send()
 
