@@ -22,6 +22,7 @@ from .profiles import (
     get_profile_for,
     name_clash,
     profile_usage,
+    profile_usage_map,
     request_profile,
     restore_profile,
     retention_days,
@@ -417,20 +418,21 @@ PROFILE_DEFAULT_SORT = "name"
 def profile_list(request):
     profiles = list(_live_profiles().order_by("name"))
     names = suite.get_names()
-    for p in profiles:
-        p.member_count, p.subject_count = profile_usage(p)
-        p.program_name = names.get(p.program, p.program)
-    profiles, sort, descending = _sort_rows(
-        profiles, PROFILE_SORTS, PROFILE_DEFAULT_SORT, request.GET.get("sort", ""), lambda p: (p.name.lower(), p.pk)
-    )
     deleted = list(
         Profile.objects.filter(program__in=programs.program_keys(), deleted_at__isnull=False)
         .select_related("deleted_by")
         .order_by("-deleted_at")
     )
+    usage = profile_usage_map(profiles + deleted)
+    for p in profiles:
+        p.member_count, p.subject_count = usage[p.pk]
+        p.program_name = names.get(p.program, p.program)
+    profiles, sort, descending = _sort_rows(
+        profiles, PROFILE_SORTS, PROFILE_DEFAULT_SORT, request.GET.get("sort", ""), lambda p: (p.name.lower(), p.pk)
+    )
     for p in deleted:
         p.days_left = days_left(p)
-        p.member_count, p.subject_count = profile_usage(p)
+        p.member_count, p.subject_count = usage[p.pk]
         p.program_name = names.get(p.program, p.program)
     show_program = len(programs.enabled_program_keys()) > 1 or any(p.program != suite.KEY_DIARY for p in profiles + deleted)
     return render(

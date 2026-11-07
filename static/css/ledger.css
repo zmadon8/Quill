@@ -256,21 +256,6 @@ body.ledger .group-list .group-name { min-width: 10rem; font-weight: 500; }
 body.ledger .inline-forms form.inline, body.ledger form.inline { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 8px 4px 0; }
 
 /* ---- 11. Statistics extras ---- */
-body.ledger .stat-table tbody th[scope=row] { position: sticky; left: 0; z-index: 1; background: var(--card); font-weight: 500; }
-body.ledger .stat-table tbody tr:hover th[scope=row] { background: var(--paper-2); }
-body.ledger .pivot-table tbody td.money:last-child { font-weight: 600; }
-body.ledger .adjust-grid input { text-align: right; font-variant-numeric: tabular-nums; max-width: 100%; }
-body.ledger .saved-views { list-style: none; padding: 0; margin: 0; }
-body.ledger .saved-views li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 4px 0; }
-body.ledger .saved-views form { margin: 0; }
-body.ledger .chart-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 24px; margin: 12px 0 8px; }
-body.ledger .chart-tools[hidden], body.ledger .pivot-chart[hidden] { display: none; }
-body.ledger .pivot-chart { margin: 0; padding: 16px; overflow-x: auto; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); }
-body.ledger .pivot-chart svg { display: block; max-width: none; font: inherit; }
-body.ledger .pivot-chart figcaption { color: var(--muted); font-size: .857rem; }
-body.ledger .chart-legend { list-style: none; display: flex; flex-wrap: wrap; gap: 4px 16px; padding: 0; margin: 8px 0 0; font-size: .857rem; }
-body.ledger .chart-legend i { display: inline-block; width: 10px; height: 10px; margin-right: 6px; vertical-align: -1px; border-radius: 1px; }
-body.ledger [data-filename-result] { min-height: 1.4em; }
 body.ledger .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 /* ---- 13. Page-by-page additions ---- */
@@ -308,11 +293,6 @@ body.ledger .row-actions { white-space: nowrap; }
 body.ledger .row-actions form { display: inline; margin: 0; }
 body.ledger .ledger-table td.row-actions { text-align: right; overflow: visible; }
 /* Standard statistics: the current month and the Total column are tinted. */
-body.ledger .stat-table thead th.future-col { color: var(--faint); }
-body.ledger .stat-table :is(td, th).current-col, body.ledger .stat-table :is(td, th).total-col { background: var(--paper-2); }
-body.ledger .stat-table td.total-col { font-weight: 600; }
-body.ledger .stat-table thead th:first-child { position: sticky; left: 0; z-index: 3; }
-body.ledger .stat-table td.hand { font-style: italic; color: var(--accent); cursor: help; }
 /* Outstanding: grand-total card and bulk bar. */
 body.ledger .total-card { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin: 12px 0; padding: 12px 16px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); }
 body.ledger .total-card .total-label { color: var(--ink-3); font-size: 1rem; }
@@ -368,24 +348,8 @@ body.ledger .busy-card { padding: 24px; margin-top: 24px; background: var(--card
 @media (prefers-reduced-motion: reduce) { body.ledger * { transition: none !important; } }
 
 /* Settings: sub-tabs, section cards, grids, sticky save bar (round 2) */
-body.ledger .settings-tabs { margin: 0 0 16px; }
-body.ledger .settings-panel[hidden] { display: none; }
-body.ledger .settings-card { margin: 0 0 16px; padding: 16px 20px; }
-body.ledger .settings-card > h2 { margin: 0 0 12px; font-family: var(--serif, Georgia, serif); font-size: 1.15rem; font-weight: 600; }
-body.ledger .settings-card label { display: block; margin: 0 0 8px; }
-body.ledger .settings-card label input[type=checkbox] { display: inline; width: auto; }
-body.ledger .settings-card :is(input[type=text], input[type=number], select, textarea) { display: block; width: 100%; box-sizing: border-box; }
-body.ledger .settings-card .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 16px; }
-body.ledger .settings-card .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 16px; }
-body.ledger .settings-card .hint { color: var(--muted); font-size: .857rem; }
-body.ledger .settings-card .small-caps { margin: 12px 0 4px; font-size: .75rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
-body.ledger .bank-chips { list-style: none; padding: 0; }
-body.ledger .bank-add { display: flex; gap: 8px; }
-body.ledger .bank-add input { flex: 1; }
-body.ledger .filename-builder { border: 0; padding: 0; margin: 8px 0 0; }
 body.ledger .save-bar { position: sticky; bottom: 0; display: flex; justify-content: flex-end; align-items: center; gap: 12px; padding: 12px 0; background: var(--paper); border-top: 1px solid var(--line); }
 body.ledger .save-bar .dirty-note { color: var(--accent); font-size: .857rem; }
-@media (max-width: 640px) { body.ledger .settings-card :is(.grid-2, .grid-3) { grid-template-columns: 1fr; } }
 
 /* Resizable columns (columns.js): grab handle on each heading edge, fixed layout once a width is set. */
 body.ledger .ledger-table.fixed-cols { table-layout: fixed; max-width: none; }

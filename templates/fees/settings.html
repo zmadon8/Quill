@@ -1,6 +1,7 @@
 {% extends "fees/base_fees.html" %}
 {% load static fees_money %}
 {% block page_width %}w-4xl{% endblock %}
+{% block extra_css %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/ledger-settings.css' %}">{% endblock %}
 {% block page_title %}Settings - {{ program_label }}{% endblock %}
 {% block page_js %}<script src="{% static 'js/fees/filename-preview.js' %}"></script><script src="{% static 'js/fees/filename-builder.js' %}"></script><script src="{% static 'js/settings-sections.js' %}"></script>{% endblock %}
 {% block content %}

@@ -1,0 +1,19 @@
+/* Statistics page only: stat and pivot tables, saved views, chart. Loaded after ledger.css and fees.css through the page's extra_css block (docs/FEES_DESIGN_SYSTEM.md). */
+body.ledger .stat-table tbody th[scope=row] { position: sticky; left: 0; z-index: 1; background: var(--card); font-weight: 500; }
+body.ledger .stat-table tbody tr:hover th[scope=row] { background: var(--paper-2); }
+body.ledger .pivot-table tbody td.money:last-child { font-weight: 600; }
+body.ledger .saved-views { list-style: none; padding: 0; margin: 0; }
+body.ledger .saved-views li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 4px 0; }
+body.ledger .saved-views form { margin: 0; }
+body.ledger .chart-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 24px; margin: 12px 0 8px; }
+body.ledger .chart-tools[hidden], body.ledger .pivot-chart[hidden] { display: none; }
+body.ledger .pivot-chart { margin: 0; padding: 16px; overflow-x: auto; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); }
+body.ledger .pivot-chart svg { display: block; max-width: none; font: inherit; }
+body.ledger .pivot-chart figcaption { color: var(--muted); font-size: .857rem; }
+body.ledger .chart-legend { list-style: none; display: flex; flex-wrap: wrap; gap: 4px 16px; padding: 0; margin: 8px 0 0; font-size: .857rem; }
+body.ledger .chart-legend i { display: inline-block; width: 10px; height: 10px; margin-right: 6px; vertical-align: -1px; border-radius: 1px; }
+body.ledger .stat-table thead th.future-col { color: var(--faint); }
+body.ledger .stat-table :is(td, th).current-col, body.ledger .stat-table :is(td, th).total-col { background: var(--paper-2); }
+body.ledger .stat-table td.total-col { font-weight: 600; }
+body.ledger .stat-table thead th:first-child { position: sticky; left: 0; z-index: 3; }
+body.ledger .stat-table td.hand { font-style: italic; color: var(--accent); cursor: help; }

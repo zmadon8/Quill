@@ -60,7 +60,7 @@ Measured (CI) or read from the code; estimates are marked.
   (`accounts/views.py` and `accounts/profiles.py`). Expected gain: Admin Profiles page drops from about 2N+10 to about 12 queries.
 * **P2 (small, safe):** replace the four financial year copies in `fees/services/statistics/` by one import from
   `financial_year.py` (duplication row 1). Then lower the ratchet number in `config/tests/test_efficiency_guards.py` to 0.
-* **P3 (small):** load `ledger.css` only on the ledger and statement pages, not on every Fee Register page. Expected gain: about 39 KB raw (about 8 KB gzipped) on pages that do not use it. Needs a visual check.
+* **P3 (done in part):** the Settings-only and Statistics-only selectors moved out of `ledger.css` into `ledger-settings.css` and `ledger-statistics.css`, loaded through `extra_css` on those two pages (about 3.7 KB off every other Fee Register page). The rest of `ledger.css` is shared design (tokens, shell, buttons, tables, cards, forms) or is used by several pages, so it stays. Original proposal: load `ledger.css` only on the ledger and statement pages, not on every Fee Register page. Expected gain: about 39 KB raw (about 8 KB gzipped) on pages that do not use it. Needs a visual check.
 * **P4 (later, only if data grows ten times):** the items already in `docs/EFFICIENCY_REPORT.md` B-3 (backup size and streaming) and B-6 (search index).
 * **P5 (later):** if a fifth store for settings is ever needed, extend `fees.FeesUserPrefs`-style JSON rather than adding a model.
 

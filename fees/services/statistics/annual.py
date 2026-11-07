@@ -15,22 +15,19 @@ computed here.
 """
 from __future__ import annotations
 
+import datetime
 from decimal import Decimal
 
 from django.db.models import Count, Sum
 from django.db.models.functions import ExtractMonth, ExtractYear
 
 from fees.models import Allocation, Memo
+from fees.services.financial_year import derive_financial_year
 from fees.services.money import round2
 
 __all__ = ["get_annual_breakdown"]
 
 _ZERO = Decimal("0")
-
-
-def _payment_fy(year, month) -> str:
-    start_year = year if month >= 4 else year - 1
-    return f"{start_year}-{(start_year + 1) % 100:02d}"
 
 
 def _blank_row(name, firm_name):
@@ -107,7 +104,7 @@ def get_annual_breakdown(profile, financial_year, by):
         .annotate(received=Sum("amount"), tds=Sum("tds_amount"))
     )
     for x in received_rows:
-        if _payment_fy(x["pay_year"], x["pay_month"]) != financial_year:
+        if derive_financial_year(datetime.date(x["pay_year"], x["pay_month"], 1)) != financial_year:
             continue
         r = row_for(x[recv_id], x[recv_name], x["memo__firm__name"])
         r["received"] = round2(r["received"] + (x["received"] or _ZERO))

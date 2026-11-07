@@ -196,6 +196,33 @@ def profile_usage(profile):
     return members, subjects
 
 
+def profile_usage_map(profiles):
+    """``{profile pk: (members, records)}`` for many profiles in two grouped queries (no per-profile queries)."""
+    from django.db.models import Count
+
+    profiles = list(profiles)
+    pks = [p.pk for p in profiles]
+    members = dict(
+        ProfileMembership.objects.filter(profile_id__in=pks, user__deleted_at__isnull=True)
+        .values_list("profile_id").annotate(n=Count("pk")).order_by()
+    )
+    fees_pks = [p.pk for p in profiles if p.program == KEY_FEES]
+    diary_pks = [p.pk for p in profiles if p.program != KEY_FEES]
+    records = {}
+    if fees_pks:
+        from fees.models import Memo
+
+        records.update(Memo.objects.filter(profile_id__in=fees_pks).values_list("profile_id").annotate(n=Count("pk")).order_by())
+    if diary_pks:
+        from diary.models import Subject
+
+        records.update(
+            Subject.objects.filter(profile_id__in=diary_pks, deleted_at__isnull=True)
+            .values_list("profile_id").annotate(n=Count("pk")).order_by()
+        )
+    return {pk: (members.get(pk, 0), records.get(pk, 0)) for pk in pks}
+
+
 def retention_days():
     return settings.PROFILE_RETENTION_DAYS
 

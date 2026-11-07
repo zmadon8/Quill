@@ -86,15 +86,15 @@ class DuplicationGuardTests(SimpleTestCase):
                          ["fees/services/financial_year.py"])
 
     def test_financial_year_arithmetic_copies_do_not_increase(self):
-        # Ratchet. These four statistics modules still repeat "year if month >= 4 else year - 1" (a proposal in
-        # docs/EFFICIENCY_REVIEW.md is to call derive_financial_year instead). Lower the number when one is removed.
+        # Ratchet. These statistics modules used to repeat "year if month >= 4 else year - 1" (now they call derive_financial_year).
+        # The ratchet is at zero.
         expression = re.compile(r"year\s+if\s+month\s*>=\s*4\s+else\s+year\s*-\s*1")
         copies = sorted(path for path, text in self.sources
                         if expression.search(text) and path != "fees/services/financial_year.py")
-        self.assertLessEqual(len(copies), 4, f"new copy of the financial year rule: {copies}")
+        self.assertLessEqual(len(copies), 0, f"new copy of the financial year rule: {copies}")
         helper = re.compile(r"^\s*def _payment_fy\b", re.M)
         helpers = [path for path, text in self.sources if helper.search(text)]
-        self.assertLessEqual(len(helpers), 3, f"new _payment_fy copy: {helpers}")
+        self.assertLessEqual(len(helpers), 0, f"new _payment_fy copy: {helpers}")
 
     def test_the_heavy_operation_lock_is_taken_only_by_the_heavy_module(self):
         self.assertEqual(self.defined_in(r"advisory_lock\s*\("), ["fees/services/heavy.py"])

@@ -28,9 +28,7 @@ CEILING = 80
 #: Pages that DO run queries per row today (found by this guard, listed as proposals in docs/EFFICIENCY_REVIEW.md).
 #: They are exempt from the flatness check but must stay under a larger ceiling. When one is fixed, the ratchet test
 #: below fails until its name is removed from this dict, so the list can only shrink.
-KNOWN_GROWTH = {
-    "profile_list": "accounts.views.profile_list calls profile_usage() (two COUNT queries) for every profile",
-}
+KNOWN_GROWTH = {}
 KNOWN_CEILING = 150
 
 

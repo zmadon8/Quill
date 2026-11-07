@@ -31,20 +31,20 @@ column, so no memo line fee is computed here.
 """
 from __future__ import annotations
 
+import datetime
 from decimal import Decimal
 
 from django.db.models.functions import ExtractMonth, ExtractYear
 
 from fees.errors import FeesError
 from fees.models import Allocation, Memo
-from fees.services.financial_year import quarter_of_month
+from fees.services.financial_year import derive_financial_year, quarter_of_month
 from fees.services.money import round2
 from fees.services.statistics._common import max_fy
 from fees.services.statistics.periods import (
     _settings_initial_fy,
     get_period_statistics,
 )
-from fees.services.statistics.year_end import _payment_fy  # FY of a (year, month)
 
 __all__ = ["get_pivot", "get_per_week_pivot"]
 
@@ -186,7 +186,7 @@ def _driving_rows(profile, req, firm_ids, is_receipt):
             "tds_amount",
         )
         for a in qs.iterator():
-            fy = _payment_fy(a["pay_year"], a["pay_month"])
+            fy = derive_financial_year(datetime.date(a["pay_year"], a["pay_month"], 1))
             if from_fy and fy < from_fy:
                 continue
             if to_fy and fy > to_fy:

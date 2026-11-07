@@ -198,8 +198,7 @@ def _payment_period_key(year, month) -> str:
     The FY is derived in Python from the payment's calendar year and month (the
     rows are already grouped, so this runs on at most a few dozen rows).
     """
-    start_year = year if month >= 4 else year - 1
-    fy = f"{start_year}-{(start_year + 1) % 100:02d}"
+    fy = derive_financial_year(datetime.date(year, month, 1))
     return f"{fy}-{_pad2(month)}"
 
 

@@ -14,24 +14,20 @@ computed here.
 """
 from __future__ import annotations
 
+import datetime
 from decimal import Decimal
 
 from django.db.models import Count, Min, Q, Sum
 from django.db.models.functions import ExtractMonth, ExtractYear
 
 from fees.models import Allocation, Memo
+from fees.services.financial_year import derive_financial_year
 from fees.services.money import round2
 from fees.services.statistics.periods import get_period_statistics
 
 __all__ = ["get_year_end_summary"]
 
 _ZERO = Decimal("0")
-
-
-def _payment_fy(year, month) -> str:
-    """The FY label for a payment's calendar year and month (Apr-Mar)."""
-    start_year = year if month >= 4 else year - 1
-    return f"{start_year}-{(start_year + 1) % 100:02d}"
 
 
 def get_year_end_summary(profile, financial_year, options=None):
@@ -83,7 +79,7 @@ def get_year_end_summary(profile, financial_year, options=None):
     total_received = _ZERO
     total_tds = _ZERO
     for r in recv_rows:
-        if _payment_fy(r["pay_year"], r["pay_month"]) == financial_year:
+        if derive_financial_year(datetime.date(r["pay_year"], r["pay_month"], 1)) == financial_year:
             total_received = round2(total_received + (r["received"] or _ZERO))
             total_tds = round2(total_tds + (r["tds"] or _ZERO))
 

@@ -1,5 +1,6 @@
 {% extends "fees/base_fees.html" %}
 {% load static fees_money %}
+{% block extra_css %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/ledger-statistics.css' %}">{% endblock %}
 {% block page_title %}Statistics - {{ program_label }}{% endblock %}
 {% block content %}
 <h1>Statistics</h1>

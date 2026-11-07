@@ -1,0 +1,19 @@
+/* Settings page only: sub-tabs, section cards, grids, bank chips, filename builder, adjustment grid. Loaded after ledger.css and fees.css through the page's extra_css block (docs/FEES_DESIGN_SYSTEM.md). */
+body.ledger .adjust-grid input { text-align: right; font-variant-numeric: tabular-nums; max-width: 100%; }
+body.ledger [data-filename-result] { min-height: 1.4em; }
+body.ledger .settings-tabs { margin: 0 0 16px; }
+body.ledger .settings-panel[hidden] { display: none; }
+body.ledger .settings-card { margin: 0 0 16px; padding: 16px 20px; }
+body.ledger .settings-card > h2 { margin: 0 0 12px; font-family: var(--serif, Georgia, serif); font-size: 1.15rem; font-weight: 600; }
+body.ledger .settings-card label { display: block; margin: 0 0 8px; }
+body.ledger .settings-card label input[type=checkbox] { display: inline; width: auto; }
+body.ledger .settings-card :is(input[type=text], input[type=number], select, textarea) { display: block; width: 100%; box-sizing: border-box; }
+body.ledger .settings-card .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 16px; }
+body.ledger .settings-card .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 16px; }
+body.ledger .settings-card .hint { color: var(--muted); font-size: .857rem; }
+body.ledger .settings-card .small-caps { margin: 12px 0 4px; font-size: .75rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+body.ledger .bank-chips { list-style: none; padding: 0; }
+body.ledger .bank-add { display: flex; gap: 8px; }
+body.ledger .bank-add input { flex: 1; }
+body.ledger .filename-builder { border: 0; padding: 0; margin: 8px 0 0; }
+@media (max-width: 640px) { body.ledger .settings-card :is(.grid-2, .grid-3) { grid-template-columns: 1fr; } }

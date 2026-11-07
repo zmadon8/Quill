@@ -13,12 +13,14 @@ computed here.
 """
 from __future__ import annotations
 
+import datetime
 from decimal import Decimal
 
 from django.db.models import Sum
 from django.db.models.functions import ExtractMonth, ExtractYear
 
 from fees.models import Allocation, Memo
+from fees.services.financial_year import derive_financial_year
 from fees.services.money import round2
 
 __all__ = ["get_statistics"]
@@ -32,11 +34,6 @@ _DIMS = {
     "partner": ("group_id", "group__name", "partner"),
     "matter": ("matter_id", "matter__name", "matter"),
 }
-
-
-def _payment_fy(year, month) -> str:
-    start_year = year if month >= 4 else year - 1
-    return f"{start_year}-{(start_year + 1) % 100:02d}"
 
 
 def get_statistics(profile, breakdown):
@@ -128,7 +125,7 @@ def get_statistics(profile, breakdown):
         )
         per_fy = {}
         for r in recv_rows:
-            fy = _payment_fy(r["pay_year"], r["pay_month"])
+            fy = derive_financial_year(datetime.date(r["pay_year"], r["pay_month"], 1))
             per_fy[fy] = round2(per_fy.get(fy, _ZERO) + (r["received"] or _ZERO))
         for fy, received in per_fy.items():
             g = group_for(fy, fy)
