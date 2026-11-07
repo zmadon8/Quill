@@ -26,7 +26,7 @@ from .params import safe_int
 from . import search as search_module
 from .importer import loader as import_loader
 from .importer import service as import_service
-from .models import FLAG_CHOICES, Item, Subject, Subtopic, Topic
+from .models import FLAG_CHOICES, FLAG_NONE, Item, Section, Subject, Subtopic, Topic
 from .sorting import sort_headings
 
 NO_PROFILE_MESSAGE = "No profile assigned - ask the Admin"
@@ -441,6 +441,16 @@ def search(request):
     return render(request, "diary/search.html", context)
 
 
+def _flag_filters_present(profile, chosen):
+    """``FLAG_FILTERS`` cut to "All flags" and the kinds of flag some live Item or Section carries now, plus the
+    kind chosen. Two small queries (Sections, Items), no per-row work."""
+    present = set()
+    for model in (Section, Item):
+        present.update(model.objects.filter(profile=profile, deleted_at__isnull=True).exclude(flag=FLAG_NONE)
+                       .order_by().values_list("flag", flat=True).distinct())
+    return [(key, name) for key, name in FLAG_FILTERS if key == "" or key in present or key == chosen]
+
+
 @profile_required
 @remember_page
 def flags_page(request):
@@ -453,7 +463,7 @@ def flags_page(request):
         kind = ""
     results = search_module.run_search(profile, query, flags_only=True, flag_kind=kind or None)
     base_params = {k: v for k, v in (("q", query), ("flag", kind)) if v}
-    context = {"q": query, "flag": kind, "flag_filters": FLAG_FILTERS, "tab": "flags",
+    context = {"q": query, "flag": kind, "flag_filters": _flag_filters_present(profile, kind), "tab": "flags",
                "notice": searchtext.parse_search(query).notice}
     context.update(_grouped(request, results, _panel_subjects(profile), base_params, _limit(request)))
     return render(request, "diary/flags.html", context)
