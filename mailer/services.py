@@ -9,7 +9,6 @@ from datetime import date, timedelta
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.core.mail import EmailMessage
 from django.core.validators import validate_email
 from django.utils import timezone
 
@@ -20,6 +19,7 @@ from backups.models import BackupFile
 from diary.wordexport import service as word_export
 from diary.wordexport.service import ExportError
 
+from . import sender
 from .models import (
     DELIVERY_BOTH_ONE,
     DELIVERY_BOTH_SEPARATE,
@@ -174,7 +174,7 @@ def _body(files, notes, now, part_label):
 
 def _describe_error(exc):
     # Shown on the Admin's screen: our own errors say what is wrong; anything else is reduced to its type.
-    return str(exc) if isinstance(exc, ValueError) else exc.__class__.__name__ + (f": {exc}" if str(exc) else "")
+    return str(exc) if isinstance(exc, ValueError) else sender.describe_smtp_error(exc)
 
 
 # ------------------------------------------------------------------ sending
@@ -223,10 +223,10 @@ def send_scheduled_backup(schedule, now=None):
             notes += left_out
             if not files:
                 raise ValueError("there was nothing to attach. " + " ".join(notes))
-            message = EmailMessage(
-                subject=f"Case Law Diary backup {timezone.localtime(now):%Y-%m-%d}: {label}" + (" (incomplete)" if notes else ""),
-                body=_body(files, notes, now, label),
-                to=recipients,
+            message = sender.build_message(
+                f"Case Law Diary backup {timezone.localtime(now):%Y-%m-%d}: {label}" + (" (incomplete)" if notes else ""),
+                _body(files, notes, now, label),
+                recipients,
             )
             for name, data, content_type in files:
                 message.attach(name, data, content_type)
@@ -254,13 +254,16 @@ def send_test_email(to):
             raise ValueError("Email is not set up on this server (EMAIL_HOST is missing).")
         if not to:
             raise ValueError("There is nobody to send to. Add an email address.")
-        EmailMessage(
-            subject="Case Law Diary: test email",
-            body="This is a test. If you can read it, email from the Case Law Diary works.",
-            to=list(to),
-        ).send(fail_silently=False)
+        message = sender.build_message(
+            "Case Law Diary: test email",
+            "This is a test. If you can read it, email from the Case Law Diary works.",
+            to,
+        )
+        message.send(fail_silently=False)
     except Exception as exc:
         detail = _describe_error(exc)
         logger.warning("Test email failed: %s", detail)
         return False, detail
-    return True, f"Test email sent to {', '.join(to)}."
+    info = sender.diagnostics()
+    return True, (f"Test email sent to {', '.join(to)} from {message.from_email} through {info['host']}:{info['port']}. "
+                  "If it does not arrive, check the spam folder; a rejection can also come back later as a bounce email.")
