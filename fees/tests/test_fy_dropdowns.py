@@ -1,17 +1,19 @@
 """Financial year drop-downs and the Items per page setting (owner round)."""
 import datetime
 import re
+from unittest import mock
 
 from django.test import TestCase
 from django.urls import reverse
 
 from accounts.models import Profile
 from accounts.suite import KEY_FEES
-from fees.models import FeesSettings, Memo
-from fees.services import fy_options, memo_lists
+from fees.models import FeesSettings, Memo, Payment
+from fees.services import filter_options, fy_options, memo_lists, payments
 from fees.services.financial_year import current_financial_year
 from fees.tests.test_views_write import WriteBase
 
+ALL_YEARS = {"fy": ""}  # an explicit blank year is All years; the seeded memos span two financial years
 NOW = datetime.date(2026, 8, 1)  # the financial year 2026-27
 
 
@@ -158,19 +160,19 @@ class ItemsPerPageTests(WriteBase):
         total = self.memo_count()
         self.assertGreaterEqual(total, 4)
         self.set_per_page(2)
-        response = self.client.get(reverse("fees_memos"))
+        response = self.client.get(reverse("fees_memos"), ALL_YEARS)
         self.assertEqual(len(response.context["items"]), 2)
         self.assertEqual(response.context["meta"]["total_pages"], (total + 1) // 2)
         self.assertEqual(response.context["totals"]["count"], total)  # footer covers the whole filtered set
         self.assertContains(response, "Page 1 of %d" % ((total + 1) // 2))
-        second = self.client.get(reverse("fees_memos"), {"page": 2})
+        second = self.client.get(reverse("fees_memos"), {"page": 2, "fy": ""})
         self.assertEqual(second.context["meta"]["page"], 2)
 
     def test_all_shows_everything_on_one_page(self):
         for _ in range(3):
             self.new_memo()
         self.set_per_page(0)
-        response = self.client.get(reverse("fees_memos"))
+        response = self.client.get(reverse("fees_memos"), ALL_YEARS)
         self.assertEqual(len(response.context["items"]), self.memo_count())
         self.assertEqual(response.context["meta"]["total_pages"], 1)
         self.assertNotContains(response, 'aria-label="Pages"')
@@ -178,9 +180,9 @@ class ItemsPerPageTests(WriteBase):
     def test_totals_are_the_same_whatever_the_page_size(self):
         for _ in range(2):
             self.new_memo()
-        everything = self.client.get(reverse("fees_memos")).context["totals"]
+        everything = self.client.get(reverse("fees_memos"), ALL_YEARS).context["totals"]
         self.set_per_page(1)
-        paged = self.client.get(reverse("fees_memos")).context["totals"]
+        paged = self.client.get(reverse("fees_memos"), ALL_YEARS).context["totals"]
         self.assertEqual(everything, paged)
 
     def test_drafts_use_the_setting(self):
@@ -192,7 +194,7 @@ class ItemsPerPageTests(WriteBase):
         drafts = self.memo_count(drafts=True)
         self.assertGreaterEqual(drafts, 2)
         self.set_per_page(1)
-        response = self.client.get(reverse("fees_memo_drafts"))
+        response = self.client.get(reverse("fees_memo_drafts"), ALL_YEARS)
         self.assertEqual(len(response.context["items"]), 1)
         self.assertEqual(response.context["totals"]["count"], drafts)
 
@@ -224,3 +226,82 @@ class ItemsPerPageTests(WriteBase):
         self.assertEqual(response.status_code, 422)
         self.assertEqual(FeesSettings.objects.get(profile=self.profile).items_per_page, 50)
         self.assertEqual(self.post("fees_settings", {"items_per_page": "lots"}).status_code, 422)
+
+
+class DefaultYearTests(WriteBase):
+    """With no ``fy`` in the link a list opens on the current year, or the newest year that has rows, or All years."""
+
+    CURRENT = "2026-27"
+
+    def setUp(self):
+        super().setUp()
+        Payment.objects.filter(profile=self.profile).delete()
+        Memo.objects.filter(profile=self.profile).delete()
+
+    def open(self, name, query=None):
+        with mock.patch("fees.views_memos.current_financial_year", return_value=self.CURRENT), mock.patch(
+            "fees.views_feebook.current_financial_year", return_value=self.CURRENT
+        ):
+            return self.client.get(reverse(name), query or {})
+
+    def pay(self, day):
+        payments.add_unaccounted_payment(self.profile, {"amount": 700, "date_of_payment": day, "payee": "Payer"})
+
+    def test_default_year_rule(self):
+        self.assertEqual(filter_options.default_year({"2026-27", "2024-25"}, "2026-27"), "2026-27")
+        self.assertEqual(filter_options.default_year({"2025-26", "2024-25"}, "2026-27"), "2025-26")
+        self.assertIsNone(filter_options.default_year(set(), "2026-27"))
+
+    def test_memos_open_on_the_current_year_when_it_has_rows(self):
+        self.new_memo(date="2026-07-15")
+        self.new_memo(date="2025-05-02")
+        response = self.open("fees_memos")
+        self.assertEqual(response.context["filters"]["financial_year"], "2026-27")
+        self.assertEqual(len(response.context["items"]), 1)
+
+    def test_memos_open_on_the_newest_year_with_rows_when_the_current_year_is_empty(self):
+        self.new_memo(date="2025-05-02")
+        self.new_memo(date="2023-05-02")
+        response = self.open("fees_memos")
+        self.assertEqual(response.context["filters"]["financial_year"], "2025-26")
+        self.assertEqual(len(response.context["items"]), 1)
+        self.assertEqual(len(response.context["firm_choices"]), 1)
+        self.assertIn('<option value="2025-26" selected>2025-26</option>', response.content.decode())
+
+    def test_memos_open_on_all_years_when_there_are_no_rows(self):
+        response = self.open("fees_memos")
+        self.assertNotIn("financial_year", response.context["filters"])
+        self.assertEqual(response.status_code, 200)
+
+    def test_an_explicit_year_is_kept_even_when_it_is_empty(self):
+        self.new_memo(date="2025-05-02")
+        response = self.open("fees_memos", {"fy": "2026-27"})
+        self.assertEqual(response.context["filters"]["financial_year"], "2026-27")
+        self.assertEqual(len(response.context["items"]), 0)
+        self.assertEqual(len(self.open("fees_memos", {"fy": ""}).context["items"]), 1)
+
+    def test_drafts_follow_the_same_rule(self):
+        memo = self.new_memo(date="2025-05-02")
+        Memo.objects.filter(pk=memo.pk).update(is_draft=True)
+        self.assertEqual(self.open("fees_memo_drafts").context["filters"]["financial_year"], "2025-26")
+        Memo.objects.filter(pk=memo.pk).update(is_draft=False)
+        self.assertNotIn("financial_year", self.open("fees_memo_drafts").context["filters"])
+
+    def test_feebook_opens_on_the_current_year_when_it_has_payments(self):
+        self.pay("2026-08-09")
+        self.pay("2025-06-09")
+        response = self.open("fees_feebook")
+        self.assertEqual(response.context["filters"]["financial_year"], "2026-27")
+        self.assertEqual(len(response.context["entries"]), 1)
+
+    def test_feebook_opens_on_the_newest_year_with_payments_when_the_current_year_is_empty(self):
+        self.pay("2025-06-09")
+        self.pay("2023-06-09")
+        response = self.open("fees_feebook")
+        self.assertEqual(response.context["filters"]["financial_year"], "2025-26")
+        self.assertEqual(len(response.context["entries"]), 1)
+
+    def test_feebook_opens_on_all_years_when_there_are_no_payments(self):
+        self.assertNotIn("financial_year", self.open("fees_feebook").context["filters"])
+        self.pay("2025-06-09")
+        self.assertEqual(len(self.open("fees_feebook", {"fy": "2026-27"}).context["entries"]), 0)

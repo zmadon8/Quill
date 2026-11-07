@@ -9,7 +9,15 @@ from __future__ import annotations
 from fees.models import Allocation, Firm, Group, Memo, Payment
 from fees.services.financial_year import derive_financial_year
 
-__all__ = ["memo_options", "feebook_options", "explore_options", "narrow_outstanding_choices"]
+__all__ = ["default_year", "memo_options", "feebook_options", "explore_options", "narrow_outstanding_choices"]
+
+
+def default_year(years, current):
+    """The year a list opens on when the link names none: ``current`` when it has rows, else the newest year in
+    ``years`` (labels with rows), else ``None`` (All years). Labels sort as text because they are ``YYYY-YY``."""
+    if current in years:
+        return current
+    return max(years) if years else None
 
 
 def _by_name(pairs):

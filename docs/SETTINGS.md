@@ -255,3 +255,5 @@ and `mailer/models.py`; the `fields` of `accounts/forms.py`, `diary/forms.py`, `
 `accounts/suite.py`; `fees/services/prefs.py`; the `localStorage` calls in `static/js`; `config/settings.py`; and the
 route table in `*/urls.py`. Rendering and the Django tests were not run in the sandbox that wrote this file; CI runs
 them.
+
+Note: the financial year filter on Memos, Drafts and Feebook is not a saved setting. With no `fy` in the link they open on the current year if it has rows, else the newest year with rows, else All years.

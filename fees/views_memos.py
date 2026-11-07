@@ -27,8 +27,17 @@ FORM_FIELDS = (
 
 def _list_page(request, draft_mode, template):
     profile, settings = scope.context(request)
-    filters = memo_filters(request.GET, current_financial_year())
+    current = current_financial_year()
+    filters = memo_filters(request.GET, current)
     options = filter_options.memo_options(profile, filters, draft_mode)
+    if "fy" not in request.GET:
+        # No year in the link: the current year, or the newest year with rows when the current year has none.
+        chosen = filter_options.default_year(options["years"], current)
+        if chosen != filters.get("financial_year"):
+            filters = {k: v for k, v in filters.items() if k != "financial_year"}
+            if chosen:
+                filters["financial_year"] = chosen
+            options = filter_options.memo_options(profile, filters, draft_mode)
     items = memo_lists.list_memos(profile, filters, draft_mode=draft_mode)
     page_items, meta = memo_lists.paginate(
         items, page_number(request.GET), memo_lists.page_size_for(prefs.personal_items_per_page(profile, request.user, settings))

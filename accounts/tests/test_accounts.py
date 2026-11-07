@@ -1331,7 +1331,13 @@ class ExportNameTests(BaseCase):
     def test_user_without_profile_has_no_diary_settings(self):
         other = self.make_user("nobody")
         self.client.force_login(other)
-        self.assertNotContains(self.display(), "data-diary-settings")
+        # My settings opens for everyone signed in, just without the Case Law Diary section.
+        response = self.client.get(reverse("my_settings"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-section="account"')
+        self.assertNotContains(response, 'data-section="diary"')
+        # The diary's own Settings tab is closed to a user with no diary profile.
+        self.assertEqual(self.display().status_code, 403)
         self.assertEqual(self.client.get(reverse("export")).status_code, 403)
 
     def test_only_own_profile_changes(self):
