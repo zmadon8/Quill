@@ -1170,3 +1170,36 @@ Owner instruction, verbatim: "The format of the Header should be uniform in all 
 - Home now also appears on the Home page itself (it used to show only Log out there), and the user name now also shows inside the Case Law Diary and the Fee Register.
 - Accessibility is unchanged: the skip link, the "Main" navigation landmark, labels on every icon. Layout: `static/css/design.css` (`.header-end`) and `static/css/look.css`; the right-hand group wraps under the nav on a phone (360 to 390 px), with a long name cut short with an ellipsis. Profile switcher, Words / Logo, Links toggle, the Fee Register search drop-down and the diary Alt+F search bar behave as before.
 - Test changes: the markup assertions in `diary.tests.test_views` (name on every page, Home on the Home page, Sign out in every header) and `accounts.tests.test_accounts` (the name is a link).
+
+
+## Round: settings IA and filter rules
+
+Owner instruction, verbatim: "Yes to all three of your points. Further, let 'My settings' be accessibly be clicking on the user-name in the header. Further: 1. Drop down menus should only show the firms, etc, available in the present filter view. 2. In all drop down menus where I can select options, give me an option to select all / none. 3. All drop-down menus with a year should show the current financial year by default. 4. Give me a complete list of which settings are per user and which are per profile."
+
+Approved plan (three places):
+
+- My settings: only you. Reached by clicking the user name in the header.
+- Program settings: a Settings tab inside each program (Case Law Diary, Fee Register). Editors and Admins can change it; Readers see it read-only.
+- Admin: Users, Profiles, Appearance and Backups merged into one area.
+
+Owner answers to the open questions:
+
+- Opening page and Items per page become personal (per user) in both programs.
+- View whole subject stays per profile.
+- My edits moves into the diary menu and is renamed History.
+
+The four numbered rules, to be applied across the suite:
+
+1. Drop-down menus show only the firms, and so on, that are available in the present filter view.
+2. Every drop-down where options can be selected offers select all / none.
+3. Every drop-down with a year shows the current financial year by default.
+4. A complete list of which settings are per user and which are per profile is published (a table in the settings documentation).
+
+Where settings live today (baseline, before this round):
+
+- Per user, suite-wide (`accounts.User`): `landing_program`, `last_diary_path`, `header_style`, `justify_text`.
+- Per user, Case Law Diary (`diary.UserSettings`): `opening_page`, `opening_subject`, the five numbering formats, `export_custom_name`, `export_date_format`, `time_zone`.
+- Per user and profile (`fees.FeesUserPrefs`, JSON by key): interface state such as resized column widths.
+- Per profile (`accounts.Profile`): `name`, `export_name`, `display_name`, `reading_all_default`, `reading_all_mode`.
+- Per profile (`fees.FeesSettings`): memo prefills, `overdue_days`, `default_tab`, the financial year starts, money display, `hide_payment_when_paid`, `default_lines_enabled`, `default_payment_amount`, `items_per_page`, and the other Fee Register keys.
+- Suite-wide (`accounts.SuiteName`): the page names and brand choices.
