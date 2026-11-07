@@ -172,7 +172,6 @@ body.ledger .status-overdue { color: var(--bad); }
 body.ledger .status-draft .status-sq { background: #B06666; }
 body.ledger .status-written-off .status-sq { background: var(--faint); }
 body.ledger .status-written-off { color: var(--faint); }
-body.ledger .status-unaccounted .status-sq { background: transparent; box-shadow: inset 0 0 0 1px var(--faint); }
 body.ledger .status-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; padding: 6px 12px; background: var(--paper); border-bottom: 1px solid var(--line); font-size: .857rem; color: var(--muted); }
 
 /* Column menu (columns.js): a details/summary dropdown. Without JavaScript every column shows. */

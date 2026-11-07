@@ -96,7 +96,7 @@ def _text(value):
 #: ``(key, header, width, is_money, value(entry))`` in display order.
 FEEBOOK_COLUMNS = (
     ("date", "Date", 14, False, lambda r: format_date(r["date_of_payment"])),
-    ("memo", "Memo No.", 16, False, lambda r: _text(r["memo_number"])),
+    ("memo", "Memo No.", 16, False, lambda r: _text(r["memo_number"]) if r["memo_id"] else "Unaccounted"),
     ("matter", "Matter Name", 26, False, lambda r: _text(r["matter_name"])),
     ("payee", "Payee", 20, False, lambda r: _text(r["payee"])),
     ("paid", "Paid", 14, True, lambda r: r["amount_paid"]),

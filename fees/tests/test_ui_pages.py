@@ -402,9 +402,10 @@ class FeebookAndPaymentTests(UiPageBase):
         self.assertIn('aria-label="Feebook actions"', text)
         self.assert_no_unlabelled_controls(text, "feebook")
 
-    def test_feebook_unaccounted_has_words_and_a_marker(self):
+    def test_feebook_unaccounted_shows_plain_visible_text(self):
         text = self.html(self.page("fees_feebook", query="?unaccounted=1"))
-        self.assertIn('status-unaccounted" title="Unaccounted"><span class="status-sq" aria-hidden="true"></span><span class="status-word visually-hidden">Unaccounted</span>', text)
+        self.assertIn("<td>Unaccounted</td>", text)
+        self.assertNotIn("status-unaccounted", text)
 
     def test_feebook_hides_edit_controls_from_a_reader(self):
         text = self.html(self.page("fees_feebook"))
@@ -992,7 +993,7 @@ class StatusMarkerSettingTests(UiPageBase):
         detail = self.html(self.page("fees_outstanding_detail"))
         self.assertRegex(detail, r'<span class="status status-(unpaid|partial|overdue)"><span class="status-word">(Unpaid|Partly paid)')
         feebook = self.html(self.page("fees_feebook", query="?unaccounted=1"))
-        self.assertIn('<span class="status status-unaccounted"><span class="status-word">Unaccounted</span></span>', feebook)
+        self.assertIn("<td>Unaccounted</td>", feebook)
 
     def test_off_applies_to_editors_too(self):
         self.set_dots(False)
