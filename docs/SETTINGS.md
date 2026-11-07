@@ -56,6 +56,8 @@ header bar.
 | `is_superuser` | Admin | Admin > Users (edit) | Per user | Admin sets |
 | `landing_program` | Open after login | My settings > Display (Admin > Users edits it for another user as "Open after login") | Per user | Only you |
 | `justify_text` | Justify text | My settings > Display | Per user | Only you |
+| `can_see_active` | Can See Who Is Active (shows the Active Now and Earlier Today panel on Home; an Admin always sees it) | Admin > Users (edit, create) | Per user | Admin sets |
+| `last_seen_at` | When the user was last seen (no more than once a minute; feeds the Active Now panel) | No page; written as you browse | Per user, automatic | Nobody |
 | `last_diary_path` | The last page I viewed (used when the diary opening page is "The last page I viewed") | No page; written as you browse the diary | Per user, automatic | Only you |
 | `header_style` | Old per-user Words or Logo choice | None. The column still exists but nothing reads or writes it; the header choice is now suite-wide (see `SuiteName`, section 2.3) | Per user, unused | Nobody |
 | `deleted_at`, `deleted_by_name`, `was_active` | Bookkeeping for a deleted (trashed) user and Restore | Admin > Users (Trash, Restore) | Per user, automatic | Admin |

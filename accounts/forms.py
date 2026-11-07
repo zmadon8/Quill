@@ -164,7 +164,7 @@ class UserCreateForm(ProfileAccessMixin, UserCreationForm):
 
     class Meta:
         model = User
-        fields = ("username", "email")
+        fields = ("username", "email", "can_see_active")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -197,7 +197,7 @@ class UserEditForm(ProfileAccessMixin, forms.ModelForm):
 
     class Meta:
         model = User
-        fields = ("username", "email", "is_active", "landing_program")
+        fields = ("username", "email", "is_active", "landing_program", "can_see_active")
 
     def clean_email(self):
         return _clean_unique_email(self)

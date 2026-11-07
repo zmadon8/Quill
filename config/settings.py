@@ -70,6 +70,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "fees.middleware.FeesEnabledMiddleware",
+    "accounts.middleware.LastSeenMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 

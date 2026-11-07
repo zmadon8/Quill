@@ -19,6 +19,22 @@
   {% if not diary_profile and not fees_profile %}
   <p class="muted">No programs are available to you yet.</p>
   {% endif %}
+  {% if show_active %}
+  <section class="active-now" aria-label="Active Now">
+    <h2>Active Now</h2>
+    {% if active_now %}
+    <ul>{% for row in active_now %}
+      <li><strong>{{ row.name }}</strong>{% if row.where %} &middot; {{ row.where }}{% endif %}</li>
+    {% endfor %}</ul>
+    {% else %}<p class="muted">No one else is active right now.</p>{% endif %}
+    {% if earlier_today %}
+    <h2>Earlier Today</h2>
+    <ul>{% for row in earlier_today %}
+      <li><strong>{{ row.name }}</strong>{% if row.where %} &middot; {{ row.where }}{% endif %}</li>
+    {% endfor %}</ul>
+    {% endif %}
+  </section>
+  {% endif %}
   <p class="help-link"><a href="{% url 'help' %}">Help: how to use this site</a></p>
 </div>
 {% endblock %}

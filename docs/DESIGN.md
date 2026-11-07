@@ -1223,3 +1223,11 @@ Owner instruction, verbatim: "Allow me to add more than 5 Memos per payment. Als
 - The "Allocate To Memos" section shows each memo as its own block with its row number. The form starts with three rows. "+ Memo" (top right, needs the script) adds a row and "x" removes one. Without the script, a plain "Add Another Memo" button adds an empty row on the server and saves nothing.
 - Each row's Memo is a drop-down whose options read "2026-27/178 · Matter Name (Rs 60,000 Due)". The options are the profile's numbered non-draft memos with an amount due that are not written off, newest first, plus memos already on the payment and memos named in `?memo=`. When the form was opened from a memo, that memo's matter and firm are listed first. The list is read in one query and rendered in every row.
 - Picking a memo fills that row's Amount with the amount due (at most what is left of the payment) and the TDS from the row's Rate %. Each row has a Rate % (starting at the payment's TDS rate) and an auto tick for its TDS; both are conveniences in the page, the server still works out and checks every stored figure.
+
+## Round: who is active
+
+Owner: "Create a toggle, for each User, which will decide whether or not they can see which users / profiles are presently active. If allowed, display this on the HOME page."
+
+- `User.can_see_active` ("Can See Who Is Active", default off) is set by an Admin on Admin > Users (create and edit). An Admin always sees the panel, whatever the toggle (an Admin is an Admin everywhere).
+- `User.last_seen_at` is written by `accounts.middleware.LastSeenMiddleware` for signed-in requests, at most once every 60 seconds per user, by one UPDATE that runs only when the value on `request.user` is empty or stale (so most page views add no query).
+- Home shows "Active Now" (seen in the last 5 minutes) and "Earlier Today", newest first, each with the user's name (display name, else username), program and profile, taken from their most recently used live membership (`ProfileMembership.last_used_at`). Two queries, and only for a permitted viewer. The data is on the Home page only, never in a JSON endpoint.

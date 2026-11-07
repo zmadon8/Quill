@@ -13,7 +13,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
 from accounts import landing as account_landing
-from accounts import programs
+from accounts import activity, programs
 from accounts.models import ROLE_EDITOR
 from accounts.models import Profile
 from accounts.permissions import admin_required, reader_required
@@ -176,6 +176,8 @@ def home(request):
         # A Fee Register user gets a button for it; a user without one sees exactly the page they saw before.
         context["fees_profile"] = fees_profile
         context["fees_label"] = (fees_profile.display_name or "").strip() or get_names()[KEY_FEES]
+    if activity.can_see_active(request.user):
+        context.update(activity.active_panel())
     return render(request, "diary/home.html", context)
 
 

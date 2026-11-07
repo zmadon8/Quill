@@ -40,6 +40,10 @@ class User(AbstractUser):
     header_style = models.CharField(max_length=10, choices=HEADER_STYLE_CHOICES, default=HEADER_ICONS)
     # Diary round (1.5): justify the text that is normally left-aligned. On screen only; off unless chosen (My settings, Display).
     justify_text = models.BooleanField(default=False)
+    # Who is active (round: markers, payments, activity). ``last_seen_at`` is touched by accounts.middleware at most once
+    # a minute; ``can_see_active`` lets an Admin show this user the Active Now panel on Home (Admins always see it).
+    last_seen_at = models.DateTimeField(null=True, blank=True)
+    can_see_active = models.BooleanField("Can See Who Is Active", default=False)
     # Round 18 (D94): a deleted user is kept for USER_RETENTION_DAYS so an Admin can restore them. While deleted they
     # cannot sign in (is_active is off) and keep their username and email address; ``was_active`` is what Restore puts
     # back. Who deleted them is kept as a name (not a link), so a backup file never depends on the order users load in.
