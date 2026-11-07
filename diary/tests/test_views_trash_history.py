@@ -224,7 +224,7 @@ class PermanentDeleteTests(TrashTestCase):
         self.assertEqual(resp.context["total"], 6)
         self.assertIn(("Item", 4), resp.context["counts"])
         self.assertContains(resp, "Formation")
-        self.assertContains(resp, "Yes, delete these 6 records permanently")
+        self.assertContains(resp, "Yes, Delete These 6 Records Permanently")
         self.assertTrue(Topic._base_manager.filter(pk=self.topic.pk).exists())
 
     def test_the_second_confirmation_deletes_the_whole_batch_for_good_but_keeps_history(self):
@@ -461,7 +461,7 @@ class ConflictScreenTests(TrashTestCase):
         self.assertEqual(resp.status_code, 409)
         self.assertContains(resp, "This Topic has changed", status_code=409)
         self.assertEqual(resp.context["rows"], [("Name", "Mine", "Changed elsewhere", True)])
-        for text in ("Keep Mine", "Keep Theirs", "Edit And Merge", "Changed elsewhere"):
+        for text in ("Keep Mine", "Keep Theirs", "Edit and merge", "Changed elsewhere"):
             self.assertContains(resp, text, status_code=409)
         self.assertEqual(self.get(self.topic).name, "Changed elsewhere")
 

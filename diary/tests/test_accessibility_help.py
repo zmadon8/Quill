@@ -64,7 +64,7 @@ class HelpAndHintTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "<h1>Help</h1>", count=1, html=True)
         for heading in ("Trash and Undo", "Search", "Settings", "Profiles and users", "Backups and restore",
-                        "Export to Word", "Import From Word", "Editing"):
+                        "Export to Word", "Import from Word", "Editing"):
             self.assertContains(resp, heading)
 
     def test_home_links_to_help(self):

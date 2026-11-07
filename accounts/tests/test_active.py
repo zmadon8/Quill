@@ -90,7 +90,8 @@ class ActivePanelTests(TestCase):
         self.assertNotContains(self.home(self.other), "Active Now")
         self.client.logout()
         resp = self.client.get(reverse("home") + "?home=1")
-        self.assertNotContains(resp, "Active Now")
+        self.assertEqual(resp.status_code, 302)  # anonymous visitors are sent to sign in, never shown the panel
+        self.assertNotIn("Active Now", resp.content.decode())
 
     def test_content_and_order(self):
         resp = self.home(self.admin)
@@ -116,11 +117,12 @@ class ActivePanelTests(TestCase):
         self.client.get(reverse("home") + "?home=1")
         with CaptureQueriesContext(connection) as plain:
             self.client.get(reverse("home") + "?home=1")
-        self.client.force_login(self.admin)
+        # Compare with a permitted user who is not an Admin, so Admin-only page work is not counted as the panel.
+        self.client.force_login(self.allowed)
         self.client.get(reverse("home") + "?home=1")
-        with CaptureQueriesContext(connection) as admin:
+        with CaptureQueriesContext(connection) as allowed:
             self.client.get(reverse("home") + "?home=1")
-        self.assertLessEqual(len(admin) - len(plain), 4)
+        self.assertLessEqual(len(allowed) - len(plain), 4)
 
 
 @override_settings(SECURE_SSL_REDIRECT=False)

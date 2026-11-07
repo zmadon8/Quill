@@ -74,11 +74,6 @@ __all__ = ["list_feebook"]
 _DRAFT_LABEL = "(draft)"
 
 
-def _payment_fy(date_of_payment) -> str:
-    """The financial year of a payment date (Indian FY: April to March)."""
-    return derive_financial_year(date_of_payment)
-
-
 def _group_memo_numbers(profile):
     """Maps each payment id to its allocated memo numbers, in allocation-id order.
 
@@ -167,7 +162,7 @@ def _passes_fy(date_of_payment, initial_fy, financial_year):
     that FY. Labels sort as plain strings (fixed-width year prefix), so a string
     comparison is the FY ordering.
     """
-    fy = _payment_fy(date_of_payment)
+    fy = derive_financial_year(date_of_payment)
     if fy < initial_fy:
         return False
     if financial_year and fy != financial_year:

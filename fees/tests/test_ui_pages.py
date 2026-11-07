@@ -444,12 +444,19 @@ class FeebookAndPaymentTests(UiPageBase):
         self.assertIn('class="crumb-row"', text)
         self.assert_no_unlabelled_controls(text, "payment")
 
+    def selected_memo(self, text, row):
+        """The memo number chosen in the row's drop-down (the option marked selected), or None."""
+        select = re.search(r'<select name="alloc_memo_%d".*?</select>' % row, text, re.S)
+        self.assertIsNotNone(select, "no memo drop-down for row %d" % row)
+        chosen = re.search(r'<option value="([^"]*)"[^>]*? selected', select.group(0))
+        return chosen.group(1) if chosen else None
+
     def test_payment_form_for_a_memo_prefills_the_row_and_the_payee_matters(self):
         i = self.ids()
         text = self.assert_page(self.page("fees_payment_new", query="?memo=%d" % i["memo"], user=self.editor), "payment-memo")
         memo = self.seed["memo_a"]
         memo.refresh_from_db()
-        self.assertIn('name="alloc_memo_0" value="%s"' % memo.memo_number, text)
+        self.assertEqual(self.selected_memo(text, 0), memo.memo_number)
         self.assertIn('data-matters="%d"' % i["matter"], text)
         self.assertIn("?memo=%d" % i["memo"], text)
         self.assertIn(reverse("fees_memo_detail", kwargs={"memo_id": i["memo"]}), text)
@@ -460,8 +467,8 @@ class FeebookAndPaymentTests(UiPageBase):
         b.refresh_from_db()
         query = "?memo=%d&memo=%d" % (a.pk, b.pk)
         text = self.assert_page(self.page("fees_payment_new", query=query, user=self.editor), "payment-two")
-        self.assertIn('name="alloc_memo_0" value="%s"' % a.memo_number, text)
-        self.assertIn('name="alloc_memo_1" value="%s"' % b.memo_number, text)
+        self.assertEqual(self.selected_memo(text, 0), a.memo_number)
+        self.assertEqual(self.selected_memo(text, 1), b.memo_number)
         self.assertIn("?memo=%d&amp;memo=%d" % (a.pk, b.pk), text)
         self.assertIn('data-matters="%d"' % self.ids()["matter"], text)
 
@@ -978,14 +985,14 @@ class StatusMarkerSettingTests(UiPageBase):
     def test_off_keeps_the_status_words_and_columns(self):
         self.set_dots(False)
         text = self.html(self.page("fees_memos"))
-        self.assertRegex(text, r'<span class="status status-[a-z-]+">[A-Z][a-z]+')
+        self.assertRegex(text, r'<span class="status status-[a-z-]+"><span class="status-word">[A-Z][a-z]+')
         self.assertIn('<th scope="col" data-col-fixed>Status</th>', text)
         drafts = self.html(self.page("fees_memo_drafts"))
-        self.assertIn('<span class="status status-draft">Draft</span>', drafts)
+        self.assertIn('<span class="status status-draft"><span class="status-word">Draft</span></span>', drafts)
         detail = self.html(self.page("fees_outstanding_detail"))
-        self.assertRegex(detail, r'<span class="status status-(unpaid|partial|overdue)">(Unpaid|Partly paid)')
+        self.assertRegex(detail, r'<span class="status status-(unpaid|partial|overdue)"><span class="status-word">(Unpaid|Partly paid)')
         feebook = self.html(self.page("fees_feebook", query="?unaccounted=1"))
-        self.assertIn('<span class="status status-unaccounted">Unaccounted</span>', feebook)
+        self.assertIn('<span class="status status-unaccounted"><span class="status-word">Unaccounted</span></span>', feebook)
 
     def test_off_applies_to_editors_too(self):
         self.set_dots(False)

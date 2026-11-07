@@ -152,7 +152,7 @@ class EditorTests(NoteViewCase):
         self.assertContains(resp, "History")
         self.assertContains(resp, "Delete")
         self.assertContains(resp, "Move this link up", count=2)
-        self.assertContains(resp, "Remove This Link", count=2)
+        self.assertContains(resp, "Remove this link", count=2)
         self.assertContains(resp, 'name="csrfmiddlewaretoken"')
         self.assertEqual(len(resp.context["links"]), 2)
 
