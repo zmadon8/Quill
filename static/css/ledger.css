@@ -264,7 +264,7 @@ body.ledger [data-filename-result] { min-height: 1.4em; }
 body.ledger .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 /* ---- 13. Page-by-page additions ---- */
-body.ledger .table-tools { justify-content: flex-end; margin: 0 0 -8px; }
+body.ledger .table-tools { justify-content: flex-end; margin: 12px 0 8px; position: relative; z-index: 2; }
 body.ledger .modal fieldset { background: var(--paper); border-radius: var(--radius); }
 body.ledger .modal-footer { align-items: center; margin-top: 8px; }
 body.ledger .danger-zone :is(button, .button) { background: #991B1B; border-color: #991B1B; color: var(--paper); }
@@ -380,6 +380,8 @@ body.ledger .save-bar .dirty-note { color: var(--accent); font-size: .857rem; }
 /* Resizable columns (columns.js): grab handle on each heading edge, fixed layout once a width is set. */
 body.ledger .ledger-table.fixed-cols { table-layout: fixed; max-width: none; }
 body.ledger .ledger-table.fixed-cols :is(td, th) { max-width: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The Actions cell never clips its buttons or shows an ellipsis, however narrow its column is set. */
+body.ledger .ledger-table.fixed-cols td.row-actions { overflow: visible; text-overflow: clip; white-space: normal; }
 body.ledger .ledger-table col.col-hidden { display: none; }
 body.ledger .ledger-table th .col-resizer { position: absolute; top: 0; right: 0; bottom: 0; width: 8px; cursor: col-resize; touch-action: none; user-select: none; }
 body.ledger .ledger-table th .col-resizer::after { content: ""; position: absolute; top: 25%; bottom: 25%; right: 3px; width: 2px; background: var(--line-strong); border-radius: 1px; }
