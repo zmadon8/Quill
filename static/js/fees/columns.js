@@ -200,25 +200,5 @@
     layout();
   }
 
-  // A row "..." menu (details.row-menu) opens as a floating overlay, so the scrolling table never clips it.
-  function placeRowMenu(details) {
-    var panel = details.querySelector(".menu");
-    var summary = details.querySelector("summary");
-    if (!panel || !summary) { return; }
-    if (!details.open) { panel.style.top = ""; panel.style.left = ""; panel.style.right = ""; return; }
-    var box = summary.getBoundingClientRect();
-    var width = panel.offsetWidth || 224;
-    panel.style.top = Math.round(box.bottom + 4) + "px";
-    panel.style.right = "auto";
-    panel.style.left = Math.max(8, Math.min(Math.round(box.right - width), window.innerWidth - width - 8)) + "px";
-  }
-  document.querySelectorAll("details.row-menu").forEach(function (d) {
-    d.addEventListener("toggle", function () { placeRowMenu(d); });
-    window.addEventListener("resize", function () { placeRowMenu(d); });
-  });
-  document.addEventListener("scroll", function () {
-    document.querySelectorAll("details.row-menu[open]").forEach(function (d) { d.open = false; });
-  }, true);
-
   document.querySelectorAll("table[data-fees-columns], table[data-table-id]").forEach(init);
 })();

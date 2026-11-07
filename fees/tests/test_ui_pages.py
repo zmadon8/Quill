@@ -413,22 +413,21 @@ class FeebookAndPaymentTests(UiPageBase):
         self.assertNotIn("/assign/", text)
         self.assertNotIn(">Attach<", text)
 
-    def test_feebook_editor_can_edit_and_attach(self):
+    def test_feebook_editor_can_edit(self):
         text = self.assert_page(self.page("fees_feebook", user=self.editor), "feebook-editor")
         self.assertIn(reverse("fees_payment_new"), text)
-        self.assertIn("/assign/", text)
+        self.assertNotIn("/assign/", text)
         self.assertIn('aria-label="Edit payment of ', text)
         self.assert_no_unlabelled_controls(text, "feebook-editor")
 
-    def test_feebook_unaccounted_row_actions_are_a_compact_menu(self):
-        """The Attach form lives in a "..." overlay menu, not inline, so the row is no taller than the others."""
+    def test_feebook_unaccounted_row_has_edit_but_no_attach_menu(self):
+        """Owner decision: no "Attach Memo number" menu on Feebook rows; a memo is added from Edit."""
         text = self.html(self.page("fees_feebook", user=self.editor, query="?unaccounted=1"))
-        self.assertIn('class="col-menu row-menu"', text)
-        self.assertIn('title="More actions"', text)
-        self.assertIn('aria-label="More actions: attach payment of ', text)
-        self.assertIn('aria-label="Edit payment of ', text)
-        self.assertIn("/assign/", text)
-        self.assertNotIn('class="inline"', text.split("<tbody>", 1)[-1].split("</tbody>", 1)[0])
+        body = text.split("<tbody>", 1)[-1].split("</tbody>", 1)[0]
+        self.assertIn('aria-label="Edit payment of ', body)
+        self.assertIn("<td>Unaccounted</td>", body)
+        for gone in ("row-menu", "More actions", "/assign/", "Memo number", ">Attach<", "<form"):
+            self.assertNotIn(gone, body)
 
     def test_payment_form_works_without_script(self):
         text = self.assert_page(self.page("fees_payment_new", user=self.editor), "payment")
@@ -952,7 +951,6 @@ class StatusMarkerSettingTests(UiPageBase):
             ("memo detail", "fees_memo_detail", {"memo_id": i["memo"]}, ""),
             ("outstanding detail", "fees_outstanding_detail", {}, ""),
             ("outstanding detail by firm", "fees_outstanding_detail", {}, "?firm=%d" % i["firm"]),
-            ("feebook unaccounted", "fees_feebook", {}, "?unaccounted=1"),
         ]
 
     def other_pages(self):
@@ -961,6 +959,7 @@ class StatusMarkerSettingTests(UiPageBase):
         return [
             ("outstanding", "fees_outstanding", {}, ""),
             ("feebook", "fees_feebook", {}, ""),
+            ("feebook unaccounted", "fees_feebook", {}, "?unaccounted=1"),
             ("firms", "fees_firms", {}, ""),
             ("firm", "fees_firm_detail", {"firm_id": i["firm"]}, ""),
             ("matter", "fees_matter_detail", {"matter_id": i["matter"]}, ""),
