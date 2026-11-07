@@ -118,7 +118,9 @@ class SendingTests(TestCase):
 
         form = UsernamePasswordResetForm({"username": "pat"})
         self.assertTrue(form.is_valid())
-        form.save(domain_override="testserver", use_https=True, request=None)
+        form.save(domain_override="testserver", use_https=True, request=None,
+                  email_template_name="registration/password_reset_email.txt",
+                  subject_template_name="registration/password_reset_subject.txt")
         self.assertEqual(len(mail.outbox), 1)
         self.assertEqual(mail.outbox[0].from_email, "Chambers <you@gmail.com>")
         self.assertEqual(mail.outbox[0].to, [user.email])
