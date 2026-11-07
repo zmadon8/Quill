@@ -1215,7 +1215,6 @@ Decisions:
 - Not changed: data values, page body text, help text, content headings and table column headers.
 - Outstanding: the button that opens the one-memo-per-row list is now "All Memos". The URL and its `view` values are unchanged.
 - The Columns control sits in a toolbar above the table (`.table-tools`), right aligned, with clear space above and below. A negative bottom margin on that toolbar pulled the table up under the button; it is now a normal margin, so the button never overlaps the table at desktop or phone width. This is central CSS (`static/css/ledger.css`), so every table with a Columns button gets it.
-- Model field choices (`diary.UserSettings.opening_page`, `accounts.Profile.reading_all_mode`) keep their stored labels, because changing a model's choices needs a migration; the form-level choice lists were changed.
 
 ### Title Case for model choice labels
 
