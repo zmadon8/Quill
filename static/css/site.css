@@ -645,3 +645,7 @@ textarea.single-line { display: block; width: 100%; max-width: 28rem; min-height
 .red-box { margin: 1.5rem 0; padding: .75rem 1rem; background: #FEF8F8; border: 2px solid #FECACA; border-radius: 6px; }
 .red-box :is(h2, h3, legend) { color: #991B1B; }
 @media (max-width: 720px) { .settings-layout { grid-template-columns: 1fr; } .settings-nav { position: static; flex-direction: row; flex-wrap: wrap; } }
+
+/* All and None buttons above a group of tick boxes (templates/_select_all_none.html). */
+.select-all-none { display: inline-flex; gap: 6px; align-items: center; margin: 0 0 6px; }
+.select-all-none[hidden] { display: none; }

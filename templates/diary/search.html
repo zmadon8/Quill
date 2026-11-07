@@ -19,6 +19,7 @@
         </div>
       </details>
       {% if not chosen_subject %}<button type="button" class="link group-switch" role="switch" aria-checked="{% if want_subjects %}true{% else %}false{% endif %}" data-group-toggle data-cards="{{ cards_url }}" data-subjects="{{ subjects_url }}" title="Show the results grouped under their Subjects, or in one list. The search is not run again."><span class="track" aria-hidden="true"><span class="knob"></span></span>Group by Subject</button>{% endif %}
+      {% include "_select_all_none.html" with name="citations flags headers" label="the search ticks" %}
       <label class="search-check"><input type="checkbox" name="citations" value="1"{% if citations_only %} checked{% endif %}> Citations</label>
       <label class="search-check"><input type="checkbox" name="flags" value="1"{% if flags_only %} checked{% endif %}> Flags</label>
       <label class="search-check"><input type="checkbox" name="headers" value="1"{% if headers_only %} checked{% endif %}> Headers</label>

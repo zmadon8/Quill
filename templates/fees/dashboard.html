@@ -16,6 +16,7 @@
     <h2 class="kpi-customise-title">Customise Overview boxes</h2>
     <div class="kpi-customise-cols">
       <div class="kpi-pick">
+        {% include "_select_all_none.html" with name="kpi" label="the Overview boxes" submit=True %}
         {% for g in kpi_groups %}<fieldset class="kpi-group"><legend>{{ g.title }}</legend>
         {% for k in g.items %}<label><input type="checkbox" name="kpi" value="{{ k.id }}"{% if k.on %} checked{% endif %}> {{ k.label }}</label>
         {% endfor %}</fieldset>

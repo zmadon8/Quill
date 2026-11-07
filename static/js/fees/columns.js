@@ -244,8 +244,32 @@
       list.setAttribute("role", "group");
       list.setAttribute("aria-label", "Show or hide columns");
       var boxes = [];
+      var indexes = [];
+      // All and None at the top (the fixed columns always stay).
+      var choose = document.createElement("span");
+      choose.className = "select-all-none";
+      choose.setAttribute("role", "group");
+      choose.setAttribute("aria-label", "Show all or none of the columns");
+      [["All", true], ["None", false]].forEach(function (pair) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.className = "small secondary";
+        b.setAttribute("data-select", pair[1] ? "all" : "none");
+        b.textContent = pair[0];
+        b.addEventListener("click", function () {
+          hidden = pair[1] ? [] : indexes.slice();
+          boxes.forEach(function (box) { box.checked = pair[1]; });
+          write(key, hidden);
+          apply();
+          layout();
+        });
+        choose.appendChild(b);
+        choose.appendChild(document.createTextNode(" "));
+      });
+      list.appendChild(choose);
       heads.forEach(function (th, i) {
         if (th.hasAttribute("data-col-fixed")) { return; }
+        indexes.push(i);
         var label = document.createElement("label");
         var box = document.createElement("input");
         box.type = "checkbox";

@@ -10,6 +10,7 @@
   {# Round 18 (D95): one choice per profile, so a user may have several, each with its own role. #}
   <fieldset class="profile-access" data-profile-access>
     <legend>{{ diary_name }} profiles</legend>
+    {% include "_select_all_none.html" with name="profiles" label="the profiles" kind="selects" all_value="reader" %}
     {% for f in form.profile_fields %}
     <p class="profile-row">{{ f.label_tag }} {{ f }}{{ f.errors }}</p>
     {% empty %}
@@ -20,6 +21,7 @@
   {% for program_name, fields in form.program_profile_groups %}
   <fieldset class="profile-access" data-profile-access>
     <legend>{{ program_name }} profiles</legend>
+    {% include "_select_all_none.html" with name="profiles" label="the profiles" kind="selects" all_value="reader" %}
     {% for f in fields %}
     <p class="profile-row">{{ f.label_tag }} {{ f }}{{ f.errors }}</p>
     {% empty %}

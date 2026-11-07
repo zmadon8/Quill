@@ -62,7 +62,7 @@ def dashboard_page(request):
             "kpi_groups": [
                 {
                     "title": title,
-                    "items": [{"id": kpi, "label": dashboard.KPI_LABELS[kpi], "on": kpi in chosen} for kpi in ids],
+                    "items": [{"id": kpi, "label": dashboard.KPI_LABELS[kpi], "on": _tick_state(request, kpi, chosen)} for kpi in ids],
                 }
                 for title, ids in dashboard.KPI_DISPLAY_GROUPS
             ],
@@ -78,6 +78,14 @@ def dashboard_page(request):
     )
 
 
+def _tick_state(request, kpi, chosen):
+    """Whether the Customise box for ``kpi`` is ticked: as saved, or all / none after the All and None buttons."""
+    tick = request.GET.get("tick") if request.GET.get("customise") == "1" else None
+    if tick in ("all", "none"):
+        return tick == "all"
+    return kpi in chosen
+
+
 @fees_editor
 @handle_fees_errors()
 @require_POST
@@ -87,6 +95,9 @@ def save_kpis(request):
     The arrow buttons work without JavaScript: they submit the form with ``move=<id>:up|down``.
     """
     profile, _settings = scope.context(request)
+    tick = request.POST.get("select")
+    if tick in ("all", "none"):  # the All and None buttons: show the boxes again all ticked or all clear, save nothing
+        return redirect(reverse("fees_dashboard") + "?customise=1&tick=" + tick + "#kpis")
     chosen = dashboard.order_kpis(
         request.POST.getlist("kpi"),
         [k for k in request.POST.get("order", "").split(",") if k],
