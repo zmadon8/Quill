@@ -25,7 +25,7 @@ class FeeRegisterTabTests(TestCase):
     def test_hidden_without_a_fees_profile(self):
         user = join_main(User.objects.create_user("diaryonly", password=PASSWORD), "editor")
         labels, nav = self.tabs(user)
-        self.assertEqual(labels, ["My settings", "Case Law Diary settings"])
+        self.assertEqual(labels, ["My Settings", "Case Law Diary Settings"])
         self.assertNotIn(reverse("fees_settings"), nav)
 
     def test_visible_after_the_diary_link_with_a_fees_profile(self):
@@ -33,7 +33,7 @@ class FeeRegisterTabTests(TestCase):
         profile = Profile.objects.create(program=KEY_FEES, name="Tab-Fees")
         ProfileMembership.objects.create(user=user, profile=profile, role=ROLE_EDITOR)
         labels, nav = self.tabs(user)
-        self.assertEqual(labels, ["My settings", "Case Law Diary settings", "Fee Register settings"])
+        self.assertEqual(labels, ["My Settings", "Case Law Diary Settings", "Fee Register Settings"])
         self.assertIn('href="%s"' % reverse("fees_settings"), nav)
 
     def test_fees_only_user_sees_the_link(self):
@@ -41,4 +41,4 @@ class FeeRegisterTabTests(TestCase):
         profile = Profile.objects.create(program=KEY_FEES, name="Tab-Fees-2")
         ProfileMembership.objects.create(user=user, profile=profile, role=ROLE_EDITOR)
         labels, _nav = self.tabs(user)
-        self.assertEqual(labels, ["My settings", "Fee Register settings"])
+        self.assertEqual(labels, ["My Settings", "Fee Register Settings"])

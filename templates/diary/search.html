@@ -15,10 +15,10 @@
         <summary>History</summary>
         <div class="search-history-pop">
           <ul class="search-history-list" data-history-list></ul>
-          <p><button type="button" class="small" data-history-clear>Clear search history</button> <span class="meta">Kept only in this browser, for your login.</span></p>
+          <p><button type="button" class="small" data-history-clear>Clear Search History</button> <span class="meta">Kept only in this browser, for your login.</span></p>
         </div>
       </details>
-      {% if not chosen_subject %}<button type="button" class="link group-switch" role="switch" aria-checked="{% if want_subjects %}true{% else %}false{% endif %}" data-group-toggle data-cards="{{ cards_url }}" data-subjects="{{ subjects_url }}" title="Show the results grouped under their Subjects, or in one list. The search is not run again."><span class="track" aria-hidden="true"><span class="knob"></span></span>Group by Subject</button>{% endif %}
+      {% if not chosen_subject %}<button type="button" class="link group-switch" role="switch" aria-checked="{% if want_subjects %}true{% else %}false{% endif %}" data-group-toggle data-cards="{{ cards_url }}" data-subjects="{{ subjects_url }}" title="Show the results grouped under their Subjects, or in one list. The search is not run again."><span class="track" aria-hidden="true"><span class="knob"></span></span>Group By Subject</button>{% endif %}
       {% include "_select_all_none.html" with name="citations flags headers" label="the search ticks" %}
       <label class="search-check"><input type="checkbox" name="citations" value="1"{% if citations_only %} checked{% endif %}> Citations</label>
       <label class="search-check"><input type="checkbox" name="flags" value="1"{% if flags_only %} checked{% endif %}> Flags</label>
@@ -43,7 +43,7 @@
   <ol class="search-results cards">
     {% for r in results %}{% include "diary/_result_card.html" %}{% endfor %}
   </ol>
-  {% if has_more %}<p class="search-more"><a class="button" href="{{ more_url }}">Show more</a> <span class="meta">Showing {{ results|length }} of {{ total }}</span></p>{% endif %}
+  {% if has_more %}<p class="search-more"><a class="button" href="{{ more_url }}">Show More</a> <span class="meta">Showing {{ results|length }} of {{ total }}</span></p>{% endif %}
   {% endif %}
   {% else %}
   <p class="empty search-none">No results{% if q %} for &ldquo;{{ q }}&rdquo;{% endif %}.</p>

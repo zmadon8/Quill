@@ -66,7 +66,7 @@ class FyDropdownPageTests(WriteBase):
             self.assertNotRegex(html, r'<input[^>]*name="fy"', name)
             values = self.values(self.select_for(html, "fy"))
             self.assertEqual(values[0], "", name)  # All years
-            self.assertIn("All years", html)
+            self.assertIn("All Years", html)
             years = values[1:]
             self.assertEqual(years, sorted(years, reverse=True), name)
             if name == "fees_memos":  # the years that have memos; the Drafts and Feebook lists have their own rows
@@ -82,7 +82,7 @@ class FyDropdownPageTests(WriteBase):
             html = self.client.get(reverse(name)).content.decode()
             self.assertIn('<option value="%s" selected>%s</option>' % (current, current), self.select_for(html, "fy"), name)
             chosen = self.client.get(reverse(name), {"fy": ""}).content.decode()
-            self.assertRegex(self.select_for(chosen, "fy"), r'<option value="">All years</option>', name)
+            self.assertRegex(self.select_for(chosen, "fy"), r'<option value="">All Years</option>', name)
             self.assertNotRegex(self.select_for(chosen, "fy"), r'value="[^"]+" selected', name)
 
     def test_the_export_link_carries_the_year_the_page_shows(self):

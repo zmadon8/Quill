@@ -12,8 +12,8 @@
 <nav class="settings-nav" aria-label="Settings sections">
   <a href="?tab=memos" data-section-link="memos"{% if tab == "memos" %} class="on" aria-current="page"{% endif %}>1 Memos</a>
   <a href="?tab=payments" data-section-link="payments"{% if tab == "payments" %} class="on" aria-current="page"{% endif %}>2 Payments</a>
-  <a href="?tab=word" data-section-link="word"{% if tab == "word" %} class="on" aria-current="page"{% endif %}>3 Word documents</a>
-  <a href="?tab=years" data-section-link="years"{% if tab == "years" %} class="on" aria-current="page"{% endif %}>4 Years and statistics</a>
+  <a href="?tab=word" data-section-link="word"{% if tab == "word" %} class="on" aria-current="page"{% endif %}>3 Word Documents</a>
+  <a href="?tab=years" data-section-link="years"{% if tab == "years" %} class="on" aria-current="page"{% endif %}>4 Years And Statistics</a>
   <a href="?tab=display" data-section-link="display"{% if tab == "display" %} class="on" aria-current="page"{% endif %}>5 Display</a>
   <a href="?tab=data" data-section-link="data"{% if tab == "data" %} class="on" aria-current="page"{% endif %}>6 Data</a>
 </nav>
@@ -87,7 +87,7 @@
       <p class="builder-presets">{% for p in filename_presets %}<button type="button" class="small secondary" data-preset="{{ p.pattern }}">{{ p.label }}</button> {% endfor %}</p>
       <p class="small-caps">Insert a part</p>
       <p class="builder-parts">{% for p in filename_parts %}<button type="button" class="small ghost" data-insert="{{ p.text }}">{{ p.label }}</button> {% endfor %}</p>
-      <p><input type="text" size="20" maxlength="40" aria-label="Free text to insert" data-builder-free> <button type="button" class="small secondary" data-builder-free-add>Insert text</button></p>
+      <p><input type="text" size="20" maxlength="40" aria-label="Free text to insert" data-builder-free> <button type="button" class="small secondary" data-builder-free-add>Insert Text</button></p>
     </div>
     <p class="hint">Parts you can type: {% for t in filename_tokens %}<code>&#123;{{ t }}&#125;</code> {% endfor %}. Wrap a part in [ ] to leave it out when it is empty.</p>
     <p class="muted" data-filename-result aria-live="polite">{% for e in filename_errors %}{{ e }} {% endfor %}</p>
@@ -99,14 +99,14 @@
 <section class="settings-box" aria-labelledby="word-template-h">
 <h2 id="word-template-h">Word template</h2>
 <p>{% if template_info.has_template %}Template: {{ template_info.filename }} (<a href="{% url 'fees_template_download' %}">download</a>){% else %}No template uploaded.{% endif %}</p>
-<p><a class="button small secondary" href="{% url 'fees_template_tags_download' %}">Download list of template tags (.docx)</a></p>
+<p><a class="button small secondary" href="{% url 'fees_template_tags_download' %}">Download List Of Template Tags (.docx)</a></p>
 <p>{% if template_info.has_signature %}Signature image: {{ template_info.signature_filename }} (<a href="{% url 'fees_signature_download' %}">download</a>){% else %}No signature image uploaded.{% endif %}</p>
 {% if can_edit %}
 <form method="post" action="{% url 'fees_template_upload' %}" enctype="multipart/form-data">{% csrf_token %}
-  <label>Upload a Word template (.docx) <input type="file" name="file" accept=".docx" required></label> <button type="submit">Upload template</button>
+  <label>Upload a Word template (.docx) <input type="file" name="file" accept=".docx" required></label> <button type="submit">Upload Template</button>
 </form>
 <form method="post" action="{% url 'fees_signature_upload' %}" enctype="multipart/form-data">{% csrf_token %}
-  <label>Upload a signature image (PNG or JPEG, at most 2 MB) <input type="file" name="file" accept=".png,.jpg,.jpeg" required></label> <button type="submit">Upload signature</button>
+  <label>Upload a signature image (PNG or JPEG, at most 2 MB) <input type="file" name="file" accept=".png,.jpg,.jpeg" required></label> <button type="submit">Upload Signature</button>
 </form>
 {% endif %}
 </section>
@@ -142,7 +142,7 @@
     <div class="grid-2">
       <div class="setting-row"><label>Opening page <select name="default_tab">{% for t in tab_choices %}<option value="{{ t }}"{% if config.default_tab == t %} selected{% endif %}>{{ t|capfirst }}</option>{% endfor %}</select></label>{% include "_who_tag.html" with who="profile" %}<span class="setting-help">The page the Fee Register opens on for anyone who has not chosen their own on My settings.</span></div>
       <div class="setting-row"><label>Figures <select name="money_unit">{% for value, label in money_unit_choices %}<option value="{{ value }}"{% if config.money_unit == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>{% include "_who_tag.html" with who="profile" %}<span class="setting-help">Whether amounts show in full or in thousands, lacs and crores.</span></div>
-      <div class="setting-row"><label>Firms and matters: show by default <select name="list_default_filter"><option value="all"{% if config.list_default_filter == "all" %} selected{% endif %}>All</option><option value="active"{% if config.list_default_filter == "active" %} selected{% endif %}>Active only</option></select></label>{% include "_who_tag.html" with who="profile" %}<span class="setting-help">Whether the Firms and Matters lists start with everything or only active ones.</span></div>
+      <div class="setting-row"><label>Firms and matters: show by default <select name="list_default_filter"><option value="all"{% if config.list_default_filter == "all" %} selected{% endif %}>All</option><option value="active"{% if config.list_default_filter == "active" %} selected{% endif %}>Active Only</option></select></label>{% include "_who_tag.html" with who="profile" %}<span class="setting-help">Whether the Firms and Matters lists start with everything or only active ones.</span></div>
       <div class="setting-row"><label>Items per page <input type="text" inputmode="numeric" name="items_per_page" value="{% if config.items_per_page == 0 %}All{% else %}{{ config.items_per_page }}{% endif %}" size="6"></label>{% include "_who_tag.html" with who="profile" %}<span class="setting-help">How many memos or payments Memos, Drafts and Feebook show on one page for anyone who has not chosen their own. Type All (or 0) for a whole financial year on one page; the most you can type is 1000. Totals always cover every row that matches the filters.</span></div>
     </div>
     <div class="grid-3">
@@ -159,7 +159,7 @@
 <h2>Data</h2>
 {% if can_edit %}
 <div class="setting-row"><span class="setting-label">Excel backup</span>{% include "_who_tag.html" with who="profile" %}
-  <p><a class="button" href="{% url 'fees_backup_download' %}">Download an Excel backup</a> <a href="{% url 'fees_backup' %}">Backup page</a></p>
+  <p><a class="button" href="{% url 'fees_backup_download' %}">Download An Excel Backup</a> <a href="{% url 'fees_backup' %}">Backup page</a></p>
   <span class="setting-help">One Excel file with every firm, matter, memo and payment in this profile, including payment notes.</span></div>
 {% if user.is_admin %}<div class="red-box danger-zone" aria-labelledby="danger-h"><h3 id="danger-h">Danger zone</h3>
   <p class="setting-help">Admin only. Take a backup first. {% include "_who_tag.html" with who="profile" %}</p>

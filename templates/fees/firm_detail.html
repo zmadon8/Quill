@@ -4,7 +4,7 @@
 {% block crumb_nav %}{% url 'fees_firms' as firms_url %}{% include "fees/_back.html" with url=firms_url label="Firms" %}{% endblock %}
 {% block content %}
 <div class="page-head"><h1>{{ firm.name }}{% if firm.status == 'archived' %} <small class="muted">(archived)</small>{% endif %}</h1>
-<p class="page-actions" role="group" aria-label="Firm actions"><a class="button small secondary" href="{% url 'fees_firm_statement' firm.pk %}">Statement</a> <a class="button small secondary" href="{% url 'fees_firm_ledger' firm.pk %}">Ledger</a> <a class="button small secondary" href="{% url 'fees_outstanding_detail' %}?firm={{ firm.pk }}">View Outstanding</a>{% if can_edit %} <a class="button small secondary" href="{% url 'fees_firm_edit' firm.pk %}">Edit firm</a> <a class="button small primary" href="{% url 'fees_matter_new' %}?firm={{ firm.pk }}">New matter</a>{% endif %}</p></div>
+<p class="page-actions" role="group" aria-label="Firm actions"><a class="button small secondary" href="{% url 'fees_firm_statement' firm.pk %}">Statement</a> <a class="button small secondary" href="{% url 'fees_firm_ledger' firm.pk %}">Ledger</a> <a class="button small secondary" href="{% url 'fees_outstanding_detail' %}?firm={{ firm.pk }}">View Outstanding</a>{% if can_edit %} <a class="button small secondary" href="{% url 'fees_firm_edit' firm.pk %}">Edit Firm</a> <a class="button small primary" href="{% url 'fees_matter_new' %}?firm={{ firm.pk }}">New Matter</a>{% endif %}</p></div>
 <div class="card firm-top">
 <div class="firm-notes">{% if firm.notes %}<p>{{ firm.notes|linebreaksbr }}</p>{% else %}<p class="muted">No notes.</p>{% endif %}</div>
 <section class="firm-groups" aria-labelledby="groups-heading">
@@ -12,12 +12,12 @@
 <ul class="chips group-list">{% for g in groups %}<li class="chip"><span class="group-name">{{ g.name }}</span>
   {% if can_edit %}<form method="post" action="{% url 'fees_group_rename' firm.pk g.pk %}" class="inline">{% csrf_token %}<input type="text" name="name" value="{{ g.name }}" maxlength="200" required aria-label="New name for group {{ g.name }}"> <button type="submit" class="small secondary">Rename</button></form>
   <form method="post" action="{% url 'fees_group_remove' firm.pk g.pk %}" class="inline">{% csrf_token %}<button type="submit" class="small ghost" aria-label="Remove group {{ g.name }}">&times;</button></form>{% endif %}</li>{% empty %}<li class="muted">No groups yet.</li>{% endfor %}</ul>
-{% if can_edit %}<form method="post" action="{% url 'fees_group_add' firm.pk %}" class="fees-form">{% csrf_token %}<label>New group <input type="text" name="name" maxlength="200" required></label> <button type="submit" class="small secondary">Add group</button></form>{% endif %}
+{% if can_edit %}<form method="post" action="{% url 'fees_group_add' firm.pk %}" class="fees-form">{% csrf_token %}<label>New group <input type="text" name="name" maxlength="200" required></label> <button type="submit" class="small secondary">Add Group</button></form>{% endif %}
 </section>
 </div>
 <section aria-labelledby="matters-heading">
 <h2 id="matters-heading">Matters</h2>
-<nav class="list-filter" aria-label="Show matters">{% for s in matters_filters %}{% if s == matters_shown %}<strong aria-current="true">{% if s == 'active' %}Active only{% else %}All{% endif %}</strong>{% else %}<a href="?matters={{ s }}">{% if s == 'active' %}Active only{% else %}All{% endif %}</a>{% endif %}{% if not forloop.last %} | {% endif %}{% endfor %}</nav>
+<nav class="list-filter" aria-label="Show matters">{% for s in matters_filters %}{% if s == matters_shown %}<strong aria-current="true">{% if s == 'active' %}Active Only{% else %}All{% endif %}</strong>{% else %}<a href="?matters={{ s }}">{% if s == 'active' %}Active Only{% else %}All{% endif %}</a>{% endif %}{% if not forloop.last %} | {% endif %}{% endfor %}</nav>
 {% for g in groups %}<div class="card group-card"><h3 class="group-caption">{{ g.name }}</h3>
 <ul class="matter-list">{% for row in matter_rows %}{% if row.matter.group_id == g.pk %}<li>{% if fees_dots %}<span class="status-squares" role="img" aria-label="Memo status: {{ row.memo_status|default:'No memos' }}{% if row.has_written_off %}, has write-offs{% endif %}">{% if row.memo_status %}<span class="status-sq sq-{{ row.memo_status|lower }}" aria-hidden="true"></span>{% endif %}{% if row.has_written_off %}<span class="status-sq sq-written-off" aria-hidden="true"></span>{% endif %}</span>{% endif %}
   <a href="{% url 'fees_matter_detail' row.matter.pk %}">{{ row.matter.name }}</a>{% if row.matter.is_archived %} <span class="muted">(archived)</span>{% endif %}
@@ -27,5 +27,5 @@
 {% if groups and not matter_rows %}<p class="muted">No matters.</p>{% endif %}
 </section>
 {% if can_edit %}<section class="danger-zone" aria-labelledby="status-heading"><h2 id="status-heading">{% if firm.status == 'archived' %}Make this firm active{% else %}Archive this firm{% endif %}</h2>
-<form method="post" action="{% url 'fees_firm_status' firm.pk %}">{% csrf_token %}{% if firm.status == 'archived' %}<input type="hidden" name="status" value="active"><button type="submit">Make this firm active</button>{% else %}<input type="hidden" name="status" value="archived"><button type="submit">Archive this firm</button>{% endif %}</form></section>{% endif %}
+<form method="post" action="{% url 'fees_firm_status' firm.pk %}">{% csrf_token %}{% if firm.status == 'archived' %}<input type="hidden" name="status" value="active"><button type="submit">Make This Firm Active</button>{% else %}<input type="hidden" name="status" value="archived"><button type="submit">Archive This Firm</button>{% endif %}</form></section>{% endif %}
 {% endblock %}

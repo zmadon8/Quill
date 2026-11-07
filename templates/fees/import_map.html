@@ -20,7 +20,7 @@
 <form method="post" action="{% url 'fees_import_run' %}" enctype="multipart/form-data">{% csrf_token %}
   <p><label>Choose the same file again <input type="file" name="file" accept=".xlsx,.csv" required></label></p>
   {% for f in fields %}<p><label>{{ f.label }}{% if f.required %} (required){% endif %}
-    <select name="map_{{ f.id }}"><option value="">Not in the file</option>{% for h in info.headers %}<option value="{{ h }}"{% if h == f.guess %} selected{% endif %}>{{ h }}</option>{% endfor %}</select></label></p>
+    <select name="map_{{ f.id }}"><option value="">Not In The File</option>{% for h in info.headers %}<option value="{{ h }}"{% if h == f.guess %} selected{% endif %}>{{ h }}</option>{% endfor %}</select></label></p>
   {% endfor %}
   <p><label><input type="checkbox" name="auto_number" value="1"> Number the memos automatically</label></p>
   <button type="submit">Import</button>

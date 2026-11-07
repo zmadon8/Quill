@@ -48,12 +48,12 @@ class SettingsPageTests(Base):
         for name in ALL_FORMATS:
             self.assertContains(resp, f'name="{name}"')
         self.assertContains(resp, "never your stored data")
-        self.assertContains(resp, "Use the standard formats")
+        self.assertContains(resp, "Use The Standard Formats")
         self.assertContains(resp, 'data-default="upper_alpha"')
         self.assertContains(resp, 'data-default="paren_decimal"')
         self.assertNotContains(resp, 'name="nested_item_format"')
         self.assertContains(resp, 'name="opening_page"')
-        self.assertContains(resp, "Index of Subjects")
+        self.assertContains(resp, "Index Of Subjects")
 
     def test_preview_is_rendered_on_the_page_with_the_saved_formats(self):
         UserSettings.objects.create(user=self.editor, topic_format="upper_roman")

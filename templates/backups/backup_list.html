@@ -5,8 +5,8 @@
 <h1>Backups</h1>
 <div class="settings-layout" data-settings-sections data-initial="{{ tab }}">
 <nav class="settings-nav" aria-label="Sections of Backups">
-  <a href="?tab=saved" data-section-link="saved"{% if tab == "saved" %} class="on" aria-current="page"{% endif %}>Saved backups</a>
-  <a href="?tab=email" data-section-link="email"{% if tab == "email" %} class="on" aria-current="page"{% endif %}>Email backups</a>
+  <a href="?tab=saved" data-section-link="saved"{% if tab == "saved" %} class="on" aria-current="page"{% endif %}>Saved Backups</a>
+  <a href="?tab=email" data-section-link="email"{% if tab == "email" %} class="on" aria-current="page"{% endif %}>Email Backups</a>
 </nav>
 <div class="settings-panels">
 
@@ -15,7 +15,7 @@
 <div class="actions">
   <form method="post" action="{% url 'backup_now' %}" class="inline">
     {% csrf_token %}
-    <button type="submit">Backup now</button>
+    <button type="submit">Backup Now</button>
   </form>
   <a href="{% url 'restore_upload' %}">Restore from a file on my computer</a>
 </div>
@@ -90,8 +90,8 @@
   {{ email_form.include_review.as_field_group }}
   <p class="meta">Weekly uses the day chosen under &ldquo;On&rdquo;; monthly uses the day of the month. The nightly job (about 02:00 IST) sends it. If a send fails it is tried again the next night. Each email carries at most {{ max_mb }} MB of files; anything that does not fit is left out, the email says so, and a warning bar shows on every page until you fix it.</p>
   <button type="submit" name="action" value="save">Save</button>
-  <button type="submit" name="action" value="send_now">Save and send one now</button>
-  <button type="submit" name="action" value="test" formnovalidate>Send a test email</button>
+  <button type="submit" name="action" value="send_now">Save And Send One Now</button>
+  <button type="submit" name="action" value="test" formnovalidate>Send A Test Email</button>
   <span class="dirty-note" data-dirty-note hidden>You have unsaved changes.</span>
 </form>
 <h2>Last send</h2>

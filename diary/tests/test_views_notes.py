@@ -147,12 +147,12 @@ class EditorTests(NoteViewCase):
         self.link("section", self.sec)
         resp = self.client.get(self.url(), {"next": self.next})
         self.assertContains(resp, "Remember")
-        self.assertContains(resp, "Add a link")
-        self.assertContains(resp, "Move to")
+        self.assertContains(resp, "Add A Link")
+        self.assertContains(resp, "Move To")
         self.assertContains(resp, "History")
         self.assertContains(resp, "Delete")
         self.assertContains(resp, "Move this link up", count=2)
-        self.assertContains(resp, "Remove this link", count=2)
+        self.assertContains(resp, "Remove This Link", count=2)
         self.assertContains(resp, 'name="csrfmiddlewaretoken"')
         self.assertEqual(len(resp.context["links"]), 2)
 
@@ -166,7 +166,7 @@ class EditorTests(NoteViewCase):
         svc.edit(self.profile, self.user, "note", self.note.pk, {"text": "<p>Theirs</p>"})
         resp = self.client.post(self.url(), {"text": "<p>Mine</p>", "version": 1, "next": self.next})
         self.assertEqual(resp.status_code, 409)
-        self.assertContains(resp, "Edit and merge", status_code=409)
+        self.assertContains(resp, "Edit And Merge", status_code=409)
         self.assertEqual(self.get(self.note).text_plain, "Theirs")
 
     def test_keep_mine_after_a_conflict_saves_over_it(self):
@@ -180,7 +180,7 @@ class EditorTests(NoteViewCase):
         conflict = self.client.post(self.url(), {"text": "<p>Mine</p>", "version": 1, "next": self.next})
         merged = self.resend(conflict, merge="1")
         self.assertContains(merged, "Mine")
-        self.assertContains(merged, "The saved version")
+        self.assertContains(merged, "The Saved Version")
 
     def test_a_note_in_trash_has_no_editor(self):
         svc.delete(self.profile, self.user, "note", self.note.pk)
@@ -455,8 +455,8 @@ class TrashAndPermanentDeleteTests(NoteViewCase):
         self.assertContains(resp, "Remember", status_code=409)
         self.assertContains(resp, f"purpose=retarget&amp;link={a.pk}", status_code=409)
         self.assertContains(resp, f'name="link" value="{a.pk}"', status_code=409)
-        self.assertContains(resp, "Remove this link for good", status_code=409)
-        self.assertNotContains(resp, "Yes, delete", status_code=409)
+        self.assertContains(resp, "Remove This Link For Good", status_code=409)
+        self.assertNotContains(resp, "Yes, Delete", status_code=409)
 
     def test_after_the_link_is_removed_the_permanent_delete_goes_through(self):
         a = self.link("item", self.one)

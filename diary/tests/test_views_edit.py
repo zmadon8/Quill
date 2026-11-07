@@ -354,7 +354,7 @@ class AddTests(EditViewTestCase):
         self.assertContains(resp, "<span>Edit</span>")
         self.assertContains(resp, 'title="Edit this Item"')
         self.assertContains(resp, 'title="Edit this Topic"')
-        for gone in ("Mark for review", "Rename", 'class="icon"', "Move up", "Move down"):
+        for gone in ("Mark for review", "Rename", 'class="icon"', "Move Up", "Move Down"):
             self.assertNotContains(resp, gone)
 
     def test_choosing_nothing_to_add_is_refused(self):

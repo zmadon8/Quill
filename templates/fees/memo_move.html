@@ -11,6 +11,6 @@
 <form method="post" action="{% url 'fees_memo_move' memo.id %}">
   {% csrf_token %}
   <p><label>Move to matter <select name="matter_id" required><option value="">Choose</option>{% for g in firm_groups %}<optgroup label="{{ g.firm }}">{% for m in g.matters %}<option value="{{ m.pk }}">{{ m.group.name }}: {{ m.name }}</option>{% endfor %}</optgroup>{% endfor %}</select></label></p>
-  <p><button type="submit">Move memo</button> <a href="{{ memo_url }}">Cancel</a></p>
+  <p><button type="submit">Move Memo</button> <a href="{{ memo_url }}">Cancel</a></p>
 </form>
 {% endblock %}

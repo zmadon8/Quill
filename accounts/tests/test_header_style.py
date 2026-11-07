@@ -180,7 +180,7 @@ class SuiteHeaderTests(TestCase):
 
     GROUPS = ("Admins", "Settings", "Help")
     ADMIN_TABS = ["Users", "Profiles", "Appearance", "Backups"]
-    SETTINGS_TABS = ["My settings", "Case Law Diary settings"]
+    SETTINGS_TABS = ["My Settings", "Case Law Diary Settings"]
 
     def setUp(self):
         self.admin = join_main(User.objects.create_user("adam", password=PASSWORD, is_superuser=True), "editor")
@@ -211,7 +211,7 @@ class SuiteHeaderTests(TestCase):
             link = re.search(r'<a [^>]*aria-label="%s" title="[^"]*">(.*?)</a>' % name, header, re.S)
             self.assertIsNotNone(link, name)
             self.assertIn("<svg", link.group(1), name)
-        for gone in ("Profiles", "Import", "My settings", "Site", "Users &amp; Profiles", "Case Law Diary"):
+        for gone in ("Profiles", "Import", "My Settings", "Site", "Users &amp; Profiles", "Case Law Diary"):
             self.assertNotIn('aria-label="%s"' % gone, header, gone)
         logout = re.search(SIGN_OUT, header, re.S)
         self.assertIsNotNone(logout)
@@ -250,7 +250,7 @@ class SuiteHeaderTests(TestCase):
         from accounts import suite
 
         suite.set_names({suite.KEY_HOME: "Home", suite.KEY_DIARY: "Judgments"})
-        self.assertEqual(self.tabs("my_settings"), ["My settings", "Judgments settings"])
+        self.assertEqual(self.tabs("my_settings"), ["My Settings", "Judgments Settings"])
         header = self.header()
         self.assertNotIn('aria-label="Judgments"', header)
         self.assertNotIn('aria-label="Case Law Diary"', header)
@@ -273,7 +273,7 @@ class SuiteHeaderTests(TestCase):
         self.assertNotIn('aria-label="Admins"', header)
         for name in ("Settings", "Help"):
             self.assertIn('aria-label="%s"' % name, header, name)
-        self.assertEqual(self.tabs("my_settings"), ["My settings", "Case Law Diary settings"])
+        self.assertEqual(self.tabs("my_settings"), ["My Settings", "Case Law Diary Settings"])
         loner = User.objects.create_user("lone", password=PASSWORD)  # no diary profile: only My settings
         self.client.force_login(loner)
         self.assertEqual(self.tabs("my_settings"), [])  # one link only, so no sub-navigation row

@@ -117,10 +117,10 @@ class ExportSettingsForm(forms.Form):
 
 #: Opening pages offered inside the Case Law Diary (the stored legacy value "other_subjects" is shown as "home").
 OPENING_PAGE_OFFERED = [
-    ("home", "Subjects (Index of Subjects)"),
+    ("home", "Subjects (Index Of Subjects)"),
     ("search", "Global Search"),
-    ("last", "The last page I viewed"),
-    ("subject", "A chosen Subject"),
+    ("last", "The Last Page I Viewed"),
+    ("subject", "A Chosen Subject"),
 ]
 
 #: Form field -> UserSettings column, for the five number formats.

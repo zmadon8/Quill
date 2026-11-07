@@ -29,7 +29,7 @@ class MergedBackupsTests(TestCase):
             self.assertIn('data-section-link="%s"' % key, html)
         self.assertIn('action="%s"' % reverse("backup_email"), html)
         self.assertIn("You have unsaved changes.", html)
-        self.assertIn("Backup now", html)
+        self.assertIn("Backup Now", html)
 
     def test_the_old_email_backups_address_redirects_to_the_email_section(self):
         self.client.force_login(self.admin)

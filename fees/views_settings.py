@@ -27,8 +27,8 @@ MAX_TEMPLATE_UPLOAD = 20 * 1024 * 1024
 #: The left-hand sections of the Settings page, in order (the numbers in the menu are 1 to 6).
 SETTINGS_SECTIONS = ("memos", "payments", "word", "years", "display", "data")
 DEFAULT_TAB_CHOICES = ("memos", "dashboard", "statistics", "firms", "feebook", "outstanding", "settings")
-PAYMENT_AMOUNT_CHOICES = (("zero", "Blank"), ("full", "Full amount due"), ("netOfTds", "Amount due less TDS"))
-MONEY_UNIT_CHOICES = (("full", "Full figures"), ("truncated", "Short (thousand, lac, crore)"))
+PAYMENT_AMOUNT_CHOICES = (("zero", "Blank"), ("full", "Full Amount Due"), ("netOfTds", "Amount Due Less TDS"))
+MONEY_UNIT_CHOICES = (("full", "Full Figures"), ("truncated", "Short (Thousand, Lac, Crore)"))
 
 
 #: Ready-made file name patterns for the builder (each is checked by ``validate_pattern`` in the tests).

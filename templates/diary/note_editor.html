@@ -8,7 +8,7 @@
   <p><a href="{{ back }}">Back to reading</a>{% if where %} &middot; On: {{ where }}{% endif %}</p>
   {% if theirs %}
   <details class="saved-version" open>
-    <summary>The saved version (version {{ note.version }}), for comparison</summary>
+    <summary>The Saved Version (Version {{ note.version }}), For Comparison</summary>
     <p><strong>Text:</strong> {{ note.text|richhtml }}</p>
   </details>
   {% endif %}
@@ -49,7 +49,7 @@
       {% else %}
       <p class="hint">This Note has no links yet.</p>
       {% endif %}
-      <button type="submit" formaction="{% url 'edit_note_pick' %}" name="purpose" value="link">Add a link&hellip;</button>
+      <button type="submit" formaction="{% url 'edit_note_pick' %}" name="purpose" value="link">Add A Link&hellip;</button>
     </fieldset>
 
     <div class="editor-actions card-bar">
@@ -59,9 +59,9 @@
       <details class="more-wrap" data-more>
         <summary class="edit-btn" title="More actions">More</summary>
         <div class="menu up" role="menu">
-          <button type="submit" role="menuitem" formaction="{% url 'edit_move_to' %}">Move to&hellip;</button>
-          {% if can_shift %}<button type="submit" role="menuitem" formaction="{% url 'edit_move' %}" name="direction" value="up">Move up</button>
-          <button type="submit" role="menuitem" formaction="{% url 'edit_move' %}" name="direction" value="down">Move down</button>{% endif %}
+          <button type="submit" role="menuitem" formaction="{% url 'edit_move_to' %}">Move To&hellip;</button>
+          {% if can_shift %}<button type="submit" role="menuitem" formaction="{% url 'edit_move' %}" name="direction" value="up">Move Up</button>
+          <button type="submit" role="menuitem" formaction="{% url 'edit_move' %}" name="direction" value="down">Move Down</button>{% endif %}
           <a role="menuitem" class="menu-link" href="{% url 'history' 'note' note.pk %}?next={{ back|urlencode }}">History</a>
           <hr>
           <button type="submit" role="menuitem" class="danger-item" formaction="{% url 'edit_delete' %}"><span>Delete</span><small>goes to Trash with its links &middot; Undo available</small></button>

@@ -3,7 +3,7 @@
   // Payment form helpers. Everything here is optional: the form saves the same without JavaScript, and the server
   // works out and checks every figure it stores.
   // - Auto TDS: with the box ticked the TDS amount is shown (read only) as the amount grossed up at the rate.
-  // - Allocation rows: rows after the first two stay folded away until needed ("Add another memo").
+  // - Allocation rows: rows after the first two stay folded away until needed ("Add Another Memo").
   //   With auto TDS on, a row's TDS follows its amount until you type your own.
   // - Remaining: the gross amount (received plus TDS) less what the rows take.
   // - Payee chips: names used before on payments for the memos' matters (data-payees-url, data-matters).
@@ -65,7 +65,7 @@
   if (rows.length > 2) {
     more = document.createElement("button");
     more.type = "button";
-    more.textContent = "Add another memo";
+    more.textContent = "Add Another Memo";
     rows[rows.length - 1].parentNode.insertBefore(more, rows[rows.length - 1].nextSibling);
     more.addEventListener("click", function () {
       for (var i = 0; i < rows.length; i++) {

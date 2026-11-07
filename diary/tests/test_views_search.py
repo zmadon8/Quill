@@ -114,10 +114,10 @@ class SearchViewTests(TestCase):
         for i in range(55):
             Item.objects.create(profile=self.profile, topic=self.topic, text="<p>bulk %d</p>" % i)
         resp = self.get(q="bulk", review="")
-        self.assertContains(resp, "Show more")
+        self.assertContains(resp, "Show More")
         self.assertContains(resp, "limit=100")
         self.assertContains(resp, "q=bulk")
-        self.assertNotContains(self.get(q="bulk", limit=100), "Show more")
+        self.assertNotContains(self.get(q="bulk", limit=100), "Show More")
 
     def test_search_icon_on_reading_page_and_on_search_page(self):
         self.client.force_login(self.reader)
@@ -151,7 +151,7 @@ class SearchViewTests(TestCase):
 
     def test_search_tips_panel_is_on_the_page(self):
         self.assertContains(self.get(), 'id="search-tips"')
-        self.assertContains(self.get(q="damages"), "Search tips")
+        self.assertContains(self.get(q="damages"), "Search Tips")
 
     def test_notice_on_flags_page(self):
         self.client.force_login(self.reader)

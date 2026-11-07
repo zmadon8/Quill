@@ -7,7 +7,7 @@
 <form method="post" enctype="multipart/form-data">
   {% csrf_token %}
   <p><input type="file" name="backup_file" required></p>
-  <button type="submit">Check this file</button>
+  <button type="submit">Check This File</button>
   <a href="{% url 'backup_list' %}">Cancel</a>
 </form>
 {% endblock %}

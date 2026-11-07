@@ -148,7 +148,7 @@ SUITE_GROUPS = (
          _plain(lambda n: n.startswith("backup_") or n.startswith("restore_")), ""),
     )),
     ("Settings", "icons/gear.svg.html", (
-        ("my_settings", "My settings", "all", _plain(lambda n: n in MY_SETTINGS_PAGES), ""),
+        ("my_settings", "My Settings", "all", _plain(lambda n: n in MY_SETTINGS_PAGES), ""),
         ("profile_settings", DIARY_SETTINGS, "profile", _never, ""),
         ("fees_settings", FEES_SETTINGS, "fees", _never, ""),
     )),
@@ -188,9 +188,9 @@ def suite_nav(request):
 
     def label_of(name):
         if name is DIARY_SETTINGS:
-            return f"{program_name(suite.KEY_DIARY)} settings"
+            return f"{program_name(suite.KEY_DIARY)} Settings"
         if name is FEES_SETTINGS:
-            return f"{program_name(suite.KEY_FEES)} settings"
+            return f"{program_name(suite.KEY_FEES)} Settings"
         return name
 
     items, tabs_here = [], []

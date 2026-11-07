@@ -123,7 +123,7 @@ class SettingsScreenTests(UiPageBase):
         self.assertIn("Clear All Data", text)
         data = text.split('data-section="data"')[1]
         self.assertIn('class="red-box danger-zone"', data)
-        self.assertLess(data.index("Download an Excel backup"), data.index("red-box"))
+        self.assertLess(data.index("Download An Excel Backup"), data.index("red-box"))
 
     def test_reader_cannot_open_backup_or_import(self):
         for name in ("fees_backup", "fees_import"):
@@ -143,7 +143,7 @@ class SettingsRound2Tests(UiPageBase):
     def test_tag_download_link_and_builder_markup(self):
         text = self.settings_text(self.editor)
         self.assertIn(reverse("fees_template_tags_download"), text)
-        self.assertIn("Download list of template tags (.docx)", text)
+        self.assertIn("Download List Of Template Tags (.docx)", text)
         self.assertIn("data-filename-builder", text)
         self.assertIn("data-preset=", text)
         self.assertIn("data-insert=", text)

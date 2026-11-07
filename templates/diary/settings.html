@@ -52,7 +52,7 @@
     <h2>Data</h2>
     <div class="setting-row">
       <span class="setting-label">Word export</span>
-      <p><a class="button" href="{% url 'export' %}">Open the Export page</a></p>
+      <p><a class="button" href="{% url 'export' %}">Open The Export Page</a></p>
       <span class="setting-help">Download the diary as a Word file, an Offline copy, or one Subject, Topic or Sub-topic.</span>
     </div>
     {% if can_change %}
@@ -78,12 +78,12 @@
     {% if user.is_admin %}
     <div class="setting-row">
       <span class="setting-label">Word import</span>{% include "_who_tag.html" with who="all" %}
-      <p><a class="button" href="{% url 'import_word' %}">Import from Word</a></p>
+      <p><a class="button" href="{% url 'import_word' %}">Import From Word</a></p>
       <span class="setting-help">Admin only: a supervised dry run of the Word file against a profile.</span>
     </div>
     <div class="setting-row">
       <span class="setting-label">Offline link</span>{% include "_who_tag.html" with who="profile" %}
-      <p><a class="button" href="{% url 'offline_link_admin' request.profile.pk %}">Manage the Offline link</a></p>
+      <p><a class="button" href="{% url 'offline_link_admin' request.profile.pk %}">Manage The Offline Link</a></p>
       <span class="setting-help">Admin only: a secret address to download an Offline copy of this profile without signing in.</span>
     </div>
     {% endif %}

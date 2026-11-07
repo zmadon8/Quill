@@ -8,7 +8,7 @@
 <form method="get" action="{{ request.path }}" class="filters" aria-label="{% if matter %}Move to another firm{% else %}Choose a firm{% endif %}">
   {% if matter %}<p class="muted">To move this matter, choose the new firm, then its group below, then save.</p>{% endif %}
   <label>{% if matter %}Firm (change to move this matter){% else %}Firm{% endif %} <select name="firm">{% for f in firm_choices %}<option value="{{ f.pk }}"{% if form.firm_id == f.pk %} selected{% endif %}>{{ f.name }}</option>{% endfor %}</select></label>
-  <button type="submit">Show this firm's groups</button>
+  <button type="submit">Show This Firm's Groups</button>
 </form>
 {% include "fees/_form_errors.html" %}
 <form method="post" action="{{ request.path }}" class="fees-form">

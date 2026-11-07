@@ -87,7 +87,7 @@ class EditorPageTests(ItemEditorTestCase):
         self.assertEqual(resp.status_code, 200)
         for needle in ("Edit Item", 'name="text"', 'name="case_citation"', 'name="flag"', 'name="flag_text"',
                        "data-flag-select", 'value="pending"', "data-richtext", "richtext-editor.js",
-                       "IST by editor", "data-case-list", "Add a citation"):
+                       "IST by editor", "data-case-list", "Add A Citation"):
             self.assertContains(resp, needle)
         self.assertNotContains(resp, "Multi-Item")
         self.assertNotContains(resp, 'id="id-citation"')
@@ -95,12 +95,12 @@ class EditorPageTests(ItemEditorTestCase):
         self.assertContains(resp, 'name="next" value="%s"' % self.next)
         self.assertNotContains(resp, "Change to")
         self.assertNotContains(resp, "Nested")
-        self.assertNotContains(resp, "Original Word line")
+        self.assertNotContains(resp, "Original Word Line")
 
     def test_an_imported_item_shows_its_original_word_line_read_only(self):
         Item.objects.filter(pk=self.one.pk).update(original_line="(1) The original Word line")
         resp = self.client.get(self.editor_url(self.one))
-        self.assertContains(resp, "Original Word line")
+        self.assertContains(resp, "Original Word Line")
         self.assertContains(resp, "(1) The original Word line")
         self.assertNotContains(resp, 'name="original_line"')
 

@@ -1,7 +1,7 @@
 {% load fees_money %}
 {# Edit statistics: the twelve month rows of one financial year. Context: fy, fy_options, adjustment_rows, can_edit, money_unit. #}
 <form method="get" action="{% url 'fees_settings' %}#settings-years" class="filters" aria-label="Choose the financial year">
-  {% include "fees/_fy_select.html" with name="fy" label="Financial year" options=fy_options selected=fy %}
+  {% include "fees/_fy_select.html" with name="fy" label="Financial Year" options=fy_options selected=fy %}
   <button type="submit">Show</button>
 </form>
 {% if can_edit %}<p>Working days and extra counts are added to what the memos give. A figure typed under Replace takes the place of the figure worked out for that month; leave it blank to use the worked out figure. Each month has its own Save button.</p>

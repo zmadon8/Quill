@@ -163,7 +163,7 @@ class HomeIndexTests(TestCase):
         resp = self.client.get(reverse("login"))
         self.assertEqual(resp.status_code, 200)
         self.assertNotContains(resp, "Case Law Diary")
-        self.assertContains(resp, "Log in")
+        self.assertContains(resp, "Log In")
 
     def test_username_shown_on_the_right_of_every_page(self):
         self.client.force_login(self.reader)

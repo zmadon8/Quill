@@ -11,11 +11,11 @@
 {% if tab == "standard" %}
 <form method="get" class="filters" aria-label="Choose the period">
   <input type="hidden" name="tab" value="standard">
-  <label>Show by <select name="granularity">{% for g in granularities %}<option value="{{ g }}"{% if g == granularity %} selected{% endif %}>{{ g }}</option>{% endfor %}</select></label>
-  {% include "fees/_fy_select.html" with name="fy" label="Financial year" options=fy_options selected=fy %}
+  <label>Show By <select name="granularity">{% for g in granularities %}<option value="{{ g }}"{% if g == granularity %} selected{% endif %}>{{ g }}</option>{% endfor %}</select></label>
+  {% include "fees/_fy_select.html" with name="fy" label="Financial Year" options=fy_options selected=fy %}
   <button type="submit">Show</button>
 </form>
-<p class="page-actions" role="group" aria-label="Statistics exports"><a class="button" href="{% url 'fees_statistics_export' %}?granularity={{ granularity }}&amp;fy={{ fy }}">Export to Excel</a> <a class="button" href="{% url 'fees_statistics_annual_export' %}?fy={{ fy }}">Annual summary (Excel)</a> <a class="button" href="{% url 'fees_statistics_tax_summary' %}?fy={{ fy }}">Tax summary (text)</a> <a class="button" href="{% url 'fees_statistics_year_end' %}?fy={{ fy }}">Year end</a></p>
+<p class="page-actions" role="group" aria-label="Statistics exports"><a class="button" href="{% url 'fees_statistics_export' %}?granularity={{ granularity }}&amp;fy={{ fy }}">Export To Excel</a> <a class="button" href="{% url 'fees_statistics_annual_export' %}?fy={{ fy }}">Annual Summary (Excel)</a> <a class="button" href="{% url 'fees_statistics_tax_summary' %}?fy={{ fy }}">Tax Summary (Text)</a> <a class="button" href="{% url 'fees_statistics_year_end' %}?fy={{ fy }}">Year End</a></p>
 <div class="table-wrap">
 <table class="ledger-table stat-table" data-table-id="statistics">
   <caption>Statistics by {% if granularity == "financialYear" %}financial year{% else %}{{ granularity }}{% if granularity == "month" or granularity == "quarter" %} for {{ fy }}{% endif %}{% endif %}</caption>
@@ -30,9 +30,9 @@
   <label>Measure <select name="measure">{% for id, label in measures %}<option value="{{ id }}"{% if id == chosen.measure %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
   <label>Rows <select name="row_dim">{% for id, label in row_dims %}<option value="{{ id }}"{% if id == chosen.row_dim %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
   <label>Columns <select name="col_dim">{% for id, label in col_dims %}<option value="{{ id }}"{% if id == chosen.col_dim %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
-  <label>Firm <select name="firm_id"><option value="">All firms</option>{% for f in firm_choices %}<option value="{{ f.pk }}"{% if f.pk == chosen.firm_id %} selected{% endif %}>{{ f.name }}</option>{% endfor %}</select></label>
-  {% include "fees/_fy_select.html" with name="from_fy" label="From financial year" options=fy_options selected=chosen.from_fy all_label="Earliest" %}
-  {% include "fees/_fy_select.html" with name="to_fy" label="To financial year" options=fy_options selected=chosen.to_fy all_label="Latest" %}
+  <label>Firm <select name="firm_id"><option value="">All Firms</option>{% for f in firm_choices %}<option value="{{ f.pk }}"{% if f.pk == chosen.firm_id %} selected{% endif %}>{{ f.name }}</option>{% endfor %}</select></label>
+  {% include "fees/_fy_select.html" with name="from_fy" label="From Financial Year" options=fy_options selected=chosen.from_fy all_label="Earliest" %}
+  {% include "fees/_fy_select.html" with name="to_fy" label="To Financial Year" options=fy_options selected=chosen.to_fy all_label="Latest" %}
   <button type="submit">Show</button>
 </form>
 
@@ -49,7 +49,7 @@
 
 <div class="chart-tools" data-chart-tools hidden>
   <label><input type="checkbox" data-chart-on> Show chart</label>
-  <label>Chart type <select data-chart-type><option value="bar">Bars (grouped)</option><option value="stacked">Bars (stacked)</option><option value="line">Line</option></select></label>
+  <label>Chart Type <select data-chart-type><option value="bar">Bars (Grouped)</option><option value="stacked">Bars (Stacked)</option><option value="line">Line</option></select></label>
 </div>
 <figure class="pivot-chart" data-chart-figure hidden>
   <div data-chart-canvas></div>
@@ -66,8 +66,8 @@
   <input type="hidden" name="return_to" value="statistics">
   <input type="hidden" name="measure" value="{{ chosen.measure }}"><input type="hidden" name="row_dim" value="{{ chosen.row_dim }}"><input type="hidden" name="col_dim" value="{{ chosen.col_dim }}">
   <input type="hidden" name="from_fy" value="{{ chosen.from_fy }}"><input type="hidden" name="to_fy" value="{{ chosen.to_fy }}"><input type="hidden" name="firm_id" value="{{ chosen.firm_id|default_if_none:'' }}">
-  <label>Name for this view <input type="text" name="name" maxlength="100" required></label>
-  <button type="submit">Save view</button>
+  <label>Name For This View <input type="text" name="name" maxlength="100" required></label>
+  <button type="submit">Save View</button>
 </form>{% endif %}
 {% endif %}
 {% endif %}

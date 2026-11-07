@@ -4,15 +4,15 @@
 {% block crumb_nav %}{% url 'fees_outstanding' as back %}{% include "fees/_back.html" with url=back label="Outstanding by firm" %}{% endblock %}
 {% block content %}
 <div class="page-head"><h1>Outstanding memos</h1>
-<p class="page-actions" role="group" aria-label="Outstanding actions"><a class="button" href="{% url 'fees_outstanding_export' %}?{{ query_string }}">Export to Excel</a></p></div>
+<p class="page-actions" role="group" aria-label="Outstanding actions"><a class="button" href="{% url 'fees_outstanding_export' %}?{{ query_string }}">Export To Excel</a></p></div>
 <div class="total-card" role="group" aria-label="Grand total"><span class="total-label">Total outstanding, {{ memo_count }} memo{{ memo_count|pluralize }}</span><span class="total-amount">{{ grand_total|fees_money:money_unit }}</span></div>
 <form method="get" class="filters" aria-label="Filter outstanding memos">
   <label>Firm <select name="firm"><option value="">All</option>{% for f in choices.firms %}<option value="{{ f.id }}"{% if filters.firm_id == f.id %} selected{% endif %}>{{ f.name }}</option>{% endfor %}</select></label>
   <label>Group <select name="group"><option value="">All</option>{% for g in choices.partners %}<option value="{{ g.id }}"{% if filters.group_id == g.id %} selected{% endif %}>{{ g.name }}</option>{% endfor %}</select></label>
-  <label>View <select name="view"><option value="grouped"{% if view == "grouped" %} selected{% endif %}>Grouped by matter</option><option value="summary"{% if view == "summary" %} selected{% endif %}>Summary (matter totals)</option><option value="flat"{% if view == "flat" %} selected{% endif %}>In order (flat list)</option></select></label>
-  <label>Sort the flat list by <select name="sort">{% for key, name in sorts %}<option value="{{ key }}"{% if flat_sort == key %} selected{% endif %}>{{ name }}</option>{% endfor %}</select></label>
-  <label><input type="checkbox" name="written_off" value="1"{% if filters.include_written_off %} checked{% endif %}> Include written off</label>
-  <label><input type="checkbox" name="overdue" value="1"{% if filters.overdue_only %} checked{% endif %}> Overdue only</label>
+  <label>View <select name="view"><option value="grouped"{% if view == "grouped" %} selected{% endif %}>Grouped By Matter</option><option value="summary"{% if view == "summary" %} selected{% endif %}>Summary (Matter Totals)</option><option value="flat"{% if view == "flat" %} selected{% endif %}>In Order (Flat List)</option></select></label>
+  <label>Sort The Flat List By <select name="sort">{% for key, name in sorts %}<option value="{{ key }}"{% if flat_sort == key %} selected{% endif %}>{{ name }}</option>{% endfor %}</select></label>
+  <label><input type="checkbox" name="written_off" value="1"{% if filters.include_written_off %} checked{% endif %}> Include Written Off Memos</label>
+  <label><input type="checkbox" name="overdue" value="1"{% if filters.overdue_only %} checked{% endif %}> View Overdue Memos Only</label>
   <button type="submit">Filter</button>
 </form>
 {% if view == "summary" %}
@@ -27,7 +27,7 @@
 {% else %}
 {# Grouped and In order lists share one form: tick memos and press Pay. It is a plain GET to the payment form, so it works without a script. #}
 {% if can_edit %}<form method="get" action="{% url 'fees_payment_new' %}" data-pay-form>{% endif %}
-{% if can_edit %}<p class="bulk-bar"><button type="submit" class="success">Pay ticked memos</button> {% include "_select_all_none.html" with name="memo" label="the memos" max=5 %} <span class="muted" data-pay-summary role="status" aria-live="polite">Tick memos to settle them with one payment (up to 5).</span></p>{% endif %}
+{% if can_edit %}<p class="bulk-bar"><button type="submit" class="success">Pay Ticked Memos</button> {% include "_select_all_none.html" with name="memo" label="the memos" max=5 %} <span class="muted" data-pay-summary role="status" aria-live="polite">Tick memos to settle them with one payment (up to 5).</span></p>{% endif %}
 <div class="table-wrap">
 <table class="ledger-table" data-fees-columns="outstanding-{{ view }}" data-table-id="outstanding-{{ view }}">
   <caption>{{ memo_count }} memo{{ memo_count|pluralize }} with fees outstanding{% if view == "flat" %}, in one list{% else %}, grouped by matter{% endif %}</caption>

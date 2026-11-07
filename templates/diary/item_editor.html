@@ -7,7 +7,7 @@
   <p><a href="{{ back }}">Back to reading</a> &middot; <a href="{% url 'history' 'item' item.pk %}?next={{ back|urlencode }}">History</a></p>
   {% if theirs %}
   <details class="saved-version" open>
-    <summary>The saved version (version {{ item.version }}), for comparison</summary>
+    <summary>The Saved Version (Version {{ item.version }}), For Comparison</summary>
     <p><strong>Text:</strong> {{ item.text|richhtml }}</p>
     <p><strong>Flag:</strong> {{ item.get_flag_display }}{% if item.flag_text %}: {{ item.flag_text }}{% endif %}</p>
   </details>
@@ -46,7 +46,7 @@
         </li>
         {% endfor %}
       </ol>
-      <button type="button" data-case-add>Add a citation</button>
+      <button type="button" data-case-add>Add A Citation</button>
       <template data-case-template>
         <li class="case-row" data-case-row>
           <input type="hidden" name="case_id" value="">
@@ -94,7 +94,7 @@
     </dl>
     {% if item.original_line %}
     <details open class="original-line">
-      <summary>Original Word line (read only)</summary>
+      <summary>Original Word Line (Read Only)</summary>
       <p class="original-text">{{ item.original_line }}</p>
     </details>
     {% endif %}

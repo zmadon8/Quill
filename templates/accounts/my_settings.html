@@ -23,7 +23,7 @@
     </form>
     <div class="setting-row">
       <span class="setting-label">My password</span>{% include "_who_tag.html" with who="you" %}
-      <p><a class="button" href="{% url 'password_change' %}">Change my password</a></p>
+      <p><a class="button" href="{% url 'password_change' %}">Change My Password</a></p>
       <span class="setting-help">Opens a page where you enter your old password and choose a new one.</span>
     </div>
   </section>
@@ -71,7 +71,7 @@
             {% include "_setting_row.html" with f=diary_form.item_format help="How Items are numbered." who="you" %}
             {% include "_setting_row.html" with f=diary_form.multi_citation_format help="How the citations of an Item with several are numbered." who="you" %}
           </fieldset>
-          <p><button type="button" class="secondary" data-standard-formats>Use the standard formats</button></p>
+          <p><button type="button" class="secondary" data-standard-formats>Use The Standard Formats</button></p>
         </div>
         <div class="format-preview-box" aria-live="polite">
           <h3>Preview</h3>

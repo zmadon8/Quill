@@ -1,7 +1,7 @@
 {# Filter bar. Context: filters, firm_choices; optional show_fy (with fy_options), show_unpaid. #}
 <form method="get" class="filters">
-  {% if show_fy %}{% include "fees/_fy_select.html" with name="fy" label="Financial year" options=fy_options selected=filters.financial_year all_label="All years" %}{% endif %}
+  {% if show_fy %}{% include "fees/_fy_select.html" with name="fy" label="Financial Year" options=fy_options selected=filters.financial_year all_label="All Years" %}{% endif %}
   <label>Firm <select name="firm"><option value="">All</option>{% for f in firm_choices %}<option value="{{ f.pk }}"{% if filters.firm_id == f.pk %} selected{% endif %}>{{ f.name }}</option>{% endfor %}</select></label>
-  {% if show_unpaid %}<label><input type="checkbox" name="unpaid" value="1"{% if filters.unpaid_only %} checked{% endif %}> Unpaid only</label>{% endif %}
+  {% if show_unpaid %}<label><input type="checkbox" name="unpaid" value="1"{% if filters.unpaid_only %} checked{% endif %}> Unpaid Only</label>{% endif %}
   <button type="submit">Filter</button>
 </form>

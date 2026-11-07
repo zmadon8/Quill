@@ -28,14 +28,14 @@
         {% csrf_token %}
         {% for name, value in fields %}{% if merge.type != "fields" or name != merge.field %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endif %}{% endfor %}
         {% if merge.type == "fields" %}<input type="hidden" name="{{ merge.field }}" value="{{ merge.value }}">{% endif %}
-        <button type="submit">Keep mine</button>
+        <button type="submit">Keep Mine</button>
       </form>
     </section>
 
     <section class="conflict-choice">
       <h2>Keep theirs</h2>
       <p>Leave what is saved as it is and drop your change.</p>
-      <a class="button" href="{{ next_url }}">Keep theirs</a>
+      <a class="button" href="{{ next_url }}">Keep Theirs</a>
     </section>
 
     {% if merge.type %}
@@ -47,7 +47,7 @@
         {% csrf_token %}
         {% for name, value in fields %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
         <input type="hidden" name="merge" value="1">
-        <button type="submit">Edit and merge</button>
+        <button type="submit">Edit And Merge</button>
       </form>
       {% elif merge.type == "fields" %}
       <p>Change your text if you want, then save it over the current version.</p>
@@ -58,14 +58,14 @@
           {% if merge.multiline %}<textarea name="{{ merge.field }}" rows="3">{{ merge.value }}</textarea>
           {% else %}<input type="text" name="{{ merge.field }}" value="{{ merge.value }}" maxlength="500">{% endif %}
         </label>
-        <button type="submit">Save merged</button>
+        <button type="submit">Save Merged</button>
       </form>
       {% elif merge.type == "picker" %}
       <p>Choose the place again, looking at the current state.</p>
       <form method="post" action="{% url 'edit_move_to' %}">
         {% csrf_token %}
         {% for name, value in merge.fields %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
-        <button type="submit">Choose the place again</button>
+        <button type="submit">Choose The Place Again</button>
       </form>
       {% endif %}
     </section>

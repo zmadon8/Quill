@@ -307,7 +307,7 @@ class ViewTests(ExportCase):
             body = self.login(user).get(reverse("export")).content.decode()
             for value in ("full", "by_subject", "offline", "offline_subject"):
                 self.assertIn(f'value="{value}"', body, user.username)
-            self.assertIn("Download this Subject", body)
+            self.assertIn("Download This Subject", body)
 
     def test_every_member_downloads_full_and_zip(self):
         for user in (self.editor, self.admin, self.reader):

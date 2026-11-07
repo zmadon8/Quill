@@ -2,7 +2,7 @@
   "use strict";
   // Resizable table columns. Add data-resizable-columns="<unique-key>" to a <table> with a <thead>.
   // Drag the border at the right of a heading, or focus it and use the Left/Right arrow keys.
-  // Widths are remembered in this browser (localStorage "quill.cols.<key>"). A "Reset column widths" button is added above the table.
+  // Widths are remembered in this browser (localStorage "quill.cols.<key>"). A "Reset Column Widths" button is added above the table.
   var MIN = 48;
   var STEP = 16;
 
@@ -86,7 +86,7 @@
     var reset_btn = document.createElement("button");
     reset_btn.type = "button";
     reset_btn.className = "small";
-    reset_btn.textContent = "Reset column widths";
+    reset_btn.textContent = "Reset Column Widths";
     reset_btn.addEventListener("click", reset);
     var tools = document.createElement("p");
     tools.className = "table-tools";

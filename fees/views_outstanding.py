@@ -19,7 +19,7 @@ FLAT_SORTS = {
 }
 
 
-SORT_CHOICES = (("firm", "Firm"), ("group", "Group"), ("matter", "Matter"), ("date", "Date"), ("due", "Amount due (high to low)"))
+SORT_CHOICES = (("firm", "Firm"), ("group", "Group"), ("matter", "Matter"), ("date", "Date"), ("due", "Amount Due (High To Low)"))
 
 
 def _day(entry):

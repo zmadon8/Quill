@@ -37,7 +37,7 @@
 {% if payment and can_edit %}
 <form method="post" action="{% url 'fees_payment_delete' payment.id %}" class="fees-form danger-zone">{% csrf_token %}
   <label><input type="checkbox" name="confirm" value="1" required> Yes, delete this payment</label>
-  <button type="submit" class="danger">Delete payment</button>
+  <button type="submit" class="danger">Delete Payment</button>
 </form>
 {% endif %}
 {% endblock %}

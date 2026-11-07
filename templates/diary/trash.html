@@ -24,7 +24,7 @@
           {% csrf_token %}
           <input type="hidden" name="kind" value="{{ e.type }}"><input type="hidden" name="id" value="{{ e.id }}">
           <input type="hidden" name="next" value="{% url 'trash' %}">
-          <button type="submit" class="edit-btn danger">Delete permanently&hellip;</button>
+          <button type="submit" class="edit-btn danger">Delete Permanently&hellip;</button>
         </form>
         {% endif %}
       </div>

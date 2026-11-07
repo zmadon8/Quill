@@ -96,7 +96,7 @@ class AddFormTests(InlineTestCase):
         self.assertIn('name="choice"', html)
         self.assertIn('name="case_citation"', html)
         self.assertIn('name="case_comment"', html)
-        self.assertIn("+ another citation", html)
+        self.assertIn("+ Another Citation", html)
         self.assertIn('name="after_version" value="%d"' % self.get(self.one).version, html)
 
 
@@ -193,7 +193,7 @@ class CardTests(InlineTestCase):
         self.assertEqual(body["version"], self.get(self.one).version)
         for needle in ('name="text"', 'name="case_citation"', '>A v B</textarea>', "@ para 22", 'name="case_id"',
                        '<select name="flag"', 'value="pending"', 'name="flag_text"',
-                       "+ another citation", "Move to", "Move up", "Move down", "History",
+                       "+ Another Citation", "Move To", "Move Up", "Move Down", "History",
                        "Delete", "goes to Trash"):
             self.assertIn(needle, html, needle)
         self.assertNotIn("Change to", html)
@@ -231,16 +231,16 @@ class CardTests(InlineTestCase):
             self.assertIn('value="%s"' % obj.name, html)
             self.assertIn("History", html)
             self.assertIn("Delete", html)
-            for absent in ("sorted", "A\u2013Z", "A-Z", "alphabet", "automatically", 'name="text"', "Move up", "Move down",
+            for absent in ("sorted", "A\u2013Z", "A-Z", "alphabet", "automatically", 'name="text"', "Move Up", "Move Down",
                            'name="flag"', "For review", "Change to"):
                 self.assertNotIn(absent, html, (kind, absent))
-        self.assertIn("Move to", self.card("topic", self.topic).json()["html"])
-        self.assertNotIn("Move to", self.card("subject", self.subject).json()["html"])
+        self.assertIn("Move To", self.card("topic", self.topic).json()["html"])
+        self.assertNotIn("Move To", self.card("subject", self.subject).json()["html"])
 
     def test_subject_card_can_change_the_landing_page_place(self):
         html = self.card("subject", self.subject).json()["html"]
         self.assertIn('data-more-action="landing"', html)
-        self.assertIn("Put under Other Subjects", html)
+        self.assertIn("Put Under Other Subjects", html)
 
     def test_cards_have_the_phone_top_bar_and_a_blank_citation_template(self):
         html = self.card("item", self.one).json()["html"]
@@ -252,7 +252,7 @@ class CardTests(InlineTestCase):
 
     def test_section_card_has_name_flag_and_move_up_down(self):
         html = self.card("section", self.sec).json()["html"]
-        for needle in ('name="name"', '<select name="flag"', 'name="flag_text"', 'name="flag_form"', "Move up", "Move down", "Move to"):
+        for needle in ('name="name"', '<select name="flag"', 'name="flag_text"', 'name="flag_form"', "Move Up", "Move Down", "Move To"):
             self.assertIn(needle, html, needle)
         self.assertNotIn("Change to", html)
 

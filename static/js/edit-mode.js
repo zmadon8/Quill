@@ -156,7 +156,7 @@
     if (!list || !list.length) { box.hidden = true; return; }
     box.appendChild(document.createTextNode(list.join(" ")));
     if (conflict) {
-      var link = el("button", { type: "button", "class": "linkish" }, "Show what changed");
+      var link = el("button", { type: "button", "class": "linkish" }, "Show What Changed");
       link.addEventListener("click", function () {
         // The existing conflict screen: the same fields sent again, as a normal form post.
         postPlain(form, conflict, null, null);

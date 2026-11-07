@@ -11,7 +11,7 @@
 <details class="kpi-customise"{% if customise_open %} open{% endif %}>
   <summary>Customise</summary>
   <form method="post" action="{% url 'fees_dashboard_kpis' %}" class="fees-form kpi-customise-form" data-kpi-customise>{% csrf_token %}
-    <button type="submit" class="visually-hidden" tabindex="-1" aria-hidden="true">Save boxes</button>
+    <button type="submit" class="visually-hidden" tabindex="-1" aria-hidden="true">Save Boxes</button>
     <input type="hidden" name="order" value="{{ kpi_order_value }}">
     <h2 class="kpi-customise-title">Customise Overview boxes</h2>
     <div class="kpi-customise-cols">
@@ -29,7 +29,7 @@
         <p class="muted">Ticking a box adds it to the end. With none ticked, every box shows.</p>
       </div>
     </div>
-    <button type="submit" class="primary">Save boxes</button>
+    <button type="submit" class="primary">Save Boxes</button>
   </form>
   <script src="{% static 'js/fees/dashboard-kpis.js' %}"></script>
 </details>

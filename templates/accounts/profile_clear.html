@@ -19,7 +19,7 @@
   {% csrf_token %}
   <p class="error">{{ total }} row{{ total|pluralize }} will be deleted for good. This cannot be undone except from the backup.</p>
   <p><label>Type the profile name <strong>{{ target.name }}</strong> to confirm: <input type="text" name="confirm" autocomplete="off"></label></p>
-  <button type="submit" class="danger">Delete all data</button>
+  <button type="submit" class="danger">Delete All Data</button>
   <a href="{% url 'profile_list' %}">Cancel</a>
 </form>
 {% else %}

@@ -217,7 +217,7 @@ class MemoScreenTests(UiPageBase):
         self.assertIn('class="status-legend"', text)
         for word in ("Paid", "Unpaid", "Overdue", "Written Off"):
             self.assertIn("</span>%s</span>" % word, text)
-        self.assertIn(">Draft memos</a>", text)
+        self.assertIn(">Draft Memos</a>", text)
         self.assertNotIn(">Payment</a>", text)
         self.assert_no_unlabelled_controls(text, "memos")
 
@@ -373,7 +373,7 @@ class FirmScreenTests(UiPageBase):
         self.assertNotIn(reverse("fees_matter_archive", kwargs={"matter_id": i["matter"]}), text)
         editor = self.assert_page(self.page("fees_matter_detail", {"matter_id": i["matter"]}, user=self.editor), "matter-editor")
         self.assertIn(reverse("fees_matter_archive", kwargs={"matter_id": i["matter"]}), editor)
-        self.assertIn("Edit or move matter", editor)
+        self.assertIn("Edit Or Move Matter", editor)
 
     def test_matter_form_new_and_move(self):
         i = self.ids()
@@ -503,7 +503,7 @@ class FeebookAndPaymentTests(UiPageBase):
             text = self.html(response)
             self.assertIn("Only Editors can save a payment", text, name)
             self.assertNotIn('<button type="submit" class="primary">Save</button>', text, name)
-            self.assertNotIn("Delete payment", text, name)
+            self.assertNotIn("Delete Payment", text, name)
             self.assertNotIn("js/fees/payment-form.js", text, name)
 
     def test_editor_sees_save_on_the_payment_form(self):
@@ -584,7 +584,7 @@ class OutstandingScreenTests(UiPageBase):
         text = self.assert_page(self.page("fees_outstanding_detail", query="?view=grouped", user=self.editor), "detail-editor")
         self.assertIn('<form method="get" action="%s" data-pay-form>' % reverse("fees_payment_new"), text)
         self.assertRegex(text, r'<input type="checkbox" name="memo" value="\d+" data-due="[\d.]+" aria-label="Select memo ')
-        self.assertIn("Pay ticked memos", text)
+        self.assertIn("Pay Ticked Memos", text)
         self.assertIn("js/fees/outstanding.js", text)
         self.assert_no_unlabelled_controls(text, "detail-editor")
 
@@ -667,7 +667,7 @@ class DashboardScreenTests(UiPageBase):
         self.assertIn("<summary>Customise</summary>", editor)
         self.assertIn("Customise Overview boxes", editor)
         self.assertIn('method="post" action="%s"' % reverse("fees_dashboard_kpis"), editor)
-        self.assertIn('<button type="submit" class="primary">Save boxes</button>', editor)
+        self.assertIn('<button type="submit" class="primary">Save Boxes</button>', editor)
         self.assertEqual(editor.count('name="kpi"'), len(dashboard.KPI_IDS))
         self.assertIn("js/fees/dashboard-kpis.js", editor)
 

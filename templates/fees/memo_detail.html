@@ -54,17 +54,17 @@
 {% if memo.is_draft %}
 <form method="post" action="{% url 'fees_memo_finalise' memo.id %}">{% csrf_token %}
   <label>Custom number (leave blank for the next number) <input type="text" name="custom_memo_number" maxlength="100"></label>
-  <button type="submit">Finalise and number this draft</button>
+  <button type="submit">Finalise And Number This Draft</button>
 </form>
 {% else %}
 <form method="post" action="{% url 'fees_memo_write_off' memo.id %}">{% csrf_token %}
-  {% if memo.written_off %}<input type="hidden" name="written_off" value="0"><button type="submit">Remove the write-off</button>
-  {% else %}<input type="hidden" name="written_off" value="1"><button type="submit">Write off as a bad debt</button>{% endif %}
+  {% if memo.written_off %}<input type="hidden" name="written_off" value="0"><button type="submit">Remove The Write-off</button>
+  {% else %}<input type="hidden" name="written_off" value="1"><button type="submit">Write Off As A Bad Debt</button>{% endif %}
 </form>
 {% endif %}
 <form method="post" action="{% url 'fees_memo_delete' memo.id %}">{% csrf_token %}
   <label><input type="checkbox" name="confirm" value="1" required> Yes, delete this memo{% if payments %} and the payments made only to it{% endif %}</label>
-  <button type="submit">Delete memo</button>
+  <button type="submit">Delete Memo</button>
 </form>
 {% endif %}
 {% endblock %}

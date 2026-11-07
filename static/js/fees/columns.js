@@ -10,7 +10,7 @@
   // minimum 40px, double-click a handle to reset that column). Widths are keyed by column (data-col on the heading, or a
   // slug of its text) so hidden columns never shift them. They are loaded from the page (the JSON in #fees-col-widths, from
   // the server preferences), saved with a debounced POST to the prefs endpoint, and kept in localStorage
-  // ("quill.fees.widths.<id>") if that POST fails. "Reset columns & widths" at the bottom of the Columns menu clears both.
+  // ("quill.fees.widths.<id>") if that POST fails. "Reset Columns & Widths" at the bottom of the Columns menu clears both.
   // Without JavaScript every column shows at its natural width.
   var PREFIX = "quill.fees.hide.";
   var WIDTHS = "quill.fees.widths.";
@@ -289,7 +289,7 @@
       var reset = document.createElement("button");
       reset.type = "button";
       reset.className = "col-reset";
-      reset.textContent = "Reset columns & widths";
+      reset.textContent = "Reset Columns & Widths";
       reset.addEventListener("click", function () {
         hidden = [];
         write(key, hidden);

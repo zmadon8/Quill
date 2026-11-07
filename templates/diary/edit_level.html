@@ -19,7 +19,7 @@
     {% else %}
     {% if wants_target %}<input type="hidden" name="target" value="{{ chosen }}"><p>It goes under the {{ target_kind_name }} &ldquo;{{ chosen_label }}&rdquo;.</p>{% endif %}
     <button type="submit" name="confirmed" value="1">{% if direction == "promote" %}Promote{% else %}Demote{% endif %}</button>
-    {% if wants_target %}<button type="submit" name="target" value="" formnovalidate>Choose another {{ target_kind_name }}</button>{% endif %}
+    {% if wants_target %}<button type="submit" name="target" value="" formnovalidate>Choose Another {{ target_kind_name }}</button>{% endif %}
     {% endif %}
     <a class="button" href="{{ next_url }}">Cancel</a>
   </form>

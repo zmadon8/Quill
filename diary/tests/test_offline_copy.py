@@ -117,7 +117,7 @@ class OfflineCopyTests(ExportCase):
 
     def test_the_page_describes_it_and_the_email_backups_do_not_include_it(self):
         body = self.login(self.reader).get(reverse("export")).content.decode()
-        self.assertIn("Download the Offline copy", body)
+        self.assertIn("Download The Offline Copy", body)
         self.assertIn("not part of the scheduled email backups", body)
         import pathlib
 

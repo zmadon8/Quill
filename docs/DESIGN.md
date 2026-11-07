@@ -1204,3 +1204,15 @@ Where settings live today (baseline, before this round):
 - Per profile (`accounts.Profile`): `name`, `export_name`, `display_name`, `reading_all_default`, `reading_all_mode`.
 - Per profile (`fees.FeesSettings`): memo prefills, `overdue_days`, `default_tab`, the financial year starts, money display, `hide_payment_when_paid`, `default_lines_enabled`, `default_payment_amount`, `items_per_page`, and the other Fee Register keys.
 - Suite-wide (`accounts.SuiteName`): the page names and brand choices.
+
+## Round: Title Case for control labels, All Memos, Columns button placement
+
+Owner instruction, verbatim: "The names of all tabs, sub-tabs, buttons, Filter options should be First Letter Capitalised for All Words. In Outstanding, rename the button Memo by Memo as All Memos. When I enter that memo By Memo View, the Columns button is poorly aligned, and partly overlaps with the table."
+
+Decisions:
+
+- Every word of the visible name of a tab, sub-tab, header item, button, filter label and drop-down option starts with a capital, including of, and, to, on, the and a ("Include Written Off Memos", "View Overdue Memos Only", "All Years", "Active Only", "Amount Due (High To Low)", "Reset Columns & Widths"). Abbreviations keep their form (TDS, PAN, FY, Excel, Word, IST, No.).
+- Not changed: data values, page body text, help text, content headings and table column headers.
+- Outstanding: the button that opens the one-memo-per-row list is now "All Memos". The URL and its `view` values are unchanged.
+- The Columns control sits in a toolbar above the table (`.table-tools`), right aligned, with clear space above and below. A negative bottom margin on that toolbar pulled the table up under the button; it is now a normal margin, so the button never overlaps the table at desktop or phone width. This is central CSS (`static/css/ledger.css`), so every table with a Columns button gets it.
+- Model field choices (`diary.UserSettings.opening_page`, `accounts.Profile.reading_all_mode`) keep their stored labels, because changing a model's choices needs a migration; the form-level choice lists were changed.

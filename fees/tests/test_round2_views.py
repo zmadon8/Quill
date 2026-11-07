@@ -210,7 +210,7 @@ class ListDefaultFilterTests(WriteBase):
         FeesSettings.objects.update_or_create(profile=self.profile, defaults={"list_default_filter": "active"})
         self.assertNotContains(self.client.get(url), 'href="%s"' % reverse("fees_firm_detail", args=[firm.pk]))
         self.assertContains(self.client.get(url + "?status=all"), 'href="%s"' % reverse("fees_firm_detail", args=[firm.pk]))
-        self.assertContains(self.client.get(url), "Active only")
+        self.assertContains(self.client.get(url), "Active Only")
 
     def test_firm_page_matters_use_the_setting_unless_the_url_says_otherwise(self):
         matter = self.seed["matter_1"]

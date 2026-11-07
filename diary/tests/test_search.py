@@ -520,7 +520,7 @@ class SearchPageTests(SearchTestBase):
         # D90: History, then Group by Subject, Citations, Flags, Headers, all on one line.
         html = self.client.get(reverse("search")).content.decode()
         row = html.split("data-search-toggles")[1].split("data-group-input")[0]
-        order = [row.index(x) for x in ("data-search-history", "Group by Subject", "> Citations</label>",
+        order = [row.index(x) for x in ("data-search-history", "Group By Subject", "> Citations</label>",
                                          "> Flags</label>", "> Headers</label>")]
         self.assertEqual(order, sorted(order))
         for gone in ("For review only", "Citations only", "Search headers", 'name="review"'):
@@ -547,7 +547,7 @@ class SearchPageTests(SearchTestBase):
         resp = self.client.get(reverse("search"), {"q": "Pangolin"})
         html = resp.content.decode()
         row = html.split("data-search-toggles")[1].split("\n    </div>")[0]
-        self.assertIn("Group by Subject", row)
+        self.assertIn("Group By Subject", row)
         self.assertNotIn('name="view"', row)
         self.assertContains(resp, 'role="switch" aria-checked="false" data-group-toggle data-cards="?q=Pangolin" '
                                   'data-subjects="?q=Pangolin&amp;view=subjects"')

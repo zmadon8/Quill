@@ -16,8 +16,8 @@
       <p>On screen: <strong>{{ scope_path|join:" > " }}</strong></p>
       <input type="hidden" name="kind" value="{{ scope_kind }}">
       <input type="hidden" name="pk" value="{{ scope_pk }}">
-      <p><button type="submit" name="type" value="view" class="primary">Download this view (Word)</button></p>
-      <p><button type="submit" name="type" value="offline_view">Download this view as an Offline copy</button></p>
+      <p><button type="submit" name="type" value="view" class="primary">Download This View (Word)</button></p>
+      <p><button type="submit" name="type" value="offline_view">Download This View As An Offline Copy</button></p>
       {% else %}
       <p class="meta">Open a Subject, Topic or Sub-topic and press <strong>Export</strong> in the header to export exactly that page.</p>
       {% endif %}
@@ -25,14 +25,14 @@
 
     <section class="settings-section">
       <h2>Full</h2>
-      <p><button type="submit" name="type" value="full" class="primary">Full: one Word file</button></p>
-      <p><button type="submit" name="type" value="by_subject" class="primary">Full: one file per Subject (.zip)</button></p>
+      <p><button type="submit" name="type" value="full" class="primary">Full: One Word File</button></p>
+      <p><button type="submit" name="type" value="by_subject" class="primary">Full: One File Per Subject (.zip)</button></p>
       <p class="meta">One Word file for each Subject and one for all Other Subjects together, with a manifest.txt that lists each file and its Item count.</p>
     </section>
 
     <section class="settings-section">
       <h2>Offline copy</h2>
-      <p><button type="submit" name="type" value="offline" class="primary">Download the Offline copy</button></p>
+      <p><button type="submit" name="type" value="offline" class="primary">Download The Offline Copy</button></p>
       <p class="meta">One file for reading without internet. Open it in a web browser (it works best on a computer; on a phone the Word file is easier). It looks like this website, with the Subjects page, Contents, citations, flags and links, and a search box that works offline. You cannot edit in it, and it does not update by itself: download it again to get newer changes. It is not part of the scheduled email backups.</p>
     </section>
 
@@ -47,8 +47,8 @@
           </optgroup>{% endif %}
         </select>
       </p>
-      <p><button type="submit" name="type" value="subject">Download this Subject (Word)</button>
-        <button type="submit" name="type" value="offline_subject">Download this Subject as an Offline copy</button></p>
+      <p><button type="submit" name="type" value="subject">Download This Subject (Word)</button>
+        <button type="submit" name="type" value="offline_subject">Download This Subject As An Offline Copy</button></p>
     </section>
   </form>
 
