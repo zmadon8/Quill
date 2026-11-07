@@ -402,7 +402,8 @@ body.ledger .search-suggest-empty { padding: 10px 12px; color: var(--muted); }
 body.ledger td.row-actions { white-space: nowrap; }
 body.ledger td.row-actions > * { display: inline-block; vertical-align: middle; }
 body.ledger .row-menu > summary::after { content: none; }
-body.ledger .row-menu > .menu { min-width: 14rem; white-space: normal; }
+body.ledger .row-menu > .menu { position: fixed; z-index: 60; min-width: 14rem; white-space: normal; }
+body.ledger .row-menu > summary { font-weight: 700; letter-spacing: .08em; }
 
 /* ---- Dashboard Customise panel: grouped tick boxes on the left, the box order on the right ---- */
 body.ledger .kpi-customise-title { margin: 0 0 12px; font-size: 1.1rem; }

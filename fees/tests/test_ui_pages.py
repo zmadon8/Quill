@@ -236,7 +236,13 @@ class MemoScreenTests(UiPageBase):
 
     def test_status_is_words_as_well_as_a_marker(self):
         text = self.html(self.page("fees_memos"))
-        self.assertRegex(text, r'<span class="status status-[a-z-]+"><span class="status-sq" aria-hidden="true"></span>[A-Z]')
+        self.assertRegex(text, r'<span class="status status-[a-z-]+" title="[A-Za-z ()]+"><span class="status-sq" aria-hidden="true"></span><span class="status-word visually-hidden">[A-Z]')
+
+    def test_status_words_show_when_markers_are_off(self):
+        FeesSettings.objects.update_or_create(profile=self.profile, defaults={"show_status_dots": False})
+        text = self.html(self.page("fees_memos"))
+        self.assertRegex(text, r'<span class="status status-[a-z-]+"><span class="status-word">[A-Z]')
+        self.assertNotIn("visually-hidden\">Paid", text)
 
     def test_drafts_page(self):
         text = self.assert_page(self.page("fees_memo_drafts"), "drafts")
@@ -397,7 +403,7 @@ class FeebookAndPaymentTests(UiPageBase):
 
     def test_feebook_unaccounted_has_words_and_a_marker(self):
         text = self.html(self.page("fees_feebook", query="?unaccounted=1"))
-        self.assertIn('status-unaccounted"><span class="status-sq" aria-hidden="true"></span>Unaccounted', text)
+        self.assertIn('status-unaccounted" title="Unaccounted"><span class="status-sq" aria-hidden="true"></span><span class="status-word visually-hidden">Unaccounted</span>', text)
 
     def test_feebook_hides_edit_controls_from_a_reader(self):
         text = self.html(self.page("fees_feebook"))
@@ -416,7 +422,8 @@ class FeebookAndPaymentTests(UiPageBase):
         """The Attach form lives in a "..." overlay menu, not inline, so the row is no taller than the others."""
         text = self.html(self.page("fees_feebook", user=self.editor, query="?unaccounted=1"))
         self.assertIn('class="col-menu row-menu"', text)
-        self.assertIn('title="Attach to a memo"', text)
+        self.assertIn('title="More actions"', text)
+        self.assertIn('aria-label="More actions: attach payment of ', text)
         self.assertIn('aria-label="Edit payment of ', text)
         self.assertIn("/assign/", text)
         self.assertNotIn('class="inline"', text.split("<tbody>", 1)[-1].split("</tbody>", 1)[0])
@@ -546,7 +553,7 @@ class OutstandingScreenTests(UiPageBase):
         self.assertIn("Subtotal, ", text)
         self.assertIn("Grand total due", text)
         self.assertIn('class="crumb-row"', text)
-        self.assertRegex(text, r'<span class="status status-(unpaid|partial|overdue)"><span class="status-sq" aria-hidden="true"></span>')
+        self.assertRegex(text, r'<span class="status status-(unpaid|partial|overdue)" title="[A-Za-z ()]+"><span class="status-sq" aria-hidden="true"></span><span class="status-word visually-hidden">')
         self.assert_no_unlabelled_controls(text, "detail")
 
     def test_detail_defaults_to_the_flat_list_for_all_firms(self):
