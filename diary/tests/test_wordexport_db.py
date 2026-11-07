@@ -445,33 +445,43 @@ class SettingsTests(ExportCase):
         self.assertEqual(resp.status_code, 200)
         self.assertFalse(UserSettings.objects.filter(user=self.editor, export_date_format="MM/DD/YY").exists())
 
-    def test_the_date_choice_and_file_name_are_on_the_export_page_not_settings(self):
-        # Round 18 (D97): both moved from Settings to the Export page.
+    def test_the_date_choice_is_on_my_settings_and_the_file_name_on_the_diary_settings(self):
+        # One place each: my date format on My settings (only me), the profile's file name on Case Law Diary settings
+        # (Data section; Editors change it). The Export page has neither form.
         body = self.login(self.reader).get(reverse("export")).content.decode()
-        self.assertIn("Date in Word file names", body)
-        self.assertIn('name="export_name"', body)
-        self.assertIn('name="export_date_format"', body)
-        settings_page = self.login(self.reader).get(reverse("my_settings")).content.decode()
-        self.assertNotIn("Date in Word file names", settings_page)
-        self.assertNotIn('name="export_name"', settings_page)
+        self.assertNotIn('name="export_name"', body)
+        self.assertNotIn('name="export_date_format"', body)
+        mine = self.login(self.reader).get(reverse("my_settings")).content.decode()
+        self.assertIn("Date in Word file names", mine)
+        self.assertIn('name="export_date_format"', mine)
+        self.assertNotIn('name="export_name"', mine)
+        reader_page = self.login(self.reader).get(reverse("profile_settings") + "?tab=data").content.decode()
+        self.assertNotIn('name="export_name"', reader_page)
+        editor_page = self.login(self.editor).get(reverse("profile_settings") + "?tab=data").content.decode()
+        self.assertIn('name="export_name"', editor_page)
 
-    def test_a_reader_can_change_the_export_file_name_and_their_date_format(self):
+    def test_a_reader_cannot_change_the_export_file_name(self):
         client = self.login(self.reader)
-        resp = client.post(reverse("export_settings"), {"export_name": "  A:B  ", "export_date_format": "DD-MM-YYYY"})
-        self.assertRedirects(resp, reverse("export"))
+        resp = client.post(reverse("export_settings"), {"export_name": "A:B"})
+        self.assertEqual(resp.status_code, 403)
+        self.profile.refresh_from_db()
+        self.assertEqual(self.profile.export_name, "")
+
+    def test_an_editor_changes_the_file_name_and_it_shows_on_the_data_section(self):
+        client = self.login(self.editor)
+        resp = client.post(reverse("export_settings"), {"export_name": "  A:B  "})
+        self.assertRedirects(resp, reverse("profile_settings") + "?tab=data")
         self.profile.refresh_from_db()
         self.assertEqual(self.profile.export_name, "A:B")
-        self.assertEqual(UserSettings.objects.get(user=self.reader).export_date_format, "DD-MM-YYYY")
-        self.assertFalse(UserSettings.objects.filter(user=self.editor, export_date_format="DD-MM-YYYY").exists())
-        body = client.get(reverse("export")).content.decode()
+        body = client.get(reverse("profile_settings") + "?tab=data").content.decode()
         self.assertIn("A-B", body)
         self.assertIn("&#x27;:&#x27; was replaced with &#x27;-&#x27;", body)
 
-    def test_export_settings_keep_the_view_and_refuse_junk(self):
+    def test_export_settings_accepts_an_older_post_with_the_date_and_refuses_junk(self):
         client = self.login(self.editor)
-        resp = client.post(reverse("export_settings"), {"export_name": "", "export_date_format": "DD-MM-YYYY",
-                                                        "kind": "topic", "pk": self.topic.pk})
-        self.assertRedirects(resp, f"{reverse('export')}?kind=topic&pk={self.topic.pk}", fetch_redirect_response=False)
+        resp = client.post(reverse("export_settings"), {"export_name": "", "export_date_format": "DD-MM-YYYY"})
+        self.assertRedirects(resp, reverse("profile_settings") + "?tab=data", fetch_redirect_response=False)
+        self.assertEqual(UserSettings.objects.get(user=self.editor).export_date_format, "DD-MM-YYYY")
         bad = client.post(reverse("export_settings"), {"export_name": "X", "export_date_format": "MM/DD/YY"})
         self.assertEqual(bad.status_code, 200)
         self.profile.refresh_from_db()

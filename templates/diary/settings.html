@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Settings - {{ program_label }}{% endblock %}
+{% block content %}
+<div class="home-column">
+<h1>{{ diary_name }} settings</h1>
+<p class="setting-help">These are shared by everyone using the profile <strong>{{ request.profile.name }}</strong>. Your own choices (opening page, number formats, date in file names) are on <a href="{% url 'my_settings' %}?tab=diary">My settings</a>.</p>
+{% if not can_change %}<p class="read-only-note">You can read these settings but not change them. Only the Editors of this profile can.</p>{% endif %}
+<div class="settings-layout" data-settings-sections>
+  <nav class="settings-nav" aria-label="Sections of {{ diary_name }} settings">
+    <a href="?tab=reading" data-section-link="reading"{% if tab == "reading" %} class="on" aria-current="page"{% endif %}>Reading</a>
+    <a href="?tab=data" data-section-link="data"{% if tab == "data" %} class="on" aria-current="page"{% endif %}>Data</a>
+  </nav>
+  <div class="settings-panels">
+
+  <section class="settings-panel-body" data-section="reading" id="section-reading">
+    <h2>Reading</h2>
+    {% if can_change %}
+    <form method="post" action="{% url 'profile_settings' %}" class="stack settings-section-form" data-section-form>
+      {% csrf_token %}
+      <input type="hidden" name="tab" value="reading">
+      {{ reading_form.non_field_errors }}
+      <div class="setting-row">
+        {{ reading_form.display_name.errors }}
+        <label for="{{ reading_form.display_name.id_for_label }}">{{ reading_form.display_name.label }}</label>{% include "_who_tag.html" with who="profile" %}
+        {{ reading_form.display_name }}
+        <span class="setting-help">{{ reading_form.display_name.help_text }}</span>
+      </div>
+      <fieldset class="whole-subject-choice setting-row">
+        <legend>{{ reading_form.view_whole_subject.label }}{% include "_who_tag.html" with who="profile" %}</legend>
+        {{ reading_form.view_whole_subject.errors }}
+        {% for radio in reading_form.view_whole_subject %}<label class="search-check">{{ radio.tag }} {{ radio.choice_label }}</label> {% endfor %}
+        <span class="setting-help">{{ reading_form.view_whole_subject.help_text }}</span>
+      </fieldset>
+      <p class="section-actions"><button type="submit">Save</button> <span class="dirty-note" data-dirty-note hidden>You have unsaved changes.</span></p>
+    </form>
+    {% else %}
+    <div class="setting-row">
+      <span class="setting-label">Display Name</span>{% include "_who_tag.html" with who="profile" %}
+      <p><strong>{% if request.profile.display_name %}{{ request.profile.display_name }}{% else %}(none: the header shows {{ diary_name }} &middot; {{ request.profile.name }}){% endif %}</strong></p>
+      <span class="setting-help">Shown at the top of every page instead of the program name.</span>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">When I click a Subject, open the whole Subject</span>{% include "_who_tag.html" with who="profile" %}
+      <p><strong>{% if whole_subject %}Yes{% else %}No{% endif %}</strong></p>
+      <span class="setting-help">Yes: clicking a Subject opens the whole Subject. No: it opens the Contents page with a "Read Whole Subject" button. Only its Editors can change them.</span>
+    </div>
+    {% endif %}
+  </section>
+
+  <section class="settings-panel-body" data-section="data" id="section-data">
+    <h2>Data</h2>
+    <div class="setting-row">
+      <span class="setting-label">Word export</span>
+      <p><a class="button" href="{% url 'export' %}">Open the Export page</a></p>
+      <span class="setting-help">Download the diary as a Word file, an Offline copy, or one Subject, Topic or Sub-topic.</span>
+    </div>
+    {% if can_change %}
+    <form method="post" action="{% url 'export_settings' %}" class="stack settings-section-form" data-section-form>
+      {% csrf_token %}
+      {{ file_form.non_field_errors }}
+      <div class="setting-row">
+        {{ file_form.export_name.errors }}
+        <label for="{{ file_form.export_name.id_for_label }}">{{ file_form.export_name.label }}</label>{% include "_who_tag.html" with who="profile" %}
+        {{ file_form.export_name }}
+        <span class="setting-help">{{ file_form.export_name.help_text }}</span>
+        <span class="setting-help">Files will start with: <strong>{{ file_preview }}</strong>{% for note in file_replaced %} {{ note }}{% endfor %}</span>
+      </div>
+      <p class="section-actions"><button type="submit">Save</button> <span class="dirty-note" data-dirty-note hidden>You have unsaved changes.</span></p>
+    </form>
+    {% else %}
+    <div class="setting-row">
+      <span class="setting-label">Export file name</span>{% include "_who_tag.html" with who="profile" %}
+      <p>Files start with: <strong>{{ file_preview }}</strong></p>
+      <span class="setting-help">The start of every exported file name, for everyone using this profile.</span>
+    </div>
+    {% endif %}
+    {% if user.is_admin %}
+    <div class="setting-row">
+      <span class="setting-label">Word import</span>{% include "_who_tag.html" with who="all" %}
+      <p><a class="button" href="{% url 'import_word' %}">Import from Word</a></p>
+      <span class="setting-help">Admin only: a supervised dry run of the Word file against a profile.</span>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Offline link</span>{% include "_who_tag.html" with who="profile" %}
+      <p><a class="button" href="{% url 'offline_link_admin' request.profile.pk %}">Manage the Offline link</a></p>
+      <span class="setting-help">Admin only: a secret address to download an Offline copy of this profile without signing in.</span>
+    </div>
+    {% endif %}
+  </section>
+
+  </div>
+</div>
+</div>
+{% endblock %}
+{% block extra_js %}<script src="{% static 'js/settings-sections.js' %}"></script>{% endblock %}

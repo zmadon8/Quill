@@ -43,22 +43,22 @@ class DisplayNameTests(BaseCase):
         self.set_name("Mine")
         self.assertContains(self.client.get(reverse("home") + "?home=1"), 'class="program-link" href="/caselaw/subjects/">Mine</a>')
 
-    # Round 18 (D96): the Display Name is on Settings > General > Display (fields prefixed "diary-").
+    # The Display Name is on Case Law Diary settings > Reading (fields prefixed "diary-").
     def display(self, data=None):
         if data is None:
-            return self.client.get(reverse("my_settings") + "?tab=display")
+            return self.client.get(reverse("profile_settings") + "?tab=reading")
         # Round 19: the Display tab's required Yes/No toggle must be posted too, or the profile form fails validation
         # and the Display Name is not saved. Keeping reading_all_mode on "remember" means the toggle does not change
         # the stored mode, so these Display Name assertions are unaffected.
         return self.client.post(
-            reverse("my_settings"),
-            {"tab": "display", "diary-reading_all_mode": "remember", "diary-view_whole_subject": "no", **data},
+            reverse("profile_settings"),
+            {"tab": "reading", "diary-reading_all_mode": "remember", "diary-view_whole_subject": "no", **data},
         )
 
     def test_editor_sets_it_trimmed_and_clearing_falls_back(self):
         self.client.force_login(self.admin)  # Editor of Main
         resp = self.display({"diary-display_name": "  Madon's   Cases "})
-        self.assertRedirects(resp, reverse("my_settings") + "?tab=display")
+        self.assertRedirects(resp, reverse("profile_settings") + "?tab=reading")
         self.assertEqual(self.main().display_name, "Madon's Cases")
         self.assertEqual(self.main().export_name, "")  # export_name is unchanged
         self.display({"diary-display_name": ""})
@@ -76,7 +76,7 @@ class DisplayNameTests(BaseCase):
         self.set_name("Mine")
         self.client.force_login(self.user)
         resp = self.display()
-        self.assertContains(resp, "Display Name: <strong>Mine</strong>")
+        self.assertContains(resp, "<strong>Mine</strong>")
         self.assertNotContains(resp, 'name="diary-display_name"')
         self.display({"diary-display_name": "Hacked"})
         self.assertEqual(self.main().display_name, "Mine")

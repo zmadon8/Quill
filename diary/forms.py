@@ -77,15 +77,16 @@ class ProfileSettingsForm(forms.ModelForm):
 
 
 class ExportSettingsForm(forms.Form):
-    """The Export page's file settings (round 18, D97). The file name belongs to the profile and anyone in it (Readers
-    too) may change it; the date format is the user's own."""
+    """The export file name (Case Law Diary settings > Data). The file name belongs to the profile and only its Editors
+    change it. The date format is the user's own and is set on My settings; this form still accepts it (blank leaves it
+    as it is) so an older client that posts both keeps working."""
 
     export_name = forms.CharField(
         max_length=Profile._meta.get_field("export_name").max_length, required=False, label="Export file name",
         help_text="The start of every exported file name, for everyone using this profile. Leave blank for the default.",
     )
     export_date_format = forms.ChoiceField(
-        choices=DATE_FORMAT_CHOICES, label="Date in Word file names",
+        choices=DATE_FORMAT_CHOICES, label="Date in Word file names", required=False,
         help_text="Your own choice: the date at the end of the file names you export, and on the front page. "
                   "The time zone is India (Asia/Kolkata, IST).",
     )
@@ -105,9 +106,12 @@ class ExportSettingsForm(forms.Form):
         if self.profile.export_name != self.cleaned_data["export_name"]:
             self.profile.export_name = self.cleaned_data["export_name"]
             self.profile.save(update_fields=["export_name", "updated_at"])
+        chosen = self.cleaned_data.get("export_date_format")
+        if not chosen:
+            return
         row = UserSettings.objects.get_or_create(user=self.user)[0]
-        if row.export_date_format != self.cleaned_data["export_date_format"]:
-            row.export_date_format = self.cleaned_data["export_date_format"]
+        if row.export_date_format != chosen:
+            row.export_date_format = chosen
             row.save(update_fields=["export_date_format"])
 
 

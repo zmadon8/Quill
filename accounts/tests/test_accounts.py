@@ -1228,36 +1228,44 @@ class ExportNameTests(BaseCase):
         profile.export_name = "  . "  # nothing usable is left, so the profile's own name is used
         self.assertEqual(export_file_name(profile), "Main")
 
-    # Round 18 (D96/D97): the export file name is on the Export page (anyone in the profile may change it); the
-    # Display Name and the Contents settings are on Settings > General > Display (Editors change them).
+    # The export file name, the Display Name and the Contents settings are program settings: Case Law Diary settings
+    # (Reading and Data sections). Editors change them; Readers see them read-only.
     def display(self, data=None):
-        url = reverse("my_settings") + "?tab=display"
+        url = reverse("profile_settings") + "?tab=reading"
         if data is None:
             return self.client.get(url)
         # Round 19: the Display tab's only reading control is the required Yes/No "open the whole Subject" toggle.
         # reading_all_mode and reading_all_default are no longer form fields, so posting them is harmless extra data
         # that Django ignores; the toggle alone decides the stored reading_all_mode. When a test posts the old
         # reading_all_mode key without a toggle, default the toggle to match it (always_on -> Yes, else No).
-        payload = {"tab": "display", **data}
+        payload = {"tab": "reading", **data}
         if "diary-reading_all_mode" in payload and "diary-view_whole_subject" not in payload:
             payload["diary-view_whole_subject"] = "yes" if payload["diary-reading_all_mode"] == "always_on" else "no"
-        return self.client.post(reverse("my_settings"), payload)
+        return self.client.post(reverse("profile_settings"), payload)
 
     def test_editor_can_change_name(self):
         self.client.force_login(self.admin)  # Editor of Main through the membership
-        resp = self.client.post(reverse("export_settings"), {"export_name": "  My: Diary ", "export_date_format": "YYYY-MM-DD"})
-        self.assertRedirects(resp, reverse("export"))
+        resp = self.client.post(reverse("export_settings"), {"export_name": "  My: Diary "})
+        self.assertRedirects(resp, reverse("profile_settings") + "?tab=data")
         self.assertEqual(Profile.objects.get(pk=self.main().pk).export_name, "My: Diary")
-        self.assertContains(self.client.get(reverse("export")), "My- Diary")  # the preview shows the hyphen
+        self.assertContains(self.client.get(reverse("profile_settings") + "?tab=data"), "My- Diary")  # the preview shows the hyphen
 
-    def test_reader_can_change_the_export_name_too(self):
+    def test_reader_cannot_change_the_export_name(self):
         self.client.force_login(self.user)
-        self.client.post(reverse("export_settings"), {"export_name": "Shared", "export_date_format": "YYYY-MM-DD"})
-        self.assertEqual(self.main().export_name, "Shared")
+        resp = self.client.post(reverse("export_settings"), {"export_name": "Shared"})
+        self.assertEqual(resp.status_code, 403)
+        self.assertEqual(self.main().export_name, "")
 
-    def test_old_diary_settings_address_opens_display(self):
-        self.client.force_login(self.user)
-        self.assertRedirects(self.client.get(reverse("profile_settings")), reverse("my_settings") + "?tab=display")
+    def test_the_diary_settings_tab_has_reading_and_data_sections(self):
+        self.client.force_login(self.user)  # a Reader sees the values but no Save button
+        resp = self.client.get(reverse("profile_settings"))
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        for key in ("reading", "data"):
+            self.assertIn('data-section="%s"' % key, html)
+        self.assertNotIn(">Save</button>", html)
+        self.assertIn("Only you", self.client.get(reverse("my_settings") + "?tab=diary").content.decode())
+        self.assertIn("Everyone in this profile", html)
 
     def test_display_form_no_longer_offers_remember_or_all_default(self):
         # Round 19 (user item 4): the Yes/No toggle is the only reading control. The advanced "remember" select and
@@ -1293,12 +1301,12 @@ class ExportNameTests(BaseCase):
         # reading_all_mode. Yes -> always_on (clicking a Subject opens the whole Subject); No -> always_off (the
         # scoped Contents page with a "Read Whole Subject" button). There is no longer a way to choose remember.
         self.client.force_login(self.admin)  # Editor of Main
-        resp = self.client.post(reverse("my_settings"), {
-            "tab": "display", "diary-view_whole_subject": "yes"})
-        self.assertRedirects(resp, reverse("my_settings") + "?tab=display")
+        resp = self.client.post(reverse("profile_settings"), {
+            "tab": "reading", "diary-view_whole_subject": "yes"})
+        self.assertRedirects(resp, reverse("profile_settings") + "?tab=reading")
         self.assertEqual(Profile.objects.get(pk=self.main().pk).reading_all_mode, "always_on")
-        self.client.post(reverse("my_settings"), {
-            "tab": "display", "diary-view_whole_subject": "no"})
+        self.client.post(reverse("profile_settings"), {
+            "tab": "reading", "diary-view_whole_subject": "no"})
         self.assertEqual(Profile.objects.get(pk=self.main().pk).reading_all_mode, "always_off")
 
     def test_toggle_maps_a_pre_existing_remember_profile_on_save(self):
@@ -1306,7 +1314,7 @@ class ExportNameTests(BaseCase):
         # always_on/always_off on its next save: the toggle wins, remember can never be kept through the form.
         Profile.objects.filter(pk=self.main().pk).update(reading_all_mode="remember")
         self.client.force_login(self.admin)
-        self.client.post(reverse("my_settings"), {"tab": "display", "diary-view_whole_subject": "yes"})
+        self.client.post(reverse("profile_settings"), {"tab": "reading", "diary-view_whole_subject": "yes"})
         self.assertEqual(Profile.objects.get(pk=self.main().pk).reading_all_mode, "always_on")
 
     def test_reader_cannot_change_the_diary_settings(self):

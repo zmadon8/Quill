@@ -1,3 +1,4 @@
+import copy
 import logging
 from functools import wraps
 from urllib.parse import urlencode, urlsplit
@@ -184,11 +185,57 @@ def help_page(request):
     return render(request, "diary/help.html")
 
 
+#: The sections of the Case Law Diary Settings tab, in order.
+SETTINGS_SECTIONS = ("reading", "data")
+
+
 @profile_required
 def profile_settings(request):
-    """The old Settings > Diary tab. Round 18 (D96): its settings are on Settings > Display (the export file
-    name is on the Export page), so the old address opens Display."""
-    return redirect(reverse("my_settings") + "?tab=display")
+    """The Case Law Diary Settings tab: what everyone using this profile shares, in left-hand sections with a Save each.
+
+    Reading (Display Name, whether a click on a Subject opens the whole Subject: per profile) and Data (Word import for
+    the Admin, the Word export file name, the Offline link for the Admin). Editors and Admins change them; Readers see
+    the values with no Save buttons and a POST from a Reader is refused (403). Personal choices (opening page, number
+    formats, date in file names) are on My settings.
+    """
+    from .forms import ExportSettingsForm, ProfileSettingsForm  # lazy: keeps this module's import light
+
+    can_change = user_can_edit(request)
+    tab = request.POST.get("tab") or request.GET.get("tab") or "reading"
+    if tab not in SETTINGS_SECTIONS:
+        tab = "reading"
+    reading_form = None
+    export_form = None
+    if request.method == "POST":
+        if not can_change:
+            return render(request, "403.html", status=403)
+        # A copy, so an invalid POST does not change the header of the page shown with the errors. (The export file
+        # name has its own Save, which posts to ``export_settings``.)
+        tab = "reading"
+        reading_form = ProfileSettingsForm(request.POST, instance=copy.copy(request.profile), prefix="diary")
+        if reading_form.is_valid():
+            reading_form.save()
+            messages.success(request, "Settings saved.")
+            return redirect(reverse("profile_settings") + "?tab=reading")
+    if can_change:
+        reading_form = reading_form or ProfileSettingsForm(instance=copy.copy(request.profile), prefix="diary")
+        export_form = ExportSettingsForm(user=request.user, profile=request.profile)
+    return render_settings_page(request, tab, can_change, reading_form, export_form)
+
+
+def render_settings_page(request, tab, can_change, reading_form, export_form):
+    """The page shared by the Settings tab and an invalid export file name save."""
+    from .views_export import _file_settings  # lazy: views_export imports this module
+
+    profile = request.profile
+    mode = profile.reading_all_mode
+    whole = mode == Profile.READING_ALL_ALWAYS_ON or (
+        mode not in (Profile.READING_ALL_ALWAYS_ON, Profile.READING_ALL_ALWAYS_OFF) and profile.reading_all_default
+    )
+    return render(request, "diary/settings.html", {
+        "tab": tab, "can_change": can_change, "reading_form": reading_form, "whole_subject": whole,
+        "sections": SETTINGS_SECTIONS, **_file_settings(request, export_form),
+    })
 
 
 @profile_required
