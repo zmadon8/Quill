@@ -7,7 +7,7 @@
   <p>{{ error.message }} Nothing was saved. The version you opened was {{ error.expected_version }}; the current version is {{ error.current_version }}.</p>
   <p>Choose what to do. Nothing you typed is lost: it is shown here and kept by the first and third choices.</p>
 
-  <table class="conflict-table">
+  <table class="conflict-table" data-table-id="edit-conflict">
     <thead><tr><th scope="col">Field</th><th scope="col">Mine (what you tried to save)</th><th scope="col">Theirs (saved now)</th></tr></thead>
     <tbody>
     {% for label, mine, theirs, differs in rows %}

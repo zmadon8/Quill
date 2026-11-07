@@ -5,7 +5,7 @@
   <h1>History of the {{ kind_name }} &ldquo;{{ title }}&rdquo;</h1>
   <p><a href="{{ back }}">Back</a>{% if in_trash %} &middot; This record is in the Trash.{% endif %}{% if gone %} &middot; This record was deleted permanently; its history is kept.{% endif %}</p>
   <p class="history-note">Edit history is kept for {{ history_days }} days. The newest version of every record is always kept.</p>
-  <table class="history-table">
+  <table class="history-table" data-table-id="diary-history">
     <thead><tr><th scope="col">Version</th><th scope="col">What happened</th><th scope="col">Time (IST)</th><th scope="col">By</th><th scope="col"><span class="visually-hidden">Open</span></th></tr></thead>
     <tbody>
     {% for e in entries %}

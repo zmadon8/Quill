@@ -275,9 +275,16 @@ button.program-link { width: 100%; text-align: left; background: none; cursor: p
 .reader-layout--page .reading { order: -1; }
 .reader-layout--page .reading h1 { margin-bottom: 1rem; }
 
-/* Resizable table columns (static/js/resizable-columns.js) */
-table[data-resizable-columns].resized { table-layout: fixed; width: auto; }
-table[data-resizable-columns] th { position: relative; overflow-wrap: anywhere; }
+/* Resizable table columns: one shared component for the whole suite (static/js/resizable-columns.js). */
+table[data-table-id].fixed-cols, table[data-resizable-columns].fixed-cols { table-layout: fixed; max-width: none; }
+table[data-table-id].fixed-cols :is(td, th), table[data-resizable-columns].fixed-cols :is(td, th) { overflow-wrap: anywhere; }
+table[data-table-id] th, table[data-resizable-columns] th, table[data-table-id]:not(:has(thead)) tr:first-child > td { position: relative; overflow-wrap: anywhere; }
+table col.col-hidden { display: none; }
+/* Sortable headings (Admin > Users and Profiles): a link in the heading, with an arrow for the current sort. */
+th[aria-sort] a.sort-link { color: inherit; text-decoration: none; display: inline-block; padding-right: .75rem; }
+th[aria-sort] a.sort-link:hover, th[aria-sort] a.sort-link:focus-visible { text-decoration: underline; }
+th[aria-sort="ascending"] a.sort-link::after { content: " \25B2"; font-size: .7em; }
+th[aria-sort="descending"] a.sort-link::after { content: " \25BC"; font-size: .7em; }
 .col-resizer { position: absolute; top: 0; right: 0; width: 14px; height: 100%; cursor: col-resize; touch-action: none; }
 .col-resizer::after { content: ""; position: absolute; top: 20%; bottom: 20%; right: 6px; border-right: 1px solid var(--muted); }
 .col-resizer:hover::after, .col-resizer:focus-visible::after { border-right: 3px solid var(--focus); right: 5px; }

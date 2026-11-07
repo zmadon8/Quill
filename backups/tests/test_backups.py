@@ -701,8 +701,8 @@ class ViewTests(BackupBase):
         self.login_admin()
         self.client.post(reverse("backup_now"))
         page = self.client.get(reverse("backup_list"))
-        self.assertContains(page, 'data-resizable-columns="backups-list"')
-        self.assertContains(page, 'data-resizable-columns="backups-log"')
+        self.assertContains(page, 'data-table-id="backups-list"')
+        self.assertContains(page, 'data-table-id="backups-log"')
         self.assertContains(page, "js/resizable-columns.js")
 
     def test_list_and_backup_now(self):

@@ -5,7 +5,7 @@
 <p>Profile: <strong>{{ target.name }}</strong></p>
 <p>This permanently deletes every diary record in this profile, including records in the Trash, imported records and the version history. The profile itself, its name, its export name and its users stay. A full backup (Before clearing profile) is taken first; if it fails nothing is deleted. Use this to empty a profile before restoring from a Word file.</p>
 <div class="table-wrap">
-<table>
+<table data-table-id="profile-clear-preview">
   <thead><tr><th>Record type</th><th>Rows that would be deleted</th></tr></thead>
   <tbody>
   {% for name, number in rows %}

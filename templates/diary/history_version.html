@@ -5,7 +5,7 @@
   <h1>{{ kind_name }}, version {{ version }}</h1>
   <p><a href="{% url 'history' kind pk %}?next={{ back|urlencode }}">Back to the history</a></p>
   <p>{{ change }} on {{ when|date:"j M Y, H:i" }} IST by {{ who }}.{% if current_version == version %} This is the current version.{% endif %}</p>
-  <table class="history-table snapshot">
+  <table class="history-table snapshot" data-table-id="history-version">
     <tbody>
     {% for f in fields %}
       <tr{% if f.differs %} class="differs"{% endif %}><th scope="row">{{ f.name|capfirst }}{% if f.differs %} (differs from now){% endif %}</th><td>{{ f.value|linebreaksbr }}</td></tr>

@@ -6,16 +6,15 @@
   // heading) is added above the table. Choices are remembered in this browser (localStorage "quill.fees.hide.<key>").
   // A heading with data-col-fixed stays visible and is not offered. Cells that span columns (colspan) shrink to fit.
   //
-  // Resize: a table with data-table-id="<stable-id>" gets a drag handle on the right edge of every heading (pointer events,
-  // minimum 40px, double-click a handle to reset that column). Widths are keyed by column (data-col on the heading, or a
-  // slug of its text) so hidden columns never shift them. They are loaded from the page (the JSON in #fees-col-widths, from
-  // the server preferences), saved with a debounced POST to the prefs endpoint, and kept in localStorage
-  // ("quill.fees.widths.<id>") if that POST fails. "Reset Columns & Widths" at the bottom of the Columns menu clears both.
+  // Resize: the drag handles, minimum and maximum widths and double-click reset live in the shared component
+  // static/js/resizable-columns.js (QuillColumns.attach), used by the whole suite. This file gives it a store for tables with a
+  // data-table-id: widths are loaded from the page (the JSON in #fees-col-widths, from the server preferences), saved with a
+  // debounced POST to the prefs endpoint, and kept in localStorage ("quill.fees.widths.<id>") if that POST fails. Widths are
+  // keyed by column (data-col on the heading, or a slug of its text) so hidden columns never shift them.
+  // "Reset Columns & Widths" at the bottom of the Columns menu clears both.
   // Without JavaScript every column shows at its natural width.
   var PREFIX = "quill.fees.hide.";
   var WIDTHS = "quill.fees.widths.";
-  var MIN = 40;
-  var MAX = 1200;
   var script = document.currentScript;
   var prefsUrl = (script && script.getAttribute("data-prefs-url")) || "";
 
@@ -80,24 +79,11 @@
     }, 400);
   }
 
-  function slug(text, i) {
-    var s = (text || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 30);
-    return s ? s : "c" + i;
-  }
-
   function init(table) {
     var id = table.getAttribute("data-table-id");
     var key = table.getAttribute("data-fees-columns");
     var heads = Array.prototype.slice.call(table.querySelectorAll("thead tr:first-child th"));
-    if ((!key && !id) || heads.length < 2) { return; }
-
-    // Column keys: data-col, else a slug of the heading text (made unique).
-    var keys = [];
-    heads.forEach(function (th, i) {
-      var k = th.getAttribute("data-col") || slug(th.textContent, i);
-      while (keys.indexOf(k) !== -1) { k = k + "-" + i; }
-      keys.push(k);
-    });
+    if ((!key && !id) || (key && heads.length < 2)) { return; }
 
     var hidden = key
       ? read(key).filter(function (i) { return typeof i === "number" && i >= 0 && i < heads.length && !heads[i].hasAttribute("data-col-fixed"); })
@@ -115,16 +101,16 @@
       });
     });
 
-    // Resizing needs a one-to-one heading row, a <colgroup> and a stable id.
-    var headSpans = heads.every(function (th) { return (parseInt(th.getAttribute("colspan"), 10) || 1) === 1; });
-    var resizable = !!id && headSpans && /^[a-z0-9][a-z0-9_-]{0,39}$/.test(id);
-    var cols = [];
-    var widths = resizable ? readWidths(id) : {};
-    if (resizable) {
-      var group = document.createElement("colgroup");
-      heads.forEach(function () { var c = document.createElement("col"); group.appendChild(c); cols.push(c); });
-      table.insertBefore(group, table.firstChild);
-    }
+    // Resizing (shared component): needs a one-to-one heading row and a stable id; it returns null otherwise.
+    var sizer = id && window.QuillColumns ? window.QuillColumns.attach(table, {
+      id: id,
+      hidden: function () { return hidden; },
+      store: {
+        read: function (tid) { return readWidths(tid); },
+        write: function (tid, widths) { saveWidths(tid, widths); }
+      }
+    }) : null;
+    function layout() { if (sizer) { sizer.layout(); } }
 
     function apply() {
       cells.forEach(function (c) {
@@ -132,104 +118,6 @@
         for (var i = c.from; i < c.to; i++) { if (hidden.indexOf(i) === -1) { visible++; } }
         c.cell.classList.toggle("col-hidden", visible === 0);
         if (c.span > 1 && visible > 0) { c.cell.setAttribute("colspan", String(visible)); }
-      });
-      cols.forEach(function (c, i) { c.classList.toggle("col-hidden", hidden.indexOf(i) !== -1); });
-    }
-
-    function clamp(n) { return Math.max(MIN, Math.min(MAX, Math.round(n))); }
-
-    // Natural (auto layout) widths of the visible columns, measured with any custom widths set aside.
-    function natural() {
-      var width = table.style.width;
-      var saved = cols.map(function (c) { return c.style.width; });
-      table.classList.remove("fixed-cols");
-      table.style.width = "";
-      cols.forEach(function (c) { c.style.width = ""; });
-      var out = heads.map(function (th) { return th.offsetWidth; });
-      cols.forEach(function (c, i) { c.style.width = saved[i]; });
-      table.style.width = width;
-      return out;
-    }
-
-    // Puts the custom widths on the <col> elements; columns without one keep their measured natural width.
-    function layout() {
-      var set = Object.keys(widths).some(function (k) { return keys.indexOf(k) !== -1; });
-      if (!set) {
-        table.classList.remove("fixed-cols");
-        table.style.width = "";
-        cols.forEach(function (c) { c.style.width = ""; });
-        return;
-      }
-      var base = natural();
-      var total = 0;
-      cols.forEach(function (c, i) {
-        var w = typeof widths[keys[i]] === "number" ? clamp(widths[keys[i]]) : base[i];
-        c.style.width = w + "px";
-        if (hidden.indexOf(i) === -1) { total += w; }
-      });
-      table.style.width = total + "px";
-      table.classList.add("fixed-cols");
-    }
-
-    function current() {
-      var out = {};
-      Object.keys(widths).forEach(function (k) { if (keys.indexOf(k) !== -1) { out[k] = widths[k]; } });
-      return out;
-    }
-
-    function resetWidths() {
-      widths = {};
-      layout();
-      saveWidths(id, {});
-    }
-
-    if (resizable) {
-      heads.forEach(function (th, i) {
-        // data-col-fixed only keeps a column out of the Columns menu; every column can still be resized.
-        var grip = document.createElement("span");
-        grip.className = "col-resizer";
-        grip.setAttribute("aria-hidden", "true");
-        grip.title = "Drag to resize, double-click to reset";
-        grip.addEventListener("pointerdown", function (e) {
-          if (e.button !== undefined && e.button !== 0) { return; }
-          e.preventDefault();
-          e.stopPropagation();
-          var base = natural();
-          cols.forEach(function (c, n) {
-            var k = keys[n];
-            if (hidden.indexOf(n) === -1 && typeof widths[k] !== "number") { widths[k] = clamp(base[n]); }
-          });
-          layout();
-          var startX = e.clientX;
-          var startW = widths[keys[i]];
-          try { grip.setPointerCapture(e.pointerId); } catch (err) { /* older browsers */ }
-          grip.classList.add("active");
-          function move(ev) {
-            widths[keys[i]] = clamp(startW + ev.clientX - startX);
-            layout();
-          }
-          function up() {
-            grip.classList.remove("active");
-            grip.removeEventListener("pointermove", move);
-            grip.removeEventListener("pointerup", up);
-            grip.removeEventListener("pointercancel", up);
-            saveWidths(id, current());
-          }
-          grip.addEventListener("pointermove", move);
-          grip.addEventListener("pointerup", up);
-          grip.addEventListener("pointercancel", up);
-        });
-        grip.addEventListener("click", function (e) { e.stopPropagation(); });
-        grip.addEventListener("dblclick", function (e) {
-          e.preventDefault();
-          e.stopPropagation();
-          // Other columns keep their width; this one goes back to its natural width.
-          widths = current();
-          delete widths[keys[i]];
-          layout();
-          saveWidths(id, current());
-        });
-        th.appendChild(grip);
       });
     }
 
@@ -295,7 +183,7 @@
         write(key, hidden);
         boxes.forEach(function (b) { b.checked = true; });
         apply();
-        if (resizable) { resetWidths(); }
+        if (sizer) { sizer.resetWidths(); }
       });
       list.appendChild(reset);
       menu.appendChild(list);

@@ -1,0 +1,2 @@
+{# Sortable column headings: each is a plain link (?sort=key, then ?sort=-key), so sorting works without JavaScript. #}
+{% for h in sort_headers %}<th scope="col" aria-sort="{{ h.aria }}"><a class="sort-link" href="{{ h.url }}">{{ h.label }}</a></th>{% endfor %}

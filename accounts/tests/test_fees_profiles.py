@@ -32,7 +32,7 @@ class FeesProfileAdminTests(TestCase):
         self.assertEqual(profile.program, KEY_FEES)
         page = self.client.get(reverse("profile_list"))
         self.assertContains(page, "Chambers")
-        self.assertContains(page, "<th>Program</th>")
+        self.assertContains(page, "?sort=program\">Program</a></th>")
 
     def test_create_defaults_to_the_diary_without_a_program(self):
         self.client.post(reverse("profile_create"), {"program": KEY_DIARY, "name": "Other", "display_name": ""})

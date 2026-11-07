@@ -5,8 +5,8 @@
 <p>A profile is a separate data space inside {{ diary_name }}. A user may have several profiles, with a role in each (set on the Users tab).</p>
 <p><a class="button" href="{% url 'profile_create' %}">New Profile</a></p>
 <div class="table-wrap">
-<table>
-  <thead><tr><th>Name</th>{% if show_program %}<th>Program</th>{% endif %}<th>Display Name</th><th>Users</th><th>Subjects</th><th></th></tr></thead>
+<table data-table-id="admin-profiles">
+  <thead><tr>{% include "accounts/_sort_headers.html" %}<th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
   <tbody>
   {% for p in profiles %}
     <tr>
@@ -28,7 +28,7 @@
 <p>A deleted profile can be restored for {{ retention_days }} day{{ retention_days|pluralize }}. After that it is removed for good, with all its data, by the nightly job (and only after a successful backup that day).</p>
 {% if deleted_profiles %}
 <div class="table-wrap">
-<table>
+<table data-table-id="admin-profiles-deleted">
   <thead><tr><th>Name</th><th>Program</th><th>Deleted (IST)</th><th>Deleted by</th><th>Users</th><th>Days left</th><th></th></tr></thead>
   <tbody>
   {% for p in deleted_profiles %}
@@ -57,7 +57,7 @@
 <h2>Permanent removal log</h2>
 {% if purge_logs %}
 <div class="table-wrap">
-<table>
+<table data-table-id="admin-profiles-purge-log">
   <thead><tr><th>Time (IST)</th><th>Result</th><th>Details</th></tr></thead>
   <tbody>
   {% for log in purge_logs %}

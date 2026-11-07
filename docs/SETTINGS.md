@@ -24,7 +24,7 @@ forms and templates (see "How this was checked" at the end). The "Who" column us
 | Date in Word file names | My settings > Case Law Diary |
 | Fee Register Opening page | My settings > Fee Register |
 | Fee Register Items per page | My settings > Fee Register |
-| Fee Register column widths (and hidden columns) | Dragged on the tables themselves |
+| Column widths of every table in the suite (Fee Register tables also keep hidden columns) | Dragged on the tables themselves |
 
 **Decision: the diary number formats stay per user.** They are `diary.UserSettings` fields, one row per user. They are
 shown in one place only, My settings > Case Law Diary, tagged Only you. They follow you into every Case Law Diary
@@ -191,6 +191,15 @@ One row per (profile, user, key), a JSON `data` object. Interface state, not fee
 
 The `settings` key cannot be written through the column-width endpoint (it accepts only `col-widths:` keys).
 
+**Where column widths are stored (every table is resizable).** One shared script, `static/js/resizable-columns.js`, draws the drag handles on every table that has a `data-table-id` (drag, or focus a handle and use the Left and Right arrow keys; double-click returns that column to its natural width). What differs is only where the numbers are kept:
+
+| Part | Stored | Why |
+| --- | --- | --- |
+| Fee Register tables | On the server, per user per profile (`col-widths:<table-id>` above), with `quill.fees.widths.<id>` in the browser as a fallback | The Fee Register is per profile and per user, and you use it from several machines |
+| Home, Settings, Admin (Users, Profiles, Backups), the diary (History, My edits, conflicts, Clear preview) | In this browser only (`quill.cols.<id>` in section 5) | Admin and diary tables are layout preferences of one screen; no server table or migration is needed, and the keys the diary and Backups already used keep working |
+
+Sorting Admin > Users and Profiles is not a stored setting: it is the `?sort=` part of the address (`?sort=name`, `?sort=-name`), so a sorted view can be bookmarked.
+
 ## 5. Settings kept in the browser (localStorage)
 
 Per browser and device, never on the server, never shared. Clearing site data resets them.
@@ -198,7 +207,7 @@ Per browser and device, never on the server, never shared. Clearing site data re
 | Key | Setting | Where you change it | Who |
 | --- | --- | --- | --- |
 | `quill.links` | Links on or off (the chain icon switches citation Links; value `on` or `off`) | Chain icon in the Case Law Diary header | This browser |
-| `quill.cols.<key>` | Widths of resizable diary tables (Reset column widths button) | Drag a column edge | This browser |
+| `quill.cols.<id>` | Column widths of every table outside the Fee Register (Admin Users, Profiles and Backups, the diary's History and the rest; the key is the table's `data-table-id`; a list of pixel widths, one per heading; Reset Column Widths button) | Drag a column edge | This browser |
 | `quill.fees.widths.<id>` | Fee Register column widths, a fallback copy if saving to the server fails | Drag a column edge | This browser |
 | `quill.fees.hide.<key>` | Fee Register hidden columns | Columns menu above a table | This browser |
 | `quill.panelwidth` | Width of the Contents side panel | Drag the panel edge | This browser |

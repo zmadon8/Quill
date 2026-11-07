@@ -261,14 +261,61 @@ def _with_profiles(users):
     return users
 
 
+# Sortable admin tables (owner: sort Users and Profiles by each column). The key is the ?sort= value; a leading "-" means
+# descending. Only keys listed here are honoured; anything else falls back to the default (name, ascending).
+USER_SORTS = {
+    "username": ("Username", lambda u: u.username.lower()),
+    "admin": ("Admin", lambda u: bool(u.is_admin)),
+    "profiles": ("Profiles (role)", lambda u: u.profiles_text.lower()),
+    "active": ("Active", lambda u: bool(u.is_active)),
+    "last_login": ("Last Login", lambda u: u.last_login.timestamp() if u.last_login else float("-inf")),
+}
+USER_DEFAULT_SORT = "username"
+
+
+def _sort_rows(rows, sorts, default, raw, name_key):
+    """Sort ``rows`` by the whitelisted key in ``raw`` ("name" or "-name"). Returns (rows, key, descending).
+
+    Ties always fall back to the name, ascending (the sort is stable, so the descending pass keeps that order).
+    """
+    descending = raw.startswith("-")
+    key = raw[1:] if descending else raw
+    if key not in sorts:
+        key, descending = default, False
+    rows = sorted(rows, key=name_key)
+    rows.sort(key=sorts[key][1], reverse=descending)
+    return rows, key, descending
+
+
+def _sort_headers(sorts, current, descending, base_url, hidden=()):
+    """Header descriptors for the template: label, link (click = ascending, click again = descending), aria-sort."""
+    out = []
+    for key, (label, _fn) in sorts.items():
+        if key in hidden:
+            continue
+        on = key == current
+        target = f"-{key}" if on and not descending else key
+        out.append({
+            "key": key,
+            "label": label,
+            "url": f"{base_url}?sort={target}",
+            "aria": ("descending" if descending else "ascending") if on else "none",
+        })
+    return out
+
+
 @admin_required
 def user_list(request):
     users = _with_profiles(list(user_trash.live_users().order_by("username")))
+    users, sort, descending = _sort_rows(
+        users, USER_SORTS, USER_DEFAULT_SORT, request.GET.get("sort", ""), lambda u: u.username.lower()
+    )
     deleted = _with_profiles(list(user_trash.deleted_users().order_by("-deleted_at", "username")))
     for u in deleted:
         u.days_left = user_trash.days_left(u)
     return render(request, "accounts/user_list.html", {
         "users": users,
+        "sort_headers": _sort_headers(USER_SORTS, sort, descending, reverse("user_list")),
         "deleted_users": deleted,
         "user_retention_days": user_trash.retention_days(),
     })
@@ -356,6 +403,16 @@ def _live_profiles(program=None):
     return Profile.objects.filter(program__in=keys, deleted_at__isnull=True)
 
 
+PROFILE_SORTS = {
+    "name": ("Name", lambda p: p.name.lower()),
+    "program": ("Program", lambda p: p.program_name.lower()),
+    "display_name": ("Display Name", lambda p: (p.display_name or "").lower()),
+    "users": ("Users", lambda p: p.member_count),
+    "subjects": ("Subjects", lambda p: p.subject_count),
+}
+PROFILE_DEFAULT_SORT = "name"
+
+
 @admin_required
 def profile_list(request):
     profiles = list(_live_profiles().order_by("name"))
@@ -363,6 +420,9 @@ def profile_list(request):
     for p in profiles:
         p.member_count, p.subject_count = profile_usage(p)
         p.program_name = names.get(p.program, p.program)
+    profiles, sort, descending = _sort_rows(
+        profiles, PROFILE_SORTS, PROFILE_DEFAULT_SORT, request.GET.get("sort", ""), lambda p: (p.name.lower(), p.pk)
+    )
     deleted = list(
         Profile.objects.filter(program__in=programs.program_keys(), deleted_at__isnull=False)
         .select_related("deleted_by")
@@ -372,12 +432,17 @@ def profile_list(request):
         p.days_left = days_left(p)
         p.member_count, p.subject_count = profile_usage(p)
         p.program_name = names.get(p.program, p.program)
+    show_program = len(programs.enabled_program_keys()) > 1 or any(p.program != suite.KEY_DIARY for p in profiles + deleted)
     return render(
         request,
         "accounts/profile_list.html",
         {
             "profiles": profiles,
-            "show_program": len(programs.enabled_program_keys()) > 1 or any(p.program != suite.KEY_DIARY for p in profiles + deleted),
+            "sort_headers": _sort_headers(
+                PROFILE_SORTS, sort, descending, reverse("profile_list"),
+                hidden=() if show_program else ("program",),
+            ),
+            "show_program": show_program,
             "deleted_profiles": deleted,
             "retention_days": retention_days(),
             "purge_logs": PurgeLog.objects.order_by("-ran_at", "-id")[:10],

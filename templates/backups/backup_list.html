@@ -32,7 +32,7 @@
 <h2>Saved backups</h2>
 {% if backups %}
 <div class="table-wrap">
-<table data-resizable-columns="backups-list">
+<table data-table-id="backups-list">
   <thead><tr><th>Time (IST)</th><th>Kind</th><th>Size</th><th>Records</th><th></th></tr></thead>
   <tbody>
   {% for b in backups %}
@@ -53,7 +53,7 @@
 
 <h2>History (last 30)</h2>
 <div class="table-wrap">
-<table data-resizable-columns="backups-log">
+<table data-table-id="backups-log">
   <thead><tr><th>Time (IST)</th><th>What</th><th>Result</th><th>Details</th></tr></thead>
   <tbody>
   {% for log in logs %}
@@ -106,4 +106,4 @@
 </div>
 </div>
 {% endblock %}
-{% block extra_js %}<script src="{% static 'js/resizable-columns.js' %}"></script><script src="{% static 'js/settings-sections.js' %}"></script>{% endblock %}
+{% block extra_js %}<script src="{% static 'js/settings-sections.js' %}"></script>{% endblock %}
