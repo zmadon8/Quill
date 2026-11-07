@@ -9,7 +9,7 @@ from fees import forms, scope
 from fees.decorators import fees_editor, fees_read_write, fees_reader, handle_fees_errors
 from fees.errors import FeesError
 from fees.pages import json_ok, memo_filters, page_number, render_page
-from fees.services import firms, fy_options, matters, memo_fees, memo_lists, memos, payments, prefs
+from fees.services import filter_options, fy_options, matters, memo_fees, memo_lists, memos, payments, prefs
 from fees.services.fees_in_words import fees_in_words
 from fees.services import settings as settings_service
 from fees.services import word_template
@@ -27,7 +27,8 @@ FORM_FIELDS = (
 
 def _list_page(request, draft_mode, template):
     profile, settings = scope.context(request)
-    filters = memo_filters(request.GET)
+    filters = memo_filters(request.GET, current_financial_year())
+    options = filter_options.memo_options(profile, filters, draft_mode)
     items = memo_lists.list_memos(profile, filters, draft_mode=draft_mode)
     page_items, meta = memo_lists.paginate(
         items, page_number(request.GET), memo_lists.page_size_for(prefs.personal_items_per_page(profile, request.user, settings))
@@ -40,19 +41,22 @@ def _list_page(request, draft_mode, template):
             "meta": meta,
             "totals": memo_lists.footer_totals(items),
             "filters": filters,
-            "firm_choices": firms.list_firms(profile),
+            "firm_choices": options["firms"],
             "fy_options": fy_options.financial_year_options(
-                profile, settings.memos_start_year, filters.get("financial_year")
+                profile, settings.memos_start_year, filters.get("financial_year"), only_years=options["years"]
             ),
             "money_unit": settings.money_unit,
-            "query_string": _without_page(request),
+            "query_string": _without_page(request, filters),
         },
     )
 
 
-def _without_page(request):
+def _without_page(request, filters):
+    """The query string for the pager and the Export link; the financial year shown is carried even when defaulted."""
     query = request.GET.copy()
     query.pop("page", None)
+    if "fy" not in query and filters.get("financial_year"):
+        query["fy"] = filters["financial_year"]
     return query.urlencode()
 
 

@@ -128,11 +128,24 @@ def int_list(value):
     return [n for n in (int_or_none(part) for part in str(value or "").split(",")) if n is not None]
 
 
-def memo_filters(query):
-    """Memo list filters from a query string: ``fy``, ``firm``, ``group``, ``matter``, ``unpaid``."""
+def _year_filter(query, default_year):
+    """The ``fy`` filter: the value given; nothing for an explicit blank (All years); else ``default_year``."""
+    text = (query.get("fy") or "").strip()
+    if text:
+        return text
+    return None if "fy" in query else default_year
+
+
+def memo_filters(query, default_year=None):
+    """Memo list filters from a query string: ``fy``, ``firm``, ``group``, ``matter``, ``unpaid``.
+
+    ``default_year`` (the current financial year on the pages) is used only when ``fy`` is absent altogether; an
+    explicit ``fy=`` (the All years choice) means every year. Exports pass no default.
+    """
     filters = {}
-    if query.get("fy"):
-        filters["financial_year"] = query["fy"].strip()
+    year = _year_filter(query, default_year)
+    if year:
+        filters["financial_year"] = year
     for key, name in (("firm", "firm_id"), ("group", "group_id"), ("matter", "matter_id")):
         number = int_or_none(query.get(key))
         if number is not None:
@@ -142,11 +155,12 @@ def memo_filters(query):
     return filters
 
 
-def feebook_filters(query):
-    """Feebook filters: ``fy``, ``firm``, ``group``, ``bank``, ``unaccounted``."""
+def feebook_filters(query, default_year=None):
+    """Feebook filters: ``fy``, ``firm``, ``group``, ``bank``, ``unaccounted`` (``default_year`` as for the memos)."""
     filters = {}
-    if query.get("fy"):
-        filters["financial_year"] = query["fy"].strip()
+    year = _year_filter(query, default_year)
+    if year:
+        filters["financial_year"] = year
     for key, name in (("firm", "firm_id"), ("group", "group_id"), ("bank", "bank_account_id")):
         number = int_or_none(query.get(key))
         if number is not None:

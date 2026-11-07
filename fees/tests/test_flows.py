@@ -132,7 +132,7 @@ class NumberingFlowTests(FlowBase):
     def test_the_memo_list_shows_the_new_numbers(self):
         self.make_setup()
         self.new_memo("2026-05-01")
-        self.assertContains(self.get("fees_memos"), "2026-27/1")
+        self.assertContains(self.get("fees_memos", query="?fy="), "2026-27/1")
 
 
 class PaymentFlowTests(FlowBase):
@@ -158,7 +158,7 @@ class PaymentFlowTests(FlowBase):
         # Two separate payments, each allocated to this one memo, so both feebook rows are Single.
         self.assertEqual(Payment.objects.filter(profile=self.profile).count(), 2)
         self.assertEqual(Allocation.objects.filter(memo=memo).count(), 2)
-        feebook = self.get("fees_feebook")
+        feebook = self.get("fees_feebook", query="?fy=")
         self.assertContains(feebook, memo.memo_number)
         self.assertContains(feebook, "Single")
         self.assertNotContains(feebook, "Split")
@@ -211,7 +211,7 @@ class PaymentFlowTests(FlowBase):
         self.assertEqual(Payment.objects.filter(profile=self.profile).count(), 1)
         self.assertEqual(Decimal(str(self.detail(first)["amount_paid"])), Decimal("200"))
         self.assertEqual(Decimal(str(self.detail(second)["amount_paid"])), Decimal("300"))
-        self.assertContains(self.get("fees_feebook"), "Multiple")
+        self.assertContains(self.get("fees_feebook", query="?fy="), "Multiple")
 
 
 class LifecycleFlowTests(FlowBase):

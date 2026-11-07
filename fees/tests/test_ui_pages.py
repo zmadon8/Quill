@@ -27,6 +27,9 @@ class UiPageBase(SeededViewsBase):
     def page(self, name, kwargs=None, query="", user=None):
         """GET a page as ``user`` (the Reader by default) and return the response."""
         self.login(user or self.reader)
+        if name in ("fees_memos", "fees_memo_drafts", "fees_feebook") and "fy=" not in query:
+            # These lists open on the current financial year; the seeded rows span two years, so ask for every year.
+            query += ("&" if "?" in query else "?") + "fy="
         return self.client.get(reverse(name, kwargs=kwargs or {}) + query)
 
     def html(self, response):

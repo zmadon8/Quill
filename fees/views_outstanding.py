@@ -7,7 +7,7 @@ from django.views.decorators.http import require_safe
 from fees import scope
 from fees.decorators import fees_reader, handle_fees_errors
 from fees.pages import outstanding_filters, render_page
-from fees.services import outstanding
+from fees.services import filter_options, outstanding
 
 
 VIEWS = ("grouped", "summary", "flat")
@@ -89,7 +89,7 @@ def outstanding_detail(request):
             "memo_count": sum(len(g["entries"]) for g in groups),
             "grand_total": outstanding.outstanding_grand_total(groups),
             "filters": filters,
-            "choices": _scope_choices(profile, filters),
+            "choices": filter_options.narrow_outstanding_choices(profile, _scope_choices(profile, filters), filters),
             "money_unit": settings.money_unit,
             "query_string": urlencode(export_query),
         },

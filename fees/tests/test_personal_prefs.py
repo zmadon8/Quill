@@ -67,10 +67,10 @@ class PersonalViewsTests(SeededViewsBase):
     def test_memo_list_page_size_is_mine(self):
         prefs.set_personal(self.profile, self.editor, {"items_per_page": 1})
         self.login(self.editor)
-        mine = len(self.client.get(reverse("fees_memos")).context["items"])
+        mine = len(self.client.get(reverse("fees_memos"), {"fy": ""}).context["items"])
         self.assertEqual(mine, 1)
         self.login(self.reader)
-        theirs = len(self.client.get(reverse("fees_memos")).context["items"])
+        theirs = len(self.client.get(reverse("fees_memos"), {"fy": ""}).context["items"])
         self.assertGreaterEqual(theirs, mine)
 
 

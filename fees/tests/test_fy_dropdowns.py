@@ -59,16 +59,34 @@ class FyDropdownPageTests(WriteBase):
             profile=self.profile, defaults={"memos_start_year": "2000-01", "feebook_start_year": "2000-01"}
         )
         for name in ("fees_memos", "fees_memo_drafts", "fees_feebook"):
-            html = self.client.get(reverse(name)).content.decode()
+            # The page opens on the current year now, so ask for every year to see the whole list.
+            html = self.client.get(reverse(name), {"fy": ""}).content.decode()
             self.assertNotRegex(html, r'<input[^>]*name="fy"', name)
             values = self.values(self.select_for(html, "fy"))
             self.assertEqual(values[0], "", name)  # All years
             self.assertIn("All years", html)
             years = values[1:]
             self.assertEqual(years, sorted(years, reverse=True), name)
-            self.assertIn(current_financial_year(), years, name)
-            for year in self.data_years():
-                self.assertIn(year, years, name)
+            if name == "fees_memos":  # the years that have memos; the Drafts and Feebook lists have their own rows
+                for year in self.data_years():
+                    self.assertIn(year, years, name)
+
+    def test_the_pages_open_on_the_current_year_and_all_years_sticks_when_chosen(self):
+        FeesSettings.objects.update_or_create(
+            profile=self.profile, defaults={"memos_start_year": "2000-01", "feebook_start_year": "2000-01"}
+        )
+        current = current_financial_year()
+        for name in ("fees_memos", "fees_memo_drafts", "fees_feebook"):
+            html = self.client.get(reverse(name)).content.decode()
+            self.assertIn('<option value="%s" selected>%s</option>' % (current, current), self.select_for(html, "fy"), name)
+            chosen = self.client.get(reverse(name), {"fy": ""}).content.decode()
+            self.assertRegex(self.select_for(chosen, "fy"), r'<option value="">All years</option>', name)
+            self.assertNotRegex(self.select_for(chosen, "fy"), r'value="[^"]+" selected', name)
+
+    def test_the_export_link_carries_the_year_the_page_shows(self):
+        html = self.client.get(reverse("fees_memos")).content.decode()
+        self.assertIn("fy=%s" % current_financial_year(), html)
+        self.assertEqual(self.client.get(reverse("fees_memos"), {"fy": ""}).context["filters"].get("financial_year"), None)
 
     def test_the_chosen_year_stays_selected_even_when_it_has_no_data(self):
         html = self.client.get(reverse("fees_memos"), {"fy": "2015-16"}).content.decode()

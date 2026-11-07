@@ -37,14 +37,20 @@ def _data_years(profile):
     return {int(label[:4]) for label in labels if is_financial_year_label(label)}
 
 
-def financial_year_options(profile, start_year=None, selected=None, now=None):
+def financial_year_options(profile, start_year=None, selected=None, now=None, only_years=None):
     """The ``YYYY-YY`` labels for a filter drop-down, newest first.
 
     The years with data and the current year, dropped when earlier than ``start_year``; ``selected`` (a label or
     several) is always kept (when well-formed) so a bookmarked link does not lose its choice.
+
+    ``only_years`` (labels, from ``filter_options``) replaces the years read from the profile's memos and drops the
+    always-offered current year, so the drop-down lists only years that have rows under the other filters.
     """
-    years = _data_years(profile)
-    years.add(int(current_financial_year(now)[:4]))
+    if only_years is None:
+        years = _data_years(profile)
+        years.add(int(current_financial_year(now)[:4]))
+    else:
+        years = {int(label[:4]) for label in only_years if is_financial_year_label(label)}
     if is_financial_year_label(start_year):
         floor = int(start_year[:4])
         years = {y for y in years if y >= floor}

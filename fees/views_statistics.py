@@ -13,7 +13,7 @@ from fees.decorators import fees_editor, fees_read_write, fees_reader, handle_fe
 from fees.errors import FeesError
 from fees.exports import tax_summary, xlsx
 from fees.pages import TEXT_TYPE, XLSX_TYPE, file_response, flag, int_or_none, json_ok, render_page
-from fees.services import firms, fy_options, statistics
+from fees.services import filter_options, firms, fy_options, statistics
 from fees.services.financial_year import current_financial_year
 from fees.services.heavy import heavy_operation
 
@@ -208,7 +208,9 @@ def _explore_context(profile, query):
     for key in ("from_fy", "to_fy", "firm_id"):
         if chosen[key]:
             req[key] = chosen[key]
-    context = {"chosen": chosen, "firm_choices": firms.list_firms(profile), "pivot": None, "pivot_error": ""}
+    options = filter_options.explore_options(profile, chosen)
+    context = {"chosen": chosen, "firm_choices": options["firms"], "explore_years": options["years"],
+               "pivot": None, "pivot_error": ""}
     try:
         pivot = statistics.get_pivot(profile, req)
     except FeesError as err:
@@ -272,7 +274,8 @@ def statistics_page(request):
     else:
         context.update(_explore_context(profile, request.GET))
         context["fy_options"] = fy_options.financial_year_options(
-            profile, config.initial_financial_year, (fy, context["chosen"]["from_fy"], context["chosen"]["to_fy"])
+            profile, config.initial_financial_year, (context["chosen"]["from_fy"], context["chosen"]["to_fy"]),
+            only_years=context["explore_years"],
         )
         context.update(
             measures=MEASURES, row_dims=ROW_DIMS, col_dims=COL_DIMS,

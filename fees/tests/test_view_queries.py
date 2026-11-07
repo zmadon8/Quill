@@ -89,13 +89,13 @@ class QueryCountTests(TestCase):
         self.assertEqual(Firm.objects.filter(profile=self.large).count(), LARGE // 5)
 
     def test_memo_list(self):
-        self.assert_flat(self.static("fees_memos"))
+        self.assert_flat(self.static("fees_memos", "?fy="))
 
     def test_memo_list_filtered(self):
-        self.assert_flat(self.static("fees_memos", "?unpaid=1"))
+        self.assert_flat(self.static("fees_memos", "?fy=&unpaid=1"))
 
     def test_drafts(self):
-        self.assert_flat(self.static("fees_memo_drafts"))
+        self.assert_flat(self.static("fees_memo_drafts", "?fy="))
 
     def test_firms(self):
         self.assert_flat(self.static("fees_firms"))
@@ -108,7 +108,7 @@ class QueryCountTests(TestCase):
         self.assert_flat(url)
 
     def test_feebook(self):
-        self.assert_flat(self.static("fees_feebook"))
+        self.assert_flat(self.static("fees_feebook", "?fy="))
 
     def test_outstanding_summary(self):
         self.assert_flat(self.static("fees_outstanding"))
