@@ -1,4 +1,4 @@
-"""Round 15 (D84), changed in round 20 (3.1) and round 22: Admins > Page Names chooses Words (the default) or Logo (icons)
+"""Round 15 (D84), changed in round 20 (3.1) and round 22: Admins > Appearance chooses Words (the default) or Logo (icons)
 for the header bar of Home, the Case Law Diary and the Fee Register, for everyone. Search, Home and Sign out are ALWAYS
 icons, whatever the choice. Most tests below pick Logo in setUp so they can check the icons; the default has its own test."""
 import re

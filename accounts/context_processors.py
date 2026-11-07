@@ -42,7 +42,7 @@ def _read(request):
 
 def suite_names(request):
     """Expose the display names to every template as ``home_name`` and ``diary_name``, and the suite-wide header bar
-    choice (Words or Logo, set on Admins > Page Names) as ``suite_brand`` (``{"home"|"diary"|"fees": "words"|"logo"}``)
+    choice (Words or Logo, set on Admins > Appearance) as ``suite_brand`` (``{"home"|"diary"|"fees": "words"|"logo"}``)
     and ``home_header_words`` (True when Home, Admins, Settings and Help pages show words)."""
     names, modes = _read(request)
     return {"home_name": names[suite.KEY_HOME], "diary_name": names[suite.KEY_DIARY], "fees_name": names[suite.KEY_FEES],
@@ -93,7 +93,7 @@ def current_profile(request):
 def header_style(request):
     """``header_words``: True when the header bar shows words instead of icons (Logo) on this page (the default). Search, Home and Sign out
     ignore it and are always icons. The choice is
-    suite-wide (Admins > Page Names), per program: the Fee Register's pages use its choice, every other page the Case
+    suite-wide (Admins > Appearance), per program: the Fee Register's pages use its choice, every other page the Case
     Law Diary's; base_suite_home.html swaps in the Home choice (``home_header_words``) for the Home, Admins, Settings and
     Help pages. No extra query (shared with ``suite_names``).
     ``justify_text``: True when the signed-in user chose to justify text (My settings, Display); base_suite.html puts the class on <html>."""

@@ -19,7 +19,7 @@ MAX_NAME_LENGTH = 60
 
 
 #: Header bar style per program (round 20, 3.1): Words (the names as words) or Logo (the icons). Suite-wide, for
-#: everyone, set by an Admin on Admins > Page Names. Stored in ``SuiteName`` rows keyed ``brand_<key>`` (the mode is
+#: everyone, set by an Admin on Admins > Appearance. Stored in ``SuiteName`` rows keyed ``brand_<key>`` (the mode is
 #: kept in ``display_name``), so no new table is needed; ``get_names`` ignores them. No row means Words (the default since round 22; Search, Home and Sign out are always icons).
 BRAND_WORDS = "words"
 BRAND_LOGO = "logo"

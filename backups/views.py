@@ -32,11 +32,21 @@ def _max_bytes():
     return settings.MAX_BACKUP_UPLOAD_MB * 1024 * 1024
 
 
-@admin_required
-def backup_list(request):
+def render_backup_page(request, email_form=None, tab="saved"):
+    """The Admin Backups page: saved backups, and (a second section) email backups. ``email_form`` is a bound form after
+    an error in the email section."""
+    from mailer.views import email_context  # lazy: mailer imports accounts only
+
     backups = BackupFile.objects.defer("data").order_by("-created_at", "-id")
     logs = BackupLog.objects.select_related("created_by").order_by("-started_at", "-id")[:30]
-    return render(request, "backups/backup_list.html", {"backups": backups, "logs": logs, "offsite": services.offsite_status()})
+    return render(request, "backups/backup_list.html", {
+        "backups": backups, "logs": logs, "offsite": services.offsite_status(), "tab": tab, **email_context(email_form),
+    })
+
+
+@admin_required
+def backup_list(request):
+    return render_backup_page(request, tab="email" if request.GET.get("tab") == "email" else "saved")
 
 
 @admin_required

@@ -135,11 +135,12 @@ class DeletedUserPurgeTests(TestCase):
 
 @override_settings(SECURE_SSL_REDIRECT=False)
 class PageNamesTests(TestCase):
-    def test_the_site_tab_is_now_page_names_and_explains_the_boxes(self):
+    def test_the_site_tab_is_now_appearance_and_explains_the_boxes(self):
         admin = join_main(User.objects.create_user("boss", password=PASSWORD, is_superuser=True), "editor")
         self.client.force_login(admin)
         body = self.client.get(reverse("settings")).content.decode()
-        self.assertIn("<h1>Page Names</h1>", body)
+        self.assertIn("<h1>Appearance</h1>", body)
+        self.assertIn("Everyone", body)
         self.assertIn("Home page name", body)
         self.assertIn("Case law diary name", body)
-        self.assertIn('class="on" aria-current="page">Page Names</a>', body)
+        self.assertIn('class="on" aria-current="page">Appearance</a>', body)
