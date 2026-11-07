@@ -1,4 +1,4 @@
-"""The Fee Register tab of the suite Settings group shows only for users with a Fee Register profile."""
+"""The Fee Register link of the suite Settings group shows only for users with a Fee Register profile."""
 import re
 
 from django.contrib.auth import get_user_model
@@ -25,20 +25,20 @@ class FeeRegisterTabTests(TestCase):
     def test_hidden_without_a_fees_profile(self):
         user = join_main(User.objects.create_user("diaryonly", password=PASSWORD), "editor")
         labels, nav = self.tabs(user)
-        self.assertEqual(labels, ["Account", "Display", "Case Law Diary"])
+        self.assertEqual(labels, ["My settings", "Case Law Diary settings"])
         self.assertNotIn(reverse("fees_settings"), nav)
 
-    def test_visible_after_the_diary_tab_with_a_fees_profile(self):
+    def test_visible_after_the_diary_link_with_a_fees_profile(self):
         user = join_main(User.objects.create_user("both", password=PASSWORD), "editor")
         profile = Profile.objects.create(program=KEY_FEES, name="Tab-Fees")
         ProfileMembership.objects.create(user=user, profile=profile, role=ROLE_EDITOR)
         labels, nav = self.tabs(user)
-        self.assertEqual(labels, ["Account", "Display", "Case Law Diary", "Fee Register"])
+        self.assertEqual(labels, ["My settings", "Case Law Diary settings", "Fee Register settings"])
         self.assertIn('href="%s"' % reverse("fees_settings"), nav)
 
-    def test_fees_only_user_sees_the_tab(self):
+    def test_fees_only_user_sees_the_link(self):
         user = User.objects.create_user("feesonly", password=PASSWORD)
         profile = Profile.objects.create(program=KEY_FEES, name="Tab-Fees-2")
         ProfileMembership.objects.create(user=user, profile=profile, role=ROLE_EDITOR)
         labels, _nav = self.tabs(user)
-        self.assertEqual(labels, ["Account", "Display", "Fee Register"])
+        self.assertEqual(labels, ["My settings", "Fee Register settings"])

@@ -88,9 +88,10 @@ class SettingsTabsTests(TestCase):
 
         suite.set_brand_modes({key: suite.BRAND_LOGO for key in suite.BRAND_KEYS})  # Words is the default
         diary = self.client.get(reverse("diary_home")).content.decode()
-        self.assertIn('href="%s" class="nav-icon" aria-label="Settings"' % reverse("my_settings"), diary)
+        # The diary gear opens the diary's own Settings tab; the user name in the header opens My settings.
+        self.assertIn('href="%s" class="nav-icon" aria-label="Settings"' % reverse("profile_settings"), diary)
+        self.assertIn('class="who" href="%s"' % reverse("my_settings"), diary)
         display = self.client.get(reverse("my_settings"), {"tab": "display"}).content.decode()
-        self.assertIn("<h2>Case Law Diary</h2>", display)  # round 18: the old Diary tab is part of Display
         self.assertIn('class="subnav"', display)
 
     def test_change_my_password(self):
@@ -118,23 +119,33 @@ class MyEditsTests(TestCase):
         self.client.force_login(self.me)
 
     def test_my_own_changes_newest_first_with_links(self):
-        resp = self.client.get(reverse("my_edits"))
+        resp = self.client.get(reverse("diary_history"))
         self.assertEqual(resp.status_code, 200)
         html = resp.content.decode()
-        self.assertIn("Edits", html)  # round 19: the page heading is now "Edits" (inside Settings > Case Law Diary)
+        self.assertIn("<h1>History</h1>", html)  # "My edits" is now History in the diary menu
         self.assertNotIn("Theirs", html)
         self.assertLess(html.index("Changed Item"), html.index("Added Item"))
         self.assertLess(html.index("Added Item"), html.index("Added Topic"))
         self.assertIn('href="%s"' % reverse("history", args=["item", self.item.pk]), html)
         self.assertIn("#n-item-%d" % self.item.pk, html)
 
+    def test_the_old_my_edits_address_redirects_to_history(self):
+        resp = self.client.get(reverse("my_edits"))
+        self.assertRedirects(resp, reverse("diary_history"), status_code=301, fetch_redirect_response=False)
+        self.assertEqual(reverse("diary_history"), "/caselaw/history/")
+
+    def test_history_is_in_the_diary_menu(self):
+        html = self.client.get(reverse("diary_home")).content.decode()
+        self.assertIn('href="%s"' % reverse("diary_history"), html)
+        self.assertIn('aria-label="History"', html)
+
     def test_a_delete_of_a_topic_with_its_items_is_one_line(self):
         svc.delete(self.profile, self.me, "topic", self.topic.pk)
-        html = self.client.get(reverse("my_edits")).content.decode()
+        html = self.client.get(reverse("diary_history")).content.decode()
         self.assertIn("Moved to Trash Topic", html)
         self.assertIn("and 2 more", html)
         self.assertIn("in Trash or gone", html)
 
     def test_needs_a_profile(self):
         self.client.force_login(User.objects.create_user("lone", password=PASSWORD))
-        self.assertEqual(self.client.get(reverse("my_edits")).status_code, 403)
+        self.assertEqual(self.client.get(reverse("diary_history")).status_code, 403)

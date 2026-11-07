@@ -1,8 +1,7 @@
-{% extends "base_suite_home.html" %}
-{% block title %}Edits - {{ program_label }}{% endblock %}
+{% extends "base.html" %}
+{% block title %}History - {{ program_label }}{% endblock %}
 {% block content %}
-<h1>Settings</h1>
-<h2>Edits</h2>
+<h1>History</h1>
 <p class="meta">Your own changes in {{ program_label }}, newest first (times in IST). An action that changed several records at once, such as deleting a Topic with its Items, is one line. Edits older than {{ retention_days }} days are removed from the history (the latest version of every record is always kept).</p>
 {% if actions %}
 <div class="table-wrap">
