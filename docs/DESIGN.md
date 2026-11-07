@@ -1217,6 +1217,15 @@ Decisions:
 - The Columns control sits in a toolbar above the table (`.table-tools`), right aligned, with clear space above and below. A negative bottom margin on that toolbar pulled the table up under the button; it is now a normal margin, so the button never overlaps the table at desktop or phone width. This is central CSS (`static/css/ledger.css`), so every table with a Columns button gets it.
 - Model field choices (`diary.UserSettings.opening_page`, `accounts.Profile.reading_all_mode`) keep their stored labels, because changing a model's choices needs a migration; the form-level choice lists were changed.
 
+### Title Case for model choice labels
+
+Owner decision: "every word First Letter Capitalised". The model-level choice labels shown as options now follow it too, by hand-written `AlterField` migrations (`accounts` 0024, `diary` 0023); stored values are unchanged. Abbreviations keep their form.
+
+- `diary.UserSettings.opening_page`: "The Last Page I Viewed", "A Chosen Subject" (Home, Other Subjects, Global Search were already in Title Case).
+- `accounts.Profile.reading_all_mode`: "The Whole Subject", "Only That Topic Or Sub-topic", "The View I Used Last".
+- `diary.Item.citation_layout`: "On Separate Lines" (shown as an option on the Item card and editor).
+- Left as they are: `diary.Item/Section.flag` (single words, already capitalised), `kind`, number formats (symbols), date formats, `accounts` role and header style (single words), `backups` kinds (not shown as options).
+
 ## Round: payments over any number of memos
 Owner instruction, verbatim: "Allow me to add more than 5 Memos per payment. Also, when adding multiple Memos per payment, (1) create some division between the various Memos that I am adding, (ii) let it look more like the attached screenshot, where I get to see a drop down menu with Memos, and it tells me the amount due there."
 - A payment can be split over any number of memos. The old limit of 5 rows (and of 5 `?memo=` values) is gone. A safety cap of 200 memos per payment is enforced by the payments service (`MAX_ALLOCATIONS`) and the form reports it in plain words.

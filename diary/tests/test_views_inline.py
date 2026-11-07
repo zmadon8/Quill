@@ -211,7 +211,7 @@ class CardTests(InlineTestCase):
         self.assertNotIn("data-layout-control hidden", html)
         self.assertIn('name="citation_layout" value="inline" checked', html)
         self.assertIn('name="citation_layout" value="lines"', html)
-        self.assertIn("On separate lines", html)
+        self.assertIn("On Separate Lines", html)
 
     def test_saving_the_card_sets_the_citation_layout(self):
         first = self.make("case", ("item", self.one.pk), citation="A v B")

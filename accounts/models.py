@@ -109,9 +109,9 @@ class Profile(models.Model):
     READING_ALL_ALWAYS_OFF = "always_off"
     READING_ALL_REMEMBER = "remember"
     READING_ALL_MODE_CHOICES = [
-        (READING_ALL_ALWAYS_ON, "The whole Subject"),
-        (READING_ALL_ALWAYS_OFF, "Only that Topic or Sub-topic"),
-        (READING_ALL_REMEMBER, "The view I used last"),
+        (READING_ALL_ALWAYS_ON, "The Whole Subject"),
+        (READING_ALL_ALWAYS_OFF, "Only That Topic Or Sub-topic"),
+        (READING_ALL_REMEMBER, "The View I Used Last"),
     ]
 
     program = models.CharField(max_length=30)

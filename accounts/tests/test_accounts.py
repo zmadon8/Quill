@@ -1282,7 +1282,7 @@ class ExportNameTests(BaseCase):
         resp = self.display()
         self.assertNotContains(resp, 'name="diary-reading_all_default"')
         self.assertNotContains(resp, 'name="diary-reading_all_mode"')
-        self.assertNotContains(resp, "The view I used last")
+        self.assertNotContains(resp, "The View I Used Last")
         self.assertNotContains(resp, "Advanced reading options")
         # Posting the toggle (even alongside the now-ignored old keys) leaves reading_all_default untouched.
         self.display({"diary-view_whole_subject": "no", "diary-reading_all_default": "on"})
