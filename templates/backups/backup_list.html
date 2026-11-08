@@ -85,7 +85,7 @@
   {{ email_form.recipients.as_field_group }}
   <fieldset class="email-kinds">
     <legend>What to send, and how often</legend>
-    <table class="email-kinds-table">
+    <table class="email-kinds-table" data-table-id="email-kinds">
       <thead><tr><th scope="col">Send</th><th scope="col">How often</th><th scope="col">On (weekly)</th><th scope="col">Day (monthly)</th></tr></thead>
       <tbody>
       {% for row in email_form.kind_rows %}
