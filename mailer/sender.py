@@ -16,7 +16,8 @@ logger = logging.getLogger(__name__)
 
 GMAIL_HOSTS = ("smtp.gmail.com", "smtp.googlemail.com")
 GMAIL_DOMAINS = ("gmail.com", "googlemail.com")
-DEFAULT_NAME = "Case Law Diary"
+#: An older From name that named the whole site after one program; it is shown as the site name instead.
+OLD_SITE_NAMES = ("case law diary",)
 
 WARN_FIXED = "From address differs from the Gmail login, fixed to the login address."
 WARN_RELAY = ("Using a Gmail From address with a non-Gmail server: Gmail recipients will reject this (DKIM). Use "
@@ -41,19 +42,31 @@ def _login_address():
     return address if "@" in address else ""
 
 
+def site_name():
+    return getattr(settings, "SITE_NAME", "") or "Madon.co.in"
+
+
+def _display_name(name):
+    """The From name: the configured one, or the site name when it is blank or the old "Case Law Diary"."""
+    name = (name or "").strip()
+    return site_name() if not name or name.lower() in OLD_SITE_NAMES else name
+
+
 def effective_from():
-    """(From header text, [warnings]). Gmail host: the login address with the display name of DEFAULT_FROM_EMAIL."""
-    default = settings.DEFAULT_FROM_EMAIL
+    """(From header text, [warnings]). Gmail host: the login address with the display name of DEFAULT_FROM_EMAIL.
+    The display name is the site name (SITE_NAME) unless another name is configured."""
+    configured = settings.DEFAULT_FROM_EMAIL
     warnings = []
+    name, address = parseaddr(configured)
+    default = formataddr((_display_name(name), address)) if "@" in address else configured
     if not _host():
         return default, [WARN_NONE]
-    name, address = parseaddr(default)
     if is_gmail_host():
         login = _login_address()
         if login:
             if address.lower() != login.lower():
                 warnings.append(WARN_FIXED)
-            return formataddr((name or DEFAULT_NAME, login)), warnings
+            return formataddr((_display_name(name), login)), warnings
         return default, warnings
     if _domain(address) in GMAIL_DOMAINS:
         warnings.append(WARN_RELAY)

@@ -1,6 +1,6 @@
 # Email plug-in (the `mailer` app)
 
-One small app gives the Case Law Diary two uses of email. Everything else is unchanged, and with no email settings the site behaves as before (the "Forgot my password" link is simply hidden).
+One small app gives this website (Madon.co.in) two uses of email. Everything else is unchanged, and with no email settings the site behaves as before (the "Forgot my password" link is simply hidden).
 
 1. **Forgot my password**: a person types their email address, gets a one-hour link, and chooses their own new password.
 2. **Emailed backups**: on a schedule the Admin sets (daily, weekly or monthly) the site emails the full backup file (`.json.gz`), the complete Word export (`.docx`, one per diary profile), or both.
@@ -17,7 +17,7 @@ On Render, set these environment variables on **both** the web service and the n
 | `EMAIL_PORT` | Optional. 587 (default, TLS) or 465 (then also set `EMAIL_USE_SSL=1`) |
 | `EMAIL_HOST_USER` | The login (often the mailbox address) |
 | `EMAIL_HOST_PASSWORD` | The password or app password. Keep it only in the dashboard |
-| `DEFAULT_FROM_EMAIL` | Optional. The "From" address, for example `Case Law Diary <you@example.com>`. Default: `EMAIL_HOST_USER` |
+| `DEFAULT_FROM_EMAIL` | Optional. The "From" address, for example `Madon.co.in <you@example.com>`. Default: `EMAIL_HOST_USER`. A blank name, or the old name "Case Law Diary", is shown as the site name (`SITE_NAME`, default Madon.co.in) |
 | `EMAIL_BACKUP_MAX_MB` | Optional. Starting value for the size limit on the Email backups screen (default 15); change it on that screen afterwards. Use 6 for Amazon SES (10 MB message limit) |
 | `PASSWORD_RESET_TIMEOUT` | Optional. Seconds a reset link works (default 3600) |
 
@@ -41,7 +41,7 @@ Then open **Backups & Import > Email backups** as an Admin, type your address an
    | `EMAIL_PORT` | `587` |
    | `EMAIL_HOST_USER` | the new Gmail address |
    | `EMAIL_HOST_PASSWORD` | the 16-letter app password |
-   | `DEFAULT_FROM_EMAIL` | `Case Law Diary <the new Gmail address>` (Gmail always sends from the account's own address, so use the same one) |
+   | `DEFAULT_FROM_EMAIL` | `Madon.co.in <the new Gmail address>` (Gmail always sends from the account's own address, so use the same one) |
 
 3. Press **Save, rebuild, and deploy** (or **Save changes**, then let it deploy). Wait until Render shows **Live** (a few minutes).
 4. Open the cron job **diary-daily-backup**, then **Environment**, and enter the **same five values**. Save. (The nightly emailed backup runs here; without these it cannot send.)
@@ -92,7 +92,7 @@ The app now protects against reason 2: when `EMAIL_HOST` is `smtp.gmail.com` (or
    * `EMAIL_PORT` = `587`
    * `EMAIL_HOST_USER` = `you@gmail.com` (your Gmail address)
    * `EMAIL_HOST_PASSWORD` = the app password
-   * `DEFAULT_FROM_EMAIL` = `Case Law Diary <you@gmail.com>` (the same address), or leave it empty
+   * `DEFAULT_FROM_EMAIL` = `Madon.co.in <you@gmail.com>` (the same address), or leave it empty
 3. Remove any other email values: no Brevo host, no `EMAIL_USE_SSL=1` together with port 587, no old `EMAIL_HOST_USER`.
 4. Open the cron job **judgment-diary-daily-backup** > **Environment** and set the **same five values** the same way. Save. Both services must match. This is the step most often missed.
 5. Wait until both show **Live** (the cron job picks the values up on its next run).

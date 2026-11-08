@@ -194,7 +194,9 @@ EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
 EMAIL_USE_SSL = _flag("EMAIL_USE_SSL")  # port 465
 EMAIL_USE_TLS = _flag("EMAIL_USE_TLS", default=not EMAIL_USE_SSL)  # port 587
 EMAIL_TIMEOUT = _int("EMAIL_TIMEOUT", 20)
-DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "").strip() or EMAIL_HOST_USER or "Case Law Diary <noreply@localhost>"
+#: The name of the whole website (emails, browser tabs of the shared pages). "Case Law Diary" is one program inside it.
+SITE_NAME = os.environ.get("SITE_NAME", "").strip() or "Madon.co.in"
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "").strip() or EMAIL_HOST_USER or f"{SITE_NAME} <noreply@localhost>"
 SERVER_EMAIL = DEFAULT_FROM_EMAIL
 if EMAIL_HOST:
     EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"

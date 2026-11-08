@@ -467,6 +467,8 @@ class UsernamePasswordResetForm(PasswordResetForm):
         """Same as Django's, but From (and Reply-To) come from the shared helper, as for the backup emails."""
         from mailer import sender  # lazy: keeps this module's imports light
 
+        # The website's own name (Madon.co.in), not the host name Django would put here.
+        context = {**context, "site_name": sender.site_name()}
         subject = "".join(loader.render_to_string(subject_template_name, context).splitlines())
         message = sender.build_message(subject, loader.render_to_string(email_template_name, context), [to_email])
         if html_email_template_name is not None:
