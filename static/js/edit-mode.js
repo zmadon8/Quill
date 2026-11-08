@@ -293,6 +293,9 @@
       plain.hidden = !heading;
       var citable = whats.indexOf(what()) > -1;
       citeField.classList.toggle("off", !citable);
+      // A Note can be linked as it is added: "Save And Add Link" saves it, then opens the place picker.
+      var linkBtn = form.querySelector("[data-add-save-link]");
+      if (linkBtn) { linkBtn.hidden = what() !== "note"; }
       Array.prototype.forEach.call(citeField.querySelectorAll("input, textarea, button"), function (n) { n.disabled = !citable; });
       // Items and Sections take a Flag (D88); the other kinds hide and disable it.
       var flagBox = form.querySelector("[data-add-flag]");
@@ -328,6 +331,10 @@
     form.addEventListener("input", function () { form.setAttribute("data-dirty", "1"); });
 
     var busy = false;
+    function setThen(value) {
+      var then = form.querySelector("[data-add-then]");
+      if (then) { then.value = value; }
+    }
     function submit() {
       if (busy) { return; }
       showErrors(form, []);
@@ -339,10 +346,12 @@
       busy = true;
       request(form.action, { method: "POST", body: body }).then(function (result) {
         busy = false;
-        if (!(result.data && result.data.ok)) { failed(form, result); return; }
+        if (!(result.data && result.data.ok)) { setThen(""); failed(form, result); return; }
+        if (result.data.redirect) { window.location.href = result.data.redirect; return; }
         saved(result.data);
       }).catch(function () {
         busy = false;
+        setThen("");
         showErrors(form, ["Could not reach the server. Nothing was added."]);
       });
     }
@@ -350,6 +359,7 @@
     // Cancel closes the form (it had no handler before, so only Esc worked); a typed-in form asks first.
     form.addEventListener("click", function (e) {
       if (e.target.closest("[data-inline-cancel]")) { e.preventDefault(); closeCurrent(false); }
+      if (e.target.closest("[data-add-save-link]")) { e.preventDefault(); setThen("link"); submit(); }
     });
 
     form.addEventListener("keydown", function (e) {

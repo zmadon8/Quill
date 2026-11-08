@@ -1,10 +1,9 @@
 {% extends "fees/base_fees.html" %}
 {% load fees_money %}
-{% block page_width %}w-5xl{% endblock %}
 {% block page_title %}Outstanding - {{ program_label }}{% endblock %}
 {% block content %}
-<div class="page-head"><h1>Outstanding by firm</h1>
-<p class="page-actions" role="group" aria-label="Outstanding actions"><a class="button" href="{% url 'fees_outstanding_detail' %}{% if query_string %}?{{ query_string }}{% endif %}">All Memos</a> <a class="button" href="{% url 'fees_outstanding_summary_export' %}?{{ query_string }}">Export To Excel</a></p></div>
+<h1 class="visually-hidden">Outstanding by firm</h1>
+{% include "fees/_outstanding_tabs.html" with tab="firm" %}
 <form method="get" class="filters" aria-label="Filter outstanding memos">
   <label>Sort By <select name="sort"><option value="amount"{% if sort == "amount" %} selected{% endif %}>Amount Outstanding</option><option value="name"{% if sort == "name" %} selected{% endif %}>Firm Name</option></select></label>
   <label><input type="checkbox" name="written_off" value="1"{% if filters.include_written_off %} checked{% endif %}> Include Written Off Memos</label>

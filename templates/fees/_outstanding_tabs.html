@@ -1,0 +1,5 @@
+{# Outstanding sub-tabs (By Firm | All Memos) with the page buttons on the same row. Context: tab ("firm" or "all"), query_string (filters kept for the export and the All Memos tab). #}
+<div class="tab-bar">
+<nav class="stat-tabs sub-tabs" aria-label="Outstanding lists"><a href="{% url 'fees_outstanding' %}"{% if tab == "firm" %} class="on" aria-current="page"{% endif %}>By Firm</a><a href="{% url 'fees_outstanding_detail' %}{% if tab == "firm" and query_string %}?{{ query_string }}{% endif %}"{% if tab == "all" %} class="on" aria-current="page"{% endif %}>All Memos</a></nav>
+<p class="page-actions" role="group" aria-label="Outstanding actions"><a class="button small secondary" href="{% if tab == 'firm' %}{% url 'fees_outstanding_summary_export' %}{% else %}{% url 'fees_outstanding_export' %}{% endif %}?{{ query_string }}">Export To Excel</a></p>
+</div>

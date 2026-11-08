@@ -336,7 +336,7 @@ def add(request):
     if kind == "note":
         text = sanitise_html(typed) if post.get("text_format") == "html" else _html(typed)
         if not plain_text(text).strip():
-            raise ServiceError("Type the Note text first. Links are added when you edit the Note.")
+            raise ServiceError("Type the Note text first.")
         fields["text"] = text
     if kind == "item":
         # The script sends cleaned HTML (text_format=html); without it the box is plain typed text.
@@ -355,6 +355,15 @@ def add(request):
         result = svc.create(request.profile, request.user, kind, parent=parent, index=index if index is not None else _index(request), **fields)
         for number, case in enumerate(cases):
             svc.create(request.profile, request.user, "case", parent=("item", result.record.pk), index=number, **case)
+    # "Save And Link": the new Note is saved, then the picker opens to choose where its link points (Cancel there keeps the Note).
+    pick = None
+    if kind == "note" and post.get("then") == "link":
+        pick = f"{reverse('edit_note_pick')}?{urlencode({'purpose': 'link', 'note': result.record.pk, 'next': _next(request)})}"
+    if pick and is_fetch(request):
+        return inline.ok(request, kind=kind, id=result.record.pk, version=result.record.version, redirect=pick)
+    if pick:
+        messages.success(request, "Added the Note. Choose the place to link it to.")
+        return redirect(pick)
     if is_fetch(request):
         record = result.record
         # An Item or Section added under a Subject is housed in its Topic "1" (D61), which may be new: the page reloads.

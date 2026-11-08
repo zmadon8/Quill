@@ -242,3 +242,4 @@ summary.ra::-webkit-details-marker { display: none; }
   .cite-row .c3 { grid-column: 2; min-height: 44px; }
   .addform .cite-row .c3 { grid-column: 1; }
 }
+[data-add-save-link][hidden] { display: none !important; }
