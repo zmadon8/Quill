@@ -55,7 +55,7 @@
 {% endif %}
 <form method="post">
   {% csrf_token %}
-  <p><label for="confirm">To go ahead, type the word <strong>{{ confirm_word }}</strong>:</label><br>
+  <p><label for="confirm">To go ahead, type the word <strong class="exact-text">{{ confirm_word }}</strong>:</label><br>
   <input type="text" id="confirm" name="confirm" autocomplete="off"></p>
   {% if will_empty %}
   <p><label for="empty_confirm"><input type="checkbox" id="empty_confirm" name="empty_confirm" value="yes">
