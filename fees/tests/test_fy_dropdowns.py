@@ -121,6 +121,22 @@ class FyDropdownPageTests(WriteBase):
         self.assertIn('<option value="2025-26" selected>2025-26</option>', self.select_for(explore, "from_fy"))
         self.assertTrue(self.select_for(explore, "to_fy"))
 
+    def test_explore_starts_from_the_present_financial_year(self):
+        from fees.services.financial_year import current_financial_year
+
+        now = current_financial_year()
+        explore = self.client.get(reverse("fees_statistics") + "?tab=explore").content.decode()
+        self.assertIn('<option value="%s" selected>%s</option>' % (now, now), self.select_for(explore, "from_fy"))
+        # Choosing Earliest (an empty value) is kept: no lower limit.
+        earliest = self.client.get(reverse("fees_statistics") + "?tab=explore&from_fy=").content.decode()
+        self.assertNotIn(" selected>", self.select_for(earliest, "from_fy"))
+
+    def test_a_saved_view_with_earliest_keeps_earliest(self):
+        from fees.views_statistics import saved_view_query
+
+        query = saved_view_query({"measure": "billed", "row_dim": "firm", "col_dim": "none", "from_fy": None})
+        self.assertIn("from_fy=&", query + "&")
+
     def test_settings_start_years_are_drop_downs(self):
         html = self.client.get(reverse("fees_settings")).content.decode()
         for name in ("initial_financial_year", "memos_start_year", "feebook_start_year"):
