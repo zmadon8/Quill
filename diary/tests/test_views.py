@@ -239,7 +239,7 @@ class HomeIndexTests(TestCase):
         self.assertNotIn("Search</a>", nav)
         self.assertNotIn("Search", re.sub(r"<[^>]*>", " ", nav))
         header = html.split('<header class="site-header"')[1].split("</header>")[0]
-        self.assertIn('<a href="%s" title="Home"' % reverse("diary_home"), header)
+        self.assertRegex(header, '<a href="%s" title="[^"]+" aria-label="[^"]+: Home">' % reverse("diary_home"))
         self.assertIn("data-search-toggle", header)
         self.assertIn('aria-label="Search"', header)
         self.assertIn('aria-label="Sign out"', nav)  # on the right of every header
@@ -342,7 +342,7 @@ class HomeIndexTests(TestCase):
             if name in ("home", "user_list", "backup_list", "settings"):
                 self.assertIn('<a href="%s?home=1" title="Go to Home (&#8997;H)" aria-label="Go to Home">' % reverse("home"), header, name)
             else:
-                self.assertIn('<a href="%s" title="Home"' % reverse("diary_home"), header, name)
+                self.assertRegex(header, '<a href="%s" title="[^"]+" aria-label="[^"]+: Home">' % reverse("diary_home"), name)
             self.assertNotIn("switch-program", html, name)
             self.assertNotIn('class="toolbar', html, name)
             if name in ("home", "user_list", "backup_list", "settings"):

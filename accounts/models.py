@@ -98,7 +98,10 @@ class Profile(models.Model):
     ``export_name`` is the name this profile's exported files start with; blank means the default
     "<program name> <profile name>" (see ``accounts.profiles.effective_export_name``).
     ``display_name`` is an optional name shown at the top of the program's pages instead of "<program name> · <profile
-    name>" (and on the Home program button); blank means the program name is shown as before.
+    name>" (and on the Home program button); blank means the program name is shown as before. It is the Home Page
+    Name on the screens.
+    ``header_name`` is an optional, usually shorter, name for the header of the program's pages; blank means the
+    ``display_name`` is used there too. Hovering over the header name shows the full Home page name.
     ``reading_all_mode`` decides what the side-panel Contents links open: the whole Subject (``always_on``), only
     that Topic or Sub-topic (``always_off``), or the view each browser used last (``remember``).
     ``reading_all_default`` is whether the whole Subject is what those links open for a browser that has no
@@ -118,6 +121,7 @@ class Profile(models.Model):
     name = models.CharField(max_length=60)
     export_name = models.CharField(max_length=100, blank=True, default="")
     display_name = models.CharField(max_length=DISPLAY_NAME_MAX_LENGTH, blank=True, default="")
+    header_name = models.CharField(max_length=DISPLAY_NAME_MAX_LENGTH, blank=True, default="")
     reading_all_default = models.BooleanField(default=True)
     reading_all_mode = models.CharField(
         max_length=10, choices=READING_ALL_MODE_CHOICES, default=READING_ALL_REMEMBER
@@ -128,6 +132,10 @@ class Profile(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    def header_text(self):
+        """The name for the program header: the Header Name, else the Home Page Name, else "" (program + profile)."""
+        return " ".join((self.header_name or "").split()) or " ".join((self.display_name or "").split())
 
     class Meta:
         constraints = [

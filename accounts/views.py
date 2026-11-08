@@ -407,7 +407,8 @@ def _live_profiles(program=None):
 PROFILE_SORTS = {
     "name": ("Name", lambda p: p.name.lower()),
     "program": ("Program", lambda p: p.program_name.lower()),
-    "display_name": ("Display Name", lambda p: (p.display_name or "").lower()),
+    "display_name": ("Home Page Name", lambda p: (p.display_name or "").lower()),
+    "header_name": ("Header Name", lambda p: (p.header_name or "").lower()),
     "users": ("Users", lambda p: p.member_count),
     "subjects": ("Subjects", lambda p: p.subject_count),
 }

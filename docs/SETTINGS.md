@@ -68,7 +68,8 @@ header bar.
 | --- | --- | --- | --- | --- |
 | `program` | Which program the profile belongs to | Admin > Profiles (add) | Per profile | Admin sets |
 | `name` | Profile name | Admin > Profiles (add, rename) | Per profile | Admin sets |
-| `display_name` | Display Name (the name shown for the profile) | Case Law Diary > Settings > Reading; also Admin > Profiles (add, rename) | Per profile | Everyone in this profile |
+| `display_name` | Home Page Name (the profile's name on the Home page and in the browser tab) | Case Law Diary > Settings > Reading; also Admin > Profiles (add, rename) | Per profile | Everyone in this profile |
+| `header_name` | Header Name (a shorter name for the program header; pointing at it shows the Home Page Name; blank uses the Home Page Name) | Case Law Diary > Settings > Reading; also Admin > Profiles (add, rename) | Per profile | Everyone in this profile |
 | `reading_all_mode` | View whole subject (Yes means the whole Subject, No means only that Topic or Sub-topic) | Case Law Diary > Settings > Reading | Per profile | Everyone in this profile |
 | `reading_all_default` | Old "whole Subject" default. Kept; the Yes/No toggle reads it only when `reading_all_mode` is the old "remember" value, and writing the toggle leaves it alone | Case Law Diary > Settings > Reading (indirect) | Per profile | Everyone in this profile |
 | `export_name` | Export file name (start of every exported Word file name) | Case Law Diary > Settings > Data (Editors only) | Per profile | Everyone in this profile |
@@ -122,7 +123,8 @@ as text and have no Save buttons (a Reader POST gets 403).
 
 | Section | Setting | Stored in | Stored | Who |
 | --- | --- | --- | --- | --- |
-| Reading | Display Name | `Profile.display_name` | Per profile | Everyone in this profile |
+| Reading | Home Page Name | `Profile.display_name` | Per profile | Everyone in this profile |
+| Reading | Header Name | `Profile.header_name` | Per profile | Everyone in this profile |
 | Reading | View whole subject | `Profile.reading_all_mode` | Per profile | Everyone in this profile |
 | Data | Export file name | `Profile.export_name` (saved by `export_settings`, Editors only) | Per profile | Everyone in this profile |
 | Data | Word export (link to the Export page) | No setting | n/a | n/a |

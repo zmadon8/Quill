@@ -1201,7 +1201,7 @@ Where settings live today (baseline, before this round):
 - Per user, suite-wide (`accounts.User`): `landing_program`, `last_diary_path`, `header_style`, `justify_text`.
 - Per user, Case Law Diary (`diary.UserSettings`): `opening_page`, `opening_subject`, the five numbering formats, `export_custom_name`, `export_date_format`, `time_zone`.
 - Per user and profile (`fees.FeesUserPrefs`, JSON by key): interface state such as resized column widths.
-- Per profile (`accounts.Profile`): `name`, `export_name`, `display_name`, `reading_all_default`, `reading_all_mode`.
+- Per profile (`accounts.Profile`): `name`, `export_name`, `display_name` (Home Page Name), `header_name` (Header Name: the program header; hovering shows the Home Page Name; migration `accounts/0025`, old backups restore it blank), `reading_all_default`, `reading_all_mode`.
 - Per profile (`fees.FeesSettings`): memo prefills, `overdue_days`, `default_tab`, the financial year starts, money display, `hide_payment_when_paid`, `default_lines_enabled`, `default_payment_amount`, `items_per_page`, and the other Fee Register keys.
 - Suite-wide (`accounts.SuiteName`): the page names and brand choices.
 

@@ -13,7 +13,7 @@ VIEW_WHOLE_CHOICES = [(VIEW_WHOLE_YES, "Yes"), (VIEW_WHOLE_NO, "No")]
 
 
 class ProfileSettingsForm(forms.ModelForm):
-    """Settings an Editor can change for their profile: the Display Name and what the Contents links open (Settings >
+    """Settings an Editor can change for their profile: the Home Page Name, the Header Name and what the Contents links open (Settings >
     Display, round 18/19). The export file name is on the Export page (ExportSettingsForm).
 
     Round 19 (user item 4) has a plain Yes/No toggle on the Display tab, ``view_whole_subject``, as the only reading
@@ -34,12 +34,14 @@ class ProfileSettingsForm(forms.ModelForm):
 
     class Meta:
         model = Profile
-        fields = ("display_name",)
+        fields = ("display_name", "header_name")
         labels = {
-            "display_name": "Display Name",
+            "display_name": "Home Page Name",
+            "header_name": "Header Name",
         }
         help_texts = {
-            "display_name": "Shown at the top of every page instead of the program name. Leave blank to show the program name and the profile name.",
+            "display_name": "The name of this profile on the Home page (and in the browser tab). Leave blank to show the program name.",
+            "header_name": "A shorter name for the header at the top of every page; pointing at it shows the Home Page Name. Leave blank to use the Home Page Name (or, if that is blank too, the program name and the profile name).",
         }
 
     def __init__(self, *args, **kwargs):
@@ -60,6 +62,9 @@ class ProfileSettingsForm(forms.ModelForm):
 
     def clean_display_name(self):
         return " ".join((self.cleaned_data.get("display_name") or "").split())
+
+    def clean_header_name(self):
+        return " ".join((self.cleaned_data.get("header_name") or "").split())
 
     def save(self, commit=True):
         instance = super().save(commit=False)
