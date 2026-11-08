@@ -1,4 +1,5 @@
 {% extends "fees/base_fees.html" %}
+{% load static %}
 {% block page_width %}w-4xl{% endblock %}
 {% block page_title %}{% if matter %}Edit matter{% else %}New matter{% endif %} - {{ program_label }}{% endblock %}
 {% block crumb_nav %}{% if matter %}{% url 'fees_matter_detail' matter.pk as back %}{% include "fees/_back.html" with url=back label=matter.name %}{% else %}{% url 'fees_firms' as back %}{% include "fees/_back.html" with url=back label="Firms" %}{% endif %}{% endblock %}
@@ -16,14 +17,16 @@
   <input type="hidden" name="firm_id" value="{{ form.firm_id }}">
   <p><label>Group <select name="group_id" required><option value="">Choose</option>{% for g in group_choices %}<option value="{{ g.pk }}"{% if form.group_id == g.pk %} selected{% endif %}>{{ g.name }}</option>{% endfor %}</select></label></p>
   <p><label>Name <input type="text" name="name" value="{{ form.name }}" maxlength="150" required></label> <label>Short name <input type="text" name="short_name" value="{{ form.short_name }}" maxlength="150"></label></p>
-  <p><label>Addressee <input type="text" name="addressee_line1" value="{{ form.addressee_line1 }}" size="50"></label> <label><input type="checkbox" name="addressee_use_firm_name" value="1"{% if form.addressee_use_firm_name %} checked{% endif %}> Use the firm name</label></p>
-  <p><label>Addressee, second line <input type="text" name="addressee_line2" value="{{ form.addressee_line2 }}" size="50"></label></p>
+  <p><label>Client <input type="text" name="client" value="{{ form.client }}" maxlength="300" size="40"></label></p>
+  {# Addressee: the tick comes first; while it is ticked the two lines are greyed out (read-only, so what was typed is kept). matter-form.js keeps that in step; without the script the page shows the saved state. #}
+  <p><label><input type="checkbox" name="addressee_use_firm_name" value="1" data-addressee-firm{% if form.addressee_use_firm_name %} checked{% endif %}> Use the firm name as the addressee</label></p>
+  <p class="field-row" data-addressee-lines><label>Addressee, first line <input type="text" name="addressee_line1" value="{{ form.addressee_line1 }}" maxlength="300"{% if form.addressee_use_firm_name %} readonly aria-disabled="true"{% endif %}></label> <label>Addressee, second line <input type="text" name="addressee_line2" value="{{ form.addressee_line2 }}" maxlength="300"{% if form.addressee_use_firm_name %} readonly aria-disabled="true"{% endif %}></label></p>
   <p><label>Caption <textarea name="court_name" rows="2" cols="50">{{ form.court_name }}</textarea></label></p>
-  <p><label>Client <input type="text" name="client" value="{{ form.client }}" size="40"></label></p>
   <p><label>Details, left <textarea name="additional_details_left" rows="2" cols="40">{{ form.additional_details_left }}</textarea></label> <label>Details, right <textarea name="additional_details_right" rows="2" cols="40">{{ form.additional_details_right }}</textarea></label></p>
-  <p><label>Plaintiff <input type="text" name="plaintiff_name" value="{{ form.plaintiff_name }}"></label> <label>as <input type="text" name="plaintiff_type" value="{{ form.plaintiff_type }}" size="14"></label></p>
-  <p><label>Defendant <input type="text" name="defendant_name" value="{{ form.defendant_name }}"></label> <label>as <input type="text" name="defendant_type" value="{{ form.defendant_type }}" size="14"></label></p>
+  <p class="field-row"><label>Plaintiff <input type="text" name="plaintiff_name" value="{{ form.plaintiff_name }}"></label> <label class="narrow">Type <input type="text" name="plaintiff_type" value="{{ form.plaintiff_type }}" size="14"></label></p>
+  <p class="field-row"><label>Defendant <input type="text" name="defendant_name" value="{{ form.defendant_name }}"></label> <label class="narrow">Type <input type="text" name="defendant_type" value="{{ form.defendant_type }}" size="14"></label></p>
   <p><label>Notes <textarea name="notes" rows="3" cols="50">{{ form.notes }}</textarea></label></p>
   {% if can_edit %}<p><button type="submit" class="primary">Save</button> <a href="{% if matter %}{% url 'fees_matter_detail' matter.pk %}{% else %}{% url 'fees_firms' %}{% endif %}">Cancel</a></p>{% endif %}
 </form>
 {% endblock %}
+{% block page_js %}{% if can_edit %}<script src="{% static 'js/fees/matter-form.js' %}"></script>{% endif %}{% endblock %}

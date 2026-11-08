@@ -6,7 +6,7 @@
 {% block content %}
 <div class="page-head"><h1>{{ matter.name }}{% if matter.is_archived %} <small class="muted">(archived)</small>{% endif %}</h1>
 <p class="page-actions" role="group" aria-label="Matter actions"><a class="button small secondary" href="{% url 'fees_matter_statement' matter.pk %}">Statement</a> <a class="button small secondary" href="{% url 'fees_matter_ledger' matter.pk %}">Ledger</a>{% if can_edit %} <a class="button small secondary" href="{% url 'fees_matter_edit' matter.pk %}">Edit Or Move Matter</a>{% if not matter.is_archived %} <a class="button small primary" href="{% url 'fees_memo_new' %}?matter={{ matter.pk }}">New Memo</a>{% endif %}{% endif %}</p></div>
-<p class="subtitle muted"><a href="{% url 'fees_firm_detail' matter.firm_id %}">{{ matter.firm.name }}</a> &middot; {{ matter.group.name }}</p>
+<p class="subtitle muted"><a href="{% url 'fees_firm_detail' matter.firm_id %}">{{ matter.firm.name }}</a> &middot; {{ matter.group.name }}{% if matter.client %} &middot; Client: {{ matter.client }}{% endif %}</p>
 {% if matter.notes %}<section class="card" aria-labelledby="notes-heading"><h2 id="notes-heading">Notes</h2><p>{{ matter.notes|linebreaksbr }}</p></section>{% endif %}
 <h2>Memos</h2>
 {% include "fees/_memo_table.html" with table_key="matter-memos" matter_view=True %}
