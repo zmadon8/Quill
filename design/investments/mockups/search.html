@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Search · Investments (mockup)</title><link rel="stylesheet" href="mockup.css"></head>
+<body><div class="page">
+<header class="site-header"><div class="brand-row"><span class="brand">Investments<span> · Madon</span></span><span class="profile-switch" title="Switch profile"><svg viewBox="0 0 16 16" width="16" height="16"><path d="M4 6l4-3.5L12 6M4 10l4 3.5L12 10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="history-buttons"><span class="ic" title="Back"><svg viewBox="0 0 16 16" width="18" height="18"><path d="M14 8H2M7 3L2 8l5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="ic" title="Forward"><svg viewBox="0 0 16 16" width="18" height="18"><path d="M2 8h12M9 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span></span><span class="menu-btn">Menu</span></div><nav class="program-nav" aria-label="Main"><a class="nl on" href="dashboard.html">Overview</a><a class="nl" href="holdings.html">Holdings</a><a class="nl" href="performance.html">Reports</a><a class="nl" href="alerts.html">Alerts<span class="dot">3</span></a><a class="nl" href="settings-general.html">Settings</a><span class="who">ziyad</span><a class="ic open" title="Search (Opt F)"><svg viewBox="0 0 24 24" width="22" height="22"><circle cx="10.5" cy="10.5" r="6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M15 15l5.5 5.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></a><a class="ic" href="dashboard.html" title="Home"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M3 11.5L12 4l9 7.5M5.5 10v10h13V10M10 20v-6h4v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></a></nav></header>
+<div class="search-pop"><div class="f"><div class="in">reli<span style="border-left:1.5px solid var(--ink);height:20px;margin-left:1px"></span></div><span class="btn p">Search</span></div></div>
+<div class="tools"><div class="ctx"><div class="sel"><span>Portfolio</span><b>All Portfolios</b></div><div class="sel"><span>Broker</span><b>All brokers</b></div><div class="sel"><span>As at</span><b>Today, 6 Nov 2026</b></div></div><div class="util"><span class="btn q">Update Prices</span><div class="toggle" title="Number display"><span data-m="auto" class="on">Auto</span><span data-m="full">Full</span></div></div><div class="status">Updated <b>6 Nov 2026, 2:00 am</b> · prices as of close 5 Nov · 2 not updated</div></div>
+<div class="titlebar"><h1 class="t">Search</h1><div class="meta">Panel open</div></div>
+<p class="lead">The Search icon at the top right opens a search panel under the header (Option-F does the same). Results appear as you type, grouped. Arrow keys move through them and Enter opens one.</p>
+<div style="max-width:700px">
+<div class="res">
+<div style="background:var(--panel);font-size:10.5px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted)"><span>Investments</span></div>
+<div class="hl"><span><b>Reli</b>ance Industries <small>RELIANCE.NS · Share</small></span><small>Open page</small></div>
+<div><span><b>Reli</b>ance Power <small>RPOWER.NS · sold out</small></span><small>Open page</small></div>
+<div style="background:var(--panel);font-size:10.5px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted)"><span>Transactions</span></div>
+<div><span>12 Mar 2021 · Buy 100 <b>Reli</b>ance Industries · Zerodha</span><small>Highlight in list</small></div>
+<div style="background:var(--panel);font-size:10.5px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted)"><span>Pages</span></div>
+<div><span><b>Reli</b>ability data check</span><small>Other reports</small></div>
+</div></div>
+<div class="anno"><h4>Mockup note</h4><ul><li>Same pattern as the other programs: a magnifier icon in the header, no box around it, opening a panel under the header.</li><li>Searches investments (name, ticker, scheme code, ISIN), folio numbers, brokers, transactions and visible pages. At least two characters. Command + F still finds text on the current page.</li></ul></div>
+<footer class="f"><span>Mockup · all figures are invented</span><span><a href="index.html">All mockup pages</a></span></footer>
+</div><script>
+(function(){var k='inv-mock-num',m=localStorage.getItem(k)||'auto';
+function apply(){document.querySelectorAll('.m').forEach(function(e){e.textContent=e.getAttribute('data-'+m)});
+document.querySelectorAll('.toggle span').forEach(function(s){s.classList.toggle('on',s.getAttribute('data-m')===m)})}
+document.querySelectorAll('.toggle span').forEach(function(s){s.addEventListener('click',function(){m=s.getAttribute('data-m');localStorage.setItem(k,m);apply()})});
+apply()})();
+</script></body></html>
