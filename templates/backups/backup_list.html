@@ -73,7 +73,7 @@
 
 <section class="settings-panel-body" data-section="email" id="section-email">
 <h2>Email backups</h2>
-<p>The nightly job can email you a copy of the diary: the full backup file, the complete Word export, or both. Use it as an extra copy kept away from the server, in a mailbox you trust. <strong>These files hold the whole diary and the scrambled passwords of every user, so send them only to people who may see everything.</strong></p>
+<p>The nightly job can email you copies kept away from the server, in a mailbox you trust. Tick each kind of file you want and choose how often it goes. <strong>These files hold everything in the suite (the regular backup also holds the scrambled passwords of every user), so send them only to people who may see everything.</strong></p>
 {% if not configured %}
 <p class="error" role="alert">Email is not set up on this server, so nothing can be sent yet. Set <code>EMAIL_HOST</code> (and the other <code>EMAIL_</code> settings) in the hosting dashboard. See <code>docs/EMAIL.md</code>.</p>
 {% endif %}
@@ -82,16 +82,34 @@
   {% csrf_token %}
   {{ email_form.non_field_errors }}
   {{ email_form.enabled.as_field_group }}
-  {{ email_form.frequency.as_field_group }}
-  {{ email_form.weekday.as_field_group }}
-  {{ email_form.day_of_month.as_field_group }}
   {{ email_form.recipients.as_field_group }}
-  {{ email_form.delivery.as_field_group }}
-  <p class="meta">The JSON backup (.json.gz) can be restored on the Backups screen. The Word export (.docx) is the whole diary, one file per diary profile. <strong>Both, in separate emails</strong> sends two emails, each with its own {{ max_mb }} MB allowance, which suits a large diary.{% if backup_size %} The newest backup file is {{ backup_size|filesizeformat }}.{% endif %}</p>
+  <fieldset class="email-kinds">
+    <legend>What to send, and how often</legend>
+    <table class="email-kinds-table">
+      <thead><tr><th scope="col">Send</th><th scope="col">How often</th><th scope="col">On (weekly)</th><th scope="col">Day (monthly)</th></tr></thead>
+      <tbody>
+      {% for row in email_form.kind_rows %}
+      <tr data-email-kind="{{ row.key }}">
+        <th scope="row"><label class="check">{{ row.enabled }} {{ row.label }}</label>{% if row.enabled.errors %}{{ row.enabled.errors }}{% endif %}</th>
+        <td><label class="visually-hidden" for="{{ row.frequency.id_for_label }}">How often: {{ row.label }}</label>{{ row.frequency }}{{ row.frequency.errors }}</td>
+        <td><label class="visually-hidden" for="{{ row.weekday.id_for_label }}">Weekday: {{ row.label }}</label>{{ row.weekday }}{{ row.weekday.errors }}</td>
+        <td><label class="visually-hidden" for="{{ row.day_of_month.id_for_label }}">Day of the month (1 to 28): {{ row.label }}</label>{{ row.day_of_month }}{{ row.day_of_month.errors }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    <p class="meta">The regular backup (.json.gz) is the whole suite and can be restored on the Backups screen{% if backup_size %}; the newest one is {{ backup_size|filesizeformat }}{% endif %}. The Word and HTML copies are the whole Case Law Diary to read, one file per diary profile. The Excel sheets are the Fee Register backup workbook, one per Fee Register profile. Weekly uses the day under &ldquo;On&rdquo;; monthly uses the day of the month (1 to 28).</p>
+  </fieldset>
   {{ email_form.include_review.as_field_group }}
-  <p class="meta">Weekly uses the day chosen under &ldquo;On&rdquo;; monthly uses the day of the month. The nightly job (about 02:00 IST) sends it. If a send fails it is tried again the next night. Each email carries at most {{ max_mb }} MB of files; anything that does not fit is left out, the email says so, and a warning bar shows on every page until you fix it.</p>
+  <fieldset class="email-size">
+    <legend>Size of each email</legend>
+    <p class="meta">Everything that is due on a night goes in <strong>one email</strong>. If your email service refuses large emails, tick the box below and set the most it may carry: the files are then shared out over as few emails as possible, keeping each kind of file together where that needs no extra email. A single file larger than the limit goes alone in its own email.</p>
+    {{ email_form.split_emails.as_field_group }}
+    {{ email_form.max_attachment_mb.as_field_group }}
+  </fieldset>
+  <p class="meta">The nightly job (about 02:00 IST) sends whatever is due. If a send fails it is tried again the next night, and a warning bar shows on every page until it succeeds.</p>
   <button type="submit" name="action" value="save">Save</button>
-  <button type="submit" name="action" value="send_now">Save And Send One Now</button>
+  <button type="submit" name="action" value="send_now">Save And Send The Ticked Files Now</button>
   <button type="submit" name="action" value="test" formnovalidate>Send A Test Email</button>
   <span class="dirty-note" data-dirty-note hidden>You have unsaved changes.</span>
 </form>
@@ -101,7 +119,8 @@
 {% else %}
 <p>Nothing has been sent yet.</p>
 {% endif %}
-{% if schedule.last_sent_at %}<p class="meta">Last successful send: {{ schedule.last_sent_at|date:"Y-m-d H:i" }} IST.{% if due %} Another is due at the next nightly run.{% endif %}</p>{% elif schedule.enabled %}<p class="meta">The first email goes out at the next nightly run.</p>{% endif %}
+{% if schedule.last_sent_at %}<p class="meta">Last successful send: {{ schedule.last_sent_at|date:"Y-m-d H:i" }} IST.</p>{% endif %}
+{% if schedule.enabled and due %}<p class="meta">Due at the next nightly run: {{ due_kinds|join:", " }}.</p>{% endif %}
 </section>
 
 </div>

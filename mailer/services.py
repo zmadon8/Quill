@@ -1,4 +1,4 @@
-"""Sending email: is it set up, who gets it, when a scheduled backup email is due, and building and sending it.
+"""Sending email: is it set up, who gets it, when each kind of emailed backup is due, and building and sending it.
 
 Nothing here is called while a page is being drawn; sending happens in a request the Admin made (Send now, Send a
 test) or in the nightly scheduled job (``manage.py send_email_backups``).
@@ -13,7 +13,8 @@ from django.core.validators import validate_email
 from django.utils import timezone
 
 from accounts.models import Profile
-from accounts.suite import KEY_DIARY
+from accounts.profiles import effective_export_name, safe_file_name
+from accounts.suite import KEY_DIARY, KEY_FEES
 from backups import services as backup_services
 from backups.models import BackupFile
 from diary.wordexport import service as word_export
@@ -21,12 +22,15 @@ from diary.wordexport.service import ExportError
 
 from . import sender
 from .models import (
-    DELIVERY_BOTH_ONE,
-    DELIVERY_BOTH_SEPARATE,
-    DELIVERY_DATA,
-    DELIVERY_WORD,
+    DEFAULT_MAX_MB,
     FREQ_MONTHLY,
     FREQ_WEEKLY,
+    KIND_DATA,
+    KIND_EXCEL,
+    KIND_HTML,
+    KIND_KEYS,
+    KIND_LABELS,
+    KIND_WORD,
 )
 
 logger = logging.getLogger(__name__)
@@ -35,6 +39,7 @@ MAX_RECIPIENTS = 10
 #: A stored backup newer than this is emailed as it is; an older one (or none) is replaced by a fresh backup first.
 FRESH_BACKUP_HOURS = 20
 GZIP_TYPE = "application/gzip"
+XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 
 def is_configured():
@@ -81,18 +86,31 @@ def last_due_date(frequency, weekday, day_of_month, today):
     return today
 
 
+def kind_is_due(schedule, kind, now=None):
+    """True if ``kind`` is switched on and its latest planned send has not happened yet (the master switch aside)."""
+    if not schedule.kind_setting(kind, "enabled"):
+        return False
+    now = now or timezone.now()
+    wanted = last_due_date(schedule.kind_setting(kind, "frequency"), schedule.kind_setting(kind, "weekday"),
+                           schedule.kind_setting(kind, "day_of_month"), timezone.localdate(now))
+    last = schedule.kind_setting(kind, "last_sent_at")
+    return last is None or timezone.localdate(last) < wanted
+
+
+def due_kinds(schedule, now=None):
+    """The kinds of file whose turn it is, in page order."""
+    return [kind for kind in KIND_KEYS if kind_is_due(schedule, kind, now)]
+
+
 def is_due(schedule, now=None):
-    """True if the schedule is on, has someone to send to, and the latest planned send has not happened yet.
+    """True if the schedule is on, has someone to send to, and at least one kind of file is due.
 
     A planned day that was missed (the job did not run, or the send failed) is made up on the next run, and it
     is made up only once.
     """
     if not schedule.enabled or not parse_recipients(schedule.recipients):
         return False
-    now = now or timezone.now()
-    today = timezone.localdate(now)
-    wanted = last_due_date(schedule.frequency, schedule.weekday, schedule.day_of_month, today)
-    return schedule.last_sent_at is None or timezone.localdate(schedule.last_sent_at) < wanted
+    return bool(due_kinds(schedule, now))
 
 
 # ------------------------------------------------------------------ what is attached
@@ -114,60 +132,180 @@ def _data_files(schedule, now):
     return [(backup.filename, bytes(backup.data), GZIP_TYPE)], []
 
 
-def _word_files(schedule, now):
-    """One .docx per live diary profile: ([(name, bytes, type)], [notes about any that could not be made])."""
+def _diary_files(schedule, now, make, what):
+    """One file per live diary profile from ``make`` (the Word or the HTML maker): (files, notes)."""
     files, notes = [], []
     for profile in Profile.objects.filter(program=KEY_DIARY, deleted_at__isnull=True).order_by("name"):
         try:
-            exported = word_export.full(profile, schedule.owner, include_review=schedule.include_review, now=now)
+            exported = make(profile, schedule.owner, include_review=schedule.include_review, now=now)
         except ExportError as exc:
-            notes.append(f"The Word file for {profile.name} could not be made: {exc}")
+            notes.append(f"The {what} file for {profile.name} could not be made: {exc}")
             continue
         files.append((exported.name, exported.data, exported.content_type))
     return files, notes
 
 
-def plan_emails(delivery):
-    """The emails to send for a delivery choice: a list of emails, each a list of parts ("data" / "word")."""
-    return {
-        DELIVERY_DATA: [["data"]],
-        DELIVERY_WORD: [["word"]],
-        DELIVERY_BOTH_ONE: [["data", "word"]],
-        DELIVERY_BOTH_SEPARATE: [["data"], ["word"]],
-    }.get(delivery, [["data", "word"]])
+def _word_files(schedule, now):
+    return _diary_files(schedule, now, word_export.full, "Word")
 
 
-def fit_to_limit(files, limit_bytes, max_mb):
-    """(files that fit within the limit in total, notes about the ones left out). Names are made unique."""
-    kept, notes, used, names = [], [], 0, set()
-    for name, data, content_type in files:
-        if used + len(data) > limit_bytes:
-            notes.append(f"{name} ({max(1, len(data) // 1024)} KB) was left out: the files would be more than {max_mb} MB in this email.")
+def _html_files(schedule, now):
+    # The same single-file HTML copy as the Export page's download, for the whole diary.
+    return _diary_files(schedule, now, word_export.offline_copy, "HTML")
+
+
+def _excel_files(schedule, now):
+    """One .xlsx per live Fee Register profile, the same workbook as Fee Register > Settings > Backup."""
+    from fees.services import excel_backup
+    from fees.services.heavy import heavy_operation
+
+    files, notes = [], []
+    day = timezone.localdate(now).isoformat()
+    for profile in Profile.objects.filter(program=KEY_FEES, deleted_at__isnull=True).order_by("name"):
+        try:
+            with heavy_operation("excel_backup"):
+                fileobj = excel_backup.export_workbook(profile)
+            try:
+                data = fileobj.read()
+            finally:
+                fileobj.close()
+        except Exception as exc:  # a busy lock or a bad row: the other files still go
+            notes.append(f"The Excel file for {profile.name} could not be made: {exc}")
             continue
+        name = safe_file_name(f"{effective_export_name(profile)} Backup {day}.xlsx")
+        files.append((name, data, XLSX_TYPE))
+    return files, notes
+
+
+MAKERS = {KIND_DATA: _data_files, KIND_WORD: _word_files, KIND_HTML: _html_files, KIND_EXCEL: _excel_files}
+
+
+def unique_names(files):
+    """The same files with any repeated name made unique ("2-name")."""
+    named, seen = [], set()
+    for name, data, content_type in files:
         base, n = name, 1
-        while name in names:
+        while name in seen:
             n += 1
             name = f"{n}-{base}"
-        names.add(name)
-        kept.append((name, data, content_type))
-        used += len(data)
-    return kept, notes
+        seen.add(name)
+        named.append((name, data, content_type))
+    return named
 
 
-def _body(files, notes, now, part_label):
-    local = timezone.localtime(now)
-    lines = [f"Your Case Law Diary backup ({part_label}), made {local:%Y-%m-%d %H:%M} (IST).", ""]
-    if files:
-        lines.append("Attached:")
-        lines += [f"  - {name} ({max(1, len(data) // 1024)} KB)" for name, data, _ in files]
+# ------------------------------------------------------------------ sharing the files out over emails
+
+#: Up to this many pieces the fewest emails are found exactly; above it, largest-first filling is used.
+EXACT_PACK_LIMIT = 12
+
+
+def _first_fit(sizes, limit):
+    """Largest first, each into the first email it fits: a list of emails, each a list of indexes."""
+    bins, room = [], []
+    for i in sorted(range(len(sizes)), key=lambda j: -sizes[j]):
+        for b, free in enumerate(room):
+            if sizes[i] <= free:
+                bins[b].append(i)
+                room[b] -= sizes[i]
+                break
+        else:
+            bins.append([i])
+            room.append(limit - sizes[i])
+    return bins
+
+
+def _fewest(sizes, limit):
+    """The fewest emails of at most ``limit`` each that hold every piece (every piece fits alone)."""
+    best = _first_fit(sizes, limit)
+    if len(sizes) > EXACT_PACK_LIMIT or len(best) <= 1:
+        return best
+    order = sorted(range(len(sizes)), key=lambda j: -sizes[j])
+    total = sum(sizes)
+
+    def search(k, bins, room):
+        nonlocal best
+        if len(bins) >= len(best):
+            return
+        if k == len(order):
+            best = [list(b) for b in bins]
+            return
+        i = order[k]
+        # Not enough room left for the rest even if every gap were filled: no better answer down this way.
+        rest = sum(sizes[j] for j in order[k:])
+        if len(bins) + max(0, -(-(rest - sum(room)) // limit)) >= len(best):
+            return
+        tried = set()
+        for b in range(len(bins)):
+            if sizes[i] <= room[b] and room[b] not in tried:
+                tried.add(room[b])
+                bins[b].append(i)
+                room[b] -= sizes[i]
+                search(k + 1, bins, room)
+                room[b] += sizes[i]
+                bins[b].pop()
+        bins.append([i])
+        room.append(limit - sizes[i])
+        search(k + 1, bins, room)
+        room.pop()
+        bins.pop()
+
+    if -(-total // limit) < len(best):
+        search(0, [], [])
+    return best
+
+
+def plan_emails(groups, split, limit_bytes):
+    """Share the files out over emails.
+
+    ``groups`` is [(kind, [(name, data, type), ...])]. Without ``split`` everything goes in one email. With it, no
+    email carries more than ``limit_bytes`` of files and as few emails as possible are sent: each kind's files stay
+    together in one email when that needs no more emails than splitting them up, and a single file that is larger
+    than the limit by itself goes alone in its own email. Returns a list of emails, each [(kind, file), ...].
+    """
+    pieces = [(kind, f) for kind, files in groups for f in files]
+    if not pieces:
+        return []
+    if not split:
+        return [pieces]
+    alone = [[p] for p in pieces if len(p[1][1]) > limit_bytes]
+    fitting = [(kind, [f for f in files if len(f[1]) <= limit_bytes]) for kind, files in groups]
+    fitting = [(kind, files) for kind, files in fitting if files]
+    singles = [(kind, f) for kind, files in fitting for f in files]
+    by_file = _fewest([len(f[1]) for _, f in singles], limit_bytes) if singles else []
+    # The same, keeping each kind together (a kind that is too big for one email is split by file anyway).
+    units = []
+    for kind, files in fitting:
+        if sum(len(f[1]) for f in files) <= limit_bytes:
+            units.append([(kind, f) for f in files])
+        else:
+            units += [[(kind, f)] for f in files]
+    by_kind = _fewest([sum(len(f[1]) for _, f in u) for u in units], limit_bytes) if units else []
+    if units and len(by_kind) <= len(by_file):
+        emails = [[p for u in b for p in units[u]] for b in by_kind]
     else:
-        lines.append("No files could be attached.")
+        emails = [[singles[i] for i in b] for b in by_file]
+    order = {kind: n for n, kind in enumerate(KIND_KEYS)}
+    emails = [sorted(e, key=lambda p: order[p[0]]) for e in emails]
+    emails.sort(key=lambda e: min(order[p[0]] for p in e))
+    return emails + alone
+
+
+def _body(files, notes, now, label, number, count, over_limit):
+    local = timezone.localtime(now)
+    which = f" (email {number} of {count})" if count > 1 else ""
+    lines = [f"Your emailed backup{which}: {label}. Made {local:%Y-%m-%d %H:%M} (IST).", ""]
+    lines.append("Attached:")
+    lines += [f"  - {name} ({max(1, len(data) // 1024)} KB)" for name, data, _ in files]
+    if over_limit:
+        lines += ["", "This file is larger than the most you set for one email, so it was sent by itself. If your email "
+                  "service refuses it, raise the limit or switch this kind of file off."]
     if notes:
         lines += ["", "PLEASE NOTE (this backup is incomplete):"] + [f"  - {n}" for n in notes]
     lines += [
         "",
-        "The .json.gz file is a full backup: restore it on the Backups screen. The .docx file is the whole diary as a Word document.",
-        "These files hold your private diary. Keep them safe and delete this email if you no longer need it.",
+        "The .json.gz file is a full backup: restore it on the Backups screen. The .docx and .html files are the whole "
+        "Case Law Diary to read (one per diary profile). The .xlsx files are the Fee Register sheets (one per profile).",
+        "These files hold your private data. Keep them safe and delete this email if you no longer need it.",
     ]
     return "\n".join(lines)
 
@@ -179,8 +317,9 @@ def _describe_error(exc):
 
 # ------------------------------------------------------------------ sending
 
-def _record(schedule, ok, message, now, sent=None):
-    """Save the outcome. ``ok`` False raises the warning bar; ``sent`` (default: ok) says whether to move last_sent_at."""
+def _record(schedule, ok, message, now, sent=None, sent_kinds=()):
+    """Save the outcome. ``ok`` False raises the warning bar; ``sent`` (default: ok) says whether to move last_sent_at.
+    Each kind in ``sent_kinds`` went out in full, so its own schedule moves on."""
     sent = ok if sent is None else sent
     schedule.last_attempt_at = now
     schedule.last_ok = ok
@@ -189,43 +328,64 @@ def _record(schedule, ok, message, now, sent=None):
     if sent:
         schedule.last_sent_at = now
         fields.append("last_sent_at")
+    for kind in sent_kinds:
+        setattr(schedule, f"{kind}_last_sent_at", now)
+        fields.append(f"{kind}_last_sent_at")
     schedule.save(update_fields=fields)
 
 
-def send_scheduled_backup(schedule, now=None):
-    """Make the files and email them as the schedule's ``delivery`` says. Returns (ok, message); never raises.
+def _fail(schedule, text, now):
+    _record(schedule, False, f"FAILED: {text}", now)
+    return False, text
 
-    Each email is built, sent and let go before the next, to keep memory low. ``ok`` is False if any email failed OR
-    any file had to be left out for size (the email still goes with what fits, and the warning bar tells the Admin).
-    Only a send that got at least one email out moves ``last_sent_at``; a total failure is tried again next run.
+
+def send_scheduled_backup(schedule, now=None, kinds=None):
+    """Make the files of each kind in ``kinds`` (default: the kinds that are due) and email them. Returns (ok, message);
+    never raises.
+
+    By default every file goes in one email. With ``split_emails`` on, the files are shared out so that no email
+    carries more than ``max_attachment_mb``, in as few emails as possible. ``ok`` is False if any email failed or any
+    file could not be made (the warning bar tells the Admin). A kind's own schedule moves on only when all its files
+    went out; anything else is tried again at the next nightly run.
     """
     now = now or timezone.now()
     recipients = parse_recipients(schedule.recipients)
     if not recipients:
-        _record(schedule, False, "FAILED: There is nobody to send to. Add an email address.", now)
-        return False, "There is nobody to send to. Add an email address."
+        return _fail(schedule, "There is nobody to send to. Add an email address.", now)
     if not is_configured():
-        _record(schedule, False, "FAILED: Email is not set up on this server (EMAIL_HOST is missing).", now)
-        return False, "Email is not set up on this server (EMAIL_HOST is missing)."
-    limit = settings.EMAIL_BACKUP_MAX_MB * 1024 * 1024
-    labels = {"data": "JSON backup", "word": "Word export"}
-    sent_count, problems, summaries = 0, [], []
-    plan = plan_emails(schedule.delivery)
-    for number, parts in enumerate(plan, start=1):
-        label = " + ".join(labels[p] for p in parts)
+        return _fail(schedule, "Email is not set up on this server (EMAIL_HOST is missing).", now)
+    kinds = due_kinds(schedule, now) if kinds is None else [k for k in KIND_KEYS if k in kinds]
+    if not kinds:
+        return _fail(schedule, "Nothing to send: tick at least one kind of file.", now)
+    groups, problems, empty, notes_for, failed_kinds = [], [], [], {}, set()
+    for kind in kinds:
         try:
-            files, notes = [], []
-            for part in parts:
-                got, extra = (_data_files if part == "data" else _word_files)(schedule, now)
-                files += got
-                notes += extra
-            files, left_out = fit_to_limit(files, limit, settings.EMAIL_BACKUP_MAX_MB)
-            notes += left_out
-            if not files:
-                raise ValueError("there was nothing to attach. " + " ".join(notes))
+            files, notes = MAKERS[kind](schedule, now)
+        except Exception as exc:
+            files, notes = [], [f"could not be made: {_describe_error(exc)}"]
+        notes_for[kind] = [f"{KIND_LABELS[kind]}: {n}" for n in notes]
+        problems += notes_for[kind]
+        if notes:
+            failed_kinds.add(kind)  # a file is missing, so this kind is tried again next run
+        if files:
+            groups.append((kind, files))
+        elif not notes:
+            empty.append(kind)  # nothing of this kind exists (no profiles): nothing to send, and nothing wrong
+    limit = max(1, schedule.max_attachment_mb or DEFAULT_MAX_MB) * 1024 * 1024
+    emails = plan_emails(groups, schedule.split_emails, limit)
+    sent_count, summaries = 0, []
+    stamp = f"{timezone.localtime(now):%Y-%m-%d}"
+    for number, pieces in enumerate(emails, start=1):
+        in_email = list(dict.fromkeys(kind for kind, _ in pieces))
+        label = " + ".join(KIND_LABELS[k] for k in in_email)
+        files = unique_names([f for _, f in pieces])
+        over = schedule.split_emails and len(pieces) == 1 and len(pieces[0][1][1]) > limit
+        which = f" ({number} of {len(emails)})" if len(emails) > 1 else ""
+        notes = [n for k in in_email for n in notes_for[k]]
+        try:
             message = sender.build_message(
-                f"Case Law Diary backup {timezone.localtime(now):%Y-%m-%d}: {label}" + (" (incomplete)" if notes else ""),
-                _body(files, notes, now, label),
+                f"Backup {stamp}{which}: {label}" + (" (incomplete)" if notes else ""),
+                _body(files, notes, now, label, number, len(emails), over),
                 recipients,
             )
             for name, data, content_type in files:
@@ -234,16 +394,23 @@ def send_scheduled_backup(schedule, now=None):
         except Exception as exc:
             detail = _describe_error(exc)
             logger.warning("Emailed backup (%s) failed: %s", label, detail)
-            problems.append(f"{label}: {detail}")
+            problems.append(f"Email {number} ({label}): {detail}")
+            failed_kinds.update(in_email)
             continue
         sent_count += 1
-        summaries.append(f"{label}: {len(files)} file{'s' if len(files) != 1 else ''}")
-        problems += [f"{label}: {n}" for n in notes]
-    text = f"Sent {sent_count} of {len(plan)} email{'s' if len(plan) != 1 else ''} to {', '.join(recipients)} ({'; '.join(summaries)})." if sent_count else "Nothing was sent."
+        summaries.append(f"{label}: {len(pieces)} file{'s' if len(pieces) != 1 else ''}")
+    planned = len(emails)
+    sent_kinds = [k for k in kinds if k not in failed_kinds]
+    if sent_count:
+        text = f"Sent {sent_count} of {planned} email{'s' if planned != 1 else ''} to {', '.join(recipients)} ({'; '.join(summaries)})."
+    else:
+        text = "Nothing was sent."
+    if empty:
+        text += " Nothing to attach for: " + ", ".join(KIND_LABELS[k] for k in empty) + "."
     if problems:
         text += " PROBLEMS: " + " | ".join(problems)
-    ok = sent_count == len(plan) and not problems
-    _record(schedule, ok, text if ok else f"FAILED: {text}", now, sent=sent_count > 0)
+    ok = not problems and (sent_count > 0 or bool(empty))
+    _record(schedule, ok, text if ok else f"FAILED: {text}", now, sent=sent_count > 0, sent_kinds=sent_kinds)
     return ok, text
 
 

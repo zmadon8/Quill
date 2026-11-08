@@ -92,7 +92,7 @@ class SendingTests(TestCase):
     def test_scheduled_backup_uses_the_same_from(self):
         schedule = EmailBackupSchedule.load()
         schedule.recipients = "me@example.com"
-        schedule.delivery = "data"
+        schedule.word_enabled = False  # the regular backup only
         schedule.save()
         ok, _ = services.send_scheduled_backup(schedule)
         self.assertTrue(ok)
@@ -101,7 +101,7 @@ class SendingTests(TestCase):
     def test_a_failed_send_stores_the_smtp_error_in_the_log(self):
         schedule = EmailBackupSchedule.load()
         schedule.recipients = "me@example.com"
-        schedule.delivery = "data"
+        schedule.word_enabled = False  # the regular backup only
         schedule.save()
         boom = smtplib.SMTPDataError(550, b"5.7.30 DKIM did not pass")
         with mock.patch("django.core.mail.message.EmailMessage.send", side_effect=boom):

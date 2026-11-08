@@ -115,16 +115,10 @@ class OfflineCopyTests(ExportCase):
         part = service.offline_copy(self.profile, self.editor, True, "subject", self.arb.pk, now=NOW)
         self.assertEqual(part.name, "Case Law Diary Main Arbitration, Offline copy 2026-11-01.html")
 
-    def test_the_page_describes_it_and_the_email_backups_do_not_include_it(self):
+    def test_the_page_describes_it_and_says_it_can_be_emailed(self):
         body = self.login(self.reader).get(reverse("export")).content.decode()
         self.assertIn("Download The Offline Copy", body)
-        self.assertIn("not part of the scheduled email backups", body)
-        import pathlib
-
-        mailer = pathlib.Path(__file__).resolve().parents[2] / "mailer"
-        for path in mailer.rglob("*.py"):
-            if "tests" not in path.parts:
-                self.assertNotIn("offline", path.read_text(encoding="utf-8").lower(), path.name)
+        self.assertIn("Admin &gt; Backups &gt; Email backups", body)
 
 
 class OfflineBuilderTests(ExportCase):

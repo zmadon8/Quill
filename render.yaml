@@ -61,7 +61,7 @@ services:
     # Purges (deleted profiles, old edit history) only run if the backup succeeded (&&), and each refuses on its own
     # if today's backup is missing. Clearing expired sessions is housekeeping: it always runs, but a failure there
     # can never hide a backup failure because the job exits with the backup/purge result first.
-    # send_email_backups emails the backup / Word export when the Admin's schedule says one is due (does nothing if off).
+    # send_email_backups emails each kind of file (backup, Word / HTML copy, Fee Register Excel) whose own schedule says it is due (does nothing if off).
     # refresh_offline_copies remakes the saved Offline copy behind each secret link (Profiles > Offline link). Like the
     # email step it is followed by || echo, so it can never change rc or hide the backup/purge result.
     startCommand: sh -c 'python manage.py run_backup && python manage.py purge_deleted_profiles && python manage.py purge_old_history; rc=$?; python manage.py send_email_backups || echo "send_email_backups failed (see Backups > Email backups)"; python manage.py refresh_offline_copies || echo "refresh_offline_copies failed (see Profiles > Offline link)"; python manage.py clearsessions || echo "clearsessions failed (ignored)"; exit $rc'

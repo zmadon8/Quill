@@ -18,7 +18,7 @@ On Render, set these environment variables on **both** the web service and the n
 | `EMAIL_HOST_USER` | The login (often the mailbox address) |
 | `EMAIL_HOST_PASSWORD` | The password or app password. Keep it only in the dashboard |
 | `DEFAULT_FROM_EMAIL` | Optional. The "From" address, for example `Case Law Diary <you@example.com>`. Default: `EMAIL_HOST_USER` |
-| `EMAIL_BACKUP_MAX_MB` | Optional. Most file size to attach (default 15). Use 6 for Amazon SES (10 MB message limit) |
+| `EMAIL_BACKUP_MAX_MB` | Optional. Starting value for the size limit on the Email backups screen (default 15); change it on that screen afterwards. Use 6 for Amazon SES (10 MB message limit) |
 | `PASSWORD_RESET_TIMEOUT` | Optional. Seconds a reset link works (default 3600) |
 
 Then open **Backups & Import > Email backups** as an Admin, type your address and press **Send a test email**. If it arrives, email works.
@@ -52,7 +52,7 @@ Never paste the app password anywhere else: not in GitHub, not in a chat, not in
 
 **F. Switch on what you want.**
 * Forgot my password: every person adds their address under **Settings > My settings** (the Admin can also add it under **Users & Profiles > Users**). Then log out and check that the login page shows **Forgot my password**.
-* Emailed backups: on **Email backups** tick **Send backups by email**, choose how often, who receives it and **What to send**, then press **Save** (or **Save and send one now** to try it at once).
+* Emailed backups: on **Email backups** tick **Send backups by email**, choose who receives it, tick each kind of file under **What to send, and how often**, then press **Save** (or **Save And Send The Ticked Files Now** to try it at once).
 
 ## 1b. Step by step with Brevo (if you want reset emails to come from your own domain)
 
@@ -61,7 +61,7 @@ Only worth it if you own a web address (for example `madonchambers.in`). Brevo's
 2. Under **Senders, Domains & Dedicated IPs**, add your sender address and verify it; for best delivery also add your domain and the DNS records Brevo shows (ask whoever manages your domain, or Kiro, for help).
 3. Under **SMTP & API**, tab **SMTP**: note the **Login** shown there, and press **Generate a new SMTP key**; copy the key.
 4. On Render (web service and cron job, as in D above): `EMAIL_HOST` = `smtp-relay.brevo.com`, `EMAIL_PORT` = `587`, `EMAIL_HOST_USER` = the Brevo SMTP login, `EMAIL_HOST_PASSWORD` = the SMTP key, `DEFAULT_FROM_EMAIL` = `Case Law Diary <your verified sender address>`.
-5. Test as in E. Check Brevo's current limit on message size and set `EMAIL_BACKUP_MAX_MB` below it.
+5. Test as in E. Check Brevo's current limit on message size and set the size limit on the Email backups screen below it.
 
 ## 1c. If the test email fails
 
@@ -71,7 +71,7 @@ The screen shows the reason. The usual ones:
 * **Timeout / connection refused**: the host or port is wrong (use `smtp.gmail.com` and `587`). Port 25 never works on Render.
 * **SMTPSenderRefused**: `DEFAULT_FROM_EMAIL` is not the Gmail address itself (Gmail), or not a verified sender (Brevo).
 * **The test works but the nightly backup email does not arrive**: the cron job is missing the five values (step D4). The Admin warning bar and **Email backups > Last send** show the reason.
-* **Gmail says the attachment is too big**: lower `EMAIL_BACKUP_MAX_MB`, or choose **Both, in separate emails**.
+* **Gmail says the attachment is too big**: on the Email backups screen tick **Split into several emails** and lower the size limit (15 MB suits Gmail).
 
 ## 1d. Gmail: "550 5.7.30 ... DKIM authentication didn't pass" (plain words)
 
@@ -115,11 +115,16 @@ The app now protects against reason 2: when `EMAIL_HOST` is `smtp.gmail.com` (or
 
 **Backups & Import > Email backups** (Admin only):
 
-* Switch on, choose how often (every day / week on a chosen weekday / month on a chosen day, 1 to 28) and who gets it (up to 10 addresses).
-* Choose **What to send**: (i) the JSON backup only, (ii) the complete Word export only, (iii) both in one email, or (iv) both in separate emails. The Word export is one file per diary profile (with or without For review markers), The Word file uses the number and date formats of the Admin who last saved the schedule.
-* **Save and send one now** sends at once. **Send a test email** sends a short message only.
-* The nightly cron job runs `python manage.py send_email_backups` right after the nightly backup. It sends when a send is due and does nothing otherwise. A planned day that was missed is made up once. If a send fails it is tried again the next night, and every Admin sees a warning bar at the top until one succeeds.
-* **Too large:** each email carries at most `EMAIL_BACKUP_MAX_MB` of files. Files that do not fit are left out, the email subject says (incomplete) and the body lists what is missing, and every Admin sees the warning bar until it is fixed (the email with what fits still goes). Separate emails (iv) give each file its own allowance. If the diary is too big even for that, rely on the off-site copy (hosting guide section 6a), email the Word file only, or raise the limit if your provider allows it.
+* Switch on and choose who gets it (up to 10 addresses).
+* **What to send, and how often:** each kind of file has its own tick box and its own schedule (every day / every week on a chosen weekday / every month on a chosen day, 1 to 28):
+  * the **regular backup** (.json.gz, the whole suite; restore it on the Backups screen);
+  * the **Case Law Diary Word copy** (.docx) and/or **HTML copy** (.html), one file per diary profile (with or without the Flags);
+  * the **Fee Register Excel sheets** (.xlsx, the same workbook as Fee Register > Settings > Backup), one per Fee Register profile.
+  The Word and HTML files use the number and date formats of the Admin who last saved the schedule.
+* **One email by default:** everything that is due on a night goes in one email.
+* **Size of each email:** tick **Split into several emails** and set the most one email may carry (1 to 100 MB; it starts at `EMAIL_BACKUP_MAX_MB`, default 15). The files are then shared out over as few emails as possible (the fewest is found exactly for up to 12 files), keeping each kind of file together where that needs no extra email. A file larger than the limit by itself goes alone in its own email and the email says so.
+* **Save and send the ticked files now** sends every ticked kind at once, due or not. **Send a test email** sends a short message only.
+* The nightly cron job runs `python manage.py send_email_backups` right after the nightly backup. It sends the kinds that are due and does nothing otherwise. A planned day that was missed is made up once. A kind whose file could not be made or whose email failed is tried again the next night, and every Admin sees a warning bar at the top until a send succeeds.
 * Run by hand any time in the Render shell: `python manage.py send_email_backups --force`.
 * The same nightly job then runs `python manage.py refresh_offline_copies`, which remakes the saved copy behind each secret Offline link (Admins > Profiles > Offline link). A failure there does not affect backups or emails. Run it by hand any time in the Render shell.
 
