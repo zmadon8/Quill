@@ -387,6 +387,29 @@ def user_restore(request, pk):
 
 
 @admin_required
+@require_GET
+def admin_profile_access(request):
+    """Admin Profile Access: every live profile of every program that is on, to open any of them (an Admin may use
+    every profile). Home lists only the profiles given to the Admin on the Users screen. Two queries."""
+    from .profiles import request_profile
+
+    names = suite.get_names()
+    given = {
+        m.profile_id
+        for m in ProfileMembership.objects.filter(user=request.user, suspended=False, admin_access=False).only("profile_id")
+    }
+    groups = []
+    for key in programs.enabled_program_keys():
+        current = request_profile(request, key)
+        rows = [
+            {"profile": p, "given": p.pk in given, "current": current is not None and current.pk == p.pk}
+            for p in sorted(_live_profiles(key), key=lambda p: (p.name.lower(), p.pk))
+        ]
+        groups.append({"name": names.get(key, key), "rows": rows})
+    return render(request, "accounts/admin_profile_access.html", {"groups": groups})
+
+
+@admin_required
 @require_http_methods(["GET", "POST"])
 def suite_settings(request):
     """Rename the Home page and the programs (Admin only; the names are shared by all users)."""

@@ -4,25 +4,25 @@
 <div class="launcher">
   <h1{% if home_header_words %} class="visually-hidden"{% endif %}>Programs</h1>
   {% if diary_profile %}
-  <a class="program-link" href="{% url 'diary_home' %}">{% if other_profiles and not diary_profile.display_name %}{{ diary_name }} &middot; {{ diary_profile.name }}{% else %}{{ program_label }}{% endif %}</a>
-  {# Round 18 (D95): someone with several profiles opens any of them from here; the one used last is the button above. #}
-  {% for p in other_profiles %}
+  <a class="program-link" href="{% url 'diary_home' %}">{{ diary_label }}</a>
+  {% endif %}
+  {# Round 18 (D95): someone with several profiles opens any of them from here; the one used last is the link above. Only profiles given to the user show; an Admin opens the others from Admin Profile Access. #}
+  {% for p in home_diary_others %}
   <form method="post" action="{% url 'profile_switch' %}" class="program-switch">
     {% csrf_token %}
     <button type="submit" name="profile" value="{{ p.pk }}" class="program-link">{% if p.display_name %}{{ p.display_name }}{% else %}{{ diary_name }} &middot; {{ p.name }}{% endif %}</button>
   </form>
   {% endfor %}
-  {% endif %}
   {% if fees_profile %}
   <a class="program-link" href="{% url 'fees_landing' %}">{{ fees_label }}</a>
+  {% endif %}
   {% for p in fees_other_profiles %}
   <form method="post" action="{% url 'profile_switch' %}" class="program-switch">
     {% csrf_token %}
     <button type="submit" name="profile" value="{{ p.pk }}" class="program-link">{% if p.display_name %}{{ p.display_name }}{% else %}{{ fees_name }} &middot; {{ p.name }}{% endif %}</button>
   </form>
   {% endfor %}
-  {% endif %}
-  {% if not diary_profile and not fees_profile %}
+  {% if not diary_profile and not fees_profile and not home_diary_others and not fees_other_profiles %}
   <p class="muted">No programs are available to you yet.</p>
   {% endif %}
   {% if show_active %}
@@ -39,6 +39,7 @@
     {% endif %}
   </section>
   {% endif %}
+  {% if show_admin_access %}<p class="help-link"><a href="{% url 'admin_profile_access' %}">Admin Profile Access: open any profile</a></p>{% endif %}
   <p class="help-link"><a href="{% url 'help' %}">Help: how to use this site</a></p>
 </div>
 {% endblock %}

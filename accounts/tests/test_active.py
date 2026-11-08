@@ -238,3 +238,54 @@ class HomeOpensEveryProfileTests(TestCase):
         resp = self.client.post(reverse("profile_switch"), {"profile": other.pk})
         self.assertEqual(resp.status_code, 302)
         self.assertEqual(get_profile_for(self.user, KEY_FEES), other)
+
+
+@override_settings(SECURE_SSL_REDIRECT=False, FEES_ENABLED=True)
+class AdminProfileAccessTests(TestCase):
+    """Home lists only the profiles given to a user; an Admin opens any other one from Admin Profile Access."""
+
+    def setUp(self):
+        from accounts.suite import KEY_FEES
+
+        self.admin = join_main(User.objects.create_user("boss", password=PASSWORD, is_superuser=True), "editor")
+        self.other_diary = Profile.objects.create(program="diary", name="Juniors")
+        self.fees = Profile.objects.create(program=KEY_FEES, name="Firm Fees")
+        self.client.force_login(self.admin)
+
+    def home(self):
+        return self.client.get(reverse("home") + "?home=1").content.decode()
+
+    def test_home_lists_only_given_profiles_and_links_to_the_access_page(self):
+        html = self.home()
+        self.assertNotIn('value="%d"' % self.other_diary.pk, html)
+        self.assertNotIn("Firm Fees", html)
+        self.assertIn('href="%s"' % reverse("admin_profile_access"), html)
+
+    def test_the_access_page_lists_every_profile_and_opens_one(self):
+        from accounts.profiles import get_profile_for
+        from accounts.suite import KEY_FEES
+
+        html = self.client.get(reverse("admin_profile_access")).content.decode()
+        for p in (self.other_diary, self.fees):
+            self.assertIn('name="profile" value="%d"' % p.pk, html)
+        resp = self.client.post(reverse("profile_switch"), {"profile": self.fees.pk})
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(get_profile_for(self.admin, KEY_FEES), self.fees)
+        membership = ProfileMembership.objects.get(user=self.admin, profile=self.fees)
+        self.assertTrue(membership.admin_access)
+        self.assertNotIn("Firm Fees", self.home())  # opened, but still not given: not on Home
+
+    def test_a_profile_given_on_the_users_screen_shows_on_home(self):
+        from accounts.profiles import set_user_profiles, use_profile
+        from accounts.suite import KEY_FEES
+
+        use_profile(self.admin, self.fees)
+        set_user_profiles(self.admin, {self.fees: "editor"}, KEY_FEES)
+        self.assertFalse(ProfileMembership.objects.get(user=self.admin, profile=self.fees).admin_access)
+        self.assertIn("Fee Register", self.home())
+
+    def test_others_may_not_open_the_access_page(self):
+        reader = join_main(User.objects.create_user("rita", password=PASSWORD))
+        self.client.force_login(reader)
+        self.assertEqual(self.client.get(reverse("admin_profile_access")).status_code, 403)
+        self.assertNotIn('href="%s"' % reverse("admin_profile_access"), self.home())

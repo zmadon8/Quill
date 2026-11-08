@@ -12,4 +12,9 @@ class Migration(migrations.Migration):
             name="last_seen_at",
             field=models.DateTimeField(blank=True, null=True),
         ),
+        migrations.AddField(
+            model_name="profilemembership",
+            name="admin_access",
+            field=models.BooleanField(default=False),
+        ),
     ]

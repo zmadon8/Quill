@@ -157,6 +157,26 @@ def _referred_from_this_site(request):
     return bool(referer) and urlsplit(referer).netloc == request.get_host()
 
 
+def _home_buttons(request, program):
+    """(the profile in use, if it was given to the user, else None; their other given profiles) for the Home buttons.
+
+    Only profiles given to the user on the Users screen count (an Admin can open every profile, but those are on the
+    Admin Profile Access page). No extra query: the memberships are already loaded for the header."""
+    given = [m for m in request_memberships(request, program) if m.is_explicit]
+    memberships = request_memberships(request, program)
+    if given and memberships and memberships[0] is given[0]:
+        return given[0].profile, [m.profile for m in given[1:]]
+    return None, [m.profile for m in given]
+
+
+def _home_label(profile, program_name, several):
+    """A Home button's words: the profile's Home Page Name, else the program name (with the profile name if several)."""
+    own = (profile.display_name or "").strip()
+    if own:
+        return own
+    return f"{program_name} \u00b7 {profile.name}" if several else program_name
+
+
 @reader_required
 def home(request):
     """Suite Home: the program picker (only the case law diary today).
@@ -170,21 +190,16 @@ def home(request):
         target = account_landing.landing_url(request.user)
         if target != reverse("home"):
             return redirect(target)
-    context = {"diary_profile": request_profile(request)}
-    fees_profile = request_profile(request, KEY_FEES)
-    if fees_profile is not None and programs.fees_enabled():
+    names = get_names()
+    diary_current, diary_others = _home_buttons(request, KEY_DIARY)
+    context = {"diary_profile": diary_current, "home_diary_others": diary_others,
+               "diary_label": _home_label(diary_current, names[KEY_DIARY], bool(diary_others)) if diary_current else ""}
+    if programs.fees_enabled():
         # A Fee Register user gets a button for it; a user without one sees exactly the page they saw before.
-        context["fees_profile"] = fees_profile
-        context["fees_name"] = get_names()[KEY_FEES]
-        # Someone with several Fee Register profiles opens any of them from here, as with the Case Law Diary.
-        context["fees_other_profiles"] = [m.profile for m in request_memberships(request, KEY_FEES)[1:]]
-        own = (fees_profile.display_name or "").strip()
-        if own:
-            context["fees_label"] = own
-        elif context["fees_other_profiles"]:
-            context["fees_label"] = f"{context['fees_name']} \u00b7 {fees_profile.name}"
-        else:
-            context["fees_label"] = context["fees_name"]
+        fees_current, fees_others = _home_buttons(request, KEY_FEES)
+        context.update({"fees_profile": fees_current, "fees_other_profiles": fees_others, "fees_name": names[KEY_FEES],
+                        "fees_label": _home_label(fees_current, names[KEY_FEES], bool(fees_others)) if fees_current else ""})
+    context["show_admin_access"] = request.user.is_admin
     if activity.can_see_active(request.user):
         context.update(activity.active_panel())
     return render(request, "diary/home.html", context)

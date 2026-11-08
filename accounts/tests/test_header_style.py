@@ -175,11 +175,11 @@ class HeaderStyleTests(TestCase):
 @override_settings(SECURE_SSL_REDIRECT=False)
 class SuiteHeaderTests(TestCase):
     """The main Home page header has icons too (same choice), and its pages are grouped with tabs: Admins (Users,
-    Profiles, Appearance, Backups), Settings (short links: My settings and each program's Settings tab, only for a
+    Profiles, Profile Access, Appearance, Backups), Settings (short links: My settings and each program's Settings tab, only for a
     program the user can open) and Help. The user name in the header opens My settings."""
 
     GROUPS = ("Admins", "Settings", "Help")
-    ADMIN_TABS = ["Users", "Profiles", "Appearance", "Backups"]
+    ADMIN_TABS = ["Users", "Profiles", "Profile Access", "Appearance", "Backups"]
     SETTINGS_TABS = ["My Settings", "Case Law Diary Settings"]
 
     def setUp(self):

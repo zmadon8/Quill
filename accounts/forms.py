@@ -210,7 +210,9 @@ class UserEditForm(ProfileAccessMixin, forms.ModelForm):
         self.editing_user = editing_user
         self.fields["is_admin"].initial = self.instance.is_superuser
         # Stored roles of every program (the diary and the Fee Register), not the Admin-everywhere view.
-        self._add_profile_fields({m.profile_id: m.role for m in live_memberships(self.instance, None, raw=True)})
+        self._add_profile_fields(
+            {m.profile_id: m.role for m in live_memberships(self.instance, None, raw=True) if not m.admin_access}
+        )
 
     def clean_new_password(self):
         password = self.cleaned_data.get("new_password")
