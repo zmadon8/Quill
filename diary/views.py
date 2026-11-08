@@ -169,14 +169,6 @@ def _home_buttons(request, program):
     return None, [m.profile for m in given]
 
 
-def _home_label(profile, program_name, several):
-    """A Home button's words: the profile's Home Page Name, else the program name (with the profile name if several)."""
-    own = (profile.display_name or "").strip()
-    if own:
-        return own
-    return f"{program_name} \u00b7 {profile.name}" if several else program_name
-
-
 @reader_required
 def home(request):
     """Suite Home: the program picker (only the case law diary today).
@@ -192,13 +184,11 @@ def home(request):
             return redirect(target)
     names = get_names()
     diary_current, diary_others = _home_buttons(request, KEY_DIARY)
-    context = {"diary_profile": diary_current, "home_diary_others": diary_others,
-               "diary_label": _home_label(diary_current, names[KEY_DIARY], bool(diary_others)) if diary_current else ""}
+    context = {"diary_profile": diary_current, "home_diary_others": diary_others}
     if programs.fees_enabled():
         # A Fee Register user gets a button for it; a user without one sees exactly the page they saw before.
         fees_current, fees_others = _home_buttons(request, KEY_FEES)
-        context.update({"fees_profile": fees_current, "fees_other_profiles": fees_others, "fees_name": names[KEY_FEES],
-                        "fees_label": _home_label(fees_current, names[KEY_FEES], bool(fees_others)) if fees_current else ""})
+        context.update({"fees_profile": fees_current, "fees_other_profiles": fees_others, "fees_name": names[KEY_FEES]})
     context["show_admin_access"] = request.user.is_admin
     if activity.can_see_active(request.user):
         context.update(activity.active_panel())

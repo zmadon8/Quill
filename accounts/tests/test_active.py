@@ -225,8 +225,8 @@ class HomeOpensEveryProfileTests(TestCase):
 
     def test_both_fee_register_profiles_have_a_button(self):
         html = self.client.get(reverse("home") + "?home=1").content.decode()
-        self.assertIn("Fee Register &middot; Chambers", html.replace("\u00b7", "&middot;"))
-        self.assertIn("Fee Register &middot; Ziyad", html.replace("\u00b7", "&middot;"))
+        self.assertIn("Fee Register &middot; Chambers", html)
+        self.assertIn("Fee Register &middot; Ziyad", html)
         self.assertEqual(html.count('action="%s"' % reverse("profile_switch")), 1)
 
     def test_the_button_opens_that_profile(self):
@@ -257,8 +257,9 @@ class AdminProfileAccessTests(TestCase):
 
     def test_home_lists_only_given_profiles_and_links_to_the_access_page(self):
         html = self.home()
-        self.assertNotIn('value="%d"' % self.other_diary.pk, html)
-        self.assertNotIn("Firm Fees", html)
+        self.assertNotIn('name="profile" value="%d"' % self.other_diary.pk, html)
+        self.assertNotIn('name="profile" value="%d"' % self.fees.pk, html)
+        self.assertNotIn('href="%s"' % reverse("fees_landing"), html)
         self.assertIn('href="%s"' % reverse("admin_profile_access"), html)
 
     def test_the_access_page_lists_every_profile_and_opens_one(self):
@@ -273,7 +274,8 @@ class AdminProfileAccessTests(TestCase):
         self.assertEqual(get_profile_for(self.admin, KEY_FEES), self.fees)
         membership = ProfileMembership.objects.get(user=self.admin, profile=self.fees)
         self.assertTrue(membership.admin_access)
-        self.assertNotIn("Firm Fees", self.home())  # opened, but still not given: not on Home
+        # Opened, but still not given: no Home button for it (the Active Now panel may name it).
+        self.assertNotIn('class="program-link" href="%s"' % reverse("fees_landing"), self.home())
 
     def test_a_profile_given_on_the_users_screen_shows_on_home(self):
         from accounts.profiles import set_user_profiles, use_profile
@@ -282,7 +284,7 @@ class AdminProfileAccessTests(TestCase):
         use_profile(self.admin, self.fees)
         set_user_profiles(self.admin, {self.fees: "editor"}, KEY_FEES)
         self.assertFalse(ProfileMembership.objects.get(user=self.admin, profile=self.fees).admin_access)
-        self.assertIn("Fee Register", self.home())
+        self.assertIn('class="program-link" href="%s"' % reverse("fees_landing"), self.home())
 
     def test_others_may_not_open_the_access_page(self):
         reader = join_main(User.objects.create_user("rita", password=PASSWORD))
