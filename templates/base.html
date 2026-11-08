@@ -5,8 +5,8 @@
 {% block extra_css %}<link rel="stylesheet" href="{% static 'css/edit.css' %}">{% endblock %}
 {% block body_attrs %} class="look{% if edit_mode %} edit-on{% endif %}"{% endblock %}
 {% block program_title %}{{ program_label }}{% endblock %}
-{# Header brand: the profile's Display Name alone when it has one, else "<program name> · <profile name>" (Round 9). #}
-{% block program_name %}{% if current_profile and current_profile.display_name %}<a href="{% url 'diary_home' %}" title="Home" aria-label="{{ current_profile.display_name }}: Home">{{ current_profile.display_name }}</a>{% else %}<a href="{% url 'diary_home' %}" title="Home" aria-label="{{ diary_name }}: Home">{{ diary_name }}</a>{% if current_profile %} <span class="profile-name">&middot; {{ current_profile.name }}</span>{% endif %}{% endif %}{% if other_profiles %}{% include "diary/_profile_switch.html" %}{% endif %}{% endblock %}
+{# Header brand: the profile's Header Name (else its Home Page Name) alone when it has one, else "<program name> · <profile name>". Pointing at it shows the full Home page name (program_full_label). #}
+{% block program_name %}{% if current_profile and current_profile.header_text %}<a href="{% url 'diary_home' %}" title="{{ program_full_label }}" aria-label="{{ current_profile.header_text }}: Home">{{ current_profile.header_text }}</a>{% else %}<a href="{% url 'diary_home' %}" title="{{ program_full_label|default:diary_name }}" aria-label="{{ diary_name }}: Home">{{ diary_name }}</a>{% if current_profile %} <span class="profile-name">&middot; {{ current_profile.name }}</span>{% endif %}{% endif %}{% if other_profiles %}{% include "diary/_profile_switch.html" %}{% endif %}{% endblock %}
 {# The Editing strip across the very top while Edit is on (only Editors can have edit_mode). #}
 {% block edit_strip %}{% if edit_mode and can_edit %}{% include "diary/_edit_strip.html" %}{% endif %}{% endblock %}
 {# Search is a magnifier icon (round 11): it opens a bar under the header. On the Search page the icon stays and focuses the page's own box. No word "Search" in the bar. #}

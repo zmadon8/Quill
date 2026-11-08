@@ -30,7 +30,7 @@ def payment_or_404(profile, payment_id):
 
 def _memo_ids(query):
     """The memos named in the query (``?memo=1&memo=2`` or ``?memo=1,2``), in order, no repeats, at most the
-    most memos one payment may take."""
+    most memos one payment may take (the rest are dropped and the form says so)."""
     seen = []
     for value in query.getlist("memo"):
         for number in int_list(value):
@@ -117,7 +117,7 @@ def _echo(post):
         }
         for i in forms.posted_row_indexes(post)
     ]
-    if post.get("add_row"):
+    if post.get("add_row") and len(rows) < payments.MAX_ALLOCATIONS:
         rows.append({"memo_number": "", "amount": "", "tds_amount": ""})
     form["rows"] = rows or forms.blank_rows()
     return form

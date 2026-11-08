@@ -7,7 +7,7 @@
 {% block body_attrs %} class="ledger {% block page_width %}w-6xl{% endblock %}"{% endblock %}
 {% block extra_css %}<link rel="stylesheet" href="{% static 'css/ledger.css' %}">
   <link rel="stylesheet" href="{% static 'css/fees.css' %}">{% endblock %}
-{% block program_name %}<a href="{% url 'fees_dashboard' %}">{{ program_label }}</a>{% if fees_profile and not fees_profile.display_name %} <span class="profile-name">&middot; {{ fees_profile.name }}</span>{% endif %}{% if fees_other_profiles %}{% include "diary/_profile_switch.html" with other_profiles=fees_other_profiles %}{% endif %}{% endblock %}
+{% block program_name %}<a href="{% url 'fees_dashboard' %}" title="{{ program_full_label }}">{{ program_header_label|default:program_label }}</a>{% if fees_profile and not program_header_label %} <span class="profile-name">&middot; {{ fees_profile.name }}</span>{% endif %}{% if fees_other_profiles %}{% include "diary/_profile_switch.html" with other_profiles=fees_other_profiles %}{% endif %}{% endblock %}
 {% block program_nav %}{% for i in fees_nav %}<a href="{{ i.url }}"{% if i.on %} class="on" aria-current="page"{% endif %}>{{ i.name }}</a>
   {% endfor %}{% endblock %}
 {% block search_tool %}{% include "_search_button.html" with popup=True %}{% endblock %}

@@ -1201,7 +1201,7 @@ Where settings live today (baseline, before this round):
 - Per user, suite-wide (`accounts.User`): `landing_program`, `last_diary_path`, `header_style`, `justify_text`.
 - Per user, Case Law Diary (`diary.UserSettings`): `opening_page`, `opening_subject`, the five numbering formats, `export_custom_name`, `export_date_format`, `time_zone`.
 - Per user and profile (`fees.FeesUserPrefs`, JSON by key): interface state such as resized column widths.
-- Per profile (`accounts.Profile`): `name`, `export_name`, `display_name`, `reading_all_default`, `reading_all_mode`.
+- Per profile (`accounts.Profile`): `name`, `export_name`, `display_name` (Home Page Name), `header_name` (Header Name: the program header; hovering shows the Home Page Name; migration `accounts/0025`, old backups restore it blank), `reading_all_default`, `reading_all_mode`.
 - Per profile (`fees.FeesSettings`): memo prefills, `overdue_days`, `default_tab`, the financial year starts, money display, `hide_payment_when_paid`, `default_lines_enabled`, `default_payment_amount`, `items_per_page`, and the other Fee Register keys.
 - Suite-wide (`accounts.SuiteName`): the page names and brand choices.
 
@@ -1227,7 +1227,7 @@ Owner decision: "every word First Letter Capitalised". The model-level choice la
 
 ## Round: payments over any number of memos
 Owner instruction, verbatim: "Allow me to add more than 5 Memos per payment. Also, when adding multiple Memos per payment, (1) create some division between the various Memos that I am adding, (ii) let it look more like the attached screenshot, where I get to see a drop down menu with Memos, and it tells me the amount due there."
-- A payment can be split over any number of memos. The old limit of 5 rows (and of 5 `?memo=` values) is gone. A safety cap of 200 memos per payment is enforced by the payments service (`MAX_ALLOCATIONS`) and the form reports it in plain words.
+- A payment can be split over any number of memos. The old limit of 5 rows (and of 5 `?memo=` values) is gone. One cap, `payments.MAX_ALLOCATIONS` = 30 (the owner expects at most about 20), is used everywhere: the payments service, the payment form (rows, Add Another Memo, `?memo=` prefill) and the Outstanding Pay Ticked Memos bar and its All button, which read it from the page (the bar script had its own hard-coded 5 before). With the script, Pay Ticked Memos sends one comma-separated `memo=`.
 - The "Allocate To Memos" section shows each memo as its own block with its row number. The form starts with three rows. "+ Memo" (top right, needs the script) adds a row and "x" removes one. Without the script, a plain "Add Another Memo" button adds an empty row on the server and saves nothing.
 - Each row's Memo is a drop-down whose options read "2026-27/178 · Matter Name (Rs 60,000 Due)". The options are the profile's numbered non-draft memos with an amount due that are not written off, newest first, plus memos already on the payment and memos named in `?memo=`. When the form was opened from a memo, that memo's matter and firm are listed first. The list is read in one query and rendered in every row.
 - Picking a memo fills that row's Amount with the amount due (at most what is left of the payment) and the TDS from the row's Rate %. Each row has a Rate % (starting at the payment's TDS rate) and an auto tick for its TDS; both are conveniences in the page, the server still works out and checks every stored figure.

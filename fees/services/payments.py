@@ -164,8 +164,8 @@ def _is_real_date(value) -> bool:
         return False
 
 
-#: The most memos one payment may be split over (a safety cap; there is no other limit).
-MAX_ALLOCATIONS = 200
+#: The most memos one payment may be split over (the owner expects at most about 20). Every screen reads this one value.
+MAX_ALLOCATIONS = 30
 
 
 def validate_payment(data) -> None:

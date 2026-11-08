@@ -25,7 +25,7 @@
 </div></div>
 {% else %}
 {# Grouped and In order lists share one form: tick memos and press Pay. It is a plain GET to the payment form, so it works without a script. #}
-{% if can_edit %}<form method="get" action="{% url 'fees_payment_new' %}" data-pay-form>{% endif %}
+{% if can_edit %}<form method="get" action="{% url 'fees_payment_new' %}" data-pay-form data-max="{{ max_allocations }}">{% endif %}
 {% if can_edit %}<p class="bulk-bar"><button type="submit" class="success">Pay Ticked Memos</button> {% include "_select_all_none.html" with name="memo" label="the memos" max=max_allocations %} <span class="muted" data-pay-summary role="status" aria-live="polite">Tick memos to settle them with one payment (up to {{ max_allocations }}).</span></p>{% endif %}
 <div class="table-card"><div class="table-wrap">
 <table class="ledger-table" data-fees-columns="outstanding-{{ view }}" data-table-id="outstanding-{{ view }}">

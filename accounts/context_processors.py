@@ -59,9 +59,14 @@ def _names():
 
 
 def program_label(request):
-    """``program_label``: the signed-in user's profile Display Name if it has one, else the program name.
+    """The names of the current program's profile for the templates. Never raises (falls back to the program name).
 
-    Used in the page title and the Home program button. Never raises: a failure falls back to the program name."""
+    ``program_label``: the profile's Home Page Name (``display_name``) if it has one, else the program name; used in
+    the page title and the Home program button.
+    ``program_header_label``: the name for the program header, the Header Name, else the Home Page Name, else ""
+    (the header then shows the program name and the profile name).
+    ``program_full_label``: the full Home page name, shown when the mouse is over the header name: the Home Page Name,
+    else "<program name> · <profile name>"."""
     try:
         program = current_program_key(request)
         profile = (
@@ -69,14 +74,15 @@ def program_label(request):
             if getattr(request, "user", None) and request.user.is_authenticated
             else None
         )
-        name = (profile.display_name or "").strip() if profile is not None else ""
-        if name:
-            return {"program_label": name}
         names = getattr(request, "_suite_names", None) or suite.get_names()
-        return {"program_label": names[program]}
+        home = " ".join((profile.display_name or "").split()) if profile is not None else ""
+        header = profile.header_text() if profile is not None else ""
+        full = home or (f"{names[program]} \u00b7 {profile.name}" if profile is not None else names[program])
+        return {"program_label": home or names[program], "program_header_label": header, "program_full_label": full}
     except Exception:
         logger.exception("Could not work out the program label")
-        return {"program_label": suite.DEFAULT_NAMES[suite.KEY_DIARY]}
+        name = suite.DEFAULT_NAMES[suite.KEY_DIARY]
+        return {"program_label": name, "program_header_label": "", "program_full_label": name}
 
 
 def current_profile(request):

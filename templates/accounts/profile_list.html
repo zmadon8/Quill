@@ -13,12 +13,13 @@
       <td>{{ p.name }}</td>
       {% if show_program %}<td>{{ p.program_name }}</td>{% endif %}
       <td>{{ p.display_name|default:"-" }}</td>
+      <td>{{ p.header_name|default:"-" }}</td>
       <td>{{ p.member_count }}</td>
       <td>{{ p.subject_count }}{% if p.program != "diary" %} memo{{ p.subject_count|pluralize }}{% endif %}</td>
       <td><a href="{% url 'profile_edit' p.pk %}">Rename</a>{% if p.program == "diary" %} | <a href="{% url 'offline_link_admin' p.pk %}">Offline link</a> | <a href="{% url 'profile_clear' p.pk %}">Delete all data</a>{% endif %} | <a href="{% url 'profile_delete' p.pk %}">Delete</a></td>
     </tr>
   {% empty %}
-    <tr><td colspan="{% if show_program %}6{% else %}5{% endif %}">No profiles yet.</td></tr>
+    <tr><td colspan="{% if show_program %}7{% else %}6{% endif %}">No profiles yet.</td></tr>
   {% endfor %}
   </tbody>
 </table>

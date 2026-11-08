@@ -161,8 +161,8 @@ def parse_int(text, label="Number", default=0):
 # Payment form values
 # ---------------------------------------------------------------------------
 
-#: How many memo rows a payment form shows at least (a payment may be split over any number of memos, up to
-#: ``payment_service.MAX_ALLOCATIONS``).
+#: How many memo rows a payment form shows at least (a payment may be split over up to
+#: ``payment_service.MAX_ALLOCATIONS`` memos).
 PAYMENT_ROWS = 3
 
 _ROW_KEY = re.compile(r"^alloc_(?:memo|amount|tds)_(\d+)$")

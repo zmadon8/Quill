@@ -35,7 +35,28 @@ class DisplayNameTests(BaseCase):
     def test_header_brand_still_links_to_the_program_index(self):
         self.set_name("Mine")
         self.client.force_login(self.user)
-        self.assertContains(self.client.get(reverse("flags")), 'href="%s" title="Home" aria-label="Mine: Home"' % reverse("diary_home"))
+        self.assertContains(self.client.get(reverse("flags")), 'href="%s" title="Mine" aria-label="Mine: Home"' % reverse("diary_home"))
+
+    def test_header_name_shows_in_the_header_and_the_home_page_name_on_hover_and_home(self):
+        Profile.objects.filter(pk=self.main().pk).update(display_name="Madon Chambers Case Law", header_name="Madon")
+        self.client.force_login(self.user)
+        resp = self.client.get(reverse("flags"))
+        self.assertContains(resp, 'title="Madon Chambers Case Law" aria-label="Madon: Home">Madon</a>')
+        self.assertNotContains(resp, 'class="profile-name"')
+        home = self.client.get(reverse("home") + "?home=1")
+        self.assertContains(home, 'class="program-link" href="/caselaw/subjects/">Madon Chambers Case Law</a>')
+
+    def test_header_name_alone_hovers_with_the_program_and_profile_name(self):
+        Profile.objects.filter(pk=self.main().pk).update(header_name="Short")
+        self.client.force_login(self.user)
+        self.assertContains(self.client.get(reverse("flags")), 'title="Case Law Diary \u00b7 Main" aria-label="Short: Home">Short</a>')
+        self.assertContains(self.client.get(reverse("home") + "?home=1"), 'class="program-link" href="/caselaw/subjects/">Case Law Diary</a>')
+
+    def test_editor_sets_the_header_name_trimmed(self):
+        self.client.force_login(self.admin)
+        self.display({"diary-display_name": "Long Name", "diary-header_name": "  Short   One "})
+        main = self.main()
+        self.assertEqual((main.display_name, main.header_name), ("Long Name", "Short One"))
 
     def test_home_picker_button_shows_display_name_else_program_name(self):
         self.client.force_login(self.user)
@@ -85,7 +106,9 @@ class DisplayNameTests(BaseCase):
         self.client.force_login(self.admin)
         resp = self.display()
         self.assertContains(resp, 'name="diary-display_name"')
-        self.assertContains(resp, "Display Name")
+        self.assertContains(resp, "Home Page Name")
+        self.assertContains(resp, 'name="diary-header_name"')
+        self.assertContains(resp, "Header Name")
 
     def test_profiles_are_isolated(self):
         junior = Profile.objects.create(program="diary", name="Junior")

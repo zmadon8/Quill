@@ -290,7 +290,7 @@ class MyDisplayForm(MySettingsForm):
 
 
 class ProfileForm(forms.ModelForm):
-    """Create or rename a profile, and set its Display Name. Names are unique among live profiles of the
+    """Create or rename a profile, and set its Home Page Name and Header Name. Names are unique among live profiles of the
     same program, ignoring case.
 
     A new profile belongs to ``program`` (the diary by default). When the Fee Register is switched on, creating
@@ -298,7 +298,7 @@ class ProfileForm(forms.ModelForm):
     Editing or restoring keeps the profile's own program.
     """
 
-    field_order = ["program", "name", "display_name"]
+    field_order = ["program", "name", "display_name", "header_name"]
 
     def __init__(self, *args, program=suite.KEY_DIARY, **kwargs):
         super().__init__(*args, **kwargs)
@@ -316,14 +316,18 @@ class ProfileForm(forms.ModelForm):
 
     class Meta:
         model = Profile
-        fields = ("name", "display_name")
-        labels = {"display_name": "Display Name"}
+        fields = ("name", "display_name", "header_name")
+        labels = {"display_name": "Home Page Name", "header_name": "Header Name"}
         help_texts = {
-            "display_name": "Optional. Shown at the top of the program's pages instead of the program name. Leave blank to show the program name and this profile's name."
+            "display_name": "Optional. The name of this profile on the Home page (and in the browser tab). Leave blank to show the program name.",
+            "header_name": "Optional. A shorter name for the header of the program's pages; pointing at it shows the Home Page Name. Leave blank to use the Home Page Name (or, if that is blank too, the program name and this profile's name).",
         }
 
     def clean_display_name(self):
         return " ".join((self.cleaned_data.get("display_name") or "").split())
+
+    def clean_header_name(self):
+        return " ".join((self.cleaned_data.get("header_name") or "").split())
 
     def clean_program(self):
         # A valid choice (enabled programs only), or the diary when none was posted; used by clean_name.
