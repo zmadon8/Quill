@@ -127,7 +127,7 @@ class ShellTests(UiPageBase):
 
     def test_program_name_links_to_the_dashboard(self):
         text = self.html(self.page("fees_firms"))
-        self.assertIn('<span class="brand"><a href="%s">' % reverse("fees_dashboard"), text)
+        self.assertIn('<span class="brand"><a href="%s" title="' % reverse("fees_dashboard"), text)
 
     def test_search_icon_and_bar(self):
         text = self.html(self.page("fees_memos"))

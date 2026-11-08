@@ -29,14 +29,13 @@ def payment_or_404(profile, payment_id):
 
 
 def _memo_ids(query):
-    """The memos named in the query (``?memo=1&memo=2`` or ``?memo=1,2``), in order, no repeats, at most the
-    most memos one payment may take."""
+    """The memos named in the query (``?memo=1&memo=2`` or ``?memo=1,2``), in order, no repeats, any number."""
     seen = []
     for value in query.getlist("memo"):
         for number in int_list(value):
             if number not in seen:
                 seen.append(number)
-    return seen[: payments.MAX_ALLOCATIONS]
+    return seen
 
 
 def memo_options(profile, memo_ids=(), numbers=(), money_unit="full"):
@@ -93,7 +92,6 @@ def _form_page(request, form, payment=None, memo_ids=None, errors=None, status=2
         {
             "form": form,
             "memo_options": options,
-            "max_allocations": payments.MAX_ALLOCATIONS,
             "payment": payment,
             "memo_id": memo_ids[0] if len(memo_ids) == 1 and payment is None else None,
             "memo_query": "&".join(f"memo={n}" for n in memo_ids) if payment is None else "",

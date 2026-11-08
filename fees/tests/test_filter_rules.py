@@ -143,7 +143,8 @@ class AllNoneControlsTests(WriteBase):
     def test_the_outstanding_tick_boxes_have_all_and_none(self):
         html = self.client.get(reverse("fees_outstanding_detail")).content.decode()
         self.assertIn('data-select-all-none="memo"', html)
-        self.assertRegex(html, r'data-select-all-none="memo"[^>]*data-max="200"[^>]* hidden')  # shown by the script
+        self.assertRegex(html, r'data-select-all-none="memo"[^>]*hidden')  # shown by the script
+        self.assertNotRegex(html, r'data-select-all-none="memo"[^>]*data-max=')  # All ticks every memo: no limit
         self.assertIn('data-select="all">All</button>', html)
         self.assertIn('data-select="none">None</button>', html)
 

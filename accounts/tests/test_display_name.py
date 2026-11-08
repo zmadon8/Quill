@@ -106,7 +106,9 @@ class DisplayNameTests(BaseCase):
         self.client.force_login(self.admin)
         resp = self.display()
         self.assertContains(resp, 'name="diary-display_name"')
-        self.assertContains(resp, "Display Name")
+        self.assertContains(resp, "Home Page Name")
+        self.assertContains(resp, 'name="diary-header_name"')
+        self.assertContains(resp, "Header Name")
 
     def test_profiles_are_isolated(self):
         junior = Profile.objects.create(program="diary", name="Junior")

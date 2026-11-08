@@ -340,14 +340,10 @@ class AddPaymentTests(TestCase):
         for m in memo_list:
             self.assertEqual(memos.get_memo(self.profile, m.pk)["status"], "Paid")
 
-    def test_two_hundred_allocations_pass_validation_and_201_is_refused(self):
-        rows = [{"memo_id": self.a.pk, "amount": 1, "tds_amount": 0}] * payments.MAX_ALLOCATIONS
-        payments.validate_payment({"amount": 200, "date_of_payment": "2026-08-01", "allocations": rows})
-        too_many = rows + [{"memo_id": self.a.pk, "amount": 1, "tds_amount": 0}]
-        with self.assertRaises(FeesError) as caught:
-            payments.add_payment(self.profile, {"amount": 201, "date_of_payment": "2026-08-01", "allocations": too_many})
-        self.assertEqual(caught.exception.code, "INVALID_PAYMENT")
-        self.assertIn("at most 200", caught.exception.message)
+    def test_any_number_of_allocations_pass_validation(self):
+        rows = [{"memo_id": self.a.pk, "amount": 1, "tds_amount": 0}] * 1000
+        payments.validate_payment({"amount": 1000, "date_of_payment": "2026-08-01", "allocations": rows})
+        self.assertFalse(hasattr(payments, "MAX_ALLOCATIONS"))
 
     def test_no_allocations_is_unaccounted(self):
         pay = payments.add_payment(

@@ -16,7 +16,6 @@
   var autoBox = form.elements.auto_tds;
   var rowBox = form.querySelector("[data-alloc-rows]");
   var template = form.querySelector("template[data-alloc-template]");
-  var maxRows = parseInt((form.querySelector("[data-alloc-set]") || {}).getAttribute ? form.querySelector("[data-alloc-set]").getAttribute("data-max-rows") : "200", 10) || 200;
   function allRows() { return Array.prototype.slice.call(form.querySelectorAll("[data-alloc-rows] [data-alloc-row]")); }
   var rows = allRows();
 
@@ -92,7 +91,7 @@
   var defaultSubmit = form.querySelector(".alloc-default-submit");
   if (defaultSubmit) { defaultSubmit.hidden = true; }
   function addRow() {
-    if (!template || !rowBox || allRows().length >= maxRows) { return null; }
+    if (!template || !rowBox) { return null; }
     var holder = document.createElement("div");
     holder.innerHTML = template.innerHTML.replace(/__i__/g, String(nextIndex++));
     var row = holder.querySelector("[data-alloc-row]");
