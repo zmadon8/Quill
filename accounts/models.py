@@ -38,6 +38,12 @@ class User(AbstractUser):
     HEADER_ICONS, HEADER_WORDS = "icons", "words"
     HEADER_STYLE_CHOICES = [(HEADER_ICONS, "Icons"), (HEADER_WORDS, "Words")]
     header_style = models.CharField(max_length=10, choices=HEADER_STYLE_CHOICES, default=HEADER_ICONS)
+    # Diary round (1.5): justify the text that is normally left-aligned. On screen only; off unless chosen (My settings, Display).
+    justify_text = models.BooleanField(default=False)
+    # Who is active (round: markers, payments, activity). ``last_seen_at`` is touched by accounts.middleware at most once
+    # a minute; ``can_see_active`` lets an Admin show this user the Active Now panel on Home (Admins always see it).
+    last_seen_at = models.DateTimeField(null=True, blank=True)
+    can_see_active = models.BooleanField("Can See Who Is Active", default=False)
     # Round 18 (D94): a deleted user is kept for USER_RETENTION_DAYS so an Admin can restore them. While deleted they
     # cannot sign in (is_active is off) and keep their username and email address; ``was_active`` is what Restore puts
     # back. Who deleted them is kept as a name (not a link), so a backup file never depends on the order users load in.
@@ -103,9 +109,9 @@ class Profile(models.Model):
     READING_ALL_ALWAYS_OFF = "always_off"
     READING_ALL_REMEMBER = "remember"
     READING_ALL_MODE_CHOICES = [
-        (READING_ALL_ALWAYS_ON, "The whole Subject"),
-        (READING_ALL_ALWAYS_OFF, "Only that Topic or Sub-topic"),
-        (READING_ALL_REMEMBER, "The view I used last"),
+        (READING_ALL_ALWAYS_ON, "The Whole Subject"),
+        (READING_ALL_ALWAYS_OFF, "Only That Topic Or Sub-topic"),
+        (READING_ALL_REMEMBER, "The View I Used Last"),
     ]
 
     program = models.CharField(max_length=30)

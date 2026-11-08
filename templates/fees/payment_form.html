@@ -1,0 +1,46 @@
+{% extends "fees/base_fees.html" %}
+{% load static %}
+{% block page_width %}w-4xl{% endblock %}
+{% block page_title %}{% if payment %}Edit payment{% else %}New payment{% endif %} - {{ program_label }}{% endblock %}
+{% block crumb_nav %}{% if memo_id %}{% url 'fees_memo_detail' memo_id as back %}{% include "fees/_back.html" with url=back label="Memo" %}{% else %}{% url 'fees_feebook' as back %}{% include "fees/_back.html" with url=back label="Feebook" %}{% endif %}{% endblock %}
+{% block content %}
+<h1>{% if payment %}Edit payment{% else %}New payment{% endif %}</h1>
+{% if not can_edit %}<p class="muted">You can read this page but not save it. Only Editors can save a payment.</p>{% endif %}
+{% include "fees/_form_errors.html" %}
+<form method="post" action="{{ request.path }}{% if memo_query %}?{{ memo_query }}{% endif %}" class="fees-form payment-form modal" id="payment-form" data-payment-form
+      data-payees-url="{% url 'fees_payment_payees' %}" data-matters="{{ matter_ids }}" data-money-unit="{{ fees_settings.money_unit|default:'full' }}">
+  {% csrf_token %}
+  {% if can_edit %}<button type="submit" class="alloc-default-submit" tabindex="-1" aria-hidden="true">Save</button>{% endif %}
+  <fieldset><legend>Payment</legend>
+  <p><label>Amount received (net) <input type="text" inputmode="decimal" name="amount" value="{{ form.amount }}" required></label>
+     <label>Date <input type="date" name="date_of_payment" value="{{ form.date_of_payment }}" required></label></p>
+  <p><label>TDS rate % <input type="text" inputmode="decimal" name="tds_rate" value="{{ form.tds_rate }}" size="6"></label>
+     <label><input type="checkbox" name="auto_tds" value="1"{% if form.auto_tds %} checked{% endif %}> Work out the TDS from the rate</label>
+     <label>TDS amount <input type="text" inputmode="decimal" name="tds_amount" value="{{ form.tds_amount }}" aria-describedby="tds-hint"></label></p>
+  <p class="muted" id="tds-hint" data-tds-hint aria-live="polite">With the box ticked, the TDS is worked out on the server when you save: the amount received plus the TDS is the gross amount.</p>
+  <p class="muted" data-gross aria-live="polite" hidden></p>
+  </fieldset>
+  <fieldset><legend>Who paid, and how</legend>
+  <p><label>Payee <input type="text" name="payee" value="{{ form.payee }}" size="40" aria-describedby="payee-chips-label"></label></p>
+  <div class="chips" data-payee-chips hidden><span id="payee-chips-label" class="muted">Paid by before:</span> <span data-chip-list></span></div>
+  <p><label>Bank account <select name="bank_account_id"><option value="">None</option>{% for b in bank_choices %}<option value="{{ b.pk }}"{% if form.bank_account_id == b.pk|stringformat:"s" %} selected{% endif %}>{{ b.name }}</option>{% endfor %}</select></label>
+     <label>Mode <input type="text" name="payment_mode" value="{{ form.payment_mode }}" size="14"></label></p>
+  <p><label>Additional Details <textarea name="payment_details" rows="2" cols="40">{{ form.payment_details }}</textarea></label></p>
+  </fieldset>
+  <fieldset class="alloc-set" data-alloc-set data-max-rows="{{ max_allocations }}"><legend>Allocate To Memos</legend>
+    <p class="alloc-head"><span class="muted">Leave every row blank for an unaccounted payment.</span>{% if can_edit %} <button type="button" class="alloc-add" data-alloc-add hidden>+ Memo</button>{% endif %}</p>
+    <div data-alloc-rows>{% for row in form.rows %}{% include "fees/_alloc_row.html" with i=forloop.counter0 n=forloop.counter %}{% endfor %}</div>
+    {% if can_edit %}<p class="alloc-more"><button type="submit" name="add_row" value="1" formnovalidate data-alloc-add-nojs>Add Another Memo</button></p>{% endif %}
+    <p class="muted" data-remaining role="status" aria-live="polite" hidden></p>
+    <template data-alloc-template>{% include "fees/_alloc_row.html" with i="__i__" n="" row=None %}</template>
+  </fieldset>
+  <p class="modal-footer">{% if can_edit %}<a class="button" href="{% if memo_id %}{% url 'fees_memo_detail' memo_id %}{% else %}{% url 'fees_feebook' %}{% endif %}">Cancel</a> <button type="submit" class="primary">Save</button>{% else %}<a class="button" href="{% if memo_id %}{% url 'fees_memo_detail' memo_id %}{% else %}{% url 'fees_feebook' %}{% endif %}">Back</a>{% endif %}</p>
+</form>
+{% if payment and can_edit %}
+<form method="post" action="{% url 'fees_payment_delete' payment.id %}" class="fees-form danger-zone">{% csrf_token %}
+  <label><input type="checkbox" name="confirm" value="1" required> Yes, delete this payment</label>
+  <button type="submit" class="danger">Delete Payment</button>
+</form>
+{% endif %}
+{% endblock %}
+{% block page_js %}{% if can_edit %}<script src="{% static 'js/fees/payment-form.js' %}"></script>{% endif %}{% endblock %}

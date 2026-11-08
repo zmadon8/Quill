@@ -31,6 +31,9 @@ body.edit-on .crumb-row { background: var(--bg); }
 .edit-on .crumb-row { top: var(--strip-h); }
 .bar-tools .in-context { margin: 0 0 0 .4rem; }
 .bar-sep { width: 1px; height: 1.6rem; background: var(--hair); }
+/* The Links toggle (hyperlinks on citations on/off, D87) now lives on this bar, just left of Edit. Keep it quiet and aligned like the Edit link; the header no longer styles it. The links-off visuals stay in site.css. */
+.bar-tools .links-toggle { display: inline-flex; align-items: center; min-height: var(--tap); padding: 0 .4rem; color: var(--muted); }
+.bar-tools .links-toggle:hover { color: var(--ink); }
 
 /* ---- Rows in Edit mode ---- */
 .erow { align-items: flex-start; }

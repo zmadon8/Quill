@@ -17,7 +17,7 @@ from django.utils import timezone
 from accounts.forms import THROTTLE_MESSAGE
 from accounts import suite
 from accounts.models import FailedLogin, Profile, ProfileMembership, SuiteName
-from accounts.profiles import assign_unassigned_users, delete_profile, ensure_default_profile, get_profile_for
+from accounts.profiles import assign_unassigned_users, live_memberships, delete_profile, ensure_default_profile, get_profile_for
 from accounts.permissions import (
     admin_required,
     program_editor_required,
@@ -266,12 +266,19 @@ class AccessTests(BaseCase):
 
 
 class SuiteSettingsTests(BaseCase):
-    def post(self, home="Home", diary="Case Law Diary"):
-        return self.client.post(reverse("settings"), {"home_name": home, "diary_name": diary})
+    def post(self, home="Home", diary="Case Law Diary", fees="Fee Register"):
+        # T1.8 registered the Fee Register, so the shared rename form now has a (required) fees field too.
+        return self.client.post(
+            reverse("settings"), {"home_name": home, "diary_name": diary, "fees_name": fees}
+        )
 
     def test_defaults_without_rows(self):
         self.assertEqual(SuiteName.objects.count(), 0)
-        self.assertEqual(suite.get_names(), {"home": "Home", "diary": "Case Law Diary"})
+        # T1.3: the Fee Register default joins the suite. Home and the diary are unchanged.
+        self.assertEqual(
+            suite.get_names(),
+            {"home": "Home", "diary": "Case Law Diary", "fees": "Fee Register"},
+        )
         self.client.force_login(self.admin)
         resp = self.client.get(reverse("home"))
         self.assertContains(resp, ">Home</a>")
@@ -308,7 +315,10 @@ class SuiteSettingsTests(BaseCase):
         self.client.force_login(self.admin)
         resp = self.post(home="  Start   Page ", diary="Judgments")
         self.assertRedirects(resp, reverse("settings"))
-        self.assertEqual(suite.get_names(), {"home": "Start Page", "diary": "Judgments"})
+        self.assertEqual(
+            suite.get_names(),
+            {"home": "Start Page", "diary": "Judgments", "fees": "Fee Register"},
+        )
         home = self.client.get(reverse("home"))
         self.assertContains(home, ">Start Page</a>")
         self.assertContains(home, 'class="program-link" href="%s">Judgments</a>' % reverse("diary_home"))
@@ -335,6 +345,41 @@ class SuiteSettingsTests(BaseCase):
         self.post(diary="Two")
         self.assertEqual(SuiteName.objects.filter(key="diary").count(), 1)
         self.assertEqual(suite.get_names()["diary"], "Two")
+
+    def test_fees_default_name_is_available_and_shown_once_registered(self):
+        # T1.8 registers the Fee Register (fees/apps.py ready), so the shared Settings screen now shows a
+        # Fee Register name field alongside Home and the Case Law Diary. Before T1.8 this test asserted the
+        # field was absent while fees was unregistered; registering fees is intended (R-SH-3), so the
+        # expectation now reflects the registered program while the Home and diary fields are unchanged.
+        from accounts import programs
+
+        self.assertEqual(suite.get_names()[suite.KEY_FEES], "Fee Register")
+        self.assertIn(suite.KEY_FEES, programs.program_keys())
+        self.client.force_login(self.admin)
+        resp = self.client.get(reverse("settings"))
+        self.assertEqual(resp.status_code, 200)
+        form = resp.context["form"]
+        # The Words/Logo choice per program (home_brand, diary_brand, fees_brand) sits after the names.
+        self.assertEqual(
+            list(form.fields),
+            ["home_name", "diary_name", "fees_name", "home_brand", "diary_brand", "fees_brand"],
+        )
+        self.assertEqual(form.fields["fees_name"].initial, "Fee Register")
+        self.assertEqual(form.fields["fees_name"].label, "Fee Register name")
+        self.assertContains(resp, "Fee Register")
+
+    def test_fees_field_appears_because_fees_is_registered(self):
+        # The Fee Register is registered at startup (T1.8). Confirm the shared form carries its field and
+        # that the diary is still present too.
+        from accounts import programs
+        from accounts.forms import SuiteNamesForm
+
+        self.assertIn(suite.KEY_FEES, programs.program_keys())
+        form = SuiteNamesForm()
+        self.assertIn("fees_name", form.fields)
+        self.assertIn("diary_name", form.fields)
+        self.assertEqual(form.fields["fees_name"].initial, "Fee Register")
+        self.assertEqual(form.fields["fees_name"].label, "Fee Register name")
 
 
 class UserAdminTests(BaseCase):
@@ -623,15 +668,17 @@ class RoleTests(BaseCase):
             call(editor_view, outsider)
         with self.assertRaises(PermissionDenied):
             call(reader_view, outsider)
-        # An Admin whose own membership is Reader may not use editor-only views.
+        # Owner's rule: "an 'Admin' is an 'Admin' for all sub-programs". An Admin whose own membership is Reader
+        # still works as an Editor (this used to be refused).
         ProfileMembership.objects.filter(user=self.admin).update(role="reader")
-        with self.assertRaises(PermissionDenied):
-            call(editor_view, self.admin)
+        self.assertEqual(call(editor_view, self.admin).status_code, 200)
+        self.assertEqual(program_role(self.admin, "diary"), "editor")
 
     def test_header_shows_username_only_and_user_list_shows_role(self):
         self.client.force_login(self.user)
         resp = self.client.get(reverse("home"))
-        self.assertContains(resp, '<span class="who">alice</span>', html=True)
+        self.assertContains(resp, 'class="who" href="%s"' % reverse("my_settings"))
+        self.assertContains(resp, ">alice</a>")
         self.assertNotContains(resp, "Reader")
         self.client.force_login(self.admin)
         self.assertContains(self.client.get(reverse("user_list")), "Reader")
@@ -695,7 +742,11 @@ class RoleTests(BaseCase):
         )
         self.user.refresh_from_db()
         self.assertTrue(self.user.is_superuser)
-        self.assertEqual(program_role(self.user, "diary"), "reader")
+        # The stored role stays as chosen (the Users screen shows it); the Admin flag does not rewrite it.
+        stored = live_memberships(self.user, "diary", raw=True)
+        self.assertEqual([m.role for m in stored], ["reader"])
+        # Effective role: an Admin is an Editor in every program (the owner's rule).
+        self.assertEqual(program_role(self.user, "diary"), "editor")
 
     def test_last_admin_cannot_become_editor_or_be_disabled(self):
         self.client.force_login(self.admin)
@@ -1177,39 +1228,64 @@ class ExportNameTests(BaseCase):
         profile.export_name = "  . "  # nothing usable is left, so the profile's own name is used
         self.assertEqual(export_file_name(profile), "Main")
 
-    # Round 18 (D96/D97): the export file name is on the Export page (anyone in the profile may change it); the
-    # Display Name and the Contents settings are on Settings > General > Display (Editors change them).
+    # The export file name, the Display Name and the Contents settings are program settings: Case Law Diary settings
+    # (Reading and Data sections). Editors change them; Readers see them read-only.
     def display(self, data=None):
-        url = reverse("my_settings") + "?tab=display"
+        url = reverse("profile_settings") + "?tab=reading"
         if data is None:
             return self.client.get(url)
-        return self.client.post(reverse("my_settings"), {"tab": "display", **data})
+        # Round 19: the Display tab's only reading control is the required Yes/No "open the whole Subject" toggle.
+        # reading_all_mode and reading_all_default are no longer form fields, so posting them is harmless extra data
+        # that Django ignores; the toggle alone decides the stored reading_all_mode. When a test posts the old
+        # reading_all_mode key without a toggle, default the toggle to match it (always_on -> Yes, else No).
+        payload = {"tab": "reading", **data}
+        if "diary-reading_all_mode" in payload and "diary-view_whole_subject" not in payload:
+            payload["diary-view_whole_subject"] = "yes" if payload["diary-reading_all_mode"] == "always_on" else "no"
+        return self.client.post(reverse("profile_settings"), payload)
 
     def test_editor_can_change_name(self):
         self.client.force_login(self.admin)  # Editor of Main through the membership
-        resp = self.client.post(reverse("export_settings"), {"export_name": "  My: Diary ", "export_date_format": "YYYY-MM-DD"})
-        self.assertRedirects(resp, reverse("export"))
+        resp = self.client.post(reverse("export_settings"), {"export_name": "  My: Diary "})
+        self.assertRedirects(resp, reverse("profile_settings") + "?tab=data")
         self.assertEqual(Profile.objects.get(pk=self.main().pk).export_name, "My: Diary")
-        self.assertContains(self.client.get(reverse("export")), "My- Diary")  # the preview shows the hyphen
+        self.assertContains(self.client.get(reverse("profile_settings") + "?tab=data"), "My- Diary")  # the preview shows the hyphen
 
-    def test_reader_can_change_the_export_name_too(self):
+    def test_reader_cannot_change_the_export_name(self):
         self.client.force_login(self.user)
-        self.client.post(reverse("export_settings"), {"export_name": "Shared", "export_date_format": "YYYY-MM-DD"})
-        self.assertEqual(self.main().export_name, "Shared")
+        resp = self.client.post(reverse("export_settings"), {"export_name": "Shared"})
+        self.assertEqual(resp.status_code, 403)
+        self.assertEqual(self.main().export_name, "")
 
-    def test_old_diary_settings_address_opens_display(self):
-        self.client.force_login(self.user)
-        self.assertRedirects(self.client.get(reverse("profile_settings")), reverse("my_settings") + "?tab=display")
+    def test_the_diary_settings_tab_has_reading_and_data_sections(self):
+        self.client.force_login(self.user)  # a Reader sees the values but no Save button
+        resp = self.client.get(reverse("profile_settings"))
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        for key in ("reading", "data"):
+            self.assertIn('data-section="%s"' % key, html)
+        self.assertNotIn(">Save</button>", html)
+        self.assertIn("Only you", self.client.get(reverse("my_settings") + "?tab=diary").content.decode())
+        self.assertIn("Everyone in this profile", html)
 
-    def test_all_default_is_on_and_editor_can_switch_it_off_and_on(self):
+    def test_display_form_no_longer_offers_remember_or_all_default(self):
+        # Round 19 (user item 4): the Yes/No toggle is the only reading control. The advanced "remember" select and
+        # the reading_all_default checkbox are gone from the form and the page, and saving never changes the stored
+        # reading_all_default. The Profile model keeps both fields (no migration); only the UI is simplified.
+        from diary.forms import ProfileSettingsForm
+
+        fields = ProfileSettingsForm().fields
+        self.assertIn("view_whole_subject", fields)
+        self.assertNotIn("reading_all_mode", fields)
+        self.assertNotIn("reading_all_default", fields)
         self.assertTrue(self.main().reading_all_default)
         self.client.force_login(self.admin)
         resp = self.display()
-        self.assertContains(resp, 'name="diary-reading_all_default"')
-        self.assertContains(resp, "If there is no last view yet, Contents links open the whole Subject")
-        self.display({"diary-reading_all_mode": "remember"})
-        self.assertFalse(Profile.objects.get(pk=self.main().pk).reading_all_default)
-        self.display({"diary-reading_all_mode": "remember", "diary-reading_all_default": "on"})
+        self.assertNotContains(resp, 'name="diary-reading_all_default"')
+        self.assertNotContains(resp, 'name="diary-reading_all_mode"')
+        self.assertNotContains(resp, "The View I Used Last")
+        self.assertNotContains(resp, "Advanced reading options")
+        # Posting the toggle (even alongside the now-ignored old keys) leaves reading_all_default untouched.
+        self.display({"diary-view_whole_subject": "no", "diary-reading_all_default": "on"})
         self.assertTrue(Profile.objects.get(pk=self.main().pk).reading_all_default)
 
     def test_saving_another_tab_leaves_the_diary_settings_alone(self):
@@ -1220,36 +1296,48 @@ class ExportNameTests(BaseCase):
         self.assertEqual((main.display_name, main.reading_all_mode, main.reading_all_default),
                          ("Kept", "always_on", True))
 
-    def test_mode_defaults_to_remember_and_editor_can_change_it(self):
-        self.assertEqual(self.main().reading_all_mode, "remember")
-        self.client.force_login(self.admin)
-        resp = self.display()
-        self.assertContains(resp, 'name="diary-reading_all_mode"')
-        for label in ("The whole Subject", "Only that Topic or Sub-topic", "The view I used last"):
-            self.assertContains(resp, label)
-        for mode in ("always_on", "always_off", "remember"):
-            self.display({"diary-reading_all_mode": mode})
-            self.assertEqual(Profile.objects.get(pk=self.main().pk).reading_all_mode, mode)
-        resp = self.display({"diary-reading_all_mode": "bogus"})
-        self.assertEqual(resp.status_code, 200)
-        self.assertEqual(Profile.objects.get(pk=self.main().pk).reading_all_mode, "remember")
+    def test_yes_no_toggle_sets_always_on_or_always_off(self):
+        # Round 19 (user item 4): the plain Display toggle is the only reading control and always sets
+        # reading_all_mode. Yes -> always_on (clicking a Subject opens the whole Subject); No -> always_off (the
+        # scoped Contents page with a "Read Whole Subject" button). There is no longer a way to choose remember.
+        self.client.force_login(self.admin)  # Editor of Main
+        resp = self.client.post(reverse("profile_settings"), {
+            "tab": "reading", "diary-view_whole_subject": "yes"})
+        self.assertRedirects(resp, reverse("profile_settings") + "?tab=reading")
+        self.assertEqual(Profile.objects.get(pk=self.main().pk).reading_all_mode, "always_on")
+        self.client.post(reverse("profile_settings"), {
+            "tab": "reading", "diary-view_whole_subject": "no"})
+        self.assertEqual(Profile.objects.get(pk=self.main().pk).reading_all_mode, "always_off")
 
-    def test_reader_cannot_change_all_default(self):
+    def test_toggle_maps_a_pre_existing_remember_profile_on_save(self):
+        # A row still on the old "remember" mode (no longer offered) is shown as Yes/No and mapped to
+        # always_on/always_off on its next save: the toggle wins, remember can never be kept through the form.
+        Profile.objects.filter(pk=self.main().pk).update(reading_all_mode="remember")
+        self.client.force_login(self.admin)
+        self.client.post(reverse("profile_settings"), {"tab": "reading", "diary-view_whole_subject": "yes"})
+        self.assertEqual(Profile.objects.get(pk=self.main().pk).reading_all_mode, "always_on")
+
+    def test_reader_cannot_change_the_diary_settings(self):
         self.client.force_login(self.user)
-        self.display({"diary-reading_all_default": "on", "diary-reading_all_mode": "always_on"})
-        Profile.objects.filter(pk=self.main().pk).update(reading_all_default=False)
+        self.display({"diary-view_whole_subject": "yes"})
         resp = self.display()
         self.assertNotContains(resp, 'name="diary-reading_all_default"')
         self.assertNotContains(resp, 'name="diary-reading_all_mode"')
-        self.assertContains(resp, "With no last view yet, Contents links open the whole Subject")
+        self.assertNotContains(resp, 'name="diary-view_whole_subject"')
         self.assertContains(resp, "Only its Editors can change them.")
+        # A Reader cannot post the Display form, so the profile's reading_all_mode is unchanged (still the default).
         self.assertEqual(Profile.objects.get(pk=self.main().pk).reading_all_mode, "remember")
-        self.assertFalse(Profile.objects.get(pk=self.main().pk).reading_all_default)
 
     def test_user_without_profile_has_no_diary_settings(self):
         other = self.make_user("nobody")
         self.client.force_login(other)
-        self.assertNotContains(self.display(), "data-diary-settings")
+        # My settings opens for everyone signed in, just without the Case Law Diary section.
+        response = self.client.get(reverse("my_settings"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-section="account"')
+        self.assertNotContains(response, 'data-section="diary"')
+        # The diary's own Settings tab is closed to a user with no diary profile.
+        self.assertEqual(self.display().status_code, 403)
         self.assertEqual(self.client.get(reverse("export")).status_code, 403)
 
     def test_only_own_profile_changes(self):

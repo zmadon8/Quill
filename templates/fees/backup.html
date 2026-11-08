@@ -1,0 +1,23 @@
+{% extends "fees/base_fees.html" %}
+{% block page_width %}w-4xl{% endblock %}
+{% block page_title %}Backup - {{ program_label }}{% endblock %}
+{% block content %}
+<h1>Backup</h1>
+<p><a href="{% url 'fees_settings' %}">Settings</a></p>
+<h2>Download a backup</h2>
+<p><a href="{% url 'fees_backup_download' %}">Download an Excel backup</a>. It holds every firm, matter, memo and payment, including payment notes.</p>
+{% if user.is_admin %}
+<h2>Restore from an Excel backup</h2>
+<p>Restoring replaces all of your data with the file. A safety backup is made first. You will see what the file holds before anything changes.</p>
+<form method="post" action="{% url 'fees_backup_restore' %}" enctype="multipart/form-data">{% csrf_token %}
+  <input type="hidden" name="action" value="preview">
+  <label>Backup file (.xlsx) <input type="file" name="file" accept=".xlsx" required></label>
+  <button type="submit">Check The File</button>
+</form>
+<h2 id="clear">Clear all data</h2>
+<p>Deletes every firm, matter, memo and payment, and resets the settings. A safety backup is made first.</p>
+<p><a href="{% url 'fees_backup_clear' %}">Clear all data</a></p>
+{% else %}
+<p class="muted">Restoring a backup and clearing all data are for the Admin.</p>
+{% endif %}
+{% endblock %}

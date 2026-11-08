@@ -473,13 +473,15 @@ class ImportScreenTests(TestCase):
         })
         self.assertContains(resp, "not a readable Word")
 
-    def test_home_nav_links_to_import_for_admins_only(self):
-        # D86, D96: Import is a tab of Admins, which Home links to (Admin only).
+    def test_import_is_in_the_diary_settings_data_section_for_admins_only(self):
+        # The Admins menu is Users, Profiles, Appearance and Backups; Word import lives under Case Law Diary settings > Data.
         self.client.force_login(self.admin)
-        self.assertContains(self.client.get(reverse("home")), reverse("user_list"))
-        self.assertContains(self.client.get(reverse("backup_list")), reverse("import_word"))
+        self.assertContains(self.client.get(reverse("user_list")), reverse("backup_list"))
+        self.assertNotContains(self.client.get(reverse("backup_list")), reverse("import_word"))
+        self.assertContains(self.client.get(reverse("profile_settings") + "?tab=data"), reverse("import_word"))
         self.client.force_login(self.editor)
         self.assertNotContains(self.client.get(reverse("home")), reverse("import_word"))
+        self.assertNotContains(self.client.get(reverse("profile_settings") + "?tab=data"), reverse("import_word"))
 
 
 @override_settings(SECURE_SSL_REDIRECT=False)
@@ -489,6 +491,9 @@ class FlagsPageTests(TestCase):
     address forwards to Flags."""
 
     def setUp(self):
+        from accounts import suite
+
+        suite.set_brand_modes({key: suite.BRAND_LOGO for key in suite.BRAND_KEYS})  # Words is the default
         self.reader = join_main(User.objects.create_user("rita", password=PASSWORD))
         self.client.force_login(self.reader)
         self.main = main_profile()

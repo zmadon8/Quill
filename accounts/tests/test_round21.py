@@ -62,7 +62,7 @@ class AdminPageTests(ExportCase):
     def test_the_page_before_a_link_exists(self):
         body = self.client.get(self.url).content.decode()
         self.assertIn("No link yet", body)
-        self.assertIn("Make link", body)
+        self.assertIn("Make Link", body)
 
     def test_make_link_creates_a_long_token_and_the_first_copy(self):
         self.assertEqual(self.post("make").status_code, 302)
@@ -89,7 +89,7 @@ class AdminPageTests(ExportCase):
         public = reverse("offline_public", args=[link.token])
         self.post("off")
         self.assertEqual(self.client_class().get(public).status_code, 404)
-        self.assertIn("Switch on", self.client.get(self.url).content.decode())
+        self.assertIn("Switch On", self.client.get(self.url).content.decode())
         self.post("on")
         self.assertEqual(self.link().token, link.token)
         self.assertEqual(self.client_class().get(public).status_code, 200)

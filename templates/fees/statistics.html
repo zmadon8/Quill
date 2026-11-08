@@ -1,0 +1,76 @@
+{% extends "fees/base_fees.html" %}
+{% load static fees_money %}
+{% block extra_css %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/ledger-statistics.css' %}">{% endblock %}
+{% block page_title %}Statistics - {{ program_label }}{% endblock %}
+{% block content %}
+<h1{% if not stats_off %} class="visually-hidden"{% endif %}>Statistics</h1>
+{% if stats_off %}{% include "fees/_stats_tabs.html" with tab="" %}
+<p class="notice" role="note">Statistics is switched off in Settings.{% if can_edit %} <a href="{% url 'fees_settings' %}">Open Settings</a>{% endif %}</p>
+{% else %}
+{% include "fees/_stats_tabs.html" %}
+
+{% if tab == "standard" %}
+<form method="get" class="filters" aria-label="Choose the period">
+  <input type="hidden" name="tab" value="standard">
+  <label>Show By <select name="granularity">{% for g in granularities %}<option value="{{ g }}"{% if g == granularity %} selected{% endif %}>{{ g }}</option>{% endfor %}</select></label>
+  {% include "fees/_fy_select.html" with name="fy" label="Financial Year" options=fy_options selected=fy %}
+  <button type="submit">Show</button>
+</form>
+<p class="page-actions" role="group" aria-label="Statistics exports"><a class="button" href="{% url 'fees_statistics_export' %}?granularity={{ granularity }}&amp;fy={{ fy }}">Export To Excel</a> <a class="button" href="{% url 'fees_statistics_annual_export' %}?fy={{ fy }}">Annual Summary (Excel)</a> <a class="button" href="{% url 'fees_statistics_tax_summary' %}?fy={{ fy }}">Tax Summary (Text)</a> <a class="button" href="{% url 'fees_statistics_year_end' %}?fy={{ fy }}">Year End</a></p>
+<div class="table-wrap">
+<table class="ledger-table stat-table" data-table-id="statistics">
+  <caption>Statistics by {% if granularity == "financialYear" %}financial year{% else %}{{ granularity }}{% if granularity == "month" or granularity == "quarter" %} for {{ fy }}{% endif %}{% endif %}</caption>
+  <thead><tr><th scope="col">Metric</th>{% for p in stats.periods %}<th scope="col" class="money{% if p.is_current_month %} current-col{% elif p.is_future %} future-col{% endif %}">{{ p.label }}</th>{% endfor %}{% if stats.periods|length > 1 %}<th scope="col" class="money total-col">Total</th>{% endif %}</tr></thead>
+  <tbody>{% for row in table %}<tr><th scope="row">{{ row.label }}</th>{% for c in row.cells %}<td class="money{% if c.current %} current-col{% endif %}{% if c.overridden %} hand{% endif %}"{% if c.overridden %} title="Entered by hand in Settings, Start Years &amp; Statistics"{% endif %}>{% if row.money %}{{ c.value|fees_money:money_unit }}{% else %}{{ c.value|default_if_none:"" }}{% endif %}</td>{% endfor %}{% if stats.periods|length > 1 %}<td class="money total-col">{% if row.total is not None %}{% if row.money %}{{ row.total|fees_money:money_unit }}{% else %}{{ row.total }}{% endif %}{% endif %}</td>{% endif %}</tr>{% endfor %}</tbody>
+</table>
+</div>
+
+{% else %}
+<form method="get" class="filters" aria-label="Choose the pivot">
+  <input type="hidden" name="tab" value="explore">
+  <label>Measure <select name="measure">{% for id, label in measures %}<option value="{{ id }}"{% if id == chosen.measure %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+  <label>Rows <select name="row_dim">{% for id, label in row_dims %}<option value="{{ id }}"{% if id == chosen.row_dim %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+  <label>Columns <select name="col_dim">{% for id, label in col_dims %}<option value="{{ id }}"{% if id == chosen.col_dim %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+  <label>Firm <select name="firm_id"><option value="">All Firms</option>{% for f in firm_choices %}<option value="{{ f.pk }}"{% if f.pk == chosen.firm_id %} selected{% endif %}>{{ f.name }}</option>{% endfor %}</select></label>
+  {% include "fees/_fy_select.html" with name="from_fy" label="From Financial Year" options=fy_options selected=chosen.from_fy all_label="Earliest" %}
+  {% include "fees/_fy_select.html" with name="to_fy" label="To Financial Year" options=fy_options selected=chosen.to_fy all_label="Latest" %}
+  <button type="submit">Show</button>
+</form>
+
+{% if pivot_error %}<p class="notice" role="alert">{{ pivot_error }}</p>{% endif %}
+{% if pivot %}
+<div class="table-wrap">
+<table class="ledger-table pivot-table stat-table" id="pivot-table" data-table-id="statistics-pivot">
+  <caption>{% for id, label in measures %}{% if id == chosen.measure %}{{ label }}{% endif %}{% endfor %} by {% for id, label in row_dims %}{% if id == chosen.row_dim %}{{ label|lower }}{% endif %}{% endfor %}{% if chosen.col_dim != "none" %}, across {% for id, label in col_dims %}{% if id == chosen.col_dim %}{{ label|lower }}{% endif %}{% endfor %}{% endif %}</caption>
+  <thead><tr><th scope="col">Row</th>{% for c in pivot.columns %}<th scope="col" class="money">{{ c.label }}</th>{% endfor %}{% if pivot.columns|length > 1 %}<th scope="col" class="money">Total</th>{% endif %}</tr></thead>
+  <tbody>{% for r in pivot.rows %}<tr><th scope="row">{{ r.label }}</th>{% for v in r.values %}<td class="money">{% if pivot.money %}{{ v|fees_money:money_unit }}{% else %}{{ v|floatformat:"-2" }}{% endif %}</td>{% endfor %}{% if pivot.columns|length > 1 %}<td class="money">{% if pivot.money %}{{ r.total|fees_money:money_unit }}{% else %}{{ r.total|floatformat:"-2" }}{% endif %}</td>{% endif %}</tr>{% empty %}<tr><td colspan="{{ pivot.columns|length|add:2 }}">Nothing to show for these choices.</td></tr>{% endfor %}</tbody>
+  {% if pivot.rows %}<tfoot><tr><th scope="row">Total</th>{% for v in pivot.totals %}<td class="money">{% if pivot.money %}{{ v|fees_money:money_unit }}{% else %}{{ v|floatformat:"-2" }}{% endif %}</td>{% endfor %}{% if pivot.columns|length > 1 %}<td class="money">{% if pivot.money %}{{ pivot.grand_total|fees_money:money_unit }}{% else %}{{ pivot.grand_total|floatformat:"-2" }}{% endif %}</td>{% endif %}</tr></tfoot>{% endif %}
+</table>
+</div>
+
+<div class="chart-tools" data-chart-tools hidden>
+  <label><input type="checkbox" data-chart-on> Show chart</label>
+  <label>Chart Type <select data-chart-type><option value="bar">Bars (Grouped)</option><option value="stacked">Bars (Stacked)</option><option value="line">Line</option></select></label>
+</div>
+<figure class="pivot-chart" data-chart-figure hidden>
+  <div data-chart-canvas></div>
+  <figcaption>The table above holds the same figures.</figcaption>
+</figure>
+{{ chart_data|json_script:"pivot-data" }}
+{% endif %}
+
+<h2 id="saved-views-heading">Saved views</h2>
+{% if saved_views %}<ul class="saved-views" aria-labelledby="saved-views-heading">{% for v in saved_views %}<li><a href="{% url 'fees_statistics' %}?{{ v.query }}">{{ v.name }}</a>{% if can_edit %}
+  <form method="post" action="{% url 'fees_statistics_view_delete' v.id %}" class="inline-form">{% csrf_token %}<input type="hidden" name="return_to" value="statistics"><button type="submit" class="secondary small" aria-label="Delete saved view {{ v.name }}">Delete</button></form>{% endif %}</li>{% endfor %}</ul>
+{% else %}<p>No saved views yet.</p>{% endif %}
+{% if can_edit %}<form method="post" action="{% url 'fees_statistics_views' %}" class="filters" aria-label="Save this pivot as a view">{% csrf_token %}
+  <input type="hidden" name="return_to" value="statistics">
+  <input type="hidden" name="measure" value="{{ chosen.measure }}"><input type="hidden" name="row_dim" value="{{ chosen.row_dim }}"><input type="hidden" name="col_dim" value="{{ chosen.col_dim }}">
+  <input type="hidden" name="from_fy" value="{{ chosen.from_fy }}"><input type="hidden" name="to_fy" value="{{ chosen.to_fy }}"><input type="hidden" name="firm_id" value="{{ chosen.firm_id|default_if_none:'' }}">
+  <label>Name For This View <input type="text" name="name" maxlength="100" required></label>
+  <button type="submit">Save View</button>
+</form>{% endif %}
+{% endif %}
+{% endif %}
+{% endblock %}
+{% block page_js %}{% if tab == "explore" and pivot %}<script src="{% static 'js/pivot-chart.js' %}"></script>{% endif %}{% endblock %}

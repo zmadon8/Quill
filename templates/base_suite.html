@@ -1,7 +1,7 @@
 {% load static %}<!DOCTYPE html>
 {# Shared shell for every program in the suite (Option D "Chambers"). A program extends this and fills: #}
 {# program_name, program_nav, page_title; and crumb_nav (the breadcrumb row, only on judgment-list pages). See docs/DESIGN.md "Visual design". #}
-<html lang="en">
+<html lang="en"{% if justify_text %} class="justify-text"{% endif %}>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -10,9 +10,12 @@
   <script>try{if(localStorage.getItem("quill.links")==="off"){document.documentElement.classList.add("links-off");}}catch(e){}</script>
   <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
   <link rel="stylesheet" href="{% static 'css/site.css' %}">
+  {# design.css is the shared look (top bar, tabs, links); look.css is the Home and Diary page layer (inert on Fee Register pages). #}
+  <link rel="stylesheet" href="{% static 'css/design.css' %}">
+  <link rel="stylesheet" href="{% static 'css/look.css' %}">
   {% block extra_css %}{% endblock %}
 </head>
-<body{% block body_attrs %}{% endblock %}>
+<body{% block body_attrs %} class="look"{% endblock %}>
   <a class="skip-link" href="#main">Skip to content</a>
   {% block edit_strip %}{% endblock %}
   <div class="page">
@@ -29,9 +32,13 @@
       {% if user.is_authenticated %}
       <nav class="program-nav" aria-label="Main">
         {% block program_nav %}{% endblock %}
-        {% block who %}<span class="who">{{ user.username }}</span>{% endblock %}
-        {% block search_tool %}{% endblock %}
-        {% block nav_end %}{% include "_home_button.html" %}{% endblock %}
+        {# Uniform on every page: the program brand, nav items and Back / Forward are on the left; the user name, Search, Home and Sign out (all but the name are icons) are on the right. #}
+        <div class="header-end">
+          {% block who %}{% include "_header_user.html" %}{% endblock %}
+          {% block search_tool %}{% endblock %}
+          {% block nav_end %}{% include "_home_button.html" %}{% endblock %}
+          {% include "_signout_button.html" %}
+        </div>
       </nav>
       {% endif %}
     </header>
@@ -47,9 +54,11 @@
       {% block content %}{% endblock %}
     </main>
   </div>
+  <script src="{% static 'js/resizable-columns.js' %}"></script>
   {% block extra_js %}{% endblock %}
   <script src="{% static 'js/keep-place.js' %}"></script>
   <script src="{% static 'js/site.js' %}" data-home="{% url 'home' %}?home=1" data-search="{% url 'search' %}"></script>
   <script src="{% static 'js/search-toggles.js' %}"></script>
+  <script src="{% static 'js/select-all-none.js' %}"></script>
 </body>
 </html>

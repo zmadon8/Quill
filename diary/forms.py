@@ -5,39 +5,88 @@ from accounts.models import Profile
 from .models import DATE_FORMAT_CHOICES, FORMAT_CHOICES, SECTION_FORMAT_CHOICES, Subject, UserSettings
 
 
+#: The Display tab Yes/No toggle values (round 19, user item 4). Yes means clicking a Subject opens the whole
+#: Subject; No means it opens the scoped Contents page with its "Read Whole Subject" button.
+VIEW_WHOLE_YES = "yes"
+VIEW_WHOLE_NO = "no"
+VIEW_WHOLE_CHOICES = [(VIEW_WHOLE_YES, "Yes"), (VIEW_WHOLE_NO, "No")]
+
+
 class ProfileSettingsForm(forms.ModelForm):
     """Settings an Editor can change for their profile: the Display Name and what the Contents links open (Settings >
-    General > Display, round 18). The export file name is on the Export page (ExportSettingsForm)."""
+    Display, round 18/19). The export file name is on the Export page (ExportSettingsForm).
+
+    Round 19 (user item 4) has a plain Yes/No toggle on the Display tab, ``view_whole_subject``, as the only reading
+    control: Yes means clicking a Subject opens the whole Subject (``reading_all_mode = always_on``), No means it
+    opens the scoped Contents page with a "Read Whole Subject" button (``always_off``). The "The view I used last"
+    (remember) choice and the ``reading_all_default`` checkbox are no longer offered. ``reading_all_mode`` now only
+    ever becomes ``always_on`` or ``always_off`` from the toggle; an older row still on ``remember`` is shown as
+    Yes/No (Yes if its ``reading_all_default`` is True, else No) and is mapped to ``always_on``/``always_off`` on its
+    next save."""
+
+    view_whole_subject = forms.ChoiceField(
+        choices=VIEW_WHOLE_CHOICES,
+        widget=forms.RadioSelect,
+        label="When I click a Subject, open the whole Subject",
+        help_text="Yes: clicking a Subject opens the whole Subject. No: it opens the Contents page with a "
+                  "\"Read Whole Subject\" button.",
+    )
 
     class Meta:
         model = Profile
-        fields = ("display_name", "reading_all_mode", "reading_all_default")
+        fields = ("display_name",)
         labels = {
             "display_name": "Display Name",
-            "reading_all_mode": "Contents links open",
-            "reading_all_default": "If there is no last view yet, Contents links open the whole Subject",
         }
         help_texts = {
             "display_name": "Shown at the top of every page instead of the program name. Leave blank to show the program name and the profile name.",
-            "reading_all_mode": "The Contents links in the side panel. Clicking a Topic or Sub-topic heading in the text always switches between the whole Subject and that one Topic or Sub-topic, whatever this says.",
-            "reading_all_default": "Used only with \"The view I used last\", for a browser that has not read anything yet.",
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not self.is_bound:
+            # The toggle reflects the saved mode: always_on -> Yes, always_off -> No. An older row still on the
+            # "remember" mode (no longer offered) falls back to the effective default (reading_all_default), which is
+            # still a model attribute on the instance even though it is no longer a form field.
+            mode = self.instance.reading_all_mode
+            if mode == Profile.READING_ALL_ALWAYS_ON:
+                self.fields["view_whole_subject"].initial = VIEW_WHOLE_YES
+            elif mode == Profile.READING_ALL_ALWAYS_OFF:
+                self.fields["view_whole_subject"].initial = VIEW_WHOLE_NO
+            else:
+                self.fields["view_whole_subject"].initial = (
+                    VIEW_WHOLE_YES if self.instance.reading_all_default else VIEW_WHOLE_NO
+                )
 
     def clean_display_name(self):
         return " ".join((self.cleaned_data.get("display_name") or "").split())
 
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        # The Yes/No toggle is the only reading control: it always decides the mode (remember is no longer offered).
+        # reading_all_default is left untouched; it is simply no longer used by the UI.
+        instance.reading_all_mode = (
+            Profile.READING_ALL_ALWAYS_ON
+            if self.cleaned_data.get("view_whole_subject") == VIEW_WHOLE_YES
+            else Profile.READING_ALL_ALWAYS_OFF
+        )
+        if commit:
+            instance.save()
+        return instance
+
 
 
 class ExportSettingsForm(forms.Form):
-    """The Export page's file settings (round 18, D97). The file name belongs to the profile and anyone in it (Readers
-    too) may change it; the date format is the user's own."""
+    """The export file name (Case Law Diary settings > Data). The file name belongs to the profile and only its Editors
+    change it. The date format is the user's own and is set on My settings; this form still accepts it (blank leaves it
+    as it is) so an older client that posts both keeps working."""
 
     export_name = forms.CharField(
         max_length=Profile._meta.get_field("export_name").max_length, required=False, label="Export file name",
         help_text="The start of every exported file name, for everyone using this profile. Leave blank for the default.",
     )
     export_date_format = forms.ChoiceField(
-        choices=DATE_FORMAT_CHOICES, label="Date in Word file names",
+        choices=DATE_FORMAT_CHOICES, label="Date in Word file names", required=False,
         help_text="Your own choice: the date at the end of the file names you export, and on the front page. "
                   "The time zone is India (Asia/Kolkata, IST).",
     )
@@ -57,18 +106,21 @@ class ExportSettingsForm(forms.Form):
         if self.profile.export_name != self.cleaned_data["export_name"]:
             self.profile.export_name = self.cleaned_data["export_name"]
             self.profile.save(update_fields=["export_name", "updated_at"])
+        chosen = self.cleaned_data.get("export_date_format")
+        if not chosen:
+            return
         row = UserSettings.objects.get_or_create(user=self.user)[0]
-        if row.export_date_format != self.cleaned_data["export_date_format"]:
-            row.export_date_format = self.cleaned_data["export_date_format"]
+        if row.export_date_format != chosen:
+            row.export_date_format = chosen
             row.save(update_fields=["export_date_format"])
 
 
 #: Opening pages offered inside the Case Law Diary (the stored legacy value "other_subjects" is shown as "home").
 OPENING_PAGE_OFFERED = [
-    ("home", "Subjects (Index of Subjects)"),
+    ("home", "Subjects (Index Of Subjects)"),
     ("search", "Global Search"),
-    ("last", "The last page I viewed"),
-    ("subject", "A chosen Subject"),
+    ("last", "The Last Page I Viewed"),
+    ("subject", "A Chosen Subject"),
 ]
 
 #: Form field -> UserSettings column, for the five number formats.

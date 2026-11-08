@@ -18,34 +18,35 @@ def ago(days):
     return NOW - timedelta(days=days)
 
 
-class EffectiveRetentionTests(unittest.TestCase):
-    def test_floor_is_30(self):
-        self.assertEqual(policy.effective_retention_days(1), 30)
-        self.assertEqual(policy.effective_retention_days("0"), 30)
+class EffectiveKeepCountTests(unittest.TestCase):
+    def test_floor_is_1(self):
+        self.assertEqual(policy.effective_keep_count(0), 1)
+        self.assertEqual(policy.effective_keep_count("-5"), 1)
 
-    def test_larger_values_kept(self):
-        self.assertEqual(policy.effective_retention_days(35), 35)
-        self.assertEqual(policy.effective_retention_days("90"), 90)
+    def test_values_kept_and_bad_value_gives_default(self):
+        self.assertEqual(policy.effective_keep_count(30), 30)
+        self.assertEqual(policy.effective_keep_count("12"), 12)
+        self.assertEqual(policy.effective_keep_count("x"), 30)
 
 
-class SelectExpiredTests(unittest.TestCase):
+class SelectOverCountTests(unittest.TestCase):
     def test_empty(self):
-        self.assertEqual(policy.select_expired([], NOW, 35), [])
+        self.assertEqual(policy.select_over_count([], 30), [])
 
-    def test_removes_only_older_than_retention(self):
+    def test_removes_only_the_oldest_beyond_the_count(self):
         entries = [(1, ago(10)), (2, ago(29)), (3, ago(31)), (4, ago(40)), (5, ago(100))]
-        self.assertEqual(sorted(policy.select_expired(entries, NOW, 35)), [4, 5])
+        self.assertEqual(sorted(policy.select_over_count(entries, 3)), [4, 5])
 
-    def test_retention_below_30_is_raised_to_30(self):
-        entries = [(1, ago(10)), (2, ago(29)), (3, ago(31))]
-        self.assertEqual(policy.select_expired(entries, NOW, 5), [3])
+    def test_fewer_than_count_removes_nothing_however_old(self):
+        self.assertEqual(policy.select_over_count([(7, ago(500)), (8, ago(900))], 30), [])
 
     def test_newest_is_always_kept(self):
         entries = [(1, ago(100)), (2, ago(200))]
-        self.assertEqual(policy.select_expired(entries, NOW, 35), [2])
+        self.assertEqual(policy.select_over_count(entries, 0), [2])
 
-    def test_single_old_entry_is_kept(self):
-        self.assertEqual(policy.select_expired([(7, ago(500))], NOW, 35), [])
+    def test_protected_ids_are_never_returned(self):
+        entries = [(1, ago(1)), (2, ago(2)), (3, ago(3))]
+        self.assertEqual(policy.select_over_count(entries, 1, protect_ids=(2,)), [3])
 
 
 class IsStaleTests(unittest.TestCase):

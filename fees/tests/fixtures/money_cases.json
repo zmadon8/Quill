@@ -1,0 +1,33 @@
+{
+  "_comment": "Golden money-formatting cases ported from formatMoney.test.ts (design section 3). Each case names the function, its input value, the display unit, optional suffixes, and the expected string. The Python test in test_money.py runs them against fees/services/money.py; the JS copy static/js/fees/money.js shares the same table if a JS runtime is ever added to CI.",
+  "format_currency": [
+    { "value": 312451, "expected": "3,12,451" },
+    { "value": 1234567, "expected": "12,34,567" },
+    { "value": 0, "expected": "0" },
+    { "value": 100.6, "expected": "101" },
+    { "value": -1234567, "expected": "-12,34,567" }
+  ],
+  "format_money": [
+    { "value": 0, "unit": "truncated", "expected": "0" },
+    { "value": 7, "unit": "truncated", "expected": "7" },
+    { "value": -3, "unit": "truncated", "expected": "-3" },
+    { "value": 5300, "unit": "truncated", "suffix_thousands": "K", "suffix_lac": "Lakh", "suffix_crore": "Cr", "expected": "5.3K" },
+    { "value": 670000, "unit": "truncated", "suffix_thousands": "K", "suffix_lac": "Lakh", "suffix_crore": "Cr", "expected": "6.7 Lakh" },
+    { "value": 35000000, "unit": "truncated", "suffix_thousands": "K", "suffix_lac": "Lakh", "suffix_crore": "Cr", "expected": "3.5 Cr" },
+    { "value": 312451, "unit": "full", "expected": "3,12,451" },
+    { "value": 5300, "unit": "truncated", "expected": "5.3k" },
+    { "value": 99999, "unit": "truncated", "expected": "100k" },
+    { "value": 5000, "unit": "truncated", "expected": "5k" },
+    { "value": 10, "unit": "truncated", "expected": "0.01k" },
+    { "value": 670000, "unit": "truncated", "expected": "6.7 lac" },
+    { "value": 100000, "unit": "truncated", "expected": "1 lac" },
+    { "value": 312451, "unit": "truncated", "expected": "3.12 lac" },
+    { "value": 9999999, "unit": "truncated", "expected": "100 lac" },
+    { "value": 35000000, "unit": "truncated", "expected": "3.5 cr" },
+    { "value": 10000000, "unit": "truncated", "expected": "1 cr" },
+    { "value": 123456789, "unit": "truncated", "expected": "12.35 cr" },
+    { "value": -5300, "unit": "truncated", "expected": "-5.3k" },
+    { "value": -35000000, "unit": "truncated", "expected": "-3.5 cr" },
+    { "value": 312451, "unit": "full", "expected": "3,12,451" }
+  ]
+}

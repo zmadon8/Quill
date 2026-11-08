@@ -1,0 +1,126 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Ledger-book theme. Palette: warm paper, near-black ink, one oxblood accent.
+ * Type: Newsreader (serif) for titles and key figures, Inter for everything
+ * else, with tabular numerals everywhere so amounts line up.
+ */
+@layer base {
+  :root {
+    --background: 43 41% 97%;
+    --foreground: 40 6% 10%;
+    --card: 40 100% 99.6%;
+    --card-foreground: 40 6% 10%;
+    --popover: 40 100% 99.6%;
+    --popover-foreground: 40 6% 10%;
+    --primary: 0 45% 33%;
+    --primary-foreground: 43 41% 97%;
+    --secondary: 43 25% 93%;
+    --secondary-foreground: 40 6% 10%;
+    --muted: 43 25% 93%;
+    --muted-foreground: 43 9% 44%;
+    --accent: 43 25% 93%;
+    --accent-foreground: 40 6% 10%;
+    --destructive: 0 62% 38%;
+    --destructive-foreground: 43 41% 97%;
+    --border: 44 22% 86%;
+    --input: 45 19% 76%;
+    --ring: 0 45% 33%;
+    --radius: 0.125rem;
+    --chart-1: 0 45% 33%;
+    --chart-2: 150 30% 30%;
+    --chart-3: 40 60% 38%;
+    --chart-4: 215 30% 40%;
+    --chart-5: 25 50% 45%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    font-size: 14px;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1, "calt" 1;
+  }
+  /* Titles are serif; sizes come from the utility classes on each heading. */
+  h1, h2, h3 {
+    font-family: "Newsreader Variable", Newsreader, Georgia, "Times New Roman", serif;
+    font-weight: 500;
+    letter-spacing: -0.005em;
+  }
+  ::selection {
+    background: #e6cfcf;
+  }
+  :focus-visible {
+    outline: 2px solid #7A2E2E;
+    outline-offset: 1px;
+  }
+  input:focus-visible, select:focus-visible, textarea:focus-visible {
+    outline: none;
+  }
+}
+
+@layer components {
+  /*
+   * Tables: no coloured header bar and no zebra striping. Small-caps column
+   * headings over an ink rule, hairlines between rows, a double rule above
+   * totals. Alignment and padding still come from each page's classes.
+   */
+  table thead tr {
+    background-color: transparent;
+    border-bottom: 1px solid theme("colors.gray.900");
+  }
+  table thead th {
+    background-color: hsl(var(--card));
+    color: theme("colors.gray.500");
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  table tbody tr:hover {
+    background-color: theme("colors.gray.100");
+  }
+  table tfoot tr {
+    background-color: transparent;
+    border-top: 3px double theme("colors.gray.900");
+  }
+  /* Small filter-bar labels match the form labels (small caps). */
+  label.block.text-xs {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+  }
+  /* Keep each row on one line (opt out with `allow-wrap`). */
+  table td,
+  table th {
+    white-space: nowrap;
+  }
+  table td.allow-wrap,
+  table th.allow-wrap {
+    white-space: normal;
+  }
+  /* Find-on-page highlight marks. */
+  mark.fr-find-hilite {
+    background-color: #ecdca0;
+    color: inherit;
+    border-radius: 1px;
+  }
+  mark.fr-find-active {
+    background-color: #d9b44a;
+    box-shadow: 0 0 0 2px #d9b44a;
+  }
+}
+
+/* Overrides that must beat the utility classes used on individual rows. */
+table tfoot tr {
+  border-top: 3px double #1C1B19 !important;
+}

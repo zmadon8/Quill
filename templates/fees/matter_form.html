@@ -1,0 +1,29 @@
+{% extends "fees/base_fees.html" %}
+{% block page_width %}w-4xl{% endblock %}
+{% block page_title %}{% if matter %}Edit matter{% else %}New matter{% endif %} - {{ program_label }}{% endblock %}
+{% block crumb_nav %}{% if matter %}{% url 'fees_matter_detail' matter.pk as back %}{% include "fees/_back.html" with url=back label=matter.name %}{% else %}{% url 'fees_firms' as back %}{% include "fees/_back.html" with url=back label="Firms" %}{% endif %}{% endblock %}
+{% block content %}
+<h1>{% if matter %}Edit {{ matter.name }}{% else %}New matter{% endif %}</h1>
+{% if not can_edit %}<p class="muted">You can read this page but not save it.</p>{% endif %}
+<form method="get" action="{{ request.path }}" class="filters" aria-label="{% if matter %}Move to another firm{% else %}Choose a firm{% endif %}">
+  {% if matter %}<p class="muted">To move this matter, choose the new firm, then its group below, then save.</p>{% endif %}
+  <label>{% if matter %}Firm (change to move this matter){% else %}Firm{% endif %} <select name="firm">{% for f in firm_choices %}<option value="{{ f.pk }}"{% if form.firm_id == f.pk %} selected{% endif %}>{{ f.name }}</option>{% endfor %}</select></label>
+  <button type="submit">Show This Firm's Groups</button>
+</form>
+{% include "fees/_form_errors.html" %}
+<form method="post" action="{{ request.path }}" class="fees-form">
+  {% csrf_token %}
+  <input type="hidden" name="firm_id" value="{{ form.firm_id }}">
+  <p><label>Group <select name="group_id" required><option value="">Choose</option>{% for g in group_choices %}<option value="{{ g.pk }}"{% if form.group_id == g.pk %} selected{% endif %}>{{ g.name }}</option>{% endfor %}</select></label></p>
+  <p><label>Name <input type="text" name="name" value="{{ form.name }}" maxlength="150" required></label> <label>Short name <input type="text" name="short_name" value="{{ form.short_name }}" maxlength="150"></label></p>
+  <p><label>Addressee <input type="text" name="addressee_line1" value="{{ form.addressee_line1 }}" size="50"></label> <label><input type="checkbox" name="addressee_use_firm_name" value="1"{% if form.addressee_use_firm_name %} checked{% endif %}> Use the firm name</label></p>
+  <p><label>Addressee, second line <input type="text" name="addressee_line2" value="{{ form.addressee_line2 }}" size="50"></label></p>
+  <p><label>Caption <textarea name="court_name" rows="2" cols="50">{{ form.court_name }}</textarea></label></p>
+  <p><label>Client <input type="text" name="client" value="{{ form.client }}" size="40"></label></p>
+  <p><label>Details, left <textarea name="additional_details_left" rows="2" cols="40">{{ form.additional_details_left }}</textarea></label> <label>Details, right <textarea name="additional_details_right" rows="2" cols="40">{{ form.additional_details_right }}</textarea></label></p>
+  <p><label>Plaintiff <input type="text" name="plaintiff_name" value="{{ form.plaintiff_name }}"></label> <label>as <input type="text" name="plaintiff_type" value="{{ form.plaintiff_type }}" size="14"></label></p>
+  <p><label>Defendant <input type="text" name="defendant_name" value="{{ form.defendant_name }}"></label> <label>as <input type="text" name="defendant_type" value="{{ form.defendant_type }}" size="14"></label></p>
+  <p><label>Notes <textarea name="notes" rows="3" cols="50">{{ form.notes }}</textarea></label></p>
+  {% if can_edit %}<p><button type="submit" class="primary">Save</button> <a href="{% if matter %}{% url 'fees_matter_detail' matter.pk %}{% else %}{% url 'fees_firms' %}{% endif %}">Cancel</a></p>{% endif %}
+</form>
+{% endblock %}

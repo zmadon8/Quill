@@ -315,5 +315,112 @@ class SpeedTests(unittest.TestCase):
         self.assertLess(elapsed, 1.0)
 
 
+class OperatorTests(unittest.TestCase):
+    """AND / OR / NOT / phrase / brackets / prefix wildcard / filters, and malformed input (round diary-round 1.8)."""
+
+    FIELDS = [("text", "Fraud and forgery in arbitration"), ("citation#1", "(2016) 4 SCC 12")]
+
+    def match(self, query, fields=None):
+        return st.match_fields(fields or self.FIELDS, st.parse_search(query))
+
+    def test_and_is_the_default_and_can_be_written(self):
+        self.assertIsNotNone(self.match("fraud forgery"))
+        self.assertIsNotNone(self.match("fraud AND forgery"))
+        self.assertIsNone(self.match("fraud perjury"))
+
+    def test_or(self):
+        self.assertIsNotNone(self.match("perjury OR forgery"))
+        self.assertIsNone(self.match("perjury OR bribery"))
+
+    def test_lowercase_operator_is_a_word(self):
+        self.assertIsNone(self.match("fraud or perjury"))
+
+    def test_not_with_minus_and_keyword(self):
+        self.assertIsNone(self.match("fraud -forgery"))
+        self.assertIsNone(self.match("fraud NOT forgery"))
+        self.assertIsNotNone(self.match("fraud -perjury"))
+        self.assertIsNotNone(self.match("NOT perjury"))
+        self.assertIsNone(self.match("-fraud"))
+
+    def test_minus_inside_a_word_is_a_separator(self):
+        self.assertIsNotNone(self.match("2016 4 SCC-12"))
+
+    def test_phrase(self):
+        self.assertIsNotNone(self.match('"fraud and forgery"'))
+        self.assertIsNone(self.match('"forgery and fraud"'))
+        self.assertIsNone(self.match('fraud -"forgery in"'))
+
+    def test_brackets_group(self):
+        self.assertIsNotNone(self.match("(perjury OR fraud) arbitration"))
+        self.assertIsNone(self.match("(perjury OR bribery) arbitration"))
+        self.assertIsNone(self.match("-(fraud OR perjury)"))
+
+    def test_brackets_around_a_citation_still_work(self):
+        self.assertIsNotNone(self.match("(2016) 4 SCC 12"))
+
+    def test_prefix_wildcard(self):
+        self.assertIsNotNone(self.match("arbitra*"))
+        self.assertIsNone(self.match("rbitra*"))  # must start a word
+        self.assertIsNotNone(self.match("rbitra"))  # a plain word matches inside a word
+        self.assertEqual(st.parse_search("arbitra*").terms, (st.Term("arbitra", False, True),))
+
+    def test_citation_words_and_numbers(self):
+        self.assertIsNotNone(self.match("SCC 2016"))
+        self.assertIsNone(self.match("SCC 2017"))
+
+    def test_filters_are_read_out_of_the_query(self):
+        parsed = st.parse_search('subject:Arbitration fraud subject:"Civil Procedure" flag:review flag:pending')
+        self.assertEqual(parsed.subjects, ("arbitration", "civil procedure"))
+        self.assertEqual(parsed.flags, frozenset({"overruled", "doubted", "pending"}))
+        self.assertEqual(parsed.terms, (st.Term("fraud", False),))
+        self.assertEqual(parsed.notice, "")
+        self.assertEqual(st.parse_search("flag:other").flags, frozenset({"other"}))
+        self.assertEqual(st.parse_search("FLAG:Pending").flags, frozenset({"pending"}))
+
+    def test_a_filter_alone_has_no_words(self):
+        parsed = st.parse_search("flag:pending")
+        self.assertIsNone(parsed.expr)
+        self.assertEqual(st.match_fields(self.FIELDS, parsed), {})
+
+    def test_only_positive_terms_are_highlighted(self):
+        spans = self.match("fraud -perjury")
+        self.assertEqual(spans["text"], [(0, 5)])
+        parsed = st.parse_search("fraud (forgery OR -bribery)")
+        self.assertEqual([t.text for t in parsed.terms], ["fraud", "forgery"])
+        self.assertEqual(st.parse_search("-fraud").terms, ())
+
+    def test_or_highlights_the_words_that_match(self):
+        spans = self.match("perjury OR forgery")
+        self.assertEqual([self.FIELDS[0][1][a:b] for a, b in spans["text"]], ["forgery"])
+
+    def test_malformed_falls_back_to_plain_words_with_a_notice(self):
+        for query in ["fraud OR", "OR fraud", "(fraud", "fraud)", "()", "fraud AND", "NOT", "flag:bogus fraud",
+                      "subject: fraud", "-flag:pending fraud", "fraud OR flag:pending", "((" * 30 + "fraud"]:
+            parsed = st.parse_search(query)
+            self.assertEqual(parsed.notice, st.NOTICE, query)
+            self.assertEqual((parsed.subjects, parsed.flags), ((), None), query)
+        plain = st.parse_search("fraud OR")
+        self.assertEqual([t.text for t in plain.terms], ["fraud"])
+        self.assertIsNotNone(st.match_fields(self.FIELDS, plain))
+        self.assertEqual([t.text for t in st.parse_search("(fraud forgery").terms], ["fraud", "forgery"])
+
+    def test_nothing_raises(self):
+        for query in ["", "   ", "*", "-", "--", "- -", '"', '""', "(", ")", ")(", "OR OR", "AND OR NOT", "subject:",
+                      "flag:", "a" * 500, "\u201cfraud\u201d", "-(-(-(a)))", "x" * 3 + "*" * 5]:
+            st.match_fields(self.FIELDS, st.parse_search(query))
+
+    def test_legacy_parse_query_is_unchanged(self):
+        self.assertEqual([t.text for t in st.parse_query("a OR -b")], ["a", "or", "b"])
+
+    def test_speed_of_an_operator_query(self):
+        fields = [("text", "Item number %d about arbitration and the court held that" % i) for i in range(5000)]
+        parsed = st.parse_search("(arbitra* OR court) -fraud")
+        started = time.perf_counter()
+        count = sum(1 for f in fields if st.match_fields([f], parsed) is not None)
+        elapsed = time.perf_counter() - started
+        self.assertEqual(count, 5000)
+        self.assertLess(elapsed, 1.0)
+
+
 if __name__ == "__main__":
     unittest.main()

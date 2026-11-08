@@ -12,11 +12,7 @@
       <li class="depth-0 picker-new"><button type="submit" formaction="{% url 'edit_move_new' %}" name="new_heading" value="{{ o.kind }}" class="picker-choice">+ {{ o.label }} <span class="meta">{{ o.parent.name }}</span></button></li>
       {% endfor %}
     </ul>
-    <p class="picker-controls" data-picker-controls hidden>
-      <button type="button" data-picker-expand-all>Expand all</button>
-      <button type="button" data-picker-collapse-all>Collapse all</button>
-    </p>
-    <div data-picker>{% include "diary/_picker_nodes.html" with nodes=tree %}</div>
+    {% include "diary/_picker_box.html" %}
   </form>
   <p><a class="button" href="{{ next_url }}">Cancel</a></p>
 </div>

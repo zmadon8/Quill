@@ -178,7 +178,7 @@ def undo(request):
     return redirect(_next(request))
 
 
-# ------------------------------------------------------------------ My edits (round 17, D92)
+# ------------------------------------------------------------------ History: my own edits (round 17, D92; "My edits" renamed History)
 
 MY_EDITS_PAGE = 100
 MY_EDITS_MAX = 1000
@@ -240,7 +240,7 @@ def my_edits(request):
         )
     return render(request, "diary/my_edits.html", {
         "actions": actions, "has_more": len(actions) >= limit and limit < MY_EDITS_MAX,
-        "more_url": f"{reverse('my_edits')}?limit={min(limit + MY_EDITS_PAGE, MY_EDITS_MAX)}",
+        "more_url": f"{reverse('diary_history')}?limit={min(limit + MY_EDITS_PAGE, MY_EDITS_MAX)}",
         "retention_days": settings.HISTORY_RETENTION_DAYS,
     })
 

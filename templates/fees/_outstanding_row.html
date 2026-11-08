@@ -1,0 +1,10 @@
+{% load fees_money %}
+{# One outstanding memo row. Context: e, can_edit, money_unit; optional flat (adds Firm, Group, Matter cells). #}
+<tr>
+  {% if can_edit %}<td><input type="checkbox" name="memo" value="{{ e.memo_id }}" data-due="{{ e.due|stringformat:'s' }}" aria-label="Select memo {{ e.memo_number }} to pay"></td>{% endif %}
+  <td><a href="{% url 'fees_memo_detail' e.memo_id %}">{{ e.memo_number }}</a></td>
+  <td>{{ e.date|fees_date }}</td>
+  {% if flat %}<td>{{ e.firm_name }}</td><td>{{ e.partner_name }}</td><td>{{ e.matter_name }}</td>{% endif %}
+  <td class="money">{{ e.total_fees|fees_money:money_unit }}</td><td class="money">{{ e.net_of_tds|fees_money:money_unit }}</td><td class="money">{{ e.amount_paid|fees_money:money_unit }}</td><td class="money">{{ e.due|fees_money:money_unit }}</td>
+  <td>{% include "fees/_outstanding_status.html" with e=e %}</td>
+</tr>

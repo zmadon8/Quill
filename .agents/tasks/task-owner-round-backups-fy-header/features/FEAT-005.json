@@ -1,0 +1,19 @@
+{
+ "id": "FEAT-005",
+ "type": "feat",
+ "description": "Dashboard: remove headline metrics, Overview heading; new Customise panel",
+ "status": "completed",
+ "steps": [
+  "In the Statistics Dashboard template/view remove the 9 headline metrics block and the 'Overview' heading; button text 'Customise'. Keep KPI boxes (user's selection and order).",
+  "Customise panel per owner Screenshot 1: title 'Customise Overview boxes'; two columns; LEFT grouped checkboxes with small uppercase grey group labels BILLING, RECEIPTS, MEMOS, APPEARANCES & WORK, OUTSTANDING (map every id in KPI_IDS in fees/services/dashboard.py to a group, including written off and draft kpis); RIGHT 'ORDER' list of ticked KPIs with thin rules and up/down arrow buttons (up disabled on first, down disabled on last). Ticking appends, unticking removes. Save stores selection and order (FeesSettings.dashboard_kpis; keep backwards compatible). Works without JS (checkboxes plus up/down submit buttons), enhanced with JS (node --check) for instant reordering. 2.12 rule: only selected KPIs computed; cache key includes selection and order.",
+  "Remove unused summary code only if nothing else uses it. Update tests. Commit: 'feat(fees): dashboard customise panel and ordering'."
+ ],
+ "acceptance_criteria": [
+  "Tests cover order persistence, no-JS up/down, grouping covers all KPI_IDS"
+ ],
+ "verification": [
+  "python -m py_compile on changed .py; ruff check --select F,E9 .; node --check changed JS; static audit of affected tests (CI runs python manage.py test)"
+ ],
+ "blocked_reason": null,
+ "findings": "No migration needed: dashboard_kpis is a comma list already stored in saved order (selected_kpi_ids kept order; now dedupes). Cache key now uses ordered ids. New dashboard.KPI_DISPLAY_GROUPS, KPI_LABELS, order_kpis; POST fields kpi, order, move=<id>:up|down (no-JS arrows redirect to ?customise=1). get_dashboard_summary kept (used by KPI computation and tests). Removed views_dashboard.kpi_label. Steering: Edit Statistics already lives in Settings > Start Years & Statistics, and Log out is already always an icon (base_suite_home.html); no change. Static audit only (py_compile, ruff, node --check)."
+}

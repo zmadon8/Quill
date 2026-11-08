@@ -1,4 +1,3 @@
-import copy
 import logging
 from datetime import timedelta
 
@@ -12,10 +11,10 @@ from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
-from . import landing, suite, user_trash
+from . import landing, programs, suite, user_trash
 from .clear import ClearRefused, clear_preview, clear_profile
-from .forms import MySettingsForm, UsernamePasswordResetForm, _client_ip, ProfileForm, SuiteNamesForm, UserCreateForm, UserEditForm
-from .models import ROLE_EDITOR, OfflineLink, Profile, ProfileMembership, PurgeLog, ResetRequest, prune_reset_requests
+from .forms import MyAccountForm, MyDisplayForm, UsernamePasswordResetForm, _client_ip, ProfileForm, SuiteNamesForm, UserCreateForm, UserEditForm
+from .models import OfflineLink, Profile, ProfileMembership, PurgeLog, ResetRequest, prune_reset_requests
 from .permissions import admin_required
 from .profiles import (
     days_left,
@@ -23,8 +22,8 @@ from .profiles import (
     get_profile_for,
     name_clash,
     profile_usage,
+    profile_usage_map,
     request_profile,
-    request_role,
     restore_profile,
     retention_days,
     use_profile,
@@ -127,51 +126,77 @@ class ForgotPasswordView(auth_views.PasswordResetView):
             return self.form_invalid(form)
 
 
+#: Old ``?tab=`` names from before the sections: "numbers" was the Case Law Diary tab.
+SECTION_ALIASES = {"numbers": "diary"}
+
+
 @login_required
 @require_http_methods(["GET", "POST"])
 def my_settings(request):
-    """Settings for every signed-in user: Account and Display (General), and Numbers (the Case Law Diary item).
+    """My settings: everything that is only mine, in sections with a Save each (the user name in the header opens it).
 
-    Display also holds the diary's own settings (Display Name, what the Contents links open; round 18, D96): they belong
-    to the profile, so everyone in it sees them and only its Editors can change them.
+    Account (email, password), Display (open after login, justify text), Case Law Diary (opening page, number formats,
+    date in Word file names: ``diary.UserSettings``) and Fee Register (Opening page, Items per page: ``FeesUserPrefs``
+    key ``settings``). The last two show only for a user who can open that program. The program-wide choices (reading,
+    Word import, the Fee Register's memos and payments ...) are on each program's own Settings tab.
+
+    A POST names the section it saves (``tab``) and checks only that section's form. A POST naming no section (an
+    older form) saves the Account, Display and Case Law Diary fields it carries, as before.
     """
-    from diary.forms import DiarySettingsForm, ProfileSettingsForm, preview_rows  # lazy: diary imports accounts
+    from diary.forms import DiarySettingsForm, preview_rows  # lazy: diary imports accounts
 
-    form = MySettingsForm(request.POST or None, instance=request.user)
-    profile = request_profile(request, suite.KEY_DIARY)
-    diary_form = DiarySettingsForm(request.POST or None, user=request.user, profile=profile) if profile else None
-    can_edit_profile = profile is not None and request_role(request, suite.KEY_DIARY) == ROLE_EDITOR
-    # A copy, so an invalid POST does not change the header of the page shown with the errors. Only checked when the
-    # page sent it (its select is always sent), so a save from somewhere else never resets these shared settings.
-    sent = request.method == "POST" and "diary-reading_all_mode" in request.POST
-    profile_form = ProfileSettingsForm(request.POST if sent else None, instance=copy.copy(profile), prefix="diary") \
-        if can_edit_profile else None
-    # One tab at a time. Every field stays in the form (the other tabs are only hidden), so a Save never changes what
-    # is on a tab you did not open.
-    tab = request.POST.get("tab") or request.GET.get("tab") or "account"
-    tabs = ["account", "display"] + (["numbers"] if diary_form is not None else [])
-    if tab not in tabs:
+    profile = request_profile(request)
+    fees_profile = request_profile(request, suite.KEY_FEES) if programs.fees_enabled() else None
+    sections = ["account", "display"] + (["diary"] if profile else []) + (["fees"] if fees_profile else [])
+    posted = SECTION_ALIASES.get(request.POST.get("tab") or "", request.POST.get("tab") or "")
+    if posted not in sections:
+        posted = ""  # an older form (or a section this user does not have): the legacy fields are saved
+    asked = request.POST.get("tab") or request.GET.get("tab") or ""
+    tab = posted or SECTION_ALIASES.get(asked, asked)
+    if tab not in sections:
         tab = "account"
-    if request.method == "POST":
-        # Every form is checked so that every error is shown at once; nothing is saved unless all are fine.
-        extras = [f for f in (diary_form, profile_form) if f is not None and f.is_bound]
-        valid = form.is_valid()
-        for extra in extras:
-            valid = extra.is_valid() and valid
+
+    post = request.POST if request.method == "POST" else None
+
+    def bound_for(*keys):
+        """The POST data for the form of a section: only when that section (or an older, unnamed form) was posted."""
+        return post if post is not None and posted in keys else None
+
+    account_form = MyAccountForm(bound_for("account", ""), instance=request.user)
+    display_form = MyDisplayForm(bound_for("display", ""), instance=request.user)
+    diary_form = (
+        DiarySettingsForm(bound_for("diary", ""), user=request.user, profile=profile) if profile else None
+    )
+    fees_form = None
+    if fees_profile:
+        from fees.models import FeesSettings
+        from fees.personal_form import FeesPersonalForm
+
+        fees_form = FeesPersonalForm(
+            bound_for("fees"), prefix="fees", profile=fees_profile, user=request.user,
+            fees_settings=FeesSettings.objects.filter(profile=fees_profile).first(),
+        )
+    if post is not None:
+        # Every form of the section is checked so that every error is shown at once; nothing is saved unless all are fine.
+        checked = [f for f in (account_form, display_form, diary_form, fees_form) if f is not None and f.is_bound]
+        valid = True
+        for one in checked:
+            valid = one.is_valid() and valid
         if valid:
-            form.save()
-            for extra in extras:
-                extra.save()
+            for one in checked:
+                one.save()
             messages.success(request, "Settings saved.")
             return redirect(reverse("my_settings") + ("" if tab == "account" else f"?tab={tab}"))
     return render(
         request,
         "accounts/my_settings.html",
         {
-            "form": form,
+            "account_form": account_form,
+            "display_form": display_form,
             "diary_form": diary_form,
-            "profile_form": profile_form,
+            "fees_form": fees_form,
             "diary_profile": profile,
+            "sections": sections,
             "tab": tab,
             "preview": preview_rows(diary_form.effective()) if diary_form is not None else [],
         },
@@ -184,11 +209,14 @@ def profile_switch(request):
     """Use another of my profiles (round 18, D95): from the header menu or the Home page. Opens its Subjects page."""
     from diary.params import safe_int
 
-    profile = Profile.objects.filter(pk=safe_int(request.POST.get("profile", "")), program=suite.KEY_DIARY).first()
+    profile = Profile.objects.filter(
+        pk=safe_int(request.POST.get("profile", "")), program__in=programs.enabled_program_keys()
+    ).first()
     if profile is None or not use_profile(request.user, profile):
         messages.error(request, "You do not have that profile.")
         return redirect(reverse("home") + "?home=1")
-    return redirect("diary_home")
+    program = programs.get_program(profile.program)
+    return redirect(program.landing_url_name if program is not None else "home")
 
 
 class MyPasswordChangeView(auth_views.PasswordChangeView):
@@ -210,7 +238,7 @@ def format_preview(request):
     from diary.forms import FORMAT_FIELDS, DiarySettingsForm, allowed_formats, preview_rows
 
     chosen = {}
-    profile = get_profile_for(request.user, suite.KEY_DIARY)
+    profile = get_profile_for(request.user)
     if profile:
         chosen = DiarySettingsForm(user=request.user, profile=profile).current()
     chosen = {name: chosen.get(name) for name in FORMAT_FIELDS}
@@ -226,7 +254,7 @@ def _with_profiles(users):
     """Give each user ``profiles_text``: their live profiles with roles, for example "Main (Editor), Smith (Reader)"."""
     by_user = {}
     for m in ProfileMembership.objects.filter(
-        program=suite.KEY_DIARY, suspended=False, profile__deleted_at__isnull=True
+        program__in=programs.program_keys(), suspended=False, profile__deleted_at__isnull=True
     ).select_related("profile").order_by("profile__name", "pk"):
         by_user.setdefault(m.user_id, []).append(f"{m.profile.name} ({m.get_role_display()})")
     for u in users:
@@ -234,14 +262,61 @@ def _with_profiles(users):
     return users
 
 
+# Sortable admin tables (owner: sort Users and Profiles by each column). The key is the ?sort= value; a leading "-" means
+# descending. Only keys listed here are honoured; anything else falls back to the default (name, ascending).
+USER_SORTS = {
+    "username": ("Username", lambda u: u.username.lower()),
+    "admin": ("Admin", lambda u: bool(u.is_admin)),
+    "profiles": ("Profiles (role)", lambda u: u.profiles_text.lower()),
+    "active": ("Active", lambda u: bool(u.is_active)),
+    "last_login": ("Last Login", lambda u: u.last_login.timestamp() if u.last_login else float("-inf")),
+}
+USER_DEFAULT_SORT = "username"
+
+
+def _sort_rows(rows, sorts, default, raw, name_key):
+    """Sort ``rows`` by the whitelisted key in ``raw`` ("name" or "-name"). Returns (rows, key, descending).
+
+    Ties always fall back to the name, ascending (the sort is stable, so the descending pass keeps that order).
+    """
+    descending = raw.startswith("-")
+    key = raw[1:] if descending else raw
+    if key not in sorts:
+        key, descending = default, False
+    rows = sorted(rows, key=name_key)
+    rows.sort(key=sorts[key][1], reverse=descending)
+    return rows, key, descending
+
+
+def _sort_headers(sorts, current, descending, base_url, hidden=()):
+    """Header descriptors for the template: label, link (click = ascending, click again = descending), aria-sort."""
+    out = []
+    for key, (label, _fn) in sorts.items():
+        if key in hidden:
+            continue
+        on = key == current
+        target = f"-{key}" if on and not descending else key
+        out.append({
+            "key": key,
+            "label": label,
+            "url": f"{base_url}?sort={target}",
+            "aria": ("descending" if descending else "ascending") if on else "none",
+        })
+    return out
+
+
 @admin_required
 def user_list(request):
     users = _with_profiles(list(user_trash.live_users().order_by("username")))
+    users, sort, descending = _sort_rows(
+        users, USER_SORTS, USER_DEFAULT_SORT, request.GET.get("sort", ""), lambda u: u.username.lower()
+    )
     deleted = _with_profiles(list(user_trash.deleted_users().order_by("-deleted_at", "username")))
     for u in deleted:
         u.days_left = user_trash.days_left(u)
     return render(request, "accounts/user_list.html", {
         "users": users,
+        "sort_headers": _sort_headers(USER_SORTS, sort, descending, reverse("user_list")),
         "deleted_users": deleted,
         "user_retention_days": user_trash.retention_days(),
     })
@@ -315,9 +390,7 @@ def user_restore(request, pk):
 @require_http_methods(["GET", "POST"])
 def suite_settings(request):
     """Rename the Home page and the programs (Admin only; the names are shared by all users)."""
-    names = suite.get_names()
-    initial = {"home_name": names[suite.KEY_HOME], "diary_name": names[suite.KEY_DIARY]}
-    form = SuiteNamesForm(request.POST or None, initial=initial)
+    form = SuiteNamesForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         form.save()
         messages.success(request, "Names saved.")
@@ -325,28 +398,53 @@ def suite_settings(request):
     return render(request, "accounts/settings.html", {"form": form})
 
 
-def _live_profiles():
-    return Profile.objects.filter(program=suite.KEY_DIARY, deleted_at__isnull=True)
+def _live_profiles(program=None):
+    """Live profiles of every enabled program, or only of ``program`` (the diary-only actions below)."""
+    keys = programs.enabled_program_keys() if program is None else [program]
+    return Profile.objects.filter(program__in=keys, deleted_at__isnull=True)
+
+
+PROFILE_SORTS = {
+    "name": ("Name", lambda p: p.name.lower()),
+    "program": ("Program", lambda p: p.program_name.lower()),
+    "display_name": ("Display Name", lambda p: (p.display_name or "").lower()),
+    "users": ("Users", lambda p: p.member_count),
+    "subjects": ("Subjects", lambda p: p.subject_count),
+}
+PROFILE_DEFAULT_SORT = "name"
 
 
 @admin_required
 def profile_list(request):
     profiles = list(_live_profiles().order_by("name"))
-    for p in profiles:
-        p.member_count, p.subject_count = profile_usage(p)
+    names = suite.get_names()
     deleted = list(
-        Profile.objects.filter(program=suite.KEY_DIARY, deleted_at__isnull=False)
+        Profile.objects.filter(program__in=programs.program_keys(), deleted_at__isnull=False)
         .select_related("deleted_by")
         .order_by("-deleted_at")
     )
+    usage = profile_usage_map(profiles + deleted)
+    for p in profiles:
+        p.member_count, p.subject_count = usage[p.pk]
+        p.program_name = names.get(p.program, p.program)
+    profiles, sort, descending = _sort_rows(
+        profiles, PROFILE_SORTS, PROFILE_DEFAULT_SORT, request.GET.get("sort", ""), lambda p: (p.name.lower(), p.pk)
+    )
     for p in deleted:
         p.days_left = days_left(p)
-        p.member_count, p.subject_count = profile_usage(p)
+        p.member_count, p.subject_count = usage[p.pk]
+        p.program_name = names.get(p.program, p.program)
+    show_program = len(programs.enabled_program_keys()) > 1 or any(p.program != suite.KEY_DIARY for p in profiles + deleted)
     return render(
         request,
         "accounts/profile_list.html",
         {
             "profiles": profiles,
+            "sort_headers": _sort_headers(
+                PROFILE_SORTS, sort, descending, reverse("profile_list"),
+                hidden=() if show_program else ("program",),
+            ),
+            "show_program": show_program,
             "deleted_profiles": deleted,
             "retention_days": retention_days(),
             "purge_logs": PurgeLog.objects.order_by("-ran_at", "-id")[:10],
@@ -409,7 +507,9 @@ def profile_restore(request, pk):
 
     If a live profile has the same name, the Admin is asked for a new name first.
     """
-    target = get_object_or_404(Profile, pk=pk, program=suite.KEY_DIARY, deleted_at__isnull=False)
+    target = get_object_or_404(
+        Profile, pk=pk, program__in=programs.program_keys(), deleted_at__isnull=False
+    )
     if name_clash(target) or (request.method == "POST" and "name" in request.POST):
         form = ProfileForm(request.POST or None, instance=target)
         if request.method == "POST" and form.is_valid():
@@ -436,7 +536,7 @@ def profile_restore(request, pk):
 @require_http_methods(["GET", "POST"])
 def profile_clear(request, pk):
     """Delete ALL diary data in a profile (Admin only). Preview first; the profile name must be typed."""
-    target = get_object_or_404(_live_profiles(), pk=pk)
+    target = get_object_or_404(_live_profiles(suite.KEY_DIARY), pk=pk)
     rows = clear_preview(target)
     total = sum(number for _name, number in rows)
     if request.method == "POST":
@@ -463,7 +563,7 @@ def offline_link_admin(request, pk):
     """Round 21 (D100): make, switch on or off, renew and refresh the secret Offline link of one profile (Admin only)."""
     from diary.offline_link import make_copy  # lazy: diary imports accounts
 
-    target = get_object_or_404(_live_profiles(), pk=pk)
+    target = get_object_or_404(_live_profiles(suite.KEY_DIARY), pk=pk)
     link = OfflineLink.objects.filter(profile=target).select_related("made_by").defer("copy_data").first()
     if request.method == "POST":
         action = request.POST.get("action", "")

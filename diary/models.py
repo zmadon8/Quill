@@ -47,7 +47,7 @@ LAYOUT_INLINE = "inline"
 LAYOUT_LINES = "lines"
 CITATION_LAYOUT_CHOICES = [
     (LAYOUT_INLINE, "Inline"),
-    (LAYOUT_LINES, "On separate lines"),
+    (LAYOUT_LINES, "On Separate Lines"),
 ]
 
 FLAG_NONE = "none"
@@ -83,8 +83,8 @@ OPENING_PAGE_CHOICES = [
     ("home", "Home"),
     ("other_subjects", "Other Subjects"),
     ("search", "Global Search"),
-    ("last", "Last page viewed"),
-    ("subject", "A chosen Subject"),
+    ("last", "The Last Page I Viewed"),
+    ("subject", "A Chosen Subject"),
 ]
 
 DATE_FORMAT_CHOICES = [

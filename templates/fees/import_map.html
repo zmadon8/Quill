@@ -1,0 +1,28 @@
+{% extends "fees/base_fees.html" %}
+{% block page_width %}w-4xl{% endblock %}
+{% block page_title %}Import - {{ program_label }}{% endblock %}
+{% block content %}
+<h1>Import {{ file_name }}</h1>
+<p>{{ info.row_count }} rows found. First rows:</p>
+<div class="table-wrap">
+<table class="ledger-table" data-table-id="import-preview">
+  <caption>First rows of {{ file_name }}</caption>
+  <thead><tr>{% for h in info.headers %}<th scope="col">{{ h }}</th>{% endfor %}</tr></thead>
+  <tbody>{% for row in info.sample_rows %}<tr>{% for cell in row %}<td>{{ cell }}</td>{% endfor %}</tr>{% endfor %}</tbody>
+</table>
+</div>
+<h2>About memo numbers</h2>
+<ul>
+  <li>A number that looks like <strong>2025-26/12</strong> is kept as an automatic number, if its year matches the memo date and nobody has used it. The next automatic number then continues after the highest one. Any other text (such as INV-5) is a custom number.</li>
+  <li><strong>Numbering</strong> (optional column), per row: <strong>Auto</strong> gives the next automatic number and ignores any number in the file (it needs a valid date). <strong>Custom</strong> keeps the text exactly as a custom number, even if it looks automatic; that is only allowed for a past financial year. <strong>Draft</strong> imports the row as a draft with no number. Leave it blank to decide from the number column.</li>
+  <li><strong>Order</strong> (optional column): a whole number, gaps allowed. Rows that get a new automatic number are numbered in this order within each financial year. Without it they are numbered by memo date, then by their place in the file.</li>
+</ul>
+<form method="post" action="{% url 'fees_import_run' %}" enctype="multipart/form-data">{% csrf_token %}
+  <p><label>Choose the same file again <input type="file" name="file" accept=".xlsx,.csv" required></label></p>
+  {% for f in fields %}<p><label>{{ f.label }}{% if f.required %} (required){% endif %}
+    <select name="map_{{ f.id }}"><option value="">Not In The File</option>{% for h in info.headers %}<option value="{{ h }}"{% if h == f.guess %} selected{% endif %}>{{ h }}</option>{% endfor %}</select></label></p>
+  {% endfor %}
+  <p><label><input type="checkbox" name="auto_number" value="1"> Number the memos automatically</label></p>
+  <button type="submit">Import</button>
+</form>
+{% endblock %}

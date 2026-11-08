@@ -1,0 +1,31 @@
+{% extends "fees/base_fees.html" %}
+{% load fees_money %}
+{% block page_title %}Feebook - {{ program_label }}{% endblock %}
+{% block content %}
+<div class="page-head"><h1 class="visually-hidden">Feebook</h1>
+<p class="page-actions" role="group" aria-label="Feebook actions">{% if can_edit %}<a class="button small success" href="{% url 'fees_payment_new' %}">Add Payment</a> {% endif %}<a class="button small secondary" href="{% url 'fees_feebook_export' %}?{{ query_string }}">Export To Excel</a></p></div>
+<form method="get" class="filters" aria-label="Filter the Feebook">
+  {% include "fees/_fy_select.html" with name="fy" label="Financial Year" options=fy_options selected=filters.financial_year all_label="All Years" %}
+  <label>Firm <select name="firm"><option value="">All</option>{% for f in firm_choices %}<option value="{{ f.pk }}"{% if filters.firm_id == f.pk %} selected{% endif %}>{{ f.name }}</option>{% endfor %}</select></label>
+  <label>Bank <select name="bank"><option value="">All</option>{% for b in bank_choices %}<option value="{{ b.pk }}"{% if filters.bank_account_id == b.pk %} selected{% endif %}>{{ b.name }}</option>{% endfor %}</select></label>
+  <label><input type="checkbox" name="unaccounted" value="1"{% if filters.unaccounted_only %} checked{% endif %}> Unaccounted Only</label>
+  <button type="submit">Filter</button>
+</form>
+<div class="table-card"><div class="table-wrap">
+<table class="ledger-table" data-fees-columns="feebook" data-table-id="feebook">
+  <caption>{{ totals.count }} payment line{{ totals.count|pluralize }}</caption>
+  <thead><tr><th scope="col" data-col-fixed>Date</th><th scope="col" data-col-fixed>Memo</th><th scope="col">Firm</th><th scope="col">Matter</th><th scope="col" class="money">Paid</th><th scope="col" class="money">TDS</th><th scope="col" class="money">Paid + TDS</th><th scope="col">Payee</th><th scope="col">Bank</th><th scope="col">Mode</th><th scope="col">Type</th>{% if can_edit %}<th scope="col" data-col-fixed><span class="visually-hidden">Actions</span></th>{% endif %}</tr></thead>
+  <tbody>{% for e in entries %}<tr>
+    <td>{{ e.date_of_payment|fees_date }}</td>
+    <td>{% if e.memo_id %}<a href="{% url 'fees_memo_detail' e.memo_id %}">{{ e.memo_number|default:"(draft)" }}</a>{% else %}Unaccounted{% endif %}</td>
+    <td>{{ e.firm_name|default:"" }}</td><td>{{ e.matter_name|default:"" }}</td>
+    <td class="money">{{ e.amount_paid|fees_money:money_unit }}</td><td class="money">{{ e.tds|fees_money:money_unit }}</td><td class="money">{{ e.paid_plus_tds|fees_money:money_unit }}</td>
+    <td>{{ e.payee }}</td><td>{{ e.bank_account_name|default:"" }}</td><td>{{ e.payment_mode }}</td>
+    <td>{{ e.payment_type }}{% if e.group_memo_numbers %} ({{ e.group_memo_numbers|join:", " }}){% endif %}</td>
+    {% if can_edit %}<td class="row-actions"><a class="button small secondary" href="{% url 'fees_payment_edit' e.payment_id %}" aria-label="Edit payment of {{ e.amount_paid|fees_money:money_unit }} on {{ e.date_of_payment|fees_date }}">Edit</a></td>{% endif %}
+  </tr>{% empty %}<tr><td colspan="{% if can_edit %}12{% else %}11{% endif %}">No payments.</td></tr>{% endfor %}</tbody>
+  <tfoot><tr><th scope="row" colspan="4">Total ({{ totals.count }})</th><td class="money">{{ totals.amount_paid|fees_money:money_unit }}</td><td class="money">{{ totals.tds|fees_money:money_unit }}</td><td class="money">{{ totals.paid_plus_tds|fees_money:money_unit }}</td><td colspan="{% if can_edit %}5{% else %}4{% endif %}"></td></tr></tfoot>
+</table>
+</div></div>
+{% include "fees/_pager.html" %}
+{% endblock %}

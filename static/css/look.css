@@ -1,0 +1,126 @@
+/* Page layer for Home, Settings, Admins, Help, login and the whole Case Law Diary, in the owner's desktop Fee Register
+   design language (docs/FEES_DESIGN_SYSTEM.md, "Home and Case Law Diary"). Every rule starts with body.look, so the Fee
+   Register (body.ledger) ignores this file. The palette and fonts come from tokens.css, the top bar and tabs from
+   design.css. This file only restyles; it never changes layout structure that scripts or tests depend on.
+
+   Where a rule uses :where(...) its specificity is zero on purpose: the page's own component rules in site.css and
+   edit.css (for example the Subjects list) keep winning, so those layouts are unchanged and only take the new colours. */
+
+/* ---- Page frame: full-width top bar, centred content column ---- */
+body.look { font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; }
+body.look .page { max-width: none; padding: 0 0 4rem; }
+body.look main { box-sizing: border-box; max-width: 72rem; margin: 0 auto; padding: 20px 24px 0; }
+body.look .messages { max-width: 72rem; margin: 12px auto 0; padding: 0 24px; }
+body.look .banner-warning { padding-left: 24px; padding-right: 24px; }
+body.look .crumb-row { padding-left: 24px; padding-right: 24px; background: var(--bg); border-bottom: 1px solid var(--line); }
+body.look .breadcrumb a { color: var(--ink-2); }
+body.look .breadcrumb a:hover { color: var(--accent); }
+body.look .subnav { margin: 0; padding: 0 24px; border-bottom: 1px solid var(--line); background: var(--bg); gap: 0 20px; }
+body.look .subnav a { padding: 8px 4px; min-height: var(--tap); }
+body.look .subnav a.on { border-bottom-color: var(--accent); }
+body.look .subnav + main, body.look .subnav + .banner-warning + main { padding-top: 24px; }
+body.look .brand .profile-name { opacity: 1; }
+body.look .brand a:hover, body.look .brand a:focus-visible { border-bottom-color: transparent; }
+/* Icon-only header controls keep a 44px tap area (the shared shell draws them 30px). */
+body.look .program-nav .icon-tool, body.look .program-nav .home-button, body.look .program-nav .signout-button { height: var(--tap); min-width: var(--tap); }
+body.look .back-button, body.look .forward-button { width: var(--tap); min-width: var(--tap); height: var(--tap); }
+@media (min-width: 900px) and (pointer: fine) {
+  body.look .back-button, body.look .forward-button { width: 32px; min-width: 32px; height: 32px; }
+}
+@media (max-width: 599px) {
+  body.look .site-header { padding: 0 12px; }
+  body.look main { padding: 16px 12px 0; }
+  body.look .messages { padding: 0 12px; }
+  body.look .crumb-row, body.look .subnav, body.look .banner-warning { padding-left: 12px; padding-right: 12px; }
+  body.look .search-pop { padding: 8px 12px; }
+  body.look .program-nav { font-size: 16px; gap: 0 14px; }
+  body.look .program-nav .who { font-size: 14px; }
+  body.look .program-nav .header-end a.who { font-size: 14px; max-width: 8rem; }
+  body.look .brand { font-size: 20px; }
+}
+
+/* ---- Titles, labels, links ---- */
+:where(.look) :is(h1, h2, h3) { font-family: var(--font-serif); letter-spacing: -.005em; }
+:where(.look) main h1, :where(.look) .page-title { font-weight: 400; font-size: 1.6rem; line-height: 1.25; margin: 0 0 1rem; padding: 0; border: 0; }
+:where(.look) main h2 { font-weight: 500; }
+body.look .label, body.look .panel-label, body.look .subtopic-heading, body.look .stack label, body.look .settings-form legend { font-size: .8125rem; font-weight: 600; letter-spacing: .07em; }
+body.look .subtopic-heading { padding-bottom: .25rem; border-bottom: 1px solid var(--line); color: var(--ink-3); }
+body.look .hrow.sub .subtopic-heading { border-bottom: 0; padding-bottom: 0; }
+body.look .hrow.sub { border-bottom: 1px solid var(--line); padding-bottom: .25rem; }
+body.look :is(main p, .notice, .help-link) a:not([class]) { color: var(--accent-hover); }
+body.look :is(main p, .notice, .help-link) a:not([class]):hover { color: var(--accent); }
+body.look .hint, body.look .field-help { color: var(--muted); }
+body.look .error, body.look .errorlist { color: var(--bad); }
+
+/* ---- Buttons: secondary by default, filled maroon for primary, flat 2px corners ---- */
+body.look :is(main, .search-pop, .crumb-row, .undo-bar, .card-bar) :is(.button, button:not([class]), button.small, button.secondary), body.look .edit-btn { border-color: var(--line-strong); font-weight: 500; transition: background-color .15s, border-color .15s; }
+body.look :is(main, .search-pop, .crumb-row, .undo-bar, .card-bar) :is(.button, button:not([class]), button.small, button.secondary):not(.primary):not([type=submit]):hover, body.look .edit-btn:not(.danger):hover { border-color: var(--ink); background: var(--paper-2); }
+body.look button.primary, body.look .button.primary, body.look button[type=submit]:not(.link):not(.danger):not(.secondary) { background: var(--accent); border-color: var(--accent); color: var(--paper); font-weight: 500; }
+body.look button.primary:hover, body.look .button.primary:hover, body.look button[type=submit]:not(.link):not(.danger):not(.secondary):hover { background: var(--accent-hover); border-color: var(--accent-hover); color: var(--paper); }
+body.look button.danger, body.look .edit-btn.danger { background: #991B1B; border-color: #991B1B; color: var(--paper); }
+body.look button.danger:hover, body.look .edit-btn.danger:hover { background: #7F1D1D; border-color: #7F1D1D; }
+body.look .edit-switch.edit-pill { border-radius: var(--radius); }
+body.look .edit-switch.edit-pill:hover { background: var(--accent-hover); }
+body.look .step, body.look .home-button, body.look .icon-tool { border-radius: var(--radius); }
+
+/* ---- Fields ---- */
+body.look :is(input[type=text], input[type=password], input[type=search], input[type=email], input[type=number], input[type=url], select, textarea):not(:disabled) { background: var(--white); border-color: var(--line-strong); border-radius: var(--radius); }
+body.look :is(input[type=text], input[type=password], input[type=search], input[type=email], input[type=number], input[type=url], select, textarea):focus { outline: none; border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
+body.look input[type=checkbox], body.look input[type=radio] { accent-color: var(--accent); }
+body.look .stack label { color: var(--muted); }
+
+/* ---- Cards, panels and notices: card surface, hairline, no shadows ---- */
+body.look .notice { border-radius: var(--radius); background: var(--card); color: var(--ink-3); }
+body.look .notice.warning { background: var(--amber-bg); border-color: var(--amber-line); color: var(--amber-ink); }
+body.look .warning-box, body.look .banner-warning { border-radius: var(--radius); }
+body.look :is(.case-row, .trash-entry, .conflict-choice, .link-row, .original-line, .undo-bar, .format-preview-box, .conv-side, .search-subjects) { border-radius: var(--radius); }
+body.look .addform, body.look .editcard { border-top-width: 1px; border-radius: var(--radius); box-shadow: none; background: var(--card); }
+body.look :is(.menu, .profile-menu, .export-menu, .search-history-pop) { border-radius: var(--radius); border-color: var(--line-strong); box-shadow: 0 2px 0 var(--line-strong); }
+body.look .menu { background: var(--white); }
+body.look .card-bar { background: var(--bg); }
+body.look .messages li { border-radius: var(--radius); }
+body.look .messages li.success { border-left-color: var(--ok); }
+body.look .search-result.card { border-left-width: 1px; border-radius: var(--radius); }
+body.look :is(.search-kind.badge, .search-subjects .count) { border-radius: var(--radius); }
+
+/* ---- Tables: ink rule under the headings, hairline rows, hover tint ---- */
+body.look th { font-size: .8125rem; font-weight: 600; letter-spacing: .08em; }
+body.look tbody tr:hover { background: var(--paper-2); }
+body.look .history-table tr.differs:hover, body.look .conflict-table tr.differs:hover { background: var(--amber-bg); }
+body.look table caption { text-align: left; padding: .5rem; color: var(--muted); font-size: .875rem; }
+
+/* ---- Home: the program picker as a stack of hairline tiles ---- */
+body.look .launcher { max-width: 45rem; }
+body.look .launcher h1 { margin-bottom: 1rem; }
+body.look .program-link { margin: 0 0 -1px; padding: 20px 24px; border: 1px solid var(--line); background: var(--card); font-style: normal; font-size: 1.5rem; line-height: 1.3; color: var(--accent-hover); border-radius: 0; justify-content: flex-start; }
+body.look .program-link:hover { background: var(--paper-2); color: var(--accent); border-bottom-color: var(--line); }
+body.look .program-switch { margin: 0; }
+body.look .launcher .help-link { margin-top: 20px; }
+
+/* ---- Reading: serif headings with an ink rule, sans item text, hairline rows ---- */
+body.look .item-body { font-family: var(--font-sans); }
+body.look .item .num { font-family: var(--font-sans); }
+body.look .item:hover { background: var(--paper-2); }
+body.look .citation { color: var(--ink-3); }
+body.look .note { background: var(--card); border-top: 0; border-left: 2px solid var(--line-strong); padding: .5rem .875rem; color: var(--ink-3); }
+body.look .flag-text { font-weight: 600; letter-spacing: .05em; }
+body.look .review-marker { border-radius: var(--radius); }
+body.look mark, body.look .search-snippet mark { background: #ECDCA0; color: inherit; box-shadow: none; }
+body.look .contents-panel a.current, body.look .toc a[aria-current] { color: var(--ink); font-weight: 600; }
+body.look a.cite-link { text-decoration-color: var(--accent); }
+
+/* ---- Search ---- */
+body.look .search-subjects a.sel { background: var(--accent-tint); box-shadow: inset 2px 0 0 var(--accent); }
+body.look .search-tips summary { color: var(--accent-hover); }
+
+/* ---- Edit mode ---- */
+body.look .edit-strip { background: var(--accent); }
+body.look .edit-strip .button.solid { color: var(--accent); }
+body.look .seg { border-color: var(--line-strong); }
+body.look .seg button[aria-checked=true] { background: var(--ink); }
+body.look .row-active { outline-color: var(--accent); }
+body.look .ra { border-color: var(--line-strong); }
+body.look .ra:hover { border-color: var(--ink); background: var(--paper-2); }
+body.look .picker-choice.picker-current, body.look .picker-no.picker-current { background: #1f5fbf; border-color: #1f5fbf; color: #fff; }
+
+@media (prefers-reduced-motion: reduce) { body.look * { transition: none !important; } }

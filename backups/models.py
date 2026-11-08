@@ -13,7 +13,7 @@ BACKUP_KINDS = [
     ("pre_clear", "Before clearing profile"),
 ]
 
-#: Kept until an Admin deletes them; automatic retention pruning never removes these.
+#: Import and clear backups: the only kinds an Admin may delete by hand (they also count toward the newest-30 limit).
 KEEP_KINDS = ("pre_import", "post_import", "pre_clear")
 
 LOG_KINDS = [

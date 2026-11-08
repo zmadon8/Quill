@@ -1,0 +1,8 @@
+{# Statistics sub-tabs: Dashboard, Standard, Explore (Edit statistics lives in Settings). Context: tab ("dashboard", "standard" or "explore"); optional granularity, fy; can_edit; fees_settings. With Statistics switched off only Dashboard shows. #}
+<nav class="stat-tabs" aria-label="Statistics sections">
+  <a href="{% url 'fees_dashboard' %}"{% if tab == "dashboard" %} class="on" aria-current="page"{% endif %}>Dashboard</a>
+  {% if fees_settings.statistics_enabled or not fees_settings %}
+  <a href="{% url 'fees_statistics' %}?tab=standard{% if granularity %}&amp;granularity={{ granularity }}{% endif %}{% if fy %}&amp;fy={{ fy }}{% endif %}"{% if tab == "standard" %} class="on" aria-current="page"{% endif %}>Standard</a>
+  <a href="{% url 'fees_statistics' %}?tab=explore"{% if tab == "explore" %} class="on" aria-current="page"{% endif %}>Explore</a>
+  {% endif %}
+</nav>

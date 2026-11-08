@@ -1,0 +1,8 @@
+/* Fee Register specifics. The design itself lives in ledger.css (scoped under body.ledger); loaded after it by
+   templates/fees/base_fees.html. Only rules that belong to the fees pages alone stay here. */
+body.ledger .fees-search-form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+body.ledger .fees-search-form input[type=search] { flex: 1 1 16rem; max-width: none; }
+body.ledger .fees-search-form button { min-width: 6rem; }
+body.ledger .fee-total [data-total-figure] { font-variant-numeric: tabular-nums; }
+body.ledger .payment-form [data-remaining], body.ledger .payment-form [data-gross] { font-variant-numeric: tabular-nums; }
+body.ledger .memo-form input[type=text], body.ledger .memo-form select { min-height: var(--tap); }

@@ -2,7 +2,7 @@
 {% block title %}{{ home_name }}{% endblock %}
 {% block content %}
 <div class="launcher">
-  <h1>Programs</h1>
+  <h1{% if home_header_words %} class="visually-hidden"{% endif %}>Programs</h1>
   {% if diary_profile %}
   <a class="program-link" href="{% url 'diary_home' %}">{% if other_profiles and not diary_profile.display_name %}{{ diary_name }} &middot; {{ diary_profile.name }}{% else %}{{ program_label }}{% endif %}</a>
   {# Round 18 (D95): someone with several profiles opens any of them from here; the one used last is the button above. #}
@@ -12,8 +12,26 @@
     <button type="submit" name="profile" value="{{ p.pk }}" class="program-link">{% if p.display_name %}{{ p.display_name }}{% else %}{{ diary_name }} &middot; {{ p.name }}{% endif %}</button>
   </form>
   {% endfor %}
-  {% else %}
+  {% endif %}
+  {% if fees_profile %}
+  <a class="program-link" href="{% url 'fees_landing' %}">{{ fees_label }}</a>
+  {% endif %}
+  {% if not diary_profile and not fees_profile %}
   <p class="muted">No programs are available to you yet.</p>
+  {% endif %}
+  {% if show_active %}
+  <section class="active-now" aria-label="Active Now">
+    <h2>Active Now</h2>
+    <ul>{% for row in active_now %}
+      <li><strong>{{ row.name }}</strong>{% if row.where %} &middot; {{ row.where }}{% endif %}</li>
+    {% endfor %}</ul>
+    {% if earlier_today %}
+    <h2>Earlier Today</h2>
+    <ul>{% for row in earlier_today %}
+      <li><strong>{{ row.name }}</strong>{% if row.where %} &middot; {{ row.where }}{% endif %}</li>
+    {% endfor %}</ul>
+    {% endif %}
+  </section>
   {% endif %}
   <p class="help-link"><a href="{% url 'help' %}">Help: how to use this site</a></p>
 </div>

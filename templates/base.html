@@ -3,15 +3,14 @@
 {# Case law diary program: fills the shared shell with this program's name and navigation. #}
 {# Nav: Backups for Admin only (Users lives on the suite Home page). Trash for Editors of the profile only. #}
 {% block extra_css %}<link rel="stylesheet" href="{% static 'css/edit.css' %}">{% endblock %}
-{% block body_attrs %}{% if edit_mode %} class="edit-on"{% endif %}{% endblock %}
+{% block body_attrs %} class="look{% if edit_mode %} edit-on{% endif %}"{% endblock %}
 {% block program_title %}{{ program_label }}{% endblock %}
 {# Header brand: the profile's Display Name alone when it has one, else "<program name> · <profile name>" (Round 9). #}
 {% block program_name %}{% if current_profile and current_profile.display_name %}<a href="{% url 'diary_home' %}" title="Home" aria-label="{{ current_profile.display_name }}: Home">{{ current_profile.display_name }}</a>{% else %}<a href="{% url 'diary_home' %}" title="Home" aria-label="{{ diary_name }}: Home">{{ diary_name }}</a>{% if current_profile %} <span class="profile-name">&middot; {{ current_profile.name }}</span>{% endif %}{% endif %}{% if other_profiles %}{% include "diary/_profile_switch.html" %}{% endif %}{% endblock %}
 {# The Editing strip across the very top while Edit is on (only Editors can have edit_mode). #}
 {% block edit_strip %}{% if edit_mode and can_edit %}{% include "diary/_edit_strip.html" %}{% endif %}{% endblock %}
-{% block who %}{% endblock %}
 {# Search is a magnifier icon (round 11): it opens a bar under the header. On the Search page the icon stays and focuses the page's own box. No word "Search" in the bar. #}
-{% block search_tool %}{% if current_profile %}<button type="button" class="{% if header_words %}word-tool{% else %}icon-tool{% endif %} search-toggle" id="search-toggle" data-search-toggle{% if request.resolver_match.url_name != 'search' %} aria-controls="search-pop" aria-expanded="false"{% endif %} aria-label="Search" title="Search (&#8997;F)">{% if header_words %}Search{% else %}<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><circle cx="10.5" cy="10.5" r="6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M15 15l5.5 5.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>{% endif %}</button>{% endif %}{% endblock %}
+{% block search_tool %}{% if current_profile %}{% if request.resolver_match.url_name != 'search' %}{% include "_search_button.html" with popup=True %}{% else %}{% include "_search_button.html" %}{% endif %}{% endif %}{% endblock %}
 {% block search_panel %}{% if current_profile and request.resolver_match.url_name != 'search' %}<div class="search-pop" id="search-pop" hidden><form class="search-pop-form" role="search" method="get" action="{% url 'search' %}"><label class="visually-hidden" for="search-pop-q">Search the diary</label><input type="search" id="search-pop-q" name="q" placeholder="Search the diary&hellip;" autocomplete="off" data-search-popup-input><button type="submit" class="primary">Search</button><a class="search-pop-full" href="{% url 'search' %}">Full Search page</a></form></div>{% endif %}{% endblock %}
 {% block program_nav %}{% with current=request.resolver_match.url_name %}
   {# Icons or Words: My settings > Header bar (D84). With icons each link keeps its name for screen readers (aria-label) and as a tooltip (title). #}
@@ -19,8 +18,10 @@
   {% if current_profile %}<a href="{% url 'flags' %}" class="{% if not header_words %}nav-icon{% endif %}{% if current == 'flags' or current == 'flag_links' %} on{% endif %}"{% if current == 'flags' or current == 'flag_links' %} aria-current="page"{% endif %} aria-label="Flags" title="Flags">{% if header_words %}Flags{% else %}{% include "icons/flag.svg.html" %}{% endif %}</a>{% endif %}
   {# Export (round 18): the only Export control. On a Subject, Topic or Sub-topic page it opens the Export page ready to export that page (block export_scope). #}
   {% if current_profile %}<a href="{% url 'export' %}{% block export_scope %}{% endblock %}" class="{% if not header_words %}nav-icon{% endif %}{% if current == 'export' %} on{% endif %}"{% if current == 'export' %} aria-current="page"{% endif %} aria-label="Export" title="Export">{% if header_words %}Export{% else %}{% include "icons/export.svg.html" %}{% endif %}</a>{% endif %}
-  {% if current_profile %}<button type="button" class="link {% if not header_words %}nav-icon{% else %}nav-word{% endif %} links-toggle" role="switch" aria-checked="true" data-links-toggle aria-label="Hyperlinks on citations" title="Hyperlinks on citations: on (press to turn off)">{% if header_words %}Links{% else %}{% include "icons/link.svg.html" %}{% endif %}<span class="links-state" aria-hidden="true"></span></button>{% endif %}
+  {# History (was "My edits" under Settings): my own changes in this profile, newest first. #}
+  {% if current_profile %}<a href="{% url 'diary_history' %}" class="{% if not header_words %}nav-icon{% endif %}{% if current == 'diary_history' %} on{% endif %}"{% if current == 'diary_history' %} aria-current="page"{% endif %} aria-label="History" title="History">{% if header_words %}History{% else %}{% include "icons/history.svg.html" %}{% endif %}</a>{% endif %}
+  {# The Links toggle (hyperlinks on citations on/off) now lives on the Edit bar, just left of Edit: see templates/diary/_edit_switch.html. #}
   <a href="{% url 'help' %}" class="{% if not header_words %}nav-icon{% endif %}{% if current == 'help' %} on{% endif %}"{% if current == 'help' %} aria-current="page"{% endif %} aria-label="Help" title="Help">{% if header_words %}Help{% else %}{% include "icons/help.svg.html" %}{% endif %}</a>
-  {# The gear opens the one Settings area (D93; its Diary tab is the diary's own settings). #}
-  <a href="{% url 'my_settings' %}" class="{% if not header_words %}nav-icon{% endif %}" aria-label="Settings" title="Settings">{% include "diary/_settings_label.html" %}</a>
+  {# The gear opens this program's Settings tab (the diary's own settings); My settings is the user name in the header. #}
+  <a href="{% if current_profile %}{% url 'profile_settings' %}{% else %}{% url 'my_settings' %}{% endif %}" class="{% if not header_words %}nav-icon{% endif %}" aria-label="Settings" title="Settings">{% include "diary/_settings_label.html" %}</a>
 {% endwith %}{% endblock %}

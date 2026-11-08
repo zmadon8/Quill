@@ -123,7 +123,7 @@ class RenderStructureTests(unittest.TestCase):
         self.assertIn("(1)\tDirect one - (2020) 1 SCC 1", items)
         self.assertIn("(1)\tAfter the Section one - (2021) 2 SCC 2", items)  # flags left out unless asked (D88)
         self.assertIn("(1)\tRestarted - (2022) 3 SCC 3", items)
-        self.assertIn("(2)\tLines head", items)
+        self.assertIn("(2)\tLines head:", items)  # ":" added because its citations are on separate lines (1.4)
         self.assertFalse(any(t.split("\t")[0].endswith(".") for t in items + sections))
         numbering_part = zipfile.ZipFile(io.BytesIO(self.data)).namelist()
         self.assertNotIn("word/numbering.xml", numbering_part)  # no Word auto-numbering anywhere

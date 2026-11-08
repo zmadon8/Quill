@@ -15,10 +15,11 @@
         <summary>History</summary>
         <div class="search-history-pop">
           <ul class="search-history-list" data-history-list></ul>
-          <p><button type="button" class="small" data-history-clear>Clear search history</button> <span class="meta">Kept only in this browser, for your login.</span></p>
+          <p><button type="button" class="small" data-history-clear>Clear Search History</button> <span class="meta">Kept only in this browser, for your login.</span></p>
         </div>
       </details>
-      {% if not chosen_subject %}<button type="button" class="link group-switch" role="switch" aria-checked="{% if want_subjects %}true{% else %}false{% endif %}" data-group-toggle data-cards="{{ cards_url }}" data-subjects="{{ subjects_url }}" title="Show the results grouped under their Subjects, or in one list. The search is not run again."><span class="track" aria-hidden="true"><span class="knob"></span></span>Group by Subject</button>{% endif %}
+      {% if not chosen_subject %}<button type="button" class="link group-switch" role="switch" aria-checked="{% if want_subjects %}true{% else %}false{% endif %}" data-group-toggle data-cards="{{ cards_url }}" data-subjects="{{ subjects_url }}" title="Show the results grouped under their Subjects, or in one list. The search is not run again."><span class="track" aria-hidden="true"><span class="knob"></span></span>Group By Subject</button>{% endif %}
+      {% include "_select_all_none.html" with name="citations flags headers" label="the search ticks" %}
       <label class="search-check"><input type="checkbox" name="citations" value="1"{% if citations_only %} checked{% endif %}> Citations</label>
       <label class="search-check"><input type="checkbox" name="flags" value="1"{% if flags_only %} checked{% endif %}> Flags</label>
       <label class="search-check"><input type="checkbox" name="headers" value="1"{% if headers_only %} checked{% endif %}> Headers</label>
@@ -27,9 +28,11 @@
     {# The grouping travels with a new search; the switch above changes it without searching again. #}
     <input type="hidden" name="view" value="subjects" data-group-input{% if not want_subjects or chosen_subject %} disabled{% endif %}>
   </form>
+  {% include "diary/_search_tips.html" %}
   <div data-search-results>
+  {% include "diary/_search_notice.html" %}
   {% if not searched %}
-  <p class="meta search-help">Type words to find in names, text, citations, comments, flags and notes. Every word must appear (parts of words count), so <em>2018 9 SCC 49</em> finds (2018) 9 SCC 49. Put words in &ldquo;double quotes&rdquo; to find them together as a phrase. Brackets, full stops and quote marks are ignored. <strong>Citations</strong> looks only in citations, <strong>Flags</strong> only in the text beside flags (with no words it lists everything flagged), <strong>Headers</strong> only in Subject, Topic, Sub-topic and Section names. <strong>Group by Subject</strong> shows the results under their Subjects; switching it does not search again. The ticks are remembered by this browser, and so are your recent searches (<strong>History</strong>, where you can clear them). &#8997;F (Option-F on a Mac, Alt+F on Windows) jumps to the search box.</p>
+  <p class="meta search-help">Type words to find in names, text, citations, comments, flags and notes. Every word must appear (parts of words count), so <em>2018 9 SCC 49</em> finds (2018) 9 SCC 49. Put words in &ldquo;double quotes&rdquo; to find them together as a phrase. Use OR, NOT (or a minus sign), brackets, <em>arbitra*</em>, <em>subject:</em> and <em>flag:</em> to refine a search (see Search tips below the box). Brackets, full stops and quote marks are ignored. <strong>Citations</strong> looks only in citations, <strong>Flags</strong> only in the text beside flags (with no words it lists everything flagged), <strong>Headers</strong> only in Subject, Topic, Sub-topic and Section names. <strong>Group by Subject</strong> shows the results under their Subjects; switching it does not search again. The ticks are remembered by this browser, and so are your recent searches (<strong>History</strong>, where you can clear them). &#8997;F (Option-F on a Mac, Alt+F on Windows) jumps to the search box.</p>
   {% elif results %}
   <div class="search-head">
     <p class="meta search-count">{{ total }} result{{ total|pluralize }}</p>
@@ -40,7 +43,7 @@
   <ol class="search-results cards">
     {% for r in results %}{% include "diary/_result_card.html" %}{% endfor %}
   </ol>
-  {% if has_more %}<p class="search-more"><a class="button" href="{{ more_url }}">Show more</a> <span class="meta">Showing {{ results|length }} of {{ total }}</span></p>{% endif %}
+  {% if has_more %}<p class="search-more"><a class="button" href="{{ more_url }}">Show More</a> <span class="meta">Showing {{ results|length }} of {{ total }}</span></p>{% endif %}
   {% endif %}
   {% else %}
   <p class="empty search-none">No results{% if q %} for &ldquo;{{ q }}&rdquo;{% endif %}.</p>

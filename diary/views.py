@@ -1,3 +1,4 @@
+import copy
 import logging
 from functools import wraps
 from urllib.parse import urlencode, urlsplit
@@ -12,19 +13,20 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
 from accounts import landing as account_landing
+from accounts import activity, programs
 from accounts.models import ROLE_EDITOR
 from accounts.models import Profile
 from accounts.permissions import admin_required, reader_required
 from accounts.profiles import request_profile, request_role
-from accounts.suite import KEY_DIARY
+from accounts.suite import KEY_DIARY, KEY_FEES, get_names
 
-from . import reading, undo_session
+from . import reading, searchtext, undo_session
 from .opening import remember_page
 from .params import safe_int
 from . import search as search_module
 from .importer import loader as import_loader
 from .importer import service as import_service
-from .models import FLAG_CHOICES, Item, Subject, Subtopic, Topic
+from .models import FLAG_CHOICES, FLAG_NONE, Item, Section, Subject, Subtopic, Topic
 from .sorting import sort_headings
 
 NO_PROFILE_MESSAGE = "No profile assigned - ask the Admin"
@@ -69,6 +71,15 @@ def edit_context(request):
         "next_url": request.get_full_path(),
         "toggle_url": request.path if edit_mode else f"{request.path}?edit=1",
     }
+
+
+def open_whole_subject(profile):
+    """Whether clicking a Subject should open the whole Subject (round 19, user item 4).
+
+    True only when the profile's ``reading_all_mode`` is ``always_on``: the Display tab's Yes/No toggle. Otherwise
+    (``always_off`` or ``remember``) a Subject link opens the scoped Contents page with its "Read Whole Subject"
+    button, as before. The Table of Contents links are handled separately by ``_in_context``."""
+    return profile.reading_all_mode == Profile.READING_ALL_ALWAYS_ON
 
 
 def _subjects(profile, **filters):
@@ -136,6 +147,7 @@ def subjects(request):
         "other_subjects": other,
         "subject_total": len(live_ids),
         "item_total": total_items,
+        "subject_opens_whole": open_whole_subject(profile),
     })
 
 
@@ -158,7 +170,15 @@ def home(request):
         target = account_landing.landing_url(request.user)
         if target != reverse("home"):
             return redirect(target)
-    return render(request, "diary/home.html", {"diary_profile": request_profile(request)})
+    context = {"diary_profile": request_profile(request)}
+    fees_profile = request_profile(request, KEY_FEES)
+    if fees_profile is not None and programs.fees_enabled():
+        # A Fee Register user gets a button for it; a user without one sees exactly the page they saw before.
+        context["fees_profile"] = fees_profile
+        context["fees_label"] = (fees_profile.display_name or "").strip() or get_names()[KEY_FEES]
+    if activity.can_see_active(request.user):
+        context.update(activity.active_panel())
+    return render(request, "diary/home.html", context)
 
 
 @reader_required
@@ -167,11 +187,57 @@ def help_page(request):
     return render(request, "diary/help.html")
 
 
+#: The sections of the Case Law Diary Settings tab, in order.
+SETTINGS_SECTIONS = ("reading", "data")
+
+
 @profile_required
 def profile_settings(request):
-    """The old Settings > Diary tab. Round 18 (D96): its settings are on Settings > General > Display (the export file
-    name is on the Export page), so the old address opens Display."""
-    return redirect(reverse("my_settings") + "?tab=display")
+    """The Case Law Diary Settings tab: what everyone using this profile shares, in left-hand sections with a Save each.
+
+    Reading (Display Name, whether a click on a Subject opens the whole Subject: per profile) and Data (Word import for
+    the Admin, the Word export file name, the Offline link for the Admin). Editors and Admins change them; Readers see
+    the values with no Save buttons and a POST from a Reader is refused (403). Personal choices (opening page, number
+    formats, date in file names) are on My settings.
+    """
+    from .forms import ExportSettingsForm, ProfileSettingsForm  # lazy: keeps this module's import light
+
+    can_change = user_can_edit(request)
+    tab = request.POST.get("tab") or request.GET.get("tab") or "reading"
+    if tab not in SETTINGS_SECTIONS:
+        tab = "reading"
+    reading_form = None
+    export_form = None
+    if request.method == "POST":
+        if not can_change:
+            return render(request, "403.html", status=403)
+        # A copy, so an invalid POST does not change the header of the page shown with the errors. (The export file
+        # name has its own Save, which posts to ``export_settings``.)
+        tab = "reading"
+        reading_form = ProfileSettingsForm(request.POST, instance=copy.copy(request.profile), prefix="diary")
+        if reading_form.is_valid():
+            reading_form.save()
+            messages.success(request, "Settings saved.")
+            return redirect(reverse("profile_settings") + "?tab=reading")
+    if can_change:
+        reading_form = reading_form or ProfileSettingsForm(instance=copy.copy(request.profile), prefix="diary")
+        export_form = ExportSettingsForm(user=request.user, profile=request.profile)
+    return render_settings_page(request, tab, can_change, reading_form, export_form)
+
+
+def render_settings_page(request, tab, can_change, reading_form, export_form):
+    """The page shared by the Settings tab and an invalid export file name save."""
+    from .views_export import _file_settings  # lazy: views_export imports this module
+
+    profile = request.profile
+    mode = profile.reading_all_mode
+    whole = mode == Profile.READING_ALL_ALWAYS_ON or (
+        mode not in (Profile.READING_ALL_ALWAYS_ON, Profile.READING_ALL_ALWAYS_OFF) and profile.reading_all_default
+    )
+    return render(request, "diary/settings.html", {
+        "tab": tab, "can_change": can_change, "reading_form": reading_form, "whole_subject": whole,
+        "sections": SETTINGS_SECTIONS, **_file_settings(request, export_form),
+    })
 
 
 @profile_required
@@ -186,6 +252,7 @@ def _panel_subjects(profile):
     return {
         "panel_main": list(_sorted_subjects(profile, show_on_landing=True)),
         "panel_other": list(_sorted_subjects(profile, show_on_landing=False)),
+        "subject_opens_whole": open_whole_subject(profile),
     }
 
 
@@ -362,6 +429,7 @@ def search(request):
         "main_subjects": panel["panel_main"], "other_subjects": panel["panel_other"],
         "chosen_subject": subject_id, "citations_only": citations_only, "flags_only": flags_only,
         "headers_only": headers_only, "want_subjects": want_subjects, "by_subject": by_subject,
+        "notice": searchtext.parse_search(query).notice,
         "cards_url": "?" + urlencode(base_params),
         "subjects_url": "?" + urlencode(dict(base_params, view="subjects")),
     }
@@ -373,6 +441,16 @@ def search(request):
                        has_more=len(results) > limit and limit < SEARCH_MAX,
                        more_url=request.path + "?" + urlencode(more))
     return render(request, "diary/search.html", context)
+
+
+def _flag_filters_present(profile, chosen):
+    """``FLAG_FILTERS`` cut to "All flags" and the kinds of flag some live Item or Section carries now, plus the
+    kind chosen. Two small queries (Sections, Items), no per-row work."""
+    present = set()
+    for model in (Section, Item):
+        present.update(model.objects.filter(profile=profile, deleted_at__isnull=True).exclude(flag=FLAG_NONE)
+                       .order_by().values_list("flag", flat=True).distinct())
+    return [(key, name) for key, name in FLAG_FILTERS if key == "" or key in present or key == chosen]
 
 
 @profile_required
@@ -387,7 +465,8 @@ def flags_page(request):
         kind = ""
     results = search_module.run_search(profile, query, flags_only=True, flag_kind=kind or None)
     base_params = {k: v for k, v in (("q", query), ("flag", kind)) if v}
-    context = {"q": query, "flag": kind, "flag_filters": FLAG_FILTERS, "tab": "flags"}
+    context = {"q": query, "flag": kind, "flag_filters": _flag_filters_present(profile, kind), "tab": "flags",
+               "notice": searchtext.parse_search(query).notice}
     context.update(_grouped(request, results, _panel_subjects(profile), base_params, _limit(request)))
     return render(request, "diary/flags.html", context)
 
@@ -402,7 +481,7 @@ def flag_links(request):
     which = "without" if request.GET.get("links") == "without" else "with"
     results = search_module.run_links(profile, query, with_links=which == "with")
     base_params = {k: v for k, v in (("q", query), ("links", "without" if which == "without" else "")) if v}
-    context = {"q": query, "which": which, "tab": "links"}
+    context = {"q": query, "which": which, "tab": "links", "notice": searchtext.parse_search(query).notice}
     context.update(_grouped(request, results, _panel_subjects(profile), base_params, _limit(request)))
     return render(request, "diary/flag_links.html", context)
 

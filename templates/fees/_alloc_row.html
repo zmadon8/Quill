@@ -1,0 +1,10 @@
+<div class="alloc-row" data-alloc-row>
+  <p class="alloc-row-head"><span class="alloc-no">Memo <span data-row-no>{{ n }}</span></span><button type="button" class="alloc-remove" data-alloc-remove aria-label="Remove memo row {{ n }}" title="Remove" hidden>x</button></p>
+  <div class="alloc-fields">
+    <label>Memo <select name="alloc_memo_{{ i }}" data-alloc-memo aria-label="Memo, row {{ n }}"><option value="">Select...</option>{% for o in memo_options %}<option value="{{ o.number }}" data-due="{{ o.due }}"{% if o.number == row.memo_number %} selected{% endif %}>{{ o.label }}</option>{% endfor %}</select></label>
+    <label>Amount <input type="text" inputmode="decimal" name="alloc_amount_{{ i }}" value="{{ row.amount }}" size="10" aria-label="Amount, row {{ n }}"></label>
+    <label data-alloc-rate-label hidden>Rate % <input type="text" inputmode="decimal" data-alloc-rate value="" size="4" aria-label="Rate percent, row {{ n }}"></label>
+    <label>TDS <input type="text" inputmode="decimal" name="alloc_tds_{{ i }}" value="{{ row.tds_amount }}" size="10" aria-label="TDS, row {{ n }}"></label>
+    <label class="alloc-auto" data-alloc-auto-label hidden><input type="checkbox" data-alloc-auto checked> auto</label>
+  </div>
+</div>

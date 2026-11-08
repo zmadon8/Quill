@@ -34,8 +34,7 @@ def todays_backup_ok(now=None):
 
 def _purge_one(profile):
     counts = {}
-    diary_models = [model for model in registry.get_models() if model._meta.label in registry.PROFILE_MODELS]
-    for model in reversed(diary_models):
+    for model in registry.profile_models_for(profile.program):
         _total, per_label = model._base_manager.filter(profile=profile).delete()
         for label, number in per_label.items():
             counts[label] = counts.get(label, 0) + number

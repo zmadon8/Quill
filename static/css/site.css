@@ -160,6 +160,7 @@ button.program-link { width: 100%; text-align: left; background: none; cursor: p
 .linked-line { display: block; }
 .linked-line a { display: inline-block; min-height: var(--tap); line-height: var(--tap); color: var(--oxblood); }
 .note-edit { margin: .25rem 0; }
+.note.heading-note { margin-left: 1.25rem; }
 .contents-panel { display: none; position: fixed; inset: 0 0 0 auto; width: min(22rem, 90vw); z-index: 30; overflow-y: auto; padding: 1rem; background: var(--panel); box-shadow: -2px 0 8px rgba(0,0,0,.3); }
 .contents-panel.open { display: block; }
 .contents-panel h2 { font-size: var(--small-size); font-family: var(--font-sans); font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
@@ -274,9 +275,16 @@ button.program-link { width: 100%; text-align: left; background: none; cursor: p
 .reader-layout--page .reading { order: -1; }
 .reader-layout--page .reading h1 { margin-bottom: 1rem; }
 
-/* Resizable table columns (static/js/resizable-columns.js) */
-table[data-resizable-columns].resized { table-layout: fixed; width: auto; }
-table[data-resizable-columns] th { position: relative; overflow-wrap: anywhere; }
+/* Resizable table columns: one shared component for the whole suite (static/js/resizable-columns.js). */
+table[data-table-id].fixed-cols, table[data-resizable-columns].fixed-cols { table-layout: fixed; max-width: none; }
+table[data-table-id].fixed-cols :is(td, th), table[data-resizable-columns].fixed-cols :is(td, th) { overflow-wrap: anywhere; }
+table[data-table-id] th, table[data-resizable-columns] th, table[data-table-id]:not(:has(thead)) tr:first-child > td { position: relative; overflow-wrap: anywhere; }
+table col.col-hidden { display: none; }
+/* Sortable headings (Admin > Users and Profiles): a link in the heading, with an arrow for the current sort. */
+th[aria-sort] a.sort-link { color: inherit; text-decoration: none; display: inline-block; padding-right: .75rem; }
+th[aria-sort] a.sort-link:hover, th[aria-sort] a.sort-link:focus-visible { text-decoration: underline; }
+th[aria-sort="ascending"] a.sort-link::after { content: " \25B2"; font-size: .7em; }
+th[aria-sort="descending"] a.sort-link::after { content: " \25BC"; font-size: .7em; }
 .col-resizer { position: absolute; top: 0; right: 0; width: 14px; height: 100%; cursor: col-resize; touch-action: none; }
 .col-resizer::after { content: ""; position: absolute; top: 20%; bottom: 20%; right: 6px; border-right: 1px solid var(--muted); }
 .col-resizer:hover::after, .col-resizer:focus-visible::after { border-right: 3px solid var(--focus); right: 5px; }
@@ -593,9 +601,58 @@ html.links-off .links-toggle.nav-word .links-state::after { width: 100%; transfo
 .search-history-list li a { flex: 1 1 auto; overflow-wrap: anywhere; }
 button.group-switch { border: 0; background: none; padding: 0; font: inherit; font-size: var(--small-size); }
 .search-url { margin: .2rem 0 0; font-size: var(--small-size); overflow-wrap: anywhere; }
-/* Flags (D88): Pending in amber, the others in the flag colour. */
-.flag-text.flag-pending { border-color: var(--amber-line); background: var(--amber-bg); color: var(--amber-ink); }
+/* Flags (D88): Pending and Other share the amber (yellow) box; Overruled and Doubted keep the flag colour. */
+.flag-text.flag-pending, .flag-text.flag-other { border-color: var(--amber-line); background: var(--amber-bg); color: var(--amber-ink); }
 .section-header .flag-text { font-weight: 400; }
 .flag-field .flag-line { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
 .flag-field select { min-height: var(--tap); }
 .flag-field input[type=text] { flex: 1 1 14rem; width: auto; }
+
+/* Move to and Demote pickers: the place the record is in now is blue (red is kept for alerts and danger). */
+.picker-choice.picker-current, .picker-no.picker-current { background: #1f5fbf; border-color: #1f5fbf; color: #fff; }
+.picker-no.picker-current .meta { color: inherit; }
+.picker-choice.picker-current .meta { color: inherit; }
+
+/* A one-line text box that wraps and grows (desktop citation boxes, static/js/single-line.js). Looks like the text input it replaces. */
+textarea.single-line { display: block; width: 100%; max-width: 28rem; min-height: var(--tap); padding: .4rem .6rem; font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--muted); border-radius: 2px; box-sizing: border-box; resize: none; overflow: hidden; }
+.addform textarea.single-line, .editcard textarea.single-line, .item-editor textarea.single-line { max-width: none; width: 100%; }
+.cite-row textarea.single-line { min-height: 38px; }
+@media (max-width: 599px) { .cite-row textarea.single-line { min-height: 44px; } }
+
+/* Search operators (round diary-round 1.8): the tips panel and the plain-words notice. */
+.search-tips { margin: .5rem 0 1rem; }
+.search-tips summary { cursor: pointer; font-size: var(--small-size); }
+.search-tips-table { border-collapse: collapse; margin: .5rem 0; }
+.search-tips-table th, .search-tips-table td { text-align: left; vertical-align: top; padding: .2rem 1rem .2rem 0; font-weight: normal; }
+.search-notice { margin: .5rem 0; font-size: var(--small-size); color: var(--muted); }
+
+/* Justify text (My settings, Display): the text that is normally left-aligned, on screen only. Off unless chosen. */
+@media screen {
+  html.justify-text .item-text, html.justify-text .note-text, html.justify-text .section-header strong, html.justify-text .case-line-body, html.justify-text .case-comment { text-align: justify; }
+  html.justify-text .item-body, html.justify-text .note { text-align: justify; }
+}
+
+/* Settings pages with left-hand sections (My settings, Case Law Diary settings, Fee Register settings). Every section is its own form with its own Save; static/js/settings-sections.js shows one section at a time (all are shown, one under the other, without JavaScript). */
+.settings-layout { display: grid; grid-template-columns: 13rem minmax(0, 1fr); gap: 0 2rem; align-items: start; }
+.settings-nav { display: flex; flex-direction: column; gap: .25rem; position: sticky; top: .5rem; }
+.settings-nav a { padding: .4rem .6rem; border-left: 3px solid transparent; text-decoration: none; color: inherit; }
+.settings-nav a.on { border-left-color: var(--accent, currentColor); font-weight: 600; }
+.settings-nav a.danger-link { color: #991B1B; }
+.settings-panel-body[hidden] { display: none; }
+.settings-section-form { margin: 0 0 1.5rem; }
+.settings-section-form fieldset.section-fields { border: 0; margin: 0; padding: 0; min-width: 0; }
+.setting-row { margin: 0 0 1rem; }
+.setting-row > label, .setting-row > .setting-label { display: block; font-weight: 600; }
+.setting-help { display: block; font-size: var(--small-size, .875rem); color: var(--muted); margin-top: .15rem; }
+.who-tag { display: inline-block; margin-left: .5rem; padding: 0 .5rem; border: 1px solid var(--line, #ccc); border-radius: 999px; font-size: .75rem; font-weight: 400; color: var(--muted); white-space: nowrap; }
+.who-tag.who-you { border-color: var(--accent, currentColor); }
+.section-actions { display: flex; align-items: center; gap: 1rem; margin-top: 1rem; }
+.dirty-note { color: var(--accent, inherit); font-size: .875rem; }
+.read-only-note { color: var(--muted); }
+.red-box { margin: 1.5rem 0; padding: .75rem 1rem; background: #FEF8F8; border: 2px solid #FECACA; border-radius: 6px; }
+.red-box :is(h2, h3, legend) { color: #991B1B; }
+@media (max-width: 720px) { .settings-layout { grid-template-columns: 1fr; } .settings-nav { position: static; flex-direction: row; flex-wrap: wrap; } }
+
+/* All and None buttons above a group of tick boxes (templates/_select_all_none.html). */
+.select-all-none { display: inline-flex; gap: 6px; align-items: center; margin: 0 0 6px; }
+.select-all-none[hidden] { display: none; }

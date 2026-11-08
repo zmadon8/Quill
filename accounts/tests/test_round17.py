@@ -57,37 +57,59 @@ class SettingsTabsTests(TestCase):
         self.user = join_main(User.objects.create_user("eddie", password=PASSWORD, email="e@example.com"), "editor")
         self.client.force_login(self.user)
 
-    def visible(self, tab):
-        html = self.client.get(reverse("my_settings"), {"tab": tab}).content.decode()
-        return {name for name in ("account", "display", "numbers", "export")
-                if f'data-settings-tab="{name}">' in html}
+    def sections(self, tab=None):
+        html = self.client.get(reverse("my_settings"), {"tab": tab} if tab else {}).content.decode()
+        return html, {name for name in ("account", "display", "diary", "fees") if f'data-section="{name}"' in html}
 
-    def test_one_tab_at_a_time_and_every_field_stays_in_the_form(self):
-        self.assertEqual(self.visible("account"), {"account"})
-        self.assertEqual(self.visible("display"), {"display"})
-        self.assertEqual(self.visible("numbers"), {"numbers"})
-        self.assertEqual(self.visible("export"), {"account"})  # round 18: Word export moved to the Export page
-        self.assertEqual(self.visible("bogus"), {"account"})
-        html = self.client.get(reverse("my_settings"), {"tab": "numbers"}).content.decode()
-        for field in ('name="email"', 'name="header_style"', 'name="topic_format"', 'name="diary-reading_all_mode"',
-                      'name="tab" value="numbers"'):
+    def test_left_hand_sections_each_with_their_own_form_and_save(self):
+        html, found = self.sections()
+        self.assertEqual(found, {"account", "display", "diary"})  # the Fee Register section needs a Fee Register profile
+        self.assertEqual(html.count("data-section-form"), 3)
+        self.assertEqual(html.count(">Save</button>"), 3)
+        self.assertEqual(html.count("You have unsaved changes."), 3)
+        for field in ('name="email"', 'name="justify_text"', 'name="topic_format"', 'name="tab" value="diary"'):
             self.assertIn(field, html)
-        self.assertNotIn('name="export_date_format"', html)
+        self.assertNotIn('name="diary-view_whole_subject"', html)  # reading is a Case Law Diary settings (profile) choice
+        self.assertNotIn('name="export_date_format"', html.split('data-section="account"')[1].split('data-section="diary"')[0])
+        self.assertIn('data-section-link="diary"', html)
 
-    def test_saving_a_tab_keeps_the_others_and_returns_to_it(self):
-        self.client.post(reverse("my_settings"), {"tab": "display", "email": "e@example.com", "header_style": "words",
-                                                  "landing_program": ""})
-        resp = self.client.post(reverse("my_settings"), {"tab": "display", "email": "e@example.com",
-                                                         "header_style": "words", "landing_program": ""})
+    def test_the_section_asked_for_is_marked_and_an_old_tab_name_still_works(self):
+        html, _found = self.sections("display")
+        self.assertIn('data-section-link="display" class="on" aria-current="page"', html)
+        html, _found = self.sections("numbers")  # the old name of the Case Law Diary tab
+        self.assertIn('data-section-link="diary" class="on" aria-current="page"', html)
+        html, _found = self.sections("bogus")
+        self.assertIn('data-section-link="account" class="on" aria-current="page"', html)
+
+    def test_every_setting_has_help_and_a_who_tag(self):
+        html, _found = self.sections()
+        self.assertGreaterEqual(html.count("setting-help"), 8)
+        self.assertGreaterEqual(html.count("Only you"), 8)
+        self.assertNotIn("Everyone in this profile", html)  # nothing shared lives on My settings
+
+    def test_saving_a_section_keeps_the_others_and_returns_to_it(self):
+        self.user.justify_text = True
+        self.user.save()
+        resp = self.client.post(reverse("my_settings"), {"tab": "account", "email": "e@example.com"})
+        self.assertRedirects(resp, reverse("my_settings"), fetch_redirect_response=False)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.email, "e@example.com")
+        self.assertTrue(self.user.justify_text)  # the Display section was not posted, so it is untouched
+        resp = self.client.post(reverse("my_settings"), {"tab": "display", "landing_program": ""})
         self.assertRedirects(resp, reverse("my_settings") + "?tab=display", fetch_redirect_response=False)
         self.user.refresh_from_db()
-        self.assertEqual((self.user.header_style, self.user.email), ("words", "e@example.com"))
+        self.assertEqual(self.user.email, "e@example.com")  # the Account section is untouched
+        self.assertFalse(self.user.justify_text)  # an unticked box in the posted section turns it off
 
     def test_the_gear_and_home_open_the_settings_area(self):
+        from accounts import suite
+
+        suite.set_brand_modes({key: suite.BRAND_LOGO for key in suite.BRAND_KEYS})  # Words is the default
         diary = self.client.get(reverse("diary_home")).content.decode()
-        self.assertIn('href="%s" class="nav-icon" aria-label="Settings"' % reverse("my_settings"), diary)
+        # The diary gear opens the diary's own Settings tab; the user name in the header opens My settings.
+        self.assertIn('href="%s" class="nav-icon" aria-label="Settings"' % reverse("profile_settings"), diary)
+        self.assertIn('class="who" href="%s"' % reverse("my_settings"), diary)
         display = self.client.get(reverse("my_settings"), {"tab": "display"}).content.decode()
-        self.assertIn("<h2>Case Law Diary</h2>", display)  # round 18: the old Diary tab is part of Display
         self.assertIn('class="subnav"', display)
 
     def test_change_my_password(self):
@@ -115,23 +137,33 @@ class MyEditsTests(TestCase):
         self.client.force_login(self.me)
 
     def test_my_own_changes_newest_first_with_links(self):
-        resp = self.client.get(reverse("my_edits"))
+        resp = self.client.get(reverse("diary_history"))
         self.assertEqual(resp.status_code, 200)
         html = resp.content.decode()
-        self.assertIn("My edits", html)
+        self.assertIn('<h1 class="visually-hidden">History</h1>', html)  # "My edits" is now History in the diary menu
         self.assertNotIn("Theirs", html)
         self.assertLess(html.index("Changed Item"), html.index("Added Item"))
         self.assertLess(html.index("Added Item"), html.index("Added Topic"))
         self.assertIn('href="%s"' % reverse("history", args=["item", self.item.pk]), html)
         self.assertIn("#n-item-%d" % self.item.pk, html)
 
+    def test_the_old_my_edits_address_redirects_to_history(self):
+        resp = self.client.get(reverse("my_edits"))
+        self.assertRedirects(resp, reverse("diary_history"), status_code=301, fetch_redirect_response=False)
+        self.assertEqual(reverse("diary_history"), "/caselaw/history/")
+
+    def test_history_is_in_the_diary_menu(self):
+        html = self.client.get(reverse("diary_home")).content.decode()
+        self.assertIn('href="%s"' % reverse("diary_history"), html)
+        self.assertIn('aria-label="History"', html)
+
     def test_a_delete_of_a_topic_with_its_items_is_one_line(self):
         svc.delete(self.profile, self.me, "topic", self.topic.pk)
-        html = self.client.get(reverse("my_edits")).content.decode()
+        html = self.client.get(reverse("diary_history")).content.decode()
         self.assertIn("Moved to Trash Topic", html)
         self.assertIn("and 2 more", html)
         self.assertIn("in Trash or gone", html)
 
     def test_needs_a_profile(self):
         self.client.force_login(User.objects.create_user("lone", password=PASSWORD))
-        self.assertEqual(self.client.get(reverse("my_edits")).status_code, 403)
+        self.assertEqual(self.client.get(reverse("diary_history")).status_code, 403)

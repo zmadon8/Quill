@@ -1,0 +1,16 @@
+{% extends "fees/base_fees.html" %}
+{% block page_width %}w-4xl{% endblock %}
+{% block page_title %}Move memo {{ memo.memo_number|default:"(draft)" }} - {{ program_label }}{% endblock %}
+{% block crumb_nav %}{% url 'fees_memo_detail' memo.id as back %}{% include "fees/_back.html" with url=back label="Memo" %}{% endblock %}
+{% block content %}
+{% url 'fees_memo_detail' memo.id as memo_url %}
+<h1>Move memo {{ memo.memo_number|default:"(draft)" }}</h1>
+{% include "fees/_form_errors.html" %}
+<p>This memo is now under {{ memo.firm_name }}, {{ memo.group_name }}: {{ memo.matter_name }}.</p>
+<p class="muted">Moving a memo changes only where it is filed. Its number, date, fees and payments stay as they are.</p>
+<form method="post" action="{% url 'fees_memo_move' memo.id %}">
+  {% csrf_token %}
+  <p><label>Move to matter <select name="matter_id" required><option value="">Choose</option>{% for g in firm_groups %}<optgroup label="{{ g.firm }}">{% for m in g.matters %}<option value="{{ m.pk }}">{{ m.group.name }}: {{ m.name }}</option>{% endfor %}</optgroup>{% endfor %}</select></label></p>
+  <p><button type="submit">Move Memo</button> <a href="{{ memo_url }}">Cancel</a></p>
+</form>
+{% endblock %}

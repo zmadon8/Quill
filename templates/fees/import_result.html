@@ -1,0 +1,15 @@
+{% extends "fees/base_fees.html" %}
+{% block page_width %}w-4xl{% endblock %}
+{% block page_title %}Imported - {{ program_label }}{% endblock %}
+{% block content %}
+<h1>Import finished</h1>
+<ul>
+  <li>Rows read: {{ result.rows_processed }}</li>
+  <li>Firms created: {{ result.firms_created }}</li>
+  <li>Matters created: {{ result.matters_created }}</li>
+  <li>Memos created: {{ result.memos_created }}</li>
+  <li>Payments created: {{ result.payments_created }}</li>
+</ul>
+{% if result.warnings %}<h2>Warnings ({{ result.warnings_total }})</h2><ul>{% for w in result.warnings %}<li>{{ w }}</li>{% endfor %}</ul>{% endif %}
+<p><a href="{% url 'fees_memos' %}">Memos</a></p>
+{% endblock %}

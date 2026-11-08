@@ -11,7 +11,7 @@
 <form method="post">
   {% csrf_token %}
   <input type="hidden" name="action" value="make">
-  <button type="submit">Make link</button>
+  <button type="submit">Make Link</button>
 </form>
 {% else %}
 <p>Status: <strong>{% if link.enabled %}On{% else %}Off{% endif %}</strong></p>
@@ -34,13 +34,13 @@
 {% if link.copy_error %}<p class="error">Last problem: {{ link.copy_error }}</p>{% endif %}
 
 <div>
-  <form method="post" class="inline">{% csrf_token %}<input type="hidden" name="action" value="copy"><button type="submit">Make a copy now</button></form>
+  <form method="post" class="inline">{% csrf_token %}<input type="hidden" name="action" value="copy"><button type="submit">Make A Copy Now</button></form>
   {% if link.enabled %}
-  <form method="post" class="inline">{% csrf_token %}<input type="hidden" name="action" value="off"><button type="submit">Switch off</button></form>
+  <form method="post" class="inline">{% csrf_token %}<input type="hidden" name="action" value="off"><button type="submit">Switch Off</button></form>
   {% else %}
-  <form method="post" class="inline">{% csrf_token %}<input type="hidden" name="action" value="on"><button type="submit">Switch on</button></form>
+  <form method="post" class="inline">{% csrf_token %}<input type="hidden" name="action" value="on"><button type="submit">Switch On</button></form>
   {% endif %}
-  <form method="post" class="inline" data-confirm="Make a new link? The old link will stop working at once.">{% csrf_token %}<input type="hidden" name="action" value="renew"><button type="submit">Make a new link</button></form>
+  <form method="post" class="inline" data-confirm="Make a new link? The old link will stop working at once.">{% csrf_token %}<input type="hidden" name="action" value="renew"><button type="submit">Make A New Link</button></form>
 </div>
 
 <p>The saved copy is remade every night after the backup, so it can be up to a day old. It holds only this profile's live diary (nothing in Trash), flags included. It uses the number formats and date format of {% if maker %}{{ maker }}{% else %}the standard settings{% endif %}, the Admin who last made the link or the copy.</p>

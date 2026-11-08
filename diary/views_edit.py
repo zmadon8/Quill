@@ -569,6 +569,32 @@ def picker_tree(entries, current=None):
     return roots
 
 
+def level_entries(profile, kind, obj, pickable):
+    """The places a demoted Subject or Topic can go, flat, for ``picker_tree``: Subjects (and, for a Topic, their Topics).
+
+    ``pickable`` is the set of record ids the service accepts (``svc_levels.targets``). A Subject is only a heading to
+    walk through when a Topic is being demoted (the Topic goes under a Topic); then it is shown but not pickable.
+    """
+    live = {"profile": profile, "deleted_at__isnull": True}
+    wanted = svc_levels.NEEDS_TARGET[kind]
+    entries = []
+    subjects = sort_headings(Subject.objects.filter(show_on_landing=True, **live))
+    subjects += sort_headings(Subject.objects.filter(show_on_landing=False, **live))
+    topics = {}
+    if wanted == "topic":
+        for topic in sort_headings(Topic.objects.filter(**live).exclude(pk=obj.pk)):
+            topics.setdefault(topic.subject_id, []).append(topic)
+    for subject in subjects:
+        if wanted == "subject" and subject.pk == obj.pk:
+            continue
+        entries.append({"type": "subject", "id": subject.pk, "label": label(subject), "kind_name": NICE["subject"], "depth": 0,
+                        "pick": wanted == "subject" and subject.pk in pickable})
+        for topic in topics.get(subject.pk, []):
+            entries.append({"type": "topic", "id": topic.pk, "label": label(topic), "kind_name": NICE["topic"], "depth": 1,
+                            "pick": topic.pk in pickable})
+    return entries
+
+
 @edit_endpoint
 def move_to(request):
     """The tree picker: choose the new place for a heading, Section or Item."""
@@ -634,12 +660,21 @@ def level(request):
     if request.POST.get("confirmed") and wants_target:
         error = f"Choose the {'Subject' if kind == 'subject' else 'Topic'} it goes under."
     chosen = target_id if target_id in {o[0] for o in options} else None
+    tree, chosen_label = [], ""
+    if wants_target and chosen is None:
+        # The same step-by-step picker as Move to. The place the record is in now is shown in blue.
+        chain = ancestors(obj)
+        subject = next((rec for k, rec in chain if k == "subject"), None)
+        entries = level_entries(request.profile, kind, obj, {o[0] for o in options})
+        tree = picker_tree(entries, ("subject", subject.pk) if subject else None)
+    elif chosen is not None:
+        chosen_label = next(name for pk, name in options if pk == chosen)
     info = svc.describe_level(request.profile, request.user, kind, record_id, direction, chosen if wants_target else None)
     return render(request, "diary/edit_level.html", {
         "title": ("Promote " if direction == "promote" else "Demote ") + NICE[kind],
         "direction": direction, "kind_name": NICE[kind], "record_label": label(obj),
         "new_kind_name": NICE[info["new_kind"]], "lines": info["lines"], "warnings": info["warnings"],
-        "wants_target": wants_target, "options": options, "chosen": chosen,
+        "wants_target": wants_target, "options": options, "chosen": chosen, "tree": tree, "chosen_label": chosen_label,
         "target_kind_name": "Subject" if kind == "subject" else "Topic", "error": error,
         "fields": sorted(_fields(request, direction=direction).items()), "next_url": _next(request),
     })

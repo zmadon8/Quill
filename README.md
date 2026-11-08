@@ -2,7 +2,7 @@
 
 A private website for keeping your case law diary. This is **Milestone 0**: the foundation only. You can log in, manage users, and make, download and restore backups. The diary screens themselves (Subjects, Topics, Items, Notes, Word import) come in later milestones.
 
-The longer plans are in `docs/PLAN.md` (what is built when), `docs/DESIGN.md` (how it will work) and `docs/HOSTING_AND_DEPLOY.md` (hosting, cost and everyday habits).
+The longer plans are in `docs/PLAN.md` (what is built when), `docs/DESIGN.md` (how it will work) and `docs/HOSTING_AND_DEPLOY.md` (hosting, cost and everyday habits). `docs/SETTINGS.md` lists every setting, where it is changed and whether it is per user, per profile, suite-wide, per browser or a server setting.
 
 ## What works in Milestone 0
 
@@ -34,7 +34,8 @@ Only Editors (and Admins whose own role is Editor) can edit. Use the quiet **Edi
 
 **How to edit now.** In Edit mode every Topic, Sub-topic, Section and Item (and every Subject on the Home page) has exactly two small buttons at its right edge: **+ Add** and **Edit** (larger, with the word under the icon, on a phone).
 
-- **+ Add** opens a form directly under the row. Choose what to add with the buttons at the top (after an Item or Section: Item or Section; on a Topic: Item inside, Sub-topic or Topic; on a Sub-topic: Item inside or Sub-topic; an Item added to a Subject goes into that Subject's Topic called "1", made when needed). Type the text (Bold, Italic, Underline for Items; a plain line for headings), add the citation (greyed out when it does not apply; **+ another citation** adds more, each with an optional comment). For an Item the form also has the **Flag** (None, Overruled, Doubted, Other with a short text) and the **For review** switch with a note; a Section has **For review** only; a Note or heading has neither. On a phone the same choices are on the full Add page (the same list of types), with the same Flag and For review fields. **Save**, or **Enter**, saves and opens the next blank form under the new entry; **Shift+Enter** is a new line; **Esc** or **Cancel** closes it. New headings land in their alphabetical place.
+- **+ Add** opens a form directly under the row. Choose what to add with the buttons at the top (after an Item or Section: Item or Section; on a Topic: Item inside, Sub-topic or Topic; on a Sub-topic: Item inside or Sub-topic; an Item added to a Subject goes into that Subject's Topic called "1", made when needed). Type the text (Bold, Italic, Underline for Items; a plain line for headings), add the citation (greyed out when it does not apply; **+ another citation** adds more, each with an optional comment). For an Item the form also has the **Flag** (None, Overruled, Doubted, Other with a short text) and the **For review** switch with a note; a Section has **For review** only; a Note or heading has neither. On a phone the same choices are on the full Add page (the same list of types), with the same Flag and For review fields. **Save**, or **Enter**, saves and closes the form; **Shift+Enter** is a new line; **Esc** or **Cancel** closes it without saving. New headings land in their alphabetical place.
+- **Diary display details.** The citation box wraps and grows as you type but always stays one line. When an Item's citations are shown on separate lines, a ":" follows its text. A Topic's or Sub-topic's Notes sit directly under its heading, a little indented. **Settings > Display > Justify text** (off by default, screen only) lines up the right edge of Item, Note and Section text. The **Other** flag uses the same yellow box as **Pending**.
 - **Edit** turns the row into an editing card in place (full screen on a phone). An Item card has the text, the citations (drag the dotted grip, or press the small up and down arrows, to reorder; x removes one; with two or more, **Show citations** chooses **Inline** or **On separate lines**), the Flag (None, Overruled, Doubted, Other with a short text) and the For review switch with a note. A heading card has the name only. **Save** and **Cancel** are at the bottom; **More** has Move to..., Move up, Move down, History and Delete (it goes to the Trash and Undo is available).
 - The dotted **grip** at the left of an Item or Section drags it to a new place. Headings have no grip because they are alphabetical.
 - If someone else changed the same record first, the card says so and links to the usual clash screen.
@@ -44,7 +45,7 @@ Only Editors (and Admins whose own role is Editor) can edit. Use the quiet **Edi
 - **Navigation and landing**: the Home icon (left of the program name) goes to Home, and the program name goes to the program Home page. There is no **All** tick any more: click a Topic or Sub-topic name in the text to switch views (see Reading, below). Each user can pick a **landing program** ("Open after login") on the **My settings** page, and, inside the Case Law Diary, the **page to open** (Subjects, Global Search, the last page viewed, or a chosen Subject) and the **number formats** (with a live preview; they change how numbers are shown, never your stored data), and the Admin can set it on the user's edit screen; it opens after sign-in instead of Home. A small menu icon (three plain lines, at the left of the breadcrumb row) brings back the full header after you scroll. On a phone, the **Contents** button at the right end of that row (three dots, each followed by a line) opens and closes the side panel; Esc or a tap outside also closes it. The breadcrumb "Index of Subjects" link still opens the panel on the list of all Subjects.
 - **Rename**: headings and Sections, with **Edit** on the row. Items are changed with **Edit** too (the card, or the full Item editor below).
 - **Reorder**: Sections and Items only: **Up** and **Down**, or drag the dotted handle (works with a finger too). Numbers follow the new order at once. Subjects, Topics and Sub-topics are always listed **alphabetically** (capitals ignored, leading quotes and brackets ignored, numbers compared as numbers, so "S. 9" comes before "S. 11"), so they have no reorder buttons; renaming one can change its letter or number. They can still be moved to another parent with **Move to...**, where they land in alphabetical order.
-- **Move to...**: pick the new place in the tree. The tree starts with every Subject and Topic closed; the arrow beside each opens or closes it, and **Expand all** and **Collapse all** do every one at once (without JavaScript everything is open). Your current Subject is marked "current". A page lists the numbers that will change before anything moves. At the top of the list, **New Topic in this Subject** and **New Sub-topic in this Topic** ask for a name, make the heading and move the record into it as one Undo step (Sub-topics are offered only the new Topic; Topics neither).
+- **Move to...**: pick the new place in the tree. The tree starts with every Subject and Topic closed; the arrow beside each opens or closes it, and **Expand all** and **Collapse all** do every one at once (without JavaScript everything is open). Your current Subject is marked "current" and shown in blue. **Demote** uses the same tree to choose the Subject or Topic it goes under. A page lists the numbers that will change before anything moves. At the top of the list, **New Topic in this Subject** and **New Sub-topic in this Topic** ask for a name, make the heading and move the record into it as one Undo step (Sub-topics are offered only the new Topic; Topics neither).
 - **Delete**: a page says what will go to the Trash and which numbers change; nothing is deleted until you press **Move to Trash**.
 - **Subjects**: **Edit**, then **More**, then **Put under Other Subjects** / **Show on the Subjects page** switches the list; each list is alphabetical.
 - **Edit** (on an Item): opens the Item editor with the text (Bold, Italic, Underline, or Ctrl+B, I, U), the Citation, a Flag (none, overruled, doubted, other plus a short text), the For review switch and note, and the citations (the main Citation box is the first; Add another citation, Remove, Up, Down, each with an optional comment shown after it in smaller grey text; two or more show as (a), (b)). **Save** saves everything or nothing. It also shows when and by whom the Item was created and last edited (IST) and, for imported Items, the original Word line. With two or more citations, **Show citations** chooses **Inline** (the default) or **On separate lines** ("(a) comment - citation").
@@ -76,7 +77,7 @@ The Word file is written with the Python standard library only (no extra package
 
 ## Search, Review list and My settings (Milestone 4)
 
-- **Search** (`/caselaw/search/`, ⌥F (Option-F; Alt+F or Ctrl+Alt+F on Windows, where Alt+F can also open the browser menu) focuses the search box on this page and opens the search bar from the magnifier icon on other pages; the magnifier is the only Search control in the top bar, on every diary page): case-insensitive, partial words, punctuation ignored (`2018 9 SCC 49` finds `(2018) 9 SCC 49`), "quoted phrases" exact, "&" different from "and". Filters: Subject, Citations only, For review only, Search headers (only Subject, Topic, Sub-topic and Section names). Results are cards; when no Subject is chosen a "By Subject" view lists the Subjects with hits on the left and shows the chosen Subject's results beside it (`?view=subjects&s=<id>`). Search has no Review list tab (the Review list stays in the main menu). Results show the path and a highlighted snippet and open the record in context, which flashes briefly. 50 results show at a time ("Show more"). Trash is never searched, and only your own profile is. 
+- **Search** (`/caselaw/search/`, ⌥F (Option-F; Alt+F or Ctrl+Alt+F on Windows, where Alt+F can also open the browser menu) focuses the search box on this page and opens the search bar from the magnifier icon on other pages; the magnifier is the only Search control in the top bar, on every diary page): case-insensitive, partial words, punctuation ignored (`2018 9 SCC 49` finds `(2018) 9 SCC 49`), "quoted phrases" exact, "&" different from "and". **Operators**: `OR`, `NOT` or `-`, brackets, `arbitra*`, `subject:Name`, `flag:pending|review|other` (a "Search tips" panel lists them; a query that cannot be read is searched as plain words with a short notice; see `docs/DESIGN.md`, round diary-round item 1.8). Filters: Subject, Citations only, For review only, Search headers (only Subject, Topic, Sub-topic and Section names). Results are cards; when no Subject is chosen a "By Subject" view lists the Subjects with hits on the left and shows the chosen Subject's results beside it (`?view=subjects&s=<id>`). Search has no Review list tab (the Review list stays in the main menu). Results show the path and a highlighted snippet and open the record in context, which flashes briefly. 50 results show at a time ("Show more"). Trash is never searched, and only your own profile is. 
 - **Review list** (`/caselaw/review/`): every Item and Section marked For review, with a link to open each in context and a "Search within these" link. It uses the same code as the search filter.
 - **My settings**: besides "Open after login", choose the page to open inside the Case Law Diary (Subjects, Global Search, the last page viewed, or a chosen Subject) and the number formats for Topics, Sub-topics, Sections, Items and citations, with a live Preview. Formats change how numbers are shown, never your stored data. The date format for exported Word file names is here too ("Date in Word file names"; Milestone 6).
 
@@ -132,7 +133,7 @@ The importer reads `Case Law Diary.docx` and never changes it. It always shows a
 
 1. Remove the sample data from the target profile first (`python manage.py remove_sample_data --profile "Name"`). The import refuses to run into a profile that holds any live diary record, and the dry run says what is in the way.
 2. On Home press **Import**. Choose the profile and the Word file, press **Dry run**, and read it. You can also press **Download dry run** to keep it as a text file. It lists the totals against the figures you approved (41 Subjects, 178 Topics, 323 Sub-topics, 2 Sections, 950 Items; 691 clean and 259 flagged Items; 261 review-marked records), the counts per Subject, why each flagged line is flagged, the 19 colon changes, the blank lines skipped, and the first lines of each Topic.
-3. If the dry run says there are no problems and the profile is ready, run the import in the **Render Shell** (this is the recommended way; the screen does not import, because the import can take longer than the 60-second web request limit): `python manage.py import_docx --profile "Name" --import`. A "Before import" backup is made first (nothing is imported if it fails) and an "After import" backup afterwards. **Download the "Before import" backup from the Backups screen and keep it.** Both stay until an Admin deletes them there. Everything is imported in one step or not at all. Running it again changes nothing.
+3. If the dry run says there are no problems and the profile is ready, run the import in the **Render Shell** (this is the recommended way; the screen does not import, because the import can take longer than the 60-second web request limit): `python manage.py import_docx --profile "Name" --import`. A "Before import" backup is made first (nothing is imported if it fails) and an "After import" backup afterwards. **Download the "Before import" backup from the Backups screen and keep it.** Both count toward the newest-30 backups that are kept, so download the "Before import" one if you want to keep it. Everything is imported in one step or not at all. Running it again changes nothing.
 4. Read the **reconciliation** the command prints, and ask for it again at any time on the Import screen with **Reconcile with profile** (or **Download reconciliation**), or in the Shell with `--reconcile`. It must end with `RESULT: MATCH`. Any difference is listed, never hidden.
 5. The **Review list** (the "Review" link in the diary menu, or the "for review" link on the Subjects page, with a Subject filter) shows the 261 review-marked records with their path and reason, in the order they appear in the Diary (headings alphabetically).
 
@@ -142,7 +143,7 @@ Use this to empty a profile before importing a Word file into it (the import onl
 
 1. On Home press **Profiles**, then **Delete all data** on the profile's row.
 2. Read the preview: it counts every kind of record that will be deleted for good (trashed and imported records and the version history included). Nothing else is touched: other profiles, the profile itself, its name, export name and users stay.
-3. Type the profile's name exactly and press **Delete all data**. A "Before clearing profile" backup is taken first; if it cannot be made, nothing is deleted. Download it from the Backups screen if you want to keep a copy (it is never removed automatically). It is refused while an import into that profile is running.
+3. Type the profile's name exactly and press **Delete all data**. A "Before clearing profile" backup is taken first; if it cannot be made, nothing is deleted. Download it from the Backups screen if you want to keep a copy (like every backup it is removed once more than 30 newer ones exist). It is refused while an import into that profile is running.
 4. The counts are written to the Permanent removal log on the Profiles screen. Then run the dry run and the import as above.
 
 In the Render Shell, `python manage.py import_docx --profile "Name"` (no option) is the dry run, `--import` imports and `--reconcile` compares. Add `--output report.txt` to save the report as a file.
@@ -192,6 +193,53 @@ There are no users at first, so you create the first Admin from Render:
 3. You should see "Admin yourname created." This command refuses to run once any user exists, so it cannot be misused later.
 4. Save the password in a password manager.
 
+### Fee Register (the Fees program)
+
+The Fee Register is a second program in the same site, at `/fees/` (Firms, Matters, Memos, Payments, Outstanding, Fee book, Statistics, Search, Settings, Word and Excel exports, import, and an Excel backup and restore). It is behind the `FEES_ENABLED` switch.
+
+**`FEES_ENABLED`.** Not set: on in developer mode (`DJANGO_DEBUG` or `DJANGO_ALLOW_SQLITE`) and in tests, off in production. `1` turns it on, any other value turns it off. While off, every `/fees/` address says not found and there is no button or tab for it, but the data and the backups keep working. `render.yaml` sets `0` until the owner's go-ahead.
+
+**Release steps (once, at the go-ahead):**
+
+1. Merge the pull request. Render deploys it and `migrate_with_backup` takes a safety backup before the database changes.
+2. In Render, on the web service, under **Environment**, set `FEES_ENABLED` to `1` and let it redeploy.
+3. Once, in the web service **Shell**: `python manage.py create_fees_user --username Ziyad --profile Ziyad-Fees --make-admin`. It only attaches the `Ziyad-Fees` profile and membership to the existing user `Ziyad` and creates no user.
+4. Log in, open Fees, then **Settings > Backup** and restore the desktop backup (`.xlsx`). Compare the key figures (KPIs) with the desktop program.
+
+**New management commands** (run in the Shell or locally):
+
+| Command | What it does |
+|---|---|
+| `create_fees_user --username U --profile P [--make-admin / --no-admin] [--reset-password] [--create-missing]` | Attaches a Fee Register profile and Editor membership to an existing user. Never creates a user unless `--create-missing`. |
+| `fees_check [--profile ID]` | Read-only. Recomputes every memo total and paid amount and prints any mismatch; exits non-zero if any. |
+| `fees_memory_bench [--dataset-size small] [--memos N --payments N --allocations N --seed N] [--skip-build]` | Measures peak memory of the heavy operations on a planning-size dataset in a throwaway profile (rolled back, leaves no data). Prints `BENCH <operation> ...` lines. CI runs it, non-blocking. See `docs/FEES_RAM_BUDGET.md`. |
+
+**Run it on your own computer.** Python 3.12 and `pip install -r requirements.txt` first. On Mac or Linux (bash):
+
+```
+export DJANGO_DEBUG=1
+export DJANGO_ALLOW_SQLITE=1
+python manage.py migrate
+DJANGO_SUPERUSER_USERNAME=Ziyad DJANGO_SUPERUSER_PASSWORD='a long password here' python manage.py create_first_admin
+python manage.py create_fees_user --username Ziyad --profile Ziyad-Fees --make-admin
+python manage.py runserver
+```
+
+On Windows (PowerShell):
+
+```
+$env:DJANGO_DEBUG = "1"
+$env:DJANGO_ALLOW_SQLITE = "1"
+python manage.py migrate
+$env:DJANGO_SUPERUSER_USERNAME = "Ziyad"
+$env:DJANGO_SUPERUSER_PASSWORD = "a long password here"
+python manage.py create_first_admin
+python manage.py create_fees_user --username Ziyad --profile Ziyad-Fees --make-admin
+python manage.py runserver
+```
+
+Then open `http://127.0.0.1:8000/fees/`. With these developer variables set the Fee Register is on without `FEES_ENABLED`.
+
 ### Check that everything works
 
 1. Open the address and **log in** as your Admin.
@@ -215,10 +263,11 @@ You normally do not touch these; the Blueprint sets them.
 | `PYTHON_VERSION` | Python version used to build | `render.yaml` |
 | `DJANGO_ALLOWED_HOSTS` | Extra web addresses (your own domain), separated by commas. Render's own address is added automatically. | You, only if you use your own domain |
 | `CSRF_TRUSTED_ORIGINS` | Extra full addresses such as `https://diary.example.com`, separated by commas. Render's own address is added automatically. | You, only if you use your own domain |
-| `BACKUP_RETENTION_DAYS` | How many days to keep backups. Never less than 30. Default 35. | `render.yaml` (35) |
+| `BACKUP_KEEP_COUNT` | How many backups to keep (the newest ones, of every kind, including the ones made before an update, before a restore and around an import). Never less than 1. Default 30. | `render.yaml` (30) |
 | `PROFILE_RETENTION_DAYS` | How many days a deleted profile can be restored before the nightly job removes it for good. Default 30. | `render.yaml` (30) |
 | `BACKUP_STALE_HOURS` | Show the warning bar if there has been no good backup for this many hours. Default 36. | Default |
-| `MAX_BACKUP_UPLOAD_MB` | Largest backup file you can upload for a restore. Default 100. | Default |
+| `MAX_BACKUP_UPLOAD_MB` | Largest backup file (uncompressed size) you can upload for a restore. Default 30. | Default |
+| `FEES_ENABLED` | `1` shows the Fee Register; `0` hides it (no button, no tab, every `/fees/` address says not found) while keeping its data and backups. Default off on Render, on for developer mode and tests. | `render.yaml` (0 until the go-ahead) |
 | `DJANGO_DEBUG` | `1` turns on developer mode. Never set this on Render. | Developers only, on their own computer |
 | `DJANGO_ALLOW_SQLITE` | `1` lets the app use a throwaway local database. Never set this on Render. | Developers only |
 | `DJANGO_SUPERUSER_USERNAME`, `DJANGO_SUPERUSER_PASSWORD` | Used once, typed in the Shell, to create the first Admin | You, once |

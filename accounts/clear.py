@@ -17,14 +17,15 @@ class ClearRefused(Exception):
     """Nothing was deleted; the message is plain language for the Admin."""
 
 
-def _models():
-    return [m for m in registry.get_models() if m._meta.label in registry.PROFILE_MODELS]
+def _models(profile):
+    """The profile-scoped models of ``profile``'s program, parents first (for preview and fingerprint)."""
+    return list(reversed(registry.profile_models_for(profile.program)))
 
 
 def clear_preview(profile):
     """[(record type name, count)] of every diary row of ``profile``, trashed and imported rows included."""
     rows = []
-    for model in _models():
+    for model in _models(profile):
         rows.append((model._meta.verbose_name_plural.title(), model._base_manager.filter(profile=profile).count()))
     return rows
 
@@ -32,7 +33,7 @@ def clear_preview(profile):
 def _fingerprint(profile):
     """Per record type: row count and newest updated_at (when the type has one)."""
     result = {}
-    for model in _models():
+    for model in _models(profile):
         qs = model._base_manager.filter(profile=profile)
         newest = None
         if any(f.name == "updated_at" for f in model._meta.get_fields()):
@@ -59,7 +60,7 @@ def clear_profile(profile, user):
                     "The profile changed while the backup was being taken; nothing was deleted. Please try again."
                 )
             counts = {}
-            for model in reversed(_models()):
+            for model in registry.profile_models_for(profile.program):
                 _total, per_label = model._base_manager.filter(profile=profile).delete()
                 for label, number in per_label.items():
                     counts[label] = counts.get(label, 0) + number
