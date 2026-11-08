@@ -140,7 +140,7 @@ def _never(name, request):
 
 #: One entry per header item: (label, icon, tabs). A tab is (url name, label, who may see it, current-page test,
 #: query string). Who: "all", "admin", "profile" (a Case Law Diary profile) or "fees" (a Fee Register profile). Admins
-#: holds everything only an Admin may do (Users, Profiles, Appearance, Backups). Settings is a short list of links: My
+#: holds everything only an Admin may do (Users, Profiles, Profile Access, Appearance, Backups). Settings is a short list of links: My
 #: settings (everyone) and each program's Settings tab, only for a user who can open that program (the Fee Register
 #: also only while it is switched on). Help is one link.
 SUITE_GROUPS = (
@@ -149,6 +149,7 @@ SUITE_GROUPS = (
         ("profile_list", "Profiles", "admin", _plain(_starts("profile_list", "profile_create", "profile_edit",
                                                              "profile_delete", "profile_clear", "profile_restore",
                                                              "offline_link_admin")), ""),
+        ("admin_profile_access", "Profile Access", "admin", _plain(_is("admin_profile_access")), ""),
         ("settings", "Appearance", "admin", _plain(_is("settings")), ""),
         ("backup_list", "Backups", "admin",
          _plain(lambda n: n.startswith("backup_") or n.startswith("restore_")), ""),

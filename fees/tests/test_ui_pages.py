@@ -680,7 +680,7 @@ class OutstandingScreenTests(UiPageBase):
 
     def test_editor_ticks_go_to_the_payment_form_as_a_plain_get_form(self):
         text = self.assert_page(self.page("fees_outstanding_detail", query="?view=grouped", user=self.editor), "detail-editor")
-        self.assertIn('<form method="get" action="%s" data-pay-form data-max="30">' % reverse("fees_payment_new"), text)
+        self.assertIn('<form method="get" action="%s" data-pay-form data-max="200">' % reverse("fees_payment_new"), text)
         self.assertRegex(text, r'<input type="checkbox" name="memo" value="\d+" data-due="[\d.]+" aria-label="Select memo ')
         self.assertIn("Pay Ticked Memos", text)
         self.assertIn("js/fees/outstanding.js", text)

@@ -17,7 +17,7 @@
   var rowBox = form.querySelector("[data-alloc-rows]");
   var template = form.querySelector("template[data-alloc-template]");
   // The most memo rows one payment may have (payments.MAX_ALLOCATIONS, sent by the page).
-  var maxRows = parseInt((form.querySelector("[data-alloc-set]") || document.createElement("i")).getAttribute("data-max-rows"), 10) || 30;
+  var maxRows = parseInt((form.querySelector("[data-alloc-set]") || document.createElement("i")).getAttribute("data-max-rows"), 10) || 200;
   function allRows() { return Array.prototype.slice.call(form.querySelectorAll("[data-alloc-rows] [data-alloc-row]")); }
   var rows = allRows();
 

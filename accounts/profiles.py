@@ -77,11 +77,12 @@ def use_profile(user, profile):
     """Make ``profile`` the one ``user`` is using (from now on, on every device). False if they may not use it.
 
     A suite Admin may use any live profile; one without a membership gets a Reader membership to record the choice
-    (they still work as an Editor, since an Admin is an Admin in every program).
+    (they still work as an Editor, since an Admin is an Admin in every program). That membership is marked
+    ``admin_access``: it is not a profile given to them, so Home does not list it (Admin Profile Access does).
     """
     if getattr(user, "is_admin", False) and profile.deleted_at is None:
         membership, _ = ProfileMembership.objects.get_or_create(
-            user=user, profile=profile, defaults={"program": profile.program, "role": ROLE_READER}
+            user=user, profile=profile, defaults={"program": profile.program, "role": ROLE_READER, "admin_access": True}
         )
         if membership.suspended:
             return False
@@ -163,16 +164,17 @@ def set_user_profiles(user, roles, program=KEY_DIARY):
     """
     with transaction.atomic():
         keep = [p.pk for p in roles]
-        ProfileMembership.objects.filter(user=user, program=program, suspended=False).exclude(
+        ProfileMembership.objects.filter(user=user, program=program, suspended=False, admin_access=False).exclude(
             profile_id__in=keep
         ).delete()
         for profile, role in roles.items():
             membership, created = ProfileMembership.objects.get_or_create(
                 user=user, profile=profile, defaults={"program": program, "role": role}
             )
-            if not created and membership.role != role:
+            if not created and (membership.role != role or membership.admin_access):
                 membership.role = role
-                membership.save(update_fields=["role"])
+                membership.admin_access = False  # now given on purpose
+                membership.save(update_fields=["role", "admin_access"])
 
 
 def set_user_profile(user, profile, role=ROLE_READER, program=KEY_DIARY):

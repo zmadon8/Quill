@@ -7,7 +7,7 @@
   if (!form) { return; }
   var M = window.FeesMoney;
   var out = form.querySelector("[data-pay-summary]");
-  var MAX = parseInt(form.getAttribute("data-max"), 10) || 30;
+  var MAX = parseInt(form.getAttribute("data-max"), 10) || 200;
   function ticked() { return form.querySelectorAll('input[type="checkbox"][name="memo"]:checked'); }
   function refresh() {
     if (!out) { return; }

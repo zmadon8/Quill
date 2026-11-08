@@ -175,6 +175,12 @@ class ProfileMembership(models.Model):
     suspended = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     last_used_at = models.DateTimeField(null=True, blank=True)
+    # When the user last opened a page of this profile (accounts.middleware, at most once a minute), for the Active Now
+    # panel on Home: someone working in a Case Law Diary profile and a Fee Register profile shows both.
+    last_seen_at = models.DateTimeField(null=True, blank=True)
+    # True for a membership made only to record which profile an Admin opened through Admin Profile Access (an Admin
+    # may open any profile). Such a profile was not given to them on the Users screen, so Home does not list it.
+    admin_access = models.BooleanField(default=False)
 
     class Meta:
         constraints = [
@@ -187,6 +193,11 @@ class ProfileMembership(models.Model):
         if update_fields is not None:
             kwargs["update_fields"] = set(update_fields) | {"program"}
         super().save(*args, **kwargs)
+
+    @property
+    def is_explicit(self):
+        """True for a profile given to the user on the Users screen (not an Admin's stand-in or Admin Profile Access)."""
+        return bool(self.pk) and not self.admin_access
 
     def __str__(self):
         return f"{self.user_id} in {self.profile_id} ({self.program})"

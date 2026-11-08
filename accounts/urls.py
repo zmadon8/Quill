@@ -52,4 +52,5 @@ urlpatterns = [
     path("users/<int:pk>/delete/", views.user_delete, name="user_delete"),
     path("users/<int:pk>/restore/", views.user_restore, name="user_restore"),
     path("profiles/switch/", views.profile_switch, name="profile_switch"),
+    path("profiles/access/", views.admin_profile_access, name="admin_profile_access"),
 ]
