@@ -19,6 +19,7 @@
     {% include "diary/_add_marking.html" %}
     <div class="edit-confirm">
       <button type="submit" class="button primary">Add</button>
+      <button type="submit" class="button" name="then" value="link" data-add-save-link hidden>Add And Link&hellip;</button>
       <a class="button" href="{{ next_url }}">Cancel</a>
     </div>
   </form>

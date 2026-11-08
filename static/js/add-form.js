@@ -63,6 +63,8 @@
         format.disabled = heading || !rich.rtApi;
       }
       if (citation) { citation.disabled = heading; }
+      var linkBtn = form.querySelector("[data-add-save-link]");
+      if (linkBtn) { linkBtn.hidden = kind() !== "note"; }
       marking(form, kind());
     }
 

@@ -134,7 +134,7 @@ body.ledger .table-wrap { overflow: auto; max-height: 70vh; background: var(--ca
 body.ledger .table-wrap.plain { border: 0; background: transparent; max-height: none; }
 body.ledger :is(.ledger-table, table.ledger) { width: 100%; border-collapse: collapse; font-size: 1rem; line-height: 1.4; }
 body.ledger :is(.ledger-table, table.ledger) caption { text-align: left; padding: 8px 12px; color: var(--muted); font-size: .857rem; }
-body.ledger :is(.ledger-table, table.ledger) th { padding: 8px 12px; text-align: left; vertical-align: bottom; background: var(--card); color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; position: relative; }
+body.ledger :is(.ledger-table, table.ledger) th { padding: 8px 12px; text-align: left; vertical-align: bottom; background: var(--card); color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; position: relative; border-bottom: 0; }
 body.ledger :is(.ledger-table, table.ledger) thead th { position: sticky; top: 0; z-index: 2; box-shadow: inset 0 -1px 0 var(--ink); }
 body.ledger :is(.ledger-table, table.ledger) tbody th[scope=row] { position: static; font-size: 1rem; font-weight: 400; letter-spacing: normal; text-transform: none; color: var(--ink); background: transparent; }
 body.ledger :is(.ledger-table, table.ledger) td { padding: 8px 12px; vertical-align: middle; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 26rem; }
@@ -263,7 +263,7 @@ body.ledger .modal fieldset { background: var(--paper); border-radius: var(--rad
 body.ledger .modal-footer { align-items: center; margin-top: 8px; }
 body.ledger .danger-zone :is(button, .button) { background: #991B1B; border-color: #991B1B; color: var(--paper); }
 body.ledger .danger-zone :is(button, .button):hover { background: #7F1D1D; border-color: #7F1D1D; }
-body.ledger .ledger-table th[scope=rowgroup] { padding: 12px 12px 6px; font-family: var(--font-serif); font-size: 1.07rem; font-weight: 500; letter-spacing: normal; text-transform: none; color: var(--ink); background: var(--paper); border-bottom: 2px solid var(--ink); white-space: nowrap; }
+body.ledger .ledger-table th[scope=rowgroup] { padding: 8px 12px; font-size: 1rem; font-weight: 600; letter-spacing: normal; text-transform: none; color: var(--ink); background: var(--paper); border-bottom: 0; white-space: nowrap; }
 body.ledger .ledger-table .subtotal :is(td, th) { border-top: 1px solid var(--ink); }
 body.ledger main dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; margin: 0; }
 body.ledger main dl.kpi-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; }
@@ -287,6 +287,10 @@ body.ledger .status-sq.sq-written-off { background: #374151; }
 body.ledger .status-squares { display: inline-flex; gap: 3px; align-items: center; min-width: 10px; }
 /* Sub-tabs on a hairline (Memos | Draft memos). */
 body.ledger .sub-tabs { margin: 0 0 12px; }
+/* Tabs on the left, the page's buttons (Export, New ...) on the same row at the right. */
+body.ledger .tab-bar { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 16px; margin: 0 0 12px; border-bottom: 1px solid var(--line); }
+body.ledger .tab-bar > :is(.tabs, .stat-tabs) { border-bottom: 0; margin: 0; }
+body.ledger .tab-bar > .page-actions { margin: 0 0 6px auto; justify-content: flex-end; }
 /* Row buttons stay on one line at the end of the row. */
 body.ledger .row-actions { white-space: nowrap; }
 body.ledger .row-actions form { display: inline; margin: 0; }
