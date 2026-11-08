@@ -4,9 +4,9 @@
 {% block content %}
 <h1>Clear all data</h1>
 <p><a href="{% url 'fees_backup' %}">Back</a></p>
-<div class="confirm warning-box" role="alert"><p>This deletes every firm, matter, memo and payment in <strong>{{ clear_phrase }}</strong> and resets the settings. A safety backup is made first.</p></div>
+<div class="confirm warning-box" role="alert"><p>This deletes every firm, matter, memo and payment in <strong class="exact-text">{{ clear_phrase }}</strong> and resets the settings. A safety backup is made first.</p></div>
 <form method="post" action="{% url 'fees_backup_clear' %}" class="confirm-form stack">{% csrf_token %}
-  <p><label>Type the name of this profile, <strong>{{ clear_phrase }}</strong>, to confirm <input type="text" name="confirmation" autocomplete="off" required size="30"></label></p>
+  <p><label>Type the name of this profile, <strong class="exact-text">{{ clear_phrase }}</strong>, to confirm <input type="text" name="confirmation" autocomplete="off" required size="30"></label></p>
   <p class="actions"><button type="submit" class="danger">Delete Everything</button> <a class="button" href="{% url 'fees_backup' %}">Cancel</a></p>
 </form>
 {% endblock %}
