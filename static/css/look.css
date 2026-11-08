@@ -55,8 +55,8 @@ body.look .error, body.look .errorlist { color: var(--bad); }
 /* ---- Buttons: secondary by default, filled maroon for primary, flat 2px corners ---- */
 body.look :is(main, .search-pop, .crumb-row, .undo-bar, .card-bar) :is(.button, button:not([class]), button.small, button.secondary), body.look .edit-btn { border-color: var(--line-strong); font-weight: 500; transition: background-color .15s, border-color .15s; }
 body.look :is(main, .search-pop, .crumb-row, .undo-bar, .card-bar) :is(.button, button:not([class]), button.small, button.secondary):not(.primary):not([type=submit]):hover, body.look .edit-btn:not(.danger):hover { border-color: var(--ink); background: var(--paper-2); }
-body.look button.primary, body.look .button.primary, body.look button[type=submit]:not(.link):not(.danger):not(.secondary) { background: var(--accent); border-color: var(--accent); color: var(--paper); font-weight: 500; }
-body.look button.primary:hover, body.look .button.primary:hover, body.look button[type=submit]:not(.link):not(.danger):not(.secondary):hover { background: var(--accent-hover); border-color: var(--accent-hover); color: var(--paper); }
+body.look button.primary, body.look .button.primary, body.look button[type=submit]:not(.link):not(.danger):not(.secondary):not(.program-link) { background: var(--accent); border-color: var(--accent); color: var(--paper); font-weight: 500; }
+body.look button.primary:hover, body.look .button.primary:hover, body.look button[type=submit]:not(.link):not(.danger):not(.secondary):not(.program-link):hover { background: var(--accent-hover); border-color: var(--accent-hover); color: var(--paper); }
 body.look button.danger, body.look .edit-btn.danger { background: #991B1B; border-color: #991B1B; color: var(--paper); }
 body.look button.danger:hover, body.look .edit-btn.danger:hover { background: #7F1D1D; border-color: #7F1D1D; }
 body.look .edit-switch.edit-pill { border-radius: var(--radius); }
