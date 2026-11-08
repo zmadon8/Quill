@@ -103,7 +103,7 @@ class MemoFilterNarrowingTests(WriteBase):
         html = self.page("fees_statistics", tab="explore", from_fy="2026-27")
         self.assertIn("Alpha &amp; Co", texts(html, "firm_id"))
         self.assertNotIn("Beta Ltd", texts(html, "firm_id"))
-        years = [v for v, _t in options_of(self.page("fees_statistics", tab="explore", firm_id=str(self.beta_pk())), "to_fy") if v]
+        years = [v for v, _t in options_of(self.page("fees_statistics", tab="explore", from_fy="", firm_id=str(self.beta_pk())), "to_fy") if v]
         self.assertEqual(years, ["2025-26"])
 
 
