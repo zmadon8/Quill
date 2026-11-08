@@ -532,4 +532,22 @@
     if (!field || !field.form) { return; }
     if (field.form.requestSubmit) { field.form.requestSubmit(); } else { field.form.submit(); }
   });
+
+  // The header name (a program page): its full Home page name shows at once on hover, not after the browser's slow
+  // tooltip delay. The title is moved to data-tip while the pointer is over the name (so the slow one does not show
+  // as well) and put back after; without this script the browser tooltip still works.
+  Array.prototype.forEach.call(document.querySelectorAll(".brand > a[title]"), function (a) {
+    function show() {
+      var text = a.getAttribute("title");
+      if (text) { a.setAttribute("data-tip", text); a.removeAttribute("title"); }
+    }
+    function hide() {
+      var text = a.getAttribute("data-tip");
+      if (text) { a.setAttribute("title", text); a.removeAttribute("data-tip"); }
+    }
+    a.addEventListener("mouseenter", show);
+    a.addEventListener("mouseleave", hide);
+    a.addEventListener("focus", show);
+    a.addEventListener("blur", hide);
+  });
 })();
