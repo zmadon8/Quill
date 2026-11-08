@@ -32,7 +32,7 @@ Then open **Backups & Import > Email backups** as an Admin, type your address an
 **C. Make an app password (2 minutes).** Still in that account, open myaccount.google.com/apppasswords (or search for "App passwords" in the search box at the top of your Google Account page). Type a name such as `Case Law Diary` and press **Create**. Google shows a 16-letter password in four groups, once. Copy it (the spaces do not matter). If you lose it, delete it and make a new one; nothing else changes.
 
 **D. Put the settings into Render (5 minutes).** Sign in to dashboard.render.com.
-1. Open the web service **judgment-diary**, then **Environment** in the left menu.
+1. Open the web service **diary-web**, then **Environment** in the left menu.
 2. Find each variable below (they are already listed, empty; if one is missing, press **Add Environment Variable**) and fill it in:
 
    | Key | Value |
@@ -44,7 +44,7 @@ Then open **Backups & Import > Email backups** as an Admin, type your address an
    | `DEFAULT_FROM_EMAIL` | `Case Law Diary <the new Gmail address>` (Gmail always sends from the account's own address, so use the same one) |
 
 3. Press **Save, rebuild, and deploy** (or **Save changes**, then let it deploy). Wait until Render shows **Live** (a few minutes).
-4. Open the cron job **judgment-diary-daily-backup**, then **Environment**, and enter the **same five values**. Save. (The nightly emailed backup runs here; without these it cannot send.)
+4. Open the cron job **diary-daily-backup**, then **Environment**, and enter the **same five values**. Save. (The nightly emailed backup runs here; without these it cannot send.)
 
 Never paste the app password anywhere else: not in GitHub, not in a chat, not in an email.
 

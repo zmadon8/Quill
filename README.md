@@ -109,7 +109,7 @@ You need an email address, a payment card and your GitHub account. Cost is about
 1. Go to [render.com](https://render.com), create an account with your email, and add a payment card.
 2. Connect Render to GitHub when it asks. Give it access to this project only.
 3. In Render press **New**, then **Blueprint**. Pick this project and the branch you want to run.
-4. Render reads `render.yaml` and lists three things it will create: a database (`judgment-diary-db`), a website (`judgment-diary`) and a nightly backup job (`judgment-diary-daily-backup`). All are on paid plans. Do not change any of them to Free, because free databases get deleted.
+4. Render reads `render.yaml` and lists three things it will create: a database (`diary-db`), a website (`diary-web`) and a nightly backup job (`diary-daily-backup`). All are on paid plans. Do not change any of them to Free, because free databases get deleted.
 5. If Render asks for `DJANGO_ALLOWED_HOSTS`, leave it empty unless you own a domain name. Then press **Apply** (or **Deploy Blueprint**).
 6. Wait for the first deploy to finish. Render shows "Live" and gives you an address ending in `onrender.com`. Open it. You should see the login page.
 
@@ -178,7 +178,7 @@ This deletes only Subjects whose name starts with `TEST SAMPLE:` and what sits u
 
 There are no users at first, so you create the first Admin from Render:
 
-1. In Render open the `judgment-diary` web service and open its **Shell** tab.
+1. In Render open the `diary-web` web service and open its **Shell** tab.
 2. Type this, using your own name and a long password (keep the quotes), and press Enter:
 
    ```
@@ -245,7 +245,7 @@ Then open `http://127.0.0.1:8000/fees/`. With these developer variables set the 
 1. Open the address and **log in** as your Admin.
 2. On **Home**, open **Users**, press **New user**, make a second user, then try logging in as that user in a private window. Ordinary users do not see the Users link on Home or the Backups link. Delete the test user when done.
 3. Open **Backups** and press **Backup now**. A new line appears in the list. Press **Download** to save the file to your computer. Keep it somewhere safe.
-4. The next morning, open Backups again. A new "Daily" backup should be there, made by the nightly job (it runs at 02:00 India time). If not, look at the `judgment-diary-daily-backup` job in Render and tell Kiro.
+4. The next morning, open Backups again. A new "Daily" backup should be there, made by the nightly job (it runs at 02:00 India time). If not, look at the `diary-daily-backup` job in Render and tell Kiro.
 5. **Restore rehearsal.** Do this while there is only practice data, before real data goes in. Add a test user, then in Backups press **Restore** on an earlier backup. You will see a preview of what would be added and removed, and a note that a safety backup is taken first. Type `RESTORE` and press **Restore now**. The test user should be gone. A "Before restore" backup now exists, so even a mistaken restore can be undone.
    After the restore, **create a new user** (Users, New user). This must work: it proves the database numbering was reset correctly after the restore. A failure here (an "already exists" or duplicate key error) means the reset did not work, so tell Kiro before real data goes in. The automated tests cannot check this, because the numbering reset only exists on PostgreSQL.
 6. You can also restore from a file on your computer: Backups, then "Restore from a file on my computer".
