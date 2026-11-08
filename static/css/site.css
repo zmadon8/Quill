@@ -656,3 +656,17 @@ textarea.single-line { display: block; width: 100%; max-width: 28rem; min-height
 /* All and None buttons above a group of tick boxes (templates/_select_all_none.html). */
 .select-all-none { display: inline-flex; gap: 6px; align-items: center; margin: 0 0 6px; }
 .select-all-none[hidden] { display: none; }
+/* Admin > Backups > Email backups: one row per kind of file (switch, how often, weekday, day of the month). */
+.email-kinds, .email-size { margin: 0 0 1rem; padding: .5rem 1rem; border: 1px solid var(--hair); min-width: 0; }
+.email-kinds legend, .email-size legend { padding: 0 .25rem; font-weight: 600; }
+.email-kinds-table { width: 100%; margin: 0 0 .75rem; }
+.email-kinds-table th[scope=row] { text-transform: none; letter-spacing: normal; font-size: inherit; font-weight: 400; color: inherit; }
+.email-kinds-table td, .email-kinds-table th { padding: .4rem .5rem; vertical-align: middle; }
+.stack .email-kinds-table label.check { display: inline-flex; align-items: center; gap: .5rem; margin: 0; font-size: inherit; letter-spacing: normal; text-transform: none; color: inherit; }
+.email-kinds-table input[type=number] { width: 5rem; }
+@media (max-width: 699px) {
+  .email-kinds-table thead { display: none; }
+  .email-kinds-table tr { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: .25rem .5rem; padding: .5rem 0; border-bottom: 1px solid var(--hair); }
+  .email-kinds-table tr > th { grid-column: 1 / -1; }
+  .email-kinds-table td, .email-kinds-table th { padding: 0; border: 0; }
+}

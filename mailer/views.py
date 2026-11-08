@@ -1,4 +1,3 @@
-from django.conf import settings
 from django.contrib import messages
 from django.shortcuts import redirect
 from django.urls import reverse
@@ -8,7 +7,7 @@ from accounts.permissions import admin_required
 
 from . import sender, services
 from .forms import EmailBackupForm
-from .models import EmailBackupSchedule
+from .models import KIND_LABELS, EmailBackupSchedule
 
 
 def email_context(form=None):
@@ -16,8 +15,8 @@ def email_context(form=None):
     schedule = EmailBackupSchedule.load()
     return {
         "email_form": form or EmailBackupForm(instance=schedule), "schedule": schedule,
-        "configured": services.is_configured(), "max_mb": settings.EMAIL_BACKUP_MAX_MB,
-        "due": services.is_due(schedule), "email_diag": sender.diagnostics(), "backup_size": services.newest_backup_size(),
+        "configured": services.is_configured(),
+        "due": services.is_due(schedule), "due_kinds": [KIND_LABELS[k] for k in services.due_kinds(schedule)], "email_diag": sender.diagnostics(), "backup_size": services.newest_backup_size(),
     }
 
 
@@ -49,7 +48,8 @@ def backup_email(request):
         saved.owner = request.user
         saved.save()
         if action == "send_now":
-            ok, message = services.send_scheduled_backup(saved)
+            # Send now: every kind that is ticked, due or not.
+            ok, message = services.send_scheduled_backup(saved, kinds=saved.enabled_kinds())
             (messages.success if ok else messages.error)(request, message if ok else f"The email FAILED: {message}")
         else:
             messages.success(request, "Saved.")

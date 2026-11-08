@@ -17,8 +17,10 @@ class MergedBackupsTests(TestCase):
         self.editor = join_main(User.objects.create_user("ed", password=PASSWORD), "editor")
 
     def valid_post(self, **extra):
-        data = {"frequency": "weekly", "weekday": "0", "day_of_month": "1", "delivery": "both_one",
-                "recipients": "", "action": "save", **extra}
+        data = {"recipients": "", "action": "save", "max_attachment_mb": "15", "data_enabled": "on", "word_enabled": "on"}
+        for kind in ("data", "word", "html", "excel"):
+            data.update({f"{kind}_frequency": "weekly", f"{kind}_weekday": "0", f"{kind}_day_of_month": "1"})
+        data.update(extra)
         return self.client.post(reverse("backup_email"), data)
 
     def test_the_page_has_both_sections_and_the_email_form_posts_to_the_old_name(self):
@@ -43,7 +45,7 @@ class MergedBackupsTests(TestCase):
 
     def test_saving_the_email_form_returns_to_the_email_section(self):
         self.client.force_login(self.admin)
-        resp = self.valid_post(enabled="on", recipients="a@example.com", frequency="daily")
+        resp = self.valid_post(enabled="on", recipients="a@example.com", data_frequency="daily")
         self.assertRedirects(resp, reverse("backup_list") + "?tab=email", fetch_redirect_response=False)
         schedule = EmailBackupSchedule.load()
         self.assertTrue(schedule.enabled)

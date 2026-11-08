@@ -7,13 +7,18 @@ FREQUENCY_CHOICES = [
     (FREQ_WEEKLY, "Every week"),
     (FREQ_MONTHLY, "Every month"),
 ]
-DELIVERY_DATA, DELIVERY_WORD, DELIVERY_BOTH_ONE, DELIVERY_BOTH_SEPARATE = "data", "word", "both_one", "both_separate"
-DELIVERY_CHOICES = [
-    (DELIVERY_DATA, "The JSON backup only"),
-    (DELIVERY_WORD, "The complete Word export only"),
-    (DELIVERY_BOTH_ONE, "Both, in one email"),
-    (DELIVERY_BOTH_SEPARATE, "Both, in separate emails"),
+#: What can be emailed, in the order the page and the emails list them: (key, label).
+KIND_DATA, KIND_WORD, KIND_HTML, KIND_EXCEL = "data", "word", "html", "excel"
+KINDS = [
+    (KIND_DATA, "Regular backup (.json.gz)"),
+    (KIND_WORD, "Case Law Diary: Word copy (.docx)"),
+    (KIND_HTML, "Case Law Diary: HTML copy (.html)"),
+    (KIND_EXCEL, "Fee Register: Excel sheets (.xlsx)"),
 ]
+KIND_KEYS = [key for key, _ in KINDS]
+KIND_LABELS = dict(KINDS)
+#: Default largest total of attachments in one email when splitting is on (Gmail refuses a message over 25 MB).
+DEFAULT_MAX_MB = 15
 WEEKDAY_CHOICES = [
     (0, "Monday"), (1, "Tuesday"), (2, "Wednesday"), (3, "Thursday"), (4, "Friday"), (5, "Saturday"), (6, "Sunday"),
 ]
@@ -27,14 +32,37 @@ class EmailBackupSchedule(models.Model):
     """
 
     enabled = models.BooleanField(default=False)
-    frequency = models.CharField(max_length=10, choices=FREQUENCY_CHOICES, default=FREQ_WEEKLY)
-    weekday = models.PositiveSmallIntegerField(choices=WEEKDAY_CHOICES, default=0)
-    day_of_month = models.PositiveSmallIntegerField(default=1)
     recipients = models.TextField(blank=True)
-    delivery = models.CharField(max_length=15, choices=DELIVERY_CHOICES, default=DELIVERY_BOTH_ONE)
+    # Each kind of file has its own switch and its own schedule (the files of every kind that is due go out together).
+    data_enabled = models.BooleanField(default=True)
+    data_frequency = models.CharField(max_length=10, choices=FREQUENCY_CHOICES, default=FREQ_WEEKLY)
+    data_weekday = models.PositiveSmallIntegerField(choices=WEEKDAY_CHOICES, default=0)
+    data_day_of_month = models.PositiveSmallIntegerField(default=1)
+    data_last_sent_at = models.DateTimeField(null=True, blank=True)
+    word_enabled = models.BooleanField(default=True)
+    word_frequency = models.CharField(max_length=10, choices=FREQUENCY_CHOICES, default=FREQ_WEEKLY)
+    word_weekday = models.PositiveSmallIntegerField(choices=WEEKDAY_CHOICES, default=0)
+    word_day_of_month = models.PositiveSmallIntegerField(default=1)
+    word_last_sent_at = models.DateTimeField(null=True, blank=True)
+    html_enabled = models.BooleanField(default=False)
+    html_frequency = models.CharField(max_length=10, choices=FREQUENCY_CHOICES, default=FREQ_WEEKLY)
+    html_weekday = models.PositiveSmallIntegerField(choices=WEEKDAY_CHOICES, default=0)
+    html_day_of_month = models.PositiveSmallIntegerField(default=1)
+    html_last_sent_at = models.DateTimeField(null=True, blank=True)
+    excel_enabled = models.BooleanField(default=False)
+    excel_frequency = models.CharField(max_length=10, choices=FREQUENCY_CHOICES, default=FREQ_WEEKLY)
+    excel_weekday = models.PositiveSmallIntegerField(choices=WEEKDAY_CHOICES, default=0)
+    excel_day_of_month = models.PositiveSmallIntegerField(default=1)
+    excel_last_sent_at = models.DateTimeField(null=True, blank=True)
+    # Off (the default): everything due goes in one email. On: no email carries more than max_attachment_mb of files;
+    # the files are shared out over as few emails as possible, keeping each kind's files together where that costs
+    # no extra email.
+    split_emails = models.BooleanField(default=False)
+    max_attachment_mb = models.PositiveSmallIntegerField(default=DEFAULT_MAX_MB)
     include_review = models.BooleanField(default=True)
-    # Whose My settings (number formats, date format) the emailed Word file uses: the Admin who last saved the schedule.
+    # Whose My settings (number formats, date format) the emailed Word and HTML files use: the Admin who last saved it.
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    # The last time any email went out (each kind keeps its own <kind>_last_sent_at for its schedule).
     last_sent_at = models.DateTimeField(null=True, blank=True)
     last_attempt_at = models.DateTimeField(null=True, blank=True)
     last_ok = models.BooleanField(null=True, blank=True)
@@ -44,6 +72,13 @@ class EmailBackupSchedule(models.Model):
     def load(cls):
         obj, _ = cls.objects.get_or_create(pk=1)
         return obj
+
+    def kind_setting(self, kind, name):
+        """One setting of one kind of file, e.g. ``kind_setting("word", "frequency")``."""
+        return getattr(self, f"{kind}_{name}")
+
+    def enabled_kinds(self):
+        return [kind for kind in KIND_KEYS if self.kind_setting(kind, "enabled")]
 
     def __str__(self):
         return "Email backup schedule"
