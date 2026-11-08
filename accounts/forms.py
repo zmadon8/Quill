@@ -373,8 +373,16 @@ class SuiteNamesForm(forms.Form):
     ``<k>_name`` (so ``home_name`` and ``diary_name`` keep their names and behaviour).
     """
 
+    site_name = forms.CharField(
+        label="Site name", max_length=suite.MAX_NAME_LENGTH, required=False,
+        help_text="The name of the whole website: in emails (the sender's name, subjects, password reset) and the "
+                  "browser tab of the Home, Admins, Settings and Help pages. Leave blank for the default.",
+    )
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["site_name"].initial = suite.get_site_name()
+        self.fields["site_name"].widget.attrs["placeholder"] = suite.default_site_name()
         self.name_keys = self._name_keys()
         names = suite.get_names()
         for key in self.name_keys:
@@ -431,6 +439,8 @@ class SuiteNamesForm(forms.Form):
         return cleaned
 
     def save(self):
+        if "site_name" in self.data:  # an older form without the box leaves the name as it is
+            suite.set_site_name(self.cleaned_data.get("site_name", ""))
         suite.set_names(
             {key: " ".join(self.cleaned_data[self._field_name(key)].split()) for key in self.name_keys}
         )

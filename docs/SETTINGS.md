@@ -234,7 +234,7 @@ Read in `config/settings.py` unless noted. Values below are the defaults.
 | `OFFSITE_BACKUP_RETENTION_DAYS` | Days off-site copies are kept (at least 30) | 90 | Server |
 | `OFFSITE_BACKUP_ENDPOINT`, `_BUCKET`, `_ACCESS_KEY_ID`, `_SECRET_ACCESS_KEY`, `_REGION`, `_PREFIX` | Optional off-site copy of backups; off until configured (`backups/storage.py`) | Unset | Server |
 | `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_SSL`, `EMAIL_USE_TLS`, `EMAIL_TIMEOUT`, `DEFAULT_FROM_EMAIL` | Outgoing mail for password resets and emailed backups | Unset (port 587, TLS) | Server |
-| `SITE_NAME` | The name of the whole website, in emails (From name, subjects, password reset) and the browser tab of shared pages; "Case Law Diary" is only the diary program | Madon.co.in | Server |
+| `SITE_NAME` | Default name of the whole website (emails: From name, subjects, password reset; browser tab of shared pages). Admins > Appearance > **Site name** overrides it; "Case Law Diary" is only the diary program | Madon.co.in | Server |
 | `EMAIL_BACKUP_MAX_MB` | Starting size limit for split backup emails (then set on Admin > Backups > Email backups) | 15 | Server |
 | `DJANGO_SECRET_KEY`, `DJANGO_DEBUG`, `DJANGO_ALLOW_SQLITE`, `DJANGO_ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, `RENDER_EXTERNAL_HOSTNAME`, `DATABASE_URL` | Core Django and hosting settings | Required in production | Server |
 | `DJANGO_SUPERUSER_USERNAME`, `DJANGO_SUPERUSER_PASSWORD` | First Admin, read by `create_first_admin` | Unset | Server |

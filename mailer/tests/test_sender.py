@@ -175,3 +175,35 @@ class DiagnosticsPageTests(TestCase):
     @override_settings(EMAIL_HOST="")
     def test_page_says_when_no_server_is_configured(self):
         self.assertIn("No email server configured", self.page())
+
+
+@override_settings(SECURE_SSL_REDIRECT=False, **GMAIL, DEFAULT_FROM_EMAIL="")
+class SiteNameSettingTests(TestCase):
+    """Admins > Appearance > Site name: the website's name in emails and on the shared pages."""
+
+    def setUp(self):
+        from diary.tests.helpers import join_main
+
+        self.admin = join_main(User.objects.create_user("boss", password="x-long-pass-123", is_superuser=True), "editor")
+        self.client.force_login(self.admin)
+
+    def save(self, value):
+        return self.client.post(reverse("settings"), {"site_name": value, "home_name": "Home", "diary_name": "Case Law Diary",
+                                                     "fees_name": "Fee Register"})
+
+    def test_default_is_madon_co_in(self):
+        self.assertEqual(sender.site_name(), "Madon.co.in")
+        self.assertContains(self.client.get(reverse("settings")), 'value="Madon.co.in"')
+
+    def test_a_new_name_is_used_in_emails_and_page_titles(self):
+        self.assertEqual(self.save("  Madon   Chambers ").status_code, 302)
+        self.assertEqual(sender.site_name(), "Madon Chambers")
+        self.assertEqual(sender.effective_from()[0], "Madon Chambers <you@gmail.com>")
+        services.send_test_email(["me@example.com"])
+        self.assertEqual(mail.outbox[-1].subject, "Madon Chambers: test email")
+        self.assertContains(self.client.get(reverse("user_list")), "<title>Users - Madon Chambers</title>")
+
+    def test_blank_goes_back_to_the_default(self):
+        self.save("Other")
+        self.save("")
+        self.assertEqual(sender.site_name(), "Madon.co.in")

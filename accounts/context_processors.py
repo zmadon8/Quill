@@ -27,14 +27,15 @@ def current_program_key(request):
 
 
 def _read(request):
-    """``(names, brand_modes)`` for this request from one query, cached on the request. Never raises."""
+    """``(names, brand_modes, site_name)`` for this request from one query, cached on the request. Never raises."""
     cached = getattr(request, "_suite_all", None)
     if cached is None:
         try:
             cached = suite.read_all()
         except Exception:
             logger.exception("Could not read the suite display names")
-            cached = (dict(suite.DEFAULT_NAMES), {key: suite.BRAND_WORDS for key in suite.BRAND_KEYS})
+            cached = (dict(suite.DEFAULT_NAMES), {key: suite.BRAND_WORDS for key in suite.BRAND_KEYS},
+                      suite.default_site_name())
         request._suite_all = cached
         request._suite_names = cached[0]  # reused by program_label so the page does not query twice
     return cached
@@ -44,10 +45,8 @@ def suite_names(request):
     """Expose the display names to every template as ``home_name`` and ``diary_name``, and the suite-wide header bar
     choice (Words or Logo, set on Admins > Appearance) as ``suite_brand`` (``{"home"|"diary"|"fees": "words"|"logo"}``)
     and ``home_header_words`` (True when Home, Admins, Settings and Help pages show words)."""
-    names, modes = _read(request)
-    from django.conf import settings as django_settings
-
-    return {"site_name": django_settings.SITE_NAME,
+    names, modes, site = _read(request)
+    return {"site_name": site,
             "home_name": names[suite.KEY_HOME], "diary_name": names[suite.KEY_DIARY], "fees_name": names[suite.KEY_FEES],
             "suite_brand": modes,
             "home_header_words": modes[suite.KEY_HOME] == suite.BRAND_WORDS}

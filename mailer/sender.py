@@ -43,7 +43,10 @@ def _login_address():
 
 
 def site_name():
-    return getattr(settings, "SITE_NAME", "") or "Madon.co.in"
+    """The website's name: Admins > Appearance, else the SITE_NAME setting (Madon.co.in)."""
+    from accounts.suite import get_site_name  # lazy: the sender stays importable without the accounts app loaded
+
+    return get_site_name()
 
 
 def _display_name(name):
