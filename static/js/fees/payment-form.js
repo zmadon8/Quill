@@ -16,6 +16,8 @@
   var autoBox = form.elements.auto_tds;
   var rowBox = form.querySelector("[data-alloc-rows]");
   var template = form.querySelector("template[data-alloc-template]");
+  // The most memo rows one payment may have (payments.MAX_ALLOCATIONS, sent by the page).
+  var maxRows = parseInt((form.querySelector("[data-alloc-set]") || document.createElement("i")).getAttribute("data-max-rows"), 10) || 30;
   function allRows() { return Array.prototype.slice.call(form.querySelectorAll("[data-alloc-rows] [data-alloc-row]")); }
   var rows = allRows();
 
@@ -91,7 +93,7 @@
   var defaultSubmit = form.querySelector(".alloc-default-submit");
   if (defaultSubmit) { defaultSubmit.hidden = true; }
   function addRow() {
-    if (!template || !rowBox) { return null; }
+    if (!template || !rowBox || allRows().length >= maxRows) { return null; }
     var holder = document.createElement("div");
     holder.innerHTML = template.innerHTML.replace(/__i__/g, String(nextIndex++));
     var row = holder.querySelector("[data-alloc-row]");

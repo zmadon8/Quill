@@ -161,7 +161,8 @@ def parse_int(text, label="Number", default=0):
 # Payment form values
 # ---------------------------------------------------------------------------
 
-#: How many memo rows a payment form shows at least (a payment may be split over any number of memos).
+#: How many memo rows a payment form shows at least (a payment may be split over up to
+#: ``payment_service.MAX_ALLOCATIONS`` memos).
 PAYMENT_ROWS = 3
 
 _ROW_KEY = re.compile(r"^alloc_(?:memo|amount|tds)_(\d+)$")
@@ -335,6 +336,11 @@ def payment_data_from_post(post, profile, bank_ids):
         if memo_id is None:
             raise FeesError("INVALID_PAYMENT", f'There is no numbered memo "{number}".')
         rows.append({"memo_id": memo_id, "amount": row_amount, "tds_amount": row_tds})
+        if len(rows) > payment_service.MAX_ALLOCATIONS:
+            raise FeesError(
+                "INVALID_PAYMENT",
+                f"A payment can be split over at most {payment_service.MAX_ALLOCATIONS} memos.",
+            )
     if len(rows) == 1:
         if rows[0]["amount"] is None and amount is not None:
             rows[0]["amount"] = amount

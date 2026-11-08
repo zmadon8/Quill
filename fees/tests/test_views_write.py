@@ -336,11 +336,12 @@ class PaymentWriteTests(WriteBase):
             data["alloc_amount_%d" % i] = "1"
         return data
 
-    def test_more_than_two_hundred_rows_are_accepted(self):
-        # No limit on the memos one payment covers (the old caps were 5, then 200).
+    def test_thirty_rows_are_accepted_and_31_refused_with_a_clear_error(self):
         before = Payment.objects.filter(profile=self.profile).count()
-        response = self.post("fees_payment_new", self.payment_with_rows(201))
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(self.post("fees_payment_new", self.payment_with_rows(30)).status_code, 302)
+        response = self.post("fees_payment_new", self.payment_with_rows(31))
+        self.assertEqual(response.status_code, 422)
+        self.assertContains(response, "at most 30 memos", status_code=422)
         self.assertEqual(Payment.objects.filter(profile=self.profile).count(), before + 1)
 
     def test_unknown_memo_number_is_a_validation_error(self):
