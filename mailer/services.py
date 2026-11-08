@@ -293,7 +293,7 @@ def plan_emails(groups, split, limit_bytes):
 def _body(files, notes, now, label, number, count, over_limit):
     local = timezone.localtime(now)
     which = f" (email {number} of {count})" if count > 1 else ""
-    lines = [f"Your emailed backup{which}: {label}. Made {local:%Y-%m-%d %H:%M} (IST).", ""]
+    lines = [f"Your {sender.site_name()} backup{which}: {label}. Made {local:%Y-%m-%d %H:%M} (IST).", ""]
     lines.append("Attached:")
     lines += [f"  - {name} ({max(1, len(data) // 1024)} KB)" for name, data, _ in files]
     if over_limit:
@@ -384,7 +384,7 @@ def send_scheduled_backup(schedule, now=None, kinds=None):
         notes = [n for k in in_email for n in notes_for[k]]
         try:
             message = sender.build_message(
-                f"Backup {stamp}{which}: {label}" + (" (incomplete)" if notes else ""),
+                f"{sender.site_name()} backup {stamp}{which}: {label}" + (" (incomplete)" if notes else ""),
                 _body(files, notes, now, label, number, len(emails), over),
                 recipients,
             )
@@ -422,8 +422,8 @@ def send_test_email(to):
         if not to:
             raise ValueError("There is nobody to send to. Add an email address.")
         message = sender.build_message(
-            "Case Law Diary: test email",
-            "This is a test. If you can read it, email from the Case Law Diary works.",
+            f"{sender.site_name()}: test email",
+            f"This is a test. If you can read it, email from {sender.site_name()} works.",
             to,
         )
         message.send(fail_silently=False)

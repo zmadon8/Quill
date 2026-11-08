@@ -17,9 +17,15 @@ GMAIL = dict(EMAIL_HOST="smtp.gmail.com", EMAIL_PORT=587, EMAIL_USE_TLS=True, EM
 
 @override_settings(**GMAIL, DEFAULT_FROM_EMAIL="Case Law Diary <you@gmail.com>")
 class EffectiveFromTests(SimpleTestCase):
+    """The From name is the website's (Madon.co.in): an old "Case Law Diary" name or a blank one becomes it."""
+
+    @override_settings(DEFAULT_FROM_EMAIL="Chambers <you@gmail.com>")
+    def test_another_configured_name_is_kept(self):
+        self.assertEqual(sender.effective_from()[0], "Chambers <you@gmail.com>")
+
     def test_matching_gmail_from_is_kept_without_warning(self):
         from_email, warnings = sender.effective_from()
-        self.assertEqual(from_email, "Case Law Diary <you@gmail.com>")
+        self.assertEqual(from_email, '"Madon.co.in" <you@gmail.com>')
         self.assertEqual(warnings, [])
 
     @override_settings(DEFAULT_FROM_EMAIL="Chambers <other@example.com>")
@@ -30,7 +36,7 @@ class EffectiveFromTests(SimpleTestCase):
 
     @override_settings(DEFAULT_FROM_EMAIL="")
     def test_gmail_host_with_empty_from_uses_the_login_address(self):
-        self.assertEqual(sender.effective_from()[0], "Case Law Diary <you@gmail.com>")
+        self.assertEqual(sender.effective_from()[0], '"Madon.co.in" <you@gmail.com>')
 
     @override_settings(EMAIL_HOST="smtp.googlemail.com", DEFAULT_FROM_EMAIL="x@example.com")
     def test_googlemail_host_counts_as_gmail(self):
@@ -39,12 +45,12 @@ class EffectiveFromTests(SimpleTestCase):
     @override_settings(EMAIL_HOST="smtp-relay.brevo.com", EMAIL_HOST_USER="login@brevo.example",
                        DEFAULT_FROM_EMAIL="Case Law Diary <me@example.org>")
     def test_other_hosts_keep_the_configured_from(self):
-        self.assertEqual(sender.effective_from(), ("Case Law Diary <me@example.org>", []))
+        self.assertEqual(sender.effective_from(), ('"Madon.co.in" <me@example.org>', []))
 
     @override_settings(EMAIL_HOST="smtp-relay.brevo.com", DEFAULT_FROM_EMAIL="Case Law Diary <you@gmail.com>")
     def test_gmail_from_through_another_server_is_warned_about(self):
         from_email, warnings = sender.effective_from()
-        self.assertEqual(from_email, "Case Law Diary <you@gmail.com>")
+        self.assertEqual(from_email, '"Madon.co.in" <you@gmail.com>')
         self.assertEqual(warnings, [sender.WARN_RELAY])
 
     @override_settings(EMAIL_HOST="")
@@ -88,6 +94,23 @@ class SendingTests(TestCase):
         self.assertEqual(mail.outbox[0].reply_to, ["you@gmail.com"])
         self.assertIn("Chambers <you@gmail.com>", message)
         self.assertIn("smtp.gmail.com", message)
+
+    def test_emails_name_the_website_not_the_case_law_diary(self):
+        services.send_test_email(["me@example.com"])
+        self.assertEqual(mail.outbox[0].subject, "Madon.co.in: test email")
+        self.assertNotIn("Case Law Diary", mail.outbox[0].body)
+
+    def test_password_reset_email_names_the_website(self):
+        from accounts.forms import UsernamePasswordResetForm
+
+        User.objects.create_user("sam", password="x-long-pass-123", email="sam@example.com")
+        form = UsernamePasswordResetForm({"username": "sam"})
+        self.assertTrue(form.is_valid())
+        form.save(domain_override="testserver", use_https=True, request=None,
+                  email_template_name="registration/password_reset_email.txt",
+                  subject_template_name="registration/password_reset_subject.txt")
+        self.assertEqual(mail.outbox[-1].subject, "Madon.co.in: choose a new password")
+        self.assertIn("for the Madon.co.in account", mail.outbox[-1].body)
 
     def test_scheduled_backup_uses_the_same_from(self):
         schedule = EmailBackupSchedule.load()
@@ -152,3 +175,35 @@ class DiagnosticsPageTests(TestCase):
     @override_settings(EMAIL_HOST="")
     def test_page_says_when_no_server_is_configured(self):
         self.assertIn("No email server configured", self.page())
+
+
+@override_settings(SECURE_SSL_REDIRECT=False, **GMAIL, DEFAULT_FROM_EMAIL="")
+class SiteNameSettingTests(TestCase):
+    """Admins > Appearance > Site name: the website's name in emails and on the shared pages."""
+
+    def setUp(self):
+        from diary.tests.helpers import join_main
+
+        self.admin = join_main(User.objects.create_user("boss", password="x-long-pass-123", is_superuser=True), "editor")
+        self.client.force_login(self.admin)
+
+    def save(self, value):
+        return self.client.post(reverse("settings"), {"site_name": value, "home_name": "Home", "diary_name": "Case Law Diary",
+                                                     "fees_name": "Fee Register"})
+
+    def test_default_is_madon_co_in(self):
+        self.assertEqual(sender.site_name(), "Madon.co.in")
+        self.assertContains(self.client.get(reverse("settings")), 'value="Madon.co.in"')
+
+    def test_a_new_name_is_used_in_emails_and_page_titles(self):
+        self.assertEqual(self.save("  Madon   Chambers ").status_code, 302)
+        self.assertEqual(sender.site_name(), "Madon Chambers")
+        self.assertEqual(sender.effective_from()[0], "Madon Chambers <you@gmail.com>")
+        services.send_test_email(["me@example.com"])
+        self.assertEqual(mail.outbox[-1].subject, "Madon Chambers: test email")
+        self.assertContains(self.client.get(reverse("user_list")), "<title>Users - Madon Chambers</title>")
+
+    def test_blank_goes_back_to_the_default(self):
+        self.save("Other")
+        self.save("")
+        self.assertEqual(sender.site_name(), "Madon.co.in")

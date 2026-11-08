@@ -5,7 +5,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}{% block program_title %}{{ diary_name }}{% endblock %}{% endblock %}</title>
+  <title>{% block title %}{% block program_title %}{{ site_name }}{% endblock %}{% endblock %}</title>
   {# Hyperlinks on citations on/off (D87): read before the page is drawn, so switching never needs a reload. #}
   <script>try{if(localStorage.getItem("quill.links")==="off"){document.documentElement.classList.add("links-off");}}catch(e){}</script>
   <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
@@ -21,7 +21,7 @@
   <div class="page">
     <header class="site-header" id="site-header">
       <div class="brand-row">
-        <span class="brand">{% block program_name %}<a href="{% url 'home' %}?home=1" title="Go to Home (&#8997;H)" aria-label="Go to Home">{{ diary_name }}</a>{% endblock %}</span>
+        <span class="brand">{% block program_name %}<a href="{% url 'home' %}?home=1" title="Go to Home (&#8997;H)" aria-label="Go to Home">{{ site_name }}</a>{% endblock %}</span>
         {% if user.is_authenticated %}
         <span class="history-buttons">
           <button type="button" class="back-button" data-back data-fallback="{% url 'home' %}" title="Back (within this site)" aria-label="Back"><svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true" focusable="false"><path d="M14 8H2M7 3L2 8l5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
