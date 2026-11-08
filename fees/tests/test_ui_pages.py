@@ -648,7 +648,9 @@ class OutstandingScreenTests(UiPageBase):
         self.assertIn('scope="rowgroup"', text)
         self.assertIn("Subtotal, ", text)
         self.assertIn("Grand total due", text)
-        self.assertIn('class="crumb-row"', text)
+        # The By Firm | All Memos sub-tabs replace the old back link; Export sits on the tab row.
+        self.assertIn('<a href="/fees/outstanding/detail/" class="on" aria-current="page">All Memos</a>', text)
+        self.assertRegex(text, r'<div class="tab-bar">\s*<nav class="stat-tabs sub-tabs" aria-label="Outstanding lists">')
         self.assertRegex(text, r'<span class="status status-(unpaid|partial|overdue)" title="[A-Za-z ()]+"><span class="status-sq" aria-hidden="true"></span><span class="status-word visually-hidden">')
         self.assert_no_unlabelled_controls(text, "detail")
 
