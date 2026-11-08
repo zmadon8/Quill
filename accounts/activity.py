@@ -27,23 +27,32 @@ def active_panel():
         User.objects.filter(last_seen_at__gte=start_of_day, is_active=True, deleted_at__isnull=True)
         .order_by("-last_seen_at", "username")
     )
-    where = {}
+    seen_in, fallback = {}, {}
     if users:
         memberships = (
             ProfileMembership.objects.filter(
                 user__in=[u.pk for u in users], suspended=False, profile__deleted_at__isnull=True
             )
             .select_related("profile")
-            .order_by(F("last_used_at").desc(nulls_last=True), "pk")
+            .order_by(F("last_seen_at").desc(nulls_last=True), F("last_used_at").desc(nulls_last=True), "pk")
         )
         names = get_names()
         for m in memberships:
-            if m.user_id not in where:  # the most recently used one comes first
-                profile = (m.profile.display_name or "").strip() or m.profile.name
-                where[m.user_id] = f"{names.get(m.program, m.program)} \u00b7 {profile}"
+            profile = (m.profile.display_name or "").strip() or m.profile.name
+            label = f"{names.get(m.program, m.program)} \u00b7 {profile}"
+            if m.last_seen_at is not None and m.last_seen_at >= start_of_day:
+                # Every profile the user worked in today, the latest first (a Diary and a Fee Register profile both show).
+                seen_in.setdefault(m.user_id, []).append(label)
+            else:
+                # Not seen in any profile today (only on Home, or before profiles were tracked): the one used last.
+                fallback.setdefault(m.user_id, label)
     cutoff = now - timedelta(minutes=ACTIVE_MINUTES)
     rows = [
-        {"name": u.get_full_name().strip() or u.username, "where": where.get(u.pk, ""), "recent": u.last_seen_at >= cutoff}
+        {
+            "name": u.get_full_name().strip() or u.username,
+            "where": ", ".join(seen_in[u.pk]) if u.pk in seen_in else fallback.get(u.pk, ""),
+            "recent": u.last_seen_at >= cutoff,
+        }
         for u in users
     ]
     return {

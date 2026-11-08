@@ -104,7 +104,7 @@ HTML page weight could not be measured without a running server. Pages are serve
 - Search shows as a magnifier icon in the program nav that opens a bar under the header; the program name links to the Dashboard.
 - Columns can be hidden per table (hide only); resizing columns is not wired yet.
 - Memo form works without JavaScript (the total is worked out on the server on save); with script it shows a live total, words, number preview and a leave warning. New endpoint `fees_memo_preview_totals` serves the live total from the server rule, so the browser never repeats the fee rule.
-- Payment prefill is server side (`?memo=ID`, repeated or comma separated, up to 30 memos), not a JSON call. Payee chips need the matters of the memos.
+- Payment prefill is server side (`?memo=ID`, repeated or comma separated, up to 200 memos), not a JSON call. Payee chips need the matters of the memos.
 - Outstanding "Pay" is a plain GET form that opens the payment form with the ticked memos.
 - Dashboard "Appearances" box is hidden when the Statistics switch is off; Statistics is left out of the nav too. With Statistics off nothing is computed: the Statistics pages, year end, exports and pivot answer `STATISTICS_DISABLED` (HTTP 409, "Statistics is switched off in Settings.") (owner decision 3).
 - Statistics tabs are chosen with `?tab=` (standard, explore); all are server rendered and forms post back to the existing endpoints with `return_to=statistics`.

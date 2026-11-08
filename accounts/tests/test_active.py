@@ -162,3 +162,79 @@ class BackupTests(TestCase):
         user = User.objects.get(username="lena")
         self.assertTrue(user.can_see_active)
         self.assertEqual(user.last_seen_at, stamp)
+
+
+@override_settings(SECURE_SSL_REDIRECT=False, FEES_ENABLED=True)
+class ActiveInEveryProfileTests(TestCase):
+    """Someone working in a Case Law Diary profile and a Fee Register profile shows both on the Active Now panel."""
+
+    def setUp(self):
+        from accounts.suite import KEY_FEES
+
+        self.admin = join_main(User.objects.create_user("boss", password=PASSWORD, is_superuser=True), "editor")
+        self.ziyad = join_main(User.objects.create_user("ziyad", password=PASSWORD), "editor")
+        self.fees = Profile.objects.create(program=KEY_FEES, name="Ziyad")
+        ProfileMembership.objects.create(user=self.ziyad, profile=self.fees, program=KEY_FEES, role="editor")
+
+    def where(self):
+        self.client.force_login(self.admin)
+        resp = self.client.get(reverse("home") + "?home=1")
+        return {r["name"]: r["where"] for r in resp.context["active_now"]}
+
+    def test_a_program_page_records_the_profile_it_used(self):
+        self.client.force_login(self.ziyad)
+        self.client.get(reverse("diary_home"))
+        self.client.get(reverse("fees_dashboard"))
+        seen = ProfileMembership.objects.filter(user=self.ziyad, last_seen_at__isnull=False).values_list("program", flat=True)
+        self.assertEqual(sorted(seen), ["diary", "fees"])
+
+    def test_both_profiles_show_for_one_user(self):
+        self.client.force_login(self.ziyad)
+        self.client.get(reverse("diary_home"))
+        self.client.get(reverse("fees_dashboard"))
+        where = self.where()["ziyad"]
+        self.assertIn("Case Law Diary \u00b7 Main", where)
+        self.assertIn("Fee Register \u00b7 Ziyad", where)
+
+    def test_only_the_profiles_used_today_show(self):
+        self.client.force_login(self.ziyad)
+        self.client.get(reverse("diary_home"))
+        self.assertEqual(self.where()["ziyad"], "Case Law Diary \u00b7 Main")
+
+    def test_a_second_page_within_a_minute_writes_nothing(self):
+        self.client.force_login(self.ziyad)
+        self.client.get(reverse("fees_dashboard"))
+        with CaptureQueriesContext(connection) as ctx:
+            self.client.get(reverse("fees_dashboard"))
+        self.assertEqual(updates_of_last_seen(ctx), [])
+
+
+@override_settings(SECURE_SSL_REDIRECT=False, FEES_ENABLED=True)
+class HomeOpensEveryProfileTests(TestCase):
+    """Home has a button for each Case Law Diary profile and each Fee Register profile the user has."""
+
+    def setUp(self):
+        from accounts.suite import KEY_FEES
+
+        self.user = join_main(User.objects.create_user("ziyad", password=PASSWORD), "editor")
+        self.one = Profile.objects.create(program=KEY_FEES, name="Ziyad")
+        self.two = Profile.objects.create(program=KEY_FEES, name="Chambers")
+        for p in (self.one, self.two):
+            ProfileMembership.objects.create(user=self.user, profile=p, program=KEY_FEES, role="editor")
+        self.client.force_login(self.user)
+
+    def test_both_fee_register_profiles_have_a_button(self):
+        html = self.client.get(reverse("home") + "?home=1").content.decode()
+        self.assertIn("Fee Register &middot; Chambers", html.replace("\u00b7", "&middot;"))
+        self.assertIn("Fee Register &middot; Ziyad", html.replace("\u00b7", "&middot;"))
+        self.assertEqual(html.count('action="%s"' % reverse("profile_switch")), 1)
+
+    def test_the_button_opens_that_profile(self):
+        from accounts.profiles import get_profile_for
+        from accounts.suite import KEY_FEES
+
+        html = self.client.get(reverse("home") + "?home=1").content.decode()
+        other = self.two if 'value="%d"' % self.two.pk in html else self.one
+        resp = self.client.post(reverse("profile_switch"), {"profile": other.pk})
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(get_profile_for(self.user, KEY_FEES), other)

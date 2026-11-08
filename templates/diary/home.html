@@ -15,6 +15,12 @@
   {% endif %}
   {% if fees_profile %}
   <a class="program-link" href="{% url 'fees_landing' %}">{{ fees_label }}</a>
+  {% for p in fees_other_profiles %}
+  <form method="post" action="{% url 'profile_switch' %}" class="program-switch">
+    {% csrf_token %}
+    <button type="submit" name="profile" value="{{ p.pk }}" class="program-link">{% if p.display_name %}{{ p.display_name }}{% else %}{{ fees_name }} &middot; {{ p.name }}{% endif %}</button>
+  </form>
+  {% endfor %}
   {% endif %}
   {% if not diary_profile and not fees_profile %}
   <p class="muted">No programs are available to you yet.</p>

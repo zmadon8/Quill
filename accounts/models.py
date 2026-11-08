@@ -175,6 +175,9 @@ class ProfileMembership(models.Model):
     suspended = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     last_used_at = models.DateTimeField(null=True, blank=True)
+    # When the user last opened a page of this profile (accounts.middleware, at most once a minute), for the Active Now
+    # panel on Home: someone working in a Case Law Diary profile and a Fee Register profile shows both.
+    last_seen_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         constraints = [

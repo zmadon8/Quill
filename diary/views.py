@@ -17,7 +17,7 @@ from accounts import activity, programs
 from accounts.models import ROLE_EDITOR
 from accounts.models import Profile
 from accounts.permissions import admin_required, reader_required
-from accounts.profiles import request_profile, request_role
+from accounts.profiles import request_memberships, request_profile, request_role
 from accounts.suite import KEY_DIARY, KEY_FEES, get_names
 
 from . import reading, searchtext, undo_session
@@ -175,7 +175,16 @@ def home(request):
     if fees_profile is not None and programs.fees_enabled():
         # A Fee Register user gets a button for it; a user without one sees exactly the page they saw before.
         context["fees_profile"] = fees_profile
-        context["fees_label"] = (fees_profile.display_name or "").strip() or get_names()[KEY_FEES]
+        context["fees_name"] = get_names()[KEY_FEES]
+        # Someone with several Fee Register profiles opens any of them from here, as with the Case Law Diary.
+        context["fees_other_profiles"] = [m.profile for m in request_memberships(request, KEY_FEES)[1:]]
+        own = (fees_profile.display_name or "").strip()
+        if own:
+            context["fees_label"] = own
+        elif context["fees_other_profiles"]:
+            context["fees_label"] = f"{context['fees_name']} \u00b7 {fees_profile.name}"
+        else:
+            context["fees_label"] = context["fees_name"]
     if activity.can_see_active(request.user):
         context.update(activity.active_panel())
     return render(request, "diary/home.html", context)
