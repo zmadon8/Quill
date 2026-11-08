@@ -4,7 +4,7 @@
 services:
   # The website.
   - type: web
-    name: judgment-diary
+    name: diary-web
     runtime: python
     plan: starter
     region: singapore
@@ -21,13 +21,17 @@ services:
         generateValue: true
       - key: DATABASE_URL
         fromDatabase:
-          name: judgment-diary-db
+          name: diary-db
           property: connectionString
       - key: BACKUP_RETENTION_DAYS
         value: "35"
       # Optional: only needed if you add your own domain name (comma separated).
       # Render's own address is allowed automatically.
       - key: DJANGO_ALLOWED_HOSTS
+        sync: false
+      # Needed with a custom domain, or logins fail with a CSRF error. Full address with https://
+      # (comma separated), for example https://diary.example.com
+      - key: CSRF_TRUSTED_ORIGINS
         sync: false
       # Email (Forgot my password, emailed backups). Set these in the dashboard; leave EMAIL_HOST empty to keep email off.
       # See docs/EMAIL.md.
@@ -44,7 +48,7 @@ services:
 
   # The nightly backup: 20:30 UTC is 02:00 in India (IST).
   - type: cron
-    name: judgment-diary-daily-backup
+    name: diary-daily-backup
     runtime: python
     plan: starter
     region: singapore
@@ -63,11 +67,11 @@ services:
       - key: DJANGO_SECRET_KEY
         fromService:
           type: web
-          name: judgment-diary
+          name: diary-web
           envVarKey: DJANGO_SECRET_KEY
       - key: DATABASE_URL
         fromDatabase:
-          name: judgment-diary-db
+          name: diary-db
           property: connectionString
       - key: BACKUP_RETENTION_DAYS
         value: "35"
@@ -91,10 +95,12 @@ services:
         sync: false
 
 databases:
-  - name: judgment-diary-db
+  - name: diary-db
     plan: basic-256mb
     region: singapore
-    postgresMajorVersion: "16"
+    # Smallest disk Render allows. A disk can grow later but never shrink, so keep it small.
+    diskSizeGB: 1
+    postgresMajorVersion: "18"
     # An empty list means the database accepts connections only from inside
     # Render, never from the open internet.
     ipAllowList: []
