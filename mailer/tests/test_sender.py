@@ -25,7 +25,7 @@ class EffectiveFromTests(SimpleTestCase):
 
     def test_matching_gmail_from_is_kept_without_warning(self):
         from_email, warnings = sender.effective_from()
-        self.assertEqual(from_email, "Madon.co.in <you@gmail.com>")
+        self.assertEqual(from_email, '"Madon.co.in" <you@gmail.com>')
         self.assertEqual(warnings, [])
 
     @override_settings(DEFAULT_FROM_EMAIL="Chambers <other@example.com>")
@@ -36,7 +36,7 @@ class EffectiveFromTests(SimpleTestCase):
 
     @override_settings(DEFAULT_FROM_EMAIL="")
     def test_gmail_host_with_empty_from_uses_the_login_address(self):
-        self.assertEqual(sender.effective_from()[0], "Madon.co.in <you@gmail.com>")
+        self.assertEqual(sender.effective_from()[0], '"Madon.co.in" <you@gmail.com>')
 
     @override_settings(EMAIL_HOST="smtp.googlemail.com", DEFAULT_FROM_EMAIL="x@example.com")
     def test_googlemail_host_counts_as_gmail(self):
@@ -45,12 +45,12 @@ class EffectiveFromTests(SimpleTestCase):
     @override_settings(EMAIL_HOST="smtp-relay.brevo.com", EMAIL_HOST_USER="login@brevo.example",
                        DEFAULT_FROM_EMAIL="Case Law Diary <me@example.org>")
     def test_other_hosts_keep_the_configured_from(self):
-        self.assertEqual(sender.effective_from(), ("Madon.co.in <me@example.org>", []))
+        self.assertEqual(sender.effective_from(), ('"Madon.co.in" <me@example.org>', []))
 
     @override_settings(EMAIL_HOST="smtp-relay.brevo.com", DEFAULT_FROM_EMAIL="Case Law Diary <you@gmail.com>")
     def test_gmail_from_through_another_server_is_warned_about(self):
         from_email, warnings = sender.effective_from()
-        self.assertEqual(from_email, "Madon.co.in <you@gmail.com>")
+        self.assertEqual(from_email, '"Madon.co.in" <you@gmail.com>')
         self.assertEqual(warnings, [sender.WARN_RELAY])
 
     @override_settings(EMAIL_HOST="")
