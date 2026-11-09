@@ -135,3 +135,33 @@ def restore(profile, user, history_id):
         txn_service._pin(profile, obj)
     touch(profile)
     return obj
+
+
+def _portfolio_ids(snapshot):
+    """The portfolio(s) a logged record belongs to, from its snapshot: a transaction, dividend or folio has one; a transfer has a
+    from and a to; an alternative value or a corporate action confirmation has none."""
+    snapshot = snapshot or {}
+    if snapshot.get("portfolio_id"):
+        return [snapshot["portfolio_id"]]
+    return [p for p in (snapshot.get("from_portfolio_id"), snapshot.get("to_portfolio_id")) if p]
+
+
+def attach_portfolio_names(profile, rows):
+    """Set ``row.portfolio_name`` on each history row (owner round 2026-11: History names the portfolio, not the person). A switch takes
+    the portfolio of the purchase and sale logged with it (same group); a transfer reads "From > To"."""
+    from investments.models import Portfolio
+
+    group_ids = {}
+    switch_groups = [r.group for r in rows if r.record_type == "switch" and r.group]
+    if switch_groups:
+        for g, snap in InvestmentHistory.objects.filter(profile=profile, group__in=switch_groups, record_type="transaction").values_list("group", "snapshot"):
+            group_ids.setdefault(g, [])
+            for pid in _portfolio_ids(snap):
+                if pid not in group_ids[g]:
+                    group_ids[g].append(pid)
+    wanted = {pid for r in rows for pid in _portfolio_ids(r.snapshot)} | {pid for ids in group_ids.values() for pid in ids}
+    names = dict(Portfolio.objects.filter(profile=profile, pk__in=wanted).values_list("pk", "name"))
+    for r in rows:
+        ids = group_ids.get(r.group, []) if r.record_type == "switch" else _portfolio_ids(r.snapshot)
+        r.portfolio_name = " > ".join(dict.fromkeys(names[i] for i in ids if i in names))
+    return rows

@@ -1,17 +1,18 @@
 """The Auto / Full number display for the Investments program (plan section 24.3).
 
 Pure Python, no Django imports. ``static/js/investments/money_auto.js`` mirrors it, and both are tested against the
-one golden table ``investments/tests/golden/money_auto.json``. It is deliberately separate from
-``fees.services.money.format_money``, which has a different rule that the Fee Register's tests depend on.
+one golden table ``investments/tests/golden/money_auto.json``.
 
-Rules (owner decision, plan 24.3):
+Rules (owner decisions, plan 24.3 and the owner round of November 2026):
 
 * Full: the complete amount, Indian grouping for rupees (``₹24,12,600``). Whole rupees show no decimals; an amount
   with paise shows two (``₹950.50``).
-* Auto, rupees: crores (``cr``) from 1 crore, lakhs (``lac``) from 1 lakh, thousands (``k``) from 1,000, rounded to
-  2 decimals with the decimals always shown (``₹2.41 cr``, ``₹24.13 lac``, ``₹85.40 k``); below 1,000 the full
-  number (``₹950``).
-* A figure that rounds up to the next unit is shown in that unit (``99.999 lac`` is ``1.00 cr``; ``999.996`` is ``1.00 k``).
+* Short (stored as ``auto``), rupees: exactly the Fee Register's short figures (``fees.services.money.format_money``
+  with the standard suffixes): below 10 the whole rupees; below 1 lakh thousands (``k``); below 1 crore lacs (``lac``);
+  otherwise crores (``cr``), with up to 2 decimals and trailing zeros dropped (``₹2.41 cr``, ``₹24.13 lac``,
+  ``₹85.4k``, ``₹0.95k``). A suffix longer than one letter is set off by a space.
+* Foreign amounts in Short: ``k`` and ``m`` (millions) with 2 decimals, below 1,000 the full amount; a figure that
+  rounds up to the next unit is shown in that unit.
 * Rounding is half away from zero on the exact amount. Negative amounts use a true minus sign before the symbol
   (``−₹60.30 k``); ``signed=True`` also puts ``+`` before a positive amount (gains).
 * Foreign amounts: Auto uses ``k`` and ``m`` (millions), Full shows the whole amount with Western grouping.
@@ -87,6 +88,20 @@ def _sign(negative, signed, is_zero):
     return "+" if signed and not negative and not is_zero else ""
 
 
+def _fee_register_short(exact):
+    """``(text, is zero)`` for a non-negative rupee amount, as the Fee Register's short figures show it."""
+    if exact < 10:
+        whole = int(exact.quantize(Decimal(1), rounding=ROUND_HALF_UP))
+        return group_indian(str(whole)), whole == 0
+    for limit, divisor, suffix in ((Decimal(100000), Decimal(1000), "k"), (Decimal(10000000), Decimal(100000), "lac"), (None, Decimal(10000000), "cr")):
+        if limit is None or exact < limit:
+            scaled = _round2(exact / divisor)
+            whole, frac = divmod(int(scaled * 100), 100)
+            text = group_indian(str(whole)) + (("." + f"{frac:02d}".rstrip("0")) if frac else "")
+            return text + (" " if len(suffix) > 1 else "") + suffix, False
+    raise AssertionError("unreachable")
+
+
 def format_amount(value, *, currency="INR", mode=AUTO, signed=False, symbol=None):
     """Format ``value`` (Decimal, int, float or numeric string) for display.
 
@@ -100,6 +115,9 @@ def format_amount(value, *, currency="INR", mode=AUTO, signed=False, symbol=None
     grouper = group_indian if rupees else group_western
     sym = symbol if symbol is not None else _SYMBOLS.get(currency, f"{currency} ")
     magnitude = _round2(abs(amount))
+    if rupees and mode != FULL:
+        body, is_zero = _fee_register_short(abs(amount))
+        return f"{_sign(negative, signed, is_zero)}{sym}{body}"
     sign = _sign(negative, signed, magnitude == _ZERO)
     if mode == FULL or magnitude < Decimal(1000):
         return f"{sign}{sym}{_plain(magnitude, grouper)}"

@@ -65,7 +65,7 @@
       th.setAttribute("aria-sort", "none");
       function go() {
         var dir = th.getAttribute("aria-sort") === "ascending" ? -1 : 1;
-        Array.prototype.forEach.call(th.parentNode.cells, function (o) { o.removeAttribute("class") || 0; o.setAttribute("aria-sort", "none"); o.classList.remove("sorted", "d"); });
+        Array.prototype.forEach.call(th.parentNode.cells, function (o) { o.setAttribute("aria-sort", "none"); o.classList.remove("sorted", "d"); /* keeps r / c alignment classes */ });
         th.setAttribute("aria-sort", dir === 1 ? "ascending" : "descending");
         th.classList.add("sorted"); if (dir === -1) { th.classList.add("d"); }
         sortTable(table, col, dir);

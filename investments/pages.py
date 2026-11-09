@@ -76,7 +76,7 @@ PAGES = (
     _p("admin_prices", "settings/price-sources/", "Admin: Price sources", "settings", "Price sources", "Price sources are set up in a later release.", admin=True, hideable=False),
     _p("admin_upload", "settings/price-upload/", "Admin: Upload price history", "settings", "Price sources", "Price history upload is set up in a later release.", admin=True, hideable=False),
     _p("admin_price_history", "settings/price-history/", "Admin: Price history", "settings", "Price history", "Pruning, the price archive and pinned prices are set up in a later release.", admin=True, hideable=False),
-    _p("admin_catalogue", "settings/catalogue/", "Admin: Investment catalogue", "settings", "Catalogue", "The catalogue is set up in a later release.", admin=True, hideable=False),
+    _p("admin_catalogue", "settings/catalogue/", "Investment catalogue", "settings", "Catalogue", "No shared investments yet.", hideable=False),
 )
 
 BY_SLUG = {p.slug: p for p in PAGES}

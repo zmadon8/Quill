@@ -2,7 +2,7 @@
    scoped under body.inv so nothing leaks into the other programs; the mockup's own page, header and body rules are
    dropped because the suite's shared shell (base_suite.html, design.css) supplies them. Uses the suite's tokens
    (static/css/tokens.css) plus the two new tokens --gain and --loss (owner to confirm, plan 25.3). */
-body.inv{--ox:var(--oxblood);--gain:#2d5a3d;--loss:#a8441f;--s1:#1e1c19;--s2:#5a5348;--s3:#8d8577;--s4:#b9b2a3;--s5:#d9d3c5;--data:15px;--tap:44px;--hair:#d9d3c5;--panel:#fcfbf8;--amber-bg:#f4ead0;--amber-line:#c9a24d;--amber-ink:#6b4e12}
+body.inv{--ox:var(--oxblood);--gain:#2d5a3d;--loss:#a8441f;--s1:#1e1c19;--s2:#5a5348;--s3:#8d8577;--s4:#b9b2a3;--s5:#d9d3c5;--data:1rem;--amber-bg:#FFFBEB;--amber-line:#FCD34D;--amber-ink:#92400E}
 /* The sub-tabs look like the Fee Register's (ledger.css .stat-tabs) and share a row with the page's buttons (.tab-bar). */
 body.inv nav.sub{display:flex;flex-wrap:wrap;gap:0 20px;margin:0;border-bottom:1px solid var(--line)}
 body.inv nav.sub a{display:inline-flex;align-items:center;margin-bottom:-1px;padding:0 4px 8px;border-bottom:2px solid transparent;color:var(--muted);text-decoration:none}
@@ -291,3 +291,79 @@ body.inv details summary{cursor:pointer;color:var(--muted);font-size:14px;margin
 body.inv.compact table.led td{padding:6px 8px}
 body.inv.compact table.led td.nm{font-size:15px}
 @media print{body.inv .tools,body.inv nav.sub,body.inv .acts,body.inv .act,body.inv form button,body.inv aside.ins form{display:none}body.inv table.led{font-size:11pt}}
+
+/* ---------- The Fee Register's look (owner round 2026-11: "the UI design choices the same as in Fee Register") ----------
+   These copy the values of static/css/ledger.css for its tables (.table-card / .ledger-table), filters (.filters), form labels,
+   cards, notices and figures, so the Investments templates keep their own class names. They come last and win over the
+   mockup-generated rules above. The control height, hairline and panel colours are the ledger tokens (body.inv no longer
+   overrides --tap, --hair or --panel). */
+body.inv .tw{overflow:auto;max-height:70vh;background:var(--card);border:1px solid var(--line);border-radius:var(--radius)}
+body.inv table.led{font-size:1rem;line-height:1.4}
+body.inv table.led caption{padding:8px 12px;font-size:.857rem;color:var(--muted)}
+body.inv table.led th{padding:8px 12px;background:var(--card);color:var(--muted);font-size:11px;font-weight:600;letter-spacing:.08em;border-bottom:0;position:sticky;top:0;z-index:2;box-shadow:inset 0 -1px 0 var(--ink)}
+body.inv table.led td{padding:8px 12px;border-bottom:0;vertical-align:middle;color:var(--ink)}
+body.inv table.led tbody tr+tr td{border-top:1px solid var(--line)}
+body.inv table.led td.nm{font:inherit;line-height:1.4;color:var(--ink)}
+body.inv table.led td.nm small{font-size:.857rem}
+body.inv table.led tbody tr:hover{background:var(--paper-2)}
+body.inv table.led tfoot td{background:var(--paper);padding:8px 12px;font-size:1rem}
+body.inv table.led tr.grp td{padding:12px 12px 6px;font-size:11px;font-weight:600;letter-spacing:.08em}
+body.inv table.led tr.hi td{background:var(--amber-bg)}
+body.inv table.led tr.sub td{font-size:.929rem}
+body.inv table.led td.act a{font-size:.857rem}
+body.inv.compact table.led td{padding:4px 10px}
+body.inv.compact table.led td.nm{font-size:inherit}
+/* Filters and form labels: small capitals above the control, as in the Fee Register */
+body.inv .sel{gap:4px}
+body.inv .sel>span,body.inv .sel>label>span,body.inv .fld>label{font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+body.inv .tools{padding:12px;gap:8px 12px;background:var(--card);border:1px solid var(--line);border-radius:var(--radius)}
+body.inv .ctx,body.inv .util,body.inv .tools .ctx{gap:8px 12px}
+body.inv .tools select,body.inv .tools input[type=date]{min-height:var(--tap);font-size:1rem}
+body.inv form.sec,body.inv .sec>form{padding:12px;background:var(--card);border:1px solid var(--line);border-radius:var(--radius)}
+body.inv input[type=text],body.inv input[type=search],body.inv input[type=date],body.inv input[type=number],body.inv input:not([type]),body.inv select,body.inv textarea{font-size:1rem;border-color:var(--line-strong);border-radius:var(--radius);padding:6px 10px}
+body.inv input:focus,body.inv select:focus,body.inv textarea:focus{outline:0;border-color:var(--ink);box-shadow:0 0 0 1px var(--ink)}
+body.inv .fld .note{font-size:.857rem}
+body.inv .fld.bad input,body.inv .fld.bad select,body.inv .fld .in.err{border-color:#B91C1C}
+body.inv .fld .note.err{color:#B91C1C}
+body.inv .row{gap:12px 16px}
+body.inv .form{padding-top:0}
+body.inv .acts-row{gap:8px;margin-top:16px}
+/* Buttons: ledger.css .button / .primary / .secondary / .small / .danger */
+body.inv .btn,body.inv button.btn{min-height:var(--tap);padding:0 14px;gap:6px;border:1px solid var(--line-strong);border-radius:var(--radius);background:transparent;color:var(--ink);font:inherit;font-weight:500;line-height:1.2;cursor:pointer;text-decoration:none}
+body.inv .btn:hover{border-color:var(--ink);background:var(--paper-2);text-decoration:none}
+body.inv .btn.p,body.inv button.btn.p{background:var(--accent);border-color:var(--accent);color:var(--paper)}
+body.inv .btn.p:hover{background:var(--accent-hover);border-color:var(--accent-hover);color:var(--paper)}
+body.inv .btn.q,body.inv button.btn.q{background:transparent;border-color:var(--line-strong);color:var(--ink)}
+body.inv .btn.sm,body.inv button.btn.sm,body.inv .page-actions .btn{min-height:0;padding:4px 10px;font-size:.857rem}
+body.inv .btn.dng,body.inv button.btn.dng{background:#991B1B;border-color:#991B1B;color:var(--paper)}
+body.inv .btn.dng:hover{background:#7F1D1D;border-color:#7F1D1D}
+body.inv .btn:disabled,body.inv button:disabled{opacity:.45;cursor:not-allowed}
+body.inv button.linklike{color:var(--accent-hover);text-decoration:none}
+body.inv button.linklike:hover{text-decoration:underline}
+body.inv .toggle{border-color:var(--line-strong);border-radius:var(--radius);font-size:.857rem}
+body.inv .toggle span{min-height:calc(var(--tap) - 2px)}
+body.inv .toggle span.on{background:var(--accent-tint);color:var(--accent-hover)}
+/* Notices: ledger.css .notice, .notice.warning and .alert-error */
+body.inv .ban{padding:12px 16px;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);font-size:1rem}
+body.inv .ban.wa{background:#FFFBEB;border-color:#FCD34D;color:#92400E}
+body.inv .ban.al{background:#FEF2F2;border-color:#FCA5A5;color:#B91C1C}
+body.inv .ban .r{font-size:.857rem;letter-spacing:.04em}
+/* Figures: the Fee Register Dashboard's boxes (ledger.css .kpi-grid) */
+body.inv .strip{border-top:3px double var(--ink);border-bottom:1px solid var(--ink)}
+body.inv .strip .f{padding:12px 16px;border-left:1px solid var(--line)}
+body.inv .strip .f:first-child{padding-left:16px}
+body.inv .lab{font-size:11px;font-weight:600;letter-spacing:.08em}
+body.inv .fig{font-size:1.75rem;font-weight:400}
+body.inv .fig small{font-size:.857rem}
+body.inv .kvs .v{font-size:1.286rem}
+/* Cards, lists and text */
+body.inv .panel{padding:16px;background:var(--card);border:1px solid var(--line);border-radius:var(--radius)}
+body.inv .panel h3,body.inv aside.ins h3,body.inv .choices h3{font-family:var(--font-serif);font-size:1.07rem;font-weight:500}
+body.inv .choices,body.inv ol.steps{border-top:1px solid var(--line)}
+body.inv .hint{font-size:.857rem;color:var(--faint)}
+body.inv p.lead{max-width:none}
+body.inv .tag{font-size:.786rem;letter-spacing:.04em;padding:1px 6px;border-color:var(--line-strong);border-radius:var(--radius)}
+body.inv .tag.amb{border-color:#FCD34D;background:#FFFBEB;color:#92400E}
+body.inv .tag.ox{border-color:var(--accent);color:var(--accent-hover)}
+body.inv .kv dt{font-size:.857rem}
+body.inv .kv{font-size:1rem}

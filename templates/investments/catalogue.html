@@ -14,6 +14,6 @@
 {% for i in items %}<tr><td class="nm" data-sort="{{ i.name|lower }}"><a href="{% url 'investments_admin_catalogue_item' i.pk %}">{{ i.name }}</a></td><td>{{ i.get_kind_display }}</td><td>{{ i.code }}</td><td>{{ i.get_price_source_display }}</td><td>{{ i.price_basis|default:"none" }}</td>
 <td data-sort="{{ i.last|date:'Y-m-d' }}">{% if i.last %}{{ i.last|date:"j M Y" }}{% else %}<span class="na">none</span>{% endif %}</td><td class="r">{{ i.rows }}</td><td class="r">{{ i.holders }}</td>
 <td>{% for f in i.flags %}<span class="tag {% if f == 'failing' or f == 'split' %}ox{% else %}amb{% endif %}">{{ f }}</span>{% endfor %}</td></tr>{% empty %}<tr><td colspan="9" class="na">Nothing matches.</td></tr>{% endfor %}</tbody></table></div>
-<div class="sec"><h2>Add an investment</h2></div>
-<form method="post" action="{% url 'investments_admin_catalogue_new' %}" class="form">{% csrf_token %}{% include "investments/_form.html" with form=new_form %}<div class="acts-row"><button class="btn q" type="submit">Add</button></div></form>
+{% if is_admin %}<div class="sec"><h2>Add an investment</h2></div>
+<form method="post" action="{% url 'investments_admin_catalogue_new' %}" class="form">{% csrf_token %}{% include "investments/_form.html" with form=new_form %}<div class="acts-row"><button class="btn q" type="submit">Add</button></div></form>{% endif %}
 {% endblock %}

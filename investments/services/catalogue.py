@@ -19,13 +19,25 @@ from investments.models import (
 from investments.services import fetch, prices
 
 PAGE = 50
-EDITABLE = ("name", "code", "isin", "exchange", "currency", "asset_class", "sector", "price_source", "fallback_source", "fetch_enabled", "latest_pe",
+EDITABLE = ("name", "code", "isin", "exchange", "currency", "asset_class", "sector", "price_source", "fallback_source", "fetch_enabled",
             "next_results_date")
 
 
 def require_admin(user):
     if not getattr(user, "is_admin", False):
         raise forbidden("Only an Admin can use the catalogue.")
+
+
+def require_editor(user):
+    """Prices of a shared investment may be corrected by any Editor in Investments (owner round 2026-11); an Admin is an Editor everywhere."""
+    from accounts.models import ROLE_EDITOR
+    from accounts.permissions import program_role
+    from accounts.suite import KEY_INVESTMENTS
+
+    if getattr(user, "is_admin", False):
+        return
+    if not getattr(user, "is_authenticated", False) or program_role(user, KEY_INVESTMENTS) != ROLE_EDITOR:
+        raise forbidden("Only an Editor can change prices.")
 
 
 def log(user, instrument, record_type, record_id=None, field="", old="", new="", reason=""):
@@ -189,7 +201,7 @@ def _pins_on(instrument, day):
 @transaction.atomic
 def set_price(user, instrument, day, close, reason=""):
     """Edit or add a price: it becomes a hand-entered row that the nightly update never overwrites; the original is kept in the log."""
-    require_admin(user)
+    require_editor(user)
     close = Decimal(str(close).replace(",", "").strip()).quantize(Decimal("0.0001"))
     if close <= 0:
         raise InvestmentsError("BAD_NUMBER", "A price must be more than zero.")
@@ -205,7 +217,7 @@ def set_price(user, instrument, day, close, reason=""):
 
 @transaction.atomic
 def delete_price(user, instrument, day, reason=""):
-    require_admin(user)
+    require_editor(user)
     old = prices.series(instrument, day, day)
     if not old:
         raise not_found("price")
@@ -218,7 +230,7 @@ def delete_price(user, instrument, day, reason=""):
 @transaction.atomic
 def restore_price(user, log_id):
     """Put a deleted price back from the log."""
-    require_admin(user)
+    require_editor(user)
     row = CatalogueHistory.objects.filter(pk=log_id, record_type="price_deleted").first()
     inst = Instrument.objects.filter(pk=row.instrument_id_ref).first() if row else None
     if row is None or inst is None:
@@ -231,26 +243,109 @@ def restore_price(user, log_id):
     fetch.bump_version()
 
 
-@transaction.atomic
 def refetch_range(user, instrument, start, end):
-    """Fetch a date range again from the source and replace the fetched rows in it (never uploaded or hand-entered ones)."""
-    require_admin(user)
+    """Fetch a date range again from the source and replace the fetched rows in it (never uploaded or hand-entered ones). The source is
+    asked first, outside any transaction; nothing stored is touched if it fails or sends nothing for the range."""
+    require_editor(user)
     from investments.adapters import mfapi, yahoo
+    from investments.adapters.base import FetchError
     from investments.services import locks
 
     if instrument.price_source not in ("yahoo", "amfi", "mfapi"):
-        raise InvestmentsError("NO_SOURCE", "This investment has no automatic price source.", 409)
-    with locks.heavy("price_import"):
-        if instrument.price_source == "yahoo":
-            result = yahoo.fetch(fetch.symbol_for(instrument, "yahoo"), start, years=30)
-        else:
-            result = mfapi.fetch(fetch.symbol_for(instrument, "mfapi"), start)
-        rows = [(d, c) for d, c in result.rows if start <= d <= end]
-        Price.objects.filter(instrument=instrument, date__range=(start, end), source__in=["api", "helper"]).delete()
-        added, _changed, kept = fetch.upsert_prices(instrument, rows, "api", fetch.default_basis(instrument.price_source))
-    log(user, instrument, "refetch", None, f"{start}..{end}", "", f"{added} rows", f"{kept} uploaded rows kept")
+        raise InvestmentsError("NO_SOURCE", "This investment has no automatic price source, so its prices are typed or uploaded.", 409)
+    if start > end:
+        raise InvestmentsError("BAD_DATE", "The start date is after the end date.")
+    try:
+        with locks.heavy("price_import"):
+            try:
+                if instrument.price_source == "yahoo":
+                    result = yahoo.fetch(fetch.symbol_for(instrument, "yahoo"), start, years=30)
+                else:   # AMFI's daily file has no history; mfapi.in serves a fund's whole history by its AMFI scheme code
+                    result = mfapi.fetch(fetch.symbol_for(instrument, "mfapi"), start)
+            except FetchError as exc:
+                raise InvestmentsError("FETCH_FAILED", f"The price source did not answer ({exc}). Nothing was changed; try again later.", 502)
+            rows = [(d, c) for d, c in result.rows if start <= d <= end]
+            if not rows:
+                raise InvestmentsError("NO_ROWS", f"The price source has no prices from {start:%-d %b %Y} to {end:%-d %b %Y}. Nothing was changed.", 409)
+            with transaction.atomic():
+                Price.objects.filter(instrument=instrument, date__range=(start, end), source__in=["api", "helper"]).delete()
+                added, _changed, kept = fetch.upsert_prices(instrument, rows, "api", fetch.default_basis(instrument.price_source))
+                log(user, instrument, "refetch", None, f"{start}..{end}", "", f"{added} rows", f"{kept} uploaded rows kept")
+    except locks.Busy:
+        raise InvestmentsError("BUSY", "Prices are being updated or imported just now. Try again in a minute.", 503)
     fetch.bump_version()
     return added
+
+
+def fetch_from(user, instrument, start, today=None):
+    """Fetch the price history from ``start`` to today (owner round 2026-11: choose the start date)."""
+    today = today or datetime.date.today()
+    if start > today:
+        raise InvestmentsError("BAD_DATE", "Choose a start date that is not in the future.")
+    return refetch_range(user, instrument, start, today)
+
+
+def first_purchase_date(instrument, profile=None):
+    """The earliest date a profile has a record of this investment (purchase, sale, transfer or dividend), or None. Prices are shared, so
+    for trimming every profile counts (``profile`` None); with ``profile``, that profile's own first date."""
+    from django.db.models import Min
+
+    from investments.models import Dividend
+
+    scope = {"instrument": instrument} | ({"profile": profile} if profile is not None else {})
+    dates = [
+        Transaction.objects.filter(**scope).aggregate(m=Min("date"))["m"],
+        Transaction.objects.filter(**scope).aggregate(m=Min("allotment_date"))["m"],
+        Transfer.objects.filter(**scope).aggregate(m=Min("date"))["m"],
+        Dividend.objects.filter(**scope).aggregate(m=Min("date"))["m"],
+    ]
+    dates = [d for d in dates if d]
+    return min(dates) if dates else None
+
+
+def trim_preview(instrument):
+    """What "remove the price history before the first purchase" would delete. Fetched rows only: hand-entered prices, uploaded rows and
+    pinned prices are kept, and so is the last price on or before the first purchase (it values that purchase)."""
+    from investments.models import KIND_INDEX
+
+    out = {"first": first_purchase_date(instrument), "cutoff": None, "remove": 0, "kept_uploads": 0, "problem": ""}
+    if instrument.kind == KIND_INDEX:
+        out["problem"] = "An index is compared with purchases of every investment, so its history is never trimmed."
+        return out
+    if instrument.profile_id is not None or instrument.kind == "alternative":
+        out["problem"] = "This investment has no fetched price history."
+        return out
+    if out["first"] is None:
+        out["problem"] = "No profile has bought this investment yet, so there is no first purchase date."
+        return out
+    keep = Price.objects.filter(instrument=instrument, date__lte=out["first"]).order_by("-date").values_list("date", flat=True).first()
+    out["cutoff"] = keep or out["first"]
+    older = Price.objects.filter(instrument=instrument, date__lt=out["cutoff"])
+    out["remove"] = older.filter(source__in=["api", "helper"]).count()
+    out["kept_uploads"] = older.filter(source="upload").count()
+    return out
+
+
+def trim_before_first_purchase(user, instrument, reason=""):
+    """Delete the fetched daily prices from before the first purchase (any profile's). They can be brought back with :func:`fetch_from`."""
+    from investments.services import locks
+
+    require_editor(user)
+    preview = trim_preview(instrument)
+    if preview["problem"]:
+        raise InvestmentsError("NOT_APPLICABLE", preview["problem"], 409)
+    removed = 0
+    try:
+        with locks.heavy("price_import"):
+            ids = list(Price.objects.filter(instrument=instrument, date__lt=preview["cutoff"], source__in=["api", "helper"]).values_list("pk", flat=True))
+            for i in range(0, len(ids), 5000):
+                with transaction.atomic():
+                    removed += Price.objects.filter(pk__in=ids[i:i + 5000]).delete()[0]
+    except locks.Busy:
+        raise InvestmentsError("BUSY", "Prices are being updated or imported just now. Try again in a minute.", 503)
+    log(user, instrument, "prices_trimmed", None, f"before {preview['cutoff']}", f"{removed} rows", "", reason or "before the first purchase")
+    fetch.bump_version()
+    return removed
 
 
 # ---------------------------------------------------------------- structural operations (each after a backup)

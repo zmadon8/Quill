@@ -1,0 +1,19 @@
+{% extends "investments/base_investments.html" %}
+{# Remove the fetched prices from before the first purchase (owner round 2026-11): what goes, then the confirmation. #}
+{% block inv_content %}
+<div class="page-head"><h1>Remove older prices of {{ inst.name }}</h1></div>
+{% if preview.problem %}<div class="ban al"><span>{{ preview.problem }}</span></div>
+<div class="acts-row"><a class="btn q" href="{{ next }}">Back</a></div>
+{% else %}
+<ul>
+  {% if preview.own %}<li>Your first purchase: {{ preview.first|date:"j M Y" }}{% if preview.cutoff != preview.first %}; the price of {{ preview.cutoff|date:"j M Y" }}, the last one before it, is kept because it values that purchase{% endif %}.</li>
+  <li>Fetched daily prices removed: <b>{{ preview.remove }}</b>, every one dated before {{ preview.cutoff|date:"j M Y" }}.</li>
+  {% else %}<li>Another profile bought it earlier than you did, so the prices kept start from that profile's first purchase (its date is not shown here).</li>
+  <li>Fetched daily prices removed: <b>{{ preview.remove }}</b>.</li>{% endif %}
+  <li>Kept: hand-entered prices, pinned prices (31 March and transaction dates){% if preview.kept_uploads %}, and {{ preview.kept_uploads }} uploaded price{{ preview.kept_uploads|pluralize }} from those years{% endif %}.</li>
+</ul>
+<p class="hint">Prices are shared, so this applies to every profile that holds the investment; the first purchase counts every profile's records. The removed prices can be brought back at any time with "Fetch the price history from" an earlier date.</p>
+<form method="post" action="{% url 'investments_price_action' inst.pk %}">{% csrf_token %}<input type="hidden" name="action" value="trim"><input type="hidden" name="confirm" value="1"><input type="hidden" name="next" value="{{ next }}">
+<div class="acts-row"><button class="btn dng" type="submit">Remove {{ preview.remove }} price{{ preview.remove|pluralize }}</button><a class="btn q" href="{{ next }}">Cancel</a></div></form>
+{% endif %}
+{% endblock %}

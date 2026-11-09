@@ -48,7 +48,7 @@ class PageTests(InvTestCase):
         prices.set_manual_price(self.profile, self.user, self.reliance, d(2024, 6, 1), "150")
         r = self.client.get(reverse("investments_dashboard"))
         self.assertContains(r, "Reliance Industries")
-        self.assertContains(r, "₹1.50 k")
+        self.assertContains(r, "₹1.5k")
         over = {**base, "date": "2024-02-01", "units": "11"}
         r = self.post("investments_txn_new_sell", over)
         self.assertEqual(r.status_code, 409)
@@ -96,6 +96,19 @@ class PageTests(InvTestCase):
         self.assertContains(r, "differs from the amount paid")
         t.refresh_from_db()
         self.assertEqual(t.status, "awaiting")
+
+    def test_history_names_the_portfolio(self):
+        from investments.models import Portfolio
+
+        second = Portfolio.objects.create(profile=self.profile, name="Spouse")
+        t = tx.add_transaction(self.profile, self.user, side="buy", instrument=self.reliance, portfolio=second, broker=self.zerodha,
+                               date=d(2024, 1, 3), units=D(5), price=D(100))
+        tx.delete_transaction(self.profile, self.user, t.pk)
+        self.client.force_login(self.user)
+        html = self.client.get(reverse("investments_history")).content.decode()
+        self.assertIn("<th>Portfolio</th>", html)
+        self.assertNotIn("<th>Who</th>", html)
+        self.assertIn("<td>Spouse</td>", html)
 
     def test_delete_then_restore_from_history_page(self):
         t = self.buy(d(2024, 1, 1), 10, 100)

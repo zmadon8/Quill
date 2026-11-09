@@ -242,6 +242,11 @@ def investment(request, pk):
         "actions": [a for a in __import__("investments.services.corporate", fromlist=["for_profile"]).for_profile(profile) if a.instrument_id == inst.pk],
         "can_delete": (not any(counts.values())) or getattr(request.user, "is_admin", False),
     }
+    if inst.profile_id is None and inst.kind != KIND_ALTERNATIVE:
+        # The shared price history with the Editor's tools (owner round 2026-11), the same block as on the catalogue page.
+        from .views_catalogue import price_history_context
+
+        context.update(price_history_context(request, inst, prefix="p", profile=profile))
     return page(request, "investments/investment.html", context)
 
 

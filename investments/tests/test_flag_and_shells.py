@@ -132,9 +132,11 @@ class ShellTests(TestCase):
     def test_admin_pages_refuse_a_non_admin(self):
         editor, _ = make_user("editor", ROLE_EDITOR, profile=self.profile)
         self.client.force_login(editor)
-        for slug in ("admin_prices", "admin_catalogue", "admin_price_history"):
+        for slug in ("admin_prices", "admin_price_history"):
             with self.subTest(slug=slug):
                 self.assertEqual(self.client.get(reverse(pages.url_name(slug))).status_code, 403)
+        # the catalogue is open to every member since the owner round of November 2026 (its Admin parts stay Admin-only)
+        self.assertEqual(self.client.get(reverse(pages.url_name("admin_catalogue"))).status_code, 200)
 
     def test_money_filters_emit_both_texts(self):
         from django.template import Context, Template
@@ -142,5 +144,5 @@ class ShellTests(TestCase):
         out = Template("{% load investments_money %}{{ v|inr }}{{ g|inr_signed }}").render(Context({"v": 396000, "g": -60300}))
         self.assertIn('data-auto="₹3.96 lac"', out)
         self.assertIn('data-full="₹3,96,000"', out)
-        self.assertIn('data-auto="−₹60.30 k"', out)
+        self.assertIn('data-auto="−₹60.3k"', out)
         self.assertIn("m l", out)
