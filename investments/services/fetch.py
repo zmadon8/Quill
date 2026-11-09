@@ -139,7 +139,9 @@ def fetch_prices(*, ids=None, profile=None, trigger="cron", max_seconds=600, max
     today = today or date.today()
     started_at = clock()
     summary = {"tried": 0, "updated": 0, "failures": [], "stopped": "", "runs": []}
-    instruments = tracked_instruments(profile, ids)[:max_symbols]
+    from investments.services import helper
+
+    instruments = [i for i in tracked_instruments(profile, ids) if not helper.server_skips(i.price_source)][:max_symbols]
     funds = [i for i in instruments if i.kind == KIND_FUND and i.price_source in ("amfi", "mfapi")]
     others = [i for i in instruments if i not in funds]
     first_request = [True]

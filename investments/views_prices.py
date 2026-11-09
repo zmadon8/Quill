@@ -51,6 +51,23 @@ def update_prices(request):
 
 @inv_admin
 def price_sources(request):
+    from .models import PriceHelperToken
+    from .services import helper
+
+    new_token = None
+    if request.method == "POST" and helper.enabled():
+        action = request.POST.get("action")
+        try:
+            if action == "token":
+                _row, new_token = helper.create_token(request.user, request.POST.get("label", ""))
+            elif action == "revoke":
+                helper.revoke(int(request.POST.get("id", 0)))
+                messages.success(request, "Token revoked.")
+            elif action == "mode":
+                helper.set_mode(request.POST.get("source", ""), request.POST.get("mode", ""))
+                messages.success(request, "Saved.")
+        except InvestmentsError as err:
+            messages.error(request, err.message)
     last_runs = {}
     for run in SourceRun.objects.exclude(finished=None)[:200]:
         last_runs.setdefault(run.source, run)
@@ -64,6 +81,9 @@ def price_sources(request):
     return page(request, "investments/price_sources.html", {
         "page_title_text": "Price sources", "sources": sources, "summary": summary, "runs": runs, "version": fetch.price_version(),
         "last_button": PriceStatus.objects.values_list("last_button_update_at", flat=True).first(),
+        "helper_on": helper.enabled(), "tokens": PriceHelperToken.objects.order_by("-created_at") if helper.enabled() else [], "new_token": new_token,
+        "modes": [(k, helper.mode(k)) for k in ("yahoo", "amfi", "mfapi")] if helper.enabled() else [],
+        "helper_run": SourceRun.objects.filter(source="helper").first() if helper.enabled() else None,
     }, selectors=False)
 
 

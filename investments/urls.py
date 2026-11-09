@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import pages, views, views_holdings as vh, views_misc as vm, views_income as vi, views_reports as vr, views_catalogue as vc, views_prices as vp, views_txn as vt
+from . import pages, views, views_holdings as vh, views_misc as vm, views_helper as vhelp, views_income as vi, views_reports as vr, views_catalogue as vc, views_prices as vp, views_txn as vt
 
 # Mounted at /investments/ by config/urls.py. No app namespace: URL names are global and start with ``investments_``,
 # like the Fee Register's ``fees_`` names (accounts.context_processors.current_program_key relies on the prefix).
@@ -84,6 +84,8 @@ urlpatterns += [
     path("dividends/<int:pk>/", vi.dividend_form, name="investments_dividend_edit"),
     path("reports/<slug:slug>/", vr.report_view, name="investments_report"),
     path("insights/dismiss/", vr.insights_dismiss, name="investments_insight_dismiss"),
+    path("api/prices/wanted/", vhelp.wanted, name="investments_helper_wanted"),
+    path("api/prices/ingest/", vhelp.ingest, name="investments_helper_ingest"),
     path("prefs/selection/", views.set_selection, name="investments_set_selection"),
     path("prefs/money/", views.set_money_mode, name="investments_set_money_mode"),
 ]

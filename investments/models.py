@@ -647,3 +647,27 @@ class AmfiScheme(models.Model):
 
     class Meta:
         indexes = [models.Index(fields=["name"], name="inv_amfischeme_name_idx")]
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# The optional local helper (plan 28): built, switched off by default (PRICE_HELPER_ENABLED)
+# ---------------------------------------------------------------------------------------------------------------------
+
+class SourceSetting(models.Model):
+    """Per price source: who fetches it. ``server`` (default), ``helper`` (only the helper), or ``either`` (the server tries, the helper fills gaps)."""
+
+    source = models.CharField(max_length=20, unique=True)
+    fetch_mode = models.CharField(max_length=6, default="server", choices=[("server", "Server"), ("helper", "Helper only"), ("either", "Either")])
+
+
+class PriceHelperToken(models.Model):
+    """A token for the local helper. Only a hash is stored; the token is shown once. Not in the suite backup."""
+
+    label = models.CharField(max_length=80)
+    token_hash = models.CharField(max_length=64, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+    window_start = models.DateTimeField(null=True, blank=True)
+    window_calls = models.PositiveIntegerField(default=0)

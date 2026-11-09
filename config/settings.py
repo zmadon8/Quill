@@ -174,6 +174,11 @@ INVESTMENTS_ENABLED = (
     (os.environ["INVESTMENTS_ENABLED"] == "1") if "INVESTMENTS_ENABLED" in os.environ else _FEES_DEFAULT_ON
 )
 
+# The optional Investments local helper (plan 28): "1" switches on its two endpoints; anything else, or unset, keeps them a 404.
+PRICE_HELPER_ENABLED = os.environ.get("PRICE_HELPER_ENABLED") == "1"
+# The address of AMFI's daily NAV file (plan 30: the final address is still to be confirmed; set it here once known).
+INVESTMENTS_AMFI_URL = os.environ.get("INVESTMENTS_AMFI_URL", "")
+
 # Backup settings (used by the backups app).
 # Only the newest BACKUP_KEEP_COUNT backups are kept, of every kind (owner decision). Never below 1.
 BACKUP_KEEP_COUNT = max(1, _int("BACKUP_KEEP_COUNT", 30))
