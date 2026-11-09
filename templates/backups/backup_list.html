@@ -41,7 +41,7 @@
       <td>{{ b.get_kind_display }}</td>
       <td>{{ b.size_bytes|filesizeformat }}</td>
       <td>{% for label, n in b.record_counts.items %}{{ label }}: {{ n }}{% if not forloop.last %}, {% endif %}{% endfor %}</td>
-      <td><a href="{% url 'backup_download' b.pk %}">Download</a> | <a href="{% url 'restore_preview' b.pk %}">Restore</a>{% if b.kind == "pre_import" or b.kind == "post_import" or b.kind == "pre_clear" %} | <a href="{% url 'backup_delete' b.pk %}">Delete</a>{% endif %}</td>
+      <td><a href="{% url 'backup_download' b.pk %}">Download</a> | <a href="{% url 'restore_preview' b.pk %}">Restore</a>{% if b.kind == "pre_import" or b.kind == "post_import" or b.kind == "pre_clear" or b.kind == "pre_inv_delete" or b.kind == "pre_catalogue" %} | <a href="{% url 'backup_delete' b.pk %}">Delete</a>{% endif %}</td>
     </tr>
   {% endfor %}
   </tbody>

@@ -1,0 +1,10 @@
+{% extends "investments/base_investments.html" %}
+{% block inv_content %}
+<div class="titlebar"><h1 class="t">{{ kind_label }}</h1></div>
+<div class="stepper"><div class="done"><b>1</b>Type</div><div class="on"><b>2</b>Details</div><div><b>3</b>Confirm</div><div><b>4</b>What next</div></div>
+<form method="post" class="form" novalidate>{% csrf_token %}
+  <p class="hint">Prices cannot be searched or fetched yet, so type the details by hand. The code is used later to fetch prices ({% if kind == "fund" %}the AMFI scheme code{% else %}for example RELIANCE.NS for NSE, .BO for BSE{% endif %}).</p>
+  {% include "investments/_form.html" %}
+  <div class="acts-row"><button class="btn p" type="submit">Review</button><a class="btn q" href="{% url 'investments_add_1' %}">Back</a></div>
+</form>
+{% endblock %}

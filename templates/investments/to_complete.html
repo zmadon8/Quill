@@ -1,0 +1,16 @@
+{% extends "investments/base_investments.html" %}
+{% load investments_money %}
+{% block inv_content %}
+<div class="titlebar"><h1 class="t">To complete</h1><div class="meta">awaiting allotment &middot; SIP entries</div></div>
+{% if rows %}
+<div class="tw"><table data-table-id="inv-to_complete-1" class="led" data-sortable><thead><tr><th>Date paid</th><th>Investment</th><th>Kind</th><th class="r">Amount</th><th>Waiting</th><th>Broker</th><th class="r">Latest NAV suggests</th><th></th></tr></thead><tbody>
+{% for t in rows %}<tr{% if t.overdue %} class="hi"{% endif %}><td data-sort="{{ t.date|date:'Y-m-d' }}">{{ t.date|date:"j M Y" }}</td><td class="nm"><a href="{% url 'investments_investment' t.instrument.pk %}">{{ t.instrument.name }}</a></td>
+<td>{% if t.status == "awaiting" %}Awaiting allotment ({{ t.get_side_display|lower }}){% else %}SIP, to confirm{% endif %}</td><td class="r">{% if t.status == "awaiting" %}{{ t.amount|inr }}{% else %}{{ t.units|units }} units{% endif %}</td>
+<td>{{ t.waiting_days }} day{{ t.waiting_days|pluralize }}{% if t.overdue %} <span class="tag ox">Over {{ reminder_days }} days</span>{% endif %}</td><td>{{ t.broker.name }}</td>
+<td class="r">{% if t.suggest %}{{ t.suggest.units|units }} @ {{ t.suggest.nav|price }}{% else %}<span class="na">&ndash;</span>{% endif %}</td>
+<td class="act">{% if can_edit %}{% if t.status == "awaiting" %}<a class="btn q sm" href="{% url 'investments_txn_complete' t.pk %}">Complete</a><a href="{% url 'investments_txn_edit' t.pk %}">Edit</a>
+<form method="post" action="{% url 'investments_txn_cancel' t.pk %}" style="display:inline" onsubmit="return confirm('Cancel this entry? It can be brought back from History.')">{% csrf_token %}<button class="linklike">Cancel</button></form>
+{% else %}<form method="post" action="{% url 'investments_txn_confirm' t.pk %}" style="display:inline">{% csrf_token %}<button class="btn q sm">Confirm</button></form><a href="{% url 'investments_txn_edit' t.pk %}">Edit</a>{% endif %}{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>
+{% else %}<p class="lead na">Nothing to complete. Purchases awaiting allotment and pending SIP entries appear here.</p>{% endif %}
+{% endblock %}

@@ -40,8 +40,8 @@ def money_format(ctx):
         format_rupees(value, mode=FULL, signed=True)
 
 
-@operation("shell_pages", 10.0)
-def shell_pages(ctx):
+@operation("menu_pages", 10.0)
+def menu_pages(ctx):
     """Render every page of the menu once (ordinary page cost, plan 26.1 "Ordinary page: 3 to 10 MB")."""
     from django.test import RequestFactory
     from django.urls import resolve
@@ -61,6 +61,7 @@ def shell_pages(ctx):
             path = "/investments/" + page.path
             request = factory.get(path)
             request.user = ctx.user
+            request.session = {}
             request.resolver_match = resolve(path)
             response = request.resolver_match.func(request)
             if hasattr(response, "render"):

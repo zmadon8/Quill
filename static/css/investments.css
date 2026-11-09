@@ -248,3 +248,42 @@ body.inv h1.t{font:400 40px/1.1 var(--font-serif);margin:0}
 body.inv .meta{font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);text-align:right}
 body.inv .program-nav a .dot{display:inline-block;min-width:18px;height:18px;line-height:18px;text-align:center;font-size:11px;background:var(--ox);color:#fff;border-radius:9px;margin-left:5px;vertical-align:1px}
 body.inv .tools .status{padding-top:0}
+
+/* ---------- real controls (forms, inputs, small helpers; added by hand) ---------- */
+body.inv input[type=text],body.inv input[type=search],body.inv input[type=date],body.inv input[type=number],body.inv input:not([type]),
+body.inv select,body.inv textarea{min-height:var(--tap);padding:0 12px;border:1px solid var(--hair);background:#fff;border-radius:2px;font:15.5px var(--font-sans);color:var(--ink);max-width:100%}
+body.inv textarea{padding:10px 12px;min-height:90px}
+body.inv input:focus,body.inv select:focus,body.inv textarea:focus,body.inv .btn:focus,body.inv a:focus{outline:2px solid var(--focus);outline-offset:1px}
+body.inv .tools select,body.inv .tools input[type=date]{min-height:36px;font-size:14.5px}
+body.inv .tools .sel label{display:block}
+body.inv .fld.bad input,body.inv .fld.bad select{border-color:var(--ox);border-width:2px}
+body.inv .fld input,body.inv .fld select{min-width:160px}
+body.inv .fld .note.err{color:var(--ox)}
+body.inv button.btn{font-family:inherit;cursor:pointer;background:transparent}
+body.inv button.btn.p{background:var(--ox);color:#fff}
+body.inv button.btn.q{background:var(--panel)}
+body.inv .btn:disabled{opacity:.45;cursor:default}
+body.inv button.linklike{background:none;border:0;padding:0;color:var(--muted);text-decoration:underline;text-decoration-color:var(--hair);cursor:pointer;font:inherit}
+body.inv .inline-edit{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0}
+body.inv ul.plain{list-style:none;margin:8px 0;padding:0}
+body.inv ul.plain li{padding:6px 0;border-bottom:1px solid var(--hair)}
+body.inv ul.conflicts{padding-left:18px}
+body.inv ol.steps{list-style:none;margin:20px 0;padding:0;border-top:1px solid var(--ink)}
+body.inv ol.steps li{display:flex;justify-content:space-between;gap:20px;align-items:center;padding:16px 4px;border-bottom:1px solid var(--hair)}
+body.inv ol.steps li.done b{color:var(--muted);text-decoration:line-through}
+body.inv .chg{font-size:13px;color:var(--muted)}
+body.inv .pager{margin:14px 0;display:flex;gap:16px;align-items:center}
+body.inv .visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+body.inv .bars .b span.r{text-align:right}
+
+/* ---------- table fit and tools labels (added by hand) ---------- */
+body.inv table.led td{white-space:nowrap}
+body.inv table.led td.nm{white-space:normal;min-width:11rem}
+body.inv .cols>*{min-width:0}
+body.inv .sel>label{display:block}
+body.inv .sel>label>span{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+body.inv .tools .ctx{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:flex-end}
+body.inv .tools input[type=date]{min-width:9.5rem}
+body.inv .tools select{min-width:9rem}
+body.inv table.led td a{display:inline;min-height:0;padding:0;line-height:1.3}
+body.inv table.led td.nm{line-height:1.3}

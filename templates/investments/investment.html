@@ -1,0 +1,84 @@
+{% extends "investments/base_investments.html" %}
+{% load investments_money %}
+{% block inv_content %}
+<div class="invhead"><div><h1>{{ inst.name }}</h1>
+  <div class="sub">{{ kind_label }}{% if inst.code %} &middot; {{ inst.code }}{% endif %}{% if inst.isin %} &middot; {{ inst.isin }}{% endif %}{% if is_private %} &middot; private to this profile{% endif %}</div>
+  {% if pi.links %}<div class="sub">{% for l in pi.links %}<a href="{{ l.url }}" rel="noopener noreferrer" target="_blank">{{ l.label }}</a>{% if not forloop.last %} &middot; {% endif %}{% endfor %}</div>{% endif %}</div>
+  <div class="acts">{% if can_edit %}<a class="btn p" href="{% url 'investments_txn_new_buy' %}?instrument={{ inst.pk }}">Buy</a><a class="btn q" href="{% url 'investments_txn_new_sell' %}?instrument={{ inst.pk }}">Sell</a>{% endif %}</div></div>
+{% if h.awaiting %}<div class="ban wa"><span><b>Awaiting allotment:</b> {{ h.awaiting|inr }} paid, units not known yet. Counted at cost.</span><span class="r"><a href="{% url 'investments_txn_to_confirm' %}">To complete</a></span></div>{% endif %}
+<div class="kvs">
+  <div><div class="lab">Value</div><div class="v">{{ h.value|inr }}{% if h.unpriced %}<small> at cost, no price</small>{% endif %}</div></div>
+  <div><div class="lab">Units</div><div class="v">{{ h.units|units }}</div></div>
+  <div><div class="lab">Average cost</div><div class="v">{% if h.avg_cost %}{{ h.avg_cost|inr }}{% else %}&ndash;{% endif %}</div></div>
+  <div><div class="lab">Gain</div><div class="v">{% if h.unpriced or h.sold_out %}&ndash;{% else %}{{ h.gain|inr_signed }} <small>{{ h.gain_pct|pct_signed }}</small>{% endif %}</div></div>
+  <div><div class="lab">XIRR</div><div class="v">{{ h.xirr|pct }}</div></div>
+  <div><div class="lab">Price</div><div class="v">{% if h.price %}{{ h.price|price }} <small>{{ h.price_date|date:"j M Y" }}</small>{% else %}&ndash;{% endif %}</div></div>
+  <div><div class="lab">Cost held</div><div class="v">{{ h.cost_of_units|inr }}</div></div>
+  <div><div class="lab">Realised gain</div><div class="v">{{ h.realised|inr_signed }}</div></div>
+</div>
+
+{% if bucket_rows %}
+<div class="sec"><h2>Where it is held</h2></div>
+<div class="tw"><table data-table-id="inv-investment-1" class="led" data-sortable><thead><tr><th>Portfolio</th><th>Broker</th><th>Folio</th><th class="r">Units</th></tr></thead><tbody>
+{% for pf, br, fo, u in bucket_rows %}<tr><td>{{ pf }}</td><td>{{ br }}</td><td>{{ fo|default:"no folio" }}</td><td class="r" data-sort="{{ u }}">{{ u|units }}</td></tr>{% endfor %}
+</tbody></table></div>
+{% endif %}
+
+<div class="sec"><h2>Price</h2></div>
+{% if inst.kind == "alternative" %}
+  <p class="hint">An alternative investment has no price feed. Add a dated value whenever you have one; between entries the value is {% if inv_settings.alt_treatment == "averaged" %}averaged out{% else %}held unchanged{% endif %} (Settings).</p>
+  {% if can_edit %}<form method="post" action="{% url 'investments_investment_altvalue' inst.pk %}" class="inline-form">{% csrf_token %}{% include "investments/_form.html" with form=alt_form %}<button class="btn q" type="submit">Save value</button></form>{% endif %}
+  {% if alt_values %}<div class="tw"><table data-table-id="inv-investment-2" class="led"><thead><tr><th>Date</th><th class="r">Total value</th><th>Note</th><th></th></tr></thead><tbody>
+  {% for v in alt_values %}<tr><td>{{ v.date|date:"j M Y" }}</td><td class="r">{{ v.total_value|inr }}</td><td>{{ v.note }}</td><td class="act">{% if can_edit %}<form method="post" action="{% url 'investments_investment_altvalue' inst.pk %}" style="display:inline">{% csrf_token %}<button class="linklike" name="delete" value="{{ v.pk }}">Delete</button></form>{% endif %}</td></tr>{% endfor %}
+  </tbody></table></div>{% endif %}
+{% else %}
+  <p class="hint">Prices are typed by hand for now; fetched prices arrive in a later release and never overwrite what you type.</p>
+  {% if can_edit %}<form method="post" action="{% url 'investments_investment_price' inst.pk %}">{% csrf_token %}{% include "investments/_form.html" with form=price_form %}<button class="btn q" type="submit">Save price</button></form>{% endif %}
+  {% if manual_prices %}<div class="tw"><table data-table-id="inv-investment-3" class="led"><thead><tr><th>Date</th><th class="r">Price or NAV</th><th>Note</th><th></th></tr></thead><tbody>
+  {% for p in manual_prices %}<tr><td>{{ p.date|date:"j M Y" }}</td><td class="r">{{ p.close|price }}</td><td>{{ p.note }}</td><td class="act">{% if can_edit %}<form method="post" action="{% url 'investments_investment_price_delete' inst.pk p.pk %}" style="display:inline">{% csrf_token %}<button class="linklike">Delete</button></form>{% endif %}</td></tr>{% endfor %}
+  </tbody></table></div>{% endif %}
+{% endif %}
+
+{% if lots %}
+<div class="sec"><h2>Purchase by purchase</h2><span class="hint">what is still held, oldest first</span></div>
+<div class="tw"><table data-table-id="inv-investment-4" class="led" data-sortable><thead><tr><th>Held from</th><th>Date paid</th><th class="r">Units</th><th class="r">Cost</th><th class="r">Value</th><th class="r">Gain</th></tr></thead><tbody>
+{% for l, lv, lg in lots %}<tr><td data-sort="{{ l.bought_on|date:'Y-m-d' }}">{{ l.bought_on|date:"j M Y" }}{% if l.estimated %}<span class="tag amb">Estimated</span>{% endif %}</td><td>{{ l.paid_on|date:"j M Y" }}</td><td class="r">{{ l.units|units }}</td><td class="r">{{ l.cost|inr }}</td>
+<td class="r">{% if lv is not None %}{{ lv|inr }}{% else %}<span class="na">&ndash;</span>{% endif %}</td>
+<td class="r">{% if lg is not None %}{{ lg|inr_signed }}{% else %}<span class="na">&ndash;</span>{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>
+{% endif %}
+
+<div class="sec"><h2>Records</h2><div class="acts">{% if can_edit %}<a class="btn q" href="{% url 'investments_txn_opening' %}?instrument={{ inst.pk }}">Opening balance</a>{% endif %}</div></div>
+{% if txns %}<div class="tw"><table data-table-id="inv-investment-5" class="led" data-sortable><thead><tr><th>Date</th><th>Buy / sell</th><th class="r">Units</th><th class="r">Price</th><th class="r">Charges</th><th>Broker</th><th>Folio</th><th></th></tr></thead><tbody>
+{% for t in txns %}<tr><td data-sort="{{ t.date|date:'Y-m-d' }}">{{ t.date|date:"j M Y" }}{% if t.allotment_date and t.allotment_date != t.date %}<small class="na"> allotted {{ t.allotment_date|date:"j M" }}</small>{% endif %}</td>
+<td>{{ t.get_side_display }}{% if t.is_opening %}<span class="tag">Opening</span>{% endif %}{% if t.status == "awaiting" %}<span class="tag amb">Awaiting</span>{% endif %}{% if t.status == "pending_sip" %}<span class="tag amb">SIP, to confirm</span>{% endif %}</td>
+<td class="r">{% if t.units is not None %}{{ t.units|units }}{% else %}<span class="na">&ndash;</span>{% endif %}</td><td class="r">{% if t.price is not None %}{{ t.price|price }}{% else %}{{ t.amount|inr }}{% endif %}</td><td class="r">{{ t.charges|price }}</td><td>{{ t.broker.name }}</td><td>{{ t.folio.number|default:"" }}</td>
+<td class="act">{% if can_edit %}<a href="{% url 'investments_txn_edit' t.pk %}">Edit</a>{% if t.status == "awaiting" %}<a href="{% url 'investments_txn_complete' t.pk %}">Complete</a>{% endif %}{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>{% else %}<p class="na">No transactions yet.</p>{% endif %}
+{% if transfers %}<h3>Transfers</h3><div class="tw"><table data-table-id="inv-investment-6" class="led"><thead><tr><th>Date</th><th class="r">Units</th><th>From</th><th>To</th></tr></thead><tbody>
+{% for tr in transfers %}<tr><td>{{ tr.date|date:"j M Y" }}</td><td class="r">{{ tr.units|units }}</td><td>{{ tr.from_broker.name }} / {{ tr.from_portfolio.name }}</td><td>{{ tr.to_broker.name }} / {{ tr.to_portfolio.name }}</td></tr>{% endfor %}</tbody></table></div>{% endif %}
+
+<div class="sec"><h2>Folio numbers</h2></div>
+{% if folio_units %}<div class="tw"><table data-table-id="inv-investment-7" class="led"><thead><tr><th>Folio</th><th>Portfolio</th><th class="r">Units held</th><th></th></tr></thead><tbody>
+{% for f, u in folio_units %}<tr><td>{{ f.number }}{% if f.notes %} <small class="na">{{ f.notes }}</small>{% endif %}</td><td>{{ f.portfolio.name }}</td><td class="r">{{ u|units }}</td><td class="act">{% if can_edit %}<form method="post" action="{% url 'investments_investment_folio' inst.pk %}" style="display:inline">{% csrf_token %}<button class="linklike" name="delete" value="{{ f.pk }}">Delete</button></form>{% endif %}</td></tr>{% endfor %}
+{% if no_folio_units %}<tr class="sub"><td>No folio</td><td></td><td class="r">{{ no_folio_units|units }}</td><td></td></tr>{% endif %}</tbody></table></div>{% endif %}
+{% if can_edit %}<form method="post" action="{% url 'investments_investment_folio' inst.pk %}">{% csrf_token %}{% include "investments/_form.html" with form=folio_form %}<button class="btn q" type="submit">Add folio</button></form>{% endif %}
+
+<div class="sec"><h2>Your details</h2></div>
+{% if can_edit %}<form method="post" action="{% url 'investments_investment_details' inst.pk %}">{% csrf_token %}{% include "investments/_form.html" with form=details_form %}<div class="acts-row"><button class="btn q" name="action" value="save">Save details</button>
+{% if h.sold_out %}{% if pi.hidden %}<button class="btn q" name="action" value="show">Show again</button>{% else %}<button class="btn q" name="action" value="hide">Hide (sold out)</button>{% endif %}{% endif %}</div></form>
+{% elif pi.notes %}<p>{{ pi.notes }}</p>{% endif %}
+
+<div class="sec"><h2>Shared details</h2></div>
+<p class="hint">These belong to the investment itself, for everyone who holds it, so only an Admin changes them.</p>
+{% if user.is_superuser %}
+<form method="post" action="{% url 'investments_investment_shared' inst.pk %}" class="row">{% csrf_token %}
+  <div class="fld"><label>Name</label><input name="name" value="{{ inst.name }}"></div><div class="fld"><label>Code</label><input name="code" value="{{ inst.code }}"></div>
+  <div class="fld"><label>ISIN</label><input name="isin" value="{{ inst.isin }}"></div><div class="fld"><label>Currency</label><input name="currency" value="{{ inst.currency }}" maxlength="3"></div>
+  <div class="fld"><label>&nbsp;</label><button class="btn q" type="submit">Save shared details</button></div></form>
+{% else %}<dl class="kv"><dt>Name</dt><dd>{{ inst.name }}</dd><dt>Code</dt><dd>{{ inst.code|default:"none" }}</dd><dt>ISIN</dt><dd>{{ inst.isin|default:"none" }}</dd><dt>Currency</dt><dd>{{ inst.currency }}</dd><dt>Price source</dt><dd>{{ inst.get_price_source_display }}</dd></dl>{% endif %}
+
+{% if history %}<div class="sec"><h2>Recent changes</h2><a class="lk" href="{% url 'investments_history' %}?instrument={{ inst.pk }}">All history</a></div>
+<ul class="plain">{% for r in history %}<li>{{ r.changed_at|date:"j M Y, g:i a" }} &middot; {{ r.summary|default:r.get_change_kind_display }}</li>{% endfor %}</ul>{% endif %}
+{% if can_edit and can_delete %}<div class="sec"><a class="btn dng" href="{% url 'investments_inv_delete' inst.pk %}">Delete this investment</a></div>{% endif %}
+{% endblock %}

@@ -1,0 +1,31 @@
+{% extends "investments/base_investments.html" %}
+{% load investments_money %}
+{% block inv_content %}
+<div class="titlebar"><h1 class="t">Investments</h1><div class="meta">{{ held_count }} held &middot; {{ sold_count }} sold out</div></div>
+<div class="sec">
+  <form method="get" class="filters" style="display:flex;gap:16px;flex-wrap:wrap">
+    <div class="sel"><span>Type</span><select name="type" onchange="this.form.submit()">{% for key, label in kinds %}<option value="{{ key }}"{% if key == kind %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+    <div class="sel"><span>Status</span><select name="status" onchange="this.form.submit()">{% for key, label in status_choices %}<option value="{{ key }}"{% if key == status %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+  </form>
+  <div class="acts">{% if can_edit %}<a class="btn p" href="{% url 'investments_add_1' %}">Add investment</a>{% endif %}</div>
+</div>
+{% if rows %}
+<div class="tw"><table data-table-id="inv-holdings-1" class="led" data-sortable>
+  <thead><tr><th>Name</th><th>Type</th><th>Code</th><th class="r">Units</th><th class="r">Value</th><th class="r">Gain</th><th class="r">Price date</th><th>Status</th></tr></thead>
+  <tbody>{% for h in rows %}
+    <tr{% if h.sold_out %} class="sub"{% endif %}>
+      <td class="nm" data-sort="{{ h.instrument.name|lower }}"><a href="{% url 'investments_investment' h.instrument.pk %}">{{ h.instrument.name }}</a>{% if h.awaiting %}<span class="tag amb">Awaiting {{ h.awaiting|inr }}</span>{% endif %}{% if h.unpriced %}<span class="tag dash">No price</span>{% endif %}</td>
+      <td>{{ h.instrument.get_kind_display }}</td>
+      <td data-sort="{{ h.instrument.code }}">{% if h.instrument.code %}<span class="na">{{ h.instrument.code }}</span>{% else %}<span class="na">no code</span>{% endif %}</td>
+      <td class="r" data-sort="{{ h.units }}">{{ h.units|units }}</td>
+      <td class="r" data-sort="{{ h.value }}">{% if h.sold_out %}<span class="na">&ndash;</span>{% else %}{{ h.value|inr }}{% endif %}</td>
+      <td class="r" data-sort="{{ h.gain }}">{% if h.sold_out or h.unpriced %}<span class="na">&ndash;</span>{% else %}{{ h.gain|inr_signed }}{% endif %}</td>
+      <td class="r" data-sort="{{ h.price_date|default_if_none:'' }}">{% if h.price_date %}{{ h.price_date|date:"j M" }}{% else %}<span class="na">&ndash;</span>{% endif %}</td>
+      <td>{% if h.sold_out %}<span class="sq"></span>Sold out{% elif h.is_hidden %}Hidden{% else %}<span class="sq f"></span>Held{% endif %}</td>
+    </tr>{% endfor %}
+  </tbody>
+</table></div>
+{% else %}
+<p class="lead na">{% if held_count or sold_count %}Nothing matches these filters.{% else %}No investments yet. <a href="{% url 'investments_add_1' %}">Add an investment</a> to begin.{% endif %}</p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,11 @@
+{% extends "investments/base_investments.html" %}
+{% block inv_content %}
+<div class="titlebar"><h1 class="t">This change is refused</h1></div>
+<div class="ban al" role="alert"><span>{{ message }}</span></div>
+{% if conflicts %}
+<h3>The later entries that rely on it</h3>
+<ul class="conflicts">{% for c in conflicts %}<li>{{ c.message }} {% if c.url %}<a class="btn q sm" href="{{ c.url }}">Open this entry</a>{% endif %}</li>{% endfor %}</ul>
+{% endif %}
+<p class="hint">Nothing was changed. Fix the later entry first (reduce or move the sale), then make this change.</p>
+<p><a class="btn q" href="{{ back }}">Back</a></p>
+{% endblock %}

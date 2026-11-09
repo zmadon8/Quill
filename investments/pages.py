@@ -39,26 +39,15 @@ PAGES = (
     # Holdings: investments
     _p("holdings", "holdings/", "Investments", "holdings", "Investments", "No investments yet. Add an investment to begin."),
     _p("add_1", "holdings/add/", "Add investment: type", "holdings", "Investments", "Choose what kind of investment this is."),
-    _p("add_2", "holdings/add/share/", "Add investment: find a share", "holdings", "Investments", "Search by company name or code."),
-    _p("add_2_fund", "holdings/add/fund/", "Add investment: find a fund plan", "holdings", "Investments", "Search by fund name, then pick the exact plan and option."),
-    _p("add_3", "holdings/add/confirm/", "Add investment: confirm", "holdings", "Investments", "Check the name, code and latest price, then confirm."),
-    _p("add_4", "holdings/add/details/", "Add investment: details", "holdings", "Investments", "Add folios, links and notes, then record a purchase."),
-    _p("add_alt", "holdings/add/alternative/", "Add an alternative investment", "holdings", "Investments", "For anything without a public price: a deposit, PPF, property or gold."),
-    _p("inv_share", "holdings/example/share/", "One investment: a share", "holdings", "Investments", "Open an investment from the Investments list."),
-    _p("inv_fund", "holdings/example/fund/", "One investment: a mutual fund", "holdings", "Investments", "Open an investment from the Investments list."),
-    _p("inv_alt", "holdings/example/alternative/", "One investment: alternative", "holdings", "Investments", "Open an investment from the Investments list."),
-    _p("inv_foreign", "holdings/example/foreign/", "One investment: foreign", "holdings", "Investments", "Open an investment from the Investments list."),
-    _p("inv_delete", "holdings/example/delete/", "Delete an investment", "holdings", "Investments", "Open an investment from the Investments list.", admin=True),
+    _p("add_2", "holdings/add/details/", "Add investment: details", "holdings", "Investments", "Search by company name or code."),
     # Holdings: transactions
     _p("transactions", "transactions/", "Transactions", "holdings", "Transactions", "No transactions yet. Add a purchase or an opening balance."),
     _p("txn_new_buy", "transactions/buy/", "Add a purchase", "holdings", "Transactions", "Record what you bought."),
     _p("txn_new_sell", "transactions/sell/", "Add a sale", "holdings", "Transactions", "Record what you sold."),
-    _p("txn_edit_refused", "transactions/refused/", "An edit that is refused", "holdings", "Transactions", "Shown when a change would leave a broker or folio with negative units."),
     _p("txn_opening", "transactions/opening/", "Opening balance", "holdings", "Transactions", "For holdings bought before you started using the program."),
     _p("txn_transfer", "transactions/transfer/", "Transfer", "holdings", "Transactions", "Move holdings between brokers, folios or portfolios, keeping dates and cost."),
     _p("txn_switch", "transactions/switch/", "Fund switch", "holdings", "Transactions", "A sale of one fund and a purchase of another, linked."),
     _p("txn_new_awaiting", "transactions/awaiting/", "Add a purchase awaiting allotment", "holdings", "Transactions", "Paid, but the units and NAV are not known yet."),
-    _p("txn_complete", "transactions/complete/", "Complete a purchase awaiting allotment", "holdings", "Transactions", "Nothing is waiting for allotment."),
     _p("txn_to_confirm", "transactions/to-complete/", "To complete", "holdings", "Transactions", "Nothing to complete. Purchases awaiting allotment and pending SIP entries appear here."),
     _p("import_statement", "transactions/import/", "Import a statement", "holdings", "Transactions", "Load trades from a broker or fund house file, then review them before saving."),
     # Holdings: other
@@ -66,7 +55,6 @@ PAGES = (
     _p("dividend_new", "dividends/new/", "Add a dividend", "holdings", "Dividends", "Record a dividend you received."),
     _p("corporate_actions", "corporate-actions/", "Corporate actions", "holdings", "Corporate actions", "No splits or bonuses recorded."),
     _p("brokers", "brokers/", "Brokers", "holdings", "Brokers", "No brokers yet. Add one in Settings > Brokers."),
-    _p("broker_detail", "brokers/example/", "One broker", "holdings", "Brokers", "Open a broker from the Brokers list."),
     # Reports
     _p("performance", "reports/performance/", "Performance", "reports", "Performance", "No performance figures yet. They appear once you have purchases and prices."),
     _p("charts", "reports/charts/", "Charts", "reports", "Charts", "No data to chart yet."),
@@ -89,10 +77,17 @@ PAGES = (
     _p("admin_upload", "settings/price-upload/", "Admin: Upload price history", "settings", "Price sources", "Price history upload is set up in a later release.", admin=True, hideable=False),
     _p("admin_price_history", "settings/price-history/", "Admin: Price history", "settings", "Price history", "Pruning, the price archive and pinned prices are set up in a later release.", admin=True, hideable=False),
     _p("admin_catalogue", "settings/catalogue/", "Admin: Investment catalogue", "settings", "Catalogue", "The catalogue is set up in a later release.", admin=True, hideable=False),
-    _p("admin_catalogue_item", "settings/catalogue/example/", "Admin: one investment", "settings", "Catalogue", "Open an investment from the catalogue.", admin=True, hideable=False),
 )
 
 BY_SLUG = {p.slug: p for p in PAGES}
+
+#: Pages reached by id or as a step of another page: url name suffix -> (top group, second-row label). They share the menu
+#: state of the page they belong to. (`investments_<suffix>` is the URL name.)
+EXTRA = {
+    "investment": ("holdings", "Investments"), "added": ("holdings", "Investments"), "inv_delete": ("holdings", "Investments"),
+    "txn_edit": ("holdings", "Transactions"), "txn_complete": ("holdings", "Transactions"), "txn_refused": ("holdings", "Transactions"),
+    "broker_detail": ("holdings", "Brokers"), "admin_catalogue_item": ("settings", "Catalogue"),
+}
 
 
 def url_name(slug):
@@ -137,7 +132,9 @@ def navigation(request, is_admin, hidden=frozenset()):
     """``(top, sub)``: the header entries and the second row for the current page, each a list of dicts."""
     slug = current_slug(request)
     page = BY_SLUG.get(slug)
-    group = page.group if page else "overview"
+    extra = EXTRA.get(slug)
+    group = page.group if page else (extra[0] if extra else "overview")
+    sub_label = page.sub if page else (extra[1] if extra else None)
     top = []
     for key, label, name in TOP:
         first = name[len("investments_"):]
@@ -151,22 +148,26 @@ def navigation(request, is_admin, hidden=frozenset()):
         row_pages = [p for p in PAGES if p.group == group and p.sub == label]
         if first in hidden or (row_pages and row_pages[0].admin and not is_admin):
             continue
-        on = bool(page and page.sub == label)
+        on = sub_label == label
         sub.append({"name": label, "url": url_of(first), "on": on, "admin": bool(row_pages and row_pages[0].admin)})
     return top, sub
 
 
 def render_context(request, profile, extra=None):
-    """The context every Investments page needs: header entries, role and the user's other profiles."""
-    from accounts.programs import investments_enabled  # noqa: F401  (kept for clarity: the middleware already guards)
+    """The context every Investments page needs: header entries, role, the profile's settings and the user's other profiles."""
+    from investments.services import core, masters
 
     is_admin = bool(getattr(request.user, "is_admin", False))
-    top, sub = navigation(request, is_admin)
+    settings_row = core.get_settings(profile, create=False) if profile is not None else None
+    hidden = hidden_slugs(settings_row)
+    top, sub = navigation(request, is_admin, hidden)
     context = {
         "inv_profile": profile,
+        "inv_settings": settings_row,
         "inv_tools": profile is not None,
         "inv_nav": top,
         "inv_sub": sub,
+        "inv_money_mode": masters.money_preference(request.user, profile) if profile is not None else "auto",
         "can_edit": request_role(request, KEY_INVESTMENTS) == ROLE_EDITOR,
         "inv_other_profiles": [m.profile for m in request_memberships(request, KEY_INVESTMENTS)[1:]],
     }

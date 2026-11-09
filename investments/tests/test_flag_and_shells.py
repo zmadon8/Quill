@@ -81,12 +81,14 @@ class ShellTests(TestCase):
         self.assertRedirects(response, reverse("investments_dashboard"), fetch_redirect_response=False)
 
     def test_every_shell_renders_with_header_menu_and_tools(self):
+        from investments.urls import REAL
         for page in pages.PAGES:
             with self.subTest(page=page.slug):
                 response = self.client.get(reverse(pages.url_name(page.slug)))
                 self.assertEqual(response.status_code, 200)
-                self.assertContains(response, page.title)
-                self.assertContains(response, escape(page.empty))
+                if page.slug not in REAL:      # a real page has its own content; only the shells show the empty-state text
+                    self.assertContains(response, page.title)
+                    self.assertContains(response, escape(page.empty))
                 for label in ("Overview", "Holdings", "Reports", "Alerts", "Settings"):
                     self.assertContains(response, label)
                 self.assertContains(response, 'data-money-mode="auto"')
@@ -114,7 +116,7 @@ class ShellTests(TestCase):
     def test_admin_pages_refuse_a_non_admin(self):
         editor, _ = make_user("editor", ROLE_EDITOR, profile=self.profile)
         self.client.force_login(editor)
-        for slug in ("admin_prices", "admin_catalogue", "inv_delete"):
+        for slug in ("admin_prices", "admin_catalogue", "admin_price_history"):
             with self.subTest(slug=slug):
                 self.assertEqual(self.client.get(reverse(pages.url_name(slug))).status_code, 403)
 

@@ -1,0 +1,13 @@
+{# Renders a Django form in the Chambers style. Context: form. Optional: skip (list of field names to leave out). #}
+{% for field in form.hidden_fields %}{{ field }}{% endfor %}
+{% if form.non_field_errors %}<div class="ban al" role="alert"><span>{{ form.non_field_errors|join:" " }}</span></div>{% endif %}
+<div class="row">
+{% for field in form.visible_fields %}
+  <div class="fld{% if field.errors %} bad{% endif %}">
+    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+    {{ field }}
+    {% if field.help_text %}<span class="note">{{ field.help_text }}</span>{% endif %}
+    {% for e in field.errors %}<span class="note err">{{ e }}</span>{% endfor %}
+  </div>
+{% endfor %}
+</div>

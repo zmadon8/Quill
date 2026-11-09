@@ -1,0 +1,288 @@
+"""Investments models (plan section 16).
+
+Shared tables (no required ``profile``): ``Instrument`` (a null profile is a shared public instrument; a set profile is that
+profile's private alternative investment) and ``ManualPrice``. Everything else carries a ``profile`` foreign key and is in the
+suite backup. Money and units are ``Decimal``. Fetched prices arrive in a later phase (``Price`` is deliberately never backed up).
+"""
+import uuid
+
+from django.conf import settings
+from django.db import models
+
+MONEY = {"max_digits": 20, "decimal_places": 4}
+UNITS = {"max_digits": 20, "decimal_places": 4}
+
+KIND_SHARE, KIND_FUND, KIND_ALTERNATIVE, KIND_FOREIGN, KIND_INDEX = "share", "fund", "alternative", "foreign", "index"
+INSTRUMENT_KINDS = [
+    (KIND_SHARE, "Share"), (KIND_FUND, "Mutual fund"), (KIND_ALTERNATIVE, "Alternative"),
+    (KIND_FOREIGN, "Foreign"), (KIND_INDEX, "Index"),
+]
+#: Kinds a person can buy (an index only serves as a comparison).
+HOLDABLE_KINDS = (KIND_SHARE, KIND_FUND, KIND_ALTERNATIVE, KIND_FOREIGN)
+
+ASSET_CLASSES = [("equity", "Equity"), ("debt", "Debt"), ("gold", "Gold"), ("other", "Other")]
+PRICE_SOURCES = [("manual", "Entered by hand"), ("yahoo", "Yahoo"), ("amfi", "AMFI"), ("mfapi", "mfapi.in"), ("upload", "Uploaded")]
+
+SIDE_BUY, SIDE_SELL = "buy", "sell"
+SIDES = [(SIDE_BUY, "Buy"), (SIDE_SELL, "Sell")]
+STATUS_FINAL, STATUS_AWAITING, STATUS_PENDING_SIP = "final", "awaiting", "pending_sip"
+STATUSES = [(STATUS_FINAL, "Final"), (STATUS_AWAITING, "Awaiting allotment"), (STATUS_PENDING_SIP, "SIP, to confirm")]
+
+AWAITING_AT_COST, AWAITING_LEAVE_OUT = "cost", "leave_out"
+CA_TAG, CA_BLOCK = "tag", "block"
+SIP_PENDING, SIP_FINAL = "pending", "final"
+ALT_UNCHANGED, ALT_AVERAGED = "unchanged", "averaged"
+MONEY_AUTO, MONEY_FULL = "auto", "full"
+
+CHANGE_KINDS = [("create", "Created"), ("edit", "Edited"), ("delete", "Deleted"), ("restore", "Restored"),
+                ("complete", "Completed"), ("cancel", "Cancelled")]
+
+
+class Instrument(models.Model):
+    """A share, fund, index, foreign or alternative investment. ``profile`` null means shared by every profile."""
+
+    profile = models.ForeignKey("accounts.Profile", null=True, blank=True, on_delete=models.CASCADE, related_name="+")
+    name = models.CharField(max_length=200)
+    kind = models.CharField(max_length=12, choices=INSTRUMENT_KINDS)
+    code = models.CharField(max_length=60, blank=True, default="", help_text="Ticker or AMFI scheme code")
+    isin = models.CharField(max_length=20, blank=True, default="")
+    exchange = models.CharField(max_length=10, blank=True, default="")
+    currency = models.CharField(max_length=3, default="INR")
+    asset_class = models.CharField(max_length=10, choices=ASSET_CLASSES, default="equity")
+    sector = models.CharField(max_length=80, blank=True, default="")
+    price_source = models.CharField(max_length=10, choices=PRICE_SOURCES, default="manual")
+    fallback_source = models.CharField(max_length=10, choices=PRICE_SOURCES, blank=True, default="")
+    fetch_enabled = models.BooleanField(default=True)
+    interest_rate = models.DecimalField(max_digits=7, decimal_places=3, null=True, blank=True)
+    maturity_date = models.DateField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["name", "id"]
+        indexes = [models.Index(fields=["kind", "code"], name="inv_instr_kind_code_idx")]
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def is_private(self):
+        return self.profile_id is not None
+
+
+class ManualPrice(models.Model):
+    """A price or NAV typed by hand (shared, backed up; tiny). Fetched prices live in a later ``Price`` table."""
+
+    instrument = models.ForeignKey(Instrument, on_delete=models.CASCADE, related_name="manual_prices")
+    date = models.DateField()
+    close = models.DecimalField(**MONEY)
+    note = models.CharField(max_length=200, blank=True, default="")
+    entered_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    entered_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["instrument_id", "date"]
+        constraints = [models.UniqueConstraint(fields=["instrument", "date"], name="inv_manualprice_unique")]
+
+
+class Portfolio(models.Model):
+    profile = models.ForeignKey("accounts.Profile", on_delete=models.CASCADE, related_name="+")
+    name = models.CharField(max_length=80)
+    owner_name = models.CharField(max_length=80, blank=True, default="")
+
+    class Meta:
+        ordering = ["name", "id"]
+
+    def __str__(self):
+        return self.name
+
+
+class Broker(models.Model):
+    profile = models.ForeignKey("accounts.Profile", on_delete=models.CASCADE, related_name="+")
+    name = models.CharField(max_length=80)
+    hidden = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["name", "id"]
+
+    def __str__(self):
+        return self.name
+
+
+class InvestmentSettings(models.Model):
+    """One row per profile (plan 16.3, 23)."""
+
+    profile = models.OneToOneField("accounts.Profile", on_delete=models.CASCADE, related_name="+")
+    data_version = models.BigIntegerField(default=0)
+    default_broker_share = models.ForeignKey(Broker, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    default_broker_fund = models.ForeignKey(Broker, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    default_broker_alternative = models.ForeignKey(Broker, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    default_broker_foreign = models.ForeignKey(Broker, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    sip_mode = models.CharField(max_length=10, default=SIP_PENDING, choices=[(SIP_PENDING, "Pending until confirmed"), (SIP_FINAL, "Created as final")])
+    awaiting_treatment = models.CharField(max_length=10, default=AWAITING_AT_COST, choices=[(AWAITING_AT_COST, "Count at cost"), (AWAITING_LEAVE_OUT, "Leave out until allotted")])
+    awaiting_reminder_days = models.PositiveSmallIntegerField(default=7)
+    corporate_action_mode = models.CharField(max_length=10, default=CA_TAG, choices=[(CA_TAG, "Tag and banner"), (CA_BLOCK, "Block")])
+    long_term_days = models.PositiveSmallIntegerField(default=365, help_text="Holding days after which a gain is long-term (default cutoff)")
+    default_index = models.ForeignKey(Instrument, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    sectoral_enabled = models.BooleanField(default=False)
+    include_dividends = models.BooleanField(default=False)
+    alt_treatment = models.CharField(max_length=10, default=ALT_UNCHANGED, choices=[(ALT_UNCHANGED, "Unchanged until next update"), (ALT_AVERAGED, "Averaged out")])
+    money_default = models.CharField(max_length=5, default=MONEY_AUTO, choices=[(MONEY_AUTO, "Auto"), (MONEY_FULL, "Full")])
+    hidden_pages = models.JSONField(default=list, blank=True)
+    default_exchange = models.CharField(max_length=3, default="NS", choices=[("NS", "NSE"), ("BO", "BSE")])
+    show_status_dots = models.BooleanField(default=True)
+
+    def default_broker_for(self, kind):
+        return {
+            KIND_SHARE: self.default_broker_share, KIND_FUND: self.default_broker_fund,
+            KIND_ALTERNATIVE: self.default_broker_alternative, KIND_FOREIGN: self.default_broker_foreign,
+        }.get(kind)
+
+
+class InvestmentsUserPrefs(models.Model):
+    """Personal display choice (plan 23): the Auto / Full number display. Not backed up (like FeesUserPrefs)."""
+
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+")
+    money_mode = models.CharField(max_length=5, choices=[(MONEY_AUTO, "Auto"), (MONEY_FULL, "Full")], default=MONEY_AUTO)
+
+
+class ProfileInvestment(models.Model):
+    """A profile's private details of a (shared) investment: hidden flag, notes, links, sectoral index (plan 16.3)."""
+
+    profile = models.ForeignKey("accounts.Profile", on_delete=models.CASCADE, related_name="+")
+    instrument = models.ForeignKey(Instrument, on_delete=models.CASCADE, related_name="+")
+    hidden = models.BooleanField(default=False)
+    notes = models.TextField(blank=True, default="")
+    links = models.JSONField(default=list, blank=True)
+    sectoral_index = models.ForeignKey(Instrument, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["profile", "instrument"], name="inv_profileinv_unique")]
+
+
+class Folio(models.Model):
+    profile = models.ForeignKey("accounts.Profile", on_delete=models.CASCADE, related_name="+")
+    instrument = models.ForeignKey(Instrument, on_delete=models.CASCADE, related_name="+")
+    portfolio = models.ForeignKey(Portfolio, on_delete=models.CASCADE, related_name="+")
+    number = models.CharField(max_length=60)
+    notes = models.CharField(max_length=200, blank=True, default="")
+
+    class Meta:
+        ordering = ["number", "id"]
+        constraints = [models.UniqueConstraint(fields=["profile", "instrument", "portfolio", "number"], name="inv_folio_unique")]
+
+    def __str__(self):
+        return self.number
+
+
+class Transfer(models.Model):
+    """Units moved from one portfolio/broker/folio to another, keeping the original purchase dates and cost."""
+
+    profile = models.ForeignKey("accounts.Profile", on_delete=models.CASCADE, related_name="+")
+    date = models.DateField()
+    instrument = models.ForeignKey(Instrument, on_delete=models.PROTECT, related_name="+")
+    units = models.DecimalField(**UNITS)
+    from_portfolio = models.ForeignKey(Portfolio, on_delete=models.PROTECT, related_name="+")
+    from_broker = models.ForeignKey(Broker, on_delete=models.PROTECT, related_name="+")
+    from_folio = models.ForeignKey(Folio, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    to_portfolio = models.ForeignKey(Portfolio, on_delete=models.PROTECT, related_name="+")
+    to_broker = models.ForeignKey(Broker, on_delete=models.PROTECT, related_name="+")
+    to_folio = models.ForeignKey(Folio, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    note = models.CharField(max_length=200, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    version = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        ordering = ["-date", "-id"]
+
+
+class Switch(models.Model):
+    """A fund switch: a sale of one fund and a purchase of another, linked (the two Transaction rows point here)."""
+
+    profile = models.ForeignKey("accounts.Profile", on_delete=models.CASCADE, related_name="+")
+    date = models.DateField()
+    note = models.CharField(max_length=200, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class Transaction(models.Model):
+    profile = models.ForeignKey("accounts.Profile", on_delete=models.CASCADE, related_name="+")
+    date = models.DateField(help_text="The date paid or received")
+    side = models.CharField(max_length=4, choices=SIDES)
+    status = models.CharField(max_length=12, choices=STATUSES, default=STATUS_FINAL)
+    instrument = models.ForeignKey(Instrument, on_delete=models.PROTECT, related_name="+")
+    portfolio = models.ForeignKey(Portfolio, on_delete=models.PROTECT, related_name="+")
+    broker = models.ForeignKey(Broker, on_delete=models.PROTECT, related_name="+")
+    folio = models.ForeignKey(Folio, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    units = models.DecimalField(null=True, blank=True, **UNITS)
+    price = models.DecimalField(null=True, blank=True, **MONEY)
+    charges = models.DecimalField(default=0, **MONEY)
+    amount = models.DecimalField(null=True, blank=True, help_text="Awaiting entries: the amount paid (purchase) or expected proceeds (sale)", **MONEY)
+    allotment_date = models.DateField(null=True, blank=True)
+    expected_allotment_date = models.DateField(null=True, blank=True)
+    reference = models.CharField(max_length=80, blank=True, default="")
+    is_opening = models.BooleanField(default=False)
+    is_estimated = models.BooleanField(default=False)
+    switch = models.ForeignKey(Switch, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    currency = models.CharField(max_length=3, default="INR")
+    fx_rate = models.DecimalField(max_digits=20, decimal_places=6, null=True, blank=True)
+    rupee_amount = models.DecimalField(null=True, blank=True, **MONEY)
+    cost_override = models.DecimalField(null=True, blank=True, **MONEY)
+    cost_override_note = models.CharField(max_length=200, blank=True, default="")
+    note = models.CharField(max_length=200, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    version = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        ordering = ["-date", "-id"]
+        indexes = [
+            models.Index(fields=["profile", "instrument", "date"], name="inv_txn_prof_instr_date_idx"),
+            models.Index(fields=["profile", "status"], name="inv_txn_prof_status_idx"),
+        ]
+
+    @property
+    def effective_date(self):
+        """The date the units exist: the allotment date if recorded, else the date paid."""
+        return self.allotment_date or self.date
+
+
+class AltValue(models.Model):
+    """A dated value of an alternative investment, entered by hand (plan 11)."""
+
+    profile = models.ForeignKey("accounts.Profile", on_delete=models.CASCADE, related_name="+")
+    instrument = models.ForeignKey(Instrument, on_delete=models.CASCADE, related_name="+")
+    date = models.DateField()
+    nav = models.DecimalField(null=True, blank=True, **MONEY)
+    total_value = models.DecimalField(**MONEY)
+    note = models.CharField(max_length=200, blank=True, default="")
+
+    class Meta:
+        ordering = ["instrument_id", "date"]
+        constraints = [models.UniqueConstraint(fields=["profile", "instrument", "date"], name="inv_altvalue_unique")]
+
+
+class InvestmentHistory(models.Model):
+    """The permanent edit history (plan 16.4). Deliberately NOT the diary's VersionHistory, whose rows the nightly
+    ``purge_old_history`` job deletes. Nothing in this program ever deletes or edits a row of this table."""
+
+    profile = models.ForeignKey("accounts.Profile", on_delete=models.CASCADE, related_name="+")
+    record_type = models.CharField(max_length=30)
+    record_id = models.BigIntegerField()
+    version = models.PositiveIntegerField()
+    snapshot = models.JSONField(default=dict)
+    change_kind = models.CharField(max_length=10, choices=CHANGE_KINDS)
+    changed_at = models.DateTimeField(auto_now_add=True)
+    changed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    group = models.UUIDField(null=True, blank=True, default=None, db_index=True)
+    summary = models.CharField(max_length=300, blank=True, default="")
+    instrument_id_ref = models.BigIntegerField(null=True, blank=True, db_index=True, help_text="For filtering by investment")
+
+    class Meta:
+        ordering = ["-changed_at", "-id"]
+        verbose_name_plural = "investment history"
+        indexes = [models.Index(fields=["profile", "record_type", "record_id", "version"], name="inv_hist_record_idx")]
+
+
+def new_group():
+    return uuid.uuid4()

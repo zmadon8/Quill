@@ -1,0 +1,52 @@
+{% extends "investments/base_investments.html" %}
+{% load investments_money %}
+{% block inv_content %}
+<h1 class="visually-hidden">Dashboard</h1>
+{% if not has_any %}
+<div class="ban"><span>No holdings yet. <a href="{% url 'investments_start' %}">Getting started</a> shows what to do first.</span></div>
+{% endif %}
+{% if overdue %}
+<div class="ban al" role="alert"><span><b>{{ overdue|length }} purchase{{ overdue|length|pluralize:",s" }} still waiting for units</b> after {{ inv_settings.awaiting_reminder_days }} days.</span><span class="r"><a href="{% url 'investments_txn_to_confirm' %}">To complete</a></span></div>
+{% elif awaiting %}
+<div class="ban wa"><span><b>Awaiting allotment:</b> {{ awaiting|length }} entr{{ awaiting|length|pluralize:"y,ies" }}{% if awaiting_total %}, {{ awaiting_total|inr }} paid{% endif %}. Counted at cost until the units are known.</span><span class="r"><a href="{% url 'investments_txn_to_confirm' %}">To complete</a></span></div>
+{% endif %}
+{% if unpriced %}<div class="ban wa"><span>{{ unpriced|length }} holding{{ unpriced|length|pluralize }} without a price ({% for h in unpriced|slice:":3" %}{{ h.instrument.name }}{% if not forloop.last %}, {% endif %}{% endfor %}{% if unpriced|length > 3 %} and more{% endif %}) are valued at cost. Open the investment and enter today's price.</span></div>{% endif %}
+<div class="strip">
+  <div class="f"><div class="lab">Invested</div><div class="fig">{{ totals.invested|inr }}</div></div>
+  <div class="f hl"><div class="lab">Current value</div><div class="fig">{{ totals.value|inr }}</div></div>
+  <div class="f"><div class="lab">Gain</div><div class="fig">{{ totals.gain|inr_signed }}<small>{{ totals.gain_pct|pct_signed }}</small></div></div>
+  <div class="f"><div class="lab">Portfolio XIRR</div><div class="fig">{{ totals.xirr|pct }}<small>yearly return on money you put in</small></div></div>
+  <div class="f"><div class="lab">{{ default_index.name|default:"Nifty 50" }} XIRR</div><div class="fig"><span class="na">&ndash;</span><small>needs index prices</small></div></div>
+  <div class="f"><div class="lab">Alpha</div><div class="fig"><span class="na">&ndash;</span></div></div>
+</div>
+<div class="cols">
+  <div>
+    <div class="sec"><h2>Holdings</h2><div class="acts"><a class="btn q" href="{% url 'investments_holdings' %}">All investments</a></div></div>
+    {% if rows %}
+    <div class="tw"><table data-table-id="inv-dashboard-1" class="led" data-sortable>
+      <thead><tr><th>Name</th><th>Type</th><th class="r">Units</th><th class="r">Avg cost</th><th class="r">Price</th><th class="r">Value</th><th class="r">Gain %</th><th class="r">XIRR</th></tr></thead>
+      <tbody>{% for h in rows %}
+        <tr>
+          <td class="nm" data-sort="{{ h.instrument.name|lower }}"><a href="{% url 'investments_investment' h.instrument.pk %}">{{ h.instrument.name }}</a>{% if h.awaiting %}<span class="tag amb">Awaiting {{ h.awaiting|inr }}</span>{% endif %}{% if h.unpriced %}<span class="tag dash">No price</span>{% endif %}</td>
+          <td>{{ h.instrument.get_kind_display }}</td>
+          <td class="r" data-sort="{{ h.units }}">{{ h.units|units }}</td>
+          <td class="r" data-sort="{{ h.avg_cost|default_if_none:0 }}">{% if h.avg_cost %}{{ h.avg_cost|inr }}{% else %}<span class="na">&ndash;</span>{% endif %}</td>
+          <td class="r" data-sort="{{ h.price|default_if_none:0 }}">{% if h.price %}{{ h.price|price }}{% else %}<span class="na">&ndash;</span>{% endif %}</td>
+          <td class="r" data-sort="{{ h.value }}">{{ h.value|inr }}</td>
+          <td class="r" data-sort="{{ h.gain_pct|default_if_none:0 }}">{% if h.gain_pct is not None and not h.unpriced %}{{ h.gain_pct|pct_signed }}{% else %}<span class="na">&ndash;</span>{% endif %}</td>
+          <td class="r" data-sort="{{ h.xirr|default_if_none:-9 }}">{{ h.xirr|pct }}</td>
+                  </tr>{% endfor %}
+      </tbody>
+      <tfoot><tr><td colspan="5">Total</td><td class="r">{{ totals.value|inr }}</td><td class="r">{% if totals.gain_pct is not None %}{{ totals.gain|inr_signed }}{% endif %}</td><td></td></tr></tfoot>
+    </table></div>
+    {% endif %}
+    {% if allocation %}
+    <div class="sec"><h2>Allocation</h2><span class="hint">by asset class</span></div>
+    <div class="bars">{% for label, value, share in allocation %}
+      <div class="b"><span>{{ label }}</span><div class="tr"><i style="display:block;height:100%;width:{% widthratio share 1 100 %}%;background:var(--s2)"></i></div><span class="r">{% widthratio share 1 100 as p %}{{ p }}%</span></div>{% endfor %}
+    </div>
+    {% endif %}
+  </div>
+  <aside class="ins"><h3>Insights</h3><p class="hint">Plain statements worked out from your data will appear here (a later release).</p></aside>
+</div>
+{% endblock %}

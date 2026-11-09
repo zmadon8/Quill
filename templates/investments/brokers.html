@@ -1,0 +1,9 @@
+{% extends "investments/base_investments.html" %}
+{% load investments_money %}
+{% block inv_content %}
+<div class="titlebar"><h1 class="t">Brokers</h1><div class="meta">{{ rows|length }} broker{{ rows|length|pluralize }}</div></div>
+{% if rows %}<div class="tw"><table data-table-id="inv-brokers-1" class="led" data-sortable><thead><tr><th>Broker</th><th class="r">Holdings</th><th class="r">Invested</th><th class="r">Current value</th><th class="r">XIRR</th><th class="r">Transactions</th></tr></thead><tbody>
+{% for r in rows %}<tr><td class="nm" data-sort="{{ r.broker.name|lower }}"><a href="{% url 'investments_broker_detail' r.broker.pk %}">{{ r.broker.name }}</a>{% if r.broker.hidden %}<span class="tag">Hidden</span>{% endif %}</td><td class="r">{{ r.count }}</td><td class="r" data-sort="{{ r.invested }}">{{ r.invested|inr }}</td><td class="r" data-sort="{{ r.value }}">{{ r.value|inr }}</td><td class="r">{{ r.xirr|pct }}</td><td class="r">{{ r.txns }}</td></tr>{% endfor %}
+</tbody></table></div>
+{% else %}<p class="lead na">No brokers yet. Add one in <a href="{% url 'investments_settings_brokers' %}">Settings &gt; Brokers</a>.</p>{% endif %}
+{% endblock %}

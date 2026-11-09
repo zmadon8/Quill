@@ -8,7 +8,7 @@ from .models import BackupLog
 
 logger = logging.getLogger(__name__)
 
-BACKUP_KINDS = ["daily", "manual", "pre_restore", "pre_migration", "pre_import", "post_import", "pre_clear"]
+BACKUP_KINDS = ["daily", "manual", "pre_restore", "pre_migration", "pre_import", "post_import", "pre_clear", "pre_inv_delete", "pre_catalogue"]
 
 
 def backup_banner(request):

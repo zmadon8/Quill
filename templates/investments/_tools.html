@@ -1,12 +1,13 @@
 {# The tools row under the header (plan 24.1): selectors on the left, Update Prices and the Auto / Full toggle on the right. #}
 <div class="tools">
-  <div class="ctx">
-    <div class="sel"><span>Portfolio</span><b>{{ inv_portfolio_label|default:"All Portfolios" }}</b></div>
-    <div class="sel"><span>Broker</span><b>{{ inv_broker_label|default:"All brokers" }}</b></div>
-  </div>
+  {% if inv_selectors %}<form class="ctx" method="post" action="{% url 'investments_set_selection' %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
+    <div class="sel"><label for="sel-portfolio"><span>Portfolio</span></label><select id="sel-portfolio" name="portfolio" onchange="this.form.submit()"><option value="">All Portfolios</option>{% for p in inv_portfolios %}<option value="{{ p.pk }}"{% if p.pk == sel_portfolio %} selected{% endif %}>{{ p.name }}</option>{% endfor %}</select></div>
+    <div class="sel"><label for="sel-broker"><span>Broker</span></label><select id="sel-broker" name="broker" onchange="this.form.submit()"><option value="">All brokers</option>{% for b in inv_brokers %}<option value="{{ b.pk }}"{% if b.pk == sel_broker %} selected{% endif %}>{{ b.name }}</option>{% endfor %}</select></div>
+    <div class="sel"><label for="sel-asat"><span>As at</span></label><input id="sel-asat" type="date" name="asat" value="{{ sel_asat|date:'Y-m-d' }}" max="{% now 'Y-m-d' %}" onchange="this.form.submit()"></div>
+  </form>{% else %}<div class="ctx"></div>{% endif %}
   <div class="util">
-    <button type="button" class="btn q" disabled title="Prices are fetched from a later release">Update Prices</button>
-    <div class="toggle" role="group" aria-label="Number display" title="Number display"><span role="button" tabindex="0" data-money-mode="auto" class="on">Auto</span><span role="button" tabindex="0" data-money-mode="full">Full</span></div>
+    <button type="button" class="btn q" disabled title="Prices are typed by hand for now; fetching arrives in a later release">Update Prices</button>
+    <div class="toggle" role="group" aria-label="Number display" title="Number display" data-post="{% url 'investments_set_money_mode' %}" data-initial="{{ inv_money_mode }}"><span role="button" tabindex="0" data-money-mode="auto" class="{% if inv_money_mode == 'auto' %}on{% endif %}">Auto</span><span role="button" tabindex="0" data-money-mode="full" class="{% if inv_money_mode == 'full' %}on{% endif %}">Full</span></div>
   </div>
-  <div class="status">{{ inv_status|default:"No prices yet." }}</div>
+  <div class="status">{{ inv_status|default:"Prices are entered by hand. Fetched prices arrive in a later release." }}{% if sel_asat %} &middot; <b>As at {{ sel_asat|date:"j M Y" }}</b>{% endif %}</div>
 </div>

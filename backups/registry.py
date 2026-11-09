@@ -23,13 +23,38 @@ data worth keeping (the User group and permission links are unused).
 """
 from django.apps import apps
 
-#: Investments models. Phase 0 registers no tables yet (the app has no models); the lists exist so the program
-#: registration, purge and clear already read them, and each later phase appends its models parents first. Fetched
-#: prices (``Price``), fetched exchange rates, caches, tokens and logs are deliberately NEVER listed (plan 17.2).
-INVESTMENTS_BACKUP_MODELS = []
+#: Investments models, parents first; each phase appends its models. Fetched prices (``Price``), fetched exchange
+#: rates, caches (``InvestmentsStatsCache``), per-person display prefs (``InvestmentsUserPrefs``), tokens and logs are
+#: deliberately NEVER listed (plan 17.2). ``ManualPrice`` has no profile column (shared), so it is only in the backup list.
+INVESTMENTS_BACKUP_MODELS = [
+    "investments.Instrument",
+    "investments.ManualPrice",
+    "investments.Portfolio",
+    "investments.Broker",
+    "investments.InvestmentSettings",
+    "investments.Folio",
+    "investments.Transfer",
+    "investments.Switch",
+    "investments.Transaction",
+    "investments.ProfileInvestment",
+    "investments.AltValue",
+    "investments.InvestmentHistory",
+]
 
 #: Investments models that carry a ``profile`` column, parents first. ``investments.apps`` reads this list.
-INVESTMENT_PROFILE_MODELS = []
+INVESTMENT_PROFILE_MODELS = [
+    "investments.Instrument",       # profile is nullable: only a profile's private alternative investments match
+    "investments.Portfolio",
+    "investments.Broker",
+    "investments.InvestmentSettings",
+    "investments.Folio",
+    "investments.Transfer",
+    "investments.Switch",
+    "investments.Transaction",
+    "investments.ProfileInvestment",
+    "investments.AltValue",
+    "investments.InvestmentHistory",
+]
 
 BACKUP_MODELS = [
     "accounts.User",

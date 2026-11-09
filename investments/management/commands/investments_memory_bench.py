@@ -8,12 +8,13 @@ Run it where the project's requirements are installed (CI after the tests, or a 
 It builds a throwaway profile and user inside a transaction that is rolled back at the end, runs each registered
 operation (``investments.bench``) inside its own savepoint, and prints one machine-readable line per operation::
 
-    BENCH <operation> rss_peak_mb=<x> tracemalloc_peak_mb=<y> cap_mb=<z> status=<OK|OVER|ERROR>
+    BENCH <operation> rss_peak_mb=<x> tracemalloc_peak_mb=<y> cap_mb=<z> seconds=<t> status=<OK|OVER|ERROR>
 
 then ``BENCH done``. ``tracemalloc_peak_mb`` is the figure the caps are written against; ``rss_peak_mb`` is the process
 high-water mark, for information. The command never prints settings or environment variables and it exits non-zero if
 any operation is OVER or ERROR (CI runs it non-blocking, like the Fee Register's bench).
 """
+import time
 import traceback
 
 try:  # POSIX only; on other platforms the RSS column reads n/a.
@@ -90,6 +91,7 @@ class Command(BaseCommand):
 
     def _run(self, name, cap, fn, ctx):
         status, peak = "OK", 0.0
+        began = time.perf_counter()
         try:
             with transaction.atomic():
                 with assert_peak_under(_BenchCase(), cap) as box:
@@ -104,7 +106,7 @@ class Command(BaseCommand):
         if status != "OK":
             self.failures.append(name)
         self.stdout.write(
-            f"BENCH {name} rss_peak_mb={_fmt(_rss_mb())} tracemalloc_peak_mb={_fmt(peak)} cap_mb={cap:.1f} status={status}"
+            f"BENCH {name} rss_peak_mb={_fmt(_rss_mb())} tracemalloc_peak_mb={_fmt(peak)} cap_mb={cap:.1f} seconds={time.perf_counter() - began:.2f} status={status}"
         )
 
 
