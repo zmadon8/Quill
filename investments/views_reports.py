@@ -175,3 +175,70 @@ def value_view(request):
 
 
 __all__ = ["performance_view", "charts_view", "value_view", "Q"]
+
+
+# ------------------------------------------------------------------ Annual Report (plan 13)
+
+@inv_reader
+def annual_view(request):
+    from django.shortcuts import redirect
+    from django.urls import reverse
+
+    from .services import annual
+
+    profile = profile_or_404(request)
+    portfolio, broker, _asat = selection(request, profile)
+    years = annual.year_choices(profile)
+    label = request.GET.get("fy") if request.GET.get("fy") in years else years[0]
+    settings_row = core.get_settings(profile, create=False)
+    if request.method == "POST":
+        from accounts.models import ROLE_EDITOR
+        from accounts.profiles import request_role
+        from accounts.suite import KEY_INVESTMENTS
+        from django.core.exceptions import PermissionDenied
+
+        if request_role(request, KEY_INVESTMENTS) != ROLE_EDITOR:
+            raise PermissionDenied
+        try:
+            days = int(request.POST.get("cutoff", ""))
+            if not 1 <= days <= 3650:
+                raise ValueError
+        except ValueError:
+            messages.error(request, "The cutoff must be a number of days between 1 and 3650.")
+        else:
+            cutoffs = dict(settings_row.year_cutoffs or {})
+            cutoffs[label] = days
+            masters.update_settings(profile, request.user, year_cutoffs=cutoffs)
+            messages.success(request, f"Long-term cutoff for {label} saved.")
+        return redirect(reverse("investments_annual") + f"?fy={label}")
+    from .viewutil import include_dividends
+
+    report = annual.build(profile, label, portfolio=portfolio, broker=broker, include_dividends=include_dividends(request, profile))
+    if request.GET.get("export") == "xlsx":
+        return _annual_export(report)
+    return page(request, "investments/annual.html", {"page_title_text": f"Annual Report {label}", "r": report, "years": years, "label": label,
+                                                    "default_cutoff": settings_row.long_term_days, "include_div": settings_row.include_dividends})
+
+
+def _annual_export(r):
+    from .exports import response
+
+    pct = (lambda v: None if v is None else round(v * 100, 2))
+    summary = [["Starting portfolio value", r.opening_value], ["Amount invested", r.invested], ["Amount sold", r.sold], ["Amount re-invested", r.reinvested],
+               ["Short-term capital gains", r.short_gain], ["Long-term capital gains", r.long_gain], ["XIRR for the year %", pct(r.xirr)],
+               [f"{r.index_name} return %", pct(r.index_return)], ["Ending portfolio value", r.closing_value], ["Dividends received", r.dividends],
+               ["Tax deducted on dividends", r.dividend_tax], ["Unrealised gain at year end", r.unrealised], ["Long-term after (days held)", r.cutoff],
+               ["Note", "A record-keeping aid, not tax advice. Check the treatment with your CA."]]
+    sales = [[s["name"], s["bought"], s["sold"], s["days"], s["units"], s["cost"], s["proceeds"], s["gain"], "Long-term" if s["term"] == "long" else "Short-term",
+              "Estimated date" if s["estimated"] else ("Bonus" if s["bonus"] else "")] for s in r.sales]
+    held = [[h.instrument.name, h.instrument.get_kind_display(), h.units, h.cost, h.value, h.value - h.cost, "Provisional" if (h.provisional or h.awaiting) else ""]
+            for h in r.holdings]
+    txns = [[t.date, t.instrument.name, t.get_side_display(), t.units, t.price, t.charges, t.amount if t.status == "awaiting" else None, t.broker.name, t.portfolio.name,
+             t.get_status_display()] for t in r.transactions]
+    by_pf = [[name, s.opening_value, s.invested, s.sold, s.short_gain, s.long_gain, pct(s.xirr), s.closing_value] for name, s in r.by_portfolio]
+    return response(f"Annual Report {r.label}.xlsx", [
+        ("Summary", ["Item", r.label], summary),
+        ("Capital gains", ["Investment", "Bought (held from)", "Sold", "Days held", "Units", "Cost", "Proceeds", "Gain", "Term", "Note"], sales),
+        ("Holdings at year end", ["Investment", "Type", "Units", "Cost", "Value", "Unrealised gain", ""], held),
+        ("Transactions", ["Date", "Investment", "Buy / sell", "Units", "Price", "Charges", "Amount awaiting", "Broker", "Portfolio", "Status"], txns),
+        ("By portfolio", ["Portfolio", "Starting value", "Invested", "Sold", "Short-term gains", "Long-term gains", "XIRR %", "Ending value"], by_pf)])

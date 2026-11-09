@@ -36,6 +36,9 @@ def latest_prices(instrument_ids, as_of):
     for iid, (day, close) in manual.items():
         if iid not in out or day >= out[iid][0]:
             out[iid] = (day, close)
+    # A pin for exactly this date wins (plan 17.2): a 31 March report gives the same numbers whether or not the daily prices still exist.
+    for iid, trading, close in PinnedPrice.objects.filter(instrument_id__in=ids, asked_date=as_of).values_list("instrument_id", "trading_date", "close"):
+        out[iid] = (trading, close)
     return out
 
 

@@ -86,6 +86,8 @@ class Match:
     bought_on: date
     paid_on: date
     sold_on: date
+    bucket: Optional[Bucket] = None
+    estimated: bool = False
 
     @property
     def holding_days(self):
@@ -176,7 +178,7 @@ def replay(events, as_of=None):
             taken = _take(lots, min(event.units, have), event.ref, event.on, event.total, result)
             for lot, use, cost in taken:
                 share = event.total * use / event.units if event.units else ZERO
-                result.matches.append(Match(event.ref, lot.ref, use, cost, share, lot.bought_on, lot.paid_on, event.on))
+                result.matches.append(Match(event.ref, lot.ref, use, cost, share, lot.bought_on, lot.paid_on, event.on, event.bucket, lot.estimated))
         elif event.kind == TRANSFER:
             src = result.lots.setdefault(event.bucket, [])
             dst = result.lots.setdefault(event.to_bucket, [])

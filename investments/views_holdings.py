@@ -142,10 +142,20 @@ def _parse_links(text):
 
 @inv_reader
 def investment(request, pk):
+    from datetime import date as _date, timedelta as _td
+
+    from .services import investment_page
+    from .viewutil import include_dividends, parse_date
+
     profile = profile_or_404(request)
     inst = _instrument_or_404(profile, pk)
     portfolio, broker, asat = selection(request, profile)
-    rows, _t = holdings.compute(profile, portfolio=portfolio, broker=broker, as_of=asat, instrument_ids=[inst.pk])
+    on = parse_date(request.GET.get("on"))
+    if on and on > _date.today():
+        on = None
+    as_of = on or asat or _date.today()
+    div = include_dividends(request, profile)
+    rows, _t = holdings.compute(profile, portfolio=portfolio, broker=broker, as_of=as_of, instrument_ids=[inst.pk], include_dividends=div)
     h = rows[0] if rows else holdings.Holding(instrument=inst, sold_out=False)
     pi = masters.get_profile_investment(profile, inst) if request.user.is_authenticated and inst.pk else None
     txns = Transaction.objects.filter(profile=profile, instrument=inst).select_related("broker", "portfolio", "folio").order_by("-date", "-id")
@@ -170,9 +180,12 @@ def investment(request, pk):
         "manual_prices": ManualPrice.objects.filter(instrument=inst).order_by("-date")[:10],
         "alt_values": AltValue.objects.filter(profile=profile, instrument=inst).order_by("-date")[:20] if inst.kind == KIND_ALTERNATIVE else [],
         "awaiting_rows": awaiting_rows, "history": InvestmentHistory.objects.filter(profile=profile, instrument_id_ref=inst.pk)[:8],
-        "kind_label": inst.get_kind_display(),
-        "lots": [(l, (l.units * h.price) if h.price else None, (l.units * h.price - l.cost) if h.price else None)
-                 for l in sorted(h.lots, key=lambda l: (l.bought_on, str(l.ref)))],
+        "kind_label": inst.get_kind_display(), "on": on, "as_of": as_of, "include_div": div,
+        "chart": investment_page.price_chart(profile, inst, as_of - _td(days=int(request.GET.get("days", 365)) if str(request.GET.get("days", "365")).isdigit() else 365), as_of)
+        if inst.kind != KIND_ALTERNATIVE else None,
+        "range52": investment_page.range_52w(inst, as_of) if inst.kind != KIND_ALTERNATIVE else (None, None),
+        "guardrails": investment_page.guardrails(profile, inst),
+        "purchase": investment_page.purchase_rows(profile, inst, h, as_of),
         "is_private": inst.profile_id is not None,
         "dividends": __import__("investments.models", fromlist=["Dividend"]).Dividend.objects.filter(profile=profile, instrument=inst).select_related("broker")[:50],
         "actions": [a for a in __import__("investments.services.corporate", fromlist=["for_profile"]).for_profile(profile) if a.instrument_id == inst.pk],

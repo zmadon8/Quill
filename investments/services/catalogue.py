@@ -19,7 +19,8 @@ from investments.models import (
 from investments.services import fetch, prices
 
 PAGE = 50
-EDITABLE = ("name", "code", "isin", "exchange", "currency", "asset_class", "sector", "price_source", "fallback_source", "fetch_enabled")
+EDITABLE = ("name", "code", "isin", "exchange", "currency", "asset_class", "sector", "price_source", "fallback_source", "fetch_enabled", "latest_pe",
+            "next_results_date")
 
 
 def require_admin(user):

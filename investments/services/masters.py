@@ -151,7 +151,7 @@ SETTINGS_FIELDS = {
     "awaiting_treatment", "awaiting_reminder_days", "corporate_action_mode", "long_term_days", "default_index",
     "sectoral_enabled", "include_dividends", "alt_treatment", "money_default", "hidden_pages", "default_exchange",
     "show_status_dots", "rule_a_enabled", "rule_a_fall_pct", "rule_a_rise_pct", "rule_a_window_days", "rule_a_window_fall_pct", "rule_b_enabled",
-    "rule_b_loss_pct", "rule_b_gain_pct", "guardrail_replaces_global", "alert_email", "maturity_alert_days",
+    "rule_b_loss_pct", "rule_b_gain_pct", "guardrail_replaces_global", "alert_email", "maturity_alert_days", "year_cutoffs",
 }
 
 

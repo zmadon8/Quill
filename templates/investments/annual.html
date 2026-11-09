@@ -1,0 +1,44 @@
+{% extends "investments/base_investments.html" %}
+{% load investments_money %}
+{% block inv_content %}
+<div class="titlebar"><h1 class="t">Annual Report {{ label }}</h1><div class="meta">{% if r.completed %}as at 31 March{% else %}to date{% endif %}</div></div>
+<form method="get" class="sec" style="justify-content:flex-start;gap:16px;align-items:flex-end"><div class="sel"><span>Financial year</span><select name="fy" onchange="this.form.submit()">{% for y in years %}<option value="{{ y }}"{% if y == label %} selected{% endif %}>{{ y }}</option>{% endfor %}</select></div>
+<a class="chk" href="?fy={{ label }}&div={% if include_div %}0{% else %}1{% endif %}" role="switch" aria-checked="{{ include_div|yesno:'true,false' }}"><i class="{% if include_div %}on{% endif %}"></i> Include dividends in XIRR</a>
+<a class="btn q" href="?fy={{ label }}&export=xlsx">Export to Excel</a></form>
+<p class="hint">A record-keeping aid, not tax advice. Check the treatment of gains, bonus shares, grandfathered holdings and foreign investments with your CA.</p>
+{% if r.provisional %}<div class="ban wa"><span>Some figures are <b>Provisional</b>: {% if r.awaiting %}{{ r.awaiting|length }} purchase{{ r.awaiting|length|pluralize }} awaiting allotment {% if r.completed %}on 31 March{% else %}today{% endif %} {{ r.awaiting|length|pluralize:"is,are" }} valued at cost{% endif %}{% if r.awaiting and r.provisional %}; {% endif %}a split or bonus may be waiting for confirmation.</span></div>{% endif %}
+<table data-table-id="inv-annual-summary" class="led"><tbody>
+<tr><td>1. Starting portfolio value <small class="na">(31 March before)</small></td><td class="r">{{ r.opening_value|inr }}</td></tr>
+<tr><td>2. Amount invested</td><td class="r">{{ r.invested|inr }}</td></tr>
+<tr><td>3. Amount sold</td><td class="r">{{ r.sold|inr }}</td></tr>
+<tr><td>4. Amount re-invested <small class="na">(invested less sold)</small></td><td class="r">{{ r.reinvested|inr_signed }}</td></tr>
+<tr><td>5. Capital gains: short-term</td><td class="r">{{ r.short_gain|inr_signed }}</td></tr>
+<tr><td>&nbsp;&nbsp;&nbsp;Capital gains: long-term <small class="na">(held more than {{ r.cutoff }} days)</small></td><td class="r">{{ r.long_gain|inr_signed }}</td></tr>
+<tr><td>6. XIRR for the year{% if include_div %} <small class="na">including dividends</small>{% endif %}</td><td class="r">{{ r.xirr|pct }}</td></tr>
+<tr><td>&nbsp;&nbsp;&nbsp;{{ r.index_name|default:"Index" }} return for the year{% if r.approximate %} <span class="tag amb">approximate</span>{% endif %}</td><td class="r">{{ r.index_return|pct }}</td></tr>
+<tr><td>7. Ending portfolio value <small class="na">({% if r.completed %}31 March{% else %}today{% endif %})</small></td><td class="r">{{ r.closing_value|inr }}</td></tr>
+<tr><td>Dividends received <small class="na">(not part of portfolio value)</small></td><td class="r">{{ r.dividends|inr }}</td></tr>
+<tr><td>Tax deducted on dividends</td><td class="r">{{ r.dividend_tax|inr }}</td></tr>
+<tr><td>Unrealised gain at year end</td><td class="r">{{ r.unrealised|inr_signed }}</td></tr></tbody></table>
+{% if can_edit %}<form method="post" class="inline-edit">{% csrf_token %}<label for="cutoff">Long-term after (days held) for {{ label }}</label><input id="cutoff" name="cutoff" value="{{ r.cutoff }}" size="5"><button class="btn q sm">Save</button><span class="hint">Default for new years: {{ default_cutoff }} (Settings).</span></form>{% endif %}
+
+<div class="sec"><h2>Sale by sale</h2><span class="hint">first bought, first sold</span></div>
+{% if r.sales %}<div class="tw"><table data-table-id="inv-annual-sales" class="led" data-sortable><thead><tr><th>Investment</th><th>Held from</th><th>Sold</th><th class="r">Days</th><th class="r">Units</th><th class="r">Cost</th><th class="r">Proceeds</th><th class="r">Gain</th><th>Term</th></tr></thead><tbody>
+{% for s in r.sales %}<tr><td class="nm">{{ s.name }}{% if s.estimated %}<span class="tag amb">Estimated date</span>{% endif %}{% if s.bonus %}<span class="tag">Bonus</span>{% endif %}</td><td data-sort="{{ s.bought|date:'Y-m-d' }}">{{ s.bought|date:"j M Y" }}</td><td data-sort="{{ s.sold|date:'Y-m-d' }}">{{ s.sold|date:"j M Y" }}</td><td class="r">{{ s.days }}</td><td class="r">{{ s.units|units }}</td><td class="r" data-sort="{{ s.cost }}">{{ s.cost|inr }}</td><td class="r" data-sort="{{ s.proceeds }}">{{ s.proceeds|inr }}</td><td class="r" data-sort="{{ s.gain }}">{{ s.gain|inr_signed }}</td><td>{% if s.term == "long" %}Long-term{% else %}Short-term{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>{% else %}<p class="na">No sales in this year.</p>{% endif %}
+
+<div class="sec"><h2>Holdings at year end</h2></div>
+{% if r.holdings %}<div class="tw"><table data-table-id="inv-annual-holdings" class="led" data-sortable><thead><tr><th>Investment</th><th class="r">Units</th><th class="r">Cost</th><th class="r">Value</th><th class="r">Unrealised</th></tr></thead><tbody>
+{% for h in r.holdings %}<tr><td class="nm">{{ h.instrument.name }}{% if h.awaiting %}<span class="tag amb">Provisional, at cost</span>{% endif %}{% if h.provisional %}<span class="tag amb">Provisional</span>{% endif %}</td><td class="r">{{ h.units|units }}</td><td class="r">{{ h.cost|inr }}</td><td class="r">{{ h.value|inr }}</td><td class="r">{% if h.awaiting or h.unpriced %}<span class="na">&ndash;</span>{% else %}{{ h.gain|inr_signed }}{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>
+<div class="bars">{% for label, value, share in r.allocation %}<div class="b"><span>{{ label }}</span><div class="tr"><i style="display:block;height:100%;width:{% widthratio share 1 100 %}%;background:var(--s2)"></i></div><span class="r">{{ share|pct }}</span></div>{% endfor %}</div>
+{% else %}<p class="na">Nothing was held at year end.</p>{% endif %}
+
+{% if r.by_portfolio|length > 1 %}<div class="sec"><h2>By portfolio</h2></div>
+<div class="tw"><table data-table-id="inv-annual-portfolios" class="led"><thead><tr><th>Portfolio</th><th class="r">Start</th><th class="r">Invested</th><th class="r">Sold</th><th class="r">Short-term</th><th class="r">Long-term</th><th class="r">XIRR</th><th class="r">End</th></tr></thead><tbody>
+{% for name, s in r.by_portfolio %}<tr><td>{{ name }}</td><td class="r">{{ s.opening_value|inr }}</td><td class="r">{{ s.invested|inr }}</td><td class="r">{{ s.sold|inr }}</td><td class="r">{{ s.short_gain|inr_signed }}</td><td class="r">{{ s.long_gain|inr_signed }}</td><td class="r">{{ s.xirr|pct }}</td><td class="r">{{ s.closing_value|inr }}</td></tr>{% endfor %}</tbody></table></div>{% endif %}
+
+<div class="sec"><h2>Transactions in {{ label }}</h2></div>
+<div class="tw"><table data-table-id="inv-annual-txns" class="led" data-sortable><thead><tr><th>Date</th><th>Investment</th><th>Buy / sell</th><th class="r">Units</th><th class="r">Price</th><th>Broker</th></tr></thead><tbody>
+{% for t in r.transactions %}<tr><td data-sort="{{ t.date|date:'Y-m-d' }}">{{ t.date|date:"j M Y" }}</td><td>{{ t.instrument.name }}{% if t.status == "awaiting" %}<span class="tag amb">Awaiting</span>{% endif %}</td><td>{{ t.get_side_display }}</td><td class="r">{% if t.units is not None %}{{ t.units|units }}{% endif %}</td><td class="r">{% if t.price is not None %}{{ t.price|price }}{% else %}{{ t.amount|inr }}{% endif %}</td><td>{{ t.broker.name }}</td></tr>{% empty %}<tr><td colspan="6" class="na">None.</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

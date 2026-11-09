@@ -236,7 +236,7 @@ class AlertTests(InvTestCase):
         (a,) = [x for x in alerts.evaluate(self.profile) if x.kind == "rule_b"]
         self.assertIn("25.00% below cost", a.label)
         self.assertEqual(a.portfolio_name, "Main")
-        self.assertEqual((a.term, a.days_to_long), ("short-term", 265))
+        self.assertEqual((a.term, a.days_to_long), ("short-term", 266))
 
     def test_guardrail_replaces_global_and_dismiss_snooze_rearm(self):
         self.close(1, 150)

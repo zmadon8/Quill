@@ -56,6 +56,8 @@ class Instrument(models.Model):
     price_basis = models.CharField(max_length=15, blank=True, default="", choices=[("raw", "Raw (as traded)"), ("split_adjusted", "Split-adjusted")],
                                    help_text="Plan 16.2: whether stored closes are restated for later splits. Blank for funds and hand-entered items.")
     interest_rate = models.DecimalField(max_digits=7, decimal_places=3, null=True, blank=True)
+    latest_pe = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, help_text="Current PE, where available (no history kept)")
+    next_results_date = models.DateField(null=True, blank=True)
     maturity_date = models.DateField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -142,6 +144,8 @@ class InvestmentSettings(models.Model):
     guardrail_replaces_global = models.BooleanField(default=True)
     alert_email = models.BooleanField(default=False)
     maturity_alert_days = models.PositiveSmallIntegerField(default=30)
+    #: The holding-period cutoff chosen for each financial year, e.g. {"2024-25": 365}; a year without one uses long_term_days (plan 13.5).
+    year_cutoffs = models.JSONField(default=dict, blank=True)
     default_exchange = models.CharField(max_length=3, default="NS", choices=[("NS", "NSE"), ("BO", "BSE")])
     show_status_dots = models.BooleanField(default=True)
 

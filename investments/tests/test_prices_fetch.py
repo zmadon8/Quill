@@ -237,13 +237,13 @@ class LookupTests(InvTestCase):
         self.assertEqual((got[1], got[3]), (D(99), True))
         self.assertIsNone(prices.price_on(self.fund, d(2026, 4, 5)))
 
-    def test_one_query_pair_for_many_instruments(self):
+    def test_a_fixed_number_of_queries_for_many_instruments(self):
         from django.db import connection
         from django.test.utils import CaptureQueriesContext
         ids = [self.reliance.pk, self.fund.pk]
         with CaptureQueriesContext(connection) as ctx:
             prices.latest_prices(ids, d(2026, 11, 9))
-        self.assertEqual(len(ctx), 2)
+        self.assertEqual(len(ctx), 3)          # hand-entered, fetched, and the pins for that exact date
 
     def test_stale_and_move_detection(self):
         Price.objects.create(instrument=self.reliance, date=d(2026, 10, 1), close=D(100), source="api")

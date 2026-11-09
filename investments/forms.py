@@ -266,6 +266,8 @@ class CatalogueDetailsForm(forms.Form):
     price_source = forms.ChoiceField(choices=[("manual", "Entered by hand"), ("yahoo", "Yahoo"), ("amfi", "AMFI"), ("mfapi", "mfapi.in"), ("upload", "Uploaded")])
     fallback_source = forms.ChoiceField(choices=[("", "None"), ("yahoo", "Yahoo"), ("amfi", "AMFI"), ("mfapi", "mfapi.in")], required=False)
     fetch_enabled = forms.BooleanField(required=False, label="Fetch nightly")
+    latest_pe = forms.DecimalField(required=False, max_digits=10, decimal_places=2, label="Current PE (optional)")
+    next_results_date = forms.DateField(required=False, widget=date_widget(), label="Next results date (optional)")
 
     def clean_currency(self):
         return self.cleaned_data["currency"].upper()

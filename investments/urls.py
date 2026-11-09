@@ -35,6 +35,7 @@ REAL = {
     "performance": vr.performance_view,
     "charts": vr.charts_view,
     "value": vr.value_view,
+    "annual": vr.annual_view,
     "admin_price_history": vp.price_history,
     "admin_catalogue": vc.catalogue_list,
 }

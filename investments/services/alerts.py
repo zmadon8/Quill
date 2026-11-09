@@ -47,9 +47,9 @@ def _term(h, settings_row, on):
     if oldest is None:
         return "", None
     held = (on - oldest).days
-    if held >= settings_row.long_term_days:
+    if held > settings_row.long_term_days:
         return "long-term", 0
-    return "short-term", settings_row.long_term_days - held
+    return "short-term", settings_row.long_term_days - held + 1
 
 
 def evaluate(profile, today=None):

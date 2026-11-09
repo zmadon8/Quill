@@ -23,7 +23,7 @@ def _nice_ticks(lo, hi, count=5):
     return ticks
 
 
-def line_chart(days, lines, width=900, height=280, pad=(56, 16, 24, 30)):
+def line_chart(days, lines, width=900, height=280, pad=(56, 16, 24, 30), markers=None):
     """``lines`` is ``[(label, [value or None per day])]``. Returns ``{"width","height","paths","yticks","xticks","legend"}``."""
     left, right, top, bottom = pad
     values = [float(v) for _l, vs in lines for v in vs if v is not None]
@@ -58,8 +58,15 @@ def line_chart(days, lines, width=900, height=280, pad=(56, 16, 24, 30)):
     yticks = [{"y": round(y(t), 1), "label": _fmt(t)} for t in ticks]
     marks = sorted({0, n // 4, n // 2, 3 * n // 4, n})
     xticks = [{"x": round(x(i), 1), "label": days[i].strftime("%b %Y" if (days[-1] - days[0]).days > 120 else "%-d %b")} for i in marks]
+    # markers: [(date, label, "buy" or "sell")] drawn on the first line at the nearest sample date (the purchases and sales on a price chart)
+    marks_out = []
+    first = lines[0][1] if lines else []
+    for day, label, kind in markers or []:
+        i = min(range(len(days)), key=lambda k: abs((days[k] - day).days))
+        if first[i] is not None:
+            marks_out.append({"x": round(x(i), 1), "y": round(y(first[i]), 1), "label": label, "kind": kind})
     return {"width": width, "height": height, "paths": paths, "yticks": yticks, "xticks": xticks, "left": left, "right": width - right,
-            "top": top, "bottom": height - bottom}
+            "top": top, "bottom": height - bottom, "markers": marks_out}
 
 
 def _fmt(v):
