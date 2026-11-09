@@ -27,6 +27,7 @@ REAL = {
     "settings_pages": vm.settings_pages,
     "admin_prices": vp.price_sources,
     "admin_upload": vp.price_upload,
+    "admin_price_history": vp.price_history,
     "admin_catalogue": vc.catalogue_list,
 }
 
@@ -62,6 +63,7 @@ urlpatterns += [
     path("settings/catalogue/new/", vc.catalogue_new, name="investments_admin_catalogue_new"),
     path("settings/catalogue/<int:pk>/", vc.catalogue_item, name="investments_admin_catalogue_item"),
     path("settings/catalogue/<int:pk>/action/", vc.catalogue_action, name="investments_admin_catalogue_action"),
+    path("settings/price-history/archive/", vp.price_archive, name="investments_price_archive"),
     path("prefs/selection/", views.set_selection, name="investments_set_selection"),
     path("prefs/money/", views.set_money_mode, name="investments_set_money_mode"),
 ]

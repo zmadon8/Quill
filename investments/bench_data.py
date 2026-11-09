@@ -1,7 +1,6 @@
 """Planning-dataset builder and the dataset-based operations for ``investments_memory_bench`` (plan 18 phase 0 and 26.1).
 
-Planning size: about 5,000 transactions, 150 instruments and 10 years of daily prices (about 375,000 price rows; the
-only price table today is ``ManualPrice``, which stands in for the fetched ``Price`` table of the price phase). The
+Planning size: about 5,000 transactions, 150 instruments and 10 years of daily prices (about 375,000 ``Price`` rows). The
 ``small`` size is a quick smoke run. Everything is built in the bench's throwaway transaction, which is rolled back.
 """
 import datetime
@@ -21,7 +20,7 @@ def _bulk(model, objs):
 
 def build(ctx):
     """Create the dataset in ``ctx.profile`` and remember the pieces on ``ctx.extra``."""
-    from investments.models import Broker, Instrument, ManualPrice, Portfolio, ProfileInvestment, Transaction
+    from investments.models import Broker, Instrument, Portfolio, Price, ProfileInvestment, Transaction
 
     cfg = SIZES.get(ctx.size, SIZES["planning"])
     rng = random.Random(ctx.seed)
@@ -45,12 +44,12 @@ def build(ctx):
         price = Decimal(rng.randint(50, 3000))
         for day in days:
             price = max(Decimal(1), (price * Decimal(str(1 + rng.uniform(-0.02, 0.0215)))).quantize(Decimal("0.01")))
-            batch.append(ManualPrice(instrument=inst, date=day, close=price))
+            batch.append(Price(instrument=inst, date=day, close=price, source="api", basis=""))
             if len(batch) >= 2000:
-                ManualPrice.objects.bulk_create(batch)
+                Price.objects.bulk_create(batch)
                 batch = []
     if batch:
-        ManualPrice.objects.bulk_create(batch)
+        Price.objects.bulk_create(batch)
 
     per = max(2, cfg["transactions"] // len(instruments))
     txns = []
@@ -115,3 +114,61 @@ def backup_create(ctx):
     from backups import services
 
     services.write_document(io.BytesIO(), __import__("django.utils.timezone", fromlist=["now"]).now())
+
+
+@operation("archive_build", 15.0, needs_dataset=True)
+def archive_build(ctx):
+    """The full price archive, streamed to a temporary file one part at a time (plan 26.1: about 10 to 15 MB)."""
+    import shutil
+
+    from investments.services import archive
+
+    paths = archive.build(max_part_bytes=15 * 1024 * 1024)
+    ctx.extra["archive_parts"] = len(paths)
+    shutil.rmtree(paths[0].parent, ignore_errors=True)
+
+
+@operation("prune_run", 10.0, needs_dataset=True)
+def prune_run(ctx):
+    """One pruning run (chunks of about 5,000 rows; plan 26.1: under 10 MB)."""
+    from investments.services import pruning
+
+    pruning.configure(ctx.user, prune_live=True, prune_archive=True, years=2, full_archive_confirmed=True)
+    ctx.extra["pruned"] = pruning.prune_prices(require_backup=False)
+
+
+@operation("price_import", 25.0, needs_dataset=True)
+def price_import_op(ctx):
+    """A history upload of about 60,000 rows through the dry run and the apply (plan 26.1: a 10 MB file under 25 MB)."""
+    import tempfile
+    from pathlib import Path
+
+    from investments.models import Price
+    from investments.services import price_import
+
+    inst = ctx.extra["instruments"][0]
+    Price.objects.filter(instrument=inst).delete()
+    path = Path(tempfile.mkdtemp()) / "bench.csv"
+    start = datetime.date(2000, 1, 1)
+    with open(path, "w") as out:
+        out.write("symbol,date,close\n")
+        for i in range(60000):
+            out.write(f"{inst.code},{start + datetime.timedelta(days=i):%Y-%m-%d},{100 + (i % 977) / 7:.2f}\n")
+    price_import.apply(path, today=datetime.date(2200, 1, 1))
+    path.unlink()
+
+
+@operation("update_batch", 15.0, needs_dataset=True)
+def update_batch(ctx):
+    """One Update Prices batch of ten symbols with a recorded Yahoo answer (plan 26.1: 5 to 15 MB)."""
+    from unittest import mock
+
+    from investments.adapters import http
+    from investments.services import fetch
+    from investments.tests.fakehttp import FakeNet, fixture
+
+    net = FakeNet()
+    net.add("chart", fixture("yahoo_chart_reliance.json"))
+    with mock.patch.object(http, "_urlopen", net), mock.patch.object(http, "sleep", lambda s: None):
+        ids = [i.pk for i in ctx.extra["instruments"] if i.kind == "share"][:10]
+        fetch.fetch_prices(ids=ids, spacing=0, today=datetime.date.today())

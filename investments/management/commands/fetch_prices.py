@@ -19,11 +19,20 @@ class Command(BaseCommand):
         parser.add_argument("--years", type=int, default=10, help="History to fetch for a new investment (default 10 years).")
 
     def handle(self, *args, **options):
+        from django.conf import settings
+
         from investments.services import locks
 
-        with locks.heavy("price_update"):
-            summary = fetch.fetch_prices(trigger="cron", max_seconds=options["max_seconds"], max_symbols=options["max_symbols"],
-                                         spacing=options["spacing"], years=options["years"])
+        if not getattr(settings, "INVESTMENTS_ENABLED", True):
+            self.stdout.write("fetch_prices: Investments is switched off; nothing to do.")
+            return
+        try:
+            with locks.heavy("price_update"):
+                summary = fetch.fetch_prices(trigger="cron", max_seconds=options["max_seconds"], max_symbols=options["max_symbols"],
+                                             spacing=options["spacing"], years=options["years"])
+        except locks.Busy:
+            self.stdout.write("fetch_prices: another large job is running; skipped tonight.")
+            return
         self.stdout.write(f"fetch_prices: tried {summary['tried']}, updated {summary['updated']}, failed {len(summary['failures'])}"
                           + (f", stopped: {summary['stopped']}" if summary["stopped"] else ""))
         for failure in summary["failures"][:20]:

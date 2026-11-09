@@ -180,3 +180,18 @@ class PageTests(InvTestCase):
     def test_upload_page_rejects_other_file_types(self):
         r = self.client.post(reverse("investments_admin_upload"), {"file": SimpleUploadedFile("p.txt", b"x"), "basis": ""})
         self.assertContains(r, "Only .csv and .xlsx")
+
+
+class LargeFileTests(InvTestCase):
+    def test_csv_over_fifty_thousand_rows_is_read(self):
+        lines = [HEADER] + [f"RELIANCE.NS,{(d(2000, 1, 1) + __import__('datetime').timedelta(days=i)):%Y-%m-%d},{100 + i % 50},\n" for i in range(55000)]
+        path = csv_file("".join(lines))
+        report = price_import.dry_run(path, today=d(2200, 1, 1))
+        self.assertEqual(report.rows, 55000)
+        self.assertEqual(report.blocking_count, 0)
+
+    def test_web_page_refuses_a_file_over_the_cap(self):
+        self.client.force_login(self.user)
+        big = SimpleUploadedFile("p.csv", b"symbol,date,close\n" + b"x" * (3 * 1024 * 1024 + 1))
+        r = self.client.post(reverse("investments_admin_upload"), {"file": big, "basis": ""})
+        self.assertContains(r, "import_prices")

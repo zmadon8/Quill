@@ -248,7 +248,7 @@ class DeleteInstrumentForm(forms.Form):
 
 
 class PriceUploadForm(forms.Form):
-    file = forms.FileField(label="CSV or Excel file (up to 10 MB)")
+    file = forms.FileField(label="CSV or Excel file (up to 3 MB; bigger files use the import_prices command)")
     basis = forms.ChoiceField(choices=[("", "The file has a basis column"), ("raw", "Raw closes (as traded)"), ("split_adjusted", "Split-adjusted closes")],
                               required=False, label="Price basis for the whole file")
     instrument = forms.ModelChoiceField(queryset=Instrument.objects.filter(profile=None).exclude(kind="alternative"), required=False,
@@ -277,3 +277,10 @@ class CatalogueNewForm(forms.Form):
     code = forms.CharField(max_length=60, required=False)
     isin = forms.CharField(max_length=20, required=False)
     currency = forms.CharField(max_length=3, initial="INR")
+
+
+class PruningForm(forms.Form):
+    prune_live = forms.BooleanField(required=False, label="Prune the live database")
+    prune_archive = forms.BooleanField(required=False, label="Prune the price archive")
+    years = forms.IntegerField(min_value=2, max_value=50, label="Years kept in full daily detail")
+    archive_confirmed = forms.BooleanField(required=False, label="I have downloaded a full price archive and I am keeping it")

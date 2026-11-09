@@ -14,7 +14,7 @@ from investments.errors import InvestmentsError, not_found
 from investments.models import (
     HOLDABLE_KINDS, SIDE_BUY, SIDE_SELL, STATUS_AWAITING, STATUS_FINAL, STATUS_PENDING_SIP, Broker, Folio, Portfolio, Switch, Transaction, Transfer, new_group,
 )
-from investments.services import core, history
+from investments.services import core, history, pins
 
 ZERO = Decimal(0)
 #: Completion tolerance: units times NAV plus charges may differ from the amount paid by this much (rounding).
@@ -23,6 +23,17 @@ TOLERANCE_PCT = Decimal("0.001")
 
 
 # ---------------------------------------------------------------- validation helpers
+
+def _pin(profile, txn):
+    """Pin the index values on the transaction's date from stored prices (plan 17.2). A pin is a convenience for old reports, so a problem
+    here must never stop a transaction from being saved; the nightly `pin_prices` step fills anything missing."""
+    try:
+        pins.pin_transaction(profile, txn)
+    except Exception:  # pragma: no cover - defensive
+        import logging
+
+        logging.getLogger(__name__).exception("Could not pin prices for transaction %s", getattr(txn, "pk", None))
+
 
 def _today():
     return datetime.date.today()
@@ -177,6 +188,7 @@ def add_transaction(profile, user, *, side, instrument, portfolio, broker, date,
                        expected_allotment_date=expected_allotment_date, **common)
         txn.save()
         history.record(profile, user, txn, "create", summary=f"Awaiting {side} of {instrument.name}")
+        _pin(profile, txn)
         core.touch(profile)
         return txn
     units = _dec(units, "Units", minimum=Decimal("0.0001"))
@@ -191,6 +203,7 @@ def add_transaction(profile, user, *, side, instrument, portfolio, broker, date,
         _recheck(profile, instrument.pk, add=add, what="This sale" if side == SIDE_SELL else "This purchase")
     txn.save()
     history.record(profile, user, txn, "create", summary=f"{'Bought' if side == SIDE_BUY else 'Sold'} {units} {instrument.name}")
+    _pin(profile, txn)
     core.touch(profile)
     return txn
 
@@ -296,6 +309,7 @@ def edit_transaction(profile, user, pk, *, expected_version=None, **fields):
     txn.version += 1
     txn.save()
     history.record(profile, user, txn, "edit", summary=f"Edited {txn.instrument.name}")
+    _pin(profile, txn)
     core.touch(profile)
     return txn
 

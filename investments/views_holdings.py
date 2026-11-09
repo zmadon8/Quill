@@ -12,7 +12,7 @@ from .errors import InvestmentsError
 from .models import (
     HOLDABLE_KINDS, KIND_ALTERNATIVE, AltValue, Folio, Instrument, InvestmentHistory, ManualPrice, ProfileInvestment, Transaction, Transfer,
 )
-from .services import holdings, masters, prices
+from .services import fetch, holdings, masters, prices
 from .viewutil import handle_errors, page, profile_or_404, selection
 
 KIND_LABELS = dict((k, v) for k, v in forms.KIND_CHOICES)
@@ -54,6 +54,9 @@ def holdings_list(request):
             continue
         h.is_hidden = is_hidden
         out.append(h)
+    stale = fetch.stale_ids([h.instrument for h in out if not h.sold_out and h.instrument.price_source not in ("manual", "upload")])
+    for h in out:
+        h.stale = h.instrument.pk in stale
     held_count = sum(1 for h in rows if not h.sold_out and h.instrument.pk not in hidden_ids)
     sold_count = sum(1 for h in rows if h.sold_out)
     return page(request, "investments/holdings.html", {

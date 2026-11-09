@@ -98,6 +98,8 @@
       {% endfor %}
       </tbody>
     </table>
+    <div class="field-group">{{ email_form.archive_version.label_tag }} {{ email_form.archive_version }}</div>
+    <p class="meta">The price archive (Investments) is always sent in emails of its own, one email per part, each part within the size limit below even when &ldquo;split&rdquo; is off. If it would need more than {{ archive_part_cap }} parts it is not sent and the Backups warning bar says so; download it from Investments &gt; Settings &gt; Price history instead.</p>
     <p class="meta">The regular backup (.json.gz) is the whole suite and can be restored on the Backups screen{% if backup_size %}; the newest one is {{ backup_size|filesizeformat }}{% endif %}. The Word and HTML copies are the whole Case Law Diary to read, one file per diary profile. The Excel sheets are the Fee Register backup workbook, one per Fee Register profile. Weekly uses the day under &ldquo;On&rdquo;; monthly uses the day of the month (1 to 28).</p>
   </fieldset>
   {{ email_form.include_review.as_field_group }}

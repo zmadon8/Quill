@@ -25,6 +25,7 @@ from .models import (
     DEFAULT_MAX_MB,
     FREQ_MONTHLY,
     FREQ_WEEKLY,
+    KIND_ARCHIVE,
     KIND_DATA,
     KIND_EXCEL,
     KIND_HTML,
@@ -36,6 +37,8 @@ from .models import (
 logger = logging.getLogger(__name__)
 
 MAX_RECIPIENTS = 10
+#: The most parts of the price archive that are emailed (plan 17.5, owner-approved); a bigger archive is downloaded instead.
+ARCHIVE_MAX_PARTS = 5
 #: A stored backup newer than this is emailed as it is; an older one (or none) is replaced by a fresh backup first.
 FRESH_BACKUP_HOURS = 20
 GZIP_TYPE = "application/gzip"
@@ -178,6 +181,7 @@ def _excel_files(schedule, now):
 
 
 MAKERS = {KIND_DATA: _data_files, KIND_WORD: _word_files, KIND_HTML: _html_files, KIND_EXCEL: _excel_files}
+# KIND_ARCHIVE has no maker on purpose: the price archive is built and sent one part at a time by ``_send_archive`` (plan 17.5).
 
 
 def unique_names(files):
@@ -359,6 +363,8 @@ def send_scheduled_backup(schedule, now=None, kinds=None):
         return _fail(schedule, "Nothing to send: tick at least one kind of file.", now)
     groups, problems, empty, notes_for, failed_kinds = [], [], [], {}, set()
     for kind in kinds:
+        if kind == KIND_ARCHIVE:
+            continue
         try:
             files, notes = MAKERS[kind](schedule, now)
         except Exception as exc:
@@ -399,6 +405,17 @@ def send_scheduled_backup(schedule, now=None, kinds=None):
             continue
         sent_count += 1
         summaries.append(f"{label}: {len(pieces)} file{'s' if len(pieces) != 1 else ''}")
+    if KIND_ARCHIVE in kinds:
+        archive_sent, archive_planned, archive_problems, archive_summary = _send_archive(schedule, recipients, now)
+        sent_count += archive_sent
+        if archive_summary:
+            summaries.append(archive_summary)
+        if archive_problems:
+            problems += [f"{KIND_LABELS[KIND_ARCHIVE]}: {p}" for p in archive_problems]
+            failed_kinds.add(KIND_ARCHIVE)
+        elif archive_planned == 0:
+            empty.append(KIND_ARCHIVE)
+        emails = emails + [None] * archive_planned
     planned = len(emails)
     sent_kinds = [k for k in kinds if k not in failed_kinds]
     if sent_count:
@@ -434,3 +451,68 @@ def send_test_email(to):
     info = sender.diagnostics()
     return True, (f"Test email sent to {', '.join(to)} from {message.from_email} through {info['host']}:{info['port']}. "
                   "If it does not arrive, check the spam folder; a rejection can also come back later as a bounce email.")
+
+
+# ------------------------------------------------------------------ the price archive (plan 17.5)
+
+def _send_archive(schedule, recipients, now):
+    """Build the Investments price archive and send each part in an email of its own, whatever the split setting says.
+
+    Parts are written to temporary files and read back one at a time, so memory stays near one part. Returns
+    ``(emails sent, emails planned, problems, summary text)``. More than the cap of parts means nothing is sent and the Admin is told
+    to download it instead (the warning bar shows the problem)."""
+    from investments.services import archive as archive_service
+    from investments.services import locks, pruning
+    from investments.models import PriceMaintenanceLog
+
+    limit = max(1, schedule.max_attachment_mb or DEFAULT_MAX_MB) * 1024 * 1024
+    try:
+        with locks.heavy("price_archive"):
+            pruned = archive_service.effective_pruned(schedule.archive_version)
+            parts = archive_service.build(pruned=pruned, max_part_bytes=limit, now=now)
+    except Exception as exc:
+        PriceMaintenanceLog.objects.create(kind="archive", ok=False, message=f"not sent: {_describe_error(exc)}"[:300])
+        return 0, 0, [f"could not be made: {_describe_error(exc)}"], ""
+    try:
+        if not any(parts):
+            return 0, 0, [], ""
+        if len(parts) > ARCHIVE_MAX_PARTS:
+            note = (f"the archive needs {len(parts)} parts, more than the {ARCHIVE_MAX_PARTS} that can be emailed, so it was not sent. "
+                    "Download it from Investments > Settings > Price history.")
+            PriceMaintenanceLog.objects.create(kind="archive", ok=False, message=note[:300])
+            return 0, 0, [note], ""
+        sent, problems = 0, []
+        stamp = f"{timezone.localtime(now):%-d %b %Y}"
+        for number, path in enumerate(parts, start=1):
+            data = path.read_bytes()
+            which = f"part {number} of {len(parts)}"
+            try:
+                message = sender.build_message(
+                    f"{sender.site_name()}: price archive, {which}, {stamp}",
+                    f"Investments price archive ({'pruned' if pruned else 'full'}), {which}, made {timezone.localtime(now):%Y-%m-%d %H:%M} (IST).\n\n"
+                    f"Attached: {path.name} ({max(1, len(data) // 1024)} KB).\n\nRestore it on Investments > Settings > Upload price history, or with "
+                    "'python manage.py import_prices --archive file.zip'. It holds only prices, no transactions.",
+                    recipients)
+                message.attach(path.name, data, "application/zip")
+                message.send(fail_silently=False)
+                sent += 1
+            except Exception as exc:
+                problems.append(f"{which}: {_describe_error(exc)}")
+            finally:
+                del data
+        PriceMaintenanceLog.objects.create(kind="archive", ok=not problems, size_bytes=sum(p.stat().st_size for p in parts),
+                                           counts={"parts": len(parts), "sent": sent}, message=("sent" if not problems else "; ".join(problems))[:300])
+        if sent and not problems:
+            pruning.get_settings()
+            from investments.models import PriceHistorySettings
+
+            PriceHistorySettings.objects.filter(pk=1).update(last_archive_at=now)
+        return sent, len(parts), problems, f"price archive: {len(parts)} part{'s' if len(parts) != 1 else ''}"
+    finally:
+        for path in parts:
+            path.unlink(missing_ok=True)
+        if parts:
+            try:
+                parts[0].parent.rmdir()
+            except OSError:
+                pass

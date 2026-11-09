@@ -19,6 +19,7 @@ from .viewutil import page, profile_or_404
 
 UPLOAD_DIR = Path(tempfile.gettempdir()) / "quill_inv_uploads"
 UPLOAD_MAX_AGE = 3600
+WEB_UPLOAD_MAX_BYTES = 3 * 1024 * 1024
 
 
 @inv_editor
@@ -99,6 +100,9 @@ def price_upload(request):
                 return redirect(reverse("investments_admin_prices"))
             if form.is_valid():
                 upload = form.cleaned_data["file"]
+                if upload.size > WEB_UPLOAD_MAX_BYTES:
+                    raise InvestmentsError("TOO_BIG", "This file is too big for the web page (about 100,000 rows takes longer than the 60 second limit). "
+                                           "Use 'python manage.py import_prices --file ...' in the Render Shell instead.")
                 ext = os.path.splitext(upload.name)[1].lower()
                 if ext not in (".csv", ".xlsx"):
                     raise InvestmentsError("BAD_FILE", "Only .csv and .xlsx files can be uploaded.")
@@ -119,3 +123,74 @@ def price_upload(request):
     return page(request, "investments/price_upload.html", {"page_title_text": "Upload price history", "form": form, "report": report, "token": token,
                                                           "basis": form.data.get("basis", "") if form.is_bound else "",
                                                           "instrument_id": form.data.get("instrument", "") if form.is_bound else ""}, selectors=False)
+
+
+# ------------------------------------------------------------------ price history: pruning, archive, pins (plan 17 and 21)
+
+@inv_admin
+def price_history(request):
+    from . import forms as inv_forms
+    from .models import PriceMaintenanceLog
+    from .services import pins, pruning
+
+    profile_or_404(request)
+    cfg = pruning.get_settings()
+    form = inv_forms.PruningForm(request.POST or None, initial={"prune_live": cfg.prune_live, "prune_archive": cfg.prune_archive, "years": cfg.years_kept})
+    if request.method == "POST":
+        action = request.POST.get("action")
+        try:
+            if action == "settings" and form.is_valid():
+                d = form.cleaned_data
+                pruning.configure(request.user, prune_live=d["prune_live"], prune_archive=d["prune_archive"], years=d["years"],
+                                  full_archive_confirmed=d["archive_confirmed"])
+                messages.success(request, "Saved. Pruning never runs outside the nightly job, after a good backup.")
+            elif action == "repin":
+                result = pins.pin_all()
+                messages.success(request, f"{result['made']} pinned price(s) made from stored prices; {len(result['missing'])} could not be made yet. Nothing was invented.")
+            return redirect(reverse("investments_admin_price_history"))
+        except InvestmentsError as err:
+            form.add_error(None, err.message)
+    return page(request, "investments/price_history.html", {
+        "page_title_text": "Price history", "form": form, "cfg": cfg, "preview": pruning.preview(), "pins": pins.summary(),
+        "logs": PriceMaintenanceLog.objects.all()[:15], "rows": __import__("investments.models", fromlist=["Price"]).Price.objects.count()}, selectors=False)
+
+
+@inv_admin
+def price_archive(request):
+    """Make the archive on request, stream it and delete it (never stored; plan 17.4). One zip, however large."""
+    from django.http import FileResponse
+
+    from .models import PriceHistorySettings, PriceMaintenanceLog
+    from .services import archive
+
+    profile_or_404(request)
+    if request.method != "POST":
+        raise Http404
+    pruned = request.POST.get("version") == "pruned"
+    try:
+        with locks.heavy("price_archive"):
+            paths = archive.build(pruned=pruned)
+    except locks.Busy:
+        messages.error(request, "Another large job is running. Try again in a minute.")
+        return redirect(reverse("investments_admin_price_history"))
+    path = paths[0]
+    PriceHistorySettings.objects.update_or_create(pk=1, defaults={"last_archive_at": __import__("django.utils.timezone", fromlist=["now"]).now()})
+    if not pruned:
+        PriceHistorySettings.objects.filter(pk=1).update(full_archive_confirmed=False)       # the person still has to tick that they keep it
+    PriceMaintenanceLog.objects.create(kind="archive", ok=True, size_bytes=path.stat().st_size, message=f"downloaded ({'pruned' if pruned else 'full'})")
+
+    def stream():
+        try:
+            with open(path, "rb") as handle:
+                while chunk := handle.read(1 << 16):
+                    yield chunk
+        finally:
+            path.unlink(missing_ok=True)
+            try:
+                path.parent.rmdir()
+            except OSError:
+                pass
+
+    response = FileResponse(stream(), content_type="application/zip")
+    response["Content-Disposition"] = f'attachment; filename="{path.name}"'
+    return response

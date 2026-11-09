@@ -25,3 +25,16 @@ Start-up RSS of the management command: about 50 MB. The planning dataset (5,000
 | backup_create (suite backup document with the Investments tables) | 8.2 | 40 | growth 1 to 4 |
 
 Process RSS peaked at about 94 MB in the bench process (it also holds the test database connection, the 375,000-row build and SQLite). The dashboard took well under a second on a laptop-class CPU in the small run (0.15 s for 500 transactions); the planning-size wall time for the dashboard was not recorded (the timing column was added afterwards) and the 0.5 CPU figure can only be measured on Render. Re-run on Render in Phase 8.
+
+## Phase 2 (sandbox, SQLite, same planning dataset, but the 375,000 price rows are now `Price` rows)
+
+| Operation | Measured peak (MB) | Seconds | Cap (MB) | Plan 26.1 estimate |
+|---|---|---|---|---|
+| dashboard (150 holdings, 5,000 transactions) | 11.4 | 2.8 under tracemalloc (about 0.85 s profiled, Python and SQLite on a laptop) | 25 | 10 to 25 |
+| archive_build (full archive, streamed, one instrument in memory; 375,000 rows) | 1.8 | 8.6 | 15 | 10 to 15 plus the part |
+| prune_run (chunks of 5,000, the whole 10-year dataset kept 2 years) | 2.7 | 7.1 | 10 | under 10 |
+| price_import (a 60,000-row CSV: dry run and apply) | 7.5 | 17.5 | 25 | under 25 for 10 MB |
+| update_batch (10 symbols, recorded Yahoo answer) | 0.1 | 0.01 | 15 | 5 to 15 (real JSON is about 250 KB each, so expect a few MB) |
+| backup_create (document with the Investments tables, planning dataset) | 2.8 | 1.7 | 40 | growth 1 to 4 MB JSON |
+
+Two things to know. (1) The first archive build held every instrument's CSV in memory (14.8 MB, over the 10 to 15 MB estimate once the part is added); the instruments are now written to disk one at a time. The first pruning run also peaked at 14.9 MB because the "required pin" check replayed each profile's holdings for every 31 March; it now adds up units without FIFO (2.7 MB). (2) The dashboard's CPU is the figure to watch on Render's 0.5 CPU: about 0.85 s of work here for the planning size, so expect one to two seconds on Render until the statistics cache (plan 26.4) is added with the Performance phase.

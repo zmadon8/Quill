@@ -16,11 +16,16 @@ class Command(BaseCommand):
     help = __doc__.split("\n\n")[0]
 
     def add_arguments(self, parser):
-        parser.add_argument("--file", required=True)
+        parser.add_argument("--file", help="A .csv, .xlsx or price-archive .zip file.")
+        parser.add_argument("--archive", help="A price archive .zip (same as --file; its pinned prices are restored where none exists).")
         parser.add_argument("--dry-run", action="store_true")
         parser.add_argument("--basis", choices=["", "raw", "split_adjusted"], default="")
 
     def handle(self, *args, **options):
+        path = options["archive"] or options["file"]
+        if not path:
+            raise CommandError("Give --file or --archive.")
+        options["file"] = path
         try:
             report = price_import.dry_run(options["file"], default_basis=options["basis"])
             self.stdout.write(f"{report.rows} rows, {len(report.per_instrument)} investments matched, {len(report.unknown)} unknown symbols, "
@@ -30,6 +35,11 @@ class Command(BaseCommand):
             if options["dry_run"]:
                 return
             written = price_import.apply(options["file"], default_basis=options["basis"], report=report)
+            if str(path).lower().endswith(".zip"):
+                from investments.services import archive
+
+                restored, differences, unknown = archive.restore_pins(path)
+                self.stdout.write(f"pinned prices: {restored} restored, {len(differences)} differ from existing pins (kept), {unknown} for unknown investments")
         except InvestmentsError as err:
             raise CommandError(err.message)
         self.stdout.write(self.style.SUCCESS(f"{written} prices written."))

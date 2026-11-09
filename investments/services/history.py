@@ -125,5 +125,7 @@ def restore(profile, user, history_id):
     record(profile, user, obj, "restore", group=new_group(), summary=f"Restored from history entry {row.pk}")
     from investments.services.core import touch
 
+    if isinstance(obj, Transaction):
+        txn_service._pin(profile, obj)
     touch(profile)
     return obj

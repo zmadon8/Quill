@@ -9,6 +9,11 @@ class Command(BaseCommand):
     help = __doc__.split("\n\n")[0]
 
     def handle(self, *args, **options):
+        from django.conf import settings
+
+        if not getattr(settings, "INVESTMENTS_ENABLED", True):
+            self.stdout.write("create_sip_entries: Investments is switched off; nothing to do.")
+            return
         try:
             from investments.services import sip
         except ImportError:

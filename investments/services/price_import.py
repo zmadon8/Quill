@@ -10,6 +10,7 @@ Blocking problems (bad date, future date, price of zero or below, basis differen
 """
 import contextlib
 import datetime
+import io
 import re
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -97,9 +98,61 @@ def build_lookup(instrument=None):
     return table
 
 
+def _zip_rows(source):
+    """Rows of every `prices-*.csv` member of a price archive (plan 17.4); `pins.csv` and the manifest are handled separately."""
+    import csv
+    import io
+    import zipfile
+
+    with zipfile.ZipFile(source) as archive:
+        for name in archive.namelist():
+            if not (name.startswith("prices-") and name.endswith(".csv")):
+                continue
+            with archive.open(name) as handle:
+                reader = csv.reader(io.TextIOWrapper(handle, encoding="utf-8"))
+                next(reader, None)
+                for number, cells in enumerate(reader, start=2):
+                    if len(cells) >= 4:
+                        yield (number, cells[0], cells[1], cells[2], cells[3])
+
+
+def _csv_rows(source):
+    import csv
+
+    try:
+        handle = open(source, "r", encoding="utf-8-sig", newline="") if not hasattr(source, "read") else io.TextIOWrapper(source, encoding="utf-8-sig", newline="")
+    except OSError as exc:
+        raise InvestmentsError("BAD_FILE", "The file could not be read.") from exc
+    with handle:
+        header = cols = None
+        for number, cells in enumerate(csv.reader(handle), start=1):
+            cells = [c.strip() for c in cells]
+            if not any(cells):
+                continue
+            if header is None:
+                header = cells
+                cols = (_guess(header, SYMBOL_HEADERS), _guess(header, DATE_HEADERS), _guess(header, CLOSE_HEADERS), _guess(header, BASIS_HEADERS))
+                if None in cols[:3]:
+                    raise InvestmentsError("BAD_FILE", "The header row needs a symbol (or ISIN or scheme code), a date and a close column.")
+                continue
+            cells = cells + [""] * (len(header) - len(cells))
+            yield (number, cells[cols[0]], cells[cols[1]], cells[cols[2]], cells[cols[3]] if cols[3] is not None else "")
+        if header is None:
+            raise InvestmentsError("BAD_FILE", "The file is empty.")
+
+
 def read_rows(source):
-    """Stream ``(line number, symbol, date text, close text, basis text)`` from a CSV or Excel file (path or uploaded file)."""
+    """Stream ``(line number, symbol, date text, close text, basis text)`` from a CSV, Excel or price-archive zip file (path or uploaded file)."""
     from fees.services import imports
+
+    name = str(getattr(source, "name", source)).lower()
+    if name.endswith(".zip"):
+        yield from _zip_rows(source)
+        return
+    if name.endswith(".csv"):
+        # Own streaming CSV reader: the Fee Register's reader stops at 50,000 rows, far fewer than a ten-year price history.
+        yield from _csv_rows(source)
+        return
 
     try:
         rows = imports.iter_rows(source)

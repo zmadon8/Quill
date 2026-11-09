@@ -9,11 +9,13 @@ FREQUENCY_CHOICES = [
 ]
 #: What can be emailed, in the order the page and the emails list them: (key, label).
 KIND_DATA, KIND_WORD, KIND_HTML, KIND_EXCEL = "data", "word", "html", "excel"
+KIND_ARCHIVE = "archive"
 KINDS = [
     (KIND_DATA, "Regular backup (.json.gz)"),
     (KIND_WORD, "Case Law Diary: Word copy (.docx)"),
     (KIND_HTML, "Case Law Diary: HTML copy (.html)"),
     (KIND_EXCEL, "Fee Register: Excel sheets (.xlsx)"),
+    (KIND_ARCHIVE, "Investments: price archive (.zip)"),
 ]
 KIND_KEYS = [key for key, _ in KINDS]
 KIND_LABELS = dict(KINDS)
@@ -54,6 +56,14 @@ class EmailBackupSchedule(models.Model):
     excel_weekday = models.PositiveSmallIntegerField(choices=WEEKDAY_CHOICES, default=0)
     excel_day_of_month = models.PositiveSmallIntegerField(default=1)
     excel_last_sent_at = models.DateTimeField(null=True, blank=True)
+    # Investments price archive (plan 17.5). Off by default; monthly. Always sent in emails of its own (see services._send_archive).
+    archive_enabled = models.BooleanField(default=False)
+    archive_frequency = models.CharField(max_length=10, choices=FREQUENCY_CHOICES, default=FREQ_MONTHLY)
+    archive_weekday = models.PositiveSmallIntegerField(choices=WEEKDAY_CHOICES, default=0)
+    archive_day_of_month = models.PositiveSmallIntegerField(default=1)
+    archive_last_sent_at = models.DateTimeField(null=True, blank=True)
+    # Full or Pruned; only used while the live price database is not pruned (a pruned database can only give a pruned archive).
+    archive_version = models.CharField(max_length=6, default="full", choices=[("full", "Full"), ("pruned", "Pruned")])
     # Off (the default): everything due goes in one email. On: no email carries more than max_attachment_mb of files;
     # the files are shared out over as few emails as possible, keeping each kind's files together where that costs
     # no extra email.
