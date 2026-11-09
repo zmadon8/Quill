@@ -390,6 +390,8 @@ class SuiteNamesForm(forms.Form):
             label = SUITE_NAME_LABELS.get(key, (f"{names.get(key, key)} name", None))[0]
             self.fields[field_name] = forms.CharField(
                 label=label, max_length=suite.MAX_NAME_LENGTH, initial=names.get(key, ""),
+                # Investments (added later) may be left out of a post: its name then stays as it is.
+                required=key != suite.KEY_INVESTMENTS,
             )
         # Words or Logo for the header bar of Home and each program on offer (round 20, 3.1; the Fee Register only
         # while that program is switched on). Not posted: the current choice is kept.

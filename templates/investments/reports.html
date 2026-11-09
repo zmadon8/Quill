@@ -1,0 +1,6 @@
+{% extends "investments/base_investments.html" %}
+{% block inv_content %}
+<div class="titlebar"><h1 class="t">Other reports</h1></div>
+<div class="choices">{% for slug, label in reports %}<div class="ch"><div><h3>{{ label }}</h3></div><a class="btn q" href="{% url 'investments_report' slug %}">Open</a></div>{% endfor %}</div>
+<p class="hint">Every report can be exported to Excel and every table sorted by any column. Performance, Charts, Total Portfolio Value and the Annual Report are on the line above.</p>
+{% endblock %}

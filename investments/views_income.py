@@ -1,0 +1,162 @@
+"""Dividends, corporate actions and alerts pages (plan 7, 8, 14)."""
+from datetime import date, timedelta
+
+from django.contrib import messages
+from django.http import Http404
+from django.shortcuts import redirect
+from django.urls import reverse
+
+from . import forms
+from .decorators import inv_editor, inv_read_write, inv_reader
+from .errors import InvestmentsError
+from .models import Dividend, Guardrail, Instrument, Portfolio
+from .services import alerts, core, corporate, dividends, masters
+from .viewutil import handle_errors, page, parse_date, profile_or_404, selection
+
+
+# ------------------------------------------------------------------ dividends
+
+@inv_reader
+def dividends_list(request):
+    profile = profile_or_404(request)
+    portfolio, broker, _asat = selection(request, profile)
+    qs = Dividend.objects.filter(profile=profile).select_related("instrument", "portfolio", "broker", "folio")
+    if portfolio:
+        qs = qs.filter(portfolio_id=portfolio)
+    if broker:
+        qs = qs.filter(broker_id=broker)
+    rows = list(qs[:500])
+    if request.GET.get("export") == "xlsx":
+        from .exports import response
+
+        return response("Dividends.xlsx", [("Dividends", ["Date received", "Investment", "Portfolio", "Broker", "Folio", "Amount", "Tax deducted", "Note"],
+                                            [[r.date, r.instrument.name, r.portfolio.name, r.broker.name, r.folio.number if r.folio else "", r.amount,
+                                              r.tax_deducted, r.note] for r in qs.iterator()])])
+    return page(request, "investments/dividends.html", {"page_title_text": "Dividends", "rows": rows, "years": dividends.by_year(profile, portfolio, broker),
+                                                       "due": dividends.due(profile)})
+
+
+@inv_editor
+def dividend_form(request, pk=None):
+    profile = profile_or_404(request)
+    masters.ensure_default_portfolio(profile)
+    obj = Dividend.objects.filter(pk=pk, profile=profile).first() if pk else None
+    if pk and obj is None:
+        raise Http404
+    initial = {}
+    if obj:
+        initial = {f: getattr(obj, f) for f in ("date", "instrument", "portfolio", "broker", "folio", "amount", "tax_deducted", "note")}
+    else:
+        inst = Instrument.objects.filter(pk=request.GET.get("instrument") or 0).first()
+        if inst:
+            initial["instrument"] = inst
+        if request.GET.get("date"):
+            initial["date"] = parse_date(request.GET["date"])
+        if request.GET.get("amount"):
+            initial["amount"] = request.GET["amount"]
+        portfolios = list(Portfolio.objects.filter(profile=profile)[:2])
+        if len(portfolios) == 1:
+            initial["portfolio"] = portfolios[0]
+    form = forms.DividendForm(request.POST or None, profile=profile, initial=initial)
+    suggest = None
+    if request.method == "POST" and form.is_valid():
+        d = form.cleaned_data
+        try:
+            if request.POST.get("delete") and obj:
+                dividends.delete(profile, request.user, obj.pk)
+                messages.success(request, "Deleted. You can bring it back from History.")
+                return redirect(reverse("investments_dividends"))
+            if obj:
+                dividends.edit(profile, request.user, obj.pk, expected_version=request.POST.get("version"), **d)
+            else:
+                dividends.add(profile, request.user, **d)
+        except InvestmentsError as err:
+            form.add_error(None, err.message)
+        else:
+            messages.success(request, "Saved.")
+            return redirect(reverse("investments_dividends"))
+    elif request.method == "POST" and request.POST.get("delete") and obj:
+        dividends.delete(profile, request.user, obj.pk)
+        return redirect(reverse("investments_dividends"))
+    inst = form["instrument"].value()
+    day = parse_date(str(form["date"].value() or "")) or date.today()
+    if inst and str(inst).isdigit():
+        found = Instrument.objects.filter(pk=inst).first()
+        if found:
+            suggest = dividends.suggestion(profile, found, day)
+    return page(request, "investments/dividend_form.html", {"page_title_text": "Edit dividend" if obj else "Add a dividend", "form": form, "obj": obj,
+                                                           "suggest": suggest}, selectors=False)
+
+
+# ------------------------------------------------------------------ corporate actions
+
+@inv_read_write
+@handle_errors(fallback="investments_corporate_actions")
+def corporate_actions(request):
+    profile = profile_or_404(request)
+    form = forms.CorporateActionForm(request.POST or None, profile=profile)
+    if request.method == "POST":
+        action = request.POST.get("action")
+        if action == "record" and form.is_valid():
+            d = form.cleaned_data
+            ca = corporate.record(profile, request.user, instrument=d["instrument"], ex_date=d["ex_date"], kind=d["kind"], ratio_old=d["ratio_old"] or 1,
+                                  ratio_new=d["ratio_new"] or 1, notes=d["notes"])
+            if d["apply_now"]:
+                corporate.respond(profile, request.user, ca.pk, "applied")
+            messages.success(request, "Recorded." + (" Applied to this profile." if d["apply_now"] else " Confirm it below to change your holdings."))
+            return redirect(reverse("investments_corporate_actions"))
+        if action in ("applied", "not_applicable", "pending"):
+            try:
+                corporate.respond(profile, request.user, int(request.POST.get("id", 0)), action)
+            except InvestmentsError as err:
+                if err.code == "WOULD_GO_NEGATIVE":
+                    from .views_txn import _refused
+
+                    return _refused(request, err, reverse("investments_corporate_actions"))
+                raise
+            messages.success(request, "Saved.")
+            return redirect(reverse("investments_corporate_actions"))
+    return page(request, "investments/corporate_actions.html", {
+        "page_title_text": "Corporate actions", "rows": corporate.for_profile(profile), "pending": corporate.pending(profile), "form": form,
+        "moves": corporate.large_moves_without_action(profile), "mode": core.get_settings(profile, create=False).corporate_action_mode})
+
+
+# ------------------------------------------------------------------ alerts
+
+@inv_read_write
+@handle_errors(fallback="investments_alerts")
+def alerts_page(request):
+    profile = profile_or_404(request)
+    gform = forms.GuardrailForm(request.POST or None, profile=profile)
+    if request.method == "POST":
+        what = request.POST.get("action")
+        if what in ("dismiss", "snooze", "rearm", "reset"):
+            alerts.act(profile, request.POST.get("key", ""), what, until=parse_date(request.POST.get("until")), level=request.POST.get("level"))
+            core.touch(profile)
+        elif what == "guardrail" and gform.is_valid():
+            d = gform.cleaned_data
+            if d["instrument"].profile_id not in (None, profile.pk):
+                raise Http404
+            Guardrail.objects.create(profile=profile, **d)
+            core.touch(profile)
+            messages.success(request, "Guardrail added.")
+        elif what == "delete_guardrail":
+            Guardrail.objects.filter(pk=request.POST.get("id"), profile=profile).delete()
+            core.touch(profile)
+        return redirect(reverse("investments_alerts"))
+    return page(request, "investments/alerts.html", {
+        "page_title_text": "Alerts and guardrails", "alerts": alerts.visible(profile), "guardrails": Guardrail.objects.filter(profile=profile).select_related("instrument", "portfolio"),
+        "gform": gform, "settings_row": core.get_settings(profile, create=False), "next_week": date.today() + timedelta(days=7)})
+
+
+@inv_read_write
+def settings_alerts(request):
+    profile = profile_or_404(request)
+    row = core.get_settings(profile, create=False)
+    fields = [f for f in forms.AlertSettingsForm.base_fields]
+    form = forms.AlertSettingsForm(request.POST or None, initial={f: getattr(row, f) for f in fields})
+    if request.method == "POST" and form.is_valid():
+        masters.update_settings(profile, request.user, **form.cleaned_data)
+        messages.success(request, "Saved.")
+        return redirect(reverse("investments_settings_alerts"))
+    return page(request, "investments/settings_alerts.html", {"page_title_text": "Alerts", "form": form}, selectors=False)

@@ -1,0 +1,20 @@
+{% extends "investments/base_investments.html" %}
+{% block inv_content %}
+<div class="titlebar"><h1 class="t">Confirm</h1></div>
+<div class="stepper"><div class="done"><b>1</b>Type</div><div class="done"><b>2</b>Details</div><div class="on"><b>3</b>Confirm</div><div><b>4</b>What next</div></div>
+{% if similar %}
+<div class="ban wa"><span><b>This may already exist.</b> Use the existing one rather than adding a copy:
+  <ul>{% for s in similar %}<li><a href="{% url 'investments_investment' s.pk %}">{{ s.name }}</a> ({{ s.get_kind_display }}{% if s.code %}, {{ s.code }}{% endif %})</li>{% endfor %}</ul></span></div>
+{% endif %}
+{% if check %}{% if check.ok %}<div class="ban"><span>Latest price check: <b>{{ check.name|default:data.name }}</b>{% if check.exchange %}, {{ check.exchange }}{% endif %}, {{ check.price }}{% if check.currency %} {{ check.currency }}{% endif %} on {{ check.date|date:"j M Y" }}. Make sure this is the investment you mean.</span></div>
+{% else %}<div class="ban wa"><span>{{ check.message }}</span></div>{% endif %}{% endif %}
+<dl class="kv"><dt>Type</dt><dd>{{ kind_label }}</dd><dt>Name</dt><dd>{{ data.name }}</dd><dt>Code</dt><dd>{{ data.code|default:"none" }}</dd><dt>ISIN</dt><dd>{{ data.isin|default:"none" }}</dd>
+<dt>Currency</dt><dd>{{ data.currency }}</dd><dt>Asset class</dt><dd>{{ data.asset_class }}</dd>{% if data.sector %}<dt>Sector</dt><dd>{{ data.sector }}</dd>{% endif %}
+<dt>Visible to</dt><dd>{% if private %}Your profile only (alternative investments are private){% else %}Everyone using the program (shared, so nobody has to add it twice){% endif %}</dd></dl>
+<form method="post">{% csrf_token %}
+  {% for f in form %}<input type="hidden" name="{{ f.html_name }}" value="{{ f.value|default_if_none:'' }}">{% endfor %}
+  <input type="hidden" name="confirmed" value="1">
+  {% if similar %}<label class="chk"><input type="checkbox" name="allow_duplicate" value="1"> It is a different investment; add it anyway</label>{% endif %}
+  <div class="acts-row"><button class="btn p" type="submit">Add investment</button><a class="btn q" href="{% url 'investments_add_2' %}?kind={{ data.kind }}">Change details</a></div>
+</form>
+{% endblock %}

@@ -117,7 +117,7 @@ class FeesProfileAdminTests(TestCase):
         self.assertFalse(FeesSettings.objects.filter(profile_id=fees.pk).exists())
 
 
-@override_settings(SECURE_SSL_REDIRECT=False, FEES_ENABLED=False)
+@override_settings(SECURE_SSL_REDIRECT=False, FEES_ENABLED=False, INVESTMENTS_ENABLED=False)
 class FeesProfilesDarkLaunchTests(TestCase):
     def setUp(self):
         self.admin = User.objects.create_user("boss", password=PASSWORD, is_superuser=True)

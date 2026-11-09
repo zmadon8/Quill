@@ -12,7 +12,7 @@ returns the diary and nothing else.
 from dataclasses import dataclass
 from typing import Callable
 
-from .suite import KEY_DIARY, KEY_FEES
+from .suite import KEY_DIARY, KEY_FEES, KEY_INVESTMENTS
 
 
 @dataclass(frozen=True)
@@ -66,9 +66,20 @@ def fees_enabled():
     return bool(getattr(settings, "FEES_ENABLED", True))
 
 
+def investments_enabled():
+    """True when the Investments program is switched on (``settings.INVESTMENTS_ENABLED``, read on every call)."""
+    from django.conf import settings
+
+    return bool(getattr(settings, "INVESTMENTS_ENABLED", True))
+
+
 def is_enabled(key):
-    """True when program ``key`` is offered to users. Only the Fee Register can be switched off."""
-    return key != KEY_FEES or fees_enabled()
+    """True when program ``key`` is offered to users. The Fee Register and Investments can be switched off."""
+    if key == KEY_FEES:
+        return fees_enabled()
+    if key == KEY_INVESTMENTS:
+        return investments_enabled()
+    return True
 
 
 def enabled_program_keys():

@@ -23,6 +23,55 @@ data worth keeping (the User group and permission links are unused).
 """
 from django.apps import apps
 
+#: Investments models, parents first; each phase appends its models. Fetched prices (``Price``), fetched exchange
+#: rates, caches (``InvestmentsStatsCache``), per-person display prefs (``InvestmentsUserPrefs``), tokens and logs are
+#: deliberately NEVER listed (plan 17.2). ``ManualPrice`` has no profile column (shared), so it is only in the backup list.
+INVESTMENTS_BACKUP_MODELS = [
+    "investments.Instrument",
+    "investments.ManualPrice",
+    "investments.SourceSymbol",
+    "investments.PinnedPrice",
+    "investments.PriceHistorySettings",
+    "investments.CatalogueHistory",
+    "investments.CorporateAction",
+    "investments.ManualFxRate",
+    "investments.Portfolio",
+    "investments.Broker",
+    "investments.InvestmentSettings",
+    "investments.Folio",
+    "investments.Transfer",
+    "investments.Switch",
+    "investments.SipSchedule",
+    "investments.Transaction",
+    "investments.ProfileInvestment",
+    "investments.AltValue",
+    "investments.Dividend",
+    "investments.CorporateActionResponse",
+    "investments.Guardrail",
+    "investments.AlertState",
+    "investments.InvestmentHistory",
+]
+
+#: Investments models that carry a ``profile`` column, parents first. ``investments.apps`` reads this list.
+INVESTMENT_PROFILE_MODELS = [
+    "investments.Instrument",       # profile is nullable: only a profile's private alternative investments match
+    "investments.Portfolio",
+    "investments.Broker",
+    "investments.InvestmentSettings",
+    "investments.Folio",
+    "investments.Transfer",
+    "investments.Switch",
+    "investments.SipSchedule",
+    "investments.Transaction",
+    "investments.ProfileInvestment",
+    "investments.AltValue",
+    "investments.Dividend",
+    "investments.CorporateActionResponse",
+    "investments.Guardrail",
+    "investments.AlertState",
+    "investments.InvestmentHistory",
+]
+
 BACKUP_MODELS = [
     "accounts.User",
     "accounts.SuiteName",
@@ -55,6 +104,7 @@ BACKUP_MODELS = [
     "fees.Allocation",
     "fees.PeriodAdjustment",
     "fees.SavedView",
+    *INVESTMENTS_BACKUP_MODELS,
 ]
 
 #: The Fee Register model labels added to ``BACKUP_MODELS`` (T1.9). Kept as a named list so the
@@ -87,6 +137,7 @@ OPTIONAL_MODELS = {
     "accounts.ProfileMembership",
     "diary.TrashBatch",
     *FEES_BACKUP_MODELS,
+    *INVESTMENTS_BACKUP_MODELS,
 }
 
 #: Diary models that carry a ``profile`` column. An older backup lacks it; such rows go into "Main".
@@ -132,6 +183,7 @@ FEES_PROFILE_MODELS = [
 PROGRAM_PROFILE_MODELS = {
     "diary": PROFILE_MODELS,
     "fees": FEES_PROFILE_MODELS,
+    "investments": INVESTMENT_PROFILE_MODELS,
 }
 
 

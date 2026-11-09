@@ -80,6 +80,20 @@ The Fee Register ships dark: `render.yaml` sets `FEES_ENABLED` to `0`, so every 
 
 `FEES_ENABLED` when not set: on for developer mode (`DJANGO_DEBUG` or `DJANGO_ALLOW_SQLITE`) and tests, off in production. `MAX_BACKUP_UPLOAD_MB` is 30 by default (the uncompressed size of an uploaded backup). The server settings in section 5a (workers, threads, `--max-requests`, no `--preload`) are unchanged; memory levers are only applied after measuring and with the owner's approval.
 
+## 5d. Releasing Investments (/investments/)
+
+Investments ships dark: `render.yaml` sets `INVESTMENTS_ENABLED` to `"0"`, so every `/investments/` address is "not found" and no button or tab shows, while its tables, backups and restores keep working. (Housekeeping: section 5c above and the comment in `config/settings.py` still say `FEES_ENABLED` is `0` in `render.yaml`; it is now `"1"`.) At the owner's go-ahead:
+
+1. **Merge** the pull request. Render deploys it; `migrate_with_backup` takes a "Before update" backup first.
+2. In Render, set `INVESTMENTS_ENABLED` to `1` on the web service (and change `render.yaml` to match). It redeploys.
+3. Give people access on **Admins > Users**: create an Investments profile on **Admins > Profiles** (choose the program), then give users a role in it.
+
+The CI workflow now uses `postgres:18` to match Render.
+
+**The nightly job now has Investments steps (plan 15.4), in this fixed order.** `fetch_prices` (capped at 10 minutes), `create_sip_entries`, `pin_prices`, then the existing backup chain with `prune_prices` appended last so it runs only after a good backup. The first three end in `|| echo`, so a failure there can never change the exit code or stop the backup; they do nothing while `INVESTMENTS_ENABLED` is `0`. **When you switch Investments on, set `INVESTMENTS_ENABLED` to `1` on the cron job too.** No new service is needed.
+
+**Things only Render can show (please check after release):** (1) run in the web service Shell the five-symbol Yahoo loop and the two User-Agent comparisons at about 02:00 IST on several nights (plan 30) and note how often Yahoo answers 429; (2) find the final address of AMFI's daily file (`curl -sIL https://www.amfiindia.com/spages/NAVAll.txt | grep -i -E "^HTTP|^location"`) and, if it differs, set `INVESTMENTS_AMFI_URL`; (3) after the first nightly run read Settings > Price sources for failures; (4) run `python manage.py investments_memory_bench` in the Shell and send the numbers (plan 26.1, docs/INVESTMENTS_RAM.md); (5) for a real split, confirm that Yahoo's chart closes are restated and that the automatic full re-fetch behaves (plan 3.8); (6) the first time pruning is switched on, download the full archive and keep it.
+
 ## 5a. Server settings chosen for a small plan
 
 - **Web server:** `gunicorn ... --workers 2 --threads 2 --max-requests 500 --max-requests-jitter 50 --timeout 60`. Two worker processes with two threads each, each restarted after about 500 requests to keep memory steady. There is deliberately no `--preload`.

@@ -1,0 +1,14 @@
+Open Ended Schemes ( Equity Scheme - Flexi Cap Fund )
+
+Scheme Code;ISIN Div Payout/ ISIN Growth;ISIN Div Reinvestment;Scheme Name;Net Asset Value;Date
+
+PPFAS Mutual Fund
+
+122639;INF879O01027;-;Parag Parikh Flexi Cap Fund - Direct Plan - Growth;81.4012;05-Nov-2026
+122640;INF879O01035;-;Parag Parikh Flexi Cap Fund - Regular Plan - Growth;76.2;05-Nov-2026
+
+HDFC Mutual Fund
+
+119063;INF179K01VQ5;-;HDFC Index Fund - NIFTY 50 Plan - Direct Plan;N.A.;05-Nov-2026
+118550;INF179K01XX0;-;HDFC Something Fund;0;05-Nov-2026
+125497;INF200K01VJ0;-;SBI Small Cap Fund - Direct Plan - Growth;166.7321;05-Nov-2026

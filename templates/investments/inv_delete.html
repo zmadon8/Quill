@@ -1,0 +1,19 @@
+{% extends "investments/base_investments.html" %}
+{% block inv_content %}
+<div class="titlebar"><h1 class="t">Delete {{ inst.name }}</h1></div>
+{% if not has_records %}
+<p class="lead">This investment has no transactions, transfers, folios or dated values in this profile.</p>
+<form method="post">{% csrf_token %}<div class="acts-row"><button class="btn dng" type="submit">Delete {{ inst.name }}</button><a class="btn q" href="{% url 'investments_investment' inst.pk %}">Cancel</a></div></form>
+{% elif not is_admin %}
+<div class="ban al"><span>This investment has records, so only an Admin can delete it. Once it is sold out you can <a href="{% url 'investments_investment' inst.pk %}">hide it</a> instead; it stays in reports and history.</span></div>
+{% else %}
+<div class="ban al"><span><b>This will permanently remove, from this profile only:</b></span></div>
+<ul><li>{{ counts.transactions }} transaction{{ counts.transactions|pluralize }}</li><li>{{ counts.transfers }} transfer{{ counts.transfers|pluralize }}</li><li>{{ counts.folios }} folio number{{ counts.folios|pluralize }}</li><li>{{ counts.values }} dated value{{ counts.values|pluralize }}</li></ul>
+<p class="hint">A "Before deleting investment" backup is taken first and kept until an Admin removes it; if it cannot be made, nothing is deleted. The deletion is written to the permanent History. Restore from that backup, not from History.
+{% if inst.profile_id is None %}<br>The investment itself is shared: {% if other_profiles %}other profiles still use it, so it and its prices stay.{% else %}no other profile uses it, so it is removed from the shared list together with its prices.{% endif %}{% endif %}</p>
+<form method="post">{% csrf_token %}
+  <div class="fld"><label for="id_confirm_name">Type <b>{{ inst.name }}</b> to confirm</label><input id="id_confirm_name" name="confirm_name" autocomplete="off"></div>
+  <div class="acts-row"><button class="btn dng" type="submit">Take a backup and delete</button><a class="btn q" href="{% url 'investments_investment' inst.pk %}">Cancel</a></div>
+</form>
+{% endif %}
+{% endblock %}

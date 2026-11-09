@@ -11,10 +11,12 @@ BACKUP_KINDS = [
     ("pre_import", "Before import"),
     ("post_import", "After import"),
     ("pre_clear", "Before clearing profile"),
+    ("pre_inv_delete", "Before deleting investment"),
+    ("pre_catalogue", "Before changing the catalogue"),
 ]
 
 #: Import and clear backups: the only kinds an Admin may delete by hand (they also count toward the newest-30 limit).
-KEEP_KINDS = ("pre_import", "post_import", "pre_clear")
+KEEP_KINDS = ("pre_import", "post_import", "pre_clear", "pre_inv_delete", "pre_catalogue")
 
 LOG_KINDS = [
     ("daily", "Daily"),
@@ -24,6 +26,8 @@ LOG_KINDS = [
     ("pre_import", "Before import"),
     ("post_import", "After import"),
     ("pre_clear", "Before clearing profile"),
+    ("pre_inv_delete", "Before deleting investment"),
+    ("pre_catalogue", "Before changing the catalogue"),
     ("restore", "Restore"),
     ("prune", "Clean-up"),
     ("offsite", "Off-site copy"),

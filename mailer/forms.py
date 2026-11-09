@@ -23,9 +23,10 @@ class EmailBackupForm(forms.ModelForm):
 
     class Meta:
         model = EmailBackupSchedule
-        fields = ("enabled", "recipients", *_kind_fields(), "include_review", "split_emails", "max_attachment_mb")
+        fields = ("enabled", "recipients", *_kind_fields(), "archive_version", "include_review", "split_emails", "max_attachment_mb")
         labels = {
             "enabled": "Send backups by email",
+            "archive_version": "Price archive version (while old prices are not pruned)",
             "include_review": "Include the Flags in the Word and HTML copies",
             "split_emails": "Split into several emails when the files are larger than the limit below",
         }
@@ -40,6 +41,16 @@ class EmailBackupForm(forms.ModelForm):
                 min_value=1, max_value=28, initial=1, label="Day of the month",
                 help_text="1 to 28, so every month has it.",
             )
+
+        # The price archive (Investments) was added later: a post that leaves its fields out (an older client, a test) keeps the current values.
+        for name in ("archive_frequency", "archive_weekday", "archive_day_of_month", "archive_version"):
+            self.fields[name].required = False
+
+    def _clean_archive_defaults(self, cleaned):
+        for name in ("archive_frequency", "archive_weekday", "archive_day_of_month", "archive_version"):
+            if cleaned.get(name) in (None, "") and name not in self.errors:
+                cleaned[name] = getattr(self.instance, name)
+        return cleaned
 
     def kind_rows(self):
         """One row per kind of file for the page: the label and the four bound fields."""
@@ -56,7 +67,7 @@ class EmailBackupForm(forms.ModelForm):
         return ", ".join(addresses)
 
     def clean(self):
-        cleaned = super().clean()
+        cleaned = self._clean_archive_defaults(super().clean())
         if cleaned.get("enabled"):
             if not cleaned.get("recipients") and "recipients" not in self.errors:
                 self.add_error("recipients", "Add at least one email address, or untick \u201cSend backups by email\u201d.")

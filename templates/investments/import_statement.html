@@ -1,0 +1,22 @@
+{% extends "investments/base_investments.html" %}
+{% load investments_money %}
+{% block inv_content %}
+<div class="titlebar"><h1 class="t">Import a statement</h1></div>
+<p class="hint">A CSV or Excel file from a broker or fund house, one trade per row with a header row: date, buy or sell, the investment (ISIN, code, scheme code or exact name), units, price or NAV (or the amount), charges and folio if it has them. You see every line first; nothing is saved until you confirm. Investments must already be in the program.</p>
+{% if error %}<div class="ban al" role="alert"><span>{{ error }}</span></div>{% endif %}
+{% if not review %}
+<form method="post" enctype="multipart/form-data" class="form">{% csrf_token %}<div class="row">
+<div class="fld"><label for="f">File</label><input id="f" type="file" name="file" accept=".csv,.xlsx"></div>
+<div class="fld"><label for="p">Portfolio</label><select id="p" name="portfolio"><option value="">Choose</option>{% for p in portfolios %}<option value="{{ p.pk }}"{% if chosen.portfolio == p.pk|stringformat:"s" %} selected{% endif %}>{{ p.name }}</option>{% endfor %}</select></div>
+<div class="fld"><label for="b">Broker</label><select id="b" name="broker"><option value="">Choose</option>{% for b in brokers %}<option value="{{ b.pk }}"{% if chosen.broker == b.pk|stringformat:"s" %} selected{% endif %}>{{ b.name }}</option>{% endfor %}</select></div></div>
+<div class="acts-row"><button class="btn p" type="submit">Review</button></div></form>
+{% else %}
+<div class="tw"><table data-table-id="inv-import-review" class="led"><thead><tr><th>Line</th><th>Date</th><th>Buy / sell</th><th>Investment</th><th class="r">Units</th><th class="r">Price</th><th class="r">Charges</th><th>Folio</th><th>What happens</th></tr></thead><tbody>
+{% for l in review.lines %}<tr{% if l.problem %} class="hi"{% endif %}><td>{{ l.number }}</td><td>{{ l.day|date:"j M Y" }}</td><td>{{ l.side }}</td><td>{{ l.instrument.name|default:"?" }}</td><td class="r">{% if l.units %}{{ l.units|units }}{% endif %}</td><td class="r">{% if l.price %}{{ l.price|price }}{% endif %}</td><td class="r">{{ l.charges|price }}</td><td>{{ l.folio }}</td>
+<td>{% if l.problem %}<span class="tag ox">Problem</span> {{ l.problem }}{% elif l.completes %}Completes the awaiting entry of {{ l.completes.date|date:"j M" }}{% elif l.duplicate %}<span class="tag">Duplicate</span> already recorded, skipped{% else %}New entry{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>
+{% if review.problems %}<div class="ban al"><span>{{ review.problems|length }} line{{ review.problems|length|pluralize }} need fixing first, so the file cannot be saved.</span></div>{% endif %}
+<form method="post">{% csrf_token %}<input type="hidden" name="apply" value="1"><input type="hidden" name="token" value="{{ token }}"><input type="hidden" name="portfolio" value="{{ chosen.portfolio }}"><input type="hidden" name="broker" value="{{ chosen.broker }}">
+<div class="acts-row">{% if not review.problems %}<button class="btn p" type="submit">Save {{ review.usable|length }} line{{ review.usable|length|pluralize }}</button>{% endif %}<a class="btn q" href="{% url 'investments_import_statement' %}">Start again</a></div></form>
+{% endif %}
+{% endblock %}

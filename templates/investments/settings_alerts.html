@@ -1,0 +1,6 @@
+{% extends "investments/base_investments.html" %}
+{% block inv_content %}
+<div class="titlebar"><h1 class="t">Alerts</h1></div>
+<p class="hint">Rule A compares the latest close with the one before (and, optionally, with the close a number of days ago). Rule B compares the value with the cost of the units still held after first-in-first-out sales, separately for each portfolio. Each can be switched off.</p>
+<form method="post" class="form" novalidate>{% csrf_token %}{% include "investments/_form.html" %}{% if can_edit %}<div class="acts-row"><button class="btn p" type="submit">Save</button></div>{% endif %}</form>
+{% endblock %}

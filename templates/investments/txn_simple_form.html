@@ -1,0 +1,11 @@
+{% extends "investments/base_investments.html" %}
+{% block inv_content %}
+<div class="titlebar"><h1 class="t">{{ page_title_text }}</h1></div>
+<form method="post" class="form" novalidate>{% csrf_token %}
+  <p class="hint">{{ intro }}</p>
+  {% include "investments/_form.html" %}
+  <div class="acts-row"><button class="btn p" type="submit">Save</button><a class="btn q" href="{% url 'investments_transactions' %}">Cancel</a></div>
+</form>
+<script id="inv-default-brokers" type="application/json">{{ default_brokers_json|safe }}</script>
+<script id="inv-folios" type="application/json">{{ folios_json|safe }}</script>
+{% endblock %}

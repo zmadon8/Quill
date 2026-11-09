@@ -1,0 +1,16 @@
+{% extends "investments/base_investments.html" %}
+{% load investments_money %}
+{% block inv_content %}
+<div class="titlebar"><h1 class="t">{{ page_title_text }}</h1></div>
+<dl class="kv"><dt>Investment</dt><dd>{{ txn.instrument.name }}</dd><dt>Date {% if txn.side == "buy" %}paid{% else %}of the redemption{% endif %}</dt><dd>{{ txn.date|date:"j M Y" }}</dd><dt>Amount</dt><dd>{{ txn.amount|inr }}</dd><dt>Broker</dt><dd>{{ txn.broker.name }}</dd>{% if txn.reference %}<dt>Reference</dt><dd>{{ txn.reference }}</dd>{% endif %}</dl>
+<div class="panel"><h3>Stored NAVs from the payment date</h3>
+{% if suggestions %}<table data-table-id="inv-txn_complete-1" class="led"><thead><tr><th>NAV date</th><th class="r">NAV</th><th class="r">Units it would give</th></tr></thead><tbody>
+{% for s in suggestions %}<tr><td>{{ s.date|date:"j M Y" }}</td><td class="r">{{ s.nav|price }}</td><td class="r">{{ s.units|units }}</td></tr>{% endfor %}</tbody></table>
+<p class="hint">A suggestion only. Pick the NAV day that matches your statement.</p>
+{% else %}<p class="hint">No NAV is stored for {{ txn.instrument.name }} on or after that date yet (the fund's NAV is published in the evening). Enter the units or the NAV from your statement.</p>{% endif %}</div>
+<form method="post" class="form">{% csrf_token %}<input type="hidden" name="version" value="{{ version }}">
+  <p class="hint">Enter any two of units, NAV and the amount (the amount paid is already known) and the third is worked out. A difference of up to {{ tolerance|inr }} is treated as rounding.</p>
+  {% include "investments/_form.html" %}
+  <div class="acts-row"><button class="btn p" type="submit">Complete</button><a class="btn q" href="{% url 'investments_txn_to_confirm' %}">Back</a></div>
+</form>
+{% endblock %}

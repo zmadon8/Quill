@@ -16,7 +16,7 @@ def email_context(form=None):
     return {
         "email_form": form or EmailBackupForm(instance=schedule), "schedule": schedule,
         "configured": services.is_configured(),
-        "due": services.is_due(schedule), "due_kinds": [KIND_LABELS[k] for k in services.due_kinds(schedule)], "email_diag": sender.diagnostics(), "backup_size": services.newest_backup_size(),
+        "due": services.is_due(schedule), "due_kinds": [KIND_LABELS[k] for k in services.due_kinds(schedule)], "email_diag": sender.diagnostics(), "backup_size": services.newest_backup_size(), "archive_part_cap": services.ARCHIVE_MAX_PARTS,
     }
 
 

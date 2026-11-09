@@ -1,0 +1,53 @@
+{
+ "chart": {
+  "result": [
+   {
+    "meta": {
+     "currency": "INR",
+     "symbol": "RELIANCE.NS",
+     "exchangeName": "NSI",
+     "longName": "Reliance Industries Limited",
+     "gmtoffset": 19800,
+     "timezone": "IST"
+    },
+    "timestamp": [
+     1793591100,
+     1793677500,
+     1793763900,
+     1793850300,
+     1793936700
+    ],
+    "events": {
+     "splits": {
+      "1793763900": {
+       "date": 1793763900,
+       "numerator": 2,
+       "denominator": 1,
+       "splitRatio": "2:1"
+      }
+     },
+     "dividends": {
+      "1793677500": {
+       "amount": 10.0,
+       "date": 1793677500
+      }
+     }
+    },
+    "indicators": {
+     "quote": [
+      {
+       "close": [
+        1301.5,
+        1312.25,
+        null,
+        1320.0,
+        1327.8
+       ]
+      }
+     ]
+    }
+   }
+  ],
+  "error": null
+ }
+}

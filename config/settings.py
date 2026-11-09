@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     "backups",
     "diary",
     "fees",
+    "investments",
     "mailer",
 ]
 
@@ -70,6 +71,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "fees.middleware.FeesEnabledMiddleware",
+    "investments.middleware.InvestmentsEnabledMiddleware",
     "accounts.middleware.LastSeenMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -164,6 +166,18 @@ if "test" in sys.argv[1:2] or os.environ.get("DJANGO_TESTING") == "1":
 # the test runner, and OFF in production. render.yaml sets "0" until the owner's go-ahead; then set it to "1".
 _FEES_DEFAULT_ON = DEBUG or ALLOW_SQLITE or "test" in sys.argv[1:2] or os.environ.get("DJANGO_TESTING") == "1"
 FEES_ENABLED = (os.environ["FEES_ENABLED"] == "1") if "FEES_ENABLED" in os.environ else _FEES_DEFAULT_ON
+
+# Investments dark-launch flag (plan section 18). Same rules as FEES_ENABLED: when False the program is invisible and every
+# /investments/ URL is a 404, while its tables, migrations and the suite backup and restore keep working.
+# INVESTMENTS_ENABLED=1 turns it on, any other set value turns it off; unset means on in developer mode and tests, off in production.
+INVESTMENTS_ENABLED = (
+    (os.environ["INVESTMENTS_ENABLED"] == "1") if "INVESTMENTS_ENABLED" in os.environ else _FEES_DEFAULT_ON
+)
+
+# The optional Investments local helper (plan 28): "1" switches on its two endpoints; anything else, or unset, keeps them a 404.
+PRICE_HELPER_ENABLED = os.environ.get("PRICE_HELPER_ENABLED") == "1"
+# The address of AMFI's daily NAV file (plan 30: the final address is still to be confirmed; set it here once known).
+INVESTMENTS_AMFI_URL = os.environ.get("INVESTMENTS_AMFI_URL", "")
 
 # Backup settings (used by the backups app).
 # Only the newest BACKUP_KEEP_COUNT backups are kept, of every kind (owner decision). Never below 1.

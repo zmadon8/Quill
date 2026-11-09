@@ -1,0 +1,26 @@
+{% extends "investments/base_investments.html" %}
+{% load investments_money %}
+{% block inv_content %}
+<div class="titlebar"><h1 class="t">Transactions</h1><div class="meta">{{ total }} entr{{ total|pluralize:"y,ies" }}</div></div>
+{% if awaiting_count %}<div class="ban wa"><span><b>{{ awaiting_count }}</b> waiting to be completed.</span><span class="r"><a href="{% url 'investments_txn_to_confirm' %}">To complete</a></span></div>{% endif %}
+<div class="sec">
+  <form method="get" style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end"><div class="sel"><span>Search</span><input type="search" name="q" value="{{ q }}" placeholder="investment, folio, reference"></div>
+    <div class="sel"><span>Type</span><select name="side" onchange="this.form.submit()"><option value="">All</option><option value="buy"{% if side == "buy" %} selected{% endif %}>Purchases</option><option value="sell"{% if side == "sell" %} selected{% endif %}>Sales</option></select></div>
+    <button class="btn q" type="submit">Filter</button></form>
+  {% if can_edit %}<div class="acts"><a class="btn q" href="{% url 'investments_txn_opening' %}">Opening balance</a><a class="btn q" href="{% url 'investments_txn_transfer' %}">Transfer</a><a class="btn q" href="{% url 'investments_txn_switch' %}">Fund switch</a><a class="btn q" href="{% url 'investments_txn_new_awaiting' %}">Awaiting allotment</a><a class="btn q" href="{% url 'investments_txn_new_sell' %}">Add sale</a><a class="btn p" href="{% url 'investments_txn_new_buy' %}">Add purchase</a></div>{% endif %}
+</div>
+{% if rows %}
+<div class="tw"><table data-table-id="inv-transactions-1" class="led" data-sortable>
+<thead><tr><th>Date</th><th>Investment</th><th>Buy / sell</th><th class="r">Units</th><th class="r">Price</th><th class="r">Amount</th><th>Broker</th><th>Portfolio</th><th>Folio</th><th></th></tr></thead><tbody>
+{% for t in rows %}<tr id="txn-{{ t.pk }}"{% if request.GET.highlight == t.pk|stringformat:"s" %} class="hi"{% endif %}><td data-sort="{{ t.date|date:'Y-m-d' }}">{{ t.date|date:"j M Y" }}</td><td class="nm" data-sort="{{ t.instrument.name|lower }}"><a href="{% url 'investments_investment' t.instrument.pk %}">{{ t.instrument.name }}</a>{% for label, cls in t.tags %}<span class="tag {{ cls }}">{{ label }}</span>{% endfor %}</td>
+<td>{{ t.get_side_display }}</td><td class="r" data-sort="{{ t.units|default_if_none:0 }}">{% if t.units is not None %}{{ t.units|units }}{% else %}<span class="na">&ndash;</span>{% endif %}</td>
+<td class="r" data-sort="{{ t.price|default_if_none:0 }}">{% if t.price is not None %}{{ t.price|price }}{% else %}<span class="na">&ndash;</span>{% endif %}</td><td class="r" data-sort="{{ t.total|default_if_none:0 }}">{{ t.total|inr }}</td>
+<td>{{ t.broker.name }}</td><td>{{ t.portfolio.name }}</td><td>{{ t.folio.number|default:"" }}</td>
+<td class="act">{% if can_edit %}{% if t.status == "awaiting" %}<a href="{% url 'investments_txn_complete' t.pk %}">Complete</a>{% endif %}<a href="{% url 'investments_txn_edit' t.pk %}">Edit</a>{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>
+<nav class="pager">{% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}&q={{ q }}&side={{ side }}">&larr; Newer</a>{% endif %} <span class="na">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span> {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}&q={{ q }}&side={{ side }}">Older &rarr;</a>{% endif %}</nav>
+{% else %}<p class="lead na">No transactions yet. {% if can_edit %}<a href="{% url 'investments_txn_new_buy' %}">Add a purchase</a> or an <a href="{% url 'investments_txn_opening' %}">opening balance</a>.{% endif %}</p>{% endif %}
+{% if transfers %}<div class="sec"><h2>Transfers</h2></div><div class="tw"><table data-table-id="inv-transactions-2" class="led"><thead><tr><th>Date</th><th>Investment</th><th class="r">Units</th><th>From</th><th>To</th><th></th></tr></thead><tbody>
+{% for tr in transfers %}<tr><td>{{ tr.date|date:"j M Y" }}</td><td>{{ tr.instrument.name }}</td><td class="r">{{ tr.units|units }}</td><td>{{ tr.from_broker.name }} / {{ tr.from_portfolio.name }}</td><td>{{ tr.to_broker.name }} / {{ tr.to_portfolio.name }}</td>
+<td class="act">{% if can_edit %}<form method="post" action="{% url 'investments_transfer_delete' tr.pk %}" style="display:inline" onsubmit="return confirm('Delete this transfer?')">{% csrf_token %}<button class="linklike">Delete</button></form>{% endif %}</td></tr>{% endfor %}</tbody></table></div>{% endif %}
+{% endblock %}

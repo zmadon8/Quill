@@ -84,6 +84,7 @@ class CreateBackupTests(BackupBase):
         expected = {label: 0 for label in registry.BACKUP_MODELS}
         expected["accounts.User"] = 3
         expected["accounts.Profile"] = 1  # the default "Main" profile created by the data migration
+        expected["investments.Instrument"] = 8  # the built-in indices created by the Investments data migration
         self.assertEqual(doc["counts"], expected)
         self.assertEqual(Profile.objects.get().name, "Main")
         names = {r["fields"]["username"] for r in doc["models"]["accounts.User"]}
@@ -462,7 +463,7 @@ class DiaryRoundTripTests(BackupBase):
         self.build()
         before = self.snapshot()
         self.assertTrue(
-            all(before[label] for label in registry.BACKUP_MODELS if not label.startswith("fees."))
+            all(before[label] for label in registry.BACKUP_MODELS if not label.startswith(("fees.", "investments.")))
         )
         doc = services.parse_backup(services.create_backup("manual").data, MAX)
         self.assertEqual(doc["counts"]["diary.NoteLink"], 2)

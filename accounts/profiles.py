@@ -17,7 +17,7 @@ from django.utils import timezone
 
 from .models import ROLE_EDITOR, ROLE_READER, Profile, ProfileMembership
 from .programs import program_keys
-from .suite import KEY_DIARY, KEY_FEES, get_names
+from .suite import KEY_DIARY, KEY_FEES, KEY_INVESTMENTS, get_names
 
 DEFAULT_PROFILE_NAME = "Main"
 
@@ -185,13 +185,17 @@ def set_user_profile(user, profile, role=ROLE_READER, program=KEY_DIARY):
 def profile_usage(profile):
     """(members, live records) counts, used to refuse deleting a profile in use.
 
-    Records are the diary's Subjects, or a Fee Register profile's Memos.
+    Records are the diary's Subjects, a Fee Register profile's Memos, or an Investments profile's transactions.
     """
     members = ProfileMembership.objects.filter(profile=profile, user__deleted_at__isnull=True).count()
     if profile.program == KEY_FEES:
         from fees.models import Memo
 
         return members, Memo.objects.filter(profile=profile).count()
+    if profile.program == KEY_INVESTMENTS:
+        from investments.services import usage
+
+        return members, usage.record_count(profile)
     from diary.models import Subject
 
     subjects = Subject.objects.filter(profile=profile, deleted_at__isnull=True).count()
@@ -209,8 +213,13 @@ def profile_usage_map(profiles):
         .values_list("profile_id").annotate(n=Count("pk")).order_by()
     )
     fees_pks = [p.pk for p in profiles if p.program == KEY_FEES]
-    diary_pks = [p.pk for p in profiles if p.program != KEY_FEES]
+    inv_pks = [p.pk for p in profiles if p.program == KEY_INVESTMENTS]
+    diary_pks = [p.pk for p in profiles if p.program not in (KEY_FEES, KEY_INVESTMENTS)]
     records = {}
+    if inv_pks:
+        from investments.services import usage
+
+        records.update(usage.record_counts(inv_pks))
     if fees_pks:
         from fees.models import Memo
 

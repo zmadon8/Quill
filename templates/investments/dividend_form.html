@@ -1,0 +1,11 @@
+{% extends "investments/base_investments.html" %}
+{% load investments_money %}
+{% block inv_content %}
+<div class="titlebar"><h1 class="t">{{ page_title_text }}</h1></div>
+{% if suggest %}<div class="ban"><span>The price source reported {{ suggest.per_unit|price }} per unit with ex-date {{ suggest.ex_date|date:"j M Y" }}; you held {{ suggest.units|units }} units, so about <b>{{ suggest.amount|inr }}</b>. Enter what you actually received.</span></div>{% endif %}
+<form method="post" class="form" novalidate>{% csrf_token %}{% if obj %}<input type="hidden" name="version" value="{{ obj.version }}">{% endif %}
+  <p class="hint">Mutual fund payouts (IDCW) are entered the same way.</p>
+  {% include "investments/_form.html" %}
+  <div class="acts-row"><button class="btn p" type="submit">Save</button><a class="btn q" href="{% url 'investments_dividends' %}">Cancel</a>{% if obj %}<button class="btn dng" name="delete" value="1" onclick="return confirm('Delete this dividend?')">Delete</button>{% endif %}</div>
+</form>
+{% endblock %}

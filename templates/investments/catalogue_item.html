@@ -1,0 +1,45 @@
+{% extends "investments/base_investments.html" %}
+{% block inv_content %}
+<div class="invhead"><div><h1>{{ inst.name }}</h1><div class="sub">{{ inst.get_kind_display }}{% if inst.code %} &middot; {{ inst.code }}{% endif %} &middot; source {{ inst.get_price_source_display }} &middot; basis {{ inst.price_basis|default:"none" }}</div></div>
+  <div class="acts"><a class="btn q" href="{% url 'investments_admin_catalogue' %}">All investments</a><a class="btn q" href="{% url 'investments_admin_upload' %}">Upload history</a></div></div>
+{% if moves %}<div class="ban wa"><span>Large one-day moves: {% for d, a, b in moves %}{{ d|date:"j M Y" }} ({{ a }} to {{ b }}){% if not forloop.last %}, {% endif %}{% endfor %}. Check for a split before relying on them.</span></div>{% endif %}
+{% if stale_days is not None and stale_days > 5 %}<div class="ban wa"><span>The newest price is {{ stale_days }} days old.</span></div>{% endif %}
+
+<div class="sec"><h2>Shared details</h2><span class="hint">a change affects {{ affected }} profile{{ affected|pluralize }}</span></div>
+<form method="post" action="{% url 'investments_admin_catalogue_action' inst.pk %}" class="form">{% csrf_token %}<input type="hidden" name="action" value="details">{% include "investments/_form.html" with form=details_form %}
+  <div class="row"><div class="fld"><label>Reason (kept in the log)</label><input name="reason"></div></div><div class="acts-row"><button class="btn p" type="submit">Save details</button></div></form>
+
+<div class="sec"><h2>Symbol at each source</h2></div>
+{% for source, symbol in symbols %}<form method="post" action="{% url 'investments_admin_catalogue_action' inst.pk %}" class="inline-edit">{% csrf_token %}<input type="hidden" name="action" value="symbol"><input type="hidden" name="source" value="{{ source }}"><label style="min-width:5rem">{{ source }}</label><input name="symbol" value="{{ symbol }}" placeholder="{{ inst.code }}"><button class="btn q sm">Save</button></form>{% endfor %}
+<p class="hint">Blank means the investment's code is used.</p>
+
+<div class="sec"><h2>Price history</h2><span class="hint">{{ total }} day{{ total|pluralize }}</span></div>
+<form method="get" class="inline-edit"><label>From</label><input type="date" name="from" value="{{ start|date:'Y-m-d' }}"><label>To</label><input type="date" name="to" value="{{ end|date:'Y-m-d' }}"><button class="btn q sm">Filter</button></form>
+<div class="tw"><table data-table-id="inv-catalogue-prices" class="led"><thead><tr><th>Date</th><th class="r">Close</th><th>Source</th><th></th><th></th></tr></thead><tbody>
+{% for r in rows %}<tr{% if r.odd %} class="hi"{% endif %}><td>{{ r.date|date:"j M Y" }}</td><td class="r">{{ r.close }}</td><td>{{ r.source }}{% if r.pinned %} <span class="tag">Pinned</span>{% endif %}{% if r.odd %} <span class="tag amb">Unusual</span>{% endif %}</td>
+<td><form method="post" action="{% url 'investments_admin_catalogue_action' inst.pk %}" class="inline-edit">{% csrf_token %}<input type="hidden" name="action" value="price"><input type="hidden" name="date" value="{{ r.date|date:'Y-m-d' }}"><input name="close" value="{{ r.close }}" size="10" aria-label="New close"><input name="reason" placeholder="reason" size="14"><button class="btn q sm">Save</button></form></td>
+<td><form method="post" action="{% url 'investments_admin_catalogue_action' inst.pk %}" onsubmit="return confirm('Delete this price?')">{% csrf_token %}<input type="hidden" name="action" value="delete_price"><input type="hidden" name="date" value="{{ r.date|date:'Y-m-d' }}"><button class="linklike">Delete</button></form></td></tr>{% empty %}<tr><td colspan="5" class="na">No prices stored.</td></tr>{% endfor %}</tbody></table></div>
+<nav class="pager">{% if page_no > 1 %}<a href="?page={{ page_no|add:'-1' }}">&larr; Newer</a>{% endif %}<span class="na">Page {{ page_no }} of {{ pages }}</span>{% if page_no < pages %}<a href="?page={{ page_no|add:'1' }}">Older &rarr;</a>{% endif %}</nav>
+<p class="hint">An edited or added price becomes a hand-entered price: the nightly fetch never overwrites it, and the original is kept in the log.</p>
+<form method="post" action="{% url 'investments_admin_catalogue_action' inst.pk %}" class="inline-edit">{% csrf_token %}<input type="hidden" name="action" value="price"><label>Add</label><input type="date" name="date" value="{{ today|date:'Y-m-d' }}"><input name="close" placeholder="close" size="10"><input name="reason" placeholder="reason"><button class="btn q sm">Add price</button></form>
+<form method="post" action="{% url 'investments_admin_catalogue_action' inst.pk %}" class="inline-edit">{% csrf_token %}<input type="hidden" name="action" value="refetch"><label>Re-fetch</label><input type="date" name="from"><input type="date" name="to"><button class="btn q sm">Fetch this range again</button></form>
+{% if deleted_prices %}<h3>Deleted prices</h3><ul class="plain">{% for d in deleted_prices %}<li>{{ d.field }}: {{ d.old }} deleted {{ d.at|date:"j M Y" }}{% if d.reason %} ({{ d.reason }}){% endif %}
+<form method="post" action="{% url 'investments_admin_catalogue_action' inst.pk %}" style="display:inline">{% csrf_token %}<input type="hidden" name="action" value="restore_price"><input type="hidden" name="log" value="{{ d.pk }}"><button class="linklike">Put back</button></form></li>{% endfor %}</ul>{% endif %}
+
+<div class="sec"><h2>Held by</h2></div>
+<p>{% for n in holders %}{{ n }}{% if not forloop.last %}, {% endif %}{% empty %}<span class="na">No profile.</span>{% endfor %}</p>
+<p class="hint">Profile names only. No units, costs, dates or values are shown here.</p>
+{% if profile_details %}<h3>Profile-level details</h3><div class="tw"><table data-table-id="inv-catalogue-profiles" class="led"><thead><tr><th>Profile</th><th>Sectoral index</th><th>Hidden</th><th></th></tr></thead><tbody>
+{% for pi in profile_details %}<tr><td>{{ pi.profile.name }}</td><td colspan="3">
+<form method="post" action="{% url 'investments_admin_catalogue_action' inst.pk %}" class="inline-edit">{% csrf_token %}<input type="hidden" name="action" value="profile_detail"><input type="hidden" name="pi" value="{{ pi.pk }}"><input name="sectoral" value="{{ pi.sectoral_index_id|default:'' }}" size="4" placeholder="index id"><label class="chk"><input type="checkbox" name="hidden"{% if pi.hidden %} checked{% endif %}> hidden</label><button class="btn q sm">Save</button></form></td></tr>{% endfor %}</tbody></table></div>{% endif %}
+
+<div class="sec"><h2>Structural changes</h2></div>
+<p class="hint">Each takes a "Before changing the catalogue" backup first, kept until an Admin removes it.</p>
+<form method="post" action="{% url 'investments_admin_catalogue_action' inst.pk %}" class="inline-edit">{% csrf_token %}<input type="hidden" name="action" value="merge"><label>Merge another entry into this one</label><select name="other">{% for o in others %}<option value="{{ o.pk }}">{{ o.name }} ({{ o.code }})</option>{% endfor %}</select><input name="reason" placeholder="reason"><button class="btn q sm">Preview</button></form>
+<form method="post" action="{% url 'investments_admin_catalogue_action' inst.pk %}" class="inline-edit">{% csrf_token %}<input type="hidden" name="action" value="basis"><label>Price basis</label><select name="new_basis"><option value="">none</option><option value="raw">raw</option><option value="split_adjusted">split-adjusted</option></select><input name="reason" placeholder="reason"><button class="btn q sm">Preview</button></form>
+<form method="post" action="{% url 'investments_admin_catalogue_action' inst.pk %}" class="inline-edit" onsubmit="return confirm('Delete this investment?')">{% csrf_token %}<input type="hidden" name="action" value="delete"><input name="reason" placeholder="reason"><button class="btn dng sm">Delete (only if no profile holds it)</button></form>
+
+<div class="sec"><h2>Change log</h2></div>
+<div class="tw"><table data-table-id="inv-catalogue-log" class="led"><thead><tr><th>When</th><th>Who</th><th>What</th><th>Old</th><th>New</th><th>Reason</th></tr></thead><tbody>
+{% for l in log %}<tr><td>{{ l.at|date:"j M Y, g:i a" }}</td><td>{{ l.by.get_username }}</td><td>{{ l.record_type }} {{ l.field }}</td><td>{{ l.old }}</td><td>{{ l.new }}</td><td>{{ l.reason }}</td></tr>{% empty %}<tr><td colspan="6" class="na">No changes yet.</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:16
+        image: postgres:18
         env:
           POSTGRES_USER: quill
           POSTGRES_PASSWORD: quill-test-password
@@ -51,6 +51,11 @@ jobs:
         run: |
           python manage.py migrate
           python manage.py fees_memory_bench
+      # Non-blocking: peak memory of each Investments operation against the plan's estimates (plan section 26.1).
+      # Results go in docs/INVESTMENTS_RAM.md. Uses the database migrated by the step above.
+      - name: Investments memory bench
+        continue-on-error: true
+        run: python manage.py investments_memory_bench
       - name: Lint
         if: always()
         run: ruff check --select F,E9 .

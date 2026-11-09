@@ -1,0 +1,12 @@
+{% extends "investments/base_investments.html" %}
+{% block inv_content %}
+<div class="titlebar"><h1 class="t">{{ inst.name }}</h1></div>
+<div class="stepper"><div class="done"><b>1</b>Type</div><div class="done"><b>2</b>Details</div><div class="done"><b>3</b>Confirm</div><div class="on"><b>4</b>What next</div></div>
+<p class="lead">Added. What would you like to do next?</p>
+<div class="choices">
+  <div class="ch"><div><h3>Record a purchase</h3><p>Date, units, price and broker.</p></div><a class="btn p" href="{% url 'investments_txn_new_buy' %}?instrument={{ inst.pk }}">Add purchase</a></div>
+  <div class="ch"><div><h3>Opening balance</h3><p>You already held it before using the program.</p></div><a class="btn q" href="{% url 'investments_txn_opening' %}?instrument={{ inst.pk }}">Opening balance</a></div>
+  <div class="ch"><div><h3>Enter a price</h3><p>{% if inst.kind == "alternative" %}Add a dated value on the investment page.{% else %}Prices are typed by hand for now.{% endif %}</p></div><a class="btn q" href="{% url 'investments_investment' inst.pk %}">Open the investment</a></div>
+  <div class="ch"><div><h3>Add another</h3><p></p></div><a class="btn q" href="{% url 'investments_add_1' %}">Add investment</a></div>
+</div>
+{% endblock %}

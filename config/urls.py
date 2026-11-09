@@ -15,6 +15,9 @@ urlpatterns = [
     # first page depends on the user's setting.
     path("fees", RedirectView.as_view(pattern_name="fees_landing", permanent=True, query_string=True)),
     path("fees/", include("fees.urls")),
+    # /investments and /investments/ open the Investments program (plan section 15.1).
+    path("investments", RedirectView.as_view(pattern_name="investments_landing", permanent=False, query_string=True)),
+    path("investments/", include("investments.urls")),
     path("", include("backups.urls")),
     path("", include("mailer.urls")),
 ]

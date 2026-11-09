@@ -1,0 +1,22 @@
+{% extends "investments/base_investments.html" %}
+{% load investments_money %}
+{% block inv_content %}
+<div class="titlebar"><h1 class="t">Performance</h1><div class="meta">{{ start|date:"j M Y" }} to {{ end|date:"j M Y" }}</div></div>
+<form method="get" class="sec" style="justify-content:flex-start;gap:16px;flex-wrap:wrap;align-items:flex-end">
+  <div class="sel"><span>Measure</span><select name="measure"><option value="xirr"{% if measure == "xirr" %} selected{% endif %}>XIRR (your actual trades)</option><option value="cagr"{% if measure == "cagr" %} selected{% endif %}>CAGR (the investment's own price)</option></select></div>
+  <div class="sel"><span>Period</span><select name="period">{% for k, l in periods %}<option value="{{ k }}"{% if k == period %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+  <div class="sel"><span>From</span><input type="date" name="from" value="{{ start|date:'Y-m-d' }}"></div><div class="sel"><span>To</span><input type="date" name="to" value="{{ end|date:'Y-m-d' }}"></div>
+  <button class="btn q" type="submit">Show</button>
+  <a class="btn q" href="?{{ request.GET.urlencode }}&export=xlsx">Export to Excel</a>
+</form>
+<p class="hint">XIRR: the yearly return on the money you actually put in. The {{ default_index.name|default:"Default Index" }} column replays the same cash flows (same dates, same amounts) into the index; Alpha is the difference. The value on the start date counts as the opening investment.{% if inv_settings.include_dividends %} Dividends are not recorded yet, so the Include Dividends switch has no effect for now.{% endif %}</p>
+{% for n in notes %}<p class="hint">{{ n }}</p>{% endfor %}
+{% if rows %}
+<div class="tw"><table data-table-id="inv-performance" class="led" data-sortable><thead><tr><th>Investment</th><th>From</th><th class="r">{% if measure == "xirr" %}XIRR{% else %}CAGR{% endif %}</th><th class="r">{{ default_index.name|default:"Index" }} XIRR</th><th class="r">Alpha</th>
+{% if sectoral %}<th>Sectoral index</th><th class="r">Sectoral XIRR</th><th class="r">Alpha vs sectoral</th>{% endif %}</tr></thead><tbody>
+{% for r in rows %}<tr><td class="nm"><a href="{% url 'investments_investment' r.instrument.pk %}">{{ r.instrument.name }}</a>{% if r.note %}<small>{{ r.note }}</small>{% endif %}</td><td>{{ r.starts|default:start|date:"j M Y" }}</td>
+<td class="r" data-sort="{{ r.xirr|default_if_none:r.cagr|default_if_none:-99 }}">{% if measure == "xirr" %}{{ r.xirr|pct }}{% else %}{{ r.cagr|pct }}{% endif %}</td><td class="r" data-sort="{{ r.index_xirr|default_if_none:-99 }}">{{ r.index_xirr|pct }}</td><td class="r" data-sort="{{ r.alpha|default_if_none:-99 }}">{{ r.alpha|pct_signed }}</td>
+{% if sectoral %}<td>{{ r.sect_name|default:"&ndash;" }}</td><td class="r">{% if r.sect_name %}{{ r.sect_xirr|pct }}{% endif %}</td><td class="r">{% if r.sect_name %}{{ r.sect_alpha|pct_signed }}{% endif %}</td>{% endif %}</tr>{% endfor %}
+</tbody><tfoot><tr><td>All</td><td></td><td class="r">{{ total.xirr|pct }}</td><td class="r">{{ total.index_xirr|pct }}</td><td class="r">{{ total.alpha|pct_signed }}</td>{% if sectoral %}<td colspan="3"></td>{% endif %}</tr></tfoot></table></div>
+{% else %}<p class="lead na">No performance figures yet. They appear once you have purchases and prices.</p>{% endif %}
+{% endblock %}

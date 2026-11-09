@@ -29,6 +29,10 @@ services:
       # the backups working. Switched on for the rebuilt site; after the first deploy, run create_fees_user once (README).
       - key: FEES_ENABLED
         value: "1"
+      # Investments: "1" shows it. "0" hides it and makes every /investments/ URL a 404, but keeps the data and the
+      # backups working. Ships dark; set to "1" at the owner's go-ahead (docs/HOSTING_AND_DEPLOY.md, section 5d).
+      - key: INVESTMENTS_ENABLED
+        value: "0"
       # Optional: only needed if you add your own domain name (comma separated).
       # Render's own address is allowed automatically.
       - key: DJANGO_ALLOWED_HOSTS
@@ -58,13 +62,16 @@ services:
     region: singapore
     schedule: "30 20 * * *"
     buildCommand: ./build.sh
+    # Investments (plan 15.4), in this fixed order so pins exist before the backup and before any pruning: fetch_prices (capped at 10 minutes),
+    # create_sip_entries, pin_prices, then the backup chain with prune_prices LAST so it runs only after a good backup. The first three end in
+    # || echo, so a failure there can never change rc or stop the backup. They do nothing while INVESTMENTS_ENABLED is 0.
     # Purges (deleted profiles, old edit history) only run if the backup succeeded (&&), and each refuses on its own
     # if today's backup is missing. Clearing expired sessions is housekeeping: it always runs, but a failure there
     # can never hide a backup failure because the job exits with the backup/purge result first.
     # send_email_backups emails each kind of file (backup, Word / HTML copy, Fee Register Excel) whose own schedule says it is due (does nothing if off).
     # refresh_offline_copies remakes the saved Offline copy behind each secret link (Profiles > Offline link). Like the
     # email step it is followed by || echo, so it can never change rc or hide the backup/purge result.
-    startCommand: sh -c 'python manage.py run_backup && python manage.py purge_deleted_profiles && python manage.py purge_old_history; rc=$?; python manage.py send_email_backups || echo "send_email_backups failed (see Backups > Email backups)"; python manage.py refresh_offline_copies || echo "refresh_offline_copies failed (see Profiles > Offline link)"; python manage.py clearsessions || echo "clearsessions failed (ignored)"; exit $rc'
+    startCommand: sh -c 'python manage.py fetch_prices || echo "fetch_prices failed (see Investments > Settings > Price sources)"; python manage.py create_sip_entries || echo "create_sip_entries failed (ignored)"; python manage.py pin_prices || echo "pin_prices failed (see Investments > Settings > Price history)"; python manage.py run_backup && python manage.py purge_deleted_profiles && python manage.py purge_old_history && python manage.py prune_prices; rc=$?; python manage.py send_email_backups || echo "send_email_backups failed (see Backups > Email backups)"; python manage.py refresh_offline_copies || echo "refresh_offline_copies failed (see Profiles > Offline link)"; python manage.py send_alert_emails || echo "send_alert_emails failed (ignored)"; python manage.py clearsessions || echo "clearsessions failed (ignored)"; exit $rc'
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.8
@@ -79,6 +86,9 @@ services:
           property: connectionString
       - key: BACKUP_KEEP_COUNT
         value: "30"
+      # Investments: keep in step with the web service. "0" makes fetch_prices and create_sip_entries do nothing.
+      - key: INVESTMENTS_ENABLED
+        value: "0"
       # Days a deleted profile can be restored before it is removed for good.
       - key: PROFILE_RETENTION_DAYS
         value: "30"

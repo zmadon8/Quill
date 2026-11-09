@@ -48,6 +48,8 @@ def suite_names(request):
     names, modes, site = _read(request)
     return {"site_name": site,
             "home_name": names[suite.KEY_HOME], "diary_name": names[suite.KEY_DIARY], "fees_name": names[suite.KEY_FEES],
+            "investments_name": names[suite.KEY_INVESTMENTS],
+            "investments_on": programs.investments_enabled(),
             "suite_brand": modes,
             "home_header_words": modes[suite.KEY_HOME] == suite.BRAND_WORDS}
 
@@ -129,6 +131,7 @@ MY_SETTINGS_PAGES = ("my_settings", "format_preview", "password_change")
 #: Admins > Appearance) followed by "settings". suite_nav resolves them.
 DIARY_SETTINGS = object()
 FEES_SETTINGS = object()
+INVESTMENTS_SETTINGS = object()
 
 
 def _plain(test):
@@ -160,6 +163,7 @@ SUITE_GROUPS = (
         ("my_settings", "My Settings", "all", _plain(lambda n: n in MY_SETTINGS_PAGES), ""),
         ("profile_settings", DIARY_SETTINGS, "profile", _never, ""),
         ("fees_settings", FEES_SETTINGS, "fees", _never, ""),
+        ("investments_settings", INVESTMENTS_SETTINGS, "investments", _never, ""),
     )),
     ("Help", "icons/help.svg.html", (
         ("help", "Help", "all", _plain(_is("help")), ""),
@@ -185,6 +189,8 @@ def suite_nav(request):
             return user.is_admin
         if who == "fees":
             return programs.fees_enabled() and request_profile(request, suite.KEY_FEES) is not None
+        if who == "investments":
+            return programs.investments_enabled() and request_profile(request, suite.KEY_INVESTMENTS) is not None
         if who == "profile":
             if has_profile is None:
                 has_profile = request_profile(request) is not None
@@ -200,6 +206,8 @@ def suite_nav(request):
             return f"{program_name(suite.KEY_DIARY)} Settings"
         if name is FEES_SETTINGS:
             return f"{program_name(suite.KEY_FEES)} Settings"
+        if name is INVESTMENTS_SETTINGS:
+            return f"{program_name(suite.KEY_INVESTMENTS)} Settings"
         return name
 
     items, tabs_here = [], []

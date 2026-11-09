@@ -1,0 +1,15 @@
+{% extends "investments/base_investments.html" %}
+{% block inv_content %}
+<div class="titlebar"><h1 class="t">Opening balance</h1></div>
+<form method="post" class="form" novalidate>{% csrf_token %}<input type="hidden" name="rows" value="{{ row_numbers|length }}">
+  <p class="hint">For holdings bought before you started using the program. Enter each lot with its original purchase date (it decides short or long term and feeds XIRR) and cost per unit. If you do not know the exact date, give an approximate one and tick Estimated. No charges.</p>
+  {% include "investments/_form.html" %}
+  <table data-table-id="inv-txn_opening-1" class="led" id="opening-lines"><thead><tr><th>#</th><th>Original purchase date</th><th class="r">Units</th><th class="r">Cost per unit</th><th>Estimated date</th></tr></thead><tbody>
+  {% for i in row_numbers %}<tr><td>{{ forloop.counter }}</td><td><input type="date" name="date_{{ i }}"></td><td><input name="units_{{ i }}" inputmode="decimal"></td><td><input name="cost_{{ i }}" inputmode="decimal"></td><td><input type="checkbox" name="estimated_{{ i }}" value="1"></td></tr>{% endfor %}
+  </tbody></table>
+  <div class="acts-row"><button class="btn p" type="submit">Save lots</button><a class="btn q" href="{% url 'investments_transactions' %}">Cancel</a></div>
+</form>
+<script id="inv-default-brokers" type="application/json">{{ default_brokers_json|safe }}</script>
+<script id="inv-folios" type="application/json">{{ folios_json|safe }}</script>
+{% endblock %}
+{% block page_js %}{% load static %}<script src="{% static 'js/investments/txn-form.js' %}"></script>{% endblock %}

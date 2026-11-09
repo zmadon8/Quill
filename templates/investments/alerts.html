@@ -1,0 +1,17 @@
+{% extends "investments/base_investments.html" %}
+{% load investments_money %}
+{% block inv_content %}
+<div class="titlebar"><h1 class="t">Alerts and guardrails</h1><div class="meta">{{ alerts|length }} active</div></div>
+<p class="hint">Worked out from daily closing prices, not live ones. An alert is a prompt: the decision to sell stays with you. Purchases awaiting allotment are left out.</p>
+{% if alerts %}<div class="tw"><table data-table-id="inv-alerts" class="led"><thead><tr><th>Investment</th><th>Portfolio</th><th>Alert</th><th>Price date</th><th class="r">Price</th><th class="r">Gain</th><th>If sold now</th><th></th></tr></thead><tbody>
+{% for a in alerts %}<tr><td class="nm"><a href="{% url 'investments_investment' a.instrument_id %}">{{ a.instrument_name }}</a></td><td>{{ a.portfolio_name }}</td><td><span class="tag {% if a.change_pct < 0 %}ox{% else %}ink{% endif %}">{{ a.kind|cut:"_window"|cut:"rule_"|upper }}</span> {{ a.label }}</td>
+<td>{{ a.on|date:"j M Y" }}</td><td class="r">{% if a.price %}{{ a.price|price }}{% endif %}</td><td class="r">{% if a.gain is not None %}{{ a.gain|inr_signed }}{% endif %}</td>
+<td>{% if a.term %}{{ a.term }}{% if a.days_to_long %}, long-term in {{ a.days_to_long }} day{{ a.days_to_long|pluralize }}{% endif %}{% endif %}</td>
+<td class="act">{% if can_edit %}<form method="post" class="inline-edit">{% csrf_token %}<input type="hidden" name="key" value="{{ a.key }}"><button class="btn q sm" name="action" value="dismiss">Dismiss</button><input type="date" name="until" value="{{ next_week|date:'Y-m-d' }}" aria-label="Snooze until"><button class="btn q sm" name="action" value="snooze">Snooze</button>{% if a.rearm is not None %}<input name="level" size="5" placeholder="{{ a.rearm|floatformat:0 }}" aria-label="Re-arm at"><button class="btn q sm" name="action" value="rearm">Re-arm at %</button>{% endif %}</form>{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>{% else %}<p class="lead na">No alerts. Set thresholds in <a href="{% url 'investments_settings_alerts' %}">Settings &gt; Alerts</a>, or add a guardrail below.</p>{% endif %}
+<div class="sec"><h2>Guardrails</h2></div>
+<p class="hint">On one investment in one portfolio, because cost differs between portfolios.{% if settings_row.guardrail_replaces_global %} A guardrail replaces the global rules for that holding.{% endif %}</p>
+<div class="tw"><table data-table-id="inv-guardrails" class="led"><thead><tr><th>Investment</th><th>Portfolio</th><th>Guardrail</th><th class="r">Level</th><th></th></tr></thead><tbody>
+{% for g in guardrails %}<tr><td>{{ g.instrument.name }}</td><td>{{ g.portfolio.name }}</td><td>{{ g.get_kind_display }}</td><td class="r">{{ g.value|floatformat:"-2" }}</td><td class="act">{% if can_edit %}<form method="post" style="display:inline">{% csrf_token %}<input type="hidden" name="id" value="{{ g.pk }}"><button class="linklike" name="action" value="delete_guardrail">Delete</button></form>{% endif %}</td></tr>{% empty %}<tr><td colspan="5" class="na">None yet.</td></tr>{% endfor %}</tbody></table></div>
+{% if can_edit %}<form method="post" class="form" novalidate>{% csrf_token %}<input type="hidden" name="action" value="guardrail">{% include "investments/_form.html" with form=gform %}<div class="acts-row"><button class="btn q" type="submit">Add guardrail</button></div></form>{% endif %}
+{% endblock %}
