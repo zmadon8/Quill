@@ -66,6 +66,8 @@ def page(request, template, context=None, status=200, selectors=True):
         extra.setdefault("inv_brokers", Broker.objects.filter(profile=profile, hidden=False))
         extra.setdefault("inv_status", None)
     extra["inv_selectors"] = bool(selectors and profile is not None)
+    if profile is not None:
+        extra.update(price_status_line(profile))
     ctx = pages.render_context(request, profile, extra)
     return render(request, template, ctx, status=status)
 
@@ -111,3 +113,25 @@ def parse_date(value, default=None):
 
 def touch_profile(profile):
     core.touch(profile)
+
+
+def price_status_line(profile):
+    """The text beside Update Prices (plan 24.5) and whether there is anything to update."""
+    from django.utils import timezone
+
+    from investments.services import fetch
+
+    info = fetch.status_summary(profile)
+    if not info["tracked"]:
+        return {"inv_status": None, "inv_can_update": False}
+    if not info["newest"]:
+        return {"inv_status": "No prices yet. Update Prices, or ask an Admin to upload history.", "inv_can_update": True}
+    parts = []
+    if info["last_run"]:
+        parts.append(f"Updated {timezone.localtime(info['last_run']):%-d %b %Y, %-I:%M %p}")
+    if info["newest"]:
+        parts.append(f"prices as of close {info['newest']:%-d %b}")
+    behind = len(info["stale"]) + len(info["never"])
+    if behind:
+        parts.append(f"{behind} not updated")
+    return {"inv_status": " \u00b7 ".join(parts) or "No prices yet. Update Prices, or ask an Admin to upload history.", "inv_can_update": True}

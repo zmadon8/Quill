@@ -1,0 +1,32 @@
+(function () {
+  "use strict";
+  // Update Prices (plan 24.5): the page calls the endpoint repeatedly, one small batch each time, and shows progress.
+  var button = document.getElementById("update-prices");
+  var status = document.getElementById("update-status");
+  if (!button || !window.fetch) { return; }
+  function csrf() { var m = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/); return m ? decodeURIComponent(m[1]) : ""; }
+  function post(step) {
+    var body = new URLSearchParams(); body.set("step", String(step));
+    return fetch(button.getAttribute("data-url"), { method: "POST", credentials: "same-origin", headers: { "X-CSRFToken": csrf() }, body: body })
+      .then(function (r) { return r.json().then(function (d) { d.http = r.status; return d; }); });
+  }
+  var totals;
+  function run(step) {
+    return post(step).then(function (d) {
+      if (!d.ok) { throw new Error(d.message || "The update failed."); }
+      totals.tried += d.tried; totals.updated += d.updated; totals.failures = totals.failures.concat(d.failures || []);
+      status.textContent = "Updating prices: " + (step + 1) + " of " + d.steps + " steps\u2026";
+      return d.done ? d : run(step + 1);
+    });
+  }
+  button.addEventListener("click", function () {
+    totals = { tried: 0, updated: 0, failures: [] };
+    button.disabled = true; status.textContent = "Updating prices\u2026";
+    run(0).then(function () {
+      var ok = totals.tried - totals.failures.length;
+      status.textContent = "Updated " + Math.max(ok, 0) + " of " + totals.tried + (totals.failures.length ? "; " + totals.failures.length + " could not be fetched: " +
+        totals.failures.slice(0, 5).map(function (f) { return f.name; }).join(", ") : "") + ". Reloading\u2026";
+      setTimeout(function () { window.location.reload(); }, 2500);
+    }).catch(function (e) { status.textContent = e.message; button.disabled = false; });
+  });
+})();

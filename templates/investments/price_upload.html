@@ -1,0 +1,22 @@
+{% extends "investments/base_investments.html" %}
+{% block inv_content %}
+<div class="titlebar"><h1 class="t">Upload price history</h1></div>
+<p class="hint">CSV or Excel, one row per investment per day: a symbol (or ISIN or scheme code), a date, a close and optionally a basis. Unknown symbols are listed and skipped. Nothing is written until you confirm, and a file with any bad row is not applied at all. Keep the original files safe: they are the backup of uploaded prices.</p>
+{% if not report %}
+<form method="post" enctype="multipart/form-data" class="form">{% csrf_token %}{% include "investments/_form.html" %}<div class="acts-row"><button class="btn p" type="submit">Check the file (dry run)</button><a class="btn q" href="{% url 'investments_admin_prices' %}">Back</a></div></form>
+{% else %}
+<div class="sec"><h2>Dry run</h2></div>
+<p>{{ report.rows }} row{{ report.rows|pluralize }} read; {{ report.per_instrument|length }} investment{{ report.per_instrument|length|pluralize }} matched.</p>
+{% if report.blocking_count %}<div class="ban al"><span><b>{{ report.blocking_count }} bad row{{ report.blocking_count|pluralize }}</b>, so the file will not be applied:<ul>{% for line, msg in report.blocking %}<li>row {{ line }}: {{ msg }}</li>{% endfor %}</ul></span></div>{% endif %}
+{% if report.unknown %}<div class="ban wa"><span>Unknown symbols (skipped): {% for sym, n in report.unknown.items|slice:":15" %}{{ sym }} ({{ n }}){% if not forloop.last %}, {% endif %}{% endfor %}</span></div>{% endif %}
+<div class="tw"><table data-table-id="inv-upload-dry" class="led"><thead><tr><th>Investment</th><th class="r">Rows</th><th>First</th><th>Last</th></tr></thead><tbody>
+{% for iid, i in report.per_instrument.items %}<tr><td>{{ i.name }}</td><td class="r">{{ i.count }}</td><td>{{ i.first|date:"j M Y" }}</td><td>{{ i.last|date:"j M Y" }}</td></tr>{% endfor %}</tbody></table></div>
+{% if report.gaps %}<h3>Gaps longer than a few trading days</h3><ul class="plain">{% for n, a, b in report.gaps %}<li>{{ n }}: {{ a|date:"j M Y" }} to {{ b|date:"j M Y" }}</li>{% endfor %}</ul>{% endif %}
+{% if report.big_moves %}<h3>One-day moves over 40 percent</h3><ul class="plain">{% for n, d, a, b in report.big_moves %}<li>{{ n }} on {{ d|date:"j M Y" }}: {{ a }} to {{ b }} (check for a split)</li>{% endfor %}</ul>{% endif %}
+{% if report.duplicates %}<p class="hint">{{ report.duplicates }} duplicate row{{ report.duplicates|pluralize }} (the last one wins).</p>{% endif %}
+{% if report.out_of_order %}<p class="hint">{{ report.out_of_order }} row{{ report.out_of_order|pluralize }} were out of date order, so gap and move checks may be incomplete.</p>{% endif %}
+{% if report.differences %}<h3>Where the file differs from stored prices (the uploaded row wins)</h3><ul class="plain">{% for n, d, old, new in report.differences %}<li>{{ n }} {{ d|date:"j M Y" }}: stored {{ old }}, file {{ new }}</li>{% endfor %}</ul>{% if report.difference_count > 20 %}<p class="hint">and {{ report.difference_count|add:"-20" }} more.</p>{% endif %}{% endif %}
+<form method="post" class="form">{% csrf_token %}<input type="hidden" name="apply" value="1"><input type="hidden" name="token" value="{{ token }}"><input type="hidden" name="basis" value="{{ basis }}"><input type="hidden" name="instrument" value="{{ instrument_id }}">
+  <div class="acts-row">{% if report.can_apply %}<button class="btn p" type="submit">Apply all {{ report.rows }} rows</button>{% endif %}<a class="btn q" href="{% url 'investments_admin_upload' %}">Start again</a></div></form>
+{% endif %}
+{% endblock %}

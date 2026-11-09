@@ -10,6 +10,7 @@ from investments.models import (
     InvestmentsUserPrefs, Portfolio, ProfileInvestment, Transaction, Transfer,
 )
 from investments.services import core, history
+from investments.services import fetch_defaults
 
 BUILTIN_INDICES = [
     ("Nifty 50", "^NSEI"), ("Sensex", "^BSESN"), ("Nifty Next 50", "^NSMIDCP"), ("Nifty Bank", "^NSEBANK"),
@@ -35,7 +36,7 @@ def ensure_builtin_indices():
     for name, code in BUILTIN_INDICES:
         obj, created = Instrument.objects.get_or_create(
             profile=None, kind=KIND_INDEX, code=code,
-            defaults={"name": name, "currency": "INR" if code != "^GSPC" else "USD", "asset_class": "equity", "price_source": "yahoo"})
+            defaults={"name": name, "currency": "INR" if code != "^GSPC" else "USD", "asset_class": "equity", "price_source": "yahoo", "price_basis": "split_adjusted"})
         if created:
             made.append(obj)
     return made
@@ -227,7 +228,9 @@ def create_instrument(profile, user, *, kind, name, code="", isin="", currency="
     obj = Instrument.objects.create(
         profile=profile if private else None, name=name, kind=kind, code=code, isin=(isin or "").strip().upper(),
         currency=(currency or "INR").upper()[:3], asset_class=asset_class, sector=(sector or "").strip(), exchange=exchange,
-        price_source="manual" if private else price_source, interest_rate=interest_rate, maturity_date=maturity_date)
+        price_source="manual" if private else (price_source if price_source != "manual" else fetch_defaults.default_source(kind)),
+        price_basis=fetch_defaults.default_basis(fetch_defaults.default_source(kind)) if not private else "",
+        interest_rate=interest_rate, maturity_date=maturity_date)
     ProfileInvestment.objects.get_or_create(profile=profile, instrument=obj)
     core.touch(profile)
     return obj

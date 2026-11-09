@@ -245,3 +245,11 @@ class PortfolioForm(forms.Form):
 
 class DeleteInstrumentForm(forms.Form):
     confirm_name = forms.CharField(required=False, label="Type the investment's name to confirm")
+
+
+class PriceUploadForm(forms.Form):
+    file = forms.FileField(label="CSV or Excel file (up to 10 MB)")
+    basis = forms.ChoiceField(choices=[("", "The file has a basis column"), ("raw", "Raw closes (as traded)"), ("split_adjusted", "Split-adjusted closes")],
+                              required=False, label="Price basis for the whole file")
+    instrument = forms.ModelChoiceField(queryset=Instrument.objects.filter(profile=None).exclude(kind="alternative"), required=False,
+                                        label="Only this investment (optional)")

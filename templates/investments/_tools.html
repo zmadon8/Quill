@@ -6,8 +6,9 @@
     <div class="sel"><label for="sel-asat"><span>As at</span></label><input id="sel-asat" type="date" name="asat" value="{{ sel_asat|date:'Y-m-d' }}" max="{% now 'Y-m-d' %}" onchange="this.form.submit()"></div>
   </form>{% else %}<div class="ctx"></div>{% endif %}
   <div class="util">
-    <button type="button" class="btn q" disabled title="Prices are typed by hand for now; fetching arrives in a later release">Update Prices</button>
+    {% if inv_can_update and can_edit %}<button type="button" class="btn q" id="update-prices" data-url="{% url 'investments_update_prices' %}">Update Prices</button>
+    {% else %}<button type="button" class="btn q" disabled title="{% if not can_edit %}Only an Editor can update prices{% else %}Nothing to fetch yet: add a share or a fund first{% endif %}">Update Prices</button>{% endif %}
     <div class="toggle" role="group" aria-label="Number display" title="Number display" data-post="{% url 'investments_set_money_mode' %}" data-initial="{{ inv_money_mode }}"><span role="button" tabindex="0" data-money-mode="auto" class="{% if inv_money_mode == 'auto' %}on{% endif %}">Auto</span><span role="button" tabindex="0" data-money-mode="full" class="{% if inv_money_mode == 'full' %}on{% endif %}">Full</span></div>
   </div>
-  <div class="status">{{ inv_status|default:"Prices are entered by hand. Fetched prices arrive in a later release." }}{% if sel_asat %} &middot; <b>As at {{ sel_asat|date:"j M Y" }}</b>{% endif %}</div>
+  <div class="status"><span id="update-status">{{ inv_status|default:"Prices are entered by hand." }}</span>{% if sel_asat %} &middot; <b>As at {{ sel_asat|date:"j M Y" }}</b>{% endif %}</div>
 </div>

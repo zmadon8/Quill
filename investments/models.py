@@ -53,6 +53,8 @@ class Instrument(models.Model):
     price_source = models.CharField(max_length=10, choices=PRICE_SOURCES, default="manual")
     fallback_source = models.CharField(max_length=10, choices=PRICE_SOURCES, blank=True, default="")
     fetch_enabled = models.BooleanField(default=True)
+    price_basis = models.CharField(max_length=15, blank=True, default="", choices=[("raw", "Raw (as traded)"), ("split_adjusted", "Split-adjusted")],
+                                   help_text="Plan 16.2: whether stored closes are restated for later splits. Blank for funds and hand-entered items.")
     interest_rate = models.DecimalField(max_digits=7, decimal_places=3, null=True, blank=True)
     maturity_date = models.DateField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -286,3 +288,136 @@ class InvestmentHistory(models.Model):
 
 def new_group():
     return uuid.uuid4()
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Prices (plan sections 15, 16.1, 17, 21.1). `Price` and the logs are re-creatable and are never in the suite backup.
+# ---------------------------------------------------------------------------------------------------------------------
+
+PRICE_SOURCES_FETCHED = ("api", "helper", "upload")
+BASIS_RAW, BASIS_ADJ = "raw", "split_adjusted"
+
+
+class Price(models.Model):
+    """One fetched or uploaded close. Not in the suite backup (it can be fetched or uploaded again); see `PinnedPrice`."""
+
+    instrument = models.ForeignKey(Instrument, on_delete=models.CASCADE, related_name="prices")
+    date = models.DateField()
+    close = models.DecimalField(**MONEY)
+    source = models.CharField(max_length=10, choices=[("api", "Fetched"), ("helper", "Local helper"), ("upload", "Uploaded")], default="api")
+    basis = models.CharField(max_length=15, blank=True, default="")
+    fetched_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["instrument", "date"], name="inv_price_unique")]
+        indexes = [models.Index(fields=["instrument", "date"], name="inv_price_instr_date_idx")]
+
+
+class SourceSymbol(models.Model):
+    """The symbol a price source uses for an instrument (plan 15.7): one row per instrument and source."""
+
+    instrument = models.ForeignKey(Instrument, on_delete=models.CASCADE, related_name="source_symbols")
+    source = models.CharField(max_length=10)
+    symbol = models.CharField(max_length=80)
+    verified_on = models.DateField(null=True, blank=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["instrument", "source"], name="inv_sourcesymbol_unique")]
+
+
+class PriceStatus(models.Model):
+    """One row: the global version counter bumped after each price update (cache key, plan 26.4)."""
+
+    version = models.BigIntegerField(default=0)
+    last_button_update_at = models.DateTimeField(null=True, blank=True)
+
+
+class SourceRun(models.Model):
+    """One fetch run of one source: what was tried, what updated, what failed."""
+
+    source = models.CharField(max_length=20)
+    trigger = models.CharField(max_length=10, default="cron")
+    started = models.DateTimeField()
+    finished = models.DateTimeField(null=True, blank=True)
+    tried = models.PositiveIntegerField(default=0)
+    updated = models.PositiveIntegerField(default=0)
+    failures = models.JSONField(default=list, blank=True)
+    message = models.CharField(max_length=300, blank=True, default="")
+
+    class Meta:
+        ordering = ["-started", "-id"]
+
+
+class SplitSignal(models.Model):
+    """A split a source reported (plan 8 and 16.2): the cue to re-fetch a split-adjusted instrument and to ask for confirmation."""
+
+    instrument = models.ForeignKey(Instrument, on_delete=models.CASCADE, related_name="split_signals")
+    ex_date = models.DateField()
+    numerator = models.DecimalField(max_digits=12, decimal_places=4)
+    denominator = models.DecimalField(max_digits=12, decimal_places=4)
+    seen_at = models.DateTimeField(auto_now_add=True)
+    refetched = models.BooleanField(default=False)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["instrument", "ex_date"], name="inv_splitsignal_unique")]
+
+
+class CatalogueHistory(models.Model):
+    """A permanent log of every Admin change to a shared investment or its prices (plan 21.1). Never edited or removed."""
+
+    at = models.DateTimeField(auto_now_add=True)
+    by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    instrument_id_ref = models.BigIntegerField(null=True, blank=True, db_index=True)
+    instrument_name = models.CharField(max_length=200, blank=True, default="")
+    record_type = models.CharField(max_length=20)
+    record_id = models.BigIntegerField(null=True, blank=True)
+    field = models.CharField(max_length=40, blank=True, default="")
+    old = models.TextField(blank=True, default="")
+    new = models.TextField(blank=True, default="")
+    reason = models.CharField(max_length=300, blank=True, default="")
+
+    class Meta:
+        ordering = ["-at", "-id"]
+        verbose_name_plural = "catalogue history"
+
+
+class PinnedPrice(models.Model):
+    """A copy of a price kept outside the prunable table because reports depend on it (plan 17.2). In the suite backup; never pruned."""
+
+    instrument = models.ForeignKey(Instrument, on_delete=models.CASCADE, related_name="pins")
+    asked_date = models.DateField()
+    trading_date = models.DateField()
+    close = models.DecimalField(**MONEY)
+    basis = models.CharField(max_length=15, blank=True, default="")
+    source = models.CharField(max_length=10, default="api")
+    reason = models.CharField(max_length=12, choices=[("transaction", "Transaction date"), ("year_end", "31 March")])
+    approximate = models.BooleanField(default=False)
+    pinned_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["instrument", "asked_date", "reason"], name="inv_pin_unique")]
+
+
+class PriceHistorySettings(models.Model):
+    """One row, suite-wide (prices are shared): pruning and archive switches (plan 17.3). In the suite backup."""
+
+    prune_live = models.BooleanField(default=False)
+    prune_archive = models.BooleanField(default=False)
+    years_kept = models.PositiveSmallIntegerField(default=5)
+    full_archive_confirmed = models.BooleanField(default=False)
+    last_archive_at = models.DateTimeField(null=True, blank=True)
+    last_prune_at = models.DateTimeField(null=True, blank=True)
+
+
+class PriceMaintenanceLog(models.Model):
+    """One row per prune, archive, pin, fetch or import run. Not in the suite backup."""
+
+    at = models.DateTimeField(auto_now_add=True)
+    kind = models.CharField(max_length=12)
+    counts = models.JSONField(default=dict, blank=True)
+    size_bytes = models.BigIntegerField(default=0)
+    ok = models.BooleanField(default=True)
+    message = models.CharField(max_length=300, blank=True, default="")
+
+    class Meta:
+        ordering = ["-at", "-id"]

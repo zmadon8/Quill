@@ -1,0 +1,18 @@
+{% extends "investments/base_investments.html" %}
+{% block inv_content %}
+<div class="titlebar"><h1 class="t">Price sources</h1><div class="meta">version {{ version }}</div></div>
+<p class="hint">Prices are fetched by the nightly job (and the Update Prices button) with the standard library only. A refused or failed request is retried a few times, then that symbol keeps its last price and is marked old. Hand-entered and uploaded prices are never overwritten. Local helper: <b>off</b>.</p>
+<div class="tw"><table data-table-id="inv-price-sources" class="led"><thead><tr><th>Source</th><th class="r">Investments</th><th>Last run</th><th class="r">Tried</th><th class="r">Updated</th><th class="r">Failed</th></tr></thead><tbody>
+{% for s in sources %}<tr><td>{{ s.label }}</td><td class="r">{{ s.count }}</td><td>{% if s.run %}{{ s.run.finished|date:"j M Y, g:i a" }} ({{ s.run.trigger }}){% else %}<span class="na">never</span>{% endif %}</td>
+<td class="r">{{ s.run.tried|default_if_none:"" }}</td><td class="r">{{ s.run.updated|default_if_none:"" }}</td><td class="r">{{ s.failures|length }}</td></tr>
+{% for f in s.failures %}<tr class="sub"><td colspan="6">&nbsp;&nbsp;{{ f.name }}: {{ f.error }}</td></tr>{% endfor %}{% endfor %}
+</tbody></table></div>
+<div class="sec"><h2>Needs attention</h2></div>
+{% if summary.stale or summary.never %}<ul class="plain">{% for i in summary.never %}<li><a href="{% url 'investments_investment' i.pk %}">{{ i.name }}</a>: no price stored yet ({{ i.get_price_source_display }})</li>{% endfor %}{% for i in summary.stale %}<li><a href="{% url 'investments_investment' i.pk %}">{{ i.name }}</a>: price is old</li>{% endfor %}</ul>
+{% else %}<p class="na">Nothing is stale.</p>{% endif %}
+<div class="sec"><h2>History upload</h2><a class="btn q" href="{% url 'investments_admin_upload' %}">Upload price history</a></div>
+<p class="hint">Load years of daily history from a file once, so the nightly job only needs to fetch the last few days. A dry run is shown first.</p>
+<div class="sec"><h2>Recent runs</h2></div>
+<div class="tw"><table data-table-id="inv-price-runs" class="led"><thead><tr><th>Started</th><th>Source</th><th>By</th><th class="r">Tried</th><th class="r">Updated</th><th class="r">Failed</th><th>Note</th></tr></thead><tbody>
+{% for r in runs %}<tr><td>{{ r.started|date:"j M Y, g:i a" }}</td><td>{{ r.source }}</td><td>{{ r.trigger }}</td><td class="r">{{ r.tried }}</td><td class="r">{{ r.updated }}</td><td class="r">{{ r.failures|length }}</td><td>{{ r.message }}</td></tr>{% empty %}<tr><td colspan="7" class="na">No runs yet.</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

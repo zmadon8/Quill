@@ -29,6 +29,10 @@ from django.apps import apps
 INVESTMENTS_BACKUP_MODELS = [
     "investments.Instrument",
     "investments.ManualPrice",
+    "investments.SourceSymbol",
+    "investments.PinnedPrice",
+    "investments.PriceHistorySettings",
+    "investments.CatalogueHistory",
     "investments.Portfolio",
     "investments.Broker",
     "investments.InvestmentSettings",

@@ -1,5 +1,6 @@
-"""Price lookups. Phase 1 knows manual prices only (``ManualPrice``); the price phase adds fetched ``Price`` rows behind the
-same functions, so nothing outside this module needs to change (plan 15.7: nothing outside the adapters knows the vendor).
+"""Price lookups over hand-entered prices (``ManualPrice``), fetched or uploaded prices (``Price``) and pinned prices
+(``PinnedPrice``). Nothing outside the adapters knows which vendor supplied a price (plan 15.7), and a hand-entered price always
+wins over a fetched one for the same day.
 """
 from decimal import Decimal
 
@@ -7,39 +8,68 @@ from django.db import transaction
 from django.db.models import Max, OuterRef, Subquery
 
 from investments.errors import InvestmentsError, not_found
-from investments.models import AltValue, ManualPrice
+from investments.models import AltValue, Instrument, ManualPrice, PinnedPrice, Price  # noqa: F401
 from investments.services import core, history
 
 
-def latest_prices(instrument_ids, as_of):
-    """``{instrument id: (date, price)}`` of the last price on or before ``as_of``. One SQL query, no price rows loaded beyond one per instrument."""
-    ids = list(instrument_ids)
-    if not ids:
-        return {}
+def _newest_by_instrument(model, ids, as_of):
     newest = (
-        ManualPrice.objects.filter(instrument_id=OuterRef("instrument_id"), date__lte=as_of)
-        .order_by("-date").values("date")[:1]
+        model.objects.filter(instrument_id=OuterRef("instrument_id"), date__lte=as_of).order_by("-date").values("date")[:1]
     )
     rows = (
-        ManualPrice.objects.filter(instrument_id__in=ids, date__lte=as_of)
+        model.objects.filter(instrument_id__in=ids, date__lte=as_of)
         .annotate(newest=Subquery(newest)).filter(date=Subquery(newest))
         .values_list("instrument_id", "date", "close")
     )
     return {iid: (day, close) for iid, day, close in rows}
 
 
+def latest_prices(instrument_ids, as_of):
+    """``{instrument id: (date, price)}`` of the last price on or before ``as_of``: a hand-entered price wins over a fetched
+    one for the same day, and the later day wins otherwise. Two SQL queries however many instruments, no rows loaded beyond one each."""
+    ids = list(instrument_ids)
+    if not ids:
+        return {}
+    manual = _newest_by_instrument(ManualPrice, ids, as_of)
+    fetched = _newest_by_instrument(Price, ids, as_of)
+    out = dict(fetched)
+    for iid, (day, close) in manual.items():
+        if iid not in out or day >= out[iid][0]:
+            out[iid] = (day, close)
+    return out
+
+
+def price_on(instrument, day):
+    """``(trading date, close, source, approximate)`` for ``day`` or None. Order (plan 17.2): a pin for that exact date, then the
+    stored prices (last close on or before the day; a hand-entered price wins a tie), then the nearest earlier pin (approximate)."""
+    pin = PinnedPrice.objects.filter(instrument=instrument, asked_date=day).order_by("-pinned_at").first()
+    if pin:
+        return pin.trading_date, pin.close, pin.source, pin.approximate
+    found = latest_prices([instrument.pk], day).get(instrument.pk)
+    if found:
+        manual = ManualPrice.objects.filter(instrument=instrument, date=found[0]).exists()
+        return found[0], found[1], "manual" if manual else "api", False
+    older = PinnedPrice.objects.filter(instrument=instrument, trading_date__lte=day).order_by("-trading_date").first()
+    return (older.trading_date, older.close, older.source, True) if older else None
+
+
 def series_from(instrument, start, limit=10):
-    """``[(date, price)]`` from ``start`` onwards, oldest first (for the NAV suggestions on the completion screen)."""
-    return list(ManualPrice.objects.filter(instrument=instrument, date__gte=start).order_by("date").values_list("date", "close")[:limit])
+    """``[(date, price)]`` from ``start`` onwards, oldest first, hand-entered prices winning (for the NAV suggestions)."""
+    merged = {d: c for d, c in Price.objects.filter(instrument=instrument, date__gte=start).order_by("date").values_list("date", "close")[:limit]}
+    merged.update(ManualPrice.objects.filter(instrument=instrument, date__gte=start).order_by("date").values_list("date", "close")[:limit])
+    return sorted(merged.items())[:limit]
 
 
 def series(instrument, start=None, end=None):
-    qs = ManualPrice.objects.filter(instrument=instrument)
+    manual = ManualPrice.objects.filter(instrument=instrument)
+    fetched = Price.objects.filter(instrument=instrument)
     if start:
-        qs = qs.filter(date__gte=start)
+        manual, fetched = manual.filter(date__gte=start), fetched.filter(date__gte=start)
     if end:
-        qs = qs.filter(date__lte=end)
-    return list(qs.order_by("date").values_list("date", "close"))
+        manual, fetched = manual.filter(date__lte=end), fetched.filter(date__lte=end)
+    merged = dict(fetched.order_by("date").values_list("date", "close"))
+    merged.update(manual.order_by("date").values_list("date", "close"))
+    return sorted(merged.items())
 
 
 def alt_values(profile, instrument_ids):
@@ -109,4 +139,10 @@ def delete_alt_value(profile, user, pk):
 
 
 def last_price_date(instrument_ids):
-    return dict(ManualPrice.objects.filter(instrument_id__in=list(instrument_ids)).values_list("instrument_id").annotate(m=Max("date")).order_by())
+    """``{instrument id: newest stored price date}`` over hand-entered and fetched prices."""
+    ids = list(instrument_ids)
+    out = dict(Price.objects.filter(instrument_id__in=ids).values_list("instrument_id").annotate(m=Max("date")).order_by())
+    for iid, m in ManualPrice.objects.filter(instrument_id__in=ids).values_list("instrument_id").annotate(m=Max("date")).order_by():
+        if iid not in out or m > out[iid]:
+            out[iid] = m
+    return out
