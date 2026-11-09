@@ -200,7 +200,10 @@ def _explore_context(profile, query):
         "measure": _choice(query, "measure", MEASURES, "billed"),
         "row_dim": _choice(query, "row_dim", ROW_DIMS, "financialYear"),
         "col_dim": _choice(query, "col_dim", COL_DIMS, "none"),
-        "from_fy": financial_year_param(query, "from_fy", default=False) or "",
+        # Opening Explore (no From Financial Year in the address) starts at the present financial year; choosing
+        # "Earliest" sends an empty value, which means no lower limit.
+        "from_fy": (financial_year_param(query, "from_fy", default=False) or "") if "from_fy" in query
+        else current_financial_year(),
         "to_fy": financial_year_param(query, "to_fy", default=False) or "",
         "firm_id": int_or_none(query.get("firm_id")),
     }
@@ -240,8 +243,10 @@ def _explore_context(profile, query):
 
 def saved_view_query(view):
     """The Explore link that opens a saved view."""
-    query = {"tab": "explore", "measure": view["measure"], "row_dim": view["row_dim"], "col_dim": view["col_dim"]}
-    for key in ("from_fy", "to_fy", "firm_id"):
+    query = {"tab": "explore", "measure": view["measure"], "row_dim": view["row_dim"], "col_dim": view["col_dim"],
+             # Always sent, so a view saved with "Earliest" stays Earliest (no value now means the present year).
+             "from_fy": view.get("from_fy") or ""}
+    for key in ("to_fy", "firm_id"):
         if view.get(key):
             query[key] = view[key]
     return urlencode(query)
