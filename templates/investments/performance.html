@@ -1,7 +1,7 @@
 {% extends "investments/base_investments.html" %}
 {% load investments_money %}
 {% block inv_content %}
-<div class="titlebar"><h1 class="t">Performance</h1><div class="meta">{{ start|date:"j M Y" }} to {{ end|date:"j M Y" }}</div></div>
+<h1 class="visually-hidden">Performance</h1>
 <form method="get" class="sec" style="justify-content:flex-start;gap:16px;flex-wrap:wrap;align-items:flex-end">
   <div class="sel"><span>Measure</span><select name="measure"><option value="xirr"{% if measure == "xirr" %} selected{% endif %}>XIRR (your actual trades)</option><option value="cagr"{% if measure == "cagr" %} selected{% endif %}>CAGR (the investment's own price)</option></select></div>
   <div class="sel"><span>Period</span><select name="period">{% for k, l in periods %}<option value="{{ k }}"{% if k == period %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>

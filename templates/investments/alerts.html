@@ -1,7 +1,7 @@
 {% extends "investments/base_investments.html" %}
 {% load investments_money %}
 {% block inv_content %}
-<div class="titlebar"><h1 class="t">Alerts and guardrails</h1><div class="meta">{{ alerts|length }} active</div></div>
+<h1 class="visually-hidden">Alerts and guardrails</h1>
 <p class="hint">Worked out from daily closing prices, not live ones. An alert is a prompt: the decision to sell stays with you. Purchases awaiting allotment are left out.</p>
 {% if alerts %}<div class="tw"><table data-table-id="inv-alerts" class="led"><thead><tr><th>Investment</th><th>Portfolio</th><th>Alert</th><th>Price date</th><th class="r">Price</th><th class="r">Gain</th><th>If sold now</th><th></th></tr></thead><tbody>
 {% for a in alerts %}<tr><td class="nm"><a href="{% url 'investments_investment' a.instrument_id %}">{{ a.instrument_name }}</a></td><td>{{ a.portfolio_name }}</td><td><span class="tag {% if a.change_pct < 0 %}ox{% else %}ink{% endif %}">{{ a.kind|cut:"_window"|cut:"rule_"|upper }}</span> {{ a.label }}</td>

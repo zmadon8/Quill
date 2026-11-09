@@ -1,11 +1,11 @@
 {% extends "investments/base_investments.html" %}
 {% load investments_money %}
 {% block inv_content %}
-<div class="titlebar"><h1 class="t">Annual Report {{ label }}</h1><div class="meta">{% if r.completed %}as at 31 March{% else %}to date{% endif %}</div></div>
+<h1 class="visually-hidden">Annual Report {{ label }}</h1>
 <form method="get" class="sec" style="justify-content:flex-start;gap:16px;align-items:flex-end"><div class="sel"><span>Financial year</span><select name="fy" onchange="this.form.submit()">{% for y in years %}<option value="{{ y }}"{% if y == label %} selected{% endif %}>{{ y }}</option>{% endfor %}</select></div>
 <a class="chk" href="?fy={{ label }}&div={% if include_div %}0{% else %}1{% endif %}" role="switch" aria-checked="{{ include_div|yesno:'true,false' }}"><i class="{% if include_div %}on{% endif %}"></i> Include dividends in XIRR</a>
 <a class="btn q" href="?fy={{ label }}&export=xlsx">Export to Excel</a></form>
-<p class="hint">A record-keeping aid, not tax advice. Check the treatment of gains, bonus shares, grandfathered holdings and foreign investments with your CA.</p>
+<p class="hint">{% if r.completed %}Values as at 31 March.{% else %}Values to date.{% endif %} A record-keeping aid, not tax advice. Check the treatment of gains, bonus shares, grandfathered holdings and foreign investments with your CA.</p>
 {% if r.provisional %}<div class="ban wa"><span>Some figures are <b>Provisional</b>: {% if r.awaiting %}{{ r.awaiting|length }} purchase{{ r.awaiting|length|pluralize }} awaiting allotment {% if r.completed %}on 31 March{% else %}today{% endif %} {{ r.awaiting|length|pluralize:"is,are" }} valued at cost{% endif %}{% if r.awaiting and r.provisional %}; {% endif %}a split or bonus may be waiting for confirmation.</span></div>{% endif %}
 <table data-table-id="inv-annual-summary" class="led"><tbody>
 <tr><td>1. Starting portfolio value <small class="na">(31 March before)</small></td><td class="r">{{ r.opening_value|inr }}</td></tr>

@@ -1,6 +1,6 @@
 {% extends "investments/base_investments.html" %}
 {% block inv_content %}
-<div class="titlebar"><h1 class="t">Delete {{ inst.name }}</h1></div>
+<div class="page-head"><h1>Delete {{ inst.name }}</h1></div>
 {% if not has_records %}
 <p class="lead">This investment has no transactions, transfers, folios or dated values in this profile.</p>
 <form method="post">{% csrf_token %}<div class="acts-row"><button class="btn dng" type="submit">Delete {{ inst.name }}</button><a class="btn q" href="{% url 'investments_investment' inst.pk %}">Cancel</a></div></form>

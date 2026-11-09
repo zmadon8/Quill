@@ -1,6 +1,6 @@
 {% extends "investments/base_investments.html" %}
 {% block inv_content %}
-<div class="titlebar"><h1 class="t">Change price basis</h1></div>
+<div class="page-head"><h1>Change price basis</h1></div>
 <p class="lead">{{ inst.name }}: from <b>{{ inst.price_basis|default:"none" }}</b> to <b>{{ new_basis|default:"none" }}</b>.</p>
 <ul><li>{{ preview.fetched }} fetched price{{ preview.fetched|pluralize }} will be removed and fetched again.</li><li>{{ preview.uploaded }} uploaded price{{ preview.uploaded|pluralize }} stay but need re-uploading on the new basis.</li></ul>
 <form method="post" action="{% url 'investments_admin_catalogue_action' inst.pk %}">{% csrf_token %}<input type="hidden" name="action" value="basis"><input type="hidden" name="new_basis" value="{{ new_basis }}"><input type="hidden" name="reason" value="{{ reason }}"><input type="hidden" name="confirm" value="1">

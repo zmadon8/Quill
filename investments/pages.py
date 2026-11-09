@@ -123,6 +123,12 @@ def hidden_slugs(settings_row=None):
     return {s for s in (getattr(settings_row, "hidden_pages", None) or []) if s in BY_SLUG and BY_SLUG[s].hideable}
 
 
+def menu_slugs():
+    """The pages a header entry or a sub-tab opens. Their name is already on screen, underlined, so (as in the Fee Register)
+    their own title is kept only for screen readers."""
+    return {name[len("investments_"):] for _k, _l, name in TOP} | {first for rows in SUB_ROWS.values() for _l, first in rows}
+
+
 def current_slug(request):
     match = getattr(request, "resolver_match", None)
     name = (match.url_name or "") if match else ""
@@ -168,6 +174,7 @@ def render_context(request, profile, extra=None):
         "inv_tools": profile is not None,
         "inv_nav": top,
         "inv_sub": sub,
+        "inv_title_in_menu": current_slug(request) in menu_slugs(),
         "inv_money_mode": masters.money_preference(request.user, profile) if profile is not None else "auto",
         "inv_alert_count": _alert_count(profile),
         "can_edit": request_role(request, KEY_INVESTMENTS) == ROLE_EDITOR,

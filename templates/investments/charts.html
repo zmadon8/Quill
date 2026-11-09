@@ -1,6 +1,7 @@
 {% extends "investments/base_investments.html" %}
 {% block inv_content %}
-<div class="titlebar"><h1 class="t">Charts</h1><div class="meta">rebased to 100 on {{ start|date:"j M Y" }}</div></div>
+<h1 class="visually-hidden">Charts</h1>
+<p class="hint">Every line is rebased to 100 on {{ start|date:"j M Y" }}.</p>
 <nav class="tabs"><a href="?chart=a&period={{ period }}"{% if mode == "a" %} class="on"{% endif %}>Combined (Chart A)</a><a href="?chart=b&period={{ period }}"{% if mode == "b" %} class="on"{% endif %}>Side by side (Chart B)</a></nav>
 <form method="get" class="sec" style="justify-content:flex-start;gap:16px;flex-wrap:wrap;align-items:flex-end"><input type="hidden" name="chart" value="{{ mode }}">
   <div class="sel"><span>Period</span><select name="period">{% for k, l in periods %}<option value="{{ k }}"{% if k == period %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>

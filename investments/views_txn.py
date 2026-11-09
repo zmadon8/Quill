@@ -438,6 +438,7 @@ def switch_delete(request, pk):
 
 @inv_editor
 def import_statement(request):
+    import json
     import os
     import secrets
     import tempfile
@@ -453,23 +454,49 @@ def import_statement(request):
     portfolios = Portfolio.objects.filter(profile=profile)
     brokers = Broker.objects.filter(profile=profile, hidden=False)
     chosen = {"portfolio": request.POST.get("portfolio", ""), "broker": request.POST.get("broker", "")}
+
+    def staged():
+        """The staged file of this review and the investments added for it (``<token>-aliases.json`` beside it)."""
+        token = request.POST.get("token", "")
+        if not token.isalnum():
+            raise Http404
+        path = next(staging.glob(f"{token}.*"), None)
+        if path is None:
+            raise InvestmentsError("EXPIRED", "The file has expired. Choose it again.")
+        alias_file = staging / f"{token}-aliases.json"
+        aliases = json.loads(alias_file.read_text()) if alias_file.exists() else {}
+        return token, path, alias_file, aliases
+
     try:
-        if request.method == "POST" and request.POST.get("apply"):
-            token = request.POST.get("token", "")
-            if not token.isalnum():
-                raise Http404
-            path = next(staging.glob(f"{token}.*"), None)
-            if path is None:
-                raise InvestmentsError("EXPIRED", "The file has expired. Choose it again.")
+        if request.method == "POST" and request.POST.get("create"):
+            # Add the missing investments the person ticked (and corrected), then show the review again.
+            token, path, alias_file, aliases = staged()
+            specs = []
+            for i in range(min(int(request.POST.get("missing_count") or 0), 500)):
+                if request.POST.get(f"add_{i}"):
+                    specs.append({k: request.POST.get(f"{k}_{i}", "") for k in ("text", "kind", "name", "code", "isin", "currency")})
+            try:
+                if not specs:
+                    raise InvestmentsError("REQUIRED", "Tick the investments to add.")
+                aliases.update(statement_import.create_missing(profile, request.user, specs))
+            except InvestmentsError as err:
+                error = err.message
+            else:
+                alias_file.write_text(json.dumps(aliases))
+                messages.success(request, f"{len(specs)} investment{'s' if len(specs) != 1 else ''} added. Check the lines again, then save.")
+            review = statement_import.review(profile, path, aliases)
+        elif request.method == "POST" and request.POST.get("apply"):
+            token, path, alias_file, aliases = staged()
             portfolio = portfolios.get(pk=request.POST["portfolio"])
             broker = brokers.get(pk=request.POST["broker"])
             try:
-                made, completed, skipped = statement_import.apply(profile, request.user, path, portfolio=portfolio, broker=broker)
+                made, completed, skipped = statement_import.apply(profile, request.user, path, portfolio=portfolio, broker=broker, aliases=aliases)
             except InvestmentsError as err:
                 if err.code == "WOULD_GO_NEGATIVE":
                     return _refused(request, err, reverse("investments_import_statement"))
                 raise
             path.unlink(missing_ok=True)
+            alias_file.unlink(missing_ok=True)
             messages.success(request, f"{made} entr{'y' if made == 1 else 'ies'} saved, {completed} awaiting entr{'y' if completed == 1 else 'ies'} completed, "
                                       f"{skipped} duplicate{'s' if skipped != 1 else ''} skipped.")
             return redirect(reverse("investments_transactions"))
@@ -491,4 +518,5 @@ def import_statement(request):
         error = err.message
         review = None
     return page(request, "investments/import_statement.html", {"page_title_text": "Import a statement", "review": review, "token": token, "error": error,
-                                                              "portfolios": portfolios, "brokers": brokers, "chosen": chosen}, selectors=False)
+                                                              "portfolios": portfolios, "brokers": brokers, "chosen": chosen,
+                                                              "addable_kinds": statement_import.ADDABLE_KINDS}, selectors=False)

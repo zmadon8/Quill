@@ -1,7 +1,7 @@
 {% extends "investments/base_investments.html" %}
 {% load investments_money %}
 {% block inv_content %}
-<div class="titlebar"><h1 class="t">Total Portfolio Value</h1><div class="meta">on {{ on|date:"j M Y" }}</div></div>
+<h1 class="visually-hidden">Total Portfolio Value</h1>
 <form method="get" class="sec" style="justify-content:flex-start;gap:16px;align-items:flex-end"><div class="sel"><span>On</span><input type="date" name="on" value="{{ on|date:'Y-m-d' }}"></div>
   {% if has_alt %}<div class="sel"><span>Alternative investments between updates</span><select name="alt"><option value="unchanged"{% if alt_treatment == "unchanged" %} selected{% endif %}>Unchanged</option><option value="averaged"{% if alt_treatment == "averaged" %} selected{% endif %}>Averaged out</option></select></div>{% endif %}
   <button class="btn q" type="submit">Show</button><a class="btn q" href="?{{ request.GET.urlencode }}&export=xlsx">Export to Excel</a></form>

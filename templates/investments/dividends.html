@@ -1,9 +1,11 @@
 {% extends "investments/base_investments.html" %}
 {% load investments_money %}
+{% block page_actions %}<p class="page-actions" role="group" aria-label="Dividend actions">{% if can_edit %}<a class="btn p" href="{% url 'investments_dividend_new' %}">Add a dividend</a>{% endif %}<a class="btn q" href="?export=xlsx">Export to Excel</a></p>{% endblock %}
 {% block inv_content %}
-<div class="titlebar"><h1 class="t">Dividends</h1><div class="meta">never part of Total Portfolio Value</div></div>
+<h1 class="visually-hidden">Dividends</h1>
+<p class="hint">Dividends are never part of Total Portfolio Value.</p>
 {% if due %}<div class="ban wa"><span><b>Dividends that may be due</b> (from the price source; amount = per unit &times; units held on the ex-date):<ul>{% for d in due %}<li>{{ d.instrument.name }}: ex-date {{ d.ex_date|date:"j M Y" }}, {{ d.per_unit|price }} per unit &times; {{ d.units|units }} = about {{ d.amount|inr }}{% if can_edit %} <a href="{% url 'investments_dividend_new' %}?instrument={{ d.instrument.pk }}&amount={{ d.amount }}">Record it</a>{% endif %}</li>{% endfor %}</ul></span></div>{% endif %}
-<div class="sec"><h2>By financial year</h2><div class="acts">{% if can_edit %}<a class="btn p" href="{% url 'investments_dividend_new' %}">Add a dividend</a>{% endif %}<a class="btn q" href="?export=xlsx">Export to Excel</a></div></div>
+<div class="sec"><h2>By financial year</h2></div>
 {% if years %}<table data-table-id="inv-dividends-years" class="led"><thead><tr><th>Financial year</th><th class="r">Received</th><th class="r">Tax deducted</th></tr></thead><tbody>
 {% for fy, r, t in years %}<tr><td>{{ fy }}</td><td class="r">{{ r|inr }}</td><td class="r">{{ t|inr }}</td></tr>{% endfor %}</tbody></table>{% endif %}
 <div class="sec"><h2>Every dividend</h2></div>

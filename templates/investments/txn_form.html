@@ -1,6 +1,6 @@
 {% extends "investments/base_investments.html" %}
 {% block inv_content %}
-<div class="titlebar"><h1 class="t">{{ page_title_text }}</h1></div>
+<div class="page-head"><h1>{{ page_title_text }}</h1></div>
 <form method="post" class="form" id="txn-form" novalidate data-units-url="{{ units_url }}"{% if is_sell %} data-sell="1"{% endif %}{% if exclude_id %} data-exclude="{{ exclude_id }}"{% endif %}>{% csrf_token %}
   {% if version %}<input type="hidden" name="version" value="{{ version }}">{% endif %}
   {% if awaiting_mode and not txn %}<p class="hint">Use this when you have paid but the units and price are not known yet (a mutual fund, for example). It is counted at cost and cannot be sold until you complete it with the units and NAV.</p>{% endif %}

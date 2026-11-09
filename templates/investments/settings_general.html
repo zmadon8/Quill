@@ -1,6 +1,6 @@
 {% extends "investments/base_investments.html" %}
 {% block inv_content %}
-<div class="titlebar"><h1 class="t">Settings</h1></div>
+<h1 class="visually-hidden">Settings</h1>
 <form method="post" class="form" novalidate>{% csrf_token %}
   {% include "investments/_form.html" %}
   {% if can_edit %}<div class="acts-row"><button class="btn p" type="submit">Save settings</button></div>{% endif %}

@@ -1,6 +1,6 @@
 {% extends "investments/base_investments.html" %}
 {% block inv_content %}
-<div class="titlebar"><h1 class="t">{{ kind_label }}</h1></div>
+<div class="page-head"><h1>{{ kind_label }}</h1></div>
 <div class="stepper"><div class="done"><b>1</b>Type</div><div class="on"><b>2</b>Find and details</div><div><b>3</b>Confirm</div><div><b>4</b>What next</div></div>
 {% if kind != "alternative" %}
 <form method="get" class="inline-edit"><input type="hidden" name="kind" value="{{ kind }}"><label for="q">{% if kind == "fund" %}Fund name, scheme code or ISIN{% else %}Company name or code{% endif %}</label><input id="q" name="q" value="{{ query }}" size="34"><button class="btn q sm">Search</button></form>

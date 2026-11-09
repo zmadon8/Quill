@@ -3,9 +3,21 @@
    dropped because the suite's shared shell (base_suite.html, design.css) supplies them. Uses the suite's tokens
    (static/css/tokens.css) plus the two new tokens --gain and --loss (owner to confirm, plan 25.3). */
 body.inv{--ox:var(--oxblood);--gain:#2d5a3d;--loss:#a8441f;--s1:#1e1c19;--s2:#5a5348;--s3:#8d8577;--s4:#b9b2a3;--s5:#d9d3c5;--data:15px;--tap:44px;--hair:#d9d3c5;--panel:#fcfbf8;--amber-bg:#f4ead0;--amber-line:#c9a24d;--amber-ink:#6b4e12}
-body.inv nav.sub{display:flex;flex-wrap:wrap;gap:4px 24px;padding:11px 0 10px;border-bottom:1px solid var(--hair);font-size:13.5px;color:var(--muted)}
-body.inv nav.sub a{padding:2px 0;border-bottom:1px solid transparent}
-body.inv nav.sub a.on{color:var(--ink);border-bottom-color:var(--ink)}
+/* The sub-tabs look like the Fee Register's (ledger.css .stat-tabs) and share a row with the page's buttons (.tab-bar). */
+body.inv nav.sub{display:flex;flex-wrap:wrap;gap:0 20px;margin:0;border-bottom:1px solid var(--line)}
+body.inv nav.sub a{display:inline-flex;align-items:center;margin-bottom:-1px;padding:0 4px 8px;border-bottom:2px solid transparent;color:var(--muted);text-decoration:none}
+body.inv nav.sub a:hover{color:var(--ink);text-decoration:none}
+body.inv nav.sub a.on{color:var(--ink);font-weight:600;border-bottom-color:var(--accent)}
+body.inv .tab-bar > nav.sub{border-bottom:0}
+/* Page buttons beside the sub-tabs are the Fee Register's small buttons, the main one first. */
+body.inv .page-actions .btn{min-height:0;padding:4px 10px;font-size:.857rem}
+body.inv .more-menu{position:relative}
+body.inv .more-menu > summary{list-style:none}
+body.inv .more-menu > summary::-webkit-details-marker{display:none}
+body.inv .more-menu > summary::after{content:"\25BE";margin-left:4px}
+body.inv .more-list{position:absolute;right:0;top:calc(100% + 4px);z-index:20;display:flex;flex-direction:column;min-width:12rem;padding:4px 0;background:var(--card,#fff);border:1px solid var(--line-strong);border-radius:var(--radius,2px);box-shadow:0 4px 12px rgba(0,0,0,.08)}
+body.inv .more-list a{padding:6px 12px;color:var(--ink);font-size:.929rem}
+body.inv .more-list a:hover{background:var(--paper-2);text-decoration:none}
 body.inv nav.sub a.adm::after{content:"Admin";font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;margin-left:6px;border:1px solid var(--hair);padding:0 4px;border-radius:2px}
 body.inv .tools{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px;padding:14px 0 12px;border-bottom:1px solid var(--hair)}
 body.inv .ctx,body.inv .util{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px 18px}
@@ -43,7 +55,7 @@ body.inv .l{color:var(--loss)}
 body.inv .na{color:var(--muted)}
 body.inv .money,body.inv .num{font-variant-numeric:tabular-nums}
 body.inv .sec{display:flex;justify-content:space-between;align-items:baseline;gap:16px;margin:30px 0 10px}
-body.inv .sec h2{font:400 24px var(--font-serif);margin:0}
+body.inv .sec h2{margin:0}
 body.inv .sec .acts{display:flex;gap:8px;flex-wrap:wrap}
 body.inv .sec a.lk{font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted)}
 body.inv .hint{color:var(--muted);font-size:14px}
@@ -130,14 +142,12 @@ body.inv .res div{padding:10px 14px;border-bottom:1px solid var(--hair);display:
 body.inv .res div:last-child{border-bottom:0}
 body.inv .res div.hl{background:var(--amber-bg)}
 body.inv .res small{color:var(--muted);font-size:12.5px}
-body.inv .tabs{display:flex;gap:26px;border-bottom:1px solid var(--hair);margin:22px 0 14px;font-size:14px}
-body.inv .tabs a{padding:0 0 10px;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
-body.inv .tabs a.on{color:var(--ink);border-bottom-color:var(--ox)}
+body.inv .tabs{margin-bottom:14px}
 body.inv .kv{display:grid;grid-template-columns:200px 1fr;gap:8px 20px;font-size:15px;margin:10px 0}
 body.inv .kv dt{color:var(--muted);font-size:13.5px}
 body.inv .kv dd{margin:0}
-body.inv .invhead{display:flex;justify-content:space-between;gap:24px;align-items:flex-end;padding:26px 0 12px;border-bottom:3px double var(--ink)}
-body.inv .invhead h1{font:400 38px/1.1 var(--font-serif);margin:0}
+body.inv .invhead{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px 16px;align-items:center}
+body.inv .invhead h1{margin:0}
 body.inv .invhead .sub{color:var(--muted);font-size:14px;margin-top:6px}
 body.inv .kvs{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-bottom:1px solid var(--hair)}
 body.inv .kvs>div{padding:14px 16px;border-left:1px solid var(--hair)}
@@ -188,8 +198,7 @@ body.inv .tools{gap:10px}
 body.inv .search{min-width:0;flex:1 1 100%}
 body.inv .sel>b{min-width:130px}
 body.inv .status{text-align:left}
-body.inv .invhead h1{font-size:28px}
-body.inv .invhead{flex-direction:column;align-items:flex-start;gap:6px;padding-top:20px}
+body.inv .invhead{flex-direction:column;align-items:flex-start;gap:6px}
 body.inv .strip{grid-template-columns:1fr 1fr}
 body.inv .strip .f{padding:12px 12px}
 body.inv .strip .f:nth-child(odd){border-left:0;padding-left:0}
@@ -232,9 +241,9 @@ body.inv .fld .sw{align-self:flex-start;margin-left:0}
 /* ---------- shell alignment with the suite header (added by hand, not generated) ---------- */
 body.inv nav.sub a{color:var(--muted)}
 body.inv nav.sub a.on{color:var(--ink)}
-body.inv .titlebar{display:flex;justify-content:space-between;align-items:baseline;gap:20px;padding:30px 0 12px;border-bottom:3px double var(--ink)}
-body.inv h1.t{font:400 40px/1.1 var(--font-serif);margin:0}
-body.inv .meta{font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);text-align:right}
+/* Page titles follow the Fee Register (ledger.css): a page a header entry or sub-tab opens keeps its <h1> for screen readers
+   only; other pages show a plain <h1> in .page-head, with a muted line beside it where there is one. */
+body.inv .page-head .page-meta{margin:0;color:var(--muted);font-size:.857rem}
 body.inv .program-nav a .dot{display:inline-block;min-width:18px;height:18px;line-height:18px;text-align:center;font-size:11px;background:var(--ox);color:#fff;border-radius:9px;margin-left:5px;vertical-align:1px}
 body.inv .tools .status{padding-top:0}
 

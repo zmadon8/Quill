@@ -1,6 +1,6 @@
 {% extends "investments/base_investments.html" %}
 {% block inv_content %}
-<div class="titlebar"><h1 class="t">Opening balance</h1></div>
+<div class="page-head"><h1>Opening balance</h1></div>
 <form method="post" class="form" novalidate>{% csrf_token %}<input type="hidden" name="rows" value="{{ row_numbers|length }}">
   <p class="hint">For holdings bought before you started using the program. Enter each lot with its original purchase date (it decides short or long term and feeds XIRR) and cost per unit. If you do not know the exact date, give an approximate one and tick Estimated. No charges.</p>
   {% include "investments/_form.html" %}

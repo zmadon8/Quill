@@ -1,13 +1,13 @@
 {% extends "investments/base_investments.html" %}
 {% load investments_money %}
+{% block page_actions %}{% if can_edit %}<div class="page-actions" role="group" aria-label="Transaction actions"><a class="btn p" href="{% url 'investments_txn_new_buy' %}">Add purchase</a><a class="btn q" href="{% url 'investments_txn_new_sell' %}">Add sale</a><a class="btn q" href="{% url 'investments_import_statement' %}">Import a statement</a><a class="btn q" href="{% url 'investments_txn_opening' %}">Opening balance</a><details class="more-menu"><summary class="btn q">More</summary><div class="more-list"><a href="{% url 'investments_txn_new_awaiting' %}">Awaiting allotment</a><a href="{% url 'investments_txn_transfer' %}">Transfer</a><a href="{% url 'investments_txn_switch' %}">Fund switch</a></div></details></div>{% endif %}{% endblock %}
 {% block inv_content %}
-<div class="titlebar"><h1 class="t">Transactions</h1><div class="meta">{{ total }} entr{{ total|pluralize:"y,ies" }}</div></div>
+<h1 class="visually-hidden">Transactions</h1>
 {% if awaiting_count %}<div class="ban wa"><span><b>{{ awaiting_count }}</b> waiting to be completed.</span><span class="r"><a href="{% url 'investments_txn_to_confirm' %}">To complete</a></span></div>{% endif %}
 <div class="sec">
   <form method="get" style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end"><div class="sel"><span>Search</span><input type="search" name="q" value="{{ q }}" placeholder="investment, folio, reference"></div>
     <div class="sel"><span>Type</span><select name="side" onchange="this.form.submit()"><option value="">All</option><option value="buy"{% if side == "buy" %} selected{% endif %}>Purchases</option><option value="sell"{% if side == "sell" %} selected{% endif %}>Sales</option></select></div>
     <button class="btn q" type="submit">Filter</button></form>
-  {% if can_edit %}<div class="acts"><a class="btn q" href="{% url 'investments_txn_opening' %}">Opening balance</a><a class="btn q" href="{% url 'investments_txn_transfer' %}">Transfer</a><a class="btn q" href="{% url 'investments_txn_switch' %}">Fund switch</a><a class="btn q" href="{% url 'investments_txn_new_awaiting' %}">Awaiting allotment</a><a class="btn q" href="{% url 'investments_txn_new_sell' %}">Add sale</a><a class="btn p" href="{% url 'investments_txn_new_buy' %}">Add purchase</a></div>{% endif %}
 </div>
 {% if rows %}
 <div class="tw"><table data-table-id="inv-transactions-1" class="led" data-sortable>

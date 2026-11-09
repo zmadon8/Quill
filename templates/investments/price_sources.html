@@ -1,6 +1,6 @@
 {% extends "investments/base_investments.html" %}
 {% block inv_content %}
-<div class="titlebar"><h1 class="t">Price sources</h1><div class="meta">version {{ version }}</div></div>
+<h1 class="visually-hidden">Price sources</h1>
 <p class="hint">Prices are fetched by the nightly job (and the Update Prices button) with the standard library only. A refused or failed request is retried a few times, then that symbol keeps its last price and is marked old. Hand-entered and uploaded prices are never overwritten. Local helper: <b>{% if helper_on %}on{% else %}off{% endif %}</b>.</p>
 {% if helper_on %}<div class="sec"><h2>Local helper</h2></div>
 <p class="hint">A small program on your own computer can fetch prices and send them here (docs/PRICE_HELPER.md). Last helper upload: {% if helper_run %}{{ helper_run.finished|date:"j M Y, g:i a" }} ({{ helper_run.updated }} prices){% else %}never{% endif %}.</p>
