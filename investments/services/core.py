@@ -108,3 +108,22 @@ def txn_event(t):
         return lots.Event(lots.BUY, t.effective_date, t.units, bucket_of(t), ("txn", t.pk), buy_total(t), paid_on=t.date,
                           order=t.pk or 10**12, estimated=t.is_estimated)
     return lots.Event(lots.SELL, t.date, t.units, bucket_of(t), ("txn", t.pk), sell_total(t), order=t.pk or 10**12)
+
+
+def events_by_instrument(profile):
+    """``{instrument id: [lot events]}`` for every investment of the profile, from three queries (for reports that replay everything)."""
+    from investments import corporate as corporate_math
+    from investments.services import corporate as corporate_service
+
+    out = {}
+    fields = ("id", "instrument_id", "side", "date", "allotment_date", "units", "price", "charges", "cost_override", "rupee_amount", "currency",
+              "portfolio_id", "broker_id", "folio_id", "is_estimated")
+    for t in Transaction.objects.filter(profile=profile, status=STATUS_FINAL, units__isnull=False).only(*fields).iterator(chunk_size=1000):
+        out.setdefault(t.instrument_id, []).append(txn_event(t))
+    for tr in Transfer.objects.filter(profile=profile).iterator(chunk_size=500):
+        out.setdefault(tr.instrument_id, []).append(lots.Event(
+            lots.TRANSFER, tr.date, tr.units, lots.Bucket(tr.from_portfolio_id, tr.from_broker_id, tr.from_folio_id), ("transfer", tr.pk),
+            to_bucket=lots.Bucket(tr.to_portfolio_id, tr.to_broker_id, tr.to_folio_id), order=tr.pk))
+    for iid, actions in corporate_service.applied(profile).items():
+        out.setdefault(iid, []).extend(corporate_math.events(actions))
+    return out

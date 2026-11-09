@@ -3,6 +3,7 @@ today. Values are Total Portfolio Value (never dividends). Capital gains are fir
 the year (a default in Settings), with the per-lot cost override. Purchases awaiting allotment on the closing date are valued at cost and
 marked Provisional. A record-keeping aid, not tax advice: the treatments are for the CA to confirm.
 """
+import dataclasses
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from decimal import Decimal
@@ -78,7 +79,7 @@ class Report:
         return self.short_gain + self.long_gain
 
 
-def build(profile, label, *, portfolio=None, broker=None, include_dividends=None, today=None, with_portfolios=True):
+def build(profile, label, *, portfolio=None, broker=None, include_dividends=None, today=None, with_portfolios=True, events=None):
     today = today or date.today()
     settings_row = core.get_settings(profile, create=False)
     start, end, closing, completed = bounds(label, today)
@@ -86,7 +87,7 @@ def build(profile, label, *, portfolio=None, broker=None, include_dividends=None
     if include_dividends is None:
         include_dividends = settings_row.include_dividends
     opening_day = start - timedelta(days=1)
-    _rows0, t0 = holdings.compute(profile, portfolio=portfolio, broker=broker, as_of=opening_day, settings=settings_row, include_dividends=include_dividends)
+    t0 = holdings.compute(profile, portfolio=portfolio, broker=broker, as_of=opening_day, settings=settings_row, include_dividends=include_dividends)[1]
     rows1, t1 = holdings.compute(profile, portfolio=portfolio, broker=broker, as_of=closing, settings=settings_row, include_dividends=include_dividends)
     report.opening_value, report.closing_value = t0.value, t1.value
     report.holdings = holdings.held(rows1)
@@ -132,10 +133,14 @@ def build(profile, label, *, portfolio=None, broker=None, include_dividends=None
         if include_dividends:
             flows.append((day, amount))
 
-    # capital gains: replay every investment's whole history, keep the sales in this year that pass the filters
+    # capital gains: replay every investment's whole history once, keep the sales in this year that pass the filters
     names = dict(Instrument.objects.filter(pk__in=Transaction.objects.filter(profile=profile).values("instrument_id")).values_list("pk", "name"))
+    pfs = list(Portfolio.objects.filter(profile=profile)) if with_portfolios and portfolio is None else []
+    # The events are released investment by investment unless the per-portfolio breakdown below still needs them (memory, plan 26).
+    release = events is None and len(pfs) <= 1
+    all_events = events if events is not None else core.events_by_instrument(profile)
     for iid in names:
-        result = lots.replay(core.events_for(profile, iid), as_of=closing)
+        result = lots.replay(all_events.pop(iid, []) if release else all_events.get(iid, []), as_of=closing)
         for m in result.matches:
             if not (start <= m.sold_on <= closing):
                 continue
@@ -165,10 +170,17 @@ def build(profile, label, *, portfolio=None, broker=None, include_dividends=None
             report.index_return = float(b[1] / a[1]) - 1.0
             report.approximate = bool(a[3] or b[3])
 
-    if with_portfolios and portfolio is None:
-        for p in Portfolio.objects.filter(profile=profile):
-            sub = build(profile, label, portfolio=p.pk, broker=broker, include_dividends=include_dividends, today=today, with_portfolios=False)
-            report.by_portfolio.append((p.name, sub))
+    if pfs:
+        if len(pfs) == 1:
+            # One portfolio: its figures are the report's own, so reuse them rather than computing the year twice.
+            report.by_portfolio.append((pfs[0].name, dataclasses.replace(report, by_portfolio=[])))
+        else:
+            for p in pfs:
+                sub = build(profile, label, portfolio=p.pk, broker=broker, include_dividends=include_dividends, today=today, with_portfolios=False,
+                            events=all_events)
+                # only the summary figures are shown or exported per portfolio; drop the lists so they are not held for the whole page
+                sub.holdings, sub.allocation, sub.transactions, sub.awaiting, sub.sales = [], [], [], [], []
+                report.by_portfolio.append((p.name, sub))
     return report
 
 

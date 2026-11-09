@@ -19,11 +19,16 @@ class BenchContext:
     extra: dict = field(default_factory=dict)
 
 
+#: Operations that change the dataset (pruning, importing) run last so the read-only measurements see the whole dataset.
+LAST = ("prune_run", "price_import", "update_batch")
+
+
 def operation(name, cap_mb, needs_dataset=False):
     """Register ``fn`` as a benchmark operation."""
 
     def decorator(fn):
         OPERATIONS.append((name, cap_mb, needs_dataset, fn))
+        OPERATIONS.sort(key=lambda op: op[0] in LAST)
         return fn
 
     return decorator

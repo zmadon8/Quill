@@ -42,6 +42,17 @@ def _closes(instrument, on, back):
     return sorted(merged.items())
 
 
+def _recent_closes(instrument_ids, on, back):
+    """``{instrument id: [(date, close)]}`` like ``_closes`` for many investments at once: one query per price table."""
+    since = on - timedelta(days=back + 7)
+    merged = {}
+    for model in (Price, ManualPrice):   # hand-entered second, so it wins a tie (D108)
+        rows = model.objects.filter(instrument_id__in=instrument_ids, date__range=(since, on)).values_list("instrument_id", "date", "close")
+        for iid, d, c in rows.iterator(chunk_size=2000):
+            merged.setdefault(iid, {})[d] = c
+    return {iid: sorted(m.items()) for iid, m in merged.items()}
+
+
 def _term(h, settings_row, on):
     oldest = min((lot.bought_on for lot in h.lots), default=None)
     if oldest is None:
@@ -61,8 +72,13 @@ def evaluate(profile, today=None):
     for g in Guardrail.objects.filter(profile=profile, active=True).select_related("instrument", "portfolio"):
         guards.setdefault((g.instrument_id, g.portfolio_id), []).append(g)
     states = {st.key: st for st in AlertState.objects.filter(profile=profile)}
-    for portfolio in Portfolio.objects.filter(profile=profile):
-        rows, _t = holdings.compute(profile, portfolio=portfolio.pk, as_of=today, settings=s)
+    window_days = max(2, s.rule_a_window_days)
+    per_portfolio = [(portfolio, holdings.compute(profile, portfolio=portfolio.pk, as_of=today, settings=s)[0])
+                     for portfolio in Portfolio.objects.filter(profile=profile)]
+    held_ids = {h.instrument.pk for _p, rows in per_portfolio for h in rows
+                if h.units > 0 and not h.unpriced and not h.blocked and h.instrument.kind != KIND_ALTERNATIVE}
+    recent = _recent_closes(held_ids, today, window_days) if held_ids else {}
+    for portfolio, rows in per_portfolio:
         for h in rows:
             if h.units <= 0 or h.unpriced or h.blocked:
                 continue
@@ -70,7 +86,7 @@ def evaluate(profile, today=None):
             if inst.kind == KIND_ALTERNATIVE:
                 price, on, previous = h.value, h.price_date or today, None
             else:
-                closes = _closes(inst, today, max(2, s.rule_a_window_days))
+                closes = recent.get(inst.pk, [])
                 if not closes:
                     continue
                 on, price = closes[-1]

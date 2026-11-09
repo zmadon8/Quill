@@ -172,3 +172,40 @@ def update_batch(ctx):
     with mock.patch.object(http, "_urlopen", net), mock.patch.object(http, "sleep", lambda s: None):
         ids = [i.pk for i in ctx.extra["instruments"] if i.kind == "share"][:10]
         fetch.fetch_prices(ids=ids, spacing=0, today=datetime.date.today())
+
+
+@operation("performance_3y", 15.0, needs_dataset=True)
+def performance_3y(ctx):
+    """The Performance table over three years (plan 26.1: 5 to 15 MB)."""
+    from investments.services import performance
+
+    start, end = performance.period_dates(preset=3)
+    performance.table(ctx.profile, start=start, end=end)
+
+
+@operation("chart_portfolio_5y", 15.0, needs_dataset=True)
+def chart_portfolio_5y(ctx):
+    """Chart A over five years: the value series, read one instrument at a time and sampled (plan 26.1: 5 to 15 MB)."""
+    from investments.services import series
+
+    days = series.sample_dates(datetime.date.today() - datetime.timedelta(days=5 * 365), datetime.date.today())
+    values, flows = series.portfolio_value_series(ctx.profile, days)
+    series.performance_index(values, flows)
+
+
+@operation("annual_report", 20.0, needs_dataset=True)
+def annual_report(ctx):
+    """The Annual Report for last financial year (plan 26.1: 10 to 20 MB)."""
+    from fees.services.financial_year import recent_financial_years
+
+    from investments.services import annual
+
+    annual.build(ctx.profile, recent_financial_years(2)[1])
+
+
+@operation("alerts_and_insights", 15.0, needs_dataset=True)
+def alerts_and_insights(ctx):
+    from investments.services import alerts, insights
+
+    alerts.evaluate(ctx.profile)
+    insights.compute(ctx.profile)

@@ -139,8 +139,10 @@ def table(profile, *, start, end, measure="xirr", portfolio=None, broker=None, s
     """One row per investment for the period (plan 9). The value on the start date counts as the opening investment; an investment bought
     after the start only uses data from its first purchase, and says so. Returns ``(rows, total_row, notes, sectoral_on)``."""
     settings_row = settings_row or core.get_settings(profile, create=False)
+    # Opening first, cut down to (units, value), so two full sets of holdings (with their lots) are never held at once.
+    opening = {h.instrument.pk: (h.units, h.value)
+               for h in holdings.compute(profile, portfolio=portfolio, broker=broker, as_of=start, settings=settings_row)[0]}
     now_rows, now_totals = holdings.compute(profile, portfolio=portfolio, broker=broker, as_of=end, settings=settings_row)
-    opening = {h.instrument.pk: h for h in holdings.compute(profile, portfolio=portfolio, broker=broker, as_of=start, settings=settings_row)[0]}
     default = _default_index(profile, settings_row)
     series_start = start - timedelta(days=1)
     default_series = IndexSeries(default, series_start, end) if default else None
@@ -155,8 +157,8 @@ def table(profile, *, start, end, measure="xirr", portfolio=None, broker=None, s
         before = opening.get(h.instrument.pk)
         flows = []
         row = Row(instrument=h.instrument, value=h.value)
-        if before is not None and before.units > 0:
-            flows.append((start, -before.value))
+        if before is not None and before[0] > 0:
+            flows.append((start, -before[1]))
         elif h.flows and min(d for d, _ in h.flows) > start:
             row.starts = min(d for d, _ in h.flows)
             row.note = f"Held from {row.starts:%-d %b %Y}"
