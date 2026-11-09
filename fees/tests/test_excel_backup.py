@@ -237,10 +237,11 @@ class ExportContractTests(TestCase):
         self.assertEqual(
             list(values.keys()),
             ["export_owner_name", "memo_filename_pattern", "statistics_enabled",
-             "dashboard_kpis_enabled", "memo_default_name", "memo_default_designation",
+             "dashboard_kpis_enabled", "dashboard_enabled", "show_bank", "memo_default_name", "memo_default_designation",
              "memo_default_address", "memo_default_bank_details", "memo_default_pan",
              "memo_signature_default", "list_default_filter", "items_per_page"],
         )
+        self.assertEqual((values["dashboard_enabled"], values["show_bank"]), (1, 1))   # owner round 2026-11: both on by default
         self.assertEqual(values["items_per_page"], 50)
         self.assertEqual(values["export_owner_name"], "Test Owner")
         self.assertEqual(values["memo_filename_pattern"], "pattern-x")
