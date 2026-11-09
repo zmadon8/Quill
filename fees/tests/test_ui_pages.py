@@ -12,7 +12,7 @@ from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils.html import escape
 
-from fees.models import FeesSettings, Payment, SavedView
+from fees.models import FeesSettings, Matter, Payment, SavedView
 from fees.services import dashboard, memos, payments
 from fees.tests import xlsx_support as xs
 from fees.tests.test_views_read import SeededViewsBase
@@ -388,6 +388,34 @@ class FirmScreenTests(UiPageBase):
         query = "?firm=%d" % other
         moved = self.assert_page(self.page("fees_matter_edit", {"matter_id": i["matter"]}, query=query, user=self.editor), "matter-move")
         self.assertIn('name="firm_id" value="%d"' % other, moved)
+
+    def test_matter_form_layout(self):
+        # Client sits under Short name; the firm-name tick comes before the two addressee lines, which share one row;
+        # the plaintiff and defendant Type boxes sit on their own lines (they were labelled "as").
+        i = self.ids()
+        Matter.objects.filter(pk=i["matter"]).update(addressee_use_firm_name=True, addressee_line1="Kept")
+        edit = self.html(self.page("fees_matter_edit", {"matter_id": i["matter"]}, user=self.editor))
+        order = [edit.index(x) for x in ('name="short_name"', 'name="client"', 'name="addressee_use_firm_name"',
+                                         'name="addressee_line1"', 'name="addressee_line2"', 'name="court_name"')]
+        self.assertEqual(order, sorted(order))
+        row = edit.split("data-addressee-lines>")[1].split("</p>")[0]
+        self.assertIn('name="addressee_line1" value="Kept" maxlength="300" readonly aria-disabled="true"', row)
+        self.assertIn('name="addressee_line2"', row)
+        for side in ("plaintiff", "defendant"):
+            line = edit.split('name="%s_name"' % side)[1].split("</p>")[0]
+            self.assertIn('>Type <input type="text" name="%s_type"' % side, line)
+        self.assertNotIn(">as <input", edit)
+        self.assertIn("js/fees/matter-form.js", edit)
+
+    def test_client_shows_on_the_matter_and_firm_pages(self):
+        i = self.ids()
+        Matter.objects.filter(pk=i["matter"]).update(client="Acme Holdings")
+        matter = self.html(self.page("fees_matter_detail", {"matter_id": i["matter"]}))
+        self.assertIn("&middot; Client: Acme Holdings</p>", matter)
+        firm = self.html(self.page("fees_firm_detail", {"firm_id": i["firm"]}))
+        self.assertIn('<span class="muted">&middot; Client: Acme Holdings</span>', firm)
+        Matter.objects.filter(pk=i["matter"]).update(client="")
+        self.assertNotIn("Client:", self.html(self.page("fees_matter_detail", {"matter_id": i["matter"]})))
 
 
 class FeebookAndPaymentTests(UiPageBase):
