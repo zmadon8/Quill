@@ -1,0 +1,12 @@
+{# The tools row under the header (plan 24.1): selectors on the left, Update Prices and the Auto / Full toggle on the right. #}
+<div class="tools">
+  <div class="ctx">
+    <div class="sel"><span>Portfolio</span><b>{{ inv_portfolio_label|default:"All Portfolios" }}</b></div>
+    <div class="sel"><span>Broker</span><b>{{ inv_broker_label|default:"All brokers" }}</b></div>
+  </div>
+  <div class="util">
+    <button type="button" class="btn q" disabled title="Prices are fetched from a later release">Update Prices</button>
+    <div class="toggle" role="group" aria-label="Number display" title="Number display"><span role="button" tabindex="0" data-money-mode="auto" class="on">Auto</span><span role="button" tabindex="0" data-money-mode="full">Full</span></div>
+  </div>
+  <div class="status">{{ inv_status|default:"No prices yet." }}</div>
+</div>

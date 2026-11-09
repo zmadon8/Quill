@@ -3,13 +3,13 @@ from django.db import DatabaseError
 from django.utils import timezone
 
 from .models import ProfileMembership, User
-from .suite import KEY_DIARY, KEY_FEES
+from .suite import KEY_DIARY, KEY_FEES, KEY_INVESTMENTS
 
 #: A user is touched at most this often (seconds).
 TOUCH_SECONDS = 60
 _SKIP_PREFIXES = ("/static/", "/healthz", "/favicon")
 #: The pages of each program, by address: a page there counts as using the profile the user has open in it.
-PROGRAM_PREFIXES = (("/caselaw/", KEY_DIARY), ("/fees/", KEY_FEES))
+PROGRAM_PREFIXES = (("/caselaw/", KEY_DIARY), ("/fees/", KEY_FEES), ("/investments/", KEY_INVESTMENTS))
 
 
 def _stale(seen, now):

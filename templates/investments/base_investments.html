@@ -1,0 +1,20 @@
+{% extends "base_suite.html" %}
+{% load static %}
+{# Investments shell on the shared suite shell (plan 24.1, 25.2). A page fills page_title_text and content (and may set back_url). #}
+{% block program_title %}{% block page_title %}{{ page_title_text|default:program_label }}{% endblock %}{% endblock %}
+{% block body_attrs %} class="ledger inv {% block page_width %}w-6xl{% endblock %}"{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/ledger.css' %}">
+  <link rel="stylesheet" href="{% static 'css/investments.css' %}">{% endblock %}
+{% block program_name %}<a href="{% url 'investments_dashboard' %}" title="{{ program_full_label }}">{{ program_header_label|default:program_label }}</a>{% if inv_profile and not program_header_label %} <span class="profile-name">&middot; {{ inv_profile.name }}</span>{% endif %}{% if inv_other_profiles %}{% include "diary/_profile_switch.html" with other_profiles=inv_other_profiles %}{% endif %}{% endblock %}
+{% block program_nav %}{% for i in inv_nav %}<a href="{{ i.url }}"{% if i.on %} class="on" aria-current="page"{% endif %}>{{ i.name }}{% if i.key == "alerts" and inv_alert_count %}<span class="dot" aria-label="{{ inv_alert_count }} alerts">{{ inv_alert_count }}</span>{% endif %}</a>
+  {% endfor %}{% endblock %}
+{% block search_tool %}{% include "_search_button.html" with popup=True %}{% endblock %}
+{% block search_panel %}<div class="search-pop" id="search-pop" hidden><form role="search" method="get" action="{% url 'investments_search' %}"><label class="visually-hidden" for="search-pop-q">Search investments, folios, brokers and transactions</label><input type="search" id="search-pop-q" name="q" value="{{ query|default:'' }}" placeholder="Search investments, folios, brokers and transactions&hellip;" autocomplete="off" data-search-popup-input><button type="submit" class="primary">Search</button></form></div>{% endblock %}
+{% block crumb_nav %}{% if back_url %}<div class="crumb-row"><nav class="breadcrumb" aria-label="Back"><a href="{{ back_url }}">&larr; {{ back_label|default:"Back" }}</a></nav></div>{% endif %}{% endblock %}
+{# The section links and the tools row sit inside <main> so they line up with the page, as in the mockups. #}
+{% block content %}{% if inv_sub %}<nav class="sub" aria-label="Section">{% for s in inv_sub %}<a href="{{ s.url }}"{% if s.on or s.admin %} class="{% if s.on %}on{% endif %}{% if s.admin %} adm{% endif %}"{% endif %}{% if s.on %} aria-current="page"{% endif %}>{{ s.name }}</a>{% endfor %}</nav>{% endif %}
+{% if inv_tools %}{% include "investments/_tools.html" %}{% endif %}
+{% block inv_content %}{% endblock %}{% endblock %}
+{% block extra_js %}<script src="{% static 'js/investments/money_auto.js' %}"></script>
+<script src="{% static 'js/investments/shell.js' %}"></script>
+{% block page_js %}{% endblock %}{% endblock %}

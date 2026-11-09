@@ -59,6 +59,11 @@
   <h2 id="h-import">Import from Word</h2>
   <p>The Admin can load a Word diary with <strong>Import from Word</strong> in the <strong>Data</strong> section of the diary <strong>Settings</strong>. It always shows a practice run first and changes nothing until the Admin approves it. It only goes into an empty profile.</p>
 
+  {% if investments_on %}
+  <h2 id="h-investments">{{ investments_name }}</h2>
+  <p>{{ investments_name }} is a separate program for recording purchases and sales of shares, mutual funds and other investments. It appears on Home only for people who have been given an Investments profile, and only once the Admin has switched it on. The <strong>Auto / Full</strong> control in the tools row shows every rupee amount either in short form (for example &#8377;2.41 cr, &#8377;24.13 lac, &#8377;85.40 k) or in full (&#8377;24,12,600); pointing at a short figure shows the exact amount, and Excel exports always contain the exact figures. Tax and gains figures are a record-keeping aid, not tax advice: check them with your CA.</p>
+  {% endif %}
+
   <p class="hint">Still stuck? Ask the Admin, and say which page you were on and what you pressed.</p>
 </div>
 {% endblock %}

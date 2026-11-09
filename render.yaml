@@ -29,6 +29,10 @@ services:
       # the backups working. Switched on for the rebuilt site; after the first deploy, run create_fees_user once (README).
       - key: FEES_ENABLED
         value: "1"
+      # Investments: "1" shows it. "0" hides it and makes every /investments/ URL a 404, but keeps the data and the
+      # backups working. Ships dark; set to "1" at the owner's go-ahead (docs/HOSTING_AND_DEPLOY.md, section 5d).
+      - key: INVESTMENTS_ENABLED
+        value: "0"
       # Optional: only needed if you add your own domain name (comma separated).
       # Render's own address is allowed automatically.
       - key: DJANGO_ALLOWED_HOSTS

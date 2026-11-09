@@ -41,7 +41,7 @@ class HeaderStyleTests(TestCase):
     def test_words_are_the_default_but_search_home_and_sign_out_are_icons(self):
         # Owner: "Words / Logo should default to Words. Search and Home should ALWAYS be logos." (and Sign out)
         SuiteName.objects.filter(key__startswith="brand_").delete()
-        self.assertEqual(suite.get_brand_modes(), {"home": "words", "diary": "words", "fees": "words"})
+        self.assertEqual(suite.get_brand_modes(), {"home": "words", "diary": "words", "fees": "words", "investments": "words"})
         header = self.header()
         text = self.visible_text(header)
         for word in NAMES:
@@ -158,7 +158,7 @@ class HeaderStyleTests(TestCase):
 
         suite.set_brand_modes({suite.KEY_FEES: "words"})
         request = self.client.get(reverse("diary_home")).wsgi_request
-        self.assertEqual(suite_names(request)["suite_brand"], {"home": "logo", "diary": "logo", "fees": "words"})
+        self.assertEqual(suite_names(request)["suite_brand"], {"home": "logo", "diary": "logo", "fees": "words", "investments": "logo"})
         self.assertFalse(header_style(request)["header_words"])
 
     def test_the_choice_costs_no_extra_query(self):

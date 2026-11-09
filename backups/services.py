@@ -542,6 +542,7 @@ def _program_of_label(label):
     return {
         "diary": "Case Law Diary",
         "fees": "Fee Register",
+        "investments": "Investments",
         "accounts": "Accounts",
     }.get(app_label, app_label)
 

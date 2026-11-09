@@ -23,6 +23,14 @@ data worth keeping (the User group and permission links are unused).
 """
 from django.apps import apps
 
+#: Investments models. Phase 0 registers no tables yet (the app has no models); the lists exist so the program
+#: registration, purge and clear already read them, and each later phase appends its models parents first. Fetched
+#: prices (``Price``), fetched exchange rates, caches, tokens and logs are deliberately NEVER listed (plan 17.2).
+INVESTMENTS_BACKUP_MODELS = []
+
+#: Investments models that carry a ``profile`` column, parents first. ``investments.apps`` reads this list.
+INVESTMENT_PROFILE_MODELS = []
+
 BACKUP_MODELS = [
     "accounts.User",
     "accounts.SuiteName",
@@ -55,6 +63,7 @@ BACKUP_MODELS = [
     "fees.Allocation",
     "fees.PeriodAdjustment",
     "fees.SavedView",
+    *INVESTMENTS_BACKUP_MODELS,
 ]
 
 #: The Fee Register model labels added to ``BACKUP_MODELS`` (T1.9). Kept as a named list so the
@@ -87,6 +96,7 @@ OPTIONAL_MODELS = {
     "accounts.ProfileMembership",
     "diary.TrashBatch",
     *FEES_BACKUP_MODELS,
+    *INVESTMENTS_BACKUP_MODELS,
 }
 
 #: Diary models that carry a ``profile`` column. An older backup lacks it; such rows go into "Main".
@@ -132,6 +142,7 @@ FEES_PROFILE_MODELS = [
 PROGRAM_PROFILE_MODELS = {
     "diary": PROFILE_MODELS,
     "fees": FEES_PROFILE_MODELS,
+    "investments": INVESTMENT_PROFILE_MODELS,
 }
 
 

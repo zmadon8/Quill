@@ -277,7 +277,7 @@ class SuiteSettingsTests(BaseCase):
         # T1.3: the Fee Register default joins the suite. Home and the diary are unchanged.
         self.assertEqual(
             suite.get_names(),
-            {"home": "Home", "diary": "Case Law Diary", "fees": "Fee Register"},
+            {"home": "Home", "diary": "Case Law Diary", "fees": "Fee Register", "investments": "Investments"},
         )
         self.client.force_login(self.admin)
         resp = self.client.get(reverse("home"))
@@ -317,7 +317,7 @@ class SuiteSettingsTests(BaseCase):
         self.assertRedirects(resp, reverse("settings"))
         self.assertEqual(
             suite.get_names(),
-            {"home": "Start Page", "diary": "Judgments", "fees": "Fee Register"},
+            {"home": "Start Page", "diary": "Judgments", "fees": "Fee Register", "investments": "Investments"},
         )
         home = self.client.get(reverse("home"))
         self.assertContains(home, ">Start Page</a>")
@@ -363,7 +363,8 @@ class SuiteSettingsTests(BaseCase):
         # after the names.
         self.assertEqual(
             list(form.fields),
-            ["site_name", "home_name", "diary_name", "fees_name", "home_brand", "diary_brand", "fees_brand"],
+            ["site_name", "home_name", "diary_name", "fees_name", "investments_name",
+             "home_brand", "diary_brand", "fees_brand", "investments_brand"],
         )
         self.assertEqual(form.fields["fees_name"].initial, "Fee Register")
         self.assertEqual(form.fields["fees_name"].label, "Fee Register name")

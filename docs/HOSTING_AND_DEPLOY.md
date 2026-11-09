@@ -80,6 +80,16 @@ The Fee Register ships dark: `render.yaml` sets `FEES_ENABLED` to `0`, so every 
 
 `FEES_ENABLED` when not set: on for developer mode (`DJANGO_DEBUG` or `DJANGO_ALLOW_SQLITE`) and tests, off in production. `MAX_BACKUP_UPLOAD_MB` is 30 by default (the uncompressed size of an uploaded backup). The server settings in section 5a (workers, threads, `--max-requests`, no `--preload`) are unchanged; memory levers are only applied after measuring and with the owner's approval.
 
+## 5d. Releasing Investments (/investments/)
+
+Investments ships dark: `render.yaml` sets `INVESTMENTS_ENABLED` to `"0"`, so every `/investments/` address is "not found" and no button or tab shows, while its tables, backups and restores keep working. (Housekeeping: section 5c above and the comment in `config/settings.py` still say `FEES_ENABLED` is `0` in `render.yaml`; it is now `"1"`.) At the owner's go-ahead:
+
+1. **Merge** the pull request. Render deploys it; `migrate_with_backup` takes a "Before update" backup first.
+2. In Render, set `INVESTMENTS_ENABLED` to `1` on the web service (and change `render.yaml` to match). It redeploys.
+3. Give people access on **Admins > Users**: create an Investments profile on **Admins > Profiles** (choose the program), then give users a role in it.
+
+The CI workflow now uses `postgres:18` to match Render. The nightly cron is unchanged until the price phase (plan 15.4).
+
 ## 5a. Server settings chosen for a small plan
 
 - **Web server:** `gunicorn ... --workers 2 --threads 2 --max-requests 500 --max-requests-jitter 50 --timeout 60`. Two worker processes with two threads each, each restarted after about 500 requests to keep memory steady. There is deliberately no `--preload`.

@@ -1,0 +1,125 @@
+"""The Auto / Full number display for the Investments program (plan section 24.3).
+
+Pure Python, no Django imports. ``static/js/investments/money_auto.js`` mirrors it, and both are tested against the
+one golden table ``investments/tests/golden/money_auto.json``. It is deliberately separate from
+``fees.services.money.format_money``, which has a different rule that the Fee Register's tests depend on.
+
+Rules (owner decision, plan 24.3):
+
+* Full: the complete amount, Indian grouping for rupees (``₹24,12,600``). Whole rupees show no decimals; an amount
+  with paise shows two (``₹950.50``).
+* Auto, rupees: crores (``cr``) from 1 crore, lakhs (``lac``) from 1 lakh, thousands (``k``) from 1,000, rounded to
+  2 decimals with the decimals always shown (``₹2.41 cr``, ``₹24.13 lac``, ``₹85.40 k``); below 1,000 the full
+  number (``₹950``).
+* A figure that rounds up to the next unit is shown in that unit (``99.999 lac`` is ``1.00 cr``; ``999.996`` is ``1.00 k``).
+* Rounding is half away from zero on the exact amount. Negative amounts use a true minus sign before the symbol
+  (``−₹60.30 k``); ``signed=True`` also puts ``+`` before a positive amount (gains).
+* Foreign amounts: Auto uses ``k`` and ``m`` (millions), Full shows the whole amount with Western grouping.
+
+Assumptions I made where the plan is silent are recorded in docs/DESIGN.md (D101 onwards).
+"""
+from decimal import ROUND_HALF_UP, Decimal
+
+__all__ = ["format_amount", "format_rupees", "group_indian", "group_western", "AUTO", "FULL"]
+
+AUTO = "auto"
+FULL = "full"
+
+MINUS = "\u2212"
+RUPEE = "\u20b9"
+
+_CENT = Decimal("0.01")
+_ZERO = Decimal(0)
+
+#: (divisor, suffix) from small to large, per currency family.
+_INR_UNITS = ((Decimal(1), ""), (Decimal(1000), "k"), (Decimal(100000), "lac"), (Decimal(10000000), "cr"))
+_FOREIGN_UNITS = ((Decimal(1), ""), (Decimal(1000), "k"), (Decimal(1000000), "m"))
+
+_SYMBOLS = {"INR": RUPEE, "USD": "$", "EUR": "\u20ac", "GBP": "\u00a3", "JPY": "\u00a5"}
+
+
+def _dec(value):
+    if isinstance(value, Decimal):
+        return value
+    if isinstance(value, float):
+        return Decimal(str(value))
+    return Decimal(str(value).strip())
+
+
+def _round2(value):
+    return value.quantize(_CENT, rounding=ROUND_HALF_UP)
+
+
+def group_indian(digits):
+    """``"1234567"`` to ``"12,34,567"``: the last three digits, then pairs."""
+    if len(digits) <= 3:
+        return digits
+    head, tail = digits[:-3], digits[-3:]
+    parts = []
+    while len(head) > 2:
+        parts.insert(0, head[-2:])
+        head = head[:-2]
+    if head:
+        parts.insert(0, head)
+    return ",".join(parts) + "," + tail
+
+
+def group_western(digits):
+    """``"1234567"`` to ``"1,234,567"``."""
+    out = []
+    while len(digits) > 3:
+        out.insert(0, digits[-3:])
+        digits = digits[:-3]
+    out.insert(0, digits)
+    return ",".join(out)
+
+
+def _plain(amount, grouper):
+    """``amount`` (already rounded to 2 places, non-negative) as grouped text; paise only when there are some."""
+    whole, frac = divmod(int(amount * 100), 100)
+    text = grouper(str(whole))
+    return text if frac == 0 else f"{text}.{frac:02d}"
+
+
+def _sign(negative, signed, is_zero):
+    if negative and not is_zero:
+        return MINUS
+    return "+" if signed and not negative and not is_zero else ""
+
+
+def format_amount(value, *, currency="INR", mode=AUTO, signed=False, symbol=None):
+    """Format ``value`` (Decimal, int, float or numeric string) for display.
+
+    ``currency`` is ``"INR"`` (rupees: Indian grouping, k / lac / cr) or any other code (k / m, Western grouping).
+    ``mode`` is ``"auto"`` or ``"full"``. ``signed`` adds ``+`` to positive amounts. ``symbol`` overrides the
+    currency's symbol (an unknown code with no symbol is shown as ``"CODE "``).
+    """
+    amount = _dec(value)
+    negative = amount < _ZERO
+    rupees = currency == "INR"
+    grouper = group_indian if rupees else group_western
+    sym = symbol if symbol is not None else _SYMBOLS.get(currency, f"{currency} ")
+    magnitude = _round2(abs(amount))
+    sign = _sign(negative, signed, magnitude == _ZERO)
+    if mode == FULL or magnitude < Decimal(1000):
+        return f"{sign}{sym}{_plain(magnitude, grouper)}"
+    units = _INR_UNITS if rupees else _FOREIGN_UNITS
+    exact = abs(amount)
+    index = 0
+    for i, (divisor, _suffix) in enumerate(units):
+        if exact >= divisor:
+            index = i
+    scaled = _round2(exact / units[index][0])
+    # A figure that rounds up to the next unit moves into it (99.999 lac is 1.00 cr, 999.996 is 1.00 k).
+    while index + 1 < len(units) and scaled * units[index][0] >= units[index + 1][0]:
+        index += 1
+        scaled = _round2(exact / units[index][0])
+    suffix = units[index][1]
+    if not suffix:
+        return f"{sign}{sym}{_plain(scaled, grouper)}"
+    return f"{sign}{sym}{scaled:.2f} {suffix}"
+
+
+def format_rupees(value, *, mode=AUTO, signed=False):
+    """Rupee amount in the chosen mode (see :func:`format_amount`)."""
+    return format_amount(value, currency="INR", mode=mode, signed=signed)

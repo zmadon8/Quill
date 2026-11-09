@@ -11,11 +11,13 @@ from .models import SuiteName
 KEY_HOME = "home"
 KEY_DIARY = "diary"
 KEY_FEES = "fees"
+KEY_INVESTMENTS = "investments"
 
 DEFAULT_NAMES = {
     KEY_HOME: "Home",
     KEY_DIARY: "Case Law Diary",
     KEY_FEES: "Fee Register",
+    KEY_INVESTMENTS: "Investments",
 }
 MAX_NAME_LENGTH = 60
 #: The name of the whole website (emails, password reset, shared page titles), set on Admins > Appearance. Kept in a
@@ -33,7 +35,7 @@ def default_site_name():
 BRAND_WORDS = "words"
 BRAND_LOGO = "logo"
 BRAND_MODES = (BRAND_WORDS, BRAND_LOGO)
-BRAND_KEYS = (KEY_HOME, KEY_DIARY, KEY_FEES)
+BRAND_KEYS = (KEY_HOME, KEY_DIARY, KEY_FEES, KEY_INVESTMENTS)
 BRAND_PREFIX = "brand_"
 
 

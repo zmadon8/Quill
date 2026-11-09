@@ -1,0 +1,9 @@
+{% extends "investments/base_investments.html" %}
+{% block inv_content %}
+<div class="titlebar"><h1 class="t">{{ page.title }}</h1></div>
+{% if not inv_profile %}
+<p class="lead">You have no Investments profile yet. An Admin can give you one on the Users screen.</p>
+{% else %}
+<p class="lead na">{{ page.empty }}</p>
+{% endif %}
+{% endblock %}

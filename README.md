@@ -193,6 +193,14 @@ There are no users at first, so you create the first Admin from Render:
 3. You should see "Admin yourname created." This command refuses to run once any user exists, so it cannot be misused later.
 4. Save the password in a password manager.
 
+### Investments (the Investments program)
+
+A third program in the same site, at `/investments/`: a portfolio tracker for shares, mutual funds, alternative and foreign investments (design: `design/investments/INVESTMENTS_PLAN.md`; page mockups: `design/investments/mockups/index.html`). It is behind the `INVESTMENTS_ENABLED` switch, which works exactly like `FEES_ENABLED`: not set means on in developer mode and tests and off in production; `1` turns it on; while off every `/investments/` address says not found and there is no button or tab, but the data and the backups keep working. `render.yaml` sets `"0"` until the go-ahead (`docs/HOSTING_AND_DEPLOY.md`, section 5d). It adds no dependency and no always-on process. Tax, gains and corporate-action figures are record-keeping aids, not tax advice.
+
+| Command | What it does |
+|---|---|
+| `investments_memory_bench [--dataset-size small] [--only NAME]` | Measures peak memory of each Investments operation in a throwaway profile (rolled back, leaves no data). Prints `BENCH <operation> ... status=OK/OVER/ERROR`. Results are recorded in `docs/INVESTMENTS_RAM.md`. |
+
 ### Fee Register (the Fees program)
 
 The Fee Register is a second program in the same site, at `/fees/` (Firms, Matters, Memos, Payments, Outstanding, Fee book, Statistics, Search, Settings, Word and Excel exports, import, and an Excel backup and restore). It is behind the `FEES_ENABLED` switch.

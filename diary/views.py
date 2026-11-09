@@ -18,7 +18,7 @@ from accounts.models import ROLE_EDITOR
 from accounts.models import Profile
 from accounts.permissions import admin_required, reader_required
 from accounts.profiles import request_memberships, request_profile, request_role
-from accounts.suite import KEY_DIARY, KEY_FEES, get_names
+from accounts.suite import KEY_DIARY, KEY_FEES, KEY_INVESTMENTS, get_names
 
 from . import reading, searchtext, undo_session
 from .opening import remember_page
@@ -189,6 +189,10 @@ def home(request):
         # A Fee Register user gets a button for it; a user without one sees exactly the page they saw before.
         fees_current, fees_others = _home_buttons(request, KEY_FEES)
         context.update({"fees_profile": fees_current, "fees_other_profiles": fees_others, "fees_name": names[KEY_FEES]})
+    if programs.investments_enabled():
+        inv_current, inv_others = _home_buttons(request, KEY_INVESTMENTS)
+        context.update({"investments_profile": inv_current, "investments_other_profiles": inv_others,
+                        "investments_name": names[KEY_INVESTMENTS]})
     context["show_admin_access"] = request.user.is_admin
     if activity.can_see_active(request.user):
         context.update(activity.active_panel())
