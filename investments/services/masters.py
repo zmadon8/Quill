@@ -239,12 +239,52 @@ def create_instrument(profile, user, *, kind, name, code="", isin="", currency="
 
 def records_of(profile, instrument):
     """Counts of what this profile has recorded against ``instrument`` (what deleting it would remove)."""
+    from investments.models import Dividend, SipSchedule
+
     return {
         "transactions": Transaction.objects.filter(profile=profile, instrument=instrument).count(),
         "transfers": Transfer.objects.filter(profile=profile, instrument=instrument).count(),
         "folios": Folio.objects.filter(profile=profile, instrument=instrument).count(),
         "values": AltValue.objects.filter(profile=profile, instrument=instrument).count(),
+        "dividends": Dividend.objects.filter(profile=profile, instrument=instrument).count(),
+        "sips": SipSchedule.objects.filter(profile=profile, instrument=instrument).count(),
     }
+
+
+def _in_use_anywhere(instrument):
+    """True while any profile still has a record, a schedule or its own row for this shared investment."""
+    from investments.models import Dividend, SipSchedule
+
+    return any(m.objects.filter(instrument=instrument).exists() for m in (Transaction, Transfer, Dividend, SipSchedule, ProfileInvestment))
+
+
+def alert_states_of(instrument):
+    """The saved alert dismissals and snoozes about ``instrument`` (their keys are ``kind:<instrument id>:...``)."""
+    from investments.models import AlertState
+
+    return AlertState.objects.filter(key__regex=rf"^[a-z_]+:{int(instrument.pk)}(:|$)")
+
+
+def delete_profile_records(profile, user, instrument, group, summary):
+    """Delete everything ``profile`` recorded against ``instrument``, writing each logged record (transactions,
+    transfers, dividends, folio numbers, dated values, corporate action confirmations) to the permanent history first.
+
+    The order follows the protected links: switch links, then transactions, transfers, dividends and SIP schedules
+    (they point at folios), then folios, dated values, guardrails, alert states and the profile's own row."""
+    from investments.models import CorporateActionResponse, Dividend, Guardrail, SipSchedule
+
+    logged = (Transaction, Transfer, Dividend, Folio, AltValue)
+    for model in logged:
+        for obj in model.objects.filter(profile=profile, instrument=instrument).iterator():
+            history.record(profile, user, obj, "delete", group=group, summary=summary)
+    for obj in CorporateActionResponse.objects.filter(profile=profile, action__instrument=instrument).select_related("action"):
+        history.record(profile, user, obj, "delete", group=group, summary=summary)
+    Transaction.objects.filter(profile=profile, instrument=instrument).update(switch=None)
+    for model in (Transaction, Transfer, Dividend, SipSchedule, Folio, AltValue, Guardrail):
+        model.objects.filter(profile=profile, instrument=instrument).delete()
+    CorporateActionResponse.objects.filter(profile=profile, action__instrument=instrument).delete()
+    alert_states_of(instrument).filter(profile=profile).delete()
+    ProfileInvestment.objects.filter(profile=profile, instrument=instrument).delete()
 
 
 def get_profile_investment(profile, instrument):
@@ -330,23 +370,21 @@ def delete_instrument(profile, user, instrument, confirm_name=None):
             raise InvestmentsError("BACKUP_FAILED", f"The safety backup could not be made, so nothing was deleted. ({exc})", 500)
         from investments.models import new_group
 
-        group = new_group()
-        for model in (Transaction, Transfer, Folio, AltValue):
-            for obj in model.objects.filter(profile=profile, instrument=instrument):
-                history.record(profile, user, obj, "delete", group=group, summary=f"Deleted with investment {instrument.name}")
-        Transaction.objects.filter(profile=profile, instrument=instrument).update(switch=None)
-        Transaction.objects.filter(profile=profile, instrument=instrument).delete()
-        Transfer.objects.filter(profile=profile, instrument=instrument).delete()
-        Folio.objects.filter(profile=profile, instrument=instrument).delete()
-        AltValue.objects.filter(profile=profile, instrument=instrument).delete()
+        delete_profile_records(profile, user, instrument, new_group(), f"Deleted with investment {instrument.name}")
+    else:
+        # Nothing is recorded, but this profile's guardrails and alert states may still point at it.
+        from investments.models import Guardrail
+
+        Guardrail.objects.filter(profile=profile, instrument=instrument).delete()
+        alert_states_of(instrument).filter(profile=profile).delete()
     ProfileInvestment.objects.filter(profile=profile, instrument=instrument).delete()
-    ProfileInvestment.objects.filter(sectoral_index=instrument).update(sectoral_index=None)
+    # This profile's sectoral-index choices only (another profile's choice is theirs to change).
+    ProfileInvestment.objects.filter(profile=profile, sectoral_index=instrument).update(sectoral_index=None)
     removed_shared = False
     if instrument.profile_id is not None:
         instrument.delete()
         removed_shared = True
-    elif not (Transaction.objects.filter(instrument=instrument).exists() or Transfer.objects.filter(instrument=instrument).exists()
-              or ProfileInvestment.objects.filter(instrument=instrument).exists()):
+    elif not _in_use_anywhere(instrument):
         instrument.delete()
         removed_shared = True
     core.touch(profile)

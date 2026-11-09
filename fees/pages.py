@@ -43,14 +43,40 @@ _NAV = (
 )
 
 
+def _flag(settings, name):
+    """A switch read from a ``FeesSettings`` row, an unsaved defaults row or a settings dict; on when unknown."""
+    if settings is None:
+        return True
+    if isinstance(settings, dict):
+        return bool(settings.get(name, True))
+    return bool(getattr(settings, name, True))
+
+
+def dashboard_on(settings):
+    """True unless the Dashboard page is switched off in Settings (Years and statistics)."""
+    return _flag(settings, "dashboard_enabled")
+
+
+def bank_on(settings):
+    """True unless Bank is switched off in Settings (Payments): then no filter, column, form field or list shows it."""
+    return _flag(settings, "show_bank")
+
+
 def nav_for(request, settings):
-    """The header entries for this page; the Statistics entry is labelled Dashboard when Statistics is switched off."""
+    """The header entries for this page. The first entry is Statistics with the Dashboard as its first tab; it reads
+    Dashboard when Statistics is off, opens Statistics directly when the Dashboard is off, and is left out when both are."""
     match = getattr(request, "resolver_match", None)
     current = (match.url_name or "") if match else ""
+    stats_on = _flag(settings, "statistics_enabled")
     items = []
     for key, label, url_name, prefixes in _NAV:
-        if key == "statistics" and settings is not None and not settings.statistics_enabled:
-            label = "Dashboard"
+        if key == "statistics":
+            if not dashboard_on(settings):
+                if not stats_on:
+                    continue
+                url_name = "fees_statistics"
+            elif not stats_on:
+                label = "Dashboard"
         items.append({"url": reverse(url_name), "name": label, "on": current.startswith(prefixes)})
     return items
 
@@ -72,6 +98,9 @@ def render_page(request, template, context=None, status=200):
         "fees_dots": settings is None or settings.show_status_dots,
         "can_edit": request_role(request, KEY_FEES) == ROLE_EDITOR,
         "fees_nav": nav_for(request, settings),
+        # Switches read by the header link, the Statistics tabs and every template that would show a bank.
+        "fees_dashboard_on": dashboard_on(settings),
+        "fees_bank_on": bank_on(settings),
         # The user's other Fee Register profiles, for the header switcher (memberships are cached, so no query).
         "fees_other_profiles": [m.profile for m in request_memberships(request, KEY_FEES)[1:]],
         # The user's saved column widths per table id, embedded in the page (one small query).
@@ -155,13 +184,15 @@ def memo_filters(query, default_year=None):
     return filters
 
 
-def feebook_filters(query, default_year=None):
-    """Feebook filters: ``fy``, ``firm``, ``group``, ``bank``, ``unaccounted`` (``default_year`` as for the memos)."""
+def feebook_filters(query, default_year=None, with_bank=True):
+    """Feebook filters: ``fy``, ``firm``, ``group``, ``bank``, ``unaccounted`` (``default_year`` as for the memos).
+    ``with_bank=False`` (Bank switched off) ignores a ``bank`` left in an old link, so nothing is filtered unseen."""
     filters = {}
     year = _year_filter(query, default_year)
     if year:
         filters["financial_year"] = year
-    for key, name in (("firm", "firm_id"), ("group", "group_id"), ("bank", "bank_account_id")):
+    keys = (("firm", "firm_id"), ("group", "group_id")) + ((("bank", "bank_account_id"),) if with_bank else ())
+    for key, name in keys:
         number = int_or_none(query.get(key))
         if number is not None:
             filters[name] = number

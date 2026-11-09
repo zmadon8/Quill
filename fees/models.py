@@ -73,6 +73,11 @@ class FeesSettings(models.Model):
     # New web switches (porting brief section 9, design section 2).
     statistics_enabled = models.BooleanField(default=True)
     dashboard_kpis_enabled = models.BooleanField(default=True)
+    # Owner round (2026-11): the whole Dashboard page can be switched off, and so can every sign of the Bank
+    # account on payments (Feebook filter and column, the payment form, the Feebook export, the Settings list).
+    # Switching Bank off hides it only: stored bank accounts and the banks on payments are kept and backed up.
+    dashboard_enabled = models.BooleanField(default=True)
+    show_bank = models.BooleanField(default=True)
     # New file-name settings (requirements R-FN-1, R-FN-2).
     export_owner_name = models.CharField(max_length=80, default="Ziyad Madon")
     memo_filename_pattern = models.CharField(max_length=200, blank=True, default="")

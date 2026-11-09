@@ -4,7 +4,7 @@ from django.views.decorators.http import require_safe
 from fees import scope
 from fees.decorators import fees_reader, handle_fees_errors
 from fees.exports import xlsx
-from fees.pages import DOCX_TYPE, XLSX_TYPE, feebook_filters, file_response, memo_filters, outstanding_filters
+from fees.pages import DOCX_TYPE, XLSX_TYPE, bank_on, feebook_filters, file_response, memo_filters, outstanding_filters
 from fees.services import memos, word_template
 from fees.views_ledger import scope_for
 
@@ -76,8 +76,12 @@ def matter_ledger_export(request, matter_id):
 @handle_fees_errors()
 @require_safe
 def feebook_export(request):
-    profile, _settings = scope.context(request)
-    return file_response(xlsx.export_feebook(profile, feebook_filters(request.GET)), XLSX_TYPE)
+    profile, settings = scope.context(request)
+    if bank_on(settings):
+        return file_response(xlsx.export_feebook(profile, feebook_filters(request.GET)), XLSX_TYPE)
+    # Bank switched off: no Bank column and no bank filter from an old link.
+    keys = [c[0] for c in xlsx.FEEBOOK_COLUMNS if c[0] != "bank"]
+    return file_response(xlsx.export_feebook(profile, feebook_filters(request.GET, with_bank=False), visible_keys=keys), XLSX_TYPE)
 
 
 @fees_reader

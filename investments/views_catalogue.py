@@ -136,9 +136,23 @@ def catalogue_action(request, pk):
             return page(request, "investments/catalogue_basis.html", {"page_title_text": "Change price basis", "inst": inst, "new_basis": request.POST.get("new_basis", ""),
                                                                        "preview": catalogue.basis_preview(inst), "reason": reason}, selectors=False)
     elif action == "delete":
-        catalogue.delete_instrument(user, inst, reason)
-        messages.success(request, "Deleted.")
-        return redirect(reverse("investments_admin_catalogue"))
+        # First a page listing what goes (counts per profile only); the delete itself needs confirm (and the name typed
+        # while any profile has anything about it).
+        if request.POST.get("confirm"):
+            name = inst.name
+            try:
+                result = catalogue.delete_instrument(user, inst, reason, confirm_name=request.POST.get("confirm_name"))
+            except InvestmentsError as err:
+                if err.code != "CONFIRM_NAME":
+                    raise
+                messages.error(request, err.message)
+                return page(request, "investments/catalogue_delete.html", {"page_title_text": "Delete investment", "inst": inst,
+                                                                           "preview": catalogue.delete_preview(inst), "reason": reason}, selectors=False)
+            affected = result["profiles"]
+            messages.success(request, f"{name} deleted" + (f", with its records in {affected} profile{'s' if affected != 1 else ''}." if affected else "."))
+            return redirect(reverse("investments_admin_catalogue"))
+        return page(request, "investments/catalogue_delete.html", {"page_title_text": "Delete investment", "inst": inst,
+                                                                   "preview": catalogue.delete_preview(inst), "reason": reason}, selectors=False)
     elif action == "profile_detail":
         pi = ProfileInvestment.objects.filter(pk=request.POST.get("pi", 0), instrument=inst).first()
         if pi is None:

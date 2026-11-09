@@ -10,7 +10,7 @@ from fees import forms, scope
 from fees.decorators import fees_editor, fees_read_write, handle_fees_errors
 from fees.errors import FeesError
 from fees.models import Memo, Payment
-from fees.pages import int_list, int_or_none, json_ok, render_page
+from fees.pages import bank_on, int_list, int_or_none, json_ok, render_page
 from fees.services import memo_numbers, memos, payments
 from fees.services import settings as settings_service
 from fees.services.money import format_money
@@ -131,7 +131,16 @@ def _after_save(request, dto):
     return redirect("fees_feebook")
 
 
-def _data(request, profile):
+def _data(request, profile, kept_bank_id=None):
+    """The payment dict from the form. With Bank switched off the form has no bank box, so whatever was posted is
+    ignored and the payment keeps the bank it had (``kept_bank_id``; none for a new payment)."""
+    _profile, settings = scope.context(request)
+    if not bank_on(settings):
+        post = request.POST.copy()
+        post["bank_account_id"] = ""
+        data = forms.payment_data_from_post(post, profile, set())
+        data["bank_account_id"] = kept_bank_id
+        return data
     bank_ids = {account.pk for account in settings_service.list_bank_accounts(profile)}
     return forms.payment_data_from_post(request.POST, profile, bank_ids)
 
@@ -172,7 +181,7 @@ def payment_edit(request, payment_id):
         return _form_page(request, _echo(request.POST), payment=dto)
     if request.method == "POST":
         try:
-            dto = payments.update_payment(profile, payment_id, _data(request, profile))
+            dto = payments.update_payment(profile, payment_id, _data(request, profile, kept_bank_id=dto.get("bank_account_id")))
         except FeesError as err:
             if err.status == 404:
                 raise Http404(err.message) from err

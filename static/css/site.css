@@ -629,7 +629,13 @@ textarea.single-line { display: block; width: 100%; max-width: 28rem; min-height
 /* Justify text (My settings, Display): the text that is normally left-aligned, on screen only. Off unless chosen. */
 @media screen {
   html.justify-text .item-text, html.justify-text .note-text, html.justify-text .section-header strong, html.justify-text .case-line-body, html.justify-text .case-comment { text-align: justify; }
-  html.justify-text .item-body, html.justify-text .note { text-align: justify; }
+  html.justify-text .item-body, html.justify-text .note { text-align: justify; text-align-last: start; }
+  /* A flag box or a Note's Edit button that follows the text cannot break, so when it did not fit it dropped to a line of
+     its own and the text's real last line was stretched to the full width as if it were a middle line. Floated, they are
+     no longer part of the line: the last line of the text stays left-aligned, and the box sits at the right of that line
+     when it fits, or just below it at the right. The Note becomes a flow root so it still wraps its floated button. */
+  html.justify-text .item-body > .flag-text, html.justify-text .note > .note-edit { float: right; margin-left: .5rem; }
+  html.justify-text .note { display: flow-root; }
 }
 
 /* Settings pages with left-hand sections (My settings, Case Law Diary settings, Fee Register settings). Every section is its own form with its own Save; static/js/settings-sections.js shows one section at a time (all are shown, one under the other, without JavaScript). */

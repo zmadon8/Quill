@@ -82,7 +82,7 @@ The Fee Register ships dark: `render.yaml` sets `FEES_ENABLED` to `0`, so every 
 
 ## 5d. Releasing Investments (/investments/)
 
-Investments ships dark: `render.yaml` sets `INVESTMENTS_ENABLED` to `"0"`, so every `/investments/` address is "not found" and no button or tab shows, while its tables, backups and restores keep working. (Housekeeping: section 5c above and the comment in `config/settings.py` still say `FEES_ENABLED` is `0` in `render.yaml`; it is now `"1"`.) At the owner's go-ahead:
+**Status: switched on** (November 2026, on the web service and the cron job; `render.yaml` now says `"1"` for both). To hide it again, set it back to `"0"` on both: the data and backups are kept. What follows is how it was released. Investments ships dark: `render.yaml` sets `INVESTMENTS_ENABLED` to `"0"`, so every `/investments/` address is "not found" and no button or tab shows, while its tables, backups and restores keep working. (Housekeeping: section 5c above and the comment in `config/settings.py` still say `FEES_ENABLED` is `0` in `render.yaml`; it is now `"1"`.) At the owner's go-ahead:
 
 1. **Merge** the pull request. Render deploys it; `migrate_with_backup` takes a "Before update" backup first.
 2. In Render, set `INVESTMENTS_ENABLED` to `1` on the web service (and change `render.yaml` to match). It redeploys.

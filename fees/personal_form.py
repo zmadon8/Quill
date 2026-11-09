@@ -24,7 +24,11 @@ class FeesPersonalForm(forms.Form):
         self.user = user
         shared = getattr(fees_settings, "default_tab", "") or "memos"
         names = dict(OPENING_PAGES)
-        self.fields["default_tab"].choices = [("", f"Same as the profile ({names.get(shared, shared)})")] + list(OPENING_PAGES)
+        # A switched-off Dashboard is not offered (the landing page would open Memos instead).
+        offered = [c for c in OPENING_PAGES if c[0] != "dashboard" or getattr(fees_settings, "dashboard_enabled", True)]
+        if shared == "dashboard" and not getattr(fees_settings, "dashboard_enabled", True):
+            shared = "memos"
+        self.fields["default_tab"].choices = [("", f"Same as the profile ({names.get(shared, shared)})")] + offered
         self.fields["items_per_page"].widget.attrs.update({"size": 8, "inputmode": "numeric"})
         self.fields["items_per_page"].help_text = "A number, or All."
         self.profile_items = getattr(fees_settings, "items_per_page", 50)

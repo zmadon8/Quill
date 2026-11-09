@@ -1,0 +1,22 @@
+{% extends "investments/base_investments.html" %}
+{# Settings > Catalogue > an investment > Delete: what goes, then the confirmation (plan 21.1; owner round 2026-11). Counts per profile only. #}
+{% block inv_content %}
+<div class="titlebar"><h1 class="t">Delete {{ inst.name }}</h1></div>
+{% if preview.problems %}<div class="ban al"><span>{{ preview.problems|join:" " }}</span></div>
+<div class="acts-row"><a class="btn q" href="{% url 'investments_admin_catalogue_item' inst.pk %}">Back</a></div>
+{% else %}
+<p class="lead">This removes <b>{{ inst.name }}</b>{% if inst.code %} ({{ inst.code }}){% endif %} from the program for every profile, with its price history.</p>
+{% if preview.per_profile %}
+<div class="ban al"><span>{{ preview.per_profile|length }} profile{{ preview.per_profile|length|pluralize }} {{ preview.per_profile|length|pluralize:"has,have" }} something about this investment. It is all deleted with it.</span></div>
+<div class="tw"><table data-table-id="inv-catalogue-delete" class="led"><thead><tr><th>Profile</th><th class="r">Transactions</th><th class="r">Transfers</th><th class="r">Dividends</th><th class="r">SIP schedules</th><th class="r">Folio numbers</th><th class="r">Dated values</th><th>Also</th></tr></thead><tbody>
+{% for row in preview.per_profile %}<tr><td>{{ row.name }}</td><td class="r">{{ row.counts.transactions }}</td><td class="r">{{ row.counts.transfers }}</td><td class="r">{{ row.counts.dividends }}</td><td class="r">{{ row.counts.sips }}</td><td class="r">{{ row.counts.folios }}</td><td class="r">{{ row.counts.values }}</td><td>{% if row.default_index %}Its Default Index (the standard one is used instead). {% endif %}{% if row.sectoral %}Sectoral index of {{ row.sectoral }} investment{{ row.sectoral|pluralize }}. {% endif %}{% if not row.records and not row.default_index and not row.sectoral %}Listed, guardrails or alert settings only.{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>
+<p class="hint">Each profile's transactions, transfers, dividends, folio numbers, dated values and corporate action confirmations are written to that profile's History before they go. Holdings, gains, XIRR and reports of those profiles change accordingly.</p>
+{% else %}<p>No profile has anything about it.</p>{% endif %}
+<ul><li>Stored prices: {{ preview.prices }}</li><li>Hand-entered prices: {{ preview.manual_prices }}</li><li>Pinned prices: {{ preview.pins }}</li></ul>
+<p class="hint">A "Before changing the catalogue" backup is taken first; if it cannot be made, nothing is deleted. To bring the investment back, restore that backup.</p>
+<form method="post" action="{% url 'investments_admin_catalogue_action' inst.pk %}">{% csrf_token %}<input type="hidden" name="action" value="delete"><input type="hidden" name="reason" value="{{ reason }}"><input type="hidden" name="confirm" value="1">
+{% if preview.per_profile %}<p><label>Type the name to confirm: <b>{{ inst.name }}</b><br><input name="confirm_name" autocomplete="off" required size="40" aria-label="Type {{ inst.name }} to confirm"></label></p>{% endif %}
+<div class="acts-row"><button class="btn dng" type="submit">Take a backup and delete</button><a class="btn q" href="{% url 'investments_admin_catalogue_item' inst.pk %}">Cancel</a></div></form>
+{% endif %}
+{% endblock %}

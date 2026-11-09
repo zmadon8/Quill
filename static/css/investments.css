@@ -2,7 +2,7 @@
    scoped under body.inv so nothing leaks into the other programs; the mockup's own page, header and body rules are
    dropped because the suite's shared shell (base_suite.html, design.css) supplies them. Uses the suite's tokens
    (static/css/tokens.css) plus the two new tokens --gain and --loss (owner to confirm, plan 25.3). */
-body.inv{--gain:#2d5a3d;--loss:#a8441f;--s1:#1e1c19;--s2:#5a5348;--s3:#8d8577;--s4:#b9b2a3;--s5:#d9d3c5;--data:15px;--tap:44px;--hair:#d9d3c5;--panel:#fcfbf8;--amber-bg:#f4ead0;--amber-line:#c9a24d;--amber-ink:#6b4e12}
+body.inv{--ox:var(--oxblood);--gain:#2d5a3d;--loss:#a8441f;--s1:#1e1c19;--s2:#5a5348;--s3:#8d8577;--s4:#b9b2a3;--s5:#d9d3c5;--data:15px;--tap:44px;--hair:#d9d3c5;--panel:#fcfbf8;--amber-bg:#f4ead0;--amber-line:#c9a24d;--amber-ink:#6b4e12}
 body.inv nav.sub{display:flex;flex-wrap:wrap;gap:4px 24px;padding:11px 0 10px;border-bottom:1px solid var(--hair);font-size:13.5px;color:var(--muted)}
 body.inv nav.sub a{padding:2px 0;border-bottom:1px solid transparent}
 body.inv nav.sub a.on{color:var(--ink);border-bottom-color:var(--ink)}
@@ -216,24 +216,13 @@ body.inv .tw{max-width:100%}
 body.inv .res div{flex-wrap:wrap}
 body.inv .acts-row .btn,body.inv .acts .btn{min-height:44px}
 }
-body.inv .site-header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:.25rem 1.5rem;padding-top:1.25rem;border-bottom:1px solid var(--ink)}
-body.inv .profile-switch{display:inline-flex;align-items:center;justify-content:center;min-width:1.9rem;min-height:1.9rem;color:var(--muted)}
-body.inv .history-buttons{display:inline-flex;gap:.4rem}
-body.inv .program-nav{display:flex;flex-wrap:wrap;align-items:flex-end;gap:0 1.25rem;font-size:1rem}
-body.inv .program-nav a.nl{display:inline-flex;align-items:center;min-height:var(--tap);color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
-body.inv .program-nav a.nl.on{color:var(--ink);border-bottom-color:var(--ox)}
-body.inv .program-nav .who{align-self:center;color:var(--muted)}
+/* The header bar itself (height, padding, alignment) comes from the shared shell (design.css), as in the Case Law Diary and the
+   Fee Register; only the Alerts count badge is the program's own. */
 body.inv .program-nav .dot{display:inline-block;min-width:18px;height:18px;line-height:18px;text-align:center;font-size:11px;background:var(--ox);color:#fff;border-radius:9px;margin-left:6px}
-body.inv .ic{display:inline-flex;align-items:center;justify-content:center;min-width:var(--tap);min-height:var(--tap);color:var(--ink);align-self:center}
-body.inv .ic.open{color:var(--ox)}
 body.inv .search-pop{border-bottom:1px solid var(--hair);background:var(--panel);padding:.6rem 0}
 body.inv .search-pop .f{display:flex;gap:.75rem;align-items:center}
 body.inv .search-pop .in{flex:1;min-height:var(--tap);display:flex;align-items:center;padding:0 12px;border:1px solid var(--ink);background:#fff;border-radius:2px;font-size:16px}
 body.inv .search-pop .btn{min-height:var(--tap);min-width:6rem;justify-content:center}
-@media(max-width:700px){
-body.inv .program-nav a.nl{display:none}
-body.inv .site-header .menu-btn{display:flex}
-}
 body.inv .sw{display:inline-flex;border:1px solid var(--ink);border-radius:2px;overflow:hidden;font-size:14px;vertical-align:middle;margin-left:10px}
 body.inv .sw span{padding:0 16px;min-height:36px;display:flex;align-items:center;color:var(--muted)}
 body.inv .sw span.on{background:var(--ink);color:var(--bg)}

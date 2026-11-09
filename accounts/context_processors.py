@@ -106,12 +106,15 @@ def header_style(request):
     suite-wide (Admins > Appearance), per program: the Fee Register's pages use its choice, every other page the Case
     Law Diary's; base_suite_home.html swaps in the Home choice (``home_header_words``) for the Home, Admins, Settings and
     Help pages. No extra query (shared with ``suite_names``).
-    ``justify_text``: True when the signed-in user chose to justify text (My settings, Display); base_suite.html puts the class on <html>."""
+    ``justify_text``: True when the signed-in user chose to justify text (My settings, Display); base_suite.html puts the class on <html>.
+    ``show_home_button``: False when the signed-in user hid the Home button (My settings, Display)."""
     user = getattr(request, "user", None)
     program = current_program_key(request)
     mode = _read(request)[1].get(program, suite.BRAND_WORDS)
-    justify = bool(user is not None and user.is_authenticated and getattr(user, "justify_text", False))
-    return {"header_words": mode == suite.BRAND_WORDS, "justify_text": justify}
+    signed_in = user is not None and user.is_authenticated
+    justify = bool(signed_in and getattr(user, "justify_text", False))
+    show_home = not signed_in or bool(getattr(user, "show_home_button", True))
+    return {"header_words": mode == suite.BRAND_WORDS, "justify_text": justify, "show_home_button": show_home}
 
 
 #: The main Home page header (D86): each entry is one header item; its tabs are the sub-pages shown across the top of

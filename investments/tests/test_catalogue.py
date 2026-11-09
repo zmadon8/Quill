@@ -122,14 +122,71 @@ class CatalogueServiceTests(InvTestCase):
         self.assertEqual(result["uploaded"], 1)
         self.assertEqual(list(Price.objects.values_list("source", "basis")), [("upload", "raw")])
 
-    def test_delete_is_refused_while_a_profile_holds_records(self):
-        with self.assertRaises(InvestmentsError) as cm:
-            catalogue.delete_instrument(self.user, self.reliance)
-        self.assertEqual(cm.exception.code, "IN_USE")
+    def test_an_unused_investment_is_deleted_without_typing_its_name(self):
         empty = catalogue.create_instrument(self.user, kind="share", name="Unused Co", code="UNUSED.NS")
         catalogue.delete_instrument(self.user, empty, "added by mistake")
         self.assertFalse(Instrument.objects.filter(pk=empty.pk).exists())
         self.assertTrue(CatalogueHistory.objects.filter(record_type="instrument_deleted").exists())
+
+    def test_delete_while_profiles_hold_records_needs_the_name_then_removes_everything_and_logs_it(self):
+        from backups.models import BackupFile
+        from investments.models import AlertState, Dividend, Guardrail, InvestmentHistory, Transaction
+        from investments.services import dividends
+
+        dividends.add(self.profile, self.user, date=d(2024, 6, 1), instrument=self.reliance, portfolio=self.portfolio,
+                      broker=self.zerodha, amount=D(50))
+        Guardrail.objects.create(profile=self.profile, instrument=self.reliance, portfolio=self.portfolio, kind="stop_loss", value=D(10))
+        AlertState.objects.create(profile=self.profile, key=f"rule_a:{self.reliance.pk}:{self.portfolio.pk}")
+        AlertState.objects.create(profile=self.profile, key=f"rule_a:{self.fund.pk}:{self.portfolio.pk}")   # another investment: kept
+        Price.objects.create(instrument=self.reliance, date=d(2026, 11, 5), close=D(1300), source="api", basis="split_adjusted")
+        preview = catalogue.delete_preview(self.reliance)
+        self.assertEqual(preview["problems"], [])
+        self.assertEqual({r["name"] for r in preview["per_profile"]}, {self.profile.name, self.other.name})
+        mine = next(r for r in preview["per_profile"] if r["name"] == self.profile.name)
+        self.assertEqual(mine["counts"]["dividends"], 1)
+        for wrong in (None, "", "reliance industries"):
+            with self.assertRaises(InvestmentsError) as cm:
+                catalogue.delete_instrument(self.user, self.reliance, confirm_name=wrong)
+            self.assertEqual(cm.exception.code, "CONFIRM_NAME")
+        self.assertFalse(BackupFile.objects.filter(kind="pre_catalogue").exists())
+        sold_txn = Transaction.objects.get(profile=self.other, instrument=self.reliance)
+        result = catalogue.delete_instrument(self.user, self.reliance, "listed twice", confirm_name="Reliance Industries")
+        self.assertEqual(result["profiles"], 2)
+        self.assertFalse(Instrument.objects.filter(pk=self.reliance.pk).exists())
+        self.assertFalse(Transaction.objects.filter(instrument_id=self.reliance.pk).exists())
+        self.assertFalse(Dividend.objects.filter(instrument_id=self.reliance.pk).exists())
+        self.assertFalse(Price.objects.filter(instrument_id=self.reliance.pk).exists())
+        self.assertEqual(list(AlertState.objects.values_list("key", flat=True)), [f"rule_a:{self.fund.pk}:{self.portfolio.pk}"])
+        self.assertTrue(BackupFile.objects.filter(kind="pre_catalogue").exists())
+        self.assertTrue(InvestmentHistory.objects.filter(profile=self.other, record_type="transaction", record_id=sold_txn.pk, change_kind="delete").exists())
+        self.assertTrue(InvestmentHistory.objects.filter(profile=self.profile, record_type="dividend", change_kind="delete").exists())
+        entry = CatalogueHistory.objects.get(record_type="instrument_deleted")
+        self.assertEqual((entry.old, entry.reason), ("Reliance Industries", "listed twice"))
+        self.assertTrue(Instrument.objects.filter(pk=self.fund.pk).exists())
+
+    def test_built_in_indices_cannot_be_deleted(self):
+        masters.ensure_builtin_indices()
+        nifty = Instrument.objects.get(code="^NSEI", profile=None)
+        self.assertTrue(catalogue.delete_preview(nifty)["problems"])
+        with self.assertRaises(InvestmentsError) as cm:
+            catalogue.delete_instrument(self.user, nifty, confirm_name=nifty.name)
+        self.assertEqual(cm.exception.code, "BUILTIN")
+        self.assertTrue(Instrument.objects.filter(pk=nifty.pk).exists())
+
+    def test_delete_page_previews_then_needs_the_name(self):
+        self.client.force_login(self.user)
+        url = reverse("investments_admin_catalogue_action", args=[self.reliance.pk])
+        page = self.client.post(url, {"action": "delete", "reason": "dup"})
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, "Type the name to confirm")
+        self.assertContains(page, self.other.name)
+        self.assertNotContains(page, "1100")   # counts only: no units, prices or costs
+        wrong = self.client.post(url, {"action": "delete", "confirm": "1", "confirm_name": "Reliance"})
+        self.assertContains(wrong, "Type the investment&#x27;s name exactly")
+        self.assertTrue(Instrument.objects.filter(pk=self.reliance.pk).exists())
+        done = self.client.post(url, {"action": "delete", "confirm": "1", "confirm_name": "Reliance Industries"})
+        self.assertRedirects(done, reverse("investments_admin_catalogue"), fetch_redirect_response=False)
+        self.assertFalse(Instrument.objects.filter(pk=self.reliance.pk).exists())
 
     def test_listing_flags(self):
         dup = masters.create_instrument(self.profile, self.user, kind="share", name="Another", code="RELIANCE.NS", allow_duplicate=True)

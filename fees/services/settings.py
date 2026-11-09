@@ -124,6 +124,8 @@ SETTINGS_KEYS = frozenset(
         "dashboard_kpis",
         "statistics_enabled",
         "dashboard_kpis_enabled",
+        "dashboard_enabled",
+        "show_bank",
         "memo_signature_default",
         "list_default_filter",
         "items_per_page",
@@ -274,6 +276,8 @@ def _validate_candidate(key, value):
         "show_status_dots",
         "statistics_enabled",
         "dashboard_kpis_enabled",
+        "dashboard_enabled",
+        "show_bank",
         "memo_signature_default",
     ):
         return bool(value)

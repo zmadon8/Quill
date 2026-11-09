@@ -10,7 +10,7 @@ from django.views.decorators.http import require_POST, require_safe
 
 from fees import scope
 from fees.decorators import fees_editor, fees_reader, handle_fees_errors
-from fees.pages import TAB_URL_NAMES, json_ok, render_page
+from fees.pages import TAB_URL_NAMES, dashboard_on, json_ok, render_page
 from fees.services import dashboard, memo_lists, prefs
 from fees.services import settings as settings_service
 
@@ -41,14 +41,26 @@ def landing(request):
     """``/fees/``: open the user's chosen first page (the ``default_tab`` setting)."""
     profile, settings = scope.context(request)
     tab = prefs.personal_default_tab(profile, request.user, settings) if profile is not None else ""
+    if tab == "dashboard" and not dashboard_on(settings):
+        tab = "memos"  # the Dashboard is switched off: open Memos instead of a page that is not there
     name = TAB_URL_NAMES.get(tab, "fees_memos")
     return redirect(name)
+
+
+def _dashboard_off(request):
+    """With the Dashboard switched off its address opens the person's first page instead (never a loop: the landing
+    page does not send anyone to a switched-off Dashboard)."""
+    _profile, settings = scope.context(request)
+    return None if dashboard_on(settings) else redirect("fees_landing")
 
 
 @fees_reader
 @handle_fees_errors()
 @require_safe
 def dashboard_page(request):
+    off = _dashboard_off(request)
+    if off is not None:
+        return off
     profile, _settings = scope.context(request)
     config = settings_service.get_settings(profile)
     kpis = dashboard.get_dashboard_kpis(profile, settings=config)

@@ -379,20 +379,91 @@ def change_basis(user, instrument, new_basis, reason=""):
     return {"refetched": refetched, "uploaded": Price.objects.filter(instrument=instrument, source="upload").count()}
 
 
+def _is_builtin_index(instrument):
+    from investments.models import KIND_INDEX
+    from investments.services.masters import BUILTIN_INDICES
+
+    return instrument.kind == KIND_INDEX and instrument.code in {code for _name, code in BUILTIN_INDICES}
+
+
+def _profiles_using(instrument):
+    """The ids of every profile with anything about this investment: records, schedules, its own row, guardrails,
+    confirmations, saved alert states, or the investment chosen as its Default Index or a sectoral index."""
+    from investments.models import CorporateActionResponse, Dividend, Guardrail, SipSchedule
+    from investments.services.masters import alert_states_of
+
+    ids = set()
+    for model in (Transaction, Transfer, Dividend, SipSchedule, Folio, AltValue, Guardrail, ProfileInvestment):
+        ids |= set(model.objects.filter(instrument=instrument).values_list("profile_id", flat=True))
+    ids |= set(CorporateActionResponse.objects.filter(action__instrument=instrument).values_list("profile_id", flat=True))
+    ids |= set(alert_states_of(instrument).values_list("profile_id", flat=True))
+    ids |= set(InvestmentSettings.objects.filter(default_index=instrument).values_list("profile_id", flat=True))
+    ids |= set(ProfileInvestment.objects.filter(sectoral_index=instrument).values_list("profile_id", flat=True))
+    return ids
+
+
+def delete_preview(instrument):
+    """What deleting this shared investment removes: per profile, counts only (plan 21.1: no units, costs or dates), and the
+    shared price history. ``problems`` says why it cannot be deleted at all."""
+    from accounts.models import Profile
+    from investments.services.masters import records_of
+
+    problems = []
+    if instrument.profile_id is not None:
+        problems.append("This is a private alternative investment, which is not in the catalogue.")
+    if _is_builtin_index(instrument):
+        problems.append("This is one of the built-in indices, which the program needs (it would be put back at once). "
+                        "It cannot be deleted.")
+    per_profile = []
+    for p in Profile.objects.filter(pk__in=_profiles_using(instrument)).order_by("name"):
+        counts = records_of(p, instrument)
+        per_profile.append({"name": p.name, "counts": counts, "records": sum(counts.values()),
+                            "default_index": InvestmentSettings.objects.filter(profile=p, default_index=instrument).exists(),
+                            "sectoral": ProfileInvestment.objects.filter(profile=p, sectoral_index=instrument).count()})
+    return {
+        "problems": problems,
+        "per_profile": per_profile,
+        "records": sum(row["records"] for row in per_profile),
+        "prices": Price.objects.filter(instrument=instrument).count(),
+        "manual_prices": ManualPrice.objects.filter(instrument=instrument).count(),
+        "pins": PinnedPrice.objects.filter(instrument=instrument).count(),
+    }
+
+
 @transaction.atomic
-def delete_instrument(user, instrument, reason=""):
-    """Refused while any profile holds records for it (use the profile-level delete or a merge)."""
+def delete_instrument(user, instrument, reason="", confirm_name=None):
+    """Delete a shared investment from the catalogue, with everything every profile recorded against it.
+
+    Refused for a private investment and for the built-in indices. While any profile has anything about it, the Admin must
+    type its name exactly. A "Before changing the catalogue" backup is taken first and nothing is deleted if it fails. Each
+    profile's records are written to that profile's permanent history before they go, the change is logged in the
+    catalogue history, a profile that used it as its Default Index falls back to the standard one, and every affected
+    profile's figures are recomputed."""
     require_admin(user)
     if instrument.profile_id is not None:
         raise not_found("shared investment")
-    holders = holder_profiles(instrument)
-    if holders:
-        raise InvestmentsError("IN_USE", f"{len(holders)} profile(s) hold records for this investment, so it cannot be deleted here. Merge it, "
-                               "or delete it inside each profile.", 409)
+    if _is_builtin_index(instrument):
+        raise InvestmentsError("BUILTIN", "The built-in indices cannot be deleted.", 409)
+    from accounts.models import Profile
+    from investments.models import new_group
+    from investments.services import core
+    from investments.services.masters import delete_profile_records
+
+    profile_ids = _profiles_using(instrument)
+    if profile_ids and (confirm_name or "").strip() != instrument.name:
+        raise InvestmentsError("CONFIRM_NAME", "Type the investment's name exactly to confirm.", 400)
     _backup(user)
-    log(user, instrument, "instrument_deleted", instrument.pk, "name", instrument.name, "", reason)
-    instrument.delete()
+    profiles = list(Profile.objects.filter(pk__in=profile_ids))
+    summary = f"Deleted with investment {instrument.name} (Settings > Catalogue)"
+    for p in profiles:
+        delete_profile_records(p, user, instrument, new_group(), summary)
+    log(user, instrument, "instrument_deleted", instrument.pk, "name", instrument.name,
+        f"{len(profiles)} profile(s) affected" if profiles else "", reason)
+    instrument.delete()   # prices, pins, symbols, signals and corporate actions go with it; Default and sectoral index choices are cleared
+    for p in profiles:
+        core.touch(p)
     fetch.bump_version()
+    return {"profiles": len(profiles)}
 
 
 @transaction.atomic

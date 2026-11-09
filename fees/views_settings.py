@@ -74,7 +74,8 @@ def settings_context(profile, fy=None, tab="memos"):
         ),
         "bank_accounts": settings_service.list_bank_accounts(profile),
         "template_info": word_template.get_template_info(profile),
-        "tab_choices": DEFAULT_TAB_CHOICES,
+        # The profile's Opening page: a switched-off Dashboard is not offered (Memos opens instead).
+        "tab_choices": tuple(t for t in DEFAULT_TAB_CHOICES if t != "dashboard" or config.get("dashboard_enabled", True)),
         "payment_amount_choices": PAYMENT_AMOUNT_CHOICES,
         "money_unit_choices": MONEY_UNIT_CHOICES,
         "money_unit": config["money_unit"],

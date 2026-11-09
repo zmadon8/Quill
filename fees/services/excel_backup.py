@@ -211,6 +211,8 @@ WEB_SETTINGS_KEYS = [
     "memo_filename_pattern",
     "statistics_enabled",
     "dashboard_kpis_enabled",
+    "dashboard_enabled",
+    "show_bank",
 ] + MEMO_TEXT_DEFAULT_KEYS + [
     "memo_signature_default",
     "list_default_filter",

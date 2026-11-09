@@ -426,7 +426,7 @@ _SETTINGS_TEXT = (
 )
 _SETTINGS_SHEET_COLUMNS = ["id"] + [name for name, _kind, _default in SETTINGS_COLUMNS]
 _WEB_TEXT_KEYS = ("export_owner_name", "memo_filename_pattern") + tuple(MEMO_TEXT_DEFAULT_KEYS)
-_WEB_BOOL_KEYS = ("statistics_enabled", "dashboard_kpis_enabled")
+_WEB_BOOL_KEYS = ("statistics_enabled", "dashboard_kpis_enabled", "dashboard_enabled", "show_bank")
 
 
 def _apply_settings_row(settings, values, number):

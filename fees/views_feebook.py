@@ -3,7 +3,7 @@ from django.views.decorators.http import require_safe
 
 from fees import scope
 from fees.decorators import fees_reader, handle_fees_errors
-from fees.pages import feebook_filters, page_number, render_page
+from fees.pages import bank_on, feebook_filters, page_number, render_page
 from fees.services import feebook, filter_options, fy_options, memo_lists, prefs
 from fees.services import settings as settings_service
 from fees.services.financial_year import current_financial_year
@@ -15,8 +15,9 @@ from fees.services.financial_year import current_financial_year
 def feebook_page(request):
     profile, settings = scope.context(request)
     current = current_financial_year()
-    filters = feebook_filters(request.GET, current)
-    banks = list(settings_service.list_bank_accounts(profile))
+    with_bank = bank_on(settings)
+    filters = feebook_filters(request.GET, current, with_bank=with_bank)
+    banks = list(settings_service.list_bank_accounts(profile)) if with_bank else []
     options = filter_options.feebook_options(profile, filters, banks)
     if "fy" not in request.GET:
         # No year in the link: the current year, or the newest year with payments when the current year has none.
