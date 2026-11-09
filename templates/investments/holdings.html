@@ -1,13 +1,13 @@
 {% extends "investments/base_investments.html" %}
 {% load investments_money %}
+{% block page_actions %}{% if can_edit %}<p class="page-actions" role="group" aria-label="Investment actions"><a class="btn p" href="{% url 'investments_add_1' %}">Add investment</a><a class="btn q" href="{% url 'investments_import_statement' %}">Import a statement</a></p>{% endif %}{% endblock %}
 {% block inv_content %}
-<div class="titlebar"><h1 class="t">Investments</h1><div class="meta">{{ held_count }} held &middot; {{ sold_count }} sold out</div></div>
+<h1 class="visually-hidden">Investments</h1>
 <div class="sec">
   <form method="get" class="filters" style="display:flex;gap:16px;flex-wrap:wrap">
     <div class="sel"><span>Type</span><select name="type" onchange="this.form.submit()">{% for key, label in kinds %}<option value="{{ key }}"{% if key == kind %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
     <div class="sel"><span>Status</span><select name="status" onchange="this.form.submit()">{% for key, label in status_choices %}<option value="{{ key }}"{% if key == status %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
   </form>
-  <div class="acts">{% if can_edit %}<a class="btn p" href="{% url 'investments_add_1' %}">Add investment</a>{% endif %}</div>
 </div>
 {% if rows %}
 <div class="tw"><table data-table-id="inv-holdings-1" class="led" data-sortable>
@@ -26,6 +26,6 @@
   </tbody>
 </table></div>
 {% else %}
-<p class="lead na">{% if held_count or sold_count %}Nothing matches these filters.{% else %}No investments yet. <a href="{% url 'investments_add_1' %}">Add an investment</a> to begin.{% endif %}</p>
+<p class="lead na">{% if held_count or sold_count %}Nothing matches these filters.{% else %}No investments yet. <a href="{% url 'investments_add_1' %}">Add an investment</a> to begin, or <a href="{% url 'investments_import_statement' %}">import a statement</a> from your broker or fund house.{% endif %}</p>
 {% endif %}
 {% endblock %}

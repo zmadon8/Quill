@@ -30,9 +30,9 @@ services:
       - key: FEES_ENABLED
         value: "1"
       # Investments: "1" shows it. "0" hides it and makes every /investments/ URL a 404, but keeps the data and the
-      # backups working. Ships dark; set to "1" at the owner's go-ahead (docs/HOSTING_AND_DEPLOY.md, section 5d).
+      # backups working. Switched on by the owner in November 2026 (docs/HOSTING_AND_DEPLOY.md, section 5d).
       - key: INVESTMENTS_ENABLED
-        value: "0"
+        value: "1"
       # Optional: only needed if you add your own domain name (comma separated).
       # Render's own address is allowed automatically.
       - key: DJANGO_ALLOWED_HOSTS
@@ -88,7 +88,7 @@ services:
         value: "30"
       # Investments: keep in step with the web service. "0" makes fetch_prices and create_sip_entries do nothing.
       - key: INVESTMENTS_ENABLED
-        value: "0"
+        value: "1"
       # Days a deleted profile can be restored before it is removed for good.
       - key: PROFILE_RETENTION_DAYS
         value: "30"

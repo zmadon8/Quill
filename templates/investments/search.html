@@ -1,6 +1,6 @@
 {% extends "investments/base_investments.html" %}
 {% block inv_content %}
-<div class="titlebar"><h1 class="t">Search</h1></div>
+<div class="page-head"><h1>Search</h1></div>
 <form method="get" role="search" class="inline-edit"><input type="search" name="q" value="{{ query }}" placeholder="Investments, folios, brokers, transactions, pages" autofocus aria-label="Search"><button class="btn p">Search</button></form>
 {% if too_short %}<p class="hint">Type at least two letters.</p>
 {% elif query and not groups %}<p class="lead na">Nothing found for &ldquo;{{ query }}&rdquo;.</p>

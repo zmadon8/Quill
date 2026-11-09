@@ -1,6 +1,6 @@
 {% extends "investments/base_investments.html" %}
 {% block inv_content %}
-<div class="titlebar"><h1 class="t">Upload price history</h1></div>
+<div class="page-head"><h1>Upload price history</h1></div>
 <p class="hint">CSV or Excel, one row per investment per day: a symbol (or ISIN or scheme code), a date, a close and optionally a basis. Unknown symbols are listed and skipped. Nothing is written until you confirm, and a file with any bad row is not applied at all. Keep the original files safe: they are the backup of uploaded prices.</p>
 {% if not report %}
 <form method="post" enctype="multipart/form-data" class="form">{% csrf_token %}{% include "investments/_form.html" %}<div class="acts-row"><button class="btn p" type="submit">Check the file (dry run)</button><a class="btn q" href="{% url 'investments_admin_prices' %}">Back</a></div></form>

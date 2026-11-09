@@ -258,8 +258,8 @@ class MySettingsForm(forms.ModelForm):
 
     class Meta:
         model = User
-        fields = ("email", "landing_program", "justify_text")
-        labels = {"justify_text": "Justify text"}
+        fields = ("email", "landing_program", "justify_text", "show_home_button")
+        labels = {"justify_text": "Justify text", "show_home_button": "Show the Home button"}
 
     def clean_email(self):
         return _clean_unique_email(self)
@@ -273,6 +273,12 @@ class MySettingsForm(forms.ModelForm):
             self.fields["justify_text"].help_text = (
                 "Lines up the right-hand edge of the text of Items, Sections and Notes on screen. Off: the text is left-aligned. "
                 "The Word export is not affected."
+            )
+        if "show_home_button" in self.fields:
+            self.fields["show_home_button"].required = False
+            self.fields["show_home_button"].help_text = (
+                "The house button at the right of the header bar. Off: it is hidden on every page; Alt+H (Option+H on a Mac) "
+                "still opens Home."
             )
         self.fields["landing_program"].choices = landing.program_choices(landing.programs_for(self.instance))
 
@@ -288,7 +294,7 @@ class MyDisplayForm(MySettingsForm):
     """The Display section of My settings: where to land after login and justified text."""
 
     class Meta(MySettingsForm.Meta):
-        fields = ("landing_program", "justify_text")
+        fields = ("landing_program", "justify_text", "show_home_button")
 
 
 class ProfileForm(forms.ModelForm):

@@ -87,6 +87,22 @@ class SettingsTabsTests(TestCase):
         self.assertGreaterEqual(html.count("Only you"), 8)
         self.assertNotIn("Everyone in this profile", html)  # nothing shared lives on My settings
 
+    def test_the_home_button_can_be_hidden_and_shown_again(self):
+        # Owner round (2026-11): My settings > Display > Show the Home button (on by default, per user).
+        home = 'class="home-button"'
+        self.assertTrue(self.user.show_home_button)
+        self.assertIn(home, self.client.get(reverse("my_settings")).content.decode())
+        self.client.post(reverse("my_settings"), {"tab": "display", "landing_program": ""})   # box not ticked
+        self.user.refresh_from_db()
+        self.assertFalse(self.user.show_home_button)
+        html = self.client.get(reverse("my_settings")).content.decode()
+        self.assertNotIn(home, html)
+        self.assertIn('data-home="', html)   # the Alt+H shortcut still knows where Home is
+        self.client.post(reverse("my_settings"), {"tab": "display", "landing_program": "", "show_home_button": "on"})
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.show_home_button)
+        self.assertIn(home, self.client.get(reverse("my_settings")).content.decode())
+
     def test_saving_a_section_keeps_the_others_and_returns_to_it(self):
         self.user.justify_text = True
         self.user.save()

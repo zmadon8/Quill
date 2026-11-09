@@ -1,6 +1,6 @@
 {% extends "investments/base_investments.html" %}
 {% block inv_content %}
-<div class="titlebar"><h1 class="t">{{ page_title_text }}</h1></div>
+<div class="page-head"><h1>{{ page_title_text }}</h1></div>
 <form method="post" class="form" novalidate>{% csrf_token %}
   <p class="hint">{{ intro }}</p>
   {% include "investments/_form.html" %}

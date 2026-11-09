@@ -23,7 +23,7 @@
   <fieldset><legend>Who paid, and how</legend>
   <p><label>Payee <input type="text" name="payee" value="{{ form.payee }}" size="40" aria-describedby="payee-chips-label"></label></p>
   <div class="chips" data-payee-chips hidden><span id="payee-chips-label" class="muted">Paid by before:</span> <span data-chip-list></span></div>
-  <p><label>Bank account <select name="bank_account_id"><option value="">None</option>{% for b in bank_choices %}<option value="{{ b.pk }}"{% if form.bank_account_id == b.pk|stringformat:"s" %} selected{% endif %}>{{ b.name }}</option>{% endfor %}</select></label>
+  <p>{% if fees_bank_on %}<label>Bank account <select name="bank_account_id"><option value="">None</option>{% for b in bank_choices %}<option value="{{ b.pk }}"{% if form.bank_account_id == b.pk|stringformat:"s" %} selected{% endif %}>{{ b.name }}</option>{% endfor %}</select></label>{% endif %}
      <label>Mode <input type="text" name="payment_mode" value="{{ form.payment_mode }}" size="14"></label></p>
   <p><label>Additional Details <textarea name="payment_details" rows="2" cols="40">{{ form.payment_details }}</textarea></label></p>
   </fieldset>

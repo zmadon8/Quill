@@ -28,9 +28,9 @@ class GoldenTableTests(SimpleTestCase):
                 self.assertEqual(got, case["out"])
 
     def test_accepts_decimal_int_float(self):
-        self.assertEqual(format_rupees(Decimal("85400")), "₹85.40 k")
-        self.assertEqual(format_rupees(85400), "₹85.40 k")
-        self.assertEqual(format_rupees(85400.0), "₹85.40 k")
+        self.assertEqual(format_rupees(Decimal("85400")), "₹85.4k")
+        self.assertEqual(format_rupees(85400), "₹85.4k")
+        self.assertEqual(format_rupees(85400.0), "₹85.4k")
 
     def test_grouping(self):
         self.assertEqual(group_indian("1234567"), "12,34,567")
@@ -39,8 +39,16 @@ class GoldenTableTests(SimpleTestCase):
         self.assertEqual(group_western("1234567"), "1,234,567")
 
     def test_rounding_is_on_exact_amount_not_on_rounded_figures(self):
-        # 99.999 lac must roll over into crores; a naive round-then-pick-unit would print 100.00 lac.
-        self.assertEqual(format_rupees("9999900"), "₹1.00 cr")
+        # Short rupees follow the Fee Register exactly: the unit is chosen on the exact amount (99,99,900 is below a crore, so lacs).
+        self.assertEqual(format_rupees("9999900"), "₹100 lac")
+        self.assertEqual(format_rupees("12345.675"), "₹12.35k")
+
+    def test_short_rupees_are_the_fee_registers_short_figures(self):
+        from fees.services.money import format_money
+
+        for v in ("0", "7.5", "950", "85400", "99999.5", "2412600", "9999499", "24126000", "1234567890", "-60300"):
+            with self.subTest(v=v):
+                self.assertEqual(format_rupees(v).replace("−", "-").replace("₹", ""), format_money(v, unit="truncated"))
 
 
 class JavaScriptMirrorTests(SimpleTestCase):

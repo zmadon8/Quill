@@ -1,6 +1,6 @@
 {% extends "investments/base_investments.html" %}
 {% block inv_content %}
-<div class="titlebar"><h1 class="t">Price history</h1><div class="meta">{{ rows }} stored price{{ rows|pluralize }}</div></div>
+<h1 class="visually-hidden">Price history</h1>
 <p class="hint">Three layers: the normal backup, which also carries a small set of <b>pinned prices</b> (index values on every transaction date, and prices on every 31 March); the <b>price archive</b>, which holds every stored price and can be downloaded or emailed; and optional <b>pruning</b> of old daily prices to one a month. Pruning is for every profile because prices are shared.</p>
 
 <div class="sec"><h2>Pinned prices</h2></div>

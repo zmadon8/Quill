@@ -63,15 +63,18 @@
     </div>
     <div class="setting-row"><label><input type="hidden" name="hide_payment_when_paid" value="0"><input type="checkbox" name="hide_payment_when_paid" value="1"{% if config.hide_payment_when_paid %} checked{% endif %}> Hide the payment button on paid memos</label>{% include "_who_tag.html" with who="profile" %}<span class="setting-help">Takes the add-payment button off memos that are fully paid.</span></div>
     <div class="setting-row"><label><input type="hidden" name="show_status_dots" value="0"><input type="checkbox" name="show_status_dots" value="1"{% if config.show_status_dots %} checked{% endif %}> Show status markers</label>{% include "_who_tag.html" with who="profile" %}<span class="setting-help">Shows a coloured marker for the status of each memo in the lists.</span></div>
+    <div class="setting-row"><label><input type="hidden" name="show_bank" value="0"><input type="checkbox" name="show_bank" value="1"{% if config.show_bank %} checked{% endif %}> Show bank</label>{% include "_who_tag.html" with who="profile" %}<span class="setting-help">Shows the bank account on payments: the Bank filter and column on Feebook, the Bank account box on a payment and the bank accounts list below. Switched off, it is hidden everywhere; banks already recorded are kept.</span></div>
   </fieldset>
   {% if can_edit %}<p class="section-actions"><button type="submit" class="primary">Save</button> <span class="dirty-note" data-dirty-note hidden>You have unsaved changes.</span></p>{% endif %}
 </form>
+  {% if config.show_bank %}
   <h3 class="small-caps">Bank accounts</h3>
   <p class="setting-help">The accounts you can pick when you record a payment. {% include "_who_tag.html" with who="profile" %}</p>
   <ul class="chips bank-chips">{% for b in bank_accounts %}<li class="chip"><span>{{ b.name }}</span>
     {% if can_edit %}<form method="post" action="{% url 'fees_bank_account_rename' b.pk %}" class="inline">{% csrf_token %}<input type="text" name="name" value="{{ b.name }}" aria-label="New name for {{ b.name }}"> <button type="submit" class="small secondary">Rename</button></form>
     <form method="post" action="{% url 'fees_bank_account_delete' b.pk %}" class="inline">{% csrf_token %}<button type="submit" class="small ghost" aria-label="Remove {{ b.name }}">&times;</button></form>{% endif %}</li>{% empty %}<li class="muted">None.</li>{% endfor %}</ul>
   {% if can_edit %}<form method="post" action="{% url 'fees_bank_account_add' %}" class="bank-add">{% csrf_token %}<input type="text" name="name" maxlength="200" required placeholder="New bank account" aria-label="New bank account"> <button type="submit">Add</button></form>{% endif %}
+  {% endif %}
 </section>
 
 <section class="card settings-card settings-panel-body" data-section="word" id="settings-word">
@@ -126,6 +129,7 @@
     </div>
     <p class="hint">The first year shown in each area (e.g. 2026-27). Earlier years are hidden from that area's year drop-down, but the data stays stored.</p>
     <div class="setting-row"><label><input type="hidden" name="statistics_enabled" value="0"><input type="checkbox" name="statistics_enabled" value="1"{% if config.statistics_enabled %} checked{% endif %}> Statistics page</label>{% include "_who_tag.html" with who="profile" %}<span class="setting-help">Shows the Statistics page. Switched off, the header shows Dashboard instead.</span></div>
+    <div class="setting-row"><label><input type="hidden" name="dashboard_enabled" value="0"><input type="checkbox" name="dashboard_enabled" value="1"{% if config.dashboard_enabled %} checked{% endif %}> Dashboard page</label>{% include "_who_tag.html" with who="profile" %}<span class="setting-help">Shows the Dashboard. Switched off, it leaves the header and the Statistics tabs, and anyone whose opening page was the Dashboard opens on Memos.</span></div>
     <div class="setting-row"><label><input type="hidden" name="dashboard_kpis_enabled" value="0"><input type="checkbox" name="dashboard_kpis_enabled" value="1"{% if config.dashboard_kpis_enabled %} checked{% endif %}> Dashboard overview</label>{% include "_who_tag.html" with who="profile" %}<span class="setting-help">Shows the overview figures at the top of the Dashboard.</span></div>
   </fieldset>
   {% if can_edit %}<p class="section-actions"><button type="submit" class="primary">Save</button> <span class="dirty-note" data-dirty-note hidden>You have unsaved changes.</span></p>{% endif %}

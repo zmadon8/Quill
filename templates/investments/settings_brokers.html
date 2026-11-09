@@ -1,6 +1,6 @@
 {% extends "investments/base_investments.html" %}
 {% block inv_content %}
-<div class="titlebar"><h1 class="t">Brokers</h1></div>
+<h1 class="visually-hidden">Brokers</h1>
 <p class="hint">Every purchase and sale records the broker or platform it went through, such as a stockbroker, a mutual fund platform, or direct with the fund house. There is no built-in "no broker": if none applies, add your own, for example "Direct" or "Self".</p>
 <div class="tw"><table data-table-id="inv-settings_brokers-1" class="led"><thead><tr><th>Broker</th><th></th></tr></thead><tbody>
 {% for b in brokers %}<tr><td>{% if can_edit %}<form method="post" action="{% url 'investments_broker_action' %}" class="inline-edit">{% csrf_token %}<input type="hidden" name="id" value="{{ b.pk }}"><input name="name" value="{{ b.name }}" aria-label="Broker name">{% if b.hidden %}<span class="tag">Hidden</span>{% endif %}

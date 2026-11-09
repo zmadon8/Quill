@@ -1,4 +1,8 @@
-"""The Admin catalogue pages (plan 21.1): the list, and one investment with its price history, symbols, holders and structural operations."""
+"""The investment catalogue (plan 21.1): the list, and one investment with its price history, symbols, holders and structural operations.
+
+Owner round (2026-11): everyone in Investments can see the catalogue and each investment's price history; an Editor can correct prices, fetch
+the history again from a chosen date and trim the history before the first purchase (``price_action``, also used from an investment's own
+page). Shared details, symbols, other profiles' names and the structural operations stay with the Admin."""
 import datetime
 
 from django.contrib import messages
@@ -7,11 +11,11 @@ from django.shortcuts import redirect
 from django.urls import reverse
 
 from . import forms
-from .decorators import inv_admin
+from .decorators import inv_admin, inv_editor, inv_reader
 from .errors import InvestmentsError
 from .models import CatalogueHistory, Instrument, ProfileInvestment, SourceSymbol
 from .services import catalogue, fetch
-from .viewutil import handle_errors, page, parse_date, profile_or_404
+from .viewutil import handle_errors, page, parse_date, profile_or_404, safe_next
 
 
 def _shared_or_404(pk):
@@ -21,7 +25,7 @@ def _shared_or_404(pk):
     return inst
 
 
-@inv_admin
+@inv_reader
 def catalogue_list(request):
     profile_or_404(request)
     q, kind, source, flag = (request.GET.get(k, "") for k in ("q", "type", "source", "flag"))
@@ -33,7 +37,7 @@ def catalogue_list(request):
         "kinds": [("", "All types"), ("share", "Share"), ("fund", "Mutual fund"), ("foreign", "Foreign"), ("index", "Index")],
         "sources": [("", "All sources"), ("yahoo", "Yahoo"), ("amfi", "AMFI"), ("mfapi", "mfapi.in"), ("manual", "Manual"), ("upload", "Uploaded")],
         "flags": [("", "Any"), ("stale", "Stale"), ("failing", "Fetch failing"), ("split", "Split detected"), ("duplicate", "Possible duplicate")],
-        "new_form": forms.CatalogueNewForm()}, selectors=False)
+        "new_form": forms.CatalogueNewForm(), "is_admin": bool(getattr(request.user, "is_admin", False))}, selectors=False)
 
 
 def _export(items):
@@ -58,10 +62,34 @@ def catalogue_new(request):
     return redirect(reverse("investments_admin_catalogue"))
 
 
-@inv_admin
+def price_history_context(request, inst, prefix="", profile=None):
+    """The price-history block of the catalogue item page and of an investment's own page (``templates/investments/_price_history.html``).
+    ``prefix`` keeps its query parameters apart from the page's own. ``profile`` is given on the investment's own page only: the catalogue
+    never shows a date from any profile's records (plan 21.1), so the first purchase and the trim tool are on the investment's page."""
+    start, end = parse_date(request.GET.get(prefix + "from")), parse_date(request.GET.get(prefix + "to"))
+    try:
+        number = int(request.GET.get(prefix + "page", 1))
+    except ValueError:
+        number = 1
+    rows, number, pages, total = catalogue.price_rows(inst, start, end, number)
+    from .models import Price
+
+    own_first = catalogue.first_purchase_date(inst, profile=profile) if profile is not None else None
+    oldest = Price.objects.filter(instrument=inst).order_by("date").values_list("date", flat=True).first()
+    trim = catalogue.trim_preview(inst) if profile is not None else None
+    if trim and not trim["problem"]:
+        trim["own"] = own_first is not None and trim["first"] == own_first   # the earliest purchase is this profile's own
+    return {"p_rows": rows, "p_page_no": number, "p_pages": pages, "p_total": total, "p_start": start, "p_end": end, "p_prefix": prefix,
+            "p_first_purchase": own_first, "p_oldest": oldest, "p_fetchable": inst.price_source in ("yahoo", "amfi", "mfapi"),
+            "p_trim": trim, "p_today": datetime.date.today(),
+            "p_deleted": CatalogueHistory.objects.filter(instrument_id_ref=inst.pk, record_type="price_deleted")[:10]}
+
+
+@inv_reader
 def catalogue_item(request, pk):
     profile_or_404(request)
     inst = _shared_or_404(pk)
+    is_admin = bool(getattr(request.user, "is_admin", False))
     start, end = parse_date(request.GET.get("from")), parse_date(request.GET.get("to"))
     try:
         number = int(request.GET.get("page", 1))
@@ -78,7 +106,7 @@ def catalogue_item(request, pk):
         "basis": catalogue.basis_preview(inst), "others": Instrument.objects.filter(profile=None, kind=inst.kind).exclude(pk=inst.pk).order_by("name"),
         "moves": fetch.one_day_moves(inst), "stale_days": fetch.stale_days(inst),
         "deleted_prices": CatalogueHistory.objects.filter(instrument_id_ref=inst.pk, record_type="price_deleted")[:10],
-        "today": datetime.date.today()}, selectors=False)
+        "today": datetime.date.today(), "is_admin": is_admin, **price_history_context(request, inst)}, selectors=False)
 
 
 @inv_admin
@@ -136,9 +164,23 @@ def catalogue_action(request, pk):
             return page(request, "investments/catalogue_basis.html", {"page_title_text": "Change price basis", "inst": inst, "new_basis": request.POST.get("new_basis", ""),
                                                                        "preview": catalogue.basis_preview(inst), "reason": reason}, selectors=False)
     elif action == "delete":
-        catalogue.delete_instrument(user, inst, reason)
-        messages.success(request, "Deleted.")
-        return redirect(reverse("investments_admin_catalogue"))
+        # First a page listing what goes (counts per profile only); the delete itself needs confirm (and the name typed
+        # while any profile has anything about it).
+        if request.POST.get("confirm"):
+            name = inst.name
+            try:
+                result = catalogue.delete_instrument(user, inst, reason, confirm_name=request.POST.get("confirm_name"))
+            except InvestmentsError as err:
+                if err.code != "CONFIRM_NAME":
+                    raise
+                messages.error(request, err.message)
+                return page(request, "investments/catalogue_delete.html", {"page_title_text": "Delete investment", "inst": inst,
+                                                                           "preview": catalogue.delete_preview(inst), "reason": reason}, selectors=False)
+            affected = result["profiles"]
+            messages.success(request, f"{name} deleted" + (f", with its records in {affected} profile{'s' if affected != 1 else ''}." if affected else "."))
+            return redirect(reverse("investments_admin_catalogue"))
+        return page(request, "investments/catalogue_delete.html", {"page_title_text": "Delete investment", "inst": inst,
+                                                                   "preview": catalogue.delete_preview(inst), "reason": reason}, selectors=False)
     elif action == "profile_detail":
         pi = ProfileInvestment.objects.filter(pk=request.POST.get("pi", 0), instrument=inst).first()
         if pi is None:
@@ -149,6 +191,53 @@ def catalogue_action(request, pk):
         pi.sectoral_index, pi.hidden = sect, hidden
         pi.save(update_fields=["sectoral_index", "hidden"])
         messages.success(request, "Saved.")
+    else:
+        raise Http404
+    return redirect(back)
+
+
+@inv_editor
+@handle_errors(fallback="investments_admin_catalogue")
+def price_action(request, pk):
+    """The price-history actions of a shared investment, from the catalogue or from the investment's own page (``next`` says which):
+    correct or add a price, delete or put one back, fetch the history from a date, trim it before the first purchase."""
+    profile_or_404(request)
+    inst = _shared_or_404(pk)
+    back = safe_next(request, reverse("investments_admin_catalogue_item", args=[pk]))
+    if request.method != "POST":
+        return redirect(back)
+    action, reason, user = request.POST.get("action", ""), request.POST.get("reason", ""), request.user
+    if action == "price":
+        day = parse_date(request.POST.get("date"))
+        if day is None:
+            raise InvestmentsError("BAD_DATE", "Enter a date.")
+        pins = catalogue.set_price(user, inst, day, request.POST.get("close", ""), reason)
+        messages.success(request, "Price saved as a hand-entered price" + (f"; {pins} pinned price updated." if pins else "."))
+    elif action == "delete_price":
+        day = parse_date(request.POST.get("date"))
+        if day is None:
+            raise InvestmentsError("BAD_DATE", "Enter a date.")
+        catalogue.delete_price(user, inst, day, reason)
+        messages.success(request, "Price deleted. It can be put back from the list of deleted prices.")
+    elif action == "restore_price":
+        catalogue.restore_price(user, int(request.POST.get("log") or 0))
+        messages.success(request, "Price put back.")
+    elif action == "fetch_from":
+        start = parse_date(request.POST.get("from"))
+        if start is None:
+            raise InvestmentsError("BAD_DATE", "Choose the date to fetch from.")
+        n = catalogue.fetch_from(user, inst, start)
+        messages.success(request, f"{n} price{'s' if n != 1 else ''} fetched from {start:%-d %b %Y} to today.")
+    elif action == "trim":
+        if request.POST.get("confirm"):
+            n = catalogue.trim_before_first_purchase(user, inst, reason)
+            messages.success(request, f"{n} older price{'s' if n != 1 else ''} removed. Fetch from an earlier date to bring them back.")
+        else:
+            profile = profile_or_404(request)
+            preview = catalogue.trim_preview(inst)
+            preview["own"] = bool(preview["first"]) and preview["first"] == catalogue.first_purchase_date(inst, profile=profile)
+            return page(request, "investments/price_trim.html", {"page_title_text": "Remove older prices", "inst": inst,
+                                                                 "preview": preview, "next": back}, selectors=False)
     else:
         raise Http404
     return redirect(back)

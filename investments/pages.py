@@ -76,7 +76,7 @@ PAGES = (
     _p("admin_prices", "settings/price-sources/", "Admin: Price sources", "settings", "Price sources", "Price sources are set up in a later release.", admin=True, hideable=False),
     _p("admin_upload", "settings/price-upload/", "Admin: Upload price history", "settings", "Price sources", "Price history upload is set up in a later release.", admin=True, hideable=False),
     _p("admin_price_history", "settings/price-history/", "Admin: Price history", "settings", "Price history", "Pruning, the price archive and pinned prices are set up in a later release.", admin=True, hideable=False),
-    _p("admin_catalogue", "settings/catalogue/", "Admin: Investment catalogue", "settings", "Catalogue", "The catalogue is set up in a later release.", admin=True, hideable=False),
+    _p("admin_catalogue", "settings/catalogue/", "Investment catalogue", "settings", "Catalogue", "No shared investments yet.", hideable=False),
 )
 
 BY_SLUG = {p.slug: p for p in PAGES}
@@ -121,6 +121,12 @@ def hidden_slugs(settings_row=None):
     if settings_row is None:
         return set()
     return {s for s in (getattr(settings_row, "hidden_pages", None) or []) if s in BY_SLUG and BY_SLUG[s].hideable}
+
+
+def menu_slugs():
+    """The pages a header entry or a sub-tab opens. Their name is already on screen, underlined, so (as in the Fee Register)
+    their own title is kept only for screen readers."""
+    return {name[len("investments_"):] for _k, _l, name in TOP} | {first for rows in SUB_ROWS.values() for _l, first in rows}
 
 
 def current_slug(request):
@@ -168,6 +174,7 @@ def render_context(request, profile, extra=None):
         "inv_tools": profile is not None,
         "inv_nav": top,
         "inv_sub": sub,
+        "inv_title_in_menu": current_slug(request) in menu_slugs(),
         "inv_money_mode": masters.money_preference(request.user, profile) if profile is not None else "auto",
         "inv_alert_count": _alert_count(profile),
         "can_edit": request_role(request, KEY_INVESTMENTS) == ROLE_EDITOR,

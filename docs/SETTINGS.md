@@ -56,6 +56,7 @@ header bar.
 | `is_superuser` | Admin | Admin > Users (edit) | Per user | Admin sets |
 | `landing_program` | Open after login | My settings > Display (Admin > Users edits it for another user as "Open after login") | Per user | Only you |
 | `justify_text` | Justify text | My settings > Display | Per user | Only you |
+| `show_home_button` | Show the Home button (off: hidden on every page; Alt+H still opens Home) | My settings > Display | Per user | Only you |
 | `can_see_active` | Can See Who Is Active (shows the Active Now and Earlier Today panel on Home; an Admin always sees it) | Admin > Users (edit, create) | Per user | Admin sets |
 | `last_seen_at` | When the user was last seen (no more than once a minute; feeds the Active Now panel) | No page; written as you browse | Per user, automatic | Nobody |
 | `last_diary_path` | The last page I viewed (used when the diary opening page is "The last page I viewed") | No page; written as you browse the diary | Per user, automatic | Only you |
@@ -159,12 +160,14 @@ value for the user who set it.
 | `overdue_days` | Overdue after (days) | 2 Payments | Per profile | Everyone in this profile |
 | `hide_payment_when_paid` | Hide the payment box when a memo is paid | 2 Payments | Per profile | Everyone in this profile |
 | `show_status_dots` | Show status markers | 2 Payments | Per profile | Everyone in this profile |
+| `show_bank` | Show bank (off: no Bank filter or column on Feebook, no Bank account box on a payment, no Bank column in the Feebook export, no Bank accounts list; recorded banks are kept) | 2 Payments | Per profile | Everyone in this profile |
 | `export_owner_name` | Owner name in file names | 3 Word documents | Per profile | Everyone in this profile |
 | `memo_filename_pattern` | File name pattern of every Word memo | 3 Word documents | Per profile | Everyone in this profile |
 | `initial_financial_year` | Statistics start year | 4 Years and statistics | Per profile | Everyone in this profile |
 | `memos_start_year` | Memos start year | 4 Years and statistics | Per profile | Everyone in this profile |
 | `feebook_start_year` | Feebook start year | 4 Years and statistics | Per profile | Everyone in this profile |
 | `statistics_enabled` | Statistics page on or off | 4 Years and statistics | Per profile | Everyone in this profile |
+| `dashboard_enabled` | Dashboard page on or off (off: not in the header or the Statistics tabs; its address and an Opening page of Dashboard open Memos) | 4 Years and statistics | Per profile | Everyone in this profile |
 | `dashboard_kpis_enabled` | Dashboard figures on or off | 4 Years and statistics | Per profile | Everyone in this profile |
 | `dashboard_kpis` | Which dashboard figures show (the Customise box on the Dashboard, not on the Settings page) | Fee Register > Dashboard > Customise | Per profile | Everyone in this profile |
 | `default_tab` | Opening page, for anyone who has not chosen their own | 5 Display | Per profile (fallback) | Everyone in this profile |

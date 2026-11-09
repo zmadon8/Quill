@@ -223,7 +223,7 @@ class GeneralSettingsForm(forms.Form):
     sectoral_enabled = forms.BooleanField(required=False, label="Use a sectoral index as well")
     include_dividends = forms.BooleanField(required=False, label="Include dividends in XIRR")
     alt_treatment = forms.ChoiceField(choices=[("unchanged", "Unchanged until the next update"), ("averaged", "Averaged out between updates")], label="Alternative investments between updates")
-    money_default = forms.ChoiceField(choices=[("auto", "Auto"), ("full", "Full numbers")], label="Starting number display")
+    money_default = forms.ChoiceField(choices=[("auto", "Short (Thousand, Lac, Crore)"), ("full", "Full Figures")], label="Starting number display")
 
 
 class DefaultBrokersForm(forms.Form):
@@ -266,7 +266,6 @@ class CatalogueDetailsForm(forms.Form):
     price_source = forms.ChoiceField(choices=[("manual", "Entered by hand"), ("yahoo", "Yahoo"), ("amfi", "AMFI"), ("mfapi", "mfapi.in"), ("upload", "Uploaded")])
     fallback_source = forms.ChoiceField(choices=[("", "None"), ("yahoo", "Yahoo"), ("amfi", "AMFI"), ("mfapi", "mfapi.in"), ("twelvedata", "Twelve Data")], required=False)
     fetch_enabled = forms.BooleanField(required=False, label="Fetch nightly")
-    latest_pe = forms.DecimalField(required=False, max_digits=10, decimal_places=2, label="Current PE (optional)")
     next_results_date = forms.DateField(required=False, widget=date_widget(), label="Next results date (optional)")
 
     def clean_currency(self):
@@ -365,6 +364,6 @@ class SipForm(ProfileForm):
 
 class DisplaySettingsForm(forms.Form):
     my_money = forms.ChoiceField(choices=[("auto", "Auto (2.41 cr, 24.13 lac, 85.40 k)"), ("full", "Full numbers")], label="Number display for you")
-    money_default = forms.ChoiceField(choices=[("auto", "Auto"), ("full", "Full numbers")], label="Starting choice for new people in this profile")
+    money_default = forms.ChoiceField(choices=[("auto", "Short (Thousand, Lac, Crore)"), ("full", "Full Figures")], label="Starting choice for new people in this profile")
     compact_tables = forms.BooleanField(required=False, label="Compact tables")
     default_exchange = forms.ChoiceField(choices=[("NS", "NSE (.NS)"), ("BO", "BSE (.BO)")], label="Exchange for new shares")

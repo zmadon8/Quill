@@ -387,6 +387,8 @@ SETTINGS_FLAGS = (
     "show_status_dots",
     "statistics_enabled",
     "dashboard_kpis_enabled",
+    "dashboard_enabled",
+    "show_bank",
     "memo_signature_default",
 )
 #: Settings keys that are text or choices (passed through as typed; the service validates them).

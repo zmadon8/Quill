@@ -1,6 +1,6 @@
 {% extends "investments/base_investments.html" %}
 {% block inv_content %}
-<div class="titlebar"><h1 class="t">Folio number</h1></div>
+<div class="page-head"><h1>Folio number</h1></div>
 <div class="ban wa"><span>{{ err.message }}</span></div>
 <form method="post" action="{% url 'investments_investment_folio' inst.pk %}">{% csrf_token %}
   {% for f in form %}<input type="hidden" name="{{ f.html_name }}" value="{{ f.value|default_if_none:'' }}">{% endfor %}

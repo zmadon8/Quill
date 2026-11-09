@@ -57,6 +57,9 @@ class Row:
     sect_xirr: float = None
     sect_alpha: float = None
     sect_name: str = ""
+    # CAGR measure (owner round 2026-11): the index's own CAGR over the same dates as the investment's, and the difference.
+    index_cagr: float = None
+    sect_cagr: float = None
     note: str = ""
     starts: date = None
     value: Decimal = ZERO
@@ -120,19 +123,39 @@ def period_dates(preset=None, start=None, end=None, today=None):
     return start, end
 
 
-def cagr_of(instrument, start, end):
-    """The investment's own price growth from its first stored price on or after ``start`` to its last on or before ``end``, with the date it
-    started from (None, None when there is no price history; alternative investments have none)."""
+def growth_rate(p0, p1, d0, d1):
+    """The yearly growth from ``p0`` on ``d0`` to ``p1`` on ``d1``; None under the minimum period or without both values."""
+    if p0 is None or p1 is None or d0 is None or d1 is None or p0 <= 0 or p1 < 0:
+        return None
+    days = (d1 - d0).days
+    if days < xirr.MIN_DAYS:
+        return None
+    return float(Decimal(p1) / Decimal(p0)) ** (365.0 / days) - 1.0
+
+
+def cagr_span(instrument, start, end):
+    """``(cagr, first date, last date)``: the investment's own price growth from its first stored price on or after ``start`` to its last on
+    or before ``end`` (all None when there is no price history; alternative investments have none)."""
     if instrument.kind == "alternative":
-        return None, None
+        return None, None, None
     rows = prices.series(instrument, start, end)
     if len(rows) < 2:
-        return None, None
+        return None, None, None
     (d0, p0), (d1, p1) = rows[0], rows[-1]
-    days = (d1 - d0).days
-    if days < xirr.MIN_DAYS or p0 <= 0:
-        return None, d0
-    return float(p1 / p0) ** (365.0 / days) - 1.0, d0
+    return growth_rate(p0, p1, d0, d1), d0, d1
+
+
+def cagr_of(instrument, start, end):
+    """The investment's own price growth and the date it started from (see :func:`cagr_span`)."""
+    cagr, d0, _d1 = cagr_span(instrument, start, end)
+    return cagr, d0
+
+
+def index_cagr(series, d0, d1):
+    """The index's CAGR between the same two dates as the investment's (pinned or stored levels, as for the XIRR comparison)."""
+    if series is None or d0 is None or d1 is None:
+        return None
+    return growth_rate(series.level(d0), series.level(d1), d0, d1)
 
 
 def table(profile, *, start, end, measure="xirr", portfolio=None, broker=None, settings_row=None):
@@ -167,21 +190,33 @@ def table(profile, *, start, end, measure="xirr", portfolio=None, broker=None, s
         if not flows and h.sold_out:
             continue
         if measure == "cagr":
-            row.cagr, first = cagr_of(h.instrument, start, end)
+            row.cagr, first, last = cagr_span(h.instrument, start, end)
             if first and first > start and not row.note:
                 row.note = f"Prices from {first:%-d %b %Y}"
-        else:
-            closing = [(end, h.value)] if h.units or h.awaiting else []
-            row.xirr = xirr.xirr([(d, float(a)) for d, a in flows + closing])
+            # CAGR is compared with the index's own CAGR over the same dates (not with the index XIRR of the cash flows).
+            row.index_cagr = index_cagr(default_series, first, last)
+            row.alpha = indexcmp.alpha(row.cagr, row.index_cagr)
+            sect = sect_map.get(h.instrument.pk)
+            if sect is not None:
+                series = sect_series.setdefault(sect.pk, IndexSeries(sect, series_start, end))
+                row.sect_name = sect.name
+                row.sect_cagr = index_cagr(series, first, last)
+                row.sect_alpha = indexcmp.alpha(row.cagr, row.sect_cagr)
+            out.append(row)
+            all_flows += flows
+            closing_total += h.value if h.units or h.awaiting else ZERO
+            continue
+        closing = [(end, h.value)] if h.units or h.awaiting else []
+        row.xirr = xirr.xirr([(d, float(a)) for d, a in flows + closing])
         if default_series and flows:
             row.index_xirr = indexcmp.index_xirr(flows, default_series.level, end)
-            row.alpha = indexcmp.alpha(row.xirr, row.index_xirr) if measure == "xirr" else None
+            row.alpha = indexcmp.alpha(row.xirr, row.index_xirr)
             sect = sect_map.get(h.instrument.pk)
             if sect is not None:
                 series = sect_series.setdefault(sect.pk, IndexSeries(sect, series_start, end))
                 row.sect_name = sect.name
                 row.sect_xirr = indexcmp.index_xirr(flows, series.level, end)
-                row.sect_alpha = indexcmp.alpha(row.xirr, row.sect_xirr) if measure == "xirr" else None
+                row.sect_alpha = indexcmp.alpha(row.xirr, row.sect_xirr)
         out.append(row)
         all_flows += flows
         closing_total += h.value if h.units or h.awaiting else ZERO
@@ -196,5 +231,6 @@ def table(profile, *, start, end, measure="xirr", portfolio=None, broker=None, s
     if any(r.starts for r in out):
         notes.append("Investments bought after the start use only the data from their first purchase; the index is compared over the same dates.")
     if measure == "cagr":
-        notes.append("CAGR is the investment's own price growth for as long as prices are stored in the program; it ignores when you bought.")
+        notes.append("CAGR is the investment's own price growth for as long as prices are stored in the program; it ignores when you bought. "
+                     "The index column is the index's CAGR between the same two dates, and Alpha is the difference.")
     return out, total, notes, bool(settings_row.sectoral_enabled)

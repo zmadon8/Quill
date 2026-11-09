@@ -80,6 +80,7 @@ urlpatterns += [
     path("settings/catalogue/new/", vc.catalogue_new, name="investments_admin_catalogue_new"),
     path("settings/catalogue/<int:pk>/", vc.catalogue_item, name="investments_admin_catalogue_item"),
     path("settings/catalogue/<int:pk>/action/", vc.catalogue_action, name="investments_admin_catalogue_action"),
+    path("settings/catalogue/<int:pk>/prices/", vc.price_action, name="investments_price_action"),
     path("settings/price-history/archive/", vp.price_archive, name="investments_price_archive"),
     path("dividends/<int:pk>/", vi.dividend_form, name="investments_dividend_edit"),
     path("reports/<slug:slug>/", vr.report_view, name="investments_report"),

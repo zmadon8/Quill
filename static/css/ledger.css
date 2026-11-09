@@ -68,10 +68,10 @@ body.ledger main :is(button, .button), body.ledger .search-pop button, body.ledg
 }
 body.ledger main :is(button, .button):hover, body.ledger .btn:hover { border-color: var(--ink); background: var(--paper-2); text-decoration: none; }
 body.ledger main :is(button.small, .button.small, .btn-sm), body.ledger .btn-sm { min-height: 0; padding: 4px 10px; font-size: .857rem; }
-body.ledger main :is(button.primary, .button.primary, button[type=submit]:not(.link):not(.danger):not(.secondary):not(.ghost):not(.success)), body.ledger .search-pop button, body.ledger .btn-primary {
+body.ledger main :is(button.primary, .button.primary, button[type=submit]:not(.link):not(.danger):not(.secondary):not(.ghost):not(.success):not(.dng)), body.ledger .search-pop button, body.ledger .btn-primary {
   background: var(--accent); border-color: var(--accent); color: var(--paper);
 }
-body.ledger main :is(button.primary, .button.primary, button[type=submit]:not(.link):not(.danger):not(.secondary):not(.ghost):not(.success)):hover, body.ledger .search-pop button:hover, body.ledger .btn-primary:hover {
+body.ledger main :is(button.primary, .button.primary, button[type=submit]:not(.link):not(.danger):not(.secondary):not(.ghost):not(.success):not(.dng)):hover, body.ledger .search-pop button:hover, body.ledger .btn-primary:hover {
   background: var(--accent-hover); border-color: var(--accent-hover); color: var(--paper);
 }
 body.ledger main :is(button.secondary, .button.secondary), body.ledger .btn-secondary { background: transparent; border-color: var(--line-strong); color: var(--ink); }

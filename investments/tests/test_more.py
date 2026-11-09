@@ -8,7 +8,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 
 from investments.errors import InvestmentsError
-from investments.models import Broker, FxRate, ManualFxRate, Portfolio, Price, SipSchedule, Transaction, Transfer
+from investments.models import Broker, FxRate, Instrument, ManualFxRate, Portfolio, Price, SipSchedule, Transaction, Transfer
 from investments.services import fx, holdings, insights, masters, reports, search, sip, statement_import, transactions as tx
 from investments.services.reports import REPORTS
 from investments.tests.base import InvTestCase
@@ -97,7 +97,8 @@ class ImportTests(InvTestCase):
         self.assertEqual([l.side for l in r.lines], ["buy", "sell", "buy"])
         self.assertEqual(r.lines[0].instrument, self.reliance)
         self.assertEqual(r.lines[1].instrument, self.reliance)            # RELIANCE matches RELIANCE.NS
-        self.assertIn("not found", r.lines[2].problem)
+        self.assertIn("not in the program yet", r.lines[2].problem)
+        self.assertEqual([m["text"] for m in r.missing], ["UNKNOWN CO"])
         with self.assertRaises(InvestmentsError):
             statement_import.apply(self.profile, self.user, path, portfolio=self.portfolio, broker=self.zerodha)
         self.assertEqual(Transaction.objects.count(), 0)
@@ -131,6 +132,52 @@ class ImportTests(InvTestCase):
         self.assertRedirects(r, reverse("investments_transactions"))
         self.assertEqual(Transaction.objects.get().charges, D(20))
 
+
+    def test_missing_investments_are_proposed_from_the_file_and_the_amfi_list(self):
+        from investments.models import AmfiScheme
+
+        AmfiScheme.objects.create(code="120503", name="Axis ELSS Tax Saver Fund - Direct Plan - Growth", isin="INF846K01EW2")
+        path = csv_file("Date,ISIN,Security Name,Type,Quantity,Price\n02/01/2024,INF846K01EW2,Axis ELSS,Buy,10,80\n"
+                        "03/01/2024,INE467B01029,Tata Consultancy Services,Buy,2,3500\n04/01/2024,INE467B01029,Tata Consultancy Services,Buy,1,3600\n")
+        r = statement_import.review(self.profile, path)
+        fund, share = r.missing          # one proposal per investment, however many lines it has
+        self.assertEqual((fund["kind"], fund["code"], fund["name"]), ("fund", "120503", "Axis ELSS Tax Saver Fund - Direct Plan - Growth"))
+        self.assertEqual((share["kind"], share["code"], share["name"], share["isin"]), ("share", "", "Tata Consultancy Services", "INE467B01029"))
+        self.assertEqual(statement_import.propose("HDFCBANK")["code"], "HDFCBANK.NS")
+        self.assertEqual(statement_import.propose("500180.BO")["code"], "500180.BO")
+
+    def test_adding_the_missing_investments_then_saving(self):
+        self.client.force_login(self.user)
+        url = reverse("investments_import_statement")
+        body = b"Date,Symbol,Name,Type,Quantity,Price\n02/01/2024,TCS,Tata Consultancy,Buy,2,3500\n03/01/2024,RELIANCE.NS,Reliance,Buy,1,2500\n"
+        r = self.client.post(url, {"file": SimpleUploadedFile("s.csv", body), "portfolio": self.portfolio.pk, "broker": self.zerodha.pk})
+        self.assertContains(r, "Not in the program yet")
+        self.assertNotContains(r, ">Save ")                   # cannot save while an investment is missing
+        token = r.context["token"]
+        base = {"token": token, "portfolio": self.portfolio.pk, "broker": self.zerodha.pk}
+        r = self.client.post(url, dict(base, create="1", missing_count="1", add_0="1", text_0="TCS", kind_0="share", name_0="Tata Consultancy Services",
+                                       code_0="TCS.NS", isin_0="", currency_0="INR"))
+        tcs = Instrument.objects.get(code="TCS.NS")
+        self.assertEqual((tcs.name, tcs.profile_id, tcs.price_source), ("Tata Consultancy Services", None, "yahoo"))
+        self.assertEqual(r.context["review"].lines[0].instrument, tcs)   # matched through the alias although the name was corrected
+        self.assertFalse(r.context["review"].missing)
+        self.assertContains(r, "Save 2 lines")
+        r = self.client.post(url, dict(base, apply="1"))
+        self.assertRedirects(r, reverse("investments_transactions"))
+        self.assertEqual(Transaction.objects.filter(instrument=tcs).count(), 1)
+
+    def test_a_missing_investment_needs_a_code_and_an_existing_one_is_reused(self):
+        with self.assertRaises(InvestmentsError):
+            statement_import.create_missing(self.profile, self.user, [{"text": "X", "kind": "share", "name": "X Ltd", "code": ""}])
+        aliases = statement_import.create_missing(self.profile, self.user, [{"text": "Reliance Inds", "kind": "share", "name": "Reliance Inds", "code": "RELIANCE.NS"}])
+        self.assertEqual(aliases, {"Reliance Inds": self.reliance.pk})
+        self.assertEqual(Instrument.objects.filter(code="RELIANCE.NS").count(), 1)
+
+    def test_import_is_linked_from_holdings_and_transactions(self):
+        self.client.force_login(self.user)
+        link = 'href="%s"' % reverse("investments_import_statement")
+        for name in ("investments_holdings", "investments_transactions"):
+            self.assertContains(self.client.get(reverse(name)), link)
 
 class SearchTests(InvTestCase):
     def test_kinds_and_rules(self):

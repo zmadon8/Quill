@@ -37,8 +37,7 @@ class CatalogueServiceTests(InvTestCase):
 
     def test_only_admins(self):
         editor, _ = make_user("ed7", profile=self.profile)
-        for call in (lambda: catalogue.set_price(editor, self.reliance, d(2026, 1, 1), 5),
-                     lambda: catalogue.update_details(editor, self.reliance, name="x"),
+        for call in (lambda: catalogue.update_details(editor, self.reliance, name="x"),
                      lambda: catalogue.merge(editor, self.reliance, self.fund),
                      lambda: catalogue.delete_instrument(editor, self.reliance),
                      lambda: catalogue.change_basis(editor, self.reliance, "raw")):
@@ -122,14 +121,71 @@ class CatalogueServiceTests(InvTestCase):
         self.assertEqual(result["uploaded"], 1)
         self.assertEqual(list(Price.objects.values_list("source", "basis")), [("upload", "raw")])
 
-    def test_delete_is_refused_while_a_profile_holds_records(self):
-        with self.assertRaises(InvestmentsError) as cm:
-            catalogue.delete_instrument(self.user, self.reliance)
-        self.assertEqual(cm.exception.code, "IN_USE")
+    def test_an_unused_investment_is_deleted_without_typing_its_name(self):
         empty = catalogue.create_instrument(self.user, kind="share", name="Unused Co", code="UNUSED.NS")
         catalogue.delete_instrument(self.user, empty, "added by mistake")
         self.assertFalse(Instrument.objects.filter(pk=empty.pk).exists())
         self.assertTrue(CatalogueHistory.objects.filter(record_type="instrument_deleted").exists())
+
+    def test_delete_while_profiles_hold_records_needs_the_name_then_removes_everything_and_logs_it(self):
+        from backups.models import BackupFile
+        from investments.models import AlertState, Dividend, Guardrail, InvestmentHistory, Transaction
+        from investments.services import dividends
+
+        dividends.add(self.profile, self.user, date=d(2024, 6, 1), instrument=self.reliance, portfolio=self.portfolio,
+                      broker=self.zerodha, amount=D(50))
+        Guardrail.objects.create(profile=self.profile, instrument=self.reliance, portfolio=self.portfolio, kind="stop_loss", value=D(10))
+        AlertState.objects.create(profile=self.profile, key=f"rule_a:{self.reliance.pk}:{self.portfolio.pk}")
+        AlertState.objects.create(profile=self.profile, key=f"rule_a:{self.fund.pk}:{self.portfolio.pk}")   # another investment: kept
+        Price.objects.create(instrument=self.reliance, date=d(2026, 11, 5), close=D(1300), source="api", basis="split_adjusted")
+        preview = catalogue.delete_preview(self.reliance)
+        self.assertEqual(preview["problems"], [])
+        self.assertEqual({r["name"] for r in preview["per_profile"]}, {self.profile.name, self.other.name})
+        mine = next(r for r in preview["per_profile"] if r["name"] == self.profile.name)
+        self.assertEqual(mine["counts"]["dividends"], 1)
+        for wrong in (None, "", "reliance industries"):
+            with self.assertRaises(InvestmentsError) as cm:
+                catalogue.delete_instrument(self.user, self.reliance, confirm_name=wrong)
+            self.assertEqual(cm.exception.code, "CONFIRM_NAME")
+        self.assertFalse(BackupFile.objects.filter(kind="pre_catalogue").exists())
+        sold_txn = Transaction.objects.get(profile=self.other, instrument=self.reliance)
+        result = catalogue.delete_instrument(self.user, self.reliance, "listed twice", confirm_name="Reliance Industries")
+        self.assertEqual(result["profiles"], 2)
+        self.assertFalse(Instrument.objects.filter(pk=self.reliance.pk).exists())
+        self.assertFalse(Transaction.objects.filter(instrument_id=self.reliance.pk).exists())
+        self.assertFalse(Dividend.objects.filter(instrument_id=self.reliance.pk).exists())
+        self.assertFalse(Price.objects.filter(instrument_id=self.reliance.pk).exists())
+        self.assertEqual(list(AlertState.objects.values_list("key", flat=True)), [f"rule_a:{self.fund.pk}:{self.portfolio.pk}"])
+        self.assertTrue(BackupFile.objects.filter(kind="pre_catalogue").exists())
+        self.assertTrue(InvestmentHistory.objects.filter(profile=self.other, record_type="transaction", record_id=sold_txn.pk, change_kind="delete").exists())
+        self.assertTrue(InvestmentHistory.objects.filter(profile=self.profile, record_type="dividend", change_kind="delete").exists())
+        entry = CatalogueHistory.objects.get(record_type="instrument_deleted")
+        self.assertEqual((entry.old, entry.reason), ("Reliance Industries", "listed twice"))
+        self.assertTrue(Instrument.objects.filter(pk=self.fund.pk).exists())
+
+    def test_built_in_indices_cannot_be_deleted(self):
+        masters.ensure_builtin_indices()
+        nifty = Instrument.objects.get(code="^NSEI", profile=None)
+        self.assertTrue(catalogue.delete_preview(nifty)["problems"])
+        with self.assertRaises(InvestmentsError) as cm:
+            catalogue.delete_instrument(self.user, nifty, confirm_name=nifty.name)
+        self.assertEqual(cm.exception.code, "BUILTIN")
+        self.assertTrue(Instrument.objects.filter(pk=nifty.pk).exists())
+
+    def test_delete_page_previews_then_needs_the_name(self):
+        self.client.force_login(self.user)
+        url = reverse("investments_admin_catalogue_action", args=[self.reliance.pk])
+        page = self.client.post(url, {"action": "delete", "reason": "dup"})
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, "Type the name to confirm")
+        self.assertContains(page, self.other.name)
+        self.assertNotContains(page, "1100")   # counts only: no units, prices or costs
+        wrong = self.client.post(url, {"action": "delete", "confirm": "1", "confirm_name": "Reliance"})
+        self.assertContains(wrong, "Type the investment&#x27;s name exactly")
+        self.assertTrue(Instrument.objects.filter(pk=self.reliance.pk).exists())
+        done = self.client.post(url, {"action": "delete", "confirm": "1", "confirm_name": "Reliance Industries"})
+        self.assertRedirects(done, reverse("investments_admin_catalogue"), fetch_redirect_response=False)
+        self.assertFalse(Instrument.objects.filter(pk=self.reliance.pk).exists())
 
     def test_listing_flags(self):
         dup = masters.create_instrument(self.profile, self.user, kind="share", name="Another", code="RELIANCE.NS", allow_duplicate=True)
@@ -176,13 +232,88 @@ class CataloguePageTests(InvTestCase):
                 self.assertNotIn(secret, body)
         self.assertContains(pages[1], self.profile.name)            # the holder is named
 
-    def test_editor_gets_403_on_every_catalogue_url(self):
+    def test_everyone_can_see_the_catalogue_and_an_editor_can_change_prices_but_not_the_rest(self):
+        # Owner round (2026-11): the catalogue is open to every member; prices to Editors; structural changes stay with the Admin.
+        from accounts.models import ROLE_READER
+
         editor, _ = make_user("ed11", profile=self.profile)
+        reader, _ = make_user("rd11", role=ROLE_READER, profile=self.profile)
+        _u, other = make_user("holder3")
+        masters.get_profile_investment(other, self.reliance)   # another profile holds it: its name must not show to a non-Admin
+        Price.objects.create(instrument=self.reliance, date=d(2026, 11, 5), close=D(1300), source="api", basis="split_adjusted")
+        for user in (editor, reader):
+            self.client.force_login(user)
+            self.assertEqual(self.client.get(reverse("investments_admin_catalogue")).status_code, 200)
+            page = self.client.get(reverse("investments_admin_catalogue_item", args=[self.reliance.pk]))
+            self.assertContains(page, "Price history")
+            self.assertNotContains(page, "Structural changes")
+            self.assertNotContains(page, other.name)                 # other profiles' names stay with the Admin
+            self.assertEqual(self.client.post(reverse("investments_admin_catalogue_action", args=[self.reliance.pk]), {"action": "details"}).status_code, 403)
+            self.assertEqual(self.client.post(reverse("investments_admin_catalogue_new"), {}).status_code, 403)
+        self.client.force_login(reader)
+        self.assertEqual(self.client.post(reverse("investments_price_action", args=[self.reliance.pk]), {"action": "price"}).status_code, 403)
         self.client.force_login(editor)
-        for name, args in (("investments_admin_catalogue", []), ("investments_admin_catalogue_item", [self.reliance.pk]),
-                           ("investments_admin_catalogue_action", [self.reliance.pk]), ("investments_admin_catalogue_new", [])):
-            self.assertEqual(self.client.get(reverse(name, args=args)).status_code, 403, name)
-            self.assertEqual(self.client.post(reverse(name, args=args), {"action": "price"}).status_code, 403, name)
+        back = reverse("investments_investment", args=[self.reliance.pk]) + "#prices"
+        r = self.client.post(reverse("investments_price_action", args=[self.reliance.pk]),
+                             {"action": "price", "date": "2026-11-05", "close": "1320.5", "reason": "typo", "next": back})
+        self.assertRedirects(r, back, fetch_redirect_response=False)
+        self.assertEqual(ManualPrice.objects.get(instrument=self.reliance, date=d(2026, 11, 5)).close, D("1320.5"))
+        self.assertTrue(CatalogueHistory.objects.filter(record_type="price", by=editor).exists())
+
+    def test_price_history_is_on_the_investment_page(self):
+        Price.objects.create(instrument=self.reliance, date=d(2026, 11, 5), close=D(1300), source="api", basis="split_adjusted")
+        self.client.force_login(self.user)
+        page = self.client.get(reverse("investments_investment", args=[self.reliance.pk]))
+        self.assertContains(page, 'id="prices"')
+        self.assertContains(page, "Fetch the price history from")
+        self.assertContains(page, 'action="%s"' % reverse("investments_price_action", args=[self.reliance.pk]))
+        self.buy(d(2024, 1, 1), 10, 100)
+        page = self.client.get(reverse("investments_investment", args=[self.reliance.pk]))
+        self.assertContains(page, "your first purchase (1 Jan 2024)")
+
+    def test_fetch_from_a_chosen_date_keeps_uploads_and_hand_entered_prices(self):
+        Price.objects.create(instrument=self.reliance, date=d(2026, 11, 2), close=D(1), source="upload", basis="split_adjusted")
+        ManualPrice.objects.create(instrument=self.reliance, date=d(2026, 11, 3), close=D(2))
+        net = FakeNet()
+        net.add("RELIANCE.NS", fixture("yahoo_chart_reliance.json"))
+        with mock.patch.object(http, "_urlopen", net), mock.patch.object(http, "sleep", lambda s: None):
+            added = catalogue.fetch_from(self.user, self.reliance, d(2026, 11, 1), today=d(2026, 11, 9))
+        self.assertGreater(added, 0)
+        self.assertTrue(any("period1=" in c for c in net.calls))
+        self.assertEqual(Price.objects.get(instrument=self.reliance, date=d(2026, 11, 2)).source, "upload")
+        self.assertTrue(ManualPrice.objects.filter(instrument=self.reliance, date=d(2026, 11, 3)).exists())
+        with self.assertRaises(InvestmentsError):
+            catalogue.fetch_from(self.user, self.reliance, d(2027, 1, 1), today=d(2026, 11, 9))
+        before = Price.objects.filter(instrument=self.reliance).count()
+        with mock.patch.object(http, "_urlopen", FakeNet()), mock.patch.object(http, "sleep", lambda s: None):
+            with self.assertRaises(InvestmentsError):                 # the source failed: nothing stored is touched
+                catalogue.fetch_from(self.user, self.reliance, d(2026, 11, 1), today=d(2026, 11, 9))
+        self.assertEqual(Price.objects.filter(instrument=self.reliance).count(), before)
+
+    def test_trim_before_the_first_purchase_of_any_profile(self):
+        from datetime import timedelta
+
+        day = d(2023, 1, 1)
+        while day <= d(2024, 3, 1):
+            if day.weekday() < 5:
+                Price.objects.create(instrument=self.reliance, date=day, close=D(100), source="api", basis="split_adjusted")
+            day += timedelta(days=1)
+        Price.objects.filter(instrument=self.reliance, date=d(2023, 2, 1)).update(source="upload")
+        ManualPrice.objects.create(instrument=self.reliance, date=d(2023, 3, 1), close=D(99))
+        self.buy(d(2024, 1, 1), 10, 100)   # the first purchase (a Monday); the price that day values it and is kept
+        preview = catalogue.trim_preview(self.reliance)
+        self.assertEqual((preview["first"], preview["cutoff"], preview["problem"]), (d(2024, 1, 1), d(2024, 1, 1), ""))
+        self.client.force_login(self.user)
+        url = reverse("investments_price_action", args=[self.reliance.pk])
+        self.assertContains(self.client.post(url, {"action": "trim"}), "Remove older prices")
+        self.client.post(url, {"action": "trim", "confirm": "1"})
+        self.assertFalse(Price.objects.filter(instrument=self.reliance, date__lt=d(2024, 1, 1), source="api").exists())
+        self.assertTrue(Price.objects.filter(instrument=self.reliance, date=d(2024, 1, 1)).exists())
+        self.assertTrue(Price.objects.filter(instrument=self.reliance, date=d(2023, 2, 1), source="upload").exists())
+        self.assertTrue(ManualPrice.objects.filter(instrument=self.reliance, date=d(2023, 3, 1)).exists())
+        self.assertTrue(CatalogueHistory.objects.filter(record_type="prices_trimmed").exists())
+        masters.ensure_builtin_indices()
+        self.assertTrue(catalogue.trim_preview(Instrument.objects.get(code="^NSEI", profile=None))["problem"])
 
     def test_item_page_actions(self):
         url = reverse("investments_admin_catalogue_action", args=[self.reliance.pk])

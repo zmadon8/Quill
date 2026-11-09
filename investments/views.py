@@ -101,11 +101,11 @@ def start(request):
         ("Add a broker or platform", Broker.objects.filter(profile=profile).exists(), reverse("investments_settings_brokers"),
          "Every purchase and sale records the broker it went through, such as a stockbroker, a fund platform, or 'Direct'."),
         ("Add an investment", Instrument.objects.filter(profile=profile).exists() or Transaction.objects.filter(profile=profile).exists()
-         or _has_profile_investments(profile), reverse("investments_add_1"), "A share, a mutual fund, an alternative or a foreign investment."),
+         or _has_profile_investments(profile), reverse("investments_add_1"), "A share, a mutual fund, an alternative or a foreign investment. Importing a statement (Holdings > Transactions) can add them for you."),
         ("Record a purchase", Transaction.objects.filter(profile=profile).exists(), reverse("investments_txn_new_buy"),
-         "Or enter an opening balance if you bought it before you started using the program."),
+         "Or import a statement from your broker or fund house (Holdings > Transactions > Import a statement), or enter an opening balance."),
         ("Enter a price", _has_prices(profile), reverse("investments_holdings"),
-         "Prices are typed by hand for now; open an investment and add today's price."),
+         "Prices are fetched every night and with Update Prices. For an investment without a price source, open it and type today's price."),
     ]
     return page(request, "investments/start.html", {"page_title_text": "Getting started", "steps": steps,
                                                     "all_done": all(done for _l, done, _u, _h in steps)})

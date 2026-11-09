@@ -1,9 +1,10 @@
 {% extends "investments/base_investments.html" %}
 {% block inv_content %}
-<div class="titlebar"><h1 class="t">History</h1><div class="meta">kept permanently</div></div>
+<h1 class="visually-hidden">History</h1>
+<p class="hint">Every change is kept permanently.</p>
 <div class="sec"><form method="get" style="display:flex;gap:12px;align-items:flex-end"><div class="sel"><span>Record</span><select name="type" onchange="this.form.submit()"><option value="">All</option>{% for key, label in type_labels.items %}<option value="{{ key }}"{% if key == record_type %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>{% if instrument %}<input type="hidden" name="instrument" value="{{ instrument }}"><a class="btn q sm" href="{% url 'investments_history' %}">All investments</a>{% endif %}</form></div>
-{% if rows %}<div class="tw"><table data-table-id="inv-history-1" class="led"><thead><tr><th>When</th><th>Who</th><th>What</th><th>Investment</th><th>Changes</th><th></th></tr></thead><tbody>
-{% for r in rows %}<tr><td>{{ r.changed_at|date:"j M Y, g:i a" }}</td><td>{{ r.changed_by.get_username|default:"" }}</td><td>{{ r.description }}</td><td>{{ r.instrument_name }}</td>
+{% if rows %}<div class="tw"><table data-table-id="inv-history-1" class="led"><thead><tr><th>When</th><th>Portfolio</th><th>What</th><th>Investment</th><th>Changes</th><th></th></tr></thead><tbody>
+{% for r in rows %}<tr><td>{{ r.changed_at|date:"j M Y, g:i a" }}</td><td>{{ r.portfolio_name }}</td><td>{{ r.description }}</td><td>{{ r.instrument_name }}</td>
 <td>{% for field, old, new in r.changes %}<div class="chg"><b>{{ field }}</b>: {{ old|default_if_none:"none" }} &rarr; {{ new|default_if_none:"none" }}</div>{% endfor %}</td>
 <td class="act">{% if r.can_restore and can_edit %}<form method="post" action="{% url 'investments_history_restore' r.pk %}" style="display:inline">{% csrf_token %}<button class="btn q sm">Restore</button></form>{% endif %}</td></tr>{% endfor %}
 </tbody></table></div>{% else %}<p class="lead na">No changes recorded yet.</p>{% endif %}

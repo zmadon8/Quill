@@ -1,6 +1,6 @@
 {% extends "investments/base_investments.html" %}
 {% block inv_content %}
-<div class="titlebar"><h1 class="t">Corporate actions</h1><div class="meta">splits and bonuses</div></div>
+<h1 class="visually-hidden">Corporate actions</h1>
 <p class="hint">An action is recorded once for everyone, because it is a fact about the company. It changes this profile's holdings only after you confirm it; your original trades are never changed. A split multiplies the units and keeps the cost and purchase dates; a bonus adds units at zero cost from the allotment date (check this treatment with your CA). Mergers and demergers: record them as "other" and correct the lots by hand (cost override on the purchase).</p>
 {% if pending %}<div class="ban al" role="alert"><span><b>Waiting for you to confirm:</b> {% for a in pending %}{{ a.instrument.name }} ({{ a.describe }}, {{ a.ex_date|date:"j M Y" }}){% if not forloop.last %}; {% endif %}{% endfor %}. {% if mode == "block" %}Their value is left out until you confirm.{% else %}Their figures may be wrong until you confirm.{% endif %}</span></div>{% endif %}
 {% if moves %}<div class="ban wa"><span><b>Possible split? Check.</b> {% for inst, d, a, b in moves %}{{ inst.name }} fell from {{ a }} to {{ b }} on {{ d|date:"j M Y" }}{% if not forloop.last %}; {% endif %}{% endfor %}.</span></div>{% endif %}

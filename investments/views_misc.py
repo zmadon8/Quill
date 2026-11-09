@@ -66,6 +66,7 @@ def history_list(request):
     names = dict(Instrument.objects.filter(pk__in=[r.instrument_id_ref for r in rows if r.instrument_id_ref]).values_list("pk", "name"))
     for r in rows:
         r.instrument_name = names.get(r.instrument_id_ref, "")
+    history.attach_portfolio_names(profile, rows)
     return page(request, "investments/history.html", {"page_title_text": "History", "rows": rows, "type_labels": history.TYPE_LABELS,
                                                       "instrument": instrument, "record_type": record_type}, selectors=False)
 

@@ -40,6 +40,9 @@ class User(AbstractUser):
     header_style = models.CharField(max_length=10, choices=HEADER_STYLE_CHOICES, default=HEADER_ICONS)
     # Diary round (1.5): justify the text that is normally left-aligned. On screen only; off unless chosen (My settings, Display).
     justify_text = models.BooleanField(default=False)
+    # Owner round (2026-11): the Home button in the header bar can be hidden (My settings, Display). Home stays
+    # reachable with the Alt+H (Option+H) shortcut and from a program's own links; on unless switched off.
+    show_home_button = models.BooleanField(default=True)
     # Who is active (round: markers, payments, activity). ``last_seen_at`` is touched by accounts.middleware at most once
     # a minute; ``can_see_active`` lets an Admin show this user the Active Now panel on Home (Admins always see it).
     last_seen_at = models.DateTimeField(null=True, blank=True)

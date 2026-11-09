@@ -120,6 +120,17 @@ class PerformanceTests(InvTestCase):
         self.buy(d(2022, 1, 1), 10, 100)
         rows, _t, _n, _s = performance.table(self.profile, start=d(2023, 1, 1), end=d(2024, 1, 1), measure="cagr")
         self.assertAlmostEqual(rows[0].cagr, 1.0004 ** 365 - 1, places=3)
+        # compared with the index's own CAGR over the same dates, not with an index XIRR of the cash flows
+        self.assertAlmostEqual(rows[0].index_cagr, 1.0002 ** 365 - 1, places=3)
+        self.assertIsNone(rows[0].index_xirr)
+        self.assertAlmostEqual(rows[0].alpha, rows[0].cagr - rows[0].index_cagr, places=9)
+
+    def test_cagr_page_and_export_say_index_cagr(self):
+        self.buy(d(2022, 1, 1), 10, 100)
+        self.client.force_login(self.user)
+        html = self.client.get(reverse("investments_performance") + "?measure=cagr&period=custom&from=2023-01-01&to=2024-01-01").content.decode()
+        self.assertIn("Nifty 50 CAGR", html)
+        self.assertNotIn("Nifty 50 XIRR", html)
 
     def test_sectoral_columns_only_while_switched_on(self):
         bank = Instrument.objects.get(code="^NSEBANK")

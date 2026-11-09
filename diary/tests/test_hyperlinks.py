@@ -94,6 +94,15 @@ class HyperlinkEditingTests(ItemEditorTestCase):
         self.assertIn('data-links-toggle', html)
         self.assertNotIn('data-edit-switch', html)
 
+    def test_the_links_toggle_is_always_the_icon_even_when_the_header_shows_words(self):
+        # Owner round (2026-11): Words is the default header style, which used to print "Links"; it is the chain icon now.
+        html = self.client.get(reverse("read_topic", args=[self.topic.pk])).content.decode()
+        button = html[html.index("data-links-toggle"):]
+        button = button[:button.index("</button>")]
+        self.assertIn("<svg", button)
+        self.assertNotIn("Links<", button)
+        self.assertIn('aria-label="Hyperlinks on citations"', html)
+
     def test_history_and_undo_carry_the_address(self):
         item, first, second = self.cited()
         result = svc.edit(self.profile, self.user, "case", first.pk, {"url": EXACT})

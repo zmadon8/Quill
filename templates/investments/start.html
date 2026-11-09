@@ -1,6 +1,6 @@
 {% extends "investments/base_investments.html" %}
 {% block inv_content %}
-<div class="titlebar"><h1 class="t">Getting started</h1><div class="meta">{% if all_done %}All steps done{% else %}Four short steps{% endif %}</div></div>
+<div class="page-head"><h1>Getting started</h1><p class="page-meta">{% if all_done %}All steps done{% else %}Four short steps{% endif %}</p></div>
 <ol class="steps">
 {% for label, done, url, help in steps %}
   <li class="{% if done %}done{% endif %}"><div><b>{{ label }}</b><p class="hint">{{ help }}</p></div><div>{% if done %}<span class="tag ink">Done</span>{% else %}<a class="btn q" href="{{ url }}">Go</a>{% endif %}</div></li>

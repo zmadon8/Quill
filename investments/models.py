@@ -57,7 +57,6 @@ class Instrument(models.Model):
     price_basis = models.CharField(max_length=15, blank=True, default="", choices=[("raw", "Raw (as traded)"), ("split_adjusted", "Split-adjusted")],
                                    help_text="Plan 16.2: whether stored closes are restated for later splits. Blank for funds and hand-entered items.")
     interest_rate = models.DecimalField(max_digits=7, decimal_places=3, null=True, blank=True)
-    latest_pe = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, help_text="Current PE, where available (no history kept)")
     next_results_date = models.DateField(null=True, blank=True)
     expense_ratio = models.DecimalField(max_digits=6, decimal_places=3, null=True, blank=True, help_text="Mutual funds: total expense ratio %, entered by hand")
     maturity_date = models.DateField(null=True, blank=True)
@@ -132,7 +131,7 @@ class InvestmentSettings(models.Model):
     sectoral_enabled = models.BooleanField(default=False)
     include_dividends = models.BooleanField(default=False)
     alt_treatment = models.CharField(max_length=10, default=ALT_UNCHANGED, choices=[(ALT_UNCHANGED, "Unchanged until next update"), (ALT_AVERAGED, "Averaged out")])
-    money_default = models.CharField(max_length=5, default=MONEY_AUTO, choices=[(MONEY_AUTO, "Auto"), (MONEY_FULL, "Full")])
+    money_default = models.CharField(max_length=5, default=MONEY_AUTO, choices=[(MONEY_AUTO, "Short (Thousand, Lac, Crore)"), (MONEY_FULL, "Full Figures")])
     hidden_pages = models.JSONField(default=list, blank=True)
     # Alerts (plan 14). Rule A: against the previous close (and optionally over a window). Rule B: against the cost of units still held.
     rule_a_enabled = models.BooleanField(default=True)
@@ -165,7 +164,7 @@ class InvestmentsUserPrefs(models.Model):
     """Personal display choice (plan 23): the Auto / Full number display. Not backed up (like FeesUserPrefs)."""
 
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+")
-    money_mode = models.CharField(max_length=5, choices=[(MONEY_AUTO, "Auto"), (MONEY_FULL, "Full")], default=MONEY_AUTO)
+    money_mode = models.CharField(max_length=5, choices=[(MONEY_AUTO, "Short (Thousand, Lac, Crore)"), (MONEY_FULL, "Full Figures")], default=MONEY_AUTO)
 
 
 class ProfileInvestment(models.Model):

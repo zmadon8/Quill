@@ -161,6 +161,21 @@ class MastersTests(InvTestCase):
         self.assertFalse(Transaction.objects.filter(pk=t.pk).exists())
         self.assertTrue(InvestmentHistory.objects.filter(record_id=t.pk, change_kind="delete").exists())
 
+    def test_admin_delete_also_removes_dividends_and_sip_schedules(self):
+        # Before the owner round these were left behind and, being protected links, stopped the investment being removed (a 500).
+        from investments.models import Dividend, SipSchedule
+        from investments.services import dividends, sip
+
+        self.buy(d(2024, 1, 1), 1, 1)
+        dividends.add(self.profile, self.user, date=d(2024, 6, 1), instrument=self.reliance, portfolio=self.portfolio, broker=self.zerodha, amount=D(5))
+        sip.add(self.profile, self.user, instrument=self.reliance, amount=D(1000), day_of_month=5, portfolio=self.portfolio, broker=self.zerodha,
+                start_date=d(2024, 2, 1))
+        result = masters.delete_instrument(self.profile, self.user, self.reliance, confirm_name="Reliance Industries")
+        self.assertTrue(result["instrument_removed"])
+        self.assertFalse(Dividend.objects.filter(instrument_id=self.reliance.pk).exists())
+        self.assertFalse(SipSchedule.objects.filter(instrument_id=self.reliance.pk).exists())
+        self.assertTrue(InvestmentHistory.objects.filter(record_type="dividend", change_kind="delete").exists())
+
     def test_shared_instrument_stays_while_another_profile_uses_it(self):
         other_user, other = make_user("o3")
         masters.get_profile_investment(other, self.reliance)

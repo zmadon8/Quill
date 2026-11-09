@@ -1,7 +1,7 @@
 {% extends "investments/base_investments.html" %}
 {% load investments_money %}
 {% block inv_content %}
-<div class="titlebar"><h1 class="t">{{ broker.name }}</h1><div class="meta">{{ totals.count }} holding{{ totals.count|pluralize }}</div></div>
+<div class="page-head"><h1>{{ broker.name }}</h1><p class="page-meta">{{ totals.count }} holding{{ totals.count|pluralize }}</p></div>
 <div class="strip"><div class="f"><div class="lab">Invested</div><div class="fig">{{ totals.invested|inr }}</div></div><div class="f"><div class="lab">Current value</div><div class="fig">{{ totals.value|inr }}</div></div><div class="f"><div class="lab">Gain</div><div class="fig">{{ totals.gain|inr_signed }}</div></div><div class="f"><div class="lab">XIRR</div><div class="fig">{{ totals.xirr|pct }}</div></div></div>
 <div class="sec"><h2>Holdings with this broker</h2></div>
 {% if rows %}<div class="tw"><table data-table-id="inv-broker_detail-1" class="led" data-sortable><thead><tr><th>Investment</th><th class="r">Units</th><th class="r">Value</th><th class="r">Gain</th><th class="r">XIRR</th></tr></thead><tbody>

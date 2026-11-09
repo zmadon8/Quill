@@ -1,7 +1,7 @@
 {% extends "investments/base_investments.html" %}
 {% load investments_money %}
 {% block inv_content %}
-<div class="titlebar"><h1 class="t">{{ t.title }}</h1></div>
+<div class="page-head"><h1>{{ t.title }}</h1></div>
 <p class="hint">{{ t.intro }}</p>
 <form method="get" class="inline-edit">{% if slug == "best-worst" or slug == "scoreboard" or slug == "compare-brokers" or slug == "compare-portfolios" %}<label>Years</label><select name="years" onchange="this.form.submit()"><option value="1"{% if years == 1 %} selected{% endif %}>1</option><option value="3"{% if years == 3 %} selected{% endif %}>3</option><option value="5"{% if years == 5 %} selected{% endif %}>5</option><option value="10"{% if years == 10 %} selected{% endif %}>10</option></select>{% endif %}
 {% if slug == "turning-long" %}<label>Within</label><select name="days" onchange="this.form.submit()"><option value="30"{% if days == 30 %} selected{% endif %}>30 days</option><option value="60"{% if days == 60 %} selected{% endif %}>60 days</option><option value="90"{% if days == 90 %} selected{% endif %}>90 days</option></select>{% endif %}
