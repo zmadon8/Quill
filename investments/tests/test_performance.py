@@ -7,7 +7,7 @@ from django.urls import reverse
 
 from investments import indexcmp, svgchart, xirr
 from investments.models import Instrument, InvestmentsStatsCache, Price
-from investments.services import dashboard, holdings, masters, performance, series, statscache, transactions as tx
+from investments.services import dashboard, holdings, masters, performance, series, transactions as tx
 from investments.tests.base import InvTestCase
 
 
