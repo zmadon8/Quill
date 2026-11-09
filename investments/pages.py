@@ -86,7 +86,8 @@ BY_SLUG = {p.slug: p for p in PAGES}
 EXTRA = {
     "investment": ("holdings", "Investments"), "added": ("holdings", "Investments"), "inv_delete": ("holdings", "Investments"),
     "txn_edit": ("holdings", "Transactions"), "txn_complete": ("holdings", "Transactions"), "txn_refused": ("holdings", "Transactions"),
-    "broker_detail": ("holdings", "Brokers"), "admin_catalogue_item": ("settings", "Catalogue"),
+    "broker_detail": ("holdings", "Brokers"), "admin_catalogue_item": ("settings", "Catalogue"), "report": ("reports", "Other reports"),
+    "dividend_edit": ("holdings", "Dividends"),
 }
 
 

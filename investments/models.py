@@ -21,7 +21,8 @@ INSTRUMENT_KINDS = [
 HOLDABLE_KINDS = (KIND_SHARE, KIND_FUND, KIND_ALTERNATIVE, KIND_FOREIGN)
 
 ASSET_CLASSES = [("equity", "Equity"), ("debt", "Debt"), ("gold", "Gold"), ("other", "Other")]
-PRICE_SOURCES = [("manual", "Entered by hand"), ("yahoo", "Yahoo"), ("amfi", "AMFI"), ("mfapi", "mfapi.in"), ("upload", "Uploaded")]
+PRICE_SOURCES = [("manual", "Entered by hand"), ("yahoo", "Yahoo"), ("amfi", "AMFI"), ("mfapi", "mfapi.in"), ("upload", "Uploaded"),
+                 ("twelvedata", "Twelve Data")]
 
 SIDE_BUY, SIDE_SELL = "buy", "sell"
 SIDES = [(SIDE_BUY, "Buy"), (SIDE_SELL, "Sell")]
@@ -58,6 +59,7 @@ class Instrument(models.Model):
     interest_rate = models.DecimalField(max_digits=7, decimal_places=3, null=True, blank=True)
     latest_pe = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, help_text="Current PE, where available (no history kept)")
     next_results_date = models.DateField(null=True, blank=True)
+    expense_ratio = models.DecimalField(max_digits=6, decimal_places=3, null=True, blank=True, help_text="Mutual funds: total expense ratio %, entered by hand")
     maturity_date = models.DateField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -146,6 +148,9 @@ class InvestmentSettings(models.Model):
     maturity_alert_days = models.PositiveSmallIntegerField(default=30)
     #: The holding-period cutoff chosen for each financial year, e.g. {"2024-25": 365}; a year without one uses long_term_days (plan 13.5).
     year_cutoffs = models.JSONField(default=dict, blank=True)
+    insights_off = models.JSONField(default=list, blank=True, help_text="Kinds of insight switched off (plan 5)")
+    concentration_limit = models.DecimalField(max_digits=5, decimal_places=2, default=20)
+    compact_tables = models.BooleanField(default=False)
     default_exchange = models.CharField(max_length=3, default="NS", choices=[("NS", "NSE"), ("BO", "BSE")])
     show_status_dots = models.BooleanField(default=True)
 
@@ -578,3 +583,67 @@ class AlertState(models.Model):
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=["profile", "key"], name="inv_alertstate_unique")]
+
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Foreign investments, SIP schedules (plan sections 22 and 6)
+# ---------------------------------------------------------------------------------------------------------------------
+
+class FxRate(models.Model):
+    """A fetched exchange rate: rupees for one unit of ``currency`` on ``date``. Re-creatable, not in the suite backup."""
+
+    currency = models.CharField(max_length=3)
+    date = models.DateField()
+    rate = models.DecimalField(max_digits=20, decimal_places=6)
+    source = models.CharField(max_length=10, default="api")
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["currency", "date"], name="inv_fx_unique")]
+
+
+class ManualFxRate(models.Model):
+    """An exchange rate typed by hand (plan 22: a manual override for any date). Shared, in the suite backup, never overwritten."""
+
+    currency = models.CharField(max_length=3)
+    date = models.DateField()
+    rate = models.DecimalField(max_digits=20, decimal_places=6)
+    note = models.CharField(max_length=200, blank=True, default="")
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["currency", "date"], name="inv_manualfx_unique")]
+
+
+class SipSchedule(models.Model):
+    """A recurring purchase recorded once (plan 6): the nightly job makes each month's entry from that day's NAV."""
+
+    profile = models.ForeignKey("accounts.Profile", on_delete=models.CASCADE, related_name="+")
+    instrument = models.ForeignKey(Instrument, on_delete=models.PROTECT, related_name="+")
+    amount = models.DecimalField(**MONEY)
+    day_of_month = models.PositiveSmallIntegerField()
+    portfolio = models.ForeignKey(Portfolio, on_delete=models.PROTECT, related_name="+")
+    broker = models.ForeignKey(Broker, on_delete=models.PROTECT, related_name="+")
+    folio = models.ForeignKey(Folio, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    start_date = models.DateField()
+    end_date = models.DateField(null=True, blank=True)
+    active = models.BooleanField(default=True)
+    last_done = models.DateField(null=True, blank=True, help_text="The last SIP date an entry was made for")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["instrument__name", "id"]
+
+
+class AmfiScheme(models.Model):
+    """Every scheme in AMFI's daily file (plan 6: stored once in the shared data, so a fund plan can be picked by name). Re-creatable;
+    not in the suite backup."""
+
+    code = models.CharField(max_length=12, unique=True)
+    name = models.CharField(max_length=250)
+    isin = models.CharField(max_length=20, blank=True, default="")
+    nav = models.DecimalField(null=True, blank=True, **MONEY)
+    nav_date = models.DateField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["name"], name="inv_amfischeme_name_idx")]

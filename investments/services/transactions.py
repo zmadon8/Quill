@@ -193,6 +193,23 @@ def add_transaction(profile, user, *, side, instrument, portfolio, broker, date,
         return txn
     units = _dec(units, "Units", minimum=Decimal("0.0001"))
     price = _dec(price, "Price", minimum=ZERO if is_opening else Decimal("0.0001"))
+    if instrument.currency != "INR" and rupee_amount in (None, ""):
+        # Foreign investment (plan 22): units, price and charges are in its currency; the rupee amount uses the day's rate unless given.
+        from investments.services import fx
+
+        if fx_rate in (None, ""):
+            found = fx.rate_on(instrument.currency, date)
+            if found is None:
+                raise InvestmentsError("NO_RATE", f"No {instrument.currency} to rupee rate is stored for that date. Enter the rate you got, or the rupee amount.")
+            fx_rate = found[1]
+        fx_rate = _dec(fx_rate, "Exchange rate", minimum=Decimal("0.000001"))
+        local = units * price + (charges if side == SIDE_BUY else -charges)
+        rupee_amount = (local * fx_rate).quantize(Decimal("0.01"))
+    elif rupee_amount not in (None, ""):
+        rupee_amount = _dec(rupee_amount, "Rupee amount", minimum=ZERO)
+        if instrument.currency != "INR" and fx_rate in (None, ""):
+            local = units * price + (charges if side == SIDE_BUY else -charges)
+            fx_rate = (rupee_amount / local).quantize(Decimal("0.000001")) if local else None
     if allotment_date and allotment_date < date:
         raise InvestmentsError("BAD_DATE", "The allotment date cannot be before the date paid.")
     txn = _new_txn(profile, user, side, instrument, portfolio, broker, folio, date, units=units, price=price,

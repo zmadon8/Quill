@@ -201,7 +201,18 @@ def fetch_prices(*, ids=None, profile=None, trigger="cron", max_seconds=600, max
             pause()
             try:
                 since = last_api_date(inst)
-                result = yahoo.fetch(symbol_for(inst, "yahoo"), since, years=years, today=today)
+                try:
+                    result = yahoo.fetch(symbol_for(inst, "yahoo"), since, years=years, today=today)
+                except FetchError as first_error:
+                    # the fallback source, when one is set (plan 15.2); its basis must match, so only for raw-basis instruments or a basis-free source
+                    if inst.fallback_source != "twelvedata":
+                        raise
+                    from investments.adapters import twelvedata
+
+                    try:
+                        result = twelvedata.fetch(symbol_for(inst, "twelvedata"), since, years=years, today=today)
+                    except FetchError as second:
+                        raise FetchError(f"{first_error}; fallback: {second}") from second
                 added, changed, _ = upsert_prices(inst, result.rows, "api", default_basis("yahoo"))
                 updated += 1 if added or changed else 0
                 if not result.rows:
@@ -218,6 +229,21 @@ def fetch_prices(*, ids=None, profile=None, trigger="cron", max_seconds=600, max
         summary["updated"] += updated
         summary["failures"] += failures
         summary["runs"].append(run.pk)
+    # the list of fund schemes, once a week (plan 6)
+    if ids is None and not out_of_time():
+        from investments.services import schemes
+
+        try:
+            schemes.refresh()
+        except FetchError as exc:
+            summary["failures"].append({"id": 0, "name": "AMFI scheme list", "error": str(exc)})
+    # exchange rates for the foreign investments in use (plan 22)
+    if ids is None and not out_of_time():
+        from investments.services import fx
+
+        fx_updated, fx_failures = fx.fetch_all(today=today, spacing=spacing)
+        summary["updated"] += fx_updated
+        summary["failures"] += fx_failures
     if summary["updated"]:
         bump_version()
     return summary

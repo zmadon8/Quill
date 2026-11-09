@@ -80,6 +80,7 @@ def dashboard(request):
         "awaiting": awaiting, "awaiting_total": sum((t.amount or Decimal(0) for t in awaiting if t.side == "buy"), Decimal(0)),
         "overdue": overdue, "unpriced": [r for r in rows if r["unpriced"]], "has_any": data["has_any"],
         "default_index": masters.default_index_for(profile), "sectoral": settings_row.sectoral_enabled, "include_div": div,
+        "insights": _insights(profile), "all_insights": request.GET.get("insights") == "all",
         "pending_actions": __import__("investments.services.corporate", fromlist=["pending"]).pending(profile),
     })
 
@@ -167,3 +168,15 @@ def available_units(request):
         {"portfolio": p.pk if p else None, "portfolio_name": p.name if p else "", "broker": b.pk if b else None,
          "broker_name": b.name if b else "", "folio": f.pk if f else None, "folio_name": f.number if f else "", "units": str(u)}
         for p, b, f, u in rows]})
+
+
+def _insights(profile):
+    from .services import insights
+
+    try:
+        return insights.compute(profile)
+    except Exception:  # an insight must never break the Dashboard
+        import logging
+
+        logging.getLogger(__name__).exception("Insights failed")
+        return []

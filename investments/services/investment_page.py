@@ -75,3 +75,33 @@ def guardrails(profile, instrument):
 
 
 __all__ = ["purchase_rows", "range_52w", "price_chart", "guardrails", "ZERO", "date"]
+
+
+def foreign_figures(profile, instrument, holding, as_of):
+    """Gain and return in the investment's own currency next to rupees, and the difference: the currency effect (plan 22)."""
+    from investments.models import STATUS_FINAL, Transaction
+    from investments.services import fx
+
+    if instrument.currency == "INR":
+        return None
+    events = []
+    for t in Transaction.objects.filter(profile=profile, instrument=instrument, status=STATUS_FINAL, units__isnull=False, date__lte=as_of):
+        local = t.units * t.price + (t.charges if t.side == "buy" else -t.charges)
+        kind = lots.BUY if t.side == "buy" else lots.SELL
+        events.append(lots.Event(kind, t.effective_date if t.side == "buy" else t.date, t.units, core.bucket_of(t), ("txn", t.pk), local, order=t.pk))
+    result = lots.replay(events)
+    local_cost = result.cost()
+    local_value = (holding.units * holding.price) if holding.price else None
+    rate = fx.rate_on(instrument.currency, as_of)
+    local_gain = None if local_value is None else local_value - local_cost
+    local_pct = float(local_gain / local_cost) if local_gain is not None and local_cost else None
+    rupee_pct = holding.gain_pct
+    return {"currency": instrument.currency, "local_value": local_value, "local_cost": local_cost, "local_gain": local_gain, "local_pct": local_pct,
+            "rupee_pct": rupee_pct, "effect": None if local_pct is None or rupee_pct is None else rupee_pct - local_pct,
+            "rate": rate[1] if rate else None, "rate_date": rate[0] if rate else None}
+
+
+def sip_schedules(profile, instrument):
+    from investments.models import SipSchedule
+
+    return SipSchedule.objects.filter(profile=profile, instrument=instrument).select_related("portfolio", "broker", "folio")

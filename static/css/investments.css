@@ -290,3 +290,6 @@ body.inv table.led td.nm{line-height:1.3}
 body.inv figure.chart{margin:10px 0 18px}
 body.inv .legend span{display:inline-flex;align-items:center;gap:6px}
 body.inv details summary{cursor:pointer;color:var(--muted);font-size:14px;margin:8px 0}
+body.inv.compact table.led td{padding:6px 8px}
+body.inv.compact table.led td.nm{font-size:15px}
+@media print{body.inv .tools,body.inv nav.sub,body.inv .acts,body.inv .act,body.inv form button,body.inv aside.ins form{display:none}body.inv table.led{font-size:11pt}}

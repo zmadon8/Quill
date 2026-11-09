@@ -2,7 +2,7 @@
 {% load static %}
 {# Investments shell on the shared suite shell (plan 24.1, 25.2). A page fills page_title_text and content (and may set back_url). #}
 {% block program_title %}{% block page_title %}{{ page_title_text|default:program_label }}{% endblock %}{% endblock %}
-{% block body_attrs %} class="ledger inv {% block page_width %}w-6xl{% endblock %}"{% endblock %}
+{% block body_attrs %} class="ledger inv {% block page_width %}w-6xl{% endblock %}{% if inv_settings.compact_tables %} compact{% endif %}"{% endblock %}
 {% block extra_css %}<link rel="stylesheet" href="{% static 'css/ledger.css' %}">
   <link rel="stylesheet" href="{% static 'css/investments.css' %}">{% endblock %}
 {% block program_name %}<a href="{% url 'investments_dashboard' %}" title="{{ program_full_label }}">{{ program_header_label|default:program_label }}</a>{% if inv_profile and not program_header_label %} <span class="profile-name">&middot; {{ inv_profile.name }}</span>{% endif %}{% if inv_other_profiles %}{% include "diary/_profile_switch.html" with other_profiles=inv_other_profiles %}{% endif %}{% endblock %}

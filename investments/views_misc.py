@@ -1,4 +1,5 @@
 """Brokers, History and Settings pages."""
+from decimal import Decimal
 
 from django.contrib import messages
 from django.http import Http404
@@ -180,3 +181,74 @@ def settings_pages(request):
     top_slugs = [first for _l, first in sum((list(v) for v in pages.SUB_ROWS.values()), [])] + ["dashboard", "alerts"]
     choices = [(p, p.slug not in hidden) for p in hideable if p.slug in top_slugs]
     return page(request, "investments/settings_pages.html", {"page_title_text": "Pages", "choices": choices}, selectors=False)
+
+
+@inv_reader
+def search_page(request):
+    from django.http import JsonResponse
+
+    from .services import search as search_service
+
+    profile = profile_or_404(request)
+    q = request.GET.get("q", "")
+    hidden = pages.hidden_slugs(core.get_settings(profile, create=False))
+    results = search_service.search(profile, q, hidden=hidden)
+    for r in results:
+        name, arg = r["url"]
+        if name == "page":
+            r["href"] = reverse(pages.url_name(arg))
+        elif name == "transactions":
+            r["href"] = reverse("investments_transactions") + f"?highlight={arg}#txn-{arg}"
+        else:
+            r["href"] = reverse(f"investments_{name}", args=[arg])
+        del r["url"]
+    if request.GET.get("format") == "json":
+        return JsonResponse({"results": results})
+    groups = {}
+    for r in results:
+        groups.setdefault(r["kind"], []).append(r)
+    return page(request, "investments/search.html", {"page_title_text": "Search", "query": q, "groups": groups, "too_short": 0 < len(q.strip()) < 2},
+                selectors=False)
+
+
+@inv_read_write
+def settings_display(request):
+    profile = profile_or_404(request)
+    row = core.get_settings(profile, create=False)
+    from . import forms as f
+
+    form = f.DisplaySettingsForm(request.POST or None, initial={"money_default": row.money_default, "compact_tables": row.compact_tables,
+                                                                 "default_exchange": row.default_exchange,
+                                                                 "my_money": masters.money_preference(request.user, profile)})
+    if request.method == "POST" and form.is_valid():
+        d = form.cleaned_data
+        masters.update_settings(profile, request.user, money_default=d["money_default"], compact_tables=d["compact_tables"], default_exchange=d["default_exchange"])
+        masters.set_money_preference(request.user, d["my_money"])
+        messages.success(request, "Saved.")
+        return redirect(reverse("investments_settings_display"))
+    return page(request, "investments/settings_simple.html", {"page_title_text": "Display", "form": form,
+                                                             "intro": "How amounts are shown. Excel exports always contain the exact figures."}, selectors=False)
+
+
+@inv_read_write
+def settings_insights(request):
+    from .services import insights
+
+    profile = profile_or_404(request)
+    row = core.get_settings(profile, create=False)
+    if request.method == "POST":
+        on = set(request.POST.getlist("on"))
+        try:
+            limit = Decimal(request.POST.get("limit", row.concentration_limit))
+        except Exception:
+            limit = row.concentration_limit
+        masters.update_settings(profile, request.user, insights_off=[k for k, _l in insights.KINDS if k not in on], concentration_limit=limit)
+        from .models import AlertState
+
+        if request.POST.get("reset"):
+            AlertState.objects.filter(profile=profile, key__startswith=insights.DISMISS_PREFIX).delete()
+        messages.success(request, "Saved.")
+        return redirect(reverse("investments_settings_insights"))
+    off = set(row.insights_off or [])
+    return page(request, "investments/settings_insights.html", {"page_title_text": "Insights", "kinds": [(k, l, k not in off) for k, l in insights.KINDS],
+                                                               "limit": row.concentration_limit}, selectors=False)

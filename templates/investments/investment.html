@@ -73,6 +73,21 @@
 {% if transfers %}<h3>Transfers</h3><div class="tw"><table data-table-id="inv-investment-6" class="led"><thead><tr><th>Date</th><th class="r">Units</th><th>From</th><th>To</th></tr></thead><tbody>
 {% for tr in transfers %}<tr><td>{{ tr.date|date:"j M Y" }}</td><td class="r">{{ tr.units|units }}</td><td>{{ tr.from_broker.name }} / {{ tr.from_portfolio.name }}</td><td>{{ tr.to_broker.name }} / {{ tr.to_portfolio.name }}</td></tr>{% endfor %}</tbody></table></div>{% endif %}
 
+{% if foreign %}<div class="sec"><h2>In {{ foreign.currency }} and in rupees</h2></div>
+<table data-table-id="inv-investment-foreign" class="led"><thead><tr><th></th><th class="r">{{ foreign.currency }}</th><th class="r">Rupees</th></tr></thead><tbody>
+<tr><td>Value</td><td class="r">{% if foreign.local_value is not None %}{% money foreign.local_value foreign.currency %}{% endif %}</td><td class="r">{{ h.value|inr }}</td></tr>
+<tr><td>Cost of units held</td><td class="r">{% money foreign.local_cost foreign.currency %}</td><td class="r">{{ h.cost_of_units|inr }}</td></tr>
+<tr><td>Gain</td><td class="r">{{ foreign.local_pct|pct_signed }}</td><td class="r">{{ foreign.rupee_pct|pct_signed }}</td></tr>
+<tr><td>Currency effect</td><td></td><td class="r">{{ foreign.effect|pct_signed }}</td></tr></tbody></table>
+<p class="hint">Exchange rate used: {% if foreign.rate %}{{ foreign.rate }} rupees per {{ foreign.currency }} ({{ foreign.rate_date|date:"j M Y" }}){% else %}none stored yet{% endif %}. Gains for tax are worked out in rupees at each date's rate; check the treatment with your CA.</p>{% endif %}
+
+{% if inst.kind == "fund" %}<div class="sec"><h2>SIP</h2></div>
+{% if sips %}<table data-table-id="inv-investment-sips" class="led"><thead><tr><th class="r">Amount</th><th>Day</th><th>Portfolio</th><th>Broker</th><th>From</th><th>Last made</th><th></th></tr></thead><tbody>
+{% for s in sips %}<tr><td class="r">{{ s.amount|inr }}</td><td>{{ s.day_of_month }}</td><td>{{ s.portfolio.name }}</td><td>{{ s.broker.name }}</td><td>{{ s.start_date|date:"j M Y" }}</td><td>{{ s.last_done|date:"j M Y"|default:"none yet" }}</td>
+<td class="act">{% if can_edit %}<form method="post" action="{% url 'investments_investment_sip' inst.pk %}" style="display:inline">{% csrf_token %}<input type="hidden" name="toggle" value="{{ s.pk }}"><input type="hidden" name="active" value="{% if s.active %}0{% else %}1{% endif %}"><button class="linklike">{% if s.active %}Stop{% else %}Restart{% endif %}</button></form>{% endif %}</td></tr>{% endfor %}</tbody></table>{% endif %}
+<p class="hint">Each month's entry is made by the nightly job once that day's NAV is stored, {% if inv_settings.sip_mode == "final" %}as a final entry{% else %}as an entry to confirm on <a href="{% url 'investments_txn_to_confirm' %}">To complete</a>{% endif %}.</p>
+{% if can_edit %}<form method="post" action="{% url 'investments_investment_sip' inst.pk %}" class="form">{% csrf_token %}{% include "investments/_form.html" with form=sip_form %}<button class="btn q" type="submit">Add SIP</button></form>{% endif %}{% endif %}
+
 <div class="sec"><h2>Folio numbers</h2></div>
 {% if folio_units %}<div class="tw"><table data-table-id="inv-investment-7" class="led"><thead><tr><th>Folio</th><th>Portfolio</th><th class="r">Units held</th><th></th></tr></thead><tbody>
 {% for f, u in folio_units %}<tr><td>{{ f.number }}{% if f.notes %} <small class="na">{{ f.notes }}</small>{% endif %}</td><td>{{ f.portfolio.name }}</td><td class="r">{{ u|units }}</td><td class="act">{% if can_edit %}<form method="post" action="{% url 'investments_investment_folio' inst.pk %}" style="display:inline">{% csrf_token %}<button class="linklike" name="delete" value="{{ f.pk }}">Delete</button></form>{% endif %}</td></tr>{% endfor %}

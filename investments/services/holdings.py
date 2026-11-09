@@ -11,7 +11,7 @@ from decimal import Decimal
 
 from investments import lots, valuation, xirr
 from investments.models import (
-    AWAITING_LEAVE_OUT, KIND_ALTERNATIVE, KIND_FOREIGN, SIDE_BUY, STATUS_AWAITING, STATUS_FINAL, Instrument,
+    AWAITING_LEAVE_OUT, KIND_ALTERNATIVE, SIDE_BUY, STATUS_AWAITING, STATUS_FINAL, Instrument,
     Transaction, Transfer,
 )
 from investments.services import core, prices
@@ -169,6 +169,16 @@ def compute(profile, *, portfolio=None, broker=None, as_of=None, settings=None, 
                 if _passes(portfolio, broker, t.portfolio_id, t.broker_id):
                     flows.append((t.date, core.sell_total(t)))
         for tr in transfers.get(iid, []):
+            if portfolio is not None or broker is not None:
+                # Seen through a portfolio or broker filter, a transfer across the boundary is money leaving one side and arriving at the
+                # other at the market value on the transfer date (plan 9, Compare brokers), so neither side's result is distorted.
+                out_of = _passes(portfolio, broker, tr.from_portfolio_id, tr.from_broker_id)
+                into = _passes(portfolio, broker, tr.to_portfolio_id, tr.to_broker_id)
+                if out_of != into:
+                    at = prices.latest_prices([iid], tr.date).get(iid)
+                    if at:
+                        market = tr.units * at[1]
+                        flows.append((tr.date, market if out_of else -market))
             events.append(lots.Event(lots.TRANSFER, tr.date, tr.units, lots.Bucket(tr.from_portfolio_id, tr.from_broker_id, tr.from_folio_id),
                                      ("transfer", tr.pk), to_bucket=lots.Bucket(tr.to_portfolio_id, tr.to_broker_id, tr.to_folio_id), order=tr.pk))
         inst_actions = [a for a in actions.get(iid, []) if a[2] <= as_of]
@@ -197,10 +207,20 @@ def compute(profile, *, portfolio=None, broker=None, as_of=None, settings=None, 
             h.price_date = alts[iid][-1][0]
         elif iid in latest and h.units:
             h.price_date, h.price = latest[iid]
-            rate = fx if inst.kind == KIND_FOREIGN and fx else Decimal(1)
+            rate = Decimal(1)
+            if inst.currency != "INR":
+                from investments.services import fx as fx_service
+
+                found = fx_service.rate_on(inst.currency, as_of)
+                rate = found[1] if found else (fx or Decimal(1))
             # On a split-adjusted series a past day's units are expressed on today's basis (plan 16.2).
             factor = corporate_math.basis_factor(actions.get(iid, []), as_of, inst.price_basis)
             h.value = h.units * factor * h.price * rate + h.awaiting
+        elif inst.kind == KIND_ALTERNATIVE and inst.interest_rate and h.units:
+            # A fixed interest rate instead of dated values (plan 11): each lot grows from its date, compounded yearly.
+            rate = 1 + float(inst.interest_rate) / 100
+            grown = sum((lot.cost * Decimal(str(rate ** ((as_of - lot.bought_on).days / 365.0))) for lot in kept), ZERO)
+            h.value = grown.quantize(Decimal("0.01")) + h.awaiting
         else:
             h.value = h.cost
             h.unpriced = bool(h.units) and inst.kind != KIND_ALTERNATIVE

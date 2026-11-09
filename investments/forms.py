@@ -264,7 +264,7 @@ class CatalogueDetailsForm(forms.Form):
     asset_class = forms.ChoiceField(choices=ASSET_CLASSES)
     sector = forms.CharField(max_length=80, required=False)
     price_source = forms.ChoiceField(choices=[("manual", "Entered by hand"), ("yahoo", "Yahoo"), ("amfi", "AMFI"), ("mfapi", "mfapi.in"), ("upload", "Uploaded")])
-    fallback_source = forms.ChoiceField(choices=[("", "None"), ("yahoo", "Yahoo"), ("amfi", "AMFI"), ("mfapi", "mfapi.in")], required=False)
+    fallback_source = forms.ChoiceField(choices=[("", "None"), ("yahoo", "Yahoo"), ("amfi", "AMFI"), ("mfapi", "mfapi.in"), ("twelvedata", "Twelve Data")], required=False)
     fetch_enabled = forms.BooleanField(required=False, label="Fetch nightly")
     latest_pe = forms.DecimalField(required=False, max_digits=10, decimal_places=2, label="Current PE (optional)")
     next_results_date = forms.DateField(required=False, widget=date_widget(), label="Next results date (optional)")
@@ -345,3 +345,26 @@ class AlertSettingsForm(forms.Form):
     guardrail_replaces_global = forms.BooleanField(required=False, label="A guardrail on a holding replaces the global rules for it")
     maturity_alert_days = forms.IntegerField(min_value=0, max_value=365, label="Warn before a maturity date (days)")
     alert_email = forms.BooleanField(required=False, label="Email me alerts that triggered overnight")
+
+
+class SipForm(ProfileForm):
+    amount = MoneyField(min_value=0, label="Amount each month (Rs)")
+    day_of_month = forms.IntegerField(min_value=1, max_value=31, label="Day of the month")
+    portfolio = forms.ModelChoiceField(queryset=Portfolio.objects.none())
+    broker = forms.ModelChoiceField(queryset=Broker.objects.none(), empty_label="Choose a broker")
+    folio = forms.ModelChoiceField(queryset=Folio.objects.none(), required=False, label="Folio (optional)")
+    start_date = forms.DateField(widget=date_widget(), label="First SIP on or after")
+    end_date = forms.DateField(widget=date_widget(), required=False, label="Last date (optional)")
+
+    def __init__(self, *args, profile=None, **kwargs):
+        super().__init__(*args, profile=profile, **kwargs)
+        self.fields["portfolio"].queryset = Portfolio.objects.filter(profile=profile)
+        self.fields["broker"].queryset = self.brokers()
+        self.fields["folio"].queryset = Folio.objects.filter(profile=profile)
+
+
+class DisplaySettingsForm(forms.Form):
+    my_money = forms.ChoiceField(choices=[("auto", "Auto (2.41 cr, 24.13 lac, 85.40 k)"), ("full", "Full numbers")], label="Number display for you")
+    money_default = forms.ChoiceField(choices=[("auto", "Auto"), ("full", "Full numbers")], label="Starting choice for new people in this profile")
+    compact_tables = forms.BooleanField(required=False, label="Compact tables")
+    default_exchange = forms.ChoiceField(choices=[("NS", "NSE (.NS)"), ("BO", "BSE (.BO)")], label="Exchange for new shares")

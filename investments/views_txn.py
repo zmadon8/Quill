@@ -432,3 +432,63 @@ def switch_delete(request, pk):
         else:
             messages.success(request, "Switch deleted.")
     return redirect(reverse("investments_transactions"))
+
+
+# ------------------------------------------------------------------ statement import (plan 6)
+
+@inv_editor
+def import_statement(request):
+    import os
+    import secrets
+    import tempfile
+    from pathlib import Path
+
+    from .models import Broker, Portfolio
+    from .services import statement_import
+
+    profile = profile_or_404(request)
+    staging = Path(tempfile.gettempdir()) / "quill_inv_statements"
+    review = token = None
+    error = ""
+    portfolios = Portfolio.objects.filter(profile=profile)
+    brokers = Broker.objects.filter(profile=profile, hidden=False)
+    chosen = {"portfolio": request.POST.get("portfolio", ""), "broker": request.POST.get("broker", "")}
+    try:
+        if request.method == "POST" and request.POST.get("apply"):
+            token = request.POST.get("token", "")
+            if not token.isalnum():
+                raise Http404
+            path = next(staging.glob(f"{token}.*"), None)
+            if path is None:
+                raise InvestmentsError("EXPIRED", "The file has expired. Choose it again.")
+            portfolio = portfolios.get(pk=request.POST["portfolio"])
+            broker = brokers.get(pk=request.POST["broker"])
+            try:
+                made, completed, skipped = statement_import.apply(profile, request.user, path, portfolio=portfolio, broker=broker)
+            except InvestmentsError as err:
+                if err.code == "WOULD_GO_NEGATIVE":
+                    return _refused(request, err, reverse("investments_import_statement"))
+                raise
+            path.unlink(missing_ok=True)
+            messages.success(request, f"{made} entr{'y' if made == 1 else 'ies'} saved, {completed} awaiting entr{'y' if completed == 1 else 'ies'} completed, "
+                                      f"{skipped} duplicate{'s' if skipped != 1 else ''} skipped.")
+            return redirect(reverse("investments_transactions"))
+        if request.method == "POST" and request.FILES.get("file"):
+            upload = request.FILES["file"]
+            ext = os.path.splitext(upload.name)[1].lower()
+            if ext not in (".csv", ".xlsx"):
+                raise InvestmentsError("BAD_FILE", "Only .csv and .xlsx files can be imported.")
+            if not (chosen["portfolio"] and chosen["broker"]):
+                raise InvestmentsError("REQUIRED", "Choose the portfolio and the broker the statement is from.")
+            staging.mkdir(parents=True, exist_ok=True)
+            token = secrets.token_hex(12)
+            path = staging / f"{token}{ext}"
+            with open(path, "wb") as out:
+                for chunk in upload.chunks():
+                    out.write(chunk)
+            review = statement_import.review(profile, path)
+    except InvestmentsError as err:
+        error = err.message
+        review = None
+    return page(request, "investments/import_statement.html", {"page_title_text": "Import a statement", "review": review, "token": token, "error": error,
+                                                              "portfolios": portfolios, "brokers": brokers, "chosen": chosen}, selectors=False)

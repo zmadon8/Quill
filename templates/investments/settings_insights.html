@@ -1,0 +1,9 @@
+{% extends "investments/base_investments.html" %}
+{% block inv_content %}
+<div class="titlebar"><h1 class="t">Insights</h1></div>
+<p class="hint">Short statements worked out from your figures by fixed rules, shown beside the holdings on the Dashboard. Switch off any kind you do not want.</p>
+<form method="post" class="form">{% csrf_token %}<ul class="plain">{% for k, label, on in kinds %}<li><label class="chk"><input type="checkbox" name="on" value="{{ k }}"{% if on %} checked{% endif %}{% if not can_edit %} disabled{% endif %}> {{ label }}</label></li>{% endfor %}</ul>
+<div class="row"><div class="fld"><label for="limit">Concentration limit (% of the portfolio in one holding)</label><input id="limit" name="limit" value="{{ limit }}"></div></div>
+<label class="chk"><input type="checkbox" name="reset" value="1"> Show the insights I dismissed again</label>
+{% if can_edit %}<div class="acts-row"><button class="btn p" type="submit">Save</button></div>{% endif %}</form>
+{% endblock %}

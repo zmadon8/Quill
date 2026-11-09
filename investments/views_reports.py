@@ -5,7 +5,7 @@ from decimal import Decimal
 from django.contrib import messages
 from django.db.models import Q
 
-from .decorators import inv_reader
+from .decorators import inv_editor as inv_read_write_view, inv_reader
 from .models import HOLDABLE_KINDS, KIND_INDEX, Broker, Instrument, Portfolio, ProfileInvestment
 from .services import core, holdings, masters, performance, series, statscache
 from .svgchart import line_chart
@@ -242,3 +242,55 @@ def _annual_export(r):
         ("Holdings at year end", ["Investment", "Type", "Units", "Cost", "Value", "Unrealised gain", ""], held),
         ("Transactions", ["Date", "Investment", "Buy / sell", "Units", "Price", "Charges", "Amount awaiting", "Broker", "Portfolio", "Status"], txns),
         ("By portfolio", ["Portfolio", "Starting value", "Invested", "Sold", "Short-term gains", "Long-term gains", "XIRR %", "Ending value"], by_pf)])
+
+
+# ------------------------------------------------------------------ other reports and insights
+
+@inv_reader
+def reports_index(request):
+    from .services.reports import REPORTS
+
+    profile_or_404(request)
+    return page(request, "investments/reports.html", {"page_title_text": "Other reports", "reports": [(slug, label) for slug, (_fn, label) in REPORTS.items()]})
+
+
+@inv_reader
+def report_view(request, slug):
+    from django.http import Http404
+
+    from .services.reports import REPORTS
+
+    profile = profile_or_404(request)
+    if slug not in REPORTS:
+        raise Http404
+    portfolio, broker, _asat = selection(request, profile)
+    fn, _label = REPORTS[slug]
+    years = int(request.GET.get("years", 3 if slug.startswith("compare") else 1)) if str(request.GET.get("years", "1")).isdigit() else 1
+    days = int(request.GET.get("days", 60)) if str(request.GET.get("days", "60")).isdigit() else 60
+    table = fn(profile, portfolio=portfolio, broker=broker, years=max(1, min(years, 20)), days=days)
+    if request.GET.get("export") == "xlsx":
+        from .exports import response
+
+        def cell(v, kind):
+            return round(v * 100, 2) if kind == "pct" and v is not None else v
+
+        rows = [[cell(v, k) for v, (_h, k) in zip(row, table.columns)] for row in table.rows] + ([[cell(v, k) for v, (_h, k) in zip(table.total, table.columns)]] if table.total else [])
+        return response(f"{table.title}.xlsx", [(table.title[:31], [h + (" %" if k == "pct" else "") for h, k in table.columns], rows)])
+    rows = [list(zip(row, [k for _h, k in table.columns])) for row in table.rows]
+    total = list(zip(table.total, [k for _h, k in table.columns])) if table.total else None
+    return page(request, "investments/report.html", {"page_title_text": table.title, "t": table, "rows": rows, "total": total, "slug": slug, "years": years,
+                                                    "days": days})
+
+
+@inv_read_write_view
+def insights_dismiss(request):
+    from django.shortcuts import redirect
+
+    from .services import insights
+
+    profile = profile_or_404(request)
+    if request.method == "POST":
+        insights.dismiss(profile, request.POST.get("key", ""))
+    from .viewutil import safe_next
+
+    return redirect(safe_next(request, "/investments/dashboard/"))

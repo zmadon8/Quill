@@ -88,6 +88,25 @@ def add_2(request):
     if kind not in KIND_LABELS:
         kind = "share"
     initial = {"kind": kind, "asset_class": "equity" if kind != "alternative" else "other", "currency": "USD" if kind == "foreign" else "INR"}
+    if request.method != "POST" and (request.GET.get("pick_code") or request.GET.get("pick_name")):
+        initial.update({"name": request.GET.get("pick_name", ""), "code": request.GET.get("pick_code", ""), "isin": request.GET.get("pick_isin", "")})
+    hits, search_error, query = [], "", request.GET.get("q", "").strip()
+    if query and request.method != "POST":
+        if kind == "fund":
+            from .services import schemes
+
+            hits = [{"code": s.code, "name": s.name, "isin": s.isin, "extra": f"NAV {s.nav} on {s.nav_date:%-d %b}" if s.nav and s.nav_date else ""}
+                    for s in schemes.find(query)]
+            if not hits:
+                search_error = "No scheme matched. The scheme list comes from AMFI's daily file and is refreshed weekly; you can also type the scheme code."
+        elif kind in ("share", "foreign"):
+            from .adapters import yahoo
+            from .adapters.base import FetchError
+
+            try:
+                hits = [{"code": h["symbol"], "name": h["name"], "isin": "", "extra": f"{h['exchange']} {h['type']}".strip()} for h in yahoo.search(query)]
+            except FetchError as exc:
+                search_error = f"The search could not be reached ({exc}). Type the code instead; the price check on the next step confirms it."
     if request.method == "POST":
         form = forms.InstrumentForm(request.POST)
         if form.is_valid():
@@ -105,13 +124,42 @@ def add_2(request):
                 else:
                     return redirect(reverse("investments_added", args=[obj.pk]))
             else:
+                check = _price_check(data)
                 return page(request, "investments/add_confirm.html", {
-                    "page_title_text": "Add investment: confirm", "form": form, "data": data, "similar": similar,
+                    "page_title_text": "Add investment: confirm", "form": form, "data": data, "similar": similar, "check": check,
                     "kind_label": KIND_LABELS.get(data["kind"]), "private": data["kind"] == KIND_ALTERNATIVE}, selectors=False)
     else:
         form = forms.InstrumentForm(initial=initial)
     return page(request, "investments/add_2.html", {"page_title_text": "Add investment: details", "form": form, "kind": kind,
-                                                    "kind_label": KIND_LABELS.get(kind)}, selectors=False)
+                                                    "kind_label": KIND_LABELS.get(kind), "hits": hits, "search_error": search_error, "query": query}, selectors=False)
+
+
+def _price_check(data):
+    """Before saving, fetch the latest price so the person can confirm the name, exchange and price date (plan 6). Never required."""
+    import datetime as _dt
+
+    from .adapters.base import FetchError
+
+    code = (data.get("code") or "").strip()
+    if not code or data["kind"] == KIND_ALTERNATIVE:
+        return None
+    try:
+        if data["kind"] == "fund":
+            from .models import AmfiScheme
+
+            s = AmfiScheme.objects.filter(code=code).first()
+            if s:
+                return {"ok": True, "name": s.name, "exchange": "AMFI", "price": s.nav, "date": s.nav_date}
+            return {"ok": False, "message": "That scheme code is not in the AMFI list stored here yet. Check it, or save and the nightly job will try it."}
+        from .adapters import yahoo
+
+        result = yahoo.fetch(code, _dt.date.today() - _dt.timedelta(days=10))
+        if not result.rows:
+            return {"ok": False, "message": "No price data, check the code."}
+        day, close = result.rows[-1]
+        return {"ok": True, "name": result.name, "exchange": result.exchange, "price": close, "date": day, "currency": result.currency}
+    except FetchError as exc:
+        return {"ok": False, "message": f"No price data, check the code ({exc})."}
 
 
 @inv_editor
@@ -185,6 +233,9 @@ def investment(request, pk):
         if inst.kind != KIND_ALTERNATIVE else None,
         "range52": investment_page.range_52w(inst, as_of) if inst.kind != KIND_ALTERNATIVE else (None, None),
         "guardrails": investment_page.guardrails(profile, inst),
+        "foreign": investment_page.foreign_figures(profile, inst, h, as_of) if inst.currency != "INR" else None,
+        "sips": investment_page.sip_schedules(profile, inst) if inst.kind == "fund" else [],
+        "sip_form": forms.SipForm(profile=profile, initial={"start_date": _date.today(), "day_of_month": 5}) if inst.kind == "fund" else None,
         "purchase": investment_page.purchase_rows(profile, inst, h, as_of),
         "is_private": inst.profile_id is not None,
         "dividends": __import__("investments.models", fromlist=["Dividend"]).Dividend.objects.filter(profile=profile, instrument=inst).select_related("broker")[:50],
@@ -338,3 +389,23 @@ def inv_delete(request, pk):
     return page(request, "investments/inv_delete.html", {
         "page_title_text": "Delete investment", "inst": inst, "counts": counts, "has_records": any(counts.values()), "form": form,
         "other_profiles": other_profiles, "is_admin": getattr(request.user, "is_admin", False)}, selectors=False)
+
+
+@inv_editor
+@handle_errors()
+def investment_sip(request, pk):
+    from .services import sip
+
+    profile = profile_or_404(request)
+    inst = _instrument_or_404(profile, pk)
+    if request.method == "POST":
+        if request.POST.get("toggle"):
+            sip.set_active(profile, int(request.POST["toggle"]), request.POST.get("active") == "1")
+        else:
+            form = forms.SipForm(request.POST, profile=profile)
+            if form.is_valid():
+                sip.add(profile, request.user, instrument=inst, **form.cleaned_data)
+                messages.success(request, "SIP saved. Each month's entry is made by the nightly job once that day's NAV is stored.")
+            else:
+                _form_errors(request, form)
+    return redirect(reverse("investments_investment", args=[pk]))

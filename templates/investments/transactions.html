@@ -12,7 +12,7 @@
 {% if rows %}
 <div class="tw"><table data-table-id="inv-transactions-1" class="led" data-sortable>
 <thead><tr><th>Date</th><th>Investment</th><th>Buy / sell</th><th class="r">Units</th><th class="r">Price</th><th class="r">Amount</th><th>Broker</th><th>Portfolio</th><th>Folio</th><th></th></tr></thead><tbody>
-{% for t in rows %}<tr><td data-sort="{{ t.date|date:'Y-m-d' }}">{{ t.date|date:"j M Y" }}</td><td class="nm" data-sort="{{ t.instrument.name|lower }}"><a href="{% url 'investments_investment' t.instrument.pk %}">{{ t.instrument.name }}</a>{% for label, cls in t.tags %}<span class="tag {{ cls }}">{{ label }}</span>{% endfor %}</td>
+{% for t in rows %}<tr id="txn-{{ t.pk }}"{% if request.GET.highlight == t.pk|stringformat:"s" %} class="hi"{% endif %}><td data-sort="{{ t.date|date:'Y-m-d' }}">{{ t.date|date:"j M Y" }}</td><td class="nm" data-sort="{{ t.instrument.name|lower }}"><a href="{% url 'investments_investment' t.instrument.pk %}">{{ t.instrument.name }}</a>{% for label, cls in t.tags %}<span class="tag {{ cls }}">{{ label }}</span>{% endfor %}</td>
 <td>{{ t.get_side_display }}</td><td class="r" data-sort="{{ t.units|default_if_none:0 }}">{% if t.units is not None %}{{ t.units|units }}{% else %}<span class="na">&ndash;</span>{% endif %}</td>
 <td class="r" data-sort="{{ t.price|default_if_none:0 }}">{% if t.price is not None %}{{ t.price|price }}{% else %}<span class="na">&ndash;</span>{% endif %}</td><td class="r" data-sort="{{ t.total|default_if_none:0 }}">{{ t.total|inr }}</td>
 <td>{{ t.broker.name }}</td><td>{{ t.portfolio.name }}</td><td>{{ t.folio.number|default:"" }}</td>

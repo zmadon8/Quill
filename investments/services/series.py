@@ -16,7 +16,7 @@ from decimal import Decimal
 
 from investments import valuation
 from investments.models import (
-    AWAITING_LEAVE_OUT, KIND_ALTERNATIVE, KIND_FOREIGN, SIDE_BUY, STATUS_AWAITING, STATUS_FINAL, Instrument, Transaction, Transfer,
+    AWAITING_LEAVE_OUT, KIND_ALTERNATIVE, SIDE_BUY, STATUS_AWAITING, STATUS_FINAL, Instrument, Transaction, Transfer,
 )
 from investments.services import core, prices
 
@@ -88,6 +88,7 @@ def portfolio_value_series(profile, days, *, portfolio=None, broker=None, instru
         if t.fx_rate:
             fx[t.instrument_id] = t.fx_rate
     moves = {}
+    transfer_flows = []
     tq = Transfer.objects.filter(profile=profile, date__lte=days[-1])
     if instrument_ids is not None:
         tq = tq.filter(instrument_id__in=list(instrument_ids))
@@ -98,13 +99,22 @@ def portfolio_value_series(profile, days, *, portfolio=None, broker=None, instru
         if out_of != into:
             moves.setdefault(tr.instrument_id, []).append((tr.date, tr.units if into else -tr.units))
             instruments.setdefault(tr.instrument_id, tr.instrument)
+            at = prices.latest_prices([tr.instrument_id], tr.date).get(tr.instrument_id)
+            if at:
+                transfer_flows.append((tr.date, tr.units * at[1] * (1 if into else -1)))
     values = [ZERO] * len(days)
     flows = [ZERO] * len(days)
 
     def period_of(day):
         return min(bisect_right(days, day - timedelta(days=1)), len(days) - 1) if day > days[0] else 0
 
+    for day, amount in transfer_flows:
+        flows[period_of(day)] += amount
     alt = prices.alt_values(profile, [i for i, inst in instruments.items() if inst.kind == KIND_ALTERNATIVE])
+    from investments import corporate as corporate_math
+    from investments.services import corporate as corporate_service
+
+    applied = corporate_service.applied(profile, list(instruments))
     for iid, inst in instruments.items():
         events = []
         for t in by_inst.get(iid, []):
@@ -120,17 +130,27 @@ def portfolio_value_series(profile, days, *, portfolio=None, broker=None, instru
             amount = core.buy_total(t) if sign > 0 else -core.sell_total(t)
             flows[period_of(t.date)] += amount
         events += [(d, u, ZERO) for d, u in moves.get(iid, [])]
-        events.sort(key=lambda e: e[0])
+        actions = applied.get(iid, [])
+        # a split or bonus multiplies the units held at the end of the day before (marked with units=None and the factor in the cost slot)
+        events += [(ex, None, (Decimal(v) if kind == "split" else 1 + Decimal(v))) for _pk, kind, ex, v in actions]
+        events.sort(key=lambda e: (e[0], 0 if e[1] is None else 1))
         if not events:
             continue
         sampled = None if inst.kind == KIND_ALTERNATIVE else sampled_prices(inst, days)
-        rate = fx.get(iid, Decimal(1)) if inst.kind == KIND_FOREIGN else Decimal(1)
+        rates = None
+        if inst.currency != "INR":
+            from investments.services import fx as fx_service
+
+            rates = [r or fx.get(iid, Decimal(1)) for r in fx_service.sampled(inst.currency, days)]
         units, at_cost, k = ZERO, ZERO, 0
         cost_basis = {}
         for i, day in enumerate(days):
             while k < len(events) and events[k][0] <= day:
-                units += events[k][1]
-                at_cost += events[k][2]
+                if events[k][1] is None:
+                    units *= events[k][2]
+                else:
+                    units += events[k][1]
+                    at_cost += events[k][2]
                 k += 1
             if inst.kind == KIND_ALTERNATIVE:
                 v = valuation.alt_value_on(alt.get(iid, []), day, settings_row.alt_treatment) if units else ZERO
@@ -139,7 +159,9 @@ def portfolio_value_series(profile, days, *, portfolio=None, broker=None, instru
                 values[i] += (v if units > 0 else ZERO) + at_cost
             else:
                 price = sampled[i]
-                values[i] += (units * price * rate if price is not None and units > 0 else ZERO) + at_cost
+                rate = rates[i] if rates else Decimal(1)
+                factor = corporate_math.basis_factor(actions, day, inst.price_basis)
+                values[i] += (units * factor * price * rate if price is not None and units > 0 else ZERO) + at_cost
     return values, flows
 
 

@@ -56,6 +56,11 @@
     </div>
     {% endif %}
   </div>
-  <aside class="ins"><h3>Insights</h3><p class="hint">Plain statements worked out from your data will appear here (a later release).</p></aside>
+  <aside class="ins"><h3>Insights</h3>
+    {% if insights %}<ol>{% for i in insights %}{% if all_insights or forloop.counter <= 5 %}<li><a class="go" href="{{ i.url }}">{{ i.text }}</a>
+      {% if can_edit %}<form method="post" action="{% url 'investments_insight_dismiss' %}" style="display:inline">{% csrf_token %}<input type="hidden" name="key" value="{{ i.key }}"><input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="x linklike" aria-label="Dismiss" title="Dismiss">&times;</button></form>{% endif %}</li>{% endif %}{% endfor %}</ol>
+    {% if insights|length > 5 and not all_insights %}<a class="more" href="?insights=all">Show all {{ insights|length }}</a>{% endif %}
+    {% else %}<p class="hint">Nothing to point out at the moment.</p>{% endif %}
+    <p class="hint"><small>Worked out by fixed rules from your own figures; they describe, they do not advise.</small></p></aside>
 </div>
 {% endblock %}
