@@ -15,7 +15,8 @@ from accounts.suite import KEY_INVESTMENTS
 from . import pages, scope
 from .decorators import inv_admin, inv_editor, inv_reader
 from .errors import InvestmentsError
-from .services import core, holdings, masters, transactions as tx
+from .services import core, fetch, masters, transactions as tx
+from .services import dashboard as dashboard_service
 from .viewutil import handle_errors, page, profile_or_404, selection
 
 
@@ -57,16 +58,33 @@ def dashboard(request):
     profile = profile_or_404(request)
     portfolio, broker, asat = selection(request, profile)
     settings_row = core.get_settings(profile, create=False)
-    rows, totals = holdings.compute(profile, portfolio=portfolio, broker=broker, as_of=asat, settings=settings_row)
-    held = holdings.held(rows)
+    data = dashboard_service.load(profile, portfolio, broker, asat)
     awaiting = list(tx.awaiting_for(profile))
     overdue = [t for t in awaiting if tx.overdue(t, settings_row.awaiting_reminder_days)]
+    chart = None
+    if data["chart"]:
+        from datetime import date as _date
+
+        from .svgchart import line_chart
+
+        chart = line_chart([_date.fromisoformat(d) for d in data["chart"]["days"]], data["chart"]["lines"], height=240)
+    rows = data["rows"]
+    stale = fetch.stale_ids([_Inst(r) for r in rows if r["price_source"] not in ("manual", "upload")])
+    for r in rows:
+        r["stale"] = r["id"] in stale
     return page(request, "investments/dashboard.html", {
-        "page_title_text": "Dashboard", "rows": held, "totals": totals, "allocation": holdings.allocation(held),
+        "page_title_text": "Dashboard", "rows": rows, "totals": data["totals"], "allocation": data["allocation"], "chart": chart, "notes": data["notes"],
         "awaiting": awaiting, "awaiting_total": sum((t.amount or Decimal(0) for t in awaiting if t.side == "buy"), Decimal(0)),
-        "overdue": overdue, "unpriced": [h for h in held if h.unpriced], "has_any": bool(rows),
-        "default_index": masters.default_index_for(profile),
+        "overdue": overdue, "unpriced": [r for r in rows if r["unpriced"]], "has_any": data["has_any"],
+        "default_index": masters.default_index_for(profile), "sectoral": settings_row.sectoral_enabled,
     })
+
+
+class _Inst:
+    """Just enough of an Instrument for ``fetch.stale_ids``."""
+
+    def __init__(self, row):
+        self.pk = row["id"]
 
 
 @inv_reader

@@ -1,0 +1,17 @@
+{% extends "investments/base_investments.html" %}
+{% block inv_content %}
+<div class="titlebar"><h1 class="t">Charts</h1><div class="meta">rebased to 100 on {{ start|date:"j M Y" }}</div></div>
+<nav class="tabs"><a href="?chart=a&period={{ period }}"{% if mode == "a" %} class="on"{% endif %}>Combined (Chart A)</a><a href="?chart=b&period={{ period }}"{% if mode == "b" %} class="on"{% endif %}>Side by side (Chart B)</a></nav>
+<form method="get" class="sec" style="justify-content:flex-start;gap:16px;flex-wrap:wrap;align-items:flex-end"><input type="hidden" name="chart" value="{{ mode }}">
+  <div class="sel"><span>Period</span><select name="period">{% for k, l in periods %}<option value="{{ k }}"{% if k == period %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+  <div class="sel"><span>From</span><input type="date" name="from" value="{{ start|date:'Y-m-d' }}"></div><div class="sel"><span>To</span><input type="date" name="to" value="{{ end|date:'Y-m-d' }}"></div>
+  <div class="sel"><span>{% if mode == "a" %}Only these (optional){% else %}Investments{% endif %}</span><select name="inv" multiple size="4">{% for c in choices %}<option value="{{ c.pk }}"{% if c.pk in picked %} selected{% endif %}>{{ c.name }}</option>{% endfor %}</select></div>
+  {% if mode == "a" %}<div class="sel"><span>Held with</span><select name="group_broker"><option value="">Any broker</option>{% for b in brokers %}<option value="{{ b.pk }}"{% if group_broker == b.pk|stringformat:"s" %} selected{% endif %}>{{ b.name }}</option>{% endfor %}</select></div>{% endif %}
+  <div class="sel"><span>Indices</span><select name="index" multiple size="4">{% for c in index_choices %}<option value="{{ c.pk }}"{% if c.pk in chosen_index_ids %} selected{% endif %}>{{ c.name }}</option>{% endfor %}</select></div>
+  <button class="btn q" type="submit">Draw</button><a class="btn q" href="?{{ request.GET.urlencode }}&export=xlsx">Export to Excel</a></form>
+{% if mode == "a" %}<p class="hint">The portfolio line shows performance, not size: money you add or take out does not make it jump.</p>{% endif %}
+{% include "investments/_chart.html" with caption="Lines rebased to 100" %}
+<details><summary>Table of the chart ({{ table_all }} points{% if table_all > 60 %}, the last 60 shown; the Excel file has all{% endif %})</summary>
+<div class="tw"><table data-table-id="inv-chart-table" class="led"><thead><tr><th>Date</th>{% for l, _v in lines %}<th class="r">{{ l }}</th>{% endfor %}</tr></thead><tbody>
+{% for d, vals in table %}<tr><td>{{ d|date:"j M Y" }}</td>{% for v in vals %}<td class="r">{% if v is not None %}{{ v }}{% else %}<span class="na">&ndash;</span>{% endif %}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div></details>
+{% endblock %}

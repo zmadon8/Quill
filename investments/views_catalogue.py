@@ -2,7 +2,7 @@
 import datetime
 
 from django.contrib import messages
-from django.http import Http404, HttpResponse
+from django.http import Http404
 from django.shortcuts import redirect
 from django.urls import reverse
 
@@ -37,30 +37,12 @@ def catalogue_list(request):
 
 
 def _export(items):
-    """Excel export of the list (exact values, write-only workbook; no transaction data exists in it)."""
-    import tempfile
+    """Excel export of the list (exact values; nothing about any profile's transactions is in it)."""
+    from .exports import response
 
-    from openpyxl import Workbook
-
-    wb = Workbook(write_only=True)
-    ws = wb.create_sheet("Catalogue")
-    ws.append(["Name", "Type", "Code", "ISIN", "Price source", "Price basis", "Last price", "Rows stored", "Held by (profiles)", "Flags"])
-    for i in items:
-        ws.append([_safe(i.name), i.get_kind_display(), _safe(i.code), i.isin, i.price_source, i.price_basis, i.last.isoformat() if i.last else "", i.rows,
-                   i.holders, ", ".join(i.flags)])
-    with tempfile.SpooledTemporaryFile(max_size=2 * 1024 * 1024) as spool:
-        wb.save(spool)
-        spool.seek(0)
-        data = spool.read()
-    response = HttpResponse(data, content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    response["Content-Disposition"] = 'attachment; filename="investment-catalogue.xlsx"'
-    return response
-
-
-def _safe(text):
-    """Formula-injection guard for spreadsheet cells."""
-    text = str(text or "")
-    return "'" + text if text[:1] in ("=", "+", "-", "@") else text
+    rows = [[i.name, i.get_kind_display(), i.code, i.isin, i.price_source, i.price_basis, i.last, i.rows, i.holders, ", ".join(i.flags)] for i in items]
+    return response("Investment catalogue.xlsx", [("Catalogue", ["Name", "Type", "Code", "ISIN", "Price source", "Price basis", "Last price", "Rows stored",
+                                                                  "Held by (profiles)", "Flags"], rows)])
 
 
 @inv_admin

@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import pages, views, views_holdings as vh, views_misc as vm, views_catalogue as vc, views_prices as vp, views_txn as vt
+from . import pages, views, views_holdings as vh, views_misc as vm, views_reports as vr, views_catalogue as vc, views_prices as vp, views_txn as vt
 
 # Mounted at /investments/ by config/urls.py. No app namespace: URL names are global and start with ``investments_``,
 # like the Fee Register's ``fees_`` names (accounts.context_processors.current_program_key relies on the prefix).
@@ -27,6 +27,9 @@ REAL = {
     "settings_pages": vm.settings_pages,
     "admin_prices": vp.price_sources,
     "admin_upload": vp.price_upload,
+    "performance": vr.performance_view,
+    "charts": vr.charts_view,
+    "value": vr.value_view,
     "admin_price_history": vp.price_history,
     "admin_catalogue": vc.catalogue_list,
 }

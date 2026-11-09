@@ -35,6 +35,11 @@ class Holding:
     realised: Decimal = ZERO
     sold_out: bool = False
     first_date: date = None
+    flows: list = field(default_factory=list)     # [(date, Decimal)] money paid in (negative) and received (positive), dates paid
+    index_xirr: float = None
+    alpha: float = None
+    sect_xirr: float = None
+    sect_alpha: float = None
 
     @property
     def avg_cost(self):
@@ -55,6 +60,11 @@ class Holding:
 
 @dataclass
 class Totals:
+    flows: list = field(default_factory=list)
+    index_xirr: float = None
+    alpha: float = None
+    sect_xirr: float = None
+    sect_alpha: float = None
     invested: Decimal = ZERO
     value: Decimal = ZERO
     awaiting: Decimal = ZERO
@@ -169,6 +179,7 @@ def compute(profile, *, portfolio=None, broker=None, as_of=None, settings=None, 
             h.xirr = xirr.xirr([(d, float(a)) for d, a in flows] + [(as_of, float(h.value))])
         elif flows:
             h.xirr = xirr.xirr([(d, float(a)) for d, a in flows])
+        h.flows = list(flows)
         if flows or h.units or h.awaiting:
             holdings.append(h)
         if h.units or h.awaiting:
@@ -177,6 +188,7 @@ def compute(profile, *, portfolio=None, broker=None, as_of=None, settings=None, 
             total.awaiting += h.awaiting
             total.count += 1
         all_flows.extend((d, float(a)) for d, a in flows)
+        total.flows.extend(flows)
     if all_flows:
         total.xirr = xirr.xirr(all_flows + ([(as_of, float(total.value))] if total.value else []))
     return holdings, total

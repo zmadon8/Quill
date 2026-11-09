@@ -421,3 +421,21 @@ class PriceMaintenanceLog(models.Model):
 
     class Meta:
         ordering = ["-at", "-id"]
+
+
+class InvestmentsStatsCache(models.Model):
+    """Cached report results (plan 26.4). Valid only while the profile's `data_version` AND the global price version still match (and the
+    date, for results that include today). Derived data: never in the suite backup; cascades away with the profile."""
+
+    profile = models.ForeignKey("accounts.Profile", on_delete=models.CASCADE, related_name="+")
+    kind = models.CharField(max_length=30)
+    params_hash = models.CharField(max_length=64)
+    data_version = models.BigIntegerField(default=0)
+    price_version = models.BigIntegerField(default=0)
+    valid_on = models.DateField(null=True, blank=True)
+    payload = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["profile", "kind", "params_hash"], name="inv_statscache_unique")]
+        indexes = [models.Index(fields=["profile", "created_at"], name="inv_statscache_prof_idx")]
