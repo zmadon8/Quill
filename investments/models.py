@@ -130,6 +130,18 @@ class InvestmentSettings(models.Model):
     alt_treatment = models.CharField(max_length=10, default=ALT_UNCHANGED, choices=[(ALT_UNCHANGED, "Unchanged until next update"), (ALT_AVERAGED, "Averaged out")])
     money_default = models.CharField(max_length=5, default=MONEY_AUTO, choices=[(MONEY_AUTO, "Auto"), (MONEY_FULL, "Full")])
     hidden_pages = models.JSONField(default=list, blank=True)
+    # Alerts (plan 14). Rule A: against the previous close (and optionally over a window). Rule B: against the cost of units still held.
+    rule_a_enabled = models.BooleanField(default=True)
+    rule_a_fall_pct = models.DecimalField(max_digits=6, decimal_places=2, default=5)
+    rule_a_rise_pct = models.DecimalField(max_digits=6, decimal_places=2, default=8)
+    rule_a_window_days = models.PositiveSmallIntegerField(default=7)
+    rule_a_window_fall_pct = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True, default=15)
+    rule_b_enabled = models.BooleanField(default=True)
+    rule_b_loss_pct = models.DecimalField(max_digits=6, decimal_places=2, default=20)
+    rule_b_gain_pct = models.DecimalField(max_digits=6, decimal_places=2, default=40)
+    guardrail_replaces_global = models.BooleanField(default=True)
+    alert_email = models.BooleanField(default=False)
+    maturity_alert_days = models.PositiveSmallIntegerField(default=30)
     default_exchange = models.CharField(max_length=3, default="NS", choices=[("NS", "NSE"), ("BO", "BSE")])
     show_status_dots = models.BooleanField(default=True)
 
@@ -439,3 +451,126 @@ class InvestmentsStatsCache(models.Model):
     class Meta:
         constraints = [models.UniqueConstraint(fields=["profile", "kind", "params_hash"], name="inv_statscache_unique")]
         indexes = [models.Index(fields=["profile", "created_at"], name="inv_statscache_prof_idx")]
+
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Dividends, corporate actions and alerts (plan sections 7, 8 and 14)
+# ---------------------------------------------------------------------------------------------------------------------
+
+class Dividend(models.Model):
+    """A dividend received (plan 7): recorded by the user. Never part of Total Portfolio Value; counted in XIRR only when Include Dividends is on."""
+
+    profile = models.ForeignKey("accounts.Profile", on_delete=models.CASCADE, related_name="+")
+    date = models.DateField(help_text="Date received")
+    instrument = models.ForeignKey(Instrument, on_delete=models.PROTECT, related_name="+")
+    portfolio = models.ForeignKey(Portfolio, on_delete=models.PROTECT, related_name="+")
+    broker = models.ForeignKey(Broker, on_delete=models.PROTECT, related_name="+")
+    folio = models.ForeignKey(Folio, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    amount = models.DecimalField(help_text="Amount received, after tax deducted, in rupees", **MONEY)
+    tax_deducted = models.DecimalField(default=0, **MONEY)
+    currency = models.CharField(max_length=3, default="INR")
+    local_amount = models.DecimalField(null=True, blank=True, help_text="Foreign dividends: the amount in the investment's currency", **MONEY)
+    foreign_tax = models.DecimalField(null=True, blank=True, **MONEY)
+    note = models.CharField(max_length=200, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    version = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        ordering = ["-date", "-id"]
+        indexes = [models.Index(fields=["profile", "date"], name="inv_div_prof_date_idx")]
+
+
+class DividendSignal(models.Model):
+    """A dividend a price source reported (plan 7: suggests an amount and reminds the user it is due). Shared, re-creatable, not backed up."""
+
+    instrument = models.ForeignKey(Instrument, on_delete=models.CASCADE, related_name="dividend_signals")
+    ex_date = models.DateField()
+    per_unit = models.DecimalField(**MONEY)
+    seen_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["instrument", "ex_date"], name="inv_divsignal_unique")]
+
+
+CA_SPLIT, CA_BONUS, CA_OTHER = "split", "bonus", "other"
+
+
+class CorporateAction(models.Model):
+    """A split, bonus or other action, recorded once and shared because it is a fact about the company (plan 3.7, proposed).
+
+    Split "1 becomes 5": ``ratio_old=1, ratio_new=5``. Bonus "1 free for every 2 held": ``ratio_old=2, ratio_new=1``. It changes a profile's
+    holdings only after that profile confirms it (``CorporateActionResponse``)."""
+
+    instrument = models.ForeignKey(Instrument, on_delete=models.CASCADE, related_name="corporate_actions")
+    ex_date = models.DateField()
+    kind = models.CharField(max_length=6, choices=[(CA_SPLIT, "Split"), (CA_BONUS, "Bonus"), (CA_OTHER, "Other (merger, demerger)")])
+    ratio_old = models.DecimalField(max_digits=12, decimal_places=4, default=1)
+    ratio_new = models.DecimalField(max_digits=12, decimal_places=4, default=1)
+    notes = models.CharField(max_length=300, blank=True, default="")
+    detected = models.BooleanField(default=False, help_text="Created from a price source's split history")
+    pins_adjusted = models.BooleanField(default=False)
+    recorded_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    recorded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-ex_date", "-id"]
+        constraints = [models.UniqueConstraint(fields=["instrument", "ex_date", "kind"], name="inv_ca_unique")]
+
+    @property
+    def factor(self):
+        """Units after the action for each unit before it (split 1:5 gives 5; bonus 1 for 2 gives 1.5)."""
+        if self.kind == CA_SPLIT:
+            return self.ratio_new / self.ratio_old
+        if self.kind == CA_BONUS:
+            return 1 + self.ratio_new / self.ratio_old
+        return 1
+
+    def describe(self):
+        if self.kind == CA_SPLIT:
+            return f"Split: {self.ratio_old.normalize():f} becomes {self.ratio_new.normalize():f}"
+        if self.kind == CA_BONUS:
+            return f"Bonus: {self.ratio_new.normalize():f} free for every {self.ratio_old.normalize():f} held"
+        return self.notes or "Other action"
+
+
+class CorporateActionResponse(models.Model):
+    """One profile's answer to a corporate action (plan 3.7): pending, applied or not applicable. Logged in the edit history."""
+
+    profile = models.ForeignKey("accounts.Profile", on_delete=models.CASCADE, related_name="+")
+    action = models.ForeignKey(CorporateAction, on_delete=models.CASCADE, related_name="responses")
+    status = models.CharField(max_length=15, default="pending", choices=[("pending", "Pending"), ("applied", "Applied"), ("not_applicable", "Not applicable")])
+    decided_at = models.DateTimeField(null=True, blank=True)
+    decided_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    version = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["profile", "action"], name="inv_ca_response_unique")]
+
+
+class Guardrail(models.Model):
+    """An alert on one investment in one portfolio (plan 14): target gain, stop-loss, price level or fall from peak since purchase."""
+
+    KINDS = [("target_gain", "Target gain %"), ("stop_loss", "Stop-loss % below cost"), ("price_above", "Price at or above"),
+             ("price_below", "Price at or below"), ("fall_from_peak", "Fall from peak since purchase %")]
+    profile = models.ForeignKey("accounts.Profile", on_delete=models.CASCADE, related_name="+")
+    instrument = models.ForeignKey(Instrument, on_delete=models.CASCADE, related_name="+")
+    portfolio = models.ForeignKey(Portfolio, on_delete=models.CASCADE, related_name="+")
+    kind = models.CharField(max_length=15, choices=KINDS)
+    value = models.DecimalField(**MONEY)
+    active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class AlertState(models.Model):
+    """What the person did with an alert: dismissed, snoozed until a date, or re-armed at a new level. Keyed by a stable text key."""
+
+    profile = models.ForeignKey("accounts.Profile", on_delete=models.CASCADE, related_name="+")
+    key = models.CharField(max_length=120)
+    dismissed_on = models.DateField(null=True, blank=True, help_text="Dismissed for the price date it was raised on")
+    snoozed_until = models.DateField(null=True, blank=True)
+    rearm_level = models.DecimalField(null=True, blank=True, **MONEY)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["profile", "key"], name="inv_alertstate_unique")]

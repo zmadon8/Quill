@@ -1,0 +1,13 @@
+{% extends "investments/base_investments.html" %}
+{% load investments_money %}
+{% block inv_content %}
+<div class="titlebar"><h1 class="t">Dividends</h1><div class="meta">never part of Total Portfolio Value</div></div>
+{% if due %}<div class="ban wa"><span><b>Dividends that may be due</b> (from the price source; amount = per unit &times; units held on the ex-date):<ul>{% for d in due %}<li>{{ d.instrument.name }}: ex-date {{ d.ex_date|date:"j M Y" }}, {{ d.per_unit|price }} per unit &times; {{ d.units|units }} = about {{ d.amount|inr }}{% if can_edit %} <a href="{% url 'investments_dividend_new' %}?instrument={{ d.instrument.pk }}&amount={{ d.amount }}">Record it</a>{% endif %}</li>{% endfor %}</ul></span></div>{% endif %}
+<div class="sec"><h2>By financial year</h2><div class="acts">{% if can_edit %}<a class="btn p" href="{% url 'investments_dividend_new' %}">Add a dividend</a>{% endif %}<a class="btn q" href="?export=xlsx">Export to Excel</a></div></div>
+{% if years %}<table data-table-id="inv-dividends-years" class="led"><thead><tr><th>Financial year</th><th class="r">Received</th><th class="r">Tax deducted</th></tr></thead><tbody>
+{% for fy, r, t in years %}<tr><td>{{ fy }}</td><td class="r">{{ r|inr }}</td><td class="r">{{ t|inr }}</td></tr>{% endfor %}</tbody></table>{% endif %}
+<div class="sec"><h2>Every dividend</h2></div>
+{% if rows %}<div class="tw"><table data-table-id="inv-dividends" class="led" data-sortable><thead><tr><th>Date received</th><th>Investment</th><th>Portfolio</th><th>Broker</th><th>Folio</th><th class="r">Amount</th><th class="r">Tax deducted</th><th></th></tr></thead><tbody>
+{% for r in rows %}<tr><td data-sort="{{ r.date|date:'Y-m-d' }}">{{ r.date|date:"j M Y" }}</td><td class="nm"><a href="{% url 'investments_investment' r.instrument.pk %}">{{ r.instrument.name }}</a></td><td>{{ r.portfolio.name }}</td><td>{{ r.broker.name }}</td><td>{{ r.folio.number|default:"" }}</td><td class="r" data-sort="{{ r.amount }}">{{ r.amount|inr }}</td><td class="r">{{ r.tax_deducted|inr }}</td><td class="act">{% if can_edit %}<a href="{% url 'investments_dividend_edit' r.pk %}">Edit</a>{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>{% else %}<p class="lead na">No dividends recorded yet.</p>{% endif %}
+{% endblock %}

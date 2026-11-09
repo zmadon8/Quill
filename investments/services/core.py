@@ -90,6 +90,11 @@ def events_for(profile, instrument_id=None, exclude_txn=None, exclude_transfer=N
                                      paid_on=t.date, order=t.pk, estimated=t.is_estimated))
         elif t.side == SIDE_SELL:
             events.append(lots.Event(lots.SELL, t.date, t.units, bucket_of(t), ("txn", t.pk), sell_total(t), order=t.pk))
+    from investments import corporate as corporate_math
+    from investments.services import corporate as corporate_service
+
+    for actions in corporate_service.applied(profile, None if instrument_id is None else [instrument_id]).values():
+        events.extend(corporate_math.events(actions))
     for tr in transfers.iterator(chunk_size=500):
         events.append(lots.Event(
             lots.TRANSFER, tr.date, tr.units, lots.Bucket(tr.from_portfolio_id, tr.from_broker_id, tr.from_folio_id),

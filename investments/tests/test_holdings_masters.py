@@ -90,7 +90,7 @@ class HoldingsTests(InvTestCase):
             self.buy(d(2023, 1, 1), 10, 100, instrument=inst)
         with CaptureQueriesContext(connection) as ctx:
             holdings.compute(self.profile, as_of=d(2024, 1, 1))
-        self.assertLess(len(ctx), 12)
+        self.assertLess(len(ctx), 16)          # a fixed number, however many holdings
 
 
 class MastersTests(InvTestCase):

@@ -40,6 +40,9 @@ class Holding:
     alpha: float = None
     sect_xirr: float = None
     sect_alpha: float = None
+    dividends: Decimal = ZERO                       # received, shown separately; never part of value
+    provisional: bool = False                       # a corporate action is waiting for this profile's confirmation
+    blocked: bool = False                           # ... and Settings says block: value, gain and XIRR are n/a and left out of totals
 
     @property
     def avg_cost(self):
@@ -61,6 +64,9 @@ class Holding:
 @dataclass
 class Totals:
     flows: list = field(default_factory=list)
+    dividends: Decimal = ZERO
+    provisional: int = 0
+    blocked: int = 0
     index_xirr: float = None
     alpha: float = None
     sect_xirr: float = None
@@ -84,14 +90,23 @@ def _passes(portfolio, broker, portfolio_id, broker_id):
     return (portfolio is None or portfolio_id == portfolio) and (broker is None or broker_id == broker)
 
 
-def compute(profile, *, portfolio=None, broker=None, as_of=None, settings=None, instrument_ids=None):
+def compute(profile, *, portfolio=None, broker=None, as_of=None, settings=None, instrument_ids=None, include_dividends=None):
     """``([Holding sorted by name], Totals)`` for the profile as at ``as_of`` (today by default).
 
     ``portfolio`` and ``broker`` are ids (or None for all). Sold-out investments are included with ``sold_out=True``.
+    ``include_dividends`` (default: the profile's Settings choice) counts each dividend as money received on its date in XIRR (plan 7).
+    Applied corporate actions change the units (plan 8); an unconfirmed one makes the holding Provisional, or blocked (plan 2).
     """
+    from investments import corporate as corporate_math
+    from investments.models import CA_TAG, Dividend
+    from investments.services import corporate as corporate_service
+
     as_of = as_of or date.today()
     settings = settings or core.get_settings(profile, create=False)
     leave_out = settings.awaiting_treatment == AWAITING_LEAVE_OUT
+    if include_dividends is None:
+        include_dividends = settings.include_dividends
+    block = settings.corporate_action_mode != CA_TAG
 
     txns = Transaction.objects.filter(profile=profile, date__lte=as_of).select_related("instrument")
     if instrument_ids is not None:
@@ -108,6 +123,16 @@ def compute(profile, *, portfolio=None, broker=None, as_of=None, settings=None, 
             instruments[tr.instrument_id] = tr.instrument
 
     ids = list(instruments)
+    actions = corporate_service.applied(profile, ids)
+    pending_ids = corporate_service.pending_instrument_ids(profile)
+    dividends = {}
+    divq = Dividend.objects.filter(profile=profile, date__lte=as_of, instrument_id__in=ids)
+    if portfolio:
+        divq = divq.filter(portfolio_id=portfolio)
+    if broker:
+        divq = divq.filter(broker_id=broker)
+    for iid, day, amount in divq.values_list("instrument_id", "date", "amount"):
+        dividends.setdefault(iid, []).append((day, amount))
     latest = prices.latest_prices(ids, as_of)
     alts = prices.alt_values(profile, [i for i in ids if instruments[i].kind == KIND_ALTERNATIVE])
 
@@ -146,6 +171,11 @@ def compute(profile, *, portfolio=None, broker=None, as_of=None, settings=None, 
         for tr in transfers.get(iid, []):
             events.append(lots.Event(lots.TRANSFER, tr.date, tr.units, lots.Bucket(tr.from_portfolio_id, tr.from_broker_id, tr.from_folio_id),
                                      ("transfer", tr.pk), to_bucket=lots.Bucket(tr.to_portfolio_id, tr.to_broker_id, tr.to_folio_id), order=tr.pk))
+        inst_actions = [a for a in actions.get(iid, []) if a[2] <= as_of]
+        events += corporate_math.events(inst_actions)
+        h.dividends = sum((a for _d, a in dividends.get(iid, [])), ZERO)
+        if include_dividends:
+            flows += [(d, a) for d, a in dividends.get(iid, [])]
         result = lots.replay(events)
         kept = [lot for lot in result.all_lots() if _passes(portfolio, broker, lot.bucket.portfolio, lot.bucket.broker)]
         h.lots = kept
@@ -168,7 +198,9 @@ def compute(profile, *, portfolio=None, broker=None, as_of=None, settings=None, 
         elif iid in latest and h.units:
             h.price_date, h.price = latest[iid]
             rate = fx if inst.kind == KIND_FOREIGN and fx else Decimal(1)
-            h.value = h.units * h.price * rate + h.awaiting
+            # On a split-adjusted series a past day's units are expressed on today's basis (plan 16.2).
+            factor = corporate_math.basis_factor(actions.get(iid, []), as_of, inst.price_basis)
+            h.value = h.units * factor * h.price * rate + h.awaiting
         else:
             h.value = h.cost
             h.unpriced = bool(h.units) and inst.kind != KIND_ALTERNATIVE
@@ -180,8 +212,17 @@ def compute(profile, *, portfolio=None, broker=None, as_of=None, settings=None, 
         elif flows:
             h.xirr = xirr.xirr([(d, float(a)) for d, a in flows])
         h.flows = list(flows)
+        h.provisional = iid in pending_ids and bool(h.units)
+        h.blocked = h.provisional and block
+        if h.blocked:
+            h.xirr = None
         if flows or h.units or h.awaiting:
             holdings.append(h)
+        total.dividends += h.dividends
+        total.provisional += 1 if h.provisional else 0
+        total.blocked += 1 if h.blocked else 0
+        if h.blocked:
+            continue
         if h.units or h.awaiting:
             total.invested += h.cost
             total.value += h.value

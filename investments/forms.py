@@ -284,3 +284,62 @@ class PruningForm(forms.Form):
     prune_archive = forms.BooleanField(required=False, label="Prune the price archive")
     years = forms.IntegerField(min_value=2, max_value=50, label="Years kept in full daily detail")
     archive_confirmed = forms.BooleanField(required=False, label="I have downloaded a full price archive and I am keeping it")
+
+
+class DividendForm(ProfileForm):
+    date = forms.DateField(widget=date_widget(), initial=date.today, label="Date received")
+    instrument = forms.ModelChoiceField(queryset=Instrument.objects.none(), label="Investment")
+    portfolio = forms.ModelChoiceField(queryset=Portfolio.objects.none())
+    broker = forms.ModelChoiceField(queryset=Broker.objects.none(), empty_label="Choose a broker")
+    folio = forms.ModelChoiceField(queryset=Folio.objects.none(), required=False, label="Folio (optional)")
+    amount = MoneyField(label="Amount received (Rs, after tax deducted)", min_value=0)
+    tax_deducted = MoneyField(label="Tax deducted (optional)", required=False, min_value=0)
+    note = forms.CharField(required=False, max_length=200)
+
+    def __init__(self, *args, profile=None, **kwargs):
+        super().__init__(*args, profile=profile, **kwargs)
+        self.fields["instrument"].queryset = self.instruments().exclude(kind="alternative")
+        self.fields["portfolio"].queryset = Portfolio.objects.filter(profile=profile)
+        self.fields["broker"].queryset = self.brokers()
+        self.fields["folio"].queryset = Folio.objects.filter(profile=profile)
+
+
+class CorporateActionForm(ProfileForm):
+    instrument = forms.ModelChoiceField(queryset=Instrument.objects.none(), label="Investment")
+    ex_date = forms.DateField(widget=date_widget(), label="Ex-date (or allotment date for a bonus)")
+    kind = forms.ChoiceField(choices=[("split", "Split"), ("bonus", "Bonus"), ("other", "Other (merger, demerger)")])
+    ratio_old = forms.DecimalField(required=False, min_value=0, decimal_places=4, max_digits=12, label="For every (old shares)")
+    ratio_new = forms.DecimalField(required=False, min_value=0, decimal_places=4, max_digits=12, label="New shares (split: becomes; bonus: free)")
+    notes = forms.CharField(required=False, max_length=300)
+    apply_now = forms.BooleanField(required=False, initial=True, label="Apply it to this profile now")
+
+    def __init__(self, *args, profile=None, **kwargs):
+        super().__init__(*args, profile=profile, **kwargs)
+        self.fields["instrument"].queryset = self.instruments().exclude(kind="alternative")
+
+
+class GuardrailForm(ProfileForm):
+    instrument = forms.ModelChoiceField(queryset=Instrument.objects.none(), label="Investment")
+    portfolio = forms.ModelChoiceField(queryset=Portfolio.objects.none())
+    kind = forms.ChoiceField(choices=[("target_gain", "Target gain %"), ("stop_loss", "Stop-loss % below cost"), ("price_above", "Price at or above"),
+                                      ("price_below", "Price at or below"), ("fall_from_peak", "Fall from peak since purchase %")])
+    value = MoneyField(min_value=0)
+
+    def __init__(self, *args, profile=None, **kwargs):
+        super().__init__(*args, profile=profile, **kwargs)
+        self.fields["instrument"].queryset = self.instruments()
+        self.fields["portfolio"].queryset = Portfolio.objects.filter(profile=profile)
+
+
+class AlertSettingsForm(forms.Form):
+    rule_a_enabled = forms.BooleanField(required=False, label="Rule A: against the previous close")
+    rule_a_fall_pct = forms.DecimalField(min_value=0, max_digits=6, decimal_places=2, label="Fall in a day %")
+    rule_a_rise_pct = forms.DecimalField(min_value=0, max_digits=6, decimal_places=2, label="Rise in a day %")
+    rule_a_window_days = forms.IntegerField(min_value=2, max_value=365, label="Over this many days")
+    rule_a_window_fall_pct = forms.DecimalField(required=False, min_value=0, max_digits=6, decimal_places=2, label="Fall over those days % (blank: off)")
+    rule_b_enabled = forms.BooleanField(required=False, label="Rule B: against your cost")
+    rule_b_loss_pct = forms.DecimalField(min_value=0, max_digits=6, decimal_places=2, label="Below cost %")
+    rule_b_gain_pct = forms.DecimalField(min_value=0, max_digits=6, decimal_places=2, label="Above cost %")
+    guardrail_replaces_global = forms.BooleanField(required=False, label="A guardrail on a holding replaces the global rules for it")
+    maturity_alert_days = forms.IntegerField(min_value=0, max_value=365, label="Warn before a maturity date (days)")
+    alert_email = forms.BooleanField(required=False, label="Email me alerts that triggered overnight")

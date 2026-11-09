@@ -58,7 +58,10 @@ def dashboard(request):
     profile = profile_or_404(request)
     portfolio, broker, asat = selection(request, profile)
     settings_row = core.get_settings(profile, create=False)
-    data = dashboard_service.load(profile, portfolio, broker, asat)
+    from .viewutil import include_dividends
+
+    div = include_dividends(request, profile)
+    data = dashboard_service.load(profile, portfolio, broker, asat, div)
     awaiting = list(tx.awaiting_for(profile))
     overdue = [t for t in awaiting if tx.overdue(t, settings_row.awaiting_reminder_days)]
     chart = None
@@ -76,7 +79,8 @@ def dashboard(request):
         "page_title_text": "Dashboard", "rows": rows, "totals": data["totals"], "allocation": data["allocation"], "chart": chart, "notes": data["notes"],
         "awaiting": awaiting, "awaiting_total": sum((t.amount or Decimal(0) for t in awaiting if t.side == "buy"), Decimal(0)),
         "overdue": overdue, "unpriced": [r for r in rows if r["unpriced"]], "has_any": data["has_any"],
-        "default_index": masters.default_index_for(profile), "sectoral": settings_row.sectoral_enabled,
+        "default_index": masters.default_index_for(profile), "sectoral": settings_row.sectoral_enabled, "include_div": div,
+        "pending_actions": __import__("investments.services.corporate", fromlist=["pending"]).pending(profile),
     })
 
 

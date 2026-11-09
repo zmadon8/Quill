@@ -105,9 +105,26 @@ def refetch_full(instrument, years=10, today=None):
 
 # ---------------------------------------------------------------- the run
 
+def _record_dividends(instrument, result):
+    from investments.models import DividendSignal
+
+    for day, per_unit in result.dividends:
+        if per_unit > 0:
+            DividendSignal.objects.get_or_create(instrument=instrument, ex_date=day, defaults={"per_unit": per_unit})
+
+
 def _record_splits(instrument, result, today, years, failures):
+    from investments.services import corporate
+
     for day, num, den in result.splits:
         signal, created = SplitSignal.objects.get_or_create(instrument=instrument, ex_date=day, defaults={"numerator": num, "denominator": den})
+        if created:
+            # A possible split for every profile that holds it to confirm or mark not applicable (plan 8).
+            try:
+                corporate.record(None, None, instrument=instrument, ex_date=day, kind="split", ratio_old=den, ratio_new=num,
+                                 notes="Found in the price source's split history", detected=True)
+            except InvestmentsError:
+                pass
         if created and instrument.price_basis == BASIS_ADJ:
             try:
                 refetch_full(instrument, years, today)
@@ -190,6 +207,7 @@ def fetch_prices(*, ids=None, profile=None, trigger="cron", max_seconds=600, max
                 if not result.rows:
                     failures.append({"id": inst.pk, "name": inst.name, "error": "no prices returned"})
                 _record_splits(inst, result, today, years, failures)
+                _record_dividends(inst, result)
                 if result.rejected:
                     failures.append({"id": inst.pk, "name": inst.name, "error": f"{result.rejected} price(s) of zero or below were rejected"})
             except (FetchError, InvestmentsError) as exc:

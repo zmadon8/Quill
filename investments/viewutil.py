@@ -135,3 +135,22 @@ def price_status_line(profile):
     if behind:
         parts.append(f"{behind} not updated")
     return {"inv_status": " \u00b7 ".join(parts) or "No prices yet. Update Prices, or ask an Admin to upload history.", "inv_can_update": True}
+
+
+def include_dividends(request, profile):
+    """The Include Dividends switch (plan 7): ``?div=1`` or ``?div=0`` changes it; an Editor's choice is remembered for the profile,
+    a Reader's applies to the page only. Returns the value to use."""
+    from accounts.models import ROLE_EDITOR
+    from accounts.profiles import request_role
+    from accounts.suite import KEY_INVESTMENTS
+
+    from investments.services import masters
+
+    row = core.get_settings(profile, create=False)
+    wanted = request.GET.get("div")
+    if wanted in ("0", "1"):
+        value = wanted == "1"
+        if request_role(request, KEY_INVESTMENTS) == ROLE_EDITOR and value != row.include_dividends:
+            masters.update_settings(profile, request.user, include_dividends=value)
+        return value
+    return row.include_dividends

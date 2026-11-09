@@ -13,7 +13,7 @@ from django.db.models import Max
 
 from investments.errors import InvestmentsError, not_found
 from investments.models import (
-    AltValue, Folio, InvestmentHistory, Switch, Transaction, Transfer, new_group,
+    AltValue, CorporateActionResponse, Dividend, Folio, InvestmentHistory, Switch, Transaction, Transfer, new_group,
 )
 
 #: record_type -> model. Only these are logged (plan 6: transactions, dividends, corporate action confirmations, folio
@@ -24,9 +24,12 @@ RECORD_MODELS = {
     "switch": Switch,
     "folio": Folio,
     "altvalue": AltValue,
+    "dividend": Dividend,
+    "ca_response": CorporateActionResponse,
 }
 TYPE_LABELS = {"transaction": "Transaction", "transfer": "Transfer", "switch": "Switch", "folio": "Folio number",
-               "altvalue": "Alternative value"}
+               "altvalue": "Alternative value",
+               "dividend": "Dividend", "ca_response": "Corporate action confirmation"}
 
 
 def record_type_of(obj):
@@ -52,7 +55,10 @@ def snapshot_of(obj):
 
 
 def _instrument_id(obj, snap):
-    return snap.get("instrument_id")
+    if "instrument_id" in snap:
+        return snap.get("instrument_id")
+    action = getattr(obj, "action", None)
+    return getattr(action, "instrument_id", None)
 
 
 def record(profile, user, obj, kind, group=None, summary=""):

@@ -6,7 +6,7 @@ from decimal import Decimal
 
 from investments.services import core, holdings, performance, series, statscache
 
-MONEY_FIELDS = ("units", "avg_cost", "price", "value", "gain", "awaiting", "cost")
+MONEY_FIELDS = ("units", "avg_cost", "price", "value", "gain", "awaiting", "cost", "dividends")
 
 
 def _row(h):
@@ -15,13 +15,14 @@ def _row(h):
             "price": None if h.price is None else str(h.price), "price_date": h.price_date.isoformat() if h.price_date else None,
             "value": str(h.value), "gain": str(h.gain), "gain_pct": h.gain_pct, "cost": str(h.cost), "awaiting": str(h.awaiting),
             "unpriced": h.unpriced, "xirr": h.xirr, "index_xirr": h.index_xirr, "alpha": h.alpha, "sect_xirr": h.sect_xirr,
-            "sect_alpha": h.sect_alpha, "asset_class": h.instrument.get_asset_class_display()}
+            "sect_alpha": h.sect_alpha, "asset_class": h.instrument.get_asset_class_display(), "provisional": h.provisional, "blocked": h.blocked,
+            "dividends": str(h.dividends)}
 
 
-def compute(profile, portfolio=None, broker=None, as_of=None):
+def compute(profile, portfolio=None, broker=None, as_of=None, include_dividends=None):
     as_of = as_of or date.today()
     settings_row = core.get_settings(profile, create=False)
-    rows, totals = holdings.compute(profile, portfolio=portfolio, broker=broker, as_of=as_of, settings=settings_row)
+    rows, totals = holdings.compute(profile, portfolio=portfolio, broker=broker, as_of=as_of, settings=settings_row, include_dividends=include_dividends)
     notes = performance.decorate_with_index(profile, rows, totals, as_of, settings_row)
     held = holdings.held(rows)
     chart = None
@@ -38,21 +39,22 @@ def compute(profile, portfolio=None, broker=None, as_of=None):
     return {
         "rows": [_row(h) for h in held], "has_any": bool(rows),
         "totals": {"invested": str(totals.invested), "value": str(totals.value), "gain": str(totals.gain), "gain_pct": totals.gain_pct,
-                   "xirr": totals.xirr, "index_xirr": totals.index_xirr, "alpha": totals.alpha, "count": totals.count},
+                   "xirr": totals.xirr, "index_xirr": totals.index_xirr, "alpha": totals.alpha, "count": totals.count,
+                   "dividends": str(totals.dividends), "provisional": totals.provisional, "blocked": totals.blocked},
         "allocation": [[label, str(value), share] for label, value, share in holdings.allocation(held)], "notes": notes, "chart": chart,
     }
 
 
-def load(profile, portfolio=None, broker=None, as_of=None):
+def load(profile, portfolio=None, broker=None, as_of=None, include_dividends=None):
     as_of = as_of or date.today()
-    payload = statscache.get_or_compute(profile, "dashboard", {"p": portfolio, "b": broker, "a": as_of},
-                                        lambda: compute(profile, portfolio, broker, as_of), today_sensitive=True)
+    payload = statscache.get_or_compute(profile, "dashboard", {"p": portfolio, "b": broker, "a": as_of, "d": include_dividends},
+                                        lambda: compute(profile, portfolio, broker, as_of, include_dividends), today_sensitive=True)
     for row in payload["rows"]:
         for key in MONEY_FIELDS:
             if row.get(key) is not None:
                 row[key] = Decimal(row[key])
         row["price_date"] = date.fromisoformat(row["price_date"]) if row["price_date"] else None
-    for key in ("invested", "value", "gain"):
+    for key in ("invested", "value", "gain", "dividends"):
         payload["totals"][key] = Decimal(payload["totals"][key])
     payload["allocation"] = [(label, Decimal(value), share) for label, value, share in payload["allocation"]]
     return payload

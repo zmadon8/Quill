@@ -168,8 +168,17 @@ def render_context(request, profile, extra=None):
         "inv_nav": top,
         "inv_sub": sub,
         "inv_money_mode": masters.money_preference(request.user, profile) if profile is not None else "auto",
+        "inv_alert_count": _alert_count(profile),
         "can_edit": request_role(request, KEY_INVESTMENTS) == ROLE_EDITOR,
         "inv_other_profiles": [m.profile for m in request_memberships(request, KEY_INVESTMENTS)[1:]],
     }
     context.update(extra or {})
     return context
+
+
+def _alert_count(profile):
+    if profile is None:
+        return 0
+    from investments.services import alerts
+
+    return alerts.count(profile)

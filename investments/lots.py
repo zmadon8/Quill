@@ -27,9 +27,12 @@ ZERO = Decimal(0)
 BUY = "buy"
 SELL = "sell"
 TRANSFER = "transfer"
+SPLIT = "split"        # every lot's units times ``units`` (the factor); cost and dates unchanged
+BONUS = "bonus"        # a new lot in each bucket of held units times ``units`` (the bonus ratio), at zero cost, dated the ex-date
 
-#: Order of kinds inside one date: purchases, then transfers, then sales.
-_KIND_ORDER = {BUY: 0, TRANSFER: 1, SELL: 2}
+#: Order of kinds inside one date: a corporate action applies to what was held at the end of the day before, then purchases,
+#: transfers and sales.
+_KIND_ORDER = {SPLIT: -2, BONUS: -1, BUY: 0, TRANSFER: 1, SELL: 2}
 
 
 @dataclass(frozen=True)
@@ -184,6 +187,17 @@ def replay(events, as_of=None):
             for lot, use, cost in taken:
                 dst.append(Lot(lot.ref, lot.bought_on, lot.paid_on, use, cost, use, event.to_bucket, lot.estimated))
             dst.sort(key=lambda l: (l.bought_on, str(l.ref)))
+        elif event.kind == SPLIT:
+            for lots in result.lots.values():
+                for lot in lots:
+                    lot.units *= event.units
+                    lot.original_units *= event.units
+        elif event.kind == BONUS:
+            for bucket, lots in list(result.lots.items()):
+                held = sum((lot.units for lot in lots), ZERO)
+                if held > 0:
+                    lots.append(Lot(event.ref, event.on, event.on, held * event.units, ZERO, held * event.units, bucket, False))
+                    lots.sort(key=lambda l: (l.bought_on, str(l.ref)))
         else:  # pragma: no cover - guarded by the constants above
             raise ValueError(f"unknown event kind {event.kind!r}")
     for bucket in list(result.lots):

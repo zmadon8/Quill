@@ -33,6 +33,7 @@ INVESTMENTS_BACKUP_MODELS = [
     "investments.PinnedPrice",
     "investments.PriceHistorySettings",
     "investments.CatalogueHistory",
+    "investments.CorporateAction",
     "investments.Portfolio",
     "investments.Broker",
     "investments.InvestmentSettings",
@@ -42,6 +43,10 @@ INVESTMENTS_BACKUP_MODELS = [
     "investments.Transaction",
     "investments.ProfileInvestment",
     "investments.AltValue",
+    "investments.Dividend",
+    "investments.CorporateActionResponse",
+    "investments.Guardrail",
+    "investments.AlertState",
     "investments.InvestmentHistory",
 ]
 
@@ -57,6 +62,10 @@ INVESTMENT_PROFILE_MODELS = [
     "investments.Transaction",
     "investments.ProfileInvestment",
     "investments.AltValue",
+    "investments.Dividend",
+    "investments.CorporateActionResponse",
+    "investments.Guardrail",
+    "investments.AlertState",
     "investments.InvestmentHistory",
 ]
 

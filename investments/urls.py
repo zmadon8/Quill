@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import pages, views, views_holdings as vh, views_misc as vm, views_reports as vr, views_catalogue as vc, views_prices as vp, views_txn as vt
+from . import pages, views, views_holdings as vh, views_misc as vm, views_income as vi, views_reports as vr, views_catalogue as vc, views_prices as vp, views_txn as vt
 
 # Mounted at /investments/ by config/urls.py. No app namespace: URL names are global and start with ``investments_``,
 # like the Fee Register's ``fees_`` names (accounts.context_processors.current_program_key relies on the prefix).
@@ -27,6 +27,11 @@ REAL = {
     "settings_pages": vm.settings_pages,
     "admin_prices": vp.price_sources,
     "admin_upload": vp.price_upload,
+    "dividends": vi.dividends_list,
+    "dividend_new": vi.dividend_form,
+    "corporate_actions": vi.corporate_actions,
+    "alerts": vi.alerts_page,
+    "settings_alerts": vi.settings_alerts,
     "performance": vr.performance_view,
     "charts": vr.charts_view,
     "value": vr.value_view,
@@ -67,6 +72,7 @@ urlpatterns += [
     path("settings/catalogue/<int:pk>/", vc.catalogue_item, name="investments_admin_catalogue_item"),
     path("settings/catalogue/<int:pk>/action/", vc.catalogue_action, name="investments_admin_catalogue_action"),
     path("settings/price-history/archive/", vp.price_archive, name="investments_price_archive"),
+    path("dividends/<int:pk>/", vi.dividend_form, name="investments_dividend_edit"),
     path("prefs/selection/", views.set_selection, name="investments_set_selection"),
     path("prefs/money/", views.set_money_mode, name="investments_set_money_mode"),
 ]

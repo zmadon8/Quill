@@ -174,6 +174,8 @@ def investment(request, pk):
         "lots": [(l, (l.units * h.price) if h.price else None, (l.units * h.price - l.cost) if h.price else None)
                  for l in sorted(h.lots, key=lambda l: (l.bought_on, str(l.ref)))],
         "is_private": inst.profile_id is not None,
+        "dividends": __import__("investments.models", fromlist=["Dividend"]).Dividend.objects.filter(profile=profile, instrument=inst).select_related("broker")[:50],
+        "actions": [a for a in __import__("investments.services.corporate", fromlist=["for_profile"]).for_profile(profile) if a.instrument_id == inst.pk],
         "can_delete": (not any(counts.values())) or getattr(request.user, "is_admin", False),
     }
     return page(request, "investments/investment.html", context)
