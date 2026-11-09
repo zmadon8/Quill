@@ -253,3 +253,27 @@ class PriceUploadForm(forms.Form):
                               required=False, label="Price basis for the whole file")
     instrument = forms.ModelChoiceField(queryset=Instrument.objects.filter(profile=None).exclude(kind="alternative"), required=False,
                                         label="Only this investment (optional)")
+
+
+class CatalogueDetailsForm(forms.Form):
+    name = forms.CharField(max_length=200)
+    code = forms.CharField(max_length=60, required=False)
+    isin = forms.CharField(max_length=20, required=False)
+    exchange = forms.CharField(max_length=10, required=False)
+    currency = forms.CharField(max_length=3)
+    asset_class = forms.ChoiceField(choices=ASSET_CLASSES)
+    sector = forms.CharField(max_length=80, required=False)
+    price_source = forms.ChoiceField(choices=[("manual", "Entered by hand"), ("yahoo", "Yahoo"), ("amfi", "AMFI"), ("mfapi", "mfapi.in"), ("upload", "Uploaded")])
+    fallback_source = forms.ChoiceField(choices=[("", "None"), ("yahoo", "Yahoo"), ("amfi", "AMFI"), ("mfapi", "mfapi.in")], required=False)
+    fetch_enabled = forms.BooleanField(required=False, label="Fetch nightly")
+
+    def clean_currency(self):
+        return self.cleaned_data["currency"].upper()
+
+
+class CatalogueNewForm(forms.Form):
+    kind = forms.ChoiceField(choices=[("share", "Share"), ("fund", "Mutual fund"), ("foreign", "Foreign"), ("index", "Index")])
+    name = forms.CharField(max_length=200)
+    code = forms.CharField(max_length=60, required=False)
+    isin = forms.CharField(max_length=20, required=False)
+    currency = forms.CharField(max_length=3, initial="INR")

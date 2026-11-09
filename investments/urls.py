@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import pages, views, views_holdings as vh, views_misc as vm, views_prices as vp, views_txn as vt
+from . import pages, views, views_holdings as vh, views_misc as vm, views_catalogue as vc, views_prices as vp, views_txn as vt
 
 # Mounted at /investments/ by config/urls.py. No app namespace: URL names are global and start with ``investments_``,
 # like the Fee Register's ``fees_`` names (accounts.context_processors.current_program_key relies on the prefix).
@@ -27,6 +27,7 @@ REAL = {
     "settings_pages": vm.settings_pages,
     "admin_prices": vp.price_sources,
     "admin_upload": vp.price_upload,
+    "admin_catalogue": vc.catalogue_list,
 }
 
 urlpatterns = [path("", views.landing, name="investments_landing")]
@@ -58,6 +59,9 @@ urlpatterns += [
     path("settings/portfolios/", vm.portfolio_action, name="investments_portfolio_action"),
     path("settings/brokers/action/", vm.broker_action, name="investments_broker_action"),
     path("prices/update/", vp.update_prices, name="investments_update_prices"),
+    path("settings/catalogue/new/", vc.catalogue_new, name="investments_admin_catalogue_new"),
+    path("settings/catalogue/<int:pk>/", vc.catalogue_item, name="investments_admin_catalogue_item"),
+    path("settings/catalogue/<int:pk>/action/", vc.catalogue_action, name="investments_admin_catalogue_action"),
     path("prefs/selection/", views.set_selection, name="investments_set_selection"),
     path("prefs/money/", views.set_money_mode, name="investments_set_money_mode"),
 ]

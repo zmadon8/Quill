@@ -1,0 +1,9 @@
+{% extends "investments/base_investments.html" %}
+{% block inv_content %}
+<div class="titlebar"><h1 class="t">Merge</h1></div>
+<p class="lead">Move everything from <b>{{ drop.name }}</b> into <b>{{ keep.name }}</b>. {{ drop.name }} is then removed.</p>
+{% if preview.problems %}<div class="ban al"><span>{{ preview.problems|join:" " }}</span></div>
+{% else %}<ul><li>Transactions to move, by profile: {% for n, c in preview.per_profile.items %}{{ n }} ({{ c }}){% if not forloop.last %}, {% endif %}{% empty %}none{% endfor %}</li><li>Prices carried over: {{ preview.prices_moved }} (where both have a price for a day, {{ keep.name }}'s wins)</li><li>Folio numbers: {{ preview.folios }}</li></ul>
+<form method="post" action="{% url 'investments_admin_catalogue_action' keep.pk %}">{% csrf_token %}<input type="hidden" name="action" value="merge"><input type="hidden" name="other" value="{{ drop.pk }}"><input type="hidden" name="reason" value="{{ reason }}"><input type="hidden" name="confirm" value="1">
+<div class="acts-row"><button class="btn dng" type="submit">Take a backup and merge</button><a class="btn q" href="{% url 'investments_admin_catalogue_item' keep.pk %}">Cancel</a></div></form>{% endif %}
+{% endblock %}
