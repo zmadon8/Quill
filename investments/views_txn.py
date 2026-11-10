@@ -14,7 +14,7 @@ from . import forms
 from .decorators import inv_editor, inv_reader
 from .errors import InvestmentsError
 from .models import (
-    SIDE_BUY, SIDE_SELL, STATUS_AWAITING, STATUS_FINAL, STATUS_PENDING_SIP, Folio, Instrument, Transaction, Transfer,
+    ORIGIN_PURCHASE, ORIGINS, SIDE_BUY, SIDE_SELL, STATUS_AWAITING, STATUS_FINAL, STATUS_PENDING_SIP, Folio, Instrument, Transaction, Transfer,
 )
 from .services import core, masters, transactions as tx
 from .viewutil import handle_errors, page, profile_or_404, selection
@@ -40,6 +40,8 @@ def _txn_row(t):
     t.tags = []
     if t.is_opening:
         t.tags.append(("Opening", ""))
+    if t.origin != ORIGIN_PURCHASE:
+        t.tags.append((t.get_origin_display(), ""))
     if t.is_estimated:
         t.tags.append(("Estimated date", "amb"))
     if t.status == STATUS_AWAITING:
@@ -173,7 +175,8 @@ def txn_form(request, mode):
                 profile, request.user, side=side, instrument=d["instrument"], portfolio=d["portfolio"], broker=d["broker"], date=d["date"],
                 units=d.get("units"), price=d.get("price"), charges=d.get("charges") or 0, folio=folio, awaiting=awaiting,
                 amount=d.get("amount"), expected_allotment_date=d.get("expected_allotment_date"), reference=d.get("reference", ""),
-                note=d.get("note", ""), allotment_date=d.get("allotment_date"))
+                note=d.get("note", ""), allotment_date=d.get("allotment_date"), origin=d.get("origin") or ORIGIN_PURCHASE,
+                corporate_action=d.get("corporate_action"))
         except InvestmentsError as err:
             if err.code == "WOULD_GO_NEGATIVE":
                 return _refused(request, err, request.path)
@@ -200,6 +203,7 @@ def txn_edit(request, pk):
         "date": txn.date, "instrument": txn.instrument, "portfolio": txn.portfolio, "broker": txn.broker, "folio": txn.folio,
         "units": txn.units, "price": txn.price, "charges": txn.charges, "allotment_date": txn.allotment_date, "amount": txn.amount,
         "expected_allotment_date": txn.expected_allotment_date, "reference": txn.reference, "note": txn.note,
+        "origin": txn.origin, "corporate_action": txn.corporate_action_id,
     }
     form = forms.TransactionForm(request.POST or None, profile=profile, mode=mode_for_form, initial=initial)
     if "new_folio" in form.fields:
@@ -214,6 +218,8 @@ def txn_edit(request, pk):
             fields.update(units=d.get("units"), price=d.get("price"))
             if "allotment_date" in form.fields:
                 fields["allotment_date"] = d.get("allotment_date")
+            if "origin" in form.fields:
+                fields.update(origin=d.get("origin") or ORIGIN_PURCHASE, corporate_action=d.get("corporate_action"))
         try:
             tx.edit_transaction(profile, request.user, pk, expected_version=request.POST.get("version"), **fields)
         except InvestmentsError as err:
@@ -472,8 +478,24 @@ def import_statement(request):
         aliases = json.loads(alias_file.read_text()) if alias_file.exists() else {}
         return token, path, alias_file, aliases
 
+    def load_origins(token):
+        """The origin the person chose for some lines on the review page (``<token>-origins.json``: line number -> origin)."""
+        origin_file = staging / f"{token}-origins.json"
+        try:
+            return json.loads(origin_file.read_text()) if origin_file.exists() else {}
+        except ValueError:
+            return {}
+
     try:
-        if request.method == "POST" and request.POST.get("create"):
+        if request.method == "POST" and request.POST.get("set_origins"):
+            # Keep the "Treated as" choices for the lines, then show the review again with them applied.
+            token, path, alias_file, aliases = staged()
+            valid = {value for value, _label in ORIGINS}
+            chosen_origins = {key[len("origin_"):]: value for key, value in request.POST.items()
+                              if key.startswith("origin_") and key[len("origin_"):].isdigit() and value in valid}
+            (staging / f"{token}-origins.json").write_text(json.dumps(chosen_origins))
+            review = statement_import.review(profile, path, aliases, portfolio=page_portfolio, broker=page_broker, origins=chosen_origins)
+        elif request.method == "POST" and request.POST.get("create"):
             # Add the missing investments the person ticked (and corrected), then show the review again.
             token, path, alias_file, aliases = staged()
             specs = []
@@ -489,18 +511,19 @@ def import_statement(request):
             else:
                 alias_file.write_text(json.dumps(aliases))
                 messages.success(request, f"{len(specs)} investment{'s' if len(specs) != 1 else ''} added. Check the lines again, then save.")
-            review = statement_import.review(profile, path, aliases, portfolio=page_portfolio, broker=page_broker)
+            review = statement_import.review(profile, path, aliases, portfolio=page_portfolio, broker=page_broker, origins=load_origins(token))
         elif request.method == "POST" and request.POST.get("apply"):
             token, path, alias_file, aliases = staged()
             try:
                 made, completed, skipped = statement_import.apply(profile, request.user, path, portfolio=page_portfolio, broker=page_broker,
-                                                                  aliases=aliases)
+                                                                  aliases=aliases, origins=load_origins(token))
             except InvestmentsError as err:
                 if err.code == "WOULD_GO_NEGATIVE":
                     return _refused(request, err, reverse("investments_import_statement"))
                 raise
             path.unlink(missing_ok=True)
             alias_file.unlink(missing_ok=True)
+            (staging / f"{token}-origins.json").unlink(missing_ok=True)
             messages.success(request, f"{made} entr{'y' if made == 1 else 'ies'} saved, {completed} awaiting entr{'y' if completed == 1 else 'ies'} completed, "
                                       f"{skipped} duplicate{'s' if skipped != 1 else ''} skipped.")
             return redirect(reverse("investments_transactions"))
@@ -521,7 +544,7 @@ def import_statement(request):
         review = None
     return page(request, "investments/import_statement.html", {"page_title_text": "Import a statement", "review": review, "token": token, "error": error,
                                                               "portfolios": portfolios, "brokers": brokers, "chosen": chosen,
-                                                              "addable_kinds": statement_import.ADDABLE_KINDS}, selectors=False)
+                                                              "addable_kinds": statement_import.ADDABLE_KINDS, "origins": ORIGINS}, selectors=False)
 
 
 def _import_sample():
@@ -531,7 +554,9 @@ def _import_sample():
     from .exports import response
 
     header = ["Date of transaction", "Name of investment", "Investment code", "Type", "Folio", "Portfolio", "Broker", "Transaction type",
-              "Transaction price", "Transaction quantity"]
-    rows = [[_date(2019, 5, 2), "Reliance Industries", "RELIANCE.NS", "Share", "", "Main", "Zerodha", "Buy", 1350.25, 10],
-            [_date(2021, 3, 15), "Parag Parikh Flexi Cap Fund - Direct Growth", "122639", "Mutual Fund", "1234567/89", "Main", "Direct", "Buy", 41.2, 242.718]]
+              "Transaction price", "Transaction quantity", "Origin"]
+    # Origin is optional (blank means a purchase). Bonus shares, split units and shares received on a demerger need no price.
+    rows = [[_date(2019, 5, 2), "Reliance Industries", "RELIANCE.NS", "Share", "", "Main", "Zerodha", "Buy", 1350.25, 10, "Purchase"],
+            [_date(2021, 3, 15), "Parag Parikh Flexi Cap Fund - Direct Growth", "122639", "Mutual Fund", "1234567/89", "Main", "Direct", "Buy", 41.2, 242.718, "Purchase"],
+            [_date(2024, 10, 28), "Reliance Industries", "RELIANCE.NS", "Share", "", "Main", "Zerodha", "Buy", None, 10, "Bonus"]]
     return response("Holdings import sample.xlsx", [("Holdings", header, rows)])

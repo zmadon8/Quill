@@ -100,14 +100,28 @@ def corporate_actions(request):
         if action == "record" and form.is_valid():
             d = form.cleaned_data
             ca = corporate.record(profile, request.user, instrument=d["instrument"], ex_date=d["ex_date"], kind=d["kind"], ratio_old=d["ratio_old"] or 1,
-                                  ratio_new=d["ratio_new"] or 1, notes=d["notes"])
+                                  ratio_new=d["ratio_new"] or 1, notes=d["notes"], target_instrument=d.get("target_instrument"),
+                                  cost_percent_to_target=d.get("cost_percent_to_target"))
             if d["apply_now"]:
-                corporate.respond(profile, request.user, ca.pk, "applied")
+                try:
+                    corporate.respond(profile, request.user, ca.pk, "applied", choice=d.get("choice") or None, inherit_dates=d.get("inherit_dates"))
+                except InvestmentsError as err:
+                    if err.code == "WOULD_GO_NEGATIVE":
+                        from .views_txn import _refused
+
+                        return _refused(request, err, reverse("investments_corporate_actions"))
+                    messages.error(request, f"Recorded, but not applied: {err.message}")
+                    return redirect(reverse("investments_corporate_actions"))
             messages.success(request, "Recorded." + (" Applied to this profile." if d["apply_now"] else " Confirm it below to change your holdings."))
+            return redirect(reverse("investments_corporate_actions"))
+        if action == "change_kind":
+            corporate.change_kind(profile, request.user, int(request.POST.get("id", 0)), request.POST.get("kind", ""))
+            messages.success(request, "Changed. Check the ratio, then apply it.")
             return redirect(reverse("investments_corporate_actions"))
         if action in ("applied", "not_applicable", "pending"):
             try:
-                corporate.respond(profile, request.user, int(request.POST.get("id", 0)), action)
+                corporate.respond(profile, request.user, int(request.POST.get("id", 0)), action, choice=request.POST.get("choice") or None,
+                                  inherit_dates=(bool(request.POST.get("inherit_dates")) if request.POST.get("inherit_present") else None))
             except InvestmentsError as err:
                 if err.code == "WOULD_GO_NEGATIVE":
                     from .views_txn import _refused
@@ -118,7 +132,8 @@ def corporate_actions(request):
             return redirect(reverse("investments_corporate_actions"))
     return page(request, "investments/corporate_actions.html", {
         "page_title_text": "Corporate actions", "rows": corporate.for_profile(profile), "pending": corporate.pending(profile), "form": form,
-        "moves": corporate.large_moves_without_action(profile), "mode": core.get_settings(profile, create=False).corporate_action_mode})
+        "moves": corporate.large_moves_without_action(profile), "mode": core.get_settings(profile, create=False).corporate_action_mode,
+        "unit_choices": forms.CHOICES_FOR_UNITS})
 
 
 # ------------------------------------------------------------------ alerts

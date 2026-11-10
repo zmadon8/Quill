@@ -12,7 +12,9 @@ from django.db import transaction
 from investments import lots
 from investments.errors import InvestmentsError, not_found
 from investments.models import (
-    HOLDABLE_KINDS, SIDE_BUY, SIDE_SELL, STATUS_AWAITING, STATUS_FINAL, STATUS_PENDING_SIP, Broker, Folio, Portfolio, Switch, Transaction, Transfer, new_group,
+    ACTION_ORIGINS, CA_DEMERGER, HOLDABLE_KINDS, METHOD_EVENTS, NO_PRICE_ORIGINS, ORIGIN_DEMERGER, ORIGIN_PURCHASE, ORIGINS, SIDE_BUY, SIDE_SELL,
+    STATUS_AWAITING, STATUS_FINAL, STATUS_PENDING_SIP, ZERO_PRICE_ORIGINS, Broker, CorporateActionResponse, Folio, Portfolio, Switch, Transaction,
+    Transfer, new_group,
 )
 from investments.services import core, history, pins
 
@@ -73,6 +75,45 @@ def _check_date(value, name="Date", allow_future=False):
         raise InvestmentsError("BAD_DATE", f"{name} is not a date.")
     if not allow_future and value > _today():
         raise InvestmentsError("FUTURE_DATE", f"{name} cannot be in the future.")
+
+
+def _check_origin(profile, instrument, origin, action, *, side, awaiting=False, is_opening=False):
+    """The rules for how units were acquired. A purchase is ordinary. Bonus, split, demerger and no-cost entries are buys that need no
+    price; a bonus, split or demerger may name its corporate action, and a demerger must (its cost comes from the action). Units for a bonus or
+    split the profile has chosen to let the program add itself are refused, because they would be counted twice."""
+    if origin not in dict(ORIGINS):
+        raise InvestmentsError("BAD_ORIGIN", "Choose how the units were acquired.")
+    if origin == ORIGIN_PURCHASE:
+        if action is not None:
+            raise InvestmentsError("BAD_ORIGIN", "Only bonus, split or demerger units can belong to a corporate action.")
+        return
+    if side != SIDE_BUY or awaiting:
+        raise InvestmentsError("BAD_ORIGIN", "Only a purchase entry can be bonus shares, split units, shares received on a demerger or a no-cost entry.")
+    if is_opening:
+        raise InvestmentsError("BAD_COMBINATION", "An opening balance is a purchase with its cost. Record bonus or split units as a separate entry.")
+    if origin not in ACTION_ORIGINS:
+        if action is not None:
+            raise InvestmentsError("BAD_ORIGIN", "Only bonus, split or demerger units can belong to a corporate action.")
+        return
+    if origin == ORIGIN_DEMERGER and action is None:
+        raise InvestmentsError("REQUIRED", "Choose the demerger these shares were received on. Record it on the Corporate actions page and apply it first.")
+    if action is None:
+        return
+    response = CorporateActionResponse.objects.filter(profile=profile, action=action).first()
+    applied = response is not None and response.status == "applied"
+    if origin == ORIGIN_DEMERGER:
+        if action.kind != CA_DEMERGER or action.target_instrument_id != instrument.pk:
+            raise InvestmentsError("BAD_ACTION", "That demerger is not into this investment. Choose the demerger whose new company is this one.")
+        if not applied:
+            raise InvestmentsError("NOT_APPLIED", "Apply the demerger on the Corporate actions page first: it moves part of the parent's cost, "
+                                                  "and these shares take their cost from there.")
+        return
+    if action.kind != origin or action.instrument_id != instrument.pk:
+        raise InvestmentsError("BAD_ACTION", f"That is not a {origin} of this investment.")
+    if applied and response.method == METHOD_EVENTS:
+        raise InvestmentsError(
+            "DOUBLE_COUNT", f"This {origin} is set to be added by the program, so recording its units as well would count them twice. On the "
+            "Corporate actions page choose \"I record the units as transactions\" for it first.", 409)
 
 
 def describe_violation(v):
@@ -169,12 +210,17 @@ def _new_txn(profile, user, side, instrument, portfolio, broker, folio, day, **e
 def add_transaction(profile, user, *, side, instrument, portfolio, broker, date, units=None, price=None, charges=0, folio=None,
                     awaiting=False, amount=None, expected_allotment_date=None, reference="", note="", is_opening=False,
                     is_estimated=False, allotment_date=None, status=None, switch=None, currency=None, fx_rate=None,
-                    rupee_amount=None):
-    """Record one purchase or sale. ``awaiting=True`` saves only the date paid and the amount (plan 6)."""
+                    rupee_amount=None, origin=ORIGIN_PURCHASE, corporate_action=None):
+    """Record one purchase or sale. ``awaiting=True`` saves only the date paid and the amount (plan 6).
+
+    ``origin`` says how bought units came to be held: a purchase (the default, with a price), bonus shares, units from a split, shares
+    received on a demerger, or other at no cost. Bonus, split and demerger entries have a price of 0 (a demerger's cost comes from its
+    ``corporate_action``, applied on the Corporate actions page); the original purchases are never touched."""
     if side not in (SIDE_BUY, SIDE_SELL):
         raise InvestmentsError("BAD_SIDE", "Choose Buy or Sell.")
     _check_refs(profile, instrument, portfolio, broker, folio)
     _check_date(date)
+    _check_origin(profile, instrument, origin, corporate_action, side=side, awaiting=awaiting, is_opening=is_opening)
     charges = _dec(charges or 0, "Charges", minimum=ZERO)
     common = dict(charges=charges, reference=(reference or "").strip(), note=(note or "").strip(), is_opening=is_opening,
                   is_estimated=is_estimated, switch=switch, currency=currency or instrument.currency)
@@ -192,8 +238,13 @@ def add_transaction(profile, user, *, side, instrument, portfolio, broker, date,
         core.touch(profile)
         return txn
     units = _dec(units, "Units", minimum=Decimal("0.0001"))
-    price = _dec(price, "Price", minimum=ZERO if is_opening else Decimal("0.0001"))
-    if instrument.currency != "INR" and rupee_amount in (None, ""):
+    if origin in ZERO_PRICE_ORIGINS:
+        if price not in (None, "") and _dec(price, "Price", minimum=ZERO) != ZERO:
+            raise InvestmentsError("BAD_NUMBER", "These units are recorded at no cost, so the price must be 0.")
+        price = ZERO
+    else:
+        price = _dec(price if origin == ORIGIN_PURCHASE or price not in (None, "") else 0, "Price", minimum=ZERO if (is_opening or origin in NO_PRICE_ORIGINS) else Decimal("0.0001"))
+    if instrument.currency != "INR" and rupee_amount in (None, "") and not (origin != ORIGIN_PURCHASE and price == ZERO):
         # Foreign investment (plan 22): units, price and charges are in its currency; the rupee amount uses the day's rate unless given.
         from investments.services import fx
 
@@ -213,13 +264,18 @@ def add_transaction(profile, user, *, side, instrument, portfolio, broker, date,
     if allotment_date and allotment_date < date:
         raise InvestmentsError("BAD_DATE", "The allotment date cannot be before the date paid.")
     txn = _new_txn(profile, user, side, instrument, portfolio, broker, folio, date, units=units, price=price,
-                   status=status or STATUS_FINAL, allotment_date=allotment_date, fx_rate=fx_rate, rupee_amount=rupee_amount, **common)
+                   status=status or STATUS_FINAL, allotment_date=allotment_date, fx_rate=fx_rate, rupee_amount=rupee_amount,
+                   origin=origin, corporate_action=corporate_action, **common)
     if txn.status == STATUS_FINAL:
         txn.pk = None
         add = [core.txn_event(txn)]
         _recheck(profile, instrument.pk, add=add, what="This sale" if side == SIDE_SELL else "This purchase")
     txn.save()
-    history.record(profile, user, txn, "create", summary=f"{'Bought' if side == SIDE_BUY else 'Sold'} {units} {instrument.name}")
+    if origin != ORIGIN_PURCHASE:
+        summary = f"Recorded {units} {instrument.name} ({txn.get_origin_display().lower()})"
+    else:
+        summary = f"{'Bought' if side == SIDE_BUY else 'Sold'} {units} {instrument.name}"
+    history.record(profile, user, txn, "create", summary=summary)
     _pin(profile, txn)
     core.touch(profile)
     return txn
@@ -298,7 +354,7 @@ def edit_transaction(profile, user, pk, *, expected_version=None, **fields):
         raise not_found("transaction")
     _check_clash(txn, expected_version)
     allowed = {"date", "units", "price", "charges", "instrument", "portfolio", "broker", "folio", "note", "reference", "amount",
-               "expected_allotment_date", "allotment_date", "is_estimated", "cost_override", "cost_override_note"}
+               "expected_allotment_date", "allotment_date", "is_estimated", "cost_override", "cost_override_note", "origin", "corporate_action"}
     unknown = set(fields) - allowed
     if unknown:
         raise InvestmentsError("BAD_FIELD", f"Cannot edit: {', '.join(sorted(unknown))}.")
@@ -308,13 +364,19 @@ def edit_transaction(profile, user, pk, *, expected_version=None, **fields):
         setattr(txn, key, value)
     _check_refs(profile, txn.instrument, txn.portfolio, txn.broker, txn.folio)
     _check_date(txn.date)
+    _check_origin(profile, txn.instrument, txn.origin, txn.corporate_action, side=txn.side, awaiting=txn.status == STATUS_AWAITING,
+                  is_opening=txn.is_opening)
+    if txn.origin in ZERO_PRICE_ORIGINS:
+        if txn.price not in (None, ZERO):
+            raise InvestmentsError("BAD_NUMBER", "These units are recorded at no cost, so the price must be 0.")
+        txn.price = ZERO
     if txn.status == STATUS_AWAITING:
         if txn.amount is None or txn.amount <= 0:
             raise InvestmentsError("REQUIRED", "Amount paid is required.")
     else:
         if not txn.units or txn.units <= 0:
             raise InvestmentsError("BAD_NUMBER", "Units must be more than zero.")
-        if txn.price is None or (txn.price <= 0 and not txn.is_opening):
+        if txn.price is None or (txn.price <= 0 and not txn.is_opening and txn.origin not in NO_PRICE_ORIGINS):
             raise InvestmentsError("BAD_NUMBER", "Price must be more than zero.")
         if txn.allotment_date and txn.allotment_date < txn.date:
             raise InvestmentsError("BAD_DATE", "The allotment date cannot be before the date paid.")

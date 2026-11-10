@@ -139,6 +139,8 @@ def build(profile, label, *, portfolio=None, broker=None, include_dividends=None
     # The events are released investment by investment unless the per-portfolio breakdown below still needs them (memory, plan 26).
     release = events is None and len(pfs) <= 1
     all_events = events if events is not None else core.events_by_instrument(profile)
+    # How each non-purchase row (bonus, split, demerger, no-cost) came to be held, to tag the sales that use its units.
+    row_origins = dict(Transaction.objects.filter(profile=profile).exclude(origin="purchase").values_list("pk", "origin"))
     for iid in names:
         result = lots.replay(all_events.pop(iid, []) if release else all_events.get(iid, []), as_of=closing)
         for m in result.matches:
@@ -151,9 +153,13 @@ def build(profile, label, *, portfolio=None, broker=None, include_dividends=None
                 report.long_gain += m.gain
             else:
                 report.short_gain += m.gain
+            origin = row_origins.get(m.buy_ref[1]) if isinstance(m.buy_ref, tuple) and m.buy_ref[0] == "txn" else None
             report.sales.append({"name": names[iid], "bought": m.bought_on, "paid": m.paid_on, "sold": m.sold_on, "days": m.holding_days, "units": m.units,
                                  "cost": m.cost, "proceeds": m.proceeds, "gain": m.gain, "term": term, "estimated": m.estimated,
-                                 "bonus": isinstance(m.buy_ref, tuple) and m.buy_ref[0] == "ca"})
+                                 "bonus": (isinstance(m.buy_ref, tuple) and m.buy_ref[0] == "ca") or origin == "bonus",
+                                 # The cost the gain uses, and (when a demerger moved cost between the parent and the new shares) the cost
+                                 # the original transactions give. The original transactions themselves are never changed.
+                                 "origin": origin or "", "adjusted": bool(m.adjustment), "original_cost": m.original_cost})
     report.sales.sort(key=lambda s: (s["sold"], s["name"]))
 
     cash = [(opening_day, -report.opening_value)] if report.opening_value else []

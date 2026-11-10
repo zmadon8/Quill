@@ -26,6 +26,21 @@ PRICE_SOURCES = [("manual", "Entered by hand"), ("yahoo", "Yahoo"), ("amfi", "AM
 
 SIDE_BUY, SIDE_SELL = "buy", "sell"
 SIDES = [(SIDE_BUY, "Buy"), (SIDE_SELL, "Sell")]
+
+#: How the units of a "buy" row came to be held. A purchase has a price; the others may be recorded at no cost (bonus shares, units from a
+#: split recorded as transactions, a gift or transfer in). Units received on a demerger take their cost from the parent's lots (the cost
+#: shown on the row stays 0 and the original rows are never changed; see ``investments.lots`` DEMERGER_IN).
+ORIGIN_PURCHASE, ORIGIN_BONUS, ORIGIN_SPLIT, ORIGIN_DEMERGER, ORIGIN_OTHER = "purchase", "bonus", "split", "demerger", "other"
+ORIGINS = [
+    (ORIGIN_PURCHASE, "Purchase"), (ORIGIN_BONUS, "Bonus shares"), (ORIGIN_SPLIT, "Split (units recorded at no cost)"),
+    (ORIGIN_DEMERGER, "Received on a demerger"), (ORIGIN_OTHER, "Other, at no cost (gift, transfer in)"),
+]
+#: Origins whose price must be 0 (the cost is nil, or comes from the action); "other" may carry a price if the person has one.
+ZERO_PRICE_ORIGINS = (ORIGIN_BONUS, ORIGIN_SPLIT, ORIGIN_DEMERGER)
+#: Origins that may be saved with a price of 0.
+NO_PRICE_ORIGINS = (ORIGIN_BONUS, ORIGIN_SPLIT, ORIGIN_DEMERGER, ORIGIN_OTHER)
+#: Origins that belong to a corporate action (the row may name it).
+ACTION_ORIGINS = (ORIGIN_BONUS, ORIGIN_SPLIT, ORIGIN_DEMERGER)
 STATUS_FINAL, STATUS_AWAITING, STATUS_PENDING_SIP = "final", "awaiting", "pending_sip"
 STATUSES = [(STATUS_FINAL, "Final"), (STATUS_AWAITING, "Awaiting allotment"), (STATUS_PENDING_SIP, "SIP, to confirm")]
 
@@ -259,6 +274,10 @@ class Transaction(models.Model):
     rupee_amount = models.DecimalField(null=True, blank=True, **MONEY)
     cost_override = models.DecimalField(null=True, blank=True, **MONEY)
     cost_override_note = models.CharField(max_length=200, blank=True, default="")
+    origin = models.CharField(max_length=10, choices=ORIGINS, default=ORIGIN_PURCHASE,
+                              help_text="How the units came to be held: bought, bonus, split, received on a demerger, or at no cost")
+    corporate_action = models.ForeignKey("CorporateAction", null=True, blank=True, on_delete=models.SET_NULL, related_name="+",
+                                         help_text="The bonus, split or demerger these units belong to")
     note = models.CharField(max_length=200, blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
@@ -510,20 +529,28 @@ class DividendSignal(models.Model):
         constraints = [models.UniqueConstraint(fields=["instrument", "ex_date"], name="inv_divsignal_unique")]
 
 
-CA_SPLIT, CA_BONUS, CA_OTHER = "split", "bonus", "other"
+METHOD_EVENTS, METHOD_TRANSACTIONS = "events", "transactions"
+CA_SPLIT, CA_BONUS, CA_OTHER, CA_DEMERGER = "split", "bonus", "other", "demerger"
+CA_KINDS = [(CA_SPLIT, "Split"), (CA_BONUS, "Bonus"), (CA_DEMERGER, "Demerger (shares in a new company)"), (CA_OTHER, "Other (merger, ...)")]
 
 
 class CorporateAction(models.Model):
-    """A split, bonus or other action, recorded once and shared because it is a fact about the company (plan 3.7, proposed).
+    """A split, bonus, demerger or other action, recorded once and shared because it is a fact about the company (plan 3.7, proposed).
 
-    Split "1 becomes 5": ``ratio_old=1, ratio_new=5``. Bonus "1 free for every 2 held": ``ratio_old=2, ratio_new=1``. It changes a profile's
-    holdings only after that profile confirms it (``CorporateActionResponse``)."""
+    Split "1 becomes 5": ``ratio_old=1, ratio_new=5``. Bonus "1 free for every 2 held": ``ratio_old=2, ratio_new=1``. Demerger: shares of
+    ``target_instrument`` are received, ``cost_percent_to_target`` of the parent's cost moves to them (the rest stays with the parent), and
+    ``ratio_old``/``ratio_new`` ("1 parent share gives 2 new ones") is only used to check the units a statement shows. It changes a
+    profile's holdings only after that profile confirms it (``CorporateActionResponse``)."""
 
     instrument = models.ForeignKey(Instrument, on_delete=models.CASCADE, related_name="corporate_actions")
     ex_date = models.DateField()
-    kind = models.CharField(max_length=6, choices=[(CA_SPLIT, "Split"), (CA_BONUS, "Bonus"), (CA_OTHER, "Other (merger, demerger)")])
+    kind = models.CharField(max_length=10, choices=CA_KINDS)
     ratio_old = models.DecimalField(max_digits=12, decimal_places=4, default=1)
     ratio_new = models.DecimalField(max_digits=12, decimal_places=4, default=1)
+    target_instrument = models.ForeignKey(Instrument, null=True, blank=True, on_delete=models.SET_NULL, related_name="demergers_in",
+                                          help_text="Demerger: the new company whose shares are received")
+    cost_percent_to_target = models.DecimalField(max_digits=7, decimal_places=4, null=True, blank=True,
+                                                 help_text="Demerger: the share of the parent's cost, in percent, that moves to the new company's shares")
     notes = models.CharField(max_length=300, blank=True, default="")
     detected = models.BooleanField(default=False, help_text="Created from a price source's split history")
     pins_adjusted = models.BooleanField(default=False)
@@ -548,6 +575,10 @@ class CorporateAction(models.Model):
             return f"Split: {self.ratio_old.normalize():f} becomes {self.ratio_new.normalize():f}"
         if self.kind == CA_BONUS:
             return f"Bonus: {self.ratio_new.normalize():f} free for every {self.ratio_old.normalize():f} held"
+        if self.kind == CA_DEMERGER:
+            target = self.target_instrument.name if self.target_instrument_id else "a new company"
+            percent = f"{self.cost_percent_to_target.normalize():f}%" if self.cost_percent_to_target is not None else "?"
+            return f"Demerger into {target}: {percent} of the cost moves to it"
         return self.notes or "Other action"
 
 
@@ -557,6 +588,13 @@ class CorporateActionResponse(models.Model):
     profile = models.ForeignKey("accounts.Profile", on_delete=models.CASCADE, related_name="+")
     action = models.ForeignKey(CorporateAction, on_delete=models.CASCADE, related_name="responses")
     status = models.CharField(max_length=15, default="pending", choices=[("pending", "Pending"), ("applied", "Applied"), ("not_applicable", "Not applicable")])
+    #: Decided case by case when the action is applied. Bonus and split: who adds the units (the program, or transactions the person
+    #: records or imports, each with origin bonus or split). A demerger always takes its new-company units from transactions.
+    method = models.CharField(max_length=12, default=METHOD_EVENTS,
+                              choices=[(METHOD_EVENTS, "Automatic: the program adds the units"), (METHOD_TRANSACTIONS, "I record the units as transactions")])
+    #: Demerger only: whether the new company's shares keep the purchase dates of the parent lots they came from (the holding period carries
+    #: over) or start on the date received. A tax judgement, so it is the person's (and the CA's) choice.
+    inherit_dates = models.BooleanField(default=True)
     decided_at = models.DateTimeField(null=True, blank=True)
     decided_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
     version = models.PositiveIntegerField(default=1)

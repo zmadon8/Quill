@@ -63,5 +63,18 @@
   if (portfolio) { portfolio.addEventListener("change", filterFolios); }
   var dateField = field("date");
   if (dateField) { dateField.addEventListener("change", loadAvailable); }
+  // "How were these units acquired?": bonus, split and demerger units have no price, and may name their corporate action.
+  var origin = field("origin");
+  function wrap(el) { return el && el.closest ? el.closest(".fld") : null; }
+  function originChanged() {
+    if (!origin) { return; }
+    var v = origin.value;
+    var noPrice = v === "bonus" || v === "split" || v === "demerger";
+    var priceBox = wrap(field("price")), actionBox = wrap(field("corporate_action"));
+    if (priceBox) { priceBox.style.display = noPrice ? "none" : ""; }
+    if (actionBox) { actionBox.style.display = noPrice ? "" : "none"; }
+  }
+  if (origin) { origin.addEventListener("change", originChanged); }
+  originChanged();
   defaultBroker(); filterFolios(); loadAvailable();
 })();

@@ -124,6 +124,10 @@ def compute(profile, *, portfolio=None, broker=None, as_of=None, settings=None, 
 
     ids = list(instruments)
     actions = corporate_service.applied(profile, ids)
+    # Every applied split and bonus, however its units were recorded: a price series restated by the vendor needs them all (plan 16.2).
+    basis_actions = corporate_service.applied(profile, ids, for_units=False)
+    demergers = corporate_service.applied_demergers(profile, ids)
+    demerger_cache = {}
     pending_ids = corporate_service.pending_instrument_ids(profile)
     dividends = {}
     divq = Dividend.objects.filter(profile=profile, date__lte=as_of, instrument_id__in=ids)
@@ -142,7 +146,7 @@ def compute(profile, *, portfolio=None, broker=None, as_of=None, settings=None, 
     for iid in sorted(ids, key=lambda i: (instruments[i].name.lower(), i)):
         inst = instruments[iid]
         h = Holding(instrument=inst)
-        events, flows = [], []
+        events, flows, receipts = [], [], []
         fx = None
         for t in per_instrument.get(iid, []):
             if t.fx_rate:
@@ -160,8 +164,10 @@ def compute(profile, *, portfolio=None, broker=None, as_of=None, settings=None, 
             if h.first_date is None or t.date < h.first_date:
                 h.first_date = t.date
             if t.side == SIDE_BUY:
-                events.append(lots.Event(lots.BUY, t.effective_date, t.units, core.bucket_of(t), ("txn", t.pk), core.buy_total(t),
-                                         paid_on=t.date, order=t.pk, estimated=t.is_estimated))
+                event = core.buy_event(t)
+                events.append(event)
+                if event.kind == lots.DEMERGER_IN:
+                    receipts.append((event, t))
                 if _passes(portfolio, broker, t.portfolio_id, t.broker_id):
                     flows.append((t.date, -core.buy_total(t)))
             else:
@@ -181,8 +187,9 @@ def compute(profile, *, portfolio=None, broker=None, as_of=None, settings=None, 
                         flows.append((tr.date, market if out_of else -market))
             events.append(lots.Event(lots.TRANSFER, tr.date, tr.units, lots.Bucket(tr.from_portfolio_id, tr.from_broker_id, tr.from_folio_id),
                                      ("transfer", tr.pk), to_bucket=lots.Bucket(tr.to_portfolio_id, tr.to_broker_id, tr.to_folio_id), order=tr.pk))
-        inst_actions = [a for a in actions.get(iid, []) if a[2] <= as_of]
+        inst_actions = [a for a in actions.get(iid, []) + demergers.get(iid, []) if a[2] <= as_of]
         events += corporate_math.events(inst_actions)
+        core.fill_demerger_receipts(profile, receipts, cache=demerger_cache)
         h.dividends = sum((a for _d, a in dividends.get(iid, [])), ZERO)
         if include_dividends:
             flows += [(d, a) for d, a in dividends.get(iid, [])]
@@ -214,7 +221,7 @@ def compute(profile, *, portfolio=None, broker=None, as_of=None, settings=None, 
                 found = fx_service.rate_on(inst.currency, as_of)
                 rate = found[1] if found else (fx or Decimal(1))
             # On a split-adjusted series a past day's units are expressed on today's basis (plan 16.2).
-            factor = corporate_math.basis_factor(actions.get(iid, []), as_of, inst.price_basis)
+            factor = corporate_math.basis_factor(basis_actions.get(iid, []), as_of, inst.price_basis)
             h.value = h.units * factor * h.price * rate + h.awaiting
         elif inst.kind == KIND_ALTERNATIVE and inst.interest_rate and h.units:
             # A fixed interest rate instead of dated values (plan 11): each lot grows from its date, compounded yearly.

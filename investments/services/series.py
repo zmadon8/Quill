@@ -115,6 +115,8 @@ def portfolio_value_series(profile, days, *, portfolio=None, broker=None, instru
     from investments.services import corporate as corporate_service
 
     applied = corporate_service.applied(profile, list(instruments))
+    # The price-basis factor needs every applied split and bonus, also those whose units were recorded as transactions.
+    applied_basis = corporate_service.applied(profile, list(instruments), for_units=False)
     for iid, inst in instruments.items():
         events = []
         for t in by_inst.get(iid, []):
@@ -160,7 +162,7 @@ def portfolio_value_series(profile, days, *, portfolio=None, broker=None, instru
             else:
                 price = sampled[i]
                 rate = rates[i] if rates else Decimal(1)
-                factor = corporate_math.basis_factor(actions, day, inst.price_basis)
+                factor = corporate_math.basis_factor(applied_basis.get(iid, []), day, inst.price_basis)
                 values[i] += (units * factor * price * rate if price is not None and units > 0 else ZERO) + at_cost
     return values, flows
 
