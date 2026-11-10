@@ -34,35 +34,36 @@ def holdings_list(request):
     rows, _totals = holdings.compute(profile, portfolio=portfolio, broker=broker, as_of=asat)
     hidden_ids = set(ProfileInvestment.objects.filter(profile=profile, hidden=True).values_list("instrument_id", flat=True))
     # Investments added but not yet bought still belong in the list.
+    # They are "Not bought yet", never "Held": nothing is held until units (or a purchase awaiting allotment) exist.
     seen = {h.instrument.pk for h in rows}
-    extra = [holdings.Holding(instrument=pi.instrument, sold_out=False) for pi in
+    extra = [holdings.Holding(instrument=pi.instrument, empty=True) for pi in
              ProfileInvestment.objects.filter(profile=profile).select_related("instrument") if pi.instrument_id not in seen
              and pi.instrument.kind in HOLDABLE_KINDS]
-    for h in extra:
-        h.empty = True
     rows = rows + extra
     out = []
     for h in rows:
         is_hidden = h.instrument.pk in hidden_ids
         if kind and h.instrument.kind != kind:
             continue
-        if status == "held" and (h.sold_out or is_hidden):
+        if status == "held" and (not h.is_held or is_hidden):
             continue
         if status == "sold_out" and not h.sold_out:
+            continue
+        if status == "not_bought" and not h.empty:
             continue
         if status == "hidden" and not is_hidden:
             continue
         h.is_hidden = is_hidden
         out.append(h)
-    stale = fetch.stale_ids([h.instrument for h in out if not h.sold_out and h.instrument.price_source not in ("manual", "upload")])
+    stale = fetch.stale_ids([h.instrument for h in out if h.is_held and h.instrument.price_source not in ("manual", "upload")])
     for h in out:
         h.stale = h.instrument.pk in stale
-    held_count = sum(1 for h in rows if not h.sold_out and h.instrument.pk not in hidden_ids)
+    held_count = sum(1 for h in rows if h.is_held and h.instrument.pk not in hidden_ids)
     sold_count = sum(1 for h in rows if h.sold_out)
     return page(request, "investments/holdings.html", {
         "page_title_text": "Investments", "rows": out, "held_count": held_count, "sold_count": sold_count, "kind": kind, "status": status,
         "kinds": [("", "All types"), ("share", "Share"), ("fund", "Mutual fund"), ("alternative", "Alternative"), ("foreign", "Foreign")],
-        "status_choices": [("held", "Held"), ("sold_out", "Sold out"), ("hidden", "Hidden"), ("all", "All")],
+        "status_choices": [("held", "Held"), ("sold_out", "Sold out"), ("not_bought", "Not bought yet"), ("hidden", "Hidden"), ("all", "All")],
     })
 
 
@@ -204,7 +205,7 @@ def investment(request, pk):
     as_of = on or asat or _date.today()
     div = include_dividends(request, profile)
     rows, _t = holdings.compute(profile, portfolio=portfolio, broker=broker, as_of=as_of, instrument_ids=[inst.pk], include_dividends=div)
-    h = rows[0] if rows else holdings.Holding(instrument=inst, sold_out=False)
+    h = rows[0] if rows else holdings.Holding(instrument=inst, empty=True)
     pi = masters.get_profile_investment(profile, inst) if request.user.is_authenticated and inst.pk else None
     txns = Transaction.objects.filter(profile=profile, instrument=inst).select_related("broker", "portfolio", "folio").order_by("-date", "-id")
     transfers = Transfer.objects.filter(profile=profile, instrument=inst).select_related(

@@ -1,0 +1,19 @@
+{% extends "investments/base_investments.html" %}
+{# Clear the stored price history of one shared investment (owner round 2026-11): what goes, the choices, then the confirmation. #}
+{% block inv_content %}
+<div class="page-head"><h1>Clear the price history of {{ inst.name }}</h1></div>
+{% if preview.problem %}<div class="ban al"><span>{{ preview.problem }}</span></div>
+<div class="acts-row"><a class="btn q" href="{{ next }}">Back</a></div>
+{% else %}
+<form method="post" action="{% url 'investments_price_action' inst.pk %}">{% csrf_token %}<input type="hidden" name="action" value="clear_prices"><input type="hidden" name="confirm" value="1"><input type="hidden" name="next" value="{{ next }}">
+<ul>
+  <li>Fetched daily prices removed: <b>{{ preview.fetched }}</b>. They can be brought back with "Fetch the price history from" a date.</li>
+  {% if preview.uploaded %}<li><label class="chk"><input type="checkbox" name="include_uploaded" value="1"> Also remove the <b>{{ preview.uploaded }}</b> uploaded price{{ preview.uploaded|pluralize }}</label> <span class="hint">(they are not in the backup and cannot be fetched again; upload the file again to restore them)</span></li>{% endif %}
+  {% if preview.manual %}<li><label class="chk"><input type="checkbox" name="include_manual" value="1"> Also remove the <b>{{ preview.manual }}</b> hand-entered price{{ preview.manual|pluralize }}</label> <span class="hint">(a safety backup is taken first)</span></li>{% endif %}
+  <li>Always kept: {% if preview.pinned %}the {{ preview.pinned }} pinned price{{ preview.pinned|pluralize }} (31 March and transaction dates), which reports depend on{% else %}pinned prices (31 March and transaction dates){% endif %}, your transactions and every other record.</li>
+</ul>
+<p class="hint">Prices are shared, so this applies to {% if preview.holders > 1 %}all {{ preview.holders }} profiles that hold{% else %}every profile that holds{% endif %} {{ inst.name }}. Until prices are fetched again, its value may show as having no price.</p>
+<label>Reason (optional) <input name="reason" size="30"></label>
+<div class="acts-row"><button class="btn dng" type="submit">Clear price history</button><a class="btn q" href="{{ next }}">Cancel</a></div></form>
+{% endif %}
+{% endblock %}

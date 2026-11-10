@@ -24,6 +24,10 @@
   <span>Remove the {{ p_trim.remove }} fetched price{{ p_trim.remove|pluralize }} from before {% if p_trim.own %}your first purchase ({{ p_trim.cutoff|date:"j M Y" }}){% else %}the first purchase in any profile (another profile bought it earlier than you){% endif %}.</span><button type="submit" class="secondary"{% if not p_trim.remove %} disabled{% endif %}>Preview</button></form>
 {% elif not p_trim %}<p class="hint">To remove the prices from before the first purchase, open the investment from Holdings.</p>
 {% endif %}
+{% if inst.kind != "index" %}
+<form method="post" action="{% url 'investments_price_action' inst.pk %}" class="filters">{% csrf_token %}<input type="hidden" name="next" value="{{ next_url }}"><input type="hidden" name="action" value="clear_prices">
+  <span>Remove the whole stored price history of {{ inst.name }}. You choose what goes on the next page.</span><button type="submit" class="secondary">Clear price history&hellip;</button></form>
+{% endif %}
 {% if p_deleted %}<h3>Deleted prices</h3><ul class="plain">{% for d in p_deleted %}<li>{{ d.field }}: {{ d.old }} deleted {{ d.at|date:"j M Y" }}{% if d.reason %} ({{ d.reason }}){% endif %}
 <form method="post" action="{% url 'investments_price_action' inst.pk %}" style="display:inline">{% csrf_token %}<input type="hidden" name="next" value="{{ next_url }}"><input type="hidden" name="action" value="restore_price"><input type="hidden" name="log" value="{{ d.pk }}"><button class="linklike">Put back</button></form></li>{% endfor %}</ul>{% endif %}
 {% endif %}

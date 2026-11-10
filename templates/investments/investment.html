@@ -11,7 +11,7 @@
   <div><div class="lab">Value</div><div class="v">{{ h.value|inr }}{% if h.unpriced %}<small> at cost, no price</small>{% endif %}</div></div>
   <div><div class="lab">Units</div><div class="v">{{ h.units|units }}</div></div>
   <div><div class="lab">Average cost</div><div class="v">{% if h.avg_cost %}{{ h.avg_cost|price }}{% else %}&ndash;{% endif %}</div></div>
-  <div><div class="lab">Gain</div><div class="v">{% if h.unpriced or h.sold_out %}&ndash;{% else %}{{ h.gain|inr_signed }} <small>{{ h.gain_pct|pct_signed }}</small>{% endif %}</div></div>
+  <div><div class="lab">Gain</div><div class="v">{% if h.unpriced or not h.is_held %}&ndash;{% else %}{{ h.gain|inr_signed }} <small>{{ h.gain_pct|pct_signed }}</small>{% endif %}</div></div>
   <div><div class="lab">XIRR</div><div class="v">{{ h.xirr|pct }}</div></div>
   <div><div class="lab">Price</div><div class="v">{% if h.price %}{{ h.price|price }} <small>{{ h.price_date|date:"j M Y" }}</small>{% else %}&ndash;{% endif %}</div></div>
   <div><div class="lab">Cost held</div><div class="v">{{ h.cost_of_units|inr }}</div></div>
@@ -94,7 +94,7 @@
 
 <div class="sec"><h2>Your details</h2></div>
 {% if can_edit %}<form method="post" action="{% url 'investments_investment_details' inst.pk %}">{% csrf_token %}{% include "investments/_form.html" with form=details_form %}<div class="acts-row"><button class="btn q" name="action" value="save">Save details</button>
-{% if h.sold_out %}{% if pi.hidden %}<button class="btn q" name="action" value="show">Show again</button>{% else %}<button class="btn q" name="action" value="hide">Hide (sold out)</button>{% endif %}{% endif %}</div></form>
+{% if not h.is_held %}{% if pi.hidden %}<button class="btn q" name="action" value="show">Show again</button>{% else %}<button class="btn q" name="action" value="hide">Hide ({% if h.empty %}not bought{% else %}sold out{% endif %})</button>{% endif %}{% endif %}</div></form>
 {% elif pi.notes %}<p>{{ pi.notes }}</p>{% endif %}
 
 <div class="sec"><h2>Shared details</h2></div>

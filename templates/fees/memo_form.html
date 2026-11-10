@@ -21,35 +21,64 @@
       data-money-unit="{{ fees_settings.money_unit|default:'full' }}">
   {% csrf_token %}
   {% if based_on %}<input type="hidden" name="based_on" value="{{ based_on }}">{% endif %}
-  <fieldset><legend>Memo</legend>
-  {% if memo %}<p>Matter: {{ memo.firm_name }}: {{ memo.matter_name }}</p><input type="hidden" name="matter_id" value="{{ memo.matter_id }}">
-  {% else %}<p><label>Matter <select name="matter_id" required><option value="">Choose</option>{% for m in matter_choices %}<option value="{{ m.pk }}"{% if form.matter_id == m.pk|stringformat:"s" %} selected{% endif %}>{{ m.firm.name }}: {{ m.name }}</option>{% endfor %}</select></label></p>{% endif %}
-  <p><label>Date <input type="date" name="date" value="{{ form.date }}"></label>
-     {% if not memo or not memo.is_draft %}<label>Custom number (leave blank for the next number) <input type="text" name="custom_memo_number" value="{{ form.custom_memo_number }}" maxlength="100" aria-describedby="memo-number-hint"></label>{% endif %}</p>
-  {% if not memo or not memo.is_draft %}<p class="muted" id="memo-number-hint" data-number-hint aria-live="polite">{% if memo %}Memo number {{ memo.memo_number }}.{% else %}The memo number is given when you save.{% endif %}</p>{% endif %}
-  {% if has_signature %}<p><label><input type="hidden" name="include_signature" value="0"><input type="checkbox" name="include_signature" value="1"{% if form.include_signature %} checked{% endif %}> Include the signature on the Word memo</label></p>{% endif %}
+  <fieldset class="memo-card"><legend class="sr-only">Memo details</legend>
+  <div class="memo-grid cols-2">
+  {% if memo %}<p class="wide">Matter: {{ memo.firm_name }}: {{ memo.matter_name }}</p><input type="hidden" name="matter_id" value="{{ memo.matter_id }}">
+  {% else %}<label class="wide">Matter <select name="matter_id" required><option value="">Choose</option>{% for m in matter_choices %}<option value="{{ m.pk }}"{% if form.matter_id == m.pk|stringformat:"s" %} selected{% endif %}>{{ m.firm.name }}: {{ m.name }}</option>{% endfor %}</select></label>{% endif %}
+  <div class="field">
+    <label for="f-date">Date</label>
+    <div class="inline-row"><input id="f-date" type="date" name="date" value="{{ form.date }}"><button type="button" class="small" data-today>Today</button></div>
+  </div>
+  {% if not memo or not memo.is_draft %}
+  <div class="field">
+    <label for="f-number">Memo number</label>
+    <label class="check"><input type="checkbox" data-custom-number-tick{% if form.custom_memo_number %} checked{% endif %}> Custom Memo Number (type my own instead of auto-generating)</label>
+    <input id="f-number" type="text" name="custom_memo_number" value="{{ form.custom_memo_number }}" maxlength="100" placeholder="{% if memo %}{{ memo.memo_number }}{% else %}(set a date){% endif %}" aria-describedby="memo-number-hint">
+    <span class="muted hint" id="memo-number-hint" data-number-hint aria-live="polite">{% if memo %}Memo number {{ memo.memo_number }}.{% endif %}</span>
+  </div>
+  {% else %}<div></div>{% endif %}
+  <label>Addressee line 1 <input type="text" name="addressee_line1" value="{{ form.addressee_line1 }}"></label>
+  <label>Addressee line 2 <textarea name="addressee_line2" rows="1">{{ form.addressee_line2 }}</textarea></label>
+  <label>Cause title <textarea name="court_name" rows="4">{{ form.court_name }}</textarea></label>
+  <label>Client <input type="text" name="client" value="{{ form.client }}"></label>
+  <label>Additional details (left) <textarea name="additional_details_left" rows="1">{{ form.additional_details_left }}</textarea></label>
+  <label>Additional details (right) <textarea name="additional_details_right" rows="1">{{ form.additional_details_right }}</textarea></label>
+  <label>Plaintiff name <input type="text" name="plaintiff_name" value="{{ form.plaintiff_name }}"></label>
+  <label>Plaintiff type <input type="text" name="plaintiff_type" value="{{ form.plaintiff_type }}"></label>
+  <label>Defendant name <input type="text" name="defendant_name" value="{{ form.defendant_name }}"></label>
+  <label>Defendant type <input type="text" name="defendant_type" value="{{ form.defendant_type }}"></label>
+  {% if has_signature %}<label class="check wide"><input type="hidden" name="include_signature" value="0"><input type="checkbox" name="include_signature" value="1"{% if form.include_signature %} checked{% endif %}> Include the signature on the Word memo</label>{% endif %}
+  </div>
   </fieldset>
-  <fieldset><legend>Addressee and cause title</legend>
-  <p><label>Addressee <input type="text" name="addressee_line1" value="{{ form.addressee_line1 }}" size="50"></label></p>
-  <p><label>Addressee, second line <input type="text" name="addressee_line2" value="{{ form.addressee_line2 }}" size="50"></label></p>
-  <p><label>Caption <textarea name="court_name" rows="2" cols="50">{{ form.court_name }}</textarea></label></p>
-  <p><label>Details, left <textarea name="additional_details_left" rows="2" cols="40">{{ form.additional_details_left }}</textarea></label>
-     <label>Details, right <textarea name="additional_details_right" rows="2" cols="40">{{ form.additional_details_right }}</textarea></label></p>
-  <p><label>Plaintiff <input type="text" name="plaintiff_name" value="{{ form.plaintiff_name }}"></label> <label>as <input type="text" name="plaintiff_type" value="{{ form.plaintiff_type }}" size="14"></label></p>
-  <p><label>Defendant <input type="text" name="defendant_name" value="{{ form.defendant_name }}"></label> <label>as <input type="text" name="defendant_type" value="{{ form.defendant_type }}" size="14"></label></p>
-  <p><label>Client <input type="text" name="client" value="{{ form.client }}" size="40"></label></p>
+  <fieldset class="memo-card"><legend class="sr-only">Fees</legend>
+    <div class="fee-line" data-line="appearances"><div class="memo-grid cols-3">
+      <label>No. of appearances <input type="number" min="0" name="num_appearances" value="{{ form.num_appearances }}"></label>
+      <label>Fees / appearance <input type="text" inputmode="decimal" name="fees_per_appearance" value="{{ form.fees_per_appearance }}"></label>
+      <label>Dates of appearances <input type="text" name="dates_of_appearances" value="{{ form.dates_of_appearances }}"></label>
+    </div></div>
+    <div class="fee-line" data-line="conferences"><div class="memo-grid cols-3">
+      <label>No. of conferences <input type="number" min="0" name="num_conferences" value="{{ form.num_conferences }}"></label>
+      <label>Fees / conference <input type="text" inputmode="decimal" name="fees_per_conference" value="{{ form.fees_per_conference }}"></label>
+      <label>Dates of conferences <input type="text" name="dates_of_conferences" value="{{ form.dates_of_conferences }}"></label>
+    </div></div>
+    <div class="memo-grid cols-3 drafts-row">
+      <label>No. of drafts (statistics only; does not affect the memo total) <input type="number" min="0" name="num_drafts" value="{{ form.num_drafts }}"></label>
+    </div>
+    <div class="fee-line" data-line="misc"><div class="memo-grid cols-3">
+      <label class="span-2">Misc / drafting description <input type="text" name="misc_drafting_description" value="{{ form.misc_drafting_description }}"></label>
+      <label>Fees for misc / drafting <input type="text" inputmode="decimal" name="fees_misc_drafting" value="{{ form.fees_misc_drafting }}"></label>
+    </div></div>
   </fieldset>
-  <fieldset><legend>Fees</legend>
-    <div class="fee-line" data-line="appearances">
-    <p><label>Appearances <input type="number" min="0" name="num_appearances" value="{{ form.num_appearances }}"></label> <label>at <input type="text" inputmode="decimal" name="fees_per_appearance" value="{{ form.fees_per_appearance }}"></label> <label>dates <input type="text" name="dates_of_appearances" value="{{ form.dates_of_appearances }}"></label> <label>override <input type="text" inputmode="decimal" name="custom_fees_appearances" value="{{ form.custom_fees_appearances }}"></label></p>
+  <fieldset class="memo-card" data-custom-amounts>
+    <legend class="sr-only">Custom amounts</legend>
+    <label class="check"><input type="checkbox" data-custom-tick> Enter custom amounts (override auto-calculation)</label>
+    <p class="muted hint">Custom amounts replace the per-line calculation above. Disabled lines are excluded; the boxes start from the auto-calculated figures and can be edited.</p>
+    <div class="memo-grid cols-2">
+      <label>Fees for appearances <input type="text" inputmode="decimal" name="custom_fees_appearances" value="{{ form.custom_fees_appearances }}"></label>
+      <label>Fees for conferences <input type="text" inputmode="decimal" name="custom_fees_conferences" value="{{ form.custom_fees_conferences }}"></label>
+      <label>Fees for drafts / misc <input type="text" inputmode="decimal" name="custom_fees_misc" value="{{ form.custom_fees_misc }}"></label>
+      <label>Total memo amount (0 = sum of the three) <input type="text" inputmode="decimal" name="custom_total_fees" value="{{ form.custom_total_fees }}"></label>
     </div>
-    <div class="fee-line" data-line="conferences">
-    <p><label>Conferences <input type="number" min="0" name="num_conferences" value="{{ form.num_conferences }}"></label> <label>at <input type="text" inputmode="decimal" name="fees_per_conference" value="{{ form.fees_per_conference }}"></label> <label>dates <input type="text" name="dates_of_conferences" value="{{ form.dates_of_conferences }}"></label> <label>override <input type="text" inputmode="decimal" name="custom_fees_conferences" value="{{ form.custom_fees_conferences }}"></label></p>
-    </div>
-    <div class="fee-line" data-line="misc">
-    <p><label>Drafting and miscellaneous <input type="text" name="misc_drafting_description" value="{{ form.misc_drafting_description }}"></label> <label>amount <input type="text" inputmode="decimal" name="fees_misc_drafting" value="{{ form.fees_misc_drafting }}"></label> <label>drafts <input type="number" min="0" name="num_drafts" value="{{ form.num_drafts }}"></label> <label>override <input type="text" inputmode="decimal" name="custom_fees_misc" value="{{ form.custom_fees_misc }}"></label></p>
-    </div>
-    <p><label>Total override (blank or 0 means none) <input type="text" inputmode="decimal" name="custom_total_fees" value="{{ form.custom_total_fees }}"></label></p>
     <div class="fee-total" data-fee-total hidden>
       <p aria-live="polite" aria-atomic="true"><strong>Total fees: <span data-total-figure>0</span></strong></p>
       <p class="muted" data-total-words aria-live="polite"></p>
@@ -59,8 +88,9 @@
   {% if can_edit %}<p class="button-bar">
     <span class="muted" data-shortcut-hint hidden>Ctrl+Enter saves.</span>
     <a class="button" href="{% if memo %}{% url 'fees_memo_detail' memo.id %}{% else %}{% url 'fees_memos' %}{% endif %}">Cancel</a>
-    {% if not memo or memo.is_draft %}<button type="submit" name="action" value="draft">Save As Draft</button>{% endif %}
-    <button type="submit" name="action" value="save" class="primary">{% if memo and not memo.is_draft %}Save{% else %}Save Memo{% endif %}</button>
+    {% if not memo or memo.is_draft %}<button type="submit" name="action" value="draft" class="secondary">Save as Draft</button>{% endif %}
+    <button type="submit" name="action" value="save" class="primary">Save</button>
+    <button type="submit" name="action" value="save_export" class="secondary">Export to Word</button>
   </p>{% endif %}
 </form>
 {% endblock %}

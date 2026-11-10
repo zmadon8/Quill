@@ -8,7 +8,7 @@
    ledger.css adds the Fee Register components after this file; look.css adds the Home and Diary page layer. */
 
 /* Zero-specificity prefix, so a page's own focus or selection rules still win. */
-:where(body:is(.ledger, .look)) ::selection { background: #E6CFCF; }
+:where(body:is(.ledger, .look)) ::selection { background: var(--accent-soft); }
 :where(body:is(.ledger, .look)) :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 /* Top bar: italic serif program name, plain-text nav, one ink rule underneath. */

@@ -2,6 +2,7 @@
 {% load static %}
 {# Case law diary program: fills the shared shell with this program's name and navigation. #}
 {# Nav: Backups for Admin only (Users lives on the suite Home page). Trash for Editors of the profile only. #}
+{% block look_css %}<link rel="stylesheet" href="{% static 'css/look.css' %}">{% endblock %}
 {% block extra_css %}<link rel="stylesheet" href="{% static 'css/edit.css' %}">{% endblock %}
 {% block body_attrs %} class="look{% if edit_mode %} edit-on{% endif %}"{% endblock %}
 {% block program_title %}{{ program_label }}{% endblock %}

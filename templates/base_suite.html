@@ -1,7 +1,7 @@
 {% load static %}<!DOCTYPE html>
 {# Shared shell for every program in the suite (Option D "Chambers"). A program extends this and fills: #}
 {# program_name, program_nav, page_title; and crumb_nav (the breadcrumb row, only on judgment-list pages). See docs/DESIGN.md "Visual design". #}
-<html lang="en"{% if justify_text %} class="justify-text"{% endif %}>
+<html lang="en"{% if justify_text %} class="justify-text"{% endif %}{% if colour_theme and colour_theme != "oxblood" %} data-theme="{{ colour_theme }}"{% endif %}>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -10,10 +10,13 @@
   <script>try{if(localStorage.getItem("quill.links")==="off"){document.documentElement.classList.add("links-off");}}catch(e){}</script>
   <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
   <link rel="stylesheet" href="{% static 'css/site.css' %}">
-  {# design.css is the shared look (top bar, tabs, links); look.css is the Home and Diary page layer (inert on Fee Register pages). #}
+  {# design.css is the shared look (top bar, tabs, links). look.css is the Home and Diary page layer: base.html and base_suite_home.html #}
+  {# add it here; the Fee Register and Investments, whose pages it never styles, leave it out (page-weight budget). #}
   <link rel="stylesheet" href="{% static 'css/design.css' %}">
-  <link rel="stylesheet" href="{% static 'css/look.css' %}">
+  {% block look_css %}{% endblock %}
   {% block extra_css %}{% endblock %}
+  {# modern.css (the 2026-11 refresh: cards, rounded corners, pill tabs) comes last so it reshapes every program's components. #}
+  <link rel="stylesheet" href="{% static 'css/modern.css' %}">
 </head>
 <body{% block body_attrs %} class="look"{% endblock %}>
   <a class="skip-link" href="#main">Skip to content</a>

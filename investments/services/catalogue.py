@@ -348,6 +348,59 @@ def trim_before_first_purchase(user, instrument, reason=""):
     return removed
 
 
+def clear_preview(instrument):
+    """What "clear the price history" of one shared investment would delete. Fetched rows always go; uploaded and hand-entered prices only
+    when chosen; pinned prices (31 March and transaction dates, which reports depend on) are always kept."""
+    from investments.models import KIND_INDEX
+
+    out = {"fetched": 0, "uploaded": 0, "manual": 0, "pinned": 0, "holders": 0, "problem": ""}
+    if instrument.kind == KIND_INDEX:
+        out["problem"] = "An index is compared with purchases of every investment, so its price history is never cleared."
+        return out
+    if instrument.profile_id is not None or instrument.kind == "alternative":
+        out["problem"] = "This investment has no price history to clear. An alternative investment has dated values instead."
+        return out
+    prices = Price.objects.filter(instrument=instrument)
+    out["fetched"] = prices.filter(source__in=["api", "helper"]).count()
+    out["uploaded"] = prices.filter(source="upload").count()
+    out["manual"] = ManualPrice.objects.filter(instrument=instrument).count()
+    out["pinned"] = PinnedPrice.objects.filter(instrument=instrument).count()
+    out["holders"] = affected_profiles(instrument)
+    return out
+
+
+def clear_price_history(user, instrument, include_uploaded=False, include_manual=False, reason=""):
+    """Delete the stored price history of one shared investment (owner round 2026-11). Returns the number of prices removed.
+
+    Fetched prices can be fetched again (:func:`fetch_from`). Uploaded prices are not in the suite backup, so they go only when chosen.
+    Hand-entered prices are in the backup: when they are chosen a safety backup is taken first. Pinned prices are never removed."""
+    from investments.services import locks
+
+    require_editor(user)
+    preview = clear_preview(instrument)
+    if preview["problem"]:
+        raise InvestmentsError("NOT_APPLICABLE", preview["problem"], 409)
+    sources = ["api", "helper"] + (["upload"] if include_uploaded else [])
+    if include_manual and preview["manual"]:
+        _backup(user)
+    removed = 0
+    try:
+        with locks.heavy("price_import"):
+            ids = list(Price.objects.filter(instrument=instrument, source__in=sources).values_list("pk", flat=True))
+            for i in range(0, len(ids), 5000):
+                with transaction.atomic():
+                    removed += Price.objects.filter(pk__in=ids[i:i + 5000]).delete()[0]
+            if include_manual:
+                with transaction.atomic():
+                    removed += ManualPrice.objects.filter(instrument=instrument).delete()[0]
+    except locks.Busy:
+        raise InvestmentsError("BUSY", "Prices are being updated or imported just now. Try again in a minute.", 503)
+    what = ", ".join(["fetched"] + (["uploaded"] if include_uploaded else []) + (["hand-entered"] if include_manual else []))
+    log(user, instrument, "prices_cleared", None, what, f"{removed} rows", "", reason or "price history cleared")
+    fetch.bump_version()
+    return removed
+
+
 # ---------------------------------------------------------------- structural operations (each after a backup)
 
 def _backup(user):

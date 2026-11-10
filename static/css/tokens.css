@@ -1,6 +1,7 @@
-/* Design tokens shared by every page of the suite: Home, the Case Law Diary and the Fee Register. The palette and fonts follow the
-   owner's desktop Fee Register app (docs/FEES_DESIGN_SYSTEM.md). The component layer is static/css/design.css.
-   A program may override any of these in its own stylesheet, loaded after this one.
+/* Design tokens shared by every page of the suite: Home, the Case Law Diary, the Fee Register and Investments (2026-11 refresh:
+   cool light-grey page, white cards, soft shadows, rounded corners). The component layer is design.css, look.css and ledger.css,
+   with the refresh's shapes in modern.css. A program may add its own tokens in its stylesheet, but never re-declares these
+   colours: the user's colour theme (below) must reach every page.
 
    FONTS: no web fonts are loaded today, so the stacks below fall back to fonts already on the device.
    To self-host a font (e.g. Source Serif 4), put the .woff2 file in static/fonts/ and add ONE block here:
@@ -17,28 +18,49 @@
   --font-serif: "Newsreader Variable", Newsreader, "Source Serif 4", Georgia, "Times New Roman", serif;
   --font-sans: "Inter Variable", Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 
-  /* Desktop palette: warm paper, black ink, one maroon accent. */
-  --paper: #FAF8F3; --paper-2: #F3F0E7; --card: #FFFEFC; --white: #FFFFFF;
-  --line: #E4DFD2; --line-strong: #CFC9BA;
-  --ink: #1C1B19; --ink-2: #3F3C35; --ink-3: #5E594E; --faint: #A8A294;
-  --accent: #7A2E2E; --accent-hover: #652525; --accent-tint: #F8EEEE;
-  --ok: #15803D; --warn: #D97706; --bad: #B91C1C;
-  --radius: 2px;
+  /* Neutrals: a cool light-grey page, white cards, near-black ink. */
+  --paper: #F5F6F8; --paper-2: #EEF0F3; --card: #FFFFFF; --white: #FFFFFF;
+  --line: #E6E8EC; --line-strong: #D5D9E0;
+  --ink: #16181D; --ink-2: #2F343C; --ink-3: #545B66; --faint: #8A919C;
+
+  /* Accent: the user's colour theme (My settings > Display). Oxblood is the default; the others are set on <html data-theme>. */
+  --accent: #8B2D2D; --accent-hover: #732424; --accent-deep: #5E1E1E; --accent-tint: #FBEFEF; --accent-soft: #E8C9C9;
+  --on-accent: #FFFFFF;
+
+  /* Status colours never follow the theme: green paid / gain, amber due / pending, red overdue / overruled / alerts. */
+  --ok: #15803D; --ok-tint: #E8F5EE; --warn: #A15C07; --bad: #B42318;
+  --danger: #B42318; --danger-hover: #912018; --danger-tint: #FDECEA;
+  --info: #2B5FAA; --info-tint: #EAF1FB;
+
+  /* Shapes */
+  --radius: 8px; --radius-sm: 6px; --radius-card: 14px; --radius-pill: 999px;
+  --shadow-card: 0 1px 2px rgba(16, 24, 40, .04), 0 1px 3px rgba(16, 24, 40, .06);
+  --shadow-float: 0 4px 16px rgba(16, 24, 40, .10);
+  --shadow-modal: 0 12px 32px rgba(16, 24, 40, .18);
 
   /* Older names used by site.css and edit.css, pointed at the palette above. */
   --bg: var(--paper);       /* page (edit mode tints this) */
   --panel: var(--card);     /* panels and cards */
-  --muted: #6B655B;         /* 5.3:1 on --paper (AA) */
+  --muted: #5F6673;         /* 5.6:1 on --paper (AA) */
   --hair: var(--line);      /* hairline dividers */
-  --oxblood: var(--accent); /* primary actions, flagged items, alerts */
-  --oxblood-ink: #FFFFFF;
-  --amber-bg: #F4EAD0;      /* "For review" / pending chips */
-  --amber-line: #C9A24D;
-  --amber-ink: #6B4E12;
-  --focus: #1F5FBF;
+  --oxblood: var(--accent); /* the accent: primary actions, current tab, links (alerts use --danger) */
+  --oxblood-ink: var(--on-accent);
+  --amber-bg: #FDF3E1;      /* "For review" / pending chips */
+  --amber-line: #F0D49A;
+  --amber-ink: #7A4505;
+  --focus: var(--accent);
+  --edit-bg: #ECE9E3;       /* Case Law Diary edit mode: a warm grey that differs from the page in every theme */
 
   --text-size: 1.125rem;   /* 18px reading text */
   --small-size: 1rem;      /* never below 16px */
   --tap: 44px;             /* minimum tap target */
   --page-width: 75rem;
 }
+
+/* Colour themes, one per user (accounts.User.colour_theme, put on <html data-theme> by base_suite.html). Each keeps white text on
+   the accent at AA contrast. --chart-1 follows the accent; the other chart colours and every status colour stay the same. */
+html[data-theme="royal"] { --accent: #2563EB; --accent-hover: #1D4ED8; --accent-deep: #1E3A8A; --accent-tint: #EEF3FF; --accent-soft: #C9D8FB; --info: #0F7C86; --info-tint: #E3F4F5; }
+html[data-theme="navy"] { --accent: #1F3F73; --accent-hover: #183259; --accent-deep: #0F2342; --accent-tint: #EDF1F8; --accent-soft: #C8D3E6; }
+html[data-theme="violet"] { --accent: #6D4AD6; --accent-hover: #5A39BF; --accent-deep: #3D2689; --accent-tint: #F3EFFD; --accent-soft: #D8CDF6; }
+html[data-theme="plum"] { --accent: #7B2F78; --accent-hover: #652662; --accent-deep: #451A43; --accent-tint: #F8EEF7; --accent-soft: #E5C9E3; }
+html[data-theme="teal"] { --accent: #0F766E; --accent-hover: #0D615B; --accent-deep: #134E4A; --accent-tint: #E7F5F3; --accent-soft: #BFE4DF; }

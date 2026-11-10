@@ -43,6 +43,14 @@ class User(AbstractUser):
     # Owner round (2026-11): the Home button in the header bar can be hidden (My settings, Display). Home stays
     # reachable with the Alt+H (Option+H) shortcut and from a program's own links; on unless switched off.
     show_home_button = models.BooleanField(default=True)
+    # Owner round (2026-11): the accent colour of every page, per user (My settings, Display; an Admin can set it too). Only the
+    # accent changes (buttons, the current tab, links); status colours, the Word memo and the exports never do. tokens.css has one
+    # html[data-theme] block per choice; the default, oxblood, needs none.
+    THEME_OXBLOOD = "oxblood"
+    COLOUR_THEME_CHOICES = [
+        (THEME_OXBLOOD, "Oxblood"), ("royal", "Royal Blue"), ("navy", "Navy"), ("violet", "Violet"), ("plum", "Plum"), ("teal", "Teal"),
+    ]
+    colour_theme = models.CharField("Colour theme", max_length=10, choices=COLOUR_THEME_CHOICES, default=THEME_OXBLOOD)
     # Who is active (round: markers, payments, activity). ``last_seen_at`` is touched by accounts.middleware at most once
     # a minute; ``can_see_active`` lets an Admin show this user the Active Now panel on Home (Admins always see it).
     last_seen_at = models.DateTimeField(null=True, blank=True)

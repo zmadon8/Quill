@@ -17,6 +17,7 @@ from investments.models import (
 from investments.services import core, prices
 
 ZERO = Decimal(0)
+UNIT_DUST = Decimal("0.00005")   # half the smallest unit stored (4 decimal places)
 
 
 @dataclass
@@ -34,6 +35,7 @@ class Holding:
     buckets: dict = field(default_factory=dict)   # (portfolio, broker, folio) -> units
     realised: Decimal = ZERO
     sold_out: bool = False
+    empty: bool = False                             # added to the profile but nothing bought (as at the date); never "held"
     first_date: date = None
     flows: list = field(default_factory=list)     # [(date, Decimal)] money paid in (negative) and received (positive), dates paid
     index_xirr: float = None
@@ -43,6 +45,11 @@ class Holding:
     dividends: Decimal = ZERO                       # received, shown separately; never part of value
     provisional: bool = False                       # a corporate action is waiting for this profile's confirmation
     blocked: bool = False                           # ... and Settings says block: value, gain and XIRR are n/a and left out of totals
+
+    @property
+    def is_held(self):
+        """True only when units are held or a purchase is awaiting allotment."""
+        return not self.sold_out and not self.empty and (self.units > 0 or self.awaiting > 0)
 
     @property
     def avg_cost(self):
@@ -203,6 +210,9 @@ def compute(profile, *, portfolio=None, broker=None, as_of=None, settings=None, 
             key = (lot.bucket.portfolio, lot.bucket.broker, lot.bucket.folio)
             h.buckets[key] = h.buckets.get(key, ZERO) + lot.units
         h.realised = sum((m.gain for m in result.matches), ZERO)
+        if abs(h.units) < UNIT_DUST:
+            # A corporate-action ratio can leave a remainder below the 4 decimal places units are kept to: that is nothing held.
+            h.units = ZERO
         h.sold_out = h.units == 0 and h.awaiting == 0
 
         # value
@@ -263,7 +273,7 @@ def compute(profile, *, portfolio=None, broker=None, as_of=None, settings=None, 
 
 
 def held(holdings):
-    return [h for h in holdings if not h.sold_out]
+    return [h for h in holdings if h.is_held]
 
 
 def allocation(holdings):

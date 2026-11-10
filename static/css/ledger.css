@@ -8,23 +8,11 @@
    sans. To self-host Newsreader / Inter, place the .woff2 files in static/fonts/ and add @font-face blocks to
    tokens.css, then list the names first in --font-serif / --font-sans below. */
 
-/* ---- 1. Tokens (re-point the suite tokens so the shared shell takes the new look) ---- */
+/* ---- 1. Tokens (sizes only: the palette is tokens.css, so the user's colour theme reaches the Fee Register too) ---- */
 html:has(body.ledger) { font-size: 14px; }
 body.ledger {
-  --paper: #FAF8F3; --paper-2: #F3F0E7; --card: #FFFEFC; --white: #FFFFFF;
-  --line: #E4DFD2; --line-strong: #CFC9BA;
-  --ink-2: #3F3C35; --ink-3: #5E594E; --faint: #A8A294;
-  --accent: #7A2E2E; --accent-hover: #652525; --accent-tint: #F8EEEE;
-  --ok: #15803D; --warn: #D97706; --bad: #B91C1C;
-  --radius: 2px;
-  --shadow-float: 0 2px 0 #CFC9BA;
-  --shadow-modal: 0 6px 24px rgba(28, 27, 25, .18);
-  --chart-1: #7A2E2E; --chart-2: #2F5D3A; --chart-3: #B7862B; --chart-4: #4A6075; --chart-5: #A8532E;
-  --font-serif: "Newsreader Variable", Newsreader, Georgia, "Times New Roman", serif;
-  --font-sans: "Inter Variable", Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  /* suite tokens */
-  --bg: var(--paper); --panel: var(--card); --ink: #1C1B19; --muted: #7B7568; --hair: var(--line);
-  --oxblood: var(--accent); --oxblood-ink: var(--paper); --focus: var(--accent);
+  /* The colours come from tokens.css (and the user's colour theme); only the ledger's own sizes and chart colours are set here. */
+  --chart-1: var(--accent); --chart-2: #2F5D3A; --chart-3: #B7862B; --chart-4: #4A6075; --chart-5: #A8532E;
   --text-size: 1rem; --small-size: .875rem; --tap: 32px;
   --data-size: 1rem;
   background: var(--paper); color: var(--ink); font-family: var(--font-sans); font-size: 1rem; line-height: 1.5;
@@ -100,7 +88,7 @@ body.ledger main :is(input, select, textarea):disabled, body.ledger main :is(inp
 body.ledger main input[type=checkbox], body.ledger main input[type=radio] { width: 16px; height: 16px; accent-color: var(--accent); }
 body.ledger main textarea { width: 100%; max-width: 100%; }
 body.ledger main :is(.filters, .fees-form, .memo-form, .form-grid) label, body.ledger .label {
-  display: flex; flex-direction: column; gap: 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; color: var(--muted);
+  display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--muted);
 }
 body.ledger main :is(.filters, .fees-form, .memo-form) label:has(> input[type=checkbox]), body.ledger main :is(.filters, .fees-form, .memo-form) label:has(> input[type=radio]) {
   flex-direction: row; align-items: center; gap: 8px; min-height: var(--tap); font-size: 1rem; font-weight: 500; text-transform: none; letter-spacing: normal; color: var(--ink-2);
@@ -134,7 +122,7 @@ body.ledger .table-wrap { overflow: auto; max-height: 70vh; background: var(--ca
 body.ledger .table-wrap.plain { border: 0; background: transparent; max-height: none; }
 body.ledger :is(.ledger-table, table.ledger) { width: 100%; border-collapse: collapse; font-size: 1rem; line-height: 1.4; }
 body.ledger :is(.ledger-table, table.ledger) caption { text-align: left; padding: 8px 12px; color: var(--muted); font-size: .857rem; }
-body.ledger :is(.ledger-table, table.ledger) th { padding: 8px 12px; text-align: left; vertical-align: bottom; background: var(--card); color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; position: relative; border-bottom: 0; }
+body.ledger :is(.ledger-table, table.ledger) th { padding: 8px 12px; text-align: left; vertical-align: bottom; background: var(--card); color: var(--muted); font-size: 13px; font-weight: 500; text-transform: none; letter-spacing: 0; white-space: nowrap; position: relative; border-bottom: 0; }
 body.ledger :is(.ledger-table, table.ledger) thead th { position: sticky; top: 0; z-index: 2; box-shadow: inset 0 -1px 0 var(--ink); }
 body.ledger :is(.ledger-table, table.ledger) tbody th[scope=row] { position: static; font-size: 1rem; font-weight: 400; letter-spacing: normal; text-transform: none; color: var(--ink); background: transparent; }
 body.ledger :is(.ledger-table, table.ledger) td { padding: 8px 12px; vertical-align: middle; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 26rem; }
@@ -206,7 +194,7 @@ body.ledger .pager-status { color: var(--muted); }
 body.ledger .kpi-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; margin: 0; overflow: hidden; border-top: 3px double var(--ink); border-bottom: 1px solid var(--ink); }
 body.ledger .kpi { margin: -1px 0 0 -1px; padding: 12px 16px; border: 0; border-left: 1px solid var(--line); border-top: 1px solid var(--line); background: transparent; }
 body.ledger .kpi:hover { background: var(--paper-2); }
-body.ledger .kpi dt { margin: 0; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+body.ledger .kpi dt { margin: 0; font-size: 13px; font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--muted); }
 body.ledger .kpi dt a { color: inherit; }
 body.ledger .kpi dt a:hover { color: var(--ink); text-decoration: none; }
 body.ledger .kpi dd { margin: 4px 0 0; font-family: var(--font-serif); font-size: 1.75rem; font-weight: 400; line-height: 1.25; }
@@ -267,11 +255,28 @@ body.ledger .ledger-table th[scope=rowgroup] { padding: 8px 12px; font-size: 1re
 body.ledger .ledger-table .subtotal :is(td, th) { border-top: 1px solid var(--ink); }
 body.ledger main dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; margin: 0; }
 body.ledger main dl.kpi-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; }
-body.ledger main dt { color: var(--muted); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; align-self: center; }
+body.ledger main dt { color: var(--muted); font-size: 13px; font-weight: 500; text-transform: none; letter-spacing: 0; align-self: center; }
 body.ledger main dd { margin: 0; }
 body.ledger .memo-form .fee-line { margin: 0 0 8px; }
 body.ledger .memo-form p { margin: 0 0 8px; }
 body.ledger .memo-form .button-bar { margin-bottom: 0; }
+body.ledger .memo-form .memo-card { padding: 16px 20px; }
+body.ledger .memo-form .memo-card .fee-line, body.ledger .memo-form .memo-card .memo-grid + .memo-grid { margin-top: 12px; }
+body.ledger .memo-form .memo-grid { display: grid; gap: 16px 20px; align-items: start; }
+body.ledger .memo-form .memo-grid.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+body.ledger .memo-form .memo-grid.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+body.ledger .memo-form .memo-grid > .wide { grid-column: 1 / -1; }
+body.ledger .memo-form .memo-grid > .span-2 { grid-column: span 2; }
+body.ledger .memo-form .memo-grid > label, body.ledger .memo-form .memo-grid > .field { display: flex; flex-direction: column; gap: 4px; margin: 0; min-width: 0; }
+body.ledger .memo-form .memo-grid > .field > label:not(.check) { display: flex; margin: 0; }
+body.ledger .memo-form .memo-grid input:not([type=checkbox]):not([type=hidden]), body.ledger .memo-form .memo-grid textarea, body.ledger .memo-form .memo-grid select { width: 100%; box-sizing: border-box; }
+body.ledger .memo-form .inline-row { display: flex; gap: 8px; align-items: center; }
+body.ledger .memo-form .inline-row input { flex: 1; }
+body.ledger .memo-form label.check, body.ledger .memo-form .line-tick { display: flex; flex-direction: row; align-items: center; gap: 8px; margin: 0 0 8px; min-height: 0; font-size: 13px; text-transform: none; letter-spacing: normal; font-weight: 500; }
+body.ledger .memo-form .line-tick label { font-size: 14px; font-weight: 600; color: var(--ink-2); text-transform: none; letter-spacing: normal; }
+body.ledger .memo-form .hint { font-size: 12px; margin: 0 0 8px; }
+body.ledger .memo-form .sr-only, body.ledger .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+@media (max-width: 699px) { body.ledger .memo-form .memo-grid.cols-2, body.ledger .memo-form .memo-grid.cols-3 { grid-template-columns: minmax(0, 1fr); } body.ledger .memo-form .memo-grid > .span-2 { grid-column: auto; } }
 body.ledger .breadcrumb + .breadcrumb { margin-left: 8px; }
 @media (max-width: 899px) { body.ledger main dl.kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 599px) { body.ledger main dl.kpi-grid { grid-template-columns: minmax(0, 1fr); } }
@@ -369,7 +374,7 @@ body.ledger .col-menu .col-reset { display: block; margin-top: 6px; padding-top:
 body.ledger .search-pop form { position: relative; }
 body.ledger .search-suggest { position: absolute; left: 0; right: 0; top: 100%; z-index: 60; max-height: 60vh; overflow: auto; background: var(--white); border: 1px solid var(--line-strong); border-radius: var(--radius); box-shadow: var(--shadow-float); text-align: left; }
 body.ledger .search-suggest[hidden] { display: none; }
-body.ledger .search-suggest-head { padding: 8px 12px 4px; color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+body.ledger .search-suggest-head { padding: 8px 12px 4px; color: var(--muted); font-size: 13px; font-weight: 500; text-transform: none; letter-spacing: 0; }
 body.ledger .search-suggest-option { display: flex; flex-direction: column; gap: 1px; padding: 6px 12px; cursor: pointer; }
 body.ledger .search-suggest-option.active { background: var(--paper-2); }
 body.ledger .search-suggest-title { color: var(--ink); }
@@ -384,9 +389,9 @@ body.ledger td.row-actions > * { display: inline-block; vertical-align: middle; 
 body.ledger .kpi-customise-title { margin: 0 0 12px; font-size: 1.1rem; }
 body.ledger .kpi-customise-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; margin-bottom: 12px; }
 body.ledger .kpi-group { border: 0; margin: 0 0 12px; padding: 0; }
-body.ledger .kpi-group legend { padding: 0; margin-bottom: 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+body.ledger .kpi-group legend { padding: 0; margin-bottom: 4px; font-size: 13px; font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--muted); }
 body.ledger .kpi-group label { display: block; padding: 2px 0; }
-body.ledger .kpi-order h3 { margin: 0 0 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+body.ledger .kpi-order h3 { margin: 0 0 4px; font-size: 13px; font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--muted); }
 body.ledger .kpi-order-list { list-style: none; margin: 0; padding: 0; }
 body.ledger .kpi-order-list li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 0; border-top: 1px solid var(--line); }
 body.ledger .kpi-order-list li:last-child { border-bottom: 1px solid var(--line); }
