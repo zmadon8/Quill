@@ -201,7 +201,7 @@ def catalogue_action(request, pk):
 @handle_errors(fallback="investments_admin_catalogue")
 def price_action(request, pk):
     """The price-history actions of a shared investment, from the catalogue or from the investment's own page (``next`` says which):
-    correct or add a price, delete or put one back, fetch the history from a date, trim it before the first purchase."""
+    correct or add a price, delete or put one back, fetch the history from a date, trim it before the first purchase, or clear it."""
     profile_or_404(request)
     inst = _shared_or_404(pk)
     back = safe_next(request, reverse("investments_admin_catalogue_item", args=[pk]))
@@ -239,6 +239,15 @@ def price_action(request, pk):
             preview["own"] = bool(preview["first"]) and preview["first"] == catalogue.first_purchase_date(inst, profile=profile)
             return page(request, "investments/price_trim.html", {"page_title_text": "Remove older prices", "inst": inst,
                                                                  "preview": preview, "next": back}, selectors=False)
+    elif action == "clear_prices":
+        if request.POST.get("confirm"):
+            n = catalogue.clear_price_history(user, inst, include_uploaded=bool(request.POST.get("include_uploaded")),
+                                              include_manual=bool(request.POST.get("include_manual")), reason=reason)
+            messages.success(request, f"Price history cleared: {n} price{'s' if n != 1 else ''} removed. "
+                                      "Fetch the price history from a date to bring fetched prices back.")
+        else:
+            return page(request, "investments/price_clear.html", {"page_title_text": "Clear price history", "inst": inst,
+                                                                  "preview": catalogue.clear_preview(inst), "next": back}, selectors=False)
     else:
         raise Http404
     return redirect(back)
