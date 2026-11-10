@@ -61,7 +61,7 @@
     <section class="home-panel" aria-labelledby="recent-activity">
       <h2 id="recent-activity">Recent activity</h2>
       {% if home.recent %}<ul class="activity">{% for r in home.recent %}
-        <li><span class="activity-tag tag-{{ r.program }}" aria-hidden="true">{{ r.tag }}</span><span class="activity-what"><a href="{{ r.url }}">{{ r.what }}</a><span class="muted">{{ r.program_name }}{% if r.detail %} &middot; {{ r.detail }}{% endif %}</span></span><time class="activity-when muted" datetime="{{ r.when|date:'c' }}">{{ r.when|timesince }} ago</time></li>
+        <li><span class="activity-tag tag-{{ r.program }}" aria-hidden="true">{{ r.tag }}</span><span class="activity-what"><a href="{{ r.url }}">{{ r.what }}</a><span class="muted">{{ r.program_name }}{% if r.detail %} &middot; {{ r.detail }}{% endif %}</span></span><time class="activity-when muted" datetime="{{ r.when|date:'c' }}">{% with ago=r.when|timesince %}{% if ago == "0 minutes" or ago == "0 minutes" %}just now{% else %}{{ ago }} ago{% endif %}{% endwith %}</time></li>
       {% endfor %}</ul>{% else %}<p class="muted">Nothing yet.</p>{% endif %}
     </section>
     <section class="home-panel" aria-labelledby="quick-actions">

@@ -337,8 +337,6 @@ body.inv .table-tools{display:flex;justify-content:flex-end;margin:0 0 6px}
 body.inv table.led td.wrap{white-space:normal;min-width:10rem}
 body.inv table.led select.kind{min-width:9rem}
 /* Owner round 2026-11: the value card filled, figures on one line, 90-day trend lines, price range buttons */
-body.inv .strip .f.hl{background:linear-gradient(135deg,var(--accent),var(--accent-deep));border-color:transparent}
-body.inv .strip .f.hl .lab,body.inv .strip .f.hl .fig,body.inv .strip .f.hl .fig small{color:var(--on-accent)}
 body.inv .strip{grid-template-columns:repeat(auto-fit,minmax(10.5rem,1fr));grid-auto-flow:row}
 body.inv .fig,body.inv .fig .m{white-space:nowrap}
 body.inv .fig small{white-space:normal}

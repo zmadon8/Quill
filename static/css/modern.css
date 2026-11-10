@@ -103,3 +103,7 @@ body:is(.ledger, .look) .program-nav .icon-tool.search-toggle::after { content: 
 body:is(.ledger, .look) .program-nav .icon-tool.search-toggle::before { content: "Ctrl K"; order: 2; padding: 1px 6px; border: 1px solid var(--line); border-radius: 4px; font: 11px var(--font-sans); color: var(--muted); }
 body:is(.ledger, .look) .search-pop-all { margin-left: 8px; font-size: 13px; white-space: nowrap; }
 @media (max-width: 899px) { body:is(.ledger, .look) .program-nav .icon-tool.search-toggle { width: auto; } body:is(.ledger, .look) .program-nav .icon-tool.search-toggle::after, body:is(.ledger, .look) .program-nav .icon-tool.search-toggle::before { display: none; } }
+/* Filled headline cards: the Investments value card (Fee Register: fees.css .kpi-hero). */
+body.inv .strip .f.hl, body.inv .strip .f.hl:first-child { background: linear-gradient(135deg, var(--accent), var(--accent-deep)); border-color: transparent; }
+body.inv .strip .f.hl :is(.lab, .fig, .fig small, .m) { color: var(--on-accent); }
+body.look .program-cards .program-card .program-link { border: 0; border-radius: 0; box-shadow: none; background: none; }
