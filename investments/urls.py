@@ -79,6 +79,7 @@ urlpatterns += [
     path("settings/brokers/action/", vm.broker_action, name="investments_broker_action"),
     path("prices/update/", vp.update_prices, name="investments_update_prices"),
     path("settings/indices/action/", vm.indices_action, name="investments_indices_action"),
+    path("settings/clear-history/", vm.clear_history, name="investments_clear_history"),
     path("settings/catalogue/new/", vc.catalogue_new, name="investments_admin_catalogue_new"),
     path("settings/catalogue/<int:pk>/", vc.catalogue_item, name="investments_admin_catalogue_item"),
     path("settings/catalogue/<int:pk>/action/", vc.catalogue_action, name="investments_admin_catalogue_action"),

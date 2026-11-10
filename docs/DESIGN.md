@@ -1453,3 +1453,9 @@ Decisions taken while building the Investments program. Where the plan was silen
   - **Portfolio and Broker on each row.** They are matched by name, ignoring case. One the profile does not have is added on saving, and the review says so. The page's portfolio and broker are now optional and are used only for rows that leave those cells blank. A row with neither is a problem to fix.
   - **Headings.** "Transaction type" is buy or sell, and plain "Type" is the investment's type. Portfolio and Broker need an exact heading, so "Brokerage" stays charges.
   - **Saving.** Everything is saved together: the new investments, portfolios, brokers and folios, then the transactions in date order. Rows already recorded are skipped, so the same sheet can be loaded twice safely.
+- **D156. Clear a profile's transaction history.** [Owner (2026-11): "allow me to clear the existing transaction history for a profile".] Settings > General > **Clear transaction history** (Admin only) shows what would be deleted, with counts, and asks for the profile's name to be typed.
+  - **Deleted:** purchases and sales (awaiting ones too), transfers, fund switches, dividends, SIP schedules, folio numbers, alternative investments' dated values, corporate action confirmations, saved alert states, and the cached figures.
+  - **History log:** kept unless the box "Also delete the History log" is ticked.
+  - **Kept:** the investments in the profile's list (with notes, links and sector index), portfolios, brokers, guardrails and settings, and everything shared.
+  - **Safety:** a "Before clearing profile" backup is taken first; nothing is deleted if it fails. Other profiles are never touched.
+  - **Use:** to start again with a corrected holdings sheet (D155).

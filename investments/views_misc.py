@@ -7,7 +7,7 @@ from django.shortcuts import redirect
 from django.urls import reverse
 
 from . import forms, pages
-from .decorators import inv_editor, inv_read_write, inv_reader
+from .decorators import inv_admin, inv_editor, inv_read_write, inv_reader
 from .errors import InvestmentsError
 from .models import Broker, Instrument, InvestmentHistory, Portfolio, ProfileInvestment, Transaction
 from .services import core, history, holdings, masters
@@ -316,3 +316,25 @@ def indices_action(request):
     else:
         raise Http404
     return redirect(back)
+
+
+# ------------------------------------------------------------------ clear the transaction history (owner round 2026-11)
+
+@inv_admin
+def clear_history(request):
+    """Settings > General > Clear transaction history (Admin): a preview, then the profile's name typed to confirm."""
+    from .services import clear as clear_service
+
+    profile = profile_or_404(request)
+    rows, history_count = clear_service.preview(profile)
+    if request.method == "POST":
+        try:
+            counts = clear_service.clear(profile, request.user, request.POST.get("confirm_name"), include_history=bool(request.POST.get("history")))
+        except InvestmentsError as err:
+            messages.error(request, err.message)
+            return redirect(reverse("investments_clear_history"))
+        messages.success(request, f"The transaction history of {profile.name} was cleared ({sum(counts.values())} records). "
+                                  "A backup was taken first (kind: Before clearing profile).")
+        return redirect(reverse("investments_settings"))
+    return page(request, "investments/clear_history.html", {"page_title_text": "Clear transaction history", "rows": rows,
+                                                            "total": sum(n for _l, n in rows), "history_count": history_count}, selectors=False)

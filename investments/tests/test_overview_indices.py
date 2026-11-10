@@ -161,3 +161,68 @@ class BuiltInAndDecimalsTests(InvTestCase):
                                                                     "units_decimals": "", "rupee_decimals": ""})
         html = self.client.get(reverse("investments_transactions")).content.decode()
         self.assertIn("4,820.5126", html)
+
+
+class ClearHistoryTests(InvTestCase):
+    def setUp(self):
+        super().setUp()
+        from investments.services import dividends, transactions as tx
+
+        self.buy(d(2024, 1, 2), 10, 100)
+        self.sell(d(2024, 3, 1), 4, 120)
+        dividends.add(self.profile, self.user, date=d(2024, 6, 1), instrument=self.reliance, portfolio=self.portfolio, broker=self.zerodha, amount=D(50))
+        masters.add_folio(self.profile, self.user, instrument=self.fund, portfolio=self.portfolio, number="F-1")
+        tx.add_transaction(self.profile, self.user, side="buy", instrument=self.fund, portfolio=self.portfolio, broker=self.zerodha,
+                           date=d(2024, 2, 1), awaiting=True, amount=D(5000))
+        # a second profile with its own history must be left alone
+        self.other_user, self.other = make_user("other-clear")
+        from investments.models import Broker, Portfolio
+
+        p, b = Portfolio.objects.create(profile=self.other, name="P"), Broker.objects.create(profile=self.other, name="B")
+        tx.add_transaction(self.other, self.other_user, side="buy", instrument=self.reliance, portfolio=p, broker=b, date=d(2024, 1, 2), units=D(3), price=D(100))
+
+    def test_clear_needs_an_admin_the_name_and_takes_a_backup(self):
+        from backups.models import BackupFile
+        from investments.models import Dividend, Folio, InvestmentHistory, Transaction
+        from investments.services import clear
+
+        editor, _ = make_user("ed-clear", profile=self.profile)
+        with self.assertRaises(InvestmentsError) as cm:
+            clear.clear(self.profile, editor, self.profile.name)
+        self.assertEqual(cm.exception.code, "FORBIDDEN")
+        with self.assertRaises(InvestmentsError) as cm:
+            clear.clear(self.profile, self.user, "wrong")
+        self.assertEqual(cm.exception.code, "CONFIRM_NAME")
+        self.assertEqual(Transaction.objects.filter(profile=self.profile).count(), 3)
+        self.assertFalse(BackupFile.objects.filter(kind="pre_clear").exists())
+        rows, history = clear.preview(self.profile)
+        self.assertEqual(dict(rows)["Purchases and sales"], 3)
+        before_history = InvestmentHistory.objects.filter(profile=self.profile).count()
+        counts = clear.clear(self.profile, self.user, self.profile.name)
+        self.assertEqual(counts["Purchases and sales"], 3)
+        self.assertTrue(BackupFile.objects.filter(kind="pre_clear").exists())
+        for model in (Transaction, Dividend, Folio):
+            self.assertFalse(model.objects.filter(profile=self.profile).exists(), model)
+        self.assertEqual(InvestmentHistory.objects.filter(profile=self.profile).count(), before_history)   # kept unless asked
+        self.assertEqual(Transaction.objects.filter(profile=self.other).count(), 1)                      # another profile untouched
+        self.assertTrue(Instrument.objects.filter(pk=self.reliance.pk).exists())                       # shared investments stay
+        self.assertTrue(ProfileInvestment.objects.filter(profile=self.profile, instrument=self.reliance).exists())
+        clear.clear(self.profile, self.user, self.profile.name, include_history=True)
+        self.assertFalse(InvestmentHistory.objects.filter(profile=self.profile).exists())
+
+    def test_the_page_is_for_admins_and_clears_after_the_name_is_typed(self):
+        from investments.models import Transaction
+
+        editor, _ = make_user("ed-clear2", profile=self.profile)
+        self.client.force_login(editor)
+        self.assertEqual(self.client.get(reverse("investments_clear_history")).status_code, 403)
+        self.assertNotContains(self.client.get(reverse("investments_settings")), "Clear transaction history")
+        self.client.force_login(self.user)
+        self.assertContains(self.client.get(reverse("investments_settings")), "Clear transaction history")
+        self.assertContains(self.client.get(reverse("investments_clear_history")), "To be deleted")
+        self.client.post(reverse("investments_clear_history"), {"confirm_name": "nope"})
+        self.assertEqual(Transaction.objects.filter(profile=self.profile).count(), 3)
+        r = self.client.post(reverse("investments_clear_history"), {"confirm_name": self.profile.name})
+        self.assertRedirects(r, reverse("investments_settings"), fetch_redirect_response=False)
+        self.assertFalse(Transaction.objects.filter(profile=self.profile).exists())
+        self.assertContains(self.client.get(reverse("investments_dashboard")), "No holdings yet")
