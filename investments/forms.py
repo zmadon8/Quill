@@ -209,8 +209,19 @@ class FolioForm(forms.Form):
 
 
 class DetailsForm(forms.Form):
+    sectoral_index = forms.ModelChoiceField(queryset=Instrument.objects.none(), required=False, empty_label="None (the Default Index only)",
+                                            label="Sector index",
+                                            help_text="The index this investment is also compared with, while sector comparisons are on (Settings > General). "
+                                                      "Add more in Settings > Indices.")
     notes = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}), required=False)
     links = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}), required=False, label="Website links (one per line: label | address)")
+
+    def __init__(self, *args, with_sector=True, **kwargs):
+        super().__init__(*args, **kwargs)
+        if with_sector:
+            self.fields["sectoral_index"].queryset = Instrument.objects.filter(profile=None, kind="index").order_by("name")
+        else:
+            del self.fields["sectoral_index"]
 
 
 class GeneralSettingsForm(forms.Form):
@@ -220,7 +231,8 @@ class GeneralSettingsForm(forms.Form):
     corporate_action_mode = forms.ChoiceField(choices=[("tag", "Tag and banner (default)"), ("block", "Block until confirmed")], label="Pending corporate actions")
     long_term_days = forms.IntegerField(min_value=1, max_value=3650, label="Long-term after (days held)")
     default_index = forms.ModelChoiceField(queryset=Instrument.objects.filter(kind="index"), required=False, label="Default Index", empty_label="Nifty 50 (default)")
-    sectoral_enabled = forms.BooleanField(required=False, label="Use a sectoral index as well")
+    sectoral_enabled = forms.BooleanField(required=False, label="Use a sectoral index as well",
+                                          help_text="Compare each investment with its own sector index too. Choose them, and add indices, in Settings > Indices.")
     include_dividends = forms.BooleanField(required=False, label="Include dividends in XIRR")
     alt_treatment = forms.ChoiceField(choices=[("unchanged", "Unchanged until the next update"), ("averaged", "Averaged out between updates")], label="Alternative investments between updates")
     money_default = forms.ChoiceField(choices=[("auto", "Short (Thousand, Lac, Crore)"), ("full", "Full Figures")], label="Starting number display")
@@ -363,7 +375,17 @@ class SipForm(ProfileForm):
 
 
 class DisplaySettingsForm(forms.Form):
-    my_money = forms.ChoiceField(choices=[("auto", "Auto (2.41 cr, 24.13 lac, 85.40 k)"), ("full", "Full numbers")], label="Number display for you")
+    my_money = forms.ChoiceField(choices=[("auto", "Short (Thousand, Lac, Crore)"), ("full", "Full Figures")], label="Number display for you")
     money_default = forms.ChoiceField(choices=[("auto", "Short (Thousand, Lac, Crore)"), ("full", "Full Figures")], label="Starting choice for new people in this profile")
     compact_tables = forms.BooleanField(required=False, label="Compact tables")
+    units_decimals = forms.TypedChoiceField(choices=[("", "Standard (as many as needed, up to 4)"), ("0", "0"), ("1", "1"), ("2", "2"), ("3", "3"), ("4", "4")],
+                                            coerce=int, empty_value=None, required=False, label="Decimals in units",
+                                            help_text="How many decimals units show (for example 4,820.512 or 4,820.51). Display only: units are kept exact.")
+    rupee_decimals = forms.TypedChoiceField(choices=[("", "Standard (paise only when there are some)"), ("0", "0"), ("1", "1"), ("2", "2")],
+                                            coerce=int, empty_value=None, required=False, label="Decimals in full rupee figures",
+                                            help_text="Full figures show exactly this many decimals; short figures (k, lac, cr) always show up to 2. "
+                                                      "Display only: Excel exports and every calculation keep the exact amount.")
+    column_picker = forms.BooleanField(required=False, label="Column picker",
+                                       help_text="A Columns menu above each table, as in the Fee Register, to choose the columns you see. "
+                                                 "Your choice is remembered in this browser, table by table.")
     default_exchange = forms.ChoiceField(choices=[("NS", "NSE (.NS)"), ("BO", "BSE (.BO)")], label="Exchange for new shares")

@@ -23,7 +23,8 @@ class GoldenTableTests(SimpleTestCase):
         for case in _cases():
             with self.subTest(case=case):
                 got = format_amount(
-                    case["v"], currency=case.get("cur", "INR"), mode=case["mode"], signed=case.get("signed", False)
+                    case["v"], currency=case.get("cur", "INR"), mode=case["mode"], signed=case.get("signed", False),
+                    decimals=case.get("dec")
                 )
                 self.assertEqual(got, case["out"])
 

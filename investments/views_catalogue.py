@@ -106,7 +106,8 @@ def catalogue_item(request, pk):
         "basis": catalogue.basis_preview(inst), "others": Instrument.objects.filter(profile=None, kind=inst.kind).exclude(pk=inst.pk).order_by("name"),
         "moves": fetch.one_day_moves(inst), "stale_days": fetch.stale_days(inst),
         "deleted_prices": CatalogueHistory.objects.filter(instrument_id_ref=inst.pk, record_type="price_deleted")[:10],
-        "today": datetime.date.today(), "is_admin": is_admin, **price_history_context(request, inst)}, selectors=False)
+        "today": datetime.date.today(), "is_admin": is_admin,
+        "index_choices": Instrument.objects.filter(profile=None, kind="index").order_by("name"), **price_history_context(request, inst)}, selectors=False)
 
 
 @inv_admin

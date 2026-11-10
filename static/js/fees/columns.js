@@ -190,7 +190,7 @@
       var tools = document.createElement("p");
       tools.className = "table-tools";
       tools.appendChild(menu);
-      var wrap = table.closest(".table-wrap") || table;
+      var wrap = table.closest(".table-wrap, .tw") || table;
       wrap.parentNode.insertBefore(tools, wrap);
       menu.addEventListener("keydown", function (e) {
         if (e.key === "Escape" && menu.open) { menu.open = false; summary.focus(); }

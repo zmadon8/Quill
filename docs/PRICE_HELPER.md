@@ -45,7 +45,7 @@ The site stores a sheet price only for a day with **no price yet**. The nightly 
 
 ## Bhavcopy in the nightly job
 
-Settings > Price sources > Bhavcopy chooses whether the server itself reads the exchanges' daily files: **Off** (default), **After Yahoo** (fill what Yahoo missed) or **Before Yahoo** (Yahoo only for the rest). See docs/DESIGN.md D150. To check that the exchanges answer Render, run in the web service Shell:
+Settings > Price sources > Bhavcopy chooses whether the server itself reads the exchanges' daily files: **Off** (default), **After Yahoo** (fill what Yahoo missed) or **Before Yahoo** (Yahoo only for the rest). See docs/DESIGN.md D158. To check that the exchanges answer Render, run in the web service Shell:
 
 ```
 D=$(date -d yesterday +%Y%m%d); d=$(date -d yesterday +%d%m%Y)

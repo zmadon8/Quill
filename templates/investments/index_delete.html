@@ -1,0 +1,13 @@
+{% extends "investments/base_investments.html" %}
+{% block inv_content %}
+<div class="page-head"><h1>Delete {{ inst.name }}</h1></div>
+{% if preview.problem %}<div class="ban al"><span>{{ preview.problem }}</span></div>
+<div class="acts-row"><a class="btn q" href="{% url 'investments_settings_indices' %}">Back</a></div>
+{% else %}
+<p class="lead">This removes the index {{ inst.name }} ({{ inst.code }}) and its stored prices for every profile.</p>
+{% if preview.default or preview.sector %}<div class="ban wa"><span>It is in use:{% if preview.default %} the Default Index of {{ preview.default|join:", " }} (they go back to Nifty 50){% endif %}{% if preview.default and preview.sector %};{% endif %}{% if preview.sector %} the sector index of {{ preview.sector }} investment{{ preview.sector|pluralize }} (they will have none){% endif %}. Comparisons already shown in reports change accordingly.</span></div>{% endif %}
+<form method="post" action="{% url 'investments_indices_action' %}">{% csrf_token %}<input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="{{ inst.pk }}"><input type="hidden" name="confirm" value="1">
+{% if preview.default or preview.sector %}<p><label>Type the name to confirm: <b>{{ inst.name }}</b><br><input name="confirm_name" autocomplete="off" required size="40" aria-label="Type {{ inst.name }} to confirm"></label></p>{% endif %}
+<div class="acts-row"><button class="btn dng" type="submit">Delete the index</button><a class="btn q" href="{% url 'investments_settings_indices' %}">Cancel</a></div></form>
+{% endif %}
+{% endblock %}

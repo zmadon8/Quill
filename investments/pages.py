@@ -73,6 +73,7 @@ PAGES = (
     _p("settings_display", "settings/display/", "Settings: Display", "settings", "Display", "Display choices.", hideable=False),
     _p("settings_pages", "settings/pages/", "Settings: Pages", "settings", "Pages", "Choose which pages show in the menu.", hideable=False),
     _p("settings_insights", "settings/insights/", "Settings: Insights", "settings", "Insights", "Choose which insights to show.", hideable=False),
+    _p("settings_indices", "settings/indices/", "Settings: Indices", "settings", "Indices", "The indices investments are compared with.", hideable=False),
     _p("admin_prices", "settings/price-sources/", "Admin: Price sources", "settings", "Price sources", "Price sources are set up in a later release.", admin=True, hideable=False),
     _p("admin_upload", "settings/price-upload/", "Admin: Upload price history", "settings", "Price sources", "Price history upload is set up in a later release.", admin=True, hideable=False),
     _p("admin_price_history", "settings/price-history/", "Admin: Price history", "settings", "Price history", "Pruning, the price archive and pinned prices are set up in a later release.", admin=True, hideable=False),
@@ -111,7 +112,7 @@ SUB_ROWS = {
     ),
     "settings": (
         ("General", "settings"), ("Brokers", "settings_brokers"), ("Alerts", "settings_alerts"),
-        ("Display", "settings_display"), ("Pages", "settings_pages"), ("Insights", "settings_insights"),
+        ("Display", "settings_display"), ("Pages", "settings_pages"), ("Insights", "settings_insights"), ("Indices", "settings_indices"),
         ("Price sources", "admin_prices"), ("Price history", "admin_price_history"), ("Catalogue", "admin_catalogue"),
     ),
 }

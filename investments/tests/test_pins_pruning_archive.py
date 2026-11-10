@@ -45,7 +45,7 @@ class PinTests(PinBase):
         self.assertFalse(pin.approximate)
 
     def test_sectoral_index_is_pinned_only_while_the_switch_is_on(self):
-        bank = Instrument.objects.get(code="^NSEBANK")
+        bank = Instrument.objects.create(profile=None, kind="index", name="Nifty Bank", code="^NSEBANK", price_source="yahoo", price_basis="split_adjusted")
         Price.objects.create(instrument=bank, date=d(2023, 6, 15), close=D(44000), source="api")
         masters.update_profile_details(self.profile, self.user, self.reliance, sectoral_index=bank, sectoral_set=True)
         self.buy(d(2023, 6, 15), 10, 100)

@@ -108,7 +108,7 @@ class ImportTests(InvTestCase):
                                awaiting=True, amount=D(50000))
         self.buy(d(2024, 1, 2), 10, 2500)
         path = csv_file("Date,Scheme Code,Type,Units,NAV,Folio\n05/11/2024,122639,Purchase,1000,50,F-1\n02/01/2024,RELIANCE.NS,Buy,10,2500,\n03/01/2024,RELIANCE.NS,Sell,5,2600,\n")
-        r = statement_import.review(self.profile, path)
+        r = statement_import.review(self.profile, path, portfolio=self.portfolio, broker=self.zerodha)
         self.assertEqual(r.lines[0].completes, a)
         self.assertTrue(r.lines[1].duplicate)
         made, completed, skipped = statement_import.apply(self.profile, self.user, path, portfolio=self.portfolio, broker=self.zerodha)
@@ -152,7 +152,8 @@ class ImportTests(InvTestCase):
         body = b"Date,Symbol,Name,Type,Quantity,Price\n02/01/2024,TCS,Tata Consultancy,Buy,2,3500\n03/01/2024,RELIANCE.NS,Reliance,Buy,1,2500\n"
         r = self.client.post(url, {"file": SimpleUploadedFile("s.csv", body), "portfolio": self.portfolio.pk, "broker": self.zerodha.pk})
         self.assertContains(r, "Not in the program yet")
-        self.assertNotContains(r, ">Save ")                   # cannot save while an investment is missing
+        self.assertContains(r, "is added as a new investment")   # a name and a code are enough: it would be added on saving
+        self.assertContains(r, ">Save 2 lines")
         token = r.context["token"]
         base = {"token": token, "portfolio": self.portfolio.pk, "broker": self.zerodha.pk}
         r = self.client.post(url, dict(base, create="1", missing_count="1", add_0="1", text_0="TCS", kind_0="share", name_0="Tata Consultancy Services",
@@ -178,6 +179,59 @@ class ImportTests(InvTestCase):
         link = 'href="%s"' % reverse("investments_import_statement")
         for name in ("investments_holdings", "investments_transactions"):
             self.assertContains(self.client.get(reverse(name)), link)
+
+    HOLDINGS = ("Date of transaction,Name of investment,Investment code,Type,Folio,Portfolio Name,Broker,Transaction type,"
+                "Transaction Price,Transaction Quantity\n")
+
+    def test_holdings_sheet_matches_codes_adds_the_rest_and_names_portfolio_and_broker_per_row(self):
+        from investments.models import Folio, Instrument
+
+        path = csv_file(self.HOLDINGS
+                        + "02/05/2019,Reliance Industries,RELIANCE.NS,Share,,Main,Zerodha,Buy,1350.25,10\n"
+                        + "15/03/2021,Axis Bluechip Fund - Direct Growth,120465,Mutual Fund,F-77,Spouse,Direct,Buy,41.20,242.718\n"
+                        + "03/01/2022,Tata Consultancy Services,TCS,Equity,,Spouse,Kite,Buy,3500,5\n"
+                        + "05/01/2023,Reliance Industries,RELIANCE.NS,Share,,Main,Zerodha,Sell,2600,4\n")
+        r = statement_import.review(self.profile, path)
+        self.assertEqual(r.problems, [])
+        self.assertEqual(r.lines[0].instrument, self.reliance)
+        self.assertEqual([l.new_investment for l in r.lines], [False, True, True, False])
+        self.assertEqual((r.new_portfolios, r.new_brokers), (["Spouse"], ["Direct", "Kite"]))
+        self.assertEqual([l.side for l in r.lines], ["buy", "buy", "buy", "sell"])
+        made, completed, skipped = statement_import.apply(self.profile, self.user, path)
+        self.assertEqual((made, completed, skipped), (4, 0, 0))
+        axis = Instrument.objects.get(code="120465")
+        tcs = Instrument.objects.get(code="TCS.NS")
+        self.assertEqual((axis.kind, axis.name, tcs.kind, tcs.name), ("fund", "Axis Bluechip Fund - Direct Growth", "share", "Tata Consultancy Services"))
+        t = Transaction.objects.get(instrument=axis)
+        self.assertEqual((t.portfolio.name, t.broker.name, t.folio.number, t.units, t.price), ("Spouse", "Direct", "F-77", D("242.718"), D("41.2")))
+        self.assertTrue(Folio.objects.filter(instrument=axis, portfolio__name="Spouse", number="F-77").exists())
+        self.assertEqual(Transaction.objects.get(instrument=self.reliance, side="sell").portfolio, self.portfolio)
+        # the same file again: every row is already recorded
+        self.assertEqual(statement_import.apply(self.profile, self.user, path), (0, 0, 4))
+
+    def test_a_row_without_portfolio_or_broker_needs_one_from_the_page(self):
+        path = csv_file(self.HOLDINGS + "02/05/2019,Reliance Industries,RELIANCE.NS,Share,,,,Buy,1350,10\n")
+        self.assertIn("portfolio or broker", statement_import.review(self.profile, path).lines[0].problem)
+        r = statement_import.review(self.profile, path, portfolio=self.portfolio, broker=self.zerodha)
+        self.assertEqual(r.problems, [])
+        self.assertEqual((r.lines[0].portfolio_name, r.lines[0].broker_name), (self.portfolio.name, self.zerodha.name))
+
+    def test_type_words_and_an_alternative_needs_no_code(self):
+        for text, kind in (("Share", "share"), ("Equity Shares", "share"), ("ETF", "share"), ("Mutual Fund", "fund"), ("MF", "fund"),
+                           ("Foreign", "foreign"), ("PPF", "alternative"), ("", ""), ("Spaceship", "")):
+            self.assertEqual(statement_import.kind_of(text), kind, text)
+        path = csv_file(self.HOLDINGS + "01/04/2020,Public Provident Fund,,PPF,,Main,Direct,Buy,150000,1\n")
+        r = statement_import.review(self.profile, path)
+        self.assertEqual(r.problems, [])
+        statement_import.apply(self.profile, self.user, path)
+        from investments.models import Instrument
+
+        ppf = Instrument.objects.get(name="Public Provident Fund")
+        self.assertEqual((ppf.kind, ppf.profile_id), ("alternative", self.profile.pk))
+
+    def test_sample_sheet_is_offered(self):
+        self.client.force_login(self.user)
+        self.assertContains(self.client.get(reverse("investments_import_statement")), "?sample=1")
 
 class SearchTests(InvTestCase):
     def test_kinds_and_rules(self):

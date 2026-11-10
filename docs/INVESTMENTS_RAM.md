@@ -104,3 +104,14 @@ The command builds its dataset inside a transaction that is rolled back, so it l
 | Cron chain exit codes | Pass at command level (`test_commands_exit_zero_when_off_and_when_declining`). **Render-only:** the `render.yaml` shell chain itself |
 | README, DESIGN (D102 to D135), Help, HOSTING_AND_DEPLOY; ruff; makemigrations --check; full test run | Pass for the docs, ruff and migrations. Full run: investments, accounts, backups and mailer pass locally; diary and fees need openpyxl, which is not installable here, so CI is the full run |
 | Tax treatments marked as record-keeping aids for the CA | Pass (the Annual Report page and Help carry the note; the gains reports under Reports do not repeat it) |
+
+## Owner round of November 2026: the Overview's "Over time" table
+
+The `dashboard` operation of the bench now times the whole Overview as it is first worked out: `dashboard.compute`, with the chart and the standard "Over time" table for the whole history and the last 5, 3 and 1 years. Before, it timed only the holdings.
+
+| Operation | Peak (MB) | Seconds under tracemalloc | Cap (MB) |
+|---|---|---|---|
+| dashboard (whole Overview, standard table) | 14.0 | 22.5 | 25 |
+| alerts_and_insights (insights work the Overview out again on a cold cache) | 14.0 | 31.4 | 15 |
+
+Before the table, the dashboard's holdings alone took 12.5 MB, and the cold alerts and insights 13.3 MB and 21.9 s. Each period needs the holdings worked out again at its start date, which adds about 3 s of plain CPU at the planning size. On Render's 0.5 CPU, expect the first Overview after a change of data or prices to take several seconds longer. The result is then cached until the next change. To make the first Overview quicker, choose fewer periods in Customise.

@@ -1,0 +1,14 @@
+{% extends "investments/base_investments.html" %}
+{# Settings > General > Clear transaction history (Admin; owner round 2026-11): what goes, then the profile's name typed to confirm. #}
+{% block inv_content %}
+<div class="page-head"><h1>Clear the transaction history of {{ inv_profile.name }}</h1></div>
+<div class="ban al"><span><b>This cannot be undone from here.</b> It deletes the records below for every portfolio and broker of this profile. A "Before clearing profile" backup is taken first (Admins &gt; Backups); restoring it brings everything back, but also everything else changed since.</span></div>
+<div class="tw"><table data-table-id="inv-clear-history" class="led"><thead><tr><th>Record</th><th class="r">To be deleted</th></tr></thead><tbody>
+{% for label, n in rows %}<tr><td>{{ label }}</td><td class="r">{{ n }}</td></tr>{% endfor %}
+</tbody><tfoot><tr><td>Total</td><td class="r">{{ total }}</td></tr></tfoot></table></div>
+<p class="hint"><b>Kept:</b> the investments in your list (with your notes, links and sector index), portfolios, brokers, guardrails, settings, and everything shared: investments, prices and indices. Holdings, gains and reports will be empty until you load transactions again.</p>
+<form method="post" action="{% url 'investments_clear_history' %}">{% csrf_token %}
+<p><label class="chk"><input type="checkbox" name="history" value="1"> Also delete the History log ({{ history_count }} entr{{ history_count|pluralize:"y,ies" }}). Without this, the log stays as a record of the earlier changes.</label></p>
+<p><label>Type the profile's name to confirm: <b>{{ inv_profile.name }}</b><br><input name="confirm_name" autocomplete="off" required size="40" aria-label="Type {{ inv_profile.name }} to confirm"></label></p>
+<div class="acts-row"><button class="btn dng" type="submit">Take a backup and clear</button><a class="btn q" href="{% url 'investments_settings' %}">Cancel</a></div></form>
+{% endblock %}

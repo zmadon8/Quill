@@ -1,0 +1,33 @@
+{% extends "investments/base_investments.html" %}
+{# Settings > Indices (owner round 2026-11): the indices, adding and deleting them, and the sector index of each investment. #}
+{% block inv_content %}
+<h1 class="visually-hidden">Indices</h1>
+<p class="hint">Every investment is compared with the Default Index (Settings &gt; General). Switch on "Use a sectoral index as well" there to compare each investment with its own sector index too. Indices are shared by every profile. An index's prices are fetched every night while it is in use (as a Default Index or a sector index in any profile); a newly chosen one gets 10 years of history that night.</p>
+<div class="tw"><table data-table-id="inv-indices" class="led" data-sortable><thead><tr><th>Index</th><th>Yahoo symbol</th><th>Latest price</th><th class="r">Days stored</th><th>Used here</th><th></th></tr></thead><tbody>
+{% for i, builtin, is_default, sectors, elsewhere, last, rows in rows %}<tr><td class="nm"><a href="{% url 'investments_admin_catalogue_item' i.pk %}">{{ i.name }}</a>{% if builtin %} <span class="tag">Built in</span>{% endif %}</td><td>{{ i.code }}</td>
+<td data-sort="{{ last|date:'Y-m-d' }}">{% if last %}{{ last|date:"j M Y" }}{% else %}<span class="na">none yet</span>{% endif %}</td><td class="r">{{ rows }}</td>
+<td>{% if is_default %}<span class="tag ink">Default Index</span> {% endif %}{% if sectors %}Sector index of {{ sectors }} investment{{ sectors|pluralize }}{% endif %}{% if not is_default and not sectors %}<span class="na">&ndash;</span>{% endif %}{% if elsewhere %} <span class="tag">Used in another profile</span>{% endif %}</td>
+<td class="act">{% if can_edit and not builtin %}<form method="post" action="{% url 'investments_indices_action' %}" style="display:inline">{% csrf_token %}<input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="{{ i.pk }}"><button class="linklike">Delete</button></form>{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>
+
+{% if can_edit %}
+<div class="sec"><h2>Add an index</h2></div>
+<p class="hint">Type the index's symbol at Yahoo Finance (for example ^CNXAUTO for Nifty Auto). Its prices for the last 10 years are fetched straight away; a symbol Yahoo does not know is refused.</p>
+<form method="post" action="{% url 'investments_indices_action' %}" class="filters">{% csrf_token %}<input type="hidden" name="action" value="add">
+  <label>Name <input name="name" size="28" required></label><label>Yahoo symbol <input name="code" size="18" required list="index-suggestions"></label><label>Currency <input name="currency" value="INR" size="4"></label><button type="submit">Add index</button></form>
+{% if suggested %}<datalist id="index-suggestions">{% for name, code in suggested %}<option value="{{ code }}">{{ name }}</option>{% endfor %}</datalist>
+<p class="hint">Indices not added yet (one click adds it, after checking with Yahoo):</p>
+<div class="chips">{% for name, code in suggested %}<form method="post" action="{% url 'investments_indices_action' %}" style="display:inline">{% csrf_token %}<input type="hidden" name="action" value="add"><input type="hidden" name="name" value="{{ name }}"><input type="hidden" name="code" value="{{ code }}"><button type="submit" class="btn q sm">+ {{ name }} <span class="na">{{ code }}</span></button></form> {% endfor %}</div>{% endif %}
+{% endif %}
+
+<div class="sec" id="sectors"><h2>Sector index of each investment</h2></div>
+{% if not sectoral_on %}<div class="ban wa"><span>Sector comparisons are switched off. Choices made here are kept and are used once "Use a sectoral index as well" is switched on in <a href="{% url 'investments_settings' %}">Settings &gt; General</a>.</span></div>{% endif %}
+{% if mine %}
+<form method="post" action="{% url 'investments_indices_action' %}">{% csrf_token %}<input type="hidden" name="action" value="sectors">
+<div class="tw"><table data-table-id="inv-sector-choices" class="led"><thead><tr><th>Investment</th><th>Type</th><th>Sector</th><th>Compared with</th></tr></thead><tbody>
+{% for pi in mine %}<tr><td class="nm"><a href="{% url 'investments_investment' pi.instrument.pk %}">{{ pi.instrument.name }}</a></td><td>{{ pi.instrument.get_kind_display }}</td><td>{{ pi.instrument.sector|default:"" }}</td>
+<td><select name="sector_{{ pi.instrument.pk }}" aria-label="Sector index of {{ pi.instrument.name }}"{% if not can_edit %} disabled{% endif %}><option value="">None (the Default Index only)</option>{% for c in choices %}<option value="{{ c.pk }}"{% if pi.sectoral_index_id == c.pk %} selected{% endif %}>{{ c.name }}</option>{% endfor %}</select></td></tr>{% endfor %}
+</tbody></table></div>
+{% if can_edit %}<div class="acts-row"><button class="btn p" type="submit">Save sector indices</button></div>{% endif %}</form>
+{% else %}<p class="lead na">No investments yet.</p>{% endif %}
+{% endblock %}

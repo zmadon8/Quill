@@ -69,7 +69,14 @@ def page(request, template, context=None, status=200, selectors=True):
     if profile is not None:
         extra.update(price_status_line(profile))
     ctx = pages.render_context(request, profile, extra)
-    return render(request, template, ctx, status=status)
+    from .templatetags.investments_money import DISPLAY
+
+    row = ctx.get("inv_settings")
+    token = DISPLAY.set({"units": getattr(row, "units_decimals", None), "rupees": getattr(row, "rupee_decimals", None)})
+    try:
+        return render(request, template, ctx, status=status)
+    finally:
+        DISPLAY.reset(token)
 
 
 def safe_next(request, fallback):

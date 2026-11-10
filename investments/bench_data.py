@@ -85,12 +85,14 @@ def dataset_build(ctx):
 
 @operation("dashboard", 25.0, needs_dataset=True)
 def dashboard(ctx):
-    """FIFO plus XIRR for every holding (plan 26.1: 10 to 25 MB, a few hundred milliseconds of CPU)."""
-    from investments.services import holdings
+    """The whole Overview as it is first worked out (plan 26.1: 10 to 25 MB): FIFO plus XIRR for every holding, the index comparison,
+    the value chart and the standard "Over time" table (whole history, 5, 3 and 1 years). Owner round 2026-11: this used to time only
+    the holdings."""
+    from investments.services import dashboard as dashboard_service
 
-    rows, totals = holdings.compute(ctx.profile)
-    ctx.extra["holdings"] = len(rows)
-    if not rows:
+    data = dashboard_service.compute(ctx.profile)
+    ctx.extra["holdings"] = len(data["rows"])
+    if not data["rows"]:
         raise RuntimeError("the dataset produced no holdings")
 
 
