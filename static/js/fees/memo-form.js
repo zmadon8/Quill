@@ -149,7 +149,7 @@
       .then(function (d) {
         if (mine !== serial || !d || !d.ok) { return; }
         showTotal(parseFloat(d.total_fees));
-        if (words) { words.textContent = d.words ? "Rupees " + d.words : ""; }
+        if (words) { words.textContent = !d.words ? "" : (/^rupees\b/i.test(d.words) ? d.words : "Rupees " + d.words); }
       })
       .catch(function () { /* the preview above stays */ });
   }

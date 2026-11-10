@@ -19,13 +19,12 @@ body:is(.ledger, .look) :is(.fees-search-form, .search-pop-form) input[type=sear
 :is(body.look .subnav, body.ledger :is(.tabs, .stat-tabs), body.inv nav.sub) a:hover { background: var(--paper-2); }
 :is(body.look .subnav, body.ledger :is(.tabs, .stat-tabs), body.inv nav.sub) a.on, body.ledger .tab.active { background: var(--accent-tint); color: var(--accent); }
 body:is(.ledger, .look) .crumb-row { background: var(--bg); }
+body:is(.ledger, .look) .banner-warning { border-radius: 0; border-width: 0 0 1px 4px; }
 
 /* ---- Headings and labels: sans titles, sentence case, no wide letter-spacing ---- */
 body:is(.ledger, .look) main :is(h1, .page-title) { font-family: var(--font-sans); font-weight: 600; letter-spacing: -.01em; }
 body:is(.ledger, .look) main :is(h2, h3) { font-family: var(--font-sans); font-weight: 600; letter-spacing: 0; }
-body:is(.ledger, .look) :is(.label, .panel-label, .stack label, legend, th, dt, .meta),
-body.ledger main :is(.filters, .fees-form, .memo-form, .form-grid) label, body.ledger .kpi dt,
-body.inv :is(.lab, .sel > span, table.led th, .sec a.lk, .ins .more, .ban .r) {
+body.look :is(.label, .panel-label, .stack label, legend, th, dt, .meta) {
   text-transform: none; letter-spacing: 0; font-size: 13px; font-weight: 500; color: var(--muted);
 }
 body:is(.ledger, .look) main :is(.memo-form label.check, .line-tick label) { font-size: 14px; }
@@ -68,6 +67,7 @@ body.look .program-link:hover { border-color: var(--accent-soft); background: va
 body.ledger .kpi-grid { gap: 12px; overflow: visible; border: 0; }
 body.ledger .kpi { margin: 0; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--card); box-shadow: var(--shadow-card); }
 body.ledger .kpi dd, body.inv .fig { font-family: var(--font-sans); font-weight: 600; letter-spacing: -.01em; }
+body.inv .fig { font-size: 24px; }
 body.inv .strip { gap: 12px; border: 0; }
 body.inv .strip .f, body.inv .strip .f:first-child { padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--card); box-shadow: var(--shadow-card); }
 
