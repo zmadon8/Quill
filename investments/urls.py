@@ -87,6 +87,8 @@ urlpatterns += [
     path("insights/dismiss/", vr.insights_dismiss, name="investments_insight_dismiss"),
     path("api/prices/wanted/", vhelp.wanted, name="investments_helper_wanted"),
     path("api/prices/ingest/", vhelp.ingest, name="investments_helper_ingest"),
+    path("api/prices/sheet/", vhelp.sheet, name="investments_helper_sheet"),
+    path("settings/price-sources/google-sheet/", vp.google_sheet, name="investments_admin_google_sheet"),
     path("prefs/selection/", views.set_selection, name="investments_set_selection"),
     path("prefs/money/", views.set_money_mode, name="investments_set_money_mode"),
 ]

@@ -1,0 +1,23 @@
+{% extends "investments/base_investments.html" %}
+{% block inv_content %}
+<div class="page-head"><h1>Google Sheet prices</h1></div>
+<p class="hint">A Google Sheet looks up the closing prices of your shares and indices with GOOGLEFINANCE and sends them here every evening. Its prices fill only days that have no price yet; the nightly Yahoo and bhavcopy prices (the exchange's official close) replace them. Mutual funds are not in the sheet: their NAVs come from AMFI's daily file. The sheet receives only codes and names, never holdings or transactions.</p>
+{% if not helper_on %}<div class="ban wa"><span>Switched off. In Render, on the web service, set <code>PRICE_HELPER_ENABLED</code> to <code>1</code> and redeploy, then come back to this page.</span></div>{% endif %}
+<div class="sec"><h2>Set it up once</h2></div>
+<ol>
+<li>On <a href="{% url 'investments_admin_prices' %}">Price sources</a>, under Local helper, make a token (label it, for example, <i>Google Sheet</i>). It is shown only once: keep it to hand.</li>
+<li>Make a new Google Sheet. Choose <b>File &gt; Settings</b>: set the time zone to <b>(GMT+05:30) India Standard Time</b>, and on the Calculation tab set recalculation to <b>On change and every hour</b>.</li>
+<li>Choose <b>Extensions &gt; Apps Script</b>, delete what is there, paste the script below, and save.</li>
+<li>Reload the sheet. A <b>Quill</b> menu appears. Choose, in turn: <b>1. Set the token</b> (Google asks you to allow the script the first time), <b>2. Refresh the list of investments</b>, and <b>Switch on the daily timers</b>.</li>
+<li>Check the sheet: every row should show a price within a minute. Where the Google ticker is wrong or empty, type the right one in column C (for example <code>NSE:RELIANCE</code>, <code>BOM:500325</code>, <code>INDEXNSE:NIFTY_50</code>); your corrections are kept when the list is refreshed. Then choose <b>3. Send prices now</b> and look at column H.</li>
+</ol>
+<p class="hint">The timers refresh the list at 7 am and send prices at 7 pm and 11 pm, India time. If a run fails, Google emails the sheet's owner, and the run shows on Price sources. Last sheet upload: {% if last_run %}{{ last_run.finished|date:"j M Y, g:i a" }} ({{ last_run.updated }} price{{ last_run.updated|pluralize }} stored{% if last_run.failures %}, {{ last_run.failures|length }} refused{% endif %}){% else %}never{% endif %}.</p>
+<div class="sec"><h2>The script</h2></div>
+<p class="hint">This site's address ({{ site }}) is already filled in. The same file is <code>tools/google_sheet_prices.gs</code> in the program's code.</p>
+<textarea readonly rows="24" style="width:100%;font-family:monospace;font-size:12px" onclick="this.select()">{{ script }}</textarea>
+{% if helper_on %}<div class="sec"><h2>What the sheet will list</h2></div>
+<div class="tw"><table data-table-id="inv-sheet-list" class="led"><thead><tr><th>App code</th><th>Name</th><th>Suggested Google ticker</th><th>Newest stored price</th></tr></thead><tbody>
+{% for r in rows %}<tr><td>{{ r.code }}</td><td>{{ r.name }}</td><td>{{ r.google|default:"(type it in the sheet)" }}</td><td>{{ r.last|default:"none" }}</td></tr>{% empty %}<tr><td colspan="4" class="na">No shares or indices are tracked.</td></tr>{% endfor %}
+</tbody></table></div>{% endif %}
+<div class="acts-row"><a class="btn q" href="{% url 'investments_admin_prices' %}">Back to Price sources</a></div>
+{% endblock %}

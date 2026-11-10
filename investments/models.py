@@ -653,7 +653,8 @@ class AmfiScheme(models.Model):
 # ---------------------------------------------------------------------------------------------------------------------
 
 class SourceSetting(models.Model):
-    """Per price source: who fetches it. ``server`` (default), ``helper`` (only the helper), or ``either`` (the server tries, the helper fills gaps)."""
+    """Per price source: who fetches it. ``server`` (default), ``helper`` (only the helper), or ``either`` (the server tries, the helper fills gaps).
+    The row for ``bhavcopy`` holds that source's own choice instead: ``off``, ``after`` or ``first`` (see ``services/bhav.py``)."""
 
     source = models.CharField(max_length=20, unique=True)
     fetch_mode = models.CharField(max_length=6, default="server", choices=[("server", "Server"), ("helper", "Helper only"), ("either", "Either")])

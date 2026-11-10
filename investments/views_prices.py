@@ -54,7 +54,16 @@ def price_sources(request):
     from .models import PriceHelperToken
     from .services import helper
 
+    from .services import bhav
+
     new_token = None
+    if request.method == "POST" and request.POST.get("action") == "bhavcopy":
+        try:
+            bhav.set_mode(request.POST.get("mode", ""))
+            messages.success(request, "Saved. The nightly job and the Update Prices button use it from now on.")
+        except InvestmentsError as err:
+            messages.error(request, err.message)
+        return redirect(reverse("investments_admin_prices"))
     if request.method == "POST" and helper.enabled():
         action = request.POST.get("action")
         try:
@@ -72,10 +81,18 @@ def price_sources(request):
     for run in SourceRun.objects.exclude(finished=None)[:200]:
         last_runs.setdefault(run.source, run)
     sources = []
-    for key, label in (("yahoo", "Yahoo (shares, indices, foreign)"), ("amfi", "AMFI daily file (mutual funds)"), ("mfapi", "mfapi.in (fund history)")):
+    for key, label in (("yahoo", "Yahoo (shares, indices, foreign)"), ("amfi", "AMFI daily file (mutual funds)"), ("mfapi", "mfapi.in (fund history)"),
+                       ("bhavcopy", "NSE/BSE bhavcopy (shares, ETFs, NSE indices)"), ("google_sheet", "Google Sheet")):
         run = last_runs.get(key)
-        sources.append({"key": key, "label": label, "run": run, "failures": (run.failures if run else []),
-                        "count": Instrument.objects.filter(price_source=key).count()})
+        if key == "bhavcopy":
+            count = bhav.eligible_count()
+        elif key == "google_sheet":
+            if not helper.enabled():
+                continue
+            count = len(helper.sheet_list())
+        else:
+            count = Instrument.objects.filter(price_source=key).count()
+        sources.append({"key": key, "label": label, "run": run, "failures": (run.failures if run else []), "count": count})
     summary = fetch.status_summary()
     runs = SourceRun.objects.all()[:20]
     return page(request, "investments/price_sources.html", {
@@ -84,6 +101,20 @@ def price_sources(request):
         "helper_on": helper.enabled(), "tokens": PriceHelperToken.objects.order_by("-created_at") if helper.enabled() else [], "new_token": new_token,
         "modes": [(k, helper.mode(k)) for k in ("yahoo", "amfi", "mfapi")] if helper.enabled() else [],
         "helper_run": SourceRun.objects.filter(source="helper").first() if helper.enabled() else None,
+        "bhav_mode": bhav.mode(), "bhav_modes": bhav.MODES,
+    }, selectors=False)
+
+
+@inv_admin
+def google_sheet(request):
+    """How to set up the Google Sheet, with its script (this site's address filled in) ready to copy."""
+    from .services import helper
+
+    site = request.build_absolute_uri("/").rstrip("/")
+    return page(request, "investments/google_sheet.html", {
+        "page_title_text": "Google Sheet prices", "helper_on": helper.enabled(), "script": helper.sheet_script(site), "site": site,
+        "rows": helper.sheet_list() if helper.enabled() else [],
+        "last_run": SourceRun.objects.filter(source="google_sheet").first(),
     }, selectors=False)
 
 
