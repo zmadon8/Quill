@@ -7,6 +7,14 @@
 <li><b>Investment code</b> (NSE code such as RELIANCE.NS, AMFI scheme code, or ISIN) and <b>Name of investment</b>: a code the program knows uses that investment; any other is added from its name, code and <b>Type</b> (Share, Mutual Fund, Foreign, Alternative) when you save.</li>
 <li><b>Portfolio</b>, <b>Broker</b> and <b>Folio</b> on each row; a portfolio or broker you do not have yet is added. Charges, if the file has them.</li>
 <li><b>Origin</b> (optional): Purchase, Bonus, Split, Demerger or Other (a gift or transfer in). Bonus shares, split units, shares received on a demerger and other no-cost entries need no price. A row with units but no price is never taken as a purchase: choose what it is in the <b>Treated as</b> column below. You can set this for any row on the review page.</li></ul>
+<details class="panel"><summary><b>Words the Origin and Transaction type columns understand</b></summary>
+<p class="hint">Capitals, hyphens and extra spaces do not matter, and a cell that starts with one of the longer words (for example "Bonus shares 1:1") counts too. The Origin column is read first; if it is blank or not recognised, the Transaction type cell is tried. A line with no recognised word is a purchase, and needs a price. You can also choose how any line is treated on the review page.</p>
+<div class="tw"><table class="led"><thead><tr><th>Meaning</th><th>Words</th></tr></thead><tbody>
+{% for label, words in origin_help.origins %}<tr><td class="nm">{{ label }}</td><td class="wrap">{{ words|join:", " }}</td></tr>{% endfor %}
+<tr><td class="nm">A sale (Transaction type column only)</td><td class="wrap">{{ origin_help.sells|join:", " }}. A sale cannot be a bonus, split, demerger or other no-cost entry.</td></tr>
+</tbody></table></div>
+<p class="hint"><b>Column headings.</b> Origin (exact heading only): {{ origin_help.origin_headings|join:", " }}. Buy or sell: {{ origin_help.side_headings|join:", " }}.</p>
+<p class="hint"><b>Price.</b> Bonus, split and demerger lines need no price (any price in the file is ignored). "Other" lines may carry one. A split or demerger needs its action recorded first on the Corporate actions page (a demerger must also be applied); a bonus links to a recorded bonus within 5 days, or is saved on its own.</p></details>
 <p class="hint">You see every line first; nothing is saved until you confirm, and then the whole file is saved together. Already recorded transactions are skipped. <a href="?sample=1">Download a sample sheet</a>.</p>
 {% if error %}<div class="ban al" role="alert"><span>{{ error }}</span></div>{% endif %}
 {% if not review %}

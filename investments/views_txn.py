@@ -544,7 +544,8 @@ def import_statement(request):
         review = None
     return page(request, "investments/import_statement.html", {"page_title_text": "Import a statement", "review": review, "token": token, "error": error,
                                                               "portfolios": portfolios, "brokers": brokers, "chosen": chosen,
-                                                              "addable_kinds": statement_import.ADDABLE_KINDS, "origins": ORIGINS}, selectors=False)
+                                                              "addable_kinds": statement_import.ADDABLE_KINDS, "origins": ORIGINS,
+                                                              "origin_help": statement_import.origin_help()}, selectors=False)
 
 
 def _import_sample():

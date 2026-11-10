@@ -97,6 +97,18 @@ def origin_of(text):
     return ""
 
 
+def origin_help():
+    """What the import page lists as the words it understands, built from the same tables the import uses so the two cannot drift apart:
+    ``{"origins": [(label, [words])], "sells": [words], "origin_headings": [...], "side_headings": [...]}``."""
+    labels = dict(ORIGINS)
+    return {
+        "origins": [(labels[origin], list(words)) for origin, words in ORIGIN_WORDS],
+        "sells": list(SELL_WORDS) + ["anything starting with sell or redem"],
+        "origin_headings": list(COLUMNS["origin"]),
+        "side_headings": list(COLUMNS["side"]),
+    }
+
+
 @dataclass
 class Line:
     number: int
