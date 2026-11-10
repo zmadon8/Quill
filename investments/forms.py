@@ -4,8 +4,14 @@ from datetime import date
 from django import forms
 
 from investments.models import (
-    ASSET_CLASSES, HOLDABLE_KINDS, KIND_ALTERNATIVE, KIND_FOREIGN, KIND_FUND, KIND_SHARE, Broker, Folio, Instrument, Portfolio,
+    ASSET_CLASSES, CA_BONUS, CA_DEMERGER, CA_SPLIT, HOLDABLE_KINDS, KIND_ALTERNATIVE, KIND_FOREIGN, KIND_FUND, KIND_SHARE, ORIGIN_PURCHASE, ORIGINS,
+    ZERO_PRICE_ORIGINS, Broker, CorporateAction, Folio, Instrument, Portfolio,
 )
+
+
+#: Applying a bonus or split: the program adds the units, the person records or imports them, or the program creates the transactions now.
+CHOICES_FOR_UNITS = [("auto", "Automatic: the program adds the units"), ("link", "I will record or import the units as transactions"),
+                     ("create", "Create the transactions for me now (editable)")]
 
 
 class MoneyField(forms.DecimalField):
@@ -53,6 +59,9 @@ class TransactionForm(ProfileForm):
     folio = forms.ModelChoiceField(queryset=Folio.objects.none(), label="Folio (optional)", required=False)
     new_folio = forms.CharField(label="Or a new folio number", required=False, max_length=60)
     units = MoneyField(label="Units", required=False, min_value=0)
+    origin = forms.ChoiceField(choices=ORIGINS, initial=ORIGIN_PURCHASE, required=False, label="How were these units acquired?",
+                               help_text="Bonus shares, split units and shares received on a demerger need no price. A demerger's cost comes from the parent's shares.")
+    corporate_action = forms.ModelChoiceField(queryset=CorporateAction.objects.none(), required=False, label="Corporate action (bonus, split or demerger)")
     price = MoneyField(label="Price per unit", required=False, min_value=0)
     charges = MoneyField(label="Charges", required=False, min_value=0, initial=0)
     allotment_date = forms.DateField(widget=date_widget(), label="Allotment date", required=False)
@@ -73,7 +82,7 @@ class TransactionForm(ProfileForm):
         if mode == "sell":
             self.fields["date"].label = "Date sold"
         if awaiting:
-            for name in ("units", "price", "allotment_date"):
+            for name in ("units", "price", "allotment_date", "origin", "corporate_action"):
                 del self.fields[name]
             self.fields["amount"].required = True
             self.fields["amount"].label = "Amount paid" if mode == "awaiting_buy" else "Expected proceeds"
@@ -83,19 +92,41 @@ class TransactionForm(ProfileForm):
             del self.fields["expected_allotment_date"]
             del self.fields["reference"]
             self.fields["units"].required = True
-            self.fields["price"].required = True
             if mode in ("sell", "edit_sell"):
                 del self.fields["allotment_date"]
+                del self.fields["origin"]
+                del self.fields["corporate_action"]
+                self.fields["price"].required = True
+            else:
+                # A purchase needs its price; bonus and split units and shares received on a demerger do not (checked in clean()).
+                self.fields["corporate_action"].queryset = self.actions()
+                self.fields["corporate_action"].label_from_instance = lambda a: f"{a.instrument.name}: {a.describe()} ({a.ex_date:%d %b %Y})"
         if mode in ("sell", "awaiting_sell", "edit_sell"):
             del self.fields["new_folio"]
         if mode.startswith("edit"):
             self.fields["instrument"].disabled = False
+
+    def actions(self):
+        """The bonuses, splits and demergers the person may link units to: those on investments they can see (a demerger also by its new company)."""
+        from django.db.models import Q
+
+        visible = Q(instrument__profile=None) | Q(instrument__profile=self.profile)
+        return CorporateAction.objects.filter(visible, kind__in=(CA_BONUS, CA_SPLIT, CA_DEMERGER)).select_related("instrument", "target_instrument").order_by("-ex_date")
 
     def clean(self):
         cleaned = super().clean()
         folio = cleaned.get("folio")
         if folio and cleaned.get("instrument") and (folio.instrument_id != cleaned["instrument"].pk or (cleaned.get("portfolio") and folio.portfolio_id != cleaned["portfolio"].pk)):
             self.add_error("folio", "That folio belongs to a different investment or portfolio.")
+        if "origin" in self.fields:
+            origin = cleaned["origin"] = cleaned.get("origin") or ORIGIN_PURCHASE
+            if origin == ORIGIN_PURCHASE:
+                if cleaned.get("price") is None and "price" not in self.errors:
+                    self.add_error("price", "This field is required.")
+            elif origin in ZERO_PRICE_ORIGINS:
+                cleaned["price"] = 0
+            elif cleaned.get("price") is None:
+                cleaned["price"] = 0
         return cleaned
 
 
@@ -320,15 +351,34 @@ class DividendForm(ProfileForm):
 class CorporateActionForm(ProfileForm):
     instrument = forms.ModelChoiceField(queryset=Instrument.objects.none(), label="Investment")
     ex_date = forms.DateField(widget=date_widget(), label="Ex-date (or allotment date for a bonus)")
-    kind = forms.ChoiceField(choices=[("split", "Split"), ("bonus", "Bonus"), ("other", "Other (merger, demerger)")])
+    kind = forms.ChoiceField(choices=[("split", "Split"), ("bonus", "Bonus"), ("demerger", "Demerger (shares in a new company)"),
+                                      ("other", "Other (merger, ...)")])
     ratio_old = forms.DecimalField(required=False, min_value=0, decimal_places=4, max_digits=12, label="For every (old shares)")
-    ratio_new = forms.DecimalField(required=False, min_value=0, decimal_places=4, max_digits=12, label="New shares (split: becomes; bonus: free)")
+    ratio_new = forms.DecimalField(required=False, min_value=0, decimal_places=4, max_digits=12,
+                                   label="New shares (split: becomes; bonus: free; demerger: new company shares received)")
+    target_instrument = forms.ModelChoiceField(queryset=Instrument.objects.none(), required=False, label="Demerger: the new company",
+                                               help_text="Add the new company under Investments first if it is not listed.")
+    cost_percent_to_target = forms.DecimalField(required=False, min_value=0, max_value=100, decimal_places=4, max_digits=7,
+                                                label="Demerger: percent of the cost that moves to the new company",
+                                                help_text="From the company's notice. Your CA should confirm it. The parent's shares keep the rest.")
     notes = forms.CharField(required=False, max_length=300)
     apply_now = forms.BooleanField(required=False, initial=True, label="Apply it to this profile now")
+    choice = forms.ChoiceField(choices=CHOICES_FOR_UNITS, required=False, initial="auto", label="Bonus or split: who adds the units?")
+    inherit_dates = forms.BooleanField(required=False, initial=True, label="Demerger: the new shares keep the parent shares' purchase dates")
 
     def __init__(self, *args, profile=None, **kwargs):
         super().__init__(*args, profile=profile, **kwargs)
         self.fields["instrument"].queryset = self.instruments().exclude(kind="alternative")
+        self.fields["target_instrument"].queryset = self.instruments()
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("kind") == "demerger":
+            if not cleaned.get("target_instrument"):
+                self.add_error("target_instrument", "Choose the new company whose shares are received.")
+            if cleaned.get("cost_percent_to_target") in (None, 0):
+                self.add_error("cost_percent_to_target", "Enter the percentage of the cost that moves, more than 0 and up to 100.")
+        return cleaned
 
 
 class GuardrailForm(ProfileForm):

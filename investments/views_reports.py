@@ -232,7 +232,10 @@ def _annual_export(r):
                ["Tax deducted on dividends", r.dividend_tax], ["Unrealised gain at year end", r.unrealised], ["Long-term after (days held)", r.cutoff],
                ["Note", "A record-keeping aid, not tax advice. Check the treatment with your CA."]]
     sales = [[s["name"], s["bought"], s["sold"], s["days"], s["units"], s["cost"], s["proceeds"], s["gain"], "Long-term" if s["term"] == "long" else "Short-term",
-              "Estimated date" if s["estimated"] else ("Bonus" if s["bonus"] else "")] for s in r.sales]
+              "; ".join(x for x in ("Estimated date" if s["estimated"] else "", "Bonus" if s["bonus"] else "",
+                                    "Split units" if s["origin"] == "split" else "",
+                                    f"Cost adjusted for a demerger (cost from the original transactions: {s['original_cost']:.2f})" if s["adjusted"] else "") if x)]
+             for s in r.sales]
     held = [[h.instrument.name, h.instrument.get_kind_display(), h.units, h.cost, h.value, h.value - h.cost, "Provisional" if (h.provisional or h.awaiting) else ""]
             for h in r.holdings]
     txns = [[t.date, t.instrument.name, t.get_side_display(), t.units, t.price, t.charges, t.amount if t.status == "awaiting" else None, t.broker.name, t.portfolio.name,

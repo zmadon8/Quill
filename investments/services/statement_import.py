@@ -15,6 +15,13 @@ Holdings sheet (owner round 2026-11): a file may also give, on every row, the in
 Mutual Fund, ...), the portfolio and the broker. A code that matches an investment uses it; otherwise the investment is added from the
 row's name, code and type when the file is saved (no separate step), and a portfolio or broker the profile does not have is added too.
 The portfolio and broker chosen on the page are used only for rows that leave those cells blank.
+
+How the units were acquired (owner round 2026-11): a row may say it is a purchase, bonus shares, units from a split, shares received on a
+demerger or another no-cost entry, in an Origin column or in the Transaction type cell (the word "Bonus"), and the person can set it for
+any row on the review page ("Treated as"). A purchase still needs a price. The others are saved at no cost and may belong to a corporate
+action recorded on the Corporate actions page, which is found by the investment and date: a bonus or split that action adds automatically
+is skipped (it would be counted twice); a split or demerger with no recorded action is a problem to fix first. A row with units but no
+price and no origin is never imported as a purchase: it waits for the person to say what it is.
 """
 import contextlib
 import datetime
@@ -27,8 +34,9 @@ from django.db.models import Q
 
 from investments.errors import InvestmentsError
 from investments.models import (
-    HOLDABLE_KINDS, KIND_ALTERNATIVE, KIND_FOREIGN, KIND_FUND, KIND_SHARE, STATUS_AWAITING, AmfiScheme, Broker, Folio, Instrument, Portfolio,
-    Transaction,
+    CA_BONUS, CA_DEMERGER, CA_SPLIT, HOLDABLE_KINDS, KIND_ALTERNATIVE, KIND_FOREIGN, KIND_FUND, KIND_SHARE, METHOD_EVENTS, ORIGIN_BONUS,
+    ORIGIN_DEMERGER, ORIGIN_OTHER, ORIGIN_PURCHASE, ORIGIN_SPLIT, ORIGINS, STATUS_AWAITING, ZERO_PRICE_ORIGINS, AmfiScheme, Broker,
+    CorporateAction, CorporateActionResponse, Folio, Instrument, Portfolio, Transaction,
 )
 from investments.services import masters, transactions as tx
 
@@ -36,6 +44,8 @@ from investments.services import masters, transactions as tx
 #: type" is the buy or sell column and plain "Type" the investment's type when a file has both.
 COLUMNS = {
     "date": ("date", "trade date", "transaction date", "date of transaction", "order date", "nav date"),
+    # Claimed before "side" so a heading like "Acquisition type" is not taken for the buy or sell column. Exact headings only.
+    "origin": ("origin", "how acquired", "acquired as", "acquisition type", "acquisition", "transaction origin"),
     "side": ("transaction type", "buy/sell", "buy or sell", "trade type", "side", "action", "type"),
     "kind": ("investment type", "asset type", "instrument type", "security type", "type"),
     "investment": ("isin", "investment code", "code", "scheme code", "symbol", "ticker", "scrip code", "scrip", "scheme", "scheme name",
@@ -52,7 +62,7 @@ COLUMNS = {
     "folio": ("folio", "folio number", "folio no"),
 }
 #: Keys matched only by an exact heading ("Brokerage" is charges, not the broker).
-EXACT_ONLY = {"portfolio", "broker"}
+EXACT_ONLY = {"portfolio", "broker", "origin"}
 SELL_WORDS = ("sell", "sale", "redeem", "redemption", "s", "switch out", "switch-out")
 AWAITING_DAYS = 10
 #: The types a missing investment can be added as from a file. An alternative investment needs no code (it has no price feed).
@@ -61,8 +71,42 @@ ADDABLE_KINDS = ((KIND_SHARE, "Share or ETF"), (KIND_FUND, "Mutual fund"), (KIND
 KIND_WORDS = ((KIND_FUND, ("mutual fund", "fund", "mf", "scheme", "sip")), (KIND_FOREIGN, ("foreign", "us share", "us stock", "international")),
               (KIND_ALTERNATIVE, ("alternative", "ppf", "fd", "fixed deposit", "bond", "gold", "property", "real estate", "nps", "epf", "other")),
               (KIND_SHARE, ("share", "equity", "stock", "etf", "shares")))
+#: Words in an Origin cell (or in the Transaction type cell), and how the units were acquired.
+ORIGIN_WORDS = (
+    (ORIGIN_BONUS, ("bonus", "bonus shares", "bonus share", "bonus issue", "bonus allotment")),
+    (ORIGIN_SPLIT, ("split", "stock split", "share split", "sub division", "subdivision")),
+    (ORIGIN_DEMERGER, ("demerger", "demerged", "de merger", "demerger shares", "spin off", "spinoff")),
+    (ORIGIN_OTHER, ("gift", "gifted", "transfer in", "inheritance", "inherited", "free", "no cost", "nil cost", "other")),
+    (ORIGIN_PURCHASE, ("purchase", "buy", "bought", "sip")),
+)
+#: How close (in days) a row's date must be to a corporate action's ex-date for the row to be taken as belonging to it.
+ACTION_DAYS = 5
 ISIN_RE = re.compile(r"^IN[A-Z0-9]{10}$")
 SYMBOL_RE = re.compile(r"^[A-Z0-9][A-Z0-9&\-.^]{0,24}$")
+
+
+def origin_of(text):
+    """How the units were acquired, from an Origin or Transaction type cell: bonus, split, demerger, other or purchase; "" when blank or
+    not recognised (a plain "Buy" or "Sell" says nothing the file did not already say, so it counts as purchase only when spelled out)."""
+    t = " ".join((text or "").lower().replace("_", " ").replace("-", " ").split())
+    if not t:
+        return ""
+    for origin, words in ORIGIN_WORDS:
+        if t in words or any(t.startswith(w + " ") for w in words if len(w) > 3):
+            return origin
+    return ""
+
+
+def origin_help():
+    """What the import page lists as the words it understands, built from the same tables the import uses so the two cannot drift apart:
+    ``{"origins": [(label, [words])], "sells": [words], "origin_headings": [...], "side_headings": [...]}``."""
+    labels = dict(ORIGINS)
+    return {
+        "origins": [(labels[origin], list(words)) for origin, words in ORIGIN_WORDS],
+        "sells": list(SELL_WORDS) + ["anything starting with sell or redem"],
+        "origin_headings": list(COLUMNS["origin"]),
+        "side_headings": list(COLUMNS["side"]),
+    }
 
 
 @dataclass
@@ -86,6 +130,14 @@ class Line:
     completes: object = None
     duplicate: bool = False
     problem: str = ""
+    origin: str = ORIGIN_PURCHASE   # how the units were acquired (the file's word, or the person's choice on the review page)
+    origin_stated: bool = False     # the file or the person said so; otherwise a missing price is a problem, not a bonus
+    action: object = None           # the corporate action a bonus, split or demerger row belongs to
+    covered: str = ""               # why the row is skipped: the program already adds these units itself
+
+    @property
+    def get_origin_label(self):
+        return dict(ORIGINS).get(self.origin, self.origin).lower()
 
 
 @dataclass
@@ -98,7 +150,11 @@ class Review:
 
     @property
     def usable(self):
-        return [l for l in self.lines if not l.problem and not l.duplicate]
+        return [l for l in self.lines if not l.problem and not l.duplicate and not l.covered]
+
+    @property
+    def covered(self):
+        return [l for l in self.lines if l.covered and not l.problem]
 
     @property
     def problems(self):
@@ -230,9 +286,65 @@ def create_missing(profile, user, specs):
     return aliases
 
 
-def review(profile, source, aliases=None, portfolio=None, broker=None):
+def _load_actions(profile):
+    """The bonuses, splits and demergers on investments the profile can see, each with ``response`` (this profile's answer, or None)."""
+    answers = {r.action_id: r for r in CorporateActionResponse.objects.filter(profile=profile)}
+    rows = list(CorporateAction.objects.filter(Q(instrument__profile=None) | Q(instrument__profile=profile), kind__in=(CA_BONUS, CA_SPLIT, CA_DEMERGER))
+                .select_related("instrument", "target_instrument"))
+    for a in rows:
+        a.response = answers.get(a.pk)
+    return rows
+
+
+def _find_action(actions, instrument, origin, day):
+    """The recorded action a row of this origin belongs to: a bonus or split of the investment, or a demerger into it, whose ex-date is within
+    ``ACTION_DAYS`` of the row's date (the nearest one)."""
+    kind = {ORIGIN_BONUS: CA_BONUS, ORIGIN_SPLIT: CA_SPLIT, ORIGIN_DEMERGER: CA_DEMERGER}.get(origin)
+    best = None
+    for a in actions:
+        target = a.target_instrument_id if origin == ORIGIN_DEMERGER else a.instrument_id
+        if a.kind != kind or instrument is None or target != instrument.pk:
+            continue
+        gap = abs((day - a.ex_date).days)
+        if gap <= ACTION_DAYS and (best is None or gap < best[0]):
+            best = (gap, a)
+    return best[1] if best else None
+
+
+def _judge_origin(line, actions):
+    """Decide what the row needs given how its units were acquired: set ``line.problem``, ``line.covered`` and ``line.action``.
+    Only called for a row whose date, investment, units, portfolio and broker are in order."""
+    if line.side == "sell" and line.origin != ORIGIN_PURCHASE:
+        line.problem = "a sale cannot be bonus shares, a split, a demerger or a no-cost entry: choose Purchase in the Treated as column"
+        return
+    if line.origin == ORIGIN_PURCHASE:
+        return
+    if line.origin == ORIGIN_OTHER:
+        return
+    line.action = _find_action(actions, line.instrument, line.origin, line.day)
+    response = getattr(line.action, "response", None)
+    applied = response is not None and response.status == "applied"
+    if line.origin == ORIGIN_DEMERGER:
+        if line.instrument is None:
+            line.problem = "shares received on a demerger: add the new company first, then record the demerger on the Corporate actions page"
+        elif line.action is None:
+            line.problem = f"no demerger into {line.instrument.name} is recorded near {line.day:%-d %b %Y}: record it on the Corporate actions page first"
+        elif not applied:
+            line.problem = "apply the demerger on the Corporate actions page first: these shares take their cost from the parent's shares"
+    elif line.origin == ORIGIN_SPLIT:
+        if line.action is None:
+            line.problem = f"no split of this investment is recorded near {line.day:%-d %b %Y}: record it on the Corporate actions page first"
+    if line.problem:
+        return
+    if line.origin in (ORIGIN_BONUS, ORIGIN_SPLIT) and line.action is not None and applied and response.method == METHOD_EVENTS:
+        line.covered = (f"the program already adds the units of the {line.origin} of {line.action.ex_date:%-d %b %Y} itself, so this row would count "
+                        "them twice. To record them as transactions instead, change that on the Corporate actions page")
+
+
+def review(profile, source, aliases=None, portfolio=None, broker=None, origins=None):
     """Read the file and return a :class:`Review`; nothing is written. ``aliases`` maps the file's text to investments just added;
-    ``portfolio`` and ``broker`` (chosen on the page) are used for rows that do not name their own."""
+    ``portfolio`` and ``broker`` (chosen on the page) are used for rows that do not name their own. ``origins`` maps a line number (as text)
+    to the origin the person chose for it on the review page, which wins over the file's own word."""
     from fees.services import imports
 
     out = Review()
@@ -243,6 +355,9 @@ def review(profile, source, aliases=None, portfolio=None, broker=None):
     cache = {}
     portfolios = {p.name.casefold(): p for p in Portfolio.objects.filter(profile=profile)}
     brokers = {b.name.casefold(): b for b in Broker.objects.filter(profile=profile)}
+    actions = _load_actions(profile)
+    origins = origins or {}
+    valid_origins = {value for value, _label in ORIGINS}
     with contextlib.closing(rows):
         header = None
         for number, cells in enumerate(rows, start=1):
@@ -277,6 +392,16 @@ def review(profile, source, aliases=None, portfolio=None, broker=None):
             line.folio = get("folio").strip()
             if line.price is None and line.units and line.amount:
                 line.price = (line.amount / line.units).quantize(Decimal("0.0001"))
+            # How the units were acquired: the person's choice for this line, else the file's Origin cell, else a word such as "Bonus" in the
+            # buy or sell cell. A plain purchase is never assumed for a row with no price (below).
+            chosen = origins.get(str(number))
+            stated = chosen if chosen in valid_origins else (origin_of(get("origin")) or origin_of(get("side")))
+            line.origin = stated or ORIGIN_PURCHASE
+            line.origin_stated = line.origin != ORIGIN_PURCHASE
+            if line.origin in ZERO_PRICE_ORIGINS:
+                line.price = Decimal(0)
+            elif line.origin == ORIGIN_OTHER and not line.price:
+                line.price = Decimal(0)
             spec = None
             if line.instrument is None and line.text:
                 spec = next((m for m in out.missing if m["text"] == line.text), None)
@@ -289,10 +414,14 @@ def review(profile, source, aliases=None, portfolio=None, broker=None):
                 line.problem = "no investment given"
             elif line.instrument is None and not spec["ready"]:
                 line.problem = f"{line.text!r} is not in the program yet: check its details below"
-            elif not line.units or not line.price:
+            elif not line.units or (line.origin == ORIGIN_PURCHASE and not line.price):
                 line.problem = "units or price missing"
+                if line.units and line.side == "buy":
+                    line.problem += ": if these units came free (bonus shares, a split, shares received on a demerger), choose that in the Treated as column"
             elif not line.portfolio_name or not line.broker_name:
                 line.problem = "no portfolio or broker: fill the column, or choose them above"
+            else:
+                _judge_origin(line, actions)
             line.new_investment = line.instrument is None and spec is not None and spec["ready"]
             out.lines.append(line)
     _mark_matches(profile, out)
@@ -303,10 +432,10 @@ def _mark_matches(profile, out):
     awaiting = list(Transaction.objects.filter(profile=profile, status=STATUS_AWAITING, side="buy"))
     used = set()
     for line in out.lines:
-        if line.problem or line.instrument is None:   # an investment added by this file has nothing to complete or duplicate
+        if line.problem or line.covered or line.instrument is None:   # an investment added by this file has nothing to complete or duplicate
             continue
         total = line.units * line.price + line.charges
-        for a in awaiting:
+        for a in (awaiting if line.origin == ORIGIN_PURCHASE else []):
             if a.pk in used or a.instrument_id != line.instrument.pk or not a.amount:
                 continue
             if abs((line.day - a.date).days) <= AWAITING_DAYS and abs(total - a.amount) <= tx.tolerance_for(a.amount) * 10:
@@ -314,16 +443,21 @@ def _mark_matches(profile, out):
                 used.add(a.pk)
                 break
         if line.completes is None and Transaction.objects.filter(profile=profile, instrument=line.instrument, date=line.day, side=line.side,
-                                                                  units=line.units).exists():
+                                                                  units=line.units, origin=line.origin).exists():
+            line.duplicate = True
+        elif line.action is not None and Transaction.objects.filter(profile=profile, corporate_action=line.action, instrument=line.instrument,
+                                                                    units=line.units, portfolio__name__iexact=line.portfolio_name,
+                                                                    broker__name__iexact=line.broker_name).exists():
+            # Units already recorded against the same action (for example created from the Corporate actions page, dated the ex-date).
             line.duplicate = True
 
 
 @transaction.atomic
-def apply(profile, user, source, *, portfolio=None, broker=None, aliases=None):
+def apply(profile, user, source, *, portfolio=None, broker=None, aliases=None, origins=None):
     """Save every usable line in date order, all or nothing: first the investments, portfolios and brokers the file names that the
-    profile does not have yet. Returns ``(made, completed, skipped)``."""
+    profile does not have yet. Returns ``(made, completed, skipped)`` (skipped: duplicates, and rows whose units the program already adds)."""
     aliases = dict(aliases or {})
-    result = review(profile, source, aliases, portfolio=portfolio, broker=broker)
+    result = review(profile, source, aliases, portfolio=portfolio, broker=broker, origins=origins)
     if result.problems:
         raise InvestmentsError("NOT_APPLICABLE", f"{len(result.problems)} line(s) have problems, so nothing was saved. Fix them and try again.", 409)
     added = [m for m in result.missing if m["ready"] and any(l.new_investment and l.text == m["text"] for l in result.lines)]
@@ -334,7 +468,7 @@ def apply(profile, user, source, *, portfolio=None, broker=None, aliases=None):
     for name in result.new_brokers:
         masters.add_broker(profile, user, name)
     if added or result.new_portfolios or result.new_brokers:
-        result = review(profile, source, aliases, portfolio=portfolio, broker=broker)
+        result = review(profile, source, aliases, portfolio=portfolio, broker=broker, origins=origins)
         if result.problems:
             raise InvestmentsError("NOT_APPLICABLE", f"{len(result.problems)} line(s) have problems, so nothing was saved.", 409)
     portfolios = {p.name.casefold(): p for p in Portfolio.objects.filter(profile=profile)}
@@ -354,6 +488,7 @@ def apply(profile, user, source, *, portfolio=None, broker=None, aliases=None):
             completed += 1
             continue
         tx.add_transaction(profile, user, side=line.side, instrument=line.instrument, portfolio=portfolio, broker=broker, date=line.day, units=line.units,
-                           price=line.price, charges=line.charges, folio=folio, reference=f"Imported line {line.number}")
+                           price=line.price, charges=line.charges, folio=folio, reference=f"Imported line {line.number}", origin=line.origin,
+                           corporate_action=line.action)
         made += 1
-    return made, completed, sum(1 for l in result.lines if l.duplicate)
+    return made, completed, sum(1 for l in result.lines if l.duplicate or l.covered)

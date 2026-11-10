@@ -16,6 +16,10 @@ Rules implemented (plan section 6):
   consumes in proportion to the units taken from each.
 * A **transfer** moves units from one bucket to another, taking the oldest lots first and keeping each lot's date and cost.
 * ``cost_override`` on a purchase replaces its total cost (grandfathering; plan 3.2, proposed).
+* A **demerger** moves part of the cost of the parent's lots to shares of a new company, for the calculations only: the parent's
+  lots lose that share of their cost (``DEMERGER_OUT``), and the shares received (``DEMERGER_IN``) form lots whose cost and, if the
+  person chose it, purchase dates come from the parent lots they were derived from. Every lot remembers how much of its cost came
+  from such an adjustment (``Lot.adjustment``), so the cost of the original transactions can always be shown beside it.
 """
 from dataclasses import dataclass, field
 from datetime import date
@@ -29,10 +33,12 @@ SELL = "sell"
 TRANSFER = "transfer"
 SPLIT = "split"        # every lot's units times ``units`` (the factor); cost and dates unchanged
 BONUS = "bonus"        # a new lot in each bucket of held units times ``units`` (the bonus ratio), at zero cost, dated the ex-date
+DEMERGER_OUT = "demerger_out"  # the parent: every lot's cost times (1 - ``units``) stays, ``units`` (a fraction, 0 to 1) moves to the new company
+DEMERGER_IN = "demerger_in"    # the new company: units received; lots come from ``sources`` (the parent's lots), or one lot at nil cost
 
 #: Order of kinds inside one date: a corporate action applies to what was held at the end of the day before, then purchases,
 #: transfers and sales.
-_KIND_ORDER = {SPLIT: -2, BONUS: -1, BUY: 0, TRANSFER: 1, SELL: 2}
+_KIND_ORDER = {SPLIT: -2, BONUS: -1, DEMERGER_OUT: -1, BUY: 0, DEMERGER_IN: 0, TRANSFER: 1, SELL: 2}
 
 
 @dataclass(frozen=True)
@@ -56,6 +62,9 @@ class Event:
     to_bucket: Optional[Bucket] = None  # transfer only
     order: int = 0                # tie-break inside one date and kind (row id)
     estimated: bool = False
+    #: DEMERGER_IN only: ``[(bought_on, paid_on, units, cost, estimated)]``, the pieces the units received are made of (their units add up
+    #: to ``units``). Empty: one lot at nil cost dated ``on``.
+    sources: tuple = ()
 
 
 @dataclass
@@ -68,6 +77,13 @@ class Lot:
     original_units: Decimal
     bucket: Bucket
     estimated: bool = False
+    #: How much of ``cost`` is there because of a demerger rather than the original transactions: negative on the parent's lot (cost moved
+    #: away), the whole cost on a lot of shares received. ``cost - adjustment`` is the cost the original transactions give.
+    adjustment: Decimal = ZERO
+
+    @property
+    def original_cost(self):
+        return self.cost - self.adjustment
 
     @property
     def unit_cost(self):
@@ -88,6 +104,11 @@ class Match:
     sold_on: date
     bucket: Optional[Bucket] = None
     estimated: bool = False
+    adjustment: Decimal = ZERO    # the part of ``cost`` that a demerger put there (see ``Lot.adjustment``)
+
+    @property
+    def original_cost(self):
+        return self.cost - self.adjustment
 
     @property
     def holding_days(self):
@@ -137,7 +158,7 @@ def sort_events(events):
 
 
 def _take(lots, units, wanted_ref, sold_on, proceeds_total, result, move_to=None):
-    """Consume ``units`` from ``lots`` oldest first. Returns the consumed (lot copy, units, cost) list."""
+    """Consume ``units`` from ``lots`` oldest first. Returns the consumed (lot, units, cost, adjustment) list."""
     taken = []
     left = units
     while left > 0 and lots:
@@ -145,11 +166,14 @@ def _take(lots, units, wanted_ref, sold_on, proceeds_total, result, move_to=None
         use = min(left, lot.units)
         if use == lot.units:
             cost = lot.cost
+            adjustment = lot.adjustment
         else:
             cost = (lot.cost * use / lot.units)
-        taken.append((lot, use, cost))
+            adjustment = (lot.adjustment * use / lot.units)
+        taken.append((lot, use, cost, adjustment))
         lot.units -= use
         lot.cost -= cost
+        lot.adjustment -= adjustment
         left -= use
         if lot.units == 0:
             lots.pop(0)
@@ -176,9 +200,10 @@ def replay(events, as_of=None):
             if event.units > have:
                 result.violations.append(Violation(event.ref, event.on, event.bucket, event.units, have))
             taken = _take(lots, min(event.units, have), event.ref, event.on, event.total, result)
-            for lot, use, cost in taken:
+            for lot, use, cost, adjustment in taken:
                 share = event.total * use / event.units if event.units else ZERO
-                result.matches.append(Match(event.ref, lot.ref, use, cost, share, lot.bought_on, lot.paid_on, event.on, event.bucket, lot.estimated))
+                result.matches.append(Match(event.ref, lot.ref, use, cost, share, lot.bought_on, lot.paid_on, event.on, event.bucket, lot.estimated,
+                                            adjustment))
         elif event.kind == TRANSFER:
             src = result.lots.setdefault(event.bucket, [])
             dst = result.lots.setdefault(event.to_bucket, [])
@@ -186,8 +211,8 @@ def replay(events, as_of=None):
             if event.units > have:
                 result.violations.append(Violation(event.ref, event.on, event.bucket, event.units, have))
             taken = _take(src, min(event.units, have), event.ref, event.on, ZERO, result)
-            for lot, use, cost in taken:
-                dst.append(Lot(lot.ref, lot.bought_on, lot.paid_on, use, cost, use, event.to_bucket, lot.estimated))
+            for lot, use, cost, adjustment in taken:
+                dst.append(Lot(lot.ref, lot.bought_on, lot.paid_on, use, cost, use, event.to_bucket, lot.estimated, adjustment))
             dst.sort(key=lambda l: (l.bought_on, str(l.ref)))
         elif event.kind == SPLIT:
             for lots in result.lots.values():
@@ -200,6 +225,21 @@ def replay(events, as_of=None):
                 if held > 0:
                     lots.append(Lot(event.ref, event.on, event.on, held * event.units, ZERO, held * event.units, bucket, False))
                     lots.sort(key=lambda l: (l.bought_on, str(l.ref)))
+        elif event.kind == DEMERGER_OUT:
+            # The part of every lot's cost that moves to the new company's shares leaves the parent's lots (units and dates unchanged).
+            for lots in result.lots.values():
+                for lot in lots:
+                    moved = lot.cost * event.units
+                    lot.cost -= moved
+                    lot.adjustment -= moved
+        elif event.kind == DEMERGER_IN:
+            lots = result.lots.setdefault(event.bucket, [])
+            if event.sources:
+                for bought_on, paid_on, units, cost, estimated in event.sources:
+                    lots.append(Lot(event.ref, bought_on, paid_on, units, cost, units, event.bucket, estimated, cost))
+            else:
+                lots.append(Lot(event.ref, event.on, event.paid_on or event.on, event.units, ZERO, event.units, event.bucket, event.estimated))
+            lots.sort(key=lambda l: (l.bought_on, str(l.ref)))
         else:  # pragma: no cover - guarded by the constants above
             raise ValueError(f"unknown event kind {event.kind!r}")
     for bucket in list(result.lots):
