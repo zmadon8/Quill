@@ -224,7 +224,8 @@ def investment(request, pk):
         "folio_units": [(f, folio_units.get(f.pk, Decimal(0))) for f in folios_qs], "no_folio_units": folio_units.get(None, Decimal(0)),
         "bucket_rows": bucket_rows, "counts": counts, "has_records": any(counts.values()),
         "price_form": forms.PriceForm(), "alt_form": forms.AltValueForm(), "folio_form": forms.FolioForm(profile=profile),
-        "details_form": forms.DetailsForm(initial={"notes": pi.notes if pi else "", "links": _links_text(pi.links if pi else [])}),
+        "details_form": forms.DetailsForm(initial={"notes": pi.notes if pi else "", "links": _links_text(pi.links if pi else []),
+                                                   "sectoral_index": pi.sectoral_index_id if pi else None}, with_sector=inst.kind != KIND_ALTERNATIVE),
         "manual_prices": ManualPrice.objects.filter(instrument=inst).order_by("-date")[:10],
         "alt_values": AltValue.objects.filter(profile=profile, instrument=inst).order_by("-date")[:20] if inst.kind == KIND_ALTERNATIVE else [],
         "awaiting_rows": awaiting_rows, "history": InvestmentHistory.objects.filter(profile=profile, instrument_id_ref=inst.pk)[:8],
@@ -350,10 +351,17 @@ def investment_details(request, pk):
     elif action == "show":
         masters.update_profile_details(profile, request.user, inst, hidden=False)
     else:
-        form = forms.DetailsForm(request.POST)
+        form = forms.DetailsForm(request.POST, with_sector=inst.kind != KIND_ALTERNATIVE)
         if form.is_valid():
             masters.update_profile_details(profile, request.user, inst, notes=form.cleaned_data["notes"],
                                            links=_parse_links(form.cleaned_data["links"]))
+            if "sectoral_index" in form.fields:
+                from .services import indices
+
+                chosen = form.cleaned_data.get("sectoral_index")
+                pi = masters.get_profile_investment(profile, inst)
+                if (chosen.pk if chosen else None) != pi.sectoral_index_id:
+                    indices.set_sector_index(profile, request.user, inst, chosen)
             messages.success(request, "Details saved.")
     return redirect(reverse("investments_investment", args=[pk]))
 

@@ -507,7 +507,7 @@ def delete_preview(instrument):
     if instrument.profile_id is not None:
         problems.append("This is a private alternative investment, which is not in the catalogue.")
     if _is_builtin_index(instrument):
-        problems.append("This is one of the built-in indices, which the program needs (it would be put back at once). "
+        problems.append("This is Nifty 50, the built-in index the program needs (it would be put back at once). "
                         "It cannot be deleted.")
     per_profile = []
     for p in Profile.objects.filter(pk__in=_profiles_using(instrument)).order_by("name"):
@@ -538,7 +538,7 @@ def delete_instrument(user, instrument, reason="", confirm_name=None):
     if instrument.profile_id is not None:
         raise not_found("shared investment")
     if _is_builtin_index(instrument):
-        raise InvestmentsError("BUILTIN", "The built-in indices cannot be deleted.", 409)
+        raise InvestmentsError("BUILTIN", "Nifty 50, the built-in index, cannot be deleted.", 409)
     from accounts.models import Profile
     from investments.models import new_group
     from investments.services import core

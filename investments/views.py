@@ -3,6 +3,7 @@ import datetime
 from decimal import Decimal
 
 from django.contrib.auth.views import redirect_to_login
+from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.http import Http404, JsonResponse
 from django.shortcuts import redirect
@@ -82,7 +83,41 @@ def dashboard(request):
         "default_index": masters.default_index_for(profile), "sectoral": settings_row.sectoral_enabled, "include_div": div,
         "insights": _insights(profile), "all_insights": request.GET.get("insights") == "all",
         "pending_actions": __import__("investments.services.corporate", fromlist=["pending"]).pending(profile),
+        **_overview_context(request, settings_row, data, masters.default_index_for(profile)),
     })
+
+
+def _overview_context(request, settings_row, data, index):
+    """The chosen boxes, the period table and, with ?customise=1, the Customise form (owner round 2026-11)."""
+    from .services import overview
+
+    chosen = overview.choice(settings_row)
+    name = index.name if index else "Nifty 50"
+    return {
+        "boxes": chosen["boxes"], "period_table": data.get("overview") or {"periods": [], "rows": []},
+        "customise_open": request.GET.get("customise") == "1",
+        "box_choices": [(b, label.replace("{index}", name), help_text, b in chosen["boxes"]) for b, label, help_text in overview.BOXES],
+        "metric_choices": [(m, label.replace("{index}", name), help_text, m in chosen["metrics"]) for m, label, _f, help_text in overview.METRICS],
+        "period_choices": [(p, label, p in chosen["periods"]) for p, label in overview.PERIODS],
+    }
+
+
+@inv_editor
+@handle_errors()
+def overview_save(request):
+    """Save the Overview's choice of boxes and period figures for this profile (Editors); "standard" goes back to the standard choice."""
+    from .services import overview
+
+    profile = profile_or_404(request)
+    if request.method == "POST":
+        if request.POST.get("standard"):
+            masters.update_settings(profile, request.user, overview={})
+            messages.success(request, "The Overview shows the standard figures again.")
+        else:
+            masters.update_settings(profile, request.user, overview=overview.clean(request.POST.getlist("box"), request.POST.getlist("metric"),
+                                                                                  request.POST.getlist("period")))
+            messages.success(request, "Overview saved.")
+    return redirect(reverse("investments_dashboard"))
 
 
 class _Inst:

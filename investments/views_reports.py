@@ -226,7 +226,7 @@ def _annual_export(r):
     from .exports import response
 
     pct = (lambda v: None if v is None else round(v * 100, 2))
-    summary = [["Starting portfolio value", r.opening_value], ["Amount invested", r.invested], ["Amount sold", r.sold], ["Amount re-invested", r.reinvested],
+    summary = [["Starting portfolio value", r.opening_value], ["Amount invested", r.invested], ["Amount sold", r.sold], ["Fresh investments (invested less sold)", r.reinvested],
                ["Short-term capital gains", r.short_gain], ["Long-term capital gains", r.long_gain], ["XIRR for the year %", pct(r.xirr)],
                [f"{r.index_name} return %", pct(r.index_return)], ["Ending portfolio value", r.closing_value], ["Dividends received", r.dividends],
                ["Tax deducted on dividends", r.dividend_tax], ["Unrealised gain at year end", r.unrealised], ["Long-term after (days held)", r.cutoff],

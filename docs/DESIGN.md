@@ -1343,7 +1343,7 @@ Decisions taken while building the Investments program. Where the plan was silen
   - **Confirming.** While any profile has anything about it, the Admin must type its name. A "Before changing the catalogue" backup is taken first; nothing is deleted if it fails.
   - **What is deleted.** For each profile, the records are written to that profile's History (as for the profile-level delete), then deleted in protected-link order. That covers transactions, transfers, dividends, SIP schedules, folios, dated values, guardrails, corporate action confirmations, saved alert states and its row. The instrument then goes with its prices, pins, symbols and corporate actions.
   - **Afterwards.** Default and sectoral index choices fall back by `SET_NULL`. Every affected profile is recomputed, and the catalogue history records the deletion.
-  - **Refused.** Private investments, and the eight built-in indices (they would be re-created at once).
+  - **Refused.** Private investments, and Nifty 50, the built-in index (it would be re-created at once).
   - **Profile-level delete fixed.** The per-profile delete (Holdings > an investment > Delete) shares the same helper (`masters.delete_profile_records`). Before, it left dividends and SIP schedules behind, and as protected links they made the final removal fail with a server error.
 - **D141. Investments follows the Fee Register's page layout.** [Owner (2026-11): "I do not need to see the page title on every page in Investments, as the page titles are already there in the Header / tab name. Remove them, the same way that you did in the Fee Register app. I want the UI design choices to be the same as in Fee Register."] This applies the Fee Register's "Page titles that repeat the header or the sub-tab" rule.
   - **Hidden titles.** A page that a header entry or a sub-tab opens (`pages.menu_slugs()`, for example Investments, Transactions, Performance and the Settings tabs) keeps its `<h1>` for screen readers only (`visually-hidden`). Every other page (forms, an investment, a broker, a report, Getting started, To complete, Import a statement) shows a plain `<h1>` in `.page-head`, the Fee Register's size, with no large serif title or double rule. The investment and catalogue item headings got the same size. Every page has exactly one `<h1>`, and a test checks this.
@@ -1405,3 +1405,57 @@ Decisions taken while building the Investments program. Where the plan was silen
   - **Fee Register bug found.** The Fee Register's own "Suffix" settings are stored but never applied, because its template filter does not pass them.
 - **D148. CAGR is compared with the index's CAGR.** With the CAGR measure, the Performance page and its export compare each investment's CAGR with the index's CAGR between the same two dates: the investment's first and last stored price in the period. The sectoral index is compared the same way, and Alpha is the difference. Before, the index column showed an index XIRR.
 
+- **D149. The Overview's figures can be chosen.** [Owner (2026-11): "Allow me to choose the metrics shown in the Overview. Suggest others to me. I want to see various things for the entire history, 5 years, 3 years and 1 year."]
+  - **Where it is chosen.** Overview > Customise is for Editors, and the choice is per profile (`InvestmentSettings.overview`, `services/overview.py`).
+  - **The boxes at the top:** current value, invested, gain, portfolio XIRR, index XIRR, Alpha, dividends received and the number of holdings. The first six are the standard choice.
+  - **The "Over time" table** shows each chosen figure for the whole history and the last 5, 3 and 1 years. Any of the four periods can be left out.
+  - **Figures in the table:**
+    - your XIRR, the index XIRR and Alpha;
+    - the time-weighted return (yearly) and the index's change;
+    - the value at the start and the value at the end;
+    - money put in, money taken out and fresh investments;
+    - gain in the period;
+    - dividends;
+    - gains booked on sales, first in first out;
+    - largest fall (drawdown).
+  - **Standard table:** XIRR, index XIRR, Alpha, fresh investments and gain, for all four periods.
+  - **How a period is worked out.** It uses the Overview's portfolio, broker and as-at date. The value at its start counts as money put in on that day, as on the Performance page.
+  - **Shorter histories.** A period longer than the history is shown as the whole history and marked *.
+  - **Approximate figures.** The time-weighted return and the largest fall come from the chart's samples (at most 400 over the whole history), so they are approximate for short periods.
+  - **Cost and caching.** Only the chosen figures and periods are worked out. The table is cached with the rest of the Overview. Bench figures are in `docs/INVESTMENTS_RAM.md`; the bench's `dashboard` operation now times the whole Overview.
+- **D150. Indices.**
+  - **Settings > Indices** lists every index with what uses it.
+    - An Editor adds one by its Yahoo symbol. Yahoo is asked for 10 years of history first, so an unknown symbol is refused and nothing is made.
+    - Ten NSE sector indices are offered as one-click suggestions. Each is checked with Yahoo when added.
+    - An added index can be deleted; Nifty 50, the built-in one, cannot (D153). If an index is in use, its name must be typed, and the choices fall back: the Default Index goes back to Nifty 50, and a sector index to none. This is logged in the catalogue history.
+  - **Sector index of each investment.** It is chosen from a list on the investment's page (Your details) or for all investments at once on Settings > Indices. The Admin's catalogue form became a list too, instead of typing an id.
+  - **Pins.** A chosen sector index is pinned at once on the dates of that investment's transactions, from stored prices. The nightly pin step now also pins each transaction's sector index while sector comparisons are on.
+  - **Prices.** Only indices in use are fetched nightly, as before. An index chosen for the first time gets its 10 years of history that night.
+  - **Buttons.** In `ledger.css`, the rule that makes submit buttons primary now skips `.q` (Investments' secondary buttons), so a secondary button that submits a form stays secondary.
+- **D151. Column picker in Investments.** Settings > Display > **Column picker**, per profile and off by default, puts the Fee Register's Columns menu (`static/js/fees/columns.js`) above every Investments table with three or more columns. `columns-on.js` marks the tables. The first column always stays, and choices are remembered in the browser, table by table, as in the Fee Register. The key includes the number of columns, so a table whose columns depend on a setting keeps a choice per layout.
+- **D152. Annual Report: "Fresh investments".** Line 4, formerly "Amount re-invested", is now **Fresh investments**: amount invested less amount sold in the year. It is negative when more was taken out than put in. The page and the export both use the new name.
+- **D153. Nifty 50 is the only built-in index.** [Owner (2026-11).] `masters.BUILTIN_INDICES` now holds only Nifty 50.
+  - **Migration `investments/0016`** removes the other seven seeded by 0002 (Sensex, Nifty Next 50, Nifty Bank, Nifty Midcap 150, Nifty Smallcap 250, Nifty IT and S&P 500), with their prices and pins.
+  - **Indices in use stay.** An index that a profile uses as its Default Index or as a sector index is kept, as an ordinary added index that can be deleted.
+  - **Re-adding.** Settings > Indices offers the removed NSE and BSE ones as one-click suggestions, beside the sector indices. S&P 500 is not in the list; add it by its symbol, `^GSPC`, with currency USD.
+- **D154. Decimals shown.** Settings > Display has two choices, per profile and for display only. Calculations, stored values and Excel exports stay exact.
+  - **Decimals in units:** standard (as many as needed, up to 4) or exactly 0 to 4.
+  - **Decimals in full rupee figures:** standard (paise only when there are some) or exactly 0 to 2. [Owner: "should only be for figures in long mode - in short mode, it will always be up to 2 decimal places".] Short figures (k, lac, cr) always show up to 2 decimals.
+  - **How it works.** `viewutil.page` puts the profile's choice in a context variable read by the `units`, `inr` and `inr_signed` filters. The Python formatter and its JavaScript mirror take the same `decimals` option, which applies to full figures only; the golden table has cases for it.
+  - **Not affected.** Prices per unit (`price`) and percentages are unchanged.
+- **D155. Importing existing holdings from a sheet.** [Owner (2026-11): an Excel sheet with date, name, code, type, folio, portfolio, broker, buy or sell, price and quantity.] Import a statement now reads such a sheet. The columns are found by their headings, in any order, and **Download a sample sheet** gives the headings with two example rows.
+  - **Investment.** A code (NSE code, AMFI scheme code or ISIN) that matches an investment uses it; failing that, a matching name is used. Any other investment is **added on saving** from the row's name, code and **Type**, with no separate step.
+    - **Type words:** Share, Equity, Stock or ETF means a share; Mutual Fund, MF or Fund means a fund; Foreign means a foreign share; Alternative, PPF, FD, Bond, Gold and the like mean an alternative investment, which needs no code.
+    - **Codes:** a bare share code gets `.NS`.
+    - **Funds:** a fund found in the stored AMFI list takes its AMFI name and code.
+    - **Duplicates:** an investment already in the program under another spelling (same code or name) is used instead of a new one.
+    - **Corrections:** the review lists every investment to be added, and they can be corrected first with "Add and check again", as before.
+  - **Portfolio and Broker on each row.** They are matched by name, ignoring case. One the profile does not have is added on saving, and the review says so. The page's portfolio and broker are now optional and are used only for rows that leave those cells blank. A row with neither is a problem to fix.
+  - **Headings.** "Transaction type" is buy or sell, and plain "Type" is the investment's type. Portfolio and Broker need an exact heading, so "Brokerage" stays charges.
+  - **Saving.** Everything is saved together: the new investments, portfolios, brokers and folios, then the transactions in date order. Rows already recorded are skipped, so the same sheet can be loaded twice safely.
+- **D156. Clear a profile's transaction history.** [Owner (2026-11): "allow me to clear the existing transaction history for a profile".] Settings > General > **Clear transaction history** (Admin only) shows what would be deleted, with counts, and asks for the profile's name to be typed.
+  - **Deleted:** purchases and sales (awaiting ones too), transfers, fund switches, dividends, SIP schedules, folio numbers, alternative investments' dated values, corporate action confirmations, saved alert states, and the cached figures.
+  - **History log:** kept unless the box "Also delete the History log" is ticked.
+  - **Kept:** the investments in the profile's list (with notes, links and sector index), portfolios, brokers, guardrails and settings, and everything shared.
+  - **Safety:** a "Before clearing profile" backup is taken first; nothing is deleted if it fails. Other profiles are never touched.
+  - **Use:** to start again with a corrected holdings sheet (D155).

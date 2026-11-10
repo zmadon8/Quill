@@ -5,7 +5,7 @@ It never creates a user and never touches a password. Run it once in the Render 
 
     python manage.py create_investments_profile --username Ziyad --profile Ziyad-Investments
 
-It also creates the profile's first portfolio and the built-in indices, so a first purchase needs no other set-up.
+It also creates the profile's first portfolio and the built-in index (Nifty 50), so a first purchase needs no other set-up.
 """
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand, CommandError

@@ -89,25 +89,37 @@ def _sign(negative, signed, is_zero):
 
 
 def _fee_register_short(exact):
-    """``(text, is zero)`` for a non-negative rupee amount, as the Fee Register's short figures show it."""
+    """``(text, is zero)`` for a non-negative rupee amount, as the Fee Register's short figures show it: up to 2 decimals, trailing
+    zeros dropped (the decimals setting is for full figures only)."""
+    places = 2
     if exact < 10:
         whole = int(exact.quantize(Decimal(1), rounding=ROUND_HALF_UP))
         return group_indian(str(whole)), whole == 0
     for limit, divisor, suffix in ((Decimal(100000), Decimal(1000), "k"), (Decimal(10000000), Decimal(100000), "lac"), (None, Decimal(10000000), "cr")):
         if limit is None or exact < limit:
-            scaled = _round2(exact / divisor)
-            whole, frac = divmod(int(scaled * 100), 100)
-            text = group_indian(str(whole)) + (("." + f"{frac:02d}".rstrip("0")) if frac else "")
+            step = Decimal(1).scaleb(-places)
+            scaled = (exact / divisor).quantize(step, rounding=ROUND_HALF_UP)
+            whole, _dot, frac = f"{scaled:f}".partition(".")
+            frac = frac.rstrip("0")
+            text = group_indian(whole) + ("." + frac if frac else "")
             return text + (" " if len(suffix) > 1 else "") + suffix, False
     raise AssertionError("unreachable")
 
 
-def format_amount(value, *, currency="INR", mode=AUTO, signed=False, symbol=None):
+def _fixed(amount, places, grouper):
+    """A non-negative amount with exactly ``places`` decimals."""
+    q = amount.quantize(Decimal(1).scaleb(-places), rounding=ROUND_HALF_UP)
+    whole, _dot, frac = f"{q:f}".partition(".")
+    return grouper(whole) + ("." + frac if places else "")
+
+
+def format_amount(value, *, currency="INR", mode=AUTO, signed=False, symbol=None, decimals=None):
     """Format ``value`` (Decimal, int, float or numeric string) for display.
 
     ``currency`` is ``"INR"`` (rupees: Indian grouping, k / lac / cr) or any other code (k / m, Western grouping).
     ``mode`` is ``"auto"`` or ``"full"``. ``signed`` adds ``+`` to positive amounts. ``symbol`` overrides the
-    currency's symbol (an unknown code with no symbol is shown as ``"CODE "``).
+    currency's symbol (an unknown code with no symbol is shown as ``"CODE "``). ``decimals`` (Settings > Display, 0 to 2) fixes the
+    decimals of a full amount; short figures always show up to 2. None keeps the standard rule.
     """
     amount = _dec(value)
     negative = amount < _ZERO
@@ -118,6 +130,10 @@ def format_amount(value, *, currency="INR", mode=AUTO, signed=False, symbol=None
     if rupees and mode != FULL:
         body, is_zero = _fee_register_short(abs(amount))
         return f"{_sign(negative, signed, is_zero)}{sym}{body}"
+    if mode == FULL and decimals is not None:
+        places = max(0, min(int(decimals), 2))
+        body = _fixed(abs(amount), places, grouper)
+        return f"{_sign(negative, signed, set(body) <= set('0,.'))}{sym}{body}"
     sign = _sign(negative, signed, magnitude == _ZERO)
     if mode == FULL or magnitude < Decimal(1000):
         return f"{sign}{sym}{_plain(magnitude, grouper)}"
