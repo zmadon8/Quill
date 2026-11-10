@@ -36,6 +36,7 @@ REAL = {
     "settings_alerts": vi.settings_alerts,
     "settings_display": vm.settings_display,
     "settings_insights": vm.settings_insights,
+    "settings_indices": vm.settings_indices,
     "performance": vr.performance_view,
     "charts": vr.charts_view,
     "value": vr.value_view,
@@ -77,6 +78,7 @@ urlpatterns += [
     path("settings/portfolios/", vm.portfolio_action, name="investments_portfolio_action"),
     path("settings/brokers/action/", vm.broker_action, name="investments_broker_action"),
     path("prices/update/", vp.update_prices, name="investments_update_prices"),
+    path("settings/indices/action/", vm.indices_action, name="investments_indices_action"),
     path("settings/catalogue/new/", vc.catalogue_new, name="investments_admin_catalogue_new"),
     path("settings/catalogue/<int:pk>/", vc.catalogue_item, name="investments_admin_catalogue_item"),
     path("settings/catalogue/<int:pk>/action/", vc.catalogue_action, name="investments_admin_catalogue_action"),
@@ -89,4 +91,5 @@ urlpatterns += [
     path("api/prices/ingest/", vhelp.ingest, name="investments_helper_ingest"),
     path("prefs/selection/", views.set_selection, name="investments_set_selection"),
     path("prefs/money/", views.set_money_mode, name="investments_set_money_mode"),
+    path("overview/customise/", views.overview_save, name="investments_overview_save"),
 ]

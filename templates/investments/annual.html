@@ -11,7 +11,7 @@
 <tr><td>1. Starting portfolio value <small class="na">(31 March before)</small></td><td class="r">{{ r.opening_value|inr }}</td></tr>
 <tr><td>2. Amount invested</td><td class="r">{{ r.invested|inr }}</td></tr>
 <tr><td>3. Amount sold</td><td class="r">{{ r.sold|inr }}</td></tr>
-<tr><td>4. Amount re-invested <small class="na">(invested less sold)</small></td><td class="r">{{ r.reinvested|inr_signed }}</td></tr>
+<tr><td>4. Fresh investments <small class="na">(amount invested less amount sold: new money put in during the year; negative when more was taken out)</small></td><td class="r">{{ r.reinvested|inr_signed }}</td></tr>
 <tr><td>5. Capital gains: short-term</td><td class="r">{{ r.short_gain|inr_signed }}</td></tr>
 <tr><td>&nbsp;&nbsp;&nbsp;Capital gains: long-term <small class="na">(held more than {{ r.cutoff }} days)</small></td><td class="r">{{ r.long_gain|inr_signed }}</td></tr>
 <tr><td>6. XIRR for the year{% if include_div %} <small class="na">including dividends</small>{% endif %}</td><td class="r">{{ r.xirr|pct }}</td></tr>

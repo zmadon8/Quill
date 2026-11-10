@@ -99,8 +99,16 @@ def expected_pins(until=None, today=None):
         first = None
         for row in dates:
             first = row["date"] if first is None or row["date"] < first else first
-        for d in sorted({r["date"] for r in dates}):
-            for iid in index_ids_for(profile, None):
+        settings_row = InvestmentSettings.objects.filter(profile=profile).first()
+        sector_of = dict(ProfileInvestment.objects.filter(profile=profile).exclude(sectoral_index=None).values_list("instrument_id", "sectoral_index_id")) \
+            if settings_row and settings_row.sectoral_enabled else {}
+        wanted_on = {}
+        for row in dates:
+            ids = wanted_on.setdefault(row["date"], set(index_ids_for(profile, None)))
+            if sector_of.get(row["instrument_id"]):
+                ids.add(sector_of[row["instrument_id"]])
+        for d in sorted(wanted_on):
+            for iid in wanted_on[d]:
                 key = (iid, d, "transaction")
                 if key not in seen:
                     seen.add(key)

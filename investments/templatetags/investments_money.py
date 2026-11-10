@@ -88,7 +88,9 @@ def price(value):
 
     from investments.money_auto import group_indian
 
-    value = Decimal(value)
+    from decimal import ROUND_HALF_UP
+
+    value = Decimal(value).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)   # an average cost can have many decimals
     text = f"{abs(value):f}"
     whole, _dot, frac = text.partition(".")
     frac = frac.rstrip("0")

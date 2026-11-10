@@ -1405,3 +1405,32 @@ Decisions taken while building the Investments program. Where the plan was silen
   - **Fee Register bug found.** The Fee Register's own "Suffix" settings are stored but never applied, because its template filter does not pass them.
 - **D148. CAGR is compared with the index's CAGR.** With the CAGR measure, the Performance page and its export compare each investment's CAGR with the index's CAGR between the same two dates: the investment's first and last stored price in the period. The sectoral index is compared the same way, and Alpha is the difference. Before, the index column showed an index XIRR.
 
+- **D149. The Overview's figures can be chosen.** [Owner (2026-11): "Allow me to choose the metrics shown in the Overview. Suggest others to me. I want to see various things for the entire history, 5 years, 3 years and 1 year."]
+  - **Where it is chosen.** Overview > Customise is for Editors, and the choice is per profile (`InvestmentSettings.overview`, `services/overview.py`).
+  - **The boxes at the top:** current value, invested, gain, portfolio XIRR, index XIRR, Alpha, dividends received and the number of holdings. The first six are the standard choice.
+  - **The "Over time" table** shows each chosen figure for the whole history and the last 5, 3 and 1 years. Any of the four periods can be left out.
+  - **Figures in the table:**
+    - your XIRR, the index XIRR and Alpha;
+    - the time-weighted return (yearly) and the index's change;
+    - the value at the start and the value at the end;
+    - money put in, money taken out and fresh investments;
+    - gain in the period;
+    - dividends;
+    - gains booked on sales, first in first out;
+    - largest fall (drawdown).
+  - **Standard table:** XIRR, index XIRR, Alpha, fresh investments and gain, for all four periods.
+  - **How a period is worked out.** It uses the Overview's portfolio, broker and as-at date. The value at its start counts as money put in on that day, as on the Performance page.
+  - **Shorter histories.** A period longer than the history is shown as the whole history and marked *.
+  - **Approximate figures.** The time-weighted return and the largest fall come from the chart's samples (at most 400 over the whole history), so they are approximate for short periods.
+  - **Cost and caching.** Only the chosen figures and periods are worked out. The table is cached with the rest of the Overview. Bench figures are in `docs/INVESTMENTS_RAM.md`; the bench's `dashboard` operation now times the whole Overview.
+- **D150. Indices.**
+  - **Settings > Indices** lists every index with what uses it.
+    - An Editor adds one by its Yahoo symbol. Yahoo is asked for 10 years of history first, so an unknown symbol is refused and nothing is made.
+    - Ten NSE sector indices are offered as one-click suggestions. Each is checked with Yahoo when added.
+    - An added index can be deleted; the eight built-in ones cannot. If an index is in use, its name must be typed, and the choices fall back: the Default Index goes back to Nifty 50, and a sector index to none. This is logged in the catalogue history.
+  - **Sector index of each investment.** It is chosen from a list on the investment's page (Your details) or for all investments at once on Settings > Indices. The Admin's catalogue form became a list too, instead of typing an id.
+  - **Pins.** A chosen sector index is pinned at once on the dates of that investment's transactions, from stored prices. The nightly pin step now also pins each transaction's sector index while sector comparisons are on.
+  - **Prices.** Only indices in use are fetched nightly, as before. An index chosen for the first time gets its 10 years of history that night.
+  - **Buttons.** In `ledger.css`, the rule that makes submit buttons primary now skips `.q` (Investments' secondary buttons), so a secondary button that submits a form stays secondary.
+- **D151. Column picker in Investments.** Settings > Display > **Column picker**, per profile and off by default, puts the Fee Register's Columns menu (`static/js/fees/columns.js`) above every Investments table with three or more columns. `columns-on.js` marks the tables. The first column always stays, and choices are remembered in the browser, table by table, as in the Fee Register. The key includes the number of columns, so a table whose columns depend on a setting keeps a choice per layout.
+- **D152. Annual Report: "Fresh investments".** Line 4, formerly "Amount re-invested", is now **Fresh investments**: amount invested less amount sold in the year. It is negative when more was taken out than put in. The page and the export both use the new name.

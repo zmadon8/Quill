@@ -150,6 +150,10 @@ class InvestmentSettings(models.Model):
     insights_off = models.JSONField(default=list, blank=True, help_text="Kinds of insight switched off (plan 5)")
     concentration_limit = models.DecimalField(max_digits=5, decimal_places=2, default=20)
     compact_tables = models.BooleanField(default=False)
+    # Owner round (2026-11): a Columns menu above each table (as in the Fee Register), and the Overview's chosen figures
+    # ({"boxes": [...], "metrics": [...], "periods": [...]}; empty means the standard choice, see services/overview.py).
+    column_picker = models.BooleanField(default=False)
+    overview = models.JSONField(default=dict, blank=True)
     default_exchange = models.CharField(max_length=3, default="NS", choices=[("NS", "NSE"), ("BO", "BSE")])
     show_status_dots = models.BooleanField(default=True)
 

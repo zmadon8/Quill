@@ -9,7 +9,7 @@ from django.urls import reverse
 from . import forms, pages
 from .decorators import inv_editor, inv_read_write, inv_reader
 from .errors import InvestmentsError
-from .models import Broker, InvestmentHistory, Portfolio, Transaction
+from .models import Broker, Instrument, InvestmentHistory, Portfolio, ProfileInvestment, Transaction
 from .services import core, history, holdings, masters
 from .viewutil import handle_errors, page, profile_or_404, selection
 
@@ -219,11 +219,13 @@ def settings_display(request):
     from . import forms as f
 
     form = f.DisplaySettingsForm(request.POST or None, initial={"money_default": row.money_default, "compact_tables": row.compact_tables,
+                                                                 "column_picker": row.column_picker,
                                                                  "default_exchange": row.default_exchange,
                                                                  "my_money": masters.money_preference(request.user, profile)})
     if request.method == "POST" and form.is_valid():
         d = form.cleaned_data
-        masters.update_settings(profile, request.user, money_default=d["money_default"], compact_tables=d["compact_tables"], default_exchange=d["default_exchange"])
+        masters.update_settings(profile, request.user, money_default=d["money_default"], compact_tables=d["compact_tables"], default_exchange=d["default_exchange"],
+                              column_picker=d["column_picker"])
         masters.set_money_preference(request.user, d["my_money"])
         messages.success(request, "Saved.")
         return redirect(reverse("investments_settings_display"))
@@ -253,3 +255,62 @@ def settings_insights(request):
     off = set(row.insights_off or [])
     return page(request, "investments/settings_insights.html", {"page_title_text": "Insights", "kinds": [(k, l, k not in off) for k, l in insights.KINDS],
                                                                "limit": row.concentration_limit}, selectors=False)
+
+
+# ------------------------------------------------------------------ indices (owner round 2026-11)
+
+@inv_reader
+def settings_indices(request):
+    from .services import indices
+
+    profile = profile_or_404(request)
+    settings_row = core.get_settings(profile, create=False)
+    choices = list(Instrument.objects.filter(profile=None, kind="index").order_by("name"))
+    mine = list(ProfileInvestment.objects.filter(profile=profile, instrument__kind__in=("share", "fund", "foreign"), hidden=False)
+                .select_related("instrument", "sectoral_index").order_by("instrument__name"))
+    return page(request, "investments/settings_indices.html", {
+        "page_title_text": "Indices", "rows": indices.listing(profile), "suggested": [s for s in indices.SUGGESTED
+                                                                                    if not Instrument.objects.filter(profile=None, code__iexact=s[1]).exists()],
+        "choices": choices, "mine": mine, "sectoral_on": bool(settings_row and settings_row.sectoral_enabled)}, selectors=False)
+
+
+@inv_editor
+@handle_errors(fallback="investments_settings_indices")
+def indices_action(request):
+    from .services import indices
+
+    profile = profile_or_404(request)
+    back = reverse("investments_settings_indices")
+    if request.method != "POST":
+        return redirect(back)
+    action = request.POST.get("action", "")
+    if action == "add":
+        inst, n = indices.add_index(request.user, request.POST.get("name"), request.POST.get("code"), request.POST.get("currency") or "INR")
+        messages.success(request, f"{inst.name} added with {n} days of prices.")
+    elif action == "delete":
+        inst = Instrument.objects.filter(pk=request.POST.get("id") or 0, profile=None, kind="index").first()
+        if inst is None:
+            raise Http404
+        if request.POST.get("confirm"):
+            n = indices.delete_index(request.user, inst, request.POST.get("confirm_name"))
+            messages.success(request, f"{inst.name} deleted" + (f"; {n} profile{'s' if n != 1 else ''} now use{'' if n != 1 else 's'} the standard choice instead." if n else "."))
+        else:
+            return page(request, "investments/index_delete.html", {"page_title_text": f"Delete {inst.name}", "inst": inst,
+                                                                    "preview": indices.delete_preview(inst)}, selectors=False)
+    elif action == "sectors":
+        # One select per investment: the sector index each one is compared with.
+        by_id = {i.pk: i for i in Instrument.objects.filter(profile=None, kind="index")}
+        changed = 0
+        for pi in ProfileInvestment.objects.filter(profile=profile).select_related("instrument"):
+            key = f"sector_{pi.instrument_id}"
+            if key not in request.POST:
+                continue
+            raw = request.POST.get(key) or ""
+            index = by_id.get(int(raw)) if raw.isdigit() else None
+            if (index.pk if index else None) != pi.sectoral_index_id:
+                indices.set_sector_index(profile, request.user, pi.instrument, index)
+                changed += 1
+        messages.success(request, f"{changed} sector ind{'ex' if changed == 1 else 'ices'} changed.")
+    else:
+        raise Http404
+    return redirect(back)
