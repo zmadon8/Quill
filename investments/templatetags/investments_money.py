@@ -22,7 +22,7 @@ def _span(value, currency, signed):
     if value is None or value == "":
         return format_html('<span class="m na">&ndash;</span>')
     dec = DISPLAY.get().get("rupees") if currency == "INR" else None
-    auto = format_amount(value, currency=currency, mode=AUTO, signed=signed, decimals=dec)
+    auto = format_amount(value, currency=currency, mode=AUTO, signed=signed)   # short figures: always up to 2 decimals
     full = format_amount(value, currency=currency, mode=FULL, signed=signed, decimals=dec)
     gain = ""
     if signed:

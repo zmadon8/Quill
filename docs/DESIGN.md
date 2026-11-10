@@ -1440,6 +1440,6 @@ Decisions taken while building the Investments program. Where the plan was silen
   - **Re-adding.** Settings > Indices offers the removed NSE and BSE ones as one-click suggestions, beside the sector indices. S&P 500 is not in the list; add it by its symbol, `^GSPC`, with currency USD.
 - **D154. Decimals shown.** Settings > Display has two choices, per profile and for display only. Calculations, stored values and Excel exports stay exact.
   - **Decimals in units:** standard (as many as needed, up to 4) or exactly 0 to 4.
-  - **Decimals in rupee figures:** standard (full figures show paise only when there are some; short figures show up to 2) or 0 to 2. Full figures then show exactly that many decimals, and short ones (k, lac, cr) up to that many, in the Fee Register style.
-  - **How it works.** `viewutil.page` puts the profile's choice in a context variable read by the `units`, `inr` and `inr_signed` filters. The Python formatter and its JavaScript mirror take the same `decimals` option, and the golden table has cases for it.
+  - **Decimals in full rupee figures:** standard (paise only when there are some) or exactly 0 to 2. [Owner: "should only be for figures in long mode - in short mode, it will always be up to 2 decimal places".] Short figures (k, lac, cr) always show up to 2 decimals.
+  - **How it works.** `viewutil.page` puts the profile's choice in a context variable read by the `units`, `inr` and `inr_signed` filters. The Python formatter and its JavaScript mirror take the same `decimals` option, which applies to full figures only; the golden table has cases for it.
   - **Not affected.** Prices per unit (`price`) and percentages are unchanged.

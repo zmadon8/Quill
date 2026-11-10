@@ -84,7 +84,7 @@ class CreateBackupTests(BackupBase):
         expected = {label: 0 for label in registry.BACKUP_MODELS}
         expected["accounts.User"] = 3
         expected["accounts.Profile"] = 1  # the default "Main" profile created by the data migration
-        expected["investments.Instrument"] = 8  # the built-in indices created by the Investments data migration
+        expected["investments.Instrument"] = 1  # Nifty 50, the built-in index (migrations 0002 and 0016)
         self.assertEqual(doc["counts"], expected)
         self.assertEqual(Profile.objects.get().name, "Main")
         names = {r["fields"]["username"] for r in doc["models"]["accounts.User"]}

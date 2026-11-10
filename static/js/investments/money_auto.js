@@ -66,8 +66,8 @@
     return { text: grouper(whole.toString()) + (places ? "." + f : ""), zero: n === 0n };
   }
 
-  function shortRupees(ex, neg, signed, sym, decimals) {
-    var places = decimals === undefined || decimals === null ? 2 : Math.max(0, Math.min(decimals, 2));
+  function shortRupees(ex, neg, signed, sym) {
+    var places = 2; // short figures always show up to 2 decimals; the decimals setting is for full figures
     var body, zero = false;
     if (ex.num < 10n * ex.den) {
       var whole = roundDiv(ex.num, ex.den, 1n, 1n);
@@ -103,7 +103,7 @@
     var paise = roundDiv(ex.num, ex.den, 100n, 1n); // |value| in paise, half up
     var sign = "";
     if (paise !== 0n) { sign = p.neg ? MINUS : (opts.signed ? "+" : ""); }
-    if (rupees && mode !== "full") { return shortRupees(ex, p.neg, !!opts.signed, sym, opts.decimals); }
+    if (rupees && mode !== "full") { return shortRupees(ex, p.neg, !!opts.signed, sym); }
     if (mode === "full" && opts.decimals !== undefined && opts.decimals !== null) {
       var fx = fixedFull(ex, Math.max(0, Math.min(opts.decimals, 2)), grouper);
       return (fx.zero ? "" : (p.neg ? MINUS : (opts.signed ? "+" : ""))) + sym + fx.text;

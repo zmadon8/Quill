@@ -381,9 +381,9 @@ class DisplaySettingsForm(forms.Form):
     units_decimals = forms.TypedChoiceField(choices=[("", "Standard (as many as needed, up to 4)"), ("0", "0"), ("1", "1"), ("2", "2"), ("3", "3"), ("4", "4")],
                                             coerce=int, empty_value=None, required=False, label="Decimals in units",
                                             help_text="How many decimals units show (for example 4,820.512 or 4,820.51). Display only: units are kept exact.")
-    rupee_decimals = forms.TypedChoiceField(choices=[("", "Standard (paise only when there are some; short figures up to 2)"), ("0", "0"), ("1", "1"), ("2", "2")],
-                                            coerce=int, empty_value=None, required=False, label="Decimals in rupee figures",
-                                            help_text="Full figures show exactly this many decimals; short figures (lac, cr) show up to this many. "
+    rupee_decimals = forms.TypedChoiceField(choices=[("", "Standard (paise only when there are some)"), ("0", "0"), ("1", "1"), ("2", "2")],
+                                            coerce=int, empty_value=None, required=False, label="Decimals in full rupee figures",
+                                            help_text="Full figures show exactly this many decimals; short figures (k, lac, cr) always show up to 2. "
                                                       "Display only: Excel exports and every calculation keep the exact amount.")
     column_picker = forms.BooleanField(required=False, label="Column picker",
                                        help_text="A Columns menu above each table, as in the Fee Register, to choose the columns you see. "

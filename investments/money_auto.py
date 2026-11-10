@@ -88,10 +88,10 @@ def _sign(negative, signed, is_zero):
     return "+" if signed and not negative and not is_zero else ""
 
 
-def _fee_register_short(exact, decimals=None):
-    """``(text, is zero)`` for a non-negative rupee amount, as the Fee Register's short figures show it: up to 2 decimals (or up to
-    ``decimals``, Settings > Display), trailing zeros dropped."""
-    places = 2 if decimals is None else max(0, min(int(decimals), 2))
+def _fee_register_short(exact):
+    """``(text, is zero)`` for a non-negative rupee amount, as the Fee Register's short figures show it: up to 2 decimals, trailing
+    zeros dropped (the decimals setting is for full figures only)."""
+    places = 2
     if exact < 10:
         whole = int(exact.quantize(Decimal(1), rounding=ROUND_HALF_UP))
         return group_indian(str(whole)), whole == 0
@@ -119,7 +119,7 @@ def format_amount(value, *, currency="INR", mode=AUTO, signed=False, symbol=None
     ``currency`` is ``"INR"`` (rupees: Indian grouping, k / lac / cr) or any other code (k / m, Western grouping).
     ``mode`` is ``"auto"`` or ``"full"``. ``signed`` adds ``+`` to positive amounts. ``symbol`` overrides the
     currency's symbol (an unknown code with no symbol is shown as ``"CODE "``). ``decimals`` (Settings > Display, 0 to 2) fixes the
-    decimals of a full amount and caps those of a short one; None keeps the standard rule.
+    decimals of a full amount; short figures always show up to 2. None keeps the standard rule.
     """
     amount = _dec(value)
     negative = amount < _ZERO
@@ -128,7 +128,7 @@ def format_amount(value, *, currency="INR", mode=AUTO, signed=False, symbol=None
     sym = symbol if symbol is not None else _SYMBOLS.get(currency, f"{currency} ")
     magnitude = _round2(abs(amount))
     if rupees and mode != FULL:
-        body, is_zero = _fee_register_short(abs(amount), decimals)
+        body, is_zero = _fee_register_short(abs(amount))
         return f"{_sign(negative, signed, is_zero)}{sym}{body}"
     if mode == FULL and decimals is not None:
         places = max(0, min(int(decimals), 2))
