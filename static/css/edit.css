@@ -2,8 +2,8 @@
    on the diary pages. Parts: the Edit switch on the directory bar, the two buttons on every row, the "+ Add" form, the editing card
    (in place on a desktop, full screen on a phone). */
 
-/* ---- Edit mode on: the whole page gets a faint cool tint so it is obvious ---- */
-body.edit-on { --bg: #e8edf0; --hair: #c9d1d6; }
+/* ---- Edit mode on: the whole page gets a warm grey tint so it is obvious (it differs from the page in every colour theme) ---- */
+body.edit-on { --bg: var(--edit-bg); --hair: #D6D0C4; }
 body.edit-on .reading.editing { max-width: 58rem; }
 body.edit-on .crumb-row { background: var(--bg); }
 
@@ -14,7 +14,7 @@ body.edit-on .crumb-row { background: var(--bg); }
 .edit-switch.edit-link { border: 0; background: none; color: var(--muted); padding: 0 .6rem; text-decoration: underline; text-decoration-color: var(--hair); text-underline-offset: .25em; }
 .edit-switch.edit-link:hover { background: none; color: var(--ink); }
 .edit-switch.edit-pill { border-radius: 999px; background: var(--oxblood); border-color: var(--oxblood); color: var(--oxblood-ink); padding: 0 1.1rem; gap: .5rem; font-weight: 600; }
-.edit-switch.edit-pill:hover { background: #8d2633; }
+.edit-switch.edit-pill:hover { background: var(--accent-hover); }
 .edit-switch .dot { opacity: .7; }
 /* The strip across the very top while editing (mockup option C): "Editing · Undo · Done". The crumb row sticks below it. */
 .edit-strip { position: sticky; top: 0; z-index: 30; box-sizing: border-box; height: var(--strip-h); background: var(--oxblood); color: var(--oxblood-ink); display: flex; align-items: center; justify-content: center; flex-wrap: nowrap; gap: .25rem .75rem; padding: 0 1rem; font-size: .95rem; }
@@ -24,7 +24,7 @@ body.edit-on .crumb-row { background: var(--bg); }
 .edit-strip button, .edit-strip .button { min-height: 32px; padding: 0 .8rem; background: transparent; border: 1px solid rgba(255,255,255,.7); color: #fff; }
 .edit-strip button:hover, .edit-strip .button:hover { background: rgba(255,255,255,.15); }
 .edit-strip .button.solid { background: #fff; color: var(--oxblood); border-color: #fff; font-weight: 600; }
-.edit-strip .button.solid:hover { background: #f4eaec; }
+.edit-strip .button.solid:hover { background: var(--accent-tint); }
 .edit-strip button:disabled { opacity: .55; cursor: not-allowed; }
 .edit-strip a:focus-visible, .edit-strip button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 :root { --strip-h: 44px; }
@@ -96,7 +96,7 @@ body.edit-on .crumb-row { background: var(--bg); }
 .cite-row .mv-btn { min-width: 22px; width: 22px; min-height: 18px; padding: 0; border: 0; background: none; color: var(--muted); font-size: .65rem; line-height: 1; }
 .cite-row .mv-btn:hover { color: var(--oxblood); }
 .x-btn { min-width: 34px; width: 34px; min-height: 34px; padding: 0; font-size: 1.1rem; line-height: 1; border-color: var(--hair); color: var(--muted); }
-.x-btn:hover { color: var(--oxblood); border-color: var(--oxblood); }
+.x-btn:hover { color: var(--danger); border-color: var(--danger); }
 .cite-head { display: grid; grid-template-columns: 22px minmax(0, 1fr) minmax(0, 1fr) 34px; gap: .5rem; font-size: .85rem; color: var(--muted); margin-bottom: .15rem; }
 .flag-line { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; }
 .flag-line input[type=text] { flex: 1 1 14rem; width: auto; }
@@ -110,7 +110,7 @@ body.edit-on .crumb-row { background: var(--bg); }
 .menu button { display: flex; width: 100%; justify-content: flex-start; min-height: 40px; padding: 0 1rem; border: 0; border-radius: 0; background: transparent; font-family: var(--font-sans); }
 .menu button:hover { background: var(--panel); }
 .menu hr { border: 0; border-top: 1px solid var(--hair); margin: .3rem 0; }
-.menu .danger-item { flex-direction: column; align-items: flex-start; justify-content: center; color: var(--oxblood); font-weight: 600; padding: .35rem 1rem; }
+.menu .danger-item { flex-direction: column; align-items: flex-start; justify-content: center; color: var(--danger); font-weight: 600; padding: .35rem 1rem; }
 .menu .danger-item small { font-weight: 400; color: var(--muted); font-size: .85rem; }
 
 /* ---- Phone: bigger buttons, icon with its word underneath, >= 44px tap targets ---- */
@@ -169,7 +169,7 @@ body.edit-on .crumb-row { background: var(--bg); }
 .more-wrap > summary { display: inline-flex; align-items: center; min-height: 38px; padding: 0 1rem; border: 1px solid var(--ink); border-radius: 2px; background: var(--panel); cursor: pointer; list-style: none; }
 .more-wrap > summary::-webkit-details-marker { display: none; }
 .more-wrap > summary::after { content: "\25BE"; margin-left: .4rem; }
-.form-error { margin: .7rem 0 0; color: var(--oxblood); font-weight: 600; }
+.form-error { margin: .7rem 0 0; color: var(--danger); font-weight: 600; }
 .form-error[hidden] { display: none; }
 .form-error button { margin-left: .5rem; }
 .addform .rt-btn, .editcard .rt-btn { min-width: 34px; min-height: 34px; font-size: 1rem; }
@@ -212,7 +212,7 @@ body.edit-on .crumb-row { background: var(--bg); }
   body.card-open .edit-toast { bottom: 5.5rem; }
   /* A message from a failed Save is shown in a red band right under the top bar, where it cannot be missed. */
   .editcard > .card-top { order: -2; }
-  .editcard > .form-error:not([hidden]) { order: -1; margin: 0; padding: .6rem .9rem; background: #fbe9ea; border-bottom: 1px solid var(--oxblood); color: var(--oxblood); font-weight: 600; }
+  .editcard > .form-error:not([hidden]) { order: -1; margin: 0; padding: .6rem .9rem; background: var(--danger-tint); border-bottom: 1px solid var(--danger); color: var(--danger); font-weight: 600; }
 }
 summary.ra { list-style: none; }
 summary.ra::-webkit-details-marker { display: none; }

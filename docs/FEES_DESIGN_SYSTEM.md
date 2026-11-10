@@ -1,5 +1,15 @@
 # Fee Register design system ("Ledger book")
 
+> **2026-11 refresh (owner round).** The suite moved from the warm-paper "Chambers" look to a cooler, card-based one:
+> a light-grey page (`#F5F6F8`), white cards with soft shadows and 14 px corners, 8 px buttons and fields, a pill for the
+> current tab, sentence-case labels instead of letter-spaced capitals, and tinted status badges. The accent is now a
+> per-user **colour theme** (`accounts.User.colour_theme`, My settings > Display): Oxblood (default), Royal Blue, Navy,
+> Violet, Plum or Teal. `tokens.css` is the only place colours are declared (`body.ledger` no longer re-declares them) and
+> holds one `html[data-theme]` block per theme; `base_suite.html` puts the user's theme on `<html>`. Status colours
+> (`--danger`, `--ok`, amber) never follow the theme, so Overruled, alerts and overdue stay red in every theme. The shapes
+> live in `static/css/modern.css`, loaded last on every page. Diary edit mode tints the page warm grey (`--edit-bg`), which
+> differs from the page in every theme. The Word memo, the Excel exports and the offline diary copy are unchanged.
+
 The Fee Register follows the owner's desktop design: warm paper, black ink, one oxblood accent, flat 2 px corners,
 hairline rules, a double rule above totals and tabular figures everywhere. This supersedes the earlier 15 px table
 exception (U1) in `FEES_PHASE0_ANALYSIS.md`.

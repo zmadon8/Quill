@@ -526,6 +526,16 @@ If the combined app uses a different technology, the data rules in sections 2 to
 
 ## 13a. Visual design
 
+> **2026-11 refresh (owner round).** The suite moved from the warm-paper "Chambers" look to a cooler, card-based one:
+> a light-grey page (`#F5F6F8`), white cards with soft shadows and 14 px corners, 8 px buttons and fields, a pill for the
+> current tab, sentence-case labels instead of letter-spaced capitals, and tinted status badges. The accent is now a
+> per-user **colour theme** (`accounts.User.colour_theme`, My settings > Display): Oxblood (default), Royal Blue, Navy,
+> Violet, Plum or Teal. `tokens.css` is the only place colours are declared (`body.ledger` no longer re-declares them) and
+> holds one `html[data-theme]` block per theme; `base_suite.html` puts the user's theme on `<html>`. Status colours
+> (`--danger`, `--ok`, amber) never follow the theme, so Overruled, alerts and overdue stay red in every theme. The shapes
+> live in `static/css/modern.css`, loaded last on every page. Diary edit mode tints the page warm grey (`--edit-bg`), which
+> differs from the page in every theme. The Word memo, the Excel exports and the offline diary copy are unchanged.
+
 **Decision (owner, after reviewing four static mockups in `design/mockups/`):** Option D, "Chambers", for the whole app, with the Home page laid out like Option A, "Law Report".
 
 - **Shell (Option D).** Warm off-white page, italic serif program name at top left, a "Home" link (the program picker) beside it, a small sans nav at right (the current page is dark with an oxblood underline), one hairline rule under the header, a large serif page title with a double rule under it, letter-spaced uppercase small labels, hairline row dividers, outlined secondary buttons and filled oxblood primary buttons.

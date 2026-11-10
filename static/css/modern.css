@@ -1,0 +1,96 @@
+/* 2026-11 refresh, loaded last on every page: cards, rounded corners, pill tabs, sentence-case labels, tinted badges.
+   Colours come from tokens.css (and the user's theme); only shapes, surfaces and type change here, never layout. */
+
+/* ---- Header: white bar with a hairline, pill for the current tab ---- */
+body:is(.ledger, .look) .site-header { background: var(--white); border-bottom: 1px solid var(--line); box-shadow: 0 1px 2px rgba(16, 24, 40, .03); }
+body:is(.ledger, .look) .brand a { color: var(--ink); }
+body:is(.ledger, .look) .program-nav { gap: 0 4px; }
+body:is(.ledger, .look) .program-nav a:not(.home-button):not(.who):not(.icon-tool):not(.signout-button) { align-self: center; margin: 8px 0; padding: 6px 12px; border-bottom: 0; border-radius: var(--radius-pill); }
+body:is(.ledger, .look) .program-nav a:not(.home-button):not(.who):not(.icon-tool):not(.signout-button):hover { background: var(--paper-2); color: var(--ink); }
+body:is(.ledger, .look) .program-nav a.on, body:is(.ledger, .look) .program-nav a.on:hover { background: var(--accent-tint); color: var(--accent); font-weight: 600; }
+body:is(.ledger, .look) .program-nav :is(.icon-tool, .home-button, .signout-button) { border-radius: var(--radius); }
+body:is(.ledger, .look) .search-pop { border-color: var(--line); box-shadow: var(--shadow-float); }
+body:is(.ledger, .look) :is(.fees-search-form, .search-pop-form) input[type=search] { border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--white); padding-left: 12px; }
+body:is(.ledger, .look) :is(.fees-search-form, .search-pop-form) input[type=search]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-tint); }
+
+/* Sub-tabs: the same pills. */
+:is(body.look .subnav, body.ledger :is(.tabs, .stat-tabs), body.inv nav.sub) { gap: 4px; padding-top: 8px; padding-bottom: 8px; }
+:is(body.look .subnav, body.ledger :is(.tabs, .stat-tabs), body.inv nav.sub) a { margin: 0; padding: 6px 12px; min-height: 0; border-bottom: 0; border-radius: var(--radius-pill); }
+:is(body.look .subnav, body.ledger :is(.tabs, .stat-tabs), body.inv nav.sub) a:hover { background: var(--paper-2); }
+:is(body.look .subnav, body.ledger :is(.tabs, .stat-tabs), body.inv nav.sub) a.on, body.ledger .tab.active { background: var(--accent-tint); color: var(--accent); }
+body:is(.ledger, .look) .crumb-row { background: var(--bg); }
+
+/* ---- Headings and labels: sans titles, sentence case, no wide letter-spacing ---- */
+body:is(.ledger, .look) main :is(h1, .page-title) { font-family: var(--font-sans); font-weight: 600; letter-spacing: -.01em; }
+body:is(.ledger, .look) main :is(h2, h3) { font-family: var(--font-sans); font-weight: 600; letter-spacing: 0; }
+body:is(.ledger, .look) :is(.label, .panel-label, .stack label, legend, th, dt, .meta),
+body.ledger main :is(.filters, .fees-form, .memo-form, .form-grid) label, body.ledger .kpi dt,
+body.inv :is(.lab, .sel > span, table.led th, .sec a.lk, .ins .more, .ban .r) {
+  text-transform: none; letter-spacing: 0; font-size: 13px; font-weight: 500; color: var(--muted);
+}
+body:is(.ledger, .look) main :is(.memo-form label.check, .line-tick label) { font-size: 14px; }
+body.inv table.led tr.grp td { letter-spacing: .04em; font-size: 12px; font-weight: 600; background: var(--paper-2); border-bottom: 1px solid var(--line); }
+
+/* ---- Buttons and fields: rounded, white secondary, filled accent primary ---- */
+body:is(.ledger, .look) main :is(button, .button):not(.link):not(.linklike):not(.program-link), body.ledger .btn, body.inv .btn { border-radius: var(--radius); box-shadow: 0 1px 2px rgba(16, 24, 40, .05); }
+body:is(.ledger, .look) main :is(.button.secondary, button.secondary, .button:not(.primary):not(.danger)) { background: var(--white); }
+body.inv .btn { min-height: 36px; padding: 0 14px; border-color: var(--line-strong); background: var(--white); color: var(--ink-2); font-size: 14px; font-weight: 500; }
+body.inv .btn.p, body.inv button.btn.p { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+body.inv .btn.dng { background: var(--white); border-color: var(--danger); color: var(--danger); }
+body.inv .toggle { border-color: var(--line-strong); border-radius: var(--radius); }
+body.inv .toggle span.on { background: var(--accent); color: var(--on-accent); }
+body:is(.ledger, .look) main :is(input:not([type=checkbox]):not([type=radio]):not([type=submit]):not([type=button]):not([type=hidden]):not([type=file]):not([type=range]), select, textarea) { border-radius: var(--radius-sm); border-color: var(--line-strong); }
+body:is(.ledger, .look) main :is(input, select, textarea):focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-tint); }
+body:is(.ledger, .look) :is(input[type=checkbox], input[type=radio]) { accent-color: var(--accent); }
+
+/* ---- Cards and surfaces ---- */
+body.ledger :is(.card, .settings-box, .fees-form fieldset, .memo-form fieldset, .filters, .table-wrap:not(.plain), .table-card, .notice),
+body.look :is(.notice, .addform, .editcard, .search-result.card, .settings-form fieldset, .program-link),
+body.inv :is(.tw, .ban) { border-radius: var(--radius-card); box-shadow: var(--shadow-card); border-color: var(--line); }
+body.ledger .table-card > .table-wrap { box-shadow: none; }
+body.ledger .table-wrap :is(.ledger-table, table.ledger) thead th { background: var(--paper-2); box-shadow: inset 0 -1px 0 var(--line); }
+body.ledger :is(.ledger-table, table.ledger) tfoot :is(th, td) { background: var(--paper-2); border-top: 1px solid var(--line-strong); }
+body.inv .tw { background: var(--card); border: 1px solid var(--line); }
+body.inv table.led th { background: var(--paper-2); border-bottom: 1px solid var(--line); padding: 10px 12px; }
+body.inv table.led td { padding: 12px; border-bottom-color: var(--line); }
+body.inv table.led td.nm { font-family: var(--font-sans); font-size: 15px; font-weight: 600; }
+body.inv table.led tbody tr:hover { background: #FAFBFC; }
+body.inv table.led tfoot td { background: var(--paper-2); border-top: 1px solid var(--line-strong); }
+body:is(.ledger, .look) :is(.menu, .profile-menu, .export-menu, .search-history-pop, .col-menu-list), body.inv .more-list { border-radius: var(--radius); border-color: var(--line); box-shadow: var(--shadow-float); }
+body.ledger .modal { border-color: var(--line); border-radius: var(--radius-card); }
+body:is(.ledger, .look) .messages li { border-radius: var(--radius); box-shadow: var(--shadow-float); }
+
+/* Home: the programs as cards. */
+body.look .program-link { margin: 0 0 12px; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+body.look .program-link:hover { border-color: var(--accent-soft); background: var(--card); color: var(--accent); box-shadow: var(--shadow-float); }
+
+/* ---- Headline figures: each one a card ---- */
+body.ledger .kpi-grid { gap: 12px; overflow: visible; border: 0; }
+body.ledger .kpi { margin: 0; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--card); box-shadow: var(--shadow-card); }
+body.ledger .kpi dd, body.inv .fig { font-family: var(--font-sans); font-weight: 600; letter-spacing: -.01em; }
+body.inv .strip { gap: 12px; border: 0; }
+body.inv .strip .f, body.inv .strip .f:first-child { padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--card); box-shadow: var(--shadow-card); }
+
+/* ---- Badges: tinted pills ---- */
+body.inv .tag, body.ledger :is(.chip, .chips .chip), body.look :is(.flag-text, .review-marker, .search-kind.badge) { border-radius: var(--radius-pill); text-transform: none; letter-spacing: 0; font-weight: 600; padding: 1px 9px; }
+body.inv .tag { font-size: 12px; background: var(--paper-2); border-color: transparent; color: var(--ink-3); }
+body.inv .tag.amb { background: var(--amber-bg); border-color: transparent; color: var(--amber-ink); }
+body.inv .tag.ox { background: var(--danger-tint); border-color: transparent; color: var(--danger); }
+body.look .flag-text { background: var(--danger-tint); border-color: transparent; }
+body.look :is(.flag-text.flag-pending, .flag-text.flag-other, .review-marker) { background: var(--amber-bg); border-color: transparent; color: var(--amber-ink); }
+body.ledger .chip.on, body.ledger .chip[aria-pressed=true], body.ledger .chip.selected { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+body.ledger .status-sq, body.inv .sq { border-radius: var(--radius-pill); }
+body.inv .ban { border-left-width: 1px; }
+body.inv .ban.al { background: var(--danger-tint); border-color: #F6CFCB; color: #7A1A12; }
+body.inv .ban.wa { border-color: var(--amber-line); }
+
+body.ledger .page-actions.button-row { gap: 8px; }
+
+@media (prefers-reduced-motion: reduce) { body:is(.ledger, .look) * { transition: none !important; } }
+
+/* My settings > Display: theme swatches. */
+.theme-swatches { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 12px; }
+.theme-swatch { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px 2px 4px; border: 1px solid var(--line); border-radius: var(--radius-pill); background: var(--white); font-size: 13px; color: var(--ink-3); }
+.theme-swatch::before { content: ""; width: 14px; height: 14px; border-radius: var(--radius-pill); background: var(--sw); }
+[data-swatch=oxblood] { --sw: #8B2D2D; } [data-swatch=royal] { --sw: #2563EB; } [data-swatch=navy] { --sw: #1F3F73; }
+[data-swatch=violet] { --sw: #6D4AD6; } [data-swatch=plum] { --sw: #7B2F78; } [data-swatch=teal] { --sw: #0F766E; }

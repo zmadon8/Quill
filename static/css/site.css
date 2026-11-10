@@ -56,7 +56,7 @@ button, .button { white-space: nowrap; display: inline-flex; align-items: center
 button:hover, .button:hover { background: #fff; }
 button.small, .button.small { padding: 0 .9rem; }
 button.primary, .button.primary, button[type=submit]:not(.link):not(.danger):not(.secondary):not(.program-link) { background: var(--oxblood); border-color: var(--oxblood); color: var(--oxblood-ink); }
-button.danger { background: var(--oxblood); border-color: var(--oxblood); color: var(--oxblood-ink); }
+button.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
 button.link { min-height: var(--tap); border: 0; background: none; }
 .actions .button, .actions button { font-size: var(--small-size); }
 
@@ -77,16 +77,16 @@ th { font-weight: 600; font-size: var(--small-size); letter-spacing: .08em; text
 td { text-align: left; padding: .75rem .5rem; border-bottom: 1px solid var(--hair); }
 td a { display: inline-block; min-height: var(--tap); line-height: var(--tap); padding: 0 .25rem; }
 
-/* Messages and alerts: oxblood is for alerts. */
+/* Messages and alerts: the danger red is for alerts (it never follows the user's colour theme). */
 .messages { list-style: none; padding: 0; }
 .messages li { padding: .6rem .8rem; margin-bottom: .5rem; border: 1px solid var(--hair); border-left: 4px solid var(--muted); background: var(--panel); }
-.messages li.error { border-left-color: var(--oxblood); color: var(--oxblood); }
-.error, .errorlist { color: var(--oxblood); }
+.messages li.error { border-left-color: var(--danger); color: var(--danger); }
+.error, .errorlist { color: var(--danger); }
 .errorlist { padding-left: 1rem; }
 .helptext { display: block; font-size: var(--small-size); color: var(--muted); }
-.banner-warning { padding: .6rem 1rem; margin-top: .5rem; background: var(--panel); border: 1px solid var(--oxblood); border-left-width: 4px; font-weight: 600; }
-.banner-warning a { color: var(--oxblood); }
-.warning-box { padding: .75rem 1rem; background: var(--panel); border: 1px solid var(--oxblood); border-left-width: 4px; margin-bottom: 1rem; }
+.banner-warning { padding: .6rem 1rem; margin-top: .5rem; background: var(--panel); border: 1px solid var(--danger); border-left-width: 4px; font-weight: 600; }
+.banner-warning a { color: var(--danger); }
+.warning-box { padding: .75rem 1rem; background: var(--panel); border: 1px solid var(--danger); border-left-width: 4px; margin-bottom: 1rem; }
 
 /* Lists used by Other Subjects and Subject contents. */
 .plain-list, .toc, .toc ul { list-style: none; padding: 0; margin: 0; }
@@ -148,8 +148,8 @@ button.program-link { width: 100%; text-align: left; background: none; cursor: p
 .case-line-comment p + p { display: block; margin-top: .3rem; }
 .case-comment p { display: inline; margin: 0; }
 .under-section { margin-left: 1.5rem; }
-.item.flagged > .item-body, .flag-text { color: var(--oxblood); }
-.flag-text { display: inline-block; font-family: var(--font-sans); font-size: var(--small-size); letter-spacing: .08em; text-transform: uppercase; border: 1px solid var(--oxblood); border-radius: 2px; padding: 0 .4rem; }
+.item.flagged > .item-body, .flag-text { color: var(--danger); }
+.flag-text { display: inline-block; font-family: var(--font-sans); font-size: var(--small-size); letter-spacing: .08em; text-transform: uppercase; border: 1px solid var(--danger); border-radius: 2px; padding: 0 .4rem; }
 .review-marker { display: inline-block; font-family: var(--font-sans); font-size: var(--small-size); letter-spacing: .06em; text-transform: uppercase; padding: 0 .5rem; background: var(--amber-bg); border: 1px solid var(--amber-line); border-radius: 2px; color: var(--amber-ink); }
 .note { margin: .5rem 0; padding: .5rem 0 0; border-top: 1px solid var(--hair); color: var(--muted); font-family: var(--font-sans); font-size: var(--small-size); }
 .see-also { display: block; }
@@ -318,7 +318,7 @@ th[aria-sort="descending"] a.sort-link::after { content: " \25BC"; font-size: .7
 /* Edit mode (Milestone 3b). Phone first: one column, every control at least 44px high. */
 .edit-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
 .edit-btn { min-height: var(--tap); min-width: var(--tap); padding: 0 .9rem; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--ink); border-radius: 2px; background: var(--panel); color: var(--ink); cursor: pointer; font: inherit; list-style: none; }
-.edit-btn.danger { background: var(--oxblood); border-color: var(--oxblood); color: var(--oxblood-ink); }
+.edit-btn.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
 .edit-actions { align-items: center; }
 .edit-field { display: flex; flex-direction: column; gap: .25rem; }
 .edit-field .field-label { font-weight: 600; }
@@ -386,7 +386,7 @@ th[aria-sort="descending"] a.sort-link::after { content: " \25BC"; font-size: .7
 .original-text { white-space: pre-wrap; font-family: var(--font-serif); margin: .25rem 0 0; }
 .notice { margin: 1rem 0; padding: .6rem .9rem; border: 1px solid var(--hair); background: var(--panel); font-family: var(--font-sans); }
 .notice.warning { border-color: var(--amber-line); background: var(--amber-bg); color: var(--amber-ink); }
-.notice.refusal { border-color: var(--oxblood); }
+.notice.refusal { border-color: var(--danger); }
 .conv-compare { display: flex; flex-direction: column; gap: .75rem; }
 .conv-side { flex: 1 1 0; min-width: 0; padding: .6rem .8rem; border: 1px solid var(--hair); background: var(--panel); }
 .conv-side h3 { margin: 0 0 .4rem; font-family: var(--font-sans); font-size: var(--small-size); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }

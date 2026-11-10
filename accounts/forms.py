@@ -185,6 +185,20 @@ class UserCreateForm(ProfileAccessMixin, UserCreationForm):
         return user
 
 
+def _set_up_colour_theme(form):
+    """The colour theme select (My settings, Display; the Admin's user form). Optional in a POST: left out, it keeps its value."""
+    field = form.fields.get("colour_theme")
+    if field is not None:
+        field.required = False
+        field.help_text = ("The colour of buttons, the current tab and links on every page, for you only. Status colours (paid, due, "
+                           "overdue, overruled) and the Word and Excel exports never change.")
+
+
+def _clean_colour_theme(form):
+    value = form.cleaned_data.get("colour_theme")
+    return value or form.instance.colour_theme or User.THEME_OXBLOOD
+
+
 class UserEditForm(ProfileAccessMixin, forms.ModelForm):
     new_password = forms.CharField(
         required=False,
@@ -198,14 +212,18 @@ class UserEditForm(ProfileAccessMixin, forms.ModelForm):
 
     class Meta:
         model = User
-        fields = ("username", "email", "is_active", "landing_program", "can_see_active")
+        fields = ("username", "email", "is_active", "landing_program", "colour_theme", "can_see_active")
 
     def clean_email(self):
         return _clean_unique_email(self)
 
+    def clean_colour_theme(self):
+        return _clean_colour_theme(self)
+
     def __init__(self, *args, editing_user=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["email"].help_text = "Optional. Needed for \u201cForgot my password\u201d."
+        _set_up_colour_theme(self)
         self.fields["landing_program"].choices = landing.program_choices()
         self.editing_user = editing_user
         self.fields["is_admin"].initial = self.instance.is_superuser
@@ -258,11 +276,14 @@ class MySettingsForm(forms.ModelForm):
 
     class Meta:
         model = User
-        fields = ("email", "landing_program", "justify_text", "show_home_button")
+        fields = ("email", "landing_program", "justify_text", "show_home_button", "colour_theme")
         labels = {"justify_text": "Justify text", "show_home_button": "Show the Home button"}
 
     def clean_email(self):
         return _clean_unique_email(self)
+
+    def clean_colour_theme(self):
+        return _clean_colour_theme(self)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -280,6 +301,7 @@ class MySettingsForm(forms.ModelForm):
                 "The house button at the right of the header bar. Off: it is hidden on every page; Alt+H (Option+H on a Mac) "
                 "still opens Home."
             )
+        _set_up_colour_theme(self)
         self.fields["landing_program"].choices = landing.program_choices(landing.programs_for(self.instance))
 
 
@@ -294,7 +316,7 @@ class MyDisplayForm(MySettingsForm):
     """The Display section of My settings: where to land after login and justified text."""
 
     class Meta(MySettingsForm.Meta):
-        fields = ("landing_program", "justify_text", "show_home_button")
+        fields = ("landing_program", "justify_text", "show_home_button", "colour_theme")
 
 
 class ProfileForm(forms.ModelForm):

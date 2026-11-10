@@ -8,23 +8,11 @@
    sans. To self-host Newsreader / Inter, place the .woff2 files in static/fonts/ and add @font-face blocks to
    tokens.css, then list the names first in --font-serif / --font-sans below. */
 
-/* ---- 1. Tokens (re-point the suite tokens so the shared shell takes the new look) ---- */
+/* ---- 1. Tokens (sizes only: the palette is tokens.css, so the user's colour theme reaches the Fee Register too) ---- */
 html:has(body.ledger) { font-size: 14px; }
 body.ledger {
-  --paper: #FAF8F3; --paper-2: #F3F0E7; --card: #FFFEFC; --white: #FFFFFF;
-  --line: #E4DFD2; --line-strong: #CFC9BA;
-  --ink-2: #3F3C35; --ink-3: #5E594E; --faint: #A8A294;
-  --accent: #7A2E2E; --accent-hover: #652525; --accent-tint: #F8EEEE;
-  --ok: #15803D; --warn: #D97706; --bad: #B91C1C;
-  --radius: 2px;
-  --shadow-float: 0 2px 0 #CFC9BA;
-  --shadow-modal: 0 6px 24px rgba(28, 27, 25, .18);
-  --chart-1: #7A2E2E; --chart-2: #2F5D3A; --chart-3: #B7862B; --chart-4: #4A6075; --chart-5: #A8532E;
-  --font-serif: "Newsreader Variable", Newsreader, Georgia, "Times New Roman", serif;
-  --font-sans: "Inter Variable", Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  /* suite tokens */
-  --bg: var(--paper); --panel: var(--card); --ink: #1C1B19; --muted: #7B7568; --hair: var(--line);
-  --oxblood: var(--accent); --oxblood-ink: var(--paper); --focus: var(--accent);
+  /* The colours come from tokens.css (and the user's colour theme); only the ledger's own sizes and chart colours are set here. */
+  --chart-1: var(--accent); --chart-2: #2F5D3A; --chart-3: #B7862B; --chart-4: #4A6075; --chart-5: #A8532E;
   --text-size: 1rem; --small-size: .875rem; --tap: 32px;
   --data-size: 1rem;
   background: var(--paper); color: var(--ink); font-family: var(--font-sans); font-size: 1rem; line-height: 1.5;
