@@ -190,7 +190,26 @@ def fetch_prices(*, ids=None, profile=None, trigger="cron", max_seconds=600, max
         summary["failures"] += failures
         summary["runs"].append(run.pk)
 
+    # --- bhavcopy (owner request, November 2026): before Yahoo, or after it to fill what Yahoo missed (services/bhav.py)
+    from investments.services import bhav
+
+    bhav_mode = bhav.mode() if others else bhav.MODE_OFF
+    all_others = list(others)
+
+    def run_bhav():
+        got = bhav.run(all_others, today=today, trigger=trigger, out_of_time=out_of_time)
+        summary["updated"] += got["updated"]
+        summary["failures"] += got["failures"]
+        if got["run"] is not None:
+            summary["runs"].append(got["run"].pk)
+        return got
+
+    if bhav_mode == bhav.MODE_FIRST and not out_of_time():
+        covered = run_bhav()["covered"]
+        others = [i for i in others if i.pk not in covered]
+
     # --- stocks, indices, foreign: Yahoo, one symbol at a time, spaced
+    yahoo_failures = []
     if others:
         run = SourceRun(source="yahoo", trigger=trigger, started=timezone.now())
         failures, updated, tried = [], 0, 0
@@ -231,6 +250,14 @@ def fetch_prices(*, ids=None, profile=None, trigger="cron", max_seconds=600, max
         summary["updated"] += updated
         summary["failures"] += failures
         summary["runs"].append(run.pk)
+        yahoo_failures, yahoo_run = failures, run
+    if bhav_mode == bhav.MODE_AFTER and not out_of_time():
+        filled = run_bhav()["filled"]
+        if any(f["id"] in filled for f in yahoo_failures):
+            for failure in yahoo_failures:
+                if failure["id"] in filled:
+                    failure["error"] += " (filled from bhavcopy)"
+            SourceRun.objects.filter(pk=yahoo_run.pk).update(failures=yahoo_failures)
     # the list of fund schemes, once a week (plan 6)
     if ids is None and not out_of_time():
         from investments.services import schemes

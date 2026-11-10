@@ -74,13 +74,14 @@ def amfi_rows(codes):
     for line in body.splitlines():
         parts = line.split(";")
         if len(parts) >= 6 and parts[0].strip() in codes:
+            # the NAV and date are the last two fields (AMFI now puts the plan and option in columns of their own after the name)
             try:
-                nav = float(parts[4])
-                day = datetime.strptime(parts[5].strip(), "%d-%b-%Y").date().isoformat()
+                nav = float(parts[-2])
+                day = datetime.strptime(parts[-1].strip(), "%d-%b-%Y").date().isoformat()
             except ValueError:
                 continue
             if nav > 0:
-                found[parts[0].strip()] = [(day, parts[4].strip())]
+                found[parts[0].strip()] = [(day, parts[-2].strip())]
     return found
 
 
