@@ -1,0 +1,61 @@
+# Temporary (UI refresh review, branch ui-refresh-themes only): renders the main pages with sample data and uploads screenshots.
+name: Screenshots
+
+on:
+  push:
+    branches: [ui-refresh-themes]
+
+permissions:
+  contents: read
+
+jobs:
+  shots:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: quill
+          POSTGRES_PASSWORD: quill-test-password
+          POSTGRES_DB: quill_shots
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U quill -d quill_shots"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DJANGO_DEBUG: "1"
+      DJANGO_SECRET_KEY: screenshots-only-throwaway-key
+      DATABASE_URL: postgres://quill:quill-test-password@localhost:5432/quill_shots
+      FEES_ENABLED: "1"
+      INVESTMENTS_ENABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install
+        run: |
+          pip install -r requirements.txt playwright
+          python -m playwright install --with-deps chromium
+      - name: Database and sample data
+        run: |
+          python manage.py migrate --noinput
+          python manage.py shell < .github/screenshots/seed.py
+      - name: Screenshots
+        run: |
+          python manage.py runserver 127.0.0.1:8000 --noreload > server.log 2>&1 &
+          sleep 6
+          python .github/screenshots/shoot.py
+      - name: Server log
+        if: always()
+        run: tail -n 80 server.log || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshots
+          path: shots/
+          retention-days: 3
