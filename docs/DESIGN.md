@@ -1443,3 +1443,13 @@ Decisions taken while building the Investments program. Where the plan was silen
   - **Decimals in full rupee figures:** standard (paise only when there are some) or exactly 0 to 2. [Owner: "should only be for figures in long mode - in short mode, it will always be up to 2 decimal places".] Short figures (k, lac, cr) always show up to 2 decimals.
   - **How it works.** `viewutil.page` puts the profile's choice in a context variable read by the `units`, `inr` and `inr_signed` filters. The Python formatter and its JavaScript mirror take the same `decimals` option, which applies to full figures only; the golden table has cases for it.
   - **Not affected.** Prices per unit (`price`) and percentages are unchanged.
+- **D155. Importing existing holdings from a sheet.** [Owner (2026-11): an Excel sheet with date, name, code, type, folio, portfolio, broker, buy or sell, price and quantity.] Import a statement now reads such a sheet. The columns are found by their headings, in any order, and **Download a sample sheet** gives the headings with two example rows.
+  - **Investment.** A code (NSE code, AMFI scheme code or ISIN) that matches an investment uses it; failing that, a matching name is used. Any other investment is **added on saving** from the row's name, code and **Type**, with no separate step.
+    - **Type words:** Share, Equity, Stock or ETF means a share; Mutual Fund, MF or Fund means a fund; Foreign means a foreign share; Alternative, PPF, FD, Bond, Gold and the like mean an alternative investment, which needs no code.
+    - **Codes:** a bare share code gets `.NS`.
+    - **Funds:** a fund found in the stored AMFI list takes its AMFI name and code.
+    - **Duplicates:** an investment already in the program under another spelling (same code or name) is used instead of a new one.
+    - **Corrections:** the review lists every investment to be added, and they can be corrected first with "Add and check again", as before.
+  - **Portfolio and Broker on each row.** They are matched by name, ignoring case. One the profile does not have is added on saving, and the review says so. The page's portfolio and broker are now optional and are used only for rows that leave those cells blank. A row with neither is a problem to fix.
+  - **Headings.** "Transaction type" is buy or sell, and plain "Type" is the investment's type. Portfolio and Broker need an exact heading, so "Brokerage" stays charges.
+  - **Saving.** Everything is saved together: the new investments, portfolios, brokers and folios, then the transactions in date order. Rows already recorded are skipped, so the same sheet can be loaded twice safely.

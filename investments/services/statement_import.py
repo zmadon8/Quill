@@ -10,6 +10,11 @@ An investment the program does not have yet is proposed for adding (owner round 
 name, code and ISIN guessed from the file and from the stored AMFI scheme list; the person checks or corrects them and confirms, the
 investments are created, and the lines are matched to them through ``aliases`` (the file's text -> the new investment) so a corrected
 name still matches. Nothing is guessed from the internet: prices come with the next Update Prices or the nightly fetch.
+
+Holdings sheet (owner round 2026-11): a file may also give, on every row, the investment's name and code separately, its type (Share,
+Mutual Fund, ...), the portfolio and the broker. A code that matches an investment uses it; otherwise the investment is added from the
+row's name, code and type when the file is saved (no separate step), and a portfolio or broker the profile does not have is added too.
+The portfolio and broker chosen on the page are used only for rows that leave those cells blank.
 """
 import contextlib
 import datetime
@@ -22,26 +27,40 @@ from django.db.models import Q
 
 from investments.errors import InvestmentsError
 from investments.models import (
-    HOLDABLE_KINDS, KIND_FOREIGN, KIND_FUND, KIND_SHARE, STATUS_AWAITING, AmfiScheme, Folio, Instrument, Transaction,
+    HOLDABLE_KINDS, KIND_ALTERNATIVE, KIND_FOREIGN, KIND_FUND, KIND_SHARE, STATUS_AWAITING, AmfiScheme, Broker, Folio, Instrument, Portfolio,
+    Transaction,
 )
 from investments.services import masters, transactions as tx
 
+#: Each key's possible headings, tried in order (an exact heading first, then a heading containing it). Order matters: "Transaction
+#: type" is the buy or sell column and plain "Type" the investment's type when a file has both.
 COLUMNS = {
-    "date": ("date", "trade date", "transaction date", "order date", "nav date"),
-    "side": ("type", "buy/sell", "transaction type", "trade type", "side", "action"),
-    "investment": ("isin", "scheme code", "symbol", "scrip", "scheme", "scheme name", "instrument", "security", "stock", "fund", "name"),
-    # A second column naming the investment, when the one above is a code: used only to propose the name of a missing investment.
-    "label": ("scheme name", "security name", "scrip name", "stock name", "fund name", "instrument name", "company name", "name"),
+    "date": ("date", "trade date", "transaction date", "date of transaction", "order date", "nav date"),
+    "side": ("transaction type", "buy/sell", "buy or sell", "trade type", "side", "action", "type"),
+    "kind": ("investment type", "asset type", "instrument type", "security type", "type"),
+    "investment": ("isin", "investment code", "code", "scheme code", "symbol", "ticker", "scrip code", "scrip", "scheme", "scheme name",
+                   "instrument", "security", "stock", "fund", "name"),
+    # A second column naming the investment, when the one above is a code: its name when it has to be added.
+    "label": ("investment name", "name of investment", "security name", "scheme name", "scrip name", "stock name", "fund name",
+              "instrument name", "company name", "name"),
+    "portfolio": ("portfolio", "portfolio name"),
+    "broker": ("broker", "broker name", "platform"),
     "units": ("units", "quantity", "qty"),
     "price": ("price", "nav", "rate", "trade price", "avg price"),
     "amount": ("amount", "value", "net amount", "trade value"),
     "charges": ("charges", "brokerage", "stamp duty", "fees"),
     "folio": ("folio", "folio number", "folio no"),
 }
+#: Keys matched only by an exact heading ("Brokerage" is charges, not the broker).
+EXACT_ONLY = {"portfolio", "broker"}
 SELL_WORDS = ("sell", "sale", "redeem", "redemption", "s", "switch out", "switch-out")
 AWAITING_DAYS = 10
-#: The types a missing investment can be added as from a statement (alternative investments have no units or price feed).
-ADDABLE_KINDS = ((KIND_SHARE, "Share or ETF"), (KIND_FUND, "Mutual fund"), (KIND_FOREIGN, "Foreign share"))
+#: The types a missing investment can be added as from a file. An alternative investment needs no code (it has no price feed).
+ADDABLE_KINDS = ((KIND_SHARE, "Share or ETF"), (KIND_FUND, "Mutual fund"), (KIND_FOREIGN, "Foreign share"), (KIND_ALTERNATIVE, "Alternative"))
+#: Words in a Type cell, and the type they mean.
+KIND_WORDS = ((KIND_FUND, ("mutual fund", "fund", "mf", "scheme", "sip")), (KIND_FOREIGN, ("foreign", "us share", "us stock", "international")),
+              (KIND_ALTERNATIVE, ("alternative", "ppf", "fd", "fixed deposit", "bond", "gold", "property", "real estate", "nps", "epf", "other")),
+              (KIND_SHARE, ("share", "equity", "stock", "etf", "shares")))
 ISIN_RE = re.compile(r"^IN[A-Z0-9]{10}$")
 SYMBOL_RE = re.compile(r"^[A-Z0-9][A-Z0-9&\-.^]{0,24}$")
 
@@ -59,6 +78,11 @@ class Line:
     charges: Decimal = Decimal(0)
     folio: str = ""
     text: str = ""          # what the file says the investment is
+    name: str = ""          # the file's name for it, when it gives one beside the code
+    kind: str = ""          # the type the file gives (share, fund, ...), or blank
+    portfolio_name: str = ""
+    broker_name: str = ""
+    new_investment: bool = False   # added from the row when the file is saved
     completes: object = None
     duplicate: bool = False
     problem: str = ""
@@ -69,6 +93,8 @@ class Review:
     lines: list = field(default_factory=list)
     mapping: dict = field(default_factory=dict)
     missing: list = field(default_factory=list)   # one proposal per investment the program does not have yet
+    new_portfolios: list = field(default_factory=list)   # names the profile does not have yet (added when saving)
+    new_brokers: list = field(default_factory=list)
 
     @property
     def usable(self):
@@ -85,7 +111,7 @@ def _guess(headers):
     for key, needles in COLUMNS.items():
         for needle in needles:
             hit = next((i for i, h in enumerate(lowered) if h == needle), None)
-            if hit is None:
+            if hit is None and key not in EXACT_ONLY:
                 hit = next((i for i, h in enumerate(lowered) if needle in h and i not in mapping.values()), None) if len(needle) > 2 else None
             if hit is not None and hit not in mapping.values():
                 mapping[key] = hit
@@ -119,7 +145,23 @@ def _number(text):
     return abs(value) if value else None
 
 
-def propose(text, label=""):
+def kind_of(text):
+    """The investment type a Type cell means (share, fund, foreign, alternative), or "" when it is blank or not recognised."""
+    t = " ".join((text or "").lower().replace("_", " ").replace("-", " ").split())
+    if not t:
+        return ""
+    for kind, words in KIND_WORDS:
+        if t in words or any(t.startswith(w + " ") or t.endswith(" " + w) for w in words if len(w) > 2):
+            return kind
+    return ""
+
+
+def _ready(spec):
+    """True when a proposal has what adding it needs: a name, and a code unless it is an alternative investment."""
+    return bool(spec.get("name")) and (bool(spec.get("code")) or spec.get("kind") == KIND_ALTERNATIVE)
+
+
+def propose(text, label="", kind=""):
     """A guess at a missing investment from the file's text (and a name column, if the file has one), from stored data only:
     ``{text, kind, name, code, isin, currency, note}``. Funds are looked up in the stored AMFI scheme list by ISIN, scheme code or name."""
     key = (text or "").strip()
@@ -148,6 +190,16 @@ def propose(text, label=""):
                    note="Taken as an NSE code; change it for BSE (.BO) or a foreign exchange.")
     else:
         out["note"] = "Type the share's code, for example RELIANCE.NS, or choose Mutual fund and type its AMFI scheme code."
+    if kind and scheme is None:
+        # The file's Type wins over the guess: a fund's code is its AMFI scheme code, an alternative needs none.
+        out["kind"] = kind
+        if kind == KIND_FUND and key.isdigit():
+            out["code"] = key
+        elif kind == KIND_FOREIGN and key and not ISIN_RE.match(upper):
+            out.update(code=upper, currency="USD", note="Foreign share: check its Yahoo code and currency.")
+        elif kind == KIND_ALTERNATIVE:
+            out.update(code="", name=label or key, note="Alternative investment: no code needed; add its values on its page.")
+    out["ready"] = _ready(out)
     return out
 
 
@@ -165,7 +217,7 @@ def create_missing(profile, user, specs):
             kind = spec.get("kind") or KIND_SHARE
             if kind not in kinds:
                 raise InvestmentsError("BAD_KIND", f"{text}: choose a type.")
-            if not name or not code:
+            if not name or (not code and kind != KIND_ALTERNATIVE):
                 raise InvestmentsError("REQUIRED", f"{text}: a name and a code are needed (the code is how its prices are fetched).")
             similar = masters.find_similar(profile, name, code, kind)
             if similar:
@@ -178,8 +230,9 @@ def create_missing(profile, user, specs):
     return aliases
 
 
-def review(profile, source, aliases=None):
-    """Read the file and return a :class:`Review`; nothing is written. ``aliases`` maps the file's text to investments just added."""
+def review(profile, source, aliases=None, portfolio=None, broker=None):
+    """Read the file and return a :class:`Review`; nothing is written. ``aliases`` maps the file's text to investments just added;
+    ``portfolio`` and ``broker`` (chosen on the page) are used for rows that do not name their own."""
     from fees.services import imports
 
     out = Review()
@@ -188,6 +241,8 @@ def review(profile, source, aliases=None):
     except Exception as exc:
         raise InvestmentsError("BAD_FILE", str(getattr(exc, "message", exc)) or "The file could not be read.") from exc
     cache = {}
+    portfolios = {p.name.casefold(): p for p in Portfolio.objects.filter(profile=profile)}
+    brokers = {b.name.casefold(): b for b in Broker.objects.filter(profile=profile)}
     with contextlib.closing(rows):
         header = None
         for number, cells in enumerate(rows, start=1):
@@ -205,20 +260,40 @@ def review(profile, source, aliases=None):
             line.day = datetime.date.fromisoformat(iso) if iso else None
             line.side = "sell" if get("side").strip().lower() in SELL_WORDS or get("side").strip().lower().startswith(("sell", "redem")) else "buy"
             line.text = get("investment").strip()
+            line.name = get("label").strip() if out.mapping.get("label") != out.mapping.get("investment") else ""
+            line.kind = kind_of(get("kind"))
             line.instrument = _match(profile, line.text, cache, aliases)
+            if line.instrument is None and line.name:
+                line.instrument = _match(profile, line.name, cache, aliases)
+            if line.instrument is None and not line.text and line.name:
+                line.text = line.name
+            line.portfolio_name = " ".join(get("portfolio").split()) or (portfolio.name if portfolio else "")
+            line.broker_name = " ".join(get("broker").split()) or (broker.name if broker else "")
+            for name, known, new in ((line.portfolio_name, portfolios, out.new_portfolios), (line.broker_name, brokers, out.new_brokers)):
+                if name and name.casefold() not in known and name.casefold() not in {n.casefold() for n in new}:
+                    new.append(name)
             line.units, line.price, line.amount = _number(get("units")), _number(get("price")), _number(get("amount"))
             line.charges = _number(get("charges")) or Decimal(0)
             line.folio = get("folio").strip()
             if line.price is None and line.units and line.amount:
                 line.price = (line.amount / line.units).quantize(Decimal("0.0001"))
+            spec = None
+            if line.instrument is None and line.text:
+                spec = next((m for m in out.missing if m["text"] == line.text), None)
+                if spec is None:
+                    spec = propose(line.text, line.name, line.kind)
+                    out.missing.append(spec)
             if line.day is None:
                 line.problem = "unreadable date"
-            elif line.instrument is None:
-                line.problem = f"{line.text!r} is not in the program yet (add it below)" if line.text else "no investment given"
-                if line.text and all(m["text"] != line.text for m in out.missing):
-                    out.missing.append(propose(line.text, get("label") if out.mapping.get("label") != out.mapping.get("investment") else ""))
+            elif line.instrument is None and not line.text:
+                line.problem = "no investment given"
+            elif line.instrument is None and not spec["ready"]:
+                line.problem = f"{line.text!r} is not in the program yet: check its details below"
             elif not line.units or not line.price:
                 line.problem = "units or price missing"
+            elif not line.portfolio_name or not line.broker_name:
+                line.problem = "no portfolio or broker: fill the column, or choose them above"
+            line.new_investment = line.instrument is None and spec is not None and spec["ready"]
             out.lines.append(line)
     _mark_matches(profile, out)
     return out
@@ -228,7 +303,7 @@ def _mark_matches(profile, out):
     awaiting = list(Transaction.objects.filter(profile=profile, status=STATUS_AWAITING, side="buy"))
     used = set()
     for line in out.lines:
-        if line.problem:
+        if line.problem or line.instrument is None:   # an investment added by this file has nothing to complete or duplicate
             continue
         total = line.units * line.price + line.charges
         for a in awaiting:
@@ -244,13 +319,30 @@ def _mark_matches(profile, out):
 
 
 @transaction.atomic
-def apply(profile, user, source, *, portfolio, broker, aliases=None):
-    """Save every usable line in date order, all or nothing. Returns ``(made, completed, skipped)``."""
-    result = review(profile, source, aliases)
+def apply(profile, user, source, *, portfolio=None, broker=None, aliases=None):
+    """Save every usable line in date order, all or nothing: first the investments, portfolios and brokers the file names that the
+    profile does not have yet. Returns ``(made, completed, skipped)``."""
+    aliases = dict(aliases or {})
+    result = review(profile, source, aliases, portfolio=portfolio, broker=broker)
     if result.problems:
         raise InvestmentsError("NOT_APPLICABLE", f"{len(result.problems)} line(s) have problems, so nothing was saved. Fix them and try again.", 409)
+    added = [m for m in result.missing if m["ready"] and any(l.new_investment and l.text == m["text"] for l in result.lines)]
+    if added:
+        aliases.update(create_missing(profile, user, added))
+    for name in result.new_portfolios:
+        masters.add_portfolio(profile, user, name)
+    for name in result.new_brokers:
+        masters.add_broker(profile, user, name)
+    if added or result.new_portfolios or result.new_brokers:
+        result = review(profile, source, aliases, portfolio=portfolio, broker=broker)
+        if result.problems:
+            raise InvestmentsError("NOT_APPLICABLE", f"{len(result.problems)} line(s) have problems, so nothing was saved.", 409)
+    portfolios = {p.name.casefold(): p for p in Portfolio.objects.filter(profile=profile)}
+    brokers = {b.name.casefold(): b for b in Broker.objects.filter(profile=profile)}
     made = completed = 0
     for line in sorted(result.usable, key=lambda l: (l.day, 0 if l.side == "buy" else 1, l.number)):
+        portfolio = portfolios[line.portfolio_name.casefold()]
+        broker = brokers[line.broker_name.casefold()]
         folio = None
         if line.folio:
             folio = Folio.objects.filter(profile=profile, instrument=line.instrument, portfolio=portfolio, number=line.folio).first()

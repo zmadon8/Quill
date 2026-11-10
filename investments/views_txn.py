@@ -454,6 +454,11 @@ def import_statement(request):
     portfolios = Portfolio.objects.filter(profile=profile)
     brokers = Broker.objects.filter(profile=profile, hidden=False)
     chosen = {"portfolio": request.POST.get("portfolio", ""), "broker": request.POST.get("broker", "")}
+    if request.GET.get("sample"):
+        return _import_sample()
+    # The page's portfolio and broker are only for rows that leave their own cells blank (owner round 2026-11).
+    page_portfolio = portfolios.filter(pk=chosen["portfolio"]).first() if chosen["portfolio"].isdigit() else None
+    page_broker = brokers.filter(pk=chosen["broker"]).first() if chosen["broker"].isdigit() else None
 
     def staged():
         """The staged file of this review and the investments added for it (``<token>-aliases.json`` beside it)."""
@@ -484,13 +489,12 @@ def import_statement(request):
             else:
                 alias_file.write_text(json.dumps(aliases))
                 messages.success(request, f"{len(specs)} investment{'s' if len(specs) != 1 else ''} added. Check the lines again, then save.")
-            review = statement_import.review(profile, path, aliases)
+            review = statement_import.review(profile, path, aliases, portfolio=page_portfolio, broker=page_broker)
         elif request.method == "POST" and request.POST.get("apply"):
             token, path, alias_file, aliases = staged()
-            portfolio = portfolios.get(pk=request.POST["portfolio"])
-            broker = brokers.get(pk=request.POST["broker"])
             try:
-                made, completed, skipped = statement_import.apply(profile, request.user, path, portfolio=portfolio, broker=broker, aliases=aliases)
+                made, completed, skipped = statement_import.apply(profile, request.user, path, portfolio=page_portfolio, broker=page_broker,
+                                                                  aliases=aliases)
             except InvestmentsError as err:
                 if err.code == "WOULD_GO_NEGATIVE":
                     return _refused(request, err, reverse("investments_import_statement"))
@@ -505,18 +509,29 @@ def import_statement(request):
             ext = os.path.splitext(upload.name)[1].lower()
             if ext not in (".csv", ".xlsx"):
                 raise InvestmentsError("BAD_FILE", "Only .csv and .xlsx files can be imported.")
-            if not (chosen["portfolio"] and chosen["broker"]):
-                raise InvestmentsError("REQUIRED", "Choose the portfolio and the broker the statement is from.")
             staging.mkdir(parents=True, exist_ok=True)
             token = secrets.token_hex(12)
             path = staging / f"{token}{ext}"
             with open(path, "wb") as out:
                 for chunk in upload.chunks():
                     out.write(chunk)
-            review = statement_import.review(profile, path)
+            review = statement_import.review(profile, path, portfolio=page_portfolio, broker=page_broker)
     except InvestmentsError as err:
         error = err.message
         review = None
     return page(request, "investments/import_statement.html", {"page_title_text": "Import a statement", "review": review, "token": token, "error": error,
                                                               "portfolios": portfolios, "brokers": brokers, "chosen": chosen,
                                                               "addable_kinds": statement_import.ADDABLE_KINDS}, selectors=False)
+
+
+def _import_sample():
+    """An Excel sheet with the holdings-import headings and two example rows (owner round 2026-11)."""
+    from datetime import date as _date
+
+    from .exports import response
+
+    header = ["Date of transaction", "Name of investment", "Investment code", "Type", "Folio", "Portfolio", "Broker", "Transaction type",
+              "Transaction price", "Transaction quantity"]
+    rows = [[_date(2019, 5, 2), "Reliance Industries", "RELIANCE.NS", "Share", "", "Main", "Zerodha", "Buy", 1350.25, 10],
+            [_date(2021, 3, 15), "Parag Parikh Flexi Cap Fund - Direct Growth", "122639", "Mutual Fund", "1234567/89", "Main", "Direct", "Buy", 41.2, 242.718]]
+    return response("Holdings import sample.xlsx", [("Holdings", header, rows)])

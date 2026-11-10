@@ -334,3 +334,5 @@ body.inv .kv{font-size:1rem}
 /* Column picker (Settings > Display; the Fee Register's Columns menu) */
 body.inv table.led .col-hidden{display:none}
 body.inv .table-tools{display:flex;justify-content:flex-end;margin:0 0 6px}
+body.inv table.led td.wrap{white-space:normal;min-width:10rem}
+body.inv table.led select.kind{min-width:9rem}
