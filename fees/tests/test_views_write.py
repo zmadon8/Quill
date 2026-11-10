@@ -171,6 +171,40 @@ class MemoWriteTests(WriteBase):
         self.assertFalse(draft.is_draft)
         self.assertTrue(draft.memo_number.startswith("2026-27/"))
 
+    def test_export_to_word_on_a_new_memo_saves_it_and_starts_the_download(self):
+        response = self.post("fees_memo_new", self.memo_post(action="save_export"))
+        memo = Memo.objects.filter(profile=self.profile, addressee_line1="Typed addressee").get()
+        self.assertFalse(memo.is_draft)
+        detail = reverse("fees_memo_detail", kwargs={"memo_id": memo.pk})
+        self.assertRedirects(response, detail + "?export=word", fetch_redirect_response=False)
+        page = self.client.get(detail + "?export=word").content.decode()
+        word = reverse("fees_memo_word", kwargs={"memo_id": memo.pk})
+        self.assertIn('data-word-download="%s"' % word, page)
+        self.assertNotIn("data-word-download", self.client.get(detail).content.decode())
+
+    def test_export_to_word_on_a_draft_numbers_it_first(self):
+        draft = memos.save_draft(self.profile, {"matter_id": self.seed["matter_1"].pk, "date": "2026-08-02"})
+        response = self.post("fees_memo_edit", self.memo_post(date="2026-08-02", action="save_export"), {"memo_id": draft.pk})
+        draft.refresh_from_db()
+        self.assertFalse(draft.is_draft)
+        self.assertTrue(draft.memo_number.startswith("2026-27/"))
+        self.assertTrue(response["Location"].endswith("?export=word"))
+
+    def test_saving_a_draft_never_starts_a_download(self):
+        response = self.post("fees_memo_new", self.memo_post(date="", action="draft"))
+        self.assertNotIn("export=word", response["Location"])
+
+    def test_memo_page_shows_export_to_word_as_a_button(self):
+        memo = self.new_memo()
+        page = self.client.get(reverse("fees_memo_detail", kwargs={"memo_id": memo.pk})).content.decode()
+        word = reverse("fees_memo_word", kwargs={"memo_id": memo.pk})
+        self.assertIn('<a class="button primary" href="%s">Export to Word</a>' % word, page)
+
+    def test_memo_form_has_the_export_to_word_button(self):
+        page = self.client.get(reverse("fees_memo_new")).content.decode()
+        self.assertIn('name="action" value="save_export"', page)
+        self.assertIn(">Export to Word</button>", page)
+
     def test_edit_draft_with_save_but_no_date_stays_a_draft(self):
         draft = memos.save_draft(self.profile, {"matter_id": self.seed["matter_1"].pk})
         response = self.post("fees_memo_edit", self.memo_post(date=""), {"memo_id": draft.pk})

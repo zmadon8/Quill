@@ -126,7 +126,10 @@ def _failed(request, err, form, memo=None, based_on=None):
 
 def _saved(request, memo):
     messages.success(request, "Draft saved." if memo.is_draft else f"Memo {memo.memo_number} saved.")
-    return redirect("fees_memo_detail", memo_id=memo.pk)
+    response = redirect("fees_memo_detail", memo_id=memo.pk)
+    if request.POST.get("action") == "save_export" and not memo.is_draft:
+        response["Location"] += "?export=word"  # the memo page starts the Word download
+    return response
 
 
 def _create(request, based_on=None):
@@ -169,7 +172,7 @@ def memo_edit(request, memo_id):
     try:
         data = forms.memo_data_from_post(request.POST)
         data["matter_id"] = detail["matter_id"]  # a memo never changes matter
-        if detail["is_draft"] and request.POST.get("action") == "save":
+        if detail["is_draft"] and request.POST.get("action") in ("save", "save_export"):
             # "Save memo" on a draft: check it as a finished memo first, then save and number it together.
             memos.validate_memo_input(data, is_draft=False)
             with transaction.atomic():

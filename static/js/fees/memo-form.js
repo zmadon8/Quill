@@ -21,9 +21,9 @@
   function cents(x) { return Math.round(x * 100) / 100; }
 
   var LINES = {
-    appearances: { fields: ["num_appearances", "fees_per_appearance", "dates_of_appearances", "custom_fees_appearances"], label: "Appearances" },
-    conferences: { fields: ["num_conferences", "fees_per_conference", "dates_of_conferences", "custom_fees_conferences"], label: "Conferences" },
-    misc: { fields: ["misc_drafting_description", "fees_misc_drafting", "num_drafts", "custom_fees_misc"], label: "Drafting and miscellaneous" }
+    appearances: { fields: ["num_appearances", "fees_per_appearance", "dates_of_appearances"], label: "Appearances" },
+    conferences: { fields: ["num_conferences", "fees_per_conference", "dates_of_conferences"], label: "Conferences" },
+    misc: { fields: ["misc_drafting_description", "fees_misc_drafting"], label: "Misc / Drafting" }
   };
   var ticks = {};
 
@@ -56,13 +56,13 @@
       if (!box) { return; }
       var id = "tick-" + line;
       var wrap = document.createElement("p");
-      wrap.className = "line-tick";
+      wrap.className = "line-tick check";
       var cb = document.createElement("input");
       cb.type = "checkbox";
       cb.id = id;
       var lab = document.createElement("label");
       lab.setAttribute("for", id);
-      lab.textContent = "Include " + LINES[line].label.toLowerCase();
+      lab.textContent = LINES[line].label;
       wrap.appendChild(cb);
       wrap.appendChild(lab);
       box.insertBefore(wrap, box.firstChild);
@@ -75,6 +75,37 @@
       });
       ticks[line] = cb;
     });
+  }
+
+  // ---- custom amounts ----
+  var CUSTOM = ["custom_fees_appearances", "custom_fees_conferences", "custom_fees_misc", "custom_total_fees"];
+  var customTick = form.querySelector("[data-custom-tick]");
+  function lineAuto(count, rate, line) {
+    return (ticks[line] && !ticks[line].checked) ? 0 : cents(num(count) * num(rate));
+  }
+  function autoFigures() {
+    return {
+      custom_fees_appearances: lineAuto("num_appearances", "fees_per_appearance", "appearances"),
+      custom_fees_conferences: lineAuto("num_conferences", "fees_per_conference", "conferences"),
+      custom_fees_misc: (ticks.misc && !ticks.misc.checked) ? 0 : num("fees_misc_drafting"),
+      custom_total_fees: 0
+    };
+  }
+  function setCustom(on, fill) {
+    var auto = autoFigures();
+    CUSTOM.forEach(function (n) {
+      var f = field(n);
+      if (!f) { return; }
+      if (fill) { f.value = on ? String(auto[n]) : ""; }
+      f.readOnly = !on;
+      f.classList.toggle("line-off", !on);
+    });
+  }
+  function addCustom() {
+    if (!customTick) { return; }
+    customTick.checked = CUSTOM.some(function (n) { return val(n).trim() !== "" && num(n) !== 0; });
+    setCustom(customTick.checked, !customTick.checked);
+    customTick.addEventListener("change", function () { setCustom(customTick.checked, true); dirty = true; refresh(); });
   }
 
   // ---- live total (preview) and words (server) ----
@@ -139,17 +170,41 @@
     var date = val("date");
     var custom = field("custom_memo_number");
     if (!hint || form.getAttribute("data-new") !== "1" || !url || !window.fetch) { return; }
-    if (custom && custom.value.trim()) {
+    if (custom && numTick && numTick.checked && custom.value.trim()) {
       hint.textContent = /^\d{4}-\d{2}\/\d+$/.test(custom.value.trim())
         ? "This memo will use this automatic-style number. It must belong to the financial year of the date, and the next automatic number continues after the highest one used."
         : "This memo will use your custom number.";
       return;
     }
-    if (!date) { hint.textContent = "The memo number is given when you save."; return; }
+    if (!date) { hint.textContent = ""; if (numField && numTick && !numTick.checked) { numField.placeholder = "(set a date)"; } return; }
     fetch(url + "?date=" + encodeURIComponent(date), { credentials: "same-origin", headers: { Accept: "application/json" } })
       .then(function (r) { return r.json(); })
-      .then(function (d) { if (d && d.ok && d.number) { hint.textContent = "The next memo number would be " + d.number + "."; } })
+      .then(function (d) { if (d && d.ok && d.number) { hint.textContent = "The next memo number would be " + d.number + "."; if (numField && !numTick.checked) { numField.placeholder = d.number; } } })
       .catch(function () { /* the hint stays */ });
+  }
+
+  // ---- custom number tick and Today button ----
+  var numTick = form.querySelector("[data-custom-number-tick]");
+  var numField = field("custom_memo_number");
+  function setNumberMode() {
+    if (!numTick || !numField) { return; }
+    numField.readOnly = !numTick.checked;
+    numField.classList.toggle("line-off", !numTick.checked);
+    if (!numTick.checked) { numField.value = ""; }
+  }
+  if (numTick) {
+    setNumberMode();
+    numTick.addEventListener("change", function () { setNumberMode(); dirty = true; askNumber(); });
+  }
+  var todayBtn = form.querySelector("[data-today]");
+  if (todayBtn) {
+    todayBtn.addEventListener("click", function () {
+      var d = new Date();
+      var iso = d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
+      field("date").value = iso;
+      dirty = true;
+      askNumber();
+    });
   }
 
   // ---- events ----
@@ -173,6 +228,7 @@
   });
 
   addTicks();
+  addCustom();
   refresh();
   askNumber();
   var shortcut = form.querySelector("[data-shortcut-hint]");
