@@ -153,6 +153,10 @@ class InvestmentSettings(models.Model):
     # Owner round (2026-11): a Columns menu above each table (as in the Fee Register), and the Overview's chosen figures
     # ({"boxes": [...], "metrics": [...], "periods": [...]}; empty means the standard choice, see services/overview.py).
     column_picker = models.BooleanField(default=False)
+    # Decimals shown (Settings > Display; display only, every figure is kept and exported exact). None: the standard rule
+    # (units without trailing zeros; full rupees with paise only when there are some, short ones up to 2).
+    units_decimals = models.PositiveSmallIntegerField(null=True, blank=True)
+    rupee_decimals = models.PositiveSmallIntegerField(null=True, blank=True)
     overview = models.JSONField(default=dict, blank=True)
     default_exchange = models.CharField(max_length=3, default="NS", choices=[("NS", "NSE"), ("BO", "BSE")])
     show_status_dots = models.BooleanField(default=True)

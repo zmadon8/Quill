@@ -16,7 +16,7 @@
 <form method="post" action="{% url 'investments_indices_action' %}" class="filters">{% csrf_token %}<input type="hidden" name="action" value="add">
   <label>Name <input name="name" size="28" required></label><label>Yahoo symbol <input name="code" size="18" required list="index-suggestions"></label><label>Currency <input name="currency" value="INR" size="4"></label><button type="submit">Add index</button></form>
 {% if suggested %}<datalist id="index-suggestions">{% for name, code in suggested %}<option value="{{ code }}">{{ name }}</option>{% endfor %}</datalist>
-<p class="hint">Sector indices of the NSE not added yet:</p>
+<p class="hint">Indices not added yet (one click adds it, after checking with Yahoo):</p>
 <div class="chips">{% for name, code in suggested %}<form method="post" action="{% url 'investments_indices_action' %}" style="display:inline">{% csrf_token %}<input type="hidden" name="action" value="add"><input type="hidden" name="name" value="{{ name }}"><input type="hidden" name="code" value="{{ code }}"><button type="submit" class="btn q sm">+ {{ name }} <span class="na">{{ code }}</span></button></form> {% endfor %}</div>{% endif %}
 {% endif %}
 

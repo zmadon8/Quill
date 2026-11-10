@@ -58,7 +58,16 @@
   function pad2(n) { return (n < 10n ? "0" : "") + n.toString(); }
 
   // Short rupee figures exactly as the Fee Register shows them (fees.services.money.format_money).
-  function shortRupees(ex, neg, signed, sym) {
+  function fixedFull(ex, places, grouper) {
+    var unit = 10n ** BigInt(places);
+    var n = roundDiv(ex.num, ex.den, unit, 1n);
+    var whole = n / unit, frac = n % unit, f = frac.toString();
+    while (f.length < places) { f = "0" + f; }
+    return { text: grouper(whole.toString()) + (places ? "." + f : ""), zero: n === 0n };
+  }
+
+  function shortRupees(ex, neg, signed, sym, decimals) {
+    var places = decimals === undefined || decimals === null ? 2 : Math.max(0, Math.min(decimals, 2));
     var body, zero = false;
     if (ex.num < 10n * ex.den) {
       var whole = roundDiv(ex.num, ex.den, 1n, 1n);
@@ -69,9 +78,13 @@
       if (ex.num < 100000n * ex.den) { div = 1000n; suf = "k"; }
       else if (ex.num < 10000000n * ex.den) { div = 100000n; suf = "lac"; }
       else { div = 10000000n; suf = "cr"; }
-      var s = roundDiv(ex.num, ex.den, 100n, div); // hundredths of the unit, half up
-      body = groupIndian((s / 100n).toString());
-      if (s % 100n !== 0n) { body += "." + pad2(s % 100n).replace(/0+$/, ""); }
+      var unit = 10n ** BigInt(places);
+      var s = roundDiv(ex.num, ex.den, unit, div); // the unit to ``places`` decimals, half up
+      body = groupIndian((s / unit).toString());
+      var fr = (s % unit).toString();
+      while (fr.length < places) { fr = "0" + fr; }
+      fr = fr.replace(/0+$/, "");
+      if (fr) { body += "." + fr; }
       body += (suf.length > 1 ? " " : "") + suf;
     }
     var sign = zero ? "" : (neg ? MINUS : (signed ? "+" : ""));
@@ -90,7 +103,11 @@
     var paise = roundDiv(ex.num, ex.den, 100n, 1n); // |value| in paise, half up
     var sign = "";
     if (paise !== 0n) { sign = p.neg ? MINUS : (opts.signed ? "+" : ""); }
-    if (rupees && mode !== "full") { return shortRupees(ex, p.neg, !!opts.signed, sym); }
+    if (rupees && mode !== "full") { return shortRupees(ex, p.neg, !!opts.signed, sym, opts.decimals); }
+    if (mode === "full" && opts.decimals !== undefined && opts.decimals !== null) {
+      var fx = fixedFull(ex, Math.max(0, Math.min(opts.decimals, 2)), grouper);
+      return (fx.zero ? "" : (p.neg ? MINUS : (opts.signed ? "+" : ""))) + sym + fx.text;
+    }
     if (mode === "full" || paise < 100000n) { return sign + sym + plain(paise, grouper); }
     var units = rupees ? INR_UNITS : FOREIGN_UNITS;
     var idx = 0, i;

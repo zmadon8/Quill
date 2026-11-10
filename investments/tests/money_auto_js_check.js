@@ -5,7 +5,7 @@ const api = require(path.join(__dirname, "..", "..", "static", "js", "investment
 const golden = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
 let bad = 0;
 for (const c of golden.cases) {
-  const got = api.formatAmount(c.v, { currency: c.cur || "INR", mode: c.mode, signed: !!c.signed });
+  const got = api.formatAmount(c.v, { currency: c.cur || "INR", mode: c.mode, signed: !!c.signed, decimals: c.dec });
   if (got !== c.out) { bad++; console.log("MISMATCH", JSON.stringify(c), "got", got); }
 }
 console.log(golden.cases.length + " cases, " + bad + " mismatches");

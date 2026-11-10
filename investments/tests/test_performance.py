@@ -133,7 +133,7 @@ class PerformanceTests(InvTestCase):
         self.assertNotIn("Nifty 50 XIRR", html)
 
     def test_sectoral_columns_only_while_switched_on(self):
-        bank = Instrument.objects.get(code="^NSEBANK")
+        bank = Instrument.objects.create(profile=None, kind="index", name="Nifty Bank", code="^NSEBANK", price_source="yahoo", price_basis="split_adjusted")
         for n in range(0, 800, 1):
             day = d(2022, 1, 1) + timedelta(days=n)
             Price.objects.create(instrument=bank, date=day, close=D(40000) * (D("1.0003") ** n), source="api")

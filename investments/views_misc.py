@@ -220,12 +220,14 @@ def settings_display(request):
 
     form = f.DisplaySettingsForm(request.POST or None, initial={"money_default": row.money_default, "compact_tables": row.compact_tables,
                                                                  "column_picker": row.column_picker,
+                                                                 "units_decimals": "" if row.units_decimals is None else str(row.units_decimals),
+                                                                 "rupee_decimals": "" if row.rupee_decimals is None else str(row.rupee_decimals),
                                                                  "default_exchange": row.default_exchange,
                                                                  "my_money": masters.money_preference(request.user, profile)})
     if request.method == "POST" and form.is_valid():
         d = form.cleaned_data
         masters.update_settings(profile, request.user, money_default=d["money_default"], compact_tables=d["compact_tables"], default_exchange=d["default_exchange"],
-                              column_picker=d["column_picker"])
+                              column_picker=d["column_picker"], units_decimals=d["units_decimals"], rupee_decimals=d["rupee_decimals"])
         masters.set_money_preference(request.user, d["my_money"])
         messages.success(request, "Saved.")
         return redirect(reverse("investments_settings_display"))

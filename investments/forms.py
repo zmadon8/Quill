@@ -378,6 +378,13 @@ class DisplaySettingsForm(forms.Form):
     my_money = forms.ChoiceField(choices=[("auto", "Short (Thousand, Lac, Crore)"), ("full", "Full Figures")], label="Number display for you")
     money_default = forms.ChoiceField(choices=[("auto", "Short (Thousand, Lac, Crore)"), ("full", "Full Figures")], label="Starting choice for new people in this profile")
     compact_tables = forms.BooleanField(required=False, label="Compact tables")
+    units_decimals = forms.TypedChoiceField(choices=[("", "Standard (as many as needed, up to 4)"), ("0", "0"), ("1", "1"), ("2", "2"), ("3", "3"), ("4", "4")],
+                                            coerce=int, empty_value=None, required=False, label="Decimals in units",
+                                            help_text="How many decimals units show (for example 4,820.512 or 4,820.51). Display only: units are kept exact.")
+    rupee_decimals = forms.TypedChoiceField(choices=[("", "Standard (paise only when there are some; short figures up to 2)"), ("0", "0"), ("1", "1"), ("2", "2")],
+                                            coerce=int, empty_value=None, required=False, label="Decimals in rupee figures",
+                                            help_text="Full figures show exactly this many decimals; short figures (lac, cr) show up to this many. "
+                                                      "Display only: Excel exports and every calculation keep the exact amount.")
     column_picker = forms.BooleanField(required=False, label="Column picker",
                                        help_text="A Columns menu above each table, as in the Fee Register, to choose the columns you see. "
                                                  "Your choice is remembered in this browser, table by table.")

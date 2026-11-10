@@ -1,7 +1,7 @@
 """Indices (owner round 2026-11): add an index by its Yahoo symbol, delete one that was added, and choose a sector index for each
 investment.
 
-Indices are shared by every profile, like the catalogue. The eight built-in ones (``masters.BUILTIN_INDICES``) cannot be deleted.
+Indices are shared by every profile, like the catalogue. Nifty 50, the only built-in one (``masters.BUILTIN_INDICES``), cannot be deleted.
 Adding asks Yahoo for the index's history first, so a symbol Yahoo does not know is refused and nothing is created. Deleting an
 index that some profile uses (as its Default Index or as an investment's sector index) needs its name typed; those choices then
 fall back (the Default Index to Nifty 50, a sector index to none). The nightly fetch keeps the prices of every index in use up to date
@@ -15,11 +15,12 @@ from investments.errors import InvestmentsError, not_found
 from investments.models import KIND_INDEX, Instrument, InvestmentSettings, Price, ProfileInvestment, Transaction
 from investments.services import core, fetch, pins
 
-#: Sector indices of the NSE as Yahoo lists them, offered as suggestions when adding (each is checked with Yahoo when added).
+#: Indices of the NSE and BSE as Yahoo lists them (the first ten are sector indices; the rest were built in until November 2026), offered as suggestions when adding (each is checked with Yahoo when added).
 SUGGESTED = (
     ("Nifty Auto", "^CNXAUTO"), ("Nifty Pharma", "^CNXPHARMA"), ("Nifty FMCG", "^CNXFMCG"), ("Nifty Metal", "^CNXMETAL"),
     ("Nifty Realty", "^CNXREALTY"), ("Nifty Energy", "^CNXENERGY"), ("Nifty Infrastructure", "^CNXINFRA"), ("Nifty PSU Bank", "^CNXPSUBANK"),
-    ("Nifty Media", "^CNXMEDIA"), ("Nifty Financial Services", "NIFTY_FIN_SERVICE.NS"),
+    ("Nifty Media", "^CNXMEDIA"), ("Nifty Financial Services", "NIFTY_FIN_SERVICE.NS"), ("Nifty Bank", "^NSEBANK"), ("Nifty IT", "^CNXIT"),
+    ("Sensex", "^BSESN"), ("Nifty Next 50", "^NSMIDCP"), ("Nifty Midcap 150", "NIFTYMIDCAP150.NS"), ("Nifty Smallcap 250", "NIFTYSMLCAP250.NS"),
 )
 HISTORY_YEARS = 10
 
@@ -94,7 +95,7 @@ def delete_preview(instrument):
     if instrument.kind != KIND_INDEX or instrument.profile_id is not None:
         out["problem"] = "This is not an index."
     elif is_builtin(instrument):
-        out["problem"] = "The built-in indices cannot be deleted."
+        out["problem"] = "Nifty 50, the built-in index, cannot be deleted."
     out["default"] = list(Profile.objects.filter(pk__in=InvestmentSettings.objects.filter(default_index=instrument).values("profile_id"))
                           .order_by("name").values_list("name", flat=True))
     out["sector"] = ProfileInvestment.objects.filter(sectoral_index=instrument).count()

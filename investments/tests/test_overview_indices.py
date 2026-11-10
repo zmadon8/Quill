@@ -109,7 +109,7 @@ class IndexTests(InvTestCase):
         self.assertEqual(masters.default_index_for(self.profile).code, "^NSEI")
 
     def test_sector_index_from_the_investment_page_and_in_bulk_pins_it(self):
-        bank = Instrument.objects.get(code="^NSEBANK")
+        bank = Instrument.objects.create(profile=None, kind="index", name="Nifty Bank", code="^NSEBANK", price_source="yahoo", price_basis="split_adjusted")
         Price.objects.create(instrument=bank, date=d(2024, 1, 2), close=D(45000), source="api")
         self.buy(d(2024, 1, 2), 10, 100)
         self.client.force_login(self.user)
@@ -136,3 +136,28 @@ class SmallerChangesTests(InvTestCase):
         page = self.client.get(reverse("investments_annual"))
         self.assertContains(page, "Fresh investments")
         self.assertNotContains(page, "re-invested")
+
+
+class BuiltInAndDecimalsTests(InvTestCase):
+    def test_nifty_50_is_the_only_built_in_index(self):
+        masters.ensure_builtin_indices()
+        self.assertEqual(list(Instrument.objects.filter(kind="index").values_list("code", flat=True)), ["^NSEI"])
+        self.assertTrue(indices.is_builtin(Instrument.objects.get(code="^NSEI")))
+        self.assertIn(("Sensex", "^BSESN"), indices.SUGGESTED)
+
+    def test_decimals_chosen_in_settings_change_only_the_display(self):
+        self.buy(d(2024, 1, 2), "4820.5126", "100.5")
+        self.client.force_login(self.user)
+        r = self.client.post(reverse("investments_settings_display"), {"my_money": "auto", "money_default": "auto", "default_exchange": "NS",
+                                                                        "units_decimals": "2", "rupee_decimals": "2"})
+        self.assertEqual(r.status_code, 302)
+        row = InvestmentSettings.objects.get(profile=self.profile)
+        self.assertEqual((row.units_decimals, row.rupee_decimals), (2, 2))
+        html = self.client.get(reverse("investments_transactions")).content.decode()
+        self.assertIn("4,820.51", html)
+        self.assertNotIn("4,820.5126", html)
+        self.assertIn('data-full="₹4,84,461.52"', html)                # 4820.5126 x 100.5 = 484461.5163, two decimals
+        self.client.post(reverse("investments_settings_display"), {"my_money": "auto", "money_default": "auto", "default_exchange": "NS",
+                                                                    "units_decimals": "", "rupee_decimals": ""})
+        html = self.client.get(reverse("investments_transactions")).content.decode()
+        self.assertIn("4,820.5126", html)
