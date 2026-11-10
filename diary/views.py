@@ -133,13 +133,19 @@ def subjects(request):
     """Index: Subjects on the landing page with item counts, then the Other Subjects below a divider."""
     profile = request.profile
     counts = item_counts_by_subject(profile)
+    # The Subject cards (owner round 2026-11) show the Topic count and the first three Topics: one query for every Subject.
+    topics = {}
+    for topic in Topic.objects.filter(profile=profile, deleted_at__isnull=True).only("pk", "name", "subject_id"):
+        topics.setdefault(topic.subject_id, []).append(topic)
     landing = list(_sorted_subjects(profile, show_on_landing=True))
-    for subject in landing:
-        subject.item_count = counts.get(subject.pk, (0, 0))[0]
     other = list(_sorted_subjects(profile, show_on_landing=False))
-    for subject in other:
+    for subject in landing + other:
         subject.item_count = counts.get(subject.pk, (0, 0))[0]
-    live_ids = set(_subjects(profile).values_list("pk", flat=True))
+        own = topics.get(subject.pk, [])
+        subject.topic_count = len(own)
+        subject.topic_names = [t.name for t in sort_headings(own)[:3]]
+    # Every live Subject is on the landing page or in Other Subjects, so the two lists are the live Subjects (no extra query).
+    live_ids = {subject.pk for subject in landing + other}
     total_items = sum(n for pk, (n, _) in counts.items() if pk in live_ids)
     return render(request, "diary/subjects.html", {
         **edit_context(request),
@@ -194,6 +200,13 @@ def home(request):
         context.update({"investments_profile": inv_current, "investments_other_profiles": inv_others,
                         "investments_name": names[KEY_INVESTMENTS]})
     context["show_admin_access"] = request.user.is_admin
+    # Owner round (2026-11): a card per program with live figures, recent activity and quick actions (accounts/home_cards.py).
+    from accounts import home_cards
+
+    context["home"] = home_cards.build(request, diary_current, context.get("fees_profile"), context.get("investments_profile"), names)
+    now = timezone.localtime()
+    context["greeting"] = "Good morning" if now.hour < 12 else ("Good afternoon" if now.hour < 17 else "Good evening")
+    context["today"] = now
     if activity.can_see_active(request.user):
         context.update(activity.active_panel())
     return render(request, "diary/home.html", context)

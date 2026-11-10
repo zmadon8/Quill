@@ -149,3 +149,27 @@ def last_price_date(instrument_ids):
         if iid not in out or m > out[iid]:
             out[iid] = m
     return out
+
+
+def recent_closes(instrument_ids, as_of, days=90, points=30):
+    """``{instrument id: [close, ...]}`` for the last ``days`` days up to ``as_of``, oldest first, thinned to at most ``points``
+    values (a table sparkline). One query per price table for every investment at once; hand-entered prices win a tie."""
+    from datetime import timedelta
+
+    ids = [i for i in instrument_ids if i]
+    if not ids:
+        return {}
+    since = as_of - timedelta(days=days)
+    merged = {}
+    for model in (Price, ManualPrice):
+        rows = model.objects.filter(instrument_id__in=ids, date__range=(since, as_of)).values_list("instrument_id", "date", "close")
+        for iid, day, close in rows.iterator(chunk_size=2000):
+            merged.setdefault(iid, {})[day] = close
+    out = {}
+    for iid, by_day in merged.items():
+        closes = [c for _d, c in sorted(by_day.items())]
+        if len(closes) > points:
+            step = (len(closes) - 1) / (points - 1)
+            closes = [closes[round(k * step)] for k in range(points)]
+        out[iid] = closes
+    return out

@@ -176,6 +176,28 @@ def visible(profile, today=None):
     return out
 
 
+def peek_count(profile, today=None):
+    """The number of alerts if they are already worked out (else None); never computes them (the suite Home page)."""
+    today = today or date.today()
+    try:
+        raw = statscache.peek(profile, "alerts", {}, today=today)
+        if raw is None:
+            return None
+        states = {st.key: st for st in AlertState.objects.filter(profile=profile)}
+        n = 0
+        for item in raw:
+            st = states.get(item["key"])
+            on = date.fromisoformat(str(item["on"]))
+            if st and st.dismissed_on and st.dismissed_on >= on:
+                continue
+            if st and st.snoozed_until and st.snoozed_until >= today:
+                continue
+            n += 1
+        return n
+    except Exception:  # never let Home break
+        return None
+
+
 def count(profile):
     try:
         return len(visible(profile))

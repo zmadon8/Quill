@@ -38,6 +38,23 @@
       closePop(false);
     });
   }
+  // Ctrl+K (Cmd+K on a Mac): the search box of the program in use, or Search everything where there is none (owner round 2026-11).
+  // Works from inside a field too; the rich-text editor uses Ctrl with B, I and U only.
+  var find = script && script.getAttribute("data-find");
+  document.addEventListener("keydown", function (e) {
+    if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || e.code !== "KeyK") { return; }
+    var box = document.querySelector("[data-search-input]");
+    if (box) { e.preventDefault(); box.focus(); box.select(); }
+    else if (pop) { e.preventDefault(); openPop(); }
+    else if (find) { e.preventDefault(); window.location.href = find; }
+  });
+  // "Search all programs" in the search bar carries what was typed.
+  document.addEventListener("click", function (e) {
+    var link = e.target.closest && e.target.closest("[data-search-all]");
+    if (!link) { return; }
+    var input = document.querySelector("[data-search-popup-input]");
+    if (input && input.value.trim()) { e.preventDefault(); window.location.href = link.getAttribute("href") + "?q=" + encodeURIComponent(input.value.trim()); }
+  });
   document.addEventListener("keydown", function (e) {
     if (!e.altKey || e.metaKey) { return; }
     if (e.code === "KeyH" && home) { e.preventDefault(); window.location.href = home; }

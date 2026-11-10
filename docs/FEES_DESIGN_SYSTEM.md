@@ -10,6 +10,17 @@
 > live in `static/css/modern.css`, loaded last on every page. Diary edit mode tints the page warm grey (`--edit-bg`), which
 > differs from the page in every theme. The Word memo, the Excel exports and the offline diary copy are unchanged.
 
+> **2026-11 refresh, second round (match the mockups).** Home is a dashboard: a card per program with live figures
+> (`accounts/home_cards.py`; Investments figures come from its cache only), Recent activity across the programs, and Quick
+> actions. The Index of Subjects shows cards (topic count and the first three Topics) with a Cards / List switch remembered
+> per browser; Edit mode always shows the list. The reading page sits in a white card with citations as small pills (blue
+> when linked). The header shows the user's initials and the search button as a box with a Ctrl K hint; Ctrl K (Cmd K)
+> opens the program's search, and **Search everything** (`/find/`, `suite_search`) searches every program the user can open.
+> Fee Register: the first Dashboard box is filled, Billed by month and Who owes the most sit beside the boxes, Outstanding
+> shows four ageing totals and a share bar per firm, and statuses are tinted pills when status markers are on.
+> Investments: the value card is filled, a 90-day trend line ends each holdings row, and the price chart has 1M / 6M / 1Y /
+> 5Y / All buttons. Fee Register-only rules moved from `ledger.css` to `fees.css` (Investments pages load `ledger.css` too).
+
 The Fee Register follows the owner's desktop design: warm paper, black ink, one oxblood accent, flat 2 px corners,
 hairline rules, a double rule above totals and tabular figures everywhere. This supersedes the earlier 15 px table
 exception (U1) in `FEES_PHASE0_ANALYSIS.md`.

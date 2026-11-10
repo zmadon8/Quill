@@ -82,3 +82,18 @@ def _fmt(v):
 
 def as_float(v):
     return float(v) if isinstance(v, Decimal) else v
+
+
+def sparkline(values, width=72, height=22, pad=2):
+    """A tiny trend line for a table cell: ``{"points", "up", "width", "height", "change"}`` or None with fewer than two values.
+    ``up`` is True when the last value is at or above the first; ``change`` is that move as a fraction of the first."""
+    vals = [float(v) for v in values if v is not None]
+    if len(vals) < 2:
+        return None
+    lo, hi = min(vals), max(vals)
+    span = (hi - lo) or 1.0
+    n = len(vals) - 1
+    pts = " ".join(f"{pad + (width - 2 * pad) * i / n:.1f},{pad + (height - 2 * pad) * (1 - (v - lo) / span):.1f}" for i, v in enumerate(vals))
+    first = vals[0]
+    return {"points": pts, "up": vals[-1] >= first, "width": width, "height": height,
+            "change": (vals[-1] - first) / first if first else 0.0}

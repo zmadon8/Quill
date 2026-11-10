@@ -113,7 +113,7 @@ class HomeIndexTests(TestCase):
         self.client.get(reverse("diary_home"))
         with CaptureQueriesContext(connection) as ctx:
             self.client.get(reverse("diary_home"))
-        # session, user, landing Subjects, one item aggregate, Other Subjects, live Subject ids
+        # session, user, landing Subjects, one item aggregate, the Topics (cards), Other Subjects
         self.assertLessEqual(len(ctx), 8)
 
     def test_search_icon_opens_a_bar_that_leads_to_search_page(self):

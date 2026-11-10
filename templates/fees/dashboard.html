@@ -6,7 +6,7 @@
 {% include "fees/_stats_tabs.html" with tab="dashboard" %}
 {% if kpis_enabled %}
 <section aria-label="Dashboard boxes" id="kpis">
-<dl class="kpi-grid">{% for k in kpi_rows %}<div class="kpi"><dt>{{ k.label }}</dt><dd class="money">{% if k.money %}{{ k.value|fees_money:money_unit }}{% else %}{{ k.value }}{% endif %}</dd></div>{% endfor %}</dl>
+<dl class="kpi-grid">{% for k in kpi_rows %}<div class="kpi{% if forloop.first %} kpi-hero{% endif %}"><dt>{{ k.label }}</dt><dd class="money">{% if k.money %}{{ k.value|fees_money:money_unit }}{% else %}{{ k.value }}{% endif %}</dd></div>{% endfor %}</dl>
 {% if can_edit %}
 <details class="kpi-customise"{% if customise_open %} open{% endif %}>
   <summary>Customise</summary>
@@ -36,6 +36,19 @@
 {% endif %}
 </section>
 {% endif %}
+<div class="dash-panels">
+<section class="dash-panel" aria-labelledby="billed-heading">
+  <div class="dash-panel-head"><h2 id="billed-heading">Billed by month</h2><span class="muted">{{ panels.fy }}</span>{% if fees_settings.statistics_enabled %}<a class="dash-more" href="{% url 'fees_statistics' %}">Statistics</a>{% endif %}</div>
+  <figure class="bar-chart" aria-label="Billed in each month of {{ panels.fy }}">
+    <ol class="bars">{% for m in panels.months %}<li class="bar{% if m.is_current %} is-current{% endif %}{% if m.is_future %} is-future{% endif %}"{% if m.is_current %} aria-current="true"{% endif %}><span class="bar-fill" style="height:{{ m.height }}%"></span><span class="bar-label">{{ m.label }}</span><span class="visually-hidden">: {{ m.amount|fees_money:money_unit }}</span></li>{% endfor %}</ol>
+  </figure>
+</section>
+<section class="dash-panel" aria-labelledby="owers-heading">
+  <div class="dash-panel-head"><h2 id="owers-heading">Who owes the most</h2><a class="dash-more" href="{% url 'fees_outstanding' %}">All firms</a></div>
+  {% if panels.owers %}<ul class="owers">{% for o in panels.owers %}<li><span class="ower-badge" aria-hidden="true">{{ o.firm_name|slice:":2"|upper }}</span><span class="ower-name"><a href="{% url 'fees_outstanding_detail' %}?firm={{ o.firm_id }}">{{ o.firm_name }}</a><span class="muted">{{ o.memo_count }} memo{{ o.memo_count|pluralize }}</span></span><span class="ower-amount">{{ o.outstanding|fees_money:money_unit }}</span></li>{% endfor %}</ul>
+  {% else %}<p class="muted">Nothing is outstanding.</p>{% endif %}
+</section>
+</div>
 <section aria-labelledby="recent-heading">
 <h2 id="recent-heading">Recently billed matters</h2>
 <div class="table-wrap">

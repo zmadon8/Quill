@@ -94,3 +94,12 @@ body.ledger .page-actions.button-row { gap: 8px; }
 .theme-swatch::before { content: ""; width: 14px; height: 14px; border-radius: var(--radius-pill); background: var(--sw); }
 [data-swatch=oxblood] { --sw: #8B2D2D; } [data-swatch=royal] { --sw: #2563EB; } [data-swatch=navy] { --sw: #1F3F73; }
 [data-swatch=violet] { --sw: #6D4AD6; } [data-swatch=plum] { --sw: #7B2F78; } [data-swatch=teal] { --sw: #0F766E; }
+
+/* Header: the user's initials in a round badge; the search button drawn as a box with the Ctrl K hint (owner round 2026-11). */
+body:is(.ledger, .look) .program-nav .header-end a.who { font-size: 0; padding: 0 6px; max-width: none; }
+.who-badge { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: var(--radius-pill); background: var(--accent); color: var(--on-accent); font: 700 12px var(--font-sans); letter-spacing: 0; }
+body:is(.ledger, .look) .program-nav .icon-tool.search-toggle { justify-content: flex-start; gap: 8px; width: 15rem; min-width: 0; height: 36px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--white); color: var(--faint); }
+body:is(.ledger, .look) .program-nav .icon-tool.search-toggle::after { content: "Search\2026"; flex: 1; text-align: left; font: 14px var(--font-sans); }
+body:is(.ledger, .look) .program-nav .icon-tool.search-toggle::before { content: "Ctrl K"; order: 2; padding: 1px 6px; border: 1px solid var(--line); border-radius: 4px; font: 11px var(--font-sans); color: var(--muted); }
+body:is(.ledger, .look) .search-pop-all { margin-left: 8px; font-size: 13px; white-space: nowrap; }
+@media (max-width: 899px) { body:is(.ledger, .look) .program-nav .icon-tool.search-toggle { width: auto; } body:is(.ledger, .look) .program-nav .icon-tool.search-toggle::after, body:is(.ledger, .look) .program-nav .icon-tool.search-toggle::before { display: none; } }

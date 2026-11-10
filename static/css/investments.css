@@ -336,3 +336,16 @@ body.inv table.led .col-hidden{display:none}
 body.inv .table-tools{display:flex;justify-content:flex-end;margin:0 0 6px}
 body.inv table.led td.wrap{white-space:normal;min-width:10rem}
 body.inv table.led select.kind{min-width:9rem}
+/* Owner round 2026-11: the value card filled, figures on one line, 90-day trend lines, price range buttons */
+body.inv .strip .f.hl{background:linear-gradient(135deg,var(--accent),var(--accent-deep));border-color:transparent}
+body.inv .strip .f.hl .lab,body.inv .strip .f.hl .fig,body.inv .strip .f.hl .fig small{color:var(--on-accent)}
+body.inv .strip{grid-template-columns:repeat(auto-fit,minmax(10.5rem,1fr));grid-auto-flow:row}
+body.inv .fig,body.inv .fig .m{white-space:nowrap}
+body.inv .fig small{white-space:normal}
+body.inv .lab,body.inv table.led th{font-weight:500}
+body.inv svg.spark{display:inline-block;vertical-align:middle;fill:none;stroke-width:1.6;stroke-linejoin:round}
+body.inv svg.spark.up{stroke:var(--gain)}
+body.inv svg.spark.down{stroke:var(--loss)}
+body.inv nav.seg{display:inline-flex;padding:3px;background:var(--paper-2);border-radius:9px}
+body.inv nav.seg a{padding:4px 12px;border-radius:7px;font-size:13px;color:var(--ink-3);text-decoration:none}
+body.inv nav.seg a.on{background:var(--white);color:var(--ink);font-weight:600;box-shadow:var(--shadow-card)}

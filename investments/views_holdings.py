@@ -10,7 +10,8 @@ from . import forms
 from .decorators import inv_editor, inv_reader
 from .errors import InvestmentsError
 from .models import (
-    HOLDABLE_KINDS, KIND_ALTERNATIVE, AltValue, Folio, Instrument, InvestmentHistory, ManualPrice, ProfileInvestment, Transaction, Transfer,
+    HOLDABLE_KINDS, KIND_ALTERNATIVE, AltValue, Folio, Instrument, InvestmentHistory, ManualPrice, Price, ProfileInvestment, Transaction,
+    Transfer,
 )
 from .services import fetch, holdings, masters, prices
 from .viewutil import handle_errors, page, profile_or_404, selection
@@ -23,6 +24,52 @@ def _instrument_or_404(profile, pk):
     if inst is None or inst.profile_id not in (None, profile.pk):
         raise Http404
     return inst
+
+
+def _sparks(instruments, as_of=None):
+    """{instrument id: sparkline} of the last 90 days of closes (owner round 2026-11). Alternatives have no price feed: none."""
+    from datetime import date as _date
+
+    from .svgchart import sparkline
+
+    ids = [i.pk for i in instruments if i.kind != KIND_ALTERNATIVE]
+    closes = prices.recent_closes(ids, as_of or _date.today())
+    return {iid: sparkline(vals) for iid, vals in closes.items()}
+
+
+#: The price chart's range buttons on an investment's page: (key, label, days; None = from the first price).
+PRICE_RANGES = (("1m", "1M", 30), ("6m", "6M", 183), ("1y", "1Y", 365), ("5y", "5Y", 1825), ("all", "All", None))
+
+
+def _price_range(request):
+    """The chosen range key and its start offset in days (None = all). ``?range=`` wins; the older ``?days=N`` still works."""
+    key = request.GET.get("range", "")
+    for k, _label, days in PRICE_RANGES:
+        if k == key:
+            return k, days
+    raw = request.GET.get("days", "")
+    if raw.isdigit() and int(raw) > 0:
+        days = int(raw)
+        match = next((k for k, _l, d in PRICE_RANGES if d == days), "")
+        return match, days
+    return "1y", 365
+
+
+def _range_query(request, key):
+    """The page's query string with ``range`` set to ``key`` (other choices such as ``?on=`` are kept)."""
+    query = request.GET.copy()
+    query.pop("days", None)
+    query["range"] = key
+    return query.urlencode()
+
+
+def _first_price_date(inst):
+    from django.db.models import Min
+
+    found = [Price.objects.filter(instrument=inst).aggregate(m=Min("date"))["m"],
+             ManualPrice.objects.filter(instrument=inst).aggregate(m=Min("date"))["m"]]
+    found = [d for d in found if d]
+    return min(found) if found else None
 
 
 @inv_reader
@@ -58,6 +105,9 @@ def holdings_list(request):
     stale = fetch.stale_ids([h.instrument for h in out if h.is_held and h.instrument.price_source not in ("manual", "upload")])
     for h in out:
         h.stale = h.instrument.pk in stale
+    sparks = _sparks([h.instrument for h in out if h.is_held and not h.unpriced], asat)
+    for h in out:
+        h.spark = sparks.get(h.instrument.pk)
     held_count = sum(1 for h in rows if h.is_held and h.instrument.pk not in hidden_ids)
     sold_count = sum(1 for h in rows if h.sold_out)
     return page(request, "investments/holdings.html", {
@@ -205,6 +255,11 @@ def investment(request, pk):
     as_of = on or asat or _date.today()
     div = include_dividends(request, profile)
     rows, _t = holdings.compute(profile, portfolio=portfolio, broker=broker, as_of=as_of, instrument_ids=[inst.pk], include_dividends=div)
+    range_key, range_days = _price_range(request)
+    if range_days is None:
+        chart_start = _first_price_date(inst) or (as_of - _td(days=365))
+    else:
+        chart_start = as_of - _td(days=range_days)
     h = rows[0] if rows else holdings.Holding(instrument=inst, empty=True)
     pi = masters.get_profile_investment(profile, inst) if request.user.is_authenticated and inst.pk else None
     txns = Transaction.objects.filter(profile=profile, instrument=inst).select_related("broker", "portfolio", "folio").order_by("-date", "-id")
@@ -231,8 +286,9 @@ def investment(request, pk):
         "alt_values": AltValue.objects.filter(profile=profile, instrument=inst).order_by("-date")[:20] if inst.kind == KIND_ALTERNATIVE else [],
         "awaiting_rows": awaiting_rows, "history": InvestmentHistory.objects.filter(profile=profile, instrument_id_ref=inst.pk)[:8],
         "kind_label": inst.get_kind_display(), "on": on, "as_of": as_of, "include_div": div,
-        "chart": investment_page.price_chart(profile, inst, as_of - _td(days=int(request.GET.get("days", 365)) if str(request.GET.get("days", "365")).isdigit() else 365), as_of)
-        if inst.kind != KIND_ALTERNATIVE else None,
+        "chart": investment_page.price_chart(profile, inst, chart_start, as_of) if inst.kind != KIND_ALTERNATIVE else None,
+        "price_ranges": [{"key": k, "label": label, "on": k == range_key,
+                          "href": "?" + _range_query(request, k)} for k, label, _d in PRICE_RANGES],
         "range52": investment_page.range_52w(inst, as_of) if inst.kind != KIND_ALTERNATIVE else (None, None),
         "guardrails": investment_page.guardrails(profile, inst),
         "foreign": investment_page.foreign_figures(profile, inst, h, as_of) if inst.currency != "INR" else None,

@@ -536,6 +536,17 @@ If the combined app uses a different technology, the data rules in sections 2 to
 > live in `static/css/modern.css`, loaded last on every page. Diary edit mode tints the page warm grey (`--edit-bg`), which
 > differs from the page in every theme. The Word memo, the Excel exports and the offline diary copy are unchanged.
 
+> **2026-11 refresh, second round (match the mockups).** Home is a dashboard: a card per program with live figures
+> (`accounts/home_cards.py`; Investments figures come from its cache only), Recent activity across the programs, and Quick
+> actions. The Index of Subjects shows cards (topic count and the first three Topics) with a Cards / List switch remembered
+> per browser; Edit mode always shows the list. The reading page sits in a white card with citations as small pills (blue
+> when linked). The header shows the user's initials and the search button as a box with a Ctrl K hint; Ctrl K (Cmd K)
+> opens the program's search, and **Search everything** (`/find/`, `suite_search`) searches every program the user can open.
+> Fee Register: the first Dashboard box is filled, Billed by month and Who owes the most sit beside the boxes, Outstanding
+> shows four ageing totals and a share bar per firm, and statuses are tinted pills when status markers are on.
+> Investments: the value card is filled, a 90-day trend line ends each holdings row, and the price chart has 1M / 6M / 1Y /
+> 5Y / All buttons. Fee Register-only rules moved from `ledger.css` to `fees.css` (Investments pages load `ledger.css` too).
+
 **Decision (owner, after reviewing four static mockups in `design/mockups/`):** Option D, "Chambers", for the whole app, with the Home page laid out like Option A, "Law Report".
 
 - **Shell (Option D).** Warm off-white page, italic serif program name at top left, a "Home" link (the program picker) beside it, a small sans nav at right (the current page is dark with an oxblood underline), one hairline rule under the header, a large serif page title with a double rule under it, letter-spaced uppercase small labels, hairline row dividers, outlined secondary buttons and filled oxblood primary buttons.

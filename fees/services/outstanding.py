@@ -48,6 +48,7 @@ and sorting add no query.
 """
 from __future__ import annotations
 
+import datetime
 from decimal import Decimal
 
 from django.db.models.functions import Lower
@@ -61,6 +62,9 @@ __all__ = [
     "outstanding_grand_total",
     "list_outstanding_by_firm",
     "list_outstanding_scope",
+    "AGEING_BUCKETS",
+    "age_bucket",
+    "ageing_totals",
 ]
 
 #: The status passed to ``compute_is_overdue`` for an outstanding memo: by
@@ -228,7 +232,32 @@ def outstanding_grand_total(groups):
     return total
 
 
-def list_outstanding_by_firm(profile, filters=None, sort="amount"):
+#: Ageing buckets for the Outstanding summary (owner round 2026-11): days since the memo date.
+AGEING_BUCKETS = (("0-30", "0-30 days", 0, 30), ("31-60", "31-60 days", 31, 60), ("61-90", "61-90 days", 61, 90),
+                  ("90+", "Over 90 days", 91, None))
+
+
+def age_bucket(memo_date, today=None):
+    """The index into ``AGEING_BUCKETS`` for a memo dated ``memo_date`` (a memo with no date, or dated ahead, counts as new)."""
+    today = today or datetime.date.today()
+    days = (today - memo_date).days if memo_date else 0
+    for index, (_key, _label, _low, high) in enumerate(AGEING_BUCKETS):
+        if high is not None and days <= high:
+            return index
+    return len(AGEING_BUCKETS) - 1
+
+
+def ageing_totals(rows):
+    """[{key, label, amount, memo_count}] summed over the firm rows of :func:`list_outstanding_by_firm`."""
+    out = [{"key": key, "label": label, "amount": Decimal("0.00"), "memo_count": 0} for key, label, _l, _h in AGEING_BUCKETS]
+    for row in rows:
+        for index, (amount, count) in enumerate(row.get("ageing", ())):
+            out[index]["amount"] = round2(out[index]["amount"] + amount)
+            out[index]["memo_count"] += count
+    return out
+
+
+def list_outstanding_by_firm(profile, filters=None, sort="amount", today=None):
     """Firm-wise outstanding summary: one row per firm (Req #3, brief 6.3).
 
     Returns a list of dicts ``{firm_id, firm_name, outstanding, memo_count}``
@@ -244,6 +273,7 @@ def list_outstanding_by_firm(profile, filters=None, sort="amount"):
     filters = filters or {}
     _default_tds_rate, overdue_days = _settings_for(profile)
     overdue_only = filters.get("overdue_only") is True
+    today = today or datetime.date.today()
 
     by_firm = {}
     for memo in _scoped_memos(profile, filters):
@@ -262,10 +292,14 @@ def list_outstanding_by_firm(profile, filters=None, sort="amount"):
                 "firm_name": memo.firm.name,
                 "outstanding": Decimal("0.00"),
                 "memo_count": 0,
+                "ageing": [[Decimal("0.00"), 0] for _bucket in AGEING_BUCKETS],
             }
             by_firm[memo.firm_id] = summary
         summary["outstanding"] = round2(summary["outstanding"] + outstanding)
         summary["memo_count"] += 1
+        bucket = summary["ageing"][age_bucket(memo.date, today)]
+        bucket[0] = round2(bucket[0] + outstanding)
+        bucket[1] += 1
 
     rows = list(by_firm.values())
     if sort == "name":

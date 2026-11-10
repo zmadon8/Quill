@@ -1,0 +1,28 @@
+{% extends "base_suite_home.html" %}
+{# Search everything (owner round 2026-11): every program the user can open, results grouped by program. #}
+{% block title %}Search everything - {{ home_name }}{% endblock %}
+{% block content %}
+<div class="launcher suite-search">
+  <h1>Search everything</h1>
+  <form class="hero-search" role="search" method="get" action="{% url 'suite_search' %}">
+    <label class="visually-hidden" for="suite-q">Search every program</label>
+    <input type="search" id="suite-q" name="q" value="{{ query }}" placeholder="Judgments, citations, memos, firms, investments..." autocomplete="off" autofocus>
+    <button type="submit" class="primary">Search</button>
+  </form>
+  {% if too_short %}<p class="muted">Type at least two letters.</p>
+  {% elif searched %}
+  <p class="muted search-count">{{ total }} result{{ total|pluralize }} for &ldquo;{{ query }}&rdquo;</p>
+  {% for s in sections %}
+  <section class="search-section" aria-labelledby="results-{{ s.key }}">
+    <div class="search-section-head"><h2 id="results-{{ s.key }}">{{ s.name }}</h2><span class="count-pill">{{ s.total }}</span>{% if s.total > s.results|length %}<a class="dash-more" href="{{ s.more }}">All {{ s.total }} in {{ s.name }}</a>{% endif %}</div>
+    {% if s.failed %}<p class="notice warning">This program could not be searched just now.</p>
+    {% elif s.results %}<ol class="search-results cards">{% for r in s.results %}
+      <li class="search-result card"><div class="search-meta"><span class="search-kind badge">{{ r.kind }}</span>{% if r.subtitle %}<span class="search-path">{{ r.subtitle }}</span>{% endif %}</div><a class="search-link" href="{{ r.url }}">{{ r.title }}</a></li>
+    {% endfor %}</ol>
+    {% else %}<p class="muted">Nothing found.</p>{% endif %}
+  </section>
+  {% empty %}<p class="muted">No programs are available to you yet.</p>
+  {% endfor %}
+  {% endif %}
+</div>
+{% endblock %}
