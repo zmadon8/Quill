@@ -9,7 +9,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from investments.errors import InvestmentsError
-from investments.models import PriceHelperToken, SourceRun, SourceSetting
+from investments.models import KIND_ALTERNATIVE, KIND_FUND, KIND_INDEX, Price, PriceHelperToken, SourceRun, SourceSetting, SourceSymbol
 from investments.services import fetch, locks, price_import
 
 MAX_ROWS = 5000
@@ -87,9 +87,10 @@ def wanted(today=None):
     return out
 
 
-def ingest(rows, token=None):
+def ingest(rows, token=None, fill_only=False, via="helper"):
     """Write helper rows (``[{source, symbol_or_code, date, close, basis}]``) with source ``helper``, using the history upload's validation.
-    Never overwrites hand-entered or uploaded prices. Returns ``{"written", "unknown", "rejected"}``."""
+    Never overwrites hand-entered or uploaded prices. With ``fill_only`` (the Google Sheet) a day that already has a stored price is left
+    alone, so a fetched close is never replaced by the sheet's. Returns ``{"written", "unknown", "rejected"}``."""
     if len(rows) > MAX_ROWS:
         raise InvestmentsError("TOO_MANY", f"At most {MAX_ROWS} rows in one request.", 413)
     lookup = price_import.build_lookup()
@@ -115,14 +116,67 @@ def ingest(rows, token=None):
     started = timezone.now()
     with locks.heavy("price_ingest"), transaction.atomic():
         for inst, days in per.values():
+            if fill_only:
+                stored = set(Price.objects.filter(instrument=inst, date__in=list(days)).values_list("date", flat=True))
+                days = {day: close for day, close in days.items() if day not in stored}
+                if not days:
+                    continue
             added, changed, _kept = fetch.upsert_prices(inst, sorted(days.items()), "helper", inst.price_basis)
             written += added + changed
     if written:
         fetch.bump_version()
-    SourceRun.objects.create(source="helper", trigger="helper", started=started, finished=timezone.now(), tried=len(rows), updated=written,
+    sheet = via == "sheet"
+    SourceRun.objects.create(source="google_sheet" if sheet else "helper", trigger="sheet" if sheet else "helper", started=started, finished=timezone.now(),
+                             tried=len(rows), updated=written,
                              failures=[{"id": 0, "name": f"row {n}", "error": e} for n, e in rejected[:50]],
                              message=f"token {token.label}" if token else "")
     return {"written": written, "unknown": sorted(unknown)[:100], "rejected": [{"row": n, "error": e} for n, e in rejected[:100]]}
 
 
-__all__ = ["enabled", "create_token", "revoke", "authenticate", "wanted", "ingest", "Decimal"]
+# ---------------------------------------------------------------- the Google Sheet (owner request, November 2026)
+
+#: Google Finance tickers of the built-in indices (a guess for the less common ones: the sheet's ticker column can be corrected by hand,
+#: or a symbol set for the source ``google`` on the catalogue page).
+GOOGLE_INDEX = {
+    "^NSEI": "INDEXNSE:NIFTY_50", "^BSESN": "INDEXBOM:SENSEX", "^NSEBANK": "INDEXNSE:NIFTY_BANK", "^CNXIT": "INDEXNSE:NIFTY_IT",
+    "^NSMIDCP": "INDEXNSE:NIFTY_NEXT_50", "NIFTYMIDCAP150.NS": "INDEXNSE:NIFTY_MIDCAP_150", "NIFTYSMLCAP250.NS": "INDEXNSE:NIFTY_SMLCAP_250",
+    "^CNX100": "INDEXNSE:NIFTY_100", "^CRSLDX": "INDEXNSE:NIFTY_500", "^GSPC": "INDEXSP:.INX",
+}
+
+
+def google_ticker(instrument, override=""):
+    """The GOOGLEFINANCE ticker for an investment: ``RELIANCE.NS`` is ``NSE:RELIANCE``, ``500325.BO`` is ``BOM:500325``; "" when unknown."""
+    if override:
+        return override.strip()
+    code = (instrument.code or "").strip()
+    upper = code.upper()
+    if instrument.kind == KIND_INDEX:
+        return GOOGLE_INDEX.get(upper, "")
+    if upper.endswith(".NS"):
+        return "NSE:" + code[:-3]
+    if upper.endswith(".BO"):
+        return "BOM:" + code[:-3]
+    return code if code and "." not in code else ""
+
+
+def sheet_list():
+    """``[{code, name, kind, google, last}]`` for the Google Sheet: every tracked share, index and foreign investment with a code. Funds
+    are left out (Google has no reliable Indian fund NAVs; AMFI's file is used for them). Only codes and names, never holdings."""
+    tracked = [i for i in fetch.tracked_instruments() if i.kind not in (KIND_FUND, KIND_ALTERNATIVE) and (i.code or "").strip()]
+    overrides = dict(SourceSymbol.objects.filter(instrument__in=tracked, source="google").values_list("instrument_id", "symbol"))
+    from investments.services import prices as price_service
+
+    last = price_service.last_price_date([i.pk for i in tracked])
+    return [{"code": i.code.strip(), "name": i.name, "kind": i.kind, "google": google_ticker(i, overrides.get(i.pk, "")),
+             "last": last[i.pk].isoformat() if i.pk in last else None} for i in tracked]
+
+
+def sheet_script(site):
+    """The Apps Script for the sheet (``tools/google_sheet_prices.gs``) with this site's address filled in."""
+    from pathlib import Path
+
+    path = Path(settings.BASE_DIR) / "tools" / "google_sheet_prices.gs"
+    return path.read_text(encoding="utf-8").replace("https://YOUR-SITE.onrender.com", site.rstrip("/"))
+
+
+__all__ = ["enabled", "create_token", "revoke", "authenticate", "wanted", "ingest", "sheet_list", "google_ticker", "sheet_script", "Decimal"]

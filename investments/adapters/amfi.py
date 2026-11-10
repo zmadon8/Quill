@@ -7,6 +7,12 @@ from .base import FetchError, clean_close, parse_day
 DEFAULT_URL = "https://www.amfiindia.com/spages/NAVAll.txt"
 
 
+def _name(parts):
+    """The scheme name. AMFI's newer lines have the plan and option as separate columns after the name; they are joined on
+    with " - " so the result reads like the older single-column names ("Fund - Regular Plan - IDCW Option")."""
+    return " - ".join(p.strip() for p in parts[3:-2] if p.strip())
+
+
 def parse_lines(lines, wanted):
     """``{scheme code: (date, nav, name, isin)}`` for the codes in ``wanted``. ``lines`` yields decoded text lines."""
     found = {}
@@ -20,11 +26,13 @@ def parse_lines(lines, wanted):
         code = parts[0].strip()
         if code not in wanted:
             continue
-        nav = clean_close(parts[4])
-        day = parse_day(parts[5])
+        # NAV and date are the LAST two fields; the name is everything between the ISINs and them (AMFI now has extra columns
+        # such as "Regular Plan" and "IDCW Option" after the name, so counting from the front is not safe).
+        nav = clean_close(parts[-2])
+        day = parse_day(parts[-1])
         if nav is None or day is None:
             continue
-        found[code] = (day, nav.quantize(Decimal("0.0001")), parts[3].strip(), parts[1].strip())
+        found[code] = (day, nav.quantize(Decimal("0.0001")), _name(parts), parts[1].strip())
     return found
 
 
@@ -54,7 +62,7 @@ def iter_all(lines):
         if len(parts) < 6 or not parts[0].strip().isdigit():
             continue
         isin = parts[1].strip() if parts[1].strip() not in ("-", "") else parts[2].strip()
-        yield parts[0].strip(), parts[3].strip(), "" if isin == "-" else isin, parse_day(parts[5]), clean_close(parts[4])
+        yield parts[0].strip(), _name(parts), "" if isin == "-" else isin, parse_day(parts[-1]), clean_close(parts[-2])
 
 
 def fetch_scheme_list(store, url=None):
