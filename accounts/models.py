@@ -51,6 +51,11 @@ class User(AbstractUser):
         (THEME_OXBLOOD, "Oxblood"), ("royal", "Royal Blue"), ("navy", "Navy"), ("violet", "Violet"), ("plum", "Plum"), ("teal", "Teal"),
     ]
     colour_theme = models.CharField("Colour theme", max_length=10, choices=COLOUR_THEME_CHOICES, default=THEME_OXBLOOD)
+    # Owner round (2026-11): the letters in the round name badge in the header (My settings, Display). Blank: the badge shows the
+    # first letters of the first and last name, as before.
+    header_initials = models.CharField("Header letters", max_length=3, blank=True, default="")
+    # Owner round (2026-11): Case Law Diary display. On: no " - " between the Item text and its inline citations. Off (default): as before.
+    remove_citation_hyphen = models.BooleanField("Remove the hyphen before the citation", default=False)
     # Who is active (round: markers, payments, activity). ``last_seen_at`` is touched by accounts.middleware at most once
     # a minute; ``can_see_active`` lets an Admin show this user the Active Now panel on Home (Admins always see it).
     last_seen_at = models.DateTimeField(null=True, blank=True)

@@ -131,7 +131,7 @@ class Renderer:
                       if len(item.cases) > 1 else [""] * len(item.cases))
             for n, (label, case) in enumerate(zip(labels, item.cases)):
                 if n:
-                    runs.append(dw.Run(" ; "))
+                    runs.append(dw.Run(" "))
                 if label:
                     runs.append(dw.Run(label + " "))
                 runs.append(dw.Run(case.citation, italic=True))

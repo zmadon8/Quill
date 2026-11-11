@@ -198,6 +198,7 @@ body.look .item:hover { background: none; }
 body.look .item .num { color: var(--faint); font-size: 13px; }
 body.look .item-body { font-family: var(--font-serif); font-size: 17px; }
 body.look .citation { display: inline-block; margin: 2px 0; padding: 1px 9px; border-radius: 6px; background: var(--paper-2); color: var(--ink-3); font: italic 12.5px/1.6 var(--font-sans); }
+body.look :is(.case-comment, .case-line-comment) { font: normal 12.5px/1.6 var(--font-sans); }
 body.look a.cite-link { text-decoration: none; }
 body.look a.cite-link .citation { background: var(--info-tint); color: var(--info); }
 html.links-off body.look a.cite-link .citation { background: var(--paper-2); color: var(--ink-3); }

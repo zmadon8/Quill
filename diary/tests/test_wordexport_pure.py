@@ -130,7 +130,7 @@ class RenderStructureTests(unittest.TestCase):
 
     def test_citations_are_italic_after_a_dash_and_several_are_labelled(self):
         two = next(p for p in self.paras if p.text.startswith("(2)\tTwo cites"))
-        self.assertEqual(two.text, "(2)\tTwo cites - (a) (2019) 1 SCC 1 on facts ; (b) (2018) 2 SCC 2")
+        self.assertEqual(two.text, "(2)\tTwo cites - (a) (2019) 1 SCC 1 on facts (b) (2018) 2 SCC 2")
         italic = "".join(r.text for r in two.runs if r.italic)
         self.assertEqual(italic, "(2019) 1 SCC 1(2018) 2 SCC 2")
         self.assertTrue(any(r.bold and r.text == "facts" for r in two.runs))  # the comment keeps its bold

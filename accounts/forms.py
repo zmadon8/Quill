@@ -276,7 +276,7 @@ class MySettingsForm(forms.ModelForm):
 
     class Meta:
         model = User
-        fields = ("email", "landing_program", "justify_text", "show_home_button", "colour_theme")
+        fields = ("email", "landing_program", "justify_text", "show_home_button", "colour_theme", "header_initials", "remove_citation_hyphen")
         labels = {"justify_text": "Justify text", "show_home_button": "Show the Home button"}
 
     def clean_email(self):
@@ -285,8 +285,25 @@ class MySettingsForm(forms.ModelForm):
     def clean_colour_theme(self):
         return _clean_colour_theme(self)
 
+    def clean_header_initials(self):
+        value = (self.cleaned_data.get("header_initials") or "").strip().upper()
+        if "header_initials" not in self.data:
+            return self.instance.header_initials
+        return value
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        if "header_initials" in self.fields:
+            self.fields["header_initials"].required = False
+            self.fields["header_initials"].label = "Letters in the header badge"
+            self.fields["header_initials"].help_text = (
+                "Up to 3 letters shown in the round badge at the top right of every page. Blank: the first letters of your first and last name."
+            )
+        if "remove_citation_hyphen" in self.fields:
+            self.fields["remove_citation_hyphen"].required = False
+            self.fields["remove_citation_hyphen"].help_text = (
+                "Case Law Diary, on screen: leaves out the hyphen between an Item's text and its citations. Off: the hyphen is shown."
+            )
         if "email" in self.fields:
             self.fields["email"].help_text = "Used only to email you a link if you forget your password."
         if "justify_text" in self.fields:
@@ -316,7 +333,7 @@ class MyDisplayForm(MySettingsForm):
     """The Display section of My settings: where to land after login and justified text."""
 
     class Meta(MySettingsForm.Meta):
-        fields = ("landing_program", "justify_text", "show_home_button", "colour_theme")
+        fields = ("landing_program", "justify_text", "show_home_button", "colour_theme", "header_initials", "remove_citation_hyphen")
 
 
 class ProfileForm(forms.ModelForm):

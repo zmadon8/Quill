@@ -58,6 +58,8 @@ header bar.
 | `justify_text` | Justify text | My settings > Display | Per user | Only you |
 | `show_home_button` | Show the Home button (off: hidden on every page; Alt+H still opens Home) | My settings > Display | Per user | Only you |
 | `colour_theme` | Colour theme: Oxblood (default), Royal Blue, Navy, Violet, Plum or Teal. Changes the accent (buttons, current tab, links) on every page; status colours and exports never change | My settings > Display; an Admin on the user's edit screen | Per user | Only you |
+| `header_initials` | Letters in the header badge: up to 3, shown upper-case in the round badge at the top right. Blank: the first letters of your first and last name | My settings > Display | Per user | Only you |
+| `remove_citation_hyphen` | Remove the hyphen before the citation: on, the Case Law Diary on screen leaves out the " - " between an Item's text and its inline citations (default off). The Word export and offline copy keep the hyphen. The ";" between several inline citations is always gone | My settings > Display | Per user | Only you |
 | `can_see_active` | Can See Who Is Active (shows the Active Now and Earlier Today panel on Home; an Admin always sees it) | Admin > Users (edit, create) | Per user | Admin sets |
 | `last_seen_at` | When the user was last seen (no more than once a minute; feeds the Active Now panel) | No page; written as you browse | Per user, automatic | Nobody |
 | `last_diary_path` | The last page I viewed (used when the diary opening page is "The last page I viewed") | No page; written as you browse the diary | Per user, automatic | Only you |

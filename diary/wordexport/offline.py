@@ -111,7 +111,7 @@ class _Builder:
                 pieces.append('<span class="case">' + (f'<span class="num">{_e(case_label)}</span> ' if case_label else "")
                               + self.citation(case) + (f' <span class="case-comment">{comment}</span>' if comment else "")
                               + "</span>")
-            body.append((" - " if text else "") + " ; ".join(pieces))
+            body.append((" - " if text else "") + " ".join(pieces))
         body.append(self.flag(item.flag_label, item.flag))
         body.append(self.notes(item.notes))
         where = " > ".join(self.path)
