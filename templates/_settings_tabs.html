@@ -1,0 +1,3 @@
+{# The Settings tab strip (owner round 2026-11): the same on every settings page of the suite, in the Home shell and inside each program. A second row shows the pages of a tab that holds more than one (Users, Profiles, Profile Access; My Display, Names). #}
+{% if suite_tabs %}<nav class="subnav" aria-label="Settings sections">{% for t in suite_tabs %}<a href="{{ t.url }}"{% if t.on %} class="on" aria-current="page"{% endif %}>{{ t.name }}</a>{% endfor %}</nav>{% endif %}
+{% if suite_subtabs %}<nav class="subnav sub-tabs" aria-label="Pages of this tab">{% for t in suite_subtabs %}<a href="{{ t.url }}"{% if t.on %} class="on" aria-current="page"{% endif %}>{{ t.name }}</a>{% endfor %}</nav>{% endif %}

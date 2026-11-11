@@ -24,14 +24,17 @@ from .viewutil import handle_errors, page, profile_or_404, selection
 
 
 def landing(request):
-    """/investments/ opens the Dashboard (or the first visible page if the Dashboard is hidden)."""
+    """/investments/ opens the user's start page (My settings > Start Screens; the Overview by default), or the first visible page if it is hidden."""
     if not request.user.is_authenticated:
         return redirect_to_login(request.get_full_path())
     if program_role(request.user, KEY_INVESTMENTS) is None:
         raise PermissionDenied
     profile = scope.for_profile(request)
     hidden = pages.hidden_slugs(core.get_settings(profile, create=False)) if profile else set()
-    for slug in ("dashboard", "holdings", "transactions", "settings"):
+    chosen = getattr(request.user, "investments_start_page", "") or "dashboard"
+    for slug in (chosen, "dashboard", "holdings", "transactions", "settings"):
+        if slug not in pages.BY_SLUG or (pages.BY_SLUG[slug].admin and not request.user.is_admin):
+            continue
         if slug not in hidden:
             return redirect(reverse(pages.url_name(slug)))
     return redirect(reverse("investments_settings"))

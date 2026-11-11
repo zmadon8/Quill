@@ -5,5 +5,5 @@
 {% block program_name %}<a href="{% url 'home' %}?home=1" title="Go to Home (&#8997;H)" aria-label="Go to Home">{{ home_name }}</a>{% endblock %}
 {% block program_nav %}{% with header_words=home_header_words %}{% for i in suite_nav %}{% include "_nav_item.html" with url=i.url name=i.name icon=i.icon on=i.on %}
   {% endfor %}{% endwith %}{% endblock %}
-{# Sub-pages of a merged page (Users, Profiles, Appearance, Backups; My settings with the program settings), as tabs under the header. #}
-{% block crumb_nav %}{% if suite_tabs %}<nav class="subnav" aria-label="Sections of this page">{% for t in suite_tabs %}<a href="{{ t.url }}"{% if t.on %} class="on" aria-current="page"{% endif %}>{{ t.name }}</a>{% endfor %}</nav>{% endif %}{% endblock %}
+{# The Settings tab strip (and its second row) under the header, on every settings page. #}
+{% block crumb_nav %}{% include "_settings_tabs.html" %}{% endblock %}

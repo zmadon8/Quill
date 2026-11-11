@@ -276,7 +276,8 @@ class MySettingsForm(forms.ModelForm):
 
     class Meta:
         model = User
-        fields = ("email", "landing_program", "justify_text", "colour_theme", "header_initials", "remove_citation_hyphen", "investments_period")
+        fields = ("email", "landing_program", "justify_text", "colour_theme", "header_initials", "remove_citation_hyphen",
+                  "investments_period", "investments_start_page")
         labels = {"justify_text": "Justify text"}
 
     def clean_email(self):
@@ -326,21 +327,69 @@ class MySettingsForm(forms.ModelForm):
                 "The Word export is not affected."
             )
         _set_up_colour_theme(self)
-        self.fields["landing_program"].choices = landing.program_choices(landing.programs_for(self.instance))
+        if "landing_program" in self.fields:
+            self.fields["landing_program"].choices = landing.program_choices(landing.programs_for(self.instance))
 
 
 class MyAccountForm(MySettingsForm):
-    """The Account section of My settings: the email address only."""
+    """The Account section of Account and Profile View: the email address and the letters in the header badge."""
+
+    landing_program = None  # only Start Screens has this field
 
     class Meta(MySettingsForm.Meta):
-        fields = ("email",)
+        fields = ("email", "header_initials")
+
+
+class MyStartForm(MySettingsForm):
+    """Start Screens: the program that opens after sign-in and the page Investments opens on. (The Case Law Diary and Fee Register
+    start pages are saved by their own forms, which the same Start Screens page also carries.)"""
+
+    class Meta(MySettingsForm.Meta):
+        fields = ("landing_program", "investments_start_page")
+
+    def clean_landing_program(self):
+        value = self.cleaned_data.get("landing_program")
+        if "landing_program" not in self.data:
+            return self.instance.landing_program  # not on the form that was posted: keep it
+        return value
+
+    def clean_investments_start_page(self):
+        value = self.cleaned_data.get("investments_start_page")
+        if "investments_start_page" not in self.data or not value:
+            return self.instance.investments_start_page or "dashboard"
+        return value
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["investments_start_page"].required = False
+        self.fields["investments_start_page"].label = "Investments start page"
+
+
+class MyCitationForm(MySettingsForm):
+    """Case Law Diary > Settings > My number formats: leave out the hyphen before the citation (a personal, on-screen choice)."""
+
+    landing_program = None  # only Start Screens has this field
+
+    class Meta(MySettingsForm.Meta):
+        fields = ("remove_citation_hyphen",)
+
+
+class MyInvestmentsForm(MySettingsForm):
+    """Investments > Settings > Display: the period behind the returns on the Overview and Home (a personal choice)."""
+
+    landing_program = None  # only Start Screens has this field
+
+    class Meta(MySettingsForm.Meta):
+        fields = ("investments_period",)
 
 
 class MyDisplayForm(MySettingsForm):
-    """The Display section of My settings: where to land after login and justified text."""
+    """Display: justify text, colour theme and what Home shows."""
+
+    landing_program = None  # only Start Screens has this field
 
     class Meta(MySettingsForm.Meta):
-        fields = ("landing_program", "justify_text", "colour_theme", "header_initials", "remove_citation_hyphen", "investments_period")
+        fields = ("justify_text", "colour_theme")
 
     # Home card figures: one tick-box group per program (declared in __init__ from home_cards.METRIC_CATALOGUE), at most 3 each.
     METRIC_FIELDS = (("home_metrics_diary", suite.KEY_DIARY, "Case Law Diary"), ("home_metrics_fees", suite.KEY_FEES, "Fee Register"),

@@ -1,16 +1,17 @@
 (function () {
   "use strict";
-  var form = document.querySelector("form[data-preview-url]");
-  if (!form) { return; }
-
-  // The Subject dropdown shows only for "A chosen Subject".
-  var page = form.querySelector("[name=opening_page]");
-  var subjectRow = form.querySelector("[data-opening-subject]");
+  // The Subject dropdown shows only for "A chosen Subject" (Start Screens).
+  var page = document.querySelector("[name=opening_page]");
+  var subjectRow = document.querySelector("[data-opening-subject]");
   var showSubject = function () {
     if (page && subjectRow) { subjectRow.hidden = page.value !== "subject"; }
   };
   if (page) { page.addEventListener("change", showSubject); }
   showSubject();
+
+  // The number formats form (Case Law Diary settings) has a live preview.
+  var form = document.querySelector("form[data-preview-url]");
+  if (!form) { return; }
 
   // Live preview: the server renders the sample; this only fetches it and swaps it in.
   var box = form.querySelector("[data-preview]");

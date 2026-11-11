@@ -1,0 +1,38 @@
+{% extends "base_suite_home.html" %}
+{% load static %}
+{% block title %}Display - {{ site_name }}{% endblock %}
+{% block content %}
+<h1 class="visually-hidden">Display</h1>
+<p class="field-help">How the site looks and what Home shows you. Only yours. {% if user.is_admin %}The names everyone sees are on the Names page of this tab.{% endif %}</p>
+<div class="settings-layout" data-settings-sections data-initial="{{ section|default:'look' }}">
+  <nav class="settings-nav" aria-label="Sections of this page">
+    <a href="#section-look" data-section-link="look" class="on" aria-current="page">Look</a>
+    <a href="#section-home" data-section-link="home">Home page</a>
+  </nav>
+  <div class="settings-panels">
+  <form method="post" action="{% url 'my_settings' %}" class="stack settings-section-form" data-section-form>
+    {% csrf_token %}
+    <input type="hidden" name="tab" value="display">
+    {% if display_form.non_field_errors %}{{ display_form.non_field_errors }}{% endif %}
+    <section class="settings-panel-body" data-section="look" id="section-look">
+      <h2>Look</h2>
+      {% include "_setting_row.html" with f=display_form.justify_text help=display_form.justify_text.help_text who="you" checkbox=True %}
+      {% include "_setting_row.html" with f=display_form.colour_theme help=display_form.colour_theme.help_text who="you" %}
+      <p class="theme-swatches" aria-hidden="true">{% for key, label in display_form.colour_theme.field.choices %}<span class="theme-swatch" data-swatch="{{ key }}">{{ label }}</span>{% endfor %}</p>
+    </section>
+    <section class="settings-panel-body" data-section="home" id="section-home">
+      <h2>Home page</h2>
+      <input type="hidden" name="home_metrics_present" value="1">
+      {% include "_setting_row_multi.html" with f=display_form.home_metrics_diary help=display_form.home_metrics_diary.help_text who="you" %}
+      {% include "_setting_row_multi.html" with f=display_form.home_metrics_fees help=display_form.home_metrics_fees.help_text who="you" %}
+      {% include "_setting_row_multi.html" with f=display_form.home_metrics_investments help=display_form.home_metrics_investments.help_text who="you" %}
+      <input type="hidden" name="home_details_present" value="1">
+      {% include "_setting_row_multi_free.html" with f=display_form.home_details_fees help=display_form.home_details_fees.help_text who="you" %}
+      {% include "_setting_row_multi_free.html" with f=display_form.home_details_investments help=display_form.home_details_investments.help_text who="you" %}
+    </section>
+    <p class="section-actions"><button type="submit">Save</button> <span class="dirty-note" data-dirty-note hidden>You have unsaved changes.</span></p>
+  </form>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}<script src="{% static 'js/my-settings.js' %}"></script><script src="{% static 'js/home-metrics.js' %}"></script><script src="{% static 'js/settings-sections.js' %}"></script>{% endblock %}

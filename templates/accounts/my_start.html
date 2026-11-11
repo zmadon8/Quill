@@ -1,0 +1,74 @@
+{% extends "base_suite_home.html" %}
+{% load static %}
+{% block title %}Start Screens - {{ site_name }}{% endblock %}
+{% block content %}
+<h1 class="visually-hidden">Start Screens</h1>
+<p class="field-help">Where the site opens for you: first when you sign in, then inside each program. Only yours.</p>
+<div class="settings-layout" data-settings-sections data-initial="site">
+  <nav class="settings-nav" aria-label="Sections of this page">
+    <a href="#section-site" data-section-link="site" class="on" aria-current="page">When I open the site</a>
+    {% if diary_form %}<a href="#section-diary" data-section-link="diary">{{ diary_name }}</a>{% endif %}
+    {% if fees_form %}<a href="#section-fees" data-section-link="fees">{{ fees_name }}</a>{% endif %}
+    {% if inv_profile %}<a href="#section-investments" data-section-link="investments">{{ investments_name }}</a>{% endif %}
+  </nav>
+  <div class="settings-panels">
+
+  <section class="settings-panel-body" data-section="site" id="section-site">
+    <h2>When I open the site</h2>
+    <form method="post" action="{% url 'my_settings' %}" class="stack settings-section-form" data-section-form>
+      {% csrf_token %}
+      <input type="hidden" name="tab" value="start">
+      {% if start_form.non_field_errors %}{{ start_form.non_field_errors }}{% endif %}
+      {% include "_setting_row.html" with f=start_form.landing_program help="The screen that opens when you sign in or open the website. Leave it on Home to see the list of programs." who="you" %}
+      <p class="section-actions"><button type="submit">Save</button> <span class="dirty-note" data-dirty-note hidden>You have unsaved changes.</span></p>
+    </form>
+  </section>
+
+  {% if diary_form %}
+  <section class="settings-panel-body" data-section="diary" id="section-diary">
+    <h2>{{ diary_name }}</h2>
+    <form method="post" action="{% url 'my_settings' %}" class="stack settings-section-form" data-section-form data-opening>
+      {% csrf_token %}
+      <input type="hidden" name="tab" value="start">
+      {% if diary_form.non_field_errors %}{{ diary_form.non_field_errors }}{% endif %}
+      {% include "_setting_row.html" with f=diary_form.opening_page help="The page that opens first when you enter this program." who="you" %}
+      <div class="setting-row" data-opening-subject>
+        {{ diary_form.opening_subject.errors }}
+        <label for="{{ diary_form.opening_subject.id_for_label }}">Subject to open</label>{% include "_who_tag.html" with who="you" %}
+        {{ diary_form.opening_subject }}
+        <span class="setting-help">Only used when the opening page is A chosen Subject.</span>
+      </div>
+      <p class="section-actions"><button type="submit">Save</button> <span class="dirty-note" data-dirty-note hidden>You have unsaved changes.</span></p>
+    </form>
+  </section>
+  {% endif %}
+
+  {% if fees_form %}
+  <section class="settings-panel-body" data-section="fees" id="section-fees">
+    <h2>{{ fees_name }}</h2>
+    <form method="post" action="{% url 'my_settings' %}" class="stack settings-section-form" data-section-form>
+      {% csrf_token %}
+      <input type="hidden" name="tab" value="start">
+      {% if fees_form.non_field_errors %}{{ fees_form.non_field_errors }}{% endif %}
+      {% include "_setting_row.html" with f=fees_form.default_tab help="The page the Fee Register opens on. Leave it on the profile's choice to use the one the profile sets." who="you" %}
+      <p class="section-actions"><button type="submit">Save</button> <span class="dirty-note" data-dirty-note hidden>You have unsaved changes.</span></p>
+    </form>
+  </section>
+  {% endif %}
+
+  {% if inv_profile %}
+  <section class="settings-panel-body" data-section="investments" id="section-investments">
+    <h2>{{ investments_name }}</h2>
+    <form method="post" action="{% url 'my_settings' %}" class="stack settings-section-form" data-section-form>
+      {% csrf_token %}
+      <input type="hidden" name="tab" value="start">
+      {% include "_setting_row.html" with f=start_form.investments_start_page help="The page Investments opens on. If you have hidden that page, the first page that is shown opens instead." who="you" %}
+      <p class="section-actions"><button type="submit">Save</button> <span class="dirty-note" data-dirty-note hidden>You have unsaved changes.</span></p>
+    </form>
+  </section>
+  {% endif %}
+
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}<script src="{% static 'js/my-settings.js' %}"></script><script src="{% static 'js/settings-sections.js' %}"></script>{% endblock %}

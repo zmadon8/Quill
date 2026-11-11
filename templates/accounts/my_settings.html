@@ -1,14 +1,14 @@
 {% extends "base_suite_home.html" %}
 {% load static %}
-{% block title %}My settings - {{ site_name }}{% endblock %}
+{% block title %}Account and Profile View - {{ site_name }}{% endblock %}
 {% block content %}
-<h1{% if suite_tabs %} class="visually-hidden"{% endif %}>My settings</h1>
-<p class="field-help">Everything here is only yours. The settings everyone in a profile shares are on each program's own Settings tab.</p>
+<h1 class="visually-hidden">Account and Profile View</h1>
+<p class="field-help">Everything here is only yours. The settings everyone in a profile shares are on each program's own tab.</p>
 {# Left-hand sections, each its own form with its own Save (static/js/settings-sections.js shows one at a time and warns about unsaved changes). Without JavaScript all sections are shown one under the other. #}
-<div class="settings-layout" data-settings-sections data-initial="{{ tab }}">
-  <nav class="settings-nav" aria-label="Sections of My settings">
-    {% for key in sections %}<a href="?tab={{ key }}" data-section-link="{{ key }}"{% if key == tab %} class="on" aria-current="page"{% endif %}>{% if key == "account" %}Account{% elif key == "display" %}Display{% elif key == "diary" %}{{ diary_name }}{% else %}{{ fees_name }}{% endif %}</a>
-    {% endfor %}
+<div class="settings-layout" data-settings-sections data-initial="account">
+  <nav class="settings-nav" aria-label="Sections of this page">
+    <a href="#section-account" data-section-link="account" class="on" aria-current="page">Account</a>
+    <a href="#section-profile" data-section-link="profile">Profile View</a>
   </nav>
   <div class="settings-panels">
 
@@ -19,6 +19,7 @@
       <input type="hidden" name="tab" value="account">
       {% if account_form.non_field_errors %}{{ account_form.non_field_errors }}{% endif %}
       {% include "_setting_row.html" with f=account_form.email help=account_form.email.help_text who="you" %}
+      {% include "_setting_row.html" with f=account_form.header_initials help=account_form.header_initials.help_text who="you" %}
       <p class="section-actions"><button type="submit">Save</button> <span class="dirty-note" data-dirty-note hidden>You have unsaved changes.</span></p>
     </form>
     <div class="setting-row">
@@ -28,91 +29,23 @@
     </div>
   </section>
 
-  <section class="settings-panel-body" data-section="display" id="section-display">
-    <h2>Display</h2>
-    <form method="post" action="{% url 'my_settings' %}" class="stack settings-section-form" data-section-form>
-      {% csrf_token %}
-      <input type="hidden" name="tab" value="display">
-      {% if display_form.non_field_errors %}{{ display_form.non_field_errors }}{% endif %}
-      {% include "_setting_row.html" with f=display_form.justify_text help=display_form.justify_text.help_text who="you" checkbox=True %}
-      {% include "_setting_row.html" with f=display_form.colour_theme help=display_form.colour_theme.help_text who="you" %}
-      {% include "_setting_row.html" with f=display_form.header_initials help=display_form.header_initials.help_text who="you" %}
-      {% include "_setting_row.html" with f=display_form.investments_period help=display_form.investments_period.help_text who="you" %}
-      <input type="hidden" name="home_metrics_present" value="1">
-      {% include "_setting_row_multi.html" with f=display_form.home_metrics_diary help=display_form.home_metrics_diary.help_text who="you" %}
-      {% include "_setting_row_multi.html" with f=display_form.home_metrics_fees help=display_form.home_metrics_fees.help_text who="you" %}
-      {% include "_setting_row_multi.html" with f=display_form.home_metrics_investments help=display_form.home_metrics_investments.help_text who="you" %}
-      <input type="hidden" name="home_details_present" value="1">
-      {% include "_setting_row_multi_free.html" with f=display_form.home_details_fees help=display_form.home_details_fees.help_text who="you" %}
-      {% include "_setting_row_multi_free.html" with f=display_form.home_details_investments help=display_form.home_details_investments.help_text who="you" %}
-      {% include "_setting_row.html" with f=display_form.remove_citation_hyphen help=display_form.remove_citation_hyphen.help_text who="you" checkbox=True %}
-      <p class="theme-swatches" aria-hidden="true">{% for key, label in display_form.colour_theme.field.choices %}<span class="theme-swatch" data-swatch="{{ key }}">{{ label }}</span>{% endfor %}</p>
-      {% include "_setting_row.html" with f=display_form.landing_program help="The program that opens when you sign in. Leave blank to see Home." who="you" %}
-      <p class="section-actions"><button type="submit">Save</button> <span class="dirty-note" data-dirty-note hidden>You have unsaved changes.</span></p>
-    </form>
+  <section class="settings-panel-body" data-section="profile" id="section-profile">
+    <h2>Profile View</h2>
+    <p class="setting-help">The profiles you can use in each program. The one marked <strong>In use</strong> is the one you are looking at now. Switching opens that program's first page.</p>
+    {% for group in profile_groups %}
+    <div class="setting-row">
+      <span class="setting-label">{{ group.name }}</span>{% include "_who_tag.html" with who="you" %}
+      <ul class="plain">
+        {% for row in group.rows %}<li>{% if row.current %}<strong>{{ row.profile.name }}</strong> <span class="muted">In use</span>{% else %}<form method="post" action="{% url 'profile_switch' %}" class="inline-edit">{% csrf_token %}<input type="hidden" name="profile" value="{{ row.profile.pk }}">{{ row.profile.name }} <button type="submit" class="secondary">Use this profile</button></form>{% endif %}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% empty %}
+    <p class="muted">You have no profile in any program yet. An Admin can give you one on the Users &amp; Profiles tab.</p>
+    {% endfor %}
   </section>
-
-  {% if diary_form %}
-  <section class="settings-panel-body" data-section="diary" id="section-diary">
-    <h2>{{ diary_name }}</h2>
-    <p class="setting-help">These follow you into every {{ diary_name }} profile you use. Changing formats changes how numbers are shown (on screen and in the Word export) but never your stored data.</p>
-    <form method="post" action="{% url 'my_settings' %}" class="stack settings-section-form" data-section-form data-preview-url="{% url 'format_preview' %}">
-      {% csrf_token %}
-      <input type="hidden" name="tab" value="diary">
-      {% if diary_form.non_field_errors %}{{ diary_form.non_field_errors }}{% endif %}
-      <div data-opening>
-        {% include "_setting_row.html" with f=diary_form.opening_page help="The page that opens first when you enter this program. It is used when this program is chosen under Display." who="you" %}
-        <div class="setting-row" data-opening-subject>
-          {{ diary_form.opening_subject.errors }}
-          <label for="{{ diary_form.opening_subject.id_for_label }}">Subject to open</label>{% include "_who_tag.html" with who="you" %}
-          {{ diary_form.opening_subject }}
-          <span class="setting-help">Only used when the opening page is A chosen Subject.</span>
-        </div>
-      </div>
-      <h3>Number formats</h3>
-      <div class="format-layout">
-        <div class="format-fields">
-          <fieldset>
-            <legend>Headings</legend>
-            {% include "_setting_row.html" with f=diary_form.topic_format help="How Topics are numbered." who="you" %}
-            {% include "_setting_row.html" with f=diary_form.subtopic_format help="How Sub-topics are numbered." who="you" %}
-          </fieldset>
-          <fieldset>
-            <legend>Sections and Items</legend>
-            {% include "_setting_row.html" with f=diary_form.section_format help="How Sections are numbered." who="you" %}
-            {% include "_setting_row.html" with f=diary_form.item_format help="How Items are numbered." who="you" %}
-            {% include "_setting_row.html" with f=diary_form.multi_citation_format help="How the citations of an Item with several are numbered." who="you" %}
-          </fieldset>
-          <p><button type="button" class="secondary" data-standard-formats>Use The Standard Formats</button></p>
-        </div>
-        <div class="format-preview-box" aria-live="polite">
-          <h3>Preview</h3>
-          <div data-preview>{% include "accounts/_format_preview.html" %}</div>
-          <p class="field-help">Updates as you choose. Without JavaScript it updates after you save.</p>
-        </div>
-      </div>
-      {% include "_setting_row.html" with f=diary_form.export_date_format help="The date at the end of the Word file names you export, and on the front page. The time zone is India (Asia/Kolkata, IST)." who="you" %}
-      <p class="section-actions"><button type="submit">Save</button> <span class="dirty-note" data-dirty-note hidden>You have unsaved changes.</span></p>
-    </form>
-  </section>
-  {% endif %}
-
-  {% if fees_form %}
-  <section class="settings-panel-body" data-section="fees" id="section-fees">
-    <h2>{{ fees_name }}</h2>
-    <p class="setting-help">Your own choices for the {{ fees_name }}. Leave a box blank to use the profile's choice.</p>
-    <form method="post" action="{% url 'my_settings' %}" class="stack settings-section-form" data-section-form>
-      {% csrf_token %}
-      <input type="hidden" name="tab" value="fees">
-      {% if fees_form.non_field_errors %}{{ fees_form.non_field_errors }}{% endif %}
-      {% include "_setting_row.html" with f=fees_form.default_tab help="The page the Fee Register opens on." who="you" %}
-      {% include "_setting_row.html" with f=fees_form.items_per_page help="How many memos or payments one page of Memos, Drafts and Feebook shows. Type All to show a whole financial year on one page; the most you can type is 1000." who="you" %}
-      <p class="section-actions"><button type="submit">Save</button> <span class="dirty-note" data-dirty-note hidden>You have unsaved changes.</span></p>
-    </form>
-  </section>
-  {% endif %}
 
   </div>
 </div>
 {% endblock %}
-{% block extra_js %}<script src="{% static 'js/my-settings.js' %}"></script><script src="{% static 'js/home-metrics.js' %}"></script><script src="{% static 'js/settings-sections.js' %}"></script>{% endblock %}
+{% block extra_js %}<script src="{% static 'js/settings-sections.js' %}"></script>{% endblock %}

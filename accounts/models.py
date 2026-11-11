@@ -53,6 +53,12 @@ class User(AbstractUser):
         ("1m", "1M"), ("3m", "3M"), ("6m", "6M"), ("1y", "1Y"), ("3y", "3Y"), ("5y", "5Y"), ("all", "All"),
     ]
     investments_period = models.CharField("Investments period for returns", max_length=3, choices=INVESTMENTS_PERIOD_CHOICES, default="all")
+    # Owner round (2026-11): the page the Investments program opens on (My settings, Start Screens). Keys are Investments page slugs.
+    INVESTMENTS_START_CHOICES = [
+        ("dashboard", "Overview"), ("holdings", "Holdings"), ("transactions", "Transactions"), ("performance", "Reports"),
+        ("alerts", "Alerts"), ("admin_catalogue", "Catalogue"),
+    ]
+    investments_start_page = models.CharField("Investments start page", max_length=20, choices=INVESTMENTS_START_CHOICES, default="dashboard")
     # Owner round (2026-11): the (up to 3) figures on each program's Home card, {"diary": [ids], "fees": [...], "investments": [...]}
     # (My settings, Display). A missing or empty list means that program's defaults; see accounts/home_cards.py.
     home_metrics = models.JSONField("Home card figures", default=dict, blank=True)
