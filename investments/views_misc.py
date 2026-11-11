@@ -96,7 +96,7 @@ def settings_general(request):
     profile = profile_or_404(request)
     row = core.get_settings(profile, create=False)
     initial = {f: getattr(row, f) for f in ("sip_mode", "awaiting_treatment", "awaiting_reminder_days", "corporate_action_mode",
-                                            "long_term_days", "sectoral_enabled", "include_dividends", "alt_treatment", "money_default")}
+                                            "long_term_days", "sectoral_enabled", "include_dividends", "alt_treatment")}
     initial["default_index"] = row.default_index
     form = forms.GeneralSettingsForm(request.POST or None, initial=initial)
     if request.method == "POST":

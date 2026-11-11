@@ -9,27 +9,51 @@ forms and templates (see "How this was checked" at the end). The "Who" column us
 - **This browser**: kept in the browser (localStorage). Not on the server, not shared between devices.
 - **Server**: set in the server environment (Render, or a local shell). Needs a restart or deploy to change.
 
+## 0. The Settings tabs
+
+Every setting is on one of these tabs of Settings (click your name at the top right, or **Settings** on Home). The same tab
+strip is across the top of every settings page, in the Home shell and inside each program. A setting appears on exactly one
+page; where a profile-wide value and a personal one both exist (Opening page, Items per page) they are two different
+settings with different "Who" tags.
+
+| Tab | Pages | What it holds | Who sees it |
+| --- | --- | --- | --- |
+| Users & Profiles | Users, Profiles, Profile Access | Users & Profiles > Users (accounts, roles, access), Profiles (add, rename, delete, restore, clear, Offline link), Profile Access | Admin |
+| Account and Profile View | Account, Profile View | Email, letters in the header badge, Change my password; the profiles I can use in each program (and switching) | Everyone |
+| Backup | Saved backups, Email backups (`?tab=email`) | Backups, restore, the email schedule | Admin |
+| Display | My Display, Names | Justify text, colour theme, Home card figures, Home page extras; the names of the site, Home and the programs (`Names`, Admin) | Everyone; Names Admin |
+| Start Screens | When I open the site, one section per program | Open after login (`landing_program`), Case Law Diary opening page and Subject, Fee Register Opening page, Investments start page | Everyone, a program's section only if the user can open it |
+| Case Law Diary | Reading, My Number Formats, Data | Home Page Name, Header Name, View whole subject, My number formats and date in file names and Remove citation hyphen (Only you), Export file name, Word import, Offline link | A user with a Case Law Diary profile |
+| Fee Register | Memos, Payments, Word Documents, Years And Statistics, Display, Data | Every profile setting, plus My items per page (Only you, in Display) | A user with a Fee Register profile |
+| Investments | General, Brokers, Alerts, Display, Pages, Insights, Indices | Every profile setting, plus Investments period for returns (Only you, in Display) | A user with an Investments profile |
+
+The Investments **Catalogue** (the shared catalogue, Price history and Price sources) is a page of Investments itself, not a
+settings tab. Its old addresses under `/investments/settings/` redirect (308) to `/investments/catalogue/...`.
+
 ## 1. The short answer: per user versus per profile
 
-**Per user (My settings, tag "Only you")**
+**Per user (Settings, tag "Only you")**
 
 | Setting | Where |
 | --- | --- |
-| Email | My settings > Account |
-| Password | My settings > Account (Change my password) |
-| Justify text | My settings > Display |
-| Open after login (program) | My settings > Display |
-| Case Law Diary opening page, Subject to open | My settings > Case Law Diary |
-| Case Law Diary number formats (Topic, Sub-topic, Section, Item, several citations) | My settings > Case Law Diary |
-| Date in Word file names | My settings > Case Law Diary |
-| Fee Register Opening page | My settings > Fee Register |
-| Fee Register Items per page | My settings > Fee Register |
+| Email, letters in the header badge | Settings > Account and Profile View |
+| Password | Settings > Account and Profile View (Change my password) |
+| Justify text | Settings > Display |
+| Open after login (program) | Settings > Start Screens |
+| Case Law Diary opening page, Subject to open | Settings > Start Screens |
+| Case Law Diary number formats (Topic, Sub-topic, Section, Item, several citations) | Settings > Case Law Diary > My Number Formats |
+| Date in Word file names | Settings > Case Law Diary > My Number Formats |
+| Fee Register Opening page | Settings > Start Screens |
+| Fee Register Items per page | Settings > Fee Register > Display |
+| Investments start page | Settings > Start Screens |
+| Investments period for returns | Settings > Investments > Display |
+| Remove the hyphen before the citation | Settings > Case Law Diary > My Number Formats |
 | Column widths of every table in the suite (Fee Register tables also keep hidden columns) | Dragged on the tables themselves |
 
 **Decision: the diary number formats stay per user.** They are `diary.UserSettings` fields, one row per user. They are
-shown in one place only, My settings > Case Law Diary, tagged Only you. They follow you into every Case Law Diary
+shown in one place only, Settings > Case Law Diary > My Number Formats, tagged Only you. They follow you into every Case Law Diary
 profile you use. They change how numbers are shown (on screen and in the Word export), never the stored data. They
-are not on the diary Settings tab.
+are in a section of their own on the diary Settings tab, apart from the shared ones.
 
 **Per profile (each program's Settings tab, tag "Everyone in this profile")**
 
@@ -38,7 +62,7 @@ are not on the diary Settings tab.
 | Case Law Diary | Display Name, View whole subject, Export file name, Offline link |
 | Fee Register | Every setting on Fee Register > Settings sections 1 to 5 (memo defaults, payments, Word documents and template, start years, statistics, display and figures) |
 
-**Suite-wide (Admin > Appearance, tag "Everyone")**: the names of Home and each program. (There is no Words or Logo choice: every header bar shows words, except the fixed icons for the user badge, Search, Home and Sign out, and Home is always shown.)
+**Suite-wide (Settings > Display > Names, tag "Everyone")**: the names of Home and each program. (There is no Words or Logo choice: every header bar shows words, except the fixed icons for the user badge, Search, Home and Sign out, and Home is always shown.)
 
 **Server only**: the environment variables in section 6.
 
@@ -48,43 +72,44 @@ are not on the diary Settings tab.
 
 | Field | Setting | Page and section | Stored | Who |
 | --- | --- | --- | --- | --- |
-| `username` | Username | Admin > Users (edit, create) | Per user | Admin sets; used by that user |
-| `email` | Email | My settings > Account; also Admin > Users | Per user | Only you |
-| `password` | Password | My settings > Account > Change my password | Per user | Only you |
-| `is_active` | Account active | Admin > Users (edit) | Per user | Admin sets |
-| `is_superuser` | Admin | Admin > Users (edit) | Per user | Admin sets |
-| `landing_program` | Open after login | My settings > Display (Admin > Users edits it for another user as "Open after login") | Per user | Only you |
-| `justify_text` | Justify text | My settings > Display | Per user | Only you |
-| `colour_theme` | Colour theme: Oxblood (default), Royal Blue, Navy, Violet, Plum or Teal. Changes the accent (buttons, current tab, links) on every page; status colours and exports never change | My settings > Display; an Admin on the user's edit screen | Per user | Only you |
-| `header_initials` | Letters in the header badge: up to 3, shown upper-case in the round badge at the top right. Blank: the first letters of your first and last name | My settings > Display | Per user | Only you |
-| `remove_citation_hyphen` | Remove the hyphen before the citation: on, the Case Law Diary on screen leaves out the " - " between an Item's text and its inline citations (default off). The Word export and offline copy keep the hyphen. The ";" between several inline citations is always gone | My settings > Display | Per user | Only you |
-| `investments_period` | Investments period for returns: 1M, 3M, 6M, 1Y, 3Y, 5Y or All (default). The period behind Gain, Portfolio XIRR, index XIRR and Alpha on the Investments Overview cards and Portfolio XIRR on Home. A period longer than the history uses the whole history | My settings > Display | Per user | Only you |
-| `home_metrics` | Home card figures: up to 3 per program (Case Law Diary, Fee Register, Investments) shown on that program's card on Home, in the order listed. Diary: Subjects, Items, Flagged, Items not flagged, Items per subject. Fees: Memos this year, Outstanding, Drafts, Financial year, Memos issued, Payments recorded. Investments: Value, XIRR, Alerts, Invested, Gain (read from the cache only, so they show a dash until the Overview has been opened). More than 3 is refused; none ticked keeps the usual three (Subjects, Items, Flagged / Memos this year, Outstanding, Drafts / Value, XIRR, Alerts) | My settings > Display | Per user | Only you |
-| `home_details` | Home page extras: any items of the Fee Register Dashboard (its boxes, Billed by month, Who owes the most, Recently billed matters) and of the Investments Overview (its boxes, the Over time table, Allocation) shown below the cards on Home, in catalogue order, for programs you can open. No limit. The Investments items are read from the cache only and show "Open the Overview once to fill this in" until the Overview has been opened; the value chart and insights are not offered. None ticked: nothing extra | My settings > Display | Per user | Only you |
-| `can_see_active` | Can See Who Is Active (shows the Active Now and Earlier Today panel on Home; an Admin always sees it) | Admin > Users (edit, create) | Per user | Admin sets |
+| `username` | Username | Users & Profiles > Users (edit, create) | Per user | Admin sets; used by that user |
+| `email` | Email | Settings > Account and Profile View; also Users & Profiles > Users | Per user | Only you |
+| `password` | Password | Settings > Account and Profile View > Change my password | Per user | Only you |
+| `is_active` | Account active | Users & Profiles > Users (edit) | Per user | Admin sets |
+| `is_superuser` | Admin | Users & Profiles > Users (edit) | Per user | Admin sets |
+| `landing_program` | Open after login | Settings > Start Screens (Users & Profiles > Users edits it for another user as "Open after login") | Per user | Only you |
+| `justify_text` | Justify text | Settings > Display | Per user | Only you |
+| `colour_theme` | Colour theme: Oxblood (default), Royal Blue, Navy, Violet, Plum or Teal. Changes the accent (buttons, current tab, links) on every page; status colours and exports never change | Settings > Display; an Admin on the user's edit screen | Per user | Only you |
+| `header_initials` | Letters in the header badge: up to 3, shown upper-case in the round badge at the top right. Blank: the first letters of your first and last name | Settings > Account and Profile View | Per user | Only you |
+| `remove_citation_hyphen` | Remove the hyphen before the citation: on, the Case Law Diary on screen leaves out the " - " between an Item's text and its inline citations (default off). The Word export and offline copy keep the hyphen. The ";" between several inline citations is always gone | Settings > Case Law Diary > My Number Formats | Per user | Only you |
+| `investments_period` | Investments period for returns: 1M, 3M, 6M, 1Y, 3Y, 5Y or All (default). The period behind Gain, Portfolio XIRR, index XIRR and Alpha on the Investments Overview cards and Portfolio XIRR on Home. A period longer than the history uses the whole history | Settings > Investments > Display | Per user | Only you |
+| `investments_start_page` | Investments start page: Overview (default), Holdings, Transactions, Reports, Alerts or Catalogue. A page you have hidden falls back to the first page that is shown | Settings > Start Screens | Per user | Only you |
+| `home_metrics` | Home card figures: up to 3 per program (Case Law Diary, Fee Register, Investments) shown on that program's card on Home, in the order listed. Diary: Subjects, Items, Flagged, Items not flagged, Items per subject. Fees: Memos this year, Outstanding, Drafts, Financial year, Memos issued, Payments recorded. Investments: Value, XIRR, Alerts, Invested, Gain (read from the cache only, so they show a dash until the Overview has been opened). More than 3 is refused; none ticked keeps the usual three (Subjects, Items, Flagged / Memos this year, Outstanding, Drafts / Value, XIRR, Alerts) | Settings > Display | Per user | Only you |
+| `home_details` | Home page extras: any items of the Fee Register Dashboard (its boxes, Billed by month, Who owes the most, Recently billed matters) and of the Investments Overview (its boxes, the Over time table, Allocation) shown below the cards on Home, in catalogue order, for programs you can open. No limit. The Investments items are read from the cache only and show "Open the Overview once to fill this in" until the Overview has been opened; the value chart and insights are not offered. None ticked: nothing extra | Settings > Display | Per user | Only you |
+| `can_see_active` | Can See Who Is Active (shows the Active Now and Earlier Today panel on Home; an Admin always sees it) | Users & Profiles > Users (edit, create) | Per user | Admin sets |
 | `last_seen_at` | When the user was last seen (no more than once a minute; feeds the Active Now panel) | No page; written as you browse | Per user, automatic | Nobody |
 | `last_diary_path` | The last page I viewed (used when the diary opening page is "The last page I viewed") | No page; written as you browse the diary | Per user, automatic | Only you |
-| `deleted_at`, `deleted_by_name`, `was_active` | Bookkeeping for a deleted (trashed) user and Restore | Admin > Users (Trash, Restore) | Per user, automatic | Admin |
+| `deleted_at`, `deleted_by_name`, `was_active` | Bookkeeping for a deleted (trashed) user and Restore | Users & Profiles > Users (Trash, Restore) | Per user, automatic | Admin |
 
 ### 2.2 `accounts.Profile` (per profile)
 
 | Field | Setting | Page and section | Stored | Who |
 | --- | --- | --- | --- | --- |
-| `program` | Which program the profile belongs to | Admin > Profiles (add) | Per profile | Admin sets |
-| `name` | Profile name | Admin > Profiles (add, rename) | Per profile | Admin sets |
-| `display_name` | Home Page Name (the profile's name on the Home page and in the browser tab) | Case Law Diary > Settings > Reading; also Admin > Profiles (add, rename) | Per profile | Everyone in this profile |
-| `header_name` | Header Name (a shorter name for the program header; pointing at it shows the Home Page Name; blank uses the Home Page Name) | Case Law Diary > Settings > Reading; also Admin > Profiles (add, rename) | Per profile | Everyone in this profile |
+| `program` | Which program the profile belongs to | Users & Profiles > Profiles (add) | Per profile | Admin sets |
+| `name` | Profile name | Users & Profiles > Profiles (add, rename) | Per profile | Admin sets |
+| `display_name` | Home Page Name (the profile's name on the Home page and in the browser tab) | Case Law Diary > Settings > Reading; also Users & Profiles > Profiles (add, rename) | Per profile | Everyone in this profile |
+| `header_name` | Header Name (a shorter name for the program header; pointing at it shows the Home Page Name; blank uses the Home Page Name) | Case Law Diary > Settings > Reading; also Users & Profiles > Profiles (add, rename) | Per profile | Everyone in this profile |
 | `reading_all_mode` | View whole subject (Yes means the whole Subject, No means only that Topic or Sub-topic) | Case Law Diary > Settings > Reading | Per profile | Everyone in this profile |
 | `reading_all_default` | Old "whole Subject" default. Kept; the Yes/No toggle reads it only when `reading_all_mode` is the old "remember" value, and writing the toggle leaves it alone | Case Law Diary > Settings > Reading (indirect) | Per profile | Everyone in this profile |
 | `export_name` | Export file name (start of every exported Word file name) | Case Law Diary > Settings > Data (Editors only) | Per profile | Everyone in this profile |
-| `deleted_at`, `deleted_by` | Bookkeeping for a deleted profile and Restore | Admin > Profiles (Trash, Restore) | Per profile, automatic | Admin |
+| `deleted_at`, `deleted_by` | Bookkeeping for a deleted profile and Restore | Users & Profiles > Profiles (Trash, Restore) | Per profile, automatic | Admin |
 | `created_at`, `updated_at` | Bookkeeping | None | Per profile, automatic | n/a |
 
 Related, not fields of `Profile`:
 
 | Model | Setting | Page and section | Stored | Who |
 | --- | --- | --- | --- | --- |
-| `accounts.ProfileMembership` (`role`, `suspended`) | Role (Admin, Editor, Reader or No access) of a user in a profile | Admin > Users (edit, create: one role picker per profile) | Per user per profile | Admin sets |
+| `accounts.ProfileMembership` (`role`, `suspended`) | Role (Admin, Editor, Reader or No access) of a user in a profile | Users & Profiles > Users (edit, create: one role picker per profile) | Per user per profile | Admin sets |
 | `accounts.OfflineLink` (`enabled`, `token`, copy fields) | Offline link on and off, new link | Case Law Diary > Settings > Data > Manage the Offline link (Admin only) | Per profile | Everyone in this profile |
 
 ### 2.3 `accounts.SuiteName` (suite-wide)
@@ -93,27 +118,27 @@ One row per key (`key`, `display_name`). Nothing is per user or per profile.
 
 | Row key | Setting | Page and section | Stored | Who |
 | --- | --- | --- | --- | --- |
-| `home` | Name of the Home page | Admin > Appearance | Suite-wide | Everyone |
-| `diary` | Name of the Case Law Diary | Admin > Appearance | Suite-wide | Everyone |
-| `fees` | Name of the Fee Register (field offered only while the program is switched on) | Admin > Appearance | Suite-wide | Everyone |
+| `home` | Name of the Home page | Settings > Display > Names | Suite-wide | Everyone |
+| `diary` | Name of the Case Law Diary | Settings > Display > Names | Suite-wide | Everyone |
+| `fees` | Name of the Fee Register (field offered only while the program is switched on) | Settings > Display > Names | Suite-wide | Everyone |
 
 ## 3. Case Law Diary (`diary` app)
 
 ### 3.1 `diary.UserSettings` (per user, one row per user)
 
-All shown on **My settings > Case Law Diary** (`my_settings?tab=diary`), tag **Only you**, except `export_custom_name`
+All shown on **Settings > Case Law Diary > My Number Formats / Settings > Start Screens** (`profile_settings?tab=numbers` and `my_settings?tab=start`), tag **Only you**, except `export_custom_name`
 and `time_zone`, which have no page.
 
 | Field | Setting | Page and section | Stored | Who |
 | --- | --- | --- | --- | --- |
-| `opening_page` | Opening page (Subjects, Global Search, The last page I viewed, A chosen Subject) | My settings > Case Law Diary | Per user | Only you |
-| `opening_subject` | Subject to open (used only when the opening page is A chosen Subject) | My settings > Case Law Diary | Per user | Only you |
-| `topic_format` | Number format of Topics | My settings > Case Law Diary > Number formats > Headings | Per user | Only you |
-| `subtopic_format` | Number format of Sub-topics | My settings > Case Law Diary > Number formats > Headings | Per user | Only you |
-| `section_format` | Number format of Sections | My settings > Case Law Diary > Number formats > Sections and Items | Per user | Only you |
-| `item_format` | Number format of Items | My settings > Case Law Diary > Number formats > Sections and Items | Per user | Only you |
-| `multi_citation_format` | Number format of the citations of an Item with several | My settings > Case Law Diary > Number formats > Sections and Items | Per user | Only you |
-| `export_date_format` | Date in Word file names (and on the front page) | My settings > Case Law Diary | Per user | Only you |
+| `opening_page` | Opening page (Subjects, Global Search, The last page I viewed, A chosen Subject) | Settings > Case Law Diary > My Number Formats / Settings > Start Screens | Per user | Only you |
+| `opening_subject` | Subject to open (used only when the opening page is A chosen Subject) | Settings > Case Law Diary > My Number Formats / Settings > Start Screens | Per user | Only you |
+| `topic_format` | Number format of Topics | Settings > Case Law Diary > My Number Formats / Settings > Start Screens > Number formats > Headings | Per user | Only you |
+| `subtopic_format` | Number format of Sub-topics | Settings > Case Law Diary > My Number Formats / Settings > Start Screens > Number formats > Headings | Per user | Only you |
+| `section_format` | Number format of Sections | Settings > Case Law Diary > My Number Formats / Settings > Start Screens > Number formats > Sections and Items | Per user | Only you |
+| `item_format` | Number format of Items | Settings > Case Law Diary > My Number Formats / Settings > Start Screens > Number formats > Sections and Items | Per user | Only you |
+| `multi_citation_format` | Number format of the citations of an Item with several | Settings > Case Law Diary > My Number Formats / Settings > Start Screens > Number formats > Sections and Items | Per user | Only you |
+| `export_date_format` | Date in Word file names (and on the front page) | Settings > Case Law Diary > My Number Formats / Settings > Start Screens | Per user | Only you |
 | `export_custom_name` | Old per-user export name. Unused: the export file name is now `Profile.export_name` | None | Per user, unused | Nobody |
 | `time_zone` | Time zone for dates in exports (default Asia/Kolkata, IST) | None; the page only states that the zone is India | Per user, not editable | Only you |
 
@@ -191,7 +216,7 @@ One row per (profile, user, key), a JSON `data` object. Interface state, not fee
 
 | Key | Setting | Page and section | Stored | Who |
 | --- | --- | --- | --- | --- |
-| `settings` | `{"default_tab", "items_per_page"}`: your Opening page and Items per page. Resolution: your value, else the profile value in `FeesSettings`, else Memos and 50. Clearing a box removes your value | My settings > Fee Register | Per user per profile | Only you |
+| `settings` | `{"default_tab", "items_per_page"}`: your Opening page and Items per page. Resolution: your value, else the profile value in `FeesSettings`, else Memos and 50. Clearing a box removes your value | Settings > Fee Register > Display / Settings > Start Screens | Per user per profile | Only you |
 | `col-widths:<table-id>` (for example `col-widths:memos`) | Column widths in pixels (40 to 1200, at most 60 columns) | Drag a column edge on a Fee Register table | Per user per profile | Only you |
 
 The `settings` key cannot be written through the column-width endpoint (it accepts only `col-widths:` keys).
@@ -203,7 +228,7 @@ The `settings` key cannot be written through the column-width endpoint (it accep
 | Fee Register tables | On the server, per user per profile (`col-widths:<table-id>` above), with `quill.fees.widths.<id>` in the browser as a fallback | The Fee Register is per profile and per user, and you use it from several machines |
 | Home, Settings, Admin (Users, Profiles, Backups), the diary (History, My edits, conflicts, Clear preview) | In this browser only (`quill.cols.<id>` in section 5) | Admin and diary tables are layout preferences of one screen; no server table or migration is needed, and the keys the diary and Backups already used keep working |
 
-Sorting Admin > Users and Profiles is not a stored setting: it is the `?sort=` part of the address (`?sort=name`, `?sort=-name`), so a sorted view can be bookmarked.
+Sorting Users & Profiles > Users and Profiles is not a stored setting: it is the `?sort=` part of the address (`?sort=name`, `?sort=-name`), so a sorted view can be bookmarked.
 
 ## 5. Settings kept in the browser (localStorage)
 
@@ -238,7 +263,7 @@ Read in `config/settings.py` unless noted. Values below are the defaults.
 | `OFFSITE_BACKUP_ENDPOINT`, `_BUCKET`, `_ACCESS_KEY_ID`, `_SECRET_ACCESS_KEY`, `_REGION`, `_PREFIX` | Optional off-site copy of backups; off until configured (`backups/storage.py`) | Unset | Server |
 | `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_SSL`, `EMAIL_USE_TLS`, `EMAIL_TIMEOUT`, `DEFAULT_FROM_EMAIL` | Outgoing mail for password resets and emailed backups | Unset (port 587, TLS) | Server |
 | `SITE_NAME` | Default name of the whole website (emails: From name, subjects, password reset; browser tab of shared pages). Admins > Appearance > **Site name** overrides it; "Case Law Diary" is only the diary program | Madon.co.in | Server |
-| `EMAIL_BACKUP_MAX_MB` | Starting size limit for split backup emails (then set on Admin > Backups > Email backups) | 15 | Server |
+| `EMAIL_BACKUP_MAX_MB` | Starting size limit for split backup emails (then set on Settings > Backup > Email backups) | 15 | Server |
 | `DJANGO_SECRET_KEY`, `DJANGO_DEBUG`, `DJANGO_ALLOW_SQLITE`, `DJANGO_ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, `RENDER_EXTERNAL_HOSTNAME`, `DATABASE_URL` | Core Django and hosting settings | Required in production | Server |
 | `DJANGO_SUPERUSER_USERNAME`, `DJANGO_SUPERUSER_PASSWORD` | First Admin, read by `create_first_admin` | Unset | Server |
 | `FEES_USER_PASSWORD` | Password read by `create_fees_user` | Unset | Server |
@@ -248,7 +273,7 @@ Never put real values for secrets in the repository.
 The email backup schedule is one more suite-wide group, not an environment value: `mailer.EmailBackupSchedule`
 (`enabled`, `recipients`, for each of `data`, `word`, `html`, `excel` an `_enabled`, `_frequency`, `_weekday`,
 `_day_of_month` and `_last_sent_at`, then `include_review`, `split_emails`, `max_attachment_mb`, the send log and
-`owner`, the Admin whose My settings formats the emailed Word and HTML files use). It is changed on **Admin > Backups > Email
+`owner`, the Admin whose My settings formats the emailed Word and HTML files use). It is changed on **Settings > Backup > Email
 backups** (Admin only) and applies to **Everyone**.
 
 ## 7. Routes moved or redirected
@@ -257,19 +282,41 @@ backups** (Admin only) and applies to **Everyone**.
 | --- | --- | --- |
 | `my_edits` | My edits page | Permanent redirect (301, query kept) to `diary_history` (`/caselaw/history/`). The page is History in the diary menu |
 | `backup_email` | Email Backups page | GET redirects (302) to `backup_list?tab=email`. Its POST still saves, sends and tests the schedule |
-| `export_settings` | Export file name and date, any member | POST only; Editors only; saves the export file name and redirects to `profile_settings?tab=data`. The date format moved to My settings. It still accepts `export_date_format` from old clients (blank leaves it) |
-| `profile_settings` | Redirect to My settings | The Case Law Diary Settings tab (`?tab=reading` or `?tab=data`); POST saves Reading, Editors and Admins only |
-| `my_settings` | One page with hidden tabs | Sections `?tab=account`, `display`, `diary`, `fees`. The old `tab=numbers` maps to `diary`. A POST naming no tab keeps the old save-everything behaviour for Account, Display and Case Law Diary |
+| `export_settings` | Export file name and date, any member | POST only; Editors only; saves the export file name and redirects to `profile_settings?tab=data`. The date format moved to Case Law Diary > Settings > My Number Formats. It still accepts `export_date_format` from old clients (blank leaves it) |
+| `profile_settings` | Redirect to My settings | The Case Law Diary Settings tab (`?tab=reading`, `numbers` or `data`); POST saves Reading, Editors and Admins only |
+| `my_settings` | One page with sections Account, Display, Case Law Diary, Fee Register | Three pages, `?tab=account` (default), `display`, `start`. A GET of `?tab=diary`, `numbers`, `fees` or `investments` redirects to that program's Settings page. A POST names the section it saves (`account`, `display`, `start`, `diary`, `fees`, `investments`); the program sections are shown on the program's page but saved here. A POST naming no tab keeps the old save-everything behaviour |
+| `user_list`, `profile_list`, `admin_profile_access`, `settings`, `backup_list` | The Admins group | Same routes, now pages of the Users & Profiles, Display (`settings` is its Names page) and Backup tabs. The Admins header item is gone |
+| `investments_admin_catalogue`, `investments_admin_prices`, `investments_admin_upload`, `investments_admin_price_history` | `/investments/settings/catalogue/` and so on | `/investments/catalogue/`, `.../catalogue/price-sources/`, `.../catalogue/price-upload/`, `.../catalogue/price-history/`. The old addresses answer 308 and keep the query |
 | `backup_list` | Backups only | Two sections: Saved backups, and Email backups (`?tab=email`) |
 | `fees_settings` | Tabs | Sections `?tab=memos|payments|word|years|display|data`; a POST honours the posted tab |
 | `import_word` | Admin > Import tab | Same route, now linked from Case Law Diary > Settings > Data (Admin only) |
-| Admin Page Names | Page Names | Called Appearance (same route `settings`) |
+| Admin Page Names | Page Names | Called Names, a page of the Display tab (same route `settings`) |
+
+## 9. Redundant, unused or overlapping settings (owner round 2026-11)
+
+Removed in this round: `User.header_style` and `User.show_home_button` (migration 0033), and the Investments **Starting number
+display** that appeared on both Settings > General and Settings > Display (now only on Display).
+
+Still there; each is a candidate to remove or merge:
+
+| Setting | Why it is redundant |
+| --- | --- |
+| `diary.UserSettings.export_custom_name` | Unused: the export file name is `Profile.export_name` |
+| `diary.UserSettings.time_zone` | Not editable and always India; the page only states it |
+| `accounts.Profile.reading_all_default` | The old default behind the Yes/No toggle; read only when `reading_all_mode` holds the old "remember" value |
+| `Profile.display_name` and `header_name` | Editable in two places (Users & Profiles > Profiles and Case Law Diary > Reading), and three naming layers exist (Names, Home Page Name, Header Name) |
+| `FeesSettings.default_additional_details_left/right` | Stored and copied to new memos, but no input on any page |
+| `FeesSettings.default_tab` and `items_per_page` | Overlap with the personal Opening page (Start Screens) and My items per page; one profile fallback plus one personal value for each |
+| `FeesSettings.statistics_enabled`, `dashboard_enabled`, `dashboard_kpis_enabled` | Three on/off switches for one area; the Dashboard and its figures could follow one switch |
+| `FeesSettings.show_status_dots`, `hide_payment_when_paid` | Cosmetic switches that few offices would change |
+| `User.landing_program` and `colour_theme` on the Admin user form | The same values are the user's own on Start Screens and Display; the Admin copy is a second editing place |
+| Investments `Pages` (hide a page) and the page list | Overlaps with simply not opening a page; hidden pages still count in backups |
 
 ## 8. How this was checked
 
 Each row was compared by search with: the field lists of `accounts/models.py`, `diary/models.py`, `fees/models.py`
 and `mailer/models.py`; the `fields` of `accounts/forms.py`, `diary/forms.py`, `fees/forms.py` and `mailer/forms.py`;
-`templates/accounts/my_settings.html`, `templates/diary/settings.html`, `templates/fees/settings.html`;
+`templates/accounts/my_settings.html`, `my_display.html`, `my_start.html`, `templates/diary/settings.html`, `templates/fees/settings.html`;
 `accounts/suite.py`; `fees/services/prefs.py`; the `localStorage` calls in `static/js`; `config/settings.py`; and the
 route table in `*/urls.py`. Rendering and the Django tests were not run in the sandbox that wrote this file; CI runs
 them.

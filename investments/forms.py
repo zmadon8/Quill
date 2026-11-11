@@ -343,7 +343,6 @@ class GeneralSettingsForm(forms.Form):
                                           help_text="Compare each investment with its own sector index too. Choose them, and add indices, in Settings > Indices.")
     include_dividends = forms.BooleanField(required=False, label="Include dividends in XIRR")
     alt_treatment = forms.ChoiceField(choices=[("unchanged", "Unchanged until the next update"), ("averaged", "Averaged out between updates")], label="Alternative investments between updates")
-    money_default = forms.ChoiceField(choices=[("auto", "Short (Thousand, Lac, Crore)"), ("full", "Full Figures")], label="Starting number display")
 
 
 class DefaultBrokersForm(forms.Form):
