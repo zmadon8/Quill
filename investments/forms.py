@@ -252,12 +252,22 @@ class DetailsForm(forms.Form):
     notes = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}), required=False)
     links = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}), required=False, label="Website links (one per line: label | address)")
 
+    interest_rate = forms.DecimalField(max_digits=7, decimal_places=3, min_value=0, required=False, label="Interest rate % (optional)")
+    interest_type = forms.ChoiceField(choices=[("compound", "Compound interest (yearly)"), ("simple", "Simple interest")], initial="compound", required=False,
+                                      label="Interest type")
+    maturity_date = forms.DateField(widget=date_widget(), required=False, label="Maturity date (optional)")
+
     def __init__(self, *args, with_sector=True, **kwargs):
         super().__init__(*args, **kwargs)
         if with_sector:
             self.fields["sectoral_index"].queryset = Instrument.objects.filter(profile=None, kind="index").order_by("name")
+            for name in ("interest_rate", "interest_type", "maturity_date"):
+                del self.fields[name]
         else:
             del self.fields["sectoral_index"]
+
+    def clean_interest_type(self):
+        return self.cleaned_data.get("interest_type") or "compound"
 
 
 class GeneralSettingsForm(forms.Form):

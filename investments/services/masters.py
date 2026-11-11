@@ -326,6 +326,32 @@ def update_profile_details(profile, user, instrument, *, notes=None, links=None,
 
 
 @transaction.atomic
+def update_alt_interest(profile, user, instrument, *, interest_rate, interest_type, maturity_date):
+    """Change the interest rate, interest type and maturity date of an alternative investment (private to the profile, so an Editor may).
+    Each change is written to the permanent catalogue history and the profile's cached figures are refreshed."""
+    if instrument.kind != KIND_ALTERNATIVE or instrument.profile_id != profile.pk:
+        raise not_found("investment")
+    if interest_type not in ("simple", "compound"):
+        interest_type = "compound"
+    if interest_rate is not None and (interest_rate < 0 or interest_rate > 1000):
+        raise InvestmentsError("BAD_RATE", "The interest rate must be between 0 and 1000 percent.")
+    from investments.services import catalogue
+
+    new = {"interest_rate": interest_rate, "interest_type": interest_type, "maturity_date": maturity_date}
+    changed = False
+    for key, value in new.items():
+        old = getattr(instrument, key)
+        if old != value:
+            catalogue.log(user, instrument, "instrument", instrument.pk, key, old, value, "Edited on the investment page")
+            setattr(instrument, key, value)
+            changed = True
+    if changed:
+        instrument.save(update_fields=list(new))
+        core.touch(profile)
+    return instrument
+
+
+@transaction.atomic
 def update_shared_details(profile, user, instrument, **values):
     """Change the shared details of an investment. Admin only (plan 10); an Editor's profile details are separate."""
     if not getattr(user, "is_admin", False):

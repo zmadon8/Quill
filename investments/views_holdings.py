@@ -255,7 +255,9 @@ def investment(request, pk):
         "bucket_rows": bucket_rows, "counts": counts, "has_records": any(counts.values()),
         "price_form": forms.PriceForm(), "alt_form": forms.AltValueForm(), "folio_form": forms.FolioForm(profile=profile),
         "details_form": forms.DetailsForm(initial={"notes": pi.notes if pi else "", "links": _links_text(pi.links if pi else []),
-                                                   "sectoral_index": pi.sectoral_index_id if pi else None}, with_sector=inst.kind != KIND_ALTERNATIVE),
+                                                   "sectoral_index": pi.sectoral_index_id if pi else None,
+                                                   "interest_rate": inst.interest_rate, "interest_type": inst.interest_type,
+                                                   "maturity_date": inst.maturity_date}, with_sector=inst.kind != KIND_ALTERNATIVE),
         "manual_prices": ManualPrice.objects.filter(instrument=inst).order_by("-date")[:10],
         "alt_values": AltValue.objects.filter(profile=profile, instrument=inst).order_by("-date")[:20] if inst.kind == KIND_ALTERNATIVE else [],
         "awaiting_rows": awaiting_rows, "history": InvestmentHistory.objects.filter(profile=profile, instrument_id_ref=inst.pk)[:8],
@@ -389,6 +391,9 @@ def investment_details(request, pk):
         if form.is_valid():
             masters.update_profile_details(profile, request.user, inst, notes=form.cleaned_data["notes"],
                                            links=_parse_links(form.cleaned_data["links"]))
+            if "interest_type" in form.fields:
+                masters.update_alt_interest(profile, request.user, inst, interest_rate=form.cleaned_data["interest_rate"],
+                                            interest_type=form.cleaned_data["interest_type"], maturity_date=form.cleaned_data["maturity_date"])
             if "sectoral_index" in form.fields:
                 from .services import indices
 
