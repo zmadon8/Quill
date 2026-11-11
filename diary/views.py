@@ -133,7 +133,7 @@ def subjects(request):
     """Index: Subjects on the landing page with item counts, then the Other Subjects below a divider."""
     profile = request.profile
     counts = item_counts_by_subject(profile)
-    # The Subject cards (owner round 2026-11) show the Topic count and the first three Topics: one query for every Subject.
+    # The Subject cards (owner round 2026-11) show the Topic count: one query for every Subject.
     topics = {}
     for topic in Topic.objects.filter(profile=profile, deleted_at__isnull=True).only("pk", "name", "subject_id"):
         topics.setdefault(topic.subject_id, []).append(topic)
@@ -143,7 +143,6 @@ def subjects(request):
         subject.item_count = counts.get(subject.pk, (0, 0))[0]
         own = topics.get(subject.pk, [])
         subject.topic_count = len(own)
-        subject.topic_names = [t.name for t in sort_headings(own)[:3]]
     # Every live Subject is on the landing page or in Other Subjects, so the two lists are the live Subjects (no extra query).
     live_ids = {subject.pk for subject in landing + other}
     total_items = sum(n for pk, (n, _) in counts.items() if pk in live_ids)

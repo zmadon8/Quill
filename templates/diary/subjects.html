@@ -14,7 +14,7 @@
   <div{% if edit_mode %} data-edit-root data-add-url="{% url 'edit_inline_add' %}" data-card-url="{% url 'edit_inline_card' %}" data-move-url="{% url 'edit_move' %}" data-next="{{ next_url }}"{% endif %}>
   <ul class="subject-index">
     {% for subject in subjects %}
-    <li{% if edit_mode %} class="erow" data-edit-row data-kind="subject" data-id="{{ subject.pk }}" data-version="{{ subject.version }}"{% endif %} data-initial="{{ subject.name|slice:':1'|upper }}"><a href="{% if subject_opens_whole %}{% url 'read_subject' subject.pk %}{% else %}{% url 'subject_contents' subject.pk %}{% endif %}"><span class="name">{{ subject.name }}</span><span class="count">{{ subject.item_count }}</span><span class="subject-meta">{{ subject.item_count }} item{{ subject.item_count|pluralize }} &middot; {{ subject.topic_count }} topic{{ subject.topic_count|pluralize }}</span>{% if subject.topic_names %}<span class="subject-tags">{% for t in subject.topic_names %}<span class="subject-tag">{{ t }}</span>{% endfor %}</span>{% endif %}</a>
+    <li{% if edit_mode %} class="erow" data-edit-row data-kind="subject" data-id="{{ subject.pk }}" data-version="{{ subject.version }}"{% endif %} data-initial="{{ subject.name|slice:':1'|upper }}"><a href="{% if subject_opens_whole %}{% url 'read_subject' subject.pk %}{% else %}{% url 'subject_contents' subject.pk %}{% endif %}"><span class="name">{{ subject.name }}</span><span class="count">{{ subject.item_count }}</span><span class="subject-meta">{{ subject.item_count }} item{{ subject.item_count|pluralize }} &middot; {{ subject.topic_count }} topic{{ subject.topic_count|pluralize }}</span></a>
       {% include "diary/_row_actions.html" with ekind="subject" eid=subject.pk eword="Subject" %}</li>
     {% endfor %}
   </ul>
@@ -36,7 +36,7 @@
   <h2 id="other-subjects" class="other-title">Other Subjects</h2>
   <ul class="subject-index">
     {% for subject in other_subjects %}
-    <li{% if edit_mode %} class="erow" data-edit-row data-kind="subject" data-id="{{ subject.pk }}" data-version="{{ subject.version }}"{% endif %} data-initial="{{ subject.name|slice:':1'|upper }}"><a href="{% if subject_opens_whole %}{% url 'read_subject' subject.pk %}{% else %}{% url 'subject_contents' subject.pk %}{% endif %}"><span class="name">{{ subject.name }}</span><span class="count">{{ subject.item_count }}</span><span class="subject-meta">{{ subject.item_count }} item{{ subject.item_count|pluralize }} &middot; {{ subject.topic_count }} topic{{ subject.topic_count|pluralize }}</span>{% if subject.topic_names %}<span class="subject-tags">{% for t in subject.topic_names %}<span class="subject-tag">{{ t }}</span>{% endfor %}</span>{% endif %}</a>
+    <li{% if edit_mode %} class="erow" data-edit-row data-kind="subject" data-id="{{ subject.pk }}" data-version="{{ subject.version }}"{% endif %} data-initial="{{ subject.name|slice:':1'|upper }}"><a href="{% if subject_opens_whole %}{% url 'read_subject' subject.pk %}{% else %}{% url 'subject_contents' subject.pk %}{% endif %}"><span class="name">{{ subject.name }}</span><span class="count">{{ subject.item_count }}</span><span class="subject-meta">{{ subject.item_count }} item{{ subject.item_count|pluralize }} &middot; {{ subject.topic_count }} topic{{ subject.topic_count|pluralize }}</span></a>
       {% include "diary/_row_actions.html" with ekind="subject" eid=subject.pk eword="Subject" %}</li>
     {% endfor %}
   </ul>

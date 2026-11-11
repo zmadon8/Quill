@@ -1,4 +1,4 @@
-"""Owner round 2026-11: the Index of Subjects as cards (topic count, the first three Topics), with a Cards / List switch."""
+"""Owner round 2026-11: the Index of Subjects as cards (topic count), with a Cards / List switch."""
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -21,15 +21,14 @@ class SubjectCardTests(TestCase):
         self.user = join_main(User.objects.create_user("cara", password="x-long-pass-123"), "editor")
         self.client.force_login(self.user)
 
-    def test_cards_show_topics_and_the_switch(self):
+    def test_cards_show_topic_count_not_names_and_the_switch(self):
         html = self.client.get(reverse("diary_home")).content.decode()
         self.assertIn('class="home-column subjects-page subjects-cards"', html)
         self.assertIn('data-initial="A"', html)
         self.assertIn("0 items &middot; 4 topics", html)
-        tags = html[html.index('class="subject-tags"'):]
-        self.assertLess(tags.index("Appointment"), tags.index("Fraud"))
-        self.assertLess(tags.index("Fraud"), tags.index("Interim relief"))
-        self.assertNotIn("Waiver</span>", tags.split("</a>")[0])     # only the first three Topics
+        self.assertNotIn("subject-tag", html)                        # the cards no longer list Topic names
+        for name in ["Waiver", "Fraud", "Interim relief", "Appointment"]:
+            self.assertNotIn(name, html)
         self.assertNotIn(">Gone<", html)
         self.assertIn('data-subjects-view="list"', html)
         self.assertIn('id="subjects-search-q"', html)
