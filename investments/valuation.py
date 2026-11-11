@@ -51,12 +51,17 @@ def interest_value(lots, on, rate_pct, interest_type="compound"):
 
 
 def alt_or_interest_value(values, on, mode, lots, rate_pct=None, interest_type="compound"):
-    """An alternative investment's value on ``on``: the latest manual value on or before ``on`` (it overrides interest from its date,
-    also when a rate is set), else interest on the lots when a rate is set, else ``None`` (the caller falls back to cost)."""
-    v = alt_value_on(values, on, mode)
-    if v is None and rate_pct:
+    """An alternative investment's value on ``on``. Without a rate: the manual value held or averaged (``None`` before the first, so the
+    caller falls back to cost). With a rate: the latest manual value on or before ``on`` is a new base that keeps growing from its date, plus
+    interest on the lots bought after that date; with no manual value yet, interest on every lot."""
+    if not rate_pct:
+        return alt_value_on(values, on, mode)
+    index = bisect_right(values, (on, Decimal("Infinity")))
+    if index == 0:
         return interest_value(lots, on, rate_pct, interest_type)
-    return v
+    base_on, base = values[index - 1]
+    later = [lot for lot in lots if lot[0] > base_on]
+    return interest_value([(base_on, base)] + later, on, rate_pct, interest_type)
 
 
 def position_value(units, price):

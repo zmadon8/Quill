@@ -217,7 +217,7 @@ def compute(profile, *, portfolio=None, broker=None, as_of=None, settings=None, 
 
         # value
         if inst.kind == KIND_ALTERNATIVE and (alts.get(iid) or (inst.interest_rate and h.units)):
-            # A manual value on or before as_of overrides interest; before the first one the rate grows each lot from its date.
+            # The latest manual value on or before as_of is a new base that keeps growing at the rate; lots bought after it add their own interest.
             alt = valuation.alt_or_interest_value(alts.get(iid, []), as_of, settings.alt_treatment, [(lot.bought_on, lot.cost) for lot in kept],
                                                   inst.interest_rate, inst.interest_type)
             if alt is None:

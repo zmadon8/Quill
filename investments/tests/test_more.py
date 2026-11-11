@@ -341,7 +341,18 @@ class AlternativeInterestTests(InvTestCase):
         self.assertAlmostEqual(float(before.value), 100000 * 1.1 ** (364 / 365), places=0)
         (on,), _ = holdings.compute(self.profile, as_of=d(2024, 1, 1))
         (after,), _ = holdings.compute(self.profile, as_of=d(2025, 6, 1))
-        self.assertEqual((on.value, after.value), (D(150000), D(150000)))
+        self.assertEqual(on.value, D(150000))
+        self.assertAlmostEqual(float(after.value), 150000 * 1.1 ** (517 / 365), places=0)
+
+    def test_buy_after_manual_value_adds_its_own_interest(self):
+        from investments.services import prices
+
+        fdep = self._fd("simple")
+        prices.set_alt_value(self.profile, self.user, fdep, d(2024, 1, 1), D(150000))
+        tx.add_transaction(self.profile, self.user, side="buy", instrument=fdep, portfolio=self.portfolio, broker=self.zerodha, date=d(2024, 7, 1),
+                           units=D(1), price=D(50000))
+        (h,), _ = holdings.compute(self.profile, as_of=d(2025, 1, 1))
+        self.assertAlmostEqual(float(h.value), 150000 * (1 + 0.10 * 366 / 365) + 50000 * (1 + 0.10 * 184 / 365), places=0)
 
     def test_chart_series_matches_holdings(self):
         from investments.services import series
