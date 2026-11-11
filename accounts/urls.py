@@ -1,7 +1,7 @@
 from django.contrib.auth import views as auth_views
 from django.urls import path, reverse_lazy
 
-from . import views
+from . import views, views_suite_search
 from .forms import ThrottledAuthenticationForm
 
 urlpatterns = [
@@ -36,6 +36,8 @@ urlpatterns = [
         name="password_reset_complete",
     ),
     path("my-settings/", views.my_settings, name="my_settings"),
+    # Owner round (2026-11): Search everything (every program the user can open). /search/ is the legacy diary redirect.
+    path("find/", views_suite_search.suite_search, name="suite_search"),
     path("my-settings/password/", views.MyPasswordChangeView.as_view(), name="password_change"),
     path("my-settings/preview/", views.format_preview, name="format_preview"),
     path("settings/", views.suite_settings, name="settings"),

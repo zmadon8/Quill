@@ -76,6 +76,13 @@ def dashboard(request):
     stale = fetch.stale_ids([_Inst(r) for r in rows if r["price_source"] not in ("manual", "upload")])
     for r in rows:
         r["stale"] = r["id"] in stale
+    # 90-day trend lines (owner round 2026-11), outside the cached payload so the cache stays small.
+    from .services import prices as _prices
+    from .svgchart import sparkline
+
+    closes = _prices.recent_closes([r["id"] for r in rows if r.get("kind_key") != "alternative" and not r["unpriced"]], asat or datetime.date.today())
+    for r in rows:
+        r["spark"] = sparkline(closes[r["id"]]) if r["id"] in closes else None
     return page(request, "investments/dashboard.html", {
         "page_title_text": "Dashboard", "rows": rows, "totals": data["totals"], "allocation": data["allocation"], "chart": chart, "notes": data["notes"],
         "awaiting": awaiting, "awaiting_total": sum((t.amount or Decimal(0) for t in awaiting if t.side == "buy"), Decimal(0)),

@@ -49,13 +49,17 @@ def outstanding_summary(request):
     sort = "name" if request.GET.get("sort") == "name" else "amount"
     rows = outstanding.list_outstanding_by_firm(profile, filters, sort)
     carried = {k: "1" for k, name in (("written_off", "include_written_off"), ("overdue", "overdue_only")) if filters.get(name)}
-    rows = [dict(r, detail_query=urlencode(dict(carried, firm=r["firm_id"]))) for r in rows]
+    grand_total = sum((r["outstanding"] for r in rows), start=0)
+    # Share of the total per firm (a bar on each row) and the four ageing totals above the table (owner round 2026-11).
+    rows = [dict(r, detail_query=urlencode(dict(carried, firm=r["firm_id"])),
+                 share=int(round(r["outstanding"] / grand_total * 100)) if grand_total else 0) for r in rows]
     return render_page(
         request,
         "fees/outstanding.html",
         {
             "rows": rows,
-            "grand_total": sum((r["outstanding"] for r in rows), start=0),
+            "ageing": outstanding.ageing_totals(rows),
+            "grand_total": grand_total,
             "filters": filters,
             "sort": sort,
             "money_unit": settings.money_unit,

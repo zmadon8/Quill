@@ -51,11 +51,28 @@ def compute(profile, portfolio=None, broker=None, as_of=None, include_dividends=
     return payload
 
 
+def _params(profile, portfolio, broker, as_of, include_dividends):
+    chosen = overview.choice(core.get_settings(profile, create=False))
+    return {"p": portfolio, "b": broker, "a": as_of, "d": include_dividends, "o": [chosen["metrics"], chosen["periods"]]}
+
+
+def peek_totals(profile, today=None):
+    """The Overview's totals for all portfolios today if they are already worked out (else None): value, invested, gain, xirr.
+    The suite Home page uses this so that it never starts the full calculation."""
+    today = today or date.today()
+    settings_row = core.get_settings(profile, create=False)
+    payload = statscache.peek(profile, "dashboard", _params(profile, None, None, today, settings_row.include_dividends), today=today)
+    if not payload:
+        return None
+    totals = dict(payload["totals"])
+    for key in ("invested", "value", "gain"):
+        totals[key] = Decimal(totals[key])
+    return totals
+
+
 def load(profile, portfolio=None, broker=None, as_of=None, include_dividends=None):
     as_of = as_of or date.today()
-    chosen = overview.choice(core.get_settings(profile, create=False))
-    payload = statscache.get_or_compute(profile, "dashboard", {"p": portfolio, "b": broker, "a": as_of, "d": include_dividends,
-                                                               "o": [chosen["metrics"], chosen["periods"]]},
+    payload = statscache.get_or_compute(profile, "dashboard", _params(profile, portfolio, broker, as_of, include_dividends),
                                         lambda: compute(profile, portfolio, broker, as_of, include_dividends), today_sensitive=True)
     for row in payload["rows"]:
         for key in MONEY_FIELDS:

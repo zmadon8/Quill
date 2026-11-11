@@ -15,6 +15,17 @@ def _hash(params):
     return hashlib.sha256(json.dumps(params or {}, sort_keys=True, default=str).encode("utf-8")).hexdigest()
 
 
+def peek(profile, kind, params, today=None):
+    """The cached payload for ``(profile, kind, params)`` only if it is still valid; never computes (the suite Home page)."""
+    today = today or datetime.date.today()
+    settings_row = core.get_settings(profile, create=False)
+    data_version = getattr(settings_row, "data_version", 0) or 0
+    row = InvestmentsStatsCache.objects.filter(profile=profile, kind=kind, params_hash=_hash(params)).first()
+    if row and row.data_version == data_version and row.price_version == fetch.price_version() and (row.valid_on is None or row.valid_on == today):
+        return row.payload
+    return None
+
+
 def get_or_compute(profile, kind, params, compute, today_sensitive=False, today=None):
     """The cached payload for ``(profile, kind, params)`` if valid, else ``compute()`` stored and returned."""
     today = today or datetime.date.today()

@@ -9,6 +9,7 @@ from django.urls import reverse
 from django.views.decorators.http import require_POST, require_safe
 
 from fees import scope
+from fees.services import dashboard_panels
 from fees.decorators import fees_editor, fees_reader, handle_fees_errors
 from fees.pages import TAB_URL_NAMES, dashboard_on, json_ok, render_page
 from fees.services import dashboard, memo_lists, prefs
@@ -85,6 +86,7 @@ def dashboard_page(request):
             "kpi_order_value": ",".join(chosen),
             "customise_open": request.GET.get("customise") == "1",
             "recent_matters": memo_lists.list_recent_matters(profile),
+            "panels": dashboard_panels.get_panels(profile),
             "money_unit": config.get("money_unit", "full"),
         },
     )

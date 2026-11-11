@@ -1,0 +1,4 @@
+{# The figures under a program's name on Home (owner round 2026-11). Context: card from accounts/home_cards.build, or nothing. #}{% if card %}
+    <p class="program-blurb muted">{{ card.blurb }}</p>
+    {% if card.figures %}<dl class="program-stats">{% for label, value in card.figures %}<div><dt>{{ label }}</dt><dd>{{ value }}</dd></div>{% endfor %}</dl>{% endif %}
+{% endif %}
