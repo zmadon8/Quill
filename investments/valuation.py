@@ -50,6 +50,23 @@ def interest_value(lots, on, rate_pct, interest_type="compound"):
     return total.quantize(Decimal("0.01"))
 
 
+def remaining_lots(buys, units_held):
+    """``[(bought_on, cost)]`` still held from ``[(bought_on, units, cost), ...]`` when ``units_held`` units remain: the oldest lots are sold
+    first (FIFO, as in ``lots.replay``) and a part-sold lot keeps its share of the cost. The one place the chart works out what a sale left."""
+    ordered = sorted(buys, key=lambda b: b[0])
+    to_sell = sum((u for _d, u, _c in ordered), Decimal(0)) - units_held
+    out = []
+    for bought_on, units, cost in ordered:
+        if to_sell >= units:
+            to_sell -= units
+            continue
+        if to_sell > 0:
+            cost = cost * (units - to_sell) / units
+            to_sell = Decimal(0)
+        out.append((bought_on, cost))
+    return out
+
+
 def alt_or_interest_value(values, on, mode, lots, rate_pct=None, interest_type="compound"):
     """An alternative investment's value on ``on``. Without a rate: the manual value held or averaged (``None`` before the first, so the
     caller falls back to cost). With a rate: the latest manual value on or before ``on`` is a new base that keeps growing from its date, plus

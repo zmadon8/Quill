@@ -170,14 +170,10 @@ def portfolio_value_series(profile, days, *, portfolio=None, broker=None, instru
 
 
 def _interest_lots(all_buys, day, units):
-    """``[(date, cost)]`` of the final buys (listed once per instrument) up to ``day``, scaled to the units still held, for the shared
-    interest helper. After a partial sale this prorates every buy alike, while the holdings table uses the lots a sale left behind."""
-    buys = [t for t in all_buys if t.effective_date <= day]
-    bought = sum((t.units for t in buys), ZERO)
-    if not bought:
-        return []
-    share = min(units / bought, Decimal(1))
-    return [(t.effective_date, core.buy_total(t) * share) for t in buys]
+    """``[(date, cost)]`` still held on ``day``: the final buys (listed once per instrument) up to ``day`` less what sales took, oldest
+    first, by the shared helper (the same remaining-lot basis the holdings table gets from its FIFO replay)."""
+    buys = [(t.effective_date, t.units, core.buy_total(t)) for t in all_buys if t.effective_date <= day]
+    return valuation.remaining_lots(buys, units)
 
 
 def performance_index(values, flows):

@@ -208,7 +208,7 @@ class InstrumentForm(forms.Form):
     currency = forms.CharField(max_length=3, initial="INR", required=False)
     asset_class = forms.ChoiceField(choices=ASSET_CLASSES, initial="equity", label="Asset class")
     sector = forms.CharField(max_length=80, required=False)
-    interest_rate = forms.DecimalField(max_digits=7, decimal_places=3, required=False, label="Interest rate % (optional)")
+    interest_rate = forms.DecimalField(max_digits=7, decimal_places=3, min_value=0, max_value=1000, required=False, label="Interest rate % (optional)")
     interest_type = forms.ChoiceField(choices=[("compound", "Compound interest (yearly)"), ("simple", "Simple interest")], initial="compound", required=False,
                                       label="Interest type")
     maturity_date = forms.DateField(widget=date_widget(), required=False, label="Maturity date (optional)")
@@ -252,7 +252,7 @@ class DetailsForm(forms.Form):
     notes = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}), required=False)
     links = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}), required=False, label="Website links (one per line: label | address)")
 
-    interest_rate = forms.DecimalField(max_digits=7, decimal_places=3, min_value=0, required=False, label="Interest rate % (optional)")
+    interest_rate = forms.DecimalField(max_digits=7, decimal_places=3, min_value=0, max_value=1000, required=False, label="Interest rate % (optional)")
     interest_type = forms.ChoiceField(choices=[("compound", "Compound interest (yearly)"), ("simple", "Simple interest")], initial="compound", required=False,
                                       label="Interest type")
     maturity_date = forms.DateField(widget=date_widget(), required=False, label="Maturity date (optional)")
