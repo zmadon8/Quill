@@ -478,7 +478,7 @@ def _send_archive(schedule, recipients, now):
             return 0, 0, [], ""
         if len(parts) > ARCHIVE_MAX_PARTS:
             note = (f"the archive needs {len(parts)} parts, more than the {ARCHIVE_MAX_PARTS} that can be emailed, so it was not sent. "
-                    "Download it from Investments > Settings > Price history.")
+                    "Download it from Investments > Catalogue > Price history.")
             PriceMaintenanceLog.objects.create(kind="archive", ok=False, message=note[:300])
             return 0, 0, [note], ""
         sent, problems = 0, []

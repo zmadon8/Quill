@@ -175,7 +175,7 @@ def cost_of_funds(profile, portfolio=None, broker=None, **_):
             base += h.value
     t.total = ["Weighted average", base, (weighted / base).quantize(Decimal("0.001")) if base else None]
     if any(h.instrument.expense_ratio is None for h in funds):
-        t.notes.append("Some funds have no expense ratio yet; an Admin can enter it in Settings > Catalogue.")
+        t.notes.append("Some funds have no expense ratio yet; an Admin can enter it in Catalogue.")
     return t
 
 
