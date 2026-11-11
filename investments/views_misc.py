@@ -231,7 +231,10 @@ def settings_display(request):
         masters.set_money_preference(request.user, d["my_money"])
         messages.success(request, "Saved.")
         return redirect(reverse("investments_settings_display"))
+    from accounts.forms import MyInvestmentsForm
+
     return page(request, "investments/settings_simple.html", {"page_title_text": "Display", "form": form,
+                                                             "period_form": MyInvestmentsForm(instance=request.user),
                                                              "intro": "How amounts are shown. Excel exports always contain the exact figures."}, selectors=False)
 
 

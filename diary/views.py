@@ -218,7 +218,7 @@ def help_page(request):
 
 
 #: The sections of the Case Law Diary Settings tab, in order.
-SETTINGS_SECTIONS = ("reading", "data")
+SETTINGS_SECTIONS = ("reading", "numbers", "data")
 
 
 @profile_required
@@ -260,13 +260,21 @@ def render_settings_page(request, tab, can_change, reading_form, export_form):
     from .views_export import _file_settings  # lazy: views_export imports this module
 
     profile = request.profile
+    from accounts.forms import MyCitationForm  # lazy: keeps this module's import light
+
+    from .forms import DiarySettingsForm, preview_rows
+
+    # My number formats are personal (Only you), saved through My settings (tab "diary"); they are shown here, once.
+    numbers_form = DiarySettingsForm(user=request.user, profile=profile)
     mode = profile.reading_all_mode
     whole = mode == Profile.READING_ALL_ALWAYS_ON or (
         mode not in (Profile.READING_ALL_ALWAYS_ON, Profile.READING_ALL_ALWAYS_OFF) and profile.reading_all_default
     )
     return render(request, "diary/settings.html", {
         "tab": tab, "can_change": can_change, "reading_form": reading_form, "whole_subject": whole,
-        "sections": SETTINGS_SECTIONS, **_file_settings(request, export_form),
+        "sections": SETTINGS_SECTIONS,
+        "numbers_form": numbers_form, "citation_form": MyCitationForm(instance=request.user),
+        "preview": preview_rows(numbers_form.effective()), **_file_settings(request, export_form),
     })
 
 

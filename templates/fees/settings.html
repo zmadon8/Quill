@@ -7,7 +7,7 @@
 {% block content %}
 <div class="page-head"><h1>Settings</h1></div>
 {% if not can_edit %}<p class="muted read-only-note">You can read the settings but not change them.</p>{% endif %}
-<p class="setting-help">These are shared by everyone using this profile, except where a setting says <em>Only you</em>. Your own Opening page and Items per page are on <a href="{% url 'my_settings' %}?tab=fees">My settings</a>.</p>
+<p class="setting-help">These are shared by everyone using this profile, except where a setting says <em>Only you</em>. Your own Opening page is on <a href="{% url 'my_settings' %}?tab=start">Start Screens</a>; your own Items per page is in the Display section below.</p>
 {% include "fees/_form_errors.html" %}
 <div class="settings-layout" data-settings-sections data-initial="{{ tab }}">
 <nav class="settings-nav" aria-label="Settings sections">
@@ -141,11 +141,11 @@
 
 <section class="card settings-card settings-panel-body" data-section="display" id="settings-display">
 <h2>Display</h2>
-<p class="setting-help">How lists and figures look. Your own Opening page and Items per page are on My settings.</p>
+<p class="setting-help">How lists and figures look. Opening page and Items per page here are for everyone in this profile who has not chosen their own (your own Opening page is on <a href="{% url 'my_settings' %}?tab=start">Start Screens</a>).</p>
 <form method="post" action="{% url 'fees_settings' %}" data-section-form>{% csrf_token %}<input type="hidden" name="tab" value="display">
   <fieldset class="section-fields"{% if not can_edit %} disabled{% endif %}>
     <div class="grid-2">
-      <div class="setting-row"><label>Opening page <select name="default_tab">{% for t in tab_choices %}<option value="{{ t }}"{% if config.default_tab == t %} selected{% endif %}>{{ t|capfirst }}</option>{% endfor %}</select></label>{% include "_who_tag.html" with who="profile" %}<span class="setting-help">The page the Fee Register opens on for anyone who has not chosen their own on My settings.</span></div>
+      <div class="setting-row"><label>Opening page <select name="default_tab">{% for t in tab_choices %}<option value="{{ t }}"{% if config.default_tab == t %} selected{% endif %}>{{ t|capfirst }}</option>{% endfor %}</select></label>{% include "_who_tag.html" with who="profile" %}<span class="setting-help">The page the Fee Register opens on for anyone who has not chosen their own on Start Screens.</span></div>
       <div class="setting-row"><label>Figures <select name="money_unit">{% for value, label in money_unit_choices %}<option value="{{ value }}"{% if config.money_unit == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>{% include "_who_tag.html" with who="profile" %}<span class="setting-help">Whether amounts show in full or in thousands, lacs and crores.</span></div>
       <div class="setting-row"><label>Firms and matters: show by default <select name="list_default_filter"><option value="all"{% if config.list_default_filter == "all" %} selected{% endif %}>All</option><option value="active"{% if config.list_default_filter == "active" %} selected{% endif %}>Active Only</option></select></label>{% include "_who_tag.html" with who="profile" %}<span class="setting-help">Whether the Firms and Matters lists start with everything or only active ones.</span></div>
       <div class="setting-row"><label>Items per page <input type="text" inputmode="numeric" name="items_per_page" value="{% if config.items_per_page == 0 %}All{% else %}{{ config.items_per_page }}{% endif %}" size="6"></label>{% include "_who_tag.html" with who="profile" %}<span class="setting-help">How many memos or payments Memos, Drafts and Feebook show on one page for anyone who has not chosen their own. Type All (or 0) for a whole financial year on one page; the most you can type is 1000. Totals always cover every row that matches the filters.</span></div>
@@ -157,6 +157,11 @@
     </div>
   </fieldset>
   {% if can_edit %}<p class="section-actions"><button type="submit" class="primary">Save</button> <span class="dirty-note" data-dirty-note hidden>You have unsaved changes.</span></p>{% endif %}
+</form>
+<h3 class="small-caps">Mine</h3>
+<form method="post" action="{% url 'my_settings' %}" data-section-form>{% csrf_token %}<input type="hidden" name="tab" value="fees">
+  <div class="setting-row"><label for="{{ personal_form.items_per_page.id_for_label }}">My items per page</label>{% include "_who_tag.html" with who="you" %} {{ personal_form.items_per_page }}<span class="setting-help">How many memos or payments one page of Memos, Drafts and Feebook shows, for you. Type All to show a whole financial year on one page; the most you can type is 1000. Leave it blank to use the profile's choice ({% if config.items_per_page == 0 %}All{% else %}{{ config.items_per_page }}{% endif %}).</span></div>
+  <p class="section-actions"><button type="submit" class="primary">Save</button> <span class="dirty-note" data-dirty-note hidden>You have unsaved changes.</span></p>
 </form>
 </section>
 

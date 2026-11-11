@@ -3,4 +3,9 @@
 <h1 class="visually-hidden">{{ page_title_text }}</h1>
 <p class="hint">{{ intro }}</p>
 <form method="post" class="form" novalidate>{% csrf_token %}{% include "investments/_form.html" %}{% if can_edit %}<div class="acts-row"><button class="btn p" type="submit">Save</button></div>{% endif %}</form>
+{% if period_form %}<div class="sec"><h2>Mine</h2></div>
+<form method="post" action="{% url 'my_settings' %}" class="form" novalidate>{% csrf_token %}<input type="hidden" name="tab" value="investments">
+  <div class="row"><div class="fld{% if period_form.investments_period.errors %} bad{% endif %}"><label for="{{ period_form.investments_period.id_for_label }}">{{ period_form.investments_period.label }} (only you)</label> {{ period_form.investments_period }}<span class="note">{{ period_form.investments_period.help_text }}</span></div></div>
+  <div class="acts-row"><button class="btn p" type="submit">Save</button></div>
+</form>{% endif %}
 {% endblock %}

@@ -1,4 +1,5 @@
-"""The two personal Fee Register choices on My settings: Opening page and Items per page (stored per user, per profile)."""
+"""The two personal Fee Register choices: Opening page (My settings > Start Screens) and Items per page (Fee Register > Settings >
+Display), stored per user, per profile. A box that is not posted at all keeps its saved value."""
 from django import forms
 
 from fees.errors import FeesError
@@ -39,7 +40,12 @@ class FeesPersonalForm(forms.Form):
                 "items_per_page": "" if "items_per_page" not in own else ("All" if own["items_per_page"] == 0 else str(own["items_per_page"])),
             }
 
+    def _unposted(self, name):
+        return self.add_prefix(name) not in self.data
+
     def clean_items_per_page(self):
+        if self._unposted("items_per_page"):
+            return prefs.get_personal(self.profile, self.user).get("items_per_page")
         text = (self.cleaned_data.get("items_per_page") or "").strip()
         if not text:
             return None
@@ -49,6 +55,8 @@ class FeesPersonalForm(forms.Form):
             raise forms.ValidationError(err.message) from err
 
     def clean_default_tab(self):
+        if self._unposted("default_tab"):
+            return prefs.get_personal(self.profile, self.user).get("default_tab")
         return self.cleaned_data.get("default_tab") or None
 
     def save(self):

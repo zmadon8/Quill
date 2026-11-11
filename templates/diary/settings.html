@@ -1,14 +1,16 @@
 {% extends "base.html" %}
 {% load static %}
 {% block title %}Settings - {{ program_label }}{% endblock %}
+{% block crumb_nav %}{% include "_settings_tabs.html" %}{% endblock %}
 {% block content %}
 <div class="home-column">
 <h1{% if header_words %} class="visually-hidden"{% endif %}>{{ diary_name }} settings</h1>
-<p class="setting-help">These are shared by everyone using the profile <strong>{{ request.profile.name }}</strong>. Your own choices (opening page, number formats, date in file names) are on <a href="{% url 'my_settings' %}?tab=diary">My settings</a>.</p>
+<p class="setting-help">These are shared by everyone using the profile <strong>{{ request.profile.name }}</strong>. The section <strong>My number formats</strong> is only yours. Your opening page is on <a href="{% url 'my_settings' %}?tab=start">Start Screens</a>.</p>
 {% if not can_change %}<p class="read-only-note">You can read these settings but not change them. Only the Editors of this profile can.</p>{% endif %}
 <div class="settings-layout" data-settings-sections data-initial="{{ tab }}">
   <nav class="settings-nav" aria-label="Sections of {{ diary_name }} settings">
     <a href="?tab=reading" data-section-link="reading"{% if tab == "reading" %} class="on" aria-current="page"{% endif %}>Reading</a>
+    <a href="?tab=numbers" data-section-link="numbers"{% if tab == "numbers" %} class="on" aria-current="page"{% endif %}>My Number Formats</a>
     <a href="?tab=data" data-section-link="data"{% if tab == "data" %} class="on" aria-current="page"{% endif %}>Data</a>
   </nav>
   <div class="settings-panels">
@@ -59,6 +61,39 @@
     {% endif %}
   </section>
 
+  <section class="settings-panel-body" data-section="numbers" id="section-numbers">
+    <h2>My number formats</h2>
+    <p class="setting-help">These follow you into every {{ diary_name }} profile you use. Changing formats changes how numbers are shown (on screen and in the Word export) but never your stored data.</p>
+    <form method="post" action="{% url 'my_settings' %}" class="stack settings-section-form" data-section-form data-preview-url="{% url 'format_preview' %}">
+      {% csrf_token %}
+      <input type="hidden" name="tab" value="diary">
+      <div class="format-layout">
+        <div class="format-fields">
+          <fieldset>
+            <legend>Headings</legend>
+            {% include "_setting_row.html" with f=numbers_form.topic_format help="How Topics are numbered." who="you" %}
+            {% include "_setting_row.html" with f=numbers_form.subtopic_format help="How Sub-topics are numbered." who="you" %}
+          </fieldset>
+          <fieldset>
+            <legend>Sections and Items</legend>
+            {% include "_setting_row.html" with f=numbers_form.section_format help="How Sections are numbered." who="you" %}
+            {% include "_setting_row.html" with f=numbers_form.item_format help="How Items are numbered." who="you" %}
+            {% include "_setting_row.html" with f=numbers_form.multi_citation_format help="How the citations of an Item with several are numbered." who="you" %}
+          </fieldset>
+          <p><button type="button" class="secondary" data-standard-formats>Use The Standard Formats</button></p>
+        </div>
+        <div class="format-preview-box" aria-live="polite">
+          <h3>Preview</h3>
+          <div data-preview>{% include "accounts/_format_preview.html" %}</div>
+          <p class="field-help">Updates as you choose. Without JavaScript it updates after you save.</p>
+        </div>
+      </div>
+      {% include "_setting_row.html" with f=numbers_form.export_date_format help="The date at the end of the Word file names you export, and on the front page. The time zone is India (Asia/Kolkata, IST)." who="you" %}
+      {% include "_setting_row.html" with f=citation_form.remove_citation_hyphen help=citation_form.remove_citation_hyphen.help_text who="you" checkbox=True %}
+      <p class="section-actions"><button type="submit">Save</button> <span class="dirty-note" data-dirty-note hidden>You have unsaved changes.</span></p>
+    </form>
+  </section>
+
   <section class="settings-panel-body" data-section="data" id="section-data">
     <h2>Data</h2>
     <div class="setting-row">
@@ -104,4 +139,4 @@
 </div>
 </div>
 {% endblock %}
-{% block extra_js %}<script src="{% static 'js/settings-sections.js' %}"></script>{% endblock %}
+{% block extra_js %}<script src="{% static 'js/my-settings.js' %}"></script><script src="{% static 'js/settings-sections.js' %}"></script>{% endblock %}

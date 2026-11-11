@@ -104,14 +104,24 @@ def settings_page(request):
             if err.status == 404:
                 raise Http404(err.message) from err
             context = settings_context(profile, tab=tab)
+            context["personal_form"] = _personal_form(request, profile)
             context["errors"] = [err.message]
             return render_page(request, "fees/settings.html", context, status=err.status)
         messages.success(request, "Settings saved.")
         # A save from one section returns to that section; an older form that names none returns to the page.
         return redirect(f"{reverse('fees_settings')}?tab={tab}" if tab in SETTINGS_SECTIONS else "fees_settings")
-    return render_page(
-        request, "fees/settings.html",
-        settings_context(profile, financial_year_param(request.GET, default=False), tab=tab),
+    context = settings_context(profile, financial_year_param(request.GET, default=False), tab=tab)
+    context["personal_form"] = _personal_form(request, profile)
+    return render_page(request, "fees/settings.html", context)
+
+
+def _personal_form(request, profile):
+    """My items per page (Only you): saved through My settings (tab "fees"), shown here with the other Display settings."""
+    from fees.models import FeesSettings
+    from fees.personal_form import FeesPersonalForm
+
+    return FeesPersonalForm(
+        prefix="fees", profile=profile, user=request.user, fees_settings=FeesSettings.objects.filter(profile=profile).first(),
     )
 
 
