@@ -64,6 +64,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "investments.middleware.RequestTimingMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -226,6 +227,8 @@ else:
 # Compress pages and text on the way out (much less to download on a phone). Set GZIP_RESPONSES=0 to switch off.
 if _flag("GZIP_RESPONSES", default=True):
     MIDDLEWARE.insert(1, "config.middleware.TextGZipMiddleware")  # right after SecurityMiddleware
+# QUILL_PERF_LOG=1 logs the time and number of database queries of every Investments request (and adds a Server-Timing header). Off by default.
+PERF_LOG = _flag("QUILL_PERF_LOG", default=False)
 # A "Forgot my password" link works for this many seconds (one hour).
 PASSWORD_RESET_TIMEOUT = _int("PASSWORD_RESET_TIMEOUT", 3600)
 # Largest total size of the files attached to one backup email (files grow by about a third when sent, and most mailboxes refuse more than about 25 MB; Amazon SES refuses more than 10 MB, so set 6 there).

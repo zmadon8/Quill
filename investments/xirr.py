@@ -13,16 +13,19 @@ LOW, HIGH = -0.99, 10.0
 _DAYS = 365.0
 
 
-def _npv(rate, flows, t0):
-    return sum(amount / (1.0 + rate) ** ((when - t0).days / _DAYS) for when, amount in flows)
+def _npv_t(rate, times, amounts):
+    return sum(amount / (1.0 + rate) ** t for t, amount in zip(times, amounts))
 
 
-def _dnpv(rate, flows, t0):
-    total = 0.0
-    for when, amount in flows:
-        t = (when - t0).days / _DAYS
-        total -= t * amount / (1.0 + rate) ** (t + 1.0)
-    return total
+def _npv_and_slope(rate, times, amounts):
+    """The value and its slope at ``rate`` from one power per flow (the slope needs the same power, one step further)."""
+    base = 1.0 + rate
+    value = slope = 0.0
+    for t, amount in zip(times, amounts):
+        grown = base ** t
+        value += amount / grown
+        slope -= t * amount / (grown * base)
+    return value, slope
 
 
 def xirr(flows, min_days=MIN_DAYS):
@@ -35,7 +38,14 @@ def xirr(flows, min_days=MIN_DAYS):
         return None
     if not any(a < 0 for _, a in flows) or not any(a > 0 for _, a in flows):
         return None
-    f_low, f_high = _npv(LOW, flows, t0), _npv(HIGH, flows, t0)
+    # Money on the same day is one flow as far as the answer goes (the value is a sum), and the year fractions do not change between
+    # iterations: work both out once. A portfolio has thousands of flows but far fewer distinct days.
+    by_day = {}
+    for when, amount in flows:
+        by_day[when] = by_day.get(when, 0.0) + amount
+    times = [(when - t0).days / _DAYS for when in by_day]
+    amounts = list(by_day.values())
+    f_low, f_high = _npv_t(LOW, times, amounts), _npv_t(HIGH, times, amounts)
     if f_low == 0:
         return LOW
     if f_high == 0:
@@ -46,19 +56,18 @@ def xirr(flows, min_days=MIN_DAYS):
     rate = 0.1
     lo, hi = LOW, HIGH
     for _ in range(60):
-        value = _npv(rate, flows, t0)
+        value, slope = _npv_and_slope(rate, times, amounts)
         if abs(value) < 1e-9:
             return rate
         if (value > 0) == (f_low > 0):
             lo = rate
         else:
             hi = rate
-        slope = _dnpv(rate, flows, t0)
         step = rate - value / slope if slope else None
         rate = step if step is not None and lo < step < hi else (lo + hi) / 2.0
     for _ in range(200):  # bisection fallback
         mid = (lo + hi) / 2.0
-        value = _npv(mid, flows, t0)
+        value = _npv_t(mid, times, amounts)
         if abs(value) < 1e-9 or (hi - lo) < 1e-12:
             return mid
         if (value > 0) == (f_low > 0):

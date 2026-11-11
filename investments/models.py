@@ -241,6 +241,8 @@ class Transfer(models.Model):
 
     class Meta:
         ordering = ["-date", "-id"]
+        # The Overview, Holdings and investment pages read a profile's transfers by instrument and date.
+        indexes = [models.Index(fields=["profile", "instrument", "date"], name="inv_xfer_prof_instr_date_idx")]
 
 
 class Switch(models.Model):
@@ -290,6 +292,8 @@ class Transaction(models.Model):
         indexes = [
             models.Index(fields=["profile", "instrument", "date"], name="inv_txn_prof_instr_date_idx"),
             models.Index(fields=["profile", "status"], name="inv_txn_prof_status_idx"),
+            # The transaction list and the whole-history reads order a profile's transactions by date.
+            models.Index(fields=["profile", "date"], name="inv_txn_prof_date_idx"),
         ]
 
     @property

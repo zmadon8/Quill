@@ -11,10 +11,10 @@ from . import forms
 from .decorators import inv_editor, inv_reader
 from .errors import InvestmentsError
 from .models import (
-    HOLDABLE_KINDS, KIND_ALTERNATIVE, AltValue, Folio, Instrument, InvestmentHistory, ManualPrice, Price, ProfileInvestment, Transaction,
+    KIND_ALTERNATIVE, AltValue, Folio, Instrument, InvestmentHistory, ManualPrice, Price, ProfileInvestment, Transaction,
     Transfer,
 )
-from .services import fetch, holdings, masters, prices
+from .services import holdings, holdings_page, masters, prices
 from .viewutil import handle_errors, page, profile_or_404, selection
 
 KIND_LABELS = dict((k, v) for k, v in forms.KIND_CHOICES)
@@ -53,38 +53,20 @@ def holdings_list(request):
     portfolio, broker, asat = selection(request, profile)
     kind = request.GET.get("type", "")
     status = request.GET.get("status", "held")
-    rows, _totals = holdings.compute(profile, portfolio=portfolio, broker=broker, as_of=asat)
-    hidden_ids = set(ProfileInvestment.objects.filter(profile=profile, hidden=True).values_list("instrument_id", flat=True))
-    # Investments added but not yet bought still belong in the list.
-    # They are "Not bought yet", never "Held": nothing is held until units (or a purchase awaiting allotment) exist.
-    seen = {h.instrument.pk for h in rows}
-    extra = [holdings.Holding(instrument=pi.instrument, empty=True) for pi in
-             ProfileInvestment.objects.filter(profile=profile).select_related("instrument") if pi.instrument_id not in seen
-             and pi.instrument.kind in HOLDABLE_KINDS]
-    rows = rows + extra
+    all_rows, held_count, sold_count = holdings_page.load(profile, portfolio, broker, asat)
     out = []
-    for h in rows:
-        is_hidden = h.instrument.pk in hidden_ids
+    for h in all_rows:
         if kind and h.instrument.kind != kind:
             continue
-        if status == "held" and (not h.is_held or is_hidden):
+        if status == "held" and (not h.is_held or h.is_hidden):
             continue
         if status == "sold_out" and not h.sold_out:
             continue
         if status == "not_bought" and not h.empty:
             continue
-        if status == "hidden" and not is_hidden:
+        if status == "hidden" and not h.is_hidden:
             continue
-        h.is_hidden = is_hidden
         out.append(h)
-    stale = fetch.stale_ids([h.instrument for h in out if h.is_held and h.instrument.price_source not in ("manual", "upload")])
-    for h in out:
-        h.stale = h.instrument.pk in stale
-    sparks = _sparks([h.instrument for h in out if h.is_held and not h.unpriced], asat)
-    for h in out:
-        h.spark = sparks.get(h.instrument.pk)
-    held_count = sum(1 for h in rows if h.is_held and h.instrument.pk not in hidden_ids)
-    sold_count = sum(1 for h in rows if h.sold_out)
     return page(request, "investments/holdings.html", {
         "page_title_text": "Investments", "rows": out, "held_count": held_count, "sold_count": sold_count, "kind": kind, "status": status,
         "kinds": [("", "All types"), ("share", "Share"), ("fund", "Mutual fund"), ("alternative", "Alternative"), ("foreign", "Foreign")],
@@ -249,7 +231,9 @@ def investment(request, pk):
     bucket_rows = sorted(((portfolios.get(pf, "?"), brokers.get(br, "?"), next((f.number for f in folios_qs if f.pk == fo), ""), units)
                           for (pf, br, fo), units in h.buckets.items()), key=lambda r: (r[0], r[1], r[2]))
     counts = masters.records_of(profile, inst)
-    awaiting_rows = [t for t in txns if t.status == "awaiting"]
+    # Iterating ``txns`` here loaded every transaction of the investment, and the page then queried the newest 200 again: ask for the awaiting
+    # ones on their own (there are few) and let the page list read the newest 200 once.
+    awaiting_rows = list(txns.filter(status="awaiting"))
     context = {
         "page_title_text": inst.name, "inst": inst, "h": h, "pi": pi, "txns": txns[:200], "transfers": transfers, "folios": folios_qs,
         "folio_units": [(f, folio_units.get(f.pk, Decimal(0))) for f in folios_qs], "no_folio_units": folio_units.get(None, Decimal(0)),

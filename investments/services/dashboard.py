@@ -19,15 +19,25 @@ def _row(h):
             "dividends": str(h.dividends)}
 
 
-def compute(profile, portfolio=None, broker=None, as_of=None, include_dividends=None, period="all"):
+def compute(profile, portfolio=None, broker=None, as_of=None, include_dividends=None, period="all", with_chart=True):
+    """The Overview figures as JSON-ready data. ``with_chart=False`` leaves out the whole-history chart (``chart`` is None) unless a chosen
+    figure (time-weighted return, largest fall) needs the sampled value line anyway: the chart for "All" is then drawn on demand and kept in
+    its own cache entry (``chartview.value_chart``), so a cold Overview does not walk the whole history twice."""
     as_of = as_of or date.today()
     settings_row = core.get_settings(profile, create=False)
-    rows, totals = holdings.compute(profile, portfolio=portfolio, broker=broker, as_of=as_of, settings=settings_row, include_dividends=include_dividends)
+    # The transactions are read once and shared by the holdings today and by each period's opening value (they used to be read, and every
+    # row turned into a model object, once for each of up to five calculations).
+    history = holdings.load_history(profile, as_of)
+    memo = {}
+    rows, totals = holdings.compute(profile, portfolio=portfolio, broker=broker, as_of=as_of, settings=settings_row, include_dividends=include_dividends,
+                                    history=history)
     notes = performance.decorate_with_index(profile, rows, totals, as_of, settings_row)
     held = holdings.held(rows)
     chart = sample = None
     index = performance._default_index(profile, settings_row)
-    if totals.flows:
+    chosen = overview.choice(settings_row)
+    needs_sample = with_chart or bool({"twr", "drawdown"} & set(chosen["metrics"]))
+    if totals.flows and needs_sample:
         first = min(d for d, _ in totals.flows)
         if first < as_of:
             days = series.sample_dates(first, as_of)
@@ -45,15 +55,33 @@ def compute(profile, portfolio=None, broker=None, as_of=None, include_dividends=
         "allocation": [[label, str(value), share] for label, value, share in holdings.allocation(held)], "notes": notes, "chart": chart,
     }
     figures = overview.period_figures(profile, portfolio=portfolio, broker=broker, as_of=as_of, include_dividends=include_dividends,
-                                      settings_row=settings_row, totals=totals, period_key=period, index=index)
+                                      settings_row=settings_row, totals=totals, period_key=period, index=index, history=history, memo=memo)
     if figures is not None:
         payload["period_totals"] = {"gain": str(figures["gain"]), "gain_pct": figures["gain_pct"], "xirr": figures["xirr"],
                                     "index_xirr": figures["index_xirr"], "alpha": figures["alpha"], "start": figures["start"].isoformat()}
+    # Purchases turning long-term soon, for the insights: only for the plain view (all portfolios and brokers, today), which is what they use.
+    payload["turning"] = _turning_long(rows, settings_row, as_of) if portfolio is None and broker is None and as_of == date.today() else None
     del rows, held   # the period figures replay the holdings again at each period's start: do not keep two sets at once (memory)
     payload["overview"] = overview.compute(profile, portfolio=portfolio, broker=broker, as_of=as_of, include_dividends=include_dividends,
-                                           settings_row=settings_row, totals=totals, chosen=overview.choice(settings_row), sample=sample,
-                                           index=index)
+                                           settings_row=settings_row, totals=totals, chosen=chosen, sample=sample,
+                                           index=index, history=history, memo=memo)
     return payload
+
+
+def _turning_long(rows, settings_row, today, days=60):
+    """``[[investment name, date it turns long-term, days left]]`` for the lots that turn long-term within ``days`` days, soonest first (the same
+    lots and order as ``reports.turning_long``)."""
+    from datetime import timedelta
+
+    out = []
+    for h in rows:
+        for lot in h.lots:
+            turns = lot.bought_on + timedelta(days=settings_row.long_term_days + 1)
+            left = (turns - today).days
+            if 0 < left <= days:
+                out.append([h.instrument.name, turns.isoformat(), left])
+    out.sort(key=lambda r: r[2])
+    return out
 
 
 def _params(profile, portfolio, broker, as_of, include_dividends, period="all"):
@@ -91,7 +119,8 @@ def peek_totals(profile, today=None, period="all"):
 def load(profile, portfolio=None, broker=None, as_of=None, include_dividends=None, period="all"):
     as_of = as_of or date.today()
     payload = statscache.get_or_compute(profile, "dashboard", _params(profile, portfolio, broker, as_of, include_dividends, period),
-                                        lambda: compute(profile, portfolio, broker, as_of, include_dividends, period), today_sensitive=True)
+                                        lambda: compute(profile, portfolio, broker, as_of, include_dividends, period, with_chart=False),
+                                        today_sensitive=True)
     for row in payload["rows"]:
         for key in MONEY_FIELDS:
             if row.get(key) is not None:

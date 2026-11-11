@@ -143,12 +143,12 @@ def value_view(request):
     for p in Portfolio.objects.filter(profile=profile):
         if portfolio and p.pk != portfolio:
             continue
-        by_portfolio.append((p.name, holdings.compute(profile, portfolio=p.pk, broker=broker, as_of=on, settings=settings_row)[1].value))
+        by_portfolio.append((p.name, holdings.compute(profile, portfolio=p.pk, broker=broker, as_of=on, settings=settings_row, with_xirr=False)[1].value))
     by_broker = []
     for b in Broker.objects.filter(profile=profile):
         if broker and b.pk != broker:
             continue
-        v = holdings.compute(profile, portfolio=portfolio, broker=b.pk, as_of=on, settings=settings_row)[1].value
+        v = holdings.compute(profile, portfolio=portfolio, broker=b.pk, as_of=on, settings=settings_row, with_xirr=False)[1].value
         if v:
             by_broker.append((b.name, v))
     first = holdings_first_date(profile)

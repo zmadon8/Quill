@@ -29,11 +29,16 @@ def profile_or_404(request):
 def selection(request, profile):
     """The chosen portfolio id, broker id and as-at date: from the query string, else remembered in the session (per profile)."""
     key = f"inv_sel_{profile.pk}"
+    # A view and ``page()`` both ask: the answer cannot change within one request, so work it out (up to two existence queries) once.
+    memo = getattr(request, "_inv_selection", None)
+    if memo is not None and memo[0] == (key, request.session.get(key), request.GET.get("sel")):
+        return memo[1]
     saved = request.session.get(key, {})
     params = request.GET
     if params.get("sel") == "1":
         saved = {"portfolio": params.get("portfolio") or "", "broker": params.get("broker") or "", "asat": params.get("asat") or ""}
         request.session[key] = saved
+    state = (key, request.session.get(key), request.GET.get("sel"))
 
     def as_id(raw, model):
         try:
@@ -50,6 +55,7 @@ def selection(request, profile):
         asat = None
     if asat and asat >= datetime.date.today():
         asat = None
+    request._inv_selection = (state, (portfolio, broker, asat))
     return portfolio, broker, asat
 
 

@@ -87,7 +87,8 @@ def build(profile, label, *, portfolio=None, broker=None, include_dividends=None
     if include_dividends is None:
         include_dividends = settings_row.include_dividends
     opening_day = start - timedelta(days=1)
-    t0 = holdings.compute(profile, portfolio=portfolio, broker=broker, as_of=opening_day, settings=settings_row, include_dividends=include_dividends)[1]
+    t0 = holdings.compute(profile, portfolio=portfolio, broker=broker, as_of=opening_day, settings=settings_row, include_dividends=include_dividends,
+                          with_xirr=False)[1]
     rows1, t1 = holdings.compute(profile, portfolio=portfolio, broker=broker, as_of=closing, settings=settings_row, include_dividends=include_dividends)
     report.opening_value, report.closing_value = t0.value, t1.value
     report.holdings = holdings.held(rows1)

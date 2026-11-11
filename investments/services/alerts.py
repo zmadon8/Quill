@@ -73,7 +73,7 @@ def evaluate(profile, today=None):
         guards.setdefault((g.instrument_id, g.portfolio_id), []).append(g)
     states = {st.key: st for st in AlertState.objects.filter(profile=profile)}
     window_days = max(2, s.rule_a_window_days)
-    per_portfolio = [(portfolio, holdings.compute(profile, portfolio=portfolio.pk, as_of=today, settings=s)[0])
+    per_portfolio = [(portfolio, holdings.compute(profile, portfolio=portfolio.pk, as_of=today, settings=s, with_xirr=False)[0])
                      for portfolio in Portfolio.objects.filter(profile=profile)]
     held_ids = {h.instrument.pk for _p, rows in per_portfolio for h in rows
                 if h.units > 0 and not h.unpriced and not h.blocked and h.instrument.kind != KIND_ALTERNATIVE}

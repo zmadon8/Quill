@@ -25,6 +25,13 @@ MAX_POINTS = 400
 MAX_SERIES = 8
 
 
+def holdings_fields():
+    """The transaction columns the value series reads (see ``holdings.TXN_FIELDS``)."""
+    from investments.services import holdings
+
+    return holdings.TXN_FIELDS
+
+
 def sample_dates(start, end):
     """Daily up to 92 days, weekly (Fridays) up to three years, month-ends beyond; always ends on ``end``; capped at MAX_POINTS."""
     span = (end - start).days
@@ -70,11 +77,41 @@ def sampled_prices(instrument, days):
     return out
 
 
+#: Instruments whose prices are read together by ``sampled_prices_many``: one query per price table per chunk instead of per instrument,
+#: and still never more than a chunk's rows in memory (the module's rule: prices are not all held at once).
+PRICE_CHUNK = 20
+
+
+def sampled_prices_many(instruments, days):
+    """``{instrument id: [price or None]}`` exactly as ``sampled_prices`` gives for each of ``instruments``, from a few queries in all."""
+    ids = [i.pk for i in instruments]
+    if not days or not ids:
+        return {iid: [None] * len(days) for iid in ids}
+    merged = {iid: {} for iid in ids}
+    for model in (prices.Price, prices.ManualPrice):   # a hand-entered price wins a tie, so it is applied last
+        rows = model.objects.filter(instrument_id__in=ids, date__gte=days[0], date__lte=days[-1]).values_list("instrument_id", "date", "close")
+        for iid, day, close in rows.iterator(chunk_size=2000):
+            merged[iid][day] = close
+    before = prices.latest_prices(ids, days[0] - timedelta(days=1))
+    out = {}
+    for iid in ids:
+        rows = sorted(merged[iid].items())
+        if iid in before:
+            rows = [before[iid]] + rows          # the last close before the window answers its first days
+        keys = [d for d, _ in rows]
+        sampled = []
+        for d in days:
+            i = bisect_right(keys, d)
+            sampled.append(rows[i - 1][1] if i else None)
+        out[iid] = sampled
+    return out
+
+
 def portfolio_value_series(profile, days, *, portfolio=None, broker=None, instrument_ids=None, settings_row=None):
     """``(values, flows)``: the portfolio value on each sample date and the net money put in during each period (period 0: up to days[0])."""
     settings_row = settings_row or core.get_settings(profile, create=False)
     leave_out = settings_row.awaiting_treatment == AWAITING_LEAVE_OUT
-    qs = Transaction.objects.filter(profile=profile, date__lte=days[-1]).select_related("instrument")
+    qs = Transaction.objects.filter(profile=profile, date__lte=days[-1]).only(*holdings_fields())
     if portfolio:
         qs = qs.filter(portfolio_id=portfolio)
     if broker:
@@ -82,11 +119,13 @@ def portfolio_value_series(profile, days, *, portfolio=None, broker=None, instru
     if instrument_ids is not None:
         qs = qs.filter(instrument_id__in=list(instrument_ids))
     by_inst, instruments, fx = {}, {}, {}
-    for t in qs.iterator(chunk_size=500):
+    for t in qs.iterator(chunk_size=2000):
         by_inst.setdefault(t.instrument_id, []).append(t)
-        instruments[t.instrument_id] = t.instrument
+        instruments[t.instrument_id] = None       # keeps the order the investments first appear in; the investments are read in one query below
         if t.fx_rate:
             fx[t.instrument_id] = t.fx_rate
+    for iid, inst in Instrument.objects.in_bulk(list(instruments)).items():
+        instruments[iid] = inst
     moves = {}
     transfer_flows = []
     tq = Transfer.objects.filter(profile=profile, date__lte=days[-1])
@@ -117,6 +156,10 @@ def portfolio_value_series(profile, days, *, portfolio=None, broker=None, instru
     applied = corporate_service.applied(profile, list(instruments))
     # The price-basis factor needs every applied split and bonus, also those whose units were recorded as transactions.
     applied_basis = corporate_service.applied(profile, list(instruments), for_units=False)
+    priced_order = [inst for inst in instruments.values() if inst.kind != KIND_ALTERNATIVE]
+    priced_at = {inst.pk: n for n, inst in enumerate(priced_order)}
+    chunk = {}
+    fx_by_currency = {}
     for iid, inst in instruments.items():
         events = []
         for t in by_inst.get(iid, []):
@@ -138,12 +181,19 @@ def portfolio_value_series(profile, days, *, portfolio=None, broker=None, instru
         events.sort(key=lambda e: (e[0], 0 if e[1] is None else 1))
         if not events:
             continue
-        sampled = None if inst.kind == KIND_ALTERNATIVE else sampled_prices(inst, days)
+        sampled = None
+        if inst.kind != KIND_ALTERNATIVE:
+            if iid not in chunk:
+                n = priced_at[iid]
+                chunk = sampled_prices_many(priced_order[n:n + PRICE_CHUNK], days)    # the next few instruments' prices; the last chunk is dropped
+            sampled = chunk[iid]
         rates = None
         if inst.currency != "INR":
             from investments.services import fx as fx_service
 
-            rates = [r or fx.get(iid, Decimal(1)) for r in fx_service.sampled(inst.currency, days)]
+            if inst.currency not in fx_by_currency:
+                fx_by_currency[inst.currency] = fx_service.sampled(inst.currency, days)
+            rates = [r or fx.get(iid, Decimal(1)) for r in fx_by_currency[inst.currency]]
         units, at_cost, k = ZERO, ZERO, 0
         cost_basis = {}
         buys = [t for t in by_inst.get(iid, []) if t.status == STATUS_FINAL and t.side == SIDE_BUY and t.units] if inst.kind == KIND_ALTERNATIVE else []

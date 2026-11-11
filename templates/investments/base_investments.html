@@ -6,7 +6,7 @@
 {% block extra_css %}<link rel="stylesheet" href="{% static 'css/ledger.css' %}">
   <link rel="stylesheet" href="{% static 'css/investments.css' %}">{% endblock %}
 {% block program_name %}<a href="{% url 'investments_dashboard' %}" title="{{ program_full_label }}">{{ program_header_label|default:program_label }}</a>{% if inv_profile and not program_header_label %} <span class="profile-name">&middot; {{ inv_profile.name }}</span>{% endif %}{% if inv_other_profiles %}{% include "diary/_profile_switch.html" with other_profiles=inv_other_profiles %}{% endif %}{% endblock %}
-{% block program_nav %}{% for i in inv_nav %}<a href="{{ i.url }}"{% if i.on %} class="on" aria-current="page"{% endif %}>{{ i.name }}{% if i.key == "alerts" and inv_alert_count %}<span class="dot" aria-label="{{ inv_alert_count }} alerts">{{ inv_alert_count }}</span>{% endif %}</a>
+{% block program_nav %}{% for i in inv_nav %}<a href="{{ i.url }}"{% if i.on %} class="on" aria-current="page"{% endif %}>{{ i.name }}{% if i.key == "alerts" %}{% if inv_alert_count %}<span class="dot" aria-label="{{ inv_alert_count }} alerts">{{ inv_alert_count }}</span>{% elif inv_alert_url %}<span class="dot" data-alert-url="{{ inv_alert_url }}" style="display:none"></span>{% endif %}{% endif %}</a>
   {% endfor %}{% if can_edit and inv_profile %}<span class="buy-sell" role="group" aria-label="Buy and sell"><a class="buy-btn" href="{% url 'investments_txn_new_buy' %}">Buy</a><a class="sell-btn" href="{% url 'investments_txn_new_sell' %}">Sell</a></span>{% endif %}{% endblock %}
 {% block search_tool %}{% include "_search_button.html" with popup=True %}{% endblock %}
 {% block search_panel %}<div class="search-pop" id="search-pop" hidden><form role="search" method="get" action="{% url 'investments_search' %}"><label class="visually-hidden" for="search-pop-q">Search investments, folios, brokers and transactions</label><input type="search" id="search-pop-q" name="q" value="{{ query|default:'' }}" placeholder="Search investments, folios, brokers and transactions&hellip;" autocomplete="off" data-search-popup-input><button type="submit" class="primary">Search</button><a class="search-pop-all" href="{% url 'suite_search' %}" data-search-all>Search all programs</a></form></div>{% endblock %}
@@ -19,6 +19,7 @@
 {% block extra_js %}<script src="{% static 'js/investments/money_auto.js' %}"></script>
 <script src="{% static 'js/investments/shell.js' %}"></script>
 <script src="{% static 'js/investments/update-prices.js' %}"></script>
+{% if inv_alert_url %}<script src="{% static 'js/investments/alert-badge.js' %}"></script>{% endif %}
 {% if inv_settings.column_picker %}{# the Fee Register's Columns menu (owner round 2026-11); choices are kept in this browser #}
 <script src="{% static 'js/investments/columns-on.js' %}"></script>
 <script src="{% static 'js/fees/columns.js' %}"></script>{% endif %}

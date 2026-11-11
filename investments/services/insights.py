@@ -21,12 +21,24 @@ DISMISS_PREFIX = "insight:"
 
 
 def compute(profile, today=None):
-    from django.urls import reverse
+    """The insights to show: worked out once and kept (they replay the holdings, so they must not run on every Overview visit), then the
+    ones the person dismissed are left out. Dismissing does not change the profile's data, so it is applied after the cache."""
+    from investments.services import statscache
 
     today = today or date.today()
+    kept = statscache.get_or_compute(profile, "insights", {}, lambda: _worked_out(profile, today), today_sensitive=True, today=today)
+    dismissed = set(AlertState.objects.filter(profile=profile, key__startswith=DISMISS_PREFIX, dismissed_on__isnull=False).values_list("key", flat=True))
+    return sorted((i for i in kept if i["key"] not in dismissed), key=lambda i: -i["rank"])
+
+
+def _worked_out(profile, today):
+    from django.urls import reverse
+
     s = core.get_settings(profile, create=False)
     off = set(s.insights_off or [])
-    data = dashboard.load(profile)
+    # The same arguments as the Overview page uses for its own figures (the profile's Include Dividends choice), so this reads the figures
+    # the page has just kept instead of working out a second set.
+    data = dashboard.load(profile, include_dividends=s.include_dividends)
     rows, totals = data["rows"], data["totals"]
     out = []
 
@@ -48,10 +60,13 @@ def compute(profile, today=None):
                 f"{r['id']}")
     from investments.services import reports
 
-    soon = reports.turning_long(profile, days=60)
-    if soon.rows:
-        first = soon.rows[0]
-        add("turning_long", 70, f"{len(soon.rows)} purchase{'s' if len(soon.rows) != 1 else ''} turn long-term within 60 days; the first is {first[0]} in {first[5]} days.",
+    if data.get("turning") is not None:      # worked out with the figures above (kept payloads from before this existed have none)
+        soon = [(name, None, None, None, turns, left) for name, turns, left in data["turning"]]
+    else:
+        soon = [tuple(r) for r in reports.turning_long(profile, days=60).rows]
+    if soon:
+        first = soon[0]
+        add("turning_long", 70, f"{len(soon)} purchase{'s' if len(soon) != 1 else ''} turn long-term within 60 days; the first is {first[0]} in {first[5]} days.",
             reverse("investments_report", args=["turning-long"]), f"{first[0]}:{first[4]}")
     limit = float(s.concentration_limit)
     for r in rows:
@@ -73,8 +88,7 @@ def compute(profile, today=None):
     if stale:
         add("stale", 50, f"{len(stale)} holding{'s have' if len(stale) != 1 else ' has'} a price more than {fetch.STALE_DAYS} days old.",
             reverse("investments_report", args=["data-check"]), f"{today:%Y%m%d}")
-    dismissed = set(AlertState.objects.filter(profile=profile, key__startswith=DISMISS_PREFIX, dismissed_on__isnull=False).values_list("key", flat=True))
-    return sorted((i for i in out if i["key"] not in dismissed), key=lambda i: -i["rank"])
+    return out
 
 
 def dismiss(profile, key):

@@ -5,7 +5,7 @@ wins over a fetched one for the same day.
 from decimal import Decimal
 
 from django.db import transaction
-from django.db.models import Max, OuterRef, Subquery
+from django.db.models import OuterRef, Subquery
 
 from investments.errors import InvestmentsError, not_found
 from investments.models import AltValue, Instrument, ManualPrice, PinnedPrice, Price  # noqa: F401
@@ -13,13 +13,17 @@ from investments.services import core, history
 
 
 def _newest_by_instrument(model, ids, as_of):
-    newest = (
-        model.objects.filter(instrument_id=OuterRef("instrument_id"), date__lte=as_of).order_by("-date").values("date")[:1]
-    )
+    """``{instrument id: (date, close)}`` of each instrument's newest row on or before ``as_of``, in one query.
+
+    The query starts from the instruments and asks the (instrument, date) index for one row each, so it costs one index probe per
+    instrument. (Filtering the price rows themselves with a correlated "newest date" subquery made the database test every stored price
+    row up to ``as_of`` -- hundreds of thousands for ten years of daily prices -- once per call.)"""
+    newest = model.objects.filter(instrument_id=OuterRef("pk"), date__lte=as_of).order_by("-date")
     rows = (
-        model.objects.filter(instrument_id__in=ids, date__lte=as_of)
-        .annotate(newest=Subquery(newest)).filter(date=Subquery(newest))
-        .values_list("instrument_id", "date", "close")
+        Instrument.objects.filter(pk__in=ids)
+        .annotate(newest_date=Subquery(newest.values("date")[:1]), newest_close=Subquery(newest.values("close")[:1]))
+        .filter(newest_date__isnull=False)
+        .values_list("pk", "newest_date", "newest_close")
     )
     return {iid: (day, close) for iid, day, close in rows}
 
@@ -142,12 +146,20 @@ def delete_alt_value(profile, user, pk):
 
 
 def last_price_date(instrument_ids):
-    """``{instrument id: newest stored price date}`` over hand-entered and fetched prices."""
+    """``{instrument id: newest stored price date}`` over hand-entered and fetched prices.
+
+    One index probe per instrument and table (the newest row by date), not a ``GROUP BY`` over every stored price: this runs on every page
+    for the status line, and ten years of daily prices is hundreds of thousands of rows."""
     ids = list(instrument_ids)
-    out = dict(Price.objects.filter(instrument_id__in=ids).values_list("instrument_id").annotate(m=Max("date")).order_by())
-    for iid, m in ManualPrice.objects.filter(instrument_id__in=ids).values_list("instrument_id").annotate(m=Max("date")).order_by():
-        if iid not in out or m > out[iid]:
-            out[iid] = m
+    if not ids:
+        return {}
+    out = {}
+    for model in (Price, ManualPrice):
+        newest = model.objects.filter(instrument_id=OuterRef("pk")).order_by("-date").values("date")[:1]
+        rows = Instrument.objects.filter(pk__in=ids).annotate(newest_date=Subquery(newest)).filter(newest_date__isnull=False)
+        for iid, m in rows.values_list("pk", "newest_date"):
+            if iid not in out or m > out[iid]:
+                out[iid] = m
     return out
 
 

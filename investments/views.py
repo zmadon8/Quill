@@ -75,12 +75,11 @@ def dashboard(request):
     index = masters.default_index_for(profile)
     range_key, range_days = chartview.choose(request, "1y")
     if range_days is None and data["chart"]:
-        # the whole history is part of the cached figures; any other period is drawn on demand (the Holdings page has the table and
-        # its 90-day lines, so the Overview no longer works them out)
+        # the whole history is in the cached figures when a chosen figure (time-weighted return, largest fall) needed the sampled line
         chart = line_chart([_date.fromisoformat(d) for d in data["chart"]["days"]], data["chart"]["lines"], height=240)
-    elif range_days is None:
-        chart = None
     else:
+        # otherwise every period, "All" included, is drawn on demand and kept in its own cache entry (the Holdings page has the table and
+        # its 90-day lines, so the Overview no longer works them out)
         chart = chartview.value_chart(profile, range_days, asat or _date.today(), index=index, portfolio=portfolio, broker=broker,
                                       settings_row=settings_row)
     rows = data["rows"]
@@ -158,6 +157,15 @@ def _has_prices(profile):
 
     ids = ProfileInvestment.objects.filter(profile=profile).values_list("instrument_id", flat=True)
     return ManualPrice.objects.filter(instrument_id__in=list(ids)).exists()
+
+
+@inv_reader
+def alert_count(request):
+    """The number of alerts for the menu badge. The menu asks for it after the page has loaded when the alerts were not already worked out,
+    so working them out (which can mean valuing every holding) never holds up a page."""
+    from .services import alerts
+
+    return JsonResponse({"count": alerts.count(profile_or_404(request))})
 
 
 @inv_reader
