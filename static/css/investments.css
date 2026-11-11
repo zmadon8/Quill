@@ -193,7 +193,7 @@ body.inv .acts-row .btn,body.inv .acts .btn{min-height:44px}
 }
 /* The header bar itself (height, padding, alignment) comes from the shared shell (design.css), as in the Case Law Diary and the
    Fee Register; only the Alerts count badge is the program's own. */
-body.inv .program-nav .dot{display:inline-block;min-width:18px;height:18px;line-height:18px;text-align:center;font-size:11px;background:var(--danger);color:#fff;border-radius:9px;margin-left:6px}
+body.inv .program-nav .dot{display:inline-block;width:9px;height:9px;background:var(--danger);border-radius:50%;margin-left:6px;vertical-align:2px}
 body.inv .search-pop{border-bottom:1px solid var(--hair);background:var(--panel);padding:.6rem 0}
 body.inv .search-pop .btn{min-height:var(--tap);min-width:6rem;justify-content:center}
 body.inv .sw{display:inline-flex;border:1px solid var(--ink);border-radius:2px;overflow:hidden;font-size:14px;vertical-align:middle;margin-left:10px}
@@ -208,7 +208,7 @@ body.inv nav.sub a.on{color:var(--ink)}
 /* Page titles follow the Fee Register (ledger.css): a page a header entry or sub-tab opens keeps its <h1> for screen readers
    only; other pages show a plain <h1> in .page-head, with a muted line beside it where there is one. */
 body.inv .page-head .page-meta{margin:0;color:var(--muted);font-size:.857rem}
-body.inv .program-nav a .dot{display:inline-block;min-width:18px;height:18px;line-height:18px;text-align:center;font-size:11px;background:var(--danger);color:#fff;border-radius:9px;margin-left:5px;vertical-align:1px}
+body.inv .program-nav a .dot{display:inline-block;width:9px;height:9px;background:var(--danger);border-radius:50%;margin-left:5px;vertical-align:2px}
 body.inv .tools .status{padding-top:0}
 
 /* ---------- real controls (forms, inputs, small helpers; added by hand) ---------- */
@@ -349,3 +349,12 @@ body.inv nav.seg a{padding:4px 12px;border-radius:7px;font-size:13px;color:var(-
 body.inv nav.seg a.on{background:var(--white);color:var(--ink);font-weight:600;box-shadow:var(--shadow-card)}
 .more-fields { margin: .5rem 0 1rem; }
 .more-fields > summary { cursor: pointer; padding: .3rem 0; }
+
+/* Update Prices in the header: a small refresh button; its progress text sits beside it and is empty until used. */
+body.inv .upd{display:inline-flex;align-items:center;gap:6px}
+body.inv .upd-btn{min-width:34px;min-height:34px;border:1px solid var(--line-strong,var(--ink));background:transparent;color:inherit;border-radius:var(--radius,2px);font-size:1.1rem;line-height:1;cursor:pointer}
+body.inv .upd-btn:disabled{opacity:.5;cursor:not-allowed}
+body.inv .upd-status{max-width:14rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.8rem;color:var(--muted)}
+body.inv .upd-status:empty{display:none}
+/* Type and Status filters on one line */
+body.inv form.filters{display:flex;flex-wrap:nowrap;align-items:flex-end;gap:16px}
