@@ -47,30 +47,8 @@
 {% endif %}
 <div class="cols">
   <div>
-    <div class="sec"><h2>Holdings</h2><div class="acts"><a class="btn q" href="{% url 'investments_holdings' %}">All investments</a></div></div>
-    {% if rows %}
-    <div class="tw"><table data-table-id="inv-dashboard-1" class="led" data-sortable>
-      <thead><tr><th>Name</th><th>Type</th><th class="r">Units</th><th class="r">Avg cost</th><th class="r">Price</th><th class="r">Value</th><th class="r">Gain %</th><th class="r">XIRR</th><th class="r">Index XIRR</th><th class="r">Alpha</th>{% if sectoral %}<th class="r">Sectoral alpha</th>{% endif %}<th class="r" data-col="spark">90 days</th></tr></thead>
-      <tbody>{% for h in rows %}
-        <tr>
-          <td class="nm" data-sort="{{ h.name|lower }}"><a href="{% url 'investments_investment' h.id %}">{{ h.name }}</a>{% if h.awaiting %}<span class="tag amb">Awaiting {{ h.awaiting|inr }}</span>{% endif %}{% if h.unpriced %}<span class="tag dash">No price</span>{% elif h.stale %}<span class="tag amb">Stale</span>{% endif %}{% if h.provisional %}<span class="tag amb">Provisional</span>{% endif %}</td>
-          <td>{{ h.kind }}</td>
-          <td class="r" data-sort="{{ h.units }}">{{ h.units|units }}</td>
-          <td class="r" data-sort="{{ h.avg_cost|default_if_none:0 }}">{% if h.avg_cost %}{{ h.avg_cost|price }}{% else %}<span class="na">&ndash;</span>{% endif %}</td>
-          <td class="r" data-sort="{{ h.price|default_if_none:0 }}">{% if h.price %}{{ h.price|price }}{% else %}<span class="na">&ndash;</span>{% endif %}</td>
-          <td class="r" data-sort="{{ h.value }}">{% if h.blocked %}<span class="na">n/a</span>{% else %}{{ h.value|inr }}{% endif %}</td>
-          <td class="r" data-sort="{{ h.gain_pct|default_if_none:0 }}">{% if h.gain_pct is not None and not h.unpriced and not h.blocked %}{{ h.gain_pct|pct_signed }}{% else %}<span class="na">&ndash;</span>{% endif %}</td>
-          <td class="r" data-sort="{{ h.xirr|default_if_none:-9 }}">{{ h.xirr|pct }}</td>
-          <td class="r" data-sort="{{ h.index_xirr|default_if_none:-9 }}">{{ h.index_xirr|pct }}</td>
-          <td class="r" data-sort="{{ h.alpha|default_if_none:-9 }}">{{ h.alpha|pct_signed }}</td>
-          {% if sectoral %}<td class="r">{{ h.sect_alpha|pct_signed }}</td>{% endif %}
-          <td class="r spark-cell" data-sort="{{ h.spark.change|default_if_none:'' }}">{% include "investments/_spark.html" with s=h.spark %}</td>
-        </tr>{% endfor %}
-      </tbody>
-      <tfoot><tr><td colspan="5">Total</td><td class="r">{{ totals.value|inr }}</td><td class="r">{{ totals.gain_pct|pct_signed }}</td><td class="r">{{ totals.xirr|pct }}</td><td class="r">{{ totals.index_xirr|pct }}</td><td class="r">{{ totals.alpha|pct_signed }}</td>{% if sectoral %}<td></td>{% endif %}<td></td></tr></tfoot>
-    </table></div>
-    {% endif %}
-    {% if chart %}<div class="sec"><h2>Value against the same money in the index</h2></div>{% include "investments/_chart.html" with caption="Portfolio value and the same money invested in the index" %}{% endif %}
+    {% if has_any %}<p class="hint">Every investment is listed on the <a href="{% url 'investments_holdings' %}">Holdings</a> page.</p>
+    {% include "investments/_chart_block.html" with title="Value against the same money in the index" chart=chart ranges=chart_ranges anchor="chart" caption="Portfolio value and the same money invested in the index" %}{% endif %}
     {% if allocation %}
     <div class="sec"><h2>Allocation</h2><span class="hint">by asset class</span></div>
     <div class="bars">{% for label, value, share in allocation %}

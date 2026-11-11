@@ -62,11 +62,9 @@ def price_chart(profile, instrument, start, end):
     raw = series.sampled_prices(instrument, days)
     if not any(raw):
         return None
-    from investments.models import Transaction
+    from investments.services import chartview
 
-    markers = []
-    for t in Transaction.objects.filter(profile=profile, instrument=instrument, status="final", date__range=(start, end)):
-        markers.append((t.date, f"{t.get_side_display()} {t.units.normalize():f} at {t.price.normalize():f} on {t.date:%-d %b %Y}", "buy" if t.side == "buy" else "sell"))
+    markers = chartview.markers_for(profile, instrument, start, end)
     return line_chart(days, [(instrument.name, [None if p is None else float(p) for p in raw])], height=220, markers=markers)
 
 

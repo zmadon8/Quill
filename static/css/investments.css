@@ -36,8 +36,8 @@ body.inv .toggle span.on{background:var(--ink);color:var(--bg)}
 body.inv .status{font-size:12.5px;color:var(--muted);padding:7px 0 0;text-align:right;flex-basis:100%}
 body.inv .status b{font-weight:500;color:var(--ink)}
 body.inv .strip{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;margin:24px 0 8px;border-top:1px solid var(--ink);border-bottom:1px solid var(--hair)}
-body.inv .strip .f{padding:14px 18px 14px;border-left:1px solid var(--hair)}
-body.inv .strip .f:first-child{border-left:0;padding-left:0}
+body.inv .strip .f{padding:14px 18px 14px 18px;border-left:1px solid var(--hair)}
+body.inv .strip .f:first-child{border-left:0}
 body.inv .lab{font-weight:500;font-size:13px;text-transform:none;letter-spacing:0;color:var(--muted)}
 body.inv .fig{font:400 30px/1.15 var(--font-serif);margin-top:5px;font-variant-numeric:tabular-nums}
 body.inv .fig small{display:block;font:13px var(--font-sans);color:var(--muted);margin-top:3px;letter-spacing:0}
@@ -155,7 +155,7 @@ body.inv .kvs{grid-template-columns:repeat(2,1fr)}
 body.inv .kvs>div:nth-child(4n+1){border-left:1px solid var(--hair);padding-left:16px}
 body.inv .kvs>div:nth-child(2n+1){border-left:0;padding-left:0}
 body.inv .strip{grid-auto-flow:row;grid-template-columns:repeat(3,1fr)}
-body.inv .strip .f:nth-child(3n+1){border-left:0;padding-left:0}
+body.inv .strip .f:nth-child(3n+1){border-left:0}
 body.inv .choices{grid-template-columns:1fr}
 body.inv .choices .ch:nth-child(odd){border-right:0;padding-right:4px}
 body.inv .choices .ch:nth-child(even){padding-left:4px}
@@ -167,8 +167,8 @@ body.inv .tools{gap:10px}
 body.inv .status{text-align:left}
 body.inv .invhead{flex-direction:column;align-items:flex-start;gap:6px}
 body.inv .strip{grid-template-columns:1fr 1fr}
-body.inv .strip .f{padding:12px 12px}
-body.inv .strip .f:nth-child(odd){border-left:0;padding-left:0}
+body.inv .strip .f{padding:12px 14px}
+body.inv .strip .f:nth-child(odd){border-left:0}
 body.inv .strip .f:nth-child(even){border-left:1px solid var(--hair)}
 body.inv .fig{font-size:24px}
 body.inv .fld{width:100%}

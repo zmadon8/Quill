@@ -37,32 +37,6 @@ def _sparks(instruments, as_of=None):
     return {iid: sparkline(vals) for iid, vals in closes.items()}
 
 
-#: The price chart's range buttons on an investment's page: (key, label, days; None = from the first price).
-PRICE_RANGES = (("1m", "1M", 30), ("6m", "6M", 183), ("1y", "1Y", 365), ("5y", "5Y", 1825), ("all", "All", None))
-
-
-def _price_range(request):
-    """The chosen range key and its start offset in days (None = all). ``?range=`` wins; the older ``?days=N`` still works."""
-    key = request.GET.get("range", "")
-    for k, _label, days in PRICE_RANGES:
-        if k == key:
-            return k, days
-    raw = request.GET.get("days", "")
-    if raw.isdigit() and int(raw) > 0:
-        days = int(raw)
-        match = next((k for k, _l, d in PRICE_RANGES if d == days), "")
-        return match, days
-    return "1y", 365
-
-
-def _range_query(request, key):
-    """The page's query string with ``range`` set to ``key`` (other choices such as ``?on=`` are kept)."""
-    query = request.GET.copy()
-    query.pop("days", None)
-    query["range"] = key
-    return query.urlencode()
-
-
 def _first_price_date(inst):
     from django.db.models import Min
 
@@ -243,7 +217,7 @@ def _parse_links(text):
 def investment(request, pk):
     from datetime import date as _date, timedelta as _td
 
-    from .services import investment_page
+    from .services import chartview, investment_page
     from .viewutil import include_dividends, parse_date
 
     profile = profile_or_404(request)
@@ -255,7 +229,7 @@ def investment(request, pk):
     as_of = on or asat or _date.today()
     div = include_dividends(request, profile)
     rows, _t = holdings.compute(profile, portfolio=portfolio, broker=broker, as_of=as_of, instrument_ids=[inst.pk], include_dividends=div)
-    range_key, range_days = _price_range(request)
+    range_key, range_days = chartview.choose(request, "1y")
     if range_days is None:
         chart_start = _first_price_date(inst) or (as_of - _td(days=365))
     else:
@@ -287,8 +261,11 @@ def investment(request, pk):
         "awaiting_rows": awaiting_rows, "history": InvestmentHistory.objects.filter(profile=profile, instrument_id_ref=inst.pk)[:8],
         "kind_label": inst.get_kind_display(), "on": on, "as_of": as_of, "include_div": div,
         "chart": investment_page.price_chart(profile, inst, chart_start, as_of) if inst.kind != KIND_ALTERNATIVE else None,
-        "price_ranges": [{"key": k, "label": label, "on": k == range_key,
-                          "href": "?" + _range_query(request, k)} for k, label, _d in PRICE_RANGES],
+        "price_ranges": chartview.links(request, range_key, "#price"),
+        "value_chart": chartview.value_chart(
+            profile, range_days, as_of, index=masters.default_index_for(profile), portfolio=portfolio, broker=broker, instrument_ids=[inst.pk],
+            markers=chartview.markers_for(profile, inst, as_of - _td(days=range_days or 36500), as_of)),
+        "value_ranges": chartview.links(request, range_key, "#value-chart"),
         "range52": investment_page.range_52w(inst, as_of) if inst.kind != KIND_ALTERNATIVE else (None, None),
         "guardrails": investment_page.guardrails(profile, inst),
         "foreign": investment_page.foreign_figures(profile, inst, h, as_of) if inst.currency != "INR" else None,

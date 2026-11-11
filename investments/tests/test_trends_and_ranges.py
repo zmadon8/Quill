@@ -41,17 +41,17 @@ class PageTests(InvTestCase):
         for n in range(10):
             Price.objects.create(instrument=self.reliance, date=today - timedelta(days=n), close=D(100 + n), source="api")
 
-    def test_holdings_and_overview_have_the_90_day_column(self):
-        for name in ("investments_holdings", "investments_dashboard"):
-            page = self.client.get(reverse(name)).content.decode()
-            self.assertIn('data-col="spark">90 days</th>', page, name)
-            self.assertIn('<svg class="spark down"', page, name)       # the closes fall towards today
+    def test_holdings_have_the_90_day_column_and_the_overview_no_longer_does(self):
+        page = self.client.get(reverse("investments_holdings")).content.decode()
+        self.assertIn('data-col="spark">90 days</th>', page)
+        self.assertIn('<svg class="spark down"', page)       # the closes fall towards today
+        self.assertNotIn("90 days</th>", self.client.get(reverse("investments_dashboard")).content.decode())
 
     def test_price_chart_range_buttons(self):
         url = reverse("investments_investment", args=[self.reliance.pk])
         page = self.client.get(url).content.decode()
         self.assertIn('aria-label="Price range"', page)
-        for label in ("1M", "6M", "1Y", "5Y", "All"):
+        for label in ("1M", "3M", "6M", "1Y", "3Y", "5Y", "All"):
             self.assertIn(f">{label}</a>", page)
         self.assertIn('class="on" aria-current="true">1Y</a>', page)
         page = self.client.get(url + "?range=6m").content.decode()
