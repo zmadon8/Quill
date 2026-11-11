@@ -129,6 +129,35 @@ def _group_of_firm(profile, firm_id, group_id):
     raise Http404("Group not found")
 
 
+@fees_reader
+@handle_fees_errors()
+@require_safe
+def group_detail(request, firm_id, group_id):
+    """One group of a firm: the firm page's details and buttons, limited to this group's matters."""
+    profile, settings = scope.context(request)
+    detail = firms.get_firm(profile, firm_id)
+    group = next((g for g in detail["groups"] if g.pk == group_id), None)
+    if group is None:
+        raise Http404("Group not found")
+    shown = request.GET.get("matters")
+    if shown not in ("all", "active"):
+        shown = default_list_filter(settings)
+    rows = [row for row in detail["matters"] if row["matter"].group_id == group_id]
+    if shown == "active":
+        rows = [row for row in rows if not row["matter"].is_archived]
+    return render_page(
+        request,
+        "fees/group_detail.html",
+        {
+            "firm": detail["firm"],
+            "group": group,
+            "matter_rows": rows,
+            "matters_shown": shown,
+            "matters_filters": ("all", "active"),
+        },
+    )
+
+
 @fees_editor
 @handle_fees_errors()
 @require_POST

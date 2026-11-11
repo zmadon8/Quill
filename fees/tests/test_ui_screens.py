@@ -57,7 +57,7 @@ NOT_PAGES = {
     "fees_statistics_export", "fees_statistics_annual_export", "fees_statistics_tax_summary", "fees_memo_preview_number",
     "fees_memo_preview_totals", "fees_memos_export", "fees_memo_delete", "fees_memo_write_off", "fees_memo_finalise",
     "fees_memo_word", "fees_memo_statement", "fees_payment_payees", "fees_payment_delete", "fees_payment_assign",
-    "fees_firm_status", "fees_group_add", "fees_group_rename", "fees_group_remove", "fees_firm_statement_export",
+    "fees_firm_status", "fees_group_detail", "fees_group_add", "fees_group_rename", "fees_group_remove", "fees_firm_statement_export",
     "fees_firm_ledger_export", "fees_matter_archive", "fees_matter_statement_export", "fees_matter_ledger_export",
     "fees_feebook_export", "fees_outstanding_export", "fees_outstanding_summary_export", "fees_search",
     "fees_bank_account_add", "fees_bank_account_rename", "fees_bank_account_delete", "fees_template_upload",

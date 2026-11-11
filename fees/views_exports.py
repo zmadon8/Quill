@@ -6,7 +6,7 @@ from fees.decorators import fees_reader, handle_fees_errors
 from fees.exports import xlsx
 from fees.pages import DOCX_TYPE, XLSX_TYPE, bank_on, feebook_filters, file_response, memo_filters, outstanding_filters, overdue_on
 from fees.services import memos, word_template
-from fees.views_ledger import scope_for
+from fees.views_ledger import group_param, scope_for
 
 
 @fees_reader
@@ -41,7 +41,7 @@ def memo_statement(request, memo_id):
 @require_safe
 def firm_statement_export(request, firm_id):
     profile, _settings = scope.context(request)
-    ledger_scope, _owner = scope_for(profile, "firm", firm_id)
+    ledger_scope, _owner = scope_for(profile, "firm", firm_id, group_param(request))
     return file_response(xlsx.export_statement(profile, ledger_scope), XLSX_TYPE)
 
 
@@ -50,7 +50,7 @@ def firm_statement_export(request, firm_id):
 @require_safe
 def firm_ledger_export(request, firm_id):
     profile, _settings = scope.context(request)
-    ledger_scope, _owner = scope_for(profile, "firm", firm_id)
+    ledger_scope, _owner = scope_for(profile, "firm", firm_id, group_param(request))
     return file_response(xlsx.export_ledger(profile, ledger_scope), XLSX_TYPE)
 
 

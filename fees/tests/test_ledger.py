@@ -268,6 +268,48 @@ class LedgerScopeTests(TestCase):
         )
 
 
+class LedgerTotalsAndGroupTitleTests(TestCase):
+    def setUp(self):
+        self.profile = fees_profile()
+        self.firm, self.group = seed_firm(self.profile, "Acme & Co", "Jane")
+        self.matter = seed_matter(self.profile, self.firm, self.group, "Alpha")
+
+    def test_totals_sum_memo_payment_and_tds_columns(self):
+        a = memo_with_total(self.profile, self.matter, 1000, date="2026-07-01")
+        memo_with_total(self.profile, self.matter, 500, date="2026-07-02")
+        payments.add_payment_to_memo(
+            self.profile, a.pk, dict(amount=400, date_of_payment="2026-08-01")
+        )
+        rows = ledger.build_ledger(self.profile, {"matter_id": self.matter.pk})
+        totals = ledger.ledger_totals(rows)
+        self.assertEqual(totals["memo_amount"], Decimal("1500.00"))
+        self.assertEqual(totals["payment_amount"], Decimal("400.00"))
+        self.assertEqual(totals["count"], 3)
+        self.assertNotIn("balance", totals)
+
+    def test_totals_of_no_rows_are_zero(self):
+        totals = ledger.ledger_totals([])
+        self.assertEqual(totals["memo_amount"], Decimal("0.00"))
+        self.assertEqual(totals["count"], 0)
+
+    def test_group_scope_title_names_firm_and_group(self):
+        title, subtitle = ledger.scope_title(
+            self.profile, {"firm_id": self.firm.pk, "group_id": self.group.pk}
+        )
+        self.assertEqual(title, "Statement - Acme & Co - Jane")
+        self.assertEqual(subtitle, "")
+
+    def test_group_scope_limits_rows_to_that_group(self):
+        other = Group.objects.create(profile=self.profile, firm=self.firm, name="Other")
+        m2 = seed_matter(self.profile, self.firm, other, "Beta")
+        memo_with_total(self.profile, self.matter, 1000)
+        memo_with_total(self.profile, m2, 300)
+        rows = ledger.build_ledger(
+            self.profile, {"firm_id": self.firm.pk, "group_id": self.group.pk}
+        )
+        self.assertEqual([r["matter_name"] for r in rows], ["Alpha"])
+
+
 # ---------------------------------------------------------------------------
 # build_statement: rows, outstanding floored at 0, Written Off override, totals
 # ---------------------------------------------------------------------------

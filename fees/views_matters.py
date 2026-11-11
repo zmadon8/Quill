@@ -73,6 +73,9 @@ def matter_new(request):
     firm_id = int_or_none(request.GET.get("firm"))
     if firm_id is not None:
         form["firm_id"] = firm_id
+        group_id = int_or_none(request.GET.get("group"))
+        if group_id is not None and any(g.pk == group_id for g in firms.get_firm(profile, firm_id)["groups"]):
+            form["group_id"] = group_id
     return _form_page(request, None, form)
 
 

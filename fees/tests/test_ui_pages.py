@@ -12,7 +12,7 @@ from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils.html import escape
 
-from fees.models import FeesSettings, Matter, Payment, SavedView
+from fees.models import FeesSettings, Group, Matter, Payment, SavedView
 from fees.services import dashboard, memos, payments
 from fees.tests import xlsx_support as xs
 from fees.tests.test_views_read import SeededViewsBase
@@ -350,9 +350,36 @@ class FirmScreenTests(UiPageBase):
         i = self.ids()
         text = self.assert_page(self.page("fees_firm_detail", {"firm_id": i["firm"]}, user=self.editor), "firm-editor")
         self.assertIn(reverse("fees_group_add", kwargs={"firm_id": i["firm"]}), text)
-        self.assertIn("aria-label=\"New name for group ", text)
+        self.assertIn('class="group-pill-link"', text)
+        self.assertNotIn("aria-label=\"New name for group ", text)
         self.assertIn(reverse("fees_firm_status", kwargs={"firm_id": i["firm"]}), text)
         self.assert_no_unlabelled_controls(text, "firm-editor")
+
+    def test_group_pills_link_to_the_group_page(self):
+        i = self.ids()
+        group = Group.objects.filter(firm_id=i["firm"]).first()
+        url = reverse("fees_group_detail", kwargs={"firm_id": i["firm"], "group_id": group.pk})
+        text = self.assert_page(self.page("fees_firm_detail", {"firm_id": i["firm"]}), "firm")
+        self.assertIn('<a class="group-pill-link" href="%s">%s</a>' % (url, group.name), text)
+
+    def test_group_page_is_limited_to_its_group(self):
+        i = self.ids()
+        group = Group.objects.filter(firm_id=i["firm"]).first()
+        kwargs = {"firm_id": i["firm"], "group_id": group.pk}
+        reader = self.assert_page(self.page("fees_group_detail", kwargs), "group")
+        firm_id, group_id = i["firm"], group.pk
+        self.assertIn("%s?group=%d" % (reverse("fees_firm_statement", kwargs={"firm_id": firm_id}), group_id), reader)
+        self.assertIn("%s?group=%d" % (reverse("fees_firm_ledger", kwargs={"firm_id": firm_id}), group_id), reader)
+        self.assertIn("?firm=%d&amp;group=%d" % (firm_id, group_id), reader)
+        self.assertNotIn(reverse("fees_matter_new"), reader)
+        self.assertNotIn("Edit Group", reader)
+        editor = self.assert_page(self.page("fees_group_detail", kwargs, user=self.editor), "group-editor")
+        self.assertIn("Edit Group", editor)
+        self.assertIn("%s?firm=%d&amp;group=%d" % (reverse("fees_matter_new"), firm_id, group_id), editor)
+        self.assertIn(reverse("fees_group_rename", kwargs=kwargs), editor)
+        self.assert_no_unlabelled_controls(editor, "group-editor")
+        for matter in Matter.objects.filter(firm_id=firm_id).exclude(group=group):
+            self.assertNotIn(reverse("fees_matter_detail", kwargs={"matter_id": matter.pk}), editor)
 
     def test_firm_forms(self):
         i = self.ids()

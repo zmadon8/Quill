@@ -191,6 +191,11 @@ body.ledger .group-list { list-style: none; margin: 0; padding: 0; background: v
 body.ledger .group-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 8px 12px; border-bottom: 1px solid var(--line); }
 body.ledger .group-list li:last-child { border-bottom: 0; }
 body.ledger .group-list .group-name { min-width: 10rem; font-weight: 500; }
+body.ledger .group-pills { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+body.ledger .group-pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 4px 2px 12px; border: 1px solid var(--line-strong); border-radius: 999px; background: var(--card); }
+body.ledger .group-pill:hover { border-color: var(--accent); background: var(--accent-tint); }
+body.ledger .group-pill .group-pill-link { font-weight: 500; color: var(--ink); text-decoration: none; padding: 4px 8px 4px 0; }
+body.ledger .group-pill form.inline { margin: 0; }
 body.ledger .inline-forms form.inline, body.ledger form.inline { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 8px 4px 0; }
 
 /* ---- 11. Statistics extras ---- */

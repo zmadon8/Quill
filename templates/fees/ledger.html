@@ -1,15 +1,8 @@
 {% extends "fees/base_fees.html" %}
-{% load fees_money %}
 {% block page_width %}w-5xl{% endblock %}
 {% block page_title %}{{ title }} - {{ program_label }}{% endblock %}
 {% block content %}
 <h1>{{ title }}</h1>
-<p><a href="{% if kind == 'firm' %}{% url 'fees_firm_detail' owner.pk %}{% else %}{% url 'fees_matter_detail' owner.pk %}{% endif %}">Back</a> | <a href="{% if kind == 'firm' %}{% url 'fees_firm_ledger_export' owner.pk %}{% else %}{% url 'fees_matter_ledger_export' owner.pk %}{% endif %}">Export to Excel</a></p>
-<div class="table-wrap">
-<table class="ledger-table" data-table-id="ledger">
-  <caption>{{ title }}: memos, payments and running balance</caption>
-  <thead><tr><th scope="col">Date</th><th scope="col">Particulars</th><th scope="col">Matter</th><th scope="col" class="money">Memo</th><th scope="col" class="money">Payment</th><th scope="col" class="money">TDS</th><th scope="col" class="money">Balance</th></tr></thead>
-  <tbody>{% for r in rows %}<tr><td>{{ r.date|fees_date }}</td><td>{{ r.particulars }}</td><td>{{ r.matter_name }}</td><td class="money">{{ r.memo_amount|fees_money:money_unit }}</td><td class="money">{{ r.payment_amount|fees_money:money_unit }}</td><td class="money">{{ r.tds|fees_money:money_unit }}</td><td class="money">{{ r.balance|fees_money:money_unit }}</td></tr>{% empty %}<tr><td colspan="7">Nothing to show.</td></tr>{% endfor %}</tbody>
-</table>
-</div>
+<p><a href="{% if kind == 'firm' %}{% if group_id %}{% url 'fees_group_detail' owner.pk group_id %}{% else %}{% url 'fees_firm_detail' owner.pk %}{% endif %}{% else %}{% url 'fees_matter_detail' owner.pk %}{% endif %}">Back</a> | <a href="{% if kind == 'firm' %}{% url 'fees_firm_ledger_export' owner.pk %}{% if group_id %}?group={{ group_id }}{% endif %}{% else %}{% url 'fees_matter_ledger_export' owner.pk %}{% endif %}">Export to Excel</a></p>
+{% include "fees/_ledger_table.html" with table_id="ledger" show_totals=True %}
 {% endblock %}

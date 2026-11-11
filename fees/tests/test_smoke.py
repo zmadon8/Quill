@@ -164,6 +164,11 @@ class ExcelExportSmokeTests(SmokeBase):
         self.assert_workbook("fees_firm_ledger_export", firm_ids)
         self.assert_workbook("fees_matter_statement_export", matter_ids)
         self.assert_workbook("fees_matter_ledger_export", matter_ids)
+        ledger_book = self.assert_workbook("fees_firm_ledger_export", firm_ids)
+        self.assertTrue(any(str(cell).startswith("Totals (") for cell in _cells(ledger_book)))
+        group_query = "?group=%d" % self.matter.group_id
+        self.assert_workbook("fees_firm_ledger_export", firm_ids, group_query)
+        self.assert_workbook("fees_firm_statement_export", firm_ids, group_query)
         feebook = self.assert_workbook("fees_feebook_export")
         self.assertIn(self.paid_memo.memo_number, _cells(feebook))
         outstanding = self.assert_workbook("fees_outstanding_export")

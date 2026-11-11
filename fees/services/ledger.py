@@ -222,7 +222,7 @@ def _scope_title(profile, scope):
     already filter by id stay cheap; resolving the name is skipped when the scope
     has no single matter / firm.
     """
-    from fees.models import Firm, Matter
+    from fees.models import Firm, Group, Matter
 
     matter_id = scope.get("matter_id")
     matter_ids = scope.get("matter_ids")
@@ -236,6 +236,12 @@ def _scope_title(profile, scope):
             return f"Statement - {matter.name}", matter.firm.name
         return "Statement", ""
 
+    group_id = scope.get("partner_id", scope.get("group_id"))
+    if group_id is not None and group_id != "none":
+        group = Group.objects.filter(profile=profile, pk=group_id).select_related("firm").first()
+        if group is not None:
+            return f"Statement - {group.firm.name} - {group.name}", ""
+
     firm_id = scope.get("firm_id")
     if firm_id is not None:
         firm = Firm.objects.filter(profile=profile, pk=firm_id).first()
@@ -244,6 +250,16 @@ def _scope_title(profile, scope):
         return "Statement", ""
 
     return "Statement", ""
+
+
+def ledger_totals(rows) -> dict:
+    """Column totals for ledger ``rows``: memo, payment and TDS (each ``round2``-ed). Balance has no total."""
+    memo = payment = tds = _ZERO
+    for row in rows:
+        memo = round2(memo + (row["memo_amount"] or _ZERO))
+        payment = round2(payment + (row["payment_amount"] or _ZERO))
+        tds = round2(tds + (row["tds"] or _ZERO))
+    return {"memo_amount": memo, "payment_amount": payment, "tds": tds, "count": len(rows)}
 
 
 #: Public name for the title resolver, used by the export file names (``fees.exports.xlsx``).

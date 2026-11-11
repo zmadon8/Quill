@@ -63,6 +63,7 @@ urlpatterns = [
     path("firms/<int:firm_id>/", views_firms.firm_detail, name="fees_firm_detail"),
     path("firms/<int:firm_id>/edit/", views_firms.firm_edit, name="fees_firm_edit"),
     path("firms/<int:firm_id>/status/", views_firms.firm_status, name="fees_firm_status"),
+    path("firms/<int:firm_id>/groups/<int:group_id>/", views_firms.group_detail, name="fees_group_detail"),
     path("firms/<int:firm_id>/groups/add/", views_firms.group_add, name="fees_group_add"),
     path("firms/<int:firm_id>/groups/<int:group_id>/rename/", views_firms.group_rename, name="fees_group_rename"),
     path("firms/<int:firm_id>/groups/<int:group_id>/remove/", views_firms.group_remove, name="fees_group_remove"),

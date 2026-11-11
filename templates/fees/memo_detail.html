@@ -42,7 +42,6 @@
 </table></div>
 <p class="page-actions button-row" role="group" aria-label="Memo actions">
   <a class="button primary" href="{% url 'fees_memo_word' memo.id %}">Export to Word</a>
-  <a class="button secondary" href="{% url 'fees_memo_statement' memo.id %}">Statement of the matter (Excel)</a>
   {% if can_edit %}<a class="button secondary" href="{% url 'fees_memo_edit' memo.id %}">Edit</a>
   <a class="button secondary" href="{% url 'fees_memo_based_on' memo.id %}">New memo based on this</a>
   <a class="button secondary" href="{% url 'fees_payment_new' %}?memo={{ memo.id }}">Add payment</a>{% endif %}

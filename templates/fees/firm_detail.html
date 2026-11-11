@@ -9,9 +9,8 @@
 <div class="firm-notes">{% if firm.notes %}<p>{{ firm.notes|linebreaksbr }}</p>{% else %}<p class="muted">No notes.</p>{% endif %}</div>
 <section class="firm-groups" aria-labelledby="groups-heading">
 <h2 id="groups-heading">Groups</h2>
-<ul class="chips group-list">{% for g in groups %}<li class="chip"><span class="group-name">{{ g.name }}</span>
-  {% if can_edit %}<form method="post" action="{% url 'fees_group_rename' firm.pk g.pk %}" class="inline">{% csrf_token %}<input type="text" name="name" value="{{ g.name }}" maxlength="200" required aria-label="New name for group {{ g.name }}"> <button type="submit" class="small secondary">Rename</button></form>
-  <form method="post" action="{% url 'fees_group_remove' firm.pk g.pk %}" class="inline">{% csrf_token %}<button type="submit" class="small ghost" aria-label="Remove group {{ g.name }}">&times;</button></form>{% endif %}</li>{% empty %}<li class="muted">No groups yet.</li>{% endfor %}</ul>
+<ul class="group-pills">{% for g in groups %}<li class="group-pill"><a class="group-pill-link" href="{% url 'fees_group_detail' firm.pk g.pk %}">{{ g.name }}</a>
+  {% if can_edit %}<form method="post" action="{% url 'fees_group_remove' firm.pk g.pk %}" class="inline">{% csrf_token %}<button type="submit" class="small ghost" aria-label="Remove group {{ g.name }}">&times;</button></form>{% endif %}</li>{% empty %}<li class="muted">No groups yet.</li>{% endfor %}</ul>
 {% if can_edit %}<form method="post" action="{% url 'fees_group_add' firm.pk %}" class="fees-form">{% csrf_token %}<label>New group <input type="text" name="name" maxlength="200" required></label> <button type="submit" class="small secondary">Add Group</button></form>{% endif %}
 </section>
 </div>
