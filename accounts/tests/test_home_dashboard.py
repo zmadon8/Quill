@@ -217,6 +217,10 @@ class HomeDetailsTests(TestCase):
         self.assertEqual(self.user.home_details, {})
 
     def test_home_shows_chosen_fee_sections_only(self):
+        from fees.models import FeesSettings
+
+        # The seeded sample data switches the Dashboard figures off; they must be on to be offered below the cards.
+        FeesSettings.objects.filter(profile=self.fees).update(dashboard_kpis_enabled=True)
         self.user.home_details = {"fees": ["memos_this_year", "who_owes"]}
         self.user.save()
         html = self.home()
