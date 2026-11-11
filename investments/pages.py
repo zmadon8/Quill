@@ -22,6 +22,7 @@ TOP = (
     ("holdings", "Holdings", "investments_holdings"),
     ("reports", "Reports", "investments_performance"),
     ("alerts", "Alerts", "investments_alerts"),
+    ("catalogue", "Catalogue", "investments_admin_catalogue"),
 )
 
 _NO_DATA = "Nothing here yet."
@@ -73,10 +74,11 @@ PAGES = (
     _p("settings_pages", "settings/pages/", "Settings: Pages", "settings", "Pages", "Choose which pages show in the menu.", hideable=False),
     _p("settings_insights", "settings/insights/", "Settings: Insights", "settings", "Insights", "Choose which insights to show.", hideable=False),
     _p("settings_indices", "settings/indices/", "Settings: Indices", "settings", "Indices", "The indices investments are compared with.", hideable=False),
-    _p("admin_prices", "settings/price-sources/", "Admin: Price sources", "settings", "Price sources", "Price sources are set up in a later release.", admin=True, hideable=False),
-    _p("admin_upload", "settings/price-upload/", "Admin: Upload price history", "settings", "Price sources", "Price history upload is set up in a later release.", admin=True, hideable=False),
-    _p("admin_price_history", "settings/price-history/", "Admin: Price history", "settings", "Price history", "Pruning, the price archive and pinned prices are set up in a later release.", admin=True, hideable=False),
-    _p("admin_catalogue", "settings/catalogue/", "Investment catalogue", "settings", "Catalogue", "No shared investments yet.", hideable=False),
+    # Catalogue (owner round 2026-11): the shared catalogue, price history and price sources are a page of their own, not Settings.
+    _p("admin_catalogue", "catalogue/", "Investment catalogue", "catalogue", "Catalogue", "No shared investments yet.", hideable=False),
+    _p("admin_price_history", "catalogue/price-history/", "Admin: Price history", "catalogue", "Price history", "Pruning, the price archive and pinned prices are set up in a later release.", admin=True, hideable=False),
+    _p("admin_prices", "catalogue/price-sources/", "Admin: Price sources", "catalogue", "Price sources", "Price sources are set up in a later release.", admin=True, hideable=False),
+    _p("admin_upload", "catalogue/price-upload/", "Admin: Upload price history", "catalogue", "Price sources", "Price history upload is set up in a later release.", admin=True, hideable=False),
 )
 
 BY_SLUG = {p.slug: p for p in PAGES}
@@ -86,7 +88,7 @@ BY_SLUG = {p.slug: p for p in PAGES}
 EXTRA = {
     "investment": ("holdings", "Investments"), "added": ("holdings", "Investments"), "inv_delete": ("holdings", "Investments"),
     "txn_edit": ("holdings", "Transactions"), "txn_complete": ("holdings", "Transactions"), "txn_refused": ("holdings", "Transactions"),
-    "broker_detail": ("holdings", "Brokers"), "admin_catalogue_item": ("settings", "Catalogue"), "report": ("reports", "Other reports"),
+    "broker_detail": ("holdings", "Brokers"), "admin_catalogue_item": ("catalogue", "Catalogue"), "report": ("reports", "Other reports"),
     "dividend_edit": ("holdings", "Dividends"),
 }
 
@@ -112,7 +114,9 @@ SUB_ROWS = {
     "settings": (
         ("General", "settings"), ("Brokers", "settings_brokers"), ("Alerts", "settings_alerts"),
         ("Display", "settings_display"), ("Pages", "settings_pages"), ("Insights", "settings_insights"), ("Indices", "settings_indices"),
-        ("Price sources", "admin_prices"), ("Price history", "admin_price_history"), ("Catalogue", "admin_catalogue"),
+    ),
+    "catalogue": (
+        ("Catalogue", "admin_catalogue"), ("Price history", "admin_price_history"), ("Price sources", "admin_prices"),
     ),
 }
 

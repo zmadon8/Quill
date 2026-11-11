@@ -43,7 +43,7 @@
 {% else %}
   {% if inst.profile_id %}{% if can_edit %}<form method="post" action="{% url 'investments_investment_price' inst.pk %}">{% csrf_token %}{% include "investments/_form.html" with form=price_form %}<button class="btn q" type="submit">Save price</button></form>{% endif %}
   {% else %}{% url "investments_investment" inst.pk as inv_url %}{% with next_url=inv_url|add:"#prices" %}{% include "investments/_price_history.html" %}{% endwith %}
-  <p class="hint">The same prices are in <a href="{% url 'investments_admin_catalogue_item' inst.pk %}">Settings &gt; Catalogue</a>.</p>{% endif %}
+  <p class="hint">The same prices are in <a href="{% url 'investments_admin_catalogue_item' inst.pk %}">Catalogue</a>.</p>{% endif %}
 {% endif %}
 
 {% with held=purchase.0 sold=purchase.1 %}
