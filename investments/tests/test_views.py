@@ -208,6 +208,17 @@ class PageTests(InvTestCase):
         # The Overview "Over time" table is a fixed figure-by-period grid, so it is not sortable.
         self.assertContains(self.client.get(reverse("investments_dashboard")), "<thead>")
 
+    def test_holdings_table_has_xirr_and_first_bought_columns_with_sort_values(self):
+        self.buy(d(2024, 1, 15), 10, 100)
+        html = self.client.get(reverse("investments_holdings")).content.decode()
+        self.assertIn("<th class=\"r\">First bought</th>", html)
+        self.assertIn("<th class=\"r\">XIRR</th>", html)
+        self.assertIn("15 Jan 2024", html)
+        self.assertIn('data-sort="20240115"', html)
+        # one header per cell, so the column sort in shell.js lines up
+        row = html.split("<tbody>")[1].split("</tr>")[0]
+        self.assertEqual(row.count("<td"), html.split("<thead>")[1].split("</thead>")[0].count("<th"))
+
 
 class PermissionTests(InvTestCase):
     def setUp(self):
