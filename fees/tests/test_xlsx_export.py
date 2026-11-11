@@ -128,22 +128,20 @@ class StatementLedgerTests(XlsxBase):
         rows = sheets["Statement"]
         self.assertEqual(
             [c.value for c in rows[0]],
-            ["Memo No.", "Date", "Matter Name", "Total", "Paid", "Outstanding", "Status"],
+            ["Date", "Particulars", "Matter Name", "Memo Amount", "Payment Amount", "TDS", "Balance Payable"],
         )
-        body, totals = rows[1:-1], rows[-1]
-        self.assertEqual(len(body), 3)
-        self.assertEqual(totals[2].value, "Totals (3)")
-        self.assertTrue(all(c.font.b for c in totals))
-        self.assertEqual(totals[3].value, 14000 + 777 + 14000)
-        self.assertEqual(sum(r[3].value for r in body), totals[3].value)
-        self.assertEqual(sum(r[5].value for r in body), totals[5].value)
-        self.assertIn("Written Off", [r[6].value for r in body])
-        self.assertEqual(body[0][3].number_format, "#,##0")
+        _n, ledger_sheets = open_cells(xlsx.export_ledger(self.profile))
+        self.assertEqual(
+            [[c.value for c in r] for r in rows],
+            [[c.value for c in r] for r in ledger_sheets["Ledger"]],
+        )
+        self.assertEqual(rows[1][6].number_format, "#,##0")
 
     def test_statement_named_by_scope(self):
         name, sheets = values(xlsx.export_statement(self.profile, {"matter_id": self.seed["matter_1"].pk}))
         self.assertEqual(name, "Statement - Matter One.xlsx")
-        self.assertEqual(sheets["Statement"][-1][2], "Totals (2)")
+        ledger = values(xlsx.export_ledger(self.profile, {"matter_id": self.seed["matter_1"].pk}))[1]
+        self.assertEqual(sheets["Statement"], ledger["Ledger"])
 
     def test_ledger_columns_and_balance(self):
         name, sheets = open_cells(xlsx.export_ledger(self.profile))

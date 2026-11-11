@@ -121,6 +121,22 @@ def _scoped_memos(profile, filters):
     return qs
 
 
+def _in_age_range(memo, filters, today):
+    """False when the ``age`` filter (an ``AGEING_BUCKETS`` key) is set and the memo falls outside that range."""
+    age = filters.get("age")
+    if not age:
+        return True
+    return age_index(age) == age_bucket(memo.date, today)
+
+
+def age_index(key):
+    """The index into ``AGEING_BUCKETS`` for a range key such as ``"31-60"`` (the last bucket if unknown)."""
+    for index, bucket in enumerate(AGEING_BUCKETS):
+        if bucket[0] == key:
+            return index
+    return len(AGEING_BUCKETS) - 1
+
+
 def _is_overdue(memo, overdue_days):
     """Whether an (already unpaid) memo is overdue, via the shared rule.
 
@@ -166,6 +182,7 @@ def list_outstanding(profile, filters=None):
     qs = qs.order_by(Lower("group__name"), Lower("matter__name"), "seq")
 
     overdue_only = filters.get("overdue_only") is True
+    today = datetime.date.today()
     groups = {}
 
     for memo in qs:
@@ -177,6 +194,8 @@ def list_outstanding(profile, filters=None):
 
         is_overdue = _is_overdue(memo, overdue_days)
         if overdue_only and not is_overdue:
+            continue
+        if not _in_age_range(memo, filters, today):
             continue
 
         net = memo_fees.net_of_tds(total_fees, default_tds_rate)
@@ -283,6 +302,8 @@ def list_outstanding_by_firm(profile, filters=None, sort="amount", today=None):
         if outstanding <= 0:
             continue
         if overdue_only and not _is_overdue(memo, overdue_days):
+            continue
+        if not _in_age_range(memo, filters, today):
             continue
 
         summary = by_firm.get(memo.firm_id)

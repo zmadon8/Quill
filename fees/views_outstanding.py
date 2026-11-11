@@ -6,7 +6,7 @@ from django.views.decorators.http import require_safe
 
 from fees import scope
 from fees.decorators import fees_reader, handle_fees_errors
-from fees.pages import outstanding_filters, render_page
+from fees.pages import outstanding_filters, overdue_on, render_page
 from fees.services import filter_options, outstanding, payments
 
 
@@ -45,7 +45,7 @@ def _scope_choices(profile, filters):
 @require_safe
 def outstanding_summary(request):
     profile, settings = scope.context(request)
-    filters = outstanding_filters(request.GET)
+    filters = outstanding_filters(request.GET, overdue_on(settings))
     sort = "name" if request.GET.get("sort") == "name" else "amount"
     rows = outstanding.list_outstanding_by_firm(profile, filters, sort)
     carried = {k: "1" for k, name in (("written_off", "include_written_off"), ("overdue", "overdue_only")) if filters.get(name)}
@@ -58,7 +58,8 @@ def outstanding_summary(request):
         "fees/outstanding.html",
         {
             "rows": rows,
-            "ageing": outstanding.ageing_totals(rows),
+            # Each card links to the memo list for its age range, keeping the other filters.
+            "ageing": [dict(b, detail_query=urlencode(dict(carried, age=b["key"]))) for b in outstanding.ageing_totals(rows)],
             "grand_total": grand_total,
             "filters": filters,
             "sort": sort,
@@ -73,7 +74,7 @@ def outstanding_summary(request):
 @require_safe
 def outstanding_detail(request):
     profile, settings = scope.context(request)
-    filters = outstanding_filters(request.GET)
+    filters = outstanding_filters(request.GET, overdue_on(settings))
     groups = outstanding.list_outstanding(profile, filters)
     view = request.GET.get("view")
     if view not in VIEWS:
@@ -94,6 +95,8 @@ def outstanding_detail(request):
             "memo_count": sum(len(g["entries"]) for g in groups),
             "grand_total": outstanding.outstanding_grand_total(groups),
             "filters": filters,
+            "age_label": next((b[1] for b in outstanding.AGEING_BUCKETS if b[0] == filters.get("age")), ""),
+            "clear_age_query": urlencode({k: v for k, v in export_query.items() if k != "age"}),
             "choices": filter_options.narrow_outstanding_choices(profile, _scope_choices(profile, filters), filters),
             "money_unit": settings.money_unit,
             "query_string": urlencode(export_query),

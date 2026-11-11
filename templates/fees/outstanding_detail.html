@@ -10,9 +10,11 @@
   <label>View <select name="view"><option value="grouped"{% if view == "grouped" %} selected{% endif %}>Grouped By Matter</option><option value="summary"{% if view == "summary" %} selected{% endif %}>Summary (Matter Totals)</option><option value="flat"{% if view == "flat" %} selected{% endif %}>In Order (Flat List)</option></select></label>
   <label>Sort The Flat List By <select name="sort">{% for key, name in sorts %}<option value="{{ key }}"{% if flat_sort == key %} selected{% endif %}>{{ name }}</option>{% endfor %}</select></label>
   <label><input type="checkbox" name="written_off" value="1"{% if filters.include_written_off %} checked{% endif %}> Include Written Off Memos</label>
-  <label><input type="checkbox" name="overdue" value="1"{% if filters.overdue_only %} checked{% endif %}> View Overdue Memos Only</label>
+  {% if fees_overdue_on %}<label><input type="checkbox" name="overdue" value="1"{% if filters.overdue_only %} checked{% endif %}> View Overdue Memos Only</label>{% endif %}
+  {% if filters.age %}<input type="hidden" name="age" value="{{ filters.age }}">{% endif %}
   <button type="submit">Filter</button>
 </form>
+{% if filters.age %}<p class="active-filter" role="status">Showing only memos aged {{ age_label }}. <a href="{% url 'fees_outstanding_detail' %}{% if clear_age_query %}?{{ clear_age_query }}{% endif %}">Show all ages</a></p>{% endif %}
 <div class="total-card" role="group" aria-label="Grand total"><span class="total-label">Total outstanding, {{ memo_count }} memo{{ memo_count|pluralize }}</span><span class="total-amount">{{ grand_total|fees_money:money_unit }}</span></div>
 {% if view == "summary" %}
 <div class="table-card"><div class="table-wrap">

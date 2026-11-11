@@ -11,7 +11,7 @@ from django.views.decorators.http import require_POST, require_safe
 from fees import scope
 from fees.services import dashboard_panels
 from fees.decorators import fees_editor, fees_reader, handle_fees_errors
-from fees.pages import TAB_URL_NAMES, dashboard_on, json_ok, render_page
+from fees.pages import TAB_URL_NAMES, dashboard_on, json_ok, overdue_on, render_page
 from fees.services import dashboard, memo_lists, prefs
 from fees.services import settings as settings_service
 
@@ -66,6 +66,8 @@ def dashboard_page(request):
     config = settings_service.get_settings(profile)
     kpis = dashboard.get_dashboard_kpis(profile, settings=config)
     chosen = selected_kpis(config)
+    if not overdue_on(config):
+        chosen = [k for k in chosen if k != "amount_overdue"]  # no Overdue box when Overdue is off
     return render_page(
         request,
         "fees/dashboard.html",
@@ -75,7 +77,7 @@ def dashboard_page(request):
             "kpi_groups": [
                 {
                     "title": title,
-                    "items": [{"id": kpi, "label": dashboard.KPI_LABELS[kpi], "on": _tick_state(request, kpi, chosen)} for kpi in ids],
+                    "items": [{"id": kpi, "label": dashboard.KPI_LABELS[kpi], "on": _tick_state(request, kpi, chosen)} for kpi in ids if kpi != "amount_overdue" or overdue_on(config)],
                 }
                 for title, ids in dashboard.KPI_DISPLAY_GROUPS
             ],
