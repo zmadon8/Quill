@@ -47,7 +47,7 @@ class SettingsScreenTests(UiPageBase):
         text = self.settings_text(self.editor)
         self.assertGreaterEqual(text.count('class="setting-row"'), 25)
         self.assertGreaterEqual(text.count("Everyone in this profile"), 25)
-        self.assertNotIn('class="who-tag who-you"', text)  # nothing here is personal: that is on My settings
+        self.assertEqual(text.count('class="who-tag who-you"'), 1)  # only "My items per page" is personal here
         for row in text.split('class="setting-row"')[1:]:
             self.assertIn("setting-help", row.split("</div>")[0], row[:80])
 
@@ -55,7 +55,8 @@ class SettingsScreenTests(UiPageBase):
         text = self.settings_text(self.editor)
         self.assertIn("Opening page <select", text)
         self.assertIn("Items per page <input", text)
-        self.assertIn(reverse("my_settings") + "?tab=fees", text)
+        self.assertIn('name="fees-items_per_page"', text)  # the personal Items per page, saved through My settings
+        self.assertIn(reverse("my_settings") + "?tab=start", text)  # the personal Opening page is on Start Screens
 
     def test_signature_upload_sits_in_the_word_template_box(self):
         text = self.settings_text(self.editor)

@@ -75,40 +75,57 @@ class PersonalViewsTests(SeededViewsBase):
 
 
 class MySettingsFeesSectionTests(SeededViewsBase):
-    def post(self, user, data):
+    def post(self, user, data, tab="fees"):
         self.login(user)
-        return self.client.post(reverse("my_settings"), {"tab": "fees", **data})
+        return self.client.post(reverse("my_settings"), {"tab": tab, **data})
 
-    def test_the_section_is_there_for_a_fee_register_user_and_tagged_only_you(self):
+    def start(self):
+        return self.client.get(reverse("my_settings"), {"tab": "start"}).content.decode()
+
+    def display(self):
+        return self.client.get(reverse("fees_settings"), {"tab": "display"}).content.decode()
+
+    def test_the_choices_are_there_for_a_fee_register_user_and_tagged_only_you(self):
         self.login(self.reader)
-        html = self.client.get(reverse("my_settings")).content.decode()
+        html = self.start()
         self.assertIn('data-section="fees"', html)
         section = html.split('data-section="fees"')[1]
         self.assertIn('name="fees-default_tab"', section)
-        self.assertIn('name="fees-items_per_page"', section)
+        self.assertNotIn('name="fees-items_per_page"', section)  # Items per page is on the Fee Register settings page
         self.assertIn(">Opening page</label>", section)
-        self.assertIn(">Items per page</label>", section)
         self.assertIn("Only you", section)
+        page = self.display()
+        self.assertIn('name="fees-items_per_page"', page)
+        self.assertIn("My items per page", page)
+        self.assertNotIn('name="fees-default_tab"', page)  # Opening page is on Start Screens
 
     @override_settings(FEES_ENABLED=False)
     def test_the_section_is_hidden_when_the_fee_register_is_switched_off(self):
         self.login(self.reader)
-        html = self.client.get(reverse("my_settings")).content.decode()
+        html = self.start()
         self.assertNotIn('data-section="fees"', html)
         self.assertNotIn(reverse("fees_settings"), html)
 
     def test_a_user_without_a_fee_register_profile_has_no_section(self):
         self.login(self.outsider)
-        self.assertNotIn('data-section="fees"', self.client.get(reverse("my_settings")).content.decode())
+        self.assertNotIn('data-section="fees"', self.start())
 
     def test_a_reader_may_save_their_own_choices(self):
         resp = self.post(self.reader, {"fees-default_tab": "dashboard", "fees-items_per_page": "All"})
-        self.assertRedirects(resp, reverse("my_settings") + "?tab=fees", fetch_redirect_response=False)
+        self.assertRedirects(resp, reverse("fees_settings") + "?tab=display", fetch_redirect_response=False)
         self.assertEqual(prefs.get_personal(self.profile, self.reader), {"default_tab": "dashboard", "items_per_page": 0})
         self.assertEqual(prefs.get_personal(self.profile, self.editor), {})
         # The profile's own values are not changed by a personal save.
         config = FeesSettings.objects.get(profile=self.profile)
         self.assertEqual(config.default_tab, "firms")
+
+    def test_the_opening_page_is_saved_from_start_screens_and_keeps_items_per_page(self):
+        self.post(self.editor, {"fees-items_per_page": "10"})
+        resp = self.post(self.editor, {"fees-default_tab": "feebook"}, tab="start")
+        self.assertRedirects(resp, reverse("my_settings") + "?tab=start", fetch_redirect_response=False)
+        self.assertEqual(prefs.get_personal(self.profile, self.editor), {"default_tab": "feebook", "items_per_page": 10})
+        self.post(self.editor, {"fees-items_per_page": "20"})  # not posted: the opening page stays
+        self.assertEqual(prefs.get_personal(self.profile, self.editor), {"default_tab": "feebook", "items_per_page": 20})
 
     def test_blank_boxes_go_back_to_the_profile_value(self):
         self.post(self.editor, {"fees-default_tab": "dashboard", "fees-items_per_page": "10"})
@@ -116,9 +133,9 @@ class MySettingsFeesSectionTests(SeededViewsBase):
         self.assertEqual(prefs.get_personal(self.profile, self.editor), {})
 
     def test_a_bad_value_is_refused_with_a_message(self):
-        resp = self.post(self.editor, {"fees-default_tab": "dashboard", "fees-items_per_page": "many"})
-        self.assertEqual(resp.status_code, 200)
-        self.assertContains(resp, "Items per page must be a whole number")
+        resp = self.post(self.editor, {"fees-items_per_page": "many"})
+        self.assertRedirects(resp, reverse("fees_settings") + "?tab=display", fetch_redirect_response=False)
+        self.assertContains(self.client.get(reverse("fees_settings"), {"tab": "display"}), "Items per page must be a whole number")
         self.assertEqual(prefs.get_personal(self.profile, self.editor), {})
 
     def test_saving_this_section_leaves_the_other_sections_alone(self):
@@ -128,8 +145,7 @@ class MySettingsFeesSectionTests(SeededViewsBase):
         self.editor.refresh_from_db()
         self.assertTrue(self.editor.justify_text)
 
-    def test_the_form_shows_what_is_saved(self):
+    def test_the_forms_show_what_is_saved(self):
         self.post(self.editor, {"fees-default_tab": "feebook", "fees-items_per_page": "20"})
-        html = self.client.get(reverse("my_settings")).content.decode()
-        self.assertIn('<option value="feebook" selected>', html)
-        self.assertIn('value="20"', html)
+        self.assertIn('<option value="feebook" selected>', self.start())
+        self.assertIn('value="20"', self.display())

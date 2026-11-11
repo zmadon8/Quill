@@ -29,7 +29,7 @@ class TitleInNavTests(TestCase):
 
     def test_titles_repeating_an_underlined_tab_are_visually_hidden(self):
         for name, title in (("user_list", "Users"), ("profile_list", "Profiles"), ("settings", "Appearance"),
-                            ("backup_list", "Backups"), ("my_settings", "My settings"), ("flags", "Flags"),
+                            ("backup_list", "Backups"), ("my_settings", "Account and Profile View"), ("flags", "Flags"),
                             ("flag_links", "Hyperlinks")):
             self.assertIn(HIDDEN % title, self.html(name), name)
 

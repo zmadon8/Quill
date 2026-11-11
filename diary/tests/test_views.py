@@ -144,15 +144,16 @@ class HomeIndexTests(TestCase):
         self.assertNotIn('href="%s"' % reverse("user_list"), nav)
         self.assertNotIn('href="%s"' % reverse("backup_list"), nav)
         resp = self.client.get(reverse("home"))
-        self.assertContains(resp, 'href="%s"' % reverse("user_list"))
-        # Round 18 (D96): Backups is a tab of Admins, which Home links to.
+        self.assertContains(resp, 'href="%s"' % reverse("my_settings"))
+        # Backup is a tab of Settings, which Home links to.
         self.assertContains(self.client.get(reverse("user_list")), 'href="%s"' % reverse("backup_list"))
 
     def test_nav_marks_current_page(self):
         self.client.force_login(self.admin)
         resp = self.client.get(reverse("user_list"))
-        self.assertContains(resp, 'class="on" aria-current="page" aria-label="Admins"')  # D85, D86, D96
-        self.assertContains(resp, '<a href="%s" class="on" aria-current="page">Users</a>' % reverse("user_list"))  # its tab
+        self.assertContains(resp, 'class="on" aria-current="page" aria-label="Settings"')  # D85, D86, D96
+        self.assertContains(resp, '<a href="%s" class="on" aria-current="page">Users &amp; Profiles</a>' % reverse("user_list"))  # its tab
+        self.assertContains(resp, '<a href="%s" class="on" aria-current="page">Users</a>' % reverse("user_list"))  # its second row
         self.assertNotContains(resp, 'class="on" aria-current="page">Subjects</a>')
 
     def test_login_page_is_plain(self):
@@ -318,10 +319,10 @@ class HomeIndexTests(TestCase):
     def test_picker_top_row_is_users_name_logout_only(self):
         self.client.force_login(self.admin)
         nav = self.client.get(reverse("home")).content.decode().split('class="program-nav"')[1].split("</nav>")[0]
-        self.assertIn(reverse("user_list"), nav)
+        self.assertIn(reverse("my_settings"), nav)
         self.assertIn("adam", nav)
         self.assertIn('aria-label="Sign out"', nav)
-        self.assertIn('aria-label="Admins"', nav)  # D96: Backups is a tab of Admins
+        self.assertIn('aria-label="Settings"', nav)  # Users, Profiles and Backup are tabs of Settings
         for gone in (reverse("search"), reverse("diary_home")):
             self.assertNotIn(gone, nav)
         self.assertNotIn(">Admin<", nav)

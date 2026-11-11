@@ -172,7 +172,7 @@ class LandingProgramTests(BaseCase):
 
     def test_user_sets_own_landing_program(self):
         self.client.force_login(self.user)
-        resp = self.client.get(reverse("my_settings"))
+        resp = self.client.get(reverse("my_settings"), {"tab": "start"})
         self.assertContains(resp, "Open after login")
         self.assertContains(resp, 'value="diary"')
         resp = self.client.post(reverse("my_settings"), {"landing_program": "diary"})
@@ -191,7 +191,7 @@ class LandingProgramTests(BaseCase):
     def test_user_without_profile_only_sees_home_choice(self):
         loner = self.make_user("loner")
         self.client.force_login(loner)
-        self.assertNotContains(self.client.get(reverse("my_settings")), 'value="diary"')
+        self.assertNotContains(self.client.get(reverse("my_settings"), {"tab": "start"}), 'value="diary"')
         resp = self.client.post(reverse("my_settings"), {"landing_program": "diary"})
         self.assertEqual(resp.status_code, 200)
         loner.refresh_from_db()
@@ -303,12 +303,12 @@ class SuiteSettingsTests(BaseCase):
         self.assertEqual(self.client.get(reverse("settings")).status_code, 302)
 
     def test_settings_link_only_for_admin(self):
-        # D96: Page Names (the old Site settings) is a tab of Admins (Home's Admins item opens Users).
+        # Page Names is the Names page of the Display tab, for an Admin only.
         self.client.force_login(self.admin)
-        self.assertContains(self.client.get(reverse("user_list")), 'href="%s"' % reverse("settings"))
+        self.assertContains(self.client.get(reverse("my_settings"), {"tab": "display"}), 'href="%s"' % reverse("settings"))
         self.assertNotContains(self.client.get(reverse("my_settings")), 'href="%s"' % reverse("settings"))
         self.client.force_login(self.user)
-        self.assertNotContains(self.client.get(reverse("my_settings")), 'href="%s"' % reverse("settings"))
+        self.assertNotContains(self.client.get(reverse("my_settings"), {"tab": "display"}), 'href="%s"' % reverse("settings"))
         self.assertNotContains(self.client.get(reverse("home")), 'href="%s"' % reverse("settings"))
 
     def test_rename_shows_everywhere(self):
@@ -885,11 +885,12 @@ class ProfileScreenTests(BaseCase):
         self.assertEqual(self.client.get(reverse("profile_list")).status_code, 302)
 
     def test_profiles_link_only_for_admin_on_home(self):
-        # D86: Profiles is a tab of Users & Profiles, which Home links to (Admin only).
+        # Profiles is a page of the Users & Profiles tab of Settings (Admin only).
         self.client.force_login(self.admin)
-        self.assertContains(self.client.get(reverse("home")), 'href="%s"' % reverse("user_list"))
+        self.assertContains(self.client.get(reverse("my_settings")), 'href="%s"' % reverse("user_list"))
         self.assertContains(self.client.get(reverse("user_list")), 'href="%s"' % reverse("profile_list"))
         self.client.force_login(self.user)
+        self.assertNotContains(self.client.get(reverse("my_settings")), 'href="%s"' % reverse("user_list"))
         self.assertNotContains(self.client.get(reverse("home")), 'href="%s"' % reverse("profile_list"))
         self.assertNotContains(self.client.get(reverse("home")), 'href="%s"' % reverse("user_list"))
 
@@ -1263,10 +1264,10 @@ class ExportNameTests(BaseCase):
         resp = self.client.get(reverse("profile_settings"))
         self.assertEqual(resp.status_code, 200)
         html = resp.content.decode()
-        for key in ("reading", "data"):
+        for key in ("reading", "numbers", "data"):
             self.assertIn('data-section="%s"' % key, html)
-        self.assertNotIn(">Save</button>", html)
-        self.assertIn("Only you", self.client.get(reverse("my_settings") + "?tab=diary").content.decode())
+        self.assertIn("Only you", html)  # My number formats
+        self.assertEqual(html.count(">Save</button>"), 1)  # only the personal number formats can be saved
         self.assertIn("Everyone in this profile", html)
 
     def test_display_form_no_longer_offers_remember_or_all_default(self):

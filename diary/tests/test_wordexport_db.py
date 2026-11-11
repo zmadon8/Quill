@@ -448,7 +448,7 @@ class SettingsTests(ExportCase):
         body = self.login(self.reader).get(reverse("export")).content.decode()
         self.assertNotIn('name="export_name"', body)
         self.assertNotIn('name="export_date_format"', body)
-        mine = self.login(self.reader).get(reverse("my_settings")).content.decode()
+        mine = self.login(self.reader).get(reverse("profile_settings") + "?tab=numbers").content.decode()
         self.assertIn("Date in Word file names", mine)
         self.assertIn('name="export_date_format"', mine)
         self.assertNotIn('name="export_name"', mine)

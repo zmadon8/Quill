@@ -34,14 +34,14 @@ class ColourThemeTests(TestCase):
         self.assertNotIn("data-theme", html_tag(self.page("home")))
 
     def test_the_display_section_offers_every_theme(self):
-        page = self.page()
+        page = self.client.get(reverse("my_settings"), {"tab": "display"}).content.decode()
         self.assertIn('name="colour_theme"', page)
         for key, label in User.COLOUR_THEME_CHOICES:
             self.assertIn(f'value="{key}"', page)
             self.assertIn(label, page)
 
     def test_choosing_a_theme_applies_to_this_user_only(self):
-        resp = self.client.post(reverse("my_settings"), {"tab": "display", "landing_program": "", "colour_theme": "navy"})
+        resp = self.client.post(reverse("my_settings"), {"tab": "display", "colour_theme": "navy"})
         self.assertRedirects(resp, reverse("my_settings") + "?tab=display", fetch_redirect_response=False)
         self.user.refresh_from_db()
         self.assertEqual(self.user.colour_theme, "navy")
@@ -53,12 +53,12 @@ class ColourThemeTests(TestCase):
     def test_leaving_the_theme_out_of_a_post_keeps_it(self):
         self.user.colour_theme = "teal"
         self.user.save()
-        self.client.post(reverse("my_settings"), {"tab": "display", "landing_program": ""})
+        self.client.post(reverse("my_settings"), {"tab": "display"})
         self.user.refresh_from_db()
         self.assertEqual(self.user.colour_theme, "teal")
 
     def test_an_unknown_theme_is_refused(self):
-        resp = self.client.post(reverse("my_settings"), {"tab": "display", "landing_program": "", "colour_theme": "purple"})
+        resp = self.client.post(reverse("my_settings"), {"tab": "display", "colour_theme": "purple"})
         self.assertEqual(resp.status_code, 200)
         self.user.refresh_from_db()
         self.assertEqual(self.user.colour_theme, "oxblood")

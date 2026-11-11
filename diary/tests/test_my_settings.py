@@ -39,11 +39,18 @@ class Base(TestCase):
 
 
 class SettingsPageTests(Base):
-    def test_page_shows_both_sections(self):
+    def numbers(self):
+        return self.client.get(reverse("profile_settings"), {"tab": "numbers"})
+
+    def test_start_screens_and_number_formats_are_on_their_own_pages(self):
         self.client.force_login(self.editor)
-        resp = self.client.get(reverse("my_settings"))
+        resp = self.client.get(reverse("my_settings"), {"tab": "start"})
         self.assertContains(resp, "Open after login")
-        self.assertContains(resp, "Number formats")
+        self.assertContains(resp, 'name="opening_page"')
+        self.assertContains(resp, "Index Of Subjects")
+        self.assertNotContains(resp, 'name="topic_format"')
+        resp = self.numbers()
+        self.assertContains(resp, "My number formats")
         self.assertContains(resp, "Preview")
         for name in ALL_FORMATS:
             self.assertContains(resp, f'name="{name}"')
@@ -52,19 +59,18 @@ class SettingsPageTests(Base):
         self.assertContains(resp, 'data-default="upper_alpha"')
         self.assertContains(resp, 'data-default="paren_decimal"')
         self.assertNotContains(resp, 'name="nested_item_format"')
-        self.assertContains(resp, 'name="opening_page"')
-        self.assertContains(resp, "Index Of Subjects")
+        self.assertNotContains(resp, 'name="opening_page"')
 
     def test_preview_is_rendered_on_the_page_with_the_saved_formats(self):
         UserSettings.objects.create(user=self.editor, topic_format="upper_roman")
         self.client.force_login(self.editor)
-        resp = self.client.get(reverse("my_settings"))
+        resp = self.numbers()
         self.assertContains(resp, '<span class="num">II.</span>')
         self.assertContains(resp, "Sample Subject")
 
     def test_user_without_a_diary_profile_has_no_diary_section(self):
         self.client.force_login(self.loner)
-        resp = self.client.get(reverse("my_settings"))
+        resp = self.client.get(reverse("my_settings"), {"tab": "start"})
         self.assertContains(resp, "Open after login")
         self.assertNotContains(resp, "Number formats")
         self.assertNotContains(resp, 'name="topic_format"')
@@ -103,8 +109,8 @@ class SettingsPageTests(Base):
 
     def test_invalid_format_is_rejected_and_nothing_is_saved(self):
         self.client.force_login(self.editor)
-        resp = self.client.post(reverse("my_settings"), {"landing_program": "diary", "item_format": "zzz", "topic_format": "decimal"})
-        self.assertEqual(resp.status_code, 200)
+        resp = self.client.post(reverse("my_settings"), {"tab": "diary", "item_format": "zzz", "topic_format": "decimal"}, follow=True)
+        self.assertRedirects(resp, reverse("profile_settings") + "?tab=numbers")
         self.assertContains(resp, "Select a valid choice")
         self.assertIsNone(self.settings_of(self.editor))
         self.editor.refresh_from_db()
@@ -112,8 +118,8 @@ class SettingsPageTests(Base):
 
     def test_section_n_is_not_allowed_for_items(self):
         self.client.force_login(self.editor)
-        resp = self.client.post(reverse("my_settings"), {"item_format": "section_n"})
-        self.assertEqual(resp.status_code, 200)
+        resp = self.client.post(reverse("my_settings"), {"tab": "diary", "item_format": "section_n"}, follow=True)
+        self.assertContains(resp, "Select a valid choice")
         self.assertIsNone(self.settings_of(self.editor))
 
     def test_reader_can_save_own_settings(self):
@@ -141,28 +147,28 @@ class SettingsPageTests(Base):
 
     def test_chosen_subject_page_needs_a_subject(self):
         self.client.force_login(self.editor)
-        resp = self.client.post(reverse("my_settings"), {"opening_page": "subject"})
+        resp = self.client.post(reverse("my_settings"), {"tab": "start", "opening_page": "subject"})
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "Choose a Subject")
         self.assertIsNone(self.settings_of(self.editor))
 
     def test_chosen_subject_is_saved(self):
         self.client.force_login(self.editor)
-        resp = self.client.post(reverse("my_settings"), {"opening_page": "subject", "opening_subject": self.contract.pk})
-        self.assertRedirects(resp, reverse("my_settings"))
+        resp = self.client.post(reverse("my_settings"), {"tab": "start", "opening_page": "subject", "opening_subject": self.contract.pk})
+        self.assertRedirects(resp, reverse("my_settings") + "?tab=start")
         row = self.settings_of(self.editor)
         self.assertEqual((row.opening_page, row.opening_subject_id), ("subject", self.contract.pk))
 
     def test_subject_of_another_profile_is_rejected(self):
         self.client.force_login(self.editor)
-        resp = self.client.post(reverse("my_settings"), {"opening_page": "subject", "opening_subject": self.foreign.pk})
+        resp = self.client.post(reverse("my_settings"), {"tab": "start", "opening_page": "subject", "opening_subject": self.foreign.pk})
         self.assertEqual(resp.status_code, 200)
         self.assertIsNone(self.settings_of(self.editor))
 
     def test_legacy_other_subjects_is_shown_as_home_and_kept(self):
         UserSettings.objects.create(user=self.editor, opening_page="other_subjects")
         self.client.force_login(self.editor)
-        self.assertContains(self.client.get(reverse("my_settings")), '<option value="home" selected>')
+        self.assertContains(self.client.get(reverse("my_settings"), {"tab": "start"}), '<option value="home" selected>')
         self.client.post(reverse("my_settings"), {"opening_page": "home", "topic_format": "decimal"})
         self.assertEqual(self.settings_of(self.editor).opening_page, "other_subjects")
         self.client.post(reverse("my_settings"), {"opening_page": "search"})
