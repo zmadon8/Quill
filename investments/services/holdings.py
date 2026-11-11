@@ -151,6 +151,7 @@ def compute(profile, *, portfolio=None, broker=None, as_of=None, settings=None, 
 
     holdings = []
     all_flows = []
+    fx_found = {}
     total = Totals()
     for iid in sorted(ids, key=lambda i: (instruments[i].name.lower(), i)):
         inst = instruments[iid]
@@ -233,7 +234,9 @@ def compute(profile, *, portfolio=None, broker=None, as_of=None, settings=None, 
             if inst.currency != "INR":
                 from investments.services import fx as fx_service
 
-                found = fx_service.rate_on(inst.currency, as_of)
+                if inst.currency not in fx_found:      # one look-up per currency, not per investment
+                    fx_found[inst.currency] = fx_service.rate_on(inst.currency, as_of)
+                found = fx_found[inst.currency]
                 rate = found[1] if found else (fx or Decimal(1))
             # On a split-adjusted series a past day's units are expressed on today's basis (plan 16.2).
             factor = corporate_math.basis_factor(basis_actions.get(iid, []), as_of, inst.price_basis)

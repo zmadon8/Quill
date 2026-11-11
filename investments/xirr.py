@@ -25,6 +25,17 @@ def _dnpv(rate, flows, t0):
     return total
 
 
+def _npv_t(rate, times, amounts):
+    return sum(amount / (1.0 + rate) ** t for t, amount in zip(times, amounts))
+
+
+def _dnpv_t(rate, times, amounts):
+    total = 0.0
+    for t, amount in zip(times, amounts):
+        total -= t * amount / (1.0 + rate) ** (t + 1.0)
+    return total
+
+
 def xirr(flows, min_days=MIN_DAYS):
     flows = [(d, float(a)) for d, a in flows if a]
     if len(flows) < 2:
@@ -35,7 +46,10 @@ def xirr(flows, min_days=MIN_DAYS):
         return None
     if not any(a < 0 for _, a in flows) or not any(a > 0 for _, a in flows):
         return None
-    f_low, f_high = _npv(LOW, flows, t0), _npv(HIGH, flows, t0)
+    # The year fractions do not change between iterations: work them out once (the answer is the same, the solver does far fewer date sums).
+    times = [(when - t0).days / _DAYS for when, _ in flows]
+    amounts = [a for _, a in flows]
+    f_low, f_high = _npv_t(LOW, times, amounts), _npv_t(HIGH, times, amounts)
     if f_low == 0:
         return LOW
     if f_high == 0:
@@ -46,19 +60,19 @@ def xirr(flows, min_days=MIN_DAYS):
     rate = 0.1
     lo, hi = LOW, HIGH
     for _ in range(60):
-        value = _npv(rate, flows, t0)
+        value = _npv_t(rate, times, amounts)
         if abs(value) < 1e-9:
             return rate
         if (value > 0) == (f_low > 0):
             lo = rate
         else:
             hi = rate
-        slope = _dnpv(rate, flows, t0)
+        slope = _dnpv_t(rate, times, amounts)
         step = rate - value / slope if slope else None
         rate = step if step is not None and lo < step < hi else (lo + hi) / 2.0
     for _ in range(200):  # bisection fallback
         mid = (lo + hi) / 2.0
-        value = _npv(mid, flows, t0)
+        value = _npv_t(mid, times, amounts)
         if abs(value) < 1e-9 or (hi - lo) < 1e-12:
             return mid
         if (value > 0) == (f_low > 0):
