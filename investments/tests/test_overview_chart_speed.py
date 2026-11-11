@@ -43,7 +43,7 @@ class OverviewChartTests(InvTestCase):
         self.assertIn('aria-label="Chart period"', page)
         for label in ("1M", "3M", "6M", "1Y", "3Y", "5Y", "All"):
             self.assertIn(f">{label}</a>", page)
-        self.assertIn('class="on" aria-current="true">All</a>', page)
+        self.assertIn('class="on" aria-current="true">1Y</a>', page)
         page = self.client.get(reverse("investments_dashboard") + "?range=3m").content.decode()
         self.assertIn('class="on" aria-current="true">3M</a>', page)
         self.assertIn("Same money in", page)

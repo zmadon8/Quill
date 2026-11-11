@@ -73,7 +73,7 @@ def dashboard(request):
     awaiting = list(tx.awaiting_for(profile))
     overdue = [t for t in awaiting if tx.overdue(t, settings_row.awaiting_reminder_days)]
     index = masters.default_index_for(profile)
-    range_key, range_days = chartview.choose(request, "all")
+    range_key, range_days = chartview.choose(request, "1y")
     if range_days is None and data["chart"]:
         # the whole history is part of the cached figures; any other period is drawn on demand (the Holdings page has the table and
         # its 90-day lines, so the Overview no longer works them out)

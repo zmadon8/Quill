@@ -11,7 +11,7 @@
 </div>
 {% if rows %}
 <div class="tw"><table data-table-id="inv-holdings-1" class="led" data-sortable>
-  <thead><tr><th>Name</th><th>Type</th><th>Code</th><th class="r">Units</th><th class="r">Value</th><th class="r">Gain</th><th class="r">Price date</th><th>Status</th><th class="r" data-col="spark">90 days</th></tr></thead>
+  <thead><tr><th>Name</th><th>Type</th><th>Code</th><th class="r">Units</th><th class="r">Value</th><th class="r">Gain</th><th class="r">First bought</th><th class="r">XIRR</th><th class="r">Price date</th><th>Status</th><th class="r" data-col="spark">90 days</th></tr></thead>
   <tbody>{% for h in rows %}
     <tr{% if not h.is_held %} class="sub"{% endif %}>
       <td class="nm" data-sort="{{ h.instrument.name|lower }}"><a href="{% url 'investments_investment' h.instrument.pk %}">{{ h.instrument.name }}</a>{% if h.awaiting %}<span class="tag amb">Awaiting {{ h.awaiting|inr }}</span>{% endif %}{% if h.unpriced %}<span class="tag dash">No price</span>{% elif h.stale %}<span class="tag amb">Stale</span>{% endif %}</td>
@@ -20,7 +20,9 @@
       <td class="r" data-sort="{{ h.units }}">{{ h.units|units }}</td>
       <td class="r" data-sort="{{ h.value }}">{% if not h.is_held %}<span class="na">&ndash;</span>{% else %}{{ h.value|inr }}{% endif %}</td>
       <td class="r" data-sort="{{ h.gain }}">{% if not h.is_held or h.unpriced %}<span class="na">&ndash;</span>{% else %}{{ h.gain|inr_signed }}{% endif %}</td>
-      <td class="r" data-sort="{{ h.price_date|default_if_none:'' }}">{% if h.price_date %}{{ h.price_date|date:"j M" }}{% else %}<span class="na">&ndash;</span>{% endif %}</td>
+      <td class="r" data-sort="{{ h.first_date|date:'Ymd'|default:'0' }}">{% if h.first_date %}{{ h.first_date|date:"j M Y" }}{% else %}<span class="na">&ndash;</span>{% endif %}</td>
+      <td class="r" data-sort="{% if h.xirr is None or h.blocked %}-999{% else %}{{ h.xirr|floatformat:6 }}{% endif %}">{% if h.xirr is None or h.blocked %}<span class="na">&ndash;</span>{% else %}{{ h.xirr|pct_signed }}{% endif %}</td>
+      <td class="r" data-sort="{{ h.price_date|date:'Ymd'|default:'0' }}">{% if h.price_date %}{{ h.price_date|date:"j M" }}{% else %}<span class="na">&ndash;</span>{% endif %}</td>
       <td>{% if h.empty %}<span class="sq"></span>Not bought yet{% elif not h.is_held %}<span class="sq"></span>Sold out{% elif h.is_hidden %}Hidden{% else %}<span class="sq f"></span>Held{% endif %}</td>
       <td class="r spark-cell" data-sort="{{ h.spark.change|default_if_none:'' }}">{% include "investments/_spark.html" with s=h.spark %}</td>
     </tr>{% endfor %}
