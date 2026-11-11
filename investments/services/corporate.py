@@ -17,7 +17,7 @@ from datetime import timedelta
 from decimal import ROUND_DOWN, Decimal
 
 from django.db import transaction
-from django.db.models import Count, Q
+from django.db.models import Count, Min, Q
 from django.utils import timezone
 
 from investments import lots
@@ -99,7 +99,7 @@ def method_of(profile, action):
 
 def held_instrument_ids(profile):
     ids = set(ProfileInvestment.objects.filter(profile=profile).values_list("instrument_id", flat=True))
-    ids |= set(Transaction.objects.filter(profile=profile).values_list("instrument_id", flat=True))
+    ids |= set(Transaction.objects.filter(profile=profile).order_by().values_list("instrument_id", flat=True).distinct())
     return ids
 
 
@@ -107,14 +107,13 @@ def pending(profile):
     """Actions on this profile's investments that it has neither applied nor marked not applicable, dated after its first purchase."""
     ids = held_instrument_ids(profile)
     decided = set(CorporateActionResponse.objects.filter(profile=profile).exclude(status=STATUS_PENDING).values_list("action_id", flat=True))
-    first = {}
-    for iid, day in Transaction.objects.filter(profile=profile, instrument_id__in=ids).values_list("instrument_id", "date"):
-        first[iid] = min(first.get(iid, day), day)
-    out = []
-    for action in CorporateAction.objects.filter(instrument_id__in=ids).exclude(pk__in=decided).select_related("instrument"):
-        if action.instrument_id in first and action.ex_date > first[action.instrument_id]:
-            out.append(action)
-    return out
+    actions = list(CorporateAction.objects.filter(instrument_id__in=ids).exclude(pk__in=decided).select_related("instrument"))
+    if not actions:        # the usual case: nothing to look up (and this runs with every calculation of the holdings)
+        return []
+    # The first purchase of just the investments that have an action: one row each, not every transaction.
+    first = dict(Transaction.objects.filter(profile=profile, instrument_id__in={a.instrument_id for a in actions}).order_by()
+                 .values_list("instrument_id").annotate(first=Min("date")))
+    return [a for a in actions if a.instrument_id in first and a.ex_date > first[a.instrument_id]]
 
 
 def pending_instrument_ids(profile):
