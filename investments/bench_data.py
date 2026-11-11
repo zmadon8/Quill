@@ -163,6 +163,21 @@ def page_transactions(ctx):
     _get(ctx, "/investments/transactions/")
 
 
+@operation("page_txn_new", 80.0, needs_dataset=True)
+def page_txn_new(ctx):
+    """The Add a purchase page (the form with every investment, folio and broker choice)."""
+    _get(ctx, "/investments/transactions/buy/")
+
+
+@operation("page_txn_edit", 80.0, needs_dataset=True)
+def page_txn_edit(ctx):
+    """The page of one existing transaction (its edit form)."""
+    from investments.models import Transaction
+
+    pk = Transaction.objects.filter(profile=ctx.profile).values_list("pk", flat=True).first()
+    _get(ctx, f"/investments/transactions/{pk}/edit/")
+
+
 @operation("sale_recheck", 5.0, needs_dataset=True)
 def sale_recheck(ctx):
     """Adding one purchase re-checks the whole history of one investment."""
