@@ -36,6 +36,29 @@ def alt_value_on(values, on, mode=UNCHANGED):
     return v0 + (v1 - v0) * Decimal((on - d0).days) / Decimal(span)
 
 
+def interest_value(lots, on, rate_pct, interest_type="compound"):
+    """Value on ``on`` of ``[(bought_on, cost), ...]`` earning ``rate_pct`` a year: simple ``cost * (1 + r * days / 365)`` or compound
+    ``cost * (1 + r) ** (days / 365)``. A lot not yet bought is left out. The one place interest growth is worked out."""
+    r = float(rate_pct) / 100
+    total = Decimal(0)
+    for bought_on, cost in lots:
+        days = (on - bought_on).days
+        if days < 0:
+            continue
+        factor = 1 + r * days / 365.0 if interest_type == "simple" else (1 + r) ** (days / 365.0)
+        total += cost * Decimal(str(factor))
+    return total.quantize(Decimal("0.01"))
+
+
+def alt_or_interest_value(values, on, mode, lots, rate_pct=None, interest_type="compound"):
+    """An alternative investment's value on ``on``: the latest manual value on or before ``on`` (it overrides interest from its date,
+    also when a rate is set), else interest on the lots when a rate is set, else ``None`` (the caller falls back to cost)."""
+    v = alt_value_on(values, on, mode)
+    if v is None and rate_pct:
+        return interest_value(lots, on, rate_pct, interest_type)
+    return v
+
+
 def position_value(units, price):
     """Units times price (``None`` when either is unknown)."""
     if price is None or units is None:

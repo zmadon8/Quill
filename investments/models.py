@@ -72,6 +72,8 @@ class Instrument(models.Model):
     price_basis = models.CharField(max_length=15, blank=True, default="", choices=[("raw", "Raw (as traded)"), ("split_adjusted", "Split-adjusted")],
                                    help_text="Plan 16.2: whether stored closes are restated for later splits. Blank for funds and hand-entered items.")
     interest_rate = models.DecimalField(max_digits=7, decimal_places=3, null=True, blank=True)
+    interest_type = models.CharField(max_length=10, choices=[("simple", "Simple interest"), ("compound", "Compound interest (yearly)")], default="compound",
+                                     help_text="Alternative investments with an interest rate: simple or compounded yearly")
     next_results_date = models.DateField(null=True, blank=True)
     expense_ratio = models.DecimalField(max_digits=6, decimal_places=3, null=True, blank=True, help_text="Mutual funds: total expense ratio %, entered by hand")
     maturity_date = models.DateField(null=True, blank=True)

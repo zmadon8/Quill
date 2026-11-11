@@ -155,7 +155,8 @@ def portfolio_value_series(profile, days, *, portfolio=None, broker=None, instru
                     at_cost += events[k][2]
                 k += 1
             if inst.kind == KIND_ALTERNATIVE:
-                v = valuation.alt_value_on(alt.get(iid, []), day, settings_row.alt_treatment) if units else ZERO
+                lots = _interest_lots(by_inst.get(iid, []), day, units) if units and inst.interest_rate else []
+                v = valuation.alt_or_interest_value(alt.get(iid, []), day, settings_row.alt_treatment, lots, inst.interest_rate, inst.interest_type) if units else ZERO
                 if v is None:
                     v = cost_basis.setdefault("c", sum((core.buy_total(t) for t in by_inst.get(iid, []) if t.status == STATUS_FINAL and t.side == SIDE_BUY), ZERO))
                 values[i] += (v if units > 0 else ZERO) + at_cost
@@ -165,6 +166,16 @@ def portfolio_value_series(profile, days, *, portfolio=None, broker=None, instru
                 factor = corporate_math.basis_factor(applied_basis.get(iid, []), day, inst.price_basis)
                 values[i] += (units * factor * price * rate if price is not None and units > 0 else ZERO) + at_cost
     return values, flows
+
+
+def _interest_lots(transactions, day, units):
+    """``[(date, cost)]`` of the buys up to ``day``, scaled to the units still held, for the shared interest helper."""
+    buys = [t for t in transactions if t.status == STATUS_FINAL and t.side == SIDE_BUY and t.units and t.effective_date <= day]
+    bought = sum((t.units for t in buys), ZERO)
+    if not bought:
+        return []
+    share = min(units / bought, Decimal(1))
+    return [(t.effective_date, core.buy_total(t) * share) for t in buys]
 
 
 def performance_index(values, flows):

@@ -213,7 +213,7 @@ def find_similar(profile, name="", code="", kind=None):
 
 @transaction.atomic
 def create_instrument(profile, user, *, kind, name, code="", isin="", currency="INR", asset_class="equity", sector="",
-                      exchange="", price_source="manual", interest_rate=None, maturity_date=None, allow_duplicate=False):
+                      exchange="", price_source="manual", interest_rate=None, maturity_date=None, allow_duplicate=False, interest_type="compound"):
     """Add an investment. Alternative investments are private to the profile; the rest are shared (plan 16.1). A look-alike is refused
     unless ``allow_duplicate`` (the page offers "use the existing one" instead)."""
     if kind not in HOLDABLE_KINDS:
@@ -231,7 +231,7 @@ def create_instrument(profile, user, *, kind, name, code="", isin="", currency="
         currency=(currency or "INR").upper()[:3], asset_class=asset_class, sector=(sector or "").strip(), exchange=exchange,
         price_source="manual" if private else (price_source if price_source != "manual" else fetch_defaults.default_source(kind)),
         price_basis=fetch_defaults.default_basis(fetch_defaults.default_source(kind)) if not private else "",
-        interest_rate=interest_rate, maturity_date=maturity_date)
+        interest_rate=interest_rate, interest_type=interest_type if interest_type in ("simple", "compound") else "compound", maturity_date=maturity_date)
     ProfileInvestment.objects.get_or_create(profile=profile, instrument=obj)
     core.touch(profile)
     return obj

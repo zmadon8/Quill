@@ -209,10 +209,15 @@ class InstrumentForm(forms.Form):
     asset_class = forms.ChoiceField(choices=ASSET_CLASSES, initial="equity", label="Asset class")
     sector = forms.CharField(max_length=80, required=False)
     interest_rate = forms.DecimalField(max_digits=7, decimal_places=3, required=False, label="Interest rate % (optional)")
+    interest_type = forms.ChoiceField(choices=[("compound", "Compound interest (yearly)"), ("simple", "Simple interest")], initial="compound", required=False,
+                                      label="Interest type")
     maturity_date = forms.DateField(widget=date_widget(), required=False, label="Maturity date (optional)")
 
     def clean_currency(self):
         return (self.cleaned_data.get("currency") or "INR").upper()
+
+    def clean_interest_type(self):
+        return self.cleaned_data.get("interest_type") or "compound"
 
 
 class PriceForm(forms.Form):

@@ -316,6 +316,42 @@ class AlternativeInterestTests(InvTestCase):
         (h,), _ = holdings.compute(self.profile, as_of=d(2024, 12, 31))
         self.assertAlmostEqual(float(h.value), 100000 * 1.07 ** (365 / 365), places=0)
 
+    def _fd(self, interest_type):
+        fdep = masters.create_instrument(self.profile, self.user, kind="alternative", name=f"FD {interest_type}", interest_rate=D(10), asset_class="debt",
+                                         interest_type=interest_type)
+        tx.add_transaction(self.profile, self.user, side="buy", instrument=fdep, portfolio=self.portfolio, broker=self.zerodha, date=d(2023, 1, 1), units=D(1),
+                           price=D(100000))
+        return fdep
+
+    def test_simple_and_compound_interest(self):
+        from investments import valuation
+
+        self._fd("simple")
+        (h,), _ = holdings.compute(self.profile, as_of=d(2025, 1, 1))
+        self.assertAlmostEqual(float(h.value), 100000 * (1 + 0.10 * 731 / 365), places=0)
+        self.assertEqual(valuation.interest_value([(d(2023, 1, 1), D(100000))], d(2025, 1, 1), D(10), "compound"),
+                         D(str(100000 * 1.1 ** (731 / 365.0))).quantize(D("0.01")))
+
+    def test_manual_value_overrides_interest_from_its_date(self):
+        from investments.services import prices
+
+        fdep = self._fd("compound")
+        prices.set_alt_value(self.profile, self.user, fdep, d(2024, 1, 1), D(150000))
+        (before,), _ = holdings.compute(self.profile, as_of=d(2023, 12, 31))
+        self.assertAlmostEqual(float(before.value), 100000 * 1.1 ** (364 / 365), places=0)
+        (on,), _ = holdings.compute(self.profile, as_of=d(2024, 1, 1))
+        (after,), _ = holdings.compute(self.profile, as_of=d(2025, 6, 1))
+        self.assertEqual((on.value, after.value), (D(150000), D(150000)))
+
+    def test_chart_series_matches_holdings(self):
+        from investments.services import series
+
+        self._fd("simple")
+        day = d(2024, 7, 1)
+        (h,), _ = holdings.compute(self.profile, as_of=day)
+        values, _flows = series.portfolio_value_series(self.profile, [day])
+        self.assertAlmostEqual(float(values[-1]), float(h.value), places=0)
+
 
 class SettingsPagesTests(InvTestCase):
     def test_display_and_insights_pages(self):

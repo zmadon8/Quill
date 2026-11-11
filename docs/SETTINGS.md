@@ -280,3 +280,7 @@ route table in `*/urls.py`. Rendering and the Django tests were not run in the s
 them.
 
 Note: the financial year filter on Memos, Drafts and Feebook is not a saved setting. With no `fy` in the link they open on the current year if it has rows, else the newest year with rows, else All years.
+
+## Alternative investment interest and manual values
+
+An alternative investment can carry an interest rate and an interest type (add investment form). Simple interest values each lot as `cost * (1 + rate * days / 365)`; compound interest (the default, the earlier behaviour) as `cost * (1 + rate) ^ (days / 365)`, each lot growing from its date. A value saved on the investment page (Save value) is a manual price for that date and overrides the interest on and after it, even with a rate set; the latest value on or before the date shown is used (held or averaged between entries, per Settings). Before the first manual value the interest applies. Holdings, the value chart and XIRR share one helper (`investments/valuation.py`, `alt_or_interest_value`).
