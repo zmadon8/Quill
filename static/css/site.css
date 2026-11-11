@@ -141,6 +141,7 @@ button.program-link { width: 100%; text-align: left; background: none; cursor: p
 .case-comment { font-style: normal; color: var(--muted); }
 .case + .case { margin-left: .6em; }
 .case-line-comment { font-style: normal; }
+.case-line-comment + .cite-link, .case-line-comment + .citation { margin-left: .5em; }
 /* Citations on separate lines: "(a) <comment> - <citation>", the wrapped lines hang under the text, not the label. */
 .case-lines { margin-top: .35rem; }
 .case-line { display: flex; gap: .5rem; margin: .15rem 0; }

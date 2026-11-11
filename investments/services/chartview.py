@@ -3,10 +3,10 @@
 Both pages show the same two lines (the value, and the same money put into the index) and the same period buttons
 (``?range=1m|3m|6m|1y|3y|5y|all``, plain links, no page script). The value at the start of a period counts as money put in on that
 day, as the Overview's period figures do."""
-from datetime import timedelta
+from datetime import date, timedelta
 
 from investments.models import Transaction
-from investments.services import series
+from investments.services import series, statscache
 from investments.svgchart import line_chart
 
 #: (key, label, days back from the as-of date; None = from the first purchase).
@@ -68,14 +68,23 @@ def value_chart(profile, days_back, end, *, index=None, portfolio=None, broker=N
     if first is None or first >= end:
         return None
     start = first if days_back is None else max(first, end - timedelta(days=days_back))
-    days = series.sample_dates(start, end)
-    values, flows = series.portfolio_value_series(profile, days, portfolio=portfolio, broker=broker, instrument_ids=instrument_ids,
-                                                  settings_row=settings_row)
-    if start > first:
-        flows = list(flows)
-        flows[0] = values[0]
-    levels = series.sampled_prices(index, days) if index else [None] * len(days)
-    equivalent = series.index_equivalent_values(days, flows, levels)
+    params = {"start": start, "end": end, "first": first, "portfolio": portfolio, "broker": broker, "index": index.pk if index else None,
+              "instruments": sorted(instrument_ids) if instrument_ids is not None else None}
+
+    def compute():
+        days = series.sample_dates(start, end)
+        values, flows = series.portfolio_value_series(profile, days, portfolio=portfolio, broker=broker, instrument_ids=instrument_ids,
+                                                      settings_row=settings_row)
+        if start > first:
+            flows = list(flows)
+            flows[0] = values[0]
+        levels = series.sampled_prices(index, days) if index else [None] * len(days)
+        equivalent = series.index_equivalent_values(days, flows, levels)
+        return {"days": [d.isoformat() for d in days], "value": [float(v) for v in values],
+                "index": [None if v is None else float(v) for v in equivalent]}
+
+    # cached per profile, selection, period and as-of date; valid until the data or the prices change (and the day, when it ends today)
+    data = statscache.get_or_compute(profile, "value_chart", params, compute, today_sensitive=end >= date.today())
     name = index.name if index else "the index"
-    return line_chart(days, [("Value", [float(v) for v in values]), (f"Same money in {name}", [None if v is None else float(v) for v in equivalent])],
+    return line_chart([date.fromisoformat(d) for d in data["days"]], [("Value", data["value"]), (f"Same money in {name}", data["index"])],
                       height=height, markers=markers)
