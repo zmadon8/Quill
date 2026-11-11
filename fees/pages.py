@@ -228,7 +228,7 @@ def outstanding_filters(query, overdue_enabled=True):
     if overdue_enabled and flag(query.get("overdue")):
         filters["overdue_only"] = True
     # Plain "+" in a URL arrives as a space, so accept "90 " too.
-    age = str(query.get("age") or "").strip().replace(" ", "+")
+    age = str(query.get("age") or "").replace(" ", "+")
     if age in AGE_KEYS:
         filters["age"] = age
     return filters

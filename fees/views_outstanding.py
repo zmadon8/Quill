@@ -34,6 +34,14 @@ def _flat(groups, sort):
     return sorted(entries, key=FLAT_SORTS.get(sort, FLAT_SORTS["firm"]))
 
 
+def _query_without_overdue(request, settings):
+    """The page's query string; ``overdue`` is dropped when Overdue after (days) is 0."""
+    query = request.GET.copy()
+    if not overdue_on(settings):
+        query.pop("overdue", None)
+    return query.urlencode()
+
+
 def _scope_choices(profile, filters):
     return outstanding.list_outstanding_scope(
         profile, {k: v for k, v in filters.items() if k in ("include_written_off", "overdue_only")}
@@ -64,7 +72,7 @@ def outstanding_summary(request):
             "filters": filters,
             "sort": sort,
             "money_unit": settings.money_unit,
-            "query_string": request.GET.urlencode(),
+            "query_string": _query_without_overdue(request, settings),
         },
     )
 
@@ -81,7 +89,7 @@ def outstanding_detail(request):
         view = "grouped" if "firm_id" in filters else "flat"
     flat_sort = request.GET.get("sort") if request.GET.get("sort") in (*FLAT_SORTS, "due") else "firm"
     # The view and sort choices are not filters, so the Export link leaves them out.
-    export_query = {k: v for k, v in request.GET.items() if k not in ("view", "sort")}
+    export_query = {k: v for k, v in request.GET.items() if k not in ("view", "sort") and (k != "overdue" or overdue_on(settings))}
     return render_page(
         request,
         "fees/outstanding_detail.html",
