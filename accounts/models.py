@@ -54,6 +54,12 @@ class User(AbstractUser):
     # Owner round (2026-11): the letters in the round name badge in the header (My settings, Display). Blank: the badge shows the
     # first letters of the first and last name, as before.
     header_initials = models.CharField("Header letters", max_length=3, blank=True, default="")
+    # Owner round (2026-11): the period behind the Investments Overview cards (Gain, Portfolio XIRR, index XIRR, Alpha) and the
+    # Portfolio XIRR on Home (My settings, Display). Keys match investments.services.chartview.PERIODS; "all" is the whole history.
+    INVESTMENTS_PERIOD_CHOICES = [
+        ("1m", "1M"), ("3m", "3M"), ("6m", "6M"), ("1y", "1Y"), ("3y", "3Y"), ("5y", "5Y"), ("all", "All"),
+    ]
+    investments_period = models.CharField("Investments period for returns", max_length=3, choices=INVESTMENTS_PERIOD_CHOICES, default="all")
     # Owner round (2026-11): Case Law Diary display. On: no " - " between the Item text and its inline citations. Off (default): as before.
     remove_citation_hyphen = models.BooleanField("Remove the hyphen before the citation", default=False)
     # Who is active (round: markers, payments, activity). ``last_seen_at`` is touched by accounts.middleware at most once

@@ -62,3 +62,28 @@ class CitationHyphenSettingTests(TestCase):
         self.user.refresh_from_db()
         self.assertTrue(self.user.remove_citation_hyphen)
         self.assertContains(self.client.get(reverse("my_settings") + "?tab=display"), 'name="remove_citation_hyphen"')
+
+
+@override_settings(SECURE_SSL_REDIRECT=False)
+class InvestmentsPeriodSettingTests(TestCase):
+    def setUp(self):
+        self.user = join_main(User.objects.create_user("ivy", password=PASSWORD), "editor")
+        self.client.force_login(self.user)
+
+    def post(self, **data):
+        return self.client.post(reverse("my_settings"), {"tab": "display", "landing_program": "", **data})
+
+    def test_default_is_all_and_a_choice_is_saved(self):
+        self.assertEqual(self.user.investments_period, "all")
+        self.post(investments_period="1y")
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.investments_period, "1y")
+
+    def test_invalid_choice_is_rejected_and_absent_key_keeps_the_value(self):
+        self.post(investments_period="1y")
+        self.post(investments_period="7y")
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.investments_period, "1y")
+        self.post()
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.investments_period, "1y")

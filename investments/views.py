@@ -64,7 +64,12 @@ def dashboard(request):
     from .viewutil import include_dividends
 
     div = include_dividends(request, profile)
-    data = dashboard_service.load(profile, portfolio, broker, asat, div)
+    period = getattr(request.user, "investments_period", "all") or "all"
+    data = dashboard_service.load(profile, portfolio, broker, asat, div, period)
+    totals = dict(data["totals"])
+    pt = data.get("period_totals")
+    if pt:
+        totals.update({k: pt[k] for k in ("gain", "gain_pct", "xirr", "index_xirr", "alpha")})
     awaiting = list(tx.awaiting_for(profile))
     overdue = [t for t in awaiting if tx.overdue(t, settings_row.awaiting_reminder_days)]
     index = masters.default_index_for(profile)
@@ -80,7 +85,7 @@ def dashboard(request):
                                       settings_row=settings_row)
     rows = data["rows"]
     return page(request, "investments/dashboard.html", {
-        "page_title_text": "Dashboard", "totals": data["totals"], "allocation": data["allocation"], "chart": chart, "chart_ranges": chartview.links(request, range_key, "#chart"), "notes": data["notes"],
+        "page_title_text": "Dashboard", "totals": totals, "card_period": "" if period == "all" else period.upper(), "allocation": data["allocation"], "chart": chart, "chart_ranges": chartview.links(request, range_key, "#chart"), "notes": data["notes"],
         "awaiting": awaiting, "awaiting_total": sum((t.amount or Decimal(0) for t in awaiting if t.side == "buy"), Decimal(0)),
         "overdue": overdue, "unpriced": [r for r in rows if r["unpriced"]], "has_any": data["has_any"],
         "default_index": index, "sectoral": settings_row.sectoral_enabled, "include_div": div,

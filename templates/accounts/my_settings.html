@@ -38,6 +38,7 @@
       {% include "_setting_row.html" with f=display_form.show_home_button help=display_form.show_home_button.help_text who="you" checkbox=True %}
       {% include "_setting_row.html" with f=display_form.colour_theme help=display_form.colour_theme.help_text who="you" %}
       {% include "_setting_row.html" with f=display_form.header_initials help=display_form.header_initials.help_text who="you" %}
+      {% include "_setting_row.html" with f=display_form.investments_period help=display_form.investments_period.help_text who="you" %}
       {% include "_setting_row.html" with f=display_form.remove_citation_hyphen help=display_form.remove_citation_hyphen.help_text who="you" checkbox=True %}
       <p class="theme-swatches" aria-hidden="true">{% for key, label in display_form.colour_theme.field.choices %}<span class="theme-swatch" data-swatch="{{ key }}">{{ label }}</span>{% endfor %}</p>
       {% include "_setting_row.html" with f=display_form.landing_program help="The program that opens when you sign in. Leave blank to see Home." who="you" %}

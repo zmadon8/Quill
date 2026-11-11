@@ -15,10 +15,10 @@
 {% if boxes %}<div class="strip">{% for b in boxes %}
   {% if b == "value" %}<div class="f hl"><div class="lab">Current value</div><div class="fig">{{ totals.value|inr }}</div></div>
   {% elif b == "invested" %}<div class="f"><div class="lab">Invested</div><div class="fig">{{ totals.invested|inr }}</div></div>
-  {% elif b == "gain" %}<div class="f"><div class="lab">Gain</div><div class="fig">{{ totals.gain|inr_signed }}<small>{{ totals.gain_pct|pct_signed }}</small></div></div>
-  {% elif b == "xirr" %}<div class="f"><div class="lab">Portfolio XIRR</div><div class="fig">{{ totals.xirr|pct }}<small>yearly return on money you put in</small></div></div>
-  {% elif b == "index_xirr" %}<div class="f"><div class="lab">{{ default_index.name|default:"Nifty 50" }} XIRR</div><div class="fig">{{ totals.index_xirr|pct }}<small>same cash flows in the index</small></div></div>
-  {% elif b == "alpha" %}<div class="f"><div class="lab">Alpha</div><div class="fig">{{ totals.alpha|pct_signed }}</div></div>
+  {% elif b == "gain" %}<div class="f"><div class="lab">Gain{% if card_period %} ({{ card_period }}){% endif %}</div><div class="fig">{{ totals.gain|inr_signed }}<small>{{ totals.gain_pct|pct_signed }}</small></div></div>
+  {% elif b == "xirr" %}<div class="f"><div class="lab">Portfolio XIRR{% if card_period %} ({{ card_period }}){% endif %}</div><div class="fig">{{ totals.xirr|pct }}<small>yearly return on money you put in</small></div></div>
+  {% elif b == "index_xirr" %}<div class="f"><div class="lab">{{ default_index.name|default:"Nifty 50" }} XIRR{% if card_period %} ({{ card_period }}){% endif %}</div><div class="fig">{{ totals.index_xirr|pct }}<small>same cash flows in the index</small></div></div>
+  {% elif b == "alpha" %}<div class="f"><div class="lab">Alpha{% if card_period %} ({{ card_period }}){% endif %}</div><div class="fig">{{ totals.alpha|pct_signed }}</div></div>
   {% elif b == "dividends" %}<div class="f"><div class="lab">Dividends received</div><div class="fig">{{ totals.dividends|inr }}<small>not part of current value</small></div></div>
   {% elif b == "count" %}<div class="f"><div class="lab">Holdings</div><div class="fig">{{ totals.count }}</div></div>{% endif %}{% endfor %}
 </div>{% endif %}
