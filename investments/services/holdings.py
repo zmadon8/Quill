@@ -97,7 +97,42 @@ def _passes(portfolio, broker, portfolio_id, broker_id):
     return (portfolio is None or portfolio_id == portfolio) and (broker is None or broker_id == broker)
 
 
-def compute(profile, *, portfolio=None, broker=None, as_of=None, settings=None, instrument_ids=None, include_dividends=None, with_xirr=True):
+#: The columns of a transaction that ``compute`` and the helpers it calls read. Loading only these (and not the notes, references,
+#: timestamps and so on) makes reading thousands of rows noticeably cheaper; the query-count test in test_speed.py guards against a column
+#: being forgotten (reading a deferred column costs one query per row).
+TXN_FIELDS = ("id", "instrument_id", "side", "status", "date", "allotment_date", "units", "price", "charges", "amount", "cost_override",
+              "rupee_amount", "currency", "fx_rate", "portfolio_id", "broker_id", "folio_id", "is_estimated", "origin", "corporate_action_id")
+
+
+@dataclass
+class History:
+    """A profile's transactions and transfers up to ``as_of``, read once. ``compute(history=...)`` filters them to its own date, so a caller
+    that needs the holdings at several dates (the Overview's opening values) reads the database once instead of once per date."""
+    as_of: date
+    per_instrument: dict      # instrument id -> [Transaction], newest first (the model's own order)
+    transfers: dict           # instrument id -> [Transfer]
+    instruments: dict         # instrument id -> Instrument
+
+
+def load_history(profile, as_of=None, instrument_ids=None):
+    """Read the transactions and transfers of ``profile`` dated on or before ``as_of`` (today by default)."""
+    as_of = as_of or date.today()
+    txns = Transaction.objects.filter(profile=profile, date__lte=as_of).only(*TXN_FIELDS)
+    if instrument_ids is not None:
+        txns = txns.filter(instrument_id__in=list(instrument_ids))
+    per_instrument = {}
+    for t in txns.iterator(chunk_size=2000):
+        per_instrument.setdefault(t.instrument_id, []).append(t)
+    transfers = {}
+    for tr in Transfer.objects.filter(profile=profile, date__lte=as_of).iterator(chunk_size=2000):
+        transfers.setdefault(tr.instrument_id, []).append(tr)
+    # One query for the investments (a few hundred), not one joined copy of an investment per transaction.
+    instruments = Instrument.objects.in_bulk(set(per_instrument) | set(transfers))
+    return History(as_of, per_instrument, transfers, instruments)
+
+
+def compute(profile, *, portfolio=None, broker=None, as_of=None, settings=None, instrument_ids=None, include_dividends=None, with_xirr=True,
+            history=None):
     """``([Holding sorted by name], Totals)`` for the profile as at ``as_of`` (today by default).
 
     ``portfolio`` and ``broker`` are ids (or None for all). Sold-out investments are included with ``sold_out=True``.
@@ -105,6 +140,8 @@ def compute(profile, *, portfolio=None, broker=None, as_of=None, settings=None, 
     Applied corporate actions change the units (plan 8); an unconfirmed one makes the holding Provisional, or blocked (plan 2).
     ``with_xirr=False`` skips the XIRR of each holding and of the total (they stay None); units, cost, value and flows are unchanged. A caller
     that only needs a value as at a past date (the opening value of an Overview period) uses it, as XIRR is the slowest step per holding.
+    ``history`` is a :class:`History` read earlier for the same profile and a date on or after ``as_of`` (and no ``instrument_ids``): the
+    database is then not read for transactions again.
     """
     from investments import corporate as corporate_math
     from investments.models import CA_TAG, Dividend
@@ -117,19 +154,20 @@ def compute(profile, *, portfolio=None, broker=None, as_of=None, settings=None, 
         include_dividends = settings.include_dividends
     block = settings.corporate_action_mode != CA_TAG
 
-    txns = Transaction.objects.filter(profile=profile, date__lte=as_of).select_related("instrument")
-    if instrument_ids is not None:
-        txns = txns.filter(instrument_id__in=list(instrument_ids))
-    per_instrument = {}
-    instruments = {}
-    for t in txns.iterator(chunk_size=500):
-        per_instrument.setdefault(t.instrument_id, []).append(t)
-        instruments[t.instrument_id] = t.instrument
-    transfers = {}
-    for tr in Transfer.objects.filter(profile=profile, date__lte=as_of).iterator(chunk_size=500):
-        transfers.setdefault(tr.instrument_id, []).append(tr)
-        if tr.instrument_id not in instruments:
-            instruments[tr.instrument_id] = tr.instrument
+    if history is None:
+        history = load_history(profile, as_of, instrument_ids)
+    elif history.as_of < as_of or instrument_ids is not None:
+        raise ValueError("The history must cover the date asked for and be read for the whole profile.")
+    per_instrument, transfers = {}, {}
+    for iid, rows in history.per_instrument.items():
+        kept = rows if history.as_of <= as_of else [t for t in rows if t.date <= as_of]
+        if kept:
+            per_instrument[iid] = kept
+    for iid, rows in history.transfers.items():
+        kept = rows if history.as_of <= as_of else [tr for tr in rows if tr.date <= as_of]
+        if kept:
+            transfers[iid] = kept
+    instruments = {iid: history.instruments[iid] for iid in set(per_instrument) | set(transfers)}
 
     ids = list(instruments)
     actions = corporate_service.applied(profile, ids)

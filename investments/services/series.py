@@ -25,6 +25,13 @@ MAX_POINTS = 400
 MAX_SERIES = 8
 
 
+def holdings_fields():
+    """The transaction columns the value series reads (see ``holdings.TXN_FIELDS``)."""
+    from investments.services import holdings
+
+    return holdings.TXN_FIELDS
+
+
 def sample_dates(start, end):
     """Daily up to 92 days, weekly (Fridays) up to three years, month-ends beyond; always ends on ``end``; capped at MAX_POINTS."""
     span = (end - start).days
@@ -104,7 +111,7 @@ def portfolio_value_series(profile, days, *, portfolio=None, broker=None, instru
     """``(values, flows)``: the portfolio value on each sample date and the net money put in during each period (period 0: up to days[0])."""
     settings_row = settings_row or core.get_settings(profile, create=False)
     leave_out = settings_row.awaiting_treatment == AWAITING_LEAVE_OUT
-    qs = Transaction.objects.filter(profile=profile, date__lte=days[-1]).select_related("instrument")
+    qs = Transaction.objects.filter(profile=profile, date__lte=days[-1]).only(*holdings_fields())
     if portfolio:
         qs = qs.filter(portfolio_id=portfolio)
     if broker:
@@ -112,11 +119,13 @@ def portfolio_value_series(profile, days, *, portfolio=None, broker=None, instru
     if instrument_ids is not None:
         qs = qs.filter(instrument_id__in=list(instrument_ids))
     by_inst, instruments, fx = {}, {}, {}
-    for t in qs.iterator(chunk_size=500):
+    for t in qs.iterator(chunk_size=2000):
         by_inst.setdefault(t.instrument_id, []).append(t)
-        instruments[t.instrument_id] = t.instrument
+        instruments[t.instrument_id] = None       # keeps the order the investments first appear in; the investments are read in one query below
         if t.fx_rate:
             fx[t.instrument_id] = t.fx_rate
+    for iid, inst in Instrument.objects.in_bulk(list(instruments)).items():
+        instruments[iid] = inst
     moves = {}
     transfer_flows = []
     tq = Transfer.objects.filter(profile=profile, date__lte=days[-1])

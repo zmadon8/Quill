@@ -23,7 +23,7 @@ def _periods(profile):
 
 def warm_profile(profile, today=None):
     """Keep the Overview, its default chart, the Holdings rows and the alerts for ``profile``. Returns the number of results kept."""
-    from investments.services import alerts, chartview, core, dashboard, holdings_page, masters
+    from investments.services import alerts, chartview, core, dashboard, holdings_page, insights, masters
 
     today = today or date.today()
     settings_row = core.get_settings(profile, create=False)
@@ -35,7 +35,8 @@ def warm_profile(profile, today=None):
     chartview.value_chart(profile, 365, today, index=masters.default_index_for(profile), portfolio=None, broker=None, settings_row=settings_row)
     holdings_page.load(profile, None, None, None)
     alerts.visible(profile, today)
-    return kept + 3
+    insights.compute(profile, today)
+    return kept + 4
 
 
 def warm_all(max_seconds=300, today=None):

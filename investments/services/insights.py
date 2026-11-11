@@ -60,10 +60,13 @@ def _worked_out(profile, today):
                 f"{r['id']}")
     from investments.services import reports
 
-    soon = reports.turning_long(profile, days=60)
-    if soon.rows:
-        first = soon.rows[0]
-        add("turning_long", 70, f"{len(soon.rows)} purchase{'s' if len(soon.rows) != 1 else ''} turn long-term within 60 days; the first is {first[0]} in {first[5]} days.",
+    if data.get("turning") is not None:      # worked out with the figures above (kept payloads from before this existed have none)
+        soon = [(name, None, None, None, turns, left) for name, turns, left in data["turning"]]
+    else:
+        soon = [tuple(r) for r in reports.turning_long(profile, days=60).rows]
+    if soon:
+        first = soon[0]
+        add("turning_long", 70, f"{len(soon)} purchase{'s' if len(soon) != 1 else ''} turn long-term within 60 days; the first is {first[0]} in {first[5]} days.",
             reverse("investments_report", args=["turning-long"]), f"{first[0]}:{first[4]}")
     limit = float(s.concentration_limit)
     for r in rows:

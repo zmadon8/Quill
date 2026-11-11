@@ -72,11 +72,25 @@ def _years_back(day, years):
         return day.replace(year=day.year - years, day=28)
 
 
-def compute(profile, *, portfolio, broker, as_of, include_dividends, settings_row, totals, chosen, sample=None, index=None):
+def _opening_value(profile, *, portfolio, broker, start, include_dividends, settings_row, history=None, memo=None):
+    """The portfolio's value on ``start`` (the money a period starts with). ``history`` saves reading the transactions again for each date and
+    ``memo`` (a dict kept by the caller) saves working out the same date twice."""
+    from investments.services import holdings
+
+    if memo is not None and start in memo:
+        return memo[start]
+    value = holdings.compute(profile, portfolio=portfolio, broker=broker, as_of=start, settings=settings_row, include_dividends=include_dividends,
+                             with_xirr=False, history=history)[1].value
+    if memo is not None:
+        memo[start] = value
+    return value
+
+
+def compute(profile, *, portfolio, broker, as_of, include_dividends, settings_row, totals, chosen, sample=None, index=None, history=None, memo=None):
     """The period table as JSON-ready data: ``{"periods": [...], "rows": [...]}``; empty when nothing is chosen or nothing is held."""
     from investments import indexcmp, lots, xirr
     from investments.models import Dividend
-    from investments.services import core, holdings, performance
+    from investments.services import core, performance
 
     metrics, wanted = chosen["metrics"], chosen["periods"]
     if not metrics or not wanted or not totals.flows:
@@ -111,8 +125,8 @@ def compute(profile, *, portfolio, broker, as_of, include_dividends, settings_ro
             opening, in_window = ZERO, flows_all
             day0 = first
         else:
-            opening = holdings.compute(profile, portfolio=portfolio, broker=broker, as_of=start, settings=settings_row,
-                                       include_dividends=include_dividends, with_xirr=False)[1].value
+            opening = _opening_value(profile, portfolio=portfolio, broker=broker, start=start, include_dividends=include_dividends,
+                                     settings_row=settings_row, history=history, memo=memo)
             in_window = [(d, a) for d, a in flows_all if d > start]
             day0 = start
         cash = ([(day0, -opening)] if opening else []) + in_window
@@ -178,13 +192,13 @@ def _from_samples(sample, day0):
 PERIOD_DAYS = {"1m": 30, "3m": 92, "6m": 183, "1y": 365, "3y": 1096, "5y": 1825}
 
 
-def period_figures(profile, *, portfolio, broker, as_of, include_dividends, settings_row, totals, period_key, index):
+def period_figures(profile, *, portfolio, broker, as_of, include_dividends, settings_row, totals, period_key, index, history=None, memo=None):
     """Gain, gain %, XIRR, index XIRR and Alpha over one chart-style period, or None for "all" (the totals already are that).
 
     Worked as in ``compute``: the value at the period's start counts as money put in on that day. If the history is shorter than the
     period, the whole history is used (the figures then equal the totals)."""
     from investments import indexcmp, xirr
-    from investments.services import holdings, performance
+    from investments.services import performance
 
     days = PERIOD_DAYS.get(period_key)
     if days is None or not totals.flows:
@@ -197,8 +211,8 @@ def period_figures(profile, *, portfolio, broker, as_of, include_dividends, sett
     if start is None:
         opening, day0, in_window = ZERO, first, flows_all
     else:
-        opening = holdings.compute(profile, portfolio=portfolio, broker=broker, as_of=start, settings=settings_row,
-                                   include_dividends=include_dividends, with_xirr=False)[1].value
+        opening = _opening_value(profile, portfolio=portfolio, broker=broker, start=start, include_dividends=include_dividends,
+                                 settings_row=settings_row, history=history, memo=memo)
         day0, in_window = start, [(d, a) for d, a in flows_all if d > start]
     cash = ([(day0, -opening)] if opening else []) + in_window
     closing = totals.value

@@ -110,7 +110,7 @@ def _get(ctx, path):
     request.session = {}
     request.resolver_match = resolve(path)
     with override_settings(STORAGES=plain_static):
-        response = request.resolver_match.func(request)
+        response = request.resolver_match.func(request, *request.resolver_match.args, **request.resolver_match.kwargs)
         if hasattr(response, "render"):
             response.render()
     if response.status_code != 200:
