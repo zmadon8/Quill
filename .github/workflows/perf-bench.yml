@@ -39,7 +39,13 @@ jobs:
           cache: pip
       - run: pip install -r requirements.txt
       - run: python manage.py migrate
-      - name: Pages and calculations
+      - name: Timing only (no memory tracing)
+        run: |
+          python manage.py investments_memory_bench --timing-only \
+            --only dataset_build --only dashboard --only page_overview_cold --only page_overview_warm \
+            --only page_holdings_cold --only page_holdings_warm --only page_investment --only page_transactions \
+            --only chart_portfolio_5y --only performance_3y --only alerts_and_insights --only annual_report
+      - name: Pages and calculations (memory traced, with profiles)
         run: |
           python manage.py investments_memory_bench \
             --only dataset_build --only dashboard --only page_overview_cold --only page_overview_warm \

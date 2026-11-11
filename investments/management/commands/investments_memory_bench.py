@@ -60,6 +60,7 @@ class Command(BaseCommand):
         parser.add_argument("--dataset-size", choices=["planning", "small"], default="planning")
         parser.add_argument("--seed", type=int, default=0)
         parser.add_argument("--only", action="append", help="Run only the operation with this name (repeat for several; dataset_build is needed first).")
+        parser.add_argument("--timing-only", action="store_true", help="Do not trace memory (tracing makes object-heavy code several times slower): the seconds are then close to real.")
         parser.add_argument("--profile", action="append", default=[], help="Print where the time goes (cProfile) for the operation with this name.")
 
     def handle(self, *args, **options):
@@ -80,6 +81,7 @@ class Command(BaseCommand):
 
                 wanted = options.get("only")
                 self.profile = set(options.get("profile") or [])
+                self.timing_only = options.get("timing_only")
                 for name, cap, _needs_dataset, fn in bench.OPERATIONS:
                     if wanted and name not in wanted:
                         continue
@@ -102,12 +104,15 @@ class Command(BaseCommand):
         began = time.perf_counter()
         try:
             with transaction.atomic(), connection.execute_wrapper(count):
-                with assert_peak_under(_BenchCase(), cap) as box:
-                    if name in getattr(self, "profile", ()):
-                        self._profiled(name, fn, ctx)
-                    else:
-                        fn(ctx)
-                peak = box[0]
+                if getattr(self, "timing_only", False):
+                    fn(ctx)
+                else:
+                    with assert_peak_under(_BenchCase(), cap) as box:
+                        if name in getattr(self, "profile", ()):
+                            self._profiled(name, fn, ctx)
+                        else:
+                            fn(ctx)
+                    peak = box[0]
         except _PeakFail as exc:
             status = "OVER"
             peak = _parse_peak(str(exc), cap)
