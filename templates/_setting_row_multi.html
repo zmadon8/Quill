@@ -1,0 +1,6 @@
+{# A group of tick boxes of a Django form (Home card figures): at most 3 may be ticked. Context: f (bound field), help, who. #}<div class="setting-row" data-max-checked="3">
+  {{ f.errors }}
+  <span class="setting-label">{{ f.label }}</span>{% include "_who_tag.html" %}
+  <div class="metric-choices">{% for box in f %}<label class="search-check">{{ box.tag }} {{ box.choice_label }}</label> {% endfor %}</div>
+  <span class="setting-help">{{ help }}</span>
+</div>

@@ -104,3 +104,69 @@ class SuiteSearchTests(TestCase):
             html = self.client.get(reverse("suite_search"), {"q": "Alpha"}).content.decode()
         self.assertIn("could not be searched just now", html)
         self.assertIn("Alpha &amp; Co", html)
+
+
+@override_settings(SECURE_SSL_REDIRECT=False, FEES_ENABLED=True)
+class HomeMetricsChoiceTests(TestCase):
+    def setUp(self):
+        load_sample_data(main_profile())
+        self.fees = Profile.objects.create(program=KEY_FEES, name="Metrics-Fees")
+        xs.seed_web_data(self.fees)
+        self.user = join_main(User.objects.create_user("meg", password=PASSWORD), "editor")
+        set_user_profile(self.user, self.fees, ROLE_EDITOR, KEY_FEES)
+        self.client.force_login(self.user)
+
+    def post(self, **data):
+        return self.client.post(reverse("my_settings"), {"tab": "display", "landing_program": "", **data})
+
+    def home(self):
+        return self.client.get(reverse("home") + "?home=1").content.decode()
+
+    def test_defaults_when_nothing_chosen(self):
+        from accounts import home_cards
+
+        self.assertEqual(home_cards.chosen_metrics(self.user, "diary"), ["subjects", "items", "flagged"])
+        html = self.home()
+        for label in ("Subjects", "Items", "Flagged", "Memos this year", "Outstanding", "Drafts"):
+            self.assertIn("<dt>%s</dt>" % label, html)
+
+    def test_choice_is_saved_and_shown_exactly(self):
+        resp = self.post(home_metrics_present="1", home_metrics_diary=["flagged", "subjects"], home_metrics_fees=["payments"])
+        self.assertEqual(resp.status_code, 302)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.home_metrics["diary"], ["subjects", "flagged"])
+        self.assertEqual(self.user.home_metrics["fees"], ["payments"])
+        self.assertNotIn("investments", self.user.home_metrics)
+        html = self.home()
+        self.assertIn("<dt>Flagged</dt>", html)
+        self.assertNotIn("<dt>Items</dt>", html)
+        self.assertIn("<dt>Payments recorded</dt>", html)
+        self.assertNotIn("<dt>Drafts</dt>", html)
+
+    def test_more_than_three_is_rejected(self):
+        resp = self.post(home_metrics_present="1", home_metrics_diary=["subjects", "items", "flagged", "clean"])
+        self.assertEqual(resp.status_code, 200)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.home_metrics, {})
+
+    def test_invalid_key_is_rejected(self):
+        resp = self.post(home_metrics_present="1", home_metrics_fees=["nonsense"])
+        self.assertEqual(resp.status_code, 200)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.home_metrics, {})
+
+    def test_unticking_all_or_absent_keys(self):
+        self.post(home_metrics_present="1", home_metrics_diary=["items"])
+        self.post()  # no home_metrics keys at all: unchanged
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.home_metrics["diary"], ["items"])
+        self.post(home_metrics_present="1")  # everything unticked: defaults
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.home_metrics, {})
+
+    def test_stale_stored_keys_fall_back(self):
+        from accounts import home_cards
+
+        self.user.home_metrics = {"diary": ["gone", "items", "items", "a", "b"], "fees": "bad"}
+        self.assertEqual(home_cards.chosen_metrics(self.user, "diary"), ["items"])
+        self.assertEqual(home_cards.chosen_metrics(self.user, "fees"), ["memos_fy", "outstanding", "drafts"])
