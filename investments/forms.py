@@ -52,13 +52,28 @@ class ProfileForm(forms.Form):
 
     #: Investment fields that get a "Held only" tick box, and whether it starts ticked (set by ``mark_held``).
     held_fields = ()
-    held_default = False
+    held_default = True
+    #: Fields tucked under a "More" fold on the page (see ``_form.html``); it opens when one of them holds a value or an error.
+    more_fields = ()
+    more_label = "More"
 
     def __init__(self, *args, profile=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.profile = profile
 
-    def mark_held(self, *names, default=False):
+    @property
+    def more_open(self):
+        for name in self.more_fields:
+            if name not in self.fields:
+                continue
+            if self.errors.get(name):
+                return True
+            value = self[name].value()
+            if value not in (None, "", 0, "0") and str(value) != str(self.fields[name].initial or ""):
+                return True
+        return False
+
+    def mark_held(self, *names, default=True):
         """Mark each named investment field's options held or not (``data-held``) and ask for a "Held only" tick box beside it. The field's
         queryset is unchanged, so every investment is still accepted when the form is posted."""
         from investments.services import holdings
@@ -138,14 +153,17 @@ class TransactionForm(ProfileForm):
                 self.fields["corporate_action"].label_from_instance = lambda a: f"{a.instrument.name}: {a.describe()} ({a.ex_date:%d %b %Y})"
         if mode in ("sell", "awaiting_sell", "edit_sell"):
             del self.fields["new_folio"]
+            # A sale asks for the date, investment, where it was held, units and price; charges and a note sit under "More".
+            self.more_fields = tuple(n for n in ("charges", "note") if n in self.fields)
+            self.more_label = "Charges and note"
         if mode.startswith("edit"):
             self.fields["instrument"].disabled = False
-        # "Held only": on for sales, off for purchases; an edit starts on only for a sale of something still held.
-        held = self.mark_held("instrument", default=mode in ("sell", "awaiting_sell", "edit_sell"))
+        # "Held only" starts ticked on every form; an edit of an entry for something no longer held starts unticked so the chosen investment shows.
+        held = self.mark_held("instrument", default=True)
         if mode.startswith("edit") or "instrument" in self.initial:
             chosen = getattr(self.initial.get("instrument"), "pk", self.initial.get("instrument"))
             if self.held_default and chosen and chosen not in held:
-                self.held_default = False
+                self.held_default = True
 
     def actions(self):
         """The bonuses, splits and demergers the person may link units to: those on investments they can see (a demerger also by its new company)."""
@@ -191,7 +209,7 @@ class OpeningForm(ProfileForm):
         self.fields["portfolio"].queryset = Portfolio.objects.filter(profile=profile)
         self.fields["broker"].queryset = self.brokers()
         self.fields["folio"].queryset = Folio.objects.filter(profile=profile)
-        self.mark_held("instrument", default=False)
+        self.mark_held("instrument", default=True)
 
 
 class TransferForm(ProfileForm):
@@ -405,7 +423,7 @@ class DividendForm(ProfileForm):
         self.fields["portfolio"].queryset = Portfolio.objects.filter(profile=profile)
         self.fields["broker"].queryset = self.brokers()
         self.fields["folio"].queryset = Folio.objects.filter(profile=profile)
-        self.mark_held("instrument", default=False)
+        self.mark_held("instrument", default=True)
 
 
 class CorporateActionForm(ProfileForm):

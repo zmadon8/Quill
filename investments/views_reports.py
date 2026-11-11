@@ -282,8 +282,7 @@ def report_view(request, slug):
     fn, _label = REPORTS[slug]
     years = int(request.GET.get("years", 3 if slug.startswith("compare") else 1)) if str(request.GET.get("years", "1")).isdigit() else 1
     days = int(request.GET.get("days", 60)) if str(request.GET.get("days", "60")).isdigit() else 60
-    # Dividends and Data-check keep showing everything unless the box is ticked: they carry totals and warnings that should not shrink silently.
-    held_only = held_only_param(request, default=slug not in ("dividends", "data-check"))
+    held_only = held_only_param(request)
     table = fn(profile, portfolio=portfolio, broker=broker, years=max(1, min(years, 20)), days=days, held_only=held_only)
     if request.GET.get("export") == "xlsx":
         from .exports import response

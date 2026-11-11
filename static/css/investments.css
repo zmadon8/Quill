@@ -347,3 +347,5 @@ body.inv svg.spark.down{stroke:var(--loss)}
 body.inv nav.seg{display:inline-flex;padding:3px;background:var(--paper-2);border-radius:9px}
 body.inv nav.seg a{padding:4px 12px;border-radius:7px;font-size:13px;color:var(--ink-3);text-decoration:none}
 body.inv nav.seg a.on{background:var(--white);color:var(--ink);font-weight:600;box-shadow:var(--shadow-card)}
+.more-fields { margin: .5rem 0 1rem; }
+.more-fields > summary { cursor: pointer; padding: .3rem 0; }
