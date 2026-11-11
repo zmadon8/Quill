@@ -362,6 +362,21 @@ class MyDisplayForm(MySettingsForm):
                 widget=forms.CheckboxSelectMultiple,
                 help_text=f"Up to {home_cards.MAX_METRICS} figures on the {title} card on Home, shown in the order listed. None ticked: the usual three.")
             self.fields[name].initial = home_cards.chosen_metrics(self.instance, program)
+        self._add_detail_fields()
+
+    # Home page details: the Dashboard / Overview items shown below the cards, one tick-box group per program, no limit.
+    DETAIL_FIELDS = (("home_details_fees", suite.KEY_FEES, "Fee Register", "Dashboard"),
+                     ("home_details_investments", suite.KEY_INVESTMENTS, "Investments", "Overview"))
+
+    def _add_detail_fields(self):
+        from accounts import home_cards
+
+        for name, program, title, source in self.DETAIL_FIELDS:
+            self.fields[name] = forms.MultipleChoiceField(
+                required=False, label=f"Home page details: {title}", choices=home_cards.details_catalogue(program),
+                widget=forms.CheckboxSelectMultiple,
+                help_text=f"Items from the {title} {source} to show below the cards on Home. None ticked: nothing extra.")
+            self.fields[name].initial = home_cards.chosen_details(self.instance, program)
 
     def _clean_metrics(self, name):
         from accounts import home_cards
@@ -397,6 +412,18 @@ class MyDisplayForm(MySettingsForm):
             else:
                 stored.pop(program, None)
         self.instance.home_metrics = stored
+        details = dict(self.instance.home_details) if isinstance(self.instance.home_details, dict) else {}
+        present = "home_details_present" in self.data
+        for name, program, _title, _source in self.DETAIL_FIELDS:
+            if name not in self.data and not present:
+                continue
+            picked = set(self.cleaned_data.get(name) or [])
+            ordered = [k for k, _l in home_cards.details_catalogue(program) if k in picked]
+            if ordered:
+                details[program] = ordered
+            else:
+                details.pop(program, None)
+        self.instance.home_details = details
         return super().save(commit=commit)
 
 

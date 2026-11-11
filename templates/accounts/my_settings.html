@@ -43,6 +43,9 @@
       {% include "_setting_row_multi.html" with f=display_form.home_metrics_diary help=display_form.home_metrics_diary.help_text who="you" %}
       {% include "_setting_row_multi.html" with f=display_form.home_metrics_fees help=display_form.home_metrics_fees.help_text who="you" %}
       {% include "_setting_row_multi.html" with f=display_form.home_metrics_investments help=display_form.home_metrics_investments.help_text who="you" %}
+      <input type="hidden" name="home_details_present" value="1">
+      {% include "_setting_row_multi_free.html" with f=display_form.home_details_fees help=display_form.home_details_fees.help_text who="you" %}
+      {% include "_setting_row_multi_free.html" with f=display_form.home_details_investments help=display_form.home_details_investments.help_text who="you" %}
       {% include "_setting_row.html" with f=display_form.remove_citation_hyphen help=display_form.remove_citation_hyphen.help_text who="you" checkbox=True %}
       <p class="theme-swatches" aria-hidden="true">{% for key, label in display_form.colour_theme.field.choices %}<span class="theme-swatch" data-swatch="{{ key }}">{{ label }}</span>{% endfor %}</p>
       {% include "_setting_row.html" with f=display_form.landing_program help="The program that opens when you sign in. Leave blank to see Home." who="you" %}
