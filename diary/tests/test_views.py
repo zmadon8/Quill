@@ -44,10 +44,6 @@ class HomeIndexTests(TestCase):
     @classmethod
     def setUpTestData(cls):
         from django.utils import timezone
-        from accounts import suite
-
-        suite.set_brand_modes({key: suite.BRAND_LOGO for key in suite.BRAND_KEYS})  # these tests check the icons; Words is the default
-
         cls.reader = join_main(User.objects.create_user("rita", password=PASSWORD))
         cls.admin = join_main(User.objects.create_user("adam", password=PASSWORD, is_superuser=True), "editor")
         cls.arb = Subject.objects.create(profile=main_profile(), name="Arbitration", landing_position=1)
@@ -155,7 +151,7 @@ class HomeIndexTests(TestCase):
     def test_nav_marks_current_page(self):
         self.client.force_login(self.admin)
         resp = self.client.get(reverse("user_list"))
-        self.assertContains(resp, 'class="nav-icon on" aria-current="page" aria-label="Admins"')  # D85, D86, D96
+        self.assertContains(resp, 'class="on" aria-current="page" aria-label="Admins"')  # D85, D86, D96
         self.assertContains(resp, '<a href="%s" class="on" aria-current="page">Users</a>' % reverse("user_list"))  # its tab
         self.assertNotContains(resp, 'class="on" aria-current="page">Subjects</a>')
 

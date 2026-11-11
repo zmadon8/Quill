@@ -34,15 +34,8 @@ class User(AbstractUser):
     landing_program = models.CharField(max_length=30, blank=True, default="")
     # Last Case Law Diary page viewed (path and query), used by the "last page I viewed" opening option.
     last_diary_path = models.CharField(max_length=500, blank=True, default="")
-    # How the header bar shows its links (My settings): simple icons, or the words (round 15, D84).
-    HEADER_ICONS, HEADER_WORDS = "icons", "words"
-    HEADER_STYLE_CHOICES = [(HEADER_ICONS, "Icons"), (HEADER_WORDS, "Words")]
-    header_style = models.CharField(max_length=10, choices=HEADER_STYLE_CHOICES, default=HEADER_ICONS)
     # Diary round (1.5): justify the text that is normally left-aligned. On screen only; off unless chosen (My settings, Display).
     justify_text = models.BooleanField(default=False)
-    # Owner round (2026-11): the Home button in the header bar can be hidden (My settings, Display). Home stays
-    # reachable with the Alt+H (Option+H) shortcut and from a program's own links; on unless switched off.
-    show_home_button = models.BooleanField(default=True)
     # Owner round (2026-11): the accent colour of every page, per user (My settings, Display; an Admin can set it too). Only the
     # accent changes (buttons, the current tab, links); status colours, the Word memo and the exports never do. tokens.css has one
     # html[data-theme] block per choice; the default, oxblood, needs none.

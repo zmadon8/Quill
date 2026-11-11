@@ -22,7 +22,6 @@ TOP = (
     ("holdings", "Holdings", "investments_holdings"),
     ("reports", "Reports", "investments_performance"),
     ("alerts", "Alerts", "investments_alerts"),
-    ("settings", "Settings", "investments_settings"),
 )
 
 _NO_DATA = "Nothing here yet."

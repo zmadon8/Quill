@@ -27,31 +27,28 @@ def current_program_key(request):
 
 
 def _read(request):
-    """``(names, brand_modes, site_name)`` for this request from one query, cached on the request. Never raises."""
+    """``(names, site_name)`` for this request from one query, cached on the request. Never raises."""
     cached = getattr(request, "_suite_all", None)
     if cached is None:
         try:
             cached = suite.read_all()
         except Exception:
             logger.exception("Could not read the suite display names")
-            cached = (dict(suite.DEFAULT_NAMES), {key: suite.BRAND_WORDS for key in suite.BRAND_KEYS},
-                      suite.default_site_name())
+            cached = (dict(suite.DEFAULT_NAMES), suite.default_site_name())
         request._suite_all = cached
         request._suite_names = cached[0]  # reused by program_label so the page does not query twice
     return cached
 
 
 def suite_names(request):
-    """Expose the display names to every template as ``home_name`` and ``diary_name``, and the suite-wide header bar
-    choice (Words or Logo, set on Admins > Appearance) as ``suite_brand`` (``{"home"|"diary"|"fees": "words"|"logo"}``)
-    and ``home_header_words`` (True when Home, Admins, Settings and Help pages show words)."""
-    names, modes, site = _read(request)
+    """Expose the display names to every template as ``home_name``, ``diary_name`` and so on, and
+    ``home_header_words`` (always True: the header bar shows words; only the user badge, Search, Home and Sign out are icons)."""
+    names, site = _read(request)
     return {"site_name": site,
             "home_name": names[suite.KEY_HOME], "diary_name": names[suite.KEY_DIARY], "fees_name": names[suite.KEY_FEES],
             "investments_name": names[suite.KEY_INVESTMENTS],
             "investments_on": programs.investments_enabled(),
-            "suite_brand": modes,
-            "home_header_words": modes[suite.KEY_HOME] == suite.BRAND_WORDS}
+            "home_header_words": True}
 
 
 def _names():
@@ -101,23 +98,16 @@ def current_profile(request):
 
 
 def header_style(request):
-    """``header_words``: True when the header bar shows words instead of icons (Logo) on this page (the default). Search, Home and Sign out
-    ignore it and are always icons. The choice is
-    suite-wide (Admins > Appearance), per program: the Fee Register's pages use its choice, every other page the Case
-    Law Diary's; base_suite_home.html swaps in the Home choice (``home_header_words``) for the Home, Admins, Settings and
-    Help pages. No extra query (shared with ``suite_names``).
+    """``header_words``: always True, the header bar shows words (there is no Words or Logo choice). Search, Home, Sign out and the
+    user badge are always icons.
     ``justify_text``: True when the signed-in user chose to justify text (My settings, Display); base_suite.html puts the class on <html>.
-    ``show_home_button``: False when the signed-in user hid the Home button (My settings, Display).
     ``colour_theme``: the signed-in user's accent colour (My settings, Display); base_suite.html puts it on <html data-theme>.
     ``remove_citation_hyphen``: True when the signed-in user left the hyphen out between an Item's text and its citations (My settings, Display)."""
     user = getattr(request, "user", None)
-    program = current_program_key(request)
-    mode = _read(request)[1].get(program, suite.BRAND_WORDS)
     signed_in = user is not None and user.is_authenticated
     justify = bool(signed_in and getattr(user, "justify_text", False))
-    show_home = not signed_in or bool(getattr(user, "show_home_button", True))
     theme = (getattr(user, "colour_theme", "") if signed_in else "") or "oxblood"
-    return {"header_words": mode == suite.BRAND_WORDS, "justify_text": justify, "show_home_button": show_home, "colour_theme": theme,
+    return {"header_words": True, "justify_text": justify, "colour_theme": theme,
             "remove_citation_hyphen": bool(signed_in and getattr(user, "remove_citation_hyphen", False))}
 
 

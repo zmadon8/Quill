@@ -6,7 +6,6 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
-from accounts import suite
 from diary.tests.helpers import join_main
 
 PASSWORD = "x-long-pass-123"
@@ -39,11 +38,8 @@ class TitleInNavTests(TestCase):
         self.assertIn(VISIBLE % "Search", self.html("search"))
         self.assertIn(VISIBLE % "Settings", self.html("password_change"))
 
-    def test_icon_pages_hide_the_title_only_when_the_header_shows_words(self):
+    def test_pages_named_in_the_header_hide_their_title(self):
         pages = (("home", "?home=1", "Programs"), ("trash", "", "Trash"), ("diary_history", "", "History"),
                  ("export", "", "Export"), ("help", "", "Help"), ("profile_settings", "", "Case Law Diary settings"))
         for name, query, title in pages:
-            self.assertIn(HIDDEN % title, self.html(name, query), name + " (words)")
-        suite.set_brand_modes({suite.KEY_HOME: suite.BRAND_LOGO, suite.KEY_DIARY: suite.BRAND_LOGO})
-        for name, query, title in pages:
-            self.assertIn(VISIBLE % title, self.html(name, query), name + " (icons)")
+            self.assertIn(HIDDEN % title, self.html(name, query), name)

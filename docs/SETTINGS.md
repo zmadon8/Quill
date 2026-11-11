@@ -38,8 +38,7 @@ are not on the diary Settings tab.
 | Case Law Diary | Display Name, View whole subject, Export file name, Offline link |
 | Fee Register | Every setting on Fee Register > Settings sections 1 to 5 (memo defaults, payments, Word documents and template, start years, statistics, display and figures) |
 
-**Suite-wide (Admin > Appearance, tag "Everyone")**: the names of Home and each program, and Words or Logo for each
-header bar.
+**Suite-wide (Admin > Appearance, tag "Everyone")**: the names of Home and each program. (There is no Words or Logo choice: every header bar shows words, except the fixed icons for the user badge, Search, Home and Sign out, and Home is always shown.)
 
 **Server only**: the environment variables in section 6.
 
@@ -56,7 +55,6 @@ header bar.
 | `is_superuser` | Admin | Admin > Users (edit) | Per user | Admin sets |
 | `landing_program` | Open after login | My settings > Display (Admin > Users edits it for another user as "Open after login") | Per user | Only you |
 | `justify_text` | Justify text | My settings > Display | Per user | Only you |
-| `show_home_button` | Show the Home button (off: hidden on every page; Alt+H still opens Home) | My settings > Display | Per user | Only you |
 | `colour_theme` | Colour theme: Oxblood (default), Royal Blue, Navy, Violet, Plum or Teal. Changes the accent (buttons, current tab, links) on every page; status colours and exports never change | My settings > Display; an Admin on the user's edit screen | Per user | Only you |
 | `header_initials` | Letters in the header badge: up to 3, shown upper-case in the round badge at the top right. Blank: the first letters of your first and last name | My settings > Display | Per user | Only you |
 | `remove_citation_hyphen` | Remove the hyphen before the citation: on, the Case Law Diary on screen leaves out the " - " between an Item's text and its inline citations (default off). The Word export and offline copy keep the hyphen. The ";" between several inline citations is always gone | My settings > Display | Per user | Only you |
@@ -66,7 +64,6 @@ header bar.
 | `can_see_active` | Can See Who Is Active (shows the Active Now and Earlier Today panel on Home; an Admin always sees it) | Admin > Users (edit, create) | Per user | Admin sets |
 | `last_seen_at` | When the user was last seen (no more than once a minute; feeds the Active Now panel) | No page; written as you browse | Per user, automatic | Nobody |
 | `last_diary_path` | The last page I viewed (used when the diary opening page is "The last page I viewed") | No page; written as you browse the diary | Per user, automatic | Only you |
-| `header_style` | Old per-user Words or Logo choice | None. The column still exists but nothing reads or writes it; the header choice is now suite-wide (see `SuiteName`, section 2.3) | Per user, unused | Nobody |
 | `deleted_at`, `deleted_by_name`, `was_active` | Bookkeeping for a deleted (trashed) user and Restore | Admin > Users (Trash, Restore) | Per user, automatic | Admin |
 
 ### 2.2 `accounts.Profile` (per profile)
@@ -99,9 +96,6 @@ One row per key (`key`, `display_name`). Nothing is per user or per profile.
 | `home` | Name of the Home page | Admin > Appearance | Suite-wide | Everyone |
 | `diary` | Name of the Case Law Diary | Admin > Appearance | Suite-wide | Everyone |
 | `fees` | Name of the Fee Register (field offered only while the program is switched on) | Admin > Appearance | Suite-wide | Everyone |
-| `brand_home` | Words or Logo header bar on Home, Admin, Settings and Help pages | Admin > Appearance | Suite-wide | Everyone |
-| `brand_diary` | Words or Logo header bar in the Case Law Diary | Admin > Appearance | Suite-wide | Everyone |
-| `brand_fees` | Words or Logo header bar in the Fee Register | Admin > Appearance | Suite-wide | Everyone |
 
 ## 3. Case Law Diary (`diary` app)
 

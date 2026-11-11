@@ -642,7 +642,7 @@ def restore_backup(document, user):
                 objects = []
                 for start in range(0, len(records), 500):
                     chunk = records[start:start + 500]
-                    objects.extend(serializers.deserialize("json", json.dumps(chunk)))
+                    objects.extend(serializers.deserialize("json", json.dumps(chunk), ignorenonexistent=True))
                 batches.append((model, objects))
             for model, _objects in reversed(batches):
                 model._default_manager.all().delete()

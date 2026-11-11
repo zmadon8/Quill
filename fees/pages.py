@@ -38,8 +38,6 @@ _NAV = (
     ("firms", "Firms", "fees_firms", ("fees_firm", "fees_matter")),
     ("feebook", "Feebook", "fees_feebook", ("fees_feebook",)),
     ("outstanding", "Outstanding", "fees_outstanding", ("fees_outstanding",)),
-    ("settings", "Settings", "fees_settings", ("fees_settings", "fees_bank", "fees_template", "fees_signature",
-                                               "fees_filename", "fees_backup", "fees_import")),
 )
 
 

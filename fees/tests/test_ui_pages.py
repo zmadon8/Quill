@@ -18,7 +18,7 @@ from fees.tests import xlsx_support as xs
 from fees.tests.test_views_read import SeededViewsBase
 
 EM_DASH = "\u2014"
-NAV_LABELS = ["Statistics", "Memos", "Firms", "Feebook", "Outstanding", "Settings"]
+NAV_LABELS = ["Statistics", "Memos", "Firms", "Feebook", "Outstanding"]
 
 
 @override_settings(SECURE_SSL_REDIRECT=False)

@@ -276,8 +276,8 @@ class MySettingsForm(forms.ModelForm):
 
     class Meta:
         model = User
-        fields = ("email", "landing_program", "justify_text", "show_home_button", "colour_theme", "header_initials", "remove_citation_hyphen", "investments_period")
-        labels = {"justify_text": "Justify text", "show_home_button": "Show the Home button"}
+        fields = ("email", "landing_program", "justify_text", "colour_theme", "header_initials", "remove_citation_hyphen", "investments_period")
+        labels = {"justify_text": "Justify text"}
 
     def clean_email(self):
         return _clean_unique_email(self)
@@ -325,12 +325,6 @@ class MySettingsForm(forms.ModelForm):
                 "Lines up the right-hand edge of the text of Items, Sections and Notes on screen. Off: the text is left-aligned. "
                 "The Word export is not affected."
             )
-        if "show_home_button" in self.fields:
-            self.fields["show_home_button"].required = False
-            self.fields["show_home_button"].help_text = (
-                "The house button at the right of the header bar. Off: it is hidden on every page; Alt+H (Option+H on a Mac) "
-                "still opens Home."
-            )
         _set_up_colour_theme(self)
         self.fields["landing_program"].choices = landing.program_choices(landing.programs_for(self.instance))
 
@@ -346,7 +340,7 @@ class MyDisplayForm(MySettingsForm):
     """The Display section of My settings: where to land after login and justified text."""
 
     class Meta(MySettingsForm.Meta):
-        fields = ("landing_program", "justify_text", "show_home_button", "colour_theme", "header_initials", "remove_citation_hyphen", "investments_period")
+        fields = ("landing_program", "justify_text", "colour_theme", "header_initials", "remove_citation_hyphen", "investments_period")
 
     # Home card figures: one tick-box group per program (declared in __init__ from home_cards.METRIC_CATALOGUE), at most 3 each.
     METRIC_FIELDS = (("home_metrics_diary", suite.KEY_DIARY, "Case Law Diary"), ("home_metrics_fees", suite.KEY_FEES, "Fee Register"),
@@ -529,16 +523,6 @@ class SuiteNamesForm(forms.Form):
                 # Investments (added later) may be left out of a post: its name then stays as it is.
                 required=key != suite.KEY_INVESTMENTS,
             )
-        # Words or Logo for the header bar of Home and each program on offer (round 20, 3.1; the Fee Register only
-        # while that program is switched on). Not posted: the current choice is kept.
-        self.brand_keys = [suite.KEY_HOME, *programs.enabled_program_keys()]
-        modes = suite.get_brand_modes()
-        for key in self.brand_keys:
-            self.fields[self._brand_field(key)] = forms.ChoiceField(
-                label=f"{names.get(key, key)} header bar", required=False, initial=modes.get(key, suite.BRAND_WORDS),
-                choices=[(suite.BRAND_WORDS, "Words"), (suite.BRAND_LOGO, "Logo")], widget=forms.RadioSelect,
-                help_text="Words: Trash, Export, Help, Settings and the other items as words. Logo: as icons.",
-            )
 
     @staticmethod
     def _name_keys():
@@ -548,10 +532,6 @@ class SuiteNamesForm(forms.Form):
     @staticmethod
     def _field_name(key):
         return f"{key}_name"
-
-    @staticmethod
-    def _brand_field(key):
-        return f"{key}_brand"
 
     def _clash_label(self, key):
         """The human label used in the "same name as" message for ``key``."""
@@ -581,10 +561,6 @@ class SuiteNamesForm(forms.Form):
             suite.set_site_name(self.cleaned_data.get("site_name", ""))
         suite.set_names(
             {key: " ".join(self.cleaned_data[self._field_name(key)].split()) for key in self.name_keys}
-        )
-        suite.set_brand_modes(
-            {key: self.cleaned_data[self._brand_field(key)] for key in self.brand_keys
-             if self.cleaned_data.get(self._brand_field(key))}
         )
 
 

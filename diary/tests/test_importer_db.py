@@ -491,9 +491,6 @@ class FlagsPageTests(TestCase):
     address forwards to Flags."""
 
     def setUp(self):
-        from accounts import suite
-
-        suite.set_brand_modes({key: suite.BRAND_LOGO for key in suite.BRAND_KEYS})  # Words is the default
         self.reader = join_main(User.objects.create_user("rita", password=PASSWORD))
         self.client.force_login(self.reader)
         self.main = main_profile()
@@ -631,7 +628,7 @@ class FlagsPageTests(TestCase):
         self.assertIn('href="%s"' % reverse("flags"), nav)
         self.assertIn('aria-label="Flags"', nav)
         flags_nav = self.client.get(reverse("flag_links")).content.decode().split('class="program-nav"')[1].split("</nav>")[0]
-        self.assertIn('class="nav-icon on" aria-current="page" aria-label="Flags"', flags_nav)
+        self.assertIn('class="on" aria-current="page" aria-label="Flags"', flags_nav)
 
 
 class ImportCommandTests(TestCase):

@@ -87,21 +87,17 @@ class SettingsTabsTests(TestCase):
         self.assertGreaterEqual(html.count("Only you"), 8)
         self.assertNotIn("Everyone in this profile", html)  # nothing shared lives on My settings
 
-    def test_the_home_button_can_be_hidden_and_shown_again(self):
-        # Owner round (2026-11): My settings > Display > Show the Home button (on by default, per user).
+    def test_the_home_button_is_always_shown(self):
+        # Round 23: the "Show the Home button" option is gone; Home is always in the header.
         home = 'class="home-button"'
-        self.assertTrue(self.user.show_home_button)
-        self.assertIn(home, self.client.get(reverse("my_settings")).content.decode())
-        self.client.post(reverse("my_settings"), {"tab": "display", "landing_program": ""})   # box not ticked
-        self.user.refresh_from_db()
-        self.assertFalse(self.user.show_home_button)
+        self.assertFalse(hasattr(self.user, "show_home_button"))
         html = self.client.get(reverse("my_settings")).content.decode()
-        self.assertNotIn(home, html)
+        self.assertIn(home, html)
+        self.assertNotIn("show_home_button", html)
+        self.client.post(reverse("my_settings"), {"tab": "display", "landing_program": ""})
+        html = self.client.get(reverse("my_settings")).content.decode()
+        self.assertIn(home, html)
         self.assertIn('data-home="', html)   # the Alt+H shortcut still knows where Home is
-        self.client.post(reverse("my_settings"), {"tab": "display", "landing_program": "", "show_home_button": "on"})
-        self.user.refresh_from_db()
-        self.assertTrue(self.user.show_home_button)
-        self.assertIn(home, self.client.get(reverse("my_settings")).content.decode())
 
     def test_saving_a_section_keeps_the_others_and_returns_to_it(self):
         self.user.justify_text = True
@@ -117,13 +113,10 @@ class SettingsTabsTests(TestCase):
         self.assertEqual(self.user.email, "e@example.com")  # the Account section is untouched
         self.assertFalse(self.user.justify_text)  # an unticked box in the posted section turns it off
 
-    def test_the_gear_and_home_open_the_settings_area(self):
-        from accounts import suite
-
-        suite.set_brand_modes({key: suite.BRAND_LOGO for key in suite.BRAND_KEYS})  # Words is the default
+    def test_the_user_name_opens_the_settings_area(self):
         diary = self.client.get(reverse("diary_home")).content.decode()
-        # The diary gear opens the diary's own Settings tab; the user name in the header opens My settings.
-        self.assertIn('href="%s" class="nav-icon" aria-label="Settings"' % reverse("profile_settings"), diary)
+        # No Settings link in the diary header; the user name in the header opens My settings.
+        self.assertNotIn('aria-label="Settings"', diary)
         self.assertIn('class="who" href="%s"' % reverse("my_settings"), diary)
         display = self.client.get(reverse("my_settings"), {"tab": "display"}).content.decode()
         self.assertIn('class="subnav"', display)
