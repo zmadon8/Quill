@@ -96,6 +96,73 @@ def dashboard(ctx):
         raise RuntimeError("the dataset produced no holdings")
 
 
+def _get(ctx, path):
+    """GET ``path`` as the bench user and render it (the same way ``menu_pages`` does); returns the response."""
+    from django.test import RequestFactory, override_settings
+    from django.urls import resolve
+
+    plain_static = {
+        "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+    }
+    request = RequestFactory().get(path)
+    request.user = ctx.user
+    request.session = {}
+    request.resolver_match = resolve(path)
+    with override_settings(STORAGES=plain_static):
+        response = request.resolver_match.func(request, *request.resolver_match.args, **request.resolver_match.kwargs)
+        if hasattr(response, "render"):
+            response.render()
+    if response.status_code != 200:
+        raise RuntimeError(f"{path} answered {response.status_code}")
+    return response
+
+
+def _forget_figures(ctx):
+    """Drop the kept figures, so the next page is a first visit after an edit or a price update."""
+    from investments.models import InvestmentsStatsCache
+
+    InvestmentsStatsCache.objects.filter(profile=ctx.profile).delete()
+
+
+@operation("page_overview_cold", 80.0, needs_dataset=True)
+def page_overview_cold(ctx):
+    """The Overview page as a first visit (nothing kept): what the person waits for after an edit or the nightly price update."""
+    _forget_figures(ctx)
+    _get(ctx, "/investments/dashboard/")
+
+
+@operation("page_overview_warm", 80.0, needs_dataset=True)
+def page_overview_warm(ctx):
+    """The Overview page again, with the figures kept."""
+    _get(ctx, "/investments/dashboard/")
+
+
+@operation("page_holdings_cold", 80.0, needs_dataset=True)
+def page_holdings_cold(ctx):
+    """The Holdings page as a first visit (nothing kept)."""
+    _forget_figures(ctx)
+    _get(ctx, "/investments/holdings/")
+
+
+@operation("page_holdings_warm", 80.0, needs_dataset=True)
+def page_holdings_warm(ctx):
+    """The Holdings page again, with the rows kept."""
+    _get(ctx, "/investments/holdings/")
+
+
+@operation("page_investment", 80.0, needs_dataset=True)
+def page_investment(ctx):
+    """One investment's page (the first instrument of the dataset)."""
+    _get(ctx, f"/investments/holdings/{ctx.extra['instruments'][0].pk}/")
+
+
+@operation("page_transactions", 80.0, needs_dataset=True)
+def page_transactions(ctx):
+    """The transaction list (first page of 50 of the 5,000)."""
+    _get(ctx, "/investments/transactions/")
+
+
 @operation("sale_recheck", 5.0, needs_dataset=True)
 def sale_recheck(ctx):
     """Adding one purchase re-checks the whole history of one investment."""
