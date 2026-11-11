@@ -8,7 +8,7 @@ Run it where the project's requirements are installed (CI after the tests, or a 
 It builds a throwaway profile and user inside a transaction that is rolled back at the end, runs each registered
 operation (``investments.bench``) inside its own savepoint, and prints one machine-readable line per operation::
 
-    BENCH <operation> rss_peak_mb=<x> tracemalloc_peak_mb=<y> cap_mb=<z> seconds=<t> status=<OK|OVER|ERROR>
+    BENCH <operation> rss_peak_mb=<x> tracemalloc_peak_mb=<y> cap_mb=<z> seconds=<t> queries=<n> status=<OK|OVER|ERROR>
 
 then ``BENCH done``. ``tracemalloc_peak_mb`` is the figure the caps are written against; ``rss_peak_mb`` is the process
 high-water mark, for information. The command never prints settings or environment variables and it exits non-zero if
@@ -23,7 +23,7 @@ except ImportError:  # pragma: no cover
     resource = None
 
 from django.core.management.base import BaseCommand, CommandError
-from django.db import transaction
+from django.db import connection, transaction
 
 from fees.tests.memory import assert_peak_under
 
@@ -93,9 +93,15 @@ class Command(BaseCommand):
 
     def _run(self, name, cap, fn, ctx):
         status, peak = "OK", 0.0
+        queries = [0]
+
+        def count(execute, sql, params, many, context):
+            queries[0] += 1
+            return execute(sql, params, many, context)
+
         began = time.perf_counter()
         try:
-            with transaction.atomic():
+            with transaction.atomic(), connection.execute_wrapper(count):
                 with assert_peak_under(_BenchCase(), cap) as box:
                     if name in getattr(self, "profile", ()):
                         self._profiled(name, fn, ctx)
@@ -111,7 +117,7 @@ class Command(BaseCommand):
         if status != "OK":
             self.failures.append(name)
         self.stdout.write(
-            f"BENCH {name} rss_peak_mb={_fmt(_rss_mb())} tracemalloc_peak_mb={_fmt(peak)} cap_mb={cap:.1f} seconds={time.perf_counter() - began:.2f} status={status}"
+            f"BENCH {name} rss_peak_mb={_fmt(_rss_mb())} tracemalloc_peak_mb={_fmt(peak)} cap_mb={cap:.1f} seconds={time.perf_counter() - began:.2f} queries={queries[0]} status={status}"
         )
 
 
