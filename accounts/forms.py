@@ -348,6 +348,57 @@ class MyDisplayForm(MySettingsForm):
     class Meta(MySettingsForm.Meta):
         fields = ("landing_program", "justify_text", "show_home_button", "colour_theme", "header_initials", "remove_citation_hyphen", "investments_period")
 
+    # Home card figures: one tick-box group per program (declared in __init__ from home_cards.METRIC_CATALOGUE), at most 3 each.
+    METRIC_FIELDS = (("home_metrics_diary", suite.KEY_DIARY, "Case Law Diary"), ("home_metrics_fees", suite.KEY_FEES, "Fee Register"),
+                     ("home_metrics_investments", suite.KEY_INVESTMENTS, "Investments"))
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from accounts import home_cards
+
+        for name, program, title in self.METRIC_FIELDS:
+            self.fields[name] = forms.MultipleChoiceField(
+                required=False, label=f"Home card figures: {title}", choices=home_cards.METRIC_CATALOGUE[program],
+                widget=forms.CheckboxSelectMultiple,
+                help_text=f"Up to {home_cards.MAX_METRICS} figures on the {title} card on Home, shown in the order listed. None ticked: the usual three.")
+            self.fields[name].initial = home_cards.chosen_metrics(self.instance, program)
+
+    def _clean_metrics(self, name):
+        from accounts import home_cards
+
+        value = self.cleaned_data.get(name) or []
+        if len(value) > home_cards.MAX_METRICS:
+            raise forms.ValidationError(f"Choose at most {home_cards.MAX_METRICS} figures.")
+        return value
+
+    def clean_home_metrics_diary(self):
+        return self._clean_metrics("home_metrics_diary")
+
+    def clean_home_metrics_fees(self):
+        return self._clean_metrics("home_metrics_fees")
+
+    def clean_home_metrics_investments(self):
+        return self._clean_metrics("home_metrics_investments")
+
+    def save(self, commit=True):
+        """Store the ticked figures, in catalogue order. The page sends ``home_metrics_present`` so that unticking everything means
+        the defaults; a POST without it and without a group's key leaves that group as it was."""
+        from accounts import home_cards
+
+        stored = dict(self.instance.home_metrics) if isinstance(self.instance.home_metrics, dict) else {}
+        present = "home_metrics_present" in self.data
+        for name, program, _title in self.METRIC_FIELDS:
+            if name not in self.data and not present:
+                continue
+            picked = set(self.cleaned_data.get(name) or [])
+            ordered = [k for k, _l in home_cards.METRIC_CATALOGUE[program] if k in picked]
+            if ordered:
+                stored[program] = ordered
+            else:
+                stored.pop(program, None)
+        self.instance.home_metrics = stored
+        return super().save(commit=commit)
+
 
 class ProfileForm(forms.ModelForm):
     """Create or rename a profile, and set its Home Page Name and Header Name. Names are unique among live profiles of the

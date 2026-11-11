@@ -146,6 +146,7 @@ def portfolio_value_series(profile, days, *, portfolio=None, broker=None, instru
             rates = [r or fx.get(iid, Decimal(1)) for r in fx_service.sampled(inst.currency, days)]
         units, at_cost, k = ZERO, ZERO, 0
         cost_basis = {}
+        buys = [t for t in by_inst.get(iid, []) if t.status == STATUS_FINAL and t.side == SIDE_BUY and t.units] if inst.kind == KIND_ALTERNATIVE else []
         for i, day in enumerate(days):
             while k < len(events) and events[k][0] <= day:
                 if events[k][1] is None:
@@ -155,7 +156,8 @@ def portfolio_value_series(profile, days, *, portfolio=None, broker=None, instru
                     at_cost += events[k][2]
                 k += 1
             if inst.kind == KIND_ALTERNATIVE:
-                v = valuation.alt_value_on(alt.get(iid, []), day, settings_row.alt_treatment) if units else ZERO
+                lots = _interest_lots(buys, day, units) if units and inst.interest_rate else []
+                v = valuation.alt_or_interest_value(alt.get(iid, []), day, settings_row.alt_treatment, lots, inst.interest_rate, inst.interest_type) if units else ZERO
                 if v is None:
                     v = cost_basis.setdefault("c", sum((core.buy_total(t) for t in by_inst.get(iid, []) if t.status == STATUS_FINAL and t.side == SIDE_BUY), ZERO))
                 values[i] += (v if units > 0 else ZERO) + at_cost
@@ -165,6 +167,13 @@ def portfolio_value_series(profile, days, *, portfolio=None, broker=None, instru
                 factor = corporate_math.basis_factor(applied_basis.get(iid, []), day, inst.price_basis)
                 values[i] += (units * factor * price * rate if price is not None and units > 0 else ZERO) + at_cost
     return values, flows
+
+
+def _interest_lots(all_buys, day, units):
+    """``[(date, cost)]`` still held on ``day``: the final buys (listed once per instrument) up to ``day`` less what sales took, oldest
+    first, by the shared helper (the same remaining-lot basis the holdings table gets from its FIFO replay)."""
+    buys = [(t.effective_date, t.units, core.buy_total(t)) for t in all_buys if t.effective_date <= day]
+    return valuation.remaining_lots(buys, units)
 
 
 def performance_index(values, flows):

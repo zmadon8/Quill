@@ -216,12 +216,15 @@ def compute(profile, *, portfolio=None, broker=None, as_of=None, settings=None, 
         h.sold_out = h.units == 0 and h.awaiting == 0
 
         # value
-        if inst.kind == KIND_ALTERNATIVE and alts.get(iid):
-            alt = valuation.alt_value_on(alts[iid], as_of, settings.alt_treatment)
+        if inst.kind == KIND_ALTERNATIVE and (alts.get(iid) or (inst.interest_rate and h.units)):
+            # The latest manual value on or before as_of is a new base that keeps growing at the rate; lots bought after it add their own interest.
+            alt = valuation.alt_or_interest_value(alts.get(iid, []), as_of, settings.alt_treatment, [(lot.bought_on, lot.cost) for lot in kept],
+                                                  inst.interest_rate, inst.interest_type)
             if alt is None:
                 alt = held_cost
             h.value = (alt if h.units else ZERO) + h.awaiting
-            h.price_date = alts[iid][-1][0]
+            if alts.get(iid):
+                h.price_date = alts[iid][-1][0]
         elif iid in latest and h.units:
             h.price_date, h.price = latest[iid]
             rate = Decimal(1)
@@ -233,11 +236,6 @@ def compute(profile, *, portfolio=None, broker=None, as_of=None, settings=None, 
             # On a split-adjusted series a past day's units are expressed on today's basis (plan 16.2).
             factor = corporate_math.basis_factor(basis_actions.get(iid, []), as_of, inst.price_basis)
             h.value = h.units * factor * h.price * rate + h.awaiting
-        elif inst.kind == KIND_ALTERNATIVE and inst.interest_rate and h.units:
-            # A fixed interest rate instead of dated values (plan 11): each lot grows from its date, compounded yearly.
-            rate = 1 + float(inst.interest_rate) / 100
-            grown = sum((lot.cost * Decimal(str(rate ** ((as_of - lot.bought_on).days / 365.0))) for lot in kept), ZERO)
-            h.value = grown.quantize(Decimal("0.01")) + h.awaiting
         else:
             h.value = h.cost
             h.unpriced = bool(h.units) and inst.kind != KIND_ALTERNATIVE

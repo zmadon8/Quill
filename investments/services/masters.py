@@ -213,7 +213,7 @@ def find_similar(profile, name="", code="", kind=None):
 
 @transaction.atomic
 def create_instrument(profile, user, *, kind, name, code="", isin="", currency="INR", asset_class="equity", sector="",
-                      exchange="", price_source="manual", interest_rate=None, maturity_date=None, allow_duplicate=False):
+                      exchange="", price_source="manual", interest_rate=None, maturity_date=None, allow_duplicate=False, interest_type="compound"):
     """Add an investment. Alternative investments are private to the profile; the rest are shared (plan 16.1). A look-alike is refused
     unless ``allow_duplicate`` (the page offers "use the existing one" instead)."""
     if kind not in HOLDABLE_KINDS:
@@ -231,7 +231,7 @@ def create_instrument(profile, user, *, kind, name, code="", isin="", currency="
         currency=(currency or "INR").upper()[:3], asset_class=asset_class, sector=(sector or "").strip(), exchange=exchange,
         price_source="manual" if private else (price_source if price_source != "manual" else fetch_defaults.default_source(kind)),
         price_basis=fetch_defaults.default_basis(fetch_defaults.default_source(kind)) if not private else "",
-        interest_rate=interest_rate, maturity_date=maturity_date)
+        interest_rate=interest_rate, interest_type=interest_type if interest_type in ("simple", "compound") else "compound", maturity_date=maturity_date)
     ProfileInvestment.objects.get_or_create(profile=profile, instrument=obj)
     core.touch(profile)
     return obj
@@ -323,6 +323,32 @@ def update_profile_details(profile, user, instrument, *, notes=None, links=None,
     obj.save()
     core.touch(profile)
     return obj
+
+
+@transaction.atomic
+def update_alt_interest(profile, user, instrument, *, interest_rate, interest_type, maturity_date):
+    """Change the interest rate, interest type and maturity date of an alternative investment (private to the profile, so an Editor may).
+    Each change is written to the permanent catalogue history and the profile's cached figures are refreshed."""
+    if instrument.kind != KIND_ALTERNATIVE or instrument.profile_id != profile.pk:
+        raise not_found("investment")
+    if interest_type not in ("simple", "compound"):
+        interest_type = "compound"
+    if interest_rate is not None and (interest_rate < 0 or interest_rate > 1000):
+        raise InvestmentsError("BAD_RATE", "The interest rate must be between 0 and 1000 percent.")
+    from investments.services import catalogue
+
+    new = {"interest_rate": interest_rate, "interest_type": interest_type, "maturity_date": maturity_date}
+    changed = False
+    for key, value in new.items():
+        old = getattr(instrument, key)
+        if old != value:
+            catalogue.log(user, instrument, "instrument", instrument.pk, key, old, value, "Edited on the investment page")
+            setattr(instrument, key, value)
+            changed = True
+    if changed:
+        instrument.save(update_fields=list(new))
+        core.touch(profile)
+    return instrument
 
 
 @transaction.atomic

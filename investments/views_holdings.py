@@ -2,6 +2,7 @@
 from decimal import Decimal
 
 from django.contrib import messages
+from django.db import transaction
 from django.http import Http404
 from django.shortcuts import redirect
 from django.urls import reverse
@@ -142,7 +143,7 @@ def add_2(request):
                     obj = masters.create_instrument(
                         profile, request.user, kind=data["kind"], name=data["name"], code=data["code"], isin=data["isin"],
                         currency=data["currency"], asset_class=data["asset_class"], sector=data["sector"],
-                        interest_rate=data["interest_rate"], maturity_date=data["maturity_date"],
+                        interest_rate=data["interest_rate"], interest_type=data["interest_type"], maturity_date=data["maturity_date"],
                         allow_duplicate=bool(request.POST.get("allow_duplicate")))
                 except InvestmentsError as err:
                     form.add_error(None, err.message)
@@ -254,8 +255,10 @@ def investment(request, pk):
         "folio_units": [(f, folio_units.get(f.pk, Decimal(0))) for f in folios_qs], "no_folio_units": folio_units.get(None, Decimal(0)),
         "bucket_rows": bucket_rows, "counts": counts, "has_records": any(counts.values()),
         "price_form": forms.PriceForm(), "alt_form": forms.AltValueForm(), "folio_form": forms.FolioForm(profile=profile),
-        "details_form": forms.DetailsForm(initial={"notes": pi.notes if pi else "", "links": _links_text(pi.links if pi else []),
-                                                   "sectoral_index": pi.sectoral_index_id if pi else None}, with_sector=inst.kind != KIND_ALTERNATIVE),
+        "details_form": _details_draft(request, inst) or forms.DetailsForm(initial={"notes": pi.notes if pi else "", "links": _links_text(pi.links if pi else []),
+                                                   "sectoral_index": pi.sectoral_index_id if pi else None,
+                                                   "interest_rate": inst.interest_rate, "interest_type": inst.interest_type,
+                                                   "maturity_date": inst.maturity_date}, with_sector=inst.kind != KIND_ALTERNATIVE),
         "manual_prices": ManualPrice.objects.filter(instrument=inst).order_by("-date")[:10],
         "alt_values": AltValue.objects.filter(profile=profile, instrument=inst).order_by("-date")[:20] if inst.kind == KIND_ALTERNATIVE else [],
         "awaiting_rows": awaiting_rows, "history": InvestmentHistory.objects.filter(profile=profile, instrument_id_ref=inst.pk)[:8],
@@ -295,6 +298,16 @@ def profile_brokers(profile):
     from .models import Broker
 
     return Broker.objects.filter(profile=profile)
+
+
+def _details_draft(request, inst):
+    """The Your details form re-shown with the values that were typed, after the last save was refused (kept in the session for one page)."""
+    draft = request.session.pop("details_draft", None)
+    if not draft or draft.get("pk") != inst.pk:
+        return None
+    form = forms.DetailsForm(draft["data"], with_sector=inst.kind != KIND_ALTERNATIVE)
+    form.is_valid()
+    return form
 
 
 def _form_errors(request, form):
@@ -387,16 +400,24 @@ def investment_details(request, pk):
     else:
         form = forms.DetailsForm(request.POST, with_sector=inst.kind != KIND_ALTERNATIVE)
         if form.is_valid():
-            masters.update_profile_details(profile, request.user, inst, notes=form.cleaned_data["notes"],
-                                           links=_parse_links(form.cleaned_data["links"]))
-            if "sectoral_index" in form.fields:
-                from .services import indices
+            with transaction.atomic():
+                if "interest_type" in form.fields:  # checked first, so a refused rate saves nothing
+                    masters.update_alt_interest(profile, request.user, inst, interest_rate=form.cleaned_data["interest_rate"],
+                                                interest_type=form.cleaned_data["interest_type"], maturity_date=form.cleaned_data["maturity_date"])
+                masters.update_profile_details(profile, request.user, inst, notes=form.cleaned_data["notes"],
+                                               links=_parse_links(form.cleaned_data["links"]))
+                if "sectoral_index" in form.fields:
+                    from .services import indices
 
-                chosen = form.cleaned_data.get("sectoral_index")
-                pi = masters.get_profile_investment(profile, inst)
-                if (chosen.pk if chosen else None) != pi.sectoral_index_id:
-                    indices.set_sector_index(profile, request.user, inst, chosen)
+                    chosen = form.cleaned_data.get("sectoral_index")
+                    pi = masters.get_profile_investment(profile, inst)
+                    if (chosen.pk if chosen else None) != pi.sectoral_index_id:
+                        indices.set_sector_index(profile, request.user, inst, chosen)
             messages.success(request, "Details saved.")
+        else:
+            _form_errors(request, form)
+            request.session["details_draft"] = {"pk": inst.pk, "data": {k: v for k, v in request.POST.items() if k != "csrfmiddlewaretoken"}}
+            return redirect(reverse("investments_investment", args=[pk]))
     return redirect(reverse("investments_investment", args=[pk]))
 
 
