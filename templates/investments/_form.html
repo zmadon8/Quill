@@ -6,6 +6,7 @@
   <div class="fld{% if field.errors %} bad{% endif %}">
     <label for="{{ field.id_for_label }}">{{ field.label }}</label>
     {{ field }}
+    {% if field.name in form.held_fields %}<label class="held-only" hidden><input type="checkbox" class="held-only-box" data-for="{{ field.html_name }}"{% if form.held_default %} checked{% endif %}> Held only</label>{% endif %}
     {% if field.help_text %}<span class="note">{{ field.help_text }}</span>{% endif %}
     {% for e in field.errors %}<span class="note err">{{ e }}</span>{% endfor %}
   </div>

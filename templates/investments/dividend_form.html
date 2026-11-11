@@ -9,3 +9,4 @@
   <div class="acts-row"><button class="btn p" type="submit">Save</button><a class="btn q" href="{% url 'investments_dividends' %}">Cancel</a>{% if obj %}<button class="btn dng" name="delete" value="1" onclick="return confirm('Delete this dividend?')">Delete</button>{% endif %}</div>
 </form>
 {% endblock %}
+{% block page_js %}{% load static %}<script src="{% static 'js/investments/txn-form.js' %}"></script>{% endblock %}

@@ -158,9 +158,10 @@ def index_cagr(series, d0, d1):
     return growth_rate(series.level(d0), series.level(d1), d0, d1)
 
 
-def table(profile, *, start, end, measure="xirr", portfolio=None, broker=None, settings_row=None):
+def table(profile, *, start, end, measure="xirr", portfolio=None, broker=None, settings_row=None, held_only=False):
     """One row per investment for the period (plan 9). The value on the start date counts as the opening investment; an investment bought
-    after the start only uses data from its first purchase, and says so. Returns ``(rows, total_row, notes, sectoral_on)``."""
+    after the start only uses data from its first purchase, and says so. Returns ``(rows, total_row, notes, sectoral_on)``.
+    ``held_only`` leaves out the investments not held on ``end`` (sold out, or with nothing left); the total row then covers the rows shown."""
     settings_row = settings_row or core.get_settings(profile, create=False)
     # Opening first, cut down to (units, value), so two full sets of holdings (with their lots) are never held at once.
     opening = {h.instrument.pk: (h.units, h.value)
@@ -188,6 +189,8 @@ def table(profile, *, start, end, measure="xirr", portfolio=None, broker=None, s
         flows += [(d, a) for d, a in h.flows if start < d <= end]
         row.flows = flows
         if not flows and h.sold_out:
+            continue
+        if held_only and not h.is_held:
             continue
         if measure == "cagr":
             row.cagr, first, last = cagr_span(h.instrument, start, end)

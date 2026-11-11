@@ -9,7 +9,11 @@ from .decorators import inv_editor as inv_read_write_view, inv_reader
 from .models import HOLDABLE_KINDS, KIND_INDEX, Broker, Instrument, Portfolio, ProfileInvestment
 from .services import core, holdings, masters, performance, series, statscache
 from .svgchart import line_chart
-from .viewutil import page, parse_date, profile_or_404, selection
+from .viewutil import held_only as held_only_param, page, parse_date, profile_or_404, selection
+
+#: The other reports that list investments one by one, so the "Held only" tick box does something there (the rest are totals by year or by group,
+#: or already show only what is held).
+HELD_ONLY_REPORTS = ("best-worst", "scoreboard", "dividends", "data-check")
 
 PERIODS = [("1", "1 year"), ("3", "3 years"), ("5", "5 years"), ("custom", "Custom dates")]
 CHART_PERIODS = [("1m", "1 month"), ("6m", "6 months"), ("1", "1 year"), ("3", "3 years"), ("5", "5 years"), ("all", "All"), ("custom", "Custom")]
@@ -34,7 +38,8 @@ def performance_view(request):
         messages.error(request, str(exc))
         start, end = performance.period_dates(preset=1)
         period = "1"
-    rows, total, notes, sectoral = performance.table(profile, start=start, end=end, measure=measure, portfolio=portfolio, broker=broker)
+    held_only = held_only_param(request)
+    rows, total, notes, sectoral = performance.table(profile, start=start, end=end, measure=measure, portfolio=portfolio, broker=broker, held_only=held_only)
     if request.GET.get("export") == "xlsx":
         from .exports import response
 
@@ -47,7 +52,7 @@ def performance_view(request):
         data.append(["All", start, _pct(total.xirr), _pct(total.index_xirr), _pct(total.alpha)])
         return response(f"Performance {start:%Y-%m-%d} to {end:%Y-%m-%d}.xlsx", [("Performance", header, data)])
     return page(request, "investments/performance.html", {
-        "page_title_text": "Performance", "rows": rows, "total": total, "notes": notes, "sectoral": sectoral, "measure": measure, "period": period,
+        "page_title_text": "Performance", "held_only": held_only, "rows": rows, "total": total, "notes": notes, "sectoral": sectoral, "measure": measure, "period": period,
         "periods": PERIODS, "start": start, "end": end, "default_index": masters.default_index_for(profile)})
 
 
@@ -77,11 +82,16 @@ def charts_view(request):
     start, end = _chart_window(period, request, first)
     mode = "b" if request.GET.get("chart") == "b" else "a"
     held_ids = list(ProfileInvestment.objects.filter(profile=profile).values_list("instrument_id", flat=True))
-    choices = Instrument.objects.filter(pk__in=held_ids, kind__in=HOLDABLE_KINDS).order_by("name")
+    all_choices = Instrument.objects.filter(pk__in=held_ids, kind__in=HOLDABLE_KINDS).order_by("name")
     index_choices = Instrument.objects.filter(kind=KIND_INDEX).order_by("name")
     chosen_index_ids = [int(i) for i in request.GET.getlist("index") if i.isdigit()] or [getattr(masters.default_index_for(profile), "pk", None)]
     chosen_indices = list(index_choices.filter(pk__in=[i for i in chosen_index_ids if i]))[: series.MAX_SERIES - 1]
     picked = [int(i) for i in request.GET.getlist("inv") if i.isdigit()]
+    held_only = held_only_param(request)
+    # The "Held only" tick box narrows the list to what is held now; anything already picked stays in it so a chosen line never vanishes.
+    choices = all_choices
+    if held_only:
+        choices = all_choices.filter(Q(pk__in=holdings.held_instrument_ids(profile, portfolio=portfolio, broker=broker)) | Q(pk__in=picked))
     group_broker = request.GET.get("group_broker")
 
     def compute():
@@ -93,13 +103,13 @@ def charts_view(request):
             values, flows = series.portfolio_value_series(profile, days, portfolio=portfolio, broker=gb, instrument_ids=ids, settings_row=settings_row)
             lines.append(("Portfolio", series.performance_index(values, flows)))
         else:
-            for inst, vals in series.price_lines(choices.filter(pk__in=picked), days):
+            for inst, vals in series.price_lines(all_choices.filter(pk__in=picked), days):
                 lines.append((inst.name, vals))
         for inst, vals in series.price_lines(chosen_indices, days):
             lines.append((inst.name, vals))
         return {"days": [d.isoformat() for d in days], "lines": [(label, [None if v is None else float(v) for v in vals]) for label, vals in lines]}
 
-    params = {"m": mode, "s": start, "e": end, "p": portfolio, "b": broker, "i": chosen_index_ids, "v": picked, "g": group_broker}
+    params = {"m": mode, "s": start, "e": end, "p": portfolio, "b": broker, "i": chosen_index_ids, "v": picked, "g": group_broker, "h": held_only}
     data = statscache.get_or_compute(profile, "chart", params, compute, today_sensitive=True)
     days = [date.fromisoformat(d) for d in data["days"]]
     lines = [(label, vals) for label, vals in data["lines"]]
@@ -112,7 +122,7 @@ def charts_view(request):
     table = [(d, [None if v[i] is None else round(v[i], 2) for _l, v in lines]) for i, d in enumerate(days)]
     return page(request, "investments/charts.html", {
         "page_title_text": "Charts", "chart": chart, "lines": lines, "table": table[-60:], "table_all": len(table), "mode": mode, "period": period,
-        "periods": CHART_PERIODS, "start": start, "end": end, "choices": choices, "picked": picked, "index_choices": index_choices,
+        "periods": CHART_PERIODS, "start": start, "end": end, "held_only": held_only, "choices": choices, "picked": picked, "index_choices": index_choices,
         "chosen_index_ids": chosen_index_ids, "brokers": Broker.objects.filter(profile=profile), "group_broker": group_broker,
         "first": first})
 
@@ -272,7 +282,8 @@ def report_view(request, slug):
     fn, _label = REPORTS[slug]
     years = int(request.GET.get("years", 3 if slug.startswith("compare") else 1)) if str(request.GET.get("years", "1")).isdigit() else 1
     days = int(request.GET.get("days", 60)) if str(request.GET.get("days", "60")).isdigit() else 60
-    table = fn(profile, portfolio=portfolio, broker=broker, years=max(1, min(years, 20)), days=days)
+    held_only = held_only_param(request)
+    table = fn(profile, portfolio=portfolio, broker=broker, years=max(1, min(years, 20)), days=days, held_only=held_only)
     if request.GET.get("export") == "xlsx":
         from .exports import response
 
@@ -284,7 +295,7 @@ def report_view(request, slug):
     rows = [list(zip(row, [k for _h, k in table.columns])) for row in table.rows]
     total = list(zip(table.total, [k for _h, k in table.columns])) if table.total else None
     return page(request, "investments/report.html", {"page_title_text": table.title, "t": table, "rows": rows, "total": total, "slug": slug, "years": years,
-                                                    "days": days})
+                                                    "days": days, "held_only": held_only, "has_held_only": slug in HELD_ONLY_REPORTS})
 
 
 @inv_read_write_view

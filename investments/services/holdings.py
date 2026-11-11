@@ -320,6 +320,13 @@ def held(holdings):
     return [h for h in holdings if h.is_held]
 
 
+def held_instrument_ids(profile, portfolio=None, broker=None, as_of=None):
+    """The ids of the investments held now (or on ``as_of``): units held, or a purchase awaiting allotment. Sold-out, empty and never-bought
+    investments are left out. Used by the "Held only" tick box."""
+    rows, _totals = compute(profile, portfolio=portfolio, broker=broker, as_of=as_of, with_xirr=False)
+    return {h.instrument.pk for h in rows if h.is_held}
+
+
 def allocation(holdings):
     """``[(label, value, share)]`` by asset class, largest first, for the sorted-bars chart (plan 25.3)."""
     by = {}

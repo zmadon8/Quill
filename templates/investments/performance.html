@@ -6,10 +6,12 @@
   <div class="sel"><span>Measure</span><select name="measure"><option value="xirr"{% if measure == "xirr" %} selected{% endif %}>XIRR (your actual trades)</option><option value="cagr"{% if measure == "cagr" %} selected{% endif %}>CAGR (the investment's own price)</option></select></div>
   <div class="sel"><span>Period</span><select name="period">{% for k, l in periods %}<option value="{{ k }}"{% if k == period %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
   <div class="sel"><span>From</span><input type="date" name="from" value="{{ start|date:'Y-m-d' }}"></div><div class="sel"><span>To</span><input type="date" name="to" value="{{ end|date:'Y-m-d' }}"></div>
+  {% include "investments/_held_only.html" %}
   <button class="btn q" type="submit">Show</button>
   <a class="btn q" href="?{{ request.GET.urlencode }}&export=xlsx">Export to Excel</a>
 </form>
 <p class="hint">{% if measure == "xirr" %}XIRR: the yearly return on the money you actually put in. The {{ default_index.name|default:"Default Index" }} column replays the same cash flows (same dates, same amounts) into the index; Alpha is the difference. The value on the start date counts as the opening investment.{% else %}CAGR: the yearly growth of the investment's own price. The {{ default_index.name|default:"Default Index" }} column is the index's CAGR between the same two dates; Alpha is the difference.{% endif %}</p>
+{% if held_only %}<p class="hint">Held only: investments you no longer hold are left out, and the All row covers the investments shown. Untick Held only to include them.</p>{% endif %}
 {% for n in notes %}<p class="hint">{{ n }}</p>{% endfor %}
 {% if rows %}
 <div class="tw"><table data-table-id="inv-performance" class="led" data-sortable><thead><tr><th>Investment</th><th>From</th><th class="r">{% if measure == "xirr" %}XIRR{% else %}CAGR{% endif %}</th><th class="r">{{ default_index.name|default:"Index" }} {% if measure == "xirr" %}XIRR{% else %}CAGR{% endif %}</th><th class="r">Alpha</th>

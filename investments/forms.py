@@ -32,12 +32,47 @@ def date_widget():
     return forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d")
 
 
+class HeldSelect(forms.Select):
+    """A drop-down whose options carry ``data-held="1"`` when the investment is held now, so the page can filter them (the "Held only" tick box)."""
+
+    def __init__(self, *args, held_ids=(), **kwargs):
+        super().__init__(*args, **kwargs)
+        self.held_ids = set(held_ids)
+
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+        option = super().create_option(name, value, label, selected, index, subindex=subindex, attrs=attrs)
+        raw = getattr(value, "value", value)
+        if raw not in (None, "") and str(raw).isdigit() and int(raw) in self.held_ids:
+            option["attrs"]["data-held"] = "1"
+        return option
+
+
 class ProfileForm(forms.Form):
     """Base: remembers the profile and offers its portfolios, brokers and investments."""
+
+    #: Investment fields that get a "Held only" tick box, and whether it starts ticked (set by ``mark_held``).
+    held_fields = ()
+    held_default = False
 
     def __init__(self, *args, profile=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.profile = profile
+
+    def mark_held(self, *names, default=False):
+        """Mark each named investment field's options held or not (``data-held``) and ask for a "Held only" tick box beside it. The field's
+        queryset is unchanged, so every investment is still accepted when the form is posted."""
+        from investments.services import holdings
+
+        held = holdings.held_instrument_ids(self.profile)
+        for name in names:
+            field = self.fields[name]
+            widget = HeldSelect(attrs=field.widget.attrs, held_ids=held)
+            widget.is_required = field.required
+            field.widget = widget
+            widget.choices = field.choices
+        self.held_fields = tuple(names)
+        self.held_default = bool(default)
+        return held
 
     def instruments(self):
         from django.db.models import Q
@@ -105,6 +140,12 @@ class TransactionForm(ProfileForm):
             del self.fields["new_folio"]
         if mode.startswith("edit"):
             self.fields["instrument"].disabled = False
+        # "Held only": on for sales, off for purchases; an edit starts on only for a sale of something still held.
+        held = self.mark_held("instrument", default=mode in ("sell", "awaiting_sell", "edit_sell"))
+        if mode.startswith("edit") or "instrument" in self.initial:
+            chosen = getattr(self.initial.get("instrument"), "pk", self.initial.get("instrument"))
+            if self.held_default and chosen and chosen not in held:
+                self.held_default = False
 
     def actions(self):
         """The bonuses, splits and demergers the person may link units to: those on investments they can see (a demerger also by its new company)."""
@@ -150,6 +191,7 @@ class OpeningForm(ProfileForm):
         self.fields["portfolio"].queryset = Portfolio.objects.filter(profile=profile)
         self.fields["broker"].queryset = self.brokers()
         self.fields["folio"].queryset = Folio.objects.filter(profile=profile)
+        self.mark_held("instrument", default=False)
 
 
 class TransferForm(ProfileForm):
@@ -173,6 +215,7 @@ class TransferForm(ProfileForm):
             self.fields[name].queryset = self.brokers()
         for name in ("from_folio", "to_folio"):
             self.fields[name].queryset = Folio.objects.filter(profile=profile)
+        self.mark_held("instrument", default=True)
 
 
 class SwitchForm(ProfileForm):
@@ -195,6 +238,7 @@ class SwitchForm(ProfileForm):
         self.fields["to_instrument"].queryset = funds
         self.fields["portfolio"].queryset = Portfolio.objects.filter(profile=profile)
         self.fields["broker"].queryset = self.brokers()
+        self.mark_held("from_instrument", default=True)
 
 
 KIND_CHOICES = [(KIND_SHARE, "Share or ETF"), ("fund", "Mutual fund"), (KIND_ALTERNATIVE, "Alternative investment"), (KIND_FOREIGN, "Foreign investment")]
@@ -361,6 +405,7 @@ class DividendForm(ProfileForm):
         self.fields["portfolio"].queryset = Portfolio.objects.filter(profile=profile)
         self.fields["broker"].queryset = self.brokers()
         self.fields["folio"].queryset = Folio.objects.filter(profile=profile)
+        self.mark_held("instrument", default=False)
 
 
 class CorporateActionForm(ProfileForm):
