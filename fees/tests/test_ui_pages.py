@@ -360,7 +360,7 @@ class FirmScreenTests(UiPageBase):
         group = Group.objects.filter(firm_id=i["firm"]).first()
         url = reverse("fees_group_detail", kwargs={"firm_id": i["firm"], "group_id": group.pk})
         text = self.assert_page(self.page("fees_firm_detail", {"firm_id": i["firm"]}), "firm")
-        self.assertIn('<a class="group-pill-link" href="%s">%s</a>' % (url, group.name), text)
+        self.assertIn('<a class="group-pill-link" href="%s">%s</a>' % (url, escape(group.name)), text)
 
     def test_group_page_is_limited_to_its_group(self):
         i = self.ids()

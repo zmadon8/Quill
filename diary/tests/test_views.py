@@ -1104,7 +1104,8 @@ class ProfileScopingTests(TestCase):
         self.assertNotContains(resp, "No programs are available to you yet.")
         self.assertContains(resp, "No profiles are given to you yet.")
         self.assertContains(resp, 'href="%s"' % reverse("admin_profile_access"))
-        self.assertContains(resp, 'href="%s"' % reverse("user_list"))
+        # Users & Profiles is a tab of Settings, which the Home header (and the user name) link to.
+        self.assertContains(resp, 'href="%s"' % reverse("my_settings"))
         self.assertEqual(self.client.get(reverse("diary_home")).status_code, 200)
 
     def test_deleted_profile_means_no_access(self):

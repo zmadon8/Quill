@@ -37,8 +37,9 @@ class SettingsScreenTests(UiPageBase):
 
     def test_each_section_is_its_own_form_with_its_own_save_and_warning(self):
         text = self.settings_text(self.editor)
-        self.assertEqual(text.count("data-section-form"), 5)  # Data has no settings form, only downloads
-        self.assertEqual(text.count("You have unsaved changes."), 5)
+        # Five profile sections (Data has no settings form, only downloads) plus the personal Items per page form under Display.
+        self.assertEqual(text.count("data-section-form"), 6)
+        self.assertEqual(text.count("You have unsaved changes."), 6)
         for key in ("memos", "payments", "word", "years", "display"):
             self.assertIn('<input type="hidden" name="tab" value="%s">' % key, text, key)
         self.assertIn("js/settings-sections.js", text)
@@ -76,8 +77,11 @@ class SettingsScreenTests(UiPageBase):
     def test_reader_sees_values_but_no_editing_controls(self):
         text = self.settings_text(self.reader)
         self.assertIn("You can read the settings but not change them.", text)
-        self.assertNotIn(">Save</button>", text)
-        self.assertNotIn("You have unsaved changes.", text)
+        # The only Save a reader has is the personal "My items per page" form (it saves their own choice, not the profile's).
+        profile_part = text.split('<h3 class="small-caps">Mine</h3>')[0]
+        self.assertNotIn(">Save</button>", profile_part)
+        self.assertNotIn("You have unsaved changes.", profile_part)
+        self.assertEqual(text.count(">Save</button>"), 1)
         self.assertIn("<fieldset class=\"section-fields\" disabled>", text)
         for url in ("fees_template_upload", "fees_signature_upload", "fees_bank_account_add", "fees_backup", "fees_import"):
             self.assertNotIn('"%s"' % reverse(url), text, url)

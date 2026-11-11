@@ -4,5 +4,5 @@
 {% block content %}
 <h1>{{ title }}</h1>
 <p><a href="{% if kind == 'firm' %}{% if group_id %}{% url 'fees_group_detail' owner.pk group_id %}{% else %}{% url 'fees_firm_detail' owner.pk %}{% endif %}{% else %}{% url 'fees_matter_detail' owner.pk %}{% endif %}">Back</a> | <a href="{% if kind == 'firm' %}{% url 'fees_firm_statement_export' owner.pk %}{% if group_id %}?group={{ group_id }}{% endif %}{% else %}{% url 'fees_matter_statement_export' owner.pk %}{% endif %}">Export to Excel</a></p>
-{% include "fees/_ledger_table.html" with table_id="statement" show_totals=False %}
+{% include "fees/_ledger_table.html" with table_id="statement" show_totals=True %}
 {% endblock %}

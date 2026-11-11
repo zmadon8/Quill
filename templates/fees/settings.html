@@ -5,7 +5,7 @@
 {% block page_title %}Settings - {{ program_label }}{% endblock %}
 {% block page_js %}<script src="{% static 'js/fees/filename-preview.js' %}"></script><script src="{% static 'js/fees/filename-builder.js' %}"></script><script src="{% static 'js/settings-sections.js' %}"></script>{% endblock %}
 {% block content %}
-<div class="page-head"><h1>Settings</h1></div>
+<h1 class="visually-hidden">Settings</h1>
 {% if not can_edit %}<p class="muted read-only-note">You can read the settings but not change them.</p>{% endif %}
 <p class="setting-help">These are shared by everyone using this profile, except where a setting says <em>Only you</em>. Your own Opening page is on <a href="{% url 'my_settings' %}?tab=start">Start Screens</a>; your own Items per page is in the Display section below.</p>
 {% include "fees/_form_errors.html" %}

@@ -89,8 +89,10 @@ class ShellTests(TestCase):
                 if page.slug not in REAL:      # a real page has its own content; only the shells show the empty-state text
                     self.assertContains(response, page.title)
                     self.assertContains(response, escape(page.empty))
-                for label in ("Overview", "Holdings", "Reports", "Alerts", "Catalogue", "Settings"):
+                for label in ("Overview", "Holdings", "Reports", "Alerts", "Catalogue"):
                     self.assertContains(response, label)
+                # No Settings item in the header: the user name opens My settings, whose tabs lead to the Investments settings.
+                self.assertNotContains(response, 'aria-label="Settings"')
                 self.assertContains(response, 'data-money-mode="auto"')
 
     def test_page_titles_follow_the_fee_register_rule(self):

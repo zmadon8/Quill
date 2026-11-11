@@ -14,7 +14,7 @@ Workbooks (sheet, columns, totals) are copied from ``exportService.ts``:
 
 * ``export_memos``: sheet ``Memos``; ``EXPORT_FAILED`` when there are no rows; no totals;
   file ``Memos {FY or All Years}.xlsx``.
-* ``export_statement``: sheet ``Statement``; the Ledger columns, no totals row; file ``{statement title}.xlsx``.
+* ``export_statement``: sheet ``Statement``; the Ledger columns and the same bold ``Totals (n)`` row; file ``{statement title}.xlsx``.
 * ``export_ledger``: sheet ``Ledger``; bold ``Totals (n)`` row (Memo, Payment, TDS; Balance blank); file ``Ledger[ - name].xlsx``.
 * ``export_feebook``: sheet ``Feebook``; only the visible columns, Date and Memo No. always;
   file ``Feebook {FY or All Years}.xlsx``.
@@ -337,7 +337,7 @@ def export_statement(profile, scope=None):
     rows = ledger_service.build_ledger(profile, scope)
     title = ledger_service.scope_title(profile, scope)[0]
     book = _Book()
-    _ledger_format_sheet(book, "Statement", rows)
+    _ledger_format_sheet(book, "Statement", rows, with_totals=True)
     return _xlsx_name(title, "Statement.xlsx"), book.save()
 
 
