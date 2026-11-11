@@ -151,7 +151,7 @@ class HomeIndexTests(TestCase):
     def test_nav_marks_current_page(self):
         self.client.force_login(self.admin)
         resp = self.client.get(reverse("user_list"))
-        self.assertContains(resp, 'class="on" aria-current="page" aria-label="Settings"')  # D85, D86, D96
+        self.assertNotContains(resp, 'aria-label="Settings"')  # no Settings header item; the tab strip below marks the page
         self.assertContains(resp, '<a href="%s" class="on" aria-current="page">Users &amp; Profiles</a>' % reverse("user_list"))  # its tab
         self.assertContains(resp, '<a href="%s" class="on" aria-current="page">Users</a>' % reverse("user_list"))  # its second row
         self.assertNotContains(resp, 'class="on" aria-current="page">Subjects</a>')
@@ -322,7 +322,7 @@ class HomeIndexTests(TestCase):
         self.assertIn(reverse("my_settings"), nav)
         self.assertIn("adam", nav)
         self.assertIn('aria-label="Sign out"', nav)
-        self.assertIn('aria-label="Settings"', nav)  # Users, Profiles and Backup are tabs of Settings
+        self.assertNotIn('aria-label="Settings"', nav)  # no Settings item: the user name opens settings
         for gone in (reverse("search"), reverse("diary_home")):
             self.assertNotIn(gone, nav)
         self.assertNotIn(">Admin<", nav)

@@ -181,7 +181,7 @@ SETTINGS_SUBTABS = {
     ),
 }
 
-#: One entry per header item on Home: (label, icon, url name it opens, tabs). Settings is the tab strip above; Help is one link.
+#: One entry per header item on Home: (label, icon, url name it opens, tabs). Settings is the tab strip above (no header item of its own); Help is one link.
 SUITE_GROUPS = (
     ("Settings", "icons/gear.svg.html", "my_settings", SETTINGS_TABS),
     ("Help", "icons/help.svg.html", "help", (
@@ -243,7 +243,8 @@ def suite_nav(request):
         if not mine:
             continue
         on = any(t["on"] for t in mine)
-        items.append({"url": reverse(home) if home in {t[0] for t in tabs} else mine[0]["url"], "name": label, "icon": icon, "on": on})
+        if tabs is not SETTINGS_TABS:  # Settings has no header item: the user name opens it
+            items.append({"url": reverse(home) if home in {t[0] for t in tabs} else mine[0]["url"], "name": label, "icon": icon, "on": on})
         if on and len(mine) > 1:
             tabs_here = mine
             for t in mine:

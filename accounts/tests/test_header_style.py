@@ -97,11 +97,11 @@ class HeaderStyleTests(TestCase):
 
 @override_settings(SECURE_SSL_REDIRECT=False)
 class SuiteHeaderTests(TestCase):
-    """The main Home page header is words too: Settings and Help. Settings is one row of tabs over every settings page: Users &
+    """The main Home page header is words too: just Help (no Settings item; the user name opens settings). Settings is one row of tabs over every settings page: Users &
     Profiles (Admin), Account and Profile View, Backup (Admin), Display, Start Screens and one tab per program the user can open.
     The user name in the header opens My settings."""
 
-    GROUPS = ("Settings", "Help")
+    GROUPS = ("Help",)
     ADMIN_TABS = ["Users &amp; Profiles", "Account and Profile View", "Backup", "Display", "Start Screens", "Case Law Diary"]
     USER_TABS = ["Account and Profile View", "Display", "Start Screens", "Case Law Diary"]
 
@@ -144,13 +144,13 @@ class SuiteHeaderTests(TestCase):
         self.assertIn("<svg", logout.group(1))
         self.assertEqual(header.count("nav-icon"), 1)
 
-    def test_every_settings_page_has_the_same_tabs_and_the_header_item_stays_marked(self):
+    def test_every_settings_page_has_the_same_tabs_and_no_header_item_is_marked(self):
         pages = (("user_list", ""), ("profile_list", ""), ("settings", ""), ("backup_list", ""), ("user_create", ""),
                  ("my_settings", ""), ("my_settings", "?tab=display"), ("my_settings", "?tab=start"), ("password_change", ""))
         self.assertEqual(self.tabs("profile_settings"), self.ADMIN_TABS)  # inside the program, the same tabs
         for name, query in pages:
             self.assertEqual(self.tabs(name, query), self.ADMIN_TABS, (name, query))
-            self.assertRegex(self.header(name, query), r'class="on" aria-current="page" aria-label="Settings"', (name, query))
+            self.assertNotIn('aria-label="Settings"', self.header(name, query), (name, query))
         self.assertEqual(self.tabs("home"), [])
 
     def test_the_current_tab_is_marked(self):
@@ -187,9 +187,9 @@ class SuiteHeaderTests(TestCase):
         self.assertNotIn('aria-label="Judgments"', header)
         self.assertNotIn('aria-label="Case Law Diary"', header)
 
-    def test_the_settings_item_opens_my_settings(self):
+    def test_there_is_no_settings_header_item(self):
         header = self.header()
-        self.assertRegex(header, r'<a href="%s" class="" aria-label="Settings"' % re.escape(reverse("my_settings")))
+        self.assertNotIn('aria-label="Settings"', header)
         self.assertNotIn('aria-label="Case Law Diary"', header)
 
     def test_the_user_name_opens_my_settings(self):
@@ -201,8 +201,8 @@ class SuiteHeaderTests(TestCase):
         self.client.force_login(reader)
         header = self.header()
         self.assertNotIn('aria-label="Admins"', header)
-        for name in ("Settings", "Help"):
-            self.assertIn('aria-label="%s"' % name, header, name)
+        self.assertIn('aria-label="Help"', header)
+        self.assertNotIn('aria-label="Settings"', header)
         self.assertEqual(self.tabs("my_settings"), self.USER_TABS)
         loner = User.objects.create_user("lone", password=PASSWORD)  # no program profile: only the personal tabs
         self.client.force_login(loner)
