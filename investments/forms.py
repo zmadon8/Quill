@@ -163,7 +163,7 @@ class TransactionForm(ProfileForm):
         if mode.startswith("edit") or "instrument" in self.initial:
             chosen = getattr(self.initial.get("instrument"), "pk", self.initial.get("instrument"))
             if self.held_default and chosen and chosen not in held:
-                self.held_default = True
+                self.held_default = False
 
     def actions(self):
         """The bonuses, splits and demergers the person may link units to: those on investments they can see (a demerger also by its new company)."""

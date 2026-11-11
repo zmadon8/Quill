@@ -359,12 +359,10 @@ class SuiteSettingsTests(BaseCase):
         resp = self.client.get(reverse("settings"))
         self.assertEqual(resp.status_code, 200)
         form = resp.context["form"]
-        # The Site name comes first; the Words/Logo choice per program (home_brand, diary_brand, fees_brand) sits
-        # after the names.
+        # The Site name comes first, then one name per program.
         self.assertEqual(
             list(form.fields),
-            ["site_name", "home_name", "diary_name", "fees_name", "investments_name",
-             "home_brand", "diary_brand", "fees_brand", "investments_brand"],
+            ["site_name", "home_name", "diary_name", "fees_name", "investments_name"],
         )
         self.assertEqual(form.fields["fees_name"].initial, "Fee Register")
         self.assertEqual(form.fields["fees_name"].label, "Fee Register name")

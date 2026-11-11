@@ -357,4 +357,4 @@ body.inv .upd-btn:disabled{opacity:.5;cursor:not-allowed}
 body.inv .upd-status{max-width:14rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.8rem;color:var(--muted)}
 body.inv .upd-status:empty{display:none}
 /* Type and Status filters on one line */
-body.inv form.filters{display:flex;flex-wrap:nowrap;align-items:flex-end;gap:16px}
+body.inv form.filters{display:flex;flex-wrap:wrap;align-items:flex-end;gap:16px}
