@@ -4,7 +4,7 @@ from django.views.decorators.http import require_safe
 from fees import scope
 from fees.decorators import fees_reader, handle_fees_errors
 from fees.exports import xlsx
-from fees.pages import DOCX_TYPE, XLSX_TYPE, bank_on, feebook_filters, file_response, memo_filters, outstanding_filters
+from fees.pages import DOCX_TYPE, XLSX_TYPE, bank_on, feebook_filters, file_response, memo_filters, outstanding_filters, overdue_on
 from fees.services import memos, word_template
 from fees.views_ledger import scope_for
 
@@ -88,14 +88,14 @@ def feebook_export(request):
 @handle_fees_errors()
 @require_safe
 def outstanding_export(request):
-    profile, _settings = scope.context(request)
-    return file_response(xlsx.export_outstanding(profile, outstanding_filters(request.GET)), XLSX_TYPE)
+    profile, settings = scope.context(request)
+    return file_response(xlsx.export_outstanding(profile, outstanding_filters(request.GET, overdue_on(settings))), XLSX_TYPE)
 
 
 @fees_reader
 @handle_fees_errors()
 @require_safe
 def outstanding_summary_export(request):
-    profile, _settings = scope.context(request)
+    profile, settings = scope.context(request)
     sort = "name" if request.GET.get("sort") == "name" else "amount"
-    return file_response(xlsx.export_outstanding_by_firm(profile, outstanding_filters(request.GET), sort), XLSX_TYPE)
+    return file_response(xlsx.export_outstanding_by_firm(profile, outstanding_filters(request.GET, overdue_on(settings)), sort), XLSX_TYPE)

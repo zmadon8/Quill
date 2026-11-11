@@ -203,8 +203,10 @@ class PageTests(InvTestCase):
 
     def test_sorting_attribute_and_all_tables_have_headers(self):
         self.buy(d(2024, 1, 1), 1, 1)
-        for name in ("investments_holdings", "investments_transactions", "investments_dashboard"):
+        for name in ("investments_holdings", "investments_transactions"):
             self.assertContains(self.client.get(reverse(name)), "data-sortable")
+        # The Overview "Over time" table is a fixed figure-by-period grid, so it is not sortable.
+        self.assertContains(self.client.get(reverse("investments_dashboard")), "<thead>")
 
 
 class PermissionTests(InvTestCase):

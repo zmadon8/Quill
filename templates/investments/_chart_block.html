@@ -1,0 +1,4 @@
+{# The value-against-the-index chart with its period buttons, the same on the Overview and on each investment. Context: title, chart, ranges (links), anchor, caption. #}
+<div class="sec" id="{{ anchor }}"><h2>{{ title }}</h2><nav class="seg" aria-label="Chart period">{% for r in ranges %}<a href="{{ r.href }}"{% if r.on %} class="on" aria-current="true"{% endif %}>{{ r.label }}</a>{% endfor %}</nav></div>
+{% include "investments/_chart.html" with caption=caption %}
+{% if include_div %}<p class="hint">This chart is drawn from prices and does not add dividends.</p>{% endif %}

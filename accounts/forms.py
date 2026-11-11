@@ -276,7 +276,7 @@ class MySettingsForm(forms.ModelForm):
 
     class Meta:
         model = User
-        fields = ("email", "landing_program", "justify_text", "show_home_button", "colour_theme")
+        fields = ("email", "landing_program", "justify_text", "show_home_button", "colour_theme", "header_initials", "remove_citation_hyphen", "investments_period")
         labels = {"justify_text": "Justify text", "show_home_button": "Show the Home button"}
 
     def clean_email(self):
@@ -285,8 +285,38 @@ class MySettingsForm(forms.ModelForm):
     def clean_colour_theme(self):
         return _clean_colour_theme(self)
 
+    def clean_header_initials(self):
+        value = (self.cleaned_data.get("header_initials") or "").strip().upper()
+        if "header_initials" not in self.data:
+            return self.instance.header_initials
+        return value
+
+    def clean_investments_period(self):
+        value = self.cleaned_data.get("investments_period")
+        if "investments_period" not in self.data or not value:
+            return self.instance.investments_period or "all"
+        return value
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        if "investments_period" in self.fields:
+            self.fields["investments_period"].required = False
+            self.fields["investments_period"].label = "Investments period for returns"
+            self.fields["investments_period"].help_text = (
+                "The period used for Gain, Portfolio XIRR, index XIRR and Alpha on the Investments Overview cards, and for Portfolio XIRR "
+                "on Home. All: since the first purchase. A period longer than your history uses the whole history."
+            )
+        if "header_initials" in self.fields:
+            self.fields["header_initials"].required = False
+            self.fields["header_initials"].label = "Letters in the header badge"
+            self.fields["header_initials"].help_text = (
+                "Up to 3 letters shown in the round badge at the top right of every page. Blank: the first letters of your first and last name."
+            )
+        if "remove_citation_hyphen" in self.fields:
+            self.fields["remove_citation_hyphen"].required = False
+            self.fields["remove_citation_hyphen"].help_text = (
+                "Case Law Diary, on screen: leaves out the hyphen between an Item's text and its citations. Off: the hyphen is shown."
+            )
         if "email" in self.fields:
             self.fields["email"].help_text = "Used only to email you a link if you forget your password."
         if "justify_text" in self.fields:
@@ -316,7 +346,7 @@ class MyDisplayForm(MySettingsForm):
     """The Display section of My settings: where to land after login and justified text."""
 
     class Meta(MySettingsForm.Meta):
-        fields = ("landing_program", "justify_text", "show_home_button", "colour_theme")
+        fields = ("landing_program", "justify_text", "show_home_button", "colour_theme", "header_initials", "remove_citation_hyphen", "investments_period")
 
 
 class ProfileForm(forms.ModelForm):

@@ -453,7 +453,7 @@ class FeebookAndPaymentTests(UiPageBase):
         text = self.html(self.page("fees_feebook", user=self.editor, query="?unaccounted=1"))
         body = text.split("<tbody>", 1)[-1].split("</tbody>", 1)[0]
         self.assertIn('aria-label="Edit payment of ', body)
-        self.assertIn("<td>Unaccounted</td>", body)
+        self.assertRegex(body, r'<td><a href="%s"[^>]*>Unaccounted</a></td>' % re.escape(reverse("fees_payment_edit", args=[self.seed["unaccounted"]["id"]])))
         for gone in ("row-menu", "More actions", "/assign/", "Memo number", ">Attach<", "<form"):
             self.assertNotIn(gone, body)
 
@@ -665,7 +665,11 @@ class OutstandingScreenTests(UiPageBase):
         self.assertIn(reverse("fees_outstanding_detail") + "?firm=%d" % self.ids()["firm"], text)
         self.assert_no_unlabelled_controls(text, "outstanding")
 
+    def overdue_days(self, days):
+        FeesSettings.objects.update_or_create(profile=self.profile, defaults={"overdue_days": days})
+
     def test_firm_summary_keeps_the_filters_in_the_detail_link(self):
+        self.overdue_days(30)
         text = self.html(self.page("fees_outstanding", query="?overdue=1&written_off=1"))
         self.assertRegex(text, r'href="%s\?[^"]*overdue=1' % re.escape(reverse("fees_outstanding_detail")))
 
@@ -721,6 +725,7 @@ class OutstandingScreenTests(UiPageBase):
         self.assertEqual(response.status_code, 200)
 
     def test_export_link_leaves_out_the_view_and_sort(self):
+        self.overdue_days(30)
         text = self.html(self.page("fees_outstanding_detail", query="?view=flat&sort=due&overdue=1"))
         match = re.search(r'href="%s\?([^"]*)"' % re.escape(reverse("fees_outstanding_export")), text)
         self.assertIsNotNone(match)

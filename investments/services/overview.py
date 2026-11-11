@@ -174,6 +174,47 @@ def _from_samples(sample, day0):
     return twr, fall
 
 
+#: Days back from the as-at date for each period key (the same as the chart periods; None = from the first purchase).
+PERIOD_DAYS = {"1m": 30, "3m": 92, "6m": 183, "1y": 365, "3y": 1096, "5y": 1825}
+
+
+def period_figures(profile, *, portfolio, broker, as_of, include_dividends, settings_row, totals, period_key, index):
+    """Gain, gain %, XIRR, index XIRR and Alpha over one chart-style period, or None for "all" (the totals already are that).
+
+    Worked as in ``compute``: the value at the period's start counts as money put in on that day. If the history is shorter than the
+    period, the whole history is used (the figures then equal the totals)."""
+    from investments import indexcmp, xirr
+    from investments.services import holdings, performance
+
+    days = PERIOD_DAYS.get(period_key)
+    if days is None or not totals.flows:
+        return None
+    flows_all = sorted(totals.flows)
+    first = flows_all[0][0]
+    start = as_of - timedelta(days=days)
+    if start <= first:
+        start = None
+    if start is None:
+        opening, day0, in_window = ZERO, first, flows_all
+    else:
+        opening = holdings.compute(profile, portfolio=portfolio, broker=broker, as_of=start, settings=settings_row,
+                                   include_dividends=include_dividends)[1].value
+        day0, in_window = start, [(d, a) for d, a in flows_all if d > start]
+    cash = ([(day0, -opening)] if opening else []) + in_window
+    closing = totals.value
+    put_in = -sum((a for _d, a in in_window if a < 0), ZERO)
+    taken_out = sum((a for _d, a in in_window if a > 0), ZERO)
+    gain = closing - opening - (put_in - taken_out)
+    base = opening + put_in
+    own = xirr.xirr([(d, float(a)) for d, a in cash] + [(as_of, float(closing))]) if cash else None
+    index_own = None
+    if index is not None and cash:
+        series = performance.IndexSeries(index, day0 - timedelta(days=1), as_of)
+        index_own = indexcmp.index_xirr(cash, series.level, as_of)
+    return {"gain": gain, "gain_pct": float(gain / base) if base > 0 else None, "xirr": own, "index_xirr": index_own,
+            "alpha": indexcmp.alpha(own, index_own), "start": day0}
+
+
 def as_decimals(table):
     """Turn the cached money values back into Decimals (formats money and money_signed)."""
     for row in table.get("rows", []):

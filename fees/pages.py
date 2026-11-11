@@ -57,6 +57,12 @@ def dashboard_on(settings):
     return _flag(settings, "dashboard_enabled")
 
 
+def overdue_on(settings):
+    """True when "Overdue after (days)" is above 0 in Settings; at 0 no overdue filter, key or button is shown."""
+    days = settings.get("overdue_days") if isinstance(settings, dict) else getattr(settings, "overdue_days", 0)
+    return int(days or 0) > 0
+
+
 def bank_on(settings):
     """True unless Bank is switched off in Settings (Payments): then no filter, column, form field or list shows it."""
     return _flag(settings, "show_bank")
@@ -101,6 +107,8 @@ def render_page(request, template, context=None, status=200):
         # Switches read by the header link, the Statistics tabs and every template that would show a bank.
         "fees_dashboard_on": dashboard_on(settings),
         "fees_bank_on": bank_on(settings),
+        # False when "Overdue after (days)" is 0: then no overdue filter, legend or button shows anywhere.
+        "fees_overdue_on": overdue_on(settings),
         # The user's other Fee Register profiles, for the header switcher (memberships are cached, so no query).
         "fees_other_profiles": [m.profile for m in request_memberships(request, KEY_FEES)[1:]],
         # The user's saved column widths per table id, embedded in the page (one small query).
@@ -201,8 +209,15 @@ def feebook_filters(query, default_year=None, with_bank=True):
     return filters
 
 
-def outstanding_filters(query):
-    """Outstanding filters: ``firm``, ``group``, ``matter``, ``written_off``, ``overdue``."""
+AGE_KEYS = ("0-30", "31-60", "61-90", "90+")
+
+
+def outstanding_filters(query, overdue_enabled=True):
+    """Outstanding filters: ``firm``, ``group``, ``matter``, ``written_off``, ``overdue``, ``age``.
+
+    ``age`` is one of the ageing card ranges (``AGE_KEYS``). ``overdue_enabled=False`` (Overdue after days is 0)
+    ignores ``overdue`` in an old link.
+    """
     filters = {}
     for key, name in (("firm", "firm_id"), ("group", "group_id"), ("matter", "matter_id")):
         number = int_or_none(query.get(key))
@@ -210,8 +225,12 @@ def outstanding_filters(query):
             filters[name] = number
     if flag(query.get("written_off")):
         filters["include_written_off"] = True
-    if flag(query.get("overdue")):
+    if overdue_enabled and flag(query.get("overdue")):
         filters["overdue_only"] = True
+    # Plain "+" in a URL arrives as a space, so accept "90 " too.
+    age = str(query.get("age") or "").replace(" ", "+")
+    if age in AGE_KEYS:
+        filters["age"] = age
     return filters
 
 

@@ -108,7 +108,8 @@ def header_style(request):
     Help pages. No extra query (shared with ``suite_names``).
     ``justify_text``: True when the signed-in user chose to justify text (My settings, Display); base_suite.html puts the class on <html>.
     ``show_home_button``: False when the signed-in user hid the Home button (My settings, Display).
-    ``colour_theme``: the signed-in user's accent colour (My settings, Display); base_suite.html puts it on <html data-theme>."""
+    ``colour_theme``: the signed-in user's accent colour (My settings, Display); base_suite.html puts it on <html data-theme>.
+    ``remove_citation_hyphen``: True when the signed-in user left the hyphen out between an Item's text and its citations (My settings, Display)."""
     user = getattr(request, "user", None)
     program = current_program_key(request)
     mode = _read(request)[1].get(program, suite.BRAND_WORDS)
@@ -116,7 +117,8 @@ def header_style(request):
     justify = bool(signed_in and getattr(user, "justify_text", False))
     show_home = not signed_in or bool(getattr(user, "show_home_button", True))
     theme = (getattr(user, "colour_theme", "") if signed_in else "") or "oxblood"
-    return {"header_words": mode == suite.BRAND_WORDS, "justify_text": justify, "show_home_button": show_home, "colour_theme": theme}
+    return {"header_words": mode == suite.BRAND_WORDS, "justify_text": justify, "show_home_button": show_home, "colour_theme": theme,
+            "remove_citation_hyphen": bool(signed_in and getattr(user, "remove_citation_hyphen", False))}
 
 
 #: The main Home page header (D86): each entry is one header item; its tabs are the sub-pages shown across the top of

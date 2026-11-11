@@ -17,7 +17,7 @@
   <thead><tr><th scope="col" data-col-fixed>Date</th><th scope="col" data-col-fixed>Memo</th><th scope="col">Firm</th><th scope="col">Matter</th><th scope="col" class="money">Paid</th><th scope="col" class="money">TDS</th><th scope="col" class="money">Paid + TDS</th><th scope="col">Payee</th>{% if fees_bank_on %}<th scope="col">Bank</th>{% endif %}<th scope="col">Mode</th><th scope="col">Type</th>{% if can_edit %}<th scope="col" data-col-fixed><span class="visually-hidden">Actions</span></th>{% endif %}</tr></thead>
   <tbody>{% for e in entries %}<tr>
     <td>{{ e.date_of_payment|fees_date }}</td>
-    <td>{% if e.memo_id %}<a href="{% url 'fees_memo_detail' e.memo_id %}">{{ e.memo_number|default:"(draft)" }}</a>{% else %}Unaccounted{% endif %}</td>
+    <td>{% if e.memo_id %}<a href="{% url 'fees_memo_detail' e.memo_id %}">{{ e.memo_number|default:"(draft)" }}</a>{% elif can_edit %}<a href="{% url 'fees_payment_edit' e.payment_id %}" title="Edit this payment to assign it to a memo">Unaccounted</a>{% else %}Unaccounted{% endif %}</td>
     <td>{{ e.firm_name|default:"" }}</td><td>{{ e.matter_name|default:"" }}</td>
     <td class="money">{{ e.amount_paid|fees_money:money_unit }}</td><td class="money">{{ e.tds|fees_money:money_unit }}</td><td class="money">{{ e.paid_plus_tds|fees_money:money_unit }}</td>
     <td>{{ e.payee }}</td>{% if fees_bank_on %}<td>{{ e.bank_account_name|default:"" }}</td>{% endif %}<td>{{ e.payment_mode }}</td>

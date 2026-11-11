@@ -49,15 +49,16 @@ def _fees_figures(profile):
             ("Drafts", f"{figures['drafts']:,}")]
 
 
-def _investments_figures(profile):
+def _investments_figures(profile, user=None):
     from investments.money_auto import format_rupees
     from investments.services import alerts, dashboard
 
-    totals = dashboard.peek_totals(profile)
+    period = getattr(user, "investments_period", "all") or "all"
+    totals = dashboard.peek_totals(profile, period=period)
     n_alerts = alerts.peek_count(profile)
     value = format_rupees(totals["value"]) if totals else "\u2013"
     xirr = f"{totals['xirr'] * 100:.1f}%" if totals and totals.get("xirr") is not None else "\u2013"
-    return [("Value", value), ("XIRR", xirr), ("Alerts", "\u2013" if n_alerts is None else f"{n_alerts:,}")]
+    return [("Value", value), ("XIRR" if period == "all" else f"XIRR {period.upper()}", xirr), ("Alerts", "\u2013" if n_alerts is None else f"{n_alerts:,}")]
 
 
 # ---------------------------------------------------------------- recent activity
@@ -145,7 +146,7 @@ def build(request, diary_profile, fees_profile, investments_profile, names):
     for key, profile, figures, recent_fn, icon, blurb in programs:
         if profile is None:
             continue
-        cards[key] = {"key": key, "icon": icon, "blurb": blurb, "figures": _safe(figures, profile) or []}
+        cards[key] = {"key": key, "icon": icon, "blurb": blurb, "figures": (_safe(figures, profile, user) if figures is _investments_figures else _safe(figures, profile)) or []}
         tag = {KEY_DIARY: "CL", KEY_FEES: "FR", KEY_INVESTMENTS: "IN"}[key]
         for row in _safe(recent_fn, profile) or []:
             row.update(program=key, tag=tag, program_name=names.get(key, ""))

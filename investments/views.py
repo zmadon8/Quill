@@ -1,5 +1,6 @@
 """Investments views: landing, the empty shells for pages not built yet, the Dashboard, Getting started and small JSON helpers."""
 import datetime
+from datetime import date as _date
 from decimal import Decimal
 
 from django.contrib.auth.views import redirect_to_login
@@ -16,8 +17,9 @@ from accounts.suite import KEY_INVESTMENTS
 from . import pages, scope
 from .decorators import inv_admin, inv_editor, inv_reader
 from .errors import InvestmentsError
-from .services import core, fetch, masters, transactions as tx
+from .services import chartview, core, masters, transactions as tx
 from .services import dashboard as dashboard_service
+from .svgchart import line_chart
 from .viewutil import handle_errors, page, profile_or_404, selection
 
 
@@ -62,35 +64,34 @@ def dashboard(request):
     from .viewutil import include_dividends
 
     div = include_dividends(request, profile)
-    data = dashboard_service.load(profile, portfolio, broker, asat, div)
+    period = getattr(request.user, "investments_period", "all") or "all"
+    data = dashboard_service.load(profile, portfolio, broker, asat, div, period)
+    totals = dict(data["totals"])
+    pt = data.get("period_totals")
+    if pt:
+        totals.update({k: pt[k] for k in ("gain", "gain_pct", "xirr", "index_xirr", "alpha")})
     awaiting = list(tx.awaiting_for(profile))
     overdue = [t for t in awaiting if tx.overdue(t, settings_row.awaiting_reminder_days)]
-    chart = None
-    if data["chart"]:
-        from datetime import date as _date
-
-        from .svgchart import line_chart
-
+    index = masters.default_index_for(profile)
+    range_key, range_days = chartview.choose(request, "all")
+    if range_days is None and data["chart"]:
+        # the whole history is part of the cached figures; any other period is drawn on demand (the Holdings page has the table and
+        # its 90-day lines, so the Overview no longer works them out)
         chart = line_chart([_date.fromisoformat(d) for d in data["chart"]["days"]], data["chart"]["lines"], height=240)
+    elif range_days is None:
+        chart = None
+    else:
+        chart = chartview.value_chart(profile, range_days, asat or _date.today(), index=index, portfolio=portfolio, broker=broker,
+                                      settings_row=settings_row)
     rows = data["rows"]
-    stale = fetch.stale_ids([_Inst(r) for r in rows if r["price_source"] not in ("manual", "upload")])
-    for r in rows:
-        r["stale"] = r["id"] in stale
-    # 90-day trend lines (owner round 2026-11), outside the cached payload so the cache stays small.
-    from .services import prices as _prices
-    from .svgchart import sparkline
-
-    closes = _prices.recent_closes([r["id"] for r in rows if r.get("kind_key") != "alternative" and not r["unpriced"]], asat or datetime.date.today())
-    for r in rows:
-        r["spark"] = sparkline(closes[r["id"]]) if r["id"] in closes else None
     return page(request, "investments/dashboard.html", {
-        "page_title_text": "Dashboard", "rows": rows, "totals": data["totals"], "allocation": data["allocation"], "chart": chart, "notes": data["notes"],
+        "page_title_text": "Dashboard", "totals": totals, "card_period": "" if period == "all" else period.upper(), "allocation": data["allocation"], "chart": chart, "chart_ranges": chartview.links(request, range_key, "#chart"), "notes": data["notes"],
         "awaiting": awaiting, "awaiting_total": sum((t.amount or Decimal(0) for t in awaiting if t.side == "buy"), Decimal(0)),
         "overdue": overdue, "unpriced": [r for r in rows if r["unpriced"]], "has_any": data["has_any"],
-        "default_index": masters.default_index_for(profile), "sectoral": settings_row.sectoral_enabled, "include_div": div,
+        "default_index": index, "sectoral": settings_row.sectoral_enabled, "include_div": div,
         "insights": _insights(profile), "all_insights": request.GET.get("insights") == "all",
         "pending_actions": __import__("investments.services.corporate", fromlist=["pending"]).pending(profile),
-        **_overview_context(request, settings_row, data, masters.default_index_for(profile)),
+        **_overview_context(request, settings_row, data, index),
     })
 
 
@@ -125,13 +126,6 @@ def overview_save(request):
                                                                                   request.POST.getlist("period")))
             messages.success(request, "Overview saved.")
     return redirect(reverse("investments_dashboard"))
-
-
-class _Inst:
-    """Just enough of an Instrument for ``fetch.stale_ids``."""
-
-    def __init__(self, row):
-        self.pk = row["id"]
 
 
 @inv_reader

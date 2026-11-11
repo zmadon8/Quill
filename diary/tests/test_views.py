@@ -798,7 +798,7 @@ class ReadingScreenTests(TestCase):
         self.assertContains(resp, "[Pending: Check the citation against the report.]")
         self.assertContains(resp, "See also: ")
         self.assertContains(resp, "Carlill v. Carbolic Smoke Ball Co")
-        self.assertContains(resp, " ; ")
+        self.assertNotContains(resp, " ; ")
         # Several citations are labelled (a), (b); a single citation shows without a label.
         self.assertContains(
             resp, '<span class="num">(a)</span> <em class="citation">Carlill v. Carbolic Smoke Ball Co [1893] 1 QB 256</em>',

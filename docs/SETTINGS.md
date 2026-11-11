@@ -58,6 +58,9 @@ header bar.
 | `justify_text` | Justify text | My settings > Display | Per user | Only you |
 | `show_home_button` | Show the Home button (off: hidden on every page; Alt+H still opens Home) | My settings > Display | Per user | Only you |
 | `colour_theme` | Colour theme: Oxblood (default), Royal Blue, Navy, Violet, Plum or Teal. Changes the accent (buttons, current tab, links) on every page; status colours and exports never change | My settings > Display; an Admin on the user's edit screen | Per user | Only you |
+| `header_initials` | Letters in the header badge: up to 3, shown upper-case in the round badge at the top right. Blank: the first letters of your first and last name | My settings > Display | Per user | Only you |
+| `remove_citation_hyphen` | Remove the hyphen before the citation: on, the Case Law Diary on screen leaves out the " - " between an Item's text and its inline citations (default off). The Word export and offline copy keep the hyphen. The ";" between several inline citations is always gone | My settings > Display | Per user | Only you |
+| `investments_period` | Investments period for returns: 1M, 3M, 6M, 1Y, 3Y, 5Y or All (default). The period behind Gain, Portfolio XIRR, index XIRR and Alpha on the Investments Overview cards and Portfolio XIRR on Home. A period longer than the history uses the whole history | My settings > Display | Per user | Only you |
 | `can_see_active` | Can See Who Is Active (shows the Active Now and Earlier Today panel on Home; an Admin always sees it) | Admin > Users (edit, create) | Per user | Admin sets |
 | `last_seen_at` | When the user was last seen (no more than once a minute; feeds the Active Now panel) | No page; written as you browse | Per user, automatic | Nobody |
 | `last_diary_path` | The last page I viewed (used when the diary opening page is "The last page I viewed") | No page; written as you browse the diary | Per user, automatic | Only you |
@@ -158,7 +161,7 @@ value for the user who set it.
 | `default_additional_details_left`, `default_additional_details_right` | Default additional details for new memos | No input on the page. Stored and validated by the settings service, copied to new memos, and carried by the Excel backup and restore | Per profile | Everyone in this profile |
 | `default_tds_rate` | Default TDS rate (%) | 2 Payments | Per profile | Everyone in this profile |
 | `default_payment_amount` | Prefill amount received | 2 Payments | Per profile | Everyone in this profile |
-| `overdue_days` | Overdue after (days) | 2 Payments | Per profile | Everyone in this profile |
+| `overdue_days` | Overdue after (days) | 2 Payments | Per profile | Everyone in this profile. At 0, overdue is off: no "View Overdue Memos Only" filter, Overdue legend key or Amount Overdue dashboard box shows anywhere |
 | `hide_payment_when_paid` | Hide the payment box when a memo is paid | 2 Payments | Per profile | Everyone in this profile |
 | `show_status_dots` | Show status markers | 2 Payments | Per profile | Everyone in this profile |
 | `show_bank` | Show bank (off: no Bank filter or column on Feebook, no Bank account box on a payment, no Bank column in the Feebook export, no Bank accounts list; recorded banks are kept) | 2 Payments | Per profile | Everyone in this profile |

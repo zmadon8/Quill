@@ -19,7 +19,7 @@ def _row(h):
             "dividends": str(h.dividends)}
 
 
-def compute(profile, portfolio=None, broker=None, as_of=None, include_dividends=None):
+def compute(profile, portfolio=None, broker=None, as_of=None, include_dividends=None, period="all"):
     as_of = as_of or date.today()
     settings_row = core.get_settings(profile, create=False)
     rows, totals = holdings.compute(profile, portfolio=portfolio, broker=broker, as_of=as_of, settings=settings_row, include_dividends=include_dividends)
@@ -44,6 +44,11 @@ def compute(profile, portfolio=None, broker=None, as_of=None, include_dividends=
                    "dividends": str(totals.dividends), "provisional": totals.provisional, "blocked": totals.blocked},
         "allocation": [[label, str(value), share] for label, value, share in holdings.allocation(held)], "notes": notes, "chart": chart,
     }
+    figures = overview.period_figures(profile, portfolio=portfolio, broker=broker, as_of=as_of, include_dividends=include_dividends,
+                                      settings_row=settings_row, totals=totals, period_key=period, index=index)
+    if figures is not None:
+        payload["period_totals"] = {"gain": str(figures["gain"]), "gain_pct": figures["gain_pct"], "xirr": figures["xirr"],
+                                    "index_xirr": figures["index_xirr"], "alpha": figures["alpha"], "start": figures["start"].isoformat()}
     del rows, held   # the period figures replay the holdings again at each period's start: do not keep two sets at once (memory)
     payload["overview"] = overview.compute(profile, portfolio=portfolio, broker=broker, as_of=as_of, include_dividends=include_dividends,
                                            settings_row=settings_row, totals=totals, chosen=overview.choice(settings_row), sample=sample,
@@ -51,29 +56,42 @@ def compute(profile, portfolio=None, broker=None, as_of=None, include_dividends=
     return payload
 
 
-def _params(profile, portfolio, broker, as_of, include_dividends):
+def _params(profile, portfolio, broker, as_of, include_dividends, period="all"):
     chosen = overview.choice(core.get_settings(profile, create=False))
-    return {"p": portfolio, "b": broker, "a": as_of, "d": include_dividends, "o": [chosen["metrics"], chosen["periods"]]}
+    params = {"p": portfolio, "b": broker, "a": as_of, "d": include_dividends, "o": [chosen["metrics"], chosen["periods"]]}
+    if period != "all":   # the default keeps the cache key it always had
+        params["r"] = period
+    return params
 
 
-def peek_totals(profile, today=None):
+def _with_period(totals, payload):
+    """``totals`` with Gain, Gain %, XIRR, index XIRR and Alpha replaced by the period's figures when the payload has them."""
+    period = payload.get("period_totals")
+    if period:
+        totals.update({k: period[k] for k in ("gain_pct", "xirr", "index_xirr", "alpha")})
+        totals["gain"] = Decimal(period["gain"])
+        totals["period_start"] = date.fromisoformat(period["start"])
+    return totals
+
+
+def peek_totals(profile, today=None, period="all"):
     """The Overview's totals for all portfolios today if they are already worked out (else None): value, invested, gain, xirr.
     The suite Home page uses this so that it never starts the full calculation."""
     today = today or date.today()
     settings_row = core.get_settings(profile, create=False)
-    payload = statscache.peek(profile, "dashboard", _params(profile, None, None, today, settings_row.include_dividends), today=today)
+    payload = statscache.peek(profile, "dashboard", _params(profile, None, None, today, settings_row.include_dividends, period), today=today)
     if not payload:
         return None
     totals = dict(payload["totals"])
     for key in ("invested", "value", "gain"):
         totals[key] = Decimal(totals[key])
-    return totals
+    return _with_period(totals, payload)
 
 
-def load(profile, portfolio=None, broker=None, as_of=None, include_dividends=None):
+def load(profile, portfolio=None, broker=None, as_of=None, include_dividends=None, period="all"):
     as_of = as_of or date.today()
-    payload = statscache.get_or_compute(profile, "dashboard", _params(profile, portfolio, broker, as_of, include_dividends),
-                                        lambda: compute(profile, portfolio, broker, as_of, include_dividends), today_sensitive=True)
+    payload = statscache.get_or_compute(profile, "dashboard", _params(profile, portfolio, broker, as_of, include_dividends, period),
+                                        lambda: compute(profile, portfolio, broker, as_of, include_dividends, period), today_sensitive=True)
     for row in payload["rows"]:
         for key in MONEY_FIELDS:
             if row.get(key) is not None:
@@ -81,6 +99,9 @@ def load(profile, portfolio=None, broker=None, as_of=None, include_dividends=Non
         row["price_date"] = date.fromisoformat(row["price_date"]) if row["price_date"] else None
     for key in ("invested", "value", "gain", "dividends"):
         payload["totals"][key] = Decimal(payload["totals"][key])
+    if payload.get("period_totals"):
+        payload["period_totals"]["gain"] = Decimal(payload["period_totals"]["gain"])
+        payload["period_totals"]["start"] = date.fromisoformat(payload["period_totals"]["start"])
     payload["allocation"] = [(label, Decimal(value), share) for label, value, share in payload["allocation"]]
     payload["overview"] = overview.as_decimals(payload.get("overview") or {"periods": [], "rows": []})
     return payload

@@ -291,48 +291,9 @@ def export_memos(profile, filters=None):
 # ---------------------------------------------------------------------------
 
 
-def export_statement(profile, scope=None):
-    """The Statement workbook for ``scope`` (as ``ledger.build_statement``)."""
-    data = ledger_service.build_statement(profile, scope)
-    book = _Book()
-    sheet = book.sheet("Statement", (16, 14, 28, 14, 14, 14, 14))
-    sheet.header(["Memo No.", "Date", "Matter Name", "Total", "Paid", "Outstanding", "Status"])
-    for row in data["rows"]:
-        sheet.row(
-            [
-                _text(row["memo_number"]),
-                format_date(row["date"]),
-                _text(row["matter_name"]),
-                Money(row["total"]),
-                Money(row["paid"]),
-                Money(row["outstanding"]),
-                _text(row["status"]),
-            ]
-        )
-    totals = data["totals"]
-    sheet.row(
-        [
-            "",
-            "",
-            f"Totals ({totals['count']})",
-            Money(totals["total_billed"]),
-            Money(totals["total_paid"]),
-            Money(totals["total_outstanding"]),
-            "",
-        ],
-        bold=True,
-    )
-    return _xlsx_name(data["title"], "Statement.xlsx"), book.save()
-
-
-def export_ledger(profile, scope=None):
-    """The Ledger workbook for ``scope`` (as ``ledger.build_ledger``)."""
-    scope = scope or {}
-    rows = ledger_service.build_ledger(profile, scope)
-    title = ledger_service.scope_title(profile, scope)[0]
-    title = "Ledger" + title[len("Statement"):] if title.startswith("Statement") else "Ledger"
-    book = _Book()
-    sheet = book.sheet("Ledger", (14, 52, 28, 16, 16, 12, 16))
+def _ledger_format_sheet(book, sheet_name, rows):
+    """The Ledger layout (columns, widths, money cells, running balance), shared by Ledger and Statement."""
+    sheet = book.sheet(sheet_name, (14, 52, 28, 16, 16, 12, 16))
     sheet.header(
         ["Date", "Particulars", "Matter Name", "Memo Amount", "Payment Amount", "TDS", "Balance Payable"]
     )
@@ -348,6 +309,29 @@ def export_ledger(profile, scope=None):
                 Money(row["balance"]),
             ]
         )
+
+
+def export_statement(profile, scope=None):
+    """The Statement of the Matter workbook for ``scope``: the same format as the Ledger export.
+
+    The scope and the ``Statement - ...`` file name are those of ``ledger.build_statement``.
+    """
+    scope = scope or {}
+    rows = ledger_service.build_ledger(profile, scope)
+    title = ledger_service.scope_title(profile, scope)[0]
+    book = _Book()
+    _ledger_format_sheet(book, "Statement", rows)
+    return _xlsx_name(title, "Statement.xlsx"), book.save()
+
+
+def export_ledger(profile, scope=None):
+    """The Ledger workbook for ``scope`` (as ``ledger.build_ledger``)."""
+    scope = scope or {}
+    rows = ledger_service.build_ledger(profile, scope)
+    title = ledger_service.scope_title(profile, scope)[0]
+    title = "Ledger" + title[len("Statement"):] if title.startswith("Statement") else "Ledger"
+    book = _Book()
+    _ledger_format_sheet(book, "Ledger", rows)
     return _xlsx_name(title, "Ledger.xlsx"), book.save()
 
 
