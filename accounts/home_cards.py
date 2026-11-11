@@ -4,7 +4,9 @@ quick actions.
 Only the profile the user is working in per program counts (the one the Home link opens), and only when it was given to them
 on the Users screen, so the page stays the same size however many profiles exist. Each program is built in its own try block:
 a failure shows the card without figures and never breaks Home. Nothing here starts a heavy calculation: the Investments
-figures are read from its cache only (they appear once the Overview has been opened since the last change).
+figures are read from its cache only (they appear once the Overview has been opened since the last change). The extra Investments
+items below the cards follow the same rule; the extra Fee Register items do not: its Dashboard figures are worked out (and cached) on
+Home when chosen, and its panels and recent matters are small live queries.
 """
 import logging
 from decimal import Decimal
@@ -169,6 +171,14 @@ def _fees_details(profile, user):
 
     sections = []
     ids = [k for k in keys if k in dashboard.KPI_LABELS and (k != "amount_overdue" or overdue_on(config))]
+    chosen_kpis = [k for k in keys if k in dashboard.KPI_LABELS]
+    notes = []
+    if chosen_kpis and not config.get("dashboard_kpis_enabled", True):
+        notes.append("The Dashboard figures are switched off in the Fee Register settings.")
+    elif "amount_overdue" in chosen_kpis and "amount_overdue" not in ids:
+        notes.append("Amount overdue is not shown because overdue is switched off in the Fee Register settings.")
+    if notes:
+        sections.append({"kind": "note", "title": "Fee Register: Dashboard", "text": " ".join(notes), "url": reverse("fees_dashboard")})
     if ids and config.get("dashboard_kpis_enabled", True):
         values = dashboard.get_dashboard_kpis(profile, settings={**config, "dashboard_kpis": ",".join(ids)})
         items = [(dashboard.KPI_LABELS[k], money(values[k]) if isinstance(values[k], str) else f"{values[k]:,}") for k in ids]

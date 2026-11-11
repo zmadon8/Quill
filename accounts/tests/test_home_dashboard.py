@@ -234,6 +234,26 @@ class HomeDetailsTests(TestCase):
         self.assertNotIn('class="home-details"', html)
         self.assertIn("<dt>Subjects</dt>", html)
 
+    def test_kpis_switched_off_show_a_note(self):
+        from fees.services import settings as settings_service
+
+        self.user.home_details = {"fees": ["memos_this_year"]}
+        self.user.save()
+        config = {**settings_service.get_settings(self.fees), "dashboard_kpis_enabled": False}
+        with mock.patch("fees.services.settings.get_settings", return_value=config):
+            html = self.home()
+        self.assertIn("switched off in the Fee Register settings", html)
+        self.assertNotIn("<dt>Memos This Year</dt>", html)
+
+    def test_investments_items_say_so_when_the_overview_is_not_cached(self):
+        from accounts import home_cards
+
+        self.user.home_details = {"investments": ["value", "over_time"]}
+        with mock.patch("investments.services.dashboard.peek_payload", return_value=None):
+            sections = home_cards._investments_details(None, self.user)
+        self.assertEqual([s["kind"] for s in sections], ["note"])
+        self.assertEqual(sections[0]["text"], home_cards.NOT_READY)
+
     def test_migration_field(self):
         field = User._meta.get_field("home_details")
         self.assertEqual(field.get_default(), {})

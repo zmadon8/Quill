@@ -95,13 +95,25 @@ class HeldOnlyTests(InvTestCase):
 
     # -- Charts
 
+    def inv_select(self, html):
+        m = re.search(r'<select name="inv"[^>]*>(.*?)</select>', html, re.S)
+        self.assertIsNotNone(m, "no inv select")
+        return m.group(1)
+
     def test_charts_list_is_held_only_by_default(self):
         url = reverse("investments_charts") + "?period=1"
-        on = self.client.get(url).content.decode()
+        on = self.inv_select(self.client.get(url).content.decode())
         self.assertIn(f'<option value="{self.reliance.pk}"', on)
         self.assertNotIn(f'<option value="{self.fund.pk}"', on)
-        off = self.client.get(url + "&hf=1").content.decode()
+        off = self.inv_select(self.client.get(url + "&hf=1").content.decode())
         self.assertIn(f'<option value="{self.fund.pk}"', off)
+
+    def test_dividends_and_data_check_default_to_everything(self):
+        for slug in ("dividends", "data-check"):
+            html = self.client.get(reverse("investments_report", args=[slug])).content.decode()
+            self.assertNotRegex(html, r'name="held" value="1" checked')
+            self.assertRegex(self.client.get(reverse("investments_report", args=[slug]) + "?hf=1&held=1").content.decode(),
+                             r'name="held" value="1" checked')
 
     def test_charts_keep_a_picked_investment_visible(self):
         r = self.client.get(reverse("investments_charts") + f"?chart=b&period=1&inv={self.fund.pk}")
