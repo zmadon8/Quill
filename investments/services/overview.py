@@ -112,7 +112,7 @@ def compute(profile, *, portfolio, broker, as_of, include_dividends, settings_ro
             day0 = first
         else:
             opening = holdings.compute(profile, portfolio=portfolio, broker=broker, as_of=start, settings=settings_row,
-                                       include_dividends=include_dividends)[1].value
+                                       include_dividends=include_dividends, with_xirr=False)[1].value
             in_window = [(d, a) for d, a in flows_all if d > start]
             day0 = start
         cash = ([(day0, -opening)] if opening else []) + in_window
@@ -198,7 +198,7 @@ def period_figures(profile, *, portfolio, broker, as_of, include_dividends, sett
         opening, day0, in_window = ZERO, first, flows_all
     else:
         opening = holdings.compute(profile, portfolio=portfolio, broker=broker, as_of=start, settings=settings_row,
-                                   include_dividends=include_dividends)[1].value
+                                   include_dividends=include_dividends, with_xirr=False)[1].value
         day0, in_window = start, [(d, a) for d, a in flows_all if d > start]
     cash = ([(day0, -opening)] if opening else []) + in_window
     closing = totals.value

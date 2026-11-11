@@ -312,7 +312,7 @@ def update_profile_details(profile, user, instrument, *, notes=None, links=None,
         if hidden:
             from investments.services import holdings
 
-            h, _t = holdings.compute(profile, instrument_ids=[instrument.pk])
+            h, _t = holdings.compute(profile, instrument_ids=[instrument.pk], with_xirr=False)
             if any(not x.sold_out for x in h):
                 raise InvestmentsError("STILL_HELD", "Only a sold-out investment can be hidden.", 409)
         obj.hidden = bool(hidden)

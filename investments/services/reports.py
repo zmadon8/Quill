@@ -103,7 +103,7 @@ def income(profile, portfolio=None, broker=None, **_):
 
 
 def _lots_now(profile, portfolio, broker):
-    rows, _t = holdings.compute(profile, portfolio=portfolio, broker=broker)
+    rows, _t = holdings.compute(profile, portfolio=portfolio, broker=broker, with_xirr=False)
     return [(h, lot) for h in rows for lot in h.lots]
 
 

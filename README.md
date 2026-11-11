@@ -205,6 +205,7 @@ A third program in the same site, at `/investments/`: a portfolio tracker for sh
 | `pin_prices` | Pins the index values on every transaction date and the prices held on every 31 March, from stored prices (nightly, before the backup). |
 | `prune_prices` | Thins daily prices older than the cutoff to one a month. Off unless an Admin switched it on; the last link of the `&&` chain after the backup; exits 0 when off or declining. |
 | `import_prices --file F [--dry-run] [--basis raw/split_adjusted]` or `--archive A.zip` | Loads a price history file (CSV or Excel) or a price archive, dry run first. For files too big for the web page (over 3 MB). |
+| `warm_investments_cache [--max-seconds N]` | Works out each Investments profile's Overview (with its opening chart), Holdings rows and Alerts ahead of time, so the first visit after the nightly price update is fast. Nightly, after the backup chain and before the alert emails; a failure never changes the job's exit code. |
 | `send_alert_emails` | Emails the alerts that triggered overnight to the members of each profile that switched "Email me alerts" on (off by default). Nightly, after the backup. |
 | `investments_memory_bench [--dataset-size small] [--only NAME]` | Measures peak memory of each Investments operation in a throwaway profile (rolled back, leaves no data). Prints `BENCH <operation> ... status=OK/OVER/ERROR`. Results are recorded in `docs/INVESTMENTS_RAM.md`. |
 

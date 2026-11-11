@@ -93,6 +93,7 @@ urlpatterns += [
     path("api/prices/sheet/", vhelp.sheet, name="investments_helper_sheet"),
     path("settings/price-sources/google-sheet/", vp.google_sheet, name="investments_admin_google_sheet"),
     path("prefs/selection/", views.set_selection, name="investments_set_selection"),
+    path("prefs/alert-count/", views.alert_count, name="investments_alert_count"),
     path("prefs/money/", views.set_money_mode, name="investments_set_money_mode"),
     path("overview/customise/", views.overview_save, name="investments_overview_save"),
 ]

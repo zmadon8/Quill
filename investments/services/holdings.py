@@ -97,12 +97,14 @@ def _passes(portfolio, broker, portfolio_id, broker_id):
     return (portfolio is None or portfolio_id == portfolio) and (broker is None or broker_id == broker)
 
 
-def compute(profile, *, portfolio=None, broker=None, as_of=None, settings=None, instrument_ids=None, include_dividends=None):
+def compute(profile, *, portfolio=None, broker=None, as_of=None, settings=None, instrument_ids=None, include_dividends=None, with_xirr=True):
     """``([Holding sorted by name], Totals)`` for the profile as at ``as_of`` (today by default).
 
     ``portfolio`` and ``broker`` are ids (or None for all). Sold-out investments are included with ``sold_out=True``.
     ``include_dividends`` (default: the profile's Settings choice) counts each dividend as money received on its date in XIRR (plan 7).
     Applied corporate actions change the units (plan 8); an unconfirmed one makes the holding Provisional, or blocked (plan 2).
+    ``with_xirr=False`` skips the XIRR of each holding and of the total (they stay None); units, cost, value and flows are unchanged. A caller
+    that only needs a value as at a past date (the opening value of an Overview period) uses it, as XIRR is the slowest step per holding.
     """
     from investments import corporate as corporate_math
     from investments.models import CA_TAG, Dividend
@@ -242,7 +244,9 @@ def compute(profile, *, portfolio=None, broker=None, as_of=None, settings=None, 
         if h.value is not None and h.sold_out:
             h.value = ZERO
         # XIRR for the holding: every cash flow, and what is held now as money received today.
-        if flows and (h.units or h.awaiting):
+        if not with_xirr:
+            pass
+        elif flows and (h.units or h.awaiting):
             h.xirr = xirr.xirr([(d, float(a)) for d, a in flows] + [(as_of, float(h.value))])
         elif flows:
             h.xirr = xirr.xirr([(d, float(a)) for d, a in flows])
@@ -263,7 +267,8 @@ def compute(profile, *, portfolio=None, broker=None, as_of=None, settings=None, 
             total.value += h.value
             total.awaiting += h.awaiting
             total.count += 1
-        all_flows.extend((d, float(a)) for d, a in flows)
+        if with_xirr:
+            all_flows.extend((d, float(a)) for d, a in flows)
         total.flows.extend(flows)
     if all_flows:
         total.xirr = xirr.xirr(all_flows + ([(as_of, float(total.value))] if total.value else []))
