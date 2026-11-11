@@ -3,6 +3,7 @@
    brings you back to the same page after a form (Undo, Move, Delete, the Edit switch...), it opens where you were instead
    of at the top. The place is the entry at the top of your screen (its id) and how far down the screen it sat, so it still
    works when something above it was added or removed. Kept per page for this browser tab only (sessionStorage).
+   Also after a GET filter form that returns to the same page, and after a POST that redirects back to the same address.
    A fresh visit through a link still opens at the top (or at the entry the link points to). */
 (function () {
   "use strict";
@@ -105,7 +106,24 @@
   // Forms that change something and send you back (Undo, Move, Delete, confirmations...): come back to the same place.
   document.addEventListener("submit", function (e) {
     var form = e.target;
-    if (form && (form.method || "").toLowerCase() === "post") { keep(); }
+    if (!form) { return; }
+    var method = (form.method || "get").toLowerCase();
+    if (method === "post") { keep(); return; }
+    // A filter or search form that sends you to the same page with other choices (a GET): the new address is a new key,
+    // so carry the place across to it. Forms that go to another page start at the top as usual.
+    if (method === "get" && !e.defaultPrevented) {
+      try {
+        var target = new URL(form.getAttribute("action") || window.location.href, window.location.href);
+        if (target.pathname !== window.location.pathname) { return; }
+        var data = new window.FormData(form);
+        target.search = "";
+        data.forEach(function (value, name) { if (typeof value === "string") { target.searchParams.append(name, value); } });
+        var place = currentPlace(), all = load(PLACES) || {};
+        all[keyOf(target.href)] = place;
+        store(PLACES, all);
+        store(MARK, { key: keyOf(target.href), t: Date.now() });
+      } catch (err) { /* nothing kept: the page opens at the top */ }
+    }
   }, true);
   // The Edit switch and Done: same page, Edit on or off.
   document.addEventListener("click", function (e) {
