@@ -151,7 +151,7 @@ SETTINGS_FIELDS = {
     "sectoral_enabled", "include_dividends", "alt_treatment", "money_default", "default_exchange",
     "show_status_dots", "rule_a_enabled", "rule_a_fall_pct", "rule_a_rise_pct", "rule_a_window_days", "rule_a_window_fall_pct", "rule_b_enabled",
     "rule_b_loss_pct", "rule_b_gain_pct", "guardrail_replaces_global", "alert_email", "maturity_alert_days", "year_cutoffs", "insights_off", "concentration_limit", "compact_tables",
-    "column_picker", "overview", "units_decimals", "rupee_decimals",
+    "column_picker", "overview", "units_decimals", "rupee_decimals", "corporate_auto",
 }
 
 

@@ -14,9 +14,10 @@ from . import forms
 from .decorators import inv_editor, inv_reader
 from .errors import InvestmentsError
 from .models import (
-    ORIGIN_PURCHASE, ORIGINS, SIDE_BUY, SIDE_SELL, STATUS_AWAITING, STATUS_FINAL, STATUS_PENDING_SIP, Folio, Instrument, Transaction, Transfer,
+    CA_DEMERGER, ORIGIN_DEMERGER, ORIGIN_PURCHASE, ORIGINS, SIDE_BUY, SIDE_SELL, STATUS_AWAITING, STATUS_FINAL, STATUS_PENDING_SIP,
+    CorporateAction, Folio, Instrument, Transaction, Transfer,
 )
-from .services import core, masters, transactions as tx
+from .services import core, corporate, masters, transactions as tx
 from .viewutil import handle_errors, page, profile_or_404, selection
 
 PAGE_SIZE = 50
@@ -55,6 +56,10 @@ def _txn_row(t):
     else:
         t.total = t.amount
     return t
+
+
+def _row_date(row):
+    return row["date"] if isinstance(row, dict) else row.date
 
 
 @inv_reader
@@ -96,10 +101,21 @@ def transactions_list(request):
         if asat:
             transfers, dividends = transfers.filter(date__lte=asat), dividends.filter(date__lte=asat)
         return response("Transactions.xlsx", transaction_sheets(qs.order_by("-date", "-id"), transfers.order_by("-date", "-id"),
-                                                                dividends.order_by("-date", "-id")))
+                                                                dividends.order_by("-date", "-id"),
+                                                                [] if side == SIDE_SELL else corporate.automatic_unit_rows(profile, portfolio, broker, asat, q)))
     paginator = Paginator(qs.order_by("-date", "-id"), PAGE_SIZE)
     number = paginator.get_page(request.GET.get("page")).number
     rows = [_txn_row(t) for t in paginator.page(number)]
+    # Units a bonus or split adds by itself are not transactions; they are shown among the page's rows by date, labelled and read-only.
+    automatic = []
+    if side != SIDE_SELL:
+        automatic = corporate.automatic_unit_rows(profile, portfolio, broker, asat, q)
+        if automatic and number > 1:
+            before = paginator.page(number - 1)[-1].date
+            automatic = [a for a in automatic if a["date"] < before]
+        if automatic and number < paginator.num_pages and rows:
+            automatic = [a for a in automatic if a["date"] >= rows[-1].date]
+    rows = sorted([*rows, *({"auto": True, **a} for a in automatic)], key=_row_date, reverse=True) if automatic else rows
     transfers = []
     if not q and side not in (SIDE_BUY, SIDE_SELL) and number == 1:
         transfers = list(Transfer.objects.filter(profile=profile).select_related(
@@ -107,7 +123,7 @@ def transactions_list(request):
     awaiting = tx.awaiting_for(profile).count()
     return page(request, "investments/transactions.html", {
         "page_title_text": "Transactions", "rows": rows, "page_obj": paginator.page(number), "transfers": transfers, "q": q, "side": side,
-        "awaiting_count": awaiting, "total": paginator.count,
+        "awaiting_count": awaiting, "total": paginator.count, "automatic_count": len(automatic),
         "date_today": datetime.date.today(),
     })
 
@@ -181,6 +197,17 @@ def txn_form(request, mode):
             default = core.get_settings(profile, create=False).default_broker_for(inst.kind)
             if default:
                 initial["broker"] = default
+    action = None
+    if mode == "buy" and request.GET.get("action", "").isdigit():
+        # "Add allotted shares" on the Corporate actions page: the new company, the ex-date, the origin and the action are filled in
+        # (the price is not asked for: units received on a demerger cost nothing, their cost comes from the parent's shares).
+        action = CorporateAction.objects.filter(pk=request.GET["action"], kind=CA_DEMERGER).filter(
+            Q(instrument__profile=None) | Q(instrument__profile=profile)).first()
+    if action is not None and action.target_instrument_id:
+        initial.update(origin=ORIGIN_DEMERGER, corporate_action=action, instrument=action.target_instrument, date=action.ex_date, price=0)
+        default = core.get_settings(profile, create=False).default_broker_for(action.target_instrument.kind)
+        if default:
+            initial["broker"] = default
     from .models import Portfolio
 
     portfolios = list(Portfolio.objects.filter(profile=profile)[:2])

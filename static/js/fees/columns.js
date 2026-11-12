@@ -187,11 +187,23 @@
       });
       list.appendChild(reset);
       menu.appendChild(list);
-      var tools = document.createElement("p");
-      tools.className = "table-tools";
-      tools.appendChild(menu);
       var wrap = table.closest(".table-wrap, .tw") || table;
-      wrap.parentNode.insertBefore(tools, wrap);
+      // Compact rule: when a section heading row (.sec) sits right above the table, the menu joins its buttons on that line.
+      var head = wrap.previousElementSibling;
+      var acts = head && head.classList.contains("sec") ? head.querySelector(".acts") : null;
+      if (head && head.classList.contains("sec") && !acts) {
+        acts = document.createElement("div");
+        acts.className = "acts";
+        head.appendChild(acts);
+      }
+      if (acts) {
+        acts.appendChild(menu);
+      } else {
+        var tools = document.createElement("p");
+        tools.className = "table-tools";
+        tools.appendChild(menu);
+        wrap.parentNode.insertBefore(tools, wrap);
+      }
       menu.addEventListener("keydown", function (e) {
         if (e.key === "Escape" && menu.open) { menu.open = false; summary.focus(); }
       });

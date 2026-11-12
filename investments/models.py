@@ -46,6 +46,9 @@ STATUSES = [(STATUS_FINAL, "Final"), (STATUS_AWAITING, "Awaiting allotment"), (S
 
 AWAITING_AT_COST, AWAITING_LEAVE_OUT = "cost", "leave_out"
 CA_TAG, CA_BLOCK = "tag", "block"
+#: The kinds of corporate action a profile can have logged automatically (``InvestmentSettings.corporate_auto``), with their labels.
+CORPORATE_AUTO_KINDS = [("dividend", "Dividends"), ("split", "Stock splits"), ("bonus", "Bonus shares"), ("demerger", "Demergers"),
+                        ("other", "Other corporate actions")]
 SIP_PENDING, SIP_FINAL = "pending", "final"
 ALT_UNCHANGED, ALT_AVERAGED = "unchanged", "averaged"
 MONEY_AUTO, MONEY_FULL = "auto", "full"
@@ -176,6 +179,8 @@ class InvestmentSettings(models.Model):
     overview = models.JSONField(default=dict, blank=True)
     default_exchange = models.CharField(max_length=3, default="NS", choices=[("NS", "NSE"), ("BO", "BSE")])
     show_status_dots = models.BooleanField(default=True)
+    #: Which corporate actions are logged without asking, e.g. {"split": true}; a kind not listed (or false) waits for the person to approve it.
+    corporate_auto = models.JSONField(default=dict, blank=True)
 
     def default_broker_for(self, kind):
         return {
@@ -529,6 +534,8 @@ class DividendSignal(models.Model):
     ex_date = models.DateField()
     per_unit = models.DecimalField(**MONEY)
     seen_at = models.DateTimeField(auto_now_add=True)
+    #: Ids of the profiles for which this dividend has been logged automatically already (so one the person deletes is not logged again).
+    logged_for = models.JSONField(default=list, blank=True)
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=["instrument", "ex_date"], name="inv_divsignal_unique")]

@@ -192,6 +192,7 @@ def record(profile, user, *, instrument, ex_date, kind, ratio_old=1, ratio_new=1
     from investments.services import fetch
 
     fetch.bump_version()
+    apply_automatic_for_action(action)
     return action
 
 
@@ -243,6 +244,46 @@ def _units_to_add(action, held, instrument):
         extra = held * (action.ratio_new / action.ratio_old - 1)
     places = Decimal(1) if instrument.kind in ("share", "foreign") else Decimal("0.0001")
     return extra.quantize(places, rounding=ROUND_DOWN)
+
+
+AUTO_LABELS = {CA_SPLIT: "Split (added automatically)", CA_BONUS: "Bonus shares (added automatically)"}
+
+
+def automatic_unit_rows(profile, portfolio=None, broker=None, asat=None, q=""):
+    """Read-only display rows for the units the program adds itself (a bonus or split applied with the method ``events``), newest first.
+
+    These units are not transactions (making them real would count them twice), so the Transactions page shows them as extra rows: one for
+    each portfolio, broker and folio that held the investment the day before the ex-date, with the units added, a price of 0 and a label.
+    A bonus or split the profile records as transactions is not listed here, because its transactions are listed with their own origin.
+    Each row is a dict: ``date``, ``instrument``, ``action``, ``label``, ``units``, ``portfolio``, ``broker``, ``folio`` (names) and ``kind``."""
+    out = []
+    responses = CorporateActionResponse.objects.filter(profile=profile, status=STATUS_APPLIED, method=METHOD_EVENTS,
+                                                       action__kind__in=(CA_SPLIT, CA_BONUS)).select_related("action", "action__instrument")
+    if asat:
+        responses = responses.filter(action__ex_date__lte=asat)
+    if q:
+        responses = responses.filter(Q(action__instrument__name__icontains=q) | Q(action__instrument__code__icontains=q))
+    responses = list(responses)
+    if not responses:
+        return out
+    names_p = dict(Portfolio.objects.filter(profile=profile).values_list("pk", "name"))
+    names_b = dict(Broker.objects.filter(profile=profile).values_list("pk", "name"))
+    for r in responses:
+        action = r.action
+        folios = {}
+        for bucket, held in _bucket_units_before(profile, action).items():
+            if held <= 0 or (portfolio and bucket.portfolio != int(portfolio)) or (broker and bucket.broker != int(broker)):
+                continue
+            units = _units_to_add(action, held, action.instrument)
+            if units <= 0:
+                continue
+            if bucket.folio and bucket.folio not in folios:
+                folios[bucket.folio] = Folio.objects.filter(pk=bucket.folio).values_list("number", flat=True).first() or ""
+            out.append({"date": action.ex_date, "instrument": action.instrument, "action": action, "kind": action.kind,
+                        "label": AUTO_LABELS[action.kind], "units": units, "portfolio": names_p.get(bucket.portfolio, ""),
+                        "broker": names_b.get(bucket.broker, ""), "folio": folios.get(bucket.folio, "") if bucket.folio else ""})
+    out.sort(key=lambda row: (row["date"], row["action"].pk), reverse=True)
+    return out
 
 
 def create_unit_transactions(profile, user, action):
@@ -328,7 +369,47 @@ def respond(profile, user, action_id, status, choice=None, inherit_dates=None):
     history.record(profile, user, response, "edit" if not created else "create", summary=f"{action.describe()} for {action.instrument.name}: {status.replace('_', ' ')}")
     core.touch(profile)
     return response
-    return response
+
+
+def auto_apply(profile, kind):
+    """Whether this profile has chosen to have actions of ``kind`` (``dividend``, ``split``, ``bonus``, ``demerger`` or ``other``) logged
+    automatically instead of waiting for its approval. Off unless switched on, which is how it worked before the choice existed."""
+    return bool((core.get_settings(profile, create=False).corporate_auto or {}).get(kind))
+
+
+def apply_automatic(profile, instrument_ids=None):
+    """Apply the pending actions of the kinds this profile logs automatically (splits and bonuses with the program adding the units).
+    A demerger that is missing its new company or cost percentage stays pending, and so does anything that would leave a later sale
+    without its units. Returns the actions applied."""
+    done = []
+    if not any((core.get_settings(profile, create=False).corporate_auto or {}).values()):
+        return done
+    for action in pending(profile):
+        if instrument_ids is not None and action.instrument_id not in instrument_ids:
+            continue
+        if not auto_apply(profile, action.kind):
+            continue
+        if action.kind == CA_DEMERGER and (action.target_instrument_id is None or action.cost_percent_to_target is None):
+            continue
+        try:
+            respond(profile, None, action.pk, STATUS_APPLIED, choice=CHOICE_AUTO if action.kind in (CA_SPLIT, CA_BONUS) else None)
+        except InvestmentsError:
+            continue
+        done.append(action)
+    return done
+
+
+def apply_automatic_for_action(action):
+    """After an action is recorded: apply it for every profile that holds the investment and logs this kind automatically."""
+    from investments.models import InvestmentSettings
+
+    profile_ids = set(ProfileInvestment.objects.filter(instrument_id=action.instrument_id).values_list("profile_id", flat=True))
+    profile_ids |= set(Transaction.objects.filter(instrument_id=action.instrument_id).order_by().values_list("profile_id", flat=True).distinct())
+    from accounts.models import Profile
+
+    on = {row.profile_id for row in InvestmentSettings.objects.filter(profile_id__in=profile_ids) if (row.corporate_auto or {}).get(action.kind)}
+    for profile in Profile.objects.filter(pk__in=on):
+        apply_automatic(profile, {action.instrument_id})
 
 
 def demerger_gaps(profile, action):
@@ -381,5 +462,5 @@ def for_profile(profile):
     return rows
 
 
-__all__ = ["record", "respond", "change_kind", "create_unit_transactions", "applied", "applied_demergers", "demerger_terms", "demerger_gaps",
+__all__ = ["record", "respond", "auto_apply", "apply_automatic", "apply_automatic_for_action", "change_kind", "create_unit_transactions", "applied", "applied_demergers", "demerger_terms", "demerger_gaps",
            "linked_transactions", "method_of", "pending", "pending_instrument_ids", "large_moves_without_action", "for_profile", "Q"]

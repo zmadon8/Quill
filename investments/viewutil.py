@@ -140,9 +140,19 @@ def price_status_line(profile):
     """The text beside Update Prices (plan 24.5) and whether there is anything to update."""
     from django.utils import timezone
 
-    from investments.services import fetch
+    from investments.models import SourceRun
+    from investments.services import fetch, statscache
+    from investments.services import prices as price_service
 
-    info = fetch.status_summary(profile)
+    # which investments are tracked comes from the transactions: cached with the other results. The prices are read live (cheap, no transactions)
+    def tracked_ids():
+        return [i.pk for i in fetch.tracked_instruments(profile)]
+
+    ids = statscache.get_or_compute(profile, "price_status", {}, tracked_ids, today_sensitive=True)
+    last_dates = price_service.last_price_date(ids) if ids else {}
+    today = datetime.date.today()
+    info = {"tracked": len(ids), "newest": max(last_dates.values()) if last_dates else None,
+            "last_run": SourceRun.objects.exclude(finished=None).order_by("-finished").values_list("finished", flat=True).first()}
     if not info["tracked"]:
         return {"inv_status": None, "inv_can_update": False}
     if not info["newest"]:
@@ -152,7 +162,7 @@ def price_status_line(profile):
         parts.append(f"Updated {timezone.localtime(info['last_run']):%-d %b %Y, %-I:%M %p}")
     if info["newest"]:
         parts.append(f"prices as of close {info['newest']:%-d %b}")
-    behind = len(info["stale"]) + len(info["never"])
+    behind = sum(1 for i in ids if i not in last_dates or (today - last_dates[i]).days > fetch.STALE_DAYS)
     if behind:
         parts.append(f"{behind} not updated")
     return {"inv_status": " \u00b7 ".join(parts) or "No prices yet. Update Prices, or ask an Admin to upload history.", "inv_can_update": True}

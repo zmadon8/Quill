@@ -19,7 +19,7 @@ body.inv .more-list{position:absolute;right:0;top:calc(100% + 4px);z-index:20;di
 body.inv .more-list a{padding:6px 12px;color:var(--ink);font-size:.929rem}
 body.inv .more-list a:hover{background:var(--paper-2);text-decoration:none}
 body.inv nav.sub a.adm::after{content:"Admin";font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;margin-left:6px;border:1px solid var(--hair);padding:0 4px;border-radius:2px}
-body.inv .tools{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px;padding:14px 0 12px;border-bottom:1px solid var(--hair)}
+body.inv .tools{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:8px 24px;padding:10px 0 8px;border-bottom:1px solid var(--hair)}
 body.inv .ctx,body.inv .util{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px 18px}
 body.inv .sel{display:flex;flex-direction:column;gap:2px}
 body.inv .sel>span{font-weight:500;font-size:13px;text-transform:none;letter-spacing:0;color:var(--muted)}
@@ -33,7 +33,7 @@ body.inv .btn.dis{opacity:.45}
 body.inv .toggle{display:inline-flex;border:1px solid var(--ink);border-radius:2px;overflow:hidden;font-size:12.5px}
 body.inv .toggle span{padding:0 10px;min-height:34px;display:flex;align-items:center;cursor:pointer;color:var(--muted)}
 body.inv .toggle span.on{background:var(--ink);color:var(--bg)}
-body.inv .status{font-size:12.5px;color:var(--muted);padding:7px 0 0;text-align:right;flex-basis:100%}
+body.inv .status{font-size:12.5px;color:var(--muted);padding:0 0 8px;text-align:right;flex:1 1 20rem;min-width:0}
 body.inv .status b{font-weight:500;color:var(--ink)}
 body.inv .strip{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;margin:24px 0 8px;border-top:1px solid var(--ink);border-bottom:1px solid var(--hair)}
 body.inv .strip .f{padding:14px 18px 14px 18px;border-left:1px solid var(--hair)}
@@ -50,7 +50,7 @@ body.inv .g{color:var(--gain)}
 body.inv .l{color:var(--loss)}
 body.inv .na{color:var(--muted)}
 body.inv .money,body.inv .num{font-variant-numeric:tabular-nums}
-body.inv .sec{display:flex;justify-content:space-between;align-items:baseline;gap:16px;margin:30px 0 10px}
+body.inv .sec{display:flex;justify-content:space-between;align-items:baseline;gap:8px 16px;flex-wrap:wrap;margin:22px 0 8px}
 body.inv .sec h2{margin:0}
 body.inv .sec .acts{display:flex;gap:8px;flex-wrap:wrap}
 body.inv .sec a.lk{font-size:13px;text-transform:none;letter-spacing:0;color:var(--muted)}
@@ -108,7 +108,7 @@ body.inv .fld{display:flex;flex-direction:column;gap:4px;min-width:0}
 body.inv .fld>label{font-weight:500;font-size:13px;text-transform:none;letter-spacing:0;color:var(--muted)}
 body.inv .fld .note{font-size:12.5px;color:var(--muted)}
 body.inv .fld .note.err{color:var(--danger)}
-body.inv .acts-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}
+body.inv .acts-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
 body.inv .stepper{display:flex;gap:0;margin:22px 0 6px;border-bottom:1px solid var(--hair)}
 body.inv .stepper div{padding:8px 22px 10px 0;margin-right:22px;font-size:13.5px;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
 body.inv .stepper div b{font:400 15px var(--font-serif);margin-right:6px}
