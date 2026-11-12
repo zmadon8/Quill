@@ -15,7 +15,7 @@ from .viewutil import held_only as held_only_param, page, parse_date, profile_or
 #: or already show only what is held).
 HELD_ONLY_REPORTS = ("best-worst", "scoreboard", "dividends", "data-check")
 
-PERIODS = [("1", "1 year"), ("3", "3 years"), ("5", "5 years"), ("custom", "Custom dates")]
+#: The Period choices of the Charts (Combined, Chart A) and of the Performance table: the same list, read by the same ``_chart_window``.
 CHART_PERIODS = [("1m", "1 month"), ("6m", "6 months"), ("1", "1 year"), ("3", "3 years"), ("5", "5 years"), ("all", "All"), ("custom", "Custom")]
 
 
@@ -33,7 +33,13 @@ def performance_view(request):
         if period == "custom":
             start, end = performance.period_dates(start=parse_date(request.GET.get("from")), end=parse_date(request.GET.get("to")))
         else:
-            start, end = performance.period_dates(preset=int(period) if period.isdigit() else 1)
+            if period not in dict(CHART_PERIODS):
+                period = "1"
+            start, end = _chart_window(period, request, holdings_first_date(profile))
+            if period == "all":
+                start -= timedelta(days=1)   # the day before the first purchase: nothing is held then, so every purchase counts as money put in
+            if start >= end:   # "All" with the first purchase today (or none): there is no span to measure, so show the last year
+                start, end = performance.period_dates(preset=1)
     except ValueError as exc:
         messages.error(request, str(exc))
         start, end = performance.period_dates(preset=1)
@@ -53,7 +59,7 @@ def performance_view(request):
         return response(f"Performance {start:%Y-%m-%d} to {end:%Y-%m-%d}.xlsx", [("Performance", header, data)])
     return page(request, "investments/performance.html", {
         "page_title_text": "Performance", "held_only": held_only, "rows": rows, "total": total, "notes": notes, "sectoral": sectoral, "measure": measure, "period": period,
-        "periods": PERIODS, "start": start, "end": end, "default_index": masters.default_index_for(profile)})
+        "periods": CHART_PERIODS, "start": start, "end": end, "default_index": masters.default_index_for(profile)})
 
 
 def _chart_window(period, request, first):

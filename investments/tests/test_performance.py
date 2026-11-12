@@ -183,6 +183,35 @@ class PerformanceTests(InvTestCase):
         r = self.client.get(reverse("investments_performance") + "?period=custom&from=2024-01-01&to=2023-01-01")
         self.assertContains(r, "start date must be before")
 
+    def test_performance_period_options_match_chart_a(self):
+        from investments import views_reports
+
+        self.client.force_login(self.user)
+        html = self.client.get(reverse("investments_performance")).content.decode()
+        for key, label in views_reports.CHART_PERIODS:
+            self.assertIn(f'<option value="{key}"', html)
+            self.assertIn(f">{label}</option>", html)
+        chart = self.client.get(reverse("investments_charts")).content.decode()
+        self.assertIn('<option value="6m"', chart)
+
+    def test_performance_new_periods_render_and_export(self):
+        self.client.force_login(self.user)
+        self.buy(d(2022, 1, 1), 10, 100)
+        for period in ("1m", "6m", "all"):
+            r = self.client.get(reverse("investments_performance") + f"?period={period}")
+            self.assertEqual(r.status_code, 200, period)
+            self.assertContains(r, f'<option value="{period}" selected', msg_prefix=period)
+            r = self.client.get(reverse("investments_performance") + f"?period={period}&export=xlsx")
+            self.assertEqual(r.status_code, 200, period)
+            r = self.client.get(reverse("investments_performance") + f"?period={period}&held=1")
+            self.assertEqual(r.status_code, 200, period)
+
+    def test_all_period_starts_the_day_before_the_first_purchase(self):
+        self.client.force_login(self.user)
+        self.buy(d(2022, 1, 1), 10, 100)
+        r = self.client.get(reverse("investments_performance") + "?period=all")
+        self.assertEqual(r.context["start"], d(2021, 12, 31))
+
     def test_xirr_constant_used_consistently(self):
         self.assertEqual(xirr.MIN_DAYS, 30)
 
