@@ -179,6 +179,8 @@ INVESTMENTS_ENABLED = (
 PRICE_HELPER_ENABLED = os.environ.get("PRICE_HELPER_ENABLED") == "1"
 # The address of AMFI's daily NAV file (plan 30: the final address is still to be confirmed; set it here once known).
 INVESTMENTS_AMFI_URL = os.environ.get("INVESTMENTS_AMFI_URL", "")
+# Extra hosts an Admin may point a data source address at (comma-separated). The built-in hosts are always allowed; an Admin page cannot change this.
+INVESTMENTS_EXTRA_SOURCE_HOSTS = os.environ.get("INVESTMENTS_EXTRA_SOURCE_HOSTS", "")
 INVESTMENTS_NSE_LIST_URL = os.environ.get("INVESTMENTS_NSE_LIST_URL", "")
 # The addresses of the exchanges' daily bhavcopy files (investments/adapters/bhavcopy.py has the defaults). Set one only if an exchange
 # moves its file; use {ymd} (20261109) or {dmy} (09112026) where the date goes.

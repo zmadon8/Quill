@@ -358,3 +358,15 @@ body.inv .upd-status{max-width:14rem;overflow:hidden;text-overflow:ellipsis;whit
 body.inv .upd-status:empty{display:none}
 /* Type and Status filters on one line */
 body.inv form.filters{display:flex;flex-wrap:wrap;align-items:flex-end;gap:16px}
+
+/* Chart hover (chart-hover.js): a guide line and a tooltip over the SVG line charts; without JS the chart is unchanged */
+body.inv figure.chart{position:relative}
+body.inv svg.ch.hv{touch-action:pan-y;cursor:crosshair}
+body.inv svg.ch.hv:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+body.inv svg.ch .hv-guide{stroke:var(--muted);stroke-width:1;stroke-dasharray:3 3;pointer-events:none}
+body.inv svg.ch .hv-dot{stroke:var(--card);stroke-width:1.5;pointer-events:none}
+body.inv .hv-tip{position:absolute;top:6px;z-index:5;pointer-events:none;background:var(--card);color:var(--ink);border:1px solid var(--hair);border-radius:4px;padding:6px 9px;font-size:12.5px;line-height:1.4;box-shadow:0 2px 8px rgba(0,0,0,.15);white-space:nowrap}
+body.inv .hv-tip[hidden]{display:none}
+body.inv .hv-tip b{display:block;margin-bottom:2px}
+body.inv .hv-tip span{display:flex;justify-content:space-between;gap:14px}
+body.inv .hv-tip i{display:inline-block;width:14px;border-top:2px solid var(--ink);vertical-align:middle;margin-right:6px}

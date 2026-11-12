@@ -19,6 +19,8 @@
 <td class="r">{{ s.run.tried|default_if_none:"" }}</td><td class="r">{{ s.run.updated|default_if_none:"" }}</td><td class="r">{{ s.failures|length }}</td></tr>
 {% for f in s.failures %}<tr class="sub"><td colspan="6">&nbsp;&nbsp;{{ f.name }}: {{ f.error }}</td></tr>{% endfor %}{% endfor %}
 </tbody></table></div>
+<div class="sec"><h2>Data source formats</h2><a class="btn q" href="{% url 'investments_admin_source_formats' %}">Edit how files are read</a></div>
+<p class="hint">If an exchange or service renames a column or moves a file, an Admin can correct how it is read here, and test the change on a sample, without waiting for a new release.</p>
 <div class="sec"><h2>Needs attention</h2></div>
 {% if summary.stale or summary.never %}<ul class="plain">{% for i in summary.never %}<li><a href="{% url 'investments_investment' i.pk %}">{{ i.name }}</a>: no price stored yet ({{ i.get_price_source_display }})</li>{% endfor %}{% for i in summary.stale %}<li><a href="{% url 'investments_investment' i.pk %}">{{ i.name }}</a>: price is old</li>{% endfor %}</ul>
 {% else %}<p class="na">Nothing is stale.</p>{% endif %}

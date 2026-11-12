@@ -89,6 +89,7 @@ EXTRA = {
     "txn_edit": ("holdings", "Transactions"), "txn_complete": ("holdings", "Transactions"), "txn_refused": ("holdings", "Transactions"),
     "broker_detail": ("holdings", "Brokers"), "admin_catalogue_item": ("catalogue", "Catalogue"), "report": ("reports", "Other reports"),
     "dividend_edit": ("holdings", "Dividends"),
+    "admin_source_formats": ("catalogue", "Price sources"), "admin_source_format": ("catalogue", "Price sources"),
 }
 
 

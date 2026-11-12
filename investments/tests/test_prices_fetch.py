@@ -3,7 +3,7 @@ from datetime import date as d, datetime, timedelta, timezone
 from decimal import Decimal as D
 from unittest import mock
 
-from django.test import SimpleTestCase
+from django.test import SimpleTestCase, TestCase
 
 from accounts.suite import KEY_INVESTMENTS
 from investments.adapters import amfi, http, mfapi, yahoo
@@ -53,7 +53,7 @@ class AdapterParsingTests(SimpleTestCase):
         self.assertEqual(len(mfapi.parse(fixture("mfapi_122639.json"), since=d(2026, 11, 4)).rows), 2)
 
 
-class HttpRulesTests(SimpleTestCase):
+class HttpRulesTests(TestCase):
     def setUp(self):
         self.net = FakeNet()
         patcher = mock.patch.object(http, "_urlopen", self.net)

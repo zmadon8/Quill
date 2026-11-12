@@ -31,8 +31,8 @@
 <div class="tw"><table data-table-id="inv-overview-periods" class="led"><thead><tr><th>Figure</th>{% for p in period_table.periods %}<th class="r">{{ p.label }}{% if p.short %} *{% endif %}</th>{% endfor %}</tr></thead><tbody>
 {% for row in period_table.rows %}<tr><td title="{{ row.help }}">{{ row.label }}</td>{% for v in row.values %}<td class="r">{% if v is None %}<span class="na">n/a</span>{% elif row.fmt == "money" %}{{ v|inr }}{% elif row.fmt == "money_signed" %}{{ v|inr_signed }}{% elif row.fmt == "pct_signed" %}{{ v|pct_signed }}{% else %}{{ v|pct }}{% endif %}</td>{% endfor %}</tr>{% endfor %}
 </tbody></table></div>
-<p class="hint">{% for p in period_table.periods %}{% if p.id == "all" %}Since the start: from the first purchase, {{ p.start|date:"j M Y" }}. {% elif p.short %}{{ p.label }} *: your history is shorter, so from the first purchase, {{ p.start|date:"j M Y" }}. {% else %}{{ p.label }}: from {{ p.start|date:"j M Y" }}. {% endif %}{% endfor %}The value at the start of a period counts as money put in on that day. Point at a figure's name for what it means.</p>
-{% elif can_edit and not customise_open %}<p class="hint"><a href="?customise=1#customise">Customise the Overview</a> to add figures for the whole history and the last 5, 3 and 1 years.</p>{% endif %}
+<p class="hint">{% for p in period_table.periods %}{% if p.id == "all" %}All: from the first purchase, {{ p.start|date:"j M Y" }}. {% elif p.short %}{{ p.label }} *: your history is shorter, so from the first purchase, {{ p.start|date:"j M Y" }}. {% else %}{{ p.label }}: from {{ p.start|date:"j M Y" }}. {% endif %}{% endfor %}The value at the start of a period counts as money put in on that day. Point at a figure's name for what it means.</p>
+{% elif can_edit and not customise_open %}<p class="hint"><a href="?customise=1#customise">Customise the Overview</a> to add figures for the same periods as the chart (1M to All).</p>{% endif %}
 {% if customise_open and can_edit %}
 <div class="panel" id="customise"><h3>Customise the Overview</h3>
 <form method="post" action="{% url 'investments_overview_save' %}">{% csrf_token %}
@@ -49,6 +49,12 @@
   <div>
     {% if has_any %}<p class="hint">Every investment is listed on the <a href="{% url 'investments_holdings' %}">Holdings</a> page.</p>
     {% include "investments/_chart_block.html" with title="Value against the same money in the index" chart=chart ranges=chart_ranges anchor="chart" caption="Portfolio value and the same money invested in the index" %}{% endif %}
+    {% if breakdown %}
+    <div class="sec" id="breakdown"><h2>Portfolio value</h2><nav class="seg" aria-label="Breakdown">{% for l in breakdown_links %}<a href="{{ l.href }}"{% if l.on %} class="on" aria-current="true"{% endif %}>{{ l.label }}</a>{% endfor %}</nav></div>
+    <div class="tw"><table data-table-id="inv-overview-breakdown" class="led"><thead><tr><th>{% if breakdown_key == "type" %}Type{% elif breakdown_key == "portfolio" %}Portfolio{% else %}Broker{% endif %}</th><th class="r">Invested</th><th class="r">Value</th><th class="r">Gain</th><th class="r">Gain %</th><th class="r">Share</th></tr></thead><tbody>
+    {% for r in breakdown.rows %}<tr><td>{{ r.name }}</td><td class="r">{{ r.invested|inr }}</td><td class="r">{{ r.value|inr }}</td><td class="r">{{ r.gain|inr_signed }}</td><td class="r">{{ r.gain_pct|pct_signed }}</td><td class="r">{{ r.share|pct }}</td></tr>{% endfor %}
+    </tbody><tfoot><tr><th>Total</th><th class="r">{{ breakdown.total.invested|inr }}</th><th class="r">{{ breakdown.total.value|inr }}</th><th class="r">{{ breakdown.total.gain|inr_signed }}</th><th class="r">{{ breakdown.total.gain_pct|pct_signed }}</th><th class="r">{{ breakdown.total.share|pct }}</th></tr></tfoot></table></div>
+    {% endif %}
     {% if allocation %}
     <div class="sec"><h2>Allocation</h2><span class="hint">by asset class</span></div>
     <div class="bars">{% for label, value, share in allocation %}

@@ -1,13 +1,14 @@
 {# One hand-drawn SVG line chart. Context: chart (from investments.svgchart.line_chart), caption. Lines differ by dash pattern as well as shade. #}
 {% if chart %}
 <figure class="chart">
-<svg class="ch" viewBox="0 0 {{ chart.width }} {{ chart.height }}" role="img" aria-label="{{ caption }}">
+<svg class="ch hv" tabindex="0" data-hover="{{ chart.hover }}" data-top="{{ chart.top }}" data-bottom="{{ chart.bottom }}" viewBox="0 0 {{ chart.width }} {{ chart.height }}" role="img" aria-label="{{ caption }}">
   {% for t in chart.yticks %}<line x1="{{ chart.left }}" x2="{{ chart.right }}" y1="{{ t.y }}" y2="{{ t.y }}" stroke="var(--hair)" stroke-width="1"/><text x="{{ chart.left|add:'-6' }}" y="{{ t.y }}" text-anchor="end" dominant-baseline="middle">{{ t.label }}</text>{% endfor %}
   {% for t in chart.xticks %}<text x="{{ t.x }}" y="{{ chart.bottom|add:'18' }}" text-anchor="middle">{{ t.label }}</text>{% endfor %}
   <line x1="{{ chart.left }}" x2="{{ chart.right }}" y1="{{ chart.bottom }}" y2="{{ chart.bottom }}" stroke="var(--ink)" stroke-width="1"/>
   {% for m in chart.markers %}{% if m.kind == "buy" %}<path d="M{{ m.x }},{{ m.y }} m-5,6 l5,-10 l5,10 z" fill="var(--gain)"><title>{{ m.label }}</title></path>{% else %}<path d="M{{ m.x }},{{ m.y }} m-5,-6 l5,10 l5,-10 z" fill="var(--loss)"><title>{{ m.label }}</title></path>{% endif %}{% endfor %}
   {% for p in chart.paths %}{% for pts in p.points %}<polyline fill="none" stroke="{{ p.stroke }}" stroke-width="{{ p.width }}"{% if p.dash %} stroke-dasharray="{{ p.dash }}"{% endif %} points="{{ pts }}"><title>{{ p.label }}</title></polyline>{% endfor %}{% endfor %}
 </svg>
+<div class="hv-tip" role="status" hidden></div>
 <figcaption class="legend">{% for p in chart.paths %}<span><svg width="28" height="8" aria-hidden="true"><line x1="0" x2="28" y1="4" y2="4" stroke="{{ p.stroke }}" stroke-width="2"{% if p.dash %} stroke-dasharray="{{ p.dash }}"{% endif %}/></svg> {{ p.label }}</span>{% endfor %}</figcaption>
 </figure>
 {% else %}<p class="na">Not enough data to draw a chart yet.</p>{% endif %}

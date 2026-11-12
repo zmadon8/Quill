@@ -251,3 +251,80 @@ def price_action(request, pk):
     else:
         raise Http404
     return redirect(back)
+
+
+# ------------------------------------------------------------------ data source formats (Admin)
+
+KIND_HELP = {
+    "url": "An http(s) address. Placeholders are filled in when it is used.",
+    "list": "Comma-separated; the first one found in the file's header wins. Case, spaces and underscores do not matter.",
+    "path": "Dotted steps into the answer, a number for a list position (for example indicators.quote.0.close).",
+    "int": "A whole number (a negative one counts from the end of the line).",
+    "text": "Short text.",
+}
+
+
+def _format_fields(key, merged, posted=None):
+    """The rows of the edit table: name, kind, the value to show (what was posted, else the current one), the built-in value and whether they differ."""
+    from .services import source_formats as sf
+
+    builtin = {name: sf.show(value, kind) for name, kind, value in sf.fields(key, sf.merge(key, {}))}
+    rows = []
+    for name, kind, value in sf.fields(key, merged):
+        shown = posted.get("f_" + name, "") if posted is not None else sf.show(value, kind)
+        rows.append({"name": name, "kind": kind, "value": shown, "builtin": builtin[name], "changed": shown.strip() != builtin[name], "help": KIND_HELP[kind],
+                     "placeholders": ", ".join("{" + p + "}" for p in sorted(sf.PLACEHOLDERS.get(key, ()))) if kind == "url" else ""})
+    return rows
+
+
+@inv_admin
+def source_formats_page(request, key=None):
+    """Admin: how each external file is read. The list of sources, and for one source its editable format with Save, Reset to default and
+    Test this format (a sample is read with the format as typed; nothing is saved by a test)."""
+    from .services import source_format_test
+    from .services import source_formats as sf
+
+    profile_or_404(request)
+    if key is not None and key not in sf.DEFAULTS:
+        raise Http404
+    runs = sf.last_runs()
+    problems = {}
+    for item in sf.problems():
+        problems.setdefault(item["key"], item["error"])
+    context = {"page_title_text": "Data source formats", "key": key, "problems": problems}
+    if key is None:
+        stored = set(sf.customised())
+        context["sources"] = [{"key": k, "label": sf.LABELS[k][0], "run": runs.get(k), "problem": problems.get(k), "custom": k in stored,
+                               "kind": "Upload" if k in sf.UPLOAD_ONLY else "File or answer"} for k in sf.KEYS]
+        return page(request, "investments/source_formats.html", context, selectors=False)
+    posted = request.POST if request.method == "POST" else None
+    result, errors = None, []
+    merged = sf.get(key)
+    if request.method == "POST":
+        action = request.POST.get("action")
+        if action == "reset":
+            sf.reset(key)
+            messages.success(request, "Back to the built-in format.")
+            return redirect(reverse("investments_admin_source_format", args=[key]))
+        submitted, errors = sf.parse_form(key, request.POST)
+        cleaned = {}
+        if not errors:
+            cleaned, errors = sf.validate(key, submitted)
+        if not errors and action == "save":
+            sf.save(key, cleaned, request.user)
+            messages.success(request, "Saved. The next fetch or import reads files this way.")
+            return redirect(reverse("investments_admin_source_format", args=[key]))
+        if not errors and action == "test":
+            upload = request.FILES.get("sample")
+            if upload is not None and upload.size > source_format_test.SAMPLE_CAP:
+                errors = ["The sample file is too big (the limit is 8 MB)."]
+            else:
+                result = source_format_test.run(key, sf.merge(key, cleaned), upload=upload.read() if upload is not None else None,
+                                                day=parse_date(request.POST.get("sample_day")), sample=request.POST.get("sample_value", ""))
+        if errors:
+            messages.error(request, "Not saved or tested: " + " ".join(errors))
+    context.update({
+        "label": sf.LABELS[key][0], "fields": _format_fields(key, merged, posted), "result": result, "custom": bool(sf.stored_config(key)),
+        "upload_only": key in sf.UPLOAD_ONLY, "needs_value": key in source_format_test.SAMPLE_VALUES, "sample_value": (posted or {}).get("sample_value", ""),
+        "sample_day": (posted or {}).get("sample_day", ""), "problem": problems.get(key), "run": runs.get(key), "errors": errors})
+    return page(request, "investments/source_formats.html", context, selectors=False)

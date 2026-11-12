@@ -24,6 +24,7 @@ from django.utils import timezone
 from investments.adapters import bhavcopy
 from investments.adapters.base import FetchError
 from investments.models import KIND_INDEX, KIND_SHARE, Price, SourceRun, SourceSetting, SourceSymbol
+from investments.services import source_formats
 
 SETTING_KEY = "bhavcopy"
 MODE_OFF, MODE_AFTER, MODE_FIRST = "off", "after", "first"
@@ -108,10 +109,11 @@ def _weekdays(newest, oldest):
 
 def _read(kind, body, wanted):
     lines = bhavcopy.lines_of(kind, body)
+    fmt = source_formats.get(kind)
     if kind == "nse_idx":
-        return {("name", name): value for name, value in bhavcopy.read_indices(lines, [k[1] for k in wanted]).items()}
+        return {("name", name): value for name, value in bhavcopy.read_indices(lines, [k[1] for k in wanted], fmt=fmt).items()}
     return bhavcopy.read_equity(lines, symbols=[k[1] for k in wanted if k[0] == "sym"], isins=[k[1] for k in wanted if k[0] == "isin"],
-                                codes=[k[1] for k in wanted if k[0] == "code"], nse=kind != "bse_eq")
+                                codes=[k[1] for k in wanted if k[0] == "code"], nse=kind != "bse_eq", fmt=fmt)
 
 
 def run(instruments, *, today, trigger="cron", out_of_time=lambda: False, windows=None):
@@ -163,7 +165,7 @@ def run(instruments, *, today, trigger="cron", out_of_time=lambda: False, window
                     continue
                 got[day] = _read(kind, body, wanted)
             except FetchError as exc:
-                failures.append({"id": 0, "name": bhavcopy.label(kind), "error": str(exc)})
+                failures.append(source_formats.failure(0, bhavcopy.label(kind), exc))
                 break
         if got:
             files[kind], newest[kind] = got, max(got)
@@ -205,7 +207,7 @@ def run(instruments, *, today, trigger="cron", out_of_time=lambda: False, window
                              "error": f"not in the {bhavcopy.label(kind)} of {latest_file:%d %b %Y} (check its code, or set a 'bhavcopy' symbol on its catalogue page)"})
     message = "newest file: " + ", ".join(f"{bhavcopy.label(k)} {d:%d %b %Y}" for k, d in sorted(newest.items())) if newest else "no file found"
     result["run"] = SourceRun.objects.create(source="bhavcopy", trigger=trigger, started=started, finished=timezone.now(), tried=len(needing),
-                                             updated=result["updated"], failures=failures, message=message[:300])
+                                             updated=result["updated"], failures=failures, formats=sorted(files), message=message[:300])
     return result                                       # the caller bumps the price version
 
 

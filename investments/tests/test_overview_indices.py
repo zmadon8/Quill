@@ -32,28 +32,46 @@ class OverviewTests(InvTestCase):
     def test_standard_choice_and_cleaning(self):
         row = core.get_settings(self.profile)
         self.assertEqual(overview.choice(row), {"boxes": ["value", "invested", "gain", "xirr", "index_xirr", "alpha"],
-                                                "metrics": ["xirr", "index_xirr", "alpha", "fresh", "gain"], "periods": ["all", "5", "3", "1"]})
-        self.assertEqual(overview.clean(["count", "bogus"], ["drawdown"], ["1", "7"]), {"boxes": ["count"], "metrics": ["drawdown"], "periods": ["1"]})
+                                                "metrics": ["xirr", "index_xirr", "alpha", "fresh", "gain"], "periods": ["1m", "3m", "6m", "1y", "3y", "5y", "all"]})
+        self.assertEqual(overview.clean(["count", "bogus"], ["drawdown"], ["1", "7"]), {"boxes": ["count"], "metrics": ["drawdown"], "periods": ["1y"]})
+
+    def test_legacy_stored_periods_still_resolve(self):
+        row = core.get_settings(self.profile)
+        row.overview = {"boxes": ["value"], "metrics": ["xirr"], "periods": ["all", "5", "3", "1"]}
+        row.save()
+        self.assertEqual(overview.choice(row)["periods"], ["1y", "3y", "5y", "all"])
+        self.assertEqual(overview.clean([], [], ["5", "5y", "all"])["periods"], ["5y", "all"])
+
+    def test_columns_follow_the_chart_periods(self):
+        self.buy(d(2019, 1, 1), 10, 100)
+        self.assertEqual([p[0] for p in overview.PERIODS], ["1m", "3m", "6m", "1y", "3y", "5y", "all"])
+        self.assertEqual([p[1] for p in overview.PERIODS], ["1M", "3M", "6M", "1Y", "3Y", "5Y", "All"])
+        self.client.force_login(self.user)
+        page = self.client.get(reverse("investments_dashboard")).content.decode()
+        head = page[page.index('data-table-id="inv-overview-periods"'):]
+        head = head[:head.index("</tr>")]
+        positions = [head.index(f">{label}") for label in ("1M", "3M", "6M", "1Y", "3Y", "5Y", "All")]
+        self.assertEqual(positions, sorted(positions))
 
     def test_period_figures(self):
         self.buy(d(2019, 1, 1), 10, 100)
         self.buy(d(2022, 6, 1), 10, D(100) * D("1.0004") ** 1247)
         row = core.get_settings(self.profile)
-        masters.update_settings(self.profile, self.user, overview=overview.clean([], [m[0] for m in overview.METRICS], ["all", "1"]))
+        masters.update_settings(self.profile, self.user, overview=overview.clean([], [m[0] for m in overview.METRICS], ["all", "1y"]))
         data = dashboard.load(self.profile, as_of=d(2024, 1, 1))
         table = data["overview"]
-        self.assertEqual([p["id"] for p in table["periods"]], ["all", "1"])
+        self.assertEqual([p["id"] for p in table["periods"]], ["1y", "all"])
         rows = {r["id"]: r["values"] for r in table["rows"]}
-        self.assertAlmostEqual(rows["xirr"][1], 1.0004 ** 365 - 1, places=2)       # the price grows 0.04% a day
-        self.assertAlmostEqual(rows["index_xirr"][1], 1.0002 ** 365 - 1, places=2)
-        self.assertAlmostEqual(rows["alpha"][1], rows["xirr"][1] - rows["index_xirr"][1], places=9)
-        self.assertEqual(rows["put_in"][1], D(0))                                   # nothing bought in the last year
-        self.assertGreater(rows["put_in"][0], D(1000))
-        self.assertEqual(rows["fresh"][0], rows["put_in"][0] - rows["taken_out"][0])
-        self.assertEqual(rows["gain"][1], rows["end_value"][1] - rows["start_value"][1] - rows["fresh"][1])
-        self.assertEqual(rows["realised"][0], D(0))
-        self.assertIsNotNone(rows["twr"][0])
-        self.assertGreaterEqual(rows["drawdown"][0], 0)
+        self.assertAlmostEqual(rows["xirr"][0], 1.0004 ** 365 - 1, places=2)       # the price grows 0.04% a day
+        self.assertAlmostEqual(rows["index_xirr"][0], 1.0002 ** 365 - 1, places=2)
+        self.assertAlmostEqual(rows["alpha"][0], rows["xirr"][0] - rows["index_xirr"][0], places=9)
+        self.assertEqual(rows["put_in"][0], D(0))                                   # nothing bought in the last year
+        self.assertGreater(rows["put_in"][1], D(1000))
+        self.assertEqual(rows["fresh"][1], rows["put_in"][1] - rows["taken_out"][1])
+        self.assertEqual(rows["gain"][0], rows["end_value"][0] - rows["start_value"][0] - rows["fresh"][0])
+        self.assertEqual(rows["realised"][1], D(0))
+        self.assertIsNotNone(rows["twr"][1])
+        self.assertGreaterEqual(rows["drawdown"][1], 0)
         self.assertTrue(row.pk)
 
     def test_customise_is_for_editors_and_the_page_shows_the_choice(self):
@@ -62,8 +80,8 @@ class OverviewTests(InvTestCase):
         page = self.client.get(reverse("investments_dashboard") + "?customise=1")
         self.assertContains(page, "Customise the Overview")
         self.assertContains(page, "Over time")
-        self.client.post(reverse("investments_overview_save"), {"box": ["count", "value"], "metric": ["dividends"], "period": ["3"]})
-        self.assertEqual(InvestmentSettings.objects.get(profile=self.profile).overview, {"boxes": ["count", "value"], "metrics": ["dividends"], "periods": ["3"]})
+        self.client.post(reverse("investments_overview_save"), {"box": ["count", "value"], "metric": ["dividends"], "period": ["3y"]})
+        self.assertEqual(InvestmentSettings.objects.get(profile=self.profile).overview, {"boxes": ["count", "value"], "metrics": ["dividends"], "periods": ["3y"]})
         page = self.client.get(reverse("investments_dashboard")).content.decode()
         self.assertIn(">Holdings</div>", page)
         self.assertNotIn(">Portfolio XIRR</div>", page)

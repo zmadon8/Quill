@@ -6,10 +6,12 @@ import os
 import urllib.parse
 from datetime import date, timedelta
 
-from . import http
-from .base import FetchError, Result, clean_close, parse_day
+from investments.services import source_formats
 
-URL = "https://api.twelvedata.com/time_series?symbol={symbol}&exchange={exchange}&interval=1day&start_date={start}&outputsize=5000&apikey={key}"
+from . import http
+from .base import FetchError, FormatError, Result, clean_close
+
+URL = source_formats.DEFAULTS["twelvedata"]["url"]
 
 
 def split_symbol(code):
@@ -20,17 +22,33 @@ def split_symbol(code):
     return code, ""
 
 
-def parse(body, since=None):
+def parse(body, since=None, fmt=None):
+    """Where the fields are in the answer is the format ``twelvedata`` of ``services/source_formats.py``."""
+    fmt = fmt or source_formats.default("twelvedata")
+    get = source_formats.dig
     try:
         data = json.loads(body)
     except ValueError as exc:
         raise FetchError("Twelve Data answered with something that is not price data.") from exc
-    if data.get("status") != "ok":
-        raise FetchError(f"Twelve Data: {data.get('message') or data.get('code') or 'refused'}", retryable=data.get("code") == 429)
-    out = Result(currency=(data.get("meta") or {}).get("currency", ""), exchange=(data.get("meta") or {}).get("exchange", ""))
+    if not isinstance(data, dict):
+        raise FormatError("Twelve Data answered with something that is not price data.", key="twelvedata")
+    if get(data, fmt["status_path"]) != fmt["ok_value"]:
+        code = get(data, fmt["code_path"])
+        raise FetchError(f"Twelve Data: {get(data, fmt['message_path']) or code or 'refused'}", retryable=code == 429)
+    out = Result(currency=get(data, fmt["currency_path"]) or "", exchange=get(data, fmt["exchange_path"]) or "")
+    values = get(data, fmt["values_path"]) or []
+    if not isinstance(values, list):
+        raise FormatError(f"Twelve Data: nothing readable at '{'.'.join(str(s) for s in fmt['values_path'])}'.", key="twelvedata")
+    first = next((v for v in values if isinstance(v, dict)), None)
+    if first is not None and (fmt["date_key"] not in first or fmt["close_key"] not in first):
+        seen = sorted(first)
+        raise FormatError(f"Twelve Data: the entries have no '{fmt['date_key']}' or '{fmt['close_key']}' field (fields seen: {', '.join(seen)}).",
+                          key="twelvedata", missing=[k for k in (fmt["date_key"], fmt["close_key"]) if k not in first], headers=seen)
     seen = {}
-    for item in data.get("values") or []:
-        day, close = parse_day(str(item.get("datetime", ""))[:10]), clean_close(item.get("close"))
+    for item in values:
+        item = item if isinstance(item, dict) else {}
+        day = source_formats.parse_day(str(item.get(fmt["date_key"], ""))[:10], fmt["date_formats"])
+        close = clean_close(item.get(fmt["close_key"]))
         if day is None or close is None:
             out.rejected += 1
             continue
@@ -51,5 +69,6 @@ def fetch(code, since=None, years=10, today=None):
     today = today or date.today()
     start = (since - timedelta(days=5)) if since else today - timedelta(days=365 * years)
     symbol, exchange = split_symbol(code)
-    url = URL.format(symbol=urllib.parse.quote(symbol), exchange=exchange, start=start.isoformat(), key=urllib.parse.quote(key))
-    return parse(http.with_retry(lambda: http.get(url)), since)
+    fmt = source_formats.get("twelvedata")
+    url = source_formats.expand(fmt["url"], symbol=urllib.parse.quote(symbol), exchange=exchange, start=start.isoformat(), key=urllib.parse.quote(key))
+    return parse(http.with_retry(lambda: http.get(url)), since, fmt)

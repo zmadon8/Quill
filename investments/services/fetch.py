@@ -15,13 +15,14 @@ from django.db.models import F, Min
 from django.utils import timezone
 
 from investments.adapters import amfi, http, mfapi, yahoo
-from investments.adapters.base import FetchError
+from investments.adapters.base import FetchError, FormatError
 from investments.errors import InvestmentsError
 from investments.models import (
     KIND_ALTERNATIVE, KIND_FUND, KIND_INDEX, BASIS_ADJ, Instrument, InvestmentSettings, Price, PriceStatus,
     ProfileInvestment, SourceRun, SourceSymbol, SplitSignal, STATUS_FINAL, Transaction, Transfer,
 )
 from investments.services import prices as price_service
+from investments.services import source_formats
 
 BATCH = 500
 STALE_DAYS = 5
@@ -262,13 +263,14 @@ def fetch_prices(*, ids=None, profile=None, trigger="cron", max_seconds=600, max
     # --- mutual funds: history by mfapi.in once, then the daily AMFI file (one download for all of them)
     if funds:
         run = SourceRun(source="amfi", trigger=trigger, started=timezone.now())
-        failures, updated = [], 0
+        failures, updated, read = [], 0, set()
         wanted = {i.pk: symbol_for(i, "amfi") for i in funds}
         try:
             found = amfi.fetch(list(wanted.values()))
+            read.add("amfi")
         except FetchError as exc:
             found = {}
-            failures.append({"id": 0, "name": "AMFI daily file", "error": str(exc)})
+            failures.append(source_formats.failure(0, "AMFI daily file", exc))
         for inst in funds:
             summary["tried"] += 1
             code = wanted[inst.pk]
@@ -284,6 +286,7 @@ def fetch_prices(*, ids=None, profile=None, trigger="cron", max_seconds=600, max
                 if last is None or last < today - timedelta(days=WINDOW_LEAD_DAYS):
                     pause()
                     result = mfapi.fetch(symbol_for(inst, "mfapi"), start)
+                    read.add("mfapi")
                     added, changed, _ = upsert_prices(inst, clip(result.rows, windows.get(inst.pk)), "api", "")
                     updated += 1 if added or changed else 0
                 if code in found:
@@ -293,8 +296,9 @@ def fetch_prices(*, ids=None, profile=None, trigger="cron", max_seconds=600, max
                 elif not failures:
                     failures.append({"id": inst.pk, "name": inst.name, "error": "not in AMFI's file today"})
             except (FetchError, InvestmentsError) as exc:
-                failures.append({"id": inst.pk, "name": inst.name, "error": str(exc)})
+                failures.append(source_formats.failure(inst.pk, inst.name, exc))
         run.tried, run.updated, run.failures, run.finished = len(funds), updated, failures, timezone.now()
+        run.formats = sorted(read)
         run.save()
         summary["updated"] += updated
         summary["failures"] += failures
@@ -322,7 +326,7 @@ def fetch_prices(*, ids=None, profile=None, trigger="cron", max_seconds=600, max
     yahoo_failures = []
     if others:
         run = SourceRun(source="yahoo", trigger=trigger, started=timezone.now())
-        failures, updated, tried = [], 0, 0
+        failures, updated, tried, read = [], 0, 0, set()
         for inst in others:
             if out_of_time():
                 summary["stopped"] = "run-time cap reached"
@@ -335,6 +339,7 @@ def fetch_prices(*, ids=None, profile=None, trigger="cron", max_seconds=600, max
                 since = fetch_from(window, last_api_date(inst), first_api_date(inst))
                 try:
                     result = yahoo.fetch(symbol_for(inst, "yahoo"), since, years=years, today=today)
+                    read.add("yahoo")
                 except FetchError as first_error:
                     # the fallback source, when one is set (plan 15.2); its basis must match, so only for raw-basis instruments or a basis-free source
                     if inst.fallback_source != "twelvedata":
@@ -343,8 +348,11 @@ def fetch_prices(*, ids=None, profile=None, trigger="cron", max_seconds=600, max
 
                     try:
                         result = twelvedata.fetch(symbol_for(inst, "twelvedata"), since, years=years, today=today)
+                        read.add("twelvedata")
                     except FetchError as second:
-                        raise FetchError(f"{first_error}; fallback: {second}") from second
+                        formatted = next((e for e in (first_error, second) if isinstance(e, FormatError)), None)
+                        message = f"{first_error}; fallback: {second}"
+                        raise (FormatError(message, key=formatted.key) if formatted else FetchError(message)) from second
                 result.rows = clip(result.rows, window)
                 result.splits = [s for s in result.splits if clip([(s[0], 1)], window)]
                 result.dividends = [x for x in result.dividends if clip([(x[0], 1)], window)]
@@ -357,8 +365,9 @@ def fetch_prices(*, ids=None, profile=None, trigger="cron", max_seconds=600, max
                 if result.rejected:
                     failures.append({"id": inst.pk, "name": inst.name, "error": f"{result.rejected} price(s) of zero or below were rejected"})
             except (FetchError, InvestmentsError) as exc:
-                failures.append({"id": inst.pk, "name": inst.name, "error": str(exc)})
+                failures.append(source_formats.failure(inst.pk, inst.name, exc))
         run.tried, run.updated, run.failures, run.finished = tried, updated, failures, timezone.now()
+        run.formats = sorted(read)
         run.message = summary["stopped"]
         run.save()
         summary["updated"] += updated
@@ -373,19 +382,27 @@ def fetch_prices(*, ids=None, profile=None, trigger="cron", max_seconds=600, max
                     failure["error"] += " (filled from bhavcopy)"
             SourceRun.objects.filter(pk=yahoo_run.pk).update(failures=yahoo_failures)
     # the list of fund schemes, once a week (plan 6)
-    if ids is None and not out_of_time():
+    from investments.services.instrument_search import lookup_enabled
+
+    if ids is None and not out_of_time() and lookup_enabled():   # off: neither list is downloaded (AMFI NAV prices are fetched above, separately)
         from investments.services import schemes
 
         try:
-            schemes.refresh()
+            if schemes.refresh():
+                source_formats.clear_failure("amfi_list", trigger)
         except FetchError as exc:
-            summary["failures"].append({"id": 0, "name": "AMFI scheme list", "error": str(exc)})
+            summary["failures"].append(source_formats.failure(0, "AMFI scheme list", exc))
+            if isinstance(exc, FormatError):
+                source_formats.record_failure("amfi_list", "AMFI scheme list", exc, trigger)
         from investments.services import nse_list
 
         try:
-            nse_list.refresh()
+            if nse_list.refresh():
+                source_formats.clear_failure("nse_list", trigger)
         except FetchError as exc:
-            summary["failures"].append({"id": 0, "name": "NSE equity list", "error": str(exc)})
+            summary["failures"].append(source_formats.failure(0, "NSE equity list", exc))
+            if isinstance(exc, FormatError):
+                source_formats.record_failure("nse_list", "NSE equity list", exc, trigger)
     # exchange rates for the foreign investments in use (plan 22)
     if ids is None and not out_of_time():
         from investments.services import fx

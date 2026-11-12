@@ -102,9 +102,13 @@ def add_2(request):
     initial = {"kind": kind, "asset_class": "equity" if kind != "alternative" else "other", "currency": "USD" if kind == "foreign" else "INR"}
     if request.method != "POST" and (request.GET.get("pick_code") or request.GET.get("pick_name")):
         initial.update({"name": request.GET.get("pick_name", ""), "code": request.GET.get("pick_code", ""), "isin": request.GET.get("pick_isin", "")})
+    from .services.instrument_search import lookup_enabled
+
     hits, search_error, query = [], "", request.GET.get("q", "").strip()
     if query and request.method != "POST":
-        if kind == "fund":
+        if not lookup_enabled():
+            search_error = "Lookup is switched off by an Admin. Type the code instead."
+        elif kind == "fund":
             from .services import schemes
 
             hits = [{"code": s.code, "name": s.name, "isin": s.isin, "extra": f"NAV {s.nav} on {s.nav_date:%-d %b}" if s.nav and s.nav_date else ""}
@@ -143,7 +147,8 @@ def add_2(request):
     else:
         form = forms.InstrumentForm(initial=initial)
     return page(request, "investments/add_2.html", {"page_title_text": "Add investment: details", "form": form, "kind": kind,
-                                                    "kind_label": KIND_LABELS.get(kind), "hits": hits, "search_error": search_error, "query": query}, selectors=False)
+                                                    "kind_label": KIND_LABELS.get(kind), "hits": hits, "search_error": search_error, "query": query,
+                                                    "lookup_on": lookup_enabled()}, selectors=False)
 
 
 @inv_editor
@@ -155,6 +160,8 @@ def add_search(request):
 
     profile = profile_or_404(request)
     kind = request.GET.get("kind", "")
+    if not instrument_search.lookup_enabled():
+        return JsonResponse({"results": [], "message": "Lookup is switched off"}, status=403)
     try:
         out = instrument_search.search(profile, request.GET.get("q", ""), kind if kind in ("share", "fund") else None)
     except Exception:

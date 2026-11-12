@@ -11,7 +11,7 @@ from . import forms
 from .decorators import inv_editor, inv_read_write, inv_reader
 from .errors import InvestmentsError
 from .models import CorporateAction, CorporateActionResponse, Dividend, Guardrail, Instrument, Portfolio
-from .services import alerts, core, corporate, dividends, masters
+from .services import alerts, core, corporate, dividends, masters, source_formats
 from .viewutil import handle_errors, page, parse_date, profile_or_404, selection
 
 
@@ -201,7 +201,8 @@ def alerts_page(request):
         return redirect(reverse("investments_alerts"))
     return page(request, "investments/alerts.html", {
         "page_title_text": "Alerts and guardrails", "alerts": alerts.visible(profile), "guardrails": Guardrail.objects.filter(profile=profile).select_related("instrument", "portfolio"),
-        "gform": gform, "settings_row": core.get_settings(profile, create=False), "next_week": date.today() + timedelta(days=7)})
+        "gform": gform, "settings_row": core.get_settings(profile, create=False), "next_week": date.today() + timedelta(days=7),
+        "format_problems": source_formats.problems(), "is_admin": bool(getattr(request.user, "is_admin", False))})
 
 
 @inv_read_write

@@ -92,7 +92,22 @@ def dashboard(request):
         "insights": _insights(profile), "all_insights": request.GET.get("insights") == "all",
         "pending_actions": __import__("investments.services.corporate", fromlist=["pending"]).pending(profile),
         **_overview_context(request, settings_row, data, index),
+        **_breakdown_context(request, data),
     })
+
+
+def _breakdown_context(request, data):
+    """The table below the chart: ``?breakdown=type|portfolio|broker`` (anything else is Type), switched by plain links that keep the other choices."""
+    keys = [k for k, _l in dashboard_service.BREAKDOWNS]
+    chosen = request.GET.get("breakdown", "")
+    chosen = chosen if chosen in keys else keys[0]
+    links = []
+    for key, label in dashboard_service.BREAKDOWNS:
+        query = request.GET.copy()
+        query["breakdown"] = key
+        links.append({"key": key, "label": label, "on": key == chosen, "href": "?" + query.urlencode() + "#breakdown"})
+    table = (data.get("breakdown") or {}).get(chosen)
+    return {"breakdown": table if table and table["rows"] else None, "breakdown_key": chosen, "breakdown_links": links}
 
 
 def _overview_context(request, settings_row, data, index):

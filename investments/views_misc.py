@@ -2,6 +2,7 @@
 from decimal import Decimal
 
 from django.contrib import messages
+from django.core.exceptions import PermissionDenied
 from django.http import Http404
 from django.shortcuts import redirect
 from django.urls import reverse
@@ -10,7 +11,7 @@ from . import forms, pages
 from .decorators import inv_admin, inv_editor, inv_read_write, inv_reader
 from .errors import InvestmentsError
 from .models import CORPORATE_AUTO_KINDS, Broker, Instrument, InvestmentHistory, Portfolio, ProfileInvestment, Transaction
-from .services import core, corporate, dividends, history, holdings, masters
+from .services import core, corporate, dividends, history, holdings, instrument_search, masters
 from .viewutil import handle_errors, page, profile_or_404, selection
 
 # ------------------------------------------------------------------ brokers
@@ -94,6 +95,12 @@ def history_restore(request, pk):
 @inv_read_write
 def settings_general(request):
     profile = profile_or_404(request)
+    if request.method == "POST" and request.POST.get("action") == "lookup":
+        if not request.user.is_admin:
+            raise PermissionDenied
+        instrument_search.set_lookup_enabled(request.POST.get("lookup_enabled") == "on")
+        messages.success(request, "Saved. The lookup is now " + ("on." if instrument_search.lookup_enabled() else "off."))
+        return redirect(reverse("investments_settings"))
     row = core.get_settings(profile, create=False)
     initial = {f: getattr(row, f) for f in ("sip_mode", "awaiting_treatment", "awaiting_reminder_days", "corporate_action_mode",
                                             "long_term_days", "sectoral_enabled", "include_dividends", "alt_treatment")}
@@ -120,7 +127,7 @@ def settings_general(request):
                     messages.success(request, "Settings saved.")
                 return redirect(reverse("investments_settings"))
     return page(request, "investments/settings_general.html", {
-        "page_title_text": "Settings", "form": form, "portfolios": Portfolio.objects.filter(profile=profile),
+        "page_title_text": "Settings", "form": form, "lookup_on": instrument_search.lookup_enabled(), "portfolios": Portfolio.objects.filter(profile=profile),
         "portfolio_form": forms.PortfolioForm()}, selectors=False)
 
 
