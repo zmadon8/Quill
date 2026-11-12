@@ -711,6 +711,20 @@ class AmfiScheme(models.Model):
         indexes = [models.Index(fields=["name"], name="inv_amfischeme_name_idx")]
 
 
+class NseSecurity(models.Model):
+    """Every equity in NSE's list of listed securities (stored once in the shared data, so a share can be found by name, symbol or ISIN
+    when adding an investment). Re-creatable; not in the suite backup."""
+
+    symbol = models.CharField(max_length=40, unique=True)
+    name = models.CharField(max_length=250)
+    isin = models.CharField(max_length=20, blank=True, default="")
+    series = models.CharField(max_length=4, blank=True, default="")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["name"], name="inv_nsesec_name_idx"), models.Index(fields=["isin"], name="inv_nsesec_isin_idx")]
+
+
 # ---------------------------------------------------------------------------------------------------------------------
 # The optional local helper (plan 28): built, switched off by default (PRICE_HELPER_ENABLED)
 # ---------------------------------------------------------------------------------------------------------------------

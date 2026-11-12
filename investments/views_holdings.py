@@ -146,6 +146,22 @@ def add_2(request):
                                                     "kind_label": KIND_LABELS.get(kind), "hits": hits, "search_error": search_error, "query": query}, selectors=False)
 
 
+@inv_editor
+def add_search(request):
+    """JSON for the picker on the Add investment page: the stored NSE and AMFI lists searched together. Never a 500."""
+    from django.http import JsonResponse
+
+    from .services import instrument_search
+
+    profile = profile_or_404(request)
+    kind = request.GET.get("kind", "")
+    try:
+        out = instrument_search.search(profile, request.GET.get("q", ""), kind if kind in ("share", "fund") else None)
+    except Exception:
+        out = {"results": [], "message": "The search is not available just now. You can type the details yourself."}
+    return JsonResponse(out)
+
+
 def _price_check(data):
     """Before saving, fetch the latest price so the person can confirm the name, exchange and price date (plan 6). Never required."""
     import datetime as _dt
