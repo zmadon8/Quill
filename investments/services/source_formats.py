@@ -555,6 +555,10 @@ def record_failure(source, name, exc, trigger="cron"):
     return SourceRun.objects.create(source=source, trigger=trigger, started=now, finished=now, failures=[failure(0, name, exc)], message=str(exc)[:300])
 
 
+#: The message of a run that only marks a list read that worked.
+CLEARED = "list read ok"
+
+
 def clear_failure(source, trigger="cron"):
     """A clean ``SourceRun`` after a list read that worked, when the source's newest run had failures (so its alert goes away)."""
     from django.utils import timezone
@@ -564,24 +568,28 @@ def clear_failure(source, trigger="cron"):
     last = SourceRun.objects.filter(source=source).exclude(finished=None).order_by("-finished", "-id").first()
     if last is not None and last.failures:
         now = timezone.now()
-        SourceRun.objects.create(source=source, trigger=trigger, started=now, finished=now)
+        SourceRun.objects.create(source=source, trigger=trigger, started=now, finished=now, message=CLEARED)
 
 
 def problems():
-    """The format problems still standing: from the newest finished run of each source, the failures that name a format.
-    ``[{key, label, source, name, error, when}]``. A later clean run of that source clears them."""
+    """The format problems still standing: ``[{key, label, source, name, error, when}]``. A failure that names a format stands until a LATER run
+    of the same source did work (it tried at least one investment, or it is the marker of a list read that worked) without that format
+    failing again. A run that tried nothing (no investment selected, or nothing due) does not hide it."""
     from investments.models import SourceRun
 
-    latest = {}
+    out, cleared = [], set()
     for run in SourceRun.objects.exclude(finished=None).order_by("-finished", "-id")[:300]:
-        latest.setdefault(run.source, run)
-    out = []
-    for source, run in sorted(latest.items()):
+        failed = {item.get("fmt") for item in run.failures or []}
         for item in run.failures or []:
             key = item.get("fmt")
+            if key in DEFAULTS and (run.source, key) not in cleared:
+                out.append({"key": key, "label": LABELS[key][0], "source": run.source, "name": item.get("name", ""), "error": item.get("error", ""), "when": run.finished})
+        if run.tried > 0 or run.message == CLEARED:
+            cleared.update((run.source, k) for k in DEFAULTS if k not in failed)
+        for key in failed:
             if key in DEFAULTS:
-                out.append({"key": key, "label": LABELS[key][0], "source": source, "name": item.get("name", ""), "error": item.get("error", ""), "when": run.finished})
-    return out
+                cleared.add((run.source, key))        # the newest run for this key decides; older failures of it are not repeated
+    return sorted(out, key=lambda p: (p["source"], p["key"]))
 
 
 def last_runs():
