@@ -46,6 +46,7 @@ class AnnualTests(InvTestCase):
         self.assertEqual((r.short_gain, r.long_gain), (0, 0))
         self.assertEqual(r.interest_income, total)
         self.assertTrue(all(s["interest"] for s in r.sales))
+        self.client.force_login(self.user)
         r = self.client.get(reverse("investments_annual") + "?fy=2023-24")
         self.assertContains(r, "Interest income")
 
