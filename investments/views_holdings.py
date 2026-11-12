@@ -281,7 +281,7 @@ def investment(request, pk):
         "foreign": investment_page.foreign_figures(profile, inst, h, as_of) if inst.currency != "INR" else None,
         "sips": investment_page.sip_schedules(profile, inst) if inst.kind == "fund" else [],
         "sip_form": forms.SipForm(profile=profile, initial={"start_date": _date.today(), "day_of_month": 5}) if inst.kind == "fund" else None,
-        "purchase": investment_page.purchase_rows(profile, inst, h, as_of),
+        "purchase": _with_portfolio_names(investment_page.purchase_rows(profile, inst, h, as_of), portfolios),
         "is_private": inst.profile_id is not None,
         "dividends": __import__("investments.models", fromlist=["Dividend"]).Dividend.objects.filter(profile=profile, instrument=inst).select_related("broker")[:50],
         "actions": [a for a in __import__("investments.services.corporate", fromlist=["for_profile"]).for_profile(profile) if a.instrument_id == inst.pk],
@@ -294,6 +294,16 @@ def investment(request, pk):
 
         context.update(price_history_context(request, inst, prefix="p", profile=profile))
     return page(request, "investments/investment.html", context)
+
+
+def _with_portfolio_names(purchase, portfolios):
+    """Each held lot and sold portion gets its portfolio's name (a bucket is ``(portfolio, broker, folio)``), blank when unknown."""
+    held, sold = purchase
+    for row in held:
+        row["portfolio"] = portfolios.get(row["lot"].bucket[0], "") if row["lot"].bucket else ""
+    for row in sold:
+        row["portfolio"] = portfolios.get(row["m"].bucket[0], "") if row["m"].bucket else ""
+    return held, sold
 
 
 def profile_portfolios(profile):

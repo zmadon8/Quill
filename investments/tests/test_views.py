@@ -128,6 +128,9 @@ class PageTests(InvTestCase):
         self.assertContains(r, "Where it is held")
         self.assertContains(r, "Zerodha")
         self.assertContains(r, "Purchase by purchase")
+        self.assertContains(r, "<th>Portfolio</th><th>Held from</th>")      # lots show their portfolio
+        self.assertContains(r, "<th>Date</th><th>Portfolio</th><th>Buy / sell</th>")       # and so do the records
+        self.assertContains(r, "<td>Main</td>")
 
     def test_investment_page_has_refresh_price_and_edit_buttons(self):
         r = self.client.get(reverse("investments_investment", args=[self.reliance.pk]))
