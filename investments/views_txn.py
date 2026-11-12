@@ -276,7 +276,7 @@ def txn_form(request, mode):
     return page(request, "investments/txn_form.html", _form_context(profile, {
         "page_title_text": titles[mode], "form": form, "mode": mode, "is_sell": mode in ("sell", "awaiting_sell"),
         "awaiting_mode": mode.startswith("awaiting"), "submit_label": "Save", "extra_forms": extra,
-        "row_template": forms.TransactionForm(profile=profile, mode=mode, prefix="x__i__"), "extra_ids": ",".join(str(r.index) for r in extra),
+        "row_template": forms.TransactionForm(profile=profile, mode=mode, prefix="x__i__", initial={k: v for k, v in initial.items() if k == "portfolio"}), "extra_ids": ",".join(str(r.index) for r in extra),
     }), selectors=False, status_line=True)
 
 

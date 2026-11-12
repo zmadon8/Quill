@@ -132,14 +132,23 @@ def clip(rows, window):
     return [(d, c) for d, c in rows if (lo is None or d >= lo) and (end is None or d <= end)]
 
 
-def fetch_from(window, since, oldest=None):
+def prune_floor(today=None):
+    """The date before which stored prices are thinned to one a month (None when pruning is off): history older than this is not back-filled."""
+    from investments.services import pruning
+
+    cfg = pruning.get_settings()
+    return pruning.cutoff_date(cfg.years_kept, today) if cfg.prune_live else None
+
+
+def fetch_from(window, since, oldest=None, floor=None):
     """The date to ask a source from: the day after what is stored, but never before the window opens (None: no limit, the default years).
     When the window opens more than ``WINDOW_LEAD_DAYS`` before the oldest stored price (a purchase back-dated before the history),
-    the request goes back to the window's start to fill the older prices."""
+    the request goes back to the window's start to fill the older prices. ``floor`` (the pruning cutoff) stops that for history that pruning
+    has thinned on purpose, so a pruned instrument is not downloaded again every night."""
     start = window[0] - timedelta(days=WINDOW_LEAD_DAYS) if window and window[0] else None
     if since is None:
         return start
-    if start and oldest and start < oldest - timedelta(days=WINDOW_LEAD_DAYS):
+    if start and oldest and max(start, floor or start) < oldest - timedelta(days=WINDOW_LEAD_DAYS):
         return start
     return max(since, start) if start else since
 
@@ -327,6 +336,7 @@ def fetch_prices(*, ids=None, profile=None, trigger="cron", max_seconds=600, max
     if others:
         run = SourceRun(source="yahoo", trigger=trigger, started=timezone.now())
         failures, updated, tried, read = [], 0, 0, set()
+        floor = prune_floor(today)
         for inst in others:
             if out_of_time():
                 summary["stopped"] = "run-time cap reached"
@@ -336,7 +346,7 @@ def fetch_prices(*, ids=None, profile=None, trigger="cron", max_seconds=600, max
             pause()
             try:
                 window = windows.get(inst.pk)
-                since = fetch_from(window, last_api_date(inst), first_api_date(inst))
+                since = fetch_from(window, last_api_date(inst), first_api_date(inst), floor)
                 result = yahoo.fetch(symbol_for(inst, "yahoo"), since, years=years, today=today)
                 read.add("yahoo")
                 result.rows = clip(result.rows, window)
