@@ -221,6 +221,9 @@ def download(kind, day, clock=time.monotonic):
     return body
 
 
+MAX_UNZIPPED = 300_000_000
+
+
 def lines_of(kind, body):
     """Decoded text lines of a downloaded file (NSE's equity file is a zip holding one CSV)."""
     if body[:2] == b"PK":
@@ -231,6 +234,8 @@ def lines_of(kind, body):
         names = [n for n in archive.namelist() if n.lower().endswith(".csv")]
         if not names:
             raise FetchError(f"{label(kind)}: the zip has no CSV file in it.")
+        if archive.getinfo(names[0]).file_size > MAX_UNZIPPED:      # the reader never gives more than the size declared here
+            raise FetchError(f"{label(kind)}: the zip unpacks to more than {MAX_UNZIPPED // 1_000_000} MB, so it was not read.")
         return io.TextIOWrapper(archive.open(names[0]), encoding="utf-8-sig", errors="replace", newline="")
     return io.StringIO(body.decode("utf-8-sig", "replace"), newline="")
 

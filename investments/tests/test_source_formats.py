@@ -570,3 +570,20 @@ class AmfiListIsAllOrNothingTests(InvTestCase):
                 schemes.refresh(force=True)
         self.assertEqual(AmfiScheme.objects.count(), 1)
         self.assertEqual(AmfiScheme.objects.get(code="100").name, "Old name")
+
+
+class TestButtonLimitsTests(SimpleTestCase):
+    def test_oversized_csv_field_is_an_error_not_a_crash(self):
+        from investments.services import source_format_test
+
+        body = b"Index Name,Index Date,Closing Index Value\n" + b"x" * 200_000 + b",06-11-2026,1\n"
+        result = source_format_test.run("nse_idx", sf.get("nse_idx"), upload=body)
+        self.assertTrue(result["error"])
+
+    def test_zip_declaring_too_much_is_refused(self):
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w") as z:
+            z.writestr("a.csv", "a,b\n1,2\n")
+        with mock.patch.object(bhavcopy, "MAX_UNZIPPED", 3):
+            with self.assertRaises(FetchError):
+                bhavcopy.lines_of("nse_eq", buf.getvalue())

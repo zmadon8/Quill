@@ -6,6 +6,7 @@ placeholders filled in and a size cap."""
 import csv
 import io
 import itertools
+import zipfile
 from datetime import date, timedelta
 
 from investments.adapters import amfi, bhavcopy, http, mfapi, nse_list, twelvedata, yahoo
@@ -156,6 +157,6 @@ def run(key, fmt, *, upload=None, day=None, sample=""):
         result["rows"], result["note"] = _parse(key, fmt, body)
     except FetchError as exc:
         result["error"] = str(exc)
-    except (ValueError, KeyError, IndexError, TypeError, OSError) as exc:     # a sample that is not what its format says (a bad zip, text in a JSON slot)
+    except (ValueError, KeyError, IndexError, TypeError, OSError, csv.Error, EOFError, zipfile.BadZipFile) as exc:     # a sample that is not what its format says (a bad zip, text in a JSON slot)
         result["error"] = f"The sample could not be read: {exc}"
     return result

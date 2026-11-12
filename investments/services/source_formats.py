@@ -11,11 +11,14 @@ changed here: a new file structure (nested, binary or multi-sheet files), authen
 of Yahoo.
 """
 import copy
+import logging
 import re
 from datetime import date, datetime
 from urllib.parse import urlparse
 
 from investments.adapters.base import FormatError
+
+log = logging.getLogger(__name__)
 
 MAX_TEXT = 200
 MAX_URL = 500
@@ -214,11 +217,16 @@ def get(key):
 
 
 def stored_config(key):
-    try:
-        from investments.models import DataSourceFormat
+    from django.db import DatabaseError, transaction
 
-        return dict(DataSourceFormat.objects.filter(key=key).values_list("config", flat=True).first() or {})
-    except Exception:                                    # no database in a pure unit test; the built-in format then applies
+    from investments.models import DataSourceFormat
+
+    try:
+        with transaction.atomic():                       # a savepoint: a failed query must not poison the caller's transaction
+            return dict(DataSourceFormat.objects.filter(key=key).values_list("config", flat=True).first() or {})
+    except (DatabaseError, AssertionError) as exc:       # AssertionError: a pure unit test (SimpleTestCase) forbids database access
+        if not isinstance(exc, AssertionError):
+            log.warning("Stored format of %s could not be read (%s); the built-in format is used for this call.", key, exc)
         return {}
 
 
