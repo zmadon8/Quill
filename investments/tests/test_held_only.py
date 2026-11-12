@@ -139,22 +139,24 @@ class HeldOnlyTests(InvTestCase):
 
 
 class MultiRowTransactionTests(InvTestCase):
-    """Extra rows on the buy page share the date, portfolio and broker and are saved together or not at all."""
+    """Extra cards on the buy page carry the full field set of the first and are saved together or not at all."""
 
     def setUp(self):
         super().setUp()
         self.client.force_login(self.user)
         self.base = {"date": "2024-01-01", "instrument": self.reliance.pk, "portfolio": self.portfolio.pk, "broker": self.zerodha.pk,
                      "units": "10", "price": "100", "charges": "0", "extra_rows": "1,2",
-                     "x1-instrument": self.fund.pk, "x1-units": "5", "x1-price": "50", "x1-charges": "0",
-                     "x2-instrument": self.reliance.pk, "x2-units": "2", "x2-price": "110", "x2-charges": "0"}
+                     "x1-date": "2024-01-01", "x1-instrument": self.fund.pk, "x1-portfolio": self.portfolio.pk, "x1-broker": self.zerodha.pk,
+                     "x1-units": "5", "x1-price": "50", "x1-charges": "0",
+                     "x2-date": "2024-01-02", "x2-instrument": self.reliance.pk, "x2-portfolio": self.portfolio.pk, "x2-broker": self.groww.pk,
+                     "x2-units": "2", "x2-price": "110", "x2-charges": "0"}
 
     def test_every_row_is_saved(self):
         from investments.models import Transaction
         r = self.client.post(reverse("investments_txn_new_buy"), self.base)
         self.assertRedirects(r, reverse("investments_transactions"))
         self.assertEqual(Transaction.objects.count(), 3)
-        self.assertEqual({t.broker_id for t in Transaction.objects.all()}, {self.zerodha.pk})
+        self.assertEqual({t.broker_id for t in Transaction.objects.all()}, {self.zerodha.pk, self.groww.pk})
 
     def test_one_bad_row_saves_nothing_and_shows_its_error(self):
         from investments.models import Transaction

@@ -43,7 +43,7 @@ def _shell(request, slug):
     if spec is None:
         raise Http404
     scope.for_profile(request)
-    return page(request, "investments/shell.html", {"page": spec, "page_title_text": spec.title})
+    return page(request, "investments/shell.html", {"page": spec, "page_title_text": spec.title}, selectors=False, status_line=True)
 
 
 def _make_shell(slug):
@@ -159,7 +159,7 @@ def start(request):
          "Prices are fetched every night and with Update Prices. For an investment without a price source, open it and type today's price."),
     ]
     return page(request, "investments/start.html", {"page_title_text": "Getting started", "steps": steps,
-                                                    "all_done": all(done for _l, done, _u, _h in steps)})
+                                                    "all_done": all(done for _l, done, _u, _h in steps)}, selectors=False, status_line=True)
 
 
 def _has_profile_investments(profile):
@@ -235,6 +235,14 @@ def available_units(request):
         day = datetime.date.today()
     exclude = request.GET.get("exclude")
     rows = tx.available_by_bucket(profile, inst, day, exclude_txn=int(exclude) if exclude and exclude.isdigit() else None)
+    # With a portfolio and broker (and a folio, or none) the answer is the units in that one place, as at the date: the figure under each sale card.
+    place = None
+    if request.GET.get("portfolio", "").isdigit() and request.GET.get("broker", "").isdigit():
+        folio = request.GET.get("folio", "")
+        place = (int(request.GET["portfolio"]), int(request.GET["broker"]), int(folio) if folio.isdigit() else None)
+    if place is not None:
+        units = sum((u for p, b, f, u in rows if (p.pk if p else None, b.pk if b else None, f.pk if f else None) == place), Decimal(0))
+        return JsonResponse({"ok": True, "place": True, "units": str(units)})
     awaiting = sum((t.amount or Decimal(0) for t in tx.awaiting_for(profile) if t.instrument_id == inst.pk and t.side == "buy"), Decimal(0))
     return JsonResponse({"ok": True, "awaiting": str(awaiting), "buckets": [
         {"portfolio": p.pk if p else None, "portfolio_name": p.name if p else "", "broker": b.pk if b else None,

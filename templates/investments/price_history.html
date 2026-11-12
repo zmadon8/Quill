@@ -1,7 +1,7 @@
 {% extends "investments/base_investments.html" %}
 {% block inv_content %}
 <h1 class="visually-hidden">Price history</h1>
-<p class="hint">Three layers: the normal backup, which also carries a small set of <b>pinned prices</b> (index values on every transaction date, and prices on every 31 March); the <b>price archive</b>, which holds every stored price and can be downloaded or emailed; and optional <b>pruning</b> of old daily prices to one a month. Pruning is for every profile because prices are shared.</p>
+<p class="hint">Three layers: the normal backup, which also carries a small set of <b>pinned prices</b> (index values on every transaction date, and prices on every 31 March); the <b>price archive</b>, which holds every stored price and can be downloaded or emailed; and automatic <b>pruning</b> of daily prices older than 5 years to one a month. Pruning is for every profile because prices are shared.</p>
 
 <div class="sec"><h2>Pinned prices</h2></div>
 <p>{{ pins.total }} pinned: {% for reason, n in pins.by_reason.items %}{{ n }} {{ reason }}{% if not forloop.last %}, {% endif %}{% empty %}none yet{% endfor %}. {{ pins.approximate }} approximate.</p>
@@ -18,7 +18,7 @@
 <tr><td>Rows that would go</td><td class="r">{{ preview.remove }}</td></tr><tr><td>Rows that would remain</td><td class="r">{{ preview.remain }}</td></tr>
 <tr><td>Space freed (approximate)</td><td class="r">{{ preview.freed_bytes|filesizeformat }}</td></tr><tr><td>Oldest day affected</td><td class="r">{{ preview.first|date:"j M Y"|default:"none" }}</td></tr></tbody></table>
 <form method="post" class="form">{% csrf_token %}<input type="hidden" name="action" value="settings">{% include "investments/_form.html" %}
-  <p class="hint">Turning pruning on the first time needs a full archive downloaded and kept. If the live database is pruned the archive is too. It cannot be undone from inside the program: detail comes back only by uploading history files again. The nightly step declines any investment whose required pin is missing.</p>
+  <p class="hint">Pruning is automatic and on by default: each night, after a good backup, prices older than the years kept are thinned to the last trading day of each month, for every investment and index. Pinned prices are never removed. If the live database is pruned the archive is too. It cannot be undone from inside the program: detail comes back only by uploading history files again. The nightly step declines any investment whose required pin is missing.</p>
   <div class="acts-row"><button class="btn p" type="submit">Save</button></div></form>
 
 <div class="sec"><h2>Recent runs</h2></div>

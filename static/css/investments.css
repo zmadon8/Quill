@@ -349,6 +349,11 @@ body.inv nav.seg a{padding:4px 12px;border-radius:7px;font-size:13px;color:var(-
 body.inv nav.seg a.on{background:var(--white);color:var(--ink);font-weight:600;box-shadow:var(--shadow-card)}
 .more-fields { margin: .5rem 0 1rem; }
 .more-fields > summary { cursor: pointer; padding: .3rem 0; }
+/* Each transaction on the buy and sell pages is a rounded card, so one transaction is clearly apart from the next. */
+.txn-card { border: 1px solid var(--line, var(--hair)); border-radius: 18px; background: var(--card, transparent); padding: 14px 20px 16px; margin: 0 0 16px; }
+.txn-card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.txn-card-title { font-size: .95rem; }
+.txn-card .avail-line { margin: 10px 0 0; padding-top: 8px; border-top: 1px solid var(--line, var(--hair)); }
 
 /* Update Prices in the header: a small refresh button; its progress text sits beside it and is empty until used. */
 body.inv .upd{display:inline-flex;align-items:center;gap:6px}

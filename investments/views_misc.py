@@ -25,7 +25,7 @@ def brokers_list(request):
         h, totals = holdings.compute(profile, broker=b.pk)
         rows.append({"broker": b, "count": totals.count, "value": totals.value, "invested": totals.invested, "xirr": totals.xirr,
                      "txns": Transaction.objects.filter(profile=profile, broker=b).count()})
-    return page(request, "investments/brokers.html", {"page_title_text": "Brokers", "rows": rows})
+    return page(request, "investments/brokers.html", {"page_title_text": "Brokers", "rows": rows}, selectors=False, status_line=True)
 
 
 @inv_reader

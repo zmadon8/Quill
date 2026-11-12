@@ -35,6 +35,22 @@ class BreakdownTests(InvTestCase):
         brokers = {r["name"]: r["value"] for r in data["breakdown"]["broker"]["rows"]}
         self.assertEqual(brokers, {"Zerodha": D("1200.00"), "Groww": D("1100.00")})
 
+    def test_xirr_per_group_and_total(self):
+        data = dashboard.load(self.profile)
+        for key in ("type", "portfolio", "broker"):
+            table = data["breakdown"][key]
+            for r in table["rows"]:
+                self.assertIsNotNone(r["xirr"], (key, r["name"]))
+                self.assertGreater(r["xirr"], 0)
+            self.assertEqual(table["total"]["xirr"], data["totals"]["xirr"])
+        # One portfolio holds everything, so its XIRR is the total's.
+        self.assertAlmostEqual(data["breakdown"]["portfolio"]["rows"][0]["xirr"], data["totals"]["xirr"], places=6)
+
+    def test_xirr_column_is_shown(self):
+        self.client.force_login(self.user)
+        page = self.client.get(reverse("investments_dashboard") + "?breakdown=broker").content.decode()
+        self.assertIn('<th class="r">XIRR</th><th class="r">Share</th>', page)
+
     def test_switching_renders_each_table(self):
         self.client.force_login(self.user)
         url = reverse("investments_dashboard")

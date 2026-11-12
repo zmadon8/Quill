@@ -67,8 +67,11 @@ def held_only(request, default=True):
     return default
 
 
-def page(request, template, context=None, status=200, selectors=True):
-    """Render an Investments page with the header entries, role flag, selectors and number-display choice added."""
+def page(request, template, context=None, status=200, selectors=True, status_line=False):
+    """Render an Investments page with the header entries, role flag, selectors and number-display choice added.
+
+    ``selectors`` shows the Portfolio / Broker / As at box and is for pages whose figures use the selection. ``status_line`` shows the
+    Update Prices status line on its own row on a page without the box."""
     profile = scope.for_profile(request)
     extra = dict(context or {})
     if profile is not None and selectors:
@@ -80,6 +83,7 @@ def page(request, template, context=None, status=200, selectors=True):
         extra.setdefault("inv_brokers", Broker.objects.filter(profile=profile, hidden=False))
         extra.setdefault("inv_status", None)
     extra["inv_selectors"] = bool(selectors and profile is not None)
+    extra["inv_status_row"] = bool(status_line and not selectors and profile is not None)
     if profile is not None:
         extra.update(price_status_line(profile))
     ctx = pages.render_context(request, profile, extra)

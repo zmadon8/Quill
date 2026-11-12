@@ -73,11 +73,17 @@ def parse_chart(body, since=None, fmt=None):
     return out
 
 
-def fetch(symbol, since=None, years=10, today=None):
-    """Daily closes since ``since`` (default: ``years`` years back). Retries as in plan 15.2."""
+def fetch(symbol, since=None, years=None, today=None):
+    """Daily closes since ``since``; with no ``since``, ``years`` back, or (``years`` None, the default) the whole history Yahoo has
+    (period1 = 0). A ten-year default once cut every new investment off at about 2,500 trading days. Retries as in plan 15.2."""
     fmt = source_formats.get("yahoo")
     today = today or date.today()
-    start = (since - timedelta(days=5)) if since else today - timedelta(days=365 * years)
+    if since:
+        start = since - timedelta(days=5)
+    elif years:
+        start = today - timedelta(days=365 * years)
+    else:
+        start = date(1970, 1, 1)
     p1 = int(datetime(start.year, start.month, start.day, tzinfo=timezone.utc).timestamp())
     p2 = int(datetime(today.year, today.month, today.day, tzinfo=timezone.utc).timestamp()) + 2 * 86400
     url = source_formats.expand(fmt["url"], symbol=urllib.parse.quote(symbol, safe="^.-="), p1=p1, p2=p2)

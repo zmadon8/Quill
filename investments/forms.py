@@ -200,31 +200,6 @@ class TransactionForm(ProfileForm):
         return cleaned
 
 
-class ExtraRowForm(ProfileForm):
-    """One more transaction added on the buy or sell page: the date, portfolio and broker are shared with the main form, so a row only
-    asks for the investment, the units and price (or the amount, when awaiting allotment) and any charges."""
-
-    instrument = forms.ModelChoiceField(queryset=Instrument.objects.none(), label="Investment")
-    units = MoneyField(label="Units", required=False, min_value=0)
-    price = MoneyField(label="Price per unit", required=False, min_value=0)
-    amount = MoneyField(label="Amount paid", required=False, min_value=0)
-    charges = MoneyField(label="Charges", required=False, min_value=0, initial=0)
-
-    def __init__(self, *args, profile=None, mode="buy", **kwargs):
-        super().__init__(*args, profile=profile, **kwargs)
-        self.fields["instrument"].queryset = self.instruments()
-        if mode.startswith("awaiting"):
-            del self.fields["units"]
-            del self.fields["price"]
-            self.fields["amount"].required = True
-            if mode == "awaiting_sell":
-                self.fields["amount"].label = "Expected proceeds"
-        else:
-            del self.fields["amount"]
-            self.fields["units"].required = True
-            self.fields["price"].required = True
-
-
 class CompleteForm(forms.Form):
     allotment_date = forms.DateField(widget=date_widget(), label="Allotment date")
     units = MoneyField(label="Units", required=False, min_value=0)
@@ -465,7 +440,7 @@ class PruningForm(forms.Form):
     prune_live = forms.BooleanField(required=False, label="Prune the live database")
     prune_archive = forms.BooleanField(required=False, label="Prune the price archive")
     years = forms.IntegerField(min_value=2, max_value=50, label="Years kept in full daily detail")
-    archive_confirmed = forms.BooleanField(required=False, label="I have downloaded a full price archive and I am keeping it")
+    archive_confirmed = forms.BooleanField(required=False, label="I have downloaded a full price archive and I am keeping it (optional note)")
 
 
 class DividendForm(ProfileForm):

@@ -95,6 +95,18 @@ class ShellTests(TestCase):
                 self.assertNotContains(response, 'aria-label="Settings"')
                 self.assertContains(response, 'data-money-mode="auto"')
 
+    def test_selection_box_only_on_pages_that_use_the_selection(self):
+        # The Portfolio / Broker / As at box shows only where the figures use it. Pages that ignore it drop the box but keep the status line.
+        for name in ("investments_dashboard", "investments_holdings", "investments_transactions", "investments_annual"):
+            with self.subTest(page=name):
+                self.assertContains(self.client.get(reverse(name)), 'id="sel-portfolio"')
+        for name in ("investments_alerts", "investments_brokers", "investments_corporate_actions", "investments_txn_to_confirm", "investments_reports"):
+            with self.subTest(page=name):
+                response = self.client.get(reverse(name))
+                self.assertNotContains(response, 'id="sel-portfolio"')
+                self.assertNotContains(response, 'id="sel-asat"')
+                self.assertContains(response, 'id="update-status"')
+
     def test_page_titles_follow_the_fee_register_rule(self):
         # Owner round (2026-11): a page that a header entry or a sub-tab opens shows no title of its own (its name is already
         # underlined above it); its one <h1> is for screen readers. Every other page shows its title. Exactly one <h1> each.

@@ -185,7 +185,7 @@ MAX_EXTRA_ROWS = 30
 
 
 def _extra_rows(request, profile, mode):
-    """The extra transaction rows posted with the page (their numbers are in ``extra_rows``), each bound to its own prefixed form.
+    """The extra transaction cards posted with the page (their numbers are in ``extra_rows``), each a full transaction form under its own prefix.
 
     Returns ``(rows, problem)``; ``problem`` is a message when the list holds a bad, repeated or too many numbers (nothing is dropped silently).
     """
@@ -195,27 +195,17 @@ def _extra_rows(request, profile, mode):
     seen, problem = set(), ""
     parts = [p.strip() for p in request.POST.get("extra_rows", "").split(",") if p.strip()]
     if len(parts) > MAX_EXTRA_ROWS:
-        problem = f"At most {MAX_EXTRA_ROWS} extra rows can be saved at once."
+        problem = f"At most {MAX_EXTRA_ROWS + 1} transactions can be saved at once."
         parts = parts[:MAX_EXTRA_ROWS]
     for part in parts:
         if not part.isdigit() or part in seen:
-            problem = problem or "The extra rows could not be read. Reload the page and try again."
+            problem = problem or "The extra transactions could not be read. Reload the page and try again."
             continue
         seen.add(part)
-        row = forms.ExtraRowForm(request.POST, profile=profile, mode=mode, prefix="x" + part)
+        row = forms.TransactionForm(request.POST, profile=profile, mode=mode, prefix="x" + part)
         row.index = int(part)
         rows.append(row)
     return rows, problem
-
-
-def _extra_folio_problem(profile, row, portfolio, mode):
-    """A message when a sale row names an investment held in a folio of the portfolio: rows carry no folio, so it would hit the wrong bucket."""
-    if mode not in ("sell", "awaiting_sell"):
-        return ""
-    inst = row.cleaned_data["instrument"]
-    if Folio.objects.filter(profile=profile, instrument=inst, portfolio=portfolio).exists():
-        return f"{inst.name} is held in a folio. Sell it from the main form so the folio can be chosen."
-    return ""
 
 
 @inv_editor
@@ -252,7 +242,7 @@ def txn_form(request, mode):
     if len(portfolios) == 1:
         initial["portfolio"] = portfolios[0]
     form = forms.TransactionForm(request.POST or None, profile=profile, mode=mode, initial=initial)
-    # More transactions added on the same page share the date, portfolio and broker; each posts under its own prefix (x1-units, ...).
+    # More transactions added on the same page are full cards of their own; each posts under its own prefix (x1-date, x1-units, ...).
     extra, extra_problem = _extra_rows(request, profile, mode)
     side = SIDE_SELL if mode in ("sell", "awaiting_sell") else SIDE_BUY
     awaiting = mode.startswith("awaiting")
@@ -261,32 +251,21 @@ def txn_form(request, mode):
         if extra_problem:
             messages.error(request, extra_problem)
         elif all(valid):
-            for row in extra:
-                folio_problem = _extra_folio_problem(profile, row, form.cleaned_data["portfolio"], mode)
-                if folio_problem:
-                    row.add_error("instrument", folio_problem)
-                    valid.append(False)
-        if not extra_problem and all(valid):
-            d = _clean_data(form)
             current = form
             try:
-                # All the rows are saved together: one that is refused undoes the rest.
+                # All the cards are saved together: one that is refused undoes the rest. They go in date order (the form first on a tie),
+                # so several sales of one holding are checked one after another against what is held on each date.
                 with db_transaction.atomic():
-                    folio = _resolve_folio(profile, request.user, d)
-                    tx.add_transaction(
-                        profile, request.user, side=side, instrument=d["instrument"], portfolio=d["portfolio"], broker=d["broker"],
-                        date=d["date"], units=d.get("units"), price=d.get("price"), charges=d.get("charges") or 0, folio=folio,
-                        awaiting=awaiting, amount=d.get("amount"), expected_allotment_date=d.get("expected_allotment_date"),
-                        reference=d.get("reference", ""), note=d.get("note", ""), allotment_date=d.get("allotment_date"),
-                        origin=d.get("origin") or ORIGIN_PURCHASE, corporate_action=d.get("corporate_action"))
-                    for row in extra:
-                        current = row
-                        r = row.cleaned_data
+                    for card in sorted([form, *extra], key=lambda c: c.cleaned_data["date"]):
+                        current = card
+                        d = _clean_data(card)
+                        folio = _resolve_folio(profile, request.user, d)
                         tx.add_transaction(
-                            profile, request.user, side=side, instrument=r["instrument"], portfolio=d["portfolio"], broker=d["broker"],
-                            date=d["date"], units=r.get("units"), price=r.get("price"), charges=r.get("charges") or 0, awaiting=awaiting,
-                            amount=r.get("amount"), expected_allotment_date=d.get("expected_allotment_date"),
-                            reference=d.get("reference", ""), allotment_date=d.get("allotment_date"))
+                            profile, request.user, side=side, instrument=d["instrument"], portfolio=d["portfolio"], broker=d["broker"],
+                            date=d["date"], units=d.get("units"), price=d.get("price"), charges=d.get("charges") or 0, folio=folio,
+                            awaiting=awaiting, amount=d.get("amount"), expected_allotment_date=d.get("expected_allotment_date"),
+                            reference=d.get("reference", ""), note=d.get("note", ""), allotment_date=d.get("allotment_date"),
+                            origin=d.get("origin") or ORIGIN_PURCHASE, corporate_action=d.get("corporate_action"))
             except InvestmentsError as err:
                 if err.code == "WOULD_GO_NEGATIVE":
                     return _refused(request, err, request.path)
@@ -297,8 +276,8 @@ def txn_form(request, mode):
     return page(request, "investments/txn_form.html", _form_context(profile, {
         "page_title_text": titles[mode], "form": form, "mode": mode, "is_sell": mode in ("sell", "awaiting_sell"),
         "awaiting_mode": mode.startswith("awaiting"), "submit_label": "Save", "extra_forms": extra,
-        "row_template": forms.ExtraRowForm(profile=profile, mode=mode, prefix="x__i__"), "extra_ids": ",".join(str(r.index) for r in extra),
-    }))
+        "row_template": forms.TransactionForm(profile=profile, mode=mode, prefix="x__i__", initial={k: v for k, v in initial.items() if k == "portfolio"}), "extra_ids": ",".join(str(r.index) for r in extra),
+    }), selectors=False, status_line=True)
 
 
 @inv_editor
@@ -344,7 +323,7 @@ def txn_edit(request, pk):
         "page_title_text": "Edit transaction", "form": form, "mode": mode_for_form, "is_sell": txn.side == SIDE_SELL,
         "awaiting_mode": awaiting, "txn": txn, "submit_label": "Save changes", "version": txn.version,
         "exclude_id": txn.pk, "can_delete": True,
-    }))
+    }), selectors=False, status_line=True)
 
 
 @inv_editor
@@ -429,7 +408,7 @@ def to_complete(request):
         t.suggest = tx.nav_suggestions(profile, t, limit=1)[0] if t.status == STATUS_AWAITING and tx.nav_suggestions(profile, t, limit=1) else None
         rows.append(t)
     return page(request, "investments/to_complete.html", {"page_title_text": "To complete", "rows": rows,
-                                                           "reminder_days": settings_row.awaiting_reminder_days})
+                                                           "reminder_days": settings_row.awaiting_reminder_days}, selectors=False, status_line=True)
 
 
 # ------------------------------------------------------------------ opening balance, transfer, switch
@@ -475,7 +454,7 @@ def txn_opening(request):
         form.add_error(None, message)
     return page(request, "investments/txn_opening.html", _form_context(profile, {
         "page_title_text": "Opening balance", "form": form, "row_numbers": range(rows),
-        "posted": request.POST if request.method == "POST" else {}}))
+        "posted": request.POST if request.method == "POST" else {}}), selectors=False, status_line=True)
 
 
 @inv_editor
@@ -497,7 +476,7 @@ def txn_transfer(request):
             messages.success(request, "Transfer saved.")
             return redirect(reverse("investments_transactions"))
     return page(request, "investments/txn_simple_form.html", _form_context(profile, {
-        "page_title_text": "Transfer", "form": form, "intro": "Move units from one portfolio, broker or folio to another. The original purchase dates and cost are kept."}))
+        "page_title_text": "Transfer", "form": form, "intro": "Move units from one portfolio, broker or folio to another. The original purchase dates and cost are kept."}), selectors=False, status_line=True)
 
 
 @inv_editor
@@ -518,7 +497,7 @@ def txn_switch(request):
             messages.success(request, "Switch saved as a linked sale and purchase.")
             return redirect(reverse("investments_transactions"))
     return page(request, "investments/txn_simple_form.html", _form_context(profile, {
-        "page_title_text": "Fund switch", "form": form, "intro": "A switch is a sale of one fund and a purchase of another on the same day, linked."}))
+        "page_title_text": "Fund switch", "form": form, "intro": "A switch is a sale of one fund and a purchase of another on the same day, linked."}), selectors=False, status_line=True)
 
 
 @inv_editor

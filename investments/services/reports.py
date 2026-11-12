@@ -26,12 +26,14 @@ class Table:
 
 def yearly(profile, portfolio=None, broker=None, **_):
     t = Table("Year-by-year returns", "Each financial year's XIRR next to the Default Index's change over the same year.",
-              [("Financial year", "text"), ("Start value", "money"), ("Invested", "money"), ("Sold", "money"), ("End value", "money"), ("XIRR", "pct"),
-               ("Index return", "pct"), ("Difference", "pct")])
+              [("Financial year", "text"), ("Start value", "money"), ("Invested", "money"), ("Sold", "money"), ("Fresh investments", "money"), ("End value", "money"),
+               ("XIRR", "pct"), ("Index return", "pct"), ("Difference", "pct")])
     for label in reversed(annual.year_choices(profile)):
         r = annual.build(profile, label, portfolio=portfolio, broker=broker, with_portfolios=False)
         diff = None if r.xirr is None or r.index_return is None else r.xirr - r.index_return
-        t.rows.append([label + ("" if r.completed else " (to date)"), r.opening_value, r.invested, r.sold, r.closing_value, r.xirr, r.index_return, diff])
+        t.rows.append([label + ("" if r.completed else " (to date)"), r.opening_value, r.invested, r.sold,
+                       (r.invested - r.sold).quantize(Decimal("0.01")), r.closing_value, r.xirr, r.index_return, diff])
+    t.notes.append("Fresh investments is Invested less Sold: the new money you put in during the year, as on the Overview.")
     t.notes.append("The index return is the change in the index over the year; XIRR is the yearly return on the money you put in.")
     return t
 

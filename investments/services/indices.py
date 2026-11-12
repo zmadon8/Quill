@@ -5,7 +5,7 @@ Indices are shared by every profile, like the catalogue. Nifty 50, the only buil
 Adding asks Yahoo for the index's history first, so a symbol Yahoo does not know is refused and nothing is created. Deleting an
 index that some profile uses (as its Default Index or as an investment's sector index) needs its name typed; those choices then
 fall back (the Default Index to Nifty 50, a sector index to none). The nightly fetch keeps the prices of every index in use up to date
-(one chosen for the first time gets its history that night); an added index gets 10 years of history when it is added.
+(one chosen for the first time gets its history that night); an added index gets its whole history when it is added.
 """
 import datetime
 
@@ -22,7 +22,7 @@ SUGGESTED = (
     ("Nifty Media", "^CNXMEDIA"), ("Nifty Financial Services", "NIFTY_FIN_SERVICE.NS"), ("Nifty Bank", "^NSEBANK"), ("Nifty IT", "^CNXIT"),
     ("Sensex", "^BSESN"), ("Nifty Next 50", "^NSMIDCP"), ("Nifty Midcap 150", "NIFTYMIDCAP150.NS"), ("Nifty Smallcap 250", "NIFTYSMLCAP250.NS"),
 )
-HISTORY_YEARS = 10
+HISTORY_YEARS = None       # all the history Yahoo has (a ten-year limit once cut the series short); pruning thins the old part
 
 
 def _builtin_codes():

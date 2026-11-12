@@ -6,8 +6,8 @@ from decimal import Decimal
 
 from investments.services import core, holdings, overview, performance, series, statscache
 
-#: Bump when the cached payload gains or changes a part, so older cached payloads are not read (2: the Type/Portfolio/Broker breakdown).
-PAYLOAD_VERSION = 2
+#: Bump when the cached payload gains or changes a part, so older cached payloads are not read (2: the Type/Portfolio/Broker breakdown; 3: its XIRR column).
+PAYLOAD_VERSION = 3
 MONEY_FIELDS = ("units", "avg_cost", "price", "value", "gain", "awaiting", "cost", "dividends")
 
 
@@ -26,7 +26,37 @@ _CENT = Decimal("0.01")
 AWAITING_LABEL = "Awaiting allotment"
 
 
-def _breakdowns(profile, held):
+def _group_xirrs(profile, rows, totals, ctx):
+    """``{key: {label: xirr}}`` for each way of grouping, from the cash flows of the group (dividends as the holdings count them) and the
+    group's value today as the last flow. By Type it uses the flows already on the holdings; by Portfolio and Broker each group is worked
+    out once with the same holdings calculation, so the figure follows the include-dividends switch exactly as the cards do. Worked out when
+    the payload is made, never when it is shown."""
+    from investments import xirr
+    from investments.models import Broker, Portfolio
+
+    out = {"type": {}, "portfolio": {}, "broker": {}}
+    by_kind = {}
+    for h in rows:
+        if h.blocked:
+            continue
+        cell = by_kind.setdefault(h.instrument.get_kind_display(), [[], Decimal(0)])
+        cell[0].extend(h.flows)
+        cell[1] += h.value
+    for label, (flows, value) in by_kind.items():
+        out["type"][label] = xirr.xirr([(d, float(a)) for d, a in flows] + [(ctx["as_of"], float(value))]) if flows else None
+    for key, model in (("portfolio", Portfolio), ("broker", Broker)):
+        for pk, name in model.objects.filter(profile=profile).values_list("pk", "name"):
+            if ctx.get(key) not in (None, pk):
+                continue
+            kw = {"portfolio": ctx.get("portfolio"), "broker": ctx.get("broker")}
+            kw[key] = pk
+            _rows, t = holdings.compute(profile, as_of=ctx["as_of"], settings=ctx["settings"], include_dividends=ctx["include_dividends"],
+                                        history=ctx["history"], **kw)
+            out[key][name] = t.xirr
+    return out
+
+
+def _breakdowns(profile, held, rows=None, totals=None, ctx=None):
     """Invested, value, gain, gain % and share of the total for each group, three ways (by Type, Portfolio and Broker), as JSON-ready data:
     ``{key: {"rows": [...], "total": {...}}}``. Money is text quantized to 0.01. Units held are shared out by lot: a holding's value is split
     over its lots by units (a purchase awaiting allotment has no lot and is a group of its own), so every way adds up to the Overview's value.
@@ -56,21 +86,24 @@ def _breakdowns(profile, held):
             add("portfolio", AWAITING_LABEL, h.awaiting, h.awaiting)
             add("broker", AWAITING_LABEL, h.awaiting, h.awaiting)
 
-    def figures(label, invested, value, total_value):
+    xirrs = _group_xirrs(profile, rows, totals, ctx) if ctx is not None else {}
+
+    def figures(label, invested, value, total_value, own=None):
         invested, value = invested.quantize(_CENT), value.quantize(_CENT)
         gain = value - invested
-        return {"name": label, "invested": str(invested), "value": str(value), "gain": str(gain),
+        return {"name": label, "xirr": own, "invested": str(invested), "value": str(value), "gain": str(gain),
                 "gain_pct": float(gain / invested) if invested else None, "share": float(value / total_value) if total_value else 0.0}
 
     out = {}
     for key, _l in BREAKDOWNS:
         total_value = sum((v for _i, v in groups[key].values()), Decimal(0))
         ordered = sorted(groups[key].items(), key=lambda kv: (-kv[1][1], kv[0]))
-        rows = [figures(label, i, v, total_value) for label, (i, v) in ordered]
+        rows_out = [figures(label, i, v, total_value, xirrs.get(key, {}).get(label)) for label, (i, v) in ordered]
         # The Total is the sum of the rows as shown, so the rows always add up to it to the paisa.
         total = figures("Total", sum((i.quantize(_CENT) for i, _v in groups[key].values()), Decimal(0)),
-                        sum((v.quantize(_CENT) for _i, v in groups[key].values()), Decimal(0)), total_value)
-        out[key] = {"rows": rows, "total": total}
+                        sum((v.quantize(_CENT) for _i, v in groups[key].values()), Decimal(0)), total_value,
+                        totals.xirr if totals is not None else None)
+        out[key] = {"rows": rows_out, "total": total}
     return out
 
 
@@ -119,7 +152,9 @@ def compute(profile, portfolio=None, broker=None, as_of=None, include_dividends=
                    "xirr": totals.xirr, "index_xirr": totals.index_xirr, "alpha": totals.alpha, "count": totals.count,
                    "dividends": str(totals.dividends), "provisional": totals.provisional, "blocked": totals.blocked},
         "allocation": [[label, str(value), share] for label, value, share in holdings.allocation(held)], "notes": notes, "chart": chart,
-        "breakdown": _breakdowns(profile, held),
+        "breakdown": _breakdowns(profile, held, rows, totals, {
+            "as_of": as_of, "settings": settings_row, "include_dividends": include_dividends, "history": history,
+            "portfolio": portfolio, "broker": broker}),
     }
     figures = overview.period_figures(profile, portfolio=portfolio, broker=broker, as_of=as_of, include_dividends=include_dividends,
                                       settings_row=settings_row, totals=totals, period_key=period, index=index, history=history, memo=memo)
