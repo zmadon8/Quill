@@ -50,8 +50,8 @@
     {% if backup_warning %}<div class="banner-warning" role="alert"><a href="{% url 'backup_list' %}">{{ backup_warning }}</a></div>{% endif %}
     <main id="main">
       {% if messages %}
-      <ul class="messages">
-        {% for message in messages %}<li class="{{ message.tags }}">{{ message }}</li>{% endfor %}
+      <ul class="messages toasts" data-toasts aria-label="Notifications">
+        {% for message in messages %}<li class="{{ message.tags }}" role="{% if 'error' in message.tags or 'warning' in message.tags %}alert{% else %}status{% endif %}" aria-live="{% if 'error' in message.tags or 'warning' in message.tags %}assertive{% else %}polite{% endif %}">{{ message }}</li>{% endfor %}
       </ul>
       {% endif %}
       {% block content %}{% endblock %}
@@ -59,6 +59,7 @@
   </div>
   <script src="{% static 'js/resizable-columns.js' %}"></script>
   {% block extra_js %}{% endblock %}
+  <script src="{% static 'js/toasts.js' %}"></script>
   <script src="{% static 'js/keep-place.js' %}"></script>
   <script src="{% static 'js/site.js' %}" data-home="{% url 'home' %}?home=1" data-search="{% url 'search' %}" data-find="{% url 'suite_search' %}"></script>
   <script src="{% static 'js/search-toggles.js' %}"></script>

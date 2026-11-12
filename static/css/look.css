@@ -10,7 +10,6 @@
 body.look { font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; }
 body.look .page { max-width: none; padding: 0 0 4rem; }
 body.look main { box-sizing: border-box; max-width: 72rem; margin: 0 auto; padding: 20px 24px 0; }
-body.look .messages { max-width: 72rem; margin: 12px auto 0; padding: 0 24px; }
 body.look .banner-warning { padding-left: 24px; padding-right: 24px; }
 body.look .crumb-row { padding-left: 24px; padding-right: 24px; background: var(--bg); border-bottom: 1px solid var(--line); }
 body.look .breadcrumb a { color: var(--ink-2); }
@@ -30,7 +29,6 @@ body.look .back-button, body.look .forward-button { width: var(--tap); min-width
 @media (max-width: 599px) {
   body.look .site-header { padding: 0 12px; }
   body.look main { padding: 16px 12px 0; }
-  body.look .messages { padding: 0 12px; }
   body.look .crumb-row, body.look .subnav, body.look .banner-warning { padding-left: 12px; padding-right: 12px; }
   body.look .search-pop { padding: 8px 12px; }
   body.look .program-nav { font-size: 16px; gap: 0 14px; }
