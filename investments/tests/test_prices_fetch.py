@@ -5,11 +5,12 @@ from unittest import mock
 
 from django.test import SimpleTestCase
 
+from accounts.suite import KEY_INVESTMENTS
 from investments.adapters import amfi, http, mfapi, yahoo
 from investments.adapters.base import FetchError
 from investments.models import ManualPrice, PinnedPrice, Price, SourceRun, SplitSignal
 from investments.services import fetch, masters, prices
-from investments.tests.base import InvTestCase
+from investments.tests.base import InvTestCase, make_user
 from investments.tests.fakehttp import FakeNet, fixture
 
 
@@ -122,6 +123,8 @@ class FetchRunTests(InvTestCase):
         sp = mock.patch.object(http, "sleep", lambda s: self.sleeps.append(s))
         sp.start()
         self.addCleanup(sp.stop)
+        self.buy(d(2026, 10, 1), 10, 1000)
+        self.buy(d(2026, 10, 1), 10, 80, instrument=self.fund)
 
     def run_fetch(self, **kw):
         kw.setdefault("today", d(2026, 11, 9))
@@ -214,8 +217,119 @@ class FetchRunTests(InvTestCase):
     def test_manual_and_alternative_instruments_are_not_fetched(self):
         alt = masters.create_instrument(self.profile, self.user, kind="alternative", name="Gold coins")
         self.assertNotIn(alt, fetch.tracked_instruments())
+        self.buy(d(2026, 10, 1), 10, 1000)
         masters.update_shared_details(self.profile, self.user, self.reliance, price_source="manual")
         self.assertNotIn(self.reliance, fetch.tracked_instruments())
+
+
+class PriceWindowTests(InvTestCase):
+    """Prices are collected only from the first purchase, and not after the last unit is sold (all profiles together)."""
+
+    def setUp(self):
+        super().setUp()
+        self.net = FakeNet()
+        for target, value in ((http, "_urlopen"), ):
+            p = mock.patch.object(target, value, self.net)
+            p.start()
+            self.addCleanup(p.stop)
+        sp = mock.patch.object(http, "sleep", lambda s: None)
+        sp.start()
+        self.addCleanup(sp.stop)
+
+    def other_profile_buy(self, day, units="5"):
+        from accounts.models import Profile
+        from investments.models import Broker, Portfolio
+        from investments.services import transactions as tx
+        user, profile = make_user("second", profile=Profile.objects.create(name="second-inv", program=KEY_INVESTMENTS))
+        portfolio = Portfolio.objects.create(profile=profile, name="Main")
+        broker = Broker.objects.create(profile=profile, name="Zerodha")
+        return tx.add_transaction(profile, user, side="buy", instrument=self.reliance, portfolio=portfolio, broker=broker, date=day,
+                                  units=D(units), price=D("1000"))
+
+    def period1(self, call):
+        return datetime.fromtimestamp(int(call.split("period1=")[1].split("&")[0]), tz=timezone.utc).date()
+
+    def test_start_is_the_earliest_purchase_across_all_profiles(self):
+        self.buy(d(2026, 10, 10), 10, 1000)
+        self.other_profile_buy(d(2026, 10, 1))
+        self.assertEqual(fetch.fetch_window([self.reliance.pk], d(2026, 11, 9)), {self.reliance.pk: (d(2026, 10, 1), None)})
+
+    def test_an_instrument_nobody_bought_has_no_window_and_is_not_fetched(self):
+        self.buy(d(2026, 10, 1), 10, 1000)
+        self.assertNotIn(self.fund.pk, fetch.fetch_window(today=d(2026, 11, 9)))
+        self.assertNotIn(self.fund, fetch.tracked_instruments(today=d(2026, 11, 9)))
+        self.net.add("NAVAll", fixture("amfi_navall.txt"))
+        self.net.add("mfapi.in", fixture("mfapi_122639.json"))
+        fetch.fetch_prices(ids=[self.fund.pk], today=d(2026, 11, 9), rng=lambda: 0.0)
+        self.assertEqual(self.net.calls, [])
+        self.assertFalse(Price.objects.filter(instrument=self.fund).exists())
+
+    def test_first_fetch_asks_only_from_the_first_purchase(self):
+        self.buy(d(2026, 10, 1), 10, 1000)
+        self.net.add("RELIANCE.NS", fixture("yahoo_chart_reliance.json"))
+        fetch.fetch_prices(ids=[self.reliance.pk], today=d(2026, 11, 9), rng=lambda: 0.0)
+        call = [c for c in self.net.calls if "RELIANCE" in c][0]
+        self.assertEqual(self.period1(call), d(2026, 10, 1) - timedelta(days=fetch.WINDOW_LEAD_DAYS + 5))
+
+    def test_a_fund_history_starts_at_the_first_purchase(self):
+        self.buy(d(2026, 11, 4), 10, 80, instrument=self.fund)
+        self.net.add("mfapi.in", fixture("mfapi_122639.json"))
+        self.net.add("NAVAll", fixture("amfi_navall.txt"))
+        fetch.fetch_prices(ids=[self.fund.pk], today=d(2026, 11, 9), rng=lambda: 0.0)
+        earliest = Price.objects.filter(instrument=self.fund).order_by("date").first().date
+        self.assertGreaterEqual(earliest, d(2026, 11, 4) - timedelta(days=fetch.WINDOW_LEAD_DAYS))
+
+    def test_nothing_is_fetched_after_the_last_unit_is_sold_but_a_buffer_is_kept(self):
+        self.buy(d(2026, 10, 1), 10, 1000)
+        self.sell(d(2026, 10, 20), 10, 1100)
+        self.assertEqual(fetch.fetch_window([self.reliance.pk], d(2026, 11, 9)),
+                         {self.reliance.pk: (d(2026, 10, 1), d(2026, 10, 20) + timedelta(days=fetch.WINDOW_BUFFER_DAYS))})
+        self.assertIn(self.reliance, fetch.tracked_instruments(today=d(2026, 10, 27)))
+        self.assertNotIn(self.reliance, fetch.tracked_instruments(today=d(2026, 10, 28)))
+        self.net.add("RELIANCE.NS", fixture("yahoo_chart_reliance.json"))
+        fetch.fetch_prices(ids=[self.reliance.pk], today=d(2026, 11, 9), rng=lambda: 0.0)
+        self.assertEqual([c for c in self.net.calls if "RELIANCE" in c], [])
+        stale = fetch.status_summary(today=d(2026, 11, 9))
+        self.assertNotIn(self.reliance, stale["stale"] + stale["never"])
+
+    def test_a_partial_sale_or_a_rebuy_keeps_it_open(self):
+        self.buy(d(2026, 10, 1), 10, 1000)
+        self.sell(d(2026, 10, 20), 4, 1100)
+        self.assertIsNone(fetch.fetch_window([self.reliance.pk], d(2026, 11, 9))[self.reliance.pk][1])
+        self.sell(d(2026, 10, 21), 6, 1100)
+        self.buy(d(2026, 11, 2), 1, 1200)
+        self.assertEqual(fetch.fetch_window([self.reliance.pk], d(2026, 11, 9))[self.reliance.pk], (d(2026, 10, 1), None))
+
+    def test_still_fetched_while_another_profile_holds_units(self):
+        self.buy(d(2026, 10, 1), 10, 1000)
+        self.sell(d(2026, 10, 20), 10, 1100)
+        self.other_profile_buy(d(2026, 10, 5))
+        self.assertEqual(fetch.fetch_window([self.reliance.pk], d(2026, 11, 9)), {self.reliance.pk: (d(2026, 10, 1), None)})
+        self.assertIn(self.reliance, fetch.tracked_instruments(today=d(2026, 11, 9)))
+
+    def test_indices_are_fetched_from_the_earliest_purchase_of_the_portfolio(self):
+        from investments.models import Instrument
+        nifty = Instrument.objects.get(code="^NSEI")
+        self.buy(d(2026, 10, 10), 10, 1000)
+        self.buy(d(2026, 10, 1), 10, 80, instrument=self.fund)
+        self.sell(d(2026, 10, 12), 10, 85, instrument=self.fund)
+        self.net.add("NSEI", fixture("yahoo_chart_reliance.json"))
+        fetch.fetch_prices(ids=[nifty.pk], today=d(2026, 11, 9), rng=lambda: 0.0)
+        call = [c for c in self.net.calls if "NSEI" in c][0]
+        self.assertEqual(self.period1(call), d(2026, 10, 1) - timedelta(days=fetch.WINDOW_LEAD_DAYS + 5))
+        # the index stays tracked even when nothing at all is held
+        self.sell(d(2026, 10, 20), 10, 1100)
+        self.assertIn(nifty, fetch.tracked_instruments(today=d(2026, 12, 31)))
+
+    def test_rows_outside_the_window_are_dropped_and_stored_ones_are_kept(self):
+        Price.objects.create(instrument=self.reliance, date=d(2020, 1, 1), close=D("500"), source="api", basis="split_adjusted")
+        window = (d(2026, 11, 10), d(2026, 11, 20))
+        rows = [(d(2026, 11, 1), D(1)), (d(2026, 11, 3), D(2)), (d(2026, 11, 15), D(3)), (d(2026, 11, 21), D(4))]
+        self.assertEqual(fetch.clip(rows, window), [(d(2026, 11, 3), D(2)), (d(2026, 11, 15), D(3))])
+        self.assertEqual(fetch.fetch_from(window, d(2026, 1, 1)), d(2026, 11, 3))
+        self.assertEqual(fetch.fetch_from(window, d(2026, 11, 12)), d(2026, 11, 12))
+        self.assertEqual(fetch.fetch_from(None, None), None)
+        self.assertTrue(Price.objects.filter(instrument=self.reliance, date=d(2020, 1, 1)).exists())
 
 
 class LookupTests(InvTestCase):
@@ -253,8 +367,11 @@ class LookupTests(InvTestCase):
         self.assertEqual(fetch.stale_days(self.reliance, today=d(2026, 10, 10)), 8)
 
     def test_update_plan_groups_funds_then_tens(self):
+        self.buy(d(2026, 10, 1), 10, 80, instrument=self.fund)
+        self.buy(d(2026, 10, 1), 10, 1000)
         for i in range(23):
-            masters.create_instrument(self.profile, self.user, kind="share", name=f"Co {i}", code=f"C{i}.NS")
+            co = masters.create_instrument(self.profile, self.user, kind="share", name=f"Co {i}", code=f"C{i}.NS")
+            self.buy(d(2026, 10, 1), 1, 10, instrument=co)
         plan = fetch.update_plan(self.profile)
         self.assertEqual(plan[0], [self.fund.pk])
         self.assertEqual([len(b) for b in plan[1:]], [10, 10, 5])         # 24 shares including Reliance, and the Nifty 50 index
@@ -276,6 +393,7 @@ class TwelveDataTests(InvTestCase):
         with self.assertRaises(FetchError):
             twelvedata.parse(b'{"status":"error","code":401,"message":"bad key"}')
         masters.update_shared_details(self.profile, self.user, self.reliance, fallback_source="twelvedata")
+        self.buy(d(2026, 10, 1), 10, 1000)
         net = FakeNet()
         net.add("yahoo.com", 429)
         net.add("twelvedata.com", self.BODY)

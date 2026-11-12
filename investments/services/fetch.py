@@ -11,7 +11,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 from django.db import transaction
-from django.db.models import F
+from django.db.models import F, Min
 from django.utils import timezone
 
 from investments.adapters import amfi, http, mfapi, yahoo
@@ -19,13 +19,17 @@ from investments.adapters.base import FetchError
 from investments.errors import InvestmentsError
 from investments.models import (
     KIND_ALTERNATIVE, KIND_FUND, KIND_INDEX, BASIS_ADJ, Instrument, InvestmentSettings, Price, PriceStatus,
-    ProfileInvestment, SourceRun, SourceSymbol, SplitSignal,
+    ProfileInvestment, SourceRun, SourceSymbol, SplitSignal, STATUS_FINAL, Transaction, Transfer,
 )
 from investments.services import prices as price_service
 
 BATCH = 500
 STALE_DAYS = 5
 UPDATE_BATCH = 10
+#: Days kept after the last unit is sold (the sale-date valuation needs a price) and fetched before the first purchase (a purchase on a
+#: non-trading day is valued at the previous close).
+WINDOW_BUFFER_DAYS = 7
+WINDOW_LEAD_DAYS = 7
 
 
 from investments.services.fetch_defaults import default_basis, default_source  # noqa: E402,F401
@@ -45,8 +49,53 @@ def price_version():
     return PriceStatus.objects.values_list("version", flat=True).first() or 0
 
 
-def tracked_instruments(profile=None, ids=None):
-    """Instruments worth fetching: those someone listed or holds (plus the indices in use), with a fetch source and fetching switched on."""
+def portfolio_start():
+    """The earliest transaction or transfer date across every profile (None when there are none): where the indices are fetched from."""
+    days = [Transaction.objects.aggregate(m=Min("date"))["m"], Transfer.objects.aggregate(m=Min("date"))["m"]]
+    days = [d for d in days if d]
+    return min(days) if days else None
+
+
+def fetch_window(instrument_ids=None, today=None):
+    """``{instrument id: (start, end)}`` for the investments someone has bought, across ALL profiles. ``start`` is the earliest transaction
+    or transfer date (a purchase, an opening balance, a transfer in, or one awaiting allotment); ``end`` is None while units (or a purchase
+    awaiting allotment, a SIP to confirm or a future-dated row) remain in any profile, else the date of the last row plus
+    ``WINDOW_BUFFER_DAYS``. Units are replayed as ``holdings.compute`` does (bonus, split and demerger units, applied corporate actions).
+    An investment with no transactions at all (merely listed) has no entry, so no price history is fetched for it."""
+    from accounts.models import Profile
+    from investments.services import holdings
+
+    today = today or date.today()
+    spans, per_profile = {}, {}
+
+    def note(iid, pid, day, is_open):
+        span = spans.setdefault(iid, [day, day, False])
+        span[0], span[1] = min(span[0], day), max(span[1], day)
+        span[2] = span[2] or is_open or day > today
+        per_profile.setdefault(pid, set()).add(iid)
+
+    txns = Transaction.objects.all()
+    transfers = Transfer.objects.all()
+    if instrument_ids is not None:
+        txns, transfers = txns.filter(instrument_id__in=list(instrument_ids)), transfers.filter(instrument_id__in=list(instrument_ids))
+    for iid, pid, day, status in txns.values_list("instrument_id", "profile_id", "date", "status").iterator():
+        note(iid, pid, day, status != STATUS_FINAL)
+    for iid, pid, day in transfers.values_list("instrument_id", "profile_id", "date").iterator():
+        note(iid, pid, day, False)
+    profiles = Profile.objects.in_bulk(per_profile)
+    for pid, iids in per_profile.items():
+        rows, _totals = holdings.compute(profiles[pid], as_of=today, instrument_ids=iids, with_xirr=False, include_dividends=False)
+        for h in rows:
+            if h.units != 0 or h.awaiting:
+                spans[h.instrument.pk][2] = True
+    return {iid: (first, None if is_open else last + timedelta(days=WINDOW_BUFFER_DAYS)) for iid, (first, last, is_open) in spans.items()}
+
+
+def tracked_with_windows(profile=None, ids=None, today=None):
+    """``([Instrument], {id: (start, end)})``. An investment is tracked while it is inside its window: from its first purchase until
+    ``WINDOW_BUFFER_DAYS`` after the last unit was sold in every profile. A listed investment nobody has bought is not tracked. The indices
+    in use (default, sectoral, ^NSEI) are always tracked, from the earliest purchase of any profile (``start`` None when there is none)."""
+    today = today or date.today()
     wanted = set(ProfileInvestment.objects.filter(**({"profile": profile} if profile else {})).values_list("instrument_id", flat=True))
     index_ids = set(InvestmentSettings.objects.exclude(default_index=None).values_list("default_index_id", flat=True))
     index_ids |= set(ProfileInvestment.objects.exclude(sectoral_index=None).values_list("sectoral_index_id", flat=True))
@@ -54,7 +103,40 @@ def tracked_instruments(profile=None, ids=None):
     qs = Instrument.objects.filter(id__in=wanted | index_ids, fetch_enabled=True).exclude(kind=KIND_ALTERNATIVE).exclude(price_source__in=["manual", "upload"])
     if ids is not None:
         qs = qs.filter(id__in=list(ids))
-    return list(qs.order_by("kind", "name", "id"))
+    candidates = list(qs.order_by("kind", "name", "id"))
+    spans = fetch_window([i.pk for i in candidates if i.kind != KIND_INDEX], today)
+    index_start = portfolio_start() if any(i.kind == KIND_INDEX for i in candidates) else None
+    out, windows = [], {}
+    for inst in candidates:
+        if inst.kind == KIND_INDEX:
+            windows[inst.pk] = (index_start, None)
+        elif inst.pk in spans and (spans[inst.pk][1] is None or today <= spans[inst.pk][1]):
+            windows[inst.pk] = spans[inst.pk]
+        else:
+            continue
+        out.append(inst)
+    return out, windows
+
+
+def tracked_instruments(profile=None, ids=None, today=None):
+    """Instruments worth fetching: those someone holds or held within their window (see ``tracked_with_windows``), plus the indices in use,
+    with a fetch source and fetching switched on."""
+    return tracked_with_windows(profile, ids, today)[0]
+
+
+def clip(rows, window):
+    """``rows`` (``[(date, close)]``) inside the window (its start less ``WINDOW_LEAD_DAYS``, up to its end)."""
+    start, end = window if window else (None, None)
+    lo = start - timedelta(days=WINDOW_LEAD_DAYS) if start else None
+    return [(d, c) for d, c in rows if (lo is None or d >= lo) and (end is None or d <= end)]
+
+
+def fetch_from(window, since):
+    """The date to ask a source from: the day after what is stored, but never before the window opens (None: no limit, the default years)."""
+    start = window[0] - timedelta(days=WINDOW_LEAD_DAYS) if window and window[0] else None
+    if since is None:
+        return start
+    return max(since, start) if start else since
 
 
 # ---------------------------------------------------------------- writing prices
@@ -92,11 +174,18 @@ def last_api_date(instrument):
     return Price.objects.filter(instrument=instrument).order_by("-date").values_list("date", flat=True).first()
 
 
-def refetch_full(instrument, years=10, today=None):
+def refetch_full(instrument, years=10, today=None, start=None):
     """Re-fetch a split-adjusted instrument's whole history and replace its fetched rows (the vendor restates the past after a split;
-    plan 16.2). Uploaded rows are kept and counted so the person can be told they need re-uploading on the new basis."""
+    plan 16.2). Uploaded rows are kept and counted so the person can be told they need re-uploading on the new basis.
+    ``start`` (the window's start) limits the new history to the first purchase instead of ``years`` back; with none given the window is worked out."""
     uploads = Price.objects.filter(instrument=instrument, source="upload").count()
-    result = yahoo.fetch(symbol_for(instrument, "yahoo"), None, years=years, today=today)
+    window = None
+    if start is None:
+        window = fetch_window([instrument.pk], today).get(instrument.pk)
+        start = fetch_from(window, None)
+    result = yahoo.fetch(symbol_for(instrument, "yahoo"), start, years=years, today=today)
+    if window:
+        result.rows = clip(result.rows, window)
     with transaction.atomic():
         Price.objects.filter(instrument=instrument, source__in=["api", "helper"]).delete()
         upsert_prices(instrument, result.rows, "api", default_basis("yahoo"))
@@ -113,7 +202,7 @@ def _record_dividends(instrument, result):
             DividendSignal.objects.get_or_create(instrument=instrument, ex_date=day, defaults={"per_unit": per_unit})
 
 
-def _record_splits(instrument, result, today, years, failures):
+def _record_splits(instrument, result, today, years, failures, window=None):
     from investments.services import corporate
 
     for day, num, den in result.splits:
@@ -127,7 +216,7 @@ def _record_splits(instrument, result, today, years, failures):
                 pass
         if created and instrument.price_basis == BASIS_ADJ:
             try:
-                refetch_full(instrument, years, today)
+                refetch_full(instrument, years, today, fetch_from(window, None))
                 SplitSignal.objects.filter(pk=signal.pk).update(refetched=True)
             except (FetchError, InvestmentsError) as exc:
                 failures.append({"id": instrument.pk, "name": instrument.name, "error": f"split re-fetch: {exc}"})
@@ -141,7 +230,8 @@ def fetch_prices(*, ids=None, profile=None, trigger="cron", max_seconds=600, max
     summary = {"tried": 0, "updated": 0, "failures": [], "stopped": "", "runs": []}
     from investments.services import helper
 
-    instruments = [i for i in tracked_instruments(profile, ids) if not helper.server_skips(i.price_source)][:max_symbols]
+    tracked, windows = tracked_with_windows(profile, ids, today)
+    instruments = [i for i in tracked if not helper.server_skips(i.price_source)][:max_symbols]
     funds = [i for i in instruments if i.kind == KIND_FUND and i.price_source in ("amfi", "mfapi")]
     others = [i for i in instruments if i not in funds]
     first_request = [True]
@@ -173,12 +263,12 @@ def fetch_prices(*, ids=None, profile=None, trigger="cron", max_seconds=600, max
             try:
                 if last_api_date(inst) is None:        # first time: the whole history from mfapi.in
                     pause()
-                    result = mfapi.fetch(symbol_for(inst, "mfapi"))
-                    added, changed, _ = upsert_prices(inst, result.rows, "api", "")
+                    result = mfapi.fetch(symbol_for(inst, "mfapi"), fetch_from(windows.get(inst.pk), None))
+                    added, changed, _ = upsert_prices(inst, clip(result.rows, windows.get(inst.pk)), "api", "")
                     updated += 1 if added or changed else 0
                 if code in found:
                     day, nav, _name, _isin = found[code]
-                    added, changed, _ = upsert_prices(inst, [(day, nav)], "api", "")
+                    added, changed, _ = upsert_prices(inst, clip([(day, nav)], windows.get(inst.pk)), "api", "")
                     updated += 1 if added or changed else 0
                 elif not failures:
                     failures.append({"id": inst.pk, "name": inst.name, "error": "not in AMFI's file today"})
@@ -197,7 +287,7 @@ def fetch_prices(*, ids=None, profile=None, trigger="cron", max_seconds=600, max
     all_others = list(others)
 
     def run_bhav():
-        got = bhav.run(all_others, today=today, trigger=trigger, out_of_time=out_of_time)
+        got = bhav.run(all_others, today=today, trigger=trigger, out_of_time=out_of_time, windows=windows)
         summary["updated"] += got["updated"]
         summary["failures"] += got["failures"]
         if got["run"] is not None:
@@ -221,7 +311,8 @@ def fetch_prices(*, ids=None, profile=None, trigger="cron", max_seconds=600, max
             summary["tried"] += 1
             pause()
             try:
-                since = last_api_date(inst)
+                window = windows.get(inst.pk)
+                since = fetch_from(window, last_api_date(inst))
                 try:
                     result = yahoo.fetch(symbol_for(inst, "yahoo"), since, years=years, today=today)
                 except FetchError as first_error:
@@ -234,11 +325,14 @@ def fetch_prices(*, ids=None, profile=None, trigger="cron", max_seconds=600, max
                         result = twelvedata.fetch(symbol_for(inst, "twelvedata"), since, years=years, today=today)
                     except FetchError as second:
                         raise FetchError(f"{first_error}; fallback: {second}") from second
+                result.rows = clip(result.rows, window)
+                result.splits = [s for s in result.splits if clip([(s[0], 1)], window)]
+                result.dividends = [x for x in result.dividends if clip([(x[0], 1)], window)]
                 added, changed, _ = upsert_prices(inst, result.rows, "api", default_basis("yahoo"))
                 updated += 1 if added or changed else 0
                 if not result.rows:
                     failures.append({"id": inst.pk, "name": inst.name, "error": "no prices returned"})
-                _record_splits(inst, result, today, years, failures)
+                _record_splits(inst, result, today, years, failures, window)
                 _record_dividends(inst, result)
                 if result.rejected:
                     failures.append({"id": inst.pk, "name": inst.name, "error": f"{result.rejected} price(s) of zero or below were rejected"})
@@ -337,4 +431,4 @@ def stale_days(instrument, today=None):
     return (today - last).days if last else None
 
 
-__all__ = ["fetch_prices", "update_plan", "upsert_prices", "refetch_full", "tracked_instruments", "status_summary", "timedelta"]
+__all__ = ["fetch_prices", "update_plan", "upsert_prices", "refetch_full", "tracked_instruments", "tracked_with_windows", "fetch_window", "status_summary", "timedelta"]

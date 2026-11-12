@@ -46,6 +46,7 @@ class CatalogueServiceTests(InvTestCase):
             self.assertEqual(cm.exception.code, "FORBIDDEN")
 
     def test_edited_price_survives_the_next_nightly_fetch(self):
+        self.buy(d(2026, 10, 1), 10, 1000)
         net = FakeNet()
         net.add("RELIANCE.NS", fixture("yahoo_chart_reliance.json"))
         with mock.patch.object(http, "_urlopen", net), mock.patch.object(http, "sleep", lambda s: None):

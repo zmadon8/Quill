@@ -114,9 +114,10 @@ def _read(kind, body, wanted):
                                 codes=[k[1] for k in wanted if k[0] == "code"], nse=kind != "bse_eq")
 
 
-def run(instruments, *, today, trigger="cron", out_of_time=lambda: False):
+def run(instruments, *, today, trigger="cron", out_of_time=lambda: False, windows=None):
     """Fill recent days from the files. Returns ``{"tried", "updated", "failures", "covered", "filled", "run"}``: ``covered`` is the ids
-    whose newest stored price is now the newest file's day, ``filled`` the ids that got at least one new price."""
+    whose newest stored price is now the newest file's day, ``filled`` the ids that got at least one new price. ``windows`` is
+    ``{id: (start, end)}`` from ``fetch.tracked_with_windows``: a price outside its window is not stored."""
     from investments.services import fetch
 
     result = {"tried": 0, "updated": 0, "failures": [], "covered": set(), "filled": set(), "run": None}
@@ -185,7 +186,8 @@ def run(instruments, *, today, trigger="cron", out_of_time=lambda: False):
             continue                                    # no file of its kind was found; said once above
         latest_file = max(newest[k] for k in kinds)
         # an empty day or a Google Sheet day in the window; a fetched or uploaded price is never replaced
-        fill = [(day, close) for day, close in sorted(rows.items()) if existing.get((inst.pk, day), "helper") == "helper"]
+        fill = [(day, close) for day, close in fetch.clip(sorted(rows.items()), (windows or {}).get(inst.pk))
+                if existing.get((inst.pk, day), "helper") == "helper"]
         if fill:
             try:
                 added, changed, _kept = fetch.upsert_prices(inst, fill, "api", inst.price_basis)

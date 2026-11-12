@@ -40,6 +40,7 @@ class HelperOnTests(InvTestCase):
         return self.client.post(reverse("investments_helper_ingest"), json.dumps({"rows": rows}), content_type="application/json", **{**self.auth, **extra})
 
     def test_wanted_lists_helper_sources_and_either_only_when_stale(self):
+        self.buy(d(2026, 10, 1), 10, 1000)
         self.assertEqual(self.client.get(reverse("investments_helper_wanted"), **self.auth).json()["wanted"], [])     # server mode: nothing
         helper.set_mode("yahoo", "helper")
         symbols = {w["symbol"] for w in self.client.get(reverse("investments_helper_wanted"), **self.auth).json()["wanted"]}

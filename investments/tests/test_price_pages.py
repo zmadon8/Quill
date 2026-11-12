@@ -112,6 +112,8 @@ class PageTests(InvTestCase):
         self.addCleanup(p.stop)
 
     def test_update_prices_walks_the_plan_and_pauses_afterwards(self):
+        self.buy(d(2026, 10, 1), 10, 1000)
+        self.buy(d(2026, 10, 1), 10, 80, instrument=self.fund)
         self.net.add("RELIANCE.NS", fixture("yahoo_chart_reliance.json"))
         self.net.add("NSEI", fixture("yahoo_chart_reliance.json"))
         self.net.add("mfapi.in", fixture("mfapi_122639.json"))
@@ -129,6 +131,8 @@ class PageTests(InvTestCase):
         self.assertEqual(again.status_code, 429)
 
     def test_update_prices_reports_failures_and_keeps_going(self):
+        self.buy(d(2026, 10, 1), 10, 1000)
+        self.buy(d(2026, 10, 1), 10, 80, instrument=self.fund)
         self.net.add("RELIANCE.NS", 429)
         self.net.add("NSEI", 404)
         self.net.add("mfapi.in", 404)
@@ -140,6 +144,7 @@ class PageTests(InvTestCase):
         self.assertGreaterEqual(len(data["failures"]), 1)
 
     def test_single_instrument_refresh_fetches_only_it_and_skips_the_pause(self):
+        self.buy(d(2026, 10, 1), 10, 1000)
         self.net.add("RELIANCE.NS", fixture("yahoo_chart_reliance.json"))
         url = reverse("investments_update_prices")
         for _ in range(2):          # no one-minute pause for a single investment
@@ -164,6 +169,7 @@ class PageTests(InvTestCase):
         self.assertEqual(self.client.post(reverse("investments_update_prices"), {"step": 0}).status_code, 403)
 
     def test_status_line_and_button(self):
+        self.buy(d(2026, 10, 1), 10, 1000)
         r = self.client.get(reverse("investments_dashboard"))
         self.assertContains(r, 'id="update-prices"')
         self.assertContains(r, "No prices yet")
@@ -172,6 +178,7 @@ class PageTests(InvTestCase):
         self.assertContains(r, "prices as of close 6 Nov")
 
     def test_price_sources_page_is_admin_only_and_lists_runs(self):
+        self.buy(d(2026, 10, 1), 10, 1000)
         self.net.add("RELIANCE.NS", 500)
         self.net.add("NSEI", 404)
         fetch.fetch_prices(ids=[self.reliance.pk], rng=lambda: 0.0)
