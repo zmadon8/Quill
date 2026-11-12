@@ -84,3 +84,15 @@ class AutomaticRowsTests(InvTestCase):
         self.split()
         r = self.client.get(reverse("investments_transactions"), {"side": "sell"})
         self.assertNotContains(r, "added automatically")
+
+    def test_later_pages_work_with_an_automatic_row(self):
+        self.split()
+        for _ in range(55):
+            self.buy(d(2024, 2, 1), 1, 1000)
+        first = self.client.get(reverse("investments_transactions"))
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(first.context["automatic_count"], 0)
+        second = self.client.get(reverse("investments_transactions"), {"page": 2})
+        self.assertEqual(second.status_code, 200)
+        self.assertEqual(second.context["automatic_count"], 1)
+        self.assertContains(second, "Split (added automatically)")

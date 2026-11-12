@@ -111,7 +111,7 @@ def transactions_list(request):
     if side != SIDE_SELL:
         automatic = corporate.automatic_unit_rows(profile, portfolio, broker, asat, q)
         if automatic and number > 1:
-            before = paginator.page(number - 1).object_list[-1].date
+            before = paginator.page(number - 1)[-1].date
             automatic = [a for a in automatic if a["date"] < before]
         if automatic and number < paginator.num_pages and rows:
             automatic = [a for a in automatic if a["date"] >= rows[-1].date]

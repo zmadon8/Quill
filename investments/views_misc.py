@@ -107,13 +107,17 @@ def settings_general(request):
             d["corporate_auto"] = form.corporate_auto(row.corporate_auto)
             try:
                 masters.update_settings(profile, request.user, **d)
-                # Switching a kind on logs what is already waiting for it.
-                corporate.apply_automatic(profile)
-                dividends.auto_log(profile)
             except InvestmentsError as err:
                 form.add_error(None, err.message)
             else:
-                messages.success(request, "Settings saved.")
+                # Switching a kind on logs what is already waiting for it. The settings are saved by now, so a failure here is a warning, not an error.
+                try:
+                    corporate.apply_automatic(profile)
+                    dividends.auto_log(profile)
+                except InvestmentsError as err:
+                    messages.warning(request, f"Settings saved, but some corporate actions could not be applied automatically: {err.message}")
+                else:
+                    messages.success(request, "Settings saved.")
                 return redirect(reverse("investments_settings"))
     return page(request, "investments/settings_general.html", {
         "page_title_text": "Settings", "form": form, "portfolios": Portfolio.objects.filter(profile=profile),

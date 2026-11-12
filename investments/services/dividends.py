@@ -11,6 +11,7 @@ from investments.models import Dividend, DividendSignal
 from investments.services import core, history
 
 REMIND_DAYS = 60
+PAID_WITHIN_DAYS = 30
 
 
 def _dec(value, name, minimum=Decimal(0), allow_none=False):
@@ -78,7 +79,7 @@ def auto_log(profile, signals=None, today=None):
     """Log the reported dividends for a profile that has chosen ``Log automatically`` for Dividends: one dividend dated the ex-date for each
     portfolio and broker (and folio) that held units the day before, amount per unit times units. Each signal is logged once for a profile
     (a dividend the person deletes is not logged again), only for the last 60 days, and not where the person already recorded a dividend
-    around then. Dividends of foreign investments stay as suggestions because the rupee amount is not known. Returns the dividends made."""
+    within 30 days after the ex-date (or 3 before). Dividends of foreign investments stay as suggestions because the rupee amount is not known. Returns the dividends made."""
     from investments.models import Broker, Folio, Portfolio
     from investments.services.corporate import auto_apply, held_instrument_ids
 
@@ -97,15 +98,21 @@ def auto_log(profile, signals=None, today=None):
         if not held:
             continue
         window = Dividend.objects.filter(profile=profile, instrument=signal.instrument, date__gte=signal.ex_date - timedelta(days=3),
-                                         date__lte=signal.ex_date + timedelta(days=REMIND_DAYS))
+                                         date__lte=signal.ex_date + timedelta(days=PAID_WITHIN_DAYS))
+        failed = False
         if not window.exists():
             for (portfolio_id, broker_id, folio_id), units in sorted(held.items(), key=lambda kv: (kv[0][0], kv[0][1], kv[0][2] or 0)):
                 amount = (signal.per_unit * units).quantize(Decimal("0.01"))
                 if amount < Decimal("0.01"):
                     continue
-                made.append(add(profile, None, date=signal.ex_date, instrument=signal.instrument, portfolio=Portfolio.objects.get(pk=portfolio_id),
-                                broker=Broker.objects.get(pk=broker_id), folio=Folio.objects.filter(pk=folio_id).first() if folio_id else None,
-                                amount=amount, note=AUTO_NOTE))
+                try:
+                    made.append(add(profile, None, date=signal.ex_date, instrument=signal.instrument, portfolio=Portfolio.objects.get(pk=portfolio_id),
+                                    broker=Broker.objects.get(pk=broker_id), folio=Folio.objects.filter(pk=folio_id).first() if folio_id else None,
+                                    amount=amount, note=AUTO_NOTE))
+                except InvestmentsError:
+                    failed = True        # one bad row does not stop the others; the signal is tried again next time
+        if failed:
+            continue
         signal.logged_for = list(signal.logged_for or []) + [profile.pk]
         signal.save(update_fields=["logged_for"])
     return made
