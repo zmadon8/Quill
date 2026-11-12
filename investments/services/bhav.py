@@ -1,6 +1,6 @@
 """Bhavcopy as a price source for Indian shares, ETFs and NSE indices (owner request, November 2026).
 
-The nightly job (and the Update Prices button) can use the exchanges' daily files in one of two ways, chosen on Settings > Price sources:
+The nightly job (and the Update Prices button) can use the exchanges' daily files in one of two ways, chosen on Catalogue > Price sources:
 
 * **After Yahoo** (``after``): Yahoo runs as before; then every NSE/BSE share and NSE index whose newest stored price is older than the
   newest bhavcopy is filled from the files. Yahoo's prices are never replaced.

@@ -172,7 +172,7 @@ class LandingProgramTests(BaseCase):
 
     def test_user_sets_own_landing_program(self):
         self.client.force_login(self.user)
-        resp = self.client.get(reverse("my_settings"))
+        resp = self.client.get(reverse("my_settings"), {"tab": "start"})
         self.assertContains(resp, "Open after login")
         self.assertContains(resp, 'value="diary"')
         resp = self.client.post(reverse("my_settings"), {"landing_program": "diary"})
@@ -191,7 +191,7 @@ class LandingProgramTests(BaseCase):
     def test_user_without_profile_only_sees_home_choice(self):
         loner = self.make_user("loner")
         self.client.force_login(loner)
-        self.assertNotContains(self.client.get(reverse("my_settings")), 'value="diary"')
+        self.assertNotContains(self.client.get(reverse("my_settings"), {"tab": "start"}), 'value="diary"')
         resp = self.client.post(reverse("my_settings"), {"landing_program": "diary"})
         self.assertEqual(resp.status_code, 200)
         loner.refresh_from_db()
@@ -216,10 +216,12 @@ class LandingProgramTests(BaseCase):
         self.admin.refresh_from_db()
         self.assertEqual(self.admin.landing_program, "")
 
-    def test_admin_sets_it_on_user_edit(self):
+    def test_the_admin_user_form_no_longer_has_it(self):
         self.client.force_login(self.admin)
         url = reverse("user_edit", args=[self.user.pk])
-        self.assertContains(self.client.get(url), "Open after login")
+        html = self.client.get(url).content.decode()
+        self.assertNotIn("Open after login", html)
+        self.assertNotIn('name="landing_program"', html)
         resp = self.client.post(
             url,
             {
@@ -230,16 +232,6 @@ class LandingProgramTests(BaseCase):
             },
         )
         self.assertRedirects(resp, reverse("user_list"))
-        self.user.refresh_from_db()
-        self.assertEqual(self.user.landing_program, "diary")
-
-    def test_admin_edit_rejects_invalid_value(self):
-        self.client.force_login(self.admin)
-        resp = self.client.post(
-            reverse("user_edit", args=[self.user.pk]),
-            {"username": "alice", "is_active": "on", "landing_program": "nonsense"},
-        )
-        self.assertEqual(resp.status_code, 200)
         self.user.refresh_from_db()
         self.assertEqual(self.user.landing_program, "")
 
@@ -303,12 +295,12 @@ class SuiteSettingsTests(BaseCase):
         self.assertEqual(self.client.get(reverse("settings")).status_code, 302)
 
     def test_settings_link_only_for_admin(self):
-        # D96: Page Names (the old Site settings) is a tab of Admins (Home's Admins item opens Users).
+        # Page Names is the Names page of the Display tab, for an Admin only.
         self.client.force_login(self.admin)
-        self.assertContains(self.client.get(reverse("user_list")), 'href="%s"' % reverse("settings"))
+        self.assertContains(self.client.get(reverse("my_settings"), {"tab": "display"}), 'href="%s"' % reverse("settings"))
         self.assertNotContains(self.client.get(reverse("my_settings")), 'href="%s"' % reverse("settings"))
         self.client.force_login(self.user)
-        self.assertNotContains(self.client.get(reverse("my_settings")), 'href="%s"' % reverse("settings"))
+        self.assertNotContains(self.client.get(reverse("my_settings"), {"tab": "display"}), 'href="%s"' % reverse("settings"))
         self.assertNotContains(self.client.get(reverse("home")), 'href="%s"' % reverse("settings"))
 
     def test_rename_shows_everywhere(self):
@@ -359,12 +351,10 @@ class SuiteSettingsTests(BaseCase):
         resp = self.client.get(reverse("settings"))
         self.assertEqual(resp.status_code, 200)
         form = resp.context["form"]
-        # The Site name comes first; the Words/Logo choice per program (home_brand, diary_brand, fees_brand) sits
-        # after the names.
+        # The Site name comes first, then one name per program.
         self.assertEqual(
             list(form.fields),
-            ["site_name", "home_name", "diary_name", "fees_name", "investments_name",
-             "home_brand", "diary_brand", "fees_brand", "investments_brand"],
+            ["site_name", "home_name", "diary_name", "fees_name", "investments_name"],
         )
         self.assertEqual(form.fields["fees_name"].initial, "Fee Register")
         self.assertEqual(form.fields["fees_name"].label, "Fee Register name")
@@ -885,11 +875,12 @@ class ProfileScreenTests(BaseCase):
         self.assertEqual(self.client.get(reverse("profile_list")).status_code, 302)
 
     def test_profiles_link_only_for_admin_on_home(self):
-        # D86: Profiles is a tab of Users & Profiles, which Home links to (Admin only).
+        # Profiles is a page of the Users & Profiles tab of Settings (Admin only).
         self.client.force_login(self.admin)
-        self.assertContains(self.client.get(reverse("home")), 'href="%s"' % reverse("user_list"))
+        self.assertContains(self.client.get(reverse("my_settings")), 'href="%s"' % reverse("user_list"))
         self.assertContains(self.client.get(reverse("user_list")), 'href="%s"' % reverse("profile_list"))
         self.client.force_login(self.user)
+        self.assertNotContains(self.client.get(reverse("my_settings")), 'href="%s"' % reverse("user_list"))
         self.assertNotContains(self.client.get(reverse("home")), 'href="%s"' % reverse("profile_list"))
         self.assertNotContains(self.client.get(reverse("home")), 'href="%s"' % reverse("user_list"))
 
@@ -1237,7 +1228,7 @@ class ExportNameTests(BaseCase):
         if data is None:
             return self.client.get(url)
         # Round 19: the Display tab's only reading control is the required Yes/No "open the whole Subject" toggle.
-        # reading_all_mode and reading_all_default are no longer form fields, so posting them is harmless extra data
+        # reading_all_mode is no longer a form field, so posting it is harmless extra data
         # that Django ignores; the toggle alone decides the stored reading_all_mode. When a test posts the old
         # reading_all_mode key without a toggle, default the toggle to match it (always_on -> Yes, else No).
         payload = {"tab": "reading", **data}
@@ -1263,40 +1254,38 @@ class ExportNameTests(BaseCase):
         resp = self.client.get(reverse("profile_settings"))
         self.assertEqual(resp.status_code, 200)
         html = resp.content.decode()
-        for key in ("reading", "data"):
+        for key in ("reading", "numbers", "data"):
             self.assertIn('data-section="%s"' % key, html)
-        self.assertNotIn(">Save</button>", html)
-        self.assertIn("Only you", self.client.get(reverse("my_settings") + "?tab=diary").content.decode())
+        self.assertIn("Only you", html)  # My number formats
+        self.assertEqual(html.count(">Save</button>"), 1)  # only the personal number formats can be saved
         self.assertIn("Everyone in this profile", html)
 
     def test_display_form_no_longer_offers_remember_or_all_default(self):
         # Round 19 (user item 4): the Yes/No toggle is the only reading control. The advanced "remember" select and
-        # the reading_all_default checkbox are gone from the form and the page, and saving never changes the stored
-        # reading_all_default. The Profile model keeps both fields (no migration); only the UI is simplified.
+        # the reading_all_default checkbox are gone from the form and the page, and the field no longer exists.
         from diary.forms import ProfileSettingsForm
 
         fields = ProfileSettingsForm().fields
         self.assertIn("view_whole_subject", fields)
         self.assertNotIn("reading_all_mode", fields)
         self.assertNotIn("reading_all_default", fields)
-        self.assertTrue(self.main().reading_all_default)
+        self.assertFalse(hasattr(self.main(), "reading_all_default"))
         self.client.force_login(self.admin)
         resp = self.display()
         self.assertNotContains(resp, 'name="diary-reading_all_default"')
         self.assertNotContains(resp, 'name="diary-reading_all_mode"')
         self.assertNotContains(resp, "The View I Used Last")
         self.assertNotContains(resp, "Advanced reading options")
-        # Posting the toggle (even alongside the now-ignored old keys) leaves reading_all_default untouched.
+        # Posting the toggle alongside the now-ignored old key just sets the mode.
         self.display({"diary-view_whole_subject": "no", "diary-reading_all_default": "on"})
-        self.assertTrue(Profile.objects.get(pk=self.main().pk).reading_all_default)
+        self.assertEqual(Profile.objects.get(pk=self.main().pk).reading_all_mode, "always_off")
 
     def test_saving_another_tab_leaves_the_diary_settings_alone(self):
         Profile.objects.filter(pk=self.main().pk).update(display_name="Kept", reading_all_mode="always_on")
         self.client.force_login(self.admin)
         self.client.post(reverse("my_settings"), {"tab": "account", "email": ""})
         main = self.main()
-        self.assertEqual((main.display_name, main.reading_all_mode, main.reading_all_default),
-                         ("Kept", "always_on", True))
+        self.assertEqual((main.display_name, main.reading_all_mode), ("Kept", "always_on"))
 
     def test_yes_no_toggle_sets_always_on_or_always_off(self):
         # Round 19 (user item 4): the plain Display toggle is the only reading control and always sets
@@ -1346,13 +1335,14 @@ class ExportNameTests(BaseCase):
         junior = Profile.objects.create(program="diary", name="Junior")
         self.client.force_login(self.admin)
         self.client.post(reverse("export_settings"), {"export_name": "Mine", "export_date_format": "YYYY-MM-DD"})
-        self.display({"diary-display_name": "Mine too", "diary-reading_all_mode": "remember"})
+        self.display({"diary-view_whole_subject": "yes"})
         junior.refresh_from_db()
         self.assertEqual((junior.export_name, junior.display_name), ("", ""))
 
 
 class UserEditFormImportTests(SimpleTestCase):
-    def test_landing_choices_are_not_computed_when_the_module_loads(self):
+    def test_the_admin_form_has_no_landing_program_or_colour_theme(self):
         from accounts.forms import UserEditForm
 
-        self.assertEqual(list(UserEditForm.base_fields["landing_program"].choices), [])
+        self.assertNotIn("landing_program", UserEditForm.base_fields)
+        self.assertNotIn("colour_theme", UserEditForm.base_fields)

@@ -59,49 +59,67 @@ class SettingsTabsTests(TestCase):
 
     def sections(self, tab=None):
         html = self.client.get(reverse("my_settings"), {"tab": tab} if tab else {}).content.decode()
-        return html, {name for name in ("account", "display", "diary", "fees") if f'data-section="{name}"' in html}
+        return html, {name for name in ("account", "profile", "look", "home", "site", "diary", "fees", "investments")
+                      if f'data-section="{name}"' in html}
 
-    def test_left_hand_sections_each_with_their_own_form_and_save(self):
+    def test_account_and_profile_view_sections_each_with_their_own_form(self):
         html, found = self.sections()
-        self.assertEqual(found, {"account", "display", "diary"})  # the Fee Register section needs a Fee Register profile
-        self.assertEqual(html.count("data-section-form"), 3)
-        self.assertEqual(html.count(">Save</button>"), 3)
-        self.assertEqual(html.count("You have unsaved changes."), 3)
-        for field in ('name="email"', 'name="justify_text"', 'name="topic_format"', 'name="tab" value="diary"'):
+        self.assertEqual(found, {"account", "profile"})
+        self.assertEqual(html.count("data-section-form"), 1)  # Profile View is a list, not a form
+        for field in ('name="email"', 'name="header_initials"', 'name="tab" value="account"'):
             self.assertIn(field, html)
-        self.assertNotIn('name="diary-view_whole_subject"', html)  # reading is a Case Law Diary settings (profile) choice
-        self.assertNotIn('name="export_date_format"', html.split('data-section="account"')[1].split('data-section="diary"')[0])
-        self.assertIn('data-section-link="diary"', html)
+        self.assertNotIn('name="justify_text"', html)
+        self.assertNotIn('name="topic_format"', html)
+        self.assertNotIn('name="landing_program"', html)
 
-    def test_the_section_asked_for_is_marked_and_an_old_tab_name_still_works(self):
+    def test_display_has_look_and_home_page(self):
+        html, found = self.sections("display")
+        self.assertEqual(found, {"look", "home"})
+        for field in ('name="justify_text"', 'name="colour_theme"', 'name="home_metrics_diary"', 'name="tab" value="display"'):
+            self.assertIn(field, html)
+        for gone in ('name="landing_program"', 'name="header_initials"', 'name="remove_citation_hyphen"', 'name="investments_period"'):
+            self.assertNotIn(gone, html)
+
+    def test_start_screens_has_the_site_and_each_program_the_user_can_open(self):
+        html, found = self.sections("start")
+        self.assertEqual(found, {"site", "diary"})  # the Fee Register and Investments sections need those profiles
+        for field in ('name="landing_program"', 'name="opening_page"', 'name="opening_subject"', 'name="tab" value="start"'):
+            self.assertIn(field, html)
+        self.assertNotIn('name="topic_format"', html)
+
+    def test_the_diary_personal_section_is_on_the_diary_settings_page_and_the_old_address_goes_there(self):
+        resp = self.client.get(reverse("my_settings"), {"tab": "diary"})
+        self.assertRedirects(resp, reverse("profile_settings") + "?tab=numbers", fetch_redirect_response=False)
+        resp = self.client.get(reverse("my_settings"), {"tab": "numbers"})  # the older name of the same tab
+        self.assertRedirects(resp, reverse("profile_settings") + "?tab=numbers", fetch_redirect_response=False)
+        html = self.client.get(reverse("profile_settings"), {"tab": "numbers"}).content.decode()
+        for field in ('name="topic_format"', 'name="export_date_format"', 'name="remove_citation_hyphen"', 'name="tab" value="diary"'):
+            self.assertIn(field, html)
+
+    def test_the_section_asked_for_is_marked(self):
         html, _found = self.sections("display")
-        self.assertIn('data-section-link="display" class="on" aria-current="page"', html)
-        html, _found = self.sections("numbers")  # the old name of the Case Law Diary tab
-        self.assertIn('data-section-link="diary" class="on" aria-current="page"', html)
+        self.assertIn('data-section-link="look" class="on" aria-current="page"', html)
         html, _found = self.sections("bogus")
         self.assertIn('data-section-link="account" class="on" aria-current="page"', html)
 
     def test_every_setting_has_help_and_a_who_tag(self):
-        html, _found = self.sections()
-        self.assertGreaterEqual(html.count("setting-help"), 8)
-        self.assertGreaterEqual(html.count("Only you"), 8)
-        self.assertNotIn("Everyone in this profile", html)  # nothing shared lives on My settings
+        for tab in (None, "display", "start"):
+            html, _found = self.sections(tab)
+            self.assertGreaterEqual(html.count("setting-help"), 3, tab)
+            self.assertGreaterEqual(html.count("Only you"), 2, tab)
+            self.assertNotIn("Everyone in this profile", html)  # nothing shared lives on these pages
 
-    def test_the_home_button_can_be_hidden_and_shown_again(self):
-        # Owner round (2026-11): My settings > Display > Show the Home button (on by default, per user).
+    def test_the_home_button_is_always_shown(self):
+        # Round 23: the "Show the Home button" option is gone; Home is always in the header.
         home = 'class="home-button"'
-        self.assertTrue(self.user.show_home_button)
-        self.assertIn(home, self.client.get(reverse("my_settings")).content.decode())
-        self.client.post(reverse("my_settings"), {"tab": "display", "landing_program": ""})   # box not ticked
-        self.user.refresh_from_db()
-        self.assertFalse(self.user.show_home_button)
+        self.assertFalse(hasattr(self.user, "show_home_button"))
         html = self.client.get(reverse("my_settings")).content.decode()
-        self.assertNotIn(home, html)
+        self.assertIn(home, html)
+        self.assertNotIn("show_home_button", html)
+        self.client.post(reverse("my_settings"), {"tab": "display"})
+        html = self.client.get(reverse("my_settings")).content.decode()
+        self.assertIn(home, html)
         self.assertIn('data-home="', html)   # the Alt+H shortcut still knows where Home is
-        self.client.post(reverse("my_settings"), {"tab": "display", "landing_program": "", "show_home_button": "on"})
-        self.user.refresh_from_db()
-        self.assertTrue(self.user.show_home_button)
-        self.assertIn(home, self.client.get(reverse("my_settings")).content.decode())
 
     def test_saving_a_section_keeps_the_others_and_returns_to_it(self):
         self.user.justify_text = True
@@ -111,22 +129,19 @@ class SettingsTabsTests(TestCase):
         self.user.refresh_from_db()
         self.assertEqual(self.user.email, "e@example.com")
         self.assertTrue(self.user.justify_text)  # the Display section was not posted, so it is untouched
-        resp = self.client.post(reverse("my_settings"), {"tab": "display", "landing_program": ""})
+        resp = self.client.post(reverse("my_settings"), {"tab": "display"})
         self.assertRedirects(resp, reverse("my_settings") + "?tab=display", fetch_redirect_response=False)
         self.user.refresh_from_db()
         self.assertEqual(self.user.email, "e@example.com")  # the Account section is untouched
         self.assertFalse(self.user.justify_text)  # an unticked box in the posted section turns it off
 
-    def test_the_gear_and_home_open_the_settings_area(self):
-        from accounts import suite
-
-        suite.set_brand_modes({key: suite.BRAND_LOGO for key in suite.BRAND_KEYS})  # Words is the default
+    def test_the_user_name_opens_the_settings_area(self):
         diary = self.client.get(reverse("diary_home")).content.decode()
-        # The diary gear opens the diary's own Settings tab; the user name in the header opens My settings.
-        self.assertIn('href="%s" class="nav-icon" aria-label="Settings"' % reverse("profile_settings"), diary)
+        # No Settings link in the diary header; the user name in the header opens My settings.
+        self.assertNotIn('aria-label="Settings"', diary)
         self.assertIn('class="who" href="%s"' % reverse("my_settings"), diary)
         display = self.client.get(reverse("my_settings"), {"tab": "display"}).content.decode()
-        self.assertIn('class="subnav"', display)
+        self.assertIn('class="subnav"', display)  # the Settings tabs
 
     def test_change_my_password(self):
         page = self.client.get(reverse("password_change"))

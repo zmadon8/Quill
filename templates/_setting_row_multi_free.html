@@ -1,0 +1,6 @@
+{# A group of tick boxes of a Django form with no limit (Home page details). Context: f (bound field), help, who. #}<div class="setting-row">
+  {{ f.errors }}
+  <span class="setting-label">{{ f.label }}</span>{% include "_who_tag.html" %}
+  <div class="metric-choices">{% for box in f %}<label class="search-check">{{ box.tag }} {{ box.choice_label }}</label> {% endfor %}</div>
+  <span class="setting-help">{{ help }}</span>
+</div>

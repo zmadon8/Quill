@@ -7,7 +7,7 @@ transactions: it receives only symbols and dates and sends only prices.
 
     python3 price_helper.py --config ~/.quill-helper.json
 
-The config file is JSON: {"site": "https://your-site.onrender.com", "token": "the token from Settings > Price sources",
+The config file is JSON: {"site": "https://your-site.onrender.com", "token": "the token from Catalogue > Price sources",
 "sources": ["yahoo", "amfi", "mfapi"]}. It exits non-zero if anything failed. See docs/PRICE_HELPER.md (and its launchd sample).
 """
 import argparse

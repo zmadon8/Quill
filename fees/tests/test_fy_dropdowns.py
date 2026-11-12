@@ -9,7 +9,7 @@ from django.urls import reverse
 from accounts.models import Profile
 from accounts.suite import KEY_FEES
 from fees.models import FeesSettings, Memo, Payment
-from fees.services import filter_options, fy_options, memo_lists, payments
+from fees.services import filter_options, fy_options, memo_lists, payments, prefs
 from fees.services.financial_year import current_financial_year
 from fees.tests.test_views_write import WriteBase
 
@@ -155,7 +155,7 @@ class FyDropdownPageTests(WriteBase):
 
 class ItemsPerPageTests(WriteBase):
     def set_per_page(self, value):
-        FeesSettings.objects.update_or_create(profile=self.profile, defaults={"items_per_page": value})
+        prefs.set_personal(self.profile, self.editor, {"items_per_page": value})
 
     def memo_count(self, drafts=False):
         return Memo.objects.filter(profile=self.profile, is_draft=drafts).count()
@@ -168,7 +168,7 @@ class ItemsPerPageTests(WriteBase):
         self.assertEqual(memo_lists.page_size_for(5000), 1000)
 
     def test_the_default_is_fifty(self):
-        self.assertEqual(FeesSettings._meta.get_field("items_per_page").get_default(), 50)
+        self.assertEqual(prefs.personal_items_per_page(self.profile, self.editor, None), 50)
 
     def test_memos_break_into_pages_of_the_chosen_size(self):
         for _ in range(3):
@@ -226,22 +226,21 @@ class ItemsPerPageTests(WriteBase):
         self.set_per_page(0)
         self.assertEqual(len(self.client.get(reverse("fees_feebook")).context["entries"]), total)
 
-    def test_the_setting_is_saved_from_settings_and_shows_all_for_zero(self):
-        self.post("fees_settings", {"items_per_page": "All"})
-        self.assertEqual(FeesSettings.objects.get(profile=self.profile).items_per_page, 0)
-        html = self.client.get(reverse("fees_settings")).content.decode()
-        self.assertIn('name="items_per_page"', html)
-        self.assertRegex(html, r'name="items_per_page"[^>]*value="All"')
-        self.post("fees_settings", {"items_per_page": "25"})
-        self.assertEqual(FeesSettings.objects.get(profile=self.profile).items_per_page, 25)
-        html = self.client.get(reverse("fees_settings")).content.decode()
-        self.assertRegex(html, r'name="items_per_page"[^>]*value="25"')
+    def test_the_choice_is_saved_from_my_settings_and_shows_all_for_zero(self):
+        self.client.post(reverse("my_settings"), {"tab": "fees", "fees-items_per_page": "All"})
+        self.assertEqual(prefs.get_personal(self.profile, self.editor)["items_per_page"], 0)
+        html = self.client.get(reverse("fees_settings") + "?tab=display").content.decode()
+        self.assertRegex(html, r'name="fees-items_per_page"[^>]*value="All"')
+        self.client.post(reverse("my_settings"), {"tab": "fees", "fees-items_per_page": "25"})
+        self.assertEqual(prefs.get_personal(self.profile, self.editor)["items_per_page"], 25)
+        html = self.client.get(reverse("fees_settings") + "?tab=display").content.decode()
+        self.assertRegex(html, r'name="fees-items_per_page"[^>]*value="25"')
 
     def test_a_bad_value_is_refused_and_nothing_changes(self):
-        response = self.post("fees_settings", {"items_per_page": "1001"})
-        self.assertEqual(response.status_code, 422)
-        self.assertEqual(FeesSettings.objects.get(profile=self.profile).items_per_page, 50)
-        self.assertEqual(self.post("fees_settings", {"items_per_page": "lots"}).status_code, 422)
+        self.client.post(reverse("my_settings"), {"tab": "fees", "fees-items_per_page": "1001"})
+        self.assertEqual(prefs.get_personal(self.profile, self.editor), {})
+        self.client.post(reverse("my_settings"), {"tab": "fees", "fees-items_per_page": "lots"})
+        self.assertEqual(prefs.get_personal(self.profile, self.editor), {})
 
 
 class DefaultYearTests(WriteBase):

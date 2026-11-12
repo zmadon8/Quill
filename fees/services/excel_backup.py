@@ -19,7 +19,7 @@ the payment has exactly one allocation, else empty; timestamps are ``YYYY-MM-DD 
 never empty; booleans are 0 or 1; dates are ISO text; money is a number. ``payment_details`` is in the
 backup (it is the full backup, R-PAY-5). Electron-only settings are written at their desktop defaults.
 Web-only settings go to the ``WebSettings`` sheet (``key``, ``value``), including the five memo text
-defaults (R-SET-7), ``memo_signature_default``, ``list_default_filter`` and ``items_per_page`` (an older file without these keys
+defaults (R-SET-7), ``memo_signature_default``, and ``list_default_filter`` (an older file without these keys
 restores to the defaults). A second web-only sheet, ``WebMemoFlags`` (``memo_id``, ``memo_number``,
 ``include_signature``), carries the per-memo signature flag; the desktop ``Memos`` sheet gets NO new column
 (it is a contract). An older file without ``WebMemoFlags`` restores every memo with the signature default
@@ -56,6 +56,7 @@ __all__ = [
     "ELECTRON_ONLY_DEFAULTS",
     "NOT_NULL_DEFAULTS",
     "WEB_SETTINGS_KEYS",
+    "LEGACY_WEB_SETTINGS_KEYS",
     "MEMO_TEXT_DEFAULT_KEYS",
     "settings_backup_columns",
     "settings_backup_defaults",
@@ -210,14 +211,16 @@ WEB_SETTINGS_KEYS = [
     "export_owner_name",
     "memo_filename_pattern",
     "statistics_enabled",
-    "dashboard_kpis_enabled",
-    "dashboard_enabled",
     "show_bank",
 ] + MEMO_TEXT_DEFAULT_KEYS + [
     "memo_signature_default",
     "list_default_filter",
-    "items_per_page",
 ]
+
+#: Keys an older file may still carry in ``WebSettings``: the Dashboard switches that were merged into
+#: ``statistics_enabled`` (a restore turns Statistics off if any of them is off) and the profile-wide Items per page
+#: (now a personal choice, ignored). They are never written.
+LEGACY_WEB_SETTINGS_KEYS = ["dashboard_kpis_enabled", "dashboard_enabled", "items_per_page"]
 
 #: NOT NULL columns with a default; a blank or missing value takes this on restore (ported from
 #: ``NOT_NULL_INT_DEFAULTS`` in ``readSheetRows``). The settings defaults are merged in from
@@ -240,6 +243,11 @@ NOT_NULL_DEFAULTS = dict(
 
 #: Electron-only settings written at desktop defaults (design 7.1); ``None`` is an empty cell.
 ELECTRON_ONLY_DEFAULTS = {
+    # No longer settings here: the columns stay in the file for the desktop app, written empty; a restore ignores them.
+    "default_additional_details_left": None,
+    "default_additional_details_right": None,
+    # The Opening page is a personal choice now; the desktop column stays in the file at its default.
+    "default_tab": "memos",
     "auto_backup_frequency": "off",
     "auto_backup_dir": None,
     "last_auto_backup": None,

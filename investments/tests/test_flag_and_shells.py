@@ -89,8 +89,10 @@ class ShellTests(TestCase):
                 if page.slug not in REAL:      # a real page has its own content; only the shells show the empty-state text
                     self.assertContains(response, page.title)
                     self.assertContains(response, escape(page.empty))
-                for label in ("Overview", "Holdings", "Reports", "Alerts", "Settings"):
+                for label in ("Overview", "Holdings", "Reports", "Alerts", "Catalogue"):
                     self.assertContains(response, label)
+                # No Settings item in the header: the user name opens My settings, whose tabs lead to the Investments settings.
+                self.assertNotContains(response, 'aria-label="Settings"')
                 self.assertContains(response, 'data-money-mode="auto"')
 
     def test_page_titles_follow_the_fee_register_rule(self):
@@ -108,6 +110,29 @@ class ShellTests(TestCase):
                 self.assertEqual(len(h1s), 1, h1s)
                 self.assertEqual("visually-hidden" in h1s[0], page.slug in menu, h1s[0])
                 self.assertNotIn('class="titlebar"', html)
+
+    def test_catalogue_is_a_page_of_its_own_with_price_history_and_price_sources(self):
+        response = self.client.get(reverse("investments_admin_catalogue"))
+        for label in ("Catalogue", "Price history", "Price sources"):
+            self.assertContains(response, ">%s</a>" % label)
+        self.assertContains(response, '<a href="/investments/catalogue/" class="on" aria-current="page">Catalogue</a>', html=False)
+        settings_page = self.client.get(reverse("investments_settings")).content.decode()
+        sub = settings_page.split('aria-label="Section"')[1].split("</nav>")[0]
+        for gone in ("Catalogue", "Price history", "Price sources"):
+            self.assertNotIn(">%s</a>" % gone, sub)
+
+    def test_the_old_settings_addresses_still_work(self):
+        for old, new in (("settings/catalogue/", "catalogue/"), ("settings/price-sources/", "catalogue/price-sources/"),
+                         ("settings/price-history/", "catalogue/price-history/"), ("settings/price-upload/", "catalogue/price-upload/")):
+            response = self.client.get("/investments/" + old)
+            self.assertEqual(response.status_code, 308, old)
+            self.assertTrue(response["Location"].endswith("/investments/" + new), response["Location"])
+
+    def test_landing_opens_the_users_start_page(self):
+        self.user.investments_start_page = "holdings"
+        self.user.save()
+        response = self.client.get("/investments/")
+        self.assertRedirects(response, reverse("investments_holdings"), fetch_redirect_response=False)
 
     def test_menu_marks_current_group(self):
         response = self.client.get(reverse("investments_transactions"))

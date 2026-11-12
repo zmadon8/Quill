@@ -382,6 +382,7 @@ def parse_backup(raw, max_bytes):
             ):
                 raise BackupError(f"This backup file is damaged (bad record in {label}).")
     old_roles = _normalise_user_records(models_in_file.get("accounts.User", []))
+    _normalise_profile_records(models_in_file.get("accounts.Profile", []))
     upgrade_old_document(document, roles=old_roles)
     _fill_membership_roles(models_in_file.get("accounts.ProfileMembership", []), old_roles)
     upgrade_old_items(document)
@@ -520,6 +521,18 @@ def _normalise_user_records(records):
     return roles
 
 
+def _normalise_profile_records(records):
+    """Drop ``reading_all_default`` (removed). A profile on the "remember" mode, or with no mode, whose boolean was
+    False becomes always_off; with True it stays "remember" (which now opens the whole Subject before any view is kept)."""
+    for record in records:
+        fields = record["fields"]
+        if "reading_all_default" not in fields:
+            continue
+        whole = fields.pop("reading_all_default")
+        if not whole and fields.get("reading_all_mode", "remember") == "remember":
+            fields["reading_all_mode"] = "always_off"
+
+
 def _fill_membership_roles(records, roles):
     """Give memberships without a valid role the role mapped from the user's old role (else Reader)."""
     for record in records:
@@ -642,7 +655,7 @@ def restore_backup(document, user):
                 objects = []
                 for start in range(0, len(records), 500):
                     chunk = records[start:start + 500]
-                    objects.extend(serializers.deserialize("json", json.dumps(chunk)))
+                    objects.extend(serializers.deserialize("json", json.dumps(chunk), ignorenonexistent=True))
                 batches.append((model, objects))
             for model, _objects in reversed(batches):
                 model._default_manager.all().delete()

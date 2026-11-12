@@ -228,7 +228,7 @@ class AlertBadgeTests(InvTestCase):
         self.assertEqual(count, len(alerts.visible(self.profile)))
         page = self.client.get(reverse("investments_holdings")).content.decode()
         self.assertNotIn("data-alert-url", page)           # now kept: the badge is in the page itself
-        self.assertIn(f'aria-label="{count} alerts"', page)
+        self.assertIn('aria-label="Alerts need attention"', page)      # a dot, no number
 
     def test_the_count_is_for_readers_only(self):
         self.client.logout()

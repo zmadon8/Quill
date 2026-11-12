@@ -143,4 +143,5 @@ class PageNamesTests(TestCase):
         self.assertIn("Everyone", body)
         self.assertIn("Home page name", body)
         self.assertIn("Case law diary name", body)
-        self.assertIn('class="on" aria-current="page">Appearance</a>', body)
+        self.assertIn('class="on" aria-current="page">Display</a>', body)  # the page sits under the Display tab
+        self.assertIn('class="on" aria-current="page">Names</a>', body)  # and is its Names page (second row)

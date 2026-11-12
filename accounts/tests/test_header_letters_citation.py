@@ -22,7 +22,7 @@ class HeaderLettersTests(TestCase):
         self.client.force_login(self.user)
 
     def post(self, **data):
-        return self.client.post(reverse("my_settings"), {"tab": "display", "landing_program": "", **data})
+        return self.client.post(reverse("my_settings"), {"tab": "account", **data})
 
     def test_blank_falls_back_to_initials(self):
         self.assertEqual(badge(self.client.get(reverse("home")).content.decode()), "EN")
@@ -57,11 +57,11 @@ class CitationHyphenSettingTests(TestCase):
 
     def test_default_off_and_setting_saves(self):
         self.assertFalse(self.user.remove_citation_hyphen)
-        resp = self.client.post(reverse("my_settings"), {"tab": "display", "landing_program": "", "remove_citation_hyphen": "on"})
+        resp = self.client.post(reverse("my_settings"), {"tab": "diary", "remove_citation_hyphen": "on"})
         self.assertEqual(resp.status_code, 302)
         self.user.refresh_from_db()
         self.assertTrue(self.user.remove_citation_hyphen)
-        self.assertContains(self.client.get(reverse("my_settings") + "?tab=display"), 'name="remove_citation_hyphen"')
+        self.assertContains(self.client.get(reverse("profile_settings") + "?tab=numbers"), 'name="remove_citation_hyphen"')
 
 
 @override_settings(SECURE_SSL_REDIRECT=False)
@@ -71,7 +71,7 @@ class InvestmentsPeriodSettingTests(TestCase):
         self.client.force_login(self.user)
 
     def post(self, **data):
-        return self.client.post(reverse("my_settings"), {"tab": "display", "landing_program": "", **data})
+        return self.client.post(reverse("my_settings"), {"tab": "investments", **data})
 
     def test_default_is_all_and_a_choice_is_saved(self):
         self.assertEqual(self.user.investments_period, "all")

@@ -1,9 +1,0 @@
-{% extends "investments/base_investments.html" %}
-{% block inv_content %}
-<h1 class="visually-hidden">Pages</h1>
-<p class="hint">Hiding a page only removes it from the menu and from links. The data is still recorded, calculated and backed up, and the page can be shown again at any time. Settings itself can never be hidden.</p>
-<form method="post" class="form">{% csrf_token %}
-  <ul class="plain">{% for p, shown in choices %}<li><label class="chk"><input type="checkbox" name="shown" value="{{ p.slug }}"{% if shown %} checked{% endif %}{% if not can_edit %} disabled{% endif %}> {{ p.title }}</label></li>{% endfor %}</ul>
-  {% if can_edit %}<div class="acts-row"><button class="btn p" type="submit">Save</button></div>{% endif %}
-</form>
-{% endblock %}

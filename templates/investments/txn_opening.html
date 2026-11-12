@@ -12,4 +12,4 @@
 <script id="inv-default-brokers" type="application/json">{{ default_brokers_json|safe }}</script>
 <script id="inv-folios" type="application/json">{{ folios_json|safe }}</script>
 {% endblock %}
-{% block page_js %}{% load static %}<script src="{% static 'js/investments/txn-form.js' %}"></script>{% endblock %}
+{% block page_js %}{% load static %}<script src="{% static 'js/investments/txn-form.js' %}"></script><script src="{% static 'js/investments/held-only.js' %}"></script>{% endblock %}

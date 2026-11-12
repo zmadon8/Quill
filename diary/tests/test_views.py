@@ -44,10 +44,6 @@ class HomeIndexTests(TestCase):
     @classmethod
     def setUpTestData(cls):
         from django.utils import timezone
-        from accounts import suite
-
-        suite.set_brand_modes({key: suite.BRAND_LOGO for key in suite.BRAND_KEYS})  # these tests check the icons; Words is the default
-
         cls.reader = join_main(User.objects.create_user("rita", password=PASSWORD))
         cls.admin = join_main(User.objects.create_user("adam", password=PASSWORD, is_superuser=True), "editor")
         cls.arb = Subject.objects.create(profile=main_profile(), name="Arbitration", landing_position=1)
@@ -148,15 +144,16 @@ class HomeIndexTests(TestCase):
         self.assertNotIn('href="%s"' % reverse("user_list"), nav)
         self.assertNotIn('href="%s"' % reverse("backup_list"), nav)
         resp = self.client.get(reverse("home"))
-        self.assertContains(resp, 'href="%s"' % reverse("user_list"))
-        # Round 18 (D96): Backups is a tab of Admins, which Home links to.
+        self.assertContains(resp, 'href="%s"' % reverse("my_settings"))
+        # Backup is a tab of Settings, which Home links to.
         self.assertContains(self.client.get(reverse("user_list")), 'href="%s"' % reverse("backup_list"))
 
     def test_nav_marks_current_page(self):
         self.client.force_login(self.admin)
         resp = self.client.get(reverse("user_list"))
-        self.assertContains(resp, 'class="nav-icon on" aria-current="page" aria-label="Admins"')  # D85, D86, D96
-        self.assertContains(resp, '<a href="%s" class="on" aria-current="page">Users</a>' % reverse("user_list"))  # its tab
+        self.assertNotContains(resp, 'aria-label="Settings"')  # no Settings header item; the tab strip below marks the page
+        self.assertContains(resp, '<a href="%s" class="on" aria-current="page">Users &amp; Profiles</a>' % reverse("user_list"))  # its tab
+        self.assertContains(resp, '<a href="%s" class="on" aria-current="page">Users</a>' % reverse("user_list"))  # its second row
         self.assertNotContains(resp, 'class="on" aria-current="page">Subjects</a>')
 
     def test_login_page_is_plain(self):
@@ -322,10 +319,10 @@ class HomeIndexTests(TestCase):
     def test_picker_top_row_is_users_name_logout_only(self):
         self.client.force_login(self.admin)
         nav = self.client.get(reverse("home")).content.decode().split('class="program-nav"')[1].split("</nav>")[0]
-        self.assertIn(reverse("user_list"), nav)
+        self.assertIn(reverse("my_settings"), nav)
         self.assertIn("adam", nav)
         self.assertIn('aria-label="Sign out"', nav)
-        self.assertIn('aria-label="Admins"', nav)  # D96: Backups is a tab of Admins
+        self.assertNotIn('aria-label="Settings"', nav)  # no Settings item: the user name opens settings
         for gone in (reverse("search"), reverse("diary_home")):
             self.assertNotIn(gone, nav)
         self.assertNotIn(">Admin<", nav)
@@ -696,27 +693,20 @@ class ReadingScreenTests(TestCase):
         html = self.client.get(whole + "?edit=1").content.decode()
         self.assertIn('href="%s?edit=1" title="Show only this Topic"' % reverse("read_topic", args=[topic.pk]), html)
 
-    def test_no_cookie_follows_profile_default_for_contents_links(self):
+    def test_no_cookie_opens_the_whole_subject_for_contents_links(self):
         self.client.force_login(self.users["reader"])
         topic = Topic.objects.get(name="Remedies")
         whole = reverse("read_subject", args=[self.contract.pk])
         del self.client.cookies["quill_in_context"]
-        Profile.objects.filter(pk=main_profile().pk).update(reading_all_default=False)
-        resp = self.client.get(reverse("subject_contents", args=[self.contract.pk]))
-        self.assertContains(resp, 'data-own-url="%s"' % reverse("read_topic", args=[topic.pk]))
-        self.assertNotContains(resp, 'href="%s#n-topic-' % whole)
-        Profile.objects.filter(pk=main_profile().pk).update(reading_all_default=True)
         resp = self.client.get(reverse("subject_contents", args=[self.contract.pk]))
         self.assertContains(resp, 'href="%s#n-topic-%d"' % (whole, topic.pk))
 
-    def test_remembered_view_cookie_beats_profile_default_for_contents_links_on_the_contents_page(self):
+    def test_remembered_view_cookie_decides_contents_links_on_the_contents_page(self):
         self.client.force_login(self.users["reader"])
         topic = Topic.objects.get(name="Remedies")
         whole = reverse("read_subject", args=[self.contract.pk])
-        Profile.objects.filter(pk=main_profile().pk).update(reading_all_default=False)
         self.client.cookies["quill_in_context"] = "1"
         self.assertContains(self.client.get(reverse("subject_contents", args=[self.contract.pk])), 'href="%s#n-topic-%d"' % (whole, topic.pk))
-        Profile.objects.filter(pk=main_profile().pk).update(reading_all_default=True)
         self.client.cookies["quill_in_context"] = "0"
         self.assertNotContains(self.client.get(reverse("subject_contents", args=[self.contract.pk])), 'href="%s#n-topic-%d"' % (whole, topic.pk))
 
@@ -735,10 +725,10 @@ class ReadingScreenTests(TestCase):
         topic = Topic.objects.get(name="Remedies")
         whole = reverse("read_subject", args=[self.contract.pk])
         toc_whole = '<a href="%s#n-topic-%d" data-own-url' % (whole, topic.pk)
-        Profile.objects.filter(pk=main_profile().pk).update(reading_all_mode="always_on", reading_all_default=False)
+        Profile.objects.filter(pk=main_profile().pk).update(reading_all_mode="always_on")
         self.client.cookies["quill_in_context"] = "0"
         self.assertContains(self.client.get(reverse("read_topic", args=[topic.pk])), toc_whole)
-        Profile.objects.filter(pk=main_profile().pk).update(reading_all_mode="always_off", reading_all_default=True)
+        Profile.objects.filter(pk=main_profile().pk).update(reading_all_mode="always_off")
         self.client.cookies["quill_in_context"] = "1"
         self.assertNotContains(self.client.get(reverse("read_topic", args=[topic.pk])), toc_whole)
         self.assertContains(self.client.get(reverse("read_topic", args=[topic.pk])), '<a href="%s" data-own-url' % reverse("read_topic", args=[topic.pk]))
@@ -1107,7 +1097,8 @@ class ProfileScopingTests(TestCase):
         self.assertNotContains(resp, "No programs are available to you yet.")
         self.assertContains(resp, "No profiles are given to you yet.")
         self.assertContains(resp, 'href="%s"' % reverse("admin_profile_access"))
-        self.assertContains(resp, 'href="%s"' % reverse("user_list"))
+        # Users & Profiles is a tab of Settings, which the Home header (and the user name) link to.
+        self.assertContains(resp, 'href="%s"' % reverse("my_settings"))
         self.assertEqual(self.client.get(reverse("diary_home")).status_code, 200)
 
     def test_deleted_profile_means_no_access(self):

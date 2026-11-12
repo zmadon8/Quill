@@ -116,6 +116,24 @@ def peek_totals(profile, today=None, period="all"):
     return _with_period(totals, payload)
 
 
+def peek_payload(profile, today=None, period="all"):
+    """The Overview's whole cached payload for all portfolios today, decoded like :func:`load` does, if it is already worked out (else None).
+    The suite Home page uses this so that it never starts the calculation."""
+    today = today or date.today()
+    settings_row = core.get_settings(profile, create=False)
+    payload = statscache.peek(profile, "dashboard", _params(profile, None, None, today, settings_row.include_dividends, period), today=today)
+    if not payload:
+        return None
+    for key in ("invested", "value", "gain", "dividends"):
+        payload["totals"][key] = Decimal(payload["totals"][key])
+    if payload.get("period_totals"):
+        payload["totals"].update({k: payload["period_totals"][k] for k in ("gain_pct", "xirr", "index_xirr", "alpha")})
+        payload["totals"]["gain"] = Decimal(payload["period_totals"]["gain"])
+    payload["allocation"] = [(label, Decimal(value), share) for label, value, share in payload["allocation"]]
+    payload["overview"] = overview.as_decimals(payload.get("overview") or {"periods": [], "rows": []})
+    return payload
+
+
 def load(profile, portfolio=None, broker=None, as_of=None, include_dividends=None, period="all"):
     as_of = as_of or date.today()
     payload = statscache.get_or_compute(profile, "dashboard", _params(profile, portfolio, broker, as_of, include_dividends, period),

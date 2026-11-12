@@ -13,7 +13,10 @@ from django.views.decorators.http import require_GET, require_http_methods, requ
 
 from . import landing, programs, suite, user_trash
 from .clear import ClearRefused, clear_preview, clear_profile
-from .forms import MyAccountForm, MyDisplayForm, UsernamePasswordResetForm, _client_ip, ProfileForm, SuiteNamesForm, UserCreateForm, UserEditForm
+from .forms import (
+    MyAccountForm, MyCitationForm, MyDisplayForm, MyInvestmentsForm, MyStartForm,
+)
+from .forms import UsernamePasswordResetForm, _client_ip, ProfileForm, SuiteNamesForm, UserCreateForm, UserEditForm
 from .models import OfflineLink, Profile, ProfileMembership, PurgeLog, ResetRequest, prune_reset_requests
 from .permissions import admin_required
 from .profiles import (
@@ -129,25 +132,54 @@ class ForgotPasswordView(auth_views.PasswordResetView):
 #: Old ``?tab=`` names from before the sections: "numbers" was the Case Law Diary tab.
 SECTION_ALIASES = {"numbers": "diary"}
 
+#: The pages of My settings that live in the Home shell, and the program pages that hold the other personal sections. A GET of
+#: ``?tab=diary|fees|investments`` (an old address) goes to that program's Settings page.
+HOME_TABS = ("account", "display", "start")
+PROGRAM_TABS = ("diary", "fees", "investments")
+
+
+def _program_settings_url(tab):
+    """Where the personal section ``tab`` of a program is shown, and where its save returns to."""
+    return {
+        "diary": reverse("profile_settings") + "?tab=numbers",
+        "fees": reverse("fees_settings") + "?tab=display",
+        "investments": reverse("investments_settings_display"),
+    }[tab]
+
+
+def _profile_view_groups(request):
+    """For Profile View: each program the user has a profile in, with the profiles they may use and the one in use."""
+    from .profiles import request_memberships
+
+    names = suite.get_names()
+    groups = []
+    for key in programs.enabled_program_keys():
+        if request_profile(request, key) is None:
+            continue
+        rows = [{"profile": m.profile, "current": i == 0} for i, m in enumerate(request_memberships(request, key))]
+        groups.append({"key": key, "name": names.get(key, key), "rows": rows})
+    return groups
+
 
 @login_required
 @require_http_methods(["GET", "POST"])
 def my_settings(request):
-    """My settings: everything that is only mine, in sections with a Save each (the user name in the header opens it).
+    """Settings that are only mine, over three pages of the Settings tab strip (``?tab=``): Account and Profile View (the default:
+    email, letters in the header badge, password, the profiles I use), Display (justify text, colour theme, Home card figures
+    and extras) and Start Screens (the program that opens after sign-in and the start page of each program). The personal
+    sections of a program (Case Law Diary number formats, Fee Register Items per page, Investments period) are saved here too
+    but shown on that program's own Settings page, so each setting appears once.
 
-    Account (email, password), Display (open after login, justify text), Case Law Diary (opening page, number formats,
-    date in Word file names: ``diary.UserSettings``) and Fee Register (Opening page, Items per page: ``FeesUserPrefs``
-    key ``settings``). The last two show only for a user who can open that program. The program-wide choices (reading,
-    Word import, the Fee Register's memos and payments ...) are on each program's own Settings tab.
-
-    A POST names the section it saves (``tab``) and checks only that section's form. A POST naming no section (an
-    older form) saves the Account, Display and Case Law Diary fields it carries, as before.
+    A POST names the section it saves (``tab``) and checks only that section's forms. A POST naming no section (an older
+    form) saves the Account, Display, Start Screens and Case Law Diary fields it carries, as before.
     """
     from diary.forms import DiarySettingsForm, preview_rows  # lazy: diary imports accounts
 
     profile = request_profile(request)
     fees_profile = request_profile(request, suite.KEY_FEES) if programs.fees_enabled() else None
-    sections = ["account", "display"] + (["diary"] if profile else []) + (["fees"] if fees_profile else [])
+    inv_profile = request_profile(request, suite.KEY_INVESTMENTS) if programs.investments_enabled() else None
+    sections = list(HOME_TABS) + (["diary"] if profile else []) + (["fees"] if fees_profile else []) + (
+        ["investments"] if inv_profile else [])
     posted = SECTION_ALIASES.get(request.POST.get("tab") or "", request.POST.get("tab") or "")
     if posted not in sections:
         posted = ""  # an older form (or a section this user does not have): the legacy fields are saved
@@ -155,17 +187,22 @@ def my_settings(request):
     tab = posted or SECTION_ALIASES.get(asked, asked)
     if tab not in sections:
         tab = "account"
+    if request.method == "GET" and tab in PROGRAM_TABS:
+        return redirect(_program_settings_url(tab))
 
     post = request.POST if request.method == "POST" else None
 
     def bound_for(*keys):
-        """The POST data for the form of a section: only when that section (or an older, unnamed form) was posted."""
+        """The POST data for the forms of a section: only when that section (or an older, unnamed form) was posted."""
         return post if post is not None and posted in keys else None
 
     account_form = MyAccountForm(bound_for("account", ""), instance=request.user)
     display_form = MyDisplayForm(bound_for("display", ""), instance=request.user)
+    start_form = MyStartForm(bound_for("start", ""), instance=request.user)
+    citation_form = MyCitationForm(bound_for("diary", ""), instance=request.user)
+    investments_form = MyInvestmentsForm(bound_for("investments", ""), instance=request.user)
     diary_form = (
-        DiarySettingsForm(bound_for("diary", ""), user=request.user, profile=profile) if profile else None
+        DiarySettingsForm(bound_for("start", "diary", ""), user=request.user, profile=profile) if profile else None
     )
     fees_form = None
     if fees_profile:
@@ -173,12 +210,13 @@ def my_settings(request):
         from fees.personal_form import FeesPersonalForm
 
         fees_form = FeesPersonalForm(
-            bound_for("fees"), prefix="fees", profile=fees_profile, user=request.user,
+            bound_for("start", "fees"), prefix="fees", profile=fees_profile, user=request.user,
             fees_settings=FeesSettings.objects.filter(profile=fees_profile).first(),
         )
     if post is not None:
         # Every form of the section is checked so that every error is shown at once; nothing is saved unless all are fine.
-        checked = [f for f in (account_form, display_form, diary_form, fees_form) if f is not None and f.is_bound]
+        everything = (account_form, display_form, start_form, citation_form, investments_form, diary_form, fees_form)
+        checked = [f for f in everything if f is not None and f.is_bound]
         valid = True
         for one in checked:
             valid = one.is_valid() and valid
@@ -186,18 +224,32 @@ def my_settings(request):
             for one in checked:
                 one.save()
             messages.success(request, "Settings saved.")
+            if tab in PROGRAM_TABS:
+                return redirect(_program_settings_url(tab))
             return redirect(reverse("my_settings") + ("" if tab == "account" else f"?tab={tab}"))
+        if tab in PROGRAM_TABS:
+            # These forms are shown on the program's own page: say what was wrong and go back there.
+            for one in checked:
+                for field, errors in one.errors.items():
+                    label = one.fields[field].label if field in one.fields else ""
+                    for error in errors:
+                        messages.error(request, f"{label}: {error}" if label else error)
+            return redirect(_program_settings_url(tab))
+    page = {"account": "accounts/my_settings.html", "display": "accounts/my_display.html",
+            "start": "accounts/my_start.html"}[tab if tab in HOME_TABS else "account"]
     return render(
         request,
-        "accounts/my_settings.html",
+        page,
         {
             "account_form": account_form,
             "display_form": display_form,
+            "start_form": start_form,
             "diary_form": diary_form,
             "fees_form": fees_form,
             "diary_profile": profile,
-            "sections": sections,
-            "tab": tab,
+            "inv_profile": inv_profile,
+            "tab": tab if tab in HOME_TABS else "account",
+            "profile_groups": _profile_view_groups(request) if tab in ("account", "") else [],
             "preview": preview_rows(diary_form.effective()) if diary_form is not None else [],
         },
     )

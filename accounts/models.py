@@ -34,15 +34,8 @@ class User(AbstractUser):
     landing_program = models.CharField(max_length=30, blank=True, default="")
     # Last Case Law Diary page viewed (path and query), used by the "last page I viewed" opening option.
     last_diary_path = models.CharField(max_length=500, blank=True, default="")
-    # How the header bar shows its links (My settings): simple icons, or the words (round 15, D84).
-    HEADER_ICONS, HEADER_WORDS = "icons", "words"
-    HEADER_STYLE_CHOICES = [(HEADER_ICONS, "Icons"), (HEADER_WORDS, "Words")]
-    header_style = models.CharField(max_length=10, choices=HEADER_STYLE_CHOICES, default=HEADER_ICONS)
     # Diary round (1.5): justify the text that is normally left-aligned. On screen only; off unless chosen (My settings, Display).
     justify_text = models.BooleanField(default=False)
-    # Owner round (2026-11): the Home button in the header bar can be hidden (My settings, Display). Home stays
-    # reachable with the Alt+H (Option+H) shortcut and from a program's own links; on unless switched off.
-    show_home_button = models.BooleanField(default=True)
     # Owner round (2026-11): the accent colour of every page, per user (My settings, Display; an Admin can set it too). Only the
     # accent changes (buttons, the current tab, links); status colours, the Word memo and the exports never do. tokens.css has one
     # html[data-theme] block per choice; the default, oxblood, needs none.
@@ -60,9 +53,18 @@ class User(AbstractUser):
         ("1m", "1M"), ("3m", "3M"), ("6m", "6M"), ("1y", "1Y"), ("3y", "3Y"), ("5y", "5Y"), ("all", "All"),
     ]
     investments_period = models.CharField("Investments period for returns", max_length=3, choices=INVESTMENTS_PERIOD_CHOICES, default="all")
+    # Owner round (2026-11): the page the Investments program opens on (My settings, Start Screens). Keys are Investments page slugs.
+    INVESTMENTS_START_CHOICES = [
+        ("dashboard", "Overview"), ("holdings", "Holdings"), ("transactions", "Transactions"), ("performance", "Reports"),
+        ("alerts", "Alerts"), ("admin_catalogue", "Catalogue"),
+    ]
+    investments_start_page = models.CharField("Investments start page", max_length=20, choices=INVESTMENTS_START_CHOICES, default="dashboard")
     # Owner round (2026-11): the (up to 3) figures on each program's Home card, {"diary": [ids], "fees": [...], "investments": [...]}
     # (My settings, Display). A missing or empty list means that program's defaults; see accounts/home_cards.py.
     home_metrics = models.JSONField("Home card figures", default=dict, blank=True)
+    # Owner round (2026-11): extra Dashboard / Overview items shown below the cards on Home, {"fees": [ids], "investments": [ids]}
+    # (My settings, Display). Missing or empty means none; see accounts/home_cards.py.
+    home_details = models.JSONField("Home page extras", default=dict, blank=True)
     # Owner round (2026-11): Case Law Diary display. On: no " - " between the Item text and its inline citations. Off (default): as before.
     remove_citation_hyphen = models.BooleanField("Remove the hyphen before the citation", default=False)
     # Who is active (round: markers, payments, activity). ``last_seen_at`` is touched by accounts.middleware at most once
@@ -129,8 +131,7 @@ class Profile(models.Model):
     ``display_name`` is used there too. Hovering over the header name shows the full Home page name.
     ``reading_all_mode`` decides what the side-panel Contents links open: the whole Subject (``always_on``), only
     that Topic or Sub-topic (``always_off``), or the view each browser used last (``remember``).
-    ``reading_all_default`` is whether the whole Subject is what those links open for a browser that has no
-    remembered view yet, when ``reading_all_mode`` is "remember".
+    A browser that has no remembered view yet gets the whole Subject when the mode is "remember".
     """
 
     READING_ALL_ALWAYS_ON = "always_on"
@@ -147,7 +148,6 @@ class Profile(models.Model):
     export_name = models.CharField(max_length=100, blank=True, default="")
     display_name = models.CharField(max_length=DISPLAY_NAME_MAX_LENGTH, blank=True, default="")
     header_name = models.CharField(max_length=DISPLAY_NAME_MAX_LENGTH, blank=True, default="")
-    reading_all_default = models.BooleanField(default=True)
     reading_all_mode = models.CharField(
         max_length=10, choices=READING_ALL_MODE_CHOICES, default=READING_ALL_REMEMBER
     )

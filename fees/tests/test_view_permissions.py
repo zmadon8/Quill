@@ -72,6 +72,7 @@ ROUTES = {
     "fees_firm_detail": (R, ""),
     "fees_firm_edit": (RW, ""),
     "fees_firm_status": (W, ""),
+    "fees_group_detail": (R, ""),
     "fees_group_add": (W, ""),
     "fees_group_rename": (W, ""),
     "fees_group_remove": (W, ""),

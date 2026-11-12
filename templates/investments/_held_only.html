@@ -1,0 +1,2 @@
+{# The "Held only" tick box for a report form. Context: held_only. The hidden hf marker tells an unticked box from a form that was never sent. #}
+<label class="held-only"><input type="hidden" name="hf" value="1"><input type="checkbox" name="held" value="1"{% if held_only %} checked{% endif %}> Held only</label>

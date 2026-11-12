@@ -36,9 +36,9 @@ def yearly(profile, portfolio=None, broker=None, **_):
     return t
 
 
-def best_worst(profile, portfolio=None, broker=None, years=1, **_):
+def best_worst(profile, portfolio=None, broker=None, years=1, held_only=False, **_):
     start, end = performance.period_dates(preset=years)
-    rows, _total, notes, _s = performance.table(profile, start=start, end=end, portfolio=portfolio, broker=broker)
+    rows, _total, notes, _s = performance.table(profile, start=start, end=end, portfolio=portfolio, broker=broker, held_only=held_only)
     opening = {h.instrument.pk: h for h in holdings.compute(profile, portfolio=portfolio, broker=broker, as_of=start)[0]}
     scored = []
     for r in rows:
@@ -58,9 +58,9 @@ def best_worst(profile, portfolio=None, broker=None, years=1, **_):
     return t
 
 
-def scoreboard(profile, portfolio=None, broker=None, years=1, **_):
+def scoreboard(profile, portfolio=None, broker=None, years=1, held_only=False, **_):
     start, end = performance.period_dates(preset=years)
-    rows, total, _n, sectoral = performance.table(profile, start=start, end=end, portfolio=portfolio, broker=broker)
+    rows, total, _n, sectoral = performance.table(profile, start=start, end=end, portfolio=portfolio, broker=broker, held_only=held_only)
     rated = [r for r in rows if r.alpha is not None]
     beat = [r for r in rated if r.alpha > 0]
     t = Table("Index scoreboard", f"How many holdings beat the Default Index over the last {years} year{'s' if years != 1 else ''}, and by how much.",
@@ -71,7 +71,7 @@ def scoreboard(profile, portfolio=None, broker=None, years=1, **_):
     return t
 
 
-def dividend_report(profile, portfolio=None, broker=None, **_):
+def dividend_report(profile, portfolio=None, broker=None, held_only=False, **_):
     qs = Dividend.objects.filter(profile=profile).select_related("instrument")
     if portfolio:
         qs = qs.filter(portfolio_id=portfolio)
@@ -79,8 +79,11 @@ def dividend_report(profile, portfolio=None, broker=None, **_):
         qs = qs.filter(broker_id=broker)
     rows_now, _t = holdings.compute(profile, portfolio=portfolio, broker=broker)
     cost = {h.instrument.pk: h.cost_of_units for h in rows_now}
+    shown = {h.instrument.pk for h in rows_now if h.is_held}
     by = {}
     for dv in qs:
+        if held_only and dv.instrument_id not in shown:
+            continue
         key = (derive_financial_year(dv.date), dv.instrument)
         by[key] = by.get(key, ZERO) + dv.amount
     t = Table("Dividend report", "Dividends by financial year and holding, with the yield on the cost of the units held now.",
@@ -89,6 +92,8 @@ def dividend_report(profile, portfolio=None, broker=None, **_):
         c = cost.get(inst.pk)
         t.rows.append([fy, inst.name, amount, float(amount / c) if c else None])
     t.total = ["Total", "", sum(by.values(), ZERO), None]
+    if held_only:
+        t.notes.append("Held only: dividends from investments you no longer hold are left out, and so from the total. Untick Held only to include them.")
     return t
 
 
@@ -170,13 +175,16 @@ def cost_of_funds(profile, portfolio=None, broker=None, **_):
             base += h.value
     t.total = ["Weighted average", base, (weighted / base).quantize(Decimal("0.001")) if base else None]
     if any(h.instrument.expense_ratio is None for h in funds):
-        t.notes.append("Some funds have no expense ratio yet; an Admin can enter it in Settings > Catalogue.")
+        t.notes.append("Some funds have no expense ratio yet; an Admin can enter it in Catalogue.")
     return t
 
 
-def data_check(profile, **_):
+def data_check(profile, held_only=False, **_):
     s = core.get_settings(profile, create=False)
     ids = ProfileInvestment.objects.filter(profile=profile).values_list("instrument_id", flat=True)
+    if held_only:
+        now_held = holdings.held_instrument_ids(profile)
+        ids = [i for i in ids if i in now_held]
     insts = list(Instrument.objects.filter(pk__in=list(ids)))
     stale = fetch.stale_ids([i for i in insts if i.price_source not in ("manual", "upload")])
     last = prices.last_price_date([i.pk for i in insts])

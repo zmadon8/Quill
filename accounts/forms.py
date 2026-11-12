@@ -208,23 +208,17 @@ class UserEditForm(ProfileAccessMixin, forms.ModelForm):
     )
 
     is_admin = _admin_field()
-    landing_program = forms.ChoiceField(required=False, label="Open after login")
 
     class Meta:
         model = User
-        fields = ("username", "email", "is_active", "landing_program", "colour_theme", "can_see_active")
+        fields = ("username", "email", "is_active", "can_see_active")
 
     def clean_email(self):
         return _clean_unique_email(self)
 
-    def clean_colour_theme(self):
-        return _clean_colour_theme(self)
-
     def __init__(self, *args, editing_user=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["email"].help_text = "Optional. Needed for \u201cForgot my password\u201d."
-        _set_up_colour_theme(self)
-        self.fields["landing_program"].choices = landing.program_choices()
         self.editing_user = editing_user
         self.fields["is_admin"].initial = self.instance.is_superuser
         # Stored roles of every program (the diary and the Fee Register), not the Admin-everywhere view.
@@ -276,8 +270,9 @@ class MySettingsForm(forms.ModelForm):
 
     class Meta:
         model = User
-        fields = ("email", "landing_program", "justify_text", "show_home_button", "colour_theme", "header_initials", "remove_citation_hyphen", "investments_period")
-        labels = {"justify_text": "Justify text", "show_home_button": "Show the Home button"}
+        fields = ("email", "landing_program", "justify_text", "colour_theme", "header_initials", "remove_citation_hyphen",
+                  "investments_period", "investments_start_page")
+        labels = {"justify_text": "Justify text"}
 
     def clean_email(self):
         return _clean_unique_email(self)
@@ -325,28 +320,70 @@ class MySettingsForm(forms.ModelForm):
                 "Lines up the right-hand edge of the text of Items, Sections and Notes on screen. Off: the text is left-aligned. "
                 "The Word export is not affected."
             )
-        if "show_home_button" in self.fields:
-            self.fields["show_home_button"].required = False
-            self.fields["show_home_button"].help_text = (
-                "The house button at the right of the header bar. Off: it is hidden on every page; Alt+H (Option+H on a Mac) "
-                "still opens Home."
-            )
         _set_up_colour_theme(self)
-        self.fields["landing_program"].choices = landing.program_choices(landing.programs_for(self.instance))
+        if "landing_program" in self.fields:
+            self.fields["landing_program"].choices = landing.program_choices(landing.programs_for(self.instance))
 
 
 class MyAccountForm(MySettingsForm):
-    """The Account section of My settings: the email address only."""
+    """The Account section of Account and Profile View: the email address and the letters in the header badge."""
+
+    landing_program = None  # only Start Screens has this field
 
     class Meta(MySettingsForm.Meta):
-        fields = ("email",)
+        fields = ("email", "header_initials")
+
+
+class MyStartForm(MySettingsForm):
+    """Start Screens: the program that opens after sign-in and the page Investments opens on. (The Case Law Diary and Fee Register
+    start pages are saved by their own forms, which the same Start Screens page also carries.)"""
+
+    class Meta(MySettingsForm.Meta):
+        fields = ("landing_program", "investments_start_page")
+
+    def clean_landing_program(self):
+        value = self.cleaned_data.get("landing_program")
+        if "landing_program" not in self.data:
+            return self.instance.landing_program  # not on the form that was posted: keep it
+        return value
+
+    def clean_investments_start_page(self):
+        value = self.cleaned_data.get("investments_start_page")
+        if "investments_start_page" not in self.data or not value:
+            return self.instance.investments_start_page or "dashboard"
+        return value
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["investments_start_page"].required = False
+        self.fields["investments_start_page"].label = "Investments start page"
+
+
+class MyCitationForm(MySettingsForm):
+    """Case Law Diary > Settings > My number formats: leave out the hyphen before the citation (a personal, on-screen choice)."""
+
+    landing_program = None  # only Start Screens has this field
+
+    class Meta(MySettingsForm.Meta):
+        fields = ("remove_citation_hyphen",)
+
+
+class MyInvestmentsForm(MySettingsForm):
+    """Investments > Settings > Display: the period behind the returns on the Overview and Home (a personal choice)."""
+
+    landing_program = None  # only Start Screens has this field
+
+    class Meta(MySettingsForm.Meta):
+        fields = ("investments_period",)
 
 
 class MyDisplayForm(MySettingsForm):
-    """The Display section of My settings: where to land after login and justified text."""
+    """Display: justify text, colour theme and what Home shows."""
+
+    landing_program = None  # only Start Screens has this field
 
     class Meta(MySettingsForm.Meta):
-        fields = ("landing_program", "justify_text", "show_home_button", "colour_theme", "header_initials", "remove_citation_hyphen", "investments_period")
+        fields = ("justify_text", "colour_theme")
 
     # Home card figures: one tick-box group per program (declared in __init__ from home_cards.METRIC_CATALOGUE), at most 3 each.
     METRIC_FIELDS = (("home_metrics_diary", suite.KEY_DIARY, "Case Law Diary"), ("home_metrics_fees", suite.KEY_FEES, "Fee Register"),
@@ -362,6 +399,21 @@ class MyDisplayForm(MySettingsForm):
                 widget=forms.CheckboxSelectMultiple,
                 help_text=f"Up to {home_cards.MAX_METRICS} figures on the {title} card on Home, shown in the order listed. None ticked: the usual three.")
             self.fields[name].initial = home_cards.chosen_metrics(self.instance, program)
+        self._add_detail_fields()
+
+    # Home page details: the Dashboard / Overview items shown below the cards, one tick-box group per program, no limit.
+    DETAIL_FIELDS = (("home_details_fees", suite.KEY_FEES, "Fee Register", "Dashboard"),
+                     ("home_details_investments", suite.KEY_INVESTMENTS, "Investments", "Overview"))
+
+    def _add_detail_fields(self):
+        from accounts import home_cards
+
+        for name, program, title, source in self.DETAIL_FIELDS:
+            self.fields[name] = forms.MultipleChoiceField(
+                required=False, label=f"Home page details: {title}", choices=home_cards.details_catalogue(program),
+                widget=forms.CheckboxSelectMultiple,
+                help_text=f"Items from the {title} {source} to show below the cards on Home. None ticked: nothing extra.")
+            self.fields[name].initial = home_cards.chosen_details(self.instance, program)
 
     def _clean_metrics(self, name):
         from accounts import home_cards
@@ -397,6 +449,18 @@ class MyDisplayForm(MySettingsForm):
             else:
                 stored.pop(program, None)
         self.instance.home_metrics = stored
+        details = dict(self.instance.home_details) if isinstance(self.instance.home_details, dict) else {}
+        present = "home_details_present" in self.data
+        for name, program, _title, _source in self.DETAIL_FIELDS:
+            if name not in self.data and not present:
+                continue
+            picked = set(self.cleaned_data.get(name) or [])
+            ordered = [k for k, _l in home_cards.details_catalogue(program) if k in picked]
+            if ordered:
+                details[program] = ordered
+            else:
+                details.pop(program, None)
+        self.instance.home_details = details
         return super().save(commit=commit)
 
 
@@ -502,16 +566,6 @@ class SuiteNamesForm(forms.Form):
                 # Investments (added later) may be left out of a post: its name then stays as it is.
                 required=key != suite.KEY_INVESTMENTS,
             )
-        # Words or Logo for the header bar of Home and each program on offer (round 20, 3.1; the Fee Register only
-        # while that program is switched on). Not posted: the current choice is kept.
-        self.brand_keys = [suite.KEY_HOME, *programs.enabled_program_keys()]
-        modes = suite.get_brand_modes()
-        for key in self.brand_keys:
-            self.fields[self._brand_field(key)] = forms.ChoiceField(
-                label=f"{names.get(key, key)} header bar", required=False, initial=modes.get(key, suite.BRAND_WORDS),
-                choices=[(suite.BRAND_WORDS, "Words"), (suite.BRAND_LOGO, "Logo")], widget=forms.RadioSelect,
-                help_text="Words: Trash, Export, Help, Settings and the other items as words. Logo: as icons.",
-            )
 
     @staticmethod
     def _name_keys():
@@ -521,10 +575,6 @@ class SuiteNamesForm(forms.Form):
     @staticmethod
     def _field_name(key):
         return f"{key}_name"
-
-    @staticmethod
-    def _brand_field(key):
-        return f"{key}_brand"
 
     def _clash_label(self, key):
         """The human label used in the "same name as" message for ``key``."""
@@ -554,10 +604,6 @@ class SuiteNamesForm(forms.Form):
             suite.set_site_name(self.cleaned_data.get("site_name", ""))
         suite.set_names(
             {key: " ".join(self.cleaned_data[self._field_name(key)].split()) for key in self.name_keys}
-        )
-        suite.set_brand_modes(
-            {key: self.cleaned_data[self._brand_field(key)] for key in self.brand_keys
-             if self.cleaned_data.get(self._brand_field(key))}
         )
 
 

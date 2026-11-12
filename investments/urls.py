@@ -1,4 +1,5 @@
-from django.urls import path
+from django.http import HttpResponse
+from django.urls import path, re_path
 
 from . import pages, views, views_holdings as vh, views_misc as vm, views_helper as vhelp, views_income as vi, views_reports as vr, views_catalogue as vc, views_prices as vp, views_txn as vt
 
@@ -25,7 +26,6 @@ REAL = {
     "history": vm.history_list,
     "settings": vm.settings_general,
     "settings_brokers": vm.settings_brokers,
-    "settings_pages": vm.settings_pages,
     "admin_prices": vp.price_sources,
     "admin_upload": vp.price_upload,
     "dividends": vi.dividends_list,
@@ -52,7 +52,19 @@ urlpatterns = [path("", views.landing, name="investments_landing")]
 for _page in pages.PAGES:
     urlpatterns.append(path(_page.path, REAL.get(_page.slug) or views.SHELL_VIEWS[_page.slug], name=pages.url_name(_page.slug)))
 
+
+
+def _moved_to_catalogue(request, rest):
+    """The catalogue, price history and price sources used to live under settings/; the old addresses keep working (308 keeps a POST)."""
+    new = rest if rest.startswith("catalogue/") else "catalogue/" + rest
+    query = request.META.get("QUERY_STRING", "")
+    response = HttpResponse(status=308)
+    response["Location"] = request.build_absolute_uri(request.path_info.split("settings/")[0] + new) + (f"?{query}" if query else "")
+    return response
+
+
 urlpatterns += [
+    re_path(r"^settings/(?P<rest>(?:catalogue|price-sources|price-upload|price-history)/.*)$", _moved_to_catalogue),
     # a redemption awaiting its units (no mockup of its own; same form as the awaiting purchase)
     path("transactions/awaiting-redemption/", lambda request: vt.txn_form(request, "awaiting_sell"), name="investments_txn_new_awaiting_sell"),
     path("transactions/available/", views.available_units, name="investments_available_units"),
@@ -80,18 +92,18 @@ urlpatterns += [
     path("prices/update/", vp.update_prices, name="investments_update_prices"),
     path("settings/indices/action/", vm.indices_action, name="investments_indices_action"),
     path("settings/clear-history/", vm.clear_history, name="investments_clear_history"),
-    path("settings/catalogue/new/", vc.catalogue_new, name="investments_admin_catalogue_new"),
-    path("settings/catalogue/<int:pk>/", vc.catalogue_item, name="investments_admin_catalogue_item"),
-    path("settings/catalogue/<int:pk>/action/", vc.catalogue_action, name="investments_admin_catalogue_action"),
-    path("settings/catalogue/<int:pk>/prices/", vc.price_action, name="investments_price_action"),
-    path("settings/price-history/archive/", vp.price_archive, name="investments_price_archive"),
+    path("catalogue/new/", vc.catalogue_new, name="investments_admin_catalogue_new"),
+    path("catalogue/<int:pk>/", vc.catalogue_item, name="investments_admin_catalogue_item"),
+    path("catalogue/<int:pk>/action/", vc.catalogue_action, name="investments_admin_catalogue_action"),
+    path("catalogue/<int:pk>/prices/", vc.price_action, name="investments_price_action"),
+    path("catalogue/price-history/archive/", vp.price_archive, name="investments_price_archive"),
     path("dividends/<int:pk>/", vi.dividend_form, name="investments_dividend_edit"),
     path("reports/<slug:slug>/", vr.report_view, name="investments_report"),
     path("insights/dismiss/", vr.insights_dismiss, name="investments_insight_dismiss"),
     path("api/prices/wanted/", vhelp.wanted, name="investments_helper_wanted"),
     path("api/prices/ingest/", vhelp.ingest, name="investments_helper_ingest"),
     path("api/prices/sheet/", vhelp.sheet, name="investments_helper_sheet"),
-    path("settings/price-sources/google-sheet/", vp.google_sheet, name="investments_admin_google_sheet"),
+    path("catalogue/price-sources/google-sheet/", vp.google_sheet, name="investments_admin_google_sheet"),
     path("prefs/selection/", views.set_selection, name="investments_set_selection"),
     path("prefs/alert-count/", views.alert_count, name="investments_alert_count"),
     path("prefs/money/", views.set_money_mode, name="investments_set_money_mode"),

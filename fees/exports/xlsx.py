@@ -14,8 +14,8 @@ Workbooks (sheet, columns, totals) are copied from ``exportService.ts``:
 
 * ``export_memos``: sheet ``Memos``; ``EXPORT_FAILED`` when there are no rows; no totals;
   file ``Memos {FY or All Years}.xlsx``.
-* ``export_statement``: sheet ``Statement``; bold ``Totals (n)`` row; file ``{statement title}.xlsx``.
-* ``export_ledger``: sheet ``Ledger``; no totals; file ``Ledger[ - name].xlsx``.
+* ``export_statement``: sheet ``Statement``; the Ledger columns and the same bold ``Totals (n)`` row; file ``{statement title}.xlsx``.
+* ``export_ledger``: sheet ``Ledger``; bold ``Totals (n)`` row (Memo, Payment, TDS; Balance blank); file ``Ledger[ - name].xlsx``.
 * ``export_feebook``: sheet ``Feebook``; only the visible columns, Date and Memo No. always;
   file ``Feebook {FY or All Years}.xlsx``.
 * ``export_outstanding``: sheet ``Outstanding``; only the visible columns, Date, Memo Number and Due always;
@@ -291,8 +291,11 @@ def export_memos(profile, filters=None):
 # ---------------------------------------------------------------------------
 
 
-def _ledger_format_sheet(book, sheet_name, rows):
-    """The Ledger layout (columns, widths, money cells, running balance), shared by Ledger and Statement."""
+def _ledger_format_sheet(book, sheet_name, rows, with_totals=False):
+    """The Ledger layout (columns, widths, money cells, running balance), shared by Ledger and Statement.
+
+    ``with_totals`` adds a bold ``Totals`` row under the Memo, Payment and TDS columns (Balance is left blank).
+    """
     sheet = book.sheet(sheet_name, (14, 52, 28, 16, 16, 12, 16))
     sheet.header(
         ["Date", "Particulars", "Matter Name", "Memo Amount", "Payment Amount", "TDS", "Balance Payable"]
@@ -309,6 +312,20 @@ def _ledger_format_sheet(book, sheet_name, rows):
                 Money(row["balance"]),
             ]
         )
+    if with_totals:
+        totals = ledger_service.ledger_totals(rows)
+        sheet.row(
+            [
+                "",
+                f"Totals ({totals['count']})",
+                "",
+                Money(totals["memo_amount"]),
+                Money(totals["payment_amount"]),
+                Money(totals["tds"]),
+                "",
+            ],
+            bold=True,
+        )
 
 
 def export_statement(profile, scope=None):
@@ -320,7 +337,7 @@ def export_statement(profile, scope=None):
     rows = ledger_service.build_ledger(profile, scope)
     title = ledger_service.scope_title(profile, scope)[0]
     book = _Book()
-    _ledger_format_sheet(book, "Statement", rows)
+    _ledger_format_sheet(book, "Statement", rows, with_totals=True)
     return _xlsx_name(title, "Statement.xlsx"), book.save()
 
 
@@ -331,7 +348,7 @@ def export_ledger(profile, scope=None):
     title = ledger_service.scope_title(profile, scope)[0]
     title = "Ledger" + title[len("Statement"):] if title.startswith("Statement") else "Ledger"
     book = _Book()
-    _ledger_format_sheet(book, "Ledger", rows)
+    _ledger_format_sheet(book, "Ledger", rows, with_totals=True)
     return _xlsx_name(title, "Ledger.xlsx"), book.save()
 
 

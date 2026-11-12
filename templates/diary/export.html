@@ -3,7 +3,7 @@
 {% block content %}
 <div class="home-column export-page">
   <h1{% if header_words %} class="visually-hidden"{% endif %}>Export</h1>
-  <p class="meta">Files cover this profile only ({{ request.profile.name }}), without anything in the Trash. Numbers follow your number formats on My settings at the moment of export.</p>
+  <p class="meta">Files cover this profile only ({{ request.profile.name }}), without anything in the Trash. Numbers follow your number formats (Settings, {{ diary_name }}, My number formats) at the moment of export.</p>
 
   <form method="get" action="{% url 'export_download' %}" class="stack export-form">
     <p class="export-option">
@@ -52,10 +52,10 @@
     </section>
   </form>
 
-  {# The file name (the profile's) is on Case Law Diary settings > Data; the date in file names (mine) is on My settings. One place each. #}
+  {# The file name (the profile's) is on Case Law Diary settings > Data; the date in file names (mine) is on Case Law Diary settings > My number formats. One place each. #}
   <section class="settings-section" data-export-settings>
     <h2>File name and date</h2>
-    <p class="meta">The start of the file names is set on <a href="{% url 'profile_settings' %}?tab=data">{{ diary_name }} settings &gt; Data</a>; the date at the end is your own choice on <a href="{% url 'my_settings' %}?tab=diary">My settings</a>.</p>
+    <p class="meta">The start of the file names is set on <a href="{% url 'profile_settings' %}?tab=data">{{ diary_name }} settings &gt; Data</a>; the date at the end is your own choice on <a href="{% url 'profile_settings' %}?tab=numbers">{{ diary_name }} settings &gt; My number formats</a>.</p>
   </section>
 
   {% if request.user.is_admin %}

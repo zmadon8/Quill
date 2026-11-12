@@ -59,6 +59,14 @@ def selection(request, profile):
     return portfolio, broker, asat
 
 
+def held_only(request, default=True):
+    """The "Held only" tick box on a report page. The form sends a hidden marker ``hf=1`` with the tick box ``held=1``, so an unticked box
+    (marker present, ``held`` absent) means off, and a page opened without the marker uses ``default``."""
+    if request.GET.get("hf"):
+        return request.GET.get("held") == "1"
+    return default
+
+
 def page(request, template, context=None, status=200, selectors=True):
     """Render an Investments page with the header entries, role flag, selectors and number-display choice added."""
     profile = scope.for_profile(request)

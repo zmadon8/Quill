@@ -226,16 +226,15 @@ class RouteTests(SeededViewsBase):
 
 
 class LandingTests(SeededViewsBase):
-    def test_landing_opens_the_default_tab(self):
+    def test_landing_opens_memos_when_no_opening_page_is_chosen(self):
         self.login(self.reader)
-        # The seed sets default_tab to "firms".
         response = self.client.get("/fees/")
-        self.assertRedirects(response, reverse("fees_firms"), fetch_redirect_response=False)
+        self.assertRedirects(response, reverse("fees_memos"), fetch_redirect_response=False)
 
     def test_landing_follows_the_setting(self):
-        from fees.models import FeesSettings
+        from fees.services import prefs
 
-        FeesSettings.objects.filter(profile=self.profile).update(default_tab="outstanding")
+        prefs.set_personal(self.profile, self.reader, {"default_tab": "outstanding"})
         self.login(self.reader)
         self.assertRedirects(
             self.client.get(reverse("fees_landing")), reverse("fees_outstanding"), fetch_redirect_response=False
@@ -424,7 +423,7 @@ class JsonShapeTests(SeededViewsBase):
     def test_kpis_when_the_switch_is_on(self):
         from fees.models import FeesSettings
 
-        FeesSettings.objects.filter(profile=self.profile).update(dashboard_kpis_enabled=True)
+        FeesSettings.objects.filter(profile=self.profile).update(statistics_enabled=True)
         self.login(self.reader)
         body = self.client.get(reverse("fees_dashboard_kpis")).json()
         self.assertIs(body["enabled"], True)

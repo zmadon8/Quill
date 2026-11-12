@@ -6,7 +6,7 @@ Ports the dashboard-specific behaviour of ``dashboardService.ts`` to Django
 * the KPI catalogue against hand-computed expected values (billed / received /
   memo / conference / draft counts this month, this FY and the rolling last-30
   days, outstanding, overdue, the draft memo count and total);
-* THE SWITCH: with ``dashboard_kpis_enabled`` False, ``get_dashboard_kpis`` runs
+* THE SWITCH: with ``statistics_enabled`` False, ``get_dashboard_kpis`` runs
   inside ``with self.assertNumQueries(0):`` and returns the empty catalogue. The
   caller passes a pre-read ``settings`` dict so the switch short-circuits before
   any query (the documented contract on ``dashboard.get_dashboard_kpis``);
@@ -195,7 +195,7 @@ class KpiCatalogueTests(TestCase):
 
 
 # ---------------------------------------------------------------------------
-# THE SWITCH: zero queries when dashboard_kpis_enabled is off.
+# THE SWITCH: zero queries when statistics_enabled is off.
 # ---------------------------------------------------------------------------
 
 class SwitchOffZeroQueriesTests(TestCase):
@@ -208,7 +208,7 @@ class SwitchOffZeroQueriesTests(TestCase):
         make_memo(self.profile, matter, "2026-02-10", apps=2, misc=1000)
 
     def test_switch_off_is_zero_queries_and_empty_result(self):
-        off = {"dashboard_kpis_enabled": False}
+        off = {"statistics_enabled": False}
         with self.assertNumQueries(0):
             result = dashboard.get_dashboard_kpis(self.profile, NOW, settings=off)
         self.assertEqual(result, dashboard.EMPTY_KPIS)
@@ -218,7 +218,7 @@ class SwitchOffZeroQueriesTests(TestCase):
         self.assertEqual(result["memos_this_year"], 0)
 
     def test_switch_on_computes_the_catalogue(self):
-        on = {"dashboard_kpis_enabled": True, "statistics_enabled": True, "overdue_days": 0}
+        on = {"statistics_enabled": True, "overdue_days": 0}
         result = dashboard.get_dashboard_kpis(self.profile, NOW, settings=on)
         self.assertEqual(result["billed_this_month"], str(Decimal("1000.00")))
 
@@ -282,7 +282,6 @@ class AppearancesAgreementTests(TestCase):
 
 def _config(selection=""):
     return {
-        "dashboard_kpis_enabled": True,
         "statistics_enabled": True,
         "overdue_days": 0,
         "dashboard_kpis": selection,
@@ -397,8 +396,7 @@ class DashboardMemoryTests(TestCase):
         profile = fees_profile("mem-dash")
         build_planning_dataset(profile)
         on = {
-            "dashboard_kpis_enabled": True,
-            "statistics_enabled": True,
+                "statistics_enabled": True,
             "overdue_days": 0,
             "initial_financial_year": "2015-16",
         }

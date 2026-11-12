@@ -382,12 +382,9 @@ class ViewTests(ExportCase):
                 self.assertNotIn("export-menu", body)
                 self.assertNotIn("type=view&amp;", body)
 
-    def test_settings_gear_is_named_settings(self):
-        from accounts import suite
-
-        suite.set_brand_modes({suite.KEY_DIARY: "words"})  # D84: with Words the link reads "Settings"; with Icons it is a gear named Settings
+    def test_the_diary_header_has_no_settings_link(self):
         body = self.login(self.editor).get(reverse("diary_home")).content.decode()
-        self.assertRegex(body, r'<a href="[^"]*"[^>]*aria-label="Settings"[^>]*>Settings</a>')
+        self.assertNotIn('aria-label="Settings"', body)
         self.assertNotIn("Profile settings", body)
 
     def test_current_view_is_not_offered_on_search_review_trash_or_history(self):
@@ -451,7 +448,7 @@ class SettingsTests(ExportCase):
         body = self.login(self.reader).get(reverse("export")).content.decode()
         self.assertNotIn('name="export_name"', body)
         self.assertNotIn('name="export_date_format"', body)
-        mine = self.login(self.reader).get(reverse("my_settings")).content.decode()
+        mine = self.login(self.reader).get(reverse("profile_settings") + "?tab=numbers").content.decode()
         self.assertIn("Date in Word file names", mine)
         self.assertIn('name="export_date_format"', mine)
         self.assertNotIn('name="export_name"', mine)

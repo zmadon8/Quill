@@ -104,12 +104,9 @@ SETTINGS_KEYS = frozenset(
         "default_fees_per_appearance",
         "default_fees_per_conference",
         "default_fees_misc_drafting",
-        "default_additional_details_left",
-        "default_additional_details_right",
         "default_court_name",
         "default_tds_rate",
         "overdue_days",
-        "default_tab",
         "initial_financial_year",
         "memos_start_year",
         "feebook_start_year",
@@ -123,12 +120,9 @@ SETTINGS_KEYS = frozenset(
         "show_status_dots",
         "dashboard_kpis",
         "statistics_enabled",
-        "dashboard_kpis_enabled",
-        "dashboard_enabled",
         "show_bank",
         "memo_signature_default",
         "list_default_filter",
-        "items_per_page",
         "export_owner_name",
         "memo_filename_pattern",
         "memo_default_name",
@@ -249,13 +243,6 @@ def _validate_candidate(key, value):
         if value not in _PAYMENT_AMOUNT_CHOICES:
             raise _invalid("Invalid default payment amount")
         return value
-    if key in ("default_additional_details_left", "default_additional_details_right"):
-        text = str(value)
-        if len(text) > MAX_DETAILS:
-            raise _invalid(
-                f"Additional details must be at most {MAX_DETAILS} characters"
-            )
-        return text
     if key == "default_court_name":
         text = str(value)
         if len(text) > MAX_MEMO_TEXT:
@@ -275,8 +262,6 @@ def _validate_candidate(key, value):
         "default_lines_enabled",
         "show_status_dots",
         "statistics_enabled",
-        "dashboard_kpis_enabled",
-        "dashboard_enabled",
         "show_bank",
         "memo_signature_default",
     ):

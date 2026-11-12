@@ -2,7 +2,14 @@
   "use strict";
   // Update Prices (plan 24.5): the page calls the endpoint repeatedly, one small batch each time, and shows progress.
   var button = document.getElementById("update-prices");
-  var status = document.getElementById("update-status");
+  // The progress shows in the tools row where there is one, and always beside the header button.
+  var rowStatus = document.getElementById("update-status");
+  var headStatus = document.getElementById("update-status-hdr");
+  var status = {};
+  Object.defineProperty(status, "textContent", { set: function (t) {
+    if (rowStatus) { rowStatus.textContent = t; }
+    if (headStatus) { headStatus.textContent = t; headStatus.title = t; }
+  } });
   if (!button || !window.fetch) { return; }
   function csrf() { var m = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/); return m ? decodeURIComponent(m[1]) : ""; }
   function post(step) {

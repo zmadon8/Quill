@@ -73,7 +73,7 @@ def dashboard_page(request):
         "fees/dashboard.html",
         {
             "kpi_rows": _kpi_rows(kpis, chosen),
-            "kpis_enabled": bool(config.get("dashboard_kpis_enabled", True)),
+            "kpis_enabled": bool(config.get("statistics_enabled", True)),
             "kpi_groups": [
                 {
                     "title": title,
@@ -134,7 +134,7 @@ def kpi_json(request):
     profile, _settings = scope.context(request)
     config = settings_service.get_settings(profile)
     values = dashboard.get_dashboard_kpis(profile, settings=config)
-    return json_ok({"kpis": values, "selected": selected_kpis(config), "enabled": bool(config["dashboard_kpis_enabled"])})
+    return json_ok({"kpis": values, "selected": selected_kpis(config), "enabled": bool(config["statistics_enabled"])})
 
 
 def kpis(request):

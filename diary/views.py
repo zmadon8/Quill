@@ -218,14 +218,14 @@ def help_page(request):
 
 
 #: The sections of the Case Law Diary Settings tab, in order.
-SETTINGS_SECTIONS = ("reading", "data")
+SETTINGS_SECTIONS = ("reading", "numbers", "data")
 
 
 @profile_required
 def profile_settings(request):
     """The Case Law Diary Settings tab: what everyone using this profile shares, in left-hand sections with a Save each.
 
-    Reading (Home Page Name and Header Name, whether a click on a Subject opens the whole Subject: per profile) and Data (Word import for
+    Reading (whether a click on a Subject opens the whole Subject: per profile) and Data (Word import for
     the Admin, the Word export file name, the Offline link for the Admin). Editors and Admins change them; Readers see
     the values with no Save buttons and a POST from a Reader is refused (403). Personal choices (opening page, number
     formats, date in file names) are on My settings.
@@ -260,13 +260,19 @@ def render_settings_page(request, tab, can_change, reading_form, export_form):
     from .views_export import _file_settings  # lazy: views_export imports this module
 
     profile = request.profile
+    from accounts.forms import MyCitationForm  # lazy: keeps this module's import light
+
+    from .forms import DiarySettingsForm, preview_rows
+
+    # My number formats are personal (Only you), saved through My settings (tab "diary"); they are shown here, once.
+    numbers_form = DiarySettingsForm(user=request.user, profile=profile)
     mode = profile.reading_all_mode
-    whole = mode == Profile.READING_ALL_ALWAYS_ON or (
-        mode not in (Profile.READING_ALL_ALWAYS_ON, Profile.READING_ALL_ALWAYS_OFF) and profile.reading_all_default
-    )
+    whole = mode != Profile.READING_ALL_ALWAYS_OFF
     return render(request, "diary/settings.html", {
         "tab": tab, "can_change": can_change, "reading_form": reading_form, "whole_subject": whole,
-        "sections": SETTINGS_SECTIONS, **_file_settings(request, export_form),
+        "sections": SETTINGS_SECTIONS,
+        "numbers_form": numbers_form, "citation_form": MyCitationForm(instance=request.user),
+        "preview": preview_rows(numbers_form.effective()), **_file_settings(request, export_form),
     })
 
 
@@ -295,7 +301,7 @@ def _in_context(request, scope=None):
     The profile's ``reading_all_mode`` decides: always the whole Subject, always only that Topic or Sub-topic, or,
     in "remember" mode, the view this browser used last (cookie ``quill_in_context``, written by site.js when a
     reading page loads: "0" is a single Topic or Sub-topic, anything else the whole Subject). With no cookie yet
-    the profile's ``reading_all_default`` decides. Clicking a Topic or Sub-topic heading in the reading body
+    the whole Subject opens. Clicking a Topic or Sub-topic heading in the reading body
     never depends on this: that link always carries its own target.
 
     A reading page passes its ``scope``: in "remember" mode the page being shown is itself the view in use, so
@@ -308,7 +314,7 @@ def _in_context(request, scope=None):
         return scope == "subject"
     cookie = request.COOKIES.get(IN_CONTEXT_COOKIE)
     if cookie is None:
-        return bool(request.profile.reading_all_default)
+        return True
     return cookie != "0"
 
 

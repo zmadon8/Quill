@@ -1,0 +1,19 @@
+{% extends "fees/base_fees.html" %}
+{% block page_width %}w-5xl{% endblock %}
+{% block page_title %}{{ group.name }} - {{ firm.name }} - {{ program_label }}{% endblock %}
+{% block crumb_nav %}{% url 'fees_firm_detail' firm.pk as firm_url %}{% include "fees/_back.html" with url=firm_url label=firm.name %}{% endblock %}
+{% block content %}
+<div class="page-head"><h1>{{ group.name }} <small class="muted">({{ firm.name }})</small></h1>
+<p class="page-actions" role="group" aria-label="Group actions"><a class="button small secondary" href="{% url 'fees_firm_statement' firm.pk %}?group={{ group.pk }}">Statement</a> <a class="button small secondary" href="{% url 'fees_firm_ledger' firm.pk %}?group={{ group.pk }}">Ledger</a> <a class="button small secondary" href="{% url 'fees_outstanding_detail' %}?firm={{ firm.pk }}&amp;group={{ group.pk }}">View Outstanding</a>{% if can_edit %} <a class="button small secondary" href="#edit-group">Edit Group</a> <a class="button small primary" href="{% url 'fees_matter_new' %}?firm={{ firm.pk }}&amp;group={{ group.pk }}">New Matter</a>{% endif %}</p></div>
+{% if can_edit %}<section id="edit-group" class="card" aria-labelledby="edit-group-heading"><h2 id="edit-group-heading">Edit Group</h2>
+<form method="post" action="{% url 'fees_group_rename' firm.pk group.pk %}" class="fees-form">{% csrf_token %}<label>Group name <input type="text" name="name" value="{{ group.name }}" maxlength="200" required></label> <button type="submit" class="small secondary">Rename</button></form></section>{% endif %}
+<section aria-labelledby="matters-heading">
+<h2 id="matters-heading">Matters</h2>
+<nav class="list-filter" aria-label="Show matters">{% for s in matters_filters %}{% if s == matters_shown %}<strong aria-current="true">{% if s == 'active' %}Active Only{% else %}All{% endif %}</strong>{% else %}<a href="?matters={{ s }}">{% if s == 'active' %}Active Only{% else %}All{% endif %}</a>{% endif %}{% if not forloop.last %} | {% endif %}{% endfor %}</nav>
+<div class="card group-card">
+<ul class="matter-list">{% for row in matter_rows %}<li>{% if fees_dots %}<span class="status-squares" role="img" aria-label="Memo status: {{ row.memo_status|default:'No memos' }}{% if row.has_written_off %}, has write-offs{% endif %}">{% if row.memo_status %}<span class="status-sq sq-{{ row.memo_status|lower }}" aria-hidden="true"></span>{% endif %}{% if row.has_written_off %}<span class="status-sq sq-written-off" aria-hidden="true"></span>{% endif %}</span>{% endif %}
+  <a href="{% url 'fees_matter_detail' row.matter.pk %}">{{ row.matter.name }}</a>{% if row.matter.client %} <span class="muted">&middot; Client: {{ row.matter.client }}</span>{% endif %}{% if row.matter.is_archived %} <span class="muted">(archived)</span>{% endif %}
+  <span class="muted">{{ row.memo_status|default:"No memos" }}{% if row.has_written_off %} (has write-offs){% endif %}</span>
+  {% if can_edit and not row.matter.is_archived %}<span class="row-actions"><a class="button small primary" href="{% url 'fees_memo_new' %}?matter={{ row.matter.pk }}" aria-label="New memo for {{ row.matter.name }}">+ Memo</a></span>{% endif %}</li>{% empty %}<li class="muted">No matters.</li>{% endfor %}</ul></div>
+</section>
+{% endblock %}

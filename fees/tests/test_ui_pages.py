@@ -12,13 +12,13 @@ from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils.html import escape
 
-from fees.models import FeesSettings, Matter, Payment, SavedView
+from fees.models import FeesSettings, Group, Matter, Payment, SavedView
 from fees.services import dashboard, memos, payments
 from fees.tests import xlsx_support as xs
 from fees.tests.test_views_read import SeededViewsBase
 
 EM_DASH = "\u2014"
-NAV_LABELS = ["Statistics", "Memos", "Firms", "Feebook", "Outstanding", "Settings"]
+NAV_LABELS = ["Statistics", "Memos", "Firms", "Feebook", "Outstanding"]
 
 
 @override_settings(SECURE_SSL_REDIRECT=False)
@@ -106,8 +106,8 @@ class ShellTests(UiPageBase):
         nav = self.html(self.page("fees_memos"))
         nav = nav[nav.index('<nav class="program-nav"'):nav.index("</nav>")]
         self.assertNotIn(">Statistics</a>", nav)
-        self.assertEqual(nav.count(">Dashboard</a>"), 1)
-        self.assertEqual(nav.count('href="%s"' % reverse("fees_dashboard")), 1)
+        self.assertNotIn(">Dashboard</a>", nav)
+        self.assertEqual(nav.count('href="%s"' % reverse("fees_dashboard")), 0)
 
     def test_statistics_entry_is_current_on_the_dashboard_and_statistics_pages(self):
         FeesSettings.objects.update_or_create(profile=self.profile, defaults={"statistics_enabled": True})
@@ -350,9 +350,36 @@ class FirmScreenTests(UiPageBase):
         i = self.ids()
         text = self.assert_page(self.page("fees_firm_detail", {"firm_id": i["firm"]}, user=self.editor), "firm-editor")
         self.assertIn(reverse("fees_group_add", kwargs={"firm_id": i["firm"]}), text)
-        self.assertIn("aria-label=\"New name for group ", text)
+        self.assertIn('class="group-pill-link"', text)
+        self.assertNotIn("aria-label=\"New name for group ", text)
         self.assertIn(reverse("fees_firm_status", kwargs={"firm_id": i["firm"]}), text)
         self.assert_no_unlabelled_controls(text, "firm-editor")
+
+    def test_group_pills_link_to_the_group_page(self):
+        i = self.ids()
+        group = Group.objects.filter(firm_id=i["firm"]).first()
+        url = reverse("fees_group_detail", kwargs={"firm_id": i["firm"], "group_id": group.pk})
+        text = self.assert_page(self.page("fees_firm_detail", {"firm_id": i["firm"]}), "firm")
+        self.assertIn('<a class="group-pill-link" href="%s">%s</a>' % (url, escape(group.name)), text)
+
+    def test_group_page_is_limited_to_its_group(self):
+        i = self.ids()
+        group = Group.objects.filter(firm_id=i["firm"]).first()
+        kwargs = {"firm_id": i["firm"], "group_id": group.pk}
+        reader = self.assert_page(self.page("fees_group_detail", kwargs), "group")
+        firm_id, group_id = i["firm"], group.pk
+        self.assertIn("%s?group=%d" % (reverse("fees_firm_statement", kwargs={"firm_id": firm_id}), group_id), reader)
+        self.assertIn("%s?group=%d" % (reverse("fees_firm_ledger", kwargs={"firm_id": firm_id}), group_id), reader)
+        self.assertIn("?firm=%d&amp;group=%d" % (firm_id, group_id), reader)
+        self.assertNotIn(reverse("fees_matter_new"), reader)
+        self.assertNotIn("Edit Group", reader)
+        editor = self.assert_page(self.page("fees_group_detail", kwargs, user=self.editor), "group-editor")
+        self.assertIn("Edit Group", editor)
+        self.assertIn("%s?firm=%d&amp;group=%d" % (reverse("fees_matter_new"), firm_id, group_id), editor)
+        self.assertIn(reverse("fees_group_rename", kwargs=kwargs), editor)
+        self.assert_no_unlabelled_controls(editor, "group-editor")
+        for matter in Matter.objects.filter(firm_id=firm_id).exclude(group=group):
+            self.assertNotIn(reverse("fees_matter_detail", kwargs={"matter_id": matter.pk}), editor)
 
     def test_firm_forms(self):
         i = self.ids()
@@ -738,7 +765,7 @@ class DashboardScreenTests(UiPageBase):
     """T8.6: KPI boxes, customise, recent matters."""
 
     def settings_on(self, **extra):
-        FeesSettings.objects.update_or_create(profile=self.profile, defaults=dict({"dashboard_kpis_enabled": True}, **extra))
+        FeesSettings.objects.update_or_create(profile=self.profile, defaults=dict({"statistics_enabled": True}, **extra))
 
     def test_dashboard_landmarks_and_boxes(self):
         self.settings_on(statistics_enabled=True)
@@ -774,19 +801,12 @@ class DashboardScreenTests(UiPageBase):
         self.assertLess(grid.index("Drafts (Documents), Last 30 Days"), grid.index("Billed This Year"))
         self.assertNotIn("Billed (Last 30 Days)", grid)
 
-    def test_boxes_can_be_switched_off(self):
-        FeesSettings.objects.update_or_create(profile=self.profile, defaults={"dashboard_kpis_enabled": False})
-        text = self.assert_page(self.page("fees_dashboard"), "dashboard-off")
-        self.assertNotIn('aria-label="Dashboard boxes"', text)
-        self.assertNotIn('class="kpi-grid"', text)
-
-    def test_statistics_switch_trims_the_tab_strip(self):
+    def test_the_one_statistics_switch_takes_the_dashboard_away(self):
         self.settings_on(statistics_enabled=False)
-        text = self.html(self.page("fees_dashboard"))
-        # Statistics off: the tab strip holds the Dashboard tab only.
-        self.assertIn(">Dashboard</a>", text)
-        self.assertNotIn(">Standard</a>", text)
-        self.assertNotIn(">Explore</a>", text)
+        self.login(self.reader)
+        response = self.client.get(reverse("fees_dashboard"))
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], reverse("fees_landing"))
 
     def test_customise_is_for_editors_only_and_posts_to_the_existing_endpoint(self):
         self.settings_on()

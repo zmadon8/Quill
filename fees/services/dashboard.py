@@ -22,31 +22,30 @@ the right period. ``now`` defaults to ``datetime.date.today()`` (matching the
 sibling fee services) and is injectable for deterministic tests.
 ``local_iso(now)`` returns the ``YYYY-MM-DD`` local calendar date.
 
-THE DASHBOARD-KPIS SWITCH (acceptance test, zero queries when off)
+THE STATISTICS / DASHBOARD SWITCH (acceptance test, zero queries when off)
 ------------------------------------------------------------------
 ``get_dashboard_kpis(profile, now=None, settings=None)`` must perform ZERO
-database queries when ``dashboard_kpis_enabled`` is False. Because
+database queries when ``statistics_enabled`` is False. Because
 ``settings.get_settings`` itself issues a query (it get-or-creates the row), the
 contract is: the caller MAY pass an already-read ``settings`` dict as the
 ``settings`` keyword. When ``settings`` is provided the function does NOT read it
-from the database, so with ``settings={'dashboard_kpis_enabled': False}`` the
+from the database, so with ``settings={'statistics_enabled': False}`` the
 switch short-circuits and returns the empty catalogue (:data:`EMPTY_KPIS`)
 BEFORE any query, including before any ``stats_cache.get_or_compute`` call. The
 acceptance test therefore does::
 
     with self.assertNumQueries(0):
-        result = get_dashboard_kpis(profile, now, settings={"dashboard_kpis_enabled": False})
+        result = get_dashboard_kpis(profile, now, settings={"statistics_enabled": False})
 
 and ``result`` is ``EMPTY_KPIS`` (every KPI id mapped to 0). When ``settings`` is
 None the function reads it with ``get_settings`` (one query) and then applies the
 same switch, so a caller that does not pre-read still gets the gated behaviour,
 just not at zero queries (the get-or-create read is unavoidable there).
 
-``statistics_enabled`` is honoured the same way: the appearances figures come
-from the statistics engine, so when ``statistics_enabled`` is False the
-appearances KPIs are reported as 0 and the engine is not called. The switch is
-read from the same ``settings`` dict (pre-read or fetched) and checked before the
-appearances lookup.
+The one ``statistics_enabled`` switch covers the Statistics page, the Dashboard page and
+these figures. ``get_dashboard_summary`` also honours it for the appearances figures
+(reported as 0 and the engine not called). The switch is read from the same ``settings``
+dict (pre-read or fetched).
 
 CACHING
 -------
@@ -584,7 +583,7 @@ def _to_json_safe(values, ids=KPI_IDS):
 def get_dashboard_kpis(profile, now=None, settings=None):
     """Every Overview KPI as an id -> value map (ports ``getDashboardKpis``).
 
-    THE SWITCH (zero queries when off): when ``dashboard_kpis_enabled`` is False
+    THE SWITCH (zero queries when off): when ``statistics_enabled`` is False
     the function returns :data:`EMPTY_KPIS` (every id at 0) WITHOUT any database
     query, short-circuiting BEFORE ``stats_cache.get_or_compute``. To make that a
     genuine zero-query path the caller passes an already-read ``settings`` dict as
@@ -610,7 +609,7 @@ def get_dashboard_kpis(profile, now=None, settings=None):
     """
     if settings is None:
         settings = get_settings(profile)
-    if not settings.get("dashboard_kpis_enabled", True):
+    if not settings.get("statistics_enabled", True):
         return _empty_kpis()
 
     today = _as_date(now)

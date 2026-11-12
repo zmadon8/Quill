@@ -422,9 +422,7 @@ class UserSettings(models.Model):
     section_format = models.CharField(max_length=20, choices=SECTION_FORMAT_CHOICES, default="paren_lower_alpha")
     item_format = models.CharField(max_length=20, choices=FORMAT_CHOICES, default="paren_decimal")
     multi_citation_format = models.CharField(max_length=20, choices=FORMAT_CHOICES, default="paren_lower_alpha")
-    export_custom_name = models.CharField(max_length=60, default="Case Law Diary")
     export_date_format = models.CharField(max_length=20, choices=DATE_FORMAT_CHOICES, default="YYYY-MM-DD")
-    time_zone = models.CharField(max_length=64, default="Asia/Kolkata")
 
     class Meta:
         verbose_name_plural = "user settings"

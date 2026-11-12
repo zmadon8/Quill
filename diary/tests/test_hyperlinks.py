@@ -121,3 +121,16 @@ class ScriptTests(SimpleTestCase):
         for needed in ('"reload"', '"back_forward"', "scrollRestoration", "sessionStorage", '"submit"', "pagehide"):
             self.assertIn(needed, keep, needed)
         self.assertIn("quillKeepPlace.restoring", site)  # the #entry jump does not fight a restore
+
+
+class KeepPlaceEverywhereTests(SimpleTestCase):
+    def test_every_program_shell_extends_the_suite_shell_that_loads_the_script(self):
+        shell = (ROOT / "templates" / "base_suite.html").read_text()
+        self.assertIn("js/keep-place.js", shell)
+        for name in ("base.html", "base_suite_home.html", "fees/base_fees.html", "investments/base_investments.html"):
+            self.assertIn('{% extends "base_suite.html" %}', (ROOT / "templates" / name).read_text(), name)
+
+    def test_the_script_also_carries_the_place_across_a_get_filter_submit(self):
+        keep = (ROOT / "static" / "js" / "keep-place.js").read_text()
+        self.assertIn('method === "get"', keep)
+        self.assertIn("FormData", keep)

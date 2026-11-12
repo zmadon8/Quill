@@ -1,13 +1,25 @@
-{# Renders a Django form in the Chambers style. Context: form. Optional: skip (list of field names to leave out). #}
-{% for field in form.hidden_fields %}{{ field }}{% endfor %}
+{# Renders a Django form in the Chambers style. Context: form. A form may name more_fields (plain forms have none, so the lookup is defaulted to empty: an undefined name is None in an if tag and testing membership in None would hide every field): those are tucked under a "More" fold (open when they hold a value or an error). #}
+{% with more=form.more_fields|default:'' %}{% for field in form.hidden_fields %}{{ field }}{% endfor %}
 {% if form.non_field_errors %}<div class="ban al" role="alert"><span>{{ form.non_field_errors|join:" " }}</span></div>{% endif %}
 <div class="row">
-{% for field in form.visible_fields %}
+{% for field in form.visible_fields %}{% if field.name not in more %}
+  <div class="fld{% if field.errors %} bad{% endif %}">
+    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+    {{ field }}
+    {% if field.name in form.held_fields %}<label class="held-only" hidden><input type="checkbox" class="held-only-box" data-for="{{ field.html_name }}"{% if form.held_default %} checked{% endif %}> Held only</label>{% endif %}
+    {% if field.help_text %}<span class="note">{{ field.help_text }}</span>{% endif %}
+    {% for e in field.errors %}<span class="note err">{{ e }}</span>{% endfor %}
+  </div>
+{% endif %}{% endfor %}
+</div>
+{% if more %}<details class="more-fields"{% if form.more_open %} open{% endif %}><summary>{{ form.more_label|default:"More" }}</summary>
+<div class="row">
+{% for field in form.visible_fields %}{% if field.name in more %}
   <div class="fld{% if field.errors %} bad{% endif %}">
     <label for="{{ field.id_for_label }}">{{ field.label }}</label>
     {{ field }}
     {% if field.help_text %}<span class="note">{{ field.help_text }}</span>{% endif %}
     {% for e in field.errors %}<span class="note err">{{ e }}</span>{% endfor %}
   </div>
-{% endfor %}
-</div>
+{% endif %}{% endfor %}
+</div></details>{% endif %}{% endwith %}

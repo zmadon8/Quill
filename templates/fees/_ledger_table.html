@@ -1,0 +1,9 @@
+{% load fees_money %}
+<div class="table-wrap">
+<table class="ledger-table" data-table-id="{{ table_id }}">
+  <caption>{{ title }}: memos, payments and running balance</caption>
+  <thead><tr><th scope="col">Date</th><th scope="col">Particulars</th><th scope="col">Matter</th><th scope="col" class="money">Memo</th><th scope="col" class="money">Payment</th><th scope="col" class="money">TDS</th><th scope="col" class="money">Balance</th></tr></thead>
+  <tbody>{% for r in rows %}<tr><td>{{ r.date|fees_date }}</td><td>{{ r.particulars }}</td><td>{{ r.matter_name }}</td><td class="money">{{ r.memo_amount|fees_money:money_unit }}</td><td class="money">{{ r.payment_amount|fees_money:money_unit }}</td><td class="money">{{ r.tds|fees_money:money_unit }}</td><td class="money">{{ r.balance|fees_money:money_unit }}</td></tr>{% empty %}<tr><td colspan="7">Nothing to show.</td></tr>{% endfor %}</tbody>
+  {% if show_totals %}<tfoot><tr><th scope="row" colspan="3">Totals ({{ totals.count }})</th><td class="money">{{ totals.memo_amount|fees_money:money_unit }}</td><td class="money">{{ totals.payment_amount|fees_money:money_unit }}</td><td class="money">{{ totals.tds|fees_money:money_unit }}</td><td></td></tr></tfoot>{% endif %}
+</table>
+</div>

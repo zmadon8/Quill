@@ -312,7 +312,6 @@ class Command(BaseCommand):
         from fees.services import dashboard
 
         on = {
-            "dashboard_kpis_enabled": True,
             "statistics_enabled": True,
             "overdue_days": 0,
             "initial_financial_year": "2015-16",

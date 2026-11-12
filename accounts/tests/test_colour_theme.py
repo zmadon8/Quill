@@ -34,14 +34,14 @@ class ColourThemeTests(TestCase):
         self.assertNotIn("data-theme", html_tag(self.page("home")))
 
     def test_the_display_section_offers_every_theme(self):
-        page = self.page()
+        page = self.client.get(reverse("my_settings"), {"tab": "display"}).content.decode()
         self.assertIn('name="colour_theme"', page)
         for key, label in User.COLOUR_THEME_CHOICES:
             self.assertIn(f'value="{key}"', page)
             self.assertIn(label, page)
 
     def test_choosing_a_theme_applies_to_this_user_only(self):
-        resp = self.client.post(reverse("my_settings"), {"tab": "display", "landing_program": "", "colour_theme": "navy"})
+        resp = self.client.post(reverse("my_settings"), {"tab": "display", "colour_theme": "navy"})
         self.assertRedirects(resp, reverse("my_settings") + "?tab=display", fetch_redirect_response=False)
         self.user.refresh_from_db()
         self.assertEqual(self.user.colour_theme, "navy")
@@ -53,26 +53,26 @@ class ColourThemeTests(TestCase):
     def test_leaving_the_theme_out_of_a_post_keeps_it(self):
         self.user.colour_theme = "teal"
         self.user.save()
-        self.client.post(reverse("my_settings"), {"tab": "display", "landing_program": ""})
+        self.client.post(reverse("my_settings"), {"tab": "display"})
         self.user.refresh_from_db()
         self.assertEqual(self.user.colour_theme, "teal")
 
     def test_an_unknown_theme_is_refused(self):
-        resp = self.client.post(reverse("my_settings"), {"tab": "display", "landing_program": "", "colour_theme": "purple"})
+        resp = self.client.post(reverse("my_settings"), {"tab": "display", "colour_theme": "purple"})
         self.assertEqual(resp.status_code, 200)
         self.user.refresh_from_db()
         self.assertEqual(self.user.colour_theme, "oxblood")
 
-    def test_an_admin_can_set_a_users_theme(self):
+    def test_the_admin_user_form_does_not_offer_the_theme(self):
         admin = User.objects.create_user("ada", password=PASSWORD, is_superuser=True)
         self.client.force_login(admin)
         url = reverse("user_edit", args=[self.user.pk])
-        self.assertContains(self.client.get(url), 'name="colour_theme"')
+        self.assertNotContains(self.client.get(url), 'name="colour_theme"')
         resp = self.client.post(url, {"username": "tess", "is_active": "on", f"profile_{ensure_default_profile().pk}": "editor",
                                       "colour_theme": "plum"})
         self.assertRedirects(resp, reverse("user_list"))
         self.user.refresh_from_db()
-        self.assertEqual(self.user.colour_theme, "plum")
+        self.assertEqual(self.user.colour_theme, "oxblood")
 
     def test_every_theme_has_its_colours_in_tokens_css(self):
         with open(os.path.join(settings.BASE_DIR, "static", "css", "tokens.css"), encoding="utf-8") as handle:

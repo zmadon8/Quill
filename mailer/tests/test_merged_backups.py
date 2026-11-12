@@ -67,11 +67,11 @@ class MergedBackupsTests(TestCase):
         self.assertEqual(self.client.post(reverse("backup_email"), {"action": "save"}).status_code, 403)
         self.assertEqual(self.client.get(reverse("backup_list")).status_code, 403)
 
-    def test_the_admins_menu_has_four_tabs(self):
+    def test_the_settings_tabs_include_backup(self):
         self.client.force_login(self.admin)
         html = self.client.get(reverse("backup_list")).content.decode()
         nav = html.split('class="subnav"')[1].split("</nav>")[0]
-        for label in ("Users", "Profiles", "Appearance", "Backups"):
+        for label in ("Users &amp; Profiles", "Account and Profile View", "Backup", "Display", "Start Screens"):
             self.assertIn(">%s</a>" % label, nav)
         self.assertNotIn("Email Backups", nav)
         self.assertNotIn("Import", nav)

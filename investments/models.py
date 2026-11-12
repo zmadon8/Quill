@@ -149,7 +149,6 @@ class InvestmentSettings(models.Model):
     include_dividends = models.BooleanField(default=False)
     alt_treatment = models.CharField(max_length=10, default=ALT_UNCHANGED, choices=[(ALT_UNCHANGED, "Unchanged until next update"), (ALT_AVERAGED, "Averaged out")])
     money_default = models.CharField(max_length=5, default=MONEY_AUTO, choices=[(MONEY_AUTO, "Short (Thousand, Lac, Crore)"), (MONEY_FULL, "Full Figures")])
-    hidden_pages = models.JSONField(default=list, blank=True)
     # Alerts (plan 14). Rule A: against the previous close (and optionally over a window). Rule B: against the cost of units still held.
     rule_a_enabled = models.BooleanField(default=True)
     rule_a_fall_pct = models.DecimalField(max_digits=6, decimal_places=2, default=5)

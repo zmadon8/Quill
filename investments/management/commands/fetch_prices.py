@@ -2,7 +2,7 @@
 
 Run by the nightly cron job before the backup. It has a total run-time cap (default 10 minutes) so it can never starve the backup,
 fetches only the days since the last stored price, and never overwrites hand-entered or uploaded prices. A failure of one symbol
-is recorded (Investments > Settings > Price sources) and does not stop the others. Exit code is 0 unless the run itself broke.
+is recorded (Investments > Catalogue > Price sources) and does not stop the others. Exit code is 0 unless the run itself broke.
 """
 from django.core.management.base import BaseCommand
 

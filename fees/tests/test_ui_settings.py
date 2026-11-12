@@ -26,7 +26,7 @@ class SettingsScreenTests(UiPageBase):
         self.assertIn("You have unsaved changes.", text)
         for name in ("export_owner_name", "memo_filename_pattern", "memo_default_name", "memo_default_designation",
                      "memo_default_pan", "initial_financial_year", "memos_start_year", "feebook_start_year",
-                     "statistics_enabled", "dashboard_kpis_enabled"):
+                     "statistics_enabled"):
             self.assertIn('name="%s"' % name, text, name)
         self.assertIn('<textarea name="memo_default_address"', text)
         self.assertIn('<textarea name="default_court_name"', text)
@@ -37,8 +37,9 @@ class SettingsScreenTests(UiPageBase):
 
     def test_each_section_is_its_own_form_with_its_own_save_and_warning(self):
         text = self.settings_text(self.editor)
-        self.assertEqual(text.count("data-section-form"), 5)  # Data has no settings form, only downloads
-        self.assertEqual(text.count("You have unsaved changes."), 5)
+        # Five profile sections (Data has no settings form, only downloads) plus the personal Items per page form under Display.
+        self.assertEqual(text.count("data-section-form"), 6)
+        self.assertEqual(text.count("You have unsaved changes."), 6)
         for key in ("memos", "payments", "word", "years", "display"):
             self.assertIn('<input type="hidden" name="tab" value="%s">' % key, text, key)
         self.assertIn("js/settings-sections.js", text)
@@ -47,15 +48,19 @@ class SettingsScreenTests(UiPageBase):
         text = self.settings_text(self.editor)
         self.assertGreaterEqual(text.count('class="setting-row"'), 25)
         self.assertGreaterEqual(text.count("Everyone in this profile"), 25)
-        self.assertNotIn('class="who-tag who-you"', text)  # nothing here is personal: that is on My settings
+        self.assertEqual(text.count('class="who-tag who-you"'), 1)  # only "My items per page" is personal here
         for row in text.split('class="setting-row"')[1:]:
             self.assertIn("setting-help", row.split("</div>")[0], row[:80])
 
     def test_opening_page_and_items_per_page_use_the_shared_names(self):
         text = self.settings_text(self.editor)
-        self.assertIn("Opening page <select", text)
-        self.assertIn("Items per page <input", text)
-        self.assertIn(reverse("my_settings") + "?tab=fees", text)
+        self.assertNotIn("Opening page <select", text)  # no profile-wide Opening page or Items per page any more
+        self.assertNotIn("Items per page <input", text)
+        self.assertNotIn('name="default_tab"', text)
+        self.assertNotIn('name="dashboard_enabled"', text)
+        self.assertNotIn('name="dashboard_kpis_enabled"', text)
+        self.assertIn('name="fees-items_per_page"', text)  # the personal Items per page, saved through My settings
+        self.assertIn(reverse("my_settings") + "?tab=start", text)  # the personal Opening page is on Start Screens
 
     def test_signature_upload_sits_in_the_word_template_box(self):
         text = self.settings_text(self.editor)
@@ -75,8 +80,11 @@ class SettingsScreenTests(UiPageBase):
     def test_reader_sees_values_but_no_editing_controls(self):
         text = self.settings_text(self.reader)
         self.assertIn("You can read the settings but not change them.", text)
-        self.assertNotIn(">Save</button>", text)
-        self.assertNotIn("You have unsaved changes.", text)
+        # The only Save a reader has is the personal "My items per page" form (it saves their own choice, not the profile's).
+        profile_part = text.split('<h3 class="small-caps">Mine</h3>')[0]
+        self.assertNotIn(">Save</button>", profile_part)
+        self.assertNotIn("You have unsaved changes.", profile_part)
+        self.assertEqual(text.count(">Save</button>"), 1)
         self.assertIn("<fieldset class=\"section-fields\" disabled>", text)
         for url in ("fees_template_upload", "fees_signature_upload", "fees_bank_account_add", "fees_backup", "fees_import"):
             self.assertNotIn('"%s"' % reverse(url), text, url)
@@ -98,7 +106,6 @@ class SettingsScreenTests(UiPageBase):
         after = FeesSettings.objects.get(profile=self.profile)
         self.assertEqual(after.overdue_days, 77)
         self.assertEqual(after.default_court_name, before.default_court_name)
-        self.assertEqual(after.items_per_page, before.items_per_page)
 
     def test_a_failed_save_shows_the_error_and_keeps_the_section(self):
         self.login(self.editor)
@@ -168,16 +175,10 @@ class SettingsRound2Tests(UiPageBase):
         for part in FILENAME_PARTS:
             self.assertEqual(validate_pattern(part["text"].replace("[]", "[{fy}]")), [], part["label"])
 
-    def test_saving_does_not_blank_the_removed_details_fields(self):
+    def test_saving_the_caption(self):
         from fees.models import FeesSettings
-        FeesSettings.objects.update_or_create(
-            profile=self.profile,
-            defaults={"default_additional_details_left": "keep left", "default_additional_details_right": "keep right"},
-        )
         self.login(self.editor)
         response = self.client.post(reverse("fees_settings"), {"default_court_name": "Caption\nLine 2", "overdue_days": "30"})
         self.assertEqual(response.status_code, 302)
         row = FeesSettings.objects.get(profile=self.profile)
-        self.assertEqual(row.default_additional_details_left, "keep left")
-        self.assertEqual(row.default_additional_details_right, "keep right")
         self.assertEqual(row.default_court_name, "Caption\nLine 2")

@@ -9,7 +9,7 @@ from investments.models import HOLDABLE_KINDS, Broker, Folio, Instrument, Profil
 MIN_LEN = 2
 
 
-def search(profile, raw, limit=8, hidden=frozenset()):
+def search(profile, raw, limit=8):
     q = (raw or "").strip()
     if len(q) < MIN_LEN:
         return []
@@ -29,7 +29,7 @@ def search(profile, raw, limit=8, hidden=frozenset()):
                         "subtitle": t.reference or t.get_status_display(), "url": ("transactions", t.pk)})
     lowered = q.casefold()
     for page in pages.PAGES:
-        if page.slug in hidden or page.slug in ("search",) or page.admin:
+        if page.slug in ("search",) or page.admin:
             continue
         if lowered in page.title.casefold() or lowered in (page.sub or "").casefold():
             results.append({"kind": "Pages", "title": page.title, "subtitle": page.sub or "", "url": ("page", page.slug)})

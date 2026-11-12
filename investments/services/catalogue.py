@@ -602,7 +602,7 @@ def delete_instrument(user, instrument, reason="", confirm_name=None):
         raise InvestmentsError("CONFIRM_NAME", "Type the investment's name exactly to confirm.", 400)
     _backup(user)
     profiles = list(Profile.objects.filter(pk__in=profile_ids))
-    summary = f"Deleted with investment {instrument.name} (Settings > Catalogue)"
+    summary = f"Deleted with investment {instrument.name} (Catalogue)"
     for p in profiles:
         delete_profile_records(p, user, instrument, new_group(), summary)
     log(user, instrument, "instrument_deleted", instrument.pk, "name", instrument.name,
