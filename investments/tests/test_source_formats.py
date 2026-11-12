@@ -360,6 +360,18 @@ class VisibleFailureTests(InvTestCase):
         self.assertTrue(any(f.get("fmt") == "nse_eq" and "close" in f["error"] for f in run.failures))
         self.assertIn("nse_eq", [p["key"] for p in sf.problems()])
 
+    def test_a_run_that_tried_nothing_does_not_hide_the_alert(self):
+        from django.utils import timezone
+
+        self.net.add("amfiindia", b"junk;line;only\nmore;junk;here\n")
+        self.net.add("mfapi.in", 404)
+        self.run_fetch()
+        now = timezone.now()
+        SourceRun.objects.create(source="amfi", trigger="manual", started=now, finished=now, tried=0)
+        self.assertEqual([p["key"] for p in sf.problems()], ["amfi"])
+        SourceRun.objects.create(source="amfi", trigger="manual", started=now, finished=now, tried=3)
+        self.assertEqual(sf.problems(), [])
+
     def test_nse_list_and_scheme_list_failures_are_recorded_and_cleared(self):
         from investments.services import nse_list as nse_service
 
