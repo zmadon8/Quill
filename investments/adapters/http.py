@@ -2,6 +2,7 @@
 ``User-Agent`` (a long one was refused by Yahoo from Render, plan 30), and retry with growing delay and some randomness
 (plan 15.2). Tests replace ``_urlopen`` and ``sleep``; no test ever calls a live service.
 """
+import http.client
 import ipaddress
 import random
 import socket
@@ -16,9 +17,15 @@ USER_AGENT = "Mozilla/5.0"
 TIMEOUT = 15
 
 
+def _refuse_unless_public(ip, host):
+    if not ipaddress.ip_address(ip.split("%")[0]).is_global:
+        raise FetchError(f"{host} is not a public address, so it was not fetched.")
+
+
 def check_public(url):
     """Refuse an address whose host is, or resolves to, a loopback, private, link-local or otherwise non-public address
-    (the server must not be made to read its own network). Raises :class:`FetchError`."""
+    (the server must not be made to read its own network). Raises :class:`FetchError`. The connection checks the address it actually
+    reached again (below), so a host whose answer changes between this lookup and the connection is caught too."""
     host = urllib.parse.urlparse(url).hostname
     if not host:
         raise FetchError("The address has no host.")
@@ -27,9 +34,38 @@ def check_public(url):
     except OSError as exc:
         raise FetchError(f"Could not resolve {host}: {exc}", retryable=True) from exc
     for info in infos:
-        ip = ipaddress.ip_address(info[4][0].split("%")[0])
-        if not ip.is_global:
-            raise FetchError(f"{host} is not a public address, so it was not fetched.")
+        _refuse_unless_public(info[4][0], host)
+
+
+def _check_peer(conn):
+    """After connecting: close the connection and refuse when the peer is not a public address."""
+    try:
+        _refuse_unless_public(conn.sock.getpeername()[0], conn.host)
+    except FetchError:
+        conn.close()
+        raise
+
+
+class _CheckedHTTPConnection(http.client.HTTPConnection):
+    def connect(self):
+        super().connect()
+        _check_peer(self)
+
+
+class _CheckedHTTPSConnection(http.client.HTTPSConnection):
+    def connect(self):
+        super().connect()
+        _check_peer(self)
+
+
+class _CheckedHTTPHandler(urllib.request.HTTPHandler):
+    def http_open(self, req):
+        return self.do_open(_CheckedHTTPConnection, req)
+
+
+class _CheckedHTTPSHandler(urllib.request.HTTPSHandler):
+    def https_open(self, req):
+        return self.do_open(_CheckedHTTPSConnection, req)
 
 
 class _GuardedRedirect(urllib.request.HTTPRedirectHandler):
@@ -41,7 +77,9 @@ class _GuardedRedirect(urllib.request.HTTPRedirectHandler):
 def _safe_urlopen(request, timeout=None):
     """``urlopen`` that checks the host first and every redirect hop (tests replace ``_urlopen``, so they never resolve a name)."""
     check_public(request.full_url)
-    return urllib.request.build_opener(_GuardedRedirect).open(request, timeout=timeout)
+    # no environment proxy: the peer checked after connecting must be the target itself
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), _CheckedHTTPHandler, _CheckedHTTPSHandler, _GuardedRedirect)
+    return opener.open(request, timeout=timeout)
 
 
 _urlopen = _safe_urlopen
