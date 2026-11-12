@@ -22,7 +22,7 @@ page. The Fee Register Opening page and Items per page are personal only (no pro
 | Backup | Saved backups, Email backups (`?tab=email`) | Backups, restore, the email schedule | Admin |
 | Display | My Display, Names | Justify text, colour theme, Home card figures, Home page extras; the names of the site, Home and the programs (`Names`, Admin) | Everyone; Names Admin |
 | Start Screens | When I open the site, one section per program | Open after login (`landing_program`), Case Law Diary opening page and Subject, Fee Register Opening page, Investments start page | Everyone, a program's section only if the user can open it |
-| Case Law Diary | Reading, My Number Formats, Data | Home Page Name, Header Name, View whole subject, My number formats and date in file names and Remove citation hyphen (Only you), Export file name, Word import, Offline link | A user with a Case Law Diary profile |
+| Case Law Diary | Reading, My Number Formats, Data | View whole subject, My number formats and date in file names and Remove citation hyphen (Only you), Export file name, Word import, Offline link | A user with a Case Law Diary profile |
 | Fee Register | Memos, Payments, Word Documents, Years And Statistics, Display, Data | Every profile setting, plus My items per page (Only you, in Display) | A user with a Fee Register profile |
 | Investments | General, Brokers, Alerts, Display, Insights, Indices | Every profile setting, plus Investments period for returns (Only you, in Display) | A user with an Investments profile |
 
@@ -58,7 +58,7 @@ are in a section of their own on the diary Settings tab, apart from the shared o
 
 | Program | What |
 | --- | --- |
-| Case Law Diary | Display Name, View whole subject, Export file name, Offline link |
+| Case Law Diary | View whole subject, Export file name, Offline link |
 | Fee Register | Every setting on Fee Register > Settings sections 1 to 5 (memo defaults, payments, Word documents and template, start years, statistics, display and figures) |
 
 **Suite-wide (Settings > Display > Names, tag "Everyone")**: the names of Home and each program. (There is no Words or Logo choice: every header bar shows words, except the fixed icons for the user badge, Search, Home and Sign out, and Home is always shown.)
@@ -96,8 +96,8 @@ are in a section of their own on the diary Settings tab, apart from the shared o
 | --- | --- | --- | --- | --- |
 | `program` | Which program the profile belongs to | Users & Profiles > Profiles (add) | Per profile | Admin sets |
 | `name` | Profile name | Users & Profiles > Profiles (add, rename) | Per profile | Admin sets |
-| `display_name` | Home Page Name (the profile's name on the Home page and in the browser tab) | Case Law Diary > Settings > Reading; also Users & Profiles > Profiles (add, rename) | Per profile | Everyone in this profile |
-| `header_name` | Header Name (a shorter name for the program header; pointing at it shows the Home Page Name; blank uses the Home Page Name) | Case Law Diary > Settings > Reading; also Users & Profiles > Profiles (add, rename) | Per profile | Everyone in this profile |
+| `display_name` | Home Page Name (the profile's name on the Home page and in the browser tab) | Users & Profiles > Profiles (only place) | Per profile | Everyone in this profile |
+| `header_name` | Header Name (a shorter name for the program header; pointing at it shows the Home Page Name; blank uses the Home Page Name) | Users & Profiles > Profiles (only place) | Per profile | Everyone in this profile |
 | `reading_all_mode` | View whole subject (Yes means the whole Subject, No means only that Topic or Sub-topic) | Case Law Diary > Settings > Reading | Per profile | Everyone in this profile |
 | `export_name` | Export file name (start of every exported Word file name) | Case Law Diary > Settings > Data (Editors only) | Per profile | Everyone in this profile |
 | `deleted_at`, `deleted_by` | Bookkeeping for a deleted profile and Restore | Users & Profiles > Profiles (Trash, Restore) | Per profile, automatic | Admin |
@@ -144,8 +144,6 @@ as text and have no Save buttons (a Reader POST gets 403).
 
 | Section | Setting | Stored in | Stored | Who |
 | --- | --- | --- | --- | --- |
-| Reading | Home Page Name | `Profile.display_name` | Per profile | Everyone in this profile |
-| Reading | Header Name | `Profile.header_name` | Per profile | Everyone in this profile |
 | Reading | View whole subject | `Profile.reading_all_mode` | Per profile | Everyone in this profile |
 | Data | Export file name | `Profile.export_name` (saved by `export_settings`, Editors only) | Per profile | Everyone in this profile |
 | Data | Word export (link to the Export page) | No setting | n/a | n/a |
@@ -292,7 +290,7 @@ Still there; each is a candidate to remove or merge:
 
 | Setting | Why it is redundant |
 | --- | --- |
-| `Profile.display_name` and `header_name` | Editable in two places (Users & Profiles > Profiles and Case Law Diary > Reading), and three naming layers exist (Names, Home Page Name, Header Name) |
+| `Profile.display_name` and `header_name` | Were editable in two places; now only Users & Profiles > Profiles (the Reading page no longer edits them) |
 | `FeesSettings.show_status_dots`, `hide_payment_when_paid` | Cosmetic switches that few offices would change |
 
 ## 8. How this was checked

@@ -22,18 +22,6 @@
       {% csrf_token %}
       <input type="hidden" name="tab" value="reading">
       {{ reading_form.non_field_errors }}
-      <div class="setting-row">
-        {{ reading_form.display_name.errors }}
-        <label for="{{ reading_form.display_name.id_for_label }}">{{ reading_form.display_name.label }}</label>{% include "_who_tag.html" with who="profile" %}
-        {{ reading_form.display_name }}
-        <span class="setting-help">{{ reading_form.display_name.help_text }}</span>
-      </div>
-      <div class="setting-row">
-        {{ reading_form.header_name.errors }}
-        <label for="{{ reading_form.header_name.id_for_label }}">{{ reading_form.header_name.label }}</label>{% include "_who_tag.html" with who="profile" %}
-        {{ reading_form.header_name }}
-        <span class="setting-help">{{ reading_form.header_name.help_text }}</span>
-      </div>
       <fieldset class="whole-subject-choice setting-row">
         <legend>{{ reading_form.view_whole_subject.label }}{% include "_who_tag.html" with who="profile" %}</legend>
         {{ reading_form.view_whole_subject.errors }}
@@ -43,16 +31,6 @@
       <p class="section-actions"><button type="submit">Save</button> <span class="dirty-note" data-dirty-note hidden>You have unsaved changes.</span></p>
     </form>
     {% else %}
-    <div class="setting-row">
-      <span class="setting-label">Home Page Name</span>{% include "_who_tag.html" with who="profile" %}
-      <p><strong>{% if request.profile.display_name %}{{ request.profile.display_name }}{% else %}(none: the Home page shows {{ diary_name }}){% endif %}</strong></p>
-      <span class="setting-help">The name of this profile on the Home page.</span>
-    </div>
-    <div class="setting-row">
-      <span class="setting-label">Header Name</span>{% include "_who_tag.html" with who="profile" %}
-      <p><strong>{% if request.profile.header_name %}{{ request.profile.header_name }}{% elif request.profile.display_name %}(none: the header shows the Home Page Name){% else %}(none: the header shows {{ diary_name }} &middot; {{ request.profile.name }}){% endif %}</strong></p>
-      <span class="setting-help">Shown at the top of every page; pointing at it shows the Home Page Name.</span>
-    </div>
     <div class="setting-row">
       <span class="setting-label">When I click a Subject, open the whole Subject</span>{% include "_who_tag.html" with who="profile" %}
       <p><strong>{% if whole_subject %}Yes{% else %}No{% endif %}</strong></p>

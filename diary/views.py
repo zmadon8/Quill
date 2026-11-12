@@ -225,7 +225,7 @@ SETTINGS_SECTIONS = ("reading", "numbers", "data")
 def profile_settings(request):
     """The Case Law Diary Settings tab: what everyone using this profile shares, in left-hand sections with a Save each.
 
-    Reading (Home Page Name and Header Name, whether a click on a Subject opens the whole Subject: per profile) and Data (Word import for
+    Reading (whether a click on a Subject opens the whole Subject: per profile) and Data (Word import for
     the Admin, the Word export file name, the Offline link for the Admin). Editors and Admins change them; Readers see
     the values with no Save buttons and a POST from a Reader is refused (403). Personal choices (opening page, number
     formats, date in file names) are on My settings.

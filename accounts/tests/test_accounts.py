@@ -1335,7 +1335,7 @@ class ExportNameTests(BaseCase):
         junior = Profile.objects.create(program="diary", name="Junior")
         self.client.force_login(self.admin)
         self.client.post(reverse("export_settings"), {"export_name": "Mine", "export_date_format": "YYYY-MM-DD"})
-        self.display({"diary-display_name": "Mine too", "diary-reading_all_mode": "remember"})
+        self.display({"diary-view_whole_subject": "yes"})
         junior.refresh_from_db()
         self.assertEqual((junior.export_name, junior.display_name), ("", ""))
 

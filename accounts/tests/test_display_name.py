@@ -52,9 +52,10 @@ class DisplayNameTests(BaseCase):
         self.assertContains(self.client.get(reverse("flags")), 'title="Case Law Diary \u00b7 Main" aria-label="Short: Home">Short</a>')
         self.assertContains(self.client.get(reverse("home") + "?home=1"), 'class="program-link" href="/caselaw/subjects/">Case Law Diary</a>')
 
-    def test_editor_sets_the_header_name_trimmed(self):
+    def test_admin_sets_the_header_name_trimmed_on_the_profiles_screen(self):
         self.client.force_login(self.admin)
-        self.display({"diary-display_name": "Long Name", "diary-header_name": "  Short   One "})
+        self.client.post(reverse("profile_edit", args=[self.main().pk]),
+                         {"name": "Main", "display_name": "Long Name", "header_name": "  Short   One "})
         main = self.main()
         self.assertEqual((main.display_name, main.header_name), ("Long Name", "Short One"))
 
@@ -76,44 +77,21 @@ class DisplayNameTests(BaseCase):
             {"tab": "reading", "diary-reading_all_mode": "remember", "diary-view_whole_subject": "no", **data},
         )
 
-    def test_editor_sets_it_trimmed_and_clearing_falls_back(self):
-        self.client.force_login(self.admin)  # Editor of Main
-        resp = self.display({"diary-display_name": "  Madon's   Cases "})
-        self.assertRedirects(resp, reverse("profile_settings") + "?tab=reading")
-        self.assertEqual(self.main().display_name, "Madon's Cases")
-        self.assertEqual(self.main().export_name, "")  # export_name is unchanged
-        self.display({"diary-display_name": ""})
-        self.assertEqual(self.main().display_name, "")
-        self.assertContains(self.client.get(reverse("diary_home")), 'class="profile-name">&middot; Main</span>')
-
-    def test_too_long_is_refused_and_the_header_is_not_changed(self):
-        self.client.force_login(self.admin)
-        resp = self.display({"diary-display_name": "x" * 81})
-        self.assertEqual(resp.status_code, 200)
-        self.assertNotContains(resp, 'aria-label="%s: Home"' % ("x" * 81))
-        self.assertEqual(self.main().display_name, "")
-
-    def test_reader_sees_it_but_cannot_change_it(self):
+    def test_the_reading_page_does_not_edit_the_names(self):
         self.set_name("Mine")
-        self.client.force_login(self.user)
-        resp = self.display()
-        self.assertContains(resp, "<strong>Mine</strong>")
-        self.assertNotContains(resp, 'name="diary-display_name"')
-        self.display({"diary-display_name": "Hacked"})
-        self.assertEqual(self.main().display_name, "Mine")
-
-    def test_editor_form_shows_the_field(self):
         self.client.force_login(self.admin)
         resp = self.display()
-        self.assertContains(resp, 'name="diary-display_name"')
-        self.assertContains(resp, "Home Page Name")
-        self.assertContains(resp, 'name="diary-header_name"')
-        self.assertContains(resp, "Header Name")
+        self.assertNotContains(resp, 'name="diary-display_name"')
+        self.assertNotContains(resp, 'name="diary-header_name"')
+        self.display({"diary-display_name": "Hacked", "diary-header_name": "Hacked"})
+        main = self.main()
+        self.assertEqual((main.display_name, main.header_name), ("Mine", ""))
+        self.assertEqual(main.export_name, "")
 
     def test_profiles_are_isolated(self):
         junior = Profile.objects.create(program="diary", name="Junior")
         self.client.force_login(self.admin)
-        self.display({"diary-display_name": "Mine"})
+        self.client.post(reverse("profile_edit", args=[self.main().pk]), {"name": "Main", "display_name": "Mine"})
         junior.refresh_from_db()
         self.assertEqual(junior.display_name, "")
 
