@@ -132,6 +132,13 @@ class PageTests(InvTestCase):
         self.assertContains(r, "<th>Date</th><th>Portfolio</th><th>Buy / sell</th>")       # and so do the records
         self.assertContains(r, "<td>Main</td>")
 
+    def test_set_selection_carries_only_known_holdings_filters(self):
+        nxt = reverse("investments_holdings")
+        r = self.post("investments_set_selection", {"portfolio": "", "broker": "", "asat": "", "type": "fund", "status": "bogus", "next": nxt})
+        self.assertEqual(r.status_code, 302)
+        self.assertIn("type=fund", r["Location"])
+        self.assertNotIn("bogus", r["Location"])
+
     def test_investment_page_has_refresh_price_and_edit_buttons(self):
         r = self.client.get(reverse("investments_investment", args=[self.reliance.pk]))
         self.assertContains(r, 'id="refresh-price"')

@@ -17,6 +17,7 @@
   {% block extra_css %}{% endblock %}
   {# modern.css (the 2026-11 refresh: cards, rounded corners, pill tabs) comes last so it reshapes every program's components. #}
   <link rel="stylesheet" href="{% static 'css/modern.css' %}">
+  <noscript><style>.toasts { position: static; transform: none; width: auto; }</style></noscript>
 </head>
 <body{% block body_attrs %} class="look"{% endblock %}>
   <a class="skip-link" href="#main">Skip to content</a>

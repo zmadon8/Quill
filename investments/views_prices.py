@@ -35,7 +35,7 @@ def update_prices(request):
         step = 0
     single = request.POST.get("instrument", "").strip()
     if single:
-        # One investment's own Refresh price: only that instrument, only if it is one of this profile's fetchable ones, and no one-minute pause
+        # One investment's own Refresh price: only that instrument, only if it is a fetchable one (the profile's own, or an index in use), and no one-minute pause
         # (the pause is for the whole-list button; one fetch is cheap and the lock still keeps updates one at a time).
         if not single.isdigit() or not fetch.tracked_instruments(profile, ids=[int(single)]):
             return JsonResponse({"ok": False, "message": "This investment has no price source to refresh from."}, status=400)

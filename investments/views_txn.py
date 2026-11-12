@@ -82,9 +82,16 @@ def transactions_list(request):
         transfers = Transfer.objects.filter(profile=profile).select_related(
             "instrument", "from_broker", "to_broker", "from_portfolio", "to_portfolio", "from_folio", "to_folio")
         dividends = Dividend.objects.filter(profile=profile).select_related("instrument", "portfolio", "broker", "folio")
+        # Search and the portfolio / broker selectors narrow all three sheets (a transfer matches on either side); the buy / sell
+        # filter only means something for transactions.
+        if q:
+            transfers = transfers.filter(Q(instrument__name__icontains=q) | Q(instrument__code__icontains=q))
+            dividends = dividends.filter(Q(instrument__name__icontains=q) | Q(instrument__code__icontains=q))
         if portfolio:
+            transfers = transfers.filter(Q(from_portfolio_id=portfolio) | Q(to_portfolio_id=portfolio))
             dividends = dividends.filter(portfolio_id=portfolio)
         if broker:
+            transfers = transfers.filter(Q(from_broker_id=broker) | Q(to_broker_id=broker))
             dividends = dividends.filter(broker_id=broker)
         if asat:
             transfers, dividends = transfers.filter(date__lte=asat), dividends.filter(date__lte=asat)
