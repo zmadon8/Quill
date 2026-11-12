@@ -50,11 +50,38 @@ class OverviewChartTests(InvTestCase):
 
     def test_investment_chart_mirrors_the_overview(self):
         url = reverse("investments_investment", args=[self.reliance.pk])
-        page = self.client.get(url + "?range=6m").content.decode()
+        page = self.client.get(url + "?range=6m&chart=value").content.decode()
         self.assertIn('aria-label="Chart period"', page)
         self.assertIn("Same money in", page)
         self.assertIn('class="on" aria-current="true">6M</a>', page)
         self.assertIn("Value against the same money in the index", page)
+
+    def test_investment_page_shows_one_chart_at_a_time_price_first(self):
+        url = reverse("investments_investment", args=[self.reliance.pk])
+        page = self.client.get(url).content.decode()
+        self.assertIn('aria-label="Price range"', page)
+        self.assertIn('aria-label="Chart type"', page)
+        self.assertIn("Same start in", page)                      # the index line on the price history
+        self.assertNotIn("Same money in", page)
+        self.assertNotIn('aria-label="Chart period"', page)
+        page = self.client.get(url + "?chart=value&range=3m").content.decode()
+        self.assertIn("Same money in", page)
+        self.assertNotIn('aria-label="Price range"', page)
+        self.assertNotIn("Same start in", page)
+        self.assertIn("chart=value", page)                          # the period links keep the chosen chart
+        self.assertIn('class="on" aria-current="true">3M</a>', page)
+
+    def test_price_history_without_any_index_prices_still_draws(self):
+        Price.objects.filter(instrument__code="^NSEI").delete()
+        page = self.client.get(reverse("investments_investment", args=[self.reliance.pk])).content.decode()
+        self.assertIn("<polyline", page)
+        self.assertNotIn("Same start in", page)
+
+    def test_sections_are_in_the_new_order(self):
+        self.client.get(reverse("investments_dashboard"))
+        page = self.client.get(reverse("investments_investment", args=[self.reliance.pk])).content.decode()
+        order = [page.index(t) for t in (">Where it is held<", ">Chart<", ">Purchase by purchase<", ">Records<", ">Folio numbers<", ">Your details<")]
+        self.assertEqual(order, sorted(order))
 
 
 class QueryCountTests(InvTestCase):

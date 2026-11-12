@@ -78,7 +78,18 @@ td { text-align: left; padding: .75rem .5rem; border-bottom: 1px solid var(--hai
 td a { display: inline-block; min-height: var(--tap); line-height: var(--tap); padding: 0 .25rem; }
 
 /* Messages and alerts: the danger red is for alerts (it never follows the user's colour theme). */
-.messages { list-style: none; padding: 0; }
+.messages { list-style: none; margin: 0; padding: 0; }
+/* Toasts: fixed stack, never shifts page layout. Placement is a class on the ul
+   (toasts--top-center default, top-right, bottom-right, bottom-center, banner). */
+.toasts { position: fixed; z-index: 1000; top: 12px; left: 50%; transform: translateX(-50%); width: min(36rem, calc(100vw - 24px)); pointer-events: none; }
+.toasts li { pointer-events: auto; position: relative; padding-right: 2.2rem; box-shadow: 0 4px 14px rgba(0,0,0,.18); transition: opacity .3s ease, transform .3s ease; }
+.toasts li.toast-out { opacity: 0; transform: translateY(-6px); }
+.toasts .toast-close { position: absolute; top: .2rem; right: .35rem; border: 0; background: transparent; color: inherit; font-size: 1.2rem; line-height: 1; cursor: pointer; padding: .1rem .3rem; }
+.toasts--top-right { left: auto; right: 12px; transform: none; }
+.toasts--bottom-right { top: auto; bottom: 12px; left: auto; right: 12px; transform: none; }
+.toasts--bottom-center { top: auto; bottom: 12px; }
+.toasts--banner { position: static; transform: none; width: auto; pointer-events: auto; }
+@media (prefers-reduced-motion: reduce) { .toasts li { transition: none; } }
 .messages li { padding: .6rem .8rem; margin-bottom: .5rem; border: 1px solid var(--hair); border-left: 4px solid var(--muted); background: var(--panel); }
 .messages li.error { border-left-color: var(--danger); color: var(--danger); }
 .error, .errorlist { color: var(--danger); }

@@ -139,6 +139,23 @@ class PageTests(InvTestCase):
         self.assertTrue(data["done"])
         self.assertGreaterEqual(len(data["failures"]), 1)
 
+    def test_single_instrument_refresh_fetches_only_it_and_skips_the_pause(self):
+        self.net.add("RELIANCE.NS", fixture("yahoo_chart_reliance.json"))
+        url = reverse("investments_update_prices")
+        for _ in range(2):          # no one-minute pause for a single investment
+            data = self.client.post(url, {"step": 0, "instrument": self.reliance.pk}).json()
+            self.assertTrue(data["ok"])
+            self.assertTrue(data["done"])
+            self.assertEqual(data["steps"], 1)
+            self.assertEqual(data["tried"], 1)
+        self.assertTrue(Price.objects.filter(instrument=self.reliance).exists())
+        self.assertFalse(Price.objects.filter(instrument=self.fund).exists())
+
+    def test_single_instrument_refresh_refuses_one_that_cannot_be_fetched(self):
+        url = reverse("investments_update_prices")
+        self.assertEqual(self.client.post(url, {"step": 0, "instrument": "999999"}).status_code, 400)
+        self.assertEqual(self.client.post(url, {"step": 0, "instrument": "abc"}).status_code, 400)
+
     def test_update_prices_is_for_editors_and_post_only(self):
         self.assertEqual(self.client.get(reverse("investments_update_prices")).status_code, 404)
         from accounts.models import ROLE_READER

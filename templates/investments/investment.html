@@ -4,7 +4,9 @@
 <div class="invhead"><div><h1>{{ inst.name }}</h1>
   <div class="sub">{{ kind_label }}{% if inst.code %} &middot; {{ inst.code }}{% endif %}{% if inst.isin %} &middot; {{ inst.isin }}{% endif %}{% if is_private %} &middot; private to this profile{% endif %}</div>
   {% if pi.links %}<div class="sub">{% for l in pi.links %}<a href="{{ l.url }}" rel="noopener noreferrer" target="_blank">{{ l.label }}</a>{% if not forloop.last %} &middot; {% endif %}{% endfor %}</div>{% endif %}</div>
-  <div class="acts">{% if can_edit %}<a class="btn p" href="{% url 'investments_txn_new_buy' %}?instrument={{ inst.pk }}">Buy</a><a class="btn q" href="{% url 'investments_txn_new_sell' %}?instrument={{ inst.pk }}">Sell</a>{% endif %}</div></div>
+  <div class="acts">{% if can_edit %}<a class="btn p" href="{% url 'investments_txn_new_buy' %}?instrument={{ inst.pk }}">Buy</a><a class="btn q" href="{% url 'investments_txn_new_sell' %}?instrument={{ inst.pk }}">Sell</a>{% endif %}
+    {% if can_edit and can_refresh %}<button type="button" class="btn q" id="refresh-price" data-url="{% url 'investments_update_prices' %}" data-instrument="{{ inst.pk }}">Refresh price</button><span class="hint" id="refresh-status" role="status" aria-live="polite"></span>{% endif %}
+    {% if inst.profile_id is None and user.is_admin %}<a class="btn q" href="{% url 'investments_admin_catalogue_item' inst.pk %}">Edit</a>{% endif %}</div></div>
 {% if h.provisional %}<div class="ban al" role="alert"><span><b>Split or bonus pending: figures may be wrong.</b> Confirm it or mark it not applicable.</span><span class="r"><a href="{% url 'investments_corporate_actions' %}">Corporate actions</a></span></div>{% endif %}
 {% if h.awaiting %}<div class="ban wa"><span><b>Awaiting allotment:</b> {{ h.awaiting|inr }} paid, units not known yet. Counted at cost.</span><span class="r"><a href="{% url 'investments_txn_to_confirm' %}">To complete</a></span></div>{% endif %}
 <div class="kvs">
@@ -26,14 +28,43 @@
 </tbody></table></div>
 {% endif %}
 
-<form method="get" class="inline-edit"><label for="on">Price and value on</label><input type="date" id="on" name="on" value="{{ as_of|date:'Y-m-d' }}" max="{% now 'Y-m-d' %}"><button class="btn q sm">Show</button>{% if on %}<a href="?">Today</a>{% endif %}
-<a class="chk" href="?div={% if include_div %}0{% else %}1{% endif %}" role="switch" aria-checked="{{ include_div|yesno:'true,false' }}"><i class="{% if include_div %}on{% endif %}"></i> Include dividends in XIRR</a></form>
+<form method="get" class="inline-edit"><label for="on">Price and value on</label>{% for k, v in keep_params %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}<input type="date" id="on" name="on" value="{{ as_of|date:'Y-m-d' }}" max="{% now 'Y-m-d' %}"><button class="btn q sm">Show</button>{% if on %}<a href="?">Today</a>{% endif %}
+<a class="chk" href="{{ div_href }}" role="switch" aria-checked="{{ include_div|yesno:'true,false' }}"><i class="{% if include_div %}on{% endif %}"></i> Include dividends in XIRR</a></form>
 <dl class="kv">{% if inst.kind != "alternative" %}<dt>52-week range</dt><dd>{% if range52.0 %}{{ range52.0|price }} to {{ range52.1|price }}{% else %}not enough prices{% endif %}</dd>
 {% if inst.next_results_date %}<dt>Next results</dt><dd>{{ inst.next_results_date|date:"j M Y" }}</dd>{% endif %}{% endif %}
 {% if inst.sector %}<dt>Sector</dt><dd>{{ inst.sector }}</dd>{% endif %}{% if inst.interest_rate %}<dt>Interest rate</dt><dd>{{ inst.interest_rate }}% {{ inst.get_interest_type_display|lower }}</dd>{% endif %}{% if inst.maturity_date %}<dt>Matures</dt><dd>{{ inst.maturity_date|date:"j M Y" }}</dd>{% endif %}
 <dt>Alerts set</dt><dd>{% for g in guardrails %}{{ g.get_kind_display }} {{ g.value|floatformat:"-2" }} ({{ g.portfolio.name }}){% if not forloop.last %}; {% endif %}{% empty %}global rules only (<a href="{% url 'investments_alerts' %}">add a guardrail</a>){% endfor %}</dd></dl>
-{% if chart %}<div class="sec"><h2>Price</h2><nav class="seg" aria-label="Price range">{% for r in price_ranges %}<a href="{{ r.href }}"{% if r.on %} class="on" aria-current="true"{% endif %}>{{ r.label }}</a>{% endfor %}</nav></div><p class="hint" id="price">&#9650; purchase, &#9660; sale</p>{% include "investments/_chart.html" with caption="Price with purchases and sales" %}{% else %}<div class="sec"><h2>Price</h2></div>{% endif %}
-{% include "investments/_chart_block.html" with title="Value against the same money in the index" chart=value_chart ranges=value_ranges anchor="value-chart" caption="This holding's value and the same money invested in the index" %}
+<div class="sec"><h2>Chart</h2>{% if inst.kind != "alternative" %}<nav class="seg" aria-label="Chart type">{% for c in chart_links %}<a href="{{ c.href }}"{% if c.on %} class="on" aria-current="true"{% endif %}>{{ c.label }}</a>{% endfor %}</nav>{% endif %}</div>
+{% if chart_kind == "price" %}<div class="sec" id="price"><h2>Price</h2><nav class="seg" aria-label="Price range">{% for r in price_ranges %}<a href="{{ r.href }}"{% if r.on %} class="on" aria-current="true"{% endif %}>{{ r.label }}</a>{% endfor %}</nav></div><p class="hint">&#9650; purchase, &#9660; sale; the dashed line is the index starting from the same price</p>{% include "investments/_chart.html" with chart=chart caption="Price with purchases and sales" %}
+{% else %}{% include "investments/_chart_block.html" with title="Value against the same money in the index" chart=value_chart ranges=value_ranges anchor="value-chart" caption="This holding's value and the same money invested in the index" %}{% endif %}
+
+{% with held=purchase.0 sold=purchase.1 %}
+{% if held %}
+<div class="sec"><h2>Purchase by purchase</h2><span class="hint">what is still held, oldest first; under a year the plain return is shown</span></div>
+<div class="tw"><table data-table-id="inv-investment-lots" class="led" data-sortable><thead><tr><th>Portfolio</th><th>Held from</th><th>Date paid</th><th class="r">Units</th><th class="r">Cost</th><th class="r">Value</th><th class="r">Gain</th><th class="r">Return</th><th class="r">Index</th><th class="r">Difference</th><th class="r">Long-term in</th></tr></thead><tbody>
+{% for r in held %}<tr><td>{{ r.portfolio }}</td><td data-sort="{{ r.lot.bought_on|date:'Y-m-d' }}">{{ r.lot.bought_on|date:"j M Y" }}{% if r.lot.estimated %}<span class="tag amb">Estimated</span>{% endif %}{% if r.lot.cost == 0 %}<span class="tag">Bonus</span>{% endif %}{% if r.lot.adjustment %}<span class="tag amb" title="Cost from your original transactions: {{ r.lot.original_cost|inr }}">Cost adjusted</span>{% endif %}</td><td>{{ r.lot.paid_on|date:"j M Y" }}</td><td class="r">{{ r.lot.units|units }}</td><td class="r">{{ r.lot.cost|inr }}</td>
+<td class="r">{% if r.value is not None %}{{ r.value|inr }}{% else %}<span class="na">&ndash;</span>{% endif %}</td><td class="r">{% if r.gain is not None %}{{ r.gain|inr_signed }}{% else %}<span class="na">&ndash;</span>{% endif %}</td>
+<td class="r">{{ r.return|pct_signed }}{% if r.return is not None %}<small class="na">{% if r.annual %} a year{% endif %}</small>{% endif %}</td><td class="r">{{ r.index_return|pct_signed }}</td><td class="r">{{ r.diff|pct_signed }}</td><td class="r">{% if r.to_long %}{{ r.to_long }} days{% else %}long-term{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>
+{% endif %}
+{% if sold %}<h3>Sold portions</h3><div class="tw"><table data-table-id="inv-investment-sold" class="led"><thead><tr><th>Portfolio</th><th>Held from</th><th>Sold</th><th class="r">Units</th><th class="r">Cost</th><th class="r">Proceeds</th><th class="r">Gain</th><th class="r">Return</th></tr></thead><tbody>
+{% for s in sold %}<tr><td>{{ s.portfolio }}</td><td>{{ s.m.bought_on|date:"j M Y" }}</td><td>{{ s.m.sold_on|date:"j M Y" }}</td><td class="r">{{ s.m.units|units }}</td><td class="r">{{ s.m.cost|inr }}</td><td class="r">{{ s.m.proceeds|inr }}</td><td class="r">{{ s.m.gain|inr_signed }}</td><td class="r">{{ s.return|pct_signed }}</td></tr>{% endfor %}</tbody></table></div>{% endif %}
+{% endwith %}
+
+<div class="sec"><h2>Records</h2><div class="acts"><a class="btn q" href="?export=xlsx">Export to Excel</a>{% if can_edit %}<a class="btn q" href="{% url 'investments_dividend_new' %}?instrument={{ inst.pk }}">Add dividend</a><a class="btn q" href="{% url 'investments_txn_opening' %}?instrument={{ inst.pk }}">Opening balance</a>{% endif %}</div></div>
+{% if txns %}<div class="tw"><table data-table-id="inv-investment-5" class="led" data-sortable><thead><tr><th>Date</th><th>Portfolio</th><th>Buy / sell</th><th class="r">Units</th><th class="r">Price</th><th class="r">Charges</th><th>Broker</th><th>Folio</th><th></th></tr></thead><tbody>
+{% for t in txns %}<tr><td data-sort="{{ t.date|date:'Y-m-d' }}">{{ t.date|date:"j M Y" }}{% if t.allotment_date and t.allotment_date != t.date %}<small class="na"> allotted {{ t.allotment_date|date:"j M" }}</small>{% endif %}</td>
+<td>{{ t.portfolio.name }}</td><td>{{ t.get_side_display }}{% if t.is_opening %}<span class="tag">Opening</span>{% endif %}{% if t.status == "awaiting" %}<span class="tag amb">Awaiting</span>{% endif %}{% if t.status == "pending_sip" %}<span class="tag amb">SIP, to confirm</span>{% endif %}</td>
+<td class="r">{% if t.units is not None %}{{ t.units|units }}{% else %}<span class="na">&ndash;</span>{% endif %}</td><td class="r">{% if t.price is not None %}{{ t.price|price }}{% else %}{{ t.amount|inr }}{% endif %}</td><td class="r">{{ t.charges|price }}</td><td>{{ t.broker.name }}</td><td>{{ t.folio.number|default:"" }}</td>
+<td class="act">{% if can_edit %}<a href="{% url 'investments_txn_edit' t.pk %}">Edit</a>{% if t.status == "awaiting" %}<a href="{% url 'investments_txn_complete' t.pk %}">Complete</a>{% endif %}{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>{% else %}<p class="na">No transactions yet.</p>{% endif %}
+{% if dividends %}<h3>Dividends</h3><div class="tw"><table data-table-id="inv-investment-dividends" class="led"><thead><tr><th>Date received</th><th class="r">Amount</th><th class="r">Tax deducted</th><th>Broker</th><th></th></tr></thead><tbody>
+{% for dv in dividends %}<tr><td>{{ dv.date|date:"j M Y" }}</td><td class="r">{{ dv.amount|inr }}</td><td class="r">{{ dv.tax_deducted|inr }}</td><td>{{ dv.broker.name }}</td><td class="act">{% if can_edit %}<a href="{% url 'investments_dividend_edit' dv.pk %}">Edit</a>{% endif %}</td></tr>{% endfor %}</tbody></table></div>{% endif %}
+{% if actions %}<h3>Corporate actions</h3><ul class="plain">{% for a in actions %}<li>{{ a.ex_date|date:"j M Y" }}: {{ a.describe }} &middot; {% if a.my_status == "applied" %}applied{% elif a.my_status == "not_applicable" %}not applicable{% else %}<b>pending</b>{% endif %}</li>{% endfor %}</ul>{% endif %}
+{% if transfers %}<h3>Transfers</h3><div class="tw"><table data-table-id="inv-investment-6" class="led"><thead><tr><th>Date</th><th class="r">Units</th><th>From</th><th>To</th></tr></thead><tbody>
+{% for tr in transfers %}<tr><td>{{ tr.date|date:"j M Y" }}</td><td class="r">{{ tr.units|units }}</td><td>{{ tr.from_broker.name }} / {{ tr.from_portfolio.name }}</td><td>{{ tr.to_broker.name }} / {{ tr.to_portfolio.name }}</td></tr>{% endfor %}</tbody></table></div>{% endif %}
+
+<div class="sec"><h2>{% if inst.kind == "alternative" %}Dated values{% else %}Prices{% endif %}</h2></div>
 {% if inst.kind == "alternative" %}
   <p class="hint">An alternative investment has no price feed. Add a dated value whenever you have one; a value you enter overrides the interest from its date, even with an interest rate set; {% if inst.interest_rate %}with an interest rate set, the value grows at the rate from your latest entry, so the Settings choice of averaged or unchanged between entries does not apply{% else %}between entries the value is {% if inv_settings.alt_treatment == "averaged" %}averaged out{% else %}held unchanged{% endif %} (Settings){% endif %}.</p>
   {% if can_edit %}<form method="post" action="{% url 'investments_investment_altvalue' inst.pk %}" class="inline-form">{% csrf_token %}{% include "investments/_form.html" with form=alt_form %}<button class="btn q" type="submit">Save value</button></form>{% endif %}
@@ -46,31 +77,6 @@
   <p class="hint">The same prices are in <a href="{% url 'investments_admin_catalogue_item' inst.pk %}">Catalogue</a>.</p>{% endif %}
 {% endif %}
 
-{% with held=purchase.0 sold=purchase.1 %}
-{% if held %}
-<div class="sec"><h2>Purchase by purchase</h2><span class="hint">what is still held, oldest first; under a year the plain return is shown</span></div>
-<div class="tw"><table data-table-id="inv-investment-lots" class="led" data-sortable><thead><tr><th>Held from</th><th>Date paid</th><th class="r">Units</th><th class="r">Cost</th><th class="r">Value</th><th class="r">Gain</th><th class="r">Return</th><th class="r">Index</th><th class="r">Difference</th><th class="r">Long-term in</th></tr></thead><tbody>
-{% for r in held %}<tr><td data-sort="{{ r.lot.bought_on|date:'Y-m-d' }}">{{ r.lot.bought_on|date:"j M Y" }}{% if r.lot.estimated %}<span class="tag amb">Estimated</span>{% endif %}{% if r.lot.cost == 0 %}<span class="tag">Bonus</span>{% endif %}{% if r.lot.adjustment %}<span class="tag amb" title="Cost from your original transactions: {{ r.lot.original_cost|inr }}">Cost adjusted</span>{% endif %}</td><td>{{ r.lot.paid_on|date:"j M Y" }}</td><td class="r">{{ r.lot.units|units }}</td><td class="r">{{ r.lot.cost|inr }}</td>
-<td class="r">{% if r.value is not None %}{{ r.value|inr }}{% else %}<span class="na">&ndash;</span>{% endif %}</td><td class="r">{% if r.gain is not None %}{{ r.gain|inr_signed }}{% else %}<span class="na">&ndash;</span>{% endif %}</td>
-<td class="r">{{ r.return|pct_signed }}{% if r.return is not None %}<small class="na">{% if r.annual %} a year{% endif %}</small>{% endif %}</td><td class="r">{{ r.index_return|pct_signed }}</td><td class="r">{{ r.diff|pct_signed }}</td><td class="r">{% if r.to_long %}{{ r.to_long }} days{% else %}long-term{% endif %}</td></tr>{% endfor %}
-</tbody></table></div>
-{% endif %}
-{% if sold %}<h3>Sold portions</h3><div class="tw"><table data-table-id="inv-investment-sold" class="led"><thead><tr><th>Held from</th><th>Sold</th><th class="r">Units</th><th class="r">Cost</th><th class="r">Proceeds</th><th class="r">Gain</th><th class="r">Return</th></tr></thead><tbody>
-{% for s in sold %}<tr><td>{{ s.m.bought_on|date:"j M Y" }}</td><td>{{ s.m.sold_on|date:"j M Y" }}</td><td class="r">{{ s.m.units|units }}</td><td class="r">{{ s.m.cost|inr }}</td><td class="r">{{ s.m.proceeds|inr }}</td><td class="r">{{ s.m.gain|inr_signed }}</td><td class="r">{{ s.return|pct_signed }}</td></tr>{% endfor %}</tbody></table></div>{% endif %}
-{% endwith %}
-
-<div class="sec"><h2>Records</h2><div class="acts">{% if can_edit %}<a class="btn q" href="{% url 'investments_dividend_new' %}?instrument={{ inst.pk }}">Add dividend</a><a class="btn q" href="{% url 'investments_txn_opening' %}?instrument={{ inst.pk }}">Opening balance</a>{% endif %}</div></div>
-{% if txns %}<div class="tw"><table data-table-id="inv-investment-5" class="led" data-sortable><thead><tr><th>Date</th><th>Buy / sell</th><th class="r">Units</th><th class="r">Price</th><th class="r">Charges</th><th>Broker</th><th>Folio</th><th></th></tr></thead><tbody>
-{% for t in txns %}<tr><td data-sort="{{ t.date|date:'Y-m-d' }}">{{ t.date|date:"j M Y" }}{% if t.allotment_date and t.allotment_date != t.date %}<small class="na"> allotted {{ t.allotment_date|date:"j M" }}</small>{% endif %}</td>
-<td>{{ t.get_side_display }}{% if t.is_opening %}<span class="tag">Opening</span>{% endif %}{% if t.status == "awaiting" %}<span class="tag amb">Awaiting</span>{% endif %}{% if t.status == "pending_sip" %}<span class="tag amb">SIP, to confirm</span>{% endif %}</td>
-<td class="r">{% if t.units is not None %}{{ t.units|units }}{% else %}<span class="na">&ndash;</span>{% endif %}</td><td class="r">{% if t.price is not None %}{{ t.price|price }}{% else %}{{ t.amount|inr }}{% endif %}</td><td class="r">{{ t.charges|price }}</td><td>{{ t.broker.name }}</td><td>{{ t.folio.number|default:"" }}</td>
-<td class="act">{% if can_edit %}<a href="{% url 'investments_txn_edit' t.pk %}">Edit</a>{% if t.status == "awaiting" %}<a href="{% url 'investments_txn_complete' t.pk %}">Complete</a>{% endif %}{% endif %}</td></tr>{% endfor %}
-</tbody></table></div>{% else %}<p class="na">No transactions yet.</p>{% endif %}
-{% if dividends %}<h3>Dividends</h3><div class="tw"><table data-table-id="inv-investment-dividends" class="led"><thead><tr><th>Date received</th><th class="r">Amount</th><th class="r">Tax deducted</th><th>Broker</th><th></th></tr></thead><tbody>
-{% for dv in dividends %}<tr><td>{{ dv.date|date:"j M Y" }}</td><td class="r">{{ dv.amount|inr }}</td><td class="r">{{ dv.tax_deducted|inr }}</td><td>{{ dv.broker.name }}</td><td class="act">{% if can_edit %}<a href="{% url 'investments_dividend_edit' dv.pk %}">Edit</a>{% endif %}</td></tr>{% endfor %}</tbody></table></div>{% endif %}
-{% if actions %}<h3>Corporate actions</h3><ul class="plain">{% for a in actions %}<li>{{ a.ex_date|date:"j M Y" }}: {{ a.describe }} &middot; {% if a.my_status == "applied" %}applied{% elif a.my_status == "not_applicable" %}not applicable{% else %}<b>pending</b>{% endif %}</li>{% endfor %}</ul>{% endif %}
-{% if transfers %}<h3>Transfers</h3><div class="tw"><table data-table-id="inv-investment-6" class="led"><thead><tr><th>Date</th><th class="r">Units</th><th>From</th><th>To</th></tr></thead><tbody>
-{% for tr in transfers %}<tr><td>{{ tr.date|date:"j M Y" }}</td><td class="r">{{ tr.units|units }}</td><td>{{ tr.from_broker.name }} / {{ tr.from_portfolio.name }}</td><td>{{ tr.to_broker.name }} / {{ tr.to_portfolio.name }}</td></tr>{% endfor %}</tbody></table></div>{% endif %}
 
 {% if foreign %}<div class="sec"><h2>In {{ foreign.currency }} and in rupees</h2></div>
 <table data-table-id="inv-investment-foreign" class="led"><thead><tr><th></th><th class="r">{{ foreign.currency }}</th><th class="r">Rupees</th></tr></thead><tbody>

@@ -33,11 +33,19 @@ def update_prices(request):
         step = max(0, int(request.POST.get("step", 0)))
     except ValueError:
         step = 0
-    if step == 0:
-        if not fetch.start_allowed():
-            return JsonResponse({"ok": False, "message": "Prices were just updated. Please wait about a minute before updating again."}, status=429)
-        fetch.mark_button_used()
-    plan = fetch.update_plan(profile)
+    single = request.POST.get("instrument", "").strip()
+    if single:
+        # One investment's own Refresh price: only that instrument, only if it is a fetchable one (the profile's own, or an index in use), and no one-minute pause
+        # (the pause is for the whole-list button; one fetch is cheap and the lock still keeps updates one at a time).
+        if not single.isdigit() or not fetch.tracked_instruments(profile, ids=[int(single)]):
+            return JsonResponse({"ok": False, "message": "This investment has no price source to refresh from."}, status=400)
+        plan = [[int(single)]]
+    else:
+        if step == 0:
+            if not fetch.start_allowed():
+                return JsonResponse({"ok": False, "message": "Prices were just updated. Please wait about a minute before updating again."}, status=429)
+            fetch.mark_button_used()
+        plan = fetch.update_plan(profile)
     if step >= len(plan):
         return JsonResponse({"ok": True, "done": True, "step": step, "steps": len(plan), "updated": 0, "tried": 0, "failures": []})
     try:

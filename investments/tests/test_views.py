@@ -128,6 +128,24 @@ class PageTests(InvTestCase):
         self.assertContains(r, "Where it is held")
         self.assertContains(r, "Zerodha")
         self.assertContains(r, "Purchase by purchase")
+        self.assertContains(r, "<th>Portfolio</th><th>Held from</th>")      # lots show their portfolio
+        self.assertContains(r, "<th>Date</th><th>Portfolio</th><th>Buy / sell</th>")       # and so do the records
+        self.assertContains(r, "<td>Main</td>")
+
+    def test_set_selection_carries_only_known_holdings_filters(self):
+        nxt = reverse("investments_holdings")
+        r = self.post("investments_set_selection", {"portfolio": "", "broker": "", "asat": "", "type": "fund", "status": "bogus", "next": nxt})
+        self.assertEqual(r.status_code, 302)
+        self.assertIn("type=fund", r["Location"])
+        self.assertNotIn("bogus", r["Location"])
+
+    def test_investment_page_has_refresh_price_and_edit_buttons(self):
+        r = self.client.get(reverse("investments_investment", args=[self.reliance.pk]))
+        self.assertContains(r, 'id="refresh-price"')
+        self.assertContains(r, f'data-instrument="{self.reliance.pk}"')
+        self.assertContains(r, 'class="btn q" href="' + reverse("investments_admin_catalogue_item", args=[self.reliance.pk]) + '">Edit</a>')
+        fd = masters.create_instrument(self.profile, self.user, kind="alternative", name="PPF - Ziyad", asset_class="debt")
+        self.assertNotContains(self.client.get(reverse("investments_investment", args=[fd.pk])), 'id="refresh-price"')
 
     def test_alternative_investment_page_takes_dated_values(self):
         fd = masters.create_instrument(self.profile, self.user, kind="alternative", name="PPF - Ziyad", asset_class="debt")

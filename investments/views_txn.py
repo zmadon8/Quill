@@ -75,6 +75,28 @@ def transactions_list(request):
                        Q(folio__number__icontains=q) | Q(note__icontains=q))
     if side in (SIDE_BUY, SIDE_SELL):
         qs = qs.filter(side=side)
+    if request.GET.get("export") == "xlsx":
+        from .exports import response, transaction_sheets
+        from .models import Dividend
+
+        transfers = Transfer.objects.filter(profile=profile).select_related(
+            "instrument", "from_broker", "to_broker", "from_portfolio", "to_portfolio", "from_folio", "to_folio")
+        dividends = Dividend.objects.filter(profile=profile).select_related("instrument", "portfolio", "broker", "folio")
+        # Search and the portfolio / broker selectors narrow all three sheets (a transfer matches on either side); the buy / sell
+        # filter only means something for transactions.
+        if q:
+            transfers = transfers.filter(Q(instrument__name__icontains=q) | Q(instrument__code__icontains=q))
+            dividends = dividends.filter(Q(instrument__name__icontains=q) | Q(instrument__code__icontains=q))
+        if portfolio:
+            transfers = transfers.filter(Q(from_portfolio_id=portfolio) | Q(to_portfolio_id=portfolio))
+            dividends = dividends.filter(portfolio_id=portfolio)
+        if broker:
+            transfers = transfers.filter(Q(from_broker_id=broker) | Q(to_broker_id=broker))
+            dividends = dividends.filter(broker_id=broker)
+        if asat:
+            transfers, dividends = transfers.filter(date__lte=asat), dividends.filter(date__lte=asat)
+        return response("Transactions.xlsx", transaction_sheets(qs.order_by("-date", "-id"), transfers.order_by("-date", "-id"),
+                                                                dividends.order_by("-date", "-id")))
     paginator = Paginator(qs.order_by("-date", "-id"), PAGE_SIZE)
     number = paginator.get_page(request.GET.get("page")).number
     rows = [_txn_row(t) for t in paginator.page(number)]

@@ -67,8 +67,12 @@ def holdings_list(request):
         if status == "hidden" and not h.is_hidden:
             continue
         out.append(h)
+    if request.GET.get("export") == "xlsx":
+        from .exports import holdings_sheet, response
+
+        return response("Holdings.xlsx", holdings_sheet(out))
     return page(request, "investments/holdings.html", {
-        "page_title_text": "Investments", "rows": out, "held_count": held_count, "sold_count": sold_count, "kind": kind, "status": status,
+        "page_title_text": "Investments", "rows": out, "held_count": held_count, "sold_count": sold_count, "kind": kind, "status": status, "holdings_filters": True,
         "kinds": [("", "All types"), ("share", "Share"), ("fund", "Mutual fund"), ("alternative", "Alternative"), ("foreign", "Foreign")],
         "status_choices": [("held", "Held"), ("sold_out", "Sold out"), ("not_bought", "Not bought yet"), ("hidden", "Hidden"), ("all", "All")],
     })
@@ -220,6 +224,15 @@ def investment(request, pk):
     h = rows[0] if rows else holdings.Holding(instrument=inst, empty=True)
     pi = masters.get_profile_investment(profile, inst) if request.user.is_authenticated and inst.pk else None
     txns = Transaction.objects.filter(profile=profile, instrument=inst).select_related("broker", "portfolio", "folio").order_by("-date", "-id")
+    if request.GET.get("export") == "xlsx":
+        from .exports import response, safe_file_name, transaction_sheets
+        from .models import Dividend
+
+        return response(safe_file_name(inst.name, "transactions"), transaction_sheets(
+            txns.select_related("instrument"),
+            Transfer.objects.filter(profile=profile, instrument=inst).select_related(
+                "instrument", "from_broker", "to_broker", "from_portfolio", "to_portfolio", "from_folio", "to_folio").order_by("-date", "-id"),
+            Dividend.objects.filter(profile=profile, instrument=inst).select_related("instrument", "portfolio", "broker", "folio").order_by("-date", "-id")))
     transfers = Transfer.objects.filter(profile=profile, instrument=inst).select_related(
         "from_broker", "to_broker", "from_portfolio", "to_portfolio", "from_folio", "to_folio")
     portfolios = {p.pk: p.name for p in profile_portfolios(profile)}
@@ -231,6 +244,16 @@ def investment(request, pk):
     bucket_rows = sorted(((portfolios.get(pf, "?"), brokers.get(br, "?"), next((f.number for f in folios_qs if f.pk == fo), ""), units)
                           for (pf, br, fo), units in h.buckets.items()), key=lambda r: (r[0], r[1], r[2]))
     counts = masters.records_of(profile, inst)
+    # One chart at a time, and only that one is worked out.
+    chart_kind = chartview.chart_choice(request, has_price=inst.kind != KIND_ALTERNATIVE)
+    price_chart = value_chart = None
+    if chart_kind == "price":
+        index = pi.sectoral_index if pi and pi.sectoral_index_id else masters.default_index_for(profile)
+        price_chart = investment_page.price_chart(profile, inst, chart_start, as_of, index=index if index and index.pk != inst.pk else None)
+    else:
+        value_chart = chartview.value_chart(
+            profile, range_days, as_of, index=masters.default_index_for(profile), portfolio=portfolio, broker=broker, instrument_ids=[inst.pk],
+            markers=chartview.markers_for(profile, inst, as_of - _td(days=range_days or 36500), as_of))
     # Iterating ``txns`` here loaded every transaction of the investment, and the page then queried the newest 200 again: ask for the awaiting
     # ones on their own (there are few) and let the page list read the newest 200 once.
     awaiting_rows = list(txns.filter(status="awaiting"))
@@ -247,21 +270,22 @@ def investment(request, pk):
         "alt_values": AltValue.objects.filter(profile=profile, instrument=inst).order_by("-date")[:20] if inst.kind == KIND_ALTERNATIVE else [],
         "awaiting_rows": awaiting_rows, "history": InvestmentHistory.objects.filter(profile=profile, instrument_id_ref=inst.pk)[:8],
         "kind_label": inst.get_kind_display(), "on": on, "as_of": as_of, "include_div": div,
-        "chart": investment_page.price_chart(profile, inst, chart_start, as_of) if inst.kind != KIND_ALTERNATIVE else None,
+        "chart": price_chart, "chart_kind": chart_kind, "chart_links": chartview.chart_links(request, chart_kind),
         "price_ranges": chartview.links(request, range_key, "#price"),
-        "value_chart": chartview.value_chart(
-            profile, range_days, as_of, index=masters.default_index_for(profile), portfolio=portfolio, broker=broker, instrument_ids=[inst.pk],
-            markers=chartview.markers_for(profile, inst, as_of - _td(days=range_days or 36500), as_of)),
+        "value_chart": value_chart,
         "value_ranges": chartview.links(request, range_key, "#value-chart"),
+        "div_href": chartview.toggled_href(request, "div", "0" if div else "1"),
+        "keep_params": [(k, request.GET[k]) for k in ("chart", "range") if request.GET.get(k)],
         "range52": investment_page.range_52w(inst, as_of) if inst.kind != KIND_ALTERNATIVE else (None, None),
         "guardrails": investment_page.guardrails(profile, inst),
         "foreign": investment_page.foreign_figures(profile, inst, h, as_of) if inst.currency != "INR" else None,
         "sips": investment_page.sip_schedules(profile, inst) if inst.kind == "fund" else [],
         "sip_form": forms.SipForm(profile=profile, initial={"start_date": _date.today(), "day_of_month": 5}) if inst.kind == "fund" else None,
-        "purchase": investment_page.purchase_rows(profile, inst, h, as_of),
+        "purchase": _with_portfolio_names(investment_page.purchase_rows(profile, inst, h, as_of), portfolios),
         "is_private": inst.profile_id is not None,
         "dividends": __import__("investments.models", fromlist=["Dividend"]).Dividend.objects.filter(profile=profile, instrument=inst).select_related("broker")[:50],
         "actions": [a for a in __import__("investments.services.corporate", fromlist=["for_profile"]).for_profile(profile) if a.instrument_id == inst.pk],
+        "can_refresh": inst.kind != KIND_ALTERNATIVE and inst.fetch_enabled and inst.price_source not in ("manual", "upload"),
         "can_delete": (not any(counts.values())) or getattr(request.user, "is_admin", False),
     }
     if inst.profile_id is None and inst.kind != KIND_ALTERNATIVE:
@@ -270,6 +294,16 @@ def investment(request, pk):
 
         context.update(price_history_context(request, inst, prefix="p", profile=profile))
     return page(request, "investments/investment.html", context)
+
+
+def _with_portfolio_names(purchase, portfolios):
+    """Each held lot and sold portion gets its portfolio's name (``bucket.portfolio`` is the portfolio id), blank when unknown."""
+    held, sold = purchase
+    for row in held:
+        row["portfolio"] = portfolios.get(row["lot"].bucket.portfolio, "") if row["lot"].bucket else ""
+    for row in sold:
+        row["portfolio"] = portfolios.get(row["m"].bucket.portfolio, "") if row["m"].bucket else ""
+    return held, sold
 
 
 def profile_portfolios(profile):

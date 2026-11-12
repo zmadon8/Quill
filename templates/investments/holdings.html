@@ -1,14 +1,8 @@
 {% extends "investments/base_investments.html" %}
 {% load investments_money %}
-{% block page_actions %}{% if can_edit %}<p class="page-actions" role="group" aria-label="Investment actions"><a class="btn p" href="{% url 'investments_add_1' %}">Add investment</a><a class="btn q" href="{% url 'investments_import_statement' %}">Import a statement</a></p>{% endif %}{% endblock %}
+{% block page_actions %}<p class="page-actions" role="group" aria-label="Investment actions">{% if can_edit %}<a class="btn p" href="{% url 'investments_add_1' %}">Add investment</a><a class="btn q" href="{% url 'investments_import_statement' %}">Import a statement</a>{% endif %}<a class="btn q" href="?type={{ kind|urlencode }}&amp;status={{ status|urlencode }}&amp;export=xlsx">Export to Excel</a></p>{% endblock %}
 {% block inv_content %}
 <h1 class="visually-hidden">Investments</h1>
-<div class="sec">
-  <form method="get" class="filters">
-    <div class="sel"><span>Type</span><select name="type" onchange="this.form.submit()">{% for key, label in kinds %}<option value="{{ key }}"{% if key == kind %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
-    <div class="sel"><span>Status</span><select name="status" onchange="this.form.submit()">{% for key, label in status_choices %}<option value="{{ key }}"{% if key == status %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
-  </form>
-</div>
 {% if rows %}
 <div class="tw"><table data-table-id="inv-holdings-1" class="led" data-sortable>
   <thead><tr><th>Name</th><th>Type</th><th>Code</th><th class="r">Units</th><th class="r">Value</th><th class="r">Gain</th><th class="r">First bought</th><th class="r">XIRR</th><th class="r">Price date</th><th>Status</th><th class="r" data-col="spark">90 days</th></tr></thead>
