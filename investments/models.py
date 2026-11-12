@@ -80,6 +80,7 @@ class Instrument(models.Model):
     next_results_date = models.DateField(null=True, blank=True)
     expense_ratio = models.DecimalField(max_digits=6, decimal_places=3, null=True, blank=True, help_text="Mutual funds: total expense ratio %, entered by hand")
     maturity_date = models.DateField(null=True, blank=True)
+    taxed_as_interest = models.BooleanField(default=False, help_text="Profit or loss on sales is Interest Income, not Capital Gains")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

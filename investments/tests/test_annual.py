@@ -39,6 +39,16 @@ class AnnualTests(InvTestCase):
         self.assertAlmostEqual(r.index_return, 22000 / 17000 - 1)
         self.assertIsNotNone(r.xirr)
 
+    def test_taxed_as_interest_sales_are_interest_income_not_capital_gains(self):
+        total = D(1870) * 10 / 15 - 800 + D(1870) * 5 / 15 - 550
+        Instrument.objects.filter(pk=self.reliance.pk).update(taxed_as_interest=True)
+        r = annual.build(self.profile, "2023-24", today=d(2026, 11, 9))
+        self.assertEqual((r.short_gain, r.long_gain), (0, 0))
+        self.assertEqual(r.interest_income, total)
+        self.assertTrue(all(s["interest"] for s in r.sales))
+        r = self.client.get(reverse("investments_annual") + "?fy=2023-24")
+        self.assertContains(r, "Interest income")
+
     def test_cutoff_per_year_changes_the_split(self):
         masters.update_settings(self.profile, self.user, year_cutoffs={"2023-24": 800})
         r = annual.build(self.profile, "2023-24", today=d(2026, 11, 9))

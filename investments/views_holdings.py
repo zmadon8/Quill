@@ -129,7 +129,7 @@ def add_2(request):
                     obj = masters.create_instrument(
                         profile, request.user, kind=data["kind"], name=data["name"], code=data["code"], isin=data["isin"],
                         currency=data["currency"], asset_class=data["asset_class"], sector=data["sector"],
-                        interest_rate=data["interest_rate"], interest_type=data["interest_type"], maturity_date=data["maturity_date"],
+                        interest_rate=data["interest_rate"], interest_type=data["interest_type"], maturity_date=data["maturity_date"], taxed_as_interest=data["taxed_as_interest"],
                         allow_duplicate=bool(request.POST.get("allow_duplicate")))
                 except InvestmentsError as err:
                     form.add_error(None, err.message)
@@ -446,6 +446,8 @@ def investment_shared(request, pk):
     profile = profile_or_404(request)
     inst = _instrument_or_404(profile, pk)
     allowed = {k: request.POST.get(k, "").strip() for k in ("name", "code", "isin", "sector", "currency") if k in request.POST}
+    if request.POST.get("taxed_marker"):
+        allowed["taxed_as_interest"] = request.POST.get("taxed_as_interest") == "1"
     if "name" in allowed and not allowed["name"]:
         raise InvestmentsError("REQUIRED", "Name is required.")
     masters.update_shared_details(profile, request.user, inst, **allowed)

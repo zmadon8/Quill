@@ -274,6 +274,8 @@ class InstrumentForm(forms.Form):
     interest_type = forms.ChoiceField(choices=[("compound", "Compound interest (yearly)"), ("simple", "Simple interest")], initial="compound", required=False,
                                       label="Interest type")
     maturity_date = forms.DateField(widget=date_widget(), required=False, label="Maturity date (optional)")
+    taxed_as_interest = forms.BooleanField(required=False, label="Taxed as Interest",
+                                           help_text="Profit or loss on sales is reported as Interest Income, not Capital Gains")
 
     def clean_currency(self):
         return (self.cleaned_data.get("currency") or "INR").upper()

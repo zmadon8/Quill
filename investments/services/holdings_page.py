@@ -55,6 +55,7 @@ class Row:
         self.spark = data["spark"]
         self.realised = Decimal(data.get("realised", "0"))
         self.dividends = Decimal(data.get("dividends", "0"))
+        self.interest_income = Decimal(data.get("interest_income", "0"))
 
     @property
     def gain(self):
@@ -79,7 +80,7 @@ def _dump(h, hidden_ids, stale, sparks):
         "price": str(h.price) if h.price is not None else None,
         "xirr": h.xirr, "unpriced": h.unpriced, "stale": inst.pk in stale, "blocked": h.blocked, "is_held": h.is_held,
         "sold_out": h.sold_out, "empty": h.empty, "hidden": inst.pk in hidden_ids, "spark": sparks.get(inst.pk),
-        "realised": str(h.realised), "dividends": str(h.dividends),
+        "realised": str(h.realised), "dividends": str(h.dividends), "interest_income": str(h.interest_income),
     }
 
 

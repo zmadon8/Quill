@@ -237,7 +237,7 @@ def _annual_export(r):
 
     pct = (lambda v: None if v is None else round(v * 100, 2))
     summary = [["Starting portfolio value", r.opening_value], ["Amount invested", r.invested], ["Amount sold", r.sold], ["Fresh investments (invested less sold)", r.reinvested],
-               ["Short-term capital gains", r.short_gain], ["Long-term capital gains", r.long_gain], ["XIRR for the year %", pct(r.xirr)],
+               ["Short-term capital gains", r.short_gain], ["Long-term capital gains", r.long_gain], ["Interest income", r.interest_income], ["XIRR for the year %", pct(r.xirr)],
                [f"{r.index_name} return %", pct(r.index_return)], ["Ending portfolio value", r.closing_value], ["Dividends received", r.dividends],
                ["Tax deducted on dividends", r.dividend_tax], ["Unrealised gain at year end", r.unrealised], ["Long-term after (days held)", r.cutoff],
                ["Note", "A record-keeping aid, not tax advice. Check the treatment with your CA."]]
@@ -246,17 +246,20 @@ def _annual_export(r):
                                     "Split units" if s["origin"] == "split" else "",
                                     f"Cost adjusted for a demerger (cost from the original transactions: {s['original_cost']:.2f})" if s["adjusted"] else "") if x)]
              for s in r.sales]
+    interest_sales = [row for s, row in zip(r.sales, sales) if s["interest"]]
+    sales = [row for s, row in zip(r.sales, sales) if not s["interest"]]
     held = [[h.instrument.name, h.instrument.get_kind_display(), h.units, h.cost, h.value, h.value - h.cost, "Provisional" if (h.provisional or h.awaiting) else ""]
             for h in r.holdings]
     txns = [[t.date, t.instrument.name, t.get_side_display(), t.units, t.price, t.charges, t.amount if t.status == "awaiting" else None, t.broker.name, t.portfolio.name,
              t.get_status_display()] for t in r.transactions]
-    by_pf = [[name, s.opening_value, s.invested, s.sold, s.short_gain, s.long_gain, pct(s.xirr), s.closing_value] for name, s in r.by_portfolio]
+    by_pf = [[name, s.opening_value, s.invested, s.sold, s.short_gain, s.long_gain, s.interest_income, pct(s.xirr), s.closing_value] for name, s in r.by_portfolio]
     return response(f"Annual Report {r.label}.xlsx", [
         ("Summary", ["Item", r.label], summary),
         ("Capital gains", ["Investment", "Bought (held from)", "Sold", "Days held", "Units", "Cost", "Proceeds", "Gain", "Term", "Note"], sales),
+        ("Interest income", ["Investment", "Bought (held from)", "Sold", "Days held", "Units", "Cost", "Proceeds", "Gain", "Term", "Note"], interest_sales),
         ("Holdings at year end", ["Investment", "Type", "Units", "Cost", "Value", "Unrealised gain", ""], held),
         ("Transactions", ["Date", "Investment", "Buy / sell", "Units", "Price", "Charges", "Amount awaiting", "Broker", "Portfolio", "Status"], txns),
-        ("By portfolio", ["Portfolio", "Starting value", "Invested", "Sold", "Short-term gains", "Long-term gains", "XIRR %", "Ending value"], by_pf)])
+        ("By portfolio", ["Portfolio", "Starting value", "Invested", "Sold", "Short-term gains", "Long-term gains", "Interest income", "XIRR %", "Ending value"], by_pf)])
 
 
 # ------------------------------------------------------------------ other reports and insights

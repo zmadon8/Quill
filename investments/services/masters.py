@@ -213,7 +213,8 @@ def find_similar(profile, name="", code="", kind=None):
 
 @transaction.atomic
 def create_instrument(profile, user, *, kind, name, code="", isin="", currency="INR", asset_class="equity", sector="",
-                      exchange="", price_source="manual", interest_rate=None, maturity_date=None, allow_duplicate=False, interest_type="compound"):
+                      exchange="", price_source="manual", interest_rate=None, maturity_date=None, allow_duplicate=False, interest_type="compound",
+                      taxed_as_interest=False):
     """Add an investment. Alternative investments are private to the profile; the rest are shared (plan 16.1). A look-alike is refused
     unless ``allow_duplicate`` (the page offers "use the existing one" instead)."""
     if kind not in HOLDABLE_KINDS:
@@ -231,7 +232,8 @@ def create_instrument(profile, user, *, kind, name, code="", isin="", currency="
         currency=(currency or "INR").upper()[:3], asset_class=asset_class, sector=(sector or "").strip(), exchange=exchange,
         price_source="manual" if private else (price_source if price_source != "manual" else fetch_defaults.default_source(kind)),
         price_basis=fetch_defaults.default_basis(fetch_defaults.default_source(kind)) if not private else "",
-        interest_rate=interest_rate, interest_type=interest_type if interest_type in ("simple", "compound") else "compound", maturity_date=maturity_date)
+        interest_rate=interest_rate, interest_type=interest_type if interest_type in ("simple", "compound") else "compound", maturity_date=maturity_date,
+        taxed_as_interest=bool(taxed_as_interest))
     ProfileInvestment.objects.get_or_create(profile=profile, instrument=obj)
     core.touch(profile)
     return obj
@@ -358,7 +360,8 @@ def update_shared_details(profile, user, instrument, **values):
         raise forbidden("Only an Admin can change the shared details of an investment.")
     if instrument.profile_id not in (None, profile.pk):
         raise not_found("investment")
-    allowed = {"name", "code", "isin", "exchange", "currency", "asset_class", "sector", "price_source", "fallback_source", "fetch_enabled"}
+    allowed = {"name", "code", "isin", "exchange", "currency", "asset_class", "sector", "price_source", "fallback_source", "fetch_enabled",
+               "taxed_as_interest"}
     unknown = set(values) - allowed
     if unknown:
         raise InvestmentsError("BAD_FIELD", f"Cannot change: {', '.join(sorted(unknown))}.")
