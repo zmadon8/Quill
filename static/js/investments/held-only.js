@@ -14,12 +14,15 @@
       o.hidden = hide; o.disabled = hide;
     });
   }
-  Array.prototype.forEach.call(form.querySelectorAll(".held-only-box"), function (box) {
+  // Each card (and the single form on other pages) has its own tick box; a card added later announces itself with "txn-card-added".
+  function wire(box) {
     var label = box.closest("label");
     if (label) { label.hidden = false; }
     var select = field(box.getAttribute("data-for"));
     box.addEventListener("change", function () { applyHeld(box); });
     if (select) { select.addEventListener("change", function () { applyHeld(box); }); }
     applyHeld(box);
-  });
+  }
+  Array.prototype.forEach.call(form.querySelectorAll(".held-only-box"), wire);
+  form.addEventListener("txn-card-added", function (e) { Array.prototype.forEach.call(e.target.querySelectorAll(".held-only-box"), wire); });
 })();
