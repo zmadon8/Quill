@@ -43,6 +43,7 @@ class Row:
         self.awaiting = Decimal(data["awaiting"])
         self.first_date = date.fromisoformat(data["first_date"]) if data["first_date"] else None
         self.price_date = date.fromisoformat(data["price_date"]) if data["price_date"] else None
+        self.price = Decimal(data["price"]) if data.get("price") else None
         self.xirr = data["xirr"]
         self.unpriced = data["unpriced"]
         self.stale = data["stale"]
@@ -75,6 +76,7 @@ def _dump(h, hidden_ids, stale, sparks):
                        "price_source": inst.price_source},
         "units": str(h.units), "cost": str(h.cost), "value": str(h.value), "awaiting": str(h.awaiting),
         "first_date": h.first_date.isoformat() if h.first_date else None, "price_date": h.price_date.isoformat() if h.price_date else None,
+        "price": str(h.price) if h.price is not None else None,
         "xirr": h.xirr, "unpriced": h.unpriced, "stale": inst.pk in stale, "blocked": h.blocked, "is_held": h.is_held,
         "sold_out": h.sold_out, "empty": h.empty, "hidden": inst.pk in hidden_ids, "spark": sparks.get(inst.pk),
         "realised": str(h.realised), "dividends": str(h.dividends),
