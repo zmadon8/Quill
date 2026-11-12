@@ -1429,7 +1429,7 @@ Decisions taken while building the Investments program. Where the plan was silen
 - **D149. The Overview's figures can be chosen.** [Owner (2026-11): "Allow me to choose the metrics shown in the Overview. Suggest others to me. I want to see various things for the entire history, 5 years, 3 years and 1 year."]
   - **Where it is chosen.** Overview > Customise is for Editors, and the choice is per profile (`InvestmentSettings.overview`, `services/overview.py`).
   - **The boxes at the top:** current value, invested, gain, portfolio XIRR, index XIRR, Alpha, dividends received and the number of holdings. The first six are the standard choice.
-  - **The "Over time" table** shows each chosen figure for the whole history and the last 5, 3 and 1 years. Any of the four periods can be left out.
+  - **The "Over time" table** shows each chosen figure for the chart's periods: 1M, 3M, 6M, 1Y, 3Y, 5Y and All (the same day counts as the chart). Any period can be left out. Choices stored before this (`5`, `3`, `1`) are read as 5Y, 3Y and 1Y.
   - **Figures in the table:**
     - your XIRR, the index XIRR and Alpha;
     - the time-weighted return (yearly) and the index's change;
@@ -1439,7 +1439,8 @@ Decisions taken while building the Investments program. Where the plan was silen
     - dividends;
     - gains booked on sales, first in first out;
     - largest fall (drawdown).
-  - **Standard table:** XIRR, index XIRR, Alpha, fresh investments and gain, for all four periods.
+  - **Standard table:** XIRR, index XIRR, Alpha, fresh investments and gain, for all seven periods.
+  - **Breakdown table.** Below the chart, "Portfolio value" by Type, by Portfolio or by Broker (`?breakdown=type|portfolio|broker`, default Type; plain links like the chart periods). Columns: Invested, Value, Gain, Gain %, Share, with a total row equal to the Overview value. All three are worked out with the cached Overview figures; a holding's value is shared over its lots by units, and a purchase awaiting allotment is its own group.
   - **How a period is worked out.** It uses the Overview's portfolio, broker and as-at date. The value at its start counts as money put in on that day, as on the Performance page.
   - **Shorter histories.** A period longer than the history is shown as the whole history and marked *.
   - **Approximate figures.** The time-weighted return and the largest fall come from the chart's samples (at most 400 over the whole history), so they are approximate for short periods.

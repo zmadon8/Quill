@@ -19,6 +19,68 @@ def _row(h):
             "dividends": str(h.dividends)}
 
 
+BREAKDOWNS = (("type", "by Type"), ("portfolio", "by Portfolio"), ("broker", "by Broker"))
+_CENT = Decimal("0.01")
+AWAITING_LABEL = "Awaiting allotment"
+
+
+def _breakdowns(profile, held):
+    """Invested, value, gain, gain % and share of the total for each group, three ways (by Type, Portfolio and Broker), as JSON-ready data:
+    ``{key: {"rows": [...], "total": {...}}}``. Money is text quantized to 0.01. Units held are shared out by lot: a holding's value is split
+    over its lots by units (a purchase awaiting allotment has no lot and is a group of its own), so every way adds up to the Overview's value.
+    A holding blocked by a pending corporate action is left out, as it is from the totals."""
+    from investments.models import Broker, Portfolio
+
+    names = {"portfolio": dict(Portfolio.objects.filter(profile=profile).values_list("pk", "name")),
+             "broker": dict(Broker.objects.filter(profile=profile).values_list("pk", "name"))}
+    groups = {key: {} for key, _l in BREAKDOWNS}
+
+    def add(key, label, invested, value):
+        cell = groups[key].setdefault(label, [Decimal(0), Decimal(0)])
+        cell[0] += invested
+        cell[1] += value
+
+    for h in held:
+        if h.blocked:
+            continue
+        add("type", h.instrument.get_kind_display(), h.cost, h.value)
+        units = sum((lot.units for lot in h.lots), Decimal(0))
+        shared = h.value - h.awaiting
+        for lot in h.lots:
+            part = shared * lot.units / units if units else Decimal(0)
+            add("portfolio", names["portfolio"].get(lot.bucket.portfolio, "Unknown"), lot.cost, part)
+            add("broker", names["broker"].get(lot.bucket.broker, "Unknown"), lot.cost, part)
+        if h.awaiting:
+            add("portfolio", AWAITING_LABEL, h.awaiting, h.awaiting)
+            add("broker", AWAITING_LABEL, h.awaiting, h.awaiting)
+
+    def figures(label, invested, value, total_value):
+        invested, value = invested.quantize(_CENT), value.quantize(_CENT)
+        gain = value - invested
+        return {"name": label, "invested": str(invested), "value": str(value), "gain": str(gain),
+                "gain_pct": float(gain / invested) if invested else None, "share": float(value / total_value) if total_value else 0.0}
+
+    out = {}
+    for key, _l in BREAKDOWNS:
+        total_value = sum((v for _i, v in groups[key].values()), Decimal(0))
+        ordered = sorted(groups[key].items(), key=lambda kv: (-kv[1][1], kv[0]))
+        rows = [figures(label, i, v, total_value) for label, (i, v) in ordered]
+        total = figures("Total", sum((i for i, _v in groups[key].values()), Decimal(0)), total_value, total_value)
+        out[key] = {"rows": rows, "total": total}
+    return out
+
+
+def _decode_breakdowns(payload):
+    """The cached breakdowns with money back as Decimals (payloads kept before the breakdowns existed have none)."""
+    data = payload.get("breakdown") or {}
+    for table in data.values():
+        for row in table["rows"] + [table["total"]]:
+            for k in ("invested", "value", "gain"):
+                if isinstance(row[k], str):
+                    row[k] = Decimal(row[k])
+    payload["breakdown"] = data
+
+
 def compute(profile, portfolio=None, broker=None, as_of=None, include_dividends=None, period="all", with_chart=True):
     """The Overview figures as JSON-ready data. ``with_chart=False`` leaves out the whole-history chart (``chart`` is None) unless a chosen
     figure (time-weighted return, largest fall) needs the sampled value line anyway: the chart for "All" is then drawn on demand and kept in
@@ -53,6 +115,7 @@ def compute(profile, portfolio=None, broker=None, as_of=None, include_dividends=
                    "xirr": totals.xirr, "index_xirr": totals.index_xirr, "alpha": totals.alpha, "count": totals.count,
                    "dividends": str(totals.dividends), "provisional": totals.provisional, "blocked": totals.blocked},
         "allocation": [[label, str(value), share] for label, value, share in holdings.allocation(held)], "notes": notes, "chart": chart,
+        "breakdown": _breakdowns(profile, held),
     }
     figures = overview.period_figures(profile, portfolio=portfolio, broker=broker, as_of=as_of, include_dividends=include_dividends,
                                       settings_row=settings_row, totals=totals, period_key=period, index=index, history=history, memo=memo)
@@ -131,6 +194,7 @@ def peek_payload(profile, today=None, period="all"):
         payload["totals"]["gain"] = Decimal(payload["period_totals"]["gain"])
     payload["allocation"] = [(label, Decimal(value), share) for label, value, share in payload["allocation"]]
     payload["overview"] = overview.as_decimals(payload.get("overview") or {"periods": [], "rows": []})
+    _decode_breakdowns(payload)
     return payload
 
 
@@ -151,4 +215,5 @@ def load(profile, portfolio=None, broker=None, as_of=None, include_dividends=Non
         payload["period_totals"]["start"] = date.fromisoformat(payload["period_totals"]["start"])
     payload["allocation"] = [(label, Decimal(value), share) for label, value, share in payload["allocation"]]
     payload["overview"] = overview.as_decimals(payload.get("overview") or {"periods": [], "rows": []})
+    _decode_breakdowns(payload)
     return payload
