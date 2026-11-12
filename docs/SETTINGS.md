@@ -281,17 +281,31 @@ backups** (Admin only) and applies to **Everyone**.
 
 ## 9. Redundant, unused or overlapping settings (owner round 2026-11)
 
-Removed later (accounts 0035, diary 0024, fees 0007, investments 0021): `diary.UserSettings.export_custom_name` and `time_zone` (exports always use India time), `Profile.reading_all_default` (profiles on the old "remember" mode were made explicit), `FeesSettings.default_additional_details_left/right`, the Investments hide-a-page option (`hidden_pages`, the Pages tab), and `landing_program` and `colour_theme` on the Admin user form (the model fields stay; users set them on Start Screens and Display). Old backups that carry these keys still restore; the keys are ignored.
+The owner accepted the suggested clean-up ("Go with your suggestions for the redundant settings and options"). This section records what was done. Old backups (JSON and Excel) that carry a removed key still restore; the key is ignored or mapped as noted.
 
-Removed in an earlier round: `User.header_style` and `User.show_home_button` (migration 0033), and the Investments **Starting number
-display** that appeared on both Settings > General and Settings > Display (now only on Display).
+**Removed**
 
-Still there; each is a candidate to remove or merge:
-
-| Setting | Why it is redundant |
+| Removed | What happens now |
 | --- | --- |
-| `Profile.display_name` and `header_name` | Were editable in two places; now only Users & Profiles > Profiles (the Reading page no longer edits them) |
-| `FeesSettings.show_status_dots`, `hide_payment_when_paid` | Cosmetic switches that few offices would change |
+| `diary.UserSettings.export_custom_name`, `time_zone` (diary 0024) | Exports always use India time and the program name; nothing to set |
+| `Profile.reading_all_default` (accounts 0035) | Profiles on the "remember" mode with the box ticked or unticked were made `always_on` or `always_off`. "Remember" stays as a choice; a browser with no remembered view gets the whole Subject. Old JSON backups are converted the same way |
+| `FeesSettings.default_additional_details_left`, `default_additional_details_right` (fees 0007) | Never used by the memo form. The Excel backup still writes the two desktop columns, empty; restore ignores them |
+| `FeesSettings.default_tab`, `items_per_page` (fees 0008) | Opening page and Items per page are personal only (`FeesUserPrefs`). The migration copied each profile's non-standard value to members with no value of their own |
+| `FeesSettings.dashboard_enabled`, `dashboard_kpis_enabled` (fees 0008) | Merged into `statistics_enabled` (on only if all three were on) |
+| `InvestmentSettings.hidden_pages` and the Investments Pages tab (investments 0021) | Hiding a page is no longer offered |
+| `landing_program` and `colour_theme` on the Admin user form | The model fields stay; users set them on Start Screens and Display |
+| Editing `display_name` and `header_name` on Case Law Diary > Settings > Reading | Only Users & Profiles > Profiles edits them |
+
+Removed in an earlier round: `User.header_style` and `User.show_home_button` (migration 0033), and the Investments **Starting number display** that appeared on both Settings > General and Settings > Display (now only on Display).
+
+**Kept, with the reason**
+
+| Setting | Why it stays |
+| --- | --- |
+| `Profile.display_name` and `header_name` | Different jobs: the full Home page name and a shorter header name (which falls back to the first). One edit place each |
+| `Profile.export_name` | Edited on the Export page; used in file names |
+| `FeesSettings.show_status_dots`, `hide_payment_when_paid` | They do different things (the status legend strip; the Payment button on paid memos), so they do not overlap |
+| `Profile.reading_all_mode` choice "remember" | Still the default and used by many profiles |
 
 ## 8. How this was checked
 

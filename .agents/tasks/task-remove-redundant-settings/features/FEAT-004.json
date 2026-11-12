@@ -1,0 +1,22 @@
+{
+  "id": "FEAT-004",
+  "type": "docs",
+  "description": "Docs: rewrite SETTINGS.md section 9 and add DESIGN.md decision.",
+  "status": "completed",
+  "steps": [
+    "Rewrite docs/SETTINGS.md section 9 to record what was removed/merged (and what was kept with reasons); update sections 2-4 tables to drop removed settings.",
+    "Add a new decision entry to docs/DESIGN.md following the file's existing numbering/format.",
+    "Final pass: grep the repo for any remaining reference to removed names; run compileall and ruff."
+  ],
+  "acceptance_criteria": [
+    "SETTINGS.md and DESIGN.md match the code",
+    "compileall and ruff pass"
+  ],
+  "verification": [
+    "python -m compileall -q .",
+    "ruff check --select F,E9 .",
+    "grep every removed field/label across *.py, *.html, *.js, tests, docs: no stale references remain (Django cannot be installed; CI runs the suite and makemigrations --check)"
+  ],
+  "blocked_reason": null,
+  "findings": "Docs only. DESIGN entry is D163 (the earlier D138 label duplicated an existing D138; renumbered, D137 cross-reference fixed, naming sub-bullet merged in). Migrations 0035/0024/0007/0008/0021 read against models: consistent, no AlterField needed. Remaining grep hits for removed names are intentional (backup compat, tests)."
+}
