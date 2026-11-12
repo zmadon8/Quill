@@ -13,26 +13,31 @@ A missing file (404: a holiday, a weekend, or not yet published) is ``None``, no
 """
 import csv
 import io
+import itertools
 import time
 import zipfile
 from datetime import datetime
 from decimal import Decimal
 
-from . import http
-from .base import FetchError, clean_close
+from investments.services import source_formats
 
-NSE_EQUITY_URL = "https://nsearchives.nseindia.com/content/cm/BhavCopy_NSE_CM_0_0_0_{ymd}_F_0000.csv.zip"
-NSE_INDEX_URL = "https://nsearchives.nseindia.com/content/indices/ind_close_all_{dmy}.csv"
-BSE_EQUITY_URL = "https://www.bseindia.com/download/BhavCopy/Equity/BhavCopy_BSE_CM_0_0_0_{ymd}_F_0000.CSV"
+from . import http
+from .base import FetchError, FormatError, clean_close
+
+NSE_EQUITY_URL = source_formats.DEFAULTS["nse_eq"]["url"]
+NSE_INDEX_URL = source_formats.DEFAULTS["nse_idx"]["url"]
+BSE_EQUITY_URL = source_formats.DEFAULTS["bse_eq"]["url"]
 
 NSE_HEADERS = {"Referer": "https://www.nseindia.com/", "Accept-Language": "en-IN,en;q=0.9"}
 BSE_HEADERS = {"Referer": "https://www.bseindia.com/", "Accept-Language": "en-IN,en;q=0.9"}
 
 #: NSE series kept, best first: ordinary shares and ETFs (EQ), trade-for-trade (BE, BZ), SME (SM, ST), REITs (RR) and InvITs (IV).
 #: Other NSE series on the same symbol or ISIN (bonds, rights, warrants) are left out. BSE's column holds the scrip group, so it is not filtered.
-SERIES_ORDER = ("EQ", "BE", "BZ", "SM", "ST", "RR", "IV", "")
+#: These are the built-in ones; an Admin can change the list (``series_keep`` of the format), and a blank series is always kept, last.
+SERIES_ORDER = tuple(source_formats.SERIES_KEEP) + ("",)
 
 KINDS = ("nse_eq", "nse_idx", "bse_eq")
+_SETTING = {"nse_eq": "INVESTMENTS_BHAV_NSE_URL", "nse_idx": "INVESTMENTS_BHAV_NSE_INDEX_URL", "bse_eq": "INVESTMENTS_BHAV_BSE_URL"}
 
 # The downloads of this process, for half an hour: the Update Prices button walks its batches in several requests.
 CACHE_SECONDS = 1800
@@ -40,29 +45,23 @@ CACHE_ENTRIES = 8
 _cache = {}
 
 
-def _setting(name, default):
-    from django.conf import settings
-
-    return getattr(settings, name, "") or default
+def series_order(fmt):
+    return tuple(fmt["series_keep"]) + ("",)
 
 
 def url_for(kind, day):
-    ymd, dmy = day.strftime("%Y%m%d"), day.strftime("%d%m%Y")
-    if kind == "nse_eq":
-        return _setting("INVESTMENTS_BHAV_NSE_URL", NSE_EQUITY_URL).format(ymd=ymd, dmy=dmy)
-    if kind == "nse_idx":
-        return _setting("INVESTMENTS_BHAV_NSE_INDEX_URL", NSE_INDEX_URL).format(ymd=ymd, dmy=dmy)
-    if kind == "bse_eq":
-        return _setting("INVESTMENTS_BHAV_BSE_URL", BSE_EQUITY_URL).format(ymd=ymd, dmy=dmy)
-    raise ValueError(kind)
+    if kind not in _SETTING:
+        raise ValueError(kind)
+    fmt = source_formats.get(kind)
+    return source_formats.expand(source_formats.url_for(kind, fmt, _SETTING[kind]), day)
 
 
 def label(kind):
     return {"nse_eq": "NSE bhavcopy", "nse_idx": "NSE index closes", "bse_eq": "BSE bhavcopy"}[kind]
 
 
-def _day(text):
-    for fmt in ("%Y-%m-%d", "%d-%m-%Y", "%d-%b-%Y", "%d/%m/%Y", "%Y%m%d"):
+def _day(text, formats=None):
+    for fmt in formats or source_formats.DEFAULTS["nse_eq"]["date_formats"]:
         try:
             return datetime.strptime(text.strip(), fmt).date()
         except ValueError:
@@ -70,40 +69,54 @@ def _day(text):
     return None
 
 
-def _reader(lines):
+def _reader(lines, fmt):
     """``(header names, remaining rows)``; the names are stripped (the files can carry a BOM and stray spaces)."""
-    reader = csv.reader(lines)
-    header = next(reader, None)
+    reader = csv.reader(lines, delimiter=fmt["delimiter"])
+    header = next(itertools.islice(reader, fmt["header_row"], None), None)
     if not header:
         return [], []
     return [h.strip().lstrip("\ufeff").strip() for h in header], reader
 
 
-def read_equity(lines, symbols=(), isins=(), codes=(), nse=True):
+def _equity_index(kind, header, fmt):
+    """The column index of each field, or a :class:`FormatError` naming what is missing and the headers seen."""
+    index = source_formats.match_columns(header, fmt["columns"])
+    missing = [f for f in ("close", "date") if index[f] is None]
+    if index["symbol"] is None and index["isin"] is None:
+        missing.append("symbol or isin")
+    if missing:
+        seen = header[:15]
+        raise FormatError(f"{label(kind)}: no column found for {', '.join(missing)}. Headers seen: {', '.join(seen)}. "
+                          "The exchange may have changed the file (Admin: Catalogue > Price sources > Data source formats).",
+                          key=kind, missing=missing, headers=seen)
+    return index
+
+
+def read_equity(lines, symbols=(), isins=(), codes=(), nse=True, fmt=None):
     """``{("sym"|"isin"|"code", key): (date, close)}`` for the wanted keys of an NSE or BSE equity file (new layout, or the old NSE one).
-    Where a key appears in several series, the best series (``SERIES_ORDER``) wins."""
-    header, rows = _reader(lines)
+    Where a key appears in several series, the best series (``SERIES_ORDER``) wins. Raises :class:`FormatError` when columns are missing
+    or no row of a non-empty file has a readable close and date."""
+    kind = "nse_eq" if nse else "bse_eq"
+    fmt = fmt or source_formats.get(kind)
+    header, rows = _reader(lines, fmt)
     if not header:
-        raise FetchError("The bhavcopy file was empty.")
-    col = {name: i for i, name in enumerate(header)}
-
-    def pick(*names):
-        for name in names:
-            if name in col:
-                return col[name]
-        return None
-
-    i_sym, i_isin, i_code = pick("TckrSymb", "SYMBOL", "SC_NAME"), pick("ISIN", "ISIN_CODE"), pick("FinInstrmId", "SC_CODE")
-    i_series, i_close, i_date = pick("SctySrs", "SERIES", "SC_GROUP"), pick("ClsPric", "CLOSE"), pick("TradDt", "TIMESTAMP", "TRADING_DATE")
-    if i_close is None or (i_sym is None and i_isin is None):
-        raise FetchError(f"The bhavcopy file has columns this program does not know ({', '.join(header[:8])}); the exchange may have changed it.")
+        raise FormatError(f"{label(kind)}: the file was empty.", key=kind)
+    col = _equity_index(kind, header, fmt)
+    i_sym, i_isin, i_code, i_series, i_close, i_date = (col[f] for f in ("symbol", "isin", "code", "series", "close", "date"))
+    order_list = series_order(fmt)
     symbols = {s.upper() for s in symbols}
     isins = {s.upper() for s in isins}
     codes = {str(s) for s in codes}
     found, rank = {}, {}
+    readable, unreadable = False, 0
     for cells in rows:
         if len(cells) <= i_close:
             continue
+        if not readable:
+            if clean_close(cells[i_close]) is not None and len(cells) > i_date and _day(cells[i_date], fmt["date_formats"]) is not None:
+                readable = True
+            else:
+                unreadable += 1
         keys = []
         if i_sym is not None and cells[i_sym].strip().upper() in symbols:
             keys.append(("sym", cells[i_sym].strip().upper()))
@@ -114,37 +127,70 @@ def read_equity(lines, symbols=(), isins=(), codes=(), nse=True):
         if not keys:
             continue
         close = clean_close(cells[i_close])
-        day = _day(cells[i_date]) if i_date is not None and len(cells) > i_date else None
+        day = _day(cells[i_date], fmt["date_formats"]) if len(cells) > i_date else None
         if close is None or day is None:
             continue
         series = cells[i_series].strip().upper() if nse and i_series is not None and len(cells) > i_series else ""
-        if series not in SERIES_ORDER:
+        if series not in order_list:
             continue                         # bonds, rights, warrants and the like on the same ISIN or symbol
-        order = SERIES_ORDER.index(series)
+        order = order_list.index(series)
         for key in keys:
             if key not in found or order < rank[key]:
                 found[key], rank[key] = (day, close.quantize(Decimal("0.0001"))), order
+    if unreadable and not readable:
+        raise FormatError(f"{label(kind)}: {unreadable} rows were read but none had a readable close and date "
+                          "(check the date formats and columns under Data source formats).", key=kind, headers=header[:15])
     return found
 
 
-def read_indices(lines, names=()):
+def sample_equity(lines, nse=True, fmt=None, limit=10):
+    """The first ``limit`` readable rows ``(symbol, isin, series, close, date)``, for the Test button. Same column rules as ``read_equity``."""
+    kind = "nse_eq" if nse else "bse_eq"
+    fmt = fmt or source_formats.get(kind)
+    header, rows = _reader(lines, fmt)
+    if not header:
+        raise FormatError(f"{label(kind)}: the file was empty.", key=kind)
+    col = _equity_index(kind, header, fmt)
+    out = []
+    for cells in rows:
+        if len(cells) <= col["close"] or len(cells) <= col["date"]:
+            continue
+        close, day = clean_close(cells[col["close"]]), _day(cells[col["date"]], fmt["date_formats"])
+        if close is None or day is None:
+            continue
+        pick = lambda f: cells[col[f]].strip() if col[f] is not None and len(cells) > col[f] else ""   # noqa: E731
+        out.append((pick("symbol"), pick("isin"), pick("series"), str(close), day.isoformat()))
+        if len(out) >= limit:
+            break
+    if not out:
+        raise FormatError(f"{label(kind)}: no row had a readable close and date.", key=kind, headers=header[:15])
+    return out
+
+
+def read_indices(lines, names=(), fmt=None):
     """``{lower-case index name: (date, close)}`` for the wanted names (all names if none are given)."""
-    header, rows = _reader(lines)
-    col = {name.lower(): i for i, name in enumerate(header)}
-    i_name, i_date, i_close = col.get("index name"), col.get("index date"), col.get("closing index value")
-    if None in (i_name, i_date, i_close):
-        raise FetchError(f"NSE's index file has columns this program does not know ({', '.join(header[:6])}); NSE may have changed it.")
+    fmt = fmt or source_formats.get("nse_idx")
+    header, rows = _reader(lines, fmt)
+    if not header:
+        raise FormatError(f"{label('nse_idx')}: the file was empty.", key="nse_idx")
+    index = source_formats.match_columns(header, fmt["columns"])
+    source_formats.require("nse_idx", label("nse_idx"), index, ("name", "date", "close"), header, fmt["columns"])
+    i_name, i_date, i_close = index["name"], index["date"], index["close"]
     names = {n.strip().lower() for n in names}
     found = {}
+    seen_rows = 0
     for cells in rows:
         if len(cells) <= max(i_name, i_date, i_close):
             continue
         name = cells[i_name].strip().lower()
-        if names and name not in names:
-            continue
-        close, day = clean_close(cells[i_close]), _day(cells[i_date])
+        close, day = clean_close(cells[i_close]), _day(cells[i_date], fmt["date_formats"])
         if close is not None and day is not None:
-            found[name] = (day, close.quantize(Decimal("0.0001")))
+            seen_rows += 1
+            if not names or name in names:
+                found[name] = (day, close.quantize(Decimal("0.0001")))
+    if not seen_rows:
+        raise FormatError(f"{label('nse_idx')}: no row had a readable close and date (check the date formats and columns under Data source formats).",
+                          key="nse_idx", headers=header[:15])
     return found
 
 

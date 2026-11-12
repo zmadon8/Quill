@@ -737,6 +737,16 @@ class SourceSetting(models.Model):
     fetch_mode = models.CharField(max_length=6, default="server", choices=[("server", "Server"), ("helper", "Helper only"), ("either", "Either")])
 
 
+class DataSourceFormat(models.Model):
+    """An Admin's changes to how one external file or answer is read (``services/source_formats.py``): only the keys that differ from the
+    built-in format are stored, so a new default in a later release still reaches a source nobody changed."""
+
+    key = models.CharField(max_length=20, unique=True)
+    config = models.JSONField(default=dict, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+
+
 class PriceHelperToken(models.Model):
     """A token for the local helper. Only a hash is stored; the token is shown once. Not in the suite backup."""
 

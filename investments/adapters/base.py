@@ -13,6 +13,17 @@ class FetchError(Exception):
         self.retryable = retryable
 
 
+class FormatError(FetchError):
+    """The answer arrived but could not be read with the format on file: columns missing, or nothing parsed from a body that was not empty.
+    ``key`` is the source format (``services/source_formats.py``) an Admin can correct; it makes the failure show on the alerts page."""
+
+    def __init__(self, message, key="", missing=(), headers=()):
+        super().__init__(message)
+        self.key = key
+        self.missing = list(missing)
+        self.headers = list(headers)
+
+
 @dataclass
 class Result:
     rows: list = field(default_factory=list)          # [(date, Decimal close)] oldest first, positive closes only
@@ -35,11 +46,14 @@ def clean_close(value):
     return number if number.is_finite() and number > 0 else None
 
 
-def parse_day(text):
-    """A date from ``DD-MM-YYYY``, ``DD-Mon-YYYY`` or ``YYYY-MM-DD``; None when unreadable."""
+DAY_FORMATS = ("%d-%m-%Y", "%d-%b-%Y", "%Y-%m-%d", "%d/%m/%Y")
+
+
+def parse_day(text, formats=DAY_FORMATS):
+    """A date from ``DD-MM-YYYY``, ``DD-Mon-YYYY`` or ``YYYY-MM-DD`` (or the given ``formats``); None when unreadable."""
     from datetime import datetime
 
-    for fmt in ("%d-%m-%Y", "%d-%b-%Y", "%Y-%m-%d", "%d/%m/%Y"):
+    for fmt in formats:
         try:
             return datetime.strptime(text.strip(), fmt).date()
         except ValueError:
