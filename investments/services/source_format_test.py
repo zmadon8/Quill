@@ -9,17 +9,17 @@ import itertools
 import zipfile
 from datetime import date, timedelta
 
-from investments.adapters import amfi, bhavcopy, http, mfapi, nse_list, twelvedata, yahoo
+from investments.adapters import amfi, bhavcopy, http, mfapi, nse_list, yahoo
 from investments.adapters.base import FetchError, FormatError
 from investments.services import source_formats
 
 SAMPLE_CAP = 8_000_000
 ROWS = 10
-SAMPLE_VALUES = {"mfapi": "122639", "yahoo": "RELIANCE.NS", "twelvedata": "RELIANCE.NS"}
+SAMPLE_VALUES = {"mfapi": "122639", "yahoo": "RELIANCE.NS"}
 HEADS = {
     "nse_eq": ["Symbol", "ISIN", "Series", "Close", "Date"], "bse_eq": ["Symbol", "ISIN", "Series", "Close", "Date"],
     "nse_idx": ["Index", "Date", "Close"], "amfi": ["Code", "Name", "ISIN", "Date", "NAV"], "nse_list": ["Symbol", "Name", "ISIN", "Series"],
-    "mfapi": ["Date", "NAV"], "yahoo": ["Date", "Close"], "twelvedata": ["Date", "Close"],
+    "mfapi": ["Date", "NAV"], "yahoo": ["Date", "Close"],
     "price_import": ["Field", "Column found in the file"], "statement_import": ["Field", "Column found in the file"],
 }
 
@@ -51,15 +51,6 @@ def _download(key, fmt, day, sample):
         end = day or date.today()
         values = {"symbol": urllib.parse.quote(sample, safe="^.-="), "p1": _epoch(end - timedelta(days=30)),
                   "p2": _epoch(end) + 2 * 86400, "q": urllib.parse.quote(sample)}
-    elif key == "twelvedata":
-        import os
-        import urllib.parse
-
-        symbol, exchange = twelvedata.split_symbol(sample)
-        api_key = os.environ.get("TWELVEDATA_API_KEY", "")
-        if not api_key:
-            raise FetchError("Twelve Data needs TWELVEDATA_API_KEY on the server to download a sample; upload a sample answer (a .json file) instead.")
-        values = {"symbol": urllib.parse.quote(symbol), "exchange": exchange, "start": (date.today() - timedelta(days=30)).isoformat(), "key": urllib.parse.quote(api_key)}
     tries = [day or latest_weekday()]
     if key in bhavcopy.KINDS and day is None:
         for _ in range(4):
@@ -70,9 +61,8 @@ def _download(key, fmt, day, sample):
     last = None
     for when in tries:
         url = source_formats.expand(fmt["url"], when, **values)
-        shown = url.replace(values.get("key", "\0"), "***") if "key" in values else url
         try:
-            return http.get(url, timeout=60, headers=headers, max_bytes=SAMPLE_CAP), shown
+            return http.get(url, timeout=60, headers=headers, max_bytes=SAMPLE_CAP), url
         except FetchError as exc:
             last = exc
             if exc.status != 404:
@@ -132,8 +122,6 @@ def _parse(key, fmt, body):
         out = mfapi.parse(body, fmt=fmt)
     elif key == "yahoo":
         out = yahoo.parse_chart(body, fmt=fmt)
-    elif key == "twelvedata":
-        out = twelvedata.parse(body, fmt=fmt)
     else:
         return _header_check(key, body, fmt)
     if not out.rows:

@@ -21,8 +21,7 @@ INSTRUMENT_KINDS = [
 HOLDABLE_KINDS = (KIND_SHARE, KIND_FUND, KIND_ALTERNATIVE, KIND_FOREIGN)
 
 ASSET_CLASSES = [("equity", "Equity"), ("debt", "Debt"), ("gold", "Gold"), ("other", "Other")]
-PRICE_SOURCES = [("manual", "Entered by hand"), ("yahoo", "Yahoo"), ("amfi", "AMFI"), ("mfapi", "mfapi.in"), ("upload", "Uploaded"),
-                 ("twelvedata", "Twelve Data")]
+PRICE_SOURCES = [("manual", "Entered by hand"), ("yahoo", "Yahoo"), ("amfi", "AMFI"), ("mfapi", "mfapi.in"), ("upload", "Uploaded")]
 
 SIDE_BUY, SIDE_SELL = "buy", "sell"
 SIDES = [(SIDE_BUY, "Buy"), (SIDE_SELL, "Sell")]

@@ -445,7 +445,7 @@ class CatalogueDetailsForm(forms.Form):
     asset_class = forms.ChoiceField(choices=ASSET_CLASSES)
     sector = forms.CharField(max_length=80, required=False)
     price_source = forms.ChoiceField(choices=[("manual", "Entered by hand"), ("yahoo", "Yahoo"), ("amfi", "AMFI"), ("mfapi", "mfapi.in"), ("upload", "Uploaded")])
-    fallback_source = forms.ChoiceField(choices=[("", "None"), ("yahoo", "Yahoo"), ("amfi", "AMFI"), ("mfapi", "mfapi.in"), ("twelvedata", "Twelve Data")], required=False)
+    fallback_source = forms.ChoiceField(choices=[("", "None"), ("yahoo", "Yahoo"), ("amfi", "AMFI"), ("mfapi", "mfapi.in")], required=False)
     fetch_enabled = forms.BooleanField(required=False, label="Fetch nightly")
     next_results_date = forms.DateField(required=False, widget=date_widget(), label="Next results date (optional)")
 

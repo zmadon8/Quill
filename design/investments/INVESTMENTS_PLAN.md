@@ -89,7 +89,7 @@ Items 1 to 4 and 6 are carried over from the Electron draft. The rest are new or
 7. **Splits and bonuses, shared or per profile (proposed):** record each corporate action **once, shared**, because it is a fact about the company. Each profile's Editor must **confirm** it (or mark "Not applicable") before it changes that profile's holdings; until confirmed it is **not applied** and the holding shows "Corporate action pending". Original trades are never altered.
 8. **Price basis (raw or split-adjusted), to be confirmed against a real split:** Yahoo's chart closes appear to be adjusted for splits after the fact. Section 16.2 specifies a per-instrument basis and a re-fetch rule. Confirm the behaviour on a real split before relying on it.
 9. **Mutual fund history source:** the AMFI daily file only gives the current NAV. History comes from mfapi.in (a third-party service with no guarantee; check its terms) or from AMFI's own date-range report. The final address of AMFI's daily file must be confirmed (it redirected in the first test).
-10. **Second stock source:** Twelve Data (confirm that Indian exchanges are on its free plan with one test call) and/or NSE/BSE daily "bhavcopy" files (confirm access from Render; NSE has been known to refuse scripted downloads, and its file format changed on 8 July 2024).
+10. **Second stock source:** NSE/BSE daily "bhavcopy" files (confirm access from Render; NSE has been known to refuse scripted downloads, and its file format changed on 8 July 2024).
 11. **Index history source:** where to get Nifty and other index history, including total return indices (to be checked).
 12. **Dashboard layout:** proposed in section 25.
 13. **Local helper:** whether and when to switch it on (section 28). Decision depends on how often the server's fetching is refused (section 30).
@@ -350,7 +350,7 @@ The program is a Django app named `investments` inside the Quill suite, register
 
 ### 15.2 Source adapters
 
-Every price source is a small adapter with one job: given an instrument and a start date, return a list of `(date, close)` pairs (and, where the source offers them, split and dividend events). Adapters: `yahoo`, `amfi` (daily file), `mfapi` (history), `manual`, `upload` (section 29), and later `bhavcopy` and `twelvedata`. Each instrument stores its chosen **price source** and an optional **fallback source**. The nightly job and the Update Prices button use the same adapter code.
+Every price source is a small adapter with one job: given an instrument and a start date, return a list of `(date, close)` pairs (and, where the source offers them, split and dividend events). Adapters: `yahoo`, `amfi` (daily file), `mfapi` (history), `manual`, `upload` (section 29) and later `bhavcopy`. Each instrument stores its chosen **price source** and an optional **fallback source**. The nightly job and the Update Prices button use the same adapter code.
 
 Rules for every adapter:
 
@@ -366,7 +366,7 @@ Rules for every adapter:
 
 | Data | History | Daily | Notes |
 |---|---|---|---|
-| NSE/BSE stocks, ETFs | One-off upload (section 29), or Yahoo | Yahoo chart endpoint | Fallback: NSE/BSE bhavcopy or Twelve Data (section 3.10). |
+| NSE/BSE stocks, ETFs | One-off upload (section 29), or Yahoo | Yahoo chart endpoint | Fallback: NSE/BSE bhavcopy (section 3.10). |
 | Indices | One-off upload, or Yahoo | Yahoo | Total return indices from another source (section 3.11). |
 | Mutual funds | mfapi.in (one full history call per scheme, about 130 KB in the test), then latest NAV only | AMFI daily file | AMFI's daily file is large (a few MB): read it line by line and keep only the scheme codes held. |
 | Foreign investments | Yahoo | Yahoo | Exchange rates also from Yahoo (to be confirmed), with manual override. |
@@ -553,7 +553,7 @@ Each phase ships behind `INVESTMENTS_ENABLED` (dark launch: every `/investments/
 3. **Performance tab and Total Portfolio Value report.**
 4. **Dividends, corporate actions (with the shared record and per-profile confirmation) and alerts.**
 5. **Individual investment pages, Annual Report and capital gains.**
-6. **Alternative and foreign investments, SIP schedules, statement import, search, extra sources (bhavcopy, Twelve Data), insights, extra reports.**
+6. **Alternative and foreign investments, SIP schedules, statement import, search, extra sources (bhavcopy), insights, extra reports.**
 7. **Optional local helper (built, switched off by default):** section 28.
 8. **Measure on Render and tune:** run the bench in the Render Shell; record the numbers in a new `docs/INVESTMENTS_RAM.md`.
 
@@ -884,7 +884,7 @@ Still to do (the owner is repeating these):
 1. Repeat the five-symbol loop at about 02:00 IST (20:30 UTC) on several nights and record the HTTP codes.
 2. Compare the short and long User-Agent three times each.
 3. Find the final address of the AMFI daily file (`curl -sIL ... | grep -i -E "^HTTP|^location"`) and confirm it downloads (HTTP 200, a few MB). Store the confirmed address as a setting, not hard-coded.
-4. Test NSE bhavcopy access from Render, and a Twelve Data free key on one NSE symbol.
+4. Test NSE bhavcopy access from Render.
 
 **Decision rule:** if refusals are rare (for example, a few per hundred requests, absorbed by retries), keep the server as the fetcher and leave the helper off. If refusals are common or sustained, set the affected source to `helper` or `either` and switch on `PRICE_HELPER_ENABLED` (section 28).
 

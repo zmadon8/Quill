@@ -98,19 +98,6 @@ DEFAULTS = {
         "exchange_path": ["meta", "exchangeName"],
         "exchange_alt_path": ["meta", "fullExchangeName"],
     },
-    "twelvedata": {
-        "url": "https://api.twelvedata.com/time_series?symbol={symbol}&exchange={exchange}&interval=1day&start_date={start}&outputsize=5000&apikey={key}",
-        "status_path": ["status"],
-        "ok_value": "ok",
-        "message_path": ["message"],
-        "code_path": ["code"],
-        "values_path": ["values"],
-        "date_key": "datetime",
-        "close_key": "close",
-        "currency_path": ["meta", "currency"],
-        "exchange_path": ["meta", "exchange"],
-        "date_formats": list(DAY_DATES),
-    },
     "price_import": {
         "columns": {
             "symbol": ["symbol", "isin", "scheme code", "scheme_code", "code", "ticker", "instrument"],
@@ -149,7 +136,6 @@ LABELS = {
     "mfapi": ("mfapi.in fund history", "amfi"),
     "nse_list": ("NSE list of equities", "nse_list"),
     "yahoo": ("Yahoo prices", "yahoo"),
-    "twelvedata": ("Twelve Data prices", "yahoo"),
     "price_import": ("Price history upload columns", ""),
     "statement_import": ("Statement and holdings import columns", ""),
 }
@@ -162,13 +148,13 @@ DATE_PLACEHOLDERS = {"yyyy", "yy", "mm", "dd", "ymd", "dmy", "MON", "Mon"}
 PLACEHOLDERS = {
     "nse_eq": DATE_PLACEHOLDERS, "bse_eq": DATE_PLACEHOLDERS, "nse_idx": DATE_PLACEHOLDERS,
     "amfi": DATE_PLACEHOLDERS, "nse_list": DATE_PLACEHOLDERS, "mfapi": {"code"},
-    "yahoo": {"symbol", "p1", "p2", "q"}, "twelvedata": {"symbol", "exchange", "start", "key"},
+    "yahoo": {"symbol", "p1", "p2", "q"},
 }
 _BRACES = re.compile(r"\{([^{}]*)\}")
 
 
 def builtin_hosts(key):
-    """The hosts of the built-in addresses of ``key`` (the only ones that may receive a secret such as the Twelve Data key)."""
+    """The hosts of the built-in addresses of ``key`` (the only ones an address may use unless the server owner lists more)."""
     base = DEFAULTS.get(key, {})
     return {urlparse(v).hostname for name, v in base.items() if (name == "url" or name.endswith("_url")) and isinstance(v, str)} - {None}
 
@@ -302,8 +288,6 @@ def check_url(key, value, label="Address"):
         return None, (f"{label}: the host '{host or parsed.netloc}' is not allowed for this source. Allowed: {', '.join(sorted(allowed_hosts(key)))}. "
                       "The server owner can add a host in the setting INVESTMENTS_EXTRA_SOURCE_HOSTS.")
     allowed = PLACEHOLDERS.get(key, set())
-    if "key" in _BRACES.findall(value) and host not in builtin_hosts(key):
-        return None, f"{label}: {{key}} (the server's secret) can only be used with the built-in host."
     for name in _BRACES.findall(value):
         if name not in allowed:
             return None, f"{label}: {{{name}}} is not a placeholder this source can use (allowed: {', '.join('{' + p + '}' for p in sorted(allowed)) or 'none'})."

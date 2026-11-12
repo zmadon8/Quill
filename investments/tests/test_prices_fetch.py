@@ -382,26 +382,3 @@ class LookupTests(InvTestCase):
         fetch.mark_button_used()
         self.assertFalse(fetch.start_allowed())
         self.assertTrue(fetch.start_allowed(now=datetime.now(timezone.utc) + timedelta(seconds=61)))
-
-
-class TwelveDataTests(InvTestCase):
-    BODY = b'{"meta":{"symbol":"RELIANCE","exchange":"NSE","currency":"INR"},"values":[{"datetime":"2026-11-06","close":"1327.80"},{"datetime":"2026-11-05","close":"0"}],"status":"ok"}'
-
-    def test_parse_and_fallback_when_yahoo_refuses(self):
-        import os
-        from investments.adapters import twelvedata
-        self.assertEqual(twelvedata.split_symbol("RELIANCE.NS"), ("RELIANCE", "NSE"))
-        out = twelvedata.parse(self.BODY)
-        self.assertEqual((out.rows, out.rejected), ([(d(2026, 11, 6), D("1327.80"))], 1))
-        with self.assertRaises(FetchError):
-            twelvedata.parse(b'{"status":"error","code":401,"message":"bad key"}')
-        masters.update_shared_details(self.profile, self.user, self.reliance, fallback_source="twelvedata")
-        self.buy(d(2026, 10, 1), 10, 1000)
-        net = FakeNet()
-        net.add("yahoo.com", 429)
-        net.add("twelvedata.com", self.BODY)
-        with mock.patch.dict(os.environ, {"TWELVEDATA_API_KEY": "test-key"}), mock.patch.object(http, "_urlopen", net), mock.patch.object(http, "sleep", lambda s: None):
-            summary = fetch.fetch_prices(ids=[self.reliance.pk], today=d(2026, 11, 9), rng=lambda: 0.0)
-        self.assertEqual(summary["updated"], 1)
-        self.assertTrue(Price.objects.filter(instrument=self.reliance, date=d(2026, 11, 6)).exists())
-        self.assertTrue(any("apikey=test-key" in c for c in net.calls))
