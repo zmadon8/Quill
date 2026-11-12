@@ -441,6 +441,31 @@ def investment_details(request, pk):
 
 @inv_editor
 @handle_errors()
+def investment_edit(request, pk):
+    """An Editor changes the fields of an investment the profile owns (an alternative investment). A shared investment is a 404 here: an
+    Admin changes it in the Catalogue."""
+    profile = profile_or_404(request)
+    inst = _instrument_or_404(profile, pk)
+    if inst.profile_id != profile.pk:
+        raise Http404
+    initial = {f: getattr(inst, f) for f in forms.OwnInstrumentForm.base_fields if f != "kind"}
+    form = forms.OwnInstrumentForm(request.POST or None, initial=initial)
+    if request.method == "POST":
+        if form.is_valid():
+            try:
+                changed = masters.update_own_instrument(profile, request.user, inst, **form.cleaned_data)
+            except InvestmentsError as err:
+                if err.status == 404:
+                    raise
+                form.add_error(None, err.message)
+            else:
+                messages.success(request, "Saved." if changed else "Nothing to change.")
+                return redirect(reverse("investments_investment", args=[pk]))
+    return page(request, "investments/investment_edit.html", {"page_title_text": f"Edit {inst.name}", "inst": inst, "form": form})
+
+
+@inv_editor
+@handle_errors()
 def investment_shared(request, pk):
     """Admin only: change the shared details of an investment."""
     profile = profile_or_404(request)

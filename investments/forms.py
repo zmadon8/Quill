@@ -320,6 +320,14 @@ class InstrumentForm(forms.Form):
         return self.cleaned_data.get("interest_type") or "compound"
 
 
+class OwnInstrumentForm(InstrumentForm):
+    """Edit an investment the profile owns (an alternative investment): the same fields and limits as adding one, without the kind."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        del self.fields["kind"]
+
+
 class PriceForm(forms.Form):
     date = forms.DateField(widget=date_widget(), initial=date.today)
     close = MoneyField(label="Price or NAV", min_value=0)

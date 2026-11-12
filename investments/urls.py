@@ -82,6 +82,7 @@ urlpatterns += [
     path("holdings/<int:pk>/value/", vh.investment_altvalue, name="investments_investment_altvalue"),
     path("holdings/<int:pk>/folio/", vh.investment_folio, name="investments_investment_folio"),
     path("holdings/<int:pk>/details/", vh.investment_details, name="investments_investment_details"),
+    path("holdings/<int:pk>/edit/", vh.investment_edit, name="investments_investment_edit"),
     path("holdings/<int:pk>/shared/", vh.investment_shared, name="investments_investment_shared"),
     path("holdings/<int:pk>/sip/", vh.investment_sip, name="investments_investment_sip"),
     path("holdings/<int:pk>/delete/", vh.inv_delete, name="investments_inv_delete"),

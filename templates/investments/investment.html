@@ -6,7 +6,7 @@
   {% if pi.links %}<div class="sub">{% for l in pi.links %}<a href="{{ l.url }}" rel="noopener noreferrer" target="_blank">{{ l.label }}</a>{% if not forloop.last %} &middot; {% endif %}{% endfor %}</div>{% endif %}</div>
   <div class="acts">{% if can_edit %}<a class="btn p" href="{% url 'investments_txn_new_buy' %}?instrument={{ inst.pk }}">Buy</a><a class="btn q" href="{% url 'investments_txn_new_sell' %}?instrument={{ inst.pk }}">Sell</a>{% endif %}
     {% if can_edit and can_refresh %}<button type="button" class="btn q" id="refresh-price" data-url="{% url 'investments_update_prices' %}" data-instrument="{{ inst.pk }}">Refresh price</button><span class="hint" id="refresh-status" role="status" aria-live="polite"></span>{% endif %}
-    {% if inst.profile_id is None and user.is_admin %}<a class="btn q" href="{% url 'investments_admin_catalogue_item' inst.pk %}">Edit</a>{% endif %}</div></div>
+    {% if inst.profile_id is None and user.is_admin %}<a class="btn q" href="{% url 'investments_admin_catalogue_item' inst.pk %}">Edit</a>{% elif inst.profile_id is not None and can_edit %}<a class="btn q" href="{% url 'investments_investment_edit' inst.pk %}">Edit</a>{% endif %}</div></div>
 {% if h.provisional %}<div class="ban al" role="alert"><span><b>Split or bonus pending: figures may be wrong.</b> Confirm it or mark it not applicable.</span><span class="r"><a href="{% url 'investments_corporate_actions' %}">Corporate actions</a></span></div>{% endif %}
 {% if h.awaiting %}<div class="ban wa"><span><b>Awaiting allotment:</b> {{ h.awaiting|inr }} paid, units not known yet. Counted at cost.</span><span class="r"><a href="{% url 'investments_txn_to_confirm' %}">To complete</a></span></div>{% endif %}
 <div class="kvs">

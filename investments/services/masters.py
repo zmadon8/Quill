@@ -353,6 +353,59 @@ def update_alt_interest(profile, user, instrument, *, interest_rate, interest_ty
     return instrument
 
 
+OWN_EDITABLE = ("name", "code", "isin", "currency", "asset_class", "sector", "interest_rate", "interest_type", "maturity_date", "taxed_as_interest")
+
+
+@transaction.atomic
+def update_own_instrument(profile, user, instrument, **values):
+    """Change the fields of an investment this profile owns (an alternative investment), by an Editor. Shared investments are refused (404):
+    they are changed in the Catalogue by an Admin. Each change is written to the permanent history; the profile's cache is refreshed, and
+    every profile's when Taxed as Interest changes."""
+    if instrument.profile_id != profile.pk or instrument.kind not in HOLDABLE_KINDS:
+        raise not_found("investment")
+    unknown = set(values) - set(OWN_EDITABLE)
+    if unknown:
+        raise InvestmentsError("BAD_FIELD", f"Cannot change: {', '.join(sorted(unknown))}.")
+    if "name" in values:
+        values["name"] = _clean_name(values["name"], "Name", 200)
+    if "code" in values:
+        values["code"] = (values["code"] or "").strip()
+    if "isin" in values:
+        values["isin"] = (values["isin"] or "").strip().upper()
+    if "currency" in values:
+        values["currency"] = (values["currency"] or "INR").upper()[:3]
+    if "sector" in values:
+        values["sector"] = (values["sector"] or "").strip()
+    if values.get("interest_type") not in ("simple", "compound"):
+        if "interest_type" in values:
+            values["interest_type"] = "compound"
+    rate = values.get("interest_rate")
+    if rate is not None and (rate < 0 or rate > 1000):
+        raise InvestmentsError("BAD_RATE", "The interest rate must be between 0 and 1000 percent.")
+    if "taxed_as_interest" in values:
+        values["taxed_as_interest"] = bool(values["taxed_as_interest"])
+    if values.get("name") or values.get("code"):
+        others = [i for i in find_similar(profile, values.get("name", instrument.name), values.get("code", instrument.code), instrument.kind)
+                  if i.pk != instrument.pk]
+        if others:
+            raise InvestmentsError("SIMILAR", f"'{others[0].name}' already exists. Use a different name or code.", 409)
+    from investments.services import catalogue, fetch
+
+    changed = []
+    for key, value in values.items():
+        old = getattr(instrument, key)
+        if old != value:
+            catalogue.log(user, instrument, "instrument", instrument.pk, key, old, value, "Edited on the investment's Edit page")
+            setattr(instrument, key, value)
+            changed.append(key)
+    if changed:
+        instrument.save(update_fields=changed)
+        core.touch(profile)
+        if "taxed_as_interest" in changed:
+            fetch.bump_version()
+    return changed
+
+
 @transaction.atomic
 def update_shared_details(profile, user, instrument, **values):
     """Change the shared details of an investment. Admin only (plan 10); an Editor's profile details are separate."""
