@@ -77,7 +77,7 @@ def _txn_line(t):
             t.portfolio.name, t.broker.name, t.folio.number if t.folio else "", t.get_status_display(), t.is_opening, t.reference, t.note]
 
 
-def transaction_sheets(txns, transfers=None, dividends=None):
+def transaction_sheets(txns, transfers=None, dividends=None, automatic=None):
     """The Transactions sheet, then Transfers and Dividends sheets when those are given (querysets with their related rows selected)."""
     sheets = [("Transactions", TXN_HEADER, (_txn_line(t) for t in txns.iterator()))]
     if transfers is not None:
@@ -89,6 +89,11 @@ def transaction_sheets(txns, transfers=None, dividends=None):
         sheets.append(("Dividends", ["Date received", "Investment", "Portfolio", "Broker", "Folio", "Amount", "Tax deducted", "Note"],
                        ([r.date, r.instrument.name, r.portfolio.name, r.broker.name, r.folio.number if r.folio else "", r.amount, r.tax_deducted,
                          r.note] for r in dividends.iterator())))
+    if automatic:
+        # Units a bonus or split adds by itself: not transactions, so a separate sheet (they are not part of the Transactions sheet's totals).
+        sheets.append(("Added automatically", ["Date", "Investment", "Code", "What", "Units added", "Price", "Portfolio", "Broker", "Folio"],
+                       ([r["date"], r["instrument"].name, r["instrument"].code, r["label"], r["units"], 0, r["portfolio"], r["broker"], r["folio"]]
+                        for r in automatic)))
     return sheets
 
 

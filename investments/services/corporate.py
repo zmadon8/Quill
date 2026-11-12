@@ -246,6 +246,46 @@ def _units_to_add(action, held, instrument):
     return extra.quantize(places, rounding=ROUND_DOWN)
 
 
+AUTO_LABELS = {CA_SPLIT: "Split (added automatically)", CA_BONUS: "Bonus shares (added automatically)"}
+
+
+def automatic_unit_rows(profile, portfolio=None, broker=None, asat=None, q=""):
+    """Read-only display rows for the units the program adds itself (a bonus or split applied with the method ``events``), newest first.
+
+    These units are not transactions (making them real would count them twice), so the Transactions page shows them as extra rows: one for
+    each portfolio, broker and folio that held the investment the day before the ex-date, with the units added, a price of 0 and a label.
+    A bonus or split the profile records as transactions is not listed here, because its transactions are listed with their own origin.
+    Each row is a dict: ``date``, ``instrument``, ``action``, ``label``, ``units``, ``portfolio``, ``broker``, ``folio`` (names) and ``kind``."""
+    out = []
+    responses = CorporateActionResponse.objects.filter(profile=profile, status=STATUS_APPLIED, method=METHOD_EVENTS,
+                                                       action__kind__in=(CA_SPLIT, CA_BONUS)).select_related("action", "action__instrument")
+    if asat:
+        responses = responses.filter(action__ex_date__lte=asat)
+    if q:
+        responses = responses.filter(Q(action__instrument__name__icontains=q) | Q(action__instrument__code__icontains=q))
+    responses = list(responses)
+    if not responses:
+        return out
+    names_p = dict(Portfolio.objects.filter(profile=profile).values_list("pk", "name"))
+    names_b = dict(Broker.objects.filter(profile=profile).values_list("pk", "name"))
+    for r in responses:
+        action = r.action
+        folios = {}
+        for bucket, held in _bucket_units_before(profile, action).items():
+            if held <= 0 or (portfolio and bucket.portfolio != int(portfolio)) or (broker and bucket.broker != int(broker)):
+                continue
+            units = _units_to_add(action, held, action.instrument)
+            if units <= 0:
+                continue
+            if bucket.folio and bucket.folio not in folios:
+                folios[bucket.folio] = Folio.objects.filter(pk=bucket.folio).values_list("number", flat=True).first() or ""
+            out.append({"date": action.ex_date, "instrument": action.instrument, "action": action, "kind": action.kind,
+                        "label": AUTO_LABELS[action.kind], "units": units, "portfolio": names_p.get(bucket.portfolio, ""),
+                        "broker": names_b.get(bucket.broker, ""), "folio": folios.get(bucket.folio, "") if bucket.folio else ""})
+    out.sort(key=lambda row: (row["date"], row["action"].pk), reverse=True)
+    return out
+
+
 def create_unit_transactions(profile, user, action):
     """Create the zero-cost transactions (origin bonus or split) for a bonus or split this profile records as transactions: one for each
     portfolio, broker and folio that held units the day before the ex-date, dated the ex-date, linked to the action. They are ordinary

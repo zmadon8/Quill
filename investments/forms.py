@@ -110,7 +110,7 @@ class TransactionForm(ProfileForm):
     new_folio = forms.CharField(label="Or a new folio number", required=False, max_length=60)
     units = MoneyField(label="Units", required=False, min_value=0)
     origin = forms.ChoiceField(choices=ORIGINS, initial=ORIGIN_PURCHASE, required=False, label="How were these units acquired?",
-                               help_text="Bonus shares, split units and shares received on a demerger need no price. A demerger's cost comes from the parent's shares.")
+                               help_text="Bonus shares, split units and shares received on a demerger need no price: they are added at a cost of 0. A demerger's cost comes from the parent's shares, not from this entry.")
     corporate_action = forms.ModelChoiceField(queryset=CorporateAction.objects.none(), required=False, label="Corporate action (bonus, split or demerger)")
     price = MoneyField(label="Price per unit", required=False, min_value=0)
     charges = MoneyField(label="Charges", required=False, min_value=0, initial=0)
