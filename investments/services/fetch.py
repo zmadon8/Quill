@@ -337,22 +337,8 @@ def fetch_prices(*, ids=None, profile=None, trigger="cron", max_seconds=600, max
             try:
                 window = windows.get(inst.pk)
                 since = fetch_from(window, last_api_date(inst), first_api_date(inst))
-                try:
-                    result = yahoo.fetch(symbol_for(inst, "yahoo"), since, years=years, today=today)
-                    read.add("yahoo")
-                except FetchError as first_error:
-                    # the fallback source, when one is set (plan 15.2); its basis must match, so only for raw-basis instruments or a basis-free source
-                    if inst.fallback_source != "twelvedata":
-                        raise
-                    from investments.adapters import twelvedata
-
-                    try:
-                        result = twelvedata.fetch(symbol_for(inst, "twelvedata"), since, years=years, today=today)
-                        read.add("twelvedata")
-                    except FetchError as second:
-                        formatted = next((e for e in (first_error, second) if isinstance(e, FormatError)), None)
-                        message = f"{first_error}; fallback: {second}"
-                        raise (FormatError(message, key=formatted.key) if formatted else FetchError(message)) from second
+                result = yahoo.fetch(symbol_for(inst, "yahoo"), since, years=years, today=today)
+                read.add("yahoo")
                 result.rows = clip(result.rows, window)
                 result.splits = [s for s in result.splits if clip([(s[0], 1)], window)]
                 result.dividends = [x for x in result.dividends if clip([(x[0], 1)], window)]

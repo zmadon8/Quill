@@ -386,7 +386,26 @@ def parse_backup(raw, max_bytes):
     upgrade_old_document(document, roles=old_roles)
     _fill_membership_roles(models_in_file.get("accounts.ProfileMembership", []), old_roles)
     upgrade_old_items(document)
+    _drop_removed_price_source(models_in_file)
     return document
+
+
+def _drop_removed_price_source(models_in_file):
+    """Twelve Data was removed: an instrument in an old backup that used it gets the default source for its kind, its fallback is
+    cleared, and the rows kept for that source (symbols, run settings, formats) are left out, as investments 0028 does for the database."""
+    from investments.services import fetch_defaults
+
+    for record in models_in_file.get("investments.Instrument", []):
+        fields = record["fields"]
+        if fields.get("price_source") == "twelvedata":
+            source = fetch_defaults.default_source(fields.get("kind"))
+            fields["price_source"] = source
+            fields["price_basis"] = fetch_defaults.default_basis(source)
+        if fields.get("fallback_source") == "twelvedata":
+            fields["fallback_source"] = ""
+    for label, field in (("investments.SourceSetting", "source"), ("investments.DataSourceFormat", "key"), ("investments.SourceSymbol", "source")):
+        if label in models_in_file:
+            models_in_file[label] = [r for r in models_in_file[label] if r["fields"].get(field) != "twelvedata"]
 
 
 def upgrade_old_items(document, now=None):

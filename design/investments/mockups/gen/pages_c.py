@@ -377,7 +377,7 @@ def admin_catalogue_item():
 <div class="row">{fld("Price source","Yahoo","sel2")}{fld("Fallback source","NSE bhavcopy","sel2")}{fld("Price basis","Split-adjusted","sel2","Changing it needs a re-fetch")}</div>
 <div class="row"><div class="fld"><label>Fetch prices every night</label>{sw(True)}</div></div>
 <div class="sec"><h2>Symbol at each source</h2></div>
-{table([("Source", ""), ("Symbol", ""), ("Checked", "")], [["Yahoo", "RELIANCE.NS", "6 Nov 2026"], ["NSE bhavcopy", "RELIANCE", "28 Jul 2025"], ["Twelve Data", '<span class="na">not set</span>', ""]])}
+{table([("Source", ""), ("Symbol", ""), ("Checked", "")], [["Yahoo", "RELIANCE.NS", "6 Nov 2026"], ["NSE bhavcopy", "RELIANCE", "28 Jul 2025"]])}
 </div><div>
 <div class="sec"><h2>Held by</h2></div>{held}
 <p class="hint">Only the profile names and whether it is still held. Units, costs, dates and transactions are not shown to anyone but the profile's own users.</p>

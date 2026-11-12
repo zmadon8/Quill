@@ -13,7 +13,7 @@ from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 
 from accounts.models import ROLE_EDITOR
-from investments.adapters import amfi, bhavcopy, http, mfapi, nse_list, twelvedata, yahoo
+from investments.adapters import amfi, bhavcopy, http, mfapi, nse_list, yahoo
 from investments.adapters.base import FetchError, FormatError
 from investments.models import AmfiScheme, DataSourceFormat, Price, SourceRun
 from investments.services import fetch, instrument_search, price_import, source_formats as sf, statement_import
@@ -73,8 +73,6 @@ class DefaultsReproduceTodayTests(SimpleTestCase):
         self.assertEqual(len(mfapi.parse(fixture("mfapi_122639.json")).rows), 3)
         out = yahoo.parse_chart(fixture("yahoo_chart_reliance.json"))
         self.assertTrue(out.rows)
-        body = json.dumps({"status": "ok", "meta": {"currency": "INR", "exchange": "NSE"}, "values": [{"datetime": "2026-11-05", "close": "100.5"}]})
-        self.assertEqual(twelvedata.parse(body.encode()).rows, [(d(2026, 11, 5), D("100.5"))])
 
 
 class TolerantHeaderTests(SimpleTestCase):
@@ -154,8 +152,6 @@ class ReadFailuresAreErrorsTests(SimpleTestCase):
             mfapi.parse(json.dumps({"rows": []}).encode())
         with self.assertRaises(FormatError):
             yahoo.parse_chart(json.dumps({"other": 1}).encode())
-        with self.assertRaises(FormatError):
-            twelvedata.parse(json.dumps({"status": "ok", "values": [{"day": "2026-11-05", "px": "1"}]}).encode())
 
 
 @override_settings(INVESTMENTS_EXTRA_SOURCE_HOSTS=EXTRA_HOSTS)
@@ -540,15 +536,6 @@ class HostRestrictionTests(SimpleTestCase):
     def test_userinfo_trick_is_refused(self):
         cleaned, errors = sf.validate("amfi", {"url": "https://www.amfiindia.com@evil.example/nav.txt"})
         self.assertTrue(errors)
-
-    def test_key_placeholder_only_on_the_built_in_host(self):
-        good = "https://api.twelvedata.com/v2/series?symbol={symbol}&apikey={key}"
-        self.assertFalse(sf.validate("twelvedata", {"url": good})[1])
-        with override_settings(INVESTMENTS_EXTRA_SOURCE_HOSTS="mine.example"):
-            cleaned, errors = sf.validate("twelvedata", {"url": "https://mine.example/x?symbol={symbol}&apikey={key}"})
-            self.assertTrue(errors)
-            self.assertIn("{key}", errors[0])
-            self.assertFalse(sf.validate("twelvedata", {"url": "https://mine.example/x?symbol={symbol}"})[1])
 
 
 class PublicAddressGuardTests(SimpleTestCase):
