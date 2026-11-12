@@ -288,7 +288,7 @@ The owner accepted the suggested clean-up ("Go with your suggestions for the red
 | Removed | What happens now |
 | --- | --- |
 | `diary.UserSettings.export_custom_name`, `time_zone` (diary 0024) | Exports always use India time and the program name; nothing to set |
-| `Profile.reading_all_default` (accounts 0035) | Profiles on the "remember" mode with the box ticked or unticked were made `always_on` or `always_off`. "Remember" stays as a choice; a browser with no remembered view gets the whole Subject. Old JSON backups are converted the same way |
+| `Profile.reading_all_default` (accounts 0035) | Profiles on the "remember" mode with the box unticked were made `always_off`; the rest stay on "remember". "Remember" stays as a choice; a browser with no remembered view gets the whole Subject. Old JSON backups are converted the same way |
 | `FeesSettings.default_additional_details_left`, `default_additional_details_right` (fees 0007) | Never used by the memo form. The Excel backup still writes the two desktop columns, empty; restore ignores them |
 | `FeesSettings.default_tab`, `items_per_page` (fees 0008) | Opening page and Items per page are personal only (`FeesUserPrefs`). The migration copied each profile's non-standard value to members with no value of their own |
 | `FeesSettings.dashboard_enabled`, `dashboard_kpis_enabled` (fees 0008) | Merged into `statistics_enabled` (on only if all three were on) |

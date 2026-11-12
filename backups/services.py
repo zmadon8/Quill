@@ -522,15 +522,15 @@ def _normalise_user_records(records):
 
 
 def _normalise_profile_records(records):
-    """Drop ``reading_all_default`` (removed). A profile that was on the "remember" mode, or had no mode, takes the
-    explicit mode the old boolean stood for, so the choice it made still applies."""
+    """Drop ``reading_all_default`` (removed). A profile on the "remember" mode, or with no mode, whose boolean was
+    False becomes always_off; with True it stays "remember" (which now opens the whole Subject before any view is kept)."""
     for record in records:
         fields = record["fields"]
         if "reading_all_default" not in fields:
             continue
         whole = fields.pop("reading_all_default")
-        if fields.get("reading_all_mode", "remember") == "remember":
-            fields["reading_all_mode"] = "always_on" if whole else "always_off"
+        if not whole and fields.get("reading_all_mode", "remember") == "remember":
+            fields["reading_all_mode"] = "always_off"
 
 
 def _fill_membership_roles(records, roles):
