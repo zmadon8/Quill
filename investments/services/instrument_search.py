@@ -2,7 +2,12 @@
 from investments.models import KIND_FUND, KIND_SHARE, Instrument
 from investments.services import schemes, nse_list
 from investments.adapters.base import FetchError
+from django.core.cache import cache
 from django.db.models import Q
+import logging
+
+log = logging.getLogger(__name__)
+RETRY_AFTER_SECONDS = 15 * 60   # after a failed fetch of an empty list, do not try again for this long
 
 
 def _existing(profile, codes, isins):
@@ -65,11 +70,17 @@ def _amfi_has_rows():
 
 def _try_refresh(service, label):
     """Fetch an empty list once, when searching finds it empty. Never raises."""
+    key = f"instrument_search:refresh_failed:{label}"
+    if cache.get(key):
+        return f"The {label} list could not be fetched just now. You can type the details yourself."
     try:
         if service.due():
             service.refresh()
     except FetchError as exc:
+        cache.set(key, True, RETRY_AFTER_SECONDS)
         return f"The {label} list could not be fetched ({exc}). You can type the details yourself."
     except Exception:  # a bad file must not break the page
+        log.exception("%s list refresh failed", label)
+        cache.set(key, True, RETRY_AFTER_SECONDS)
         return f"The {label} list could not be read. You can type the details yourself."
     return ""

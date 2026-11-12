@@ -2,6 +2,7 @@
 from datetime import timedelta
 from unittest import mock
 
+from django.core.cache import cache
 from django.test import Client, SimpleTestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -41,6 +42,8 @@ class NseAdapterTests(SimpleTestCase):
 class FakeNetCase(InvTestCase):
     def setUp(self):
         super().setUp()
+        cache.clear()
+        self.addCleanup(cache.clear)
         self.net = FakeNet()
         for target, value in ((http, "_urlopen"), ):
             p = mock.patch.object(target, value, self.net)
@@ -126,6 +129,15 @@ class SearchTests(FakeNetCase):
         self.net.add("NAVAll", 500)
         out = instrument_search.search(self.profile, "reliance")
         self.assertEqual(out["results"], [])
+        self.assertIn("could not be fetched", out["message"])
+
+    def test_failed_refresh_is_not_repeated_on_every_keystroke(self):
+        self.net.add("EQUITY_L", 500)
+        instrument_search.search(self.profile, "reliance", kind="share")
+        calls = len(self.net.calls)
+        self.assertGreater(calls, 0)
+        out = instrument_search.search(self.profile, "relianc", kind="share")
+        self.assertEqual(len(self.net.calls), calls)
         self.assertIn("could not be fetched", out["message"])
 
     def test_empty_list_is_fetched_once_on_demand(self):

@@ -221,7 +221,7 @@ class DemergerOverrideTests(InvTestCase):
         self.assertFalse(self.auto().exists())
 
     def test_bad_input_is_refused(self):
-        for text in ("-1", "abc", "2.5", "nan"):
+        for text in ("-1", "abc", "2.5", "nan", "1e30", "inf"):
             with self.assertRaises(InvestmentsError):
                 self.override(text)
         with self.assertRaises(InvestmentsError):

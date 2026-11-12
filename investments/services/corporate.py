@@ -350,11 +350,11 @@ def _override_units(text, instrument):
     """The units an override string stands for, or None when it is not a valid whole or four-decimal, non-negative number."""
     try:
         value = Decimal(str(text).strip())
-    except (InvalidOperation, ValueError):
+        if not value.is_finite() or value < 0 or value != value.quantize(_places(instrument), rounding=ROUND_DOWN):
+            return None
+        return value.quantize(_places(instrument))
+    except (InvalidOperation, ValueError):   # too many digits to quantize (for example 1e30)
         return None
-    if not value.is_finite() or value < 0 or value != value.quantize(_places(instrument), rounding=ROUND_DOWN):
-        return None
-    return value.quantize(_places(instrument))
 
 
 def bucket_allotments(profile, action):

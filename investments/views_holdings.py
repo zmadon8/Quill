@@ -158,6 +158,7 @@ def add_search(request):
     try:
         out = instrument_search.search(profile, request.GET.get("q", ""), kind if kind in ("share", "fund") else None)
     except Exception:
+        __import__("logging").getLogger(__name__).exception("Instrument search failed")
         out = {"results": [], "message": "The search is not available just now. You can type the details yourself."}
     return JsonResponse(out)
 
