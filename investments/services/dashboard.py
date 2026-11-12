@@ -6,6 +6,8 @@ from decimal import Decimal
 
 from investments.services import core, holdings, overview, performance, series, statscache
 
+#: Bump when the cached payload gains or changes a part, so older cached payloads are not read (2: the Type/Portfolio/Broker breakdown).
+PAYLOAD_VERSION = 2
 MONEY_FIELDS = ("units", "avg_cost", "price", "value", "gain", "awaiting", "cost", "dividends")
 
 
@@ -65,7 +67,9 @@ def _breakdowns(profile, held):
         total_value = sum((v for _i, v in groups[key].values()), Decimal(0))
         ordered = sorted(groups[key].items(), key=lambda kv: (-kv[1][1], kv[0]))
         rows = [figures(label, i, v, total_value) for label, (i, v) in ordered]
-        total = figures("Total", sum((i for i, _v in groups[key].values()), Decimal(0)), total_value, total_value)
+        # The Total is the sum of the rows as shown, so the rows always add up to it to the paisa.
+        total = figures("Total", sum((i.quantize(_CENT) for i, _v in groups[key].values()), Decimal(0)),
+                        sum((v.quantize(_CENT) for _i, v in groups[key].values()), Decimal(0)), total_value)
         out[key] = {"rows": rows, "total": total}
     return out
 
@@ -149,7 +153,8 @@ def _turning_long(rows, settings_row, today, days=60):
 
 def _params(profile, portfolio, broker, as_of, include_dividends, period="all"):
     chosen = overview.choice(core.get_settings(profile, create=False))
-    params = {"p": portfolio, "b": broker, "a": as_of, "d": include_dividends, "o": [chosen["metrics"], chosen["periods"]]}
+    params = {"p": portfolio, "b": broker, "a": as_of, "d": include_dividends, "o": [chosen["metrics"], chosen["periods"]],
+              "v": PAYLOAD_VERSION}
     if period != "all":   # the default keeps the cache key it always had
         params["r"] = period
     return params

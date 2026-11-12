@@ -59,3 +59,26 @@ class BreakdownTests(InvTestCase):
     def test_login_is_required(self):
         response = self.client.get(reverse("investments_dashboard") + "?breakdown=broker")
         self.assertEqual(response.status_code, 302)
+
+
+class BreakdownRoundingTests(InvTestCase):
+    @staticmethod
+    def fake(kind, value):
+        from types import SimpleNamespace as NS
+
+        return NS(blocked=False, instrument=NS(get_kind_display=lambda: kind), cost=D(0), value=D(value), awaiting=D(0), lots=[])
+
+    def test_total_is_the_sum_of_the_rows_as_shown(self):
+        held = [self.fake("Share", "0.005"), self.fake("Mutual fund", "0.005"), self.fake("Bond", "0.005")]
+        table = dashboard._breakdowns(self.profile, held)["type"]
+        self.assertEqual([r["value"] for r in table["rows"]], ["0.00"] * 3)
+        self.assertEqual(table["total"]["value"], "0.00")
+
+    def test_rows_add_to_total_with_fractional_values(self):
+        held = [self.fake("Share", "10.004"), self.fake("Mutual fund", "10.004"), self.fake("Bond", "10.004")]
+        table = dashboard._breakdowns(self.profile, held)["type"]
+        self.assertEqual(sum((D(r["value"]) for r in table["rows"]), D(0)), D(table["total"]["value"]))
+
+    def test_cache_key_carries_the_payload_version(self):
+        params = dashboard._params(self.profile, None, None, d.today(), True)
+        self.assertEqual(params["v"], dashboard.PAYLOAD_VERSION)
