@@ -210,7 +210,7 @@ def _new_txn(profile, user, side, instrument, portfolio, broker, folio, day, **e
 def add_transaction(profile, user, *, side, instrument, portfolio, broker, date, units=None, price=None, charges=0, folio=None,
                     awaiting=False, amount=None, expected_allotment_date=None, reference="", note="", is_opening=False,
                     is_estimated=False, allotment_date=None, status=None, switch=None, currency=None, fx_rate=None,
-                    rupee_amount=None, origin=ORIGIN_PURCHASE, corporate_action=None):
+                    rupee_amount=None, origin=ORIGIN_PURCHASE, corporate_action=None, auto_created=False):
     """Record one purchase or sale. ``awaiting=True`` saves only the date paid and the amount (plan 6).
 
     ``origin`` says how bought units came to be held: a purchase (the default, with a price), bonus shares, units from a split, shares
@@ -265,7 +265,7 @@ def add_transaction(profile, user, *, side, instrument, portfolio, broker, date,
         raise InvestmentsError("BAD_DATE", "The allotment date cannot be before the date paid.")
     txn = _new_txn(profile, user, side, instrument, portfolio, broker, folio, date, units=units, price=price,
                    status=status or STATUS_FINAL, allotment_date=allotment_date, fx_rate=fx_rate, rupee_amount=rupee_amount,
-                   origin=origin, corporate_action=corporate_action, **common)
+                   origin=origin, corporate_action=corporate_action, auto_created=auto_created, **common)
     if txn.status == STATUS_FINAL:
         txn.pk = None
         add = [core.txn_event(txn)]
@@ -367,6 +367,7 @@ def edit_transaction(profile, user, pk, *, expected_version=None, **fields):
         if key in ("units", "price", "charges", "amount", "cost_override"):
             value = _dec(value, key, allow_none=key in ("units", "price", "amount", "cost_override"), minimum=ZERO)
         setattr(txn, key, value)
+    txn.auto_created = False          # once a person edits it, it is theirs: editing the demerger no longer replaces it
     _check_refs(profile, txn.instrument, txn.portfolio, txn.broker, txn.folio)
     _check_date(txn.date)
     _check_origin(profile, txn.instrument, txn.origin, txn.corporate_action, side=txn.side, awaiting=txn.status == STATUS_AWAITING,

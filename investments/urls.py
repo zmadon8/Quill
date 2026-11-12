@@ -97,6 +97,7 @@ urlpatterns += [
     path("catalogue/<int:pk>/action/", vc.catalogue_action, name="investments_admin_catalogue_action"),
     path("catalogue/<int:pk>/prices/", vc.price_action, name="investments_price_action"),
     path("catalogue/price-history/archive/", vp.price_archive, name="investments_price_archive"),
+    path("corporate-actions/<int:pk>/edit/", vi.corporate_action_edit, name="investments_corporate_action_edit"),
     path("dividends/<int:pk>/", vi.dividend_form, name="investments_dividend_edit"),
     path("reports/<slug:slug>/", vr.report_view, name="investments_report"),
     path("insights/dismiss/", vr.insights_dismiss, name="investments_insight_dismiss"),

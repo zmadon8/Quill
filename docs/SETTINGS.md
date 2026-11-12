@@ -326,7 +326,10 @@ Note: the financial year filter on Memos, Drafts and Feebook is not a saved sett
 - Splits and bonuses: when one is recorded (found by a price update, or entered), when the profile makes a purchase that puts the action after its
   first purchase, and when the choice is saved, the profile's response is set to applied with the program adding the units. Nothing to click.
 - Demergers and other actions: applied automatically too, but a demerger with no new company or cost percentage stays pending, and so does
-  any action whose applying would leave a later sale without its units. The new company's shares still come from transactions.
+  any action whose applying would leave a later sale without its units. Applying a demerger (by hand or automatically) also enters the new
+  company's shares for you, from the ratio, at a cost of 0, for each portfolio and broker that held the parent; editing the demerger on the
+  Corporate actions page (Edit) replaces the ones the program made. A cost percentage of 0 is allowed. "The new shares keep the parent shares'
+  purchase dates" is off unless switched on for that action.
 - Dividends: for each portfolio and broker that held units the day before the ex-date, a dividend dated the ex-date for units x amount per unit
   is added (note "Logged automatically ..."), for reports in the last 60 days only, once per reported dividend (a deleted one is not added again),
   not where a dividend was already recorded around then, and not for foreign investments. They are ordinary dividends: edit or delete them.

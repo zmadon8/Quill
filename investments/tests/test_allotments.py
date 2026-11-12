@@ -4,8 +4,9 @@ from decimal import Decimal as D
 
 from django.urls import reverse
 
-from investments.models import CA_DEMERGER, ORIGIN_DEMERGER, Transaction
+from investments.models import CA_DEMERGER, ORIGIN_DEMERGER, CorporateActionResponse, Transaction
 from investments.services import corporate, holdings, masters
+from investments.services import transactions as tx
 from investments.tests.base import InvTestCase
 
 
@@ -44,6 +45,80 @@ class AllotmentTests(InvTestCase):
         r = self.client.get(reverse("investments_corporate_actions"))
         self.assertContains(r, "Add allotted shares")
         self.assertContains(r, f"?action={action.pk}")
+
+
+class DemergerAutoTests(InvTestCase):
+    def setUp(self):
+        super().setUp()
+        self.buy(d(2023, 1, 1), 10, 1000)
+        self.client.force_login(self.user)
+        self.child = masters.create_instrument(self.profile, self.user, kind="share", name="Reliance Child", code="CHILD.NS")
+
+    def record(self, percent=20, ratio_new=1, ratio_old=2):
+        return corporate.record(self.profile, self.user, instrument=self.reliance, ex_date=d(2024, 1, 1), kind="demerger", ratio_old=ratio_old,
+                                ratio_new=ratio_new, target_instrument=self.child, cost_percent_to_target=D(percent))
+
+    def auto(self):
+        return Transaction.objects.filter(instrument=self.child, auto_created=True)
+
+    def test_applying_enters_the_new_shares_from_the_ratio(self):
+        action = self.record()
+        corporate.respond(self.profile, self.user, action.pk, corporate.STATUS_APPLIED)
+        [t] = self.auto()
+        self.assertEqual((t.units, t.price, t.origin, t.date, t.corporate_action_id), (D(5), 0, ORIGIN_DEMERGER, d(2024, 1, 1), action.pk))
+        self.assertEqual(corporate.demerger_gaps(self.profile, action), [])
+
+    def test_applying_again_does_not_double_count(self):
+        action = self.record()
+        corporate.respond(self.profile, self.user, action.pk, corporate.STATUS_APPLIED)
+        corporate.respond(self.profile, self.user, action.pk, corporate.STATUS_APPLIED, inherit_dates=True)
+        self.assertEqual(self.auto().count(), 1)
+
+    def test_zero_cost_percent_is_allowed(self):
+        action = self.record(percent=0)
+        corporate.respond(self.profile, self.user, action.pk, corporate.STATUS_APPLIED)
+        self.assertEqual(self.auto().count(), 1)
+        self.assertEqual(corporate.applied_demergers(self.profile)[self.reliance.pk][0][3], 0)
+
+    def test_dates_are_not_inherited_by_default(self):
+        action = self.record()
+        corporate.respond(self.profile, self.user, action.pk, corporate.STATUS_APPLIED)
+        self.assertFalse(CorporateActionResponse.objects.get(profile=self.profile, action=action).inherit_dates)
+
+    def test_editing_replaces_the_automatic_entries(self):
+        action = self.record()
+        corporate.respond(self.profile, self.user, action.pk, corporate.STATUS_APPLIED)
+        corporate.update(self.profile, self.user, action.pk, ex_date=d(2024, 1, 1), ratio_old=1, ratio_new=1, target_instrument=self.child,
+                         cost_percent_to_target=D(0))
+        [t] = self.auto()
+        self.assertEqual(t.units, D(10))
+        action.refresh_from_db()
+        self.assertEqual(action.cost_percent_to_target, 0)
+
+    def test_a_hand_recorded_entry_is_kept_and_not_doubled(self):
+        action = self.record()
+        corporate.respond(self.profile, self.user, action.pk, corporate.STATUS_APPLIED)
+        tx.edit_transaction(self.profile, self.user, self.auto().get().pk, units=D(4))
+        corporate.update(self.profile, self.user, action.pk, ex_date=d(2024, 1, 1), ratio_old=1, ratio_new=1, target_instrument=self.child,
+                         cost_percent_to_target=D(30))
+        self.assertEqual(self.auto().count(), 0)
+        self.assertEqual(Transaction.objects.filter(instrument=self.child).count(), 1)
+
+    def test_not_applicable_removes_the_automatic_entries(self):
+        action = self.record()
+        corporate.respond(self.profile, self.user, action.pk, corporate.STATUS_APPLIED)
+        corporate.respond(self.profile, self.user, action.pk, corporate.STATUS_NA)
+        self.assertEqual(Transaction.objects.filter(instrument=self.child).count(), 0)
+
+    def test_edit_page_saves(self):
+        action = self.record()
+        corporate.respond(self.profile, self.user, action.pk, corporate.STATUS_APPLIED)
+        url = reverse("investments_corporate_action_edit", args=[action.pk])
+        self.assertContains(self.client.get(url), "cost_percent_to_target")
+        r = self.client.post(url, {"ex_date": "2024-01-01", "ratio_old": "1", "ratio_new": "3", "target_instrument": self.child.pk,
+                                   "cost_percent_to_target": "0", "notes": ""})
+        self.assertRedirects(r, reverse("investments_corporate_actions"))
+        self.assertEqual(self.auto().get().units, D(30))
 
 
 class AutomaticRowsTests(InvTestCase):

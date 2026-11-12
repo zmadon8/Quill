@@ -455,11 +455,12 @@ class CorporateActionForm(ProfileForm):
                                                help_text="Add the new company under Investments first if it is not listed.")
     cost_percent_to_target = forms.DecimalField(required=False, min_value=0, max_value=100, decimal_places=4, max_digits=7,
                                                 label="Demerger: percent of the cost that moves to the new company",
-                                                help_text="From the company's notice. Your CA should confirm it. The parent's shares keep the rest.")
+                                                help_text="From the company's notice. Your CA should confirm it. The parent's shares keep the rest. 0 leaves all the cost with the parent's shares; "
+                                                          "100 moves all of it. You can change it later.")
     notes = forms.CharField(required=False, max_length=300)
     apply_now = forms.BooleanField(required=False, initial=True, label="Apply it to this profile now")
     choice = forms.ChoiceField(choices=CHOICES_FOR_UNITS, required=False, initial="auto", label="Bonus or split: who adds the units?")
-    inherit_dates = forms.BooleanField(required=False, initial=True, label="Demerger: the new shares keep the parent shares' purchase dates")
+    inherit_dates = forms.BooleanField(required=False, initial=False, label="Demerger: the new shares keep the parent shares' purchase dates")
 
     def __init__(self, *args, profile=None, **kwargs):
         super().__init__(*args, profile=profile, **kwargs)
@@ -471,8 +472,33 @@ class CorporateActionForm(ProfileForm):
         if cleaned.get("kind") == "demerger":
             if not cleaned.get("target_instrument"):
                 self.add_error("target_instrument", "Choose the new company whose shares are received.")
-            if cleaned.get("cost_percent_to_target") in (None, 0):
-                self.add_error("cost_percent_to_target", "Enter the percentage of the cost that moves, more than 0 and up to 100.")
+            if cleaned.get("cost_percent_to_target") is None:
+                self.add_error("cost_percent_to_target", "Enter the percentage of the cost that moves, from 0 to 100.")
+        return cleaned
+
+
+class CorporateActionEditForm(CorporateActionForm):
+    """Change a recorded action: its date, ratio, notes and, for a demerger, the new company and the cost split. The investment and the kind stay."""
+
+    def __init__(self, *args, profile=None, action=None, **kwargs):
+        super().__init__(*args, profile=profile, **kwargs)
+        self.action = action
+        for name in ("instrument", "kind", "apply_now", "choice", "inherit_dates"):
+            del self.fields[name]
+        if action.kind != "demerger":
+            del self.fields["target_instrument"]
+            del self.fields["cost_percent_to_target"]
+        if action.kind == "other":
+            del self.fields["ratio_old"]
+            del self.fields["ratio_new"]
+
+    def clean(self):
+        cleaned = forms.Form.clean(self)
+        if self.action.kind == "demerger":
+            if not cleaned.get("target_instrument"):
+                self.add_error("target_instrument", "Choose the new company whose shares are received.")
+            if cleaned.get("cost_percent_to_target") is None:
+                self.add_error("cost_percent_to_target", "Enter the percentage of the cost that moves, from 0 to 100.")
         return cleaned
 
 

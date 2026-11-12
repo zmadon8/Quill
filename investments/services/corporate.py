@@ -9,8 +9,11 @@ Decided case by case, when the profile applies an action (``CorporateActionRespo
 * bonus or split, ``method``: ``events`` (the program adds the units itself, the default) or ``transactions`` (the units are
   transactions with origin bonus or split that the person records or imports, or has created for them here). The two never mix for one
   action, because that would count the units twice; applying one way while transactions of the other way exist is refused.
-* demerger: the new company's units always come from transactions with origin demerger (they give the units actually received);
-  ``inherit_dates`` says whether those shares keep the purchase dates of the parent lots they came from.
+* demerger: the new company's units always come from transactions with origin demerger (they give the units actually received).
+  Applying a demerger creates them for the person (zero price, tagged ``auto_created``, one for each portfolio, broker and folio that held
+  the parent the day before the ex-date, units from the ratio); editing the demerger replaces the ones still untouched, and a transaction
+  the person recorded or edited is never replaced. ``inherit_dates`` (off by default) says whether those shares keep the purchase dates
+  of the parent lots they came from.
 """
 from collections import namedtuple
 from datetime import timedelta
@@ -145,13 +148,33 @@ def adjust_pins(action):
     return n
 
 
+def _check_demerger(profile, instrument, target_instrument, cost_percent_to_target):
+    """The checks on a demerger's new company and cost split; returns the percentage as a Decimal (0 to 100: 0 leaves all the cost with the
+    parent's shares, 100 moves all of it)."""
+    if target_instrument is None:
+        raise InvestmentsError("REQUIRED", "Choose the new company whose shares are received. Add it under Investments first if it is not there yet.")
+    if target_instrument.pk == instrument.pk:
+        raise InvestmentsError("BAD_TARGET", "The new company must be a different investment from the one demerged.")
+    if target_instrument.profile_id not in (None, profile.pk if profile else None):
+        raise not_found("investment")
+    if target_instrument.kind not in HOLDABLE_KINDS:
+        raise InvestmentsError("NOT_HOLDABLE", "An index cannot be received. Choose a share or fund.")
+    try:
+        percent = Decimal(str(cost_percent_to_target))
+    except Exception:
+        raise InvestmentsError("BAD_NUMBER", "Enter the percentage of the cost that moves to the new company (for example 12.5, or 0 to keep all of it with the old shares).")
+    if not percent.is_finite() or percent < 0 or percent > 100:
+        raise InvestmentsError("BAD_NUMBER", "The percentage of the cost that moves must be between 0 and 100.")
+    return percent
+
+
 @transaction.atomic
 def record(profile, user, *, instrument, ex_date, kind, ratio_old=1, ratio_new=1, notes="", detected=False,
            target_instrument=None, cost_percent_to_target=None):
     """Record a shared corporate action. The recording profile still has to confirm it (it may record it and apply it at once).
 
     A demerger also names the new company (``target_instrument``) and the part of the parent's cost, in percent, that moves to its shares
-    (``cost_percent_to_target``, above 0 and up to 100; the figure comes from the company's notice and is for the person's CA to confirm)."""
+    (``cost_percent_to_target``, from 0 to 100; the figure comes from the company's notice and is for the person's CA to confirm)."""
     if instrument.profile_id not in (None, profile.pk if profile else None):
         raise not_found("investment")
     if kind not in (CA_SPLIT, CA_BONUS, CA_OTHER, CA_DEMERGER):
@@ -159,20 +182,7 @@ def record(profile, user, *, instrument, ex_date, kind, ratio_old=1, ratio_new=1
     old, new = _check_ratio(kind, ratio_old, ratio_new)
     percent = None
     if kind == CA_DEMERGER:
-        if target_instrument is None:
-            raise InvestmentsError("REQUIRED", "Choose the new company whose shares are received. Add it under Investments first if it is not there yet.")
-        if target_instrument.pk == instrument.pk:
-            raise InvestmentsError("BAD_TARGET", "The new company must be a different investment from the one demerged.")
-        if target_instrument.profile_id not in (None, profile.pk if profile else None):
-            raise not_found("investment")
-        if target_instrument.kind not in HOLDABLE_KINDS:
-            raise InvestmentsError("NOT_HOLDABLE", "An index cannot be received. Choose a share or fund.")
-        try:
-            percent = Decimal(str(cost_percent_to_target))
-        except Exception:
-            raise InvestmentsError("BAD_NUMBER", "Enter the percentage of the cost that moves to the new company (for example 12.5).")
-        if not percent.is_finite() or percent <= 0 or percent > 100:
-            raise InvestmentsError("BAD_NUMBER", "The percentage of the cost that moves must be more than 0 and at most 100.")
+        percent = _check_demerger(profile, instrument, target_instrument, cost_percent_to_target)
     else:
         target_instrument = None
     existing = CorporateAction.objects.filter(instrument=instrument, ex_date=ex_date, kind=kind).first()
@@ -237,8 +247,8 @@ def _bucket_units_before(profile, action):
 
 
 def _units_to_add(action, held, instrument):
-    """The free units a bonus or split gives for ``held`` units: whole units for a share, four decimals for a fund; never rounded up."""
-    if action.kind == CA_BONUS:
+    """The free units a bonus or split gives, or the shares a demerger gives in the new company, for ``held`` units: whole units for a share, four decimals for a fund; never rounded up."""
+    if action.kind in (CA_BONUS, CA_DEMERGER):
         extra = held * action.ratio_new / action.ratio_old
     else:
         extra = held * (action.ratio_new / action.ratio_old - 1)
@@ -314,6 +324,112 @@ def create_unit_transactions(profile, user, action):
     return made
 
 
+def remove_demerger_allotments(profile, user, action):
+    """Take away the entries the program made for a demerger that is no longer applied. Returns whether any were removed."""
+    found = list(linked_transactions(profile, action).filter(auto_created=True))
+    for t in found:
+        history.record(profile, user, t, "delete", summary=f"Removed {t.instrument.name} received on a demerger")
+        t.delete()
+    return bool(found)
+
+
+def sync_demerger_allotments(profile, user, action):
+    """Make the new company's shares for an applied demerger match its ratio: one zero-price entry (origin demerger, tagged ``auto_created``)
+    for each portfolio, broker and folio that held the parent the day before the ex-date, dated the ex-date, units from the ratio (whole
+    shares for a share, four decimals for a fund; never rounded up).
+
+    Safe to run again after the demerger is edited: an entry the program made that still matches is kept, one that no longer matches is
+    removed and made again, so nothing is counted twice. An entry the person recorded or edited themselves is never touched, and its
+    portfolio, broker and folio get no automatic one. Returns whether anything was removed or created."""
+    from investments.services import transactions as tx
+
+    target = action.target_instrument
+    changed = False
+    wanted = {}
+    if action.kind == CA_DEMERGER and target is not None:
+        for bucket, held in _bucket_units_before(profile, action).items():
+            units = _units_to_add(action, held, target) if held > 0 else Decimal(0)
+            if units > 0:
+                wanted[(bucket.portfolio, bucket.broker, bucket.folio)] = units
+    own = set()
+    kept = set()
+    for t in linked_transactions(profile, action).order_by("id"):
+        key = (t.portfolio_id, t.broker_id, t.folio_id)
+        if not t.auto_created:
+            own.add(key)
+        elif key in wanted and key not in kept and t.units == wanted[key] and t.date == action.ex_date and t.instrument_id == action.target_instrument_id:
+            kept.add(key)
+        else:
+            history.record(profile, user, t, "delete", summary=f"Replaced {t.instrument.name} received on a demerger")
+            t.delete()
+            changed = True
+    for key, units in wanted.items():
+        if key in own or key in kept:
+            continue
+        portfolio_id, broker_id, folio_id = key
+        tx.add_transaction(
+            profile, user, side="buy", instrument=target, portfolio=Portfolio.objects.get(pk=portfolio_id), broker=Broker.objects.get(pk=broker_id),
+            folio=Folio.objects.filter(pk=folio_id).first() if folio_id else None, date=action.ex_date, units=units, price=0,
+            origin=ORIGIN_DEMERGER, corporate_action=action, auto_created=True, reference=f"From the demerger of {action.ex_date:%-d %b %Y}",
+            note="Created from the corporate action; check the units against your statement")
+        changed = True
+    return changed
+
+
+@transaction.atomic
+def update(profile, user, action_id, *, ex_date, ratio_old=1, ratio_new=1, notes="", target_instrument=None, cost_percent_to_target=None):
+    """Edit a recorded action (its date, ratio, notes and, for a demerger, the new company and the cost split), also after it was applied.
+
+    The investment and the kind stay. Everyone's answers are kept: this profile's applied demerger gets its automatic entries made again
+    from the new terms (see ``sync_demerger_allotments``) and the lots are derived afresh from the history, so nothing is counted twice.
+    Refused when another profile has already answered it or recorded units against it, because the change would alter their figures."""
+    action = CorporateAction.objects.filter(pk=action_id).select_related("instrument", "target_instrument").first()
+    if action is None or action.instrument_id not in held_instrument_ids(profile):
+        raise not_found("corporate action")
+    if CorporateActionResponse.objects.filter(action=action).exclude(profile=profile).exclude(status=STATUS_PENDING).exists() \
+            or Transaction.objects.filter(corporate_action=action).exclude(profile=profile).exists():
+        raise InvestmentsError("IN_USE", "Another profile has already applied this action or recorded units against it, so it cannot be changed here.", 409)
+    old, new = _check_ratio(action.kind, ratio_old, ratio_new)
+    percent = None
+    if action.kind == CA_DEMERGER:
+        percent = _check_demerger(profile, action.instrument, target_instrument, cost_percent_to_target)
+        if target_instrument.pk != action.target_instrument_id and linked_transactions(profile, action).filter(auto_created=False).exists():
+            raise InvestmentsError("IN_USE", "You have recorded shares of the current new company against this demerger. Delete or change those first, "
+                                             "then change the company.", 409)
+    else:
+        target_instrument = None
+    if action.kind in (CA_SPLIT, CA_BONUS) and action.pins_adjusted and (old, new, ex_date) != (action.ratio_old, action.ratio_new, action.ex_date):
+        raise InvestmentsError("IN_USE", "The earlier prices of this investment were already restated for this action, so its date and ratio cannot be changed. "
+                                         "Record the right action instead.", 409)
+    others = CorporateAction.objects.filter(instrument=action.instrument, kind=action.kind).exclude(pk=action.pk)
+    if others.filter(ex_date=ex_date).exists():
+        raise InvestmentsError("NEAR_DUPLICATE", f"A {action.get_kind_display().lower()} on {ex_date:%-d %b %Y} is already recorded.", 409)
+    near = others.filter(ex_date__range=(ex_date - timedelta(days=5), ex_date + timedelta(days=5))).first()
+    if near:
+        raise InvestmentsError("NEAR_DUPLICATE", f"A {near.get_kind_display().lower()} on {near.ex_date:%-d %b %Y} is already recorded. Confirm that one instead.", 409)
+    action.ex_date, action.ratio_old, action.ratio_new, action.notes = ex_date, old, new, (notes or "")[:300]
+    action.target_instrument, action.cost_percent_to_target = target_instrument, percent
+    action.save(update_fields=["ex_date", "ratio_old", "ratio_new", "notes", "target_instrument", "cost_percent_to_target"])
+    response = CorporateActionResponse.objects.filter(profile=profile, action=action).first()
+    applied_here = response is not None and response.status == STATUS_APPLIED
+    if applied_here:
+        if action.kind == CA_DEMERGER:
+            sync_demerger_allotments(profile, user, action)
+        response.version += 1
+        response.save(update_fields=["version"])
+        violations = _violations_after(profile, action)
+        if violations:
+            from investments.services.transactions import _refuse
+
+            _refuse(violations, "Changing this action")
+        history.record(profile, user, response, "edit", summary=f"Edited {action.describe()} for {action.instrument.name}")
+    from investments.services import fetch
+
+    fetch.bump_version()
+    core.touch(profile)
+    return action
+
+
 @transaction.atomic
 def respond(profile, user, action_id, status, choice=None, inherit_dates=None):
     """Apply an action to this profile, or mark it not applicable (logged in the edit history; restorable).
@@ -322,7 +438,7 @@ def respond(profile, user, action_id, status, choice=None, inherit_dates=None):
     (the person records or imports the units as transactions) or ``create`` (the program creates those transactions now). Left out, it
     keeps the current choice, or is ``link`` when units are already recorded against the action, else ``auto``. For a demerger the units
     always come from transactions, and ``inherit_dates`` says whether the new shares keep the parent lots' purchase dates (left out: keep
-    the current answer, ``True`` at first)."""
+    the current answer, ``False`` at first)."""
     if status not in (STATUS_APPLIED, STATUS_NA, STATUS_PENDING):
         raise InvestmentsError("BAD_CHOICE", "Choose applied or not applicable.")
     if choice not in (None, CHOICE_AUTO, CHOICE_LINK, CHOICE_CREATE):
@@ -332,6 +448,7 @@ def respond(profile, user, action_id, status, choice=None, inherit_dates=None):
         raise not_found("corporate action")
     response, created = CorporateActionResponse.objects.get_or_create(profile=profile, action=action)
     before = (response.status, response.method, response.inherit_dates)
+    allotments_changed = False
     linked = linked_transactions(profile, action).exists()
     if status == STATUS_APPLIED:
         if action.kind == CA_DEMERGER:
@@ -357,7 +474,10 @@ def respond(profile, user, action_id, status, choice=None, inherit_dates=None):
     if status == STATUS_APPLIED and choice == CHOICE_CREATE and action.kind in (CA_SPLIT, CA_BONUS):
         # First the transactions that stand in for the units the program would have added, then the check below sees them.
         create_unit_transactions(profile, user, action)
-    if before != (response.status, response.method, response.inherit_dates):
+    if action.kind == CA_DEMERGER:
+        # The new company's shares exist only while the demerger is applied; the ones the program made follow the terms.
+        allotments_changed = sync_demerger_allotments(profile, user, action) if status == STATUS_APPLIED else remove_demerger_allotments(profile, user, action)
+    if allotments_changed or before != (response.status, response.method, response.inherit_dates):
         # Applying, taking off, or changing how the units are added can leave a later sale without the units it used.
         violations = _violations_after(profile, action)
         if violations:
@@ -365,6 +485,8 @@ def respond(profile, user, action_id, status, choice=None, inherit_dates=None):
 
             if status != STATUS_APPLIED:
                 _refuse(violations, "Taking this action off")
+            if action.kind == CA_DEMERGER:
+                _refuse(violations, "Applying this demerger")
             _refuse(violations, "Switching to your own transactions for these units, before they exist (choose \"Create the transactions for me\" to avoid this),")
     history.record(profile, user, response, "edit" if not created else "create", summary=f"{action.describe()} for {action.instrument.name}: {status.replace('_', ' ')}")
     core.touch(profile)
@@ -453,7 +575,7 @@ def for_profile(profile):
         r = answers.get(a.pk)
         a.my_status = r.status if r else STATUS_PENDING
         a.my_method = r.method if r else METHOD_EVENTS
-        a.my_inherit = r.inherit_dates if r else True
+        a.my_inherit = r.inherit_dates if r else False
         a.linked_count = linked.get(a.pk, 0)
         # What the "Who adds the units?" list starts on: the person's own transactions when they chose that or already recorded some.
         a.my_choice = CHOICE_LINK if (a.my_method == METHOD_TRANSACTIONS and a.my_status == STATUS_APPLIED) or (a.my_status != STATUS_APPLIED and a.linked_count) else CHOICE_AUTO
@@ -462,5 +584,5 @@ def for_profile(profile):
     return rows
 
 
-__all__ = ["record", "respond", "auto_apply", "apply_automatic", "apply_automatic_for_action", "change_kind", "create_unit_transactions", "applied", "applied_demergers", "demerger_terms", "demerger_gaps",
+__all__ = ["record", "update", "respond", "sync_demerger_allotments", "remove_demerger_allotments", "auto_apply", "apply_automatic", "apply_automatic_for_action", "change_kind", "create_unit_transactions", "applied", "applied_demergers", "demerger_terms", "demerger_gaps",
            "linked_transactions", "method_of", "pending", "pending_instrument_ids", "large_moves_without_action", "for_profile", "Q"]
