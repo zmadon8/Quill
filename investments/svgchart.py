@@ -1,5 +1,6 @@
 """Hand-drawn SVG line charts (plan 25.3: no chart library; every line differs by pattern as well as shade; a table version too).
 Pure Python. ``line_chart`` returns a dict the template draws: the polylines, axis ticks and the legend."""
+import json
 from decimal import Decimal
 
 PATTERNS = ("", "6 4", "2 3", "10 3 2 3", "1 2", "8 2")
@@ -65,8 +66,25 @@ def line_chart(days, lines, width=900, height=280, pad=(56, 16, 24, 30), markers
         i = min(range(len(days)), key=lambda k: abs((days[k] - day).days))
         if first[i] is not None:
             marks_out.append({"x": round(x(i), 1), "y": round(y(first[i]), 1), "label": label, "kind": kind})
-    return {"width": width, "height": height, "paths": paths, "yticks": yticks, "xticks": xticks, "left": left, "right": width - right,
+    hover = _hover(days, lines, x)
+    return {"width": width, "height": height, "paths": paths, "hover": hover, "yticks": yticks, "xticks": xticks, "left": left, "right": width - right,
             "top": top, "bottom": height - bottom, "markers": marks_out}
+
+
+HOVER_POINTS = 150
+
+
+def _hover(days, lines, x):
+    """Compact JSON for static/js/investments/chart-hover.js: x positions, date labels and each line's formatted values at up to
+    HOVER_POINTS sample days (always including the first and last). Plain text; the template escapes it into a data attribute."""
+    count = len(days)
+    step = max(1, -(-count // HOVER_POINTS))
+    idx = sorted(set(range(0, count, step)) | {count - 1})
+    series = []
+    for label, vs in lines:
+        series.append({"l": str(label), "v": ["" if vs[i] is None else f"{float(vs[i]):,.2f}" for i in idx]})
+    return json.dumps({"x": [round(x(i), 1) for i in idx], "d": [days[i].strftime("%-d %b %Y") for i in idx], "s": series},
+                      separators=(",", ":"), ensure_ascii=False)
 
 
 def _fmt(v):
