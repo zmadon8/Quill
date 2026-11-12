@@ -193,12 +193,11 @@ class UserSettingsTests(Base):
     def test_defaults(self):
         user = User.objects.create_user("zed", password="x-long-pass-123")
         settings_row = UserSettings.objects.create(user=user)
-        self.assertEqual(settings_row.export_custom_name, "Case Law Diary")
         self.assertEqual(settings_row.export_date_format, "YYYY-MM-DD")
         self.assertEqual(settings_row.section_format, "paren_lower_alpha")
         self.assertEqual(settings_row.item_format, "paren_decimal")
         self.assertFalse(hasattr(settings_row, "nested_item_format"))
-        self.assertEqual(settings_row.time_zone, "Asia/Kolkata")
+        self.assertFalse(hasattr(settings_row, "time_zone"))
         self.assertEqual(user.diary_settings, settings_row)
 
 

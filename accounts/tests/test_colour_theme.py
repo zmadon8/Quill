@@ -63,16 +63,16 @@ class ColourThemeTests(TestCase):
         self.user.refresh_from_db()
         self.assertEqual(self.user.colour_theme, "oxblood")
 
-    def test_an_admin_can_set_a_users_theme(self):
+    def test_the_admin_user_form_does_not_offer_the_theme(self):
         admin = User.objects.create_user("ada", password=PASSWORD, is_superuser=True)
         self.client.force_login(admin)
         url = reverse("user_edit", args=[self.user.pk])
-        self.assertContains(self.client.get(url), 'name="colour_theme"')
+        self.assertNotContains(self.client.get(url), 'name="colour_theme"')
         resp = self.client.post(url, {"username": "tess", "is_active": "on", f"profile_{ensure_default_profile().pk}": "editor",
                                       "colour_theme": "plum"})
         self.assertRedirects(resp, reverse("user_list"))
         self.user.refresh_from_db()
-        self.assertEqual(self.user.colour_theme, "plum")
+        self.assertEqual(self.user.colour_theme, "oxblood")
 
     def test_every_theme_has_its_colours_in_tokens_css(self):
         with open(os.path.join(settings.BASE_DIR, "static", "css", "tokens.css"), encoding="utf-8") as handle:

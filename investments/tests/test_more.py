@@ -244,7 +244,6 @@ class SearchTests(InvTestCase):
         self.assertEqual(search.search(self.profile, "ord-77")[0]["kind"], "Transactions")
         self.assertIn("Brokers", {r["kind"] for r in search.search(self.profile, "zero")})
         self.assertIn("Pages", {r["kind"] for r in search.search(self.profile, "annual")})
-        self.assertNotIn("Pages", {r["kind"] for r in search.search(self.profile, "annual", hidden={"annual"})})
 
     def test_page(self):
         self.client.force_login(self.user)

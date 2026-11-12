@@ -693,27 +693,20 @@ class ReadingScreenTests(TestCase):
         html = self.client.get(whole + "?edit=1").content.decode()
         self.assertIn('href="%s?edit=1" title="Show only this Topic"' % reverse("read_topic", args=[topic.pk]), html)
 
-    def test_no_cookie_follows_profile_default_for_contents_links(self):
+    def test_no_cookie_opens_the_whole_subject_for_contents_links(self):
         self.client.force_login(self.users["reader"])
         topic = Topic.objects.get(name="Remedies")
         whole = reverse("read_subject", args=[self.contract.pk])
         del self.client.cookies["quill_in_context"]
-        Profile.objects.filter(pk=main_profile().pk).update(reading_all_default=False)
-        resp = self.client.get(reverse("subject_contents", args=[self.contract.pk]))
-        self.assertContains(resp, 'data-own-url="%s"' % reverse("read_topic", args=[topic.pk]))
-        self.assertNotContains(resp, 'href="%s#n-topic-' % whole)
-        Profile.objects.filter(pk=main_profile().pk).update(reading_all_default=True)
         resp = self.client.get(reverse("subject_contents", args=[self.contract.pk]))
         self.assertContains(resp, 'href="%s#n-topic-%d"' % (whole, topic.pk))
 
-    def test_remembered_view_cookie_beats_profile_default_for_contents_links_on_the_contents_page(self):
+    def test_remembered_view_cookie_decides_contents_links_on_the_contents_page(self):
         self.client.force_login(self.users["reader"])
         topic = Topic.objects.get(name="Remedies")
         whole = reverse("read_subject", args=[self.contract.pk])
-        Profile.objects.filter(pk=main_profile().pk).update(reading_all_default=False)
         self.client.cookies["quill_in_context"] = "1"
         self.assertContains(self.client.get(reverse("subject_contents", args=[self.contract.pk])), 'href="%s#n-topic-%d"' % (whole, topic.pk))
-        Profile.objects.filter(pk=main_profile().pk).update(reading_all_default=True)
         self.client.cookies["quill_in_context"] = "0"
         self.assertNotContains(self.client.get(reverse("subject_contents", args=[self.contract.pk])), 'href="%s#n-topic-%d"' % (whole, topic.pk))
 
@@ -732,10 +725,10 @@ class ReadingScreenTests(TestCase):
         topic = Topic.objects.get(name="Remedies")
         whole = reverse("read_subject", args=[self.contract.pk])
         toc_whole = '<a href="%s#n-topic-%d" data-own-url' % (whole, topic.pk)
-        Profile.objects.filter(pk=main_profile().pk).update(reading_all_mode="always_on", reading_all_default=False)
+        Profile.objects.filter(pk=main_profile().pk).update(reading_all_mode="always_on")
         self.client.cookies["quill_in_context"] = "0"
         self.assertContains(self.client.get(reverse("read_topic", args=[topic.pk])), toc_whole)
-        Profile.objects.filter(pk=main_profile().pk).update(reading_all_mode="always_off", reading_all_default=True)
+        Profile.objects.filter(pk=main_profile().pk).update(reading_all_mode="always_off")
         self.client.cookies["quill_in_context"] = "1"
         self.assertNotContains(self.client.get(reverse("read_topic", args=[topic.pk])), toc_whole)
         self.assertContains(self.client.get(reverse("read_topic", args=[topic.pk])), '<a href="%s" data-own-url' % reverse("read_topic", args=[topic.pk]))

@@ -267,9 +267,7 @@ def render_settings_page(request, tab, can_change, reading_form, export_form):
     # My number formats are personal (Only you), saved through My settings (tab "diary"); they are shown here, once.
     numbers_form = DiarySettingsForm(user=request.user, profile=profile)
     mode = profile.reading_all_mode
-    whole = mode == Profile.READING_ALL_ALWAYS_ON or (
-        mode not in (Profile.READING_ALL_ALWAYS_ON, Profile.READING_ALL_ALWAYS_OFF) and profile.reading_all_default
-    )
+    whole = mode != Profile.READING_ALL_ALWAYS_OFF
     return render(request, "diary/settings.html", {
         "tab": tab, "can_change": can_change, "reading_form": reading_form, "whole_subject": whole,
         "sections": SETTINGS_SECTIONS,
@@ -303,7 +301,7 @@ def _in_context(request, scope=None):
     The profile's ``reading_all_mode`` decides: always the whole Subject, always only that Topic or Sub-topic, or,
     in "remember" mode, the view this browser used last (cookie ``quill_in_context``, written by site.js when a
     reading page loads: "0" is a single Topic or Sub-topic, anything else the whole Subject). With no cookie yet
-    the profile's ``reading_all_default`` decides. Clicking a Topic or Sub-topic heading in the reading body
+    the whole Subject opens. Clicking a Topic or Sub-topic heading in the reading body
     never depends on this: that link always carries its own target.
 
     A reading page passes its ``scope``: in "remember" mode the page being shown is itself the view in use, so
@@ -316,7 +314,7 @@ def _in_context(request, scope=None):
         return scope == "subject"
     cookie = request.COOKIES.get(IN_CONTEXT_COOKIE)
     if cookie is None:
-        return bool(request.profile.reading_all_default)
+        return True
     return cookie != "0"
 
 

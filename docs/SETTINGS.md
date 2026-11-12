@@ -25,7 +25,7 @@ settings with different "Who" tags.
 | Start Screens | When I open the site, one section per program | Open after login (`landing_program`), Case Law Diary opening page and Subject, Fee Register Opening page, Investments start page | Everyone, a program's section only if the user can open it |
 | Case Law Diary | Reading, My Number Formats, Data | Home Page Name, Header Name, View whole subject, My number formats and date in file names and Remove citation hyphen (Only you), Export file name, Word import, Offline link | A user with a Case Law Diary profile |
 | Fee Register | Memos, Payments, Word Documents, Years And Statistics, Display, Data | Every profile setting, plus My items per page (Only you, in Display) | A user with a Fee Register profile |
-| Investments | General, Brokers, Alerts, Display, Pages, Insights, Indices | Every profile setting, plus Investments period for returns (Only you, in Display) | A user with an Investments profile |
+| Investments | General, Brokers, Alerts, Display, Insights, Indices | Every profile setting, plus Investments period for returns (Only you, in Display) | A user with an Investments profile |
 
 The Investments **Catalogue** (the shared catalogue, Price history and Price sources) is a page of Investments itself, not a
 settings tab. Its old addresses under `/investments/settings/` redirect (308) to `/investments/catalogue/...`.
@@ -100,7 +100,6 @@ are in a section of their own on the diary Settings tab, apart from the shared o
 | `display_name` | Home Page Name (the profile's name on the Home page and in the browser tab) | Case Law Diary > Settings > Reading; also Users & Profiles > Profiles (add, rename) | Per profile | Everyone in this profile |
 | `header_name` | Header Name (a shorter name for the program header; pointing at it shows the Home Page Name; blank uses the Home Page Name) | Case Law Diary > Settings > Reading; also Users & Profiles > Profiles (add, rename) | Per profile | Everyone in this profile |
 | `reading_all_mode` | View whole subject (Yes means the whole Subject, No means only that Topic or Sub-topic) | Case Law Diary > Settings > Reading | Per profile | Everyone in this profile |
-| `reading_all_default` | Old "whole Subject" default. Kept; the Yes/No toggle reads it only when `reading_all_mode` is the old "remember" value, and writing the toggle leaves it alone | Case Law Diary > Settings > Reading (indirect) | Per profile | Everyone in this profile |
 | `export_name` | Export file name (start of every exported Word file name) | Case Law Diary > Settings > Data (Editors only) | Per profile | Everyone in this profile |
 | `deleted_at`, `deleted_by` | Bookkeeping for a deleted profile and Restore | Users & Profiles > Profiles (Trash, Restore) | Per profile, automatic | Admin |
 | `created_at`, `updated_at` | Bookkeeping | None | Per profile, automatic | n/a |
@@ -126,8 +125,7 @@ One row per key (`key`, `display_name`). Nothing is per user or per profile.
 
 ### 3.1 `diary.UserSettings` (per user, one row per user)
 
-All shown on **Settings > Case Law Diary > My Number Formats / Settings > Start Screens** (`profile_settings?tab=numbers` and `my_settings?tab=start`), tag **Only you**, except `export_custom_name`
-and `time_zone`, which have no page.
+All shown on **Settings > Case Law Diary > My Number Formats / Settings > Start Screens** (`profile_settings?tab=numbers` and `my_settings?tab=start`), tag **Only you**.
 
 | Field | Setting | Page and section | Stored | Who |
 | --- | --- | --- | --- | --- |
@@ -139,8 +137,6 @@ and `time_zone`, which have no page.
 | `item_format` | Number format of Items | Settings > Case Law Diary > My Number Formats / Settings > Start Screens > Number formats > Sections and Items | Per user | Only you |
 | `multi_citation_format` | Number format of the citations of an Item with several | Settings > Case Law Diary > My Number Formats / Settings > Start Screens > Number formats > Sections and Items | Per user | Only you |
 | `export_date_format` | Date in Word file names (and on the front page) | Settings > Case Law Diary > My Number Formats / Settings > Start Screens | Per user | Only you |
-| `export_custom_name` | Old per-user export name. Unused: the export file name is now `Profile.export_name` | None | Per user, unused | Nobody |
-| `time_zone` | Time zone for dates in exports (default Asia/Kolkata, IST) | None; the page only states that the zone is India | Per user, not editable | Only you |
 
 ### 3.2 Case Law Diary > Settings (the tab that holds the per-profile settings)
 
@@ -179,7 +175,6 @@ value for the user who set it.
 | `memo_default_address` | Address | 1 Memos > Memo text defaults | Per profile | Everyone in this profile |
 | `memo_default_bank_details` | Bank details | 1 Memos > Memo text defaults | Per profile | Everyone in this profile |
 | `memo_signature_default` | Add the signature to new memos (offered only when a signature image is uploaded) | 1 Memos | Per profile | Everyone in this profile |
-| `default_additional_details_left`, `default_additional_details_right` | Default additional details for new memos | No input on the page. Stored and validated by the settings service, copied to new memos, and carried by the Excel backup and restore | Per profile | Everyone in this profile |
 | `default_tds_rate` | Default TDS rate (%) | 2 Payments | Per profile | Everyone in this profile |
 | `default_payment_amount` | Prefill amount received | 2 Payments | Per profile | Everyone in this profile |
 | `overdue_days` | Overdue after (days) | 2 Payments | Per profile | Everyone in this profile. At 0, overdue is off: no "View Overdue Memos Only" filter, Overdue legend key or Amount Overdue dashboard box shows anywhere |
@@ -294,23 +289,19 @@ backups** (Admin only) and applies to **Everyone**.
 
 ## 9. Redundant, unused or overlapping settings (owner round 2026-11)
 
-Removed in this round: `User.header_style` and `User.show_home_button` (migration 0033), and the Investments **Starting number
+Removed later (accounts 0035, diary 0024, fees 0007, investments 0021): `diary.UserSettings.export_custom_name` and `time_zone` (exports always use India time), `Profile.reading_all_default` (profiles on the old "remember" mode were made explicit), `FeesSettings.default_additional_details_left/right`, the Investments hide-a-page option (`hidden_pages`, the Pages tab), and `landing_program` and `colour_theme` on the Admin user form (the model fields stay; users set them on Start Screens and Display). Old backups that carry these keys still restore; the keys are ignored.
+
+Removed in an earlier round: `User.header_style` and `User.show_home_button` (migration 0033), and the Investments **Starting number
 display** that appeared on both Settings > General and Settings > Display (now only on Display).
 
 Still there; each is a candidate to remove or merge:
 
 | Setting | Why it is redundant |
 | --- | --- |
-| `diary.UserSettings.export_custom_name` | Unused: the export file name is `Profile.export_name` |
-| `diary.UserSettings.time_zone` | Not editable and always India; the page only states it |
-| `accounts.Profile.reading_all_default` | The old default behind the Yes/No toggle; read only when `reading_all_mode` holds the old "remember" value |
 | `Profile.display_name` and `header_name` | Editable in two places (Users & Profiles > Profiles and Case Law Diary > Reading), and three naming layers exist (Names, Home Page Name, Header Name) |
-| `FeesSettings.default_additional_details_left/right` | Stored and copied to new memos, but no input on any page |
 | `FeesSettings.default_tab` and `items_per_page` | Overlap with the personal Opening page (Start Screens) and My items per page; one profile fallback plus one personal value for each |
 | `FeesSettings.statistics_enabled`, `dashboard_enabled`, `dashboard_kpis_enabled` | Three on/off switches for one area; the Dashboard and its figures could follow one switch |
 | `FeesSettings.show_status_dots`, `hide_payment_when_paid` | Cosmetic switches that few offices would change |
-| `User.landing_program` and `colour_theme` on the Admin user form | The same values are the user's own on Start Screens and Display; the Admin copy is a second editing place |
-| Investments `Pages` (hide a page) and the page list | Overlaps with simply not opening a page; hidden pages still count in backups |
 
 ## 8. How this was checked
 

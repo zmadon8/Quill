@@ -26,7 +26,6 @@ REAL = {
     "history": vm.history_list,
     "settings": vm.settings_general,
     "settings_brokers": vm.settings_brokers,
-    "settings_pages": vm.settings_pages,
     "admin_prices": vp.price_sources,
     "admin_upload": vp.price_upload,
     "dividends": vi.dividends_list,

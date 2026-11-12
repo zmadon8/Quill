@@ -410,8 +410,6 @@ class _Loader:
 _SETTINGS_MONEY = ("default_fees_per_appearance", "default_fees_per_conference", "default_fees_misc_drafting")
 _SETTINGS_BOOL = ("hide_payment_when_paid", "default_lines_enabled", "show_status_dots")
 _SETTINGS_TEXT = (
-    "default_additional_details_left",
-    "default_additional_details_right",
     "default_court_name",
     "default_tab",
     "initial_financial_year",

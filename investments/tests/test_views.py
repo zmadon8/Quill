@@ -135,14 +135,6 @@ class PageTests(InvTestCase):
         self.assertEqual(r.status_code, 302)
         self.assertContains(self.client.get(reverse("investments_investment", args=[fd.pk])), "Dated value".replace("Dated value", "alternative investment"))
 
-    def test_settings_pages_hide_a_page_and_menu_follows(self):
-        self.post("investments_settings_pages", {"shown": ["dashboard", "holdings", "transactions", "brokers", "history"]})
-        row = holdings.core.get_settings(self.profile)
-        self.assertIn("dividends", row.hidden_pages)
-        r = self.client.get(reverse("investments_transactions"))
-        self.assertNotContains(r, 'href="/investments/dividends/"')
-        self.assertNotContains(r, 'href="/investments/corporate-actions/"')
-
     def test_settings_general_saves(self):
         masters.ensure_builtin_indices()
         r = self.post("investments_settings", {"sip_mode": "final", "awaiting_treatment": "leave_out", "awaiting_reminder_days": "10",
@@ -271,7 +263,7 @@ class ReadOnlyGetTests(InvTestCase):
         from investments.models import InvestmentSettings, Portfolio
         reader, profile = make_user("lonely_reader", ROLE_READER)
         self.client.force_login(reader)
-        for name in ("investments_dashboard", "investments_settings", "investments_settings_brokers", "investments_settings_pages",
+        for name in ("investments_dashboard", "investments_settings", "investments_settings_brokers",
                      "investments_holdings", "investments_transactions", "investments_start"):
             self.assertEqual(self.client.get(reverse(name)).status_code, 200, name)
         self.assertFalse(InvestmentSettings.objects.filter(profile=profile).exists())

@@ -240,6 +240,9 @@ NOT_NULL_DEFAULTS = dict(
 
 #: Electron-only settings written at desktop defaults (design 7.1); ``None`` is an empty cell.
 ELECTRON_ONLY_DEFAULTS = {
+    # No longer settings here: the columns stay in the file for the desktop app, written empty; a restore ignores them.
+    "default_additional_details_left": None,
+    "default_additional_details_right": None,
     "auto_backup_frequency": "off",
     "auto_backup_dir": None,
     "last_auto_backup": None,

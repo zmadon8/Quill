@@ -382,6 +382,7 @@ def parse_backup(raw, max_bytes):
             ):
                 raise BackupError(f"This backup file is damaged (bad record in {label}).")
     old_roles = _normalise_user_records(models_in_file.get("accounts.User", []))
+    _normalise_profile_records(models_in_file.get("accounts.Profile", []))
     upgrade_old_document(document, roles=old_roles)
     _fill_membership_roles(models_in_file.get("accounts.ProfileMembership", []), old_roles)
     upgrade_old_items(document)
@@ -518,6 +519,18 @@ def _normalise_user_records(records):
         fields["is_staff"] = is_superuser
         roles[record["pk"]] = ROLE_EDITOR if is_superuser or old_role == "editor" else ROLE_READER
     return roles
+
+
+def _normalise_profile_records(records):
+    """Drop ``reading_all_default`` (removed). A profile that was on the "remember" mode, or had no mode, takes the
+    explicit mode the old boolean stood for, so the choice it made still applies."""
+    for record in records:
+        fields = record["fields"]
+        if "reading_all_default" not in fields:
+            continue
+        whole = fields.pop("reading_all_default")
+        if fields.get("reading_all_mode", "remember") == "remember":
+            fields["reading_all_mode"] = "always_on" if whole else "always_off"
 
 
 def _fill_membership_roles(records, roles):

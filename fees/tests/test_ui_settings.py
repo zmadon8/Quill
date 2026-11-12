@@ -173,16 +173,10 @@ class SettingsRound2Tests(UiPageBase):
         for part in FILENAME_PARTS:
             self.assertEqual(validate_pattern(part["text"].replace("[]", "[{fy}]")), [], part["label"])
 
-    def test_saving_does_not_blank_the_removed_details_fields(self):
+    def test_saving_the_caption(self):
         from fees.models import FeesSettings
-        FeesSettings.objects.update_or_create(
-            profile=self.profile,
-            defaults={"default_additional_details_left": "keep left", "default_additional_details_right": "keep right"},
-        )
         self.login(self.editor)
         response = self.client.post(reverse("fees_settings"), {"default_court_name": "Caption\nLine 2", "overdue_days": "30"})
         self.assertEqual(response.status_code, 302)
         row = FeesSettings.objects.get(profile=self.profile)
-        self.assertEqual(row.default_additional_details_left, "keep left")
-        self.assertEqual(row.default_additional_details_right, "keep right")
         self.assertEqual(row.default_court_name, "Caption\nLine 2")

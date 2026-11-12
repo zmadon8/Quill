@@ -148,7 +148,7 @@ def delete_broker(profile, user, pk):
 SETTINGS_FIELDS = {
     "default_broker_share", "default_broker_fund", "default_broker_alternative", "default_broker_foreign", "sip_mode",
     "awaiting_treatment", "awaiting_reminder_days", "corporate_action_mode", "long_term_days", "default_index",
-    "sectoral_enabled", "include_dividends", "alt_treatment", "money_default", "hidden_pages", "default_exchange",
+    "sectoral_enabled", "include_dividends", "alt_treatment", "money_default", "default_exchange",
     "show_status_dots", "rule_a_enabled", "rule_a_fall_pct", "rule_a_rise_pct", "rule_a_window_days", "rule_a_window_fall_pct", "rule_b_enabled",
     "rule_b_loss_pct", "rule_b_gain_pct", "guardrail_replaces_global", "alert_email", "maturity_alert_days", "year_cutoffs", "insights_off", "concentration_limit", "compact_tables",
     "column_picker", "overview", "units_decimals", "rupee_decimals",

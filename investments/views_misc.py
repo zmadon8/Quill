@@ -166,24 +166,6 @@ def broker_action(request):
     return redirect(reverse("investments_settings_brokers"))
 
 
-@inv_read_write
-def settings_pages(request):
-    profile = profile_or_404(request)
-    row = core.get_settings(profile, create=False)
-    hideable = [p for p in pages.PAGES if p.hideable and not p.admin]
-    if request.method == "POST":
-        shown = set(request.POST.getlist("shown"))
-        hidden = [p.slug for p in hideable if p.slug not in shown]
-        masters.update_settings(profile, request.user, hidden_pages=hidden)
-        messages.success(request, "Menu saved. Hidden pages are still recorded, calculated and backed up.")
-        return redirect(reverse("investments_settings_pages"))
-    hidden = set(row.hidden_pages or [])
-    # Only top-level pages (the first of each menu entry or second-row link) are offered; steps and shells of those are not.
-    top_slugs = [first for _l, first in sum((list(v) for v in pages.SUB_ROWS.values()), [])] + ["dashboard", "alerts"]
-    choices = [(p, p.slug not in hidden) for p in hideable if p.slug in top_slugs]
-    return page(request, "investments/settings_pages.html", {"page_title_text": "Pages", "choices": choices}, selectors=False)
-
-
 @inv_reader
 def search_page(request):
     from django.http import JsonResponse
@@ -192,8 +174,7 @@ def search_page(request):
 
     profile = profile_or_404(request)
     q = request.GET.get("q", "")
-    hidden = pages.hidden_slugs(core.get_settings(profile, create=False))
-    results = search_service.search(profile, q, hidden=hidden)
+    results = search_service.search(profile, q)
     for r in results:
         name, arg = r["url"]
         if name == "page":

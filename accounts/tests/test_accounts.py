@@ -216,10 +216,12 @@ class LandingProgramTests(BaseCase):
         self.admin.refresh_from_db()
         self.assertEqual(self.admin.landing_program, "")
 
-    def test_admin_sets_it_on_user_edit(self):
+    def test_the_admin_user_form_no_longer_has_it(self):
         self.client.force_login(self.admin)
         url = reverse("user_edit", args=[self.user.pk])
-        self.assertContains(self.client.get(url), "Open after login")
+        html = self.client.get(url).content.decode()
+        self.assertNotIn("Open after login", html)
+        self.assertNotIn('name="landing_program"', html)
         resp = self.client.post(
             url,
             {
@@ -230,16 +232,6 @@ class LandingProgramTests(BaseCase):
             },
         )
         self.assertRedirects(resp, reverse("user_list"))
-        self.user.refresh_from_db()
-        self.assertEqual(self.user.landing_program, "diary")
-
-    def test_admin_edit_rejects_invalid_value(self):
-        self.client.force_login(self.admin)
-        resp = self.client.post(
-            reverse("user_edit", args=[self.user.pk]),
-            {"username": "alice", "is_active": "on", "landing_program": "nonsense"},
-        )
-        self.assertEqual(resp.status_code, 200)
         self.user.refresh_from_db()
         self.assertEqual(self.user.landing_program, "")
 
@@ -1236,7 +1228,7 @@ class ExportNameTests(BaseCase):
         if data is None:
             return self.client.get(url)
         # Round 19: the Display tab's only reading control is the required Yes/No "open the whole Subject" toggle.
-        # reading_all_mode and reading_all_default are no longer form fields, so posting them is harmless extra data
+        # reading_all_mode is no longer a form field, so posting it is harmless extra data
         # that Django ignores; the toggle alone decides the stored reading_all_mode. When a test posts the old
         # reading_all_mode key without a toggle, default the toggle to match it (always_on -> Yes, else No).
         payload = {"tab": "reading", **data}
@@ -1270,32 +1262,30 @@ class ExportNameTests(BaseCase):
 
     def test_display_form_no_longer_offers_remember_or_all_default(self):
         # Round 19 (user item 4): the Yes/No toggle is the only reading control. The advanced "remember" select and
-        # the reading_all_default checkbox are gone from the form and the page, and saving never changes the stored
-        # reading_all_default. The Profile model keeps both fields (no migration); only the UI is simplified.
+        # the reading_all_default checkbox are gone from the form and the page, and the field no longer exists.
         from diary.forms import ProfileSettingsForm
 
         fields = ProfileSettingsForm().fields
         self.assertIn("view_whole_subject", fields)
         self.assertNotIn("reading_all_mode", fields)
         self.assertNotIn("reading_all_default", fields)
-        self.assertTrue(self.main().reading_all_default)
+        self.assertFalse(hasattr(self.main(), "reading_all_default"))
         self.client.force_login(self.admin)
         resp = self.display()
         self.assertNotContains(resp, 'name="diary-reading_all_default"')
         self.assertNotContains(resp, 'name="diary-reading_all_mode"')
         self.assertNotContains(resp, "The View I Used Last")
         self.assertNotContains(resp, "Advanced reading options")
-        # Posting the toggle (even alongside the now-ignored old keys) leaves reading_all_default untouched.
+        # Posting the toggle alongside the now-ignored old key just sets the mode.
         self.display({"diary-view_whole_subject": "no", "diary-reading_all_default": "on"})
-        self.assertTrue(Profile.objects.get(pk=self.main().pk).reading_all_default)
+        self.assertEqual(Profile.objects.get(pk=self.main().pk).reading_all_mode, "always_off")
 
     def test_saving_another_tab_leaves_the_diary_settings_alone(self):
         Profile.objects.filter(pk=self.main().pk).update(display_name="Kept", reading_all_mode="always_on")
         self.client.force_login(self.admin)
         self.client.post(reverse("my_settings"), {"tab": "account", "email": ""})
         main = self.main()
-        self.assertEqual((main.display_name, main.reading_all_mode, main.reading_all_default),
-                         ("Kept", "always_on", True))
+        self.assertEqual((main.display_name, main.reading_all_mode), ("Kept", "always_on"))
 
     def test_yes_no_toggle_sets_always_on_or_always_off(self):
         # Round 19 (user item 4): the plain Display toggle is the only reading control and always sets
@@ -1351,7 +1341,8 @@ class ExportNameTests(BaseCase):
 
 
 class UserEditFormImportTests(SimpleTestCase):
-    def test_landing_choices_are_not_computed_when_the_module_loads(self):
+    def test_the_admin_form_has_no_landing_program_or_colour_theme(self):
         from accounts.forms import UserEditForm
 
-        self.assertEqual(list(UserEditForm.base_fields["landing_program"].choices), [])
+        self.assertNotIn("landing_program", UserEditForm.base_fields)
+        self.assertNotIn("colour_theme", UserEditForm.base_fields)

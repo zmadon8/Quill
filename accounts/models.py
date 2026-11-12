@@ -131,8 +131,7 @@ class Profile(models.Model):
     ``display_name`` is used there too. Hovering over the header name shows the full Home page name.
     ``reading_all_mode`` decides what the side-panel Contents links open: the whole Subject (``always_on``), only
     that Topic or Sub-topic (``always_off``), or the view each browser used last (``remember``).
-    ``reading_all_default`` is whether the whole Subject is what those links open for a browser that has no
-    remembered view yet, when ``reading_all_mode`` is "remember".
+    A browser that has no remembered view yet gets the whole Subject when the mode is "remember".
     """
 
     READING_ALL_ALWAYS_ON = "always_on"
@@ -149,7 +148,6 @@ class Profile(models.Model):
     export_name = models.CharField(max_length=100, blank=True, default="")
     display_name = models.CharField(max_length=DISPLAY_NAME_MAX_LENGTH, blank=True, default="")
     header_name = models.CharField(max_length=DISPLAY_NAME_MAX_LENGTH, blank=True, default="")
-    reading_all_default = models.BooleanField(default=True)
     reading_all_mode = models.CharField(
         max_length=10, choices=READING_ALL_MODE_CHOICES, default=READING_ALL_REMEMBER
     )

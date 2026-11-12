@@ -47,8 +47,6 @@ class FeesSettings(models.Model):
     default_fees_per_appearance = money(default=0)
     default_fees_per_conference = money(default=0)
     default_fees_misc_drafting = money(default=0)
-    default_additional_details_left = models.TextField(blank=True, default="")
-    default_additional_details_right = models.TextField(blank=True, default="")
     default_court_name = models.TextField(blank=True, default="")  # multi-line Caption
     default_tds_rate = models.DecimalField(max_digits=5, decimal_places=2, default=10)
     overdue_days = models.PositiveIntegerField(default=0)

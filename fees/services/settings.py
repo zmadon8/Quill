@@ -104,8 +104,6 @@ SETTINGS_KEYS = frozenset(
         "default_fees_per_appearance",
         "default_fees_per_conference",
         "default_fees_misc_drafting",
-        "default_additional_details_left",
-        "default_additional_details_right",
         "default_court_name",
         "default_tds_rate",
         "overdue_days",
@@ -249,13 +247,6 @@ def _validate_candidate(key, value):
         if value not in _PAYMENT_AMOUNT_CHOICES:
             raise _invalid("Invalid default payment amount")
         return value
-    if key in ("default_additional_details_left", "default_additional_details_right"):
-        text = str(value)
-        if len(text) > MAX_DETAILS:
-            raise _invalid(
-                f"Additional details must be at most {MAX_DETAILS} characters"
-            )
-        return text
     if key == "default_court_name":
         text = str(value)
         if len(text) > MAX_MEMO_TEXT:

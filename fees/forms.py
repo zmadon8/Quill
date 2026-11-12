@@ -65,8 +65,8 @@ def blank_memo_form(config):
         fees_misc_drafting=_text(config.get("default_fees_misc_drafting", "0")),
         court_name=_text(config.get("default_court_name", "")),
         include_signature="1" if config.get("memo_signature_default") else "",
-        additional_details_left=_text(config.get("default_additional_details_left", "")),
-        additional_details_right=_text(config.get("default_additional_details_right", "")),
+        additional_details_left="",
+        additional_details_right="",
     )
     return form
 
@@ -394,8 +394,6 @@ SETTINGS_FLAGS = (
 #: Settings keys that are text or choices (passed through as typed; the service validates them).
 SETTINGS_TEXT = (
     "default_court_name",
-    "default_additional_details_left",
-    "default_additional_details_right",
     "default_tab",
     "list_default_filter",
     "initial_financial_year",

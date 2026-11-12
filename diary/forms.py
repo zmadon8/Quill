@@ -19,10 +19,8 @@ class ProfileSettingsForm(forms.ModelForm):
     Round 19 (user item 4) has a plain Yes/No toggle on the Display tab, ``view_whole_subject``, as the only reading
     control: Yes means clicking a Subject opens the whole Subject (``reading_all_mode = always_on``), No means it
     opens the scoped Contents page with a "Read Whole Subject" button (``always_off``). The "The view I used last"
-    (remember) choice and the ``reading_all_default`` checkbox are no longer offered. ``reading_all_mode`` now only
-    ever becomes ``always_on`` or ``always_off`` from the toggle; an older row still on ``remember`` is shown as
-    Yes/No (Yes if its ``reading_all_default`` is True, else No) and is mapped to ``always_on``/``always_off`` on its
-    next save."""
+    (remember) choice is no longer offered. ``reading_all_mode`` now only ever becomes ``always_on`` or
+    ``always_off`` from the toggle; a row still on ``remember`` is shown as Yes and is mapped on its next save."""
 
     view_whole_subject = forms.ChoiceField(
         choices=VIEW_WHOLE_CHOICES,
@@ -48,17 +46,14 @@ class ProfileSettingsForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         if not self.is_bound:
             # The toggle reflects the saved mode: always_on -> Yes, always_off -> No. An older row still on the
-            # "remember" mode (no longer offered) falls back to the effective default (reading_all_default), which is
-            # still a model attribute on the instance even though it is no longer a form field.
+            # "remember" mode (no longer offered) is shown as Yes (the whole Subject).
             mode = self.instance.reading_all_mode
             if mode == Profile.READING_ALL_ALWAYS_ON:
                 self.fields["view_whole_subject"].initial = VIEW_WHOLE_YES
             elif mode == Profile.READING_ALL_ALWAYS_OFF:
                 self.fields["view_whole_subject"].initial = VIEW_WHOLE_NO
             else:
-                self.fields["view_whole_subject"].initial = (
-                    VIEW_WHOLE_YES if self.instance.reading_all_default else VIEW_WHOLE_NO
-                )
+                self.fields["view_whole_subject"].initial = VIEW_WHOLE_YES
 
     def clean_display_name(self):
         return " ".join((self.cleaned_data.get("display_name") or "").split())
@@ -69,7 +64,6 @@ class ProfileSettingsForm(forms.ModelForm):
     def save(self, commit=True):
         instance = super().save(commit=False)
         # The Yes/No toggle is the only reading control: it always decides the mode (remember is no longer offered).
-        # reading_all_default is left untouched; it is simply no longer used by the UI.
         instance.reading_all_mode = (
             Profile.READING_ALL_ALWAYS_ON
             if self.cleaned_data.get("view_whole_subject") == VIEW_WHOLE_YES
@@ -92,8 +86,7 @@ class ExportSettingsForm(forms.Form):
     )
     export_date_format = forms.ChoiceField(
         choices=DATE_FORMAT_CHOICES, label="Date in Word file names", required=False,
-        help_text="Your own choice: the date at the end of the file names you export, and on the front page. "
-                  "The time zone is India (Asia/Kolkata, IST).",
+        help_text="Your own choice: the date at the end of the file names you export, and on the front page.",
     )
 
     def __init__(self, *args, user, profile, **kwargs):

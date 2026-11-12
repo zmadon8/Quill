@@ -40,11 +40,9 @@ def _fees(profile, q):
 
 def _investments(profile, q):
     from investments import pages
-    from investments.services import core
     from investments.services.search import search
 
-    hidden = pages.hidden_slugs(core.get_settings(profile, create=False))
-    hits = search(profile, q, limit=PER_PROGRAM, hidden=hidden)
+    hits = search(profile, q, limit=PER_PROGRAM)
     out = []
     for h in hits:
         name, arg = h["url"]

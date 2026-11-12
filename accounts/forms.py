@@ -208,23 +208,17 @@ class UserEditForm(ProfileAccessMixin, forms.ModelForm):
     )
 
     is_admin = _admin_field()
-    landing_program = forms.ChoiceField(required=False, label="Open after login")
 
     class Meta:
         model = User
-        fields = ("username", "email", "is_active", "landing_program", "colour_theme", "can_see_active")
+        fields = ("username", "email", "is_active", "can_see_active")
 
     def clean_email(self):
         return _clean_unique_email(self)
 
-    def clean_colour_theme(self):
-        return _clean_colour_theme(self)
-
     def __init__(self, *args, editing_user=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["email"].help_text = "Optional. Needed for \u201cForgot my password\u201d."
-        _set_up_colour_theme(self)
-        self.fields["landing_program"].choices = landing.program_choices()
         self.editing_user = editing_user
         self.fields["is_admin"].initial = self.instance.is_superuser
         # Stored roles of every program (the diary and the Fee Register), not the Admin-everywhere view.

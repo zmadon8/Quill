@@ -45,7 +45,7 @@ def user_options(user):
     """(number formats, date format, time zone) from the user's My settings, standard values if none are saved."""
     settings = getattr(user, "diary_settings", None) if user is not None and getattr(user, "pk", None) else None
     date_format = settings.export_date_format if settings is not None else "YYYY-MM-DD"
-    zone = settings.time_zone if settings is not None else naming.DEFAULT_ZONE
+    zone = naming.DEFAULT_ZONE  # always India (IST)
     return reading.formats_for(user), date_format, zone
 
 

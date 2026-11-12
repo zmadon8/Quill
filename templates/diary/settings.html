@@ -88,7 +88,7 @@
           <p class="field-help">Updates as you choose. Without JavaScript it updates after you save.</p>
         </div>
       </div>
-      {% include "_setting_row.html" with f=numbers_form.export_date_format help="The date at the end of the Word file names you export, and on the front page. The time zone is India (Asia/Kolkata, IST)." who="you" %}
+      {% include "_setting_row.html" with f=numbers_form.export_date_format help="The date at the end of the Word file names you export, and on the front page." who="you" %}
       {% include "_setting_row.html" with f=citation_form.remove_citation_hyphen help=citation_form.remove_citation_hyphen.help_text who="you" checkbox=True %}
       <p class="section-actions"><button type="submit">Save</button> <span class="dirty-note" data-dirty-note hidden>You have unsaved changes.</span></p>
     </form>

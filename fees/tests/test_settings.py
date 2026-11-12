@@ -206,12 +206,9 @@ class ValidationTests(TestCase):
         s = update_settings(self.profile, {"default_payment_amount": "netOfTds"})
         self.assertEqual(s["default_payment_amount"], "netOfTds")
 
-    def test_additional_details_length(self):
-        self._expect_invalid({"default_additional_details_left": "x" * 501})
-        s = update_settings(
-            self.profile, {"default_additional_details_left": "x" * 500}
-        )
-        self.assertEqual(len(s["default_additional_details_left"]), 500)
+    def test_the_removed_additional_details_keys_are_ignored(self):
+        s = update_settings(self.profile, {"default_additional_details_left": "x"})
+        self.assertNotIn("default_additional_details_left", s)
 
     def test_export_owner_name_length(self):
         self._expect_invalid({"export_owner_name": "x" * 81})
