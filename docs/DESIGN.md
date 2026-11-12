@@ -1530,3 +1530,8 @@ Decisions taken while building the Investments program. Where the plan was silen
 ## Round: compact rows (controls and status share a line)
 - Rule: controls that belong together sit on one flex-wrap row; they only drop to a new line when the width runs out. Do not give a short item `flex-basis:100%`.
 - Investments: the update status line shares the Portfolio / Broker / As at row (status to the right, wrapping on narrow screens). The Columns menu joins the buttons of the section heading above its table (Customise and Columns on one line on Overview) instead of a row of its own; tables without a `.sec` heading keep the right-aligned row. Section and button-row margins are smaller.
+
+## Corporate actions logged automatically or approved (per kind)
+- Decision: `InvestmentSettings.corporate_auto` is one JSON dict (keys dividend, split, bonus, demerger, other) rather than five columns; a missing key means "Ask me to approve", so nothing changes until a kind is switched on (investments 0022).
+- Automatic application reuses `corporate.respond` (so the history, the sale checks and the cache bump are the same as a click) and runs from `corporate.record`, from a profile's purchase, and when the setting is saved. Anything it refuses stays pending.
+- Dividends: `DividendSignal.logged_for` lists the profiles already logged so a deleted automatic dividend is not recreated. Signals older than 60 days are not back-filled.

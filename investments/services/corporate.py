@@ -192,6 +192,7 @@ def record(profile, user, *, instrument, ex_date, kind, ratio_old=1, ratio_new=1
     from investments.services import fetch
 
     fetch.bump_version()
+    apply_automatic_for_action(action)
     return action
 
 
@@ -328,7 +329,47 @@ def respond(profile, user, action_id, status, choice=None, inherit_dates=None):
     history.record(profile, user, response, "edit" if not created else "create", summary=f"{action.describe()} for {action.instrument.name}: {status.replace('_', ' ')}")
     core.touch(profile)
     return response
-    return response
+
+
+def auto_apply(profile, kind):
+    """Whether this profile has chosen to have actions of ``kind`` (``dividend``, ``split``, ``bonus``, ``demerger`` or ``other``) logged
+    automatically instead of waiting for its approval. Off unless switched on, which is how it worked before the choice existed."""
+    return bool((core.get_settings(profile, create=False).corporate_auto or {}).get(kind))
+
+
+def apply_automatic(profile, instrument_ids=None):
+    """Apply the pending actions of the kinds this profile logs automatically (splits and bonuses with the program adding the units).
+    A demerger that is missing its new company or cost percentage stays pending, and so does anything that would leave a later sale
+    without its units. Returns the actions applied."""
+    done = []
+    if not any((core.get_settings(profile, create=False).corporate_auto or {}).values()):
+        return done
+    for action in pending(profile):
+        if instrument_ids is not None and action.instrument_id not in instrument_ids:
+            continue
+        if not auto_apply(profile, action.kind):
+            continue
+        if action.kind == CA_DEMERGER and (action.target_instrument_id is None or action.cost_percent_to_target is None):
+            continue
+        try:
+            respond(profile, None, action.pk, STATUS_APPLIED, choice=CHOICE_AUTO if action.kind in (CA_SPLIT, CA_BONUS) else None)
+        except InvestmentsError:
+            continue
+        done.append(action)
+    return done
+
+
+def apply_automatic_for_action(action):
+    """After an action is recorded: apply it for every profile that holds the investment and logs this kind automatically."""
+    from investments.models import InvestmentSettings
+
+    profile_ids = set(ProfileInvestment.objects.filter(instrument_id=action.instrument_id).values_list("profile_id", flat=True))
+    profile_ids |= set(Transaction.objects.filter(instrument_id=action.instrument_id).order_by().values_list("profile_id", flat=True).distinct())
+    from accounts.models import Profile
+
+    on = {row.profile_id for row in InvestmentSettings.objects.filter(profile_id__in=profile_ids) if (row.corporate_auto or {}).get(action.kind)}
+    for profile in Profile.objects.filter(pk__in=on):
+        apply_automatic(profile, {action.instrument_id})
 
 
 def demerger_gaps(profile, action):
@@ -381,5 +422,5 @@ def for_profile(profile):
     return rows
 
 
-__all__ = ["record", "respond", "change_kind", "create_unit_transactions", "applied", "applied_demergers", "demerger_terms", "demerger_gaps",
+__all__ = ["record", "respond", "auto_apply", "apply_automatic", "apply_automatic_for_action", "change_kind", "create_unit_transactions", "applied", "applied_demergers", "demerger_terms", "demerger_gaps",
            "linked_transactions", "method_of", "pending", "pending_instrument_ids", "large_moves_without_action", "for_profile", "Q"]

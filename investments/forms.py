@@ -5,7 +5,7 @@ from django import forms
 
 from investments.models import (
     ASSET_CLASSES, CA_BONUS, CA_DEMERGER, CA_SPLIT, HOLDABLE_KINDS, KIND_ALTERNATIVE, KIND_FOREIGN, KIND_FUND, KIND_SHARE, ORIGIN_PURCHASE, ORIGINS,
-    ZERO_PRICE_ORIGINS, Broker, CorporateAction, Folio, Instrument, Portfolio,
+    CORPORATE_AUTO_KINDS, ZERO_PRICE_ORIGINS, Broker, CorporateAction, Folio, Instrument, Portfolio,
 )
 
 
@@ -343,6 +343,22 @@ class GeneralSettingsForm(forms.Form):
                                           help_text="Compare each investment with its own sector index too. Choose them, and add indices, in Settings > Indices.")
     include_dividends = forms.BooleanField(required=False, label="Include dividends in XIRR")
     alt_treatment = forms.ChoiceField(choices=[("unchanged", "Unchanged until the next update"), ("averaged", "Averaged out between updates")], label="Alternative investments between updates")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # One choice for each kind of corporate action: logged without asking, or waiting for the person to approve it (the default).
+        for key, label in CORPORATE_AUTO_KINDS:
+            self.fields[f"auto_{key}"] = forms.ChoiceField(choices=[("ask", "Ask me to approve"), ("auto", "Log automatically")], required=False,
+                                                           label=label, initial="ask")
+
+    def corporate_auto(self, current=None):
+        """The ``corporate_auto`` setting from the cleaned choices; a kind left out of the form keeps its current value."""
+        out = dict(current or {})
+        for key, _label in CORPORATE_AUTO_KINDS:
+            choice = self.cleaned_data.get(f"auto_{key}")
+            if choice:
+                out[key] = choice == "auto"
+        return out
 
 
 class DefaultBrokersForm(forms.Form):

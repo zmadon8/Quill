@@ -61,6 +61,70 @@ def due(profile, today=None):
     return sorted(out, key=lambda r: r["ex_date"])
 
 
+AUTO_NOTE = "Logged automatically from the price source's dividend history"
+
+
+def _holders_on(profile, instrument, day):
+    """``{(portfolio id, broker id, folio id): units}`` held at the end of ``day``."""
+    result = lots.replay(core.events_for(profile, instrument.pk), as_of=day)
+    held = {}
+    for lot in result.all_lots():
+        key = (lot.bucket.portfolio, lot.bucket.broker, lot.bucket.folio)
+        held[key] = held.get(key, Decimal(0)) + lot.units
+    return {k: v for k, v in held.items() if v > 0}
+
+
+def auto_log(profile, signals=None, today=None):
+    """Log the reported dividends for a profile that has chosen ``Log automatically`` for Dividends: one dividend dated the ex-date for each
+    portfolio and broker (and folio) that held units the day before, amount per unit times units. Each signal is logged once for a profile
+    (a dividend the person deletes is not logged again), only for the last 60 days, and not where the person already recorded a dividend
+    around then. Dividends of foreign investments stay as suggestions because the rupee amount is not known. Returns the dividends made."""
+    from investments.models import Broker, Folio, Portfolio
+    from investments.services.corporate import auto_apply, held_instrument_ids
+
+    if not auto_apply(profile, "dividend"):
+        return []
+    today = today or date.today()
+    if signals is None:
+        signals = DividendSignal.objects.filter(instrument_id__in=held_instrument_ids(profile), ex_date__gte=today - timedelta(days=REMIND_DAYS))
+    made = []
+    for signal in signals.select_related("instrument"):
+        if signal.ex_date > today or signal.ex_date < today - timedelta(days=REMIND_DAYS) or profile.pk in (signal.logged_for or []):
+            continue
+        if signal.instrument.currency != "INR" or signal.instrument.profile_id not in (None, profile.pk):
+            continue
+        held = _holders_on(profile, signal.instrument, signal.ex_date - timedelta(days=1))
+        if not held:
+            continue
+        window = Dividend.objects.filter(profile=profile, instrument=signal.instrument, date__gte=signal.ex_date - timedelta(days=3),
+                                         date__lte=signal.ex_date + timedelta(days=REMIND_DAYS))
+        if not window.exists():
+            for (portfolio_id, broker_id, folio_id), units in sorted(held.items(), key=lambda kv: (kv[0][0], kv[0][1], kv[0][2] or 0)):
+                amount = (signal.per_unit * units).quantize(Decimal("0.01"))
+                if amount < Decimal("0.01"):
+                    continue
+                made.append(add(profile, None, date=signal.ex_date, instrument=signal.instrument, portfolio=Portfolio.objects.get(pk=portfolio_id),
+                                broker=Broker.objects.get(pk=broker_id), folio=Folio.objects.filter(pk=folio_id).first() if folio_id else None,
+                                amount=amount, note=AUTO_NOTE))
+        signal.logged_for = list(signal.logged_for or []) + [profile.pk]
+        signal.save(update_fields=["logged_for"])
+    return made
+
+
+def auto_log_for_instrument(instrument, today=None):
+    """After a price update: log this investment's recent reported dividends for every profile that logs them automatically."""
+    from accounts.models import Profile
+    from investments.models import InvestmentSettings, ProfileInvestment, Transaction
+
+    ids = set(ProfileInvestment.objects.filter(instrument=instrument).values_list("profile_id", flat=True))
+    ids |= set(Transaction.objects.filter(instrument=instrument).order_by().values_list("profile_id", flat=True).distinct())
+    on = [row.profile_id for row in InvestmentSettings.objects.filter(profile_id__in=ids) if (row.corporate_auto or {}).get("dividend")]
+    made = []
+    for profile in Profile.objects.filter(pk__in=on):
+        made += auto_log(profile, DividendSignal.objects.filter(instrument=instrument), today)
+    return made
+
+
 def _validate(profile, instrument, portfolio, broker, folio):
     if instrument.profile_id not in (None, profile.pk):
         raise not_found("investment")

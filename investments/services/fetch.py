@@ -200,6 +200,13 @@ def _record_dividends(instrument, result):
     for day, per_unit in result.dividends:
         if per_unit > 0:
             DividendSignal.objects.get_or_create(instrument=instrument, ex_date=day, defaults={"per_unit": per_unit})
+    # Profiles that log dividends automatically get theirs now; the others see them as suggestions to approve.
+    try:
+        from investments.services import dividends
+
+        dividends.auto_log_for_instrument(instrument)
+    except InvestmentsError:
+        pass
 
 
 def _record_splits(instrument, result, today, years, failures, window=None):

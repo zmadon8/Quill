@@ -9,8 +9,8 @@ from django.urls import reverse
 from . import forms, pages
 from .decorators import inv_admin, inv_editor, inv_read_write, inv_reader
 from .errors import InvestmentsError
-from .models import Broker, Instrument, InvestmentHistory, Portfolio, ProfileInvestment, Transaction
-from .services import core, history, holdings, masters
+from .models import CORPORATE_AUTO_KINDS, Broker, Instrument, InvestmentHistory, Portfolio, ProfileInvestment, Transaction
+from .services import core, corporate, dividends, history, holdings, masters
 from .viewutil import handle_errors, page, profile_or_404, selection
 
 # ------------------------------------------------------------------ brokers
@@ -98,12 +98,18 @@ def settings_general(request):
     initial = {f: getattr(row, f) for f in ("sip_mode", "awaiting_treatment", "awaiting_reminder_days", "corporate_action_mode",
                                             "long_term_days", "sectoral_enabled", "include_dividends", "alt_treatment")}
     initial["default_index"] = row.default_index
+    for key, _label in CORPORATE_AUTO_KINDS:
+        initial[f"auto_{key}"] = "auto" if (row.corporate_auto or {}).get(key) else "ask"
     form = forms.GeneralSettingsForm(request.POST or None, initial=initial)
     if request.method == "POST":
         if form.is_valid():
-            d = form.cleaned_data
+            d = {k: v for k, v in form.cleaned_data.items() if not k.startswith("auto_")}
+            d["corporate_auto"] = form.corporate_auto(row.corporate_auto)
             try:
                 masters.update_settings(profile, request.user, **d)
+                # Switching a kind on logs what is already waiting for it.
+                corporate.apply_automatic(profile)
+                dividends.auto_log(profile)
             except InvestmentsError as err:
                 form.add_error(None, err.message)
             else:

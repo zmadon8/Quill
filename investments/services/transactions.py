@@ -278,6 +278,11 @@ def add_transaction(profile, user, *, side, instrument, portfolio, broker, date,
     history.record(profile, user, txn, "create", summary=summary)
     _pin(profile, txn)
     core.touch(profile)
+    if origin == ORIGIN_PURCHASE and txn.status == STATUS_FINAL:
+        # A profile that logs corporate actions automatically picks up the ones this purchase makes pending.
+        from investments.services import corporate
+
+        corporate.apply_automatic(profile, {instrument.pk})
     return txn
 
 
