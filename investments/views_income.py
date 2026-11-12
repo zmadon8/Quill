@@ -2,6 +2,7 @@
 from datetime import date, timedelta
 
 from django.contrib import messages
+from django.db import transaction
 from django.http import Http404
 from django.shortcuts import redirect
 from django.urls import reverse
@@ -9,7 +10,7 @@ from django.urls import reverse
 from . import forms
 from .decorators import inv_editor, inv_read_write, inv_reader
 from .errors import InvestmentsError
-from .models import CorporateAction, Dividend, Guardrail, Instrument, Portfolio
+from .models import CorporateAction, CorporateActionResponse, Dividend, Guardrail, Instrument, Portfolio
 from .services import alerts, core, corporate, dividends, masters
 from .viewutil import handle_errors, page, parse_date, profile_or_404, selection
 
@@ -147,12 +148,21 @@ def corporate_action_edit(request, pk):
     initial = {"ex_date": action.ex_date, "ratio_old": action.ratio_old.normalize(), "ratio_new": action.ratio_new.normalize(), "notes": action.notes,
                "target_instrument": action.target_instrument, "cost_percent_to_target": action.cost_percent_to_target}
     form = forms.CorporateActionEditForm(request.POST or None, profile=profile, action=action, initial=initial)
+    rows = []
+    if action.kind == "demerger" and CorporateActionResponse.objects.filter(profile=profile, action=action, status=corporate.STATUS_APPLIED).exists():
+        rows = corporate.bucket_allotments(profile, action)
+    if rows and request.method == "POST":
+        for r in rows:   # show what was typed again when the save is refused
+            r["override"] = request.POST.get(r["field"], r["override"]).strip()
     if request.method == "POST" and form.is_valid():
         d = form.cleaned_data
         try:
-            corporate.update(profile, request.user, action.pk, ex_date=d["ex_date"], ratio_old=d.get("ratio_old") or action.ratio_old,
-                             ratio_new=d.get("ratio_new") or action.ratio_new, notes=d["notes"], target_instrument=d.get("target_instrument"),
-                             cost_percent_to_target=d.get("cost_percent_to_target"))
+            with transaction.atomic():
+                if rows:
+                    corporate.set_units_overrides(profile, request.user, action.pk, {r["key"]: request.POST.get(r["field"], r["override"]) for r in rows})
+                corporate.update(profile, request.user, action.pk, ex_date=d["ex_date"], ratio_old=d.get("ratio_old") or action.ratio_old,
+                                 ratio_new=d.get("ratio_new") or action.ratio_new, notes=d["notes"], target_instrument=d.get("target_instrument"),
+                                 cost_percent_to_target=d.get("cost_percent_to_target"))
         except InvestmentsError as err:
             if err.code == "WOULD_GO_NEGATIVE":
                 from .views_txn import _refused
@@ -162,7 +172,7 @@ def corporate_action_edit(request, pk):
         else:
             messages.success(request, "Saved. Shares of the new company that the program made were made again from the new terms.")
             return redirect(reverse("investments_corporate_actions"))
-    return page(request, "investments/corporate_action_form.html", {"page_title_text": "Edit corporate action", "form": form, "action": action},
+    return page(request, "investments/corporate_action_form.html", {"page_title_text": "Edit corporate action", "form": form, "action": action, "allotments": rows},
                 selectors=False)
 
 

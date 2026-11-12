@@ -4,6 +4,7 @@ from decimal import Decimal as D
 
 from django.urls import reverse
 
+from investments.errors import InvestmentsError
 from investments.models import CA_DEMERGER, ORIGIN_DEMERGER, CorporateActionResponse, Transaction
 from investments.services import corporate, holdings, masters
 from investments.services import transactions as tx
@@ -171,3 +172,89 @@ class AutomaticRowsTests(InvTestCase):
         self.assertEqual(second.status_code, 200)
         self.assertEqual(second.context["automatic_count"], 1)
         self.assertContains(second, "Split (added automatically)")
+
+
+class DemergerOverrideTests(InvTestCase):
+    def setUp(self):
+        super().setUp()
+        self.buy(d(2023, 1, 1), 10, 1000)
+        self.client.force_login(self.user)
+        self.child = masters.create_instrument(self.profile, self.user, kind="share", name="Reliance Child", code="CHILD.NS")
+        self.action = corporate.record(self.profile, self.user, instrument=self.reliance, ex_date=d(2024, 1, 1), kind="demerger", ratio_old=2,
+                                       ratio_new=1, target_instrument=self.child, cost_percent_to_target=D(20))
+        corporate.respond(self.profile, self.user, self.action.pk, corporate.STATUS_APPLIED)
+        [self.row] = corporate.bucket_allotments(self.profile, self.action)
+
+    def auto(self):
+        return Transaction.objects.filter(instrument=self.child, auto_created=True)
+
+    def override(self, text):
+        return corporate.set_units_overrides(self.profile, self.user, self.action.pk, {self.row["key"]: text})
+
+    def test_computed_units_are_the_default(self):
+        self.assertEqual((self.row["default"], self.row["units"], self.row["override"]), (D(5), D(5), ""))
+        self.assertEqual(self.auto().get().units, D(5))
+
+    def test_override_replaces_the_computed_units(self):
+        self.override("7")
+        self.assertEqual(self.auto().get().units, D(7))
+        self.assertEqual(Transaction.objects.filter(instrument=self.child).count(), 1)
+
+    def test_override_survives_editing_the_ratio_and_applying_again(self):
+        self.override("7")
+        corporate.update(self.profile, self.user, self.action.pk, ex_date=d(2024, 1, 1), ratio_old=1, ratio_new=1, target_instrument=self.child,
+                         cost_percent_to_target=D(20))
+        self.assertEqual(self.auto().get().units, D(7))
+        corporate.respond(self.profile, self.user, self.action.pk, corporate.STATUS_NA)
+        self.assertFalse(self.auto().exists())
+        corporate.respond(self.profile, self.user, self.action.pk, corporate.STATUS_APPLIED)
+        self.assertEqual(self.auto().get().units, D(7))
+
+    def test_clearing_reverts_to_the_computed_units(self):
+        self.override("7")
+        self.override("")
+        self.assertEqual(self.auto().get().units, D(5))
+        self.assertEqual(CorporateActionResponse.objects.get(profile=self.profile, action=self.action).units_override, {})
+
+    def test_zero_means_no_entry(self):
+        self.override("0")
+        self.assertFalse(self.auto().exists())
+
+    def test_bad_input_is_refused(self):
+        for text in ("-1", "abc", "2.5", "nan"):
+            with self.assertRaises(InvestmentsError):
+                self.override(text)
+        with self.assertRaises(InvestmentsError):
+            corporate.set_units_overrides(self.profile, self.user, self.action.pk, {"999:999:0": "3"})
+        self.assertEqual(self.auto().get().units, D(5))
+
+    def test_hand_entered_bucket_is_not_overridden(self):
+        self.auto().delete()
+        mine = self.buy(d(2024, 1, 1), 4, 0, instrument=self.child, origin=ORIGIN_DEMERGER, corporate_action=self.action)
+        self.override("9")
+        self.assertFalse(self.auto().exists())
+        self.assertEqual(Transaction.objects.get(pk=mine.pk).units, D(4))
+
+    def test_cost_split_is_unchanged(self):
+        self.override("7")
+        self.action.refresh_from_db()
+        self.assertEqual(self.action.cost_percent_to_target, D(20))
+        self.assertEqual(corporate.demerger_terms(self.profile, [self.action.pk])[self.action.pk].fraction, D(20) / 100)
+
+    def test_page_shows_calculated_units_beside_the_override(self):
+        self.override("7")
+        r = self.client.get(reverse("investments_corporate_action_edit", args=[self.action.pk]))
+        self.assertContains(r, 'data-table-id="demerger-allotments"')
+        self.assertContains(r, f'name="{self.row["field"]}" value="7"')
+        self.assertContains(r, 'placeholder="5"')
+
+    def test_saving_the_page_sets_and_rejects_overrides(self):
+        url = reverse("investments_corporate_action_edit", args=[self.action.pk])
+        data = {"ex_date": "2024-01-01", "ratio_old": "2", "ratio_new": "1", "notes": "", "target_instrument": self.child.pk,
+                "cost_percent_to_target": "20", self.row["field"]: "8"}
+        self.assertEqual(self.client.post(url, data).status_code, 302)
+        self.assertEqual(self.auto().get().units, D(8))
+        bad = self.client.post(url, {**data, self.row["field"]: "-3"})
+        self.assertEqual(bad.status_code, 200)
+        self.assertContains(bad, "0 or more")
+        self.assertEqual(self.auto().get().units, D(8))

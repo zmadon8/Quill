@@ -4,6 +4,20 @@
 <p class="hint">{{ action.instrument.name }}: {{ action.describe }}, ex-date {{ action.ex_date|date:"j M Y" }}.{% if action.kind == "demerger" %} Changing the cost percentage, the ratio, the date or the new company works out your lots again. Shares of the new company that the program made for you are made again from the new terms; shares you recorded or edited yourself are left as they are, so check them against the new terms.{% endif %}</p>
 <form method="post" class="form" novalidate>{% csrf_token %}
   {% include "investments/_form.html" %}
+  {% if allotments %}
+  <h2>Units allotted in {{ action.target_instrument.name }}</h2>
+  <p class="hint">The program works out the units you received from the ratio. If your statement shows a different number, enter it under Override units; leave it blank to use the calculated units, and enter 0 for no entry. Where you recorded the shares yourself, the program makes no entry and an override changes nothing.</p>
+  <div class="tw"><table class="led" data-table-id="demerger-allotments">
+    <thead><tr><th>Portfolio</th><th>Broker</th><th>Folio</th><th class="num">Units held</th><th class="num">Calculated units</th><th class="num">Override units</th></tr></thead>
+    <tbody>
+    {% for r in allotments %}<tr>
+      <td>{{ r.portfolio }}</td><td>{{ r.broker }}</td><td>{{ r.folio|default:"-" }}</td>
+      <td class="num">{{ r.held|floatformat:"-4" }}</td><td class="num">{{ r.default|floatformat:"-4" }}</td>
+      <td class="num">{% if r.own %}<span class="note">recorded by you</span>{% else %}<input type="text" inputmode="decimal" name="{{ r.field }}" value="{{ r.override }}" placeholder="{{ r.default|floatformat:"-4" }}" aria-label="Override units for {{ r.portfolio }}, {{ r.broker }}">{% endif %}</td>
+    </tr>{% endfor %}
+    </tbody>
+  </table></div>
+  {% endif %}
   <div class="acts-row"><button class="btn p" type="submit">Save</button><a class="btn q" href="{% url 'investments_corporate_actions' %}">Cancel</a></div>
 </form>
 {% endblock %}
