@@ -1,6 +1,7 @@
 """AMFI's list of schemes, refreshed at most once a week by the nightly job, for picking the exact fund plan by name (plan 6)."""
 from datetime import timedelta
 
+from django.db import transaction
 from django.db.models import Max, Q
 from django.utils import timezone
 
@@ -12,6 +13,12 @@ REFRESH_DAYS = 7
 
 
 def _store(rows):
+    """All or nothing: a format error raised at the end of the stream (a changed layout) rolls back every batch written so far."""
+    with transaction.atomic():
+        return _store_rows(rows)
+
+
+def _store_rows(rows):
     batch, n = [], 0
     for code, name, isin, day, nav in rows:
         batch.append(AmfiScheme(code=code, name=name[:250], isin=isin[:20], nav=nav, nav_date=day))

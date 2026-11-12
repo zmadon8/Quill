@@ -106,7 +106,9 @@ def add_2(request):
 
     hits, search_error, query = [], "", request.GET.get("q", "").strip()
     if query and request.method != "POST":
-        if kind == "fund":
+        if not lookup_enabled():
+            search_error = "Lookup is switched off by an Admin. Type the code instead."
+        elif kind == "fund":
             from .services import schemes
 
             hits = [{"code": s.code, "name": s.name, "isin": s.isin, "extra": f"NAV {s.nav} on {s.nav_date:%-d %b}" if s.nav and s.nav_date else ""}

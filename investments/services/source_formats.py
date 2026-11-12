@@ -162,6 +162,23 @@ PLACEHOLDERS = {
     "yahoo": {"symbol", "p1", "p2", "q"}, "twelvedata": {"symbol", "exchange", "start", "key"},
 }
 _BRACES = re.compile(r"\{([^{}]*)\}")
+
+
+def builtin_hosts(key):
+    """The hosts of the built-in addresses of ``key`` (the only ones that may receive a secret such as the Twelve Data key)."""
+    base = DEFAULTS.get(key, {})
+    return {urlparse(v).hostname for name, v in base.items() if (name == "url" or name.endswith("_url")) and isinstance(v, str)} - {None}
+
+
+def allowed_hosts(key):
+    """The hosts an Admin's address may use: the built-in ones, plus those the server owner lists in the environment setting
+    ``INVESTMENTS_EXTRA_SOURCE_HOSTS`` (comma-separated; an Admin page cannot write it)."""
+    from django.conf import settings
+
+    extra = getattr(settings, "INVESTMENTS_EXTRA_SOURCE_HOSTS", "") or ""
+    if isinstance(extra, str):
+        extra = extra.split(",")
+    return builtin_hosts(key) | {h.strip().lower() for h in extra if h.strip()}
 _SPACES = re.compile(r"[\s_]+")
 
 
@@ -265,7 +282,13 @@ def check_url(key, value, label="Address"):
     parsed = urlparse(value)
     if parsed.scheme not in ("http", "https") or not parsed.netloc or any(c in value for c in " \r\n\t"):
         return None, f"{label}: only http:// or https:// addresses are allowed (no spaces)."
+    host = (parsed.hostname or "").lower()
+    if "@" in parsed.netloc or host not in allowed_hosts(key):
+        return None, (f"{label}: the host '{host or parsed.netloc}' is not allowed for this source. Allowed: {', '.join(sorted(allowed_hosts(key)))}. "
+                      "The server owner can add a host in the setting INVESTMENTS_EXTRA_SOURCE_HOSTS.")
     allowed = PLACEHOLDERS.get(key, set())
+    if "key" in _BRACES.findall(value) and host not in builtin_hosts(key):
+        return None, f"{label}: {{key}} (the server's secret) can only be used with the built-in host."
     for name in _BRACES.findall(value):
         if name not in allowed:
             return None, f"{label}: {{{name}}} is not a placeholder this source can use (allowed: {', '.join('{' + p + '}' for p in sorted(allowed)) or 'none'})."

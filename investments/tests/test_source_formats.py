@@ -9,13 +9,13 @@ from decimal import Decimal as D
 from unittest import mock
 
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import SimpleTestCase
+from django.test import SimpleTestCase, override_settings
 from django.urls import reverse
 
 from accounts.models import ROLE_EDITOR
 from investments.adapters import amfi, bhavcopy, http, mfapi, nse_list, twelvedata, yahoo
 from investments.adapters.base import FetchError, FormatError
-from investments.models import DataSourceFormat, Price, SourceRun
+from investments.models import AmfiScheme, DataSourceFormat, Price, SourceRun
 from investments.services import fetch, instrument_search, price_import, source_formats as sf, statement_import
 from investments.tests.base import InvTestCase, make_user
 from investments.tests.fakehttp import FakeNet, fixture
@@ -24,6 +24,8 @@ NSE = ("TckrSymb,SctySrs,ISIN,ClsPric,TradDt\n"
        "RELIANCE,EQ,INE002A01018,1300.50,2026-11-06\n"
        "TCS,EQ,INE467B01029,3200,2026-11-06\n"
        "RELIANCE,N1,INE002A01018,99,2026-11-06\n")
+
+EXTRA_HOSTS = "example.com,example.test,amfi.example.test,nse.example.test,mf.example.test,env.test"
 
 
 def changed(key, **values):
@@ -156,6 +158,7 @@ class ReadFailuresAreErrorsTests(SimpleTestCase):
             twelvedata.parse(json.dumps({"status": "ok", "values": [{"day": "2026-11-05", "px": "1"}]}).encode())
 
 
+@override_settings(INVESTMENTS_EXTRA_SOURCE_HOSTS=EXTRA_HOSTS)
 class ValidationTests(SimpleTestCase):
     def bad(self, key, **values):
         cleaned, errors = sf.validate(key, values)
@@ -213,6 +216,7 @@ class ValidationTests(SimpleTestCase):
         self.assertEqual(sf.validate("yahoo", submitted)[1], [])
 
 
+@override_settings(INVESTMENTS_EXTRA_SOURCE_HOSTS=EXTRA_HOSTS)
 class StoredConfigTests(InvTestCase):
     def setUp(self):
         super().setUp()
@@ -368,6 +372,7 @@ class VisibleFailureTests(InvTestCase):
         self.assertEqual(sf.problems(), [])
 
 
+@override_settings(INVESTMENTS_EXTRA_SOURCE_HOSTS=EXTRA_HOSTS)
 class AdminPageTests(InvTestCase):
     def setUp(self):
         super().setUp()
@@ -492,3 +497,76 @@ class AdminPageTests(InvTestCase):
         self.assertContains(response, "Scrip")
         sample = SimpleUploadedFile("s.csv", b"Date,Symbol,Units\n2026-11-02,X,5\n")
         self.assertContains(self.post("statement_import", "test", sample=sample), "Units")
+
+
+class HostRestrictionTests(SimpleTestCase):
+    def test_other_hosts_are_refused_unless_the_owner_lists_them(self):
+        cleaned, errors = sf.validate("amfi", {"url": "https://evil.example/nav.txt"})
+        self.assertTrue(errors)
+        self.assertIn("not allowed", errors[0])
+        with override_settings(INVESTMENTS_EXTRA_SOURCE_HOSTS="evil.example"):
+            cleaned, errors = sf.validate("amfi", {"url": "https://evil.example/nav.txt"})
+            self.assertFalse(errors)
+
+    def test_built_in_host_with_a_new_path_is_fine(self):
+        cleaned, errors = sf.validate("amfi", {"url": "https://www.amfiindia.com/new/NAVAll.txt"})
+        self.assertFalse(errors, errors)
+
+    def test_userinfo_trick_is_refused(self):
+        cleaned, errors = sf.validate("amfi", {"url": "https://www.amfiindia.com@evil.example/nav.txt"})
+        self.assertTrue(errors)
+
+    def test_key_placeholder_only_on_the_built_in_host(self):
+        good = "https://api.twelvedata.com/v2/series?symbol={symbol}&apikey={key}"
+        self.assertFalse(sf.validate("twelvedata", {"url": good})[1])
+        with override_settings(INVESTMENTS_EXTRA_SOURCE_HOSTS="mine.example"):
+            cleaned, errors = sf.validate("twelvedata", {"url": "https://mine.example/x?symbol={symbol}&apikey={key}"})
+            self.assertTrue(errors)
+            self.assertIn("{key}", errors[0])
+            self.assertFalse(sf.validate("twelvedata", {"url": "https://mine.example/x?symbol={symbol}"})[1])
+
+
+class PublicAddressGuardTests(SimpleTestCase):
+    def check(self, url, addresses):
+        infos = [(2, 1, 6, "", (a, 0)) for a in addresses]
+        with mock.patch.object(http.socket, "getaddrinfo", return_value=infos):
+            http.check_public(url)
+
+    def test_private_loopback_and_link_local_are_refused(self):
+        for address in ("127.0.0.1", "10.0.0.5", "192.168.1.1", "169.254.169.254", "172.16.0.1", "::1"):
+            with self.assertRaises(FetchError, msg=address):
+                self.check("https://x.example/f", [address])
+
+    def test_any_private_answer_among_several_refuses(self):
+        with self.assertRaises(FetchError):
+            self.check("https://x.example/f", ["93.184.216.34", "10.0.0.1"])
+
+    def test_public_address_passes(self):
+        self.check("https://x.example/f", ["93.184.216.34"])
+
+    def test_redirect_to_a_private_host_is_refused(self):
+        handler = http._GuardedRedirect()
+        request = http._request("https://x.example/f")
+        with mock.patch.object(http.socket, "getaddrinfo", return_value=[(2, 1, 6, "", ("169.254.169.254", 0))]):
+            with self.assertRaises(FetchError):
+                handler.redirect_request(request, None, 302, "Found", {}, "http://metadata.internal/latest")
+
+    def test_default_opener_checks_before_connecting(self):
+        with mock.patch.object(http.socket, "getaddrinfo", return_value=[(2, 1, 6, "", ("127.0.0.1", 0))]):
+            with self.assertRaises(FetchError):
+                http.open_url("http://localhost:9/x")
+
+
+class AmfiListIsAllOrNothingTests(InvTestCase):
+    def test_changed_layout_leaves_the_stored_list_untouched(self):
+        from investments.services import schemes
+
+        AmfiScheme.objects.create(code="100", name="Old name", isin="INF000000001")
+        body = "".join(f"{100 + i};INF{i:09d};-;Scheme {i};10.5;not a date\n" for i in range(700)).encode()
+        net = FakeNet()
+        net.add("NAVAll", body)
+        with mock.patch.object(http, "_urlopen", net), mock.patch.object(http, "sleep", lambda s: None):
+            with self.assertRaises(FormatError):
+                schemes.refresh(force=True)
+        self.assertEqual(AmfiScheme.objects.count(), 1)
+        self.assertEqual(AmfiScheme.objects.get(code="100").name, "Old name")

@@ -53,6 +53,18 @@ class LookupToggleTests(InvTestCase):
         self.assertEqual(self.net.calls, [])
         self.assertFalse(NseSecurity.objects.exists())
 
+    def test_off_no_script_search_shows_nothing_and_reads_nothing(self):
+        AmfiScheme.objects.create(code="122639", name="Parag Parikh Flexi Cap Fund", isin="INF879O01019")
+        self.client.force_login(self.user)
+        resp = self.client.get(reverse("investments_add_2"), {"kind": "fund", "q": "parag"})
+        self.assertContains(resp, "Parag Parikh")
+        instrument_search.set_lookup_enabled(False)
+        for kind in ("fund", "share"):
+            resp = self.client.get(reverse("investments_add_2"), {"kind": kind, "q": "parag"})
+            self.assertNotContains(resp, "Parag Parikh")
+            self.assertContains(resp, "Lookup is switched off")
+        self.assertEqual(self.net.calls, [])
+
     def test_on_endpoint_still_works(self):
         self.net.add("EQUITY_L", NSE_CSV)
         self.client.force_login(self.user)
