@@ -22,6 +22,21 @@ class AnnualTests(InvTestCase):
         dividends.add(self.profile, self.user, date=d(2023, 8, 1), instrument=self.reliance, portfolio=self.portfolio, broker=self.zerodha, amount=D(40),
                       tax_deducted=D(4))
 
+    def test_year_by_year_report_has_fresh_investments(self):
+        from investments.services import reports
+
+        t = reports.yearly(self.profile)
+        names = [c[0] for c in t.columns]
+        self.assertEqual(names[2:5], ["Invested", "Sold", "Fresh investments"])
+        i = names.index("Fresh investments")
+        for row in t.rows:
+            self.assertEqual(row[i], (row[2] - row[3]).quantize(D("0.01")))
+        row = next(r for r in t.rows if r[0].startswith("2023-24"))
+        self.assertEqual(row[i], D("1100.00") - row[3])
+        self.client.force_login(self.user)
+        self.assertContains(self.client.get(reverse("investments_report", args=["yearly"])), "Fresh investments")
+        self.assertEqual(self.client.get(reverse("investments_report", args=["yearly"]) + "?export=xlsx").status_code, 200)
+
     def test_the_seven_lines_and_gains_split_by_the_cutoff(self):
         r = annual.build(self.profile, "2023-24", today=d(2026, 11, 9))
         self.assertTrue(r.completed)
