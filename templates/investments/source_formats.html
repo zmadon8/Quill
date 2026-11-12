@@ -1,0 +1,36 @@
+{% extends "investments/base_investments.html" %}
+{% block inv_content %}
+<h1 class="visually-hidden">Data source formats</h1>
+{% if not key %}
+<p class="hint">How the program reads each external file or answer: the address, the delimiter, the header row, the names of the columns, the date formats and the paths into JSON answers. When an exchange or a service renames a column or moves a file, change it here instead of waiting for a new release. Only these settings can be changed; a file with a new structure (nested, binary or with several sheets) or a different way of signing in needs a code change. <a href="{% url 'investments_admin_prices' %}">Back to Price sources</a>.</p>
+<div class="tw"><table data-table-id="inv-source-formats" class="led"><thead><tr><th>Source</th><th>Kind</th><th>Format</th><th>Last run</th><th>Status</th><th></th></tr></thead><tbody>
+{% for s in sources %}<tr><td>{{ s.label }}</td><td>{{ s.kind }}</td><td>{% if s.custom %}<span class="tag ink">changed</span>{% else %}built in{% endif %}</td>
+<td>{% if s.run %}{{ s.run.finished|date:"j M Y, g:i a" }}{% else %}<span class="na">never</span>{% endif %}</td>
+<td>{% if s.problem %}<span class="tag ox">cannot read</span> {{ s.problem }}{% elif s.run %}ok{% else %}<span class="na">&nbsp;</span>{% endif %}</td>
+<td class="act"><a class="btn q sm" href="{% url 'investments_admin_source_format' s.key %}">Edit</a></td></tr>{% endfor %}
+</tbody></table></div>
+{% else %}
+<div class="sec"><h2>{{ label }}</h2><a class="btn q" href="{% url 'investments_admin_source_formats' %}">All sources</a></div>
+<p class="hint">{% if custom %}This format has been changed from the built-in one.{% else %}This is the built-in format.{% endif %} {% if run %}Last run {{ run.finished|date:"j M Y, g:i a" }}.{% endif %}{% if problem %} <b>Problem: {{ problem }}</b>{% endif %}</p>
+<form method="post" enctype="multipart/form-data" class="form" novalidate>{% csrf_token %}
+<div class="tw"><table data-table-id="inv-source-format-fields" class="led"><thead><tr><th>Setting</th><th>Value</th><th>Built in</th></tr></thead><tbody>
+{% for f in fields %}<tr><td><code>{{ f.name }}</code><br><span class="hint">{{ f.help }}{% if f.placeholders %} Placeholders: {{ f.placeholders }}.{% endif %}</span></td>
+<td><input name="f_{{ f.name }}" value="{{ f.value }}" size="60" maxlength="600" aria-label="{{ f.name }}"></td>
+<td>{% if f.changed %}<code>{{ f.builtin }}</code>{% else %}<span class="na">same</span>{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>
+<div class="sec"><h2>Test this format</h2></div>
+<p class="hint">Reads a sample with the values above, as typed, and shows the first rows. Nothing is saved and no prices change.{% if upload_only %} Choose a CSV file with a header row.{% else %} Leave the file empty to download a sample from the address above, or choose a file you have saved.{% endif %}</p>
+<div class="acts-row">
+{% if not upload_only %}{% if needs_value %}<label for="sample-value">Symbol or code</label><input id="sample-value" name="sample_value" value="{{ sample_value }}" size="14" placeholder="sample">{% endif %}<label for="sample-day">Date</label><input id="sample-day" type="date" name="sample_day" value="{{ sample_day }}">{% endif %}
+<label for="sample-file">Sample file</label><input id="sample-file" type="file" name="sample">
+</div>
+<div class="acts-row"><button class="btn p" type="submit" name="action" value="save">Save</button><button class="btn q" type="submit" name="action" value="test">Test this format</button></div>
+</form>
+{% if result %}<div class="sec"><h2>Test result</h2></div>
+{% if result.error %}<div class="ban wa" role="alert"><span>{{ result.error }}</span></div>{% else %}<p class="hint">{{ result.note }}{% if result.url %} Read from {{ result.url }}.{% endif %}</p>{% endif %}
+{% if result.rows %}<div class="tw"><table data-table-id="inv-source-format-test" class="led"><thead><tr>{% for h in result.heads %}<th>{{ h }}</th>{% endfor %}</tr></thead><tbody>
+{% for row in result.rows %}<tr>{% for cell in row %}<td>{{ cell }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div>{% endif %}
+{% endif %}
+{% if custom %}<form method="post" class="inline-edit">{% csrf_token %}<button class="btn q" type="submit" name="action" value="reset">Reset to default</button></form>{% endif %}
+{% endif %}
+{% endblock %}

@@ -24,6 +24,7 @@ from django.utils import timezone
 from investments.adapters import bhavcopy
 from investments.adapters.base import FetchError
 from investments.models import KIND_INDEX, KIND_SHARE, Price, SourceRun, SourceSetting, SourceSymbol
+from investments.services import source_formats
 
 SETTING_KEY = "bhavcopy"
 MODE_OFF, MODE_AFTER, MODE_FIRST = "off", "after", "first"
@@ -163,7 +164,7 @@ def run(instruments, *, today, trigger="cron", out_of_time=lambda: False, window
                     continue
                 got[day] = _read(kind, body, wanted)
             except FetchError as exc:
-                failures.append({"id": 0, "name": bhavcopy.label(kind), "error": str(exc)})
+                failures.append(source_formats.failure(0, bhavcopy.label(kind), exc))
                 break
         if got:
             files[kind], newest[kind] = got, max(got)

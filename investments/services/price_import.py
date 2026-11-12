@@ -20,16 +20,13 @@ from django.db import transaction
 
 from investments.errors import InvestmentsError
 from investments.models import Instrument, Price, SourceSymbol
-from investments.services import fetch, locks
+from investments.services import fetch, locks, source_formats
 
 BATCH = 500
 GAP_DAYS = 10
 BIG_MOVE = Decimal("0.40")
 DIFF_TOLERANCE = Decimal("0.005")
-SYMBOL_HEADERS = ("symbol", "isin", "scheme code", "scheme_code", "code", "ticker", "instrument")
-DATE_HEADERS = ("date", "trading date", "nav date")
-CLOSE_HEADERS = ("close", "closing price", "price", "nav")
-BASIS_HEADERS = ("basis",)
+
 
 
 @dataclass
@@ -53,15 +50,34 @@ class Report:
 
 
 def _guess(headers, wanted):
-    lowered = [h.strip().lower() for h in headers]
-    for name in wanted:
+    """The index of the first heading equal to one of the names ``wanted`` (tried in order), else of one that contains a name."""
+    lowered = [source_formats.norm(h) for h in headers]
+    names = [source_formats.norm(n) for n in wanted]
+    for name in names:
         if name in lowered:
             return lowered.index(name)
-    for name in wanted:
+    for name in names:
         for i, h in enumerate(lowered):
-            if name in h:
+            if name and name in h:
                 return i
     return None
+
+
+def header_columns(headers, columns=None):
+    """``{field: column index or None}`` for symbol, date, close and basis, by the alias lists of the ``price_import`` format."""
+    columns = columns or source_formats.get("price_import")["columns"]
+    return {field: _guess(headers, aliases) for field, aliases in columns.items()}
+
+
+def _mapped(header):
+    """``(symbol, date, close, basis)`` column indexes of the header row; a missing required column is a readable error naming what the file has."""
+    found = header_columns(header)
+    missing = [f for f in ("symbol", "date", "close") if found[f] is None]
+    if missing:
+        raise InvestmentsError("BAD_FILE", "The header row needs a symbol (or ISIN or scheme code), a date and a close column. "
+                               f"No column found for: {', '.join(missing)}. Headings in the file: {', '.join(h for h in header[:15] if h) or 'none'}. "
+                               "An Admin can add other heading names under Catalogue > Price sources > Data source formats.")
+    return found["symbol"], found["date"], found["close"], found["basis"]
 
 
 def _parse_date(text):
@@ -131,9 +147,7 @@ def _csv_rows(source):
                 continue
             if header is None:
                 header = cells
-                cols = (_guess(header, SYMBOL_HEADERS), _guess(header, DATE_HEADERS), _guess(header, CLOSE_HEADERS), _guess(header, BASIS_HEADERS))
-                if None in cols[:3]:
-                    raise InvestmentsError("BAD_FILE", "The header row needs a symbol (or ISIN or scheme code), a date and a close column.")
+                cols = _mapped(header)
                 continue
             cells = cells + [""] * (len(header) - len(cells))
             yield (number, cells[cols[0]], cells[cols[1]], cells[cols[2]], cells[cols[3]] if cols[3] is not None else "")
@@ -164,9 +178,7 @@ def read_rows(source):
         for number, cells in enumerate(rows, start=1):
             if header is None:
                 header = cells
-                cols = (_guess(header, SYMBOL_HEADERS), _guess(header, DATE_HEADERS), _guess(header, CLOSE_HEADERS), _guess(header, BASIS_HEADERS))
-                if None in cols[:3]:
-                    raise InvestmentsError("BAD_FILE", "The header row needs a symbol (or ISIN or scheme code), a date and a close column.")
+                cols = _mapped(header)
                 continue
             cells = cells + [""] * (len(header) - len(cells))
             yield (number, cells[cols[0]], cells[cols[1]], cells[cols[2]], cells[cols[3]] if cols[3] is not None else "")

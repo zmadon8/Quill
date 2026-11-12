@@ -173,21 +173,27 @@ class Format(dict):
 
 # ---------------------------------------------------------------- reading and saving
 
+def merge(key, cleaned):
+    """The built-in format of ``key`` with the (validated) ``cleaned`` values laid over it."""
+    out = Format(copy.deepcopy(DEFAULTS[key]))
+    for name, value in cleaned.items():
+        if isinstance(out.get(name), dict):
+            out[name].update(value)
+        else:
+            out[name] = value
+    out.custom = frozenset(cleaned)
+    return out
+
+
 def get(key):
     """The format of ``key``: the built-in one with the Admin's stored changes laid over it. Never raises: without a database (a plain unit
     test) or with a stored value that no longer validates, the built-in format is used."""
-    out = Format(copy.deepcopy(DEFAULTS[key]))
     stored = stored_config(key)
     if stored:
         cleaned, errors = validate(key, stored)
         if not errors:
-            for name, value in cleaned.items():
-                if isinstance(out.get(name), dict):
-                    out[name].update(value)
-                else:
-                    out[name] = value
-            out.custom = frozenset(cleaned)
-    return out
+            return merge(key, cleaned)
+    return Format(copy.deepcopy(DEFAULTS[key]))
 
 
 def stored_config(key):
@@ -220,6 +226,13 @@ def save(key, submitted, user=None):
     else:
         DataSourceFormat.objects.filter(key=key).delete()
     return get(key), []
+
+
+def customised():
+    """The keys of the sources an Admin has changed."""
+    from investments.models import DataSourceFormat
+
+    return list(DataSourceFormat.objects.exclude(config={}).values_list("key", flat=True))
 
 
 def reset(key):
@@ -365,9 +378,9 @@ def validate(key, config):
 
 # ---------------------------------------------------------------- forms: the fields of a format, flat, and back
 
-def fields(key):
+def fields(key, merged=None):
     """``[(field name, kind, current value)]`` for the edit form; kind is ``url``, ``text``, ``int``, ``list`` or ``path``. Columns are ``columns.symbol``."""
-    merged = get(key)
+    merged = merged if merged is not None else get(key)
     out = []
     for name, default in DEFAULTS[key].items():
         if isinstance(default, dict):
@@ -504,6 +517,18 @@ def record_failure(source, name, exc, trigger="cron"):
 
     now = timezone.now()
     return SourceRun.objects.create(source=source, trigger=trigger, started=now, finished=now, failures=[failure(0, name, exc)], message=str(exc)[:300])
+
+
+def clear_failure(source, trigger="cron"):
+    """A clean ``SourceRun`` after a list read that worked, when the source's newest run had failures (so its alert goes away)."""
+    from django.utils import timezone
+
+    from investments.models import SourceRun
+
+    last = SourceRun.objects.filter(source=source).exclude(finished=None).order_by("-finished", "-id").first()
+    if last is not None and last.failures:
+        now = timezone.now()
+        SourceRun.objects.create(source=source, trigger=trigger, started=now, finished=now)
 
 
 def problems():

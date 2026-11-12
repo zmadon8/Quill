@@ -38,29 +38,11 @@ from investments.models import (
     ORIGIN_DEMERGER, ORIGIN_OTHER, ORIGIN_PURCHASE, ORIGIN_SPLIT, ORIGINS, STATUS_AWAITING, ZERO_PRICE_ORIGINS, AmfiScheme, Broker,
     CorporateAction, CorporateActionResponse, Folio, Instrument, Portfolio, Transaction,
 )
-from investments.services import masters, transactions as tx
+from investments.services import masters, source_formats, transactions as tx
 
-#: Each key's possible headings, tried in order (an exact heading first, then a heading containing it). Order matters: "Transaction
-#: type" is the buy or sell column and plain "Type" the investment's type when a file has both.
-COLUMNS = {
-    "date": ("date", "trade date", "transaction date", "date of transaction", "order date", "nav date"),
-    # Claimed before "side" so a heading like "Acquisition type" is not taken for the buy or sell column. Exact headings only.
-    "origin": ("origin", "how acquired", "acquired as", "acquisition type", "acquisition", "transaction origin"),
-    "side": ("transaction type", "buy/sell", "buy or sell", "trade type", "side", "action", "type"),
-    "kind": ("investment type", "asset type", "instrument type", "security type", "type"),
-    "investment": ("isin", "investment code", "code", "scheme code", "symbol", "ticker", "scrip code", "scrip", "scheme", "scheme name",
-                   "instrument", "security", "stock", "fund", "name"),
-    # A second column naming the investment, when the one above is a code: its name when it has to be added.
-    "label": ("investment name", "name of investment", "security name", "scheme name", "scrip name", "stock name", "fund name",
-              "instrument name", "company name", "name"),
-    "portfolio": ("portfolio", "portfolio name"),
-    "broker": ("broker", "broker name", "platform"),
-    "units": ("units", "quantity", "qty"),
-    "price": ("price", "nav", "rate", "trade price", "avg price"),
-    "amount": ("amount", "value", "net amount", "trade value"),
-    "charges": ("charges", "brokerage", "stamp duty", "fees"),
-    "folio": ("folio", "folio number", "folio no"),
-}
+#: Each key's possible headings are the ``columns`` of the ``statement_import`` format (``services/source_formats.py``, where an Admin can add
+#: others), tried in order (an exact heading first, then a heading containing it). Order matters: "Transaction type" is the buy or sell
+#: column and plain "Type" the investment's type when a file has both.
 #: Keys matched only by an exact heading ("Brokerage" is charges, not the broker).
 EXACT_ONLY = {"portfolio", "broker", "origin"}
 SELL_WORDS = ("sell", "sale", "redeem", "redemption", "s", "switch out", "switch-out")
@@ -104,8 +86,8 @@ def origin_help():
     return {
         "origins": [(labels[origin], list(words)) for origin, words in ORIGIN_WORDS],
         "sells": list(SELL_WORDS) + ["anything starting with sell or redem"],
-        "origin_headings": list(COLUMNS["origin"]),
-        "side_headings": list(COLUMNS["side"]),
+        "origin_headings": list(columns()["origin"]),
+        "side_headings": list(columns()["side"]),
     }
 
 
@@ -161,11 +143,19 @@ class Review:
         return [l for l in self.lines if l.problem]
 
 
-def _guess(headers):
-    lowered = [h.strip().lower() for h in headers]
+def columns():
+    """``{key: [headings]}`` of the statement and holdings import, as the Admin has them set."""
+    return source_formats.get("statement_import")["columns"]
+
+
+def guess_columns(headers, wanted=None):
+    """``{key: column index}`` for the keys found in ``headers`` (an exact heading first, then one containing it)."""
+    lowered = [source_formats.norm(h) for h in headers]
     mapping = {}
-    for key, needles in COLUMNS.items():
-        for needle in needles:
+    for key, needles in (wanted or columns()).items():
+        for needle in (source_formats.norm(n) for n in needles):
+            if not needle:
+                continue
             hit = next((i for i, h in enumerate(lowered) if h == needle), None)
             if hit is None and key not in EXACT_ONLY:
                 hit = next((i for i, h in enumerate(lowered) if needle in h and i not in mapping.values()), None) if len(needle) > 2 else None
@@ -363,10 +353,12 @@ def review(profile, source, aliases=None, portfolio=None, broker=None, origins=N
         for number, cells in enumerate(rows, start=1):
             if header is None:
                 header = cells
-                out.mapping = _guess(header)
+                out.mapping = guess_columns(header)
                 missing = [k for k in ("date", "investment", "units") if k not in out.mapping]
                 if missing:
-                    raise InvestmentsError("BAD_FILE", f"The header row needs these columns: {', '.join(missing)}.")
+                    raise InvestmentsError("BAD_FILE", f"The header row needs these columns: {', '.join(missing)}. Headings in the file: "
+                                           f"{', '.join(str(h) for h in header[:15] if h) or 'none'}. An Admin can add other heading names under "
+                                           "Catalogue > Price sources > Data source formats.")
                 continue
             cells = cells + [""] * (len(header) - len(cells))
             get = lambda k: cells[out.mapping[k]] if k in out.mapping else ""  # noqa: E731

@@ -2,6 +2,10 @@
 {% load investments_money %}
 {% block inv_content %}
 <h1 class="visually-hidden">Alerts and guardrails</h1>
+{% if format_problems %}<div class="ban wa" role="alert"><span>A price or list source could not be read, so some prices or lists may be out of date. {% if is_admin %}An Admin can correct how the file is read under <a href="{% url 'investments_admin_source_formats' %}">Data source formats</a>.{% else %}Please tell an Admin.{% endif %}</span></div>
+<div class="tw"><table data-table-id="inv-format-problems" class="led"><thead><tr><th>Source</th><th>Problem</th><th>Seen</th><th></th></tr></thead><tbody>
+{% for p in format_problems %}<tr><td>{{ p.label }}</td><td>{{ p.error }}</td><td>{{ p.when|date:"j M Y, g:i a" }}</td><td class="act">{% if is_admin %}<a class="btn q sm" href="{% url 'investments_admin_source_format' p.key %}">Fix the format</a>{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>{% endif %}
 <p class="hint">Worked out from daily closing prices, not live ones. An alert is a prompt: the decision to sell stays with you. Purchases awaiting allotment are left out.</p>
 {% if alerts %}<div class="tw"><table data-table-id="inv-alerts" class="led"><thead><tr><th>Investment</th><th>Portfolio</th><th>Alert</th><th>Price date</th><th class="r">Price</th><th class="r">Gain</th><th>If sold now</th><th></th></tr></thead><tbody>
 {% for a in alerts %}<tr><td class="nm"><a href="{% url 'investments_investment' a.instrument_id %}">{{ a.instrument_name }}</a></td><td>{{ a.portfolio_name }}</td><td><span class="tag {% if a.change_pct < 0 %}ox{% else %}ink{% endif %}">{{ a.kind|cut:"_window"|cut:"rule_"|upper }}</span> {{ a.label }}</td>
