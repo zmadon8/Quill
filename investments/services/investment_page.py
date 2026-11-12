@@ -57,7 +57,9 @@ def range_52w(instrument, as_of):
     return min(closes), max(closes)
 
 
-def price_chart(profile, instrument, start, end):
+def price_chart(profile, instrument, start, end, index=None):
+    """The price history with purchase and sale markers and, when ``index`` has prices, a dashed line of that index rebased to the
+    instrument's first price in the window ("Same start in <index>"). None when the instrument has no prices to draw."""
     days = series.sample_dates(start, end)
     raw = series.sampled_prices(instrument, days)
     if not any(raw):
@@ -65,7 +67,26 @@ def price_chart(profile, instrument, start, end):
     from investments.services import chartview
 
     markers = chartview.markers_for(profile, instrument, start, end)
-    return line_chart(days, [(instrument.name, [None if p is None else float(p) for p in raw])], height=220, markers=markers)
+    lines = [(instrument.name, [None if p is None else float(p) for p in raw])]
+    rebased = _rebased_index(index, days, raw)
+    if rebased:
+        lines.append((f"Same start in {index.name}", rebased))
+    return line_chart(days, lines, height=220, markers=markers)
+
+
+def _rebased_index(index, days, raw):
+    """The index's level at each day, scaled so it equals the instrument's price on the instrument's first priced day; None when it cannot be."""
+    if index is None:
+        return None
+    first = next((i for i, p in enumerate(raw) if p), None)
+    if first is None:
+        return None
+    levels = series.sampled_prices(index, days)
+    base = levels[first]
+    if not base:
+        return None
+    start_price = float(raw[first])
+    return [None if i < first or lvl is None else start_price * float(lvl) / float(base) for i, lvl in enumerate(levels)]
 
 
 def guardrails(profile, instrument):

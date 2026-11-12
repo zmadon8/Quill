@@ -244,6 +244,16 @@ def investment(request, pk):
     bucket_rows = sorted(((portfolios.get(pf, "?"), brokers.get(br, "?"), next((f.number for f in folios_qs if f.pk == fo), ""), units)
                           for (pf, br, fo), units in h.buckets.items()), key=lambda r: (r[0], r[1], r[2]))
     counts = masters.records_of(profile, inst)
+    # One chart at a time, and only that one is worked out.
+    chart_kind = chartview.chart_choice(request, has_price=inst.kind != KIND_ALTERNATIVE)
+    price_chart = value_chart = None
+    if chart_kind == "price":
+        index = pi.sectoral_index if pi and pi.sectoral_index_id else masters.default_index_for(profile)
+        price_chart = investment_page.price_chart(profile, inst, chart_start, as_of, index=index if index and index.pk != inst.pk else None)
+    else:
+        value_chart = chartview.value_chart(
+            profile, range_days, as_of, index=masters.default_index_for(profile), portfolio=portfolio, broker=broker, instrument_ids=[inst.pk],
+            markers=chartview.markers_for(profile, inst, as_of - _td(days=range_days or 36500), as_of))
     # Iterating ``txns`` here loaded every transaction of the investment, and the page then queried the newest 200 again: ask for the awaiting
     # ones on their own (there are few) and let the page list read the newest 200 once.
     awaiting_rows = list(txns.filter(status="awaiting"))
@@ -260,12 +270,12 @@ def investment(request, pk):
         "alt_values": AltValue.objects.filter(profile=profile, instrument=inst).order_by("-date")[:20] if inst.kind == KIND_ALTERNATIVE else [],
         "awaiting_rows": awaiting_rows, "history": InvestmentHistory.objects.filter(profile=profile, instrument_id_ref=inst.pk)[:8],
         "kind_label": inst.get_kind_display(), "on": on, "as_of": as_of, "include_div": div,
-        "chart": investment_page.price_chart(profile, inst, chart_start, as_of) if inst.kind != KIND_ALTERNATIVE else None,
+        "chart": price_chart, "chart_kind": chart_kind, "chart_links": chartview.chart_links(request, chart_kind),
         "price_ranges": chartview.links(request, range_key, "#price"),
-        "value_chart": chartview.value_chart(
-            profile, range_days, as_of, index=masters.default_index_for(profile), portfolio=portfolio, broker=broker, instrument_ids=[inst.pk],
-            markers=chartview.markers_for(profile, inst, as_of - _td(days=range_days or 36500), as_of)),
+        "value_chart": value_chart,
         "value_ranges": chartview.links(request, range_key, "#value-chart"),
+        "div_href": chartview.toggled_href(request, "div", "0" if div else "1"),
+        "keep_params": [(k, request.GET[k]) for k in ("chart", "range") if request.GET.get(k)],
         "range52": investment_page.range_52w(inst, as_of) if inst.kind != KIND_ALTERNATIVE else (None, None),
         "guardrails": investment_page.guardrails(profile, inst),
         "foreign": investment_page.foreign_figures(profile, inst, h, as_of) if inst.currency != "INR" else None,

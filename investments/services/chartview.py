@@ -39,6 +39,34 @@ def links(request, chosen, anchor=""):
     return [{"key": k, "label": label, "on": k == chosen, "href": "?" + query_with(request, k) + anchor} for k, label, _d in PERIODS]
 
 
+#: The investment page shows one chart at a time (``?chart=price|value``): the price history (default) or the value against the index.
+CHARTS = (("price", "Price history"), ("value", "Value vs index"))
+
+
+def chart_choice(request, has_price=True):
+    """``"price"`` or ``"value"``; an investment with no price feed (alternative) has only the value chart."""
+    if not has_price:
+        return "value"
+    return "value" if request.GET.get("chart") == "value" else "price"
+
+
+def chart_links(request, chosen, anchor=""):
+    """The chart switch for the template: ``[{"key", "label", "on", "href"}]``; every other choice in the query string is kept."""
+    out = []
+    for key, label in CHARTS:
+        query = request.GET.copy()
+        query["chart"] = key
+        out.append({"key": key, "label": label, "on": key == chosen, "href": "?" + query.urlencode() + (anchor or "#" + ("price" if key == "price" else "value-chart"))})
+    return out
+
+
+def toggled_href(request, name, value, anchor=""):
+    """The page's query string with ``name`` set to ``value`` (the other choices, such as ``?chart=`` and ``?range=``, are kept)."""
+    query = request.GET.copy()
+    query[name] = value
+    return "?" + query.urlencode() + anchor
+
+
 def markers_for(profile, instrument, start, end):
     """Purchases and sales as chart markers: ``[(date, label, "buy" or "sell")]``."""
     out = []
