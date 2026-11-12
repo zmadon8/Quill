@@ -185,20 +185,37 @@ MAX_EXTRA_ROWS = 30
 
 
 def _extra_rows(request, profile, mode):
-    """The extra transaction rows posted with the page (their numbers are in ``extra_rows``), each bound to its own prefixed form."""
+    """The extra transaction rows posted with the page (their numbers are in ``extra_rows``), each bound to its own prefixed form.
+
+    Returns ``(rows, problem)``; ``problem`` is a message when the list holds a bad, repeated or too many numbers (nothing is dropped silently).
+    """
     rows = []
     if request.method != "POST":
-        return rows
-    seen = set()
-    for part in request.POST.get("extra_rows", "").split(","):
-        part = part.strip()
-        if not part.isdigit() or part in seen or len(rows) >= MAX_EXTRA_ROWS:
+        return rows, ""
+    seen, problem = set(), ""
+    parts = [p.strip() for p in request.POST.get("extra_rows", "").split(",") if p.strip()]
+    if len(parts) > MAX_EXTRA_ROWS:
+        problem = f"At most {MAX_EXTRA_ROWS} extra rows can be saved at once."
+        parts = parts[:MAX_EXTRA_ROWS]
+    for part in parts:
+        if not part.isdigit() or part in seen:
+            problem = problem or "The extra rows could not be read. Reload the page and try again."
             continue
         seen.add(part)
         row = forms.ExtraRowForm(request.POST, profile=profile, mode=mode, prefix="x" + part)
         row.index = int(part)
         rows.append(row)
-    return rows
+    return rows, problem
+
+
+def _extra_folio_problem(profile, row, portfolio, mode):
+    """A message when a sale row names an investment held in a folio of the portfolio: rows carry no folio, so it would hit the wrong bucket."""
+    if mode not in ("sell", "awaiting_sell"):
+        return ""
+    inst = row.cleaned_data["instrument"]
+    if Folio.objects.filter(profile=profile, instrument=inst, portfolio=portfolio).exists():
+        return f"{inst.name} is held in a folio. Sell it from the main form so the folio can be chosen."
+    return ""
 
 
 @inv_editor
@@ -236,12 +253,20 @@ def txn_form(request, mode):
         initial["portfolio"] = portfolios[0]
     form = forms.TransactionForm(request.POST or None, profile=profile, mode=mode, initial=initial)
     # More transactions added on the same page share the date, portfolio and broker; each posts under its own prefix (x1-units, ...).
-    extra = _extra_rows(request, profile, mode)
+    extra, extra_problem = _extra_rows(request, profile, mode)
     side = SIDE_SELL if mode in ("sell", "awaiting_sell") else SIDE_BUY
     awaiting = mode.startswith("awaiting")
     if request.method == "POST":
         valid = [form.is_valid()] + [row.is_valid() for row in extra]
-        if all(valid):
+        if extra_problem:
+            messages.error(request, extra_problem)
+        elif all(valid):
+            for row in extra:
+                folio_problem = _extra_folio_problem(profile, row, form.cleaned_data["portfolio"], mode)
+                if folio_problem:
+                    row.add_error("instrument", folio_problem)
+                    valid.append(False)
+        if not extra_problem and all(valid):
             d = _clean_data(form)
             current = form
             try:

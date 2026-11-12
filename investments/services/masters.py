@@ -369,6 +369,11 @@ def update_shared_details(profile, user, instrument, **values):
         setattr(instrument, key, value)
     instrument.save()
     core.touch(profile)
+    if "taxed_as_interest" in values:
+        # The flag is shared by every profile holding the investment: their cached figures must be recomputed too.
+        from investments.services import fetch
+
+        fetch.bump_version()
     return instrument
 
 

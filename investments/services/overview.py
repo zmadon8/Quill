@@ -101,7 +101,14 @@ def compute(profile, *, portfolio, broker, as_of, include_dividends, settings_ro
     realised = None
     if "realised" in metrics:
         realised = []
-        for iid, events in core.events_by_instrument(profile).items():
+        from investments.models import Instrument
+
+        events_by = core.events_by_instrument(profile)
+        # Profit on an investment taxed as interest is Interest Income, not a capital gain booked on a sale.
+        interest = set(Instrument.objects.filter(pk__in=list(events_by), taxed_as_interest=True).values_list("pk", flat=True))
+        for iid, events in events_by.items():
+            if iid in interest:
+                continue
             for m in lots.replay(events, as_of=as_of).matches:
                 if m.bucket and ((portfolio and m.bucket.portfolio != portfolio) or (broker and m.bucket.broker != broker)):
                     continue

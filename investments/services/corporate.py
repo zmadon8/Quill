@@ -340,7 +340,7 @@ def sync_demerger_allotments(profile, user, action):
 
     Safe to run again after the demerger is edited: an entry the program made that still matches is kept, one that no longer matches is
     removed and made again, so nothing is counted twice. An entry the person recorded or edited themselves is never touched, and its
-    portfolio, broker and folio get no automatic one. Returns whether anything was removed or created."""
+    portfolio and broker (any folio) get no automatic one. Returns whether anything was removed or created."""
     from investments.services import transactions as tx
 
     target = action.target_instrument
@@ -356,7 +356,7 @@ def sync_demerger_allotments(profile, user, action):
     for t in linked_transactions(profile, action).order_by("id"):
         key = (t.portfolio_id, t.broker_id, t.folio_id)
         if not t.auto_created:
-            own.add(key)
+            own.add(key[:2])   # a hand entry may be one combined receipt or under another folio: it covers the whole portfolio and broker
         elif key in wanted and key not in kept and t.units == wanted[key] and t.date == action.ex_date and t.instrument_id == action.target_instrument_id:
             kept.add(key)
         else:
@@ -364,7 +364,7 @@ def sync_demerger_allotments(profile, user, action):
             t.delete()
             changed = True
     for key, units in wanted.items():
-        if key in own or key in kept:
+        if key[:2] in own or key in kept:
             continue
         portfolio_id, broker_id, folio_id = key
         tx.add_transaction(
