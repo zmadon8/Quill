@@ -112,12 +112,13 @@ class SearchTests(FakeNetCase):
 
     def test_existing_instrument_is_flagged_not_duplicated(self):
         self.seed()
+        before = Instrument.objects.count()
         out = instrument_search.search(self.profile, "reliance", kind="share")
         self.assertEqual(out["results"][0]["existing_id"], self.reliance.pk)
         out = instrument_search.search(self.profile, "parag", kind="fund")
         self.assertEqual(out["results"][0]["existing_id"], self.fund.pk)
         self.assertEqual(instrument_search.search(self.profile, "tcs")["results"][0]["existing_id"], None)
-        self.assertEqual(Instrument.objects.count(), 2)
+        self.assertEqual(Instrument.objects.count(), before)
 
     def test_constant_query_count(self):
         self.seed()
