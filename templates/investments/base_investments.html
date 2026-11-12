@@ -16,7 +16,7 @@
 {# The section links and the tools row sit inside <main> so they line up with the page, as in the mockups. #}
 {# As in the Fee Register: the sub-tabs and the page's own buttons (block page_actions) share one row, buttons on the right. #}
 {% block content %}{% if inv_sub %}<div class="tab-bar"><nav class="sub" aria-label="Section">{% for s in inv_sub %}<a href="{{ s.url }}"{% if s.on or s.admin %} class="{% if s.on %}on{% endif %}{% if s.admin %} adm{% endif %}"{% endif %}{% if s.on %} aria-current="page"{% endif %}>{{ s.name }}</a>{% endfor %}</nav>{% block page_actions %}{% endblock %}</div>{% endif %}
-{% if inv_tools and inv_selectors %}{% include "investments/_tools.html" %}{% endif %}
+{% if inv_tools and inv_selectors %}{% include "investments/_tools.html" %}{% elif inv_tools and inv_status_row %}{% include "investments/_status_row.html" %}{% endif %}
 {% block inv_content %}{% endblock %}{% endblock %}
 {% block extra_js %}<script src="{% static 'js/investments/money_auto.js' %}"></script>
 <script src="{% static 'js/investments/shell.js' %}"></script>

@@ -43,7 +43,7 @@ def _shell(request, slug):
     if spec is None:
         raise Http404
     scope.for_profile(request)
-    return page(request, "investments/shell.html", {"page": spec, "page_title_text": spec.title})
+    return page(request, "investments/shell.html", {"page": spec, "page_title_text": spec.title}, selectors=False, status_line=True)
 
 
 def _make_shell(slug):
@@ -159,7 +159,7 @@ def start(request):
          "Prices are fetched every night and with Update Prices. For an investment without a price source, open it and type today's price."),
     ]
     return page(request, "investments/start.html", {"page_title_text": "Getting started", "steps": steps,
-                                                    "all_done": all(done for _l, done, _u, _h in steps)})
+                                                    "all_done": all(done for _l, done, _u, _h in steps)}, selectors=False, status_line=True)
 
 
 def _has_profile_investments(profile):

@@ -486,7 +486,7 @@ def investment_edit(request, pk):
             else:
                 messages.success(request, "Saved." if changed else "Nothing to change.")
                 return redirect(reverse("investments_investment", args=[pk]))
-    return page(request, "investments/investment_edit.html", {"page_title_text": f"Edit {inst.name}", "inst": inst, "form": form})
+    return page(request, "investments/investment_edit.html", {"page_title_text": f"Edit {inst.name}", "inst": inst, "form": form}, selectors=False, status_line=True)
 
 
 @inv_editor

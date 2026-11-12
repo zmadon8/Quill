@@ -277,7 +277,7 @@ def txn_form(request, mode):
         "page_title_text": titles[mode], "form": form, "mode": mode, "is_sell": mode in ("sell", "awaiting_sell"),
         "awaiting_mode": mode.startswith("awaiting"), "submit_label": "Save", "extra_forms": extra,
         "row_template": forms.TransactionForm(profile=profile, mode=mode, prefix="x__i__"), "extra_ids": ",".join(str(r.index) for r in extra),
-    }))
+    }), selectors=False, status_line=True)
 
 
 @inv_editor
@@ -323,7 +323,7 @@ def txn_edit(request, pk):
         "page_title_text": "Edit transaction", "form": form, "mode": mode_for_form, "is_sell": txn.side == SIDE_SELL,
         "awaiting_mode": awaiting, "txn": txn, "submit_label": "Save changes", "version": txn.version,
         "exclude_id": txn.pk, "can_delete": True,
-    }))
+    }), selectors=False, status_line=True)
 
 
 @inv_editor
@@ -408,7 +408,7 @@ def to_complete(request):
         t.suggest = tx.nav_suggestions(profile, t, limit=1)[0] if t.status == STATUS_AWAITING and tx.nav_suggestions(profile, t, limit=1) else None
         rows.append(t)
     return page(request, "investments/to_complete.html", {"page_title_text": "To complete", "rows": rows,
-                                                           "reminder_days": settings_row.awaiting_reminder_days})
+                                                           "reminder_days": settings_row.awaiting_reminder_days}, selectors=False, status_line=True)
 
 
 # ------------------------------------------------------------------ opening balance, transfer, switch
@@ -454,7 +454,7 @@ def txn_opening(request):
         form.add_error(None, message)
     return page(request, "investments/txn_opening.html", _form_context(profile, {
         "page_title_text": "Opening balance", "form": form, "row_numbers": range(rows),
-        "posted": request.POST if request.method == "POST" else {}}))
+        "posted": request.POST if request.method == "POST" else {}}), selectors=False, status_line=True)
 
 
 @inv_editor
@@ -476,7 +476,7 @@ def txn_transfer(request):
             messages.success(request, "Transfer saved.")
             return redirect(reverse("investments_transactions"))
     return page(request, "investments/txn_simple_form.html", _form_context(profile, {
-        "page_title_text": "Transfer", "form": form, "intro": "Move units from one portfolio, broker or folio to another. The original purchase dates and cost are kept."}))
+        "page_title_text": "Transfer", "form": form, "intro": "Move units from one portfolio, broker or folio to another. The original purchase dates and cost are kept."}), selectors=False, status_line=True)
 
 
 @inv_editor
@@ -497,7 +497,7 @@ def txn_switch(request):
             messages.success(request, "Switch saved as a linked sale and purchase.")
             return redirect(reverse("investments_transactions"))
     return page(request, "investments/txn_simple_form.html", _form_context(profile, {
-        "page_title_text": "Fund switch", "form": form, "intro": "A switch is a sale of one fund and a purchase of another on the same day, linked."}))
+        "page_title_text": "Fund switch", "form": form, "intro": "A switch is a sale of one fund and a purchase of another on the same day, linked."}), selectors=False, status_line=True)
 
 
 @inv_editor

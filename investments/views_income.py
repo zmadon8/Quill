@@ -134,7 +134,7 @@ def corporate_actions(request):
     return page(request, "investments/corporate_actions.html", {
         "page_title_text": "Corporate actions", "rows": corporate.for_profile(profile), "pending": corporate.pending(profile), "form": form,
         "moves": corporate.large_moves_without_action(profile), "mode": core.get_settings(profile, create=False).corporate_action_mode,
-        "unit_choices": forms.CHOICES_FOR_UNITS})
+        "unit_choices": forms.CHOICES_FOR_UNITS}, selectors=False, status_line=True)
 
 
 @inv_editor
@@ -202,7 +202,7 @@ def alerts_page(request):
     return page(request, "investments/alerts.html", {
         "page_title_text": "Alerts and guardrails", "alerts": alerts.visible(profile), "guardrails": Guardrail.objects.filter(profile=profile).select_related("instrument", "portfolio"),
         "gform": gform, "settings_row": core.get_settings(profile, create=False), "next_week": date.today() + timedelta(days=7),
-        "format_problems": source_formats.problems(), "is_admin": bool(getattr(request.user, "is_admin", False))})
+        "format_problems": source_formats.problems(), "is_admin": bool(getattr(request.user, "is_admin", False))}, selectors=False, status_line=True)
 
 
 @inv_read_write

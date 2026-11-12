@@ -275,7 +275,7 @@ def reports_index(request):
     from .services.reports import REPORTS
 
     profile_or_404(request)
-    return page(request, "investments/reports.html", {"page_title_text": "Other reports", "reports": [(slug, label) for slug, (_fn, label) in REPORTS.items()]})
+    return page(request, "investments/reports.html", {"page_title_text": "Other reports", "reports": [(slug, label) for slug, (_fn, label) in REPORTS.items()]}, selectors=False, status_line=True)
 
 
 @inv_reader
