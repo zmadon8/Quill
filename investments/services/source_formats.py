@@ -224,7 +224,9 @@ def stored_config(key):
     try:
         with transaction.atomic():                       # a savepoint: a failed query must not poison the caller's transaction
             return dict(DataSourceFormat.objects.filter(key=key).values_list("config", flat=True).first() or {})
-    except (DatabaseError, AssertionError) as exc:       # AssertionError: a pure unit test (SimpleTestCase) forbids database access
+    except (DatabaseError, AssertionError) as exc:
+        if isinstance(exc, AssertionError) and "Database queries" not in str(exc):
+            raise                                        # only the test-only refusal (SimpleTestCase forbids queries) is tolerated
         if not isinstance(exc, AssertionError):
             log.warning("Stored format of %s could not be read (%s); the built-in format is used for this call.", key, exc)
         return {}
@@ -573,8 +575,8 @@ def clear_failure(source, trigger="cron"):
 
 def problems():
     """The format problems still standing: ``[{key, label, source, name, error, when}]``. A failure that names a format stands until a LATER run
-    of the same source did work (it tried at least one investment, or it is the marker of a list read that worked) without that format
-    failing again. A run that tried nothing (no investment selected, or nothing due) does not hide it."""
+    of the same source read THAT format (``SourceRun.formats``, or it is the marker of a list read that worked) without it failing again.
+    A run that never used the format does not hide it."""
     from investments.models import SourceRun
 
     out, cleared = [], set()
@@ -584,8 +586,8 @@ def problems():
             key = item.get("fmt")
             if key in DEFAULTS and (run.source, key) not in cleared:
                 out.append({"key": key, "label": LABELS[key][0], "source": run.source, "name": item.get("name", ""), "error": item.get("error", ""), "when": run.finished})
-        if run.tried > 0 or run.message == CLEARED:
-            cleared.update((run.source, k) for k in DEFAULTS if k not in failed)
+        read = {k for k, label in LABELS.items() if label[1] == run.source} if run.message == CLEARED else set(run.formats or [])
+        cleared.update((run.source, k) for k in read if k not in failed)
         for key in failed:
             if key in DEFAULTS:
                 cleared.add((run.source, key))        # the newest run for this key decides; older failures of it are not repeated

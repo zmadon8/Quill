@@ -370,6 +370,19 @@ class VisibleFailureTests(InvTestCase):
         SourceRun.objects.create(source="amfi", trigger="manual", started=now, finished=now, tried=0)
         self.assertEqual([p["key"] for p in sf.problems()], ["amfi"])
         SourceRun.objects.create(source="amfi", trigger="manual", started=now, finished=now, tried=3)
+        self.assertEqual([p["key"] for p in sf.problems()], ["amfi"])       # tried something, but never read the AMFI file
+        SourceRun.objects.create(source="amfi", trigger="manual", started=now, finished=now, tried=3, formats=["amfi"])
+        self.assertEqual(sf.problems(), [])
+
+    def test_a_run_that_read_another_format_of_the_source_keeps_the_alert(self):
+        from django.utils import timezone
+
+        now = timezone.now()
+        SourceRun.objects.create(source="bhavcopy", trigger="cron", started=now, finished=now, tried=2,
+                                 failures=[{"id": 0, "name": "NSE bhavcopy", "error": "no close column", "fmt": "nse_eq"}], formats=["bse_eq"])
+        SourceRun.objects.create(source="bhavcopy", trigger="cron", started=now, finished=now, tried=2, formats=["bse_eq"])
+        self.assertEqual([p["key"] for p in sf.problems()], ["nse_eq"])
+        SourceRun.objects.create(source="bhavcopy", trigger="cron", started=now, finished=now, tried=2, formats=["nse_eq", "bse_eq"])
         self.assertEqual(sf.problems(), [])
 
     def test_nse_list_and_scheme_list_failures_are_recorded_and_cleared(self):
@@ -555,6 +568,33 @@ class PublicAddressGuardTests(SimpleTestCase):
 
     def test_public_address_passes(self):
         self.check("https://x.example/f", ["93.184.216.34"])
+
+    def test_connection_to_a_private_peer_is_refused_and_closed(self):
+        class Conn:
+            host, closed = "x.example", False
+
+            class sock:
+                @staticmethod
+                def getpeername():
+                    return ("10.0.0.1", 443)
+
+            def close(self):
+                self.closed = True
+
+        conn = Conn()
+        with self.assertRaises(FetchError):
+            http._check_peer(conn)
+        self.assertTrue(conn.closed)
+        conn.sock = mock.Mock(getpeername=lambda: ("93.184.216.34", 443))
+        http._check_peer(conn)
+
+    def test_only_the_database_refusal_of_a_unit_test_is_tolerated(self):
+        with mock.patch("django.db.transaction.atomic"), mock.patch("investments.models.DataSourceFormat.objects") as objects:
+            objects.filter.side_effect = AssertionError("Database queries to 'default' are not allowed in SimpleTestCase")
+            self.assertEqual(sf.stored_config("amfi"), {})
+            objects.filter.side_effect = AssertionError("a real bug")
+            with self.assertRaises(AssertionError):
+                sf.stored_config("amfi")
 
     def test_redirect_to_a_private_host_is_refused(self):
         handler = http._GuardedRedirect()
