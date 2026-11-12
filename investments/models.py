@@ -460,8 +460,8 @@ class PinnedPrice(models.Model):
 class PriceHistorySettings(models.Model):
     """One row, suite-wide (prices are shared): pruning and archive switches (plan 17.3). In the suite backup."""
 
-    prune_live = models.BooleanField(default=False)
-    prune_archive = models.BooleanField(default=False)
+    prune_live = models.BooleanField(default=True)
+    prune_archive = models.BooleanField(default=True)
     years_kept = models.PositiveSmallIntegerField(default=5)
     full_archive_confirmed = models.BooleanField(default=False)
     last_archive_at = models.DateTimeField(null=True, blank=True)

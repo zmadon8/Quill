@@ -1,9 +1,11 @@
-"""Pruning of old daily prices (plan 17.3): optional, Admin only, off by default.
+"""Pruning of old daily prices (plan 17.3): automatic, on by default, with the cutoff 5 years back; an Admin can change or switch it off.
 
-Daily prices older than the cutoff become one figure per month, the last trading day of the month, for every instrument and every
-source. Pinned prices are never touched. Safeguards: a preview first; a full archive must be downloaded and confirmed the first time;
-`prune_prices` declines any instrument for which a required pin is missing; it runs only after a good backup (last link of the cron
-`&&` chain, and it checks today's backup itself); deletes are done in chunks of about 5,000 with a time limit.
+Daily prices older than the cutoff become one figure per month, the last trading day of the month, for every instrument and index and
+every source. Pinned prices are never touched (they live in their own table, and a stored price on a pinned date is kept too).
+Safeguards: a preview on the Admin page; `prune_prices` declines any instrument for which a required pin is missing; it runs only after
+a good backup (last link of the cron `&&` chain, and it checks today's backup itself); deletes are done in chunks of about 5,000 with a
+time limit. The first-run "download a full archive and tick that you keep it" confirmation was dropped for the automatic mode: pruning is
+the requested default, the nightly backup runs first, and the full archive stays one click away on the Admin page.
 """
 import time
 from datetime import date
@@ -12,7 +14,7 @@ from django.db.models import Max
 from django.utils import timezone
 
 from investments.errors import InvestmentsError
-from investments.models import Price, PriceHistorySettings, PriceMaintenanceLog
+from investments.models import PinnedPrice, Price, PriceHistorySettings, PriceMaintenanceLog
 from investments.services import pins
 
 CHUNK = 5000
@@ -57,14 +59,10 @@ def preview(years=None, today=None):
 
 
 def configure(user, *, prune_live, prune_archive, years, full_archive_confirmed=False):
-    """Change the switches. Turning pruning on for the first time needs the "I downloaded a full archive and keep it" tick."""
+    """Change the switches. No confirmation is needed to turn pruning on (it is on by default); the tick is only recorded."""
     if years < MIN_YEARS:
         raise InvestmentsError("BAD_NUMBER", f"Keep at least {MIN_YEARS} years in full daily detail (alerts, the 52-week range and short charts need it).")
     cfg = get_settings()
-    turning_on = (prune_live and not cfg.prune_live) or (prune_archive and not cfg.prune_archive)
-    if turning_on and not (cfg.full_archive_confirmed or full_archive_confirmed):
-        raise InvestmentsError("ARCHIVE_FIRST", "Download a full (unpruned) price archive first and tick the box to say you are keeping it. "
-                               "Pruning cannot be undone from inside the program.", 409)
     cfg.prune_live = bool(prune_live)
     cfg.prune_archive = bool(prune_archive or prune_live)     # if the live database is pruned the archive necessarily is too
     cfg.years_kept = years
@@ -100,6 +98,7 @@ def prune_prices(*, today=None, max_seconds=300, clock=time.monotonic, require_b
         if iid in blocked:
             continue
         keep = {d for (_i, d) in keepers(before, iid)}
+        keep |= set(PinnedPrice.objects.filter(instrument_id=iid).values_list("trading_date", flat=True))     # a pinned day is never thinned
         doomed = list(Price.objects.filter(instrument_id=iid, date__lt=before).exclude(date__in=keep).values_list("pk", flat=True))
         for start in range(0, len(doomed), CHUNK):
             Price.objects.filter(pk__in=doomed[start:start + CHUNK]).delete()

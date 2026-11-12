@@ -100,6 +100,17 @@ class HttpRulesTests(TestCase):
         p1 = int(url.split("period1=")[1].split("&")[0])
         self.assertEqual(datetime.fromtimestamp(p1, tz=timezone.utc).date(), d(2026, 10, 28))
 
+    def test_without_a_since_date_the_whole_history_is_asked_for(self):
+        self.net.add("chart", fixture("yahoo_chart_reliance.json"))
+        yahoo.fetch("^NSEI", today=d(2026, 11, 9))
+        self.assertEqual(int(self.net.calls[0].split("period1=")[1].split("&")[0]), 0)
+
+    def test_an_explicit_years_still_limits_the_request(self):
+        self.net.add("chart", fixture("yahoo_chart_reliance.json"))
+        yahoo.fetch("^NSEI", years=10, today=d(2026, 11, 9))
+        p1 = int(self.net.calls[0].split("period1=")[1].split("&")[0])
+        self.assertEqual(datetime.fromtimestamp(p1, tz=timezone.utc).date(), d(2026, 11, 9) - timedelta(days=3650))
+
     def test_search(self):
         self.net.add("search", fixture("yahoo_search.json"))
         hits = yahoo.search("reliance")

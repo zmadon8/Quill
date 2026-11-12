@@ -139,17 +139,40 @@ class PruningTests(PinBase):
         expected = sum(1 for n in range((d(2026, 11, 1) - d(2024, 11, 9)).days) if (d(2024, 11, 9) + timedelta(days=n)).weekday() < 5)
         self.assertEqual(Price.objects.filter(instrument=self.nifty, date__gte=d(2024, 11, 9)).count(), expected)
 
-    def test_first_activation_needs_the_full_archive_tick_and_two_years_minimum(self):
-        with self.assertRaises(InvestmentsError) as cm:
-            pruning.configure(self.user, prune_live=True, prune_archive=False, years=5)
-        self.assertEqual(cm.exception.code, "ARCHIVE_FIRST")
-        with self.assertRaises(InvestmentsError):
-            pruning.configure(self.user, prune_live=True, prune_archive=False, years=1, full_archive_confirmed=True)
-        cfg = pruning.configure(self.user, prune_live=True, prune_archive=False, years=5, full_archive_confirmed=True)
+    def test_on_by_default_with_five_years_and_no_archive_confirmation_needed(self):
+        cfg = pruning.get_settings()
+        self.assertEqual((cfg.prune_live, cfg.prune_archive, cfg.years_kept), (True, True, 5))
+        pruning.configure(self.user, prune_live=False, prune_archive=False, years=5)
+        cfg = pruning.configure(self.user, prune_live=True, prune_archive=False, years=5)          # no tick asked for
         self.assertTrue(cfg.prune_archive)                # a pruned live database necessarily gives a pruned archive
+        with self.assertRaises(InvestmentsError):
+            pruning.configure(self.user, prune_live=True, prune_archive=False, years=1)
 
-    def test_off_by_default_and_switching_off_deletes_nothing(self):
+    def test_default_cutoff_is_five_years_and_keeps_the_last_day_of_each_month_before_it(self):
+        with mock.patch("accounts.purge.todays_backup_ok", return_value=True):
+            status, removed = pruning.prune_prices(today=self.today)
+        self.assertEqual(status, "done")
+        self.assertGreater(removed, 0)
+        cutoff = d(2021, 11, 9)
+        for inst in (self.nifty, self.reliance):
+            old = list(Price.objects.filter(instrument=inst, date__lt=cutoff).values_list("date", flat=True))
+            self.assertEqual(len(old), len({(x.year, x.month) for x in old}))
+            self.assertIn(d(2021, 10, 29), old)
+            self.assertGreater(Price.objects.filter(instrument=inst, date__gte=cutoff).count(), 1000)
+
+    def test_a_pinned_day_is_kept_even_when_it_is_not_a_month_end(self):
+        PinnedPrice.objects.create(instrument=self.nifty, asked_date=d(2021, 6, 15), trading_date=d(2021, 6, 15), close=D(10000), basis="split_adjusted",
+                                   source="api", reason="transaction")
+        self.assertTrue(Price.objects.filter(instrument=self.nifty, date=d(2021, 6, 15)).exists())
+        with mock.patch("accounts.purge.todays_backup_ok", return_value=True), mock.patch.object(pins, "blocked_instrument_ids", return_value=set()):
+            pruning.prune_prices(today=self.today)
+        self.assertTrue(Price.objects.filter(instrument=self.nifty, date=d(2021, 6, 15)).exists())
+        self.assertFalse(Price.objects.filter(instrument=self.nifty, date=d(2021, 6, 14)).exists())
+        self.assertEqual(PinnedPrice.objects.count(), 1)
+
+    def test_switching_off_deletes_nothing(self):
         n = Price.objects.count()
+        pruning.configure(self.user, prune_live=False, prune_archive=False, years=5)
         self.assertEqual(pruning.prune_prices(today=self.today), ("off", 0))
         self.enable()
         pruning.configure(self.user, prune_live=False, prune_archive=False, years=2)
@@ -353,11 +376,12 @@ class PageTests(PinBase):
         from django.urls import reverse
         r = self.client.get(reverse("investments_admin_price_history"))
         self.assertContains(r, "Pinned prices")
-        r = self.client.post(reverse("investments_admin_price_history"), {"action": "settings", "prune_live": "on", "years": "5"})
-        self.assertContains(r, "Download a full (unpruned) price archive first")
-        self.assertFalse(PriceHistorySettings.objects.filter(prune_live=True).exists())
-        r = self.client.post(reverse("investments_admin_price_history"), {"action": "settings", "prune_live": "on", "years": "5", "archive_confirmed": "on"})
+        self.assertTrue(pruning.get_settings().prune_live)
+        r = self.client.post(reverse("investments_admin_price_history"), {"action": "settings", "years": "5"})
         self.assertEqual(r.status_code, 302)
+        self.assertFalse(PriceHistorySettings.objects.get().prune_live)
+        r = self.client.post(reverse("investments_admin_price_history"), {"action": "settings", "prune_live": "on", "years": "5"})
+        self.assertEqual(r.status_code, 302)           # switching it back on needs no archive tick
         self.assertTrue(PriceHistorySettings.objects.get().prune_live)
 
     def test_archive_download_streams_a_zip_and_leaves_no_file(self):
@@ -371,6 +395,9 @@ class PageTests(PinBase):
 
     def test_commands_exit_zero_when_off_and_when_declining(self):
         out = io.StringIO()
+        call_command("prune_prices", stdout=out)
+        self.assertIn("declined", out.getvalue())          # on by default, but no backup today
+        pruning.configure(self.user, prune_live=False, prune_archive=False, years=5)
         call_command("prune_prices", stdout=out)
         self.assertIn("off", out.getvalue())
         call_command("pin_prices", stdout=out)

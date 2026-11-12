@@ -183,10 +183,10 @@ def first_api_date(instrument):
     return Price.objects.filter(instrument=instrument).order_by("date").values_list("date", flat=True).first()
 
 
-def refetch_full(instrument, years=10, today=None, start=None):
+def refetch_full(instrument, years=None, today=None, start=None):
     """Re-fetch a split-adjusted instrument's whole history and replace its fetched rows (the vendor restates the past after a split;
     plan 16.2). Uploaded rows are kept and counted so the person can be told they need re-uploading on the new basis.
-    ``start`` (the window's start) limits the new history to the first purchase instead of ``years`` back; with none given the window is worked out."""
+    ``start`` (the window's start) limits the new history to the first purchase instead of ``years`` back (None: all the history the source has); with none given the window is worked out."""
     uploads = Price.objects.filter(instrument=instrument, source="upload").count()
     window = None
     if start is None:
@@ -238,7 +238,7 @@ def _record_splits(instrument, result, today, years, failures, window=None):
                 failures.append({"id": instrument.pk, "name": instrument.name, "error": f"split re-fetch: {exc}"})
 
 
-def fetch_prices(*, ids=None, profile=None, trigger="cron", max_seconds=600, max_symbols=200, spacing=1.0, today=None, years=10, clock=time.monotonic,
+def fetch_prices(*, ids=None, profile=None, trigger="cron", max_seconds=600, max_symbols=200, spacing=1.0, today=None, years=None, clock=time.monotonic,
                  rng=random.random):
     """Fetch new prices for the tracked instruments. Returns a summary dict (also stored as ``SourceRun`` rows)."""
     today = today or date.today()

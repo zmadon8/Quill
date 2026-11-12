@@ -16,7 +16,7 @@ class Command(BaseCommand):
         parser.add_argument("--max-seconds", type=int, default=600, help="Total run-time cap (default 600).")
         parser.add_argument("--max-symbols", type=int, default=200, help="Most symbols in one run (default 200).")
         parser.add_argument("--spacing", type=float, default=1.0, help="Seconds between requests (default 1).")
-        parser.add_argument("--years", type=int, default=10, help="History to fetch for a new investment (default 10 years).")
+        parser.add_argument("--years", type=int, default=None, help="Years of history to fetch for a new investment (default: all the source has, from the first purchase).")
 
     def handle(self, *args, **options):
         from django.conf import settings

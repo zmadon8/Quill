@@ -440,7 +440,7 @@ class PruningForm(forms.Form):
     prune_live = forms.BooleanField(required=False, label="Prune the live database")
     prune_archive = forms.BooleanField(required=False, label="Prune the price archive")
     years = forms.IntegerField(min_value=2, max_value=50, label="Years kept in full daily detail")
-    archive_confirmed = forms.BooleanField(required=False, label="I have downloaded a full price archive and I am keeping it")
+    archive_confirmed = forms.BooleanField(required=False, label="I have downloaded a full price archive and I am keeping it (optional note)")
 
 
 class DividendForm(ProfileForm):
