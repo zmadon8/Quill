@@ -343,9 +343,13 @@ class PriceWindowTests(InvTestCase):
         # a purchase back-dated before the stored history reaches back to the window start
         self.assertEqual(fetch.fetch_from(window, d(2026, 11, 12), d(2026, 11, 12)), d(2026, 11, 3))
         self.assertEqual(fetch.fetch_from(window, d(2026, 11, 12), d(2026, 11, 5)), d(2026, 11, 12))
-        # history thinned by pruning (oldest price older than the pruning floor) is not back-filled every night
+        # history thinned by pruning (oldest price before the floor, window opens in its month) is not back-filled every night
         self.assertEqual(fetch.fetch_from(window, d(2026, 11, 12), d(2026, 11, 12), floor=d(2026, 11, 1)), d(2026, 11, 3))
         self.assertEqual(fetch.fetch_from(window, d(2026, 11, 12), d(2026, 11, 12), floor=d(2026, 11, 30)), d(2026, 11, 12))
+        # a purchase back-dated two years before a pruned history is still back-filled
+        early = (d(2012, 3, 10), d(2026, 11, 12))
+        self.assertEqual(fetch.fetch_from(early, d(2026, 11, 12), d(2014, 5, 30), floor=d(2021, 11, 1)), d(2012, 3, 3))
+        self.assertEqual(fetch.fetch_from((d(2014, 5, 10), d(2026, 11, 12)), d(2026, 11, 12), d(2014, 5, 30), floor=d(2021, 11, 1)), d(2026, 11, 12))
         self.assertTrue(Price.objects.filter(instrument=self.reliance, date=d(2020, 1, 1)).exists())
 
 

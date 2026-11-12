@@ -52,9 +52,12 @@ def preview(years=None, today=None):
     old = Price.objects.filter(date__lt=before)
     old_count = old.count()
     month_ends = keepers(before)
-    pinned = set(PinnedPrice.objects.values_list("instrument_id", "trading_date"))
-    pinned_kept = Price.objects.filter(date__lt=before).values_list("instrument_id", "date")
-    kept = len(month_ends | {pair for pair in pinned_kept if pair in pinned})
+    pinned = set(PinnedPrice.objects.filter(trading_date__lt=before).values_list("instrument_id", "trading_date"))
+    pinned_kept = set()
+    for inst_id, day in pinned:
+        if Price.objects.filter(instrument_id=inst_id, date=day).exists():
+            pinned_kept.add((inst_id, day))
+    kept = len(month_ends | pinned_kept)
     total = Price.objects.count()
     first = old.order_by("date").values_list("date", flat=True).first()
     remove = max(0, old_count - kept)

@@ -143,13 +143,16 @@ def prune_floor(today=None):
 def fetch_from(window, since, oldest=None, floor=None):
     """The date to ask a source from: the day after what is stored, but never before the window opens (None: no limit, the default years).
     When the window opens more than ``WINDOW_LEAD_DAYS`` before the oldest stored price (a purchase back-dated before the history),
-    the request goes back to the window's start to fill the older prices. ``floor`` (the pruning cutoff) stops that for history that pruning
+    the request goes back to the window's start to fill the older prices. ``floor`` (the pruning cutoff) stops that when the window opens in the month of an oldest price that pruning
     has thinned on purpose, so a pruned instrument is not downloaded again every night."""
     start = window[0] - timedelta(days=WINDOW_LEAD_DAYS) if window and window[0] else None
     if since is None:
         return start
-    if start and oldest and max(start, floor or start) < oldest - timedelta(days=WINDOW_LEAD_DAYS):
-        return start
+    if start and oldest and start < oldest - timedelta(days=WINDOW_LEAD_DAYS):
+        # thinned history keeps the last trading day of the window's first month, so only a window opening in an earlier month needs filling
+        thinned = floor and oldest < floor and (window[0].year, window[0].month) >= (oldest.year, oldest.month)
+        if not thinned:
+            return start
     return max(since, start) if start else since
 
 
