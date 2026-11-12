@@ -14,7 +14,7 @@ from .models import (
     KIND_ALTERNATIVE, AltValue, Folio, Instrument, InvestmentHistory, ManualPrice, Price, ProfileInvestment, Transaction,
     Transfer,
 )
-from .services import holdings, holdings_page, masters, prices
+from .services import fetch, holdings, holdings_page, masters, prices
 from .viewutil import handle_errors, page, profile_or_404, selection
 
 KIND_LABELS = dict((k, v) for k, v in forms.KIND_CHOICES)
@@ -275,6 +275,7 @@ def investment(request, pk):
         "is_private": inst.profile_id is not None,
         "dividends": __import__("investments.models", fromlist=["Dividend"]).Dividend.objects.filter(profile=profile, instrument=inst).select_related("broker")[:50],
         "actions": [a for a in __import__("investments.services.corporate", fromlist=["for_profile"]).for_profile(profile) if a.instrument_id == inst.pk],
+        "can_refresh": inst.kind != KIND_ALTERNATIVE and bool(fetch.tracked_instruments(profile, ids=[inst.pk])),
         "can_delete": (not any(counts.values())) or getattr(request.user, "is_admin", False),
     }
     if inst.profile_id is None and inst.kind != KIND_ALTERNATIVE:

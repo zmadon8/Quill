@@ -129,6 +129,14 @@ class PageTests(InvTestCase):
         self.assertContains(r, "Zerodha")
         self.assertContains(r, "Purchase by purchase")
 
+    def test_investment_page_has_refresh_price_and_edit_buttons(self):
+        r = self.client.get(reverse("investments_investment", args=[self.reliance.pk]))
+        self.assertContains(r, 'id="refresh-price"')
+        self.assertContains(r, f'data-instrument="{self.reliance.pk}"')
+        self.assertContains(r, 'class="btn q" href="' + reverse("investments_admin_catalogue_item", args=[self.reliance.pk]) + '">Edit</a>')
+        fd = masters.create_instrument(self.profile, self.user, kind="alternative", name="PPF - Ziyad", asset_class="debt")
+        self.assertNotContains(self.client.get(reverse("investments_investment", args=[fd.pk])), 'id="refresh-price"')
+
     def test_alternative_investment_page_takes_dated_values(self):
         fd = masters.create_instrument(self.profile, self.user, kind="alternative", name="PPF - Ziyad", asset_class="debt")
         r = self.post("investments_investment_altvalue", {"date": "2024-03-31", "total_value": "7,85,000"}, [fd.pk])
