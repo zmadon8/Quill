@@ -10,6 +10,22 @@ log = logging.getLogger(__name__)
 RETRY_AFTER_SECONDS = 15 * 60   # after a failed fetch of an empty list, do not try again for this long
 
 
+LOOKUP_KEY = "lookup"   # the SourceSetting row that holds the switch; its fetch_mode is "off" when the lookup is switched off
+
+
+def lookup_enabled():
+    """Admin-wide: is searching and downloading the NSE and AMFI lists on? On unless an Admin switched it off."""
+    from investments.models import SourceSetting
+
+    return SourceSetting.objects.filter(source=LOOKUP_KEY).values_list("fetch_mode", flat=True).first() != "off"
+
+
+def set_lookup_enabled(on):
+    from investments.models import SourceSetting
+
+    SourceSetting.objects.update_or_create(source=LOOKUP_KEY, defaults={"fetch_mode": "server" if on else "off"})
+
+
 def _existing(profile, codes, isins):
     """``{code: id}`` and ``{isin: id}`` of the shared (and the profile's own) investments matching, in two queries at most."""
     by_code, by_isin = {}, {}
@@ -33,6 +49,8 @@ def search(profile, query, kind=None, limit=30):
     q = (query or "").strip()
     message = ""
     found = []
+    if not lookup_enabled():
+        return {"results": [], "message": "Lookup is switched off"}
     if len(q) >= 2:
         if kind in (None, "", "share"):
             rows = nse_list.find(q, limit)

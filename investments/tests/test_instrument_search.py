@@ -121,7 +121,7 @@ class SearchTests(FakeNetCase):
 
     def test_constant_query_count(self):
         self.seed()
-        with self.assertNumQueries(3):
+        with self.assertNumQueries(4):   # the lookup switch, then the lists
             instrument_search.search(self.profile, "reliance")
 
     def test_network_failure_gives_a_message(self):

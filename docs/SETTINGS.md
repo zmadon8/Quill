@@ -24,7 +24,7 @@ page. The Fee Register Opening page and Items per page are personal only (no pro
 | Start Screens | When I open the site, one section per program | Open after login (`landing_program`), Case Law Diary opening page and Subject, Fee Register Opening page, Investments start page | Everyone, a program's section only if the user can open it |
 | Case Law Diary | Reading, My Number Formats, Data | View whole subject, My number formats and date in file names and Remove citation hyphen (Only you), Export file name, Word import, Offline link | A user with a Case Law Diary profile |
 | Fee Register | Memos, Payments, Word Documents, Years And Statistics, Display, Data | Every profile setting, plus My items per page (Only you, in Display) | A user with a Fee Register profile |
-| Investments | General, Brokers, Alerts, Display, Insights, Indices | Every profile setting, plus Investments period for returns (Only you, in Display) | A user with an Investments profile |
+| Investments | General, Brokers, Alerts, Display, Insights, Indices | Every profile setting, plus Investments period for returns (Only you, in Display), and in General the site-wide lookup switch (Admin) | A user with an Investments profile |
 
 The Investments **Catalogue** (the shared catalogue, Price history and Price sources) is a page of Investments itself, not a
 settings tab. Its old addresses under `/investments/settings/` redirect (308) to `/investments/catalogue/...`.
@@ -343,5 +343,7 @@ An alternative investment can carry an interest rate and an interest type (add i
 ## Searching the NSE and AMFI lists when adding an investment
 
 The Add investment page (Admins and Editors alike) searches two stored lists as you type: NSE's list of listed equities (`NseSecurity`, from `EQUITY_L.csv`) and AMFI's scheme list (`AmfiScheme`, from `NAVAll.txt`). Both are shared, not backed up, and refreshed at most once a week by the nightly price job; a failed refresh is listed on Price sources and never stops the job. If a list is empty when someone searches, it is fetched once then. Choosing a result fills the name, code (NSE: `SYMBOL.NS`; AMFI: the scheme code) and ISIN, and saving stores only that investment. An investment already in the catalogue is offered instead of a copy. Without JavaScript the plain Search button still works.
+
+**Switch (Settings > Investments > General, Admin only, site-wide).** "Search the NSE and AMFI lists when adding an investment" is on by default. It is stored once for the whole site in the `SourceSetting` row `lookup` (`fetch_mode` `off` when switched off; no row means on), read through `instrument_search.lookup_enabled()`. Off: the Add investment page shows no picker (plain Search and manual entry remain), `holdings/add/search/` answers 403 "Lookup is switched off", the nightly job does not download the NSE list or the AMFI scheme list, and the first-search download does not happen. AMFI NAV price fetching for funds is a separate fetch and is unaffected. Who: Admin.
 
 The NSE address is the environment setting `INVESTMENTS_NSE_LIST_URL` (default `https://nsearchives.nseindia.com/content/equities/EQUITY_L.csv`); the AMFI address is `INVESTMENTS_AMFI_URL`.

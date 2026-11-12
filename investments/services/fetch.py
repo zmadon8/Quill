@@ -373,7 +373,9 @@ def fetch_prices(*, ids=None, profile=None, trigger="cron", max_seconds=600, max
                     failure["error"] += " (filled from bhavcopy)"
             SourceRun.objects.filter(pk=yahoo_run.pk).update(failures=yahoo_failures)
     # the list of fund schemes, once a week (plan 6)
-    if ids is None and not out_of_time():
+    from investments.services.instrument_search import lookup_enabled
+
+    if ids is None and not out_of_time() and lookup_enabled():   # off: neither list is downloaded (AMFI NAV prices are fetched above, separately)
         from investments.services import schemes
 
         try:
