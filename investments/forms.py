@@ -114,7 +114,9 @@ class TransactionForm(ProfileForm):
     corporate_action = forms.ModelChoiceField(queryset=CorporateAction.objects.none(), required=False, label="Corporate action (bonus, split or demerger)")
     price = MoneyField(label="Price per unit", required=False, min_value=0)
     charges = MoneyField(label="Charges", required=False, min_value=0, initial=0)
-    allotment_date = forms.DateField(widget=date_widget(), label="Allotment date", required=False)
+    allotment_date = forms.DateField(
+        widget=date_widget(), label="Allotment date", required=False,
+        help_text="When the units were credited to you, if later than Date. It starts the holding period and the order units are sold in. Leave blank if the same as Date.")
     amount = MoneyField(label="Amount paid", required=False, min_value=0)
     expected_allotment_date = forms.DateField(widget=date_widget(), label="Expected allotment date", required=False)
     reference = forms.CharField(label="Reference", required=False, max_length=80)
@@ -131,6 +133,8 @@ class TransactionForm(ProfileForm):
         awaiting = mode.startswith("awaiting")
         if mode == "sell":
             self.fields["date"].label = "Date sold"
+        elif mode in ("buy", "edit"):
+            self.fields["date"].help_text = "The date you placed and paid for the order (the trade date)."
         if awaiting:
             for name in ("units", "price", "allotment_date", "origin", "corporate_action"):
                 del self.fields[name]
@@ -154,6 +158,13 @@ class TransactionForm(ProfileForm):
         if mode in ("sell", "awaiting_sell", "edit_sell"):
             del self.fields["new_folio"]
             # A sale asks for the date, investment, where it was held, units and price; charges and a note sit under "More".
+            self.more_fields = tuple(n for n in ("charges", "note") if n in self.fields)
+            self.more_label = "Charges and note"
+        elif mode in ("buy", "edit"):
+            # A purchase asks for the date, investment, where it goes, units and price; the rest sits under "More".
+            self.more_fields = tuple(n for n in ("allotment_date", "charges", "folio", "new_folio", "origin", "corporate_action", "note") if n in self.fields)
+            self.more_label = "Allotment date, charges, folio and more"
+        elif awaiting:
             self.more_fields = tuple(n for n in ("charges", "note") if n in self.fields)
             self.more_label = "Charges and note"
         if mode.startswith("edit"):
@@ -187,6 +198,31 @@ class TransactionForm(ProfileForm):
             elif cleaned.get("price") is None:
                 cleaned["price"] = 0
         return cleaned
+
+
+class ExtraRowForm(ProfileForm):
+    """One more transaction added on the buy or sell page: the date, portfolio and broker are shared with the main form, so a row only
+    asks for the investment, the units and price (or the amount, when awaiting allotment) and any charges."""
+
+    instrument = forms.ModelChoiceField(queryset=Instrument.objects.none(), label="Investment")
+    units = MoneyField(label="Units", required=False, min_value=0)
+    price = MoneyField(label="Price per unit", required=False, min_value=0)
+    amount = MoneyField(label="Amount paid", required=False, min_value=0)
+    charges = MoneyField(label="Charges", required=False, min_value=0, initial=0)
+
+    def __init__(self, *args, profile=None, mode="buy", **kwargs):
+        super().__init__(*args, profile=profile, **kwargs)
+        self.fields["instrument"].queryset = self.instruments()
+        if mode.startswith("awaiting"):
+            del self.fields["units"]
+            del self.fields["price"]
+            self.fields["amount"].required = True
+            if mode == "awaiting_sell":
+                self.fields["amount"].label = "Expected proceeds"
+        else:
+            del self.fields["amount"]
+            self.fields["units"].required = True
+            self.fields["price"].required = True
 
 
 class CompleteForm(forms.Form):
@@ -274,12 +310,22 @@ class InstrumentForm(forms.Form):
     interest_type = forms.ChoiceField(choices=[("compound", "Compound interest (yearly)"), ("simple", "Simple interest")], initial="compound", required=False,
                                       label="Interest type")
     maturity_date = forms.DateField(widget=date_widget(), required=False, label="Maturity date (optional)")
+    taxed_as_interest = forms.BooleanField(required=False, label="Taxed as Interest",
+                                           help_text="Profit or loss on sales is reported as Interest Income, not Capital Gains")
 
     def clean_currency(self):
         return (self.cleaned_data.get("currency") or "INR").upper()
 
     def clean_interest_type(self):
         return self.cleaned_data.get("interest_type") or "compound"
+
+
+class OwnInstrumentForm(InstrumentForm):
+    """Edit an investment the profile owns (an alternative investment): the same fields and limits as adding one, without the kind."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        del self.fields["kind"]
 
 
 class PriceForm(forms.Form):
@@ -453,11 +499,12 @@ class CorporateActionForm(ProfileForm):
                                                help_text="Add the new company under Investments first if it is not listed.")
     cost_percent_to_target = forms.DecimalField(required=False, min_value=0, max_value=100, decimal_places=4, max_digits=7,
                                                 label="Demerger: percent of the cost that moves to the new company",
-                                                help_text="From the company's notice. Your CA should confirm it. The parent's shares keep the rest.")
+                                                help_text="From the company's notice. Your CA should confirm it. The parent's shares keep the rest. 0 leaves all the cost with the parent's shares; "
+                                                          "100 moves all of it. You can change it later.")
     notes = forms.CharField(required=False, max_length=300)
     apply_now = forms.BooleanField(required=False, initial=True, label="Apply it to this profile now")
     choice = forms.ChoiceField(choices=CHOICES_FOR_UNITS, required=False, initial="auto", label="Bonus or split: who adds the units?")
-    inherit_dates = forms.BooleanField(required=False, initial=True, label="Demerger: the new shares keep the parent shares' purchase dates")
+    inherit_dates = forms.BooleanField(required=False, initial=False, label="Demerger: the new shares keep the parent shares' purchase dates")
 
     def __init__(self, *args, profile=None, **kwargs):
         super().__init__(*args, profile=profile, **kwargs)
@@ -469,8 +516,33 @@ class CorporateActionForm(ProfileForm):
         if cleaned.get("kind") == "demerger":
             if not cleaned.get("target_instrument"):
                 self.add_error("target_instrument", "Choose the new company whose shares are received.")
-            if cleaned.get("cost_percent_to_target") in (None, 0):
-                self.add_error("cost_percent_to_target", "Enter the percentage of the cost that moves, more than 0 and up to 100.")
+            if cleaned.get("cost_percent_to_target") is None:
+                self.add_error("cost_percent_to_target", "Enter the percentage of the cost that moves, from 0 to 100.")
+        return cleaned
+
+
+class CorporateActionEditForm(CorporateActionForm):
+    """Change a recorded action: its date, ratio, notes and, for a demerger, the new company and the cost split. The investment and the kind stay."""
+
+    def __init__(self, *args, profile=None, action=None, **kwargs):
+        super().__init__(*args, profile=profile, **kwargs)
+        self.action = action
+        for name in ("instrument", "kind", "apply_now", "choice", "inherit_dates"):
+            del self.fields[name]
+        if action.kind != "demerger":
+            del self.fields["target_instrument"]
+            del self.fields["cost_percent_to_target"]
+        if action.kind == "other":
+            del self.fields["ratio_old"]
+            del self.fields["ratio_new"]
+
+    def clean(self):
+        cleaned = forms.Form.clean(self)
+        if self.action.kind == "demerger":
+            if not cleaned.get("target_instrument"):
+                self.add_error("target_instrument", "Choose the new company whose shares are received.")
+            if cleaned.get("cost_percent_to_target") is None:
+                self.add_error("cost_percent_to_target", "Enter the percentage of the cost that moves, from 0 to 100.")
         return cleaned
 
 

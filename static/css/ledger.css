@@ -201,7 +201,7 @@ body.ledger .inline-forms form.inline, body.ledger form.inline { display: inline
 body.ledger .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 /* ---- 13. Page-by-page additions ---- */
-body.ledger .table-tools { justify-content: flex-end; margin: 12px 0 8px; position: relative; z-index: 2; }
+body.ledger .table-tools { justify-content: flex-end; margin: 12px 0 8px; position: relative; z-index: 20; }
 body.ledger .ledger-table th[scope=rowgroup] { padding: 8px 12px; font-size: 1rem; font-weight: 600; letter-spacing: normal; text-transform: none; color: var(--ink); background: var(--paper); border-bottom: 0; white-space: nowrap; }
 body.ledger .ledger-table .subtotal :is(td, th) { border-top: 1px solid var(--ink); }
 body.ledger main dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; margin: 0; }
@@ -301,3 +301,8 @@ body.ledger .fees-form .field-row > label { flex: 1 1 16rem; margin: 0; }
 body.ledger .fees-form .field-row > label.narrow { flex: 0 1 12rem; }
 body.ledger .fees-form .field-row input[type=text] { width: 100%; max-width: none; }
 body.ledger .fees-form input[readonly][aria-disabled=true] { background: var(--paper-2); color: var(--muted); cursor: not-allowed; }
+
+/* Column menu stacking: the tools row is its own stacking context, so it must sit above the sticky table headings (z-index 2)
+   or the open Columns list is partly hidden behind the table. Also lift the heading row's buttons while the menu is open. */
+body.ledger .table-tools:has(.col-menu[open]), body.ledger .sec:has(.col-menu[open]) { position: relative; z-index: 40; }
+body.ledger .col-menu[open] { z-index: 40; }

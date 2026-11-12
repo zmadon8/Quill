@@ -9,7 +9,7 @@ from django.urls import reverse
 from . import forms
 from .decorators import inv_editor, inv_read_write, inv_reader
 from .errors import InvestmentsError
-from .models import Dividend, Guardrail, Instrument, Portfolio
+from .models import CorporateAction, Dividend, Guardrail, Instrument, Portfolio
 from .services import alerts, core, corporate, dividends, masters
 from .viewutil import handle_errors, page, parse_date, profile_or_404, selection
 
@@ -134,6 +134,36 @@ def corporate_actions(request):
         "page_title_text": "Corporate actions", "rows": corporate.for_profile(profile), "pending": corporate.pending(profile), "form": form,
         "moves": corporate.large_moves_without_action(profile), "mode": core.get_settings(profile, create=False).corporate_action_mode,
         "unit_choices": forms.CHOICES_FOR_UNITS})
+
+
+@inv_editor
+@handle_errors(fallback="investments_corporate_actions")
+def corporate_action_edit(request, pk):
+    """Change a recorded corporate action (date, ratio, and for a demerger the new company and cost split), also after it was applied."""
+    profile = profile_or_404(request)
+    action = CorporateAction.objects.filter(pk=pk, instrument_id__in=corporate.held_instrument_ids(profile)).select_related("instrument", "target_instrument").first()
+    if action is None:
+        raise Http404
+    initial = {"ex_date": action.ex_date, "ratio_old": action.ratio_old.normalize(), "ratio_new": action.ratio_new.normalize(), "notes": action.notes,
+               "target_instrument": action.target_instrument, "cost_percent_to_target": action.cost_percent_to_target}
+    form = forms.CorporateActionEditForm(request.POST or None, profile=profile, action=action, initial=initial)
+    if request.method == "POST" and form.is_valid():
+        d = form.cleaned_data
+        try:
+            corporate.update(profile, request.user, action.pk, ex_date=d["ex_date"], ratio_old=d.get("ratio_old") or action.ratio_old,
+                             ratio_new=d.get("ratio_new") or action.ratio_new, notes=d["notes"], target_instrument=d.get("target_instrument"),
+                             cost_percent_to_target=d.get("cost_percent_to_target"))
+        except InvestmentsError as err:
+            if err.code == "WOULD_GO_NEGATIVE":
+                from .views_txn import _refused
+
+                return _refused(request, err, reverse("investments_corporate_actions"))
+            form.add_error(None, err.message)
+        else:
+            messages.success(request, "Saved. Shares of the new company that the program made were made again from the new terms.")
+            return redirect(reverse("investments_corporate_actions"))
+    return page(request, "investments/corporate_action_form.html", {"page_title_text": "Edit corporate action", "form": form, "action": action},
+                selectors=False)
 
 
 # ------------------------------------------------------------------ alerts

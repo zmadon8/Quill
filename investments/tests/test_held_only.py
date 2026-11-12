@@ -136,3 +136,43 @@ class HeldOnlyTests(InvTestCase):
         self.assertContains(self.client.get(reverse("investments_report", args=["scoreboard"])), 'name="held" value="1" checked')
         self.assertNotContains(self.client.get(reverse("investments_report", args=["yearly"])), 'name="held"')
         self.assertNotContains(self.client.get(reverse("investments_report", args=["scoreboard"]) + "?hf=1"), 'name="held" value="1" checked')
+
+
+class MultiRowTransactionTests(InvTestCase):
+    """Extra rows on the buy page share the date, portfolio and broker and are saved together or not at all."""
+
+    def setUp(self):
+        super().setUp()
+        self.client.force_login(self.user)
+        self.base = {"date": "2024-01-01", "instrument": self.reliance.pk, "portfolio": self.portfolio.pk, "broker": self.zerodha.pk,
+                     "units": "10", "price": "100", "charges": "0", "extra_rows": "1,2",
+                     "x1-instrument": self.fund.pk, "x1-units": "5", "x1-price": "50", "x1-charges": "0",
+                     "x2-instrument": self.reliance.pk, "x2-units": "2", "x2-price": "110", "x2-charges": "0"}
+
+    def test_every_row_is_saved(self):
+        from investments.models import Transaction
+        r = self.client.post(reverse("investments_txn_new_buy"), self.base)
+        self.assertRedirects(r, reverse("investments_transactions"))
+        self.assertEqual(Transaction.objects.count(), 3)
+        self.assertEqual({t.broker_id for t in Transaction.objects.all()}, {self.zerodha.pk})
+
+    def test_one_bad_row_saves_nothing_and_shows_its_error(self):
+        from investments.models import Transaction
+        self.base["x2-price"] = ""
+        r = self.client.post(reverse("investments_txn_new_buy"), self.base)
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(Transaction.objects.count(), 0)
+        self.assertContains(r, 'name="x2-price"')
+        self.assertContains(r, "This field is required.")
+
+    def test_single_transaction_still_saves(self):
+        from investments.models import Transaction
+        self.base["extra_rows"] = ""
+        r = self.client.post(reverse("investments_txn_new_buy"), self.base)
+        self.assertRedirects(r, reverse("investments_transactions"))
+        self.assertEqual(Transaction.objects.count(), 1)
+
+    def test_buy_form_explains_date_and_allotment_date(self):
+        html = self.client.get(reverse("investments_txn_new_buy")).content.decode()
+        self.assertIn("trade date", html)
+        self.assertIn("starts the holding period", html)

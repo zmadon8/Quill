@@ -1,0 +1,9 @@
+{% extends "investments/base_investments.html" %}
+{% block inv_content %}
+<div class="page-head"><h1>{{ page_title_text }}</h1></div>
+<p class="hint">{{ action.instrument.name }}: {{ action.describe }}, ex-date {{ action.ex_date|date:"j M Y" }}.{% if action.kind == "demerger" %} Changing the cost percentage, the ratio, the date or the new company works out your lots again. Shares of the new company that the program made for you are made again from the new terms; shares you recorded or edited yourself are left as they are, so check them against the new terms.{% endif %}</p>
+<form method="post" class="form" novalidate>{% csrf_token %}
+  {% include "investments/_form.html" %}
+  <div class="acts-row"><button class="btn p" type="submit">Save</button><a class="btn q" href="{% url 'investments_corporate_actions' %}">Cancel</a></div>
+</form>
+{% endblock %}

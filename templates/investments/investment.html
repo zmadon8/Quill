@@ -6,7 +6,7 @@
   {% if pi.links %}<div class="sub">{% for l in pi.links %}<a href="{{ l.url }}" rel="noopener noreferrer" target="_blank">{{ l.label }}</a>{% if not forloop.last %} &middot; {% endif %}{% endfor %}</div>{% endif %}</div>
   <div class="acts">{% if can_edit %}<a class="btn p" href="{% url 'investments_txn_new_buy' %}?instrument={{ inst.pk }}">Buy</a><a class="btn q" href="{% url 'investments_txn_new_sell' %}?instrument={{ inst.pk }}">Sell</a>{% endif %}
     {% if can_edit and can_refresh %}<button type="button" class="btn q" id="refresh-price" data-url="{% url 'investments_update_prices' %}" data-instrument="{{ inst.pk }}">Refresh price</button><span class="hint" id="refresh-status" role="status" aria-live="polite"></span>{% endif %}
-    {% if inst.profile_id is None and user.is_admin %}<a class="btn q" href="{% url 'investments_admin_catalogue_item' inst.pk %}">Edit</a>{% endif %}</div></div>
+    {% if inst.profile_id is None and user.is_admin %}<a class="btn q" href="{% url 'investments_admin_catalogue_item' inst.pk %}">Edit</a>{% elif inst.profile_id is not None and can_edit %}<a class="btn q" href="{% url 'investments_investment_edit' inst.pk %}">Edit</a>{% endif %}</div></div>
 {% if h.provisional %}<div class="ban al" role="alert"><span><b>Split or bonus pending: figures may be wrong.</b> Confirm it or mark it not applicable.</span><span class="r"><a href="{% url 'investments_corporate_actions' %}">Corporate actions</a></span></div>{% endif %}
 {% if h.awaiting %}<div class="ban wa"><span><b>Awaiting allotment:</b> {{ h.awaiting|inr }} paid, units not known yet. Counted at cost.</span><span class="r"><a href="{% url 'investments_txn_to_confirm' %}">To complete</a></span></div>{% endif %}
 <div class="kvs">
@@ -18,6 +18,7 @@
   <div><div class="lab">Price</div><div class="v">{% if h.price %}{{ h.price|price }} <small>{{ h.price_date|date:"j M Y" }}</small>{% else %}&ndash;{% endif %}</div></div>
   <div><div class="lab">Cost held</div><div class="v">{{ h.cost_of_units|inr }}</div></div>
   <div><div class="lab">Realised gain</div><div class="v">{{ h.realised|inr_signed }}</div></div>
+  {% if inst.taxed_as_interest or h.interest_income %}<div><div class="lab">Interest income</div><div class="v">{{ h.interest_income|inr_signed }}</div></div>{% endif %}
   <div><div class="lab">Dividends received</div><div class="v">{{ h.dividends|inr }}</div></div>
 </div>
 
@@ -110,8 +111,9 @@
 <form method="post" action="{% url 'investments_investment_shared' inst.pk %}" class="row">{% csrf_token %}
   <div class="fld"><label>Name</label><input name="name" value="{{ inst.name }}"></div><div class="fld"><label>Code</label><input name="code" value="{{ inst.code }}"></div>
   <div class="fld"><label>ISIN</label><input name="isin" value="{{ inst.isin }}"></div><div class="fld"><label>Currency</label><input name="currency" value="{{ inst.currency }}" maxlength="3"></div>
+  <div class="fld"><label>Tax treatment</label><label><input type="hidden" name="taxed_marker" value="1"><input type="checkbox" name="taxed_as_interest" value="1"{% if inst.taxed_as_interest %} checked{% endif %}> Taxed as Interest (sale profit is Interest Income, not Capital Gains)</label></div>
   <div class="fld"><label>&nbsp;</label><button class="btn q" type="submit">Save shared details</button></div></form>
-{% else %}<dl class="kv"><dt>Name</dt><dd>{{ inst.name }}</dd><dt>Code</dt><dd>{{ inst.code|default:"none" }}</dd><dt>ISIN</dt><dd>{{ inst.isin|default:"none" }}</dd><dt>Currency</dt><dd>{{ inst.currency }}</dd><dt>Price source</dt><dd>{{ inst.get_price_source_display }}</dd></dl>{% endif %}
+{% else %}<dl class="kv"><dt>Name</dt><dd>{{ inst.name }}</dd><dt>Code</dt><dd>{{ inst.code|default:"none" }}</dd><dt>ISIN</dt><dd>{{ inst.isin|default:"none" }}</dd><dt>Currency</dt><dd>{{ inst.currency }}</dd>{% if inst.taxed_as_interest %}<dt>Tax treatment</dt><dd>Taxed as Interest</dd>{% endif %}<dt>Price source</dt><dd>{{ inst.get_price_source_display }}</dd></dl>{% endif %}
 
 {% if history %}<div class="sec"><h2>Recent changes</h2><a class="lk" href="{% url 'investments_history' %}?instrument={{ inst.pk }}">All history</a></div>
 <ul class="plain">{% for r in history %}<li>{{ r.changed_at|date:"j M Y, g:i a" }} &middot; {{ r.summary|default:r.get_change_kind_display }}</li>{% endfor %}</ul>{% endif %}

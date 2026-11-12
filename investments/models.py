@@ -80,6 +80,7 @@ class Instrument(models.Model):
     next_results_date = models.DateField(null=True, blank=True)
     expense_ratio = models.DecimalField(max_digits=6, decimal_places=3, null=True, blank=True, help_text="Mutual funds: total expense ratio %, entered by hand")
     maturity_date = models.DateField(null=True, blank=True)
+    taxed_as_interest = models.BooleanField(default=False, help_text="Profit or loss on sales is Interest Income, not Capital Gains")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -286,6 +287,7 @@ class Transaction(models.Model):
                               help_text="How the units came to be held: bought, bonus, split, received on a demerger, or at no cost")
     corporate_action = models.ForeignKey("CorporateAction", null=True, blank=True, on_delete=models.SET_NULL, related_name="+",
                                          help_text="The bonus, split or demerger these units belong to")
+    auto_created = models.BooleanField(default=False, help_text="Made by the program from a demerger and not edited since; editing the demerger replaces it")
     note = models.CharField(max_length=200, blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
@@ -605,8 +607,8 @@ class CorporateActionResponse(models.Model):
     method = models.CharField(max_length=12, default=METHOD_EVENTS,
                               choices=[(METHOD_EVENTS, "Automatic: the program adds the units"), (METHOD_TRANSACTIONS, "I record the units as transactions")])
     #: Demerger only: whether the new company's shares keep the purchase dates of the parent lots they came from (the holding period carries
-    #: over) or start on the date received. A tax judgement, so it is the person's (and the CA's) choice.
-    inherit_dates = models.BooleanField(default=True)
+    #: over) or start on the date received (the default). A tax judgement, so it is the person's (and the CA's) choice.
+    inherit_dates = models.BooleanField(default=False)
     decided_at = models.DateTimeField(null=True, blank=True)
     decided_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
     version = models.PositiveIntegerField(default=1)

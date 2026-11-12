@@ -55,6 +55,7 @@ class Report:
     closing_value: Decimal = ZERO
     short_gain: Decimal = ZERO
     long_gain: Decimal = ZERO
+    interest_income: Decimal = ZERO     # profit or loss on sales of investments marked Taxed as Interest (not capital gains)
     xirr: float = None
     index_return: float = None
     index_name: str = ""
@@ -76,6 +77,7 @@ class Report:
 
     @property
     def total_gain(self):
+        """Capital gains only; interest income is reported separately."""
         return self.short_gain + self.long_gain
 
 
@@ -136,6 +138,7 @@ def build(profile, label, *, portfolio=None, broker=None, include_dividends=None
 
     # capital gains: replay every investment's whole history once, keep the sales in this year that pass the filters
     names = dict(Instrument.objects.filter(pk__in=Transaction.objects.filter(profile=profile).values("instrument_id")).values_list("pk", "name"))
+    interest_ids = set(Instrument.objects.filter(pk__in=names, taxed_as_interest=True).values_list("pk", flat=True))
     pfs = list(Portfolio.objects.filter(profile=profile)) if with_portfolios and portfolio is None else []
     # The events are released investment by investment unless the per-portfolio breakdown below still needs them (memory, plan 26).
     release = events is None and len(pfs) <= 1
@@ -150,18 +153,22 @@ def build(profile, label, *, portfolio=None, broker=None, include_dividends=None
             if m.bucket and ((portfolio and m.bucket.portfolio != portfolio) or (broker and m.bucket.broker != broker)):
                 continue
             term = "long" if m.holding_days > report.cutoff else "short"
-            if term == "long":
+            as_interest = iid in interest_ids
+            if as_interest:
+                report.interest_income += m.gain
+            elif term == "long":
                 report.long_gain += m.gain
             else:
                 report.short_gain += m.gain
             origin = row_origins.get(m.buy_ref[1]) if isinstance(m.buy_ref, tuple) and m.buy_ref[0] == "txn" else None
             report.sales.append({"name": names[iid], "bought": m.bought_on, "paid": m.paid_on, "sold": m.sold_on, "days": m.holding_days, "units": m.units,
-                                 "cost": m.cost, "proceeds": m.proceeds, "gain": m.gain, "term": term, "estimated": m.estimated,
+                                 "cost": m.cost, "proceeds": m.proceeds, "gain": m.gain, "term": term, "interest": as_interest, "estimated": m.estimated,
                                  "bonus": (isinstance(m.buy_ref, tuple) and m.buy_ref[0] == "ca") or origin == "bonus",
                                  # The cost the gain uses, and (when a demerger moved cost between the parent and the new shares) the cost
                                  # the original transactions give. The original transactions themselves are never changed.
                                  "origin": origin or "", "adjusted": bool(m.adjustment), "original_cost": m.original_cost})
     report.sales.sort(key=lambda s: (s["sold"], s["name"]))
+    report.interest_income = report.interest_income.quantize(Decimal("0.01"))  # a money figure, not a chain of high-precision division pieces
 
     cash = [(opening_day, -report.opening_value)] if report.opening_value else []
     cash += flows

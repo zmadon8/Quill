@@ -98,7 +98,7 @@ def transaction_sheets(txns, transfers=None, dividends=None, automatic=None):
 
 
 HOLDINGS_HEADER = ["Name", "Type", "Code", "ISIN", "Units", "Average cost", "Cost", "Price", "Price date", "Value", "Gain", "Gain %", "XIRR",
-                   "First bought", "Status", "Realised gain", "Dividends"]
+                   "First bought", "Status", "Realised gain", "Interest income", "Dividends"]
 
 
 def holdings_sheet(rows):
@@ -108,5 +108,5 @@ def holdings_sheet(rows):
         status = "Not bought yet" if h.empty else "Sold out" if not h.is_held else "Hidden" if h.is_hidden else "Held"
         out.append([h.instrument.name, h.instrument.get_kind_display(), h.instrument.code, h.instrument.isin, h.units, h.avg_cost, h.cost, h.price,
                     h.price_date, h.value if h.is_held and not h.blocked else None, h.gain if shown else None, h.gain_pct if shown else None,
-                    None if h.blocked else h.xirr, h.first_date, status, h.realised, h.dividends])
+                    None if h.blocked else h.xirr, h.first_date, status, h.realised, h.interest_income, h.dividends])
     return [("Holdings", HOLDINGS_HEADER, out)]

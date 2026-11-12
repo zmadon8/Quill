@@ -9,7 +9,7 @@
 {% if check %}{% if check.ok %}<div class="ban"><span>Latest price check: <b>{{ check.name|default:data.name }}</b>{% if check.exchange %}, {{ check.exchange }}{% endif %}, {{ check.price }}{% if check.currency %} {{ check.currency }}{% endif %} on {{ check.date|date:"j M Y" }}. Make sure this is the investment you mean.</span></div>
 {% else %}<div class="ban wa"><span>{{ check.message }}</span></div>{% endif %}{% endif %}
 <dl class="kv"><dt>Type</dt><dd>{{ kind_label }}</dd><dt>Name</dt><dd>{{ data.name }}</dd><dt>Code</dt><dd>{{ data.code|default:"none" }}</dd><dt>ISIN</dt><dd>{{ data.isin|default:"none" }}</dd>
-<dt>Currency</dt><dd>{{ data.currency }}</dd><dt>Asset class</dt><dd>{{ data.asset_class }}</dd>{% if data.sector %}<dt>Sector</dt><dd>{{ data.sector }}</dd>{% endif %}
+<dt>Currency</dt><dd>{{ data.currency }}</dd><dt>Asset class</dt><dd>{{ data.asset_class }}</dd>{% if data.sector %}<dt>Sector</dt><dd>{{ data.sector }}</dd>{% endif %}{% if data.taxed_as_interest %}<dt>Tax treatment</dt><dd>Taxed as Interest</dd>{% endif %}
 <dt>Visible to</dt><dd>{% if private %}Your profile only (alternative investments are private){% else %}Everyone using the program (shared, so nobody has to add it twice){% endif %}</dd></dl>
 <form method="post">{% csrf_token %}
   {% for f in form %}<input type="hidden" name="{{ f.html_name }}" value="{{ f.value|default_if_none:'' }}">{% endfor %}

@@ -33,7 +33,8 @@ class Holding:
     xirr: float = None
     lots: list = field(default_factory=list)
     buckets: dict = field(default_factory=dict)   # (portfolio, broker, folio) -> units
-    realised: Decimal = ZERO
+    realised: Decimal = ZERO                        # capital gains booked on sales (not for an investment taxed as interest)
+    interest_income: Decimal = ZERO                 # profit or loss on sales of an investment marked Taxed as Interest
     sold_out: bool = False
     empty: bool = False                             # added to the profile but nothing bought (as at the date); never "held"
     first_date: date = None
@@ -250,7 +251,11 @@ def compute(profile, *, portfolio=None, broker=None, as_of=None, settings=None, 
         for lot in kept:
             key = (lot.bucket.portfolio, lot.bucket.broker, lot.bucket.folio)
             h.buckets[key] = h.buckets.get(key, ZERO) + lot.units
-        h.realised = sum((m.gain for m in result.matches), ZERO)
+        booked = sum((m.gain for m in result.matches), ZERO)
+        if inst.taxed_as_interest:
+            h.interest_income = booked
+        else:
+            h.realised = booked
         if abs(h.units) < UNIT_DUST:
             # A corporate-action ratio can leave a remainder below the 4 decimal places units are kept to: that is nothing held.
             h.units = ZERO
