@@ -293,6 +293,7 @@ def investment(request, pk):
         "manual_prices": ManualPrice.objects.filter(instrument=inst).order_by("-date")[:10],
         "alt_values": AltValue.objects.filter(profile=profile, instrument=inst).order_by("-date")[:20] if inst.kind == KIND_ALTERNATIVE else [],
         "awaiting_rows": awaiting_rows, "history": InvestmentHistory.objects.filter(profile=profile, instrument_id_ref=inst.pk)[:8],
+        "registry": investment_page.registry_record(inst),
         "kind_label": inst.get_kind_display(), "on": on, "as_of": as_of, "include_div": div,
         "chart": price_chart, "chart_kind": chart_kind, "chart_links": chartview.chart_links(request, chart_kind),
         "price_ranges": chartview.links(request, range_key, "#price"),
