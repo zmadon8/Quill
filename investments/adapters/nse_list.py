@@ -16,7 +16,7 @@ def iter_all(lines, fmt=None):
     """Yield ``(symbol, name, isin, series)`` for each row whose series is one the program keeps (the format's ``series_keep``).
     The header row is the first one that has a symbol column. Raises :class:`FormatError` when it lacks a required column, or when rows
     were read and none was usable."""
-    fmt = fmt or source_formats.get("nse_list")
+    fmt = fmt or source_formats.default("nse_list")
     keep = bhavcopy.series_order(fmt)
     columns = fmt["columns"]
     reader = csv.reader(lines, delimiter=fmt["delimiter"])

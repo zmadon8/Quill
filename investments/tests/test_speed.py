@@ -146,7 +146,7 @@ class OverviewTests(InvTestCase):
 
     def test_the_opening_values_do_not_change_with_a_shared_history(self):
         a = dashboard.compute(self.profile)["overview"]
-        self.assertEqual(len(a["periods"]), 4)
+        self.assertEqual(len(a["periods"]), 7)
         values = {r["id"]: r["values"] for r in a["rows"]}
         self.assertTrue(all(v is not None for v in values["gain"]))
 

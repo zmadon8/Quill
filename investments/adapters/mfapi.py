@@ -13,7 +13,7 @@ URL = source_formats.DEFAULTS["mfapi"]["url"]
 
 
 def parse(body, since=None, fmt=None):
-    fmt = fmt or source_formats.get("mfapi")
+    fmt = fmt or source_formats.default("mfapi")
     try:
         data = json.loads(body)
     except ValueError as exc:

@@ -24,7 +24,7 @@ def split_symbol(code):
 
 def parse(body, since=None, fmt=None):
     """Where the fields are in the answer is the format ``twelvedata`` of ``services/source_formats.py``."""
-    fmt = fmt or source_formats.get("twelvedata")
+    fmt = fmt or source_formats.default("twelvedata")
     get = source_formats.dig
     try:
         data = json.loads(body)

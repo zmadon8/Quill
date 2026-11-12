@@ -20,7 +20,7 @@ def _dotted(path):
 def parse_chart(body, since=None, fmt=None):
     """Turn a chart answer into a :class:`Result`. Raises :class:`FetchError` for an answer that is not usable. Where the fields are in the
     answer is the format ``yahoo`` of ``services/source_formats.py`` (the paths of the prices; splits and dividends are read as before)."""
-    fmt = fmt or source_formats.get("yahoo")
+    fmt = fmt or source_formats.default("yahoo")
     try:
         data = json.loads(body)
     except ValueError as exc:

@@ -109,10 +109,11 @@ def _weekdays(newest, oldest):
 
 def _read(kind, body, wanted):
     lines = bhavcopy.lines_of(kind, body)
+    fmt = source_formats.get(kind)
     if kind == "nse_idx":
-        return {("name", name): value for name, value in bhavcopy.read_indices(lines, [k[1] for k in wanted]).items()}
+        return {("name", name): value for name, value in bhavcopy.read_indices(lines, [k[1] for k in wanted], fmt=fmt).items()}
     return bhavcopy.read_equity(lines, symbols=[k[1] for k in wanted if k[0] == "sym"], isins=[k[1] for k in wanted if k[0] == "isin"],
-                                codes=[k[1] for k in wanted if k[0] == "code"], nse=kind != "bse_eq")
+                                codes=[k[1] for k in wanted if k[0] == "code"], nse=kind != "bse_eq", fmt=fmt)
 
 
 def run(instruments, *, today, trigger="cron", out_of_time=lambda: False, windows=None):

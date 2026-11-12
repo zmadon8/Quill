@@ -9,7 +9,7 @@ from decimal import Decimal as D
 from unittest import mock
 
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import SimpleTestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 
 from accounts.models import ROLE_EDITOR
@@ -209,7 +209,7 @@ class ValidationTests(SimpleTestCase):
         self.assertEqual(sf.dig({"a": 1}, ["a", "b"], "none"), "none")
 
     def test_form_round_trip(self):
-        post = {"f_" + name: sf.show(value, kind) for name, kind, value in sf.fields("yahoo")}
+        post = {"f_" + name: sf.show(value, kind) for name, kind, value in sf.fields("yahoo", sf.default("yahoo"))}
         post["f_closes_path"] = "px.0.c"
         submitted, errors = sf.parse_form("yahoo", post)
         self.assertEqual((errors, submitted["closes_path"]), ([], ["px", 0, "c"]))
@@ -624,7 +624,7 @@ class AmfiListIsAllOrNothingTests(InvTestCase):
         self.assertEqual(AmfiScheme.objects.get(code="100").name, "Old name")
 
 
-class TestButtonLimitsTests(SimpleTestCase):
+class TestButtonLimitsTests(TestCase):
     def test_oversized_csv_field_is_an_error_not_a_crash(self):
         from investments.services import source_format_test
 

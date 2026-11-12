@@ -49,10 +49,10 @@ def series_order(fmt):
     return tuple(fmt["series_keep"]) + ("",)
 
 
-def url_for(kind, day):
+def url_for(kind, day, fmt=None):
     if kind not in _SETTING:
         raise ValueError(kind)
-    fmt = source_formats.get(kind)
+    fmt = fmt or source_formats.default(kind)
     return source_formats.expand(source_formats.url_for(kind, fmt, _SETTING[kind]), day)
 
 
@@ -97,7 +97,7 @@ def read_equity(lines, symbols=(), isins=(), codes=(), nse=True, fmt=None):
     Where a key appears in several series, the best series (``SERIES_ORDER``) wins. Raises :class:`FormatError` when columns are missing
     or no row of a non-empty file has a readable close and date."""
     kind = "nse_eq" if nse else "bse_eq"
-    fmt = fmt or source_formats.get(kind)
+    fmt = fmt or source_formats.default(kind)
     header, rows = _reader(lines, fmt)
     if not header:
         raise FormatError(f"{label(kind)}: the file was empty.", key=kind)
@@ -146,7 +146,7 @@ def read_equity(lines, symbols=(), isins=(), codes=(), nse=True, fmt=None):
 def sample_equity(lines, nse=True, fmt=None, limit=10):
     """The first ``limit`` readable rows ``(symbol, isin, series, close, date)``, for the Test button. Same column rules as ``read_equity``."""
     kind = "nse_eq" if nse else "bse_eq"
-    fmt = fmt or source_formats.get(kind)
+    fmt = fmt or source_formats.default(kind)
     header, rows = _reader(lines, fmt)
     if not header:
         raise FormatError(f"{label(kind)}: the file was empty.", key=kind)
@@ -169,7 +169,7 @@ def sample_equity(lines, nse=True, fmt=None, limit=10):
 
 def read_indices(lines, names=(), fmt=None):
     """``{lower-case index name: (date, close)}`` for the wanted names (all names if none are given)."""
-    fmt = fmt or source_formats.get("nse_idx")
+    fmt = fmt or source_formats.default("nse_idx")
     header, rows = _reader(lines, fmt)
     if not header:
         raise FormatError(f"{label('nse_idx')}: the file was empty.", key="nse_idx")
@@ -196,7 +196,7 @@ def read_indices(lines, names=(), fmt=None):
 
 def download(kind, day, clock=time.monotonic):
     """The file of ``kind`` for ``day`` as bytes, or ``None`` when the exchange has no file for that day. Raises :class:`FetchError`."""
-    url = url_for(kind, day)
+    url = url_for(kind, day, source_formats.get(kind))
     now = clock()
     hit = _cache.get(url)
     if hit and now - hit[0] < CACHE_SECONDS:

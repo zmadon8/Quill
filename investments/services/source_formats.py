@@ -205,6 +205,11 @@ def merge(key, cleaned):
     return out
 
 
+def default(key):
+    """The built-in format of ``key``. No database: what the pure parsing functions use when the caller passes no format."""
+    return Format(copy.deepcopy(DEFAULTS[key]))
+
+
 def get(key):
     """The format of ``key``: the built-in one with the Admin's stored changes laid over it. Never raises: without a database (a plain unit
     test) or with a stored value that no longer validates, the built-in format is used."""

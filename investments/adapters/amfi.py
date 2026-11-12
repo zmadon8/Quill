@@ -42,7 +42,7 @@ def _unreadable(seen, fmt, first):
 
 def parse_lines(lines, wanted, fmt=None):
     """``{scheme code: (date, nav, name, isin)}`` for the codes in ``wanted``. ``lines`` yields decoded text lines."""
-    fmt = fmt or source_formats.get("amfi")
+    fmt = fmt or source_formats.default("amfi")
     found = {}
     wanted = {str(w).strip() for w in wanted}
     readable, seen, first = False, 0, ""
@@ -91,7 +91,7 @@ def fetch(wanted, url=None):
 def iter_all(lines, fmt=None):
     """Yield ``(code, name, isin, date, nav)`` for every scheme line (NAV may be None for "N.A."). Raises :class:`FormatError` at the end
     when lines were read and none was a scheme with a readable date."""
-    fmt = fmt or source_formats.get("amfi")
+    fmt = fmt or source_formats.default("amfi")
     readable, seen, first = False, 0, ""
     for line in lines:
         if not line.strip():
