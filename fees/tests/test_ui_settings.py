@@ -26,7 +26,7 @@ class SettingsScreenTests(UiPageBase):
         self.assertIn("You have unsaved changes.", text)
         for name in ("export_owner_name", "memo_filename_pattern", "memo_default_name", "memo_default_designation",
                      "memo_default_pan", "initial_financial_year", "memos_start_year", "feebook_start_year",
-                     "statistics_enabled", "dashboard_kpis_enabled"):
+                     "statistics_enabled"):
             self.assertIn('name="%s"' % name, text, name)
         self.assertIn('<textarea name="memo_default_address"', text)
         self.assertIn('<textarea name="default_court_name"', text)
@@ -54,8 +54,11 @@ class SettingsScreenTests(UiPageBase):
 
     def test_opening_page_and_items_per_page_use_the_shared_names(self):
         text = self.settings_text(self.editor)
-        self.assertIn("Opening page <select", text)
-        self.assertIn("Items per page <input", text)
+        self.assertNotIn("Opening page <select", text)  # no profile-wide Opening page or Items per page any more
+        self.assertNotIn("Items per page <input", text)
+        self.assertNotIn('name="default_tab"', text)
+        self.assertNotIn('name="dashboard_enabled"', text)
+        self.assertNotIn('name="dashboard_kpis_enabled"', text)
         self.assertIn('name="fees-items_per_page"', text)  # the personal Items per page, saved through My settings
         self.assertIn(reverse("my_settings") + "?tab=start", text)  # the personal Opening page is on Start Screens
 
@@ -103,7 +106,6 @@ class SettingsScreenTests(UiPageBase):
         after = FeesSettings.objects.get(profile=self.profile)
         self.assertEqual(after.overdue_days, 77)
         self.assertEqual(after.default_court_name, before.default_court_name)
-        self.assertEqual(after.items_per_page, before.items_per_page)
 
     def test_a_failed_save_shows_the_error_and_keeps_the_section(self):
         self.login(self.editor)

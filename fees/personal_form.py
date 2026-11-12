@@ -14,7 +14,7 @@ OPENING_PAGES = (
 
 
 class FeesPersonalForm(forms.Form):
-    """Blank means "use the profile's choice" (then the standard one)."""
+    """Blank means the standard choice (Memos; 50 items per page)."""
 
     default_tab = forms.ChoiceField(required=False, label="Opening page")
     items_per_page = forms.CharField(required=False, max_length=10, label="Items per page")
@@ -23,16 +23,11 @@ class FeesPersonalForm(forms.Form):
         super().__init__(*args, **kwargs)
         self.profile = profile
         self.user = user
-        shared = getattr(fees_settings, "default_tab", "") or "memos"
-        names = dict(OPENING_PAGES)
         # A switched-off Dashboard is not offered (the landing page would open Memos instead).
-        offered = [c for c in OPENING_PAGES if c[0] != "dashboard" or getattr(fees_settings, "dashboard_enabled", True)]
-        if shared == "dashboard" and not getattr(fees_settings, "dashboard_enabled", True):
-            shared = "memos"
-        self.fields["default_tab"].choices = [("", f"Same as the profile ({names.get(shared, shared)})")] + offered
+        offered = [c for c in OPENING_PAGES if c[0] != "dashboard" or getattr(fees_settings, "statistics_enabled", True)]
+        self.fields["default_tab"].choices = [("", "Memos (standard)")] + offered
         self.fields["items_per_page"].widget.attrs.update({"size": 8, "inputmode": "numeric"})
         self.fields["items_per_page"].help_text = "A number, or All."
-        self.profile_items = getattr(fees_settings, "items_per_page", 50)
         if not self.is_bound:
             own = prefs.get_personal(profile, user)
             self.initial = {

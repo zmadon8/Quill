@@ -26,7 +26,6 @@ MAX_TEMPLATE_UPLOAD = 20 * 1024 * 1024
 
 #: The left-hand sections of the Settings page, in order (the numbers in the menu are 1 to 6).
 SETTINGS_SECTIONS = ("memos", "payments", "word", "years", "display", "data")
-DEFAULT_TAB_CHOICES = ("memos", "dashboard", "statistics", "firms", "feebook", "outstanding", "settings")
 PAYMENT_AMOUNT_CHOICES = (("zero", "Blank"), ("full", "Full Amount Due"), ("netOfTds", "Amount Due Less TDS"))
 MONEY_UNIT_CHOICES = (("full", "Full Figures"), ("truncated", "Short (Thousand, Lac, Crore)"))
 
@@ -74,8 +73,6 @@ def settings_context(profile, fy=None, tab="memos"):
         ),
         "bank_accounts": settings_service.list_bank_accounts(profile),
         "template_info": word_template.get_template_info(profile),
-        # The profile's Opening page: a switched-off Dashboard is not offered (Memos opens instead).
-        "tab_choices": tuple(t for t in DEFAULT_TAB_CHOICES if t != "dashboard" or config.get("dashboard_enabled", True)),
         "payment_amount_choices": PAYMENT_AMOUNT_CHOICES,
         "money_unit_choices": MONEY_UNIT_CHOICES,
         "money_unit": config["money_unit"],

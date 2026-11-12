@@ -386,15 +386,12 @@ SETTINGS_FLAGS = (
     "default_lines_enabled",
     "show_status_dots",
     "statistics_enabled",
-    "dashboard_kpis_enabled",
-    "dashboard_enabled",
     "show_bank",
     "memo_signature_default",
 )
 #: Settings keys that are text or choices (passed through as typed; the service validates them).
 SETTINGS_TEXT = (
     "default_court_name",
-    "default_tab",
     "list_default_filter",
     "initial_financial_year",
     "memos_start_year",
@@ -419,7 +416,6 @@ SETTINGS_NUMBERS = (
     "default_fees_misc_drafting",
     "default_tds_rate",
     "overdue_days",
-    "items_per_page",
 )
 
 

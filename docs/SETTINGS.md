@@ -13,8 +13,7 @@ forms and templates (see "How this was checked" at the end). The "Who" column us
 
 Every setting is on one of these tabs of Settings (click your name at the top right, or **Settings** on Home). The same tab
 strip is across the top of every settings page, in the Home shell and inside each program. A setting appears on exactly one
-page; where a profile-wide value and a personal one both exist (Opening page, Items per page) they are two different
-settings with different "Who" tags.
+page. The Fee Register Opening page and Items per page are personal only (no profile-wide fallback).
 
 | Tab | Pages | What it holds | Who sees it |
 | --- | --- | --- | --- |
@@ -159,8 +158,7 @@ as text and have no Save buttons (a Reader POST gets 403).
 
 Changed on **Fee Register > Settings** (`fees_settings?tab=<section>`), each section with its own Save. Everything
 below is tagged **Everyone in this profile**. Readers see the page read-only (a Reader POST gets 403). The exceptions
-are noted: Opening page and Items per page also have a personal version (section 4.2) that wins over the profile
-value for the user who set it.
+are noted: Opening page and Items per page are personal only (section 4.2).
 
 | Field | Setting | Section | Stored | Who |
 | --- | --- | --- | --- | --- |
@@ -186,12 +184,8 @@ value for the user who set it.
 | `initial_financial_year` | Statistics start year | 4 Years and statistics | Per profile | Everyone in this profile |
 | `memos_start_year` | Memos start year | 4 Years and statistics | Per profile | Everyone in this profile |
 | `feebook_start_year` | Feebook start year | 4 Years and statistics | Per profile | Everyone in this profile |
-| `statistics_enabled` | Statistics page on or off | 4 Years and statistics | Per profile | Everyone in this profile |
-| `dashboard_enabled` | Dashboard page on or off (off: not in the header or the Statistics tabs; its address and an Opening page of Dashboard open Memos) | 4 Years and statistics | Per profile | Everyone in this profile |
-| `dashboard_kpis_enabled` | Dashboard figures on or off | 4 Years and statistics | Per profile | Everyone in this profile |
+| `statistics_enabled` | Statistics and Dashboard on or off, one switch for both pages and the Dashboard figures (off: neither is in the header; the Dashboard address and an Opening page of Dashboard open Memos). Replaces the old `dashboard_enabled` and `dashboard_kpis_enabled` | 4 Years and statistics | Per profile | Everyone in this profile |
 | `dashboard_kpis` | Which dashboard figures show (the Customise box on the Dashboard, not on the Settings page) | Fee Register > Dashboard > Customise | Per profile | Everyone in this profile |
-| `default_tab` | Opening page, for anyone who has not chosen their own | 5 Display | Per profile (fallback) | Everyone in this profile |
-| `items_per_page` | Items per page, for anyone who has not chosen their own | 5 Display | Per profile (fallback) | Everyone in this profile |
 | `money_unit` | Figures (full, thousands, lacs, crores) | 5 Display | Per profile | Everyone in this profile |
 | `list_default_filter` | Firms and matters: show by default (All or Active only) | 5 Display | Per profile | Everyone in this profile |
 | `money_suffix_thousands`, `money_suffix_lac`, `money_suffix_crore` | Suffix letters for short figures | 5 Display | Per profile | Everyone in this profile |
@@ -211,7 +205,7 @@ One row per (profile, user, key), a JSON `data` object. Interface state, not fee
 
 | Key | Setting | Page and section | Stored | Who |
 | --- | --- | --- | --- | --- |
-| `settings` | `{"default_tab", "items_per_page"}`: your Opening page and Items per page. Resolution: your value, else the profile value in `FeesSettings`, else Memos and 50. Clearing a box removes your value | Settings > Fee Register > Display / Settings > Start Screens | Per user per profile | Only you |
+| `settings` | `{"default_tab", "items_per_page"}`: your Opening page and Items per page. Resolution: your value, else Memos and 50. Clearing a box removes your value | Settings > Fee Register > Display / Settings > Start Screens | Per user per profile | Only you |
 | `col-widths:<table-id>` (for example `col-widths:memos`) | Column widths in pixels (40 to 1200, at most 60 columns) | Drag a column edge on a Fee Register table | Per user per profile | Only you |
 
 The `settings` key cannot be written through the column-width endpoint (it accepts only `col-widths:` keys).
@@ -299,8 +293,6 @@ Still there; each is a candidate to remove or merge:
 | Setting | Why it is redundant |
 | --- | --- |
 | `Profile.display_name` and `header_name` | Editable in two places (Users & Profiles > Profiles and Case Law Diary > Reading), and three naming layers exist (Names, Home Page Name, Header Name) |
-| `FeesSettings.default_tab` and `items_per_page` | Overlap with the personal Opening page (Start Screens) and My items per page; one profile fallback plus one personal value for each |
-| `FeesSettings.statistics_enabled`, `dashboard_enabled`, `dashboard_kpis_enabled` | Three on/off switches for one area; the Dashboard and its figures could follow one switch |
 | `FeesSettings.show_status_dots`, `hide_payment_when_paid` | Cosmetic switches that few offices would change |
 
 ## 8. How this was checked

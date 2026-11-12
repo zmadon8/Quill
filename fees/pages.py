@@ -31,7 +31,7 @@ TAB_URL_NAMES = {
 }
 
 #: Header entries: (key, label, url name, url-name prefixes that mark it current).
-#: Statistics is one entry whose first tab is the Dashboard; with Statistics switched off it reads "Dashboard".
+#: Statistics is one entry whose first tab is the Dashboard; with Statistics switched off the entry is left out.
 _NAV = (
     ("statistics", "Statistics", "fees_dashboard", ("fees_dashboard", "fees_statistics")),
     ("memos", "Memos", "fees_memos", ("fees_memo", "fees_payment")),
@@ -51,8 +51,8 @@ def _flag(settings, name):
 
 
 def dashboard_on(settings):
-    """True unless the Dashboard page is switched off in Settings (Years and statistics)."""
-    return _flag(settings, "dashboard_enabled")
+    """True unless Statistics is switched off in Settings (Years and statistics); one switch covers the Dashboard too."""
+    return _flag(settings, "statistics_enabled")
 
 
 def overdue_on(settings):
@@ -67,20 +67,14 @@ def bank_on(settings):
 
 
 def nav_for(request, settings):
-    """The header entries for this page. The first entry is Statistics with the Dashboard as its first tab; it reads
-    Dashboard when Statistics is off, opens Statistics directly when the Dashboard is off, and is left out when both are."""
+    """The header entries for this page. The first entry is Statistics with the Dashboard as its first tab; it is left
+    out when Statistics (which covers the Dashboard) is switched off."""
     match = getattr(request, "resolver_match", None)
     current = (match.url_name or "") if match else ""
-    stats_on = _flag(settings, "statistics_enabled")
     items = []
     for key, label, url_name, prefixes in _NAV:
-        if key == "statistics":
-            if not dashboard_on(settings):
-                if not stats_on:
-                    continue
-                url_name = "fees_statistics"
-            elif not stats_on:
-                label = "Dashboard"
+        if key == "statistics" and not dashboard_on(settings):
+            continue
         items.append({"url": reverse(url_name), "name": label, "on": current.startswith(prefixes)})
     return items
 

@@ -50,7 +50,7 @@
       {% csrf_token %}
       <input type="hidden" name="tab" value="start">
       {% if fees_form.non_field_errors %}{{ fees_form.non_field_errors }}{% endif %}
-      {% include "_setting_row.html" with f=fees_form.default_tab help="The page the Fee Register opens on. Leave it on the profile's choice to use the one the profile sets." who="you" %}
+      {% include "_setting_row.html" with f=fees_form.default_tab help="The page the Fee Register opens on. Leave it on Memos to use the standard one." who="you" %}
       <p class="section-actions"><button type="submit">Save</button> <span class="dirty-note" data-dirty-note hidden>You have unsaved changes.</span></p>
     </form>
   </section>

@@ -173,13 +173,13 @@ def _fees_details(profile, user):
     ids = [k for k in keys if k in dashboard.KPI_LABELS and (k != "amount_overdue" or overdue_on(config))]
     chosen_kpis = [k for k in keys if k in dashboard.KPI_LABELS]
     notes = []
-    if chosen_kpis and not config.get("dashboard_kpis_enabled", True):
+    if chosen_kpis and not config.get("statistics_enabled", True):
         notes.append("The Dashboard figures are switched off in the Fee Register settings.")
     elif "amount_overdue" in chosen_kpis and "amount_overdue" not in ids:
         notes.append("Amount overdue is not shown because overdue is switched off in the Fee Register settings.")
     if notes:
         sections.append({"kind": "note", "title": "Fee Register: Dashboard", "text": " ".join(notes), "url": reverse("fees_dashboard")})
-    if ids and config.get("dashboard_kpis_enabled", True):
+    if ids and config.get("statistics_enabled", True):
         values = dashboard.get_dashboard_kpis(profile, settings={**config, "dashboard_kpis": ",".join(ids)})
         items = [(dashboard.KPI_LABELS[k], money(values[k]) if isinstance(values[k], str) else f"{values[k]:,}") for k in ids]
         sections.append({"kind": "kpis", "title": "Fee Register: Dashboard", "items": items, "url": reverse("fees_dashboard")})

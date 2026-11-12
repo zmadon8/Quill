@@ -137,7 +137,7 @@ class ExportContractTests(TestCase):
         # Live settings come from the model.
         self.assertEqual(row["default_tds_rate"], 12.5)
         self.assertEqual(row["overdue_days"], 45)
-        self.assertEqual(row["default_tab"], "firms")
+        self.assertEqual(row["default_tab"], "memos")   # the Opening page is personal now; the desktop column keeps its default
         self.assertEqual(row["default_fees_per_appearance"], 1500)
         self.assertEqual(row["hide_payment_when_paid"], 1)
         self.assertEqual(row["show_status_dots"], 0)
@@ -237,16 +237,14 @@ class ExportContractTests(TestCase):
         self.assertEqual(
             list(values.keys()),
             ["export_owner_name", "memo_filename_pattern", "statistics_enabled",
-             "dashboard_kpis_enabled", "dashboard_enabled", "show_bank", "memo_default_name", "memo_default_designation",
+             "show_bank", "memo_default_name", "memo_default_designation",
              "memo_default_address", "memo_default_bank_details", "memo_default_pan",
-             "memo_signature_default", "list_default_filter", "items_per_page"],
+             "memo_signature_default", "list_default_filter"],
         )
-        self.assertEqual((values["dashboard_enabled"], values["show_bank"]), (1, 1))   # owner round 2026-11: both on by default
-        self.assertEqual(values["items_per_page"], 50)
+        self.assertEqual(values["show_bank"], 1)   # owner round 2026-11: on by default
         self.assertEqual(values["export_owner_name"], "Test Owner")
         self.assertEqual(values["memo_filename_pattern"], "pattern-x")
         self.assertEqual(values["statistics_enabled"], 0)
-        self.assertEqual(values["dashboard_kpis_enabled"], 0)
         for key, expected in MEMO_TEXT_DEFAULTS.items():
             self.assertEqual(values[key], expected)  # multi-line values keep their line breaks
 

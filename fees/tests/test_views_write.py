@@ -591,7 +591,6 @@ class SettingsWriteTests(WriteBase):
             {
                 "overdue_days": "45",
                 "default_tds_rate": "12.5",
-                "default_tab": "dashboard",
                 "money_unit": "truncated",
                 "export_owner_name": "Typed Owner",
                 "memo_default_address": "Line one\r\nLine two",
@@ -603,7 +602,6 @@ class SettingsWriteTests(WriteBase):
         config = self.config()
         self.assertEqual(config.overdue_days, 45)
         self.assertEqual(config.default_tds_rate, Decimal("12.5"))
-        self.assertEqual(config.default_tab, "dashboard")
         self.assertEqual(config.money_unit, "truncated")
         self.assertEqual(config.export_owner_name, "Typed Owner")
         self.assertEqual(config.memo_default_address, "Line one\nLine two")
@@ -614,16 +612,15 @@ class SettingsWriteTests(WriteBase):
         self.post("fees_settings", {"overdue_days": "50"})
         config = self.config()
         self.assertEqual(config.overdue_days, 50)
-        self.assertEqual(config.default_tab, "firms")  # set by the seed
         self.assertEqual(config.export_owner_name, "Test Owner")
         # WriteBase.setUp switches statistics on; the partial POST must not change it.
         self.assertTrue(config.statistics_enabled)
 
     def test_a_bad_value_shows_the_page_again_and_saves_nothing(self):
-        response = self.post("fees_settings", {"overdue_days": "many", "default_tab": "dashboard"})
+        response = self.post("fees_settings", {"overdue_days": "many", "money_unit": "truncated"})
         self.assertEqual(response.status_code, 422)
         self.assertContains(response, "Overdue days must be", status_code=422)
-        self.assertEqual(self.config().default_tab, "firms")
+        self.assertEqual(self.config().money_unit, "full")
 
     def test_bad_filename_pattern_is_refused(self):
         response = self.post("fees_settings", {"memo_filename_pattern": "{nope}"})

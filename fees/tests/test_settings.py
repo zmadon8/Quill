@@ -78,7 +78,6 @@ class SettingsDefaultsTests(TestCase):
         self.assertTrue(s["default_lines_enabled"])
         self.assertEqual(s["export_owner_name"], "Ziyad Madon")
         self.assertTrue(s["statistics_enabled"])
-        self.assertTrue(s["dashboard_kpis_enabled"])
         self.assertEqual(s["memo_default_name"], "")
         self.assertEqual(s["memo_default_designation"], "")
         self.assertEqual(s["memo_default_address"], "")
@@ -167,21 +166,11 @@ class ValidationTests(TestCase):
         self._expect_invalid({"overdue_days": 4000})
         self._expect_invalid({"overdue_days": 1.5})
 
-    def test_items_per_page(self):
-        self.assertEqual(get_settings(self.profile)["items_per_page"], 50)
-        for value, expected in ((25, 25), ("30", 30), (0, 0), ("All", 0), (" all ", 0), (1000, 1000)):
-            self.assertEqual(update_settings(self.profile, {"items_per_page": value})["items_per_page"], expected)
-        self._expect_invalid({"items_per_page": -1})
-        self._expect_invalid({"items_per_page": 1001})
-        self._expect_invalid({"items_per_page": 2.5})
-        self._expect_invalid({"items_per_page": "many"})
-        self.assertEqual(update_settings(self.profile, {"items_per_page": None})["items_per_page"], 50)
-
-    def test_default_tab(self):
-        self._expect_invalid({"default_tab": "nope"})
-        # A valid tab is accepted.
-        s = update_settings(self.profile, {"default_tab": "dashboard"})
-        self.assertEqual(s["default_tab"], "dashboard")
+    def test_removed_profile_settings_are_ignored(self):
+        # The Opening page and Items per page are personal choices now; the dashboard switches are one.
+        result = update_settings(self.profile, {"items_per_page": 25, "default_tab": "firms", "dashboard_enabled": False})
+        for key in ("items_per_page", "default_tab", "dashboard_enabled", "dashboard_kpis_enabled"):
+            self.assertNotIn(key, result)
 
     def test_financial_year_format(self):
         self._expect_invalid({"initial_financial_year": "2026"})

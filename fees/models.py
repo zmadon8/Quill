@@ -50,7 +50,6 @@ class FeesSettings(models.Model):
     default_court_name = models.TextField(blank=True, default="")  # multi-line Caption
     default_tds_rate = models.DecimalField(max_digits=5, decimal_places=2, default=10)
     overdue_days = models.PositiveIntegerField(default=0)
-    default_tab = models.CharField(max_length=20, default="memos")
     initial_financial_year = models.CharField(max_length=7, default="2026-27")
     memos_start_year = models.CharField(max_length=7, default="2026-27")
     feebook_start_year = models.CharField(max_length=7, default="2026-27")
@@ -66,15 +65,12 @@ class FeesSettings(models.Model):
     # Round 2: new memos start with the signature ticked; the Firms and matters lists open on "all" or "active".
     memo_signature_default = models.BooleanField(default=False)
     list_default_filter = models.CharField(max_length=10, default="all")
-    # Owner round: rows per page on Memos, Drafts and Feebook; 0 shows everything on one page (at most 1000).
-    items_per_page = models.PositiveIntegerField(default=50)
-    # New web switches (porting brief section 9, design section 2).
+    # One switch for the Statistics page, the Dashboard page and the Dashboard figures. The Opening page and Items per
+    # page are personal choices (FeesUserPrefs), not profile settings.
     statistics_enabled = models.BooleanField(default=True)
-    dashboard_kpis_enabled = models.BooleanField(default=True)
-    # Owner round (2026-11): the whole Dashboard page can be switched off, and so can every sign of the Bank
-    # account on payments (Feebook filter and column, the payment form, the Feebook export, the Settings list).
+    # Owner round (2026-11): every sign of the Bank account on payments can be switched off (Feebook filter and
+    # column, the payment form, the Feebook export, the Settings list).
     # Switching Bank off hides it only: stored bank accounts and the banks on payments are kept and backed up.
-    dashboard_enabled = models.BooleanField(default=True)
     show_bank = models.BooleanField(default=True)
     # New file-name settings (requirements R-FN-1, R-FN-2).
     export_owner_name = models.CharField(max_length=80, default="Ziyad Madon")

@@ -220,7 +220,7 @@ class HomeDetailsTests(TestCase):
         from fees.models import FeesSettings
 
         # The seeded sample data switches the Dashboard figures off; they must be on to be offered below the cards.
-        FeesSettings.objects.filter(profile=self.fees).update(dashboard_kpis_enabled=True)
+        FeesSettings.objects.filter(profile=self.fees).update(statistics_enabled=True)
         self.user.home_details = {"fees": ["memos_this_year", "who_owes"]}
         self.user.save()
         html = self.home()
@@ -243,7 +243,7 @@ class HomeDetailsTests(TestCase):
 
         self.user.home_details = {"fees": ["memos_this_year"]}
         self.user.save()
-        config = {**settings_service.get_settings(self.fees), "dashboard_kpis_enabled": False}
+        config = {**settings_service.get_settings(self.fees), "statistics_enabled": False}
         with mock.patch("fees.services.settings.get_settings", return_value=config):
             html = self.home()
         self.assertIn("switched off in the Fee Register settings", html)

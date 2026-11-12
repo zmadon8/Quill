@@ -1,5 +1,5 @@
-"""Fee Register Opening page and Items per page are personal (My settings): per user, falling back to the profile's
-value and then the standard one. Stored in FeesUserPrefs under the key ``settings`` (no migration)."""
+"""Fee Register Opening page and Items per page are personal (My settings): per user, falling back to the standard
+one (Memos, 50 items). Stored in FeesUserPrefs under the key ``settings`` (no migration)."""
 from django.test import override_settings
 from django.urls import reverse
 
@@ -10,13 +10,10 @@ from fees.tests.test_views_read import SeededViewsBase
 
 
 class PersonalServiceTests(SeededViewsBase):
-    def test_fallback_chain_user_then_profile_then_default(self):
-        FeesSettings.objects.update_or_create(
-            profile=self.profile, defaults={"default_tab": "outstanding", "items_per_page": 25}
-        )
+    def test_fallback_chain_user_then_default(self):
         config = FeesSettings.objects.get(profile=self.profile)
-        self.assertEqual(prefs.personal_default_tab(self.profile, self.editor, config), "outstanding")
-        self.assertEqual(prefs.personal_items_per_page(self.profile, self.editor, config), 25)
+        self.assertEqual(prefs.personal_default_tab(self.profile, self.editor, config), "memos")
+        self.assertEqual(prefs.personal_items_per_page(self.profile, self.editor, config), 50)
         prefs.set_personal(self.profile, self.editor, {"default_tab": "dashboard", "items_per_page": 0})
         self.assertEqual(prefs.personal_default_tab(self.profile, self.editor, config), "dashboard")
         self.assertEqual(prefs.personal_items_per_page(self.profile, self.editor, config), 0)  # 0 is All
@@ -28,10 +25,10 @@ class PersonalServiceTests(SeededViewsBase):
         prefs.set_personal(self.profile, self.editor, {"default_tab": "dashboard", "items_per_page": 5})
         config = FeesSettings.objects.get(profile=self.profile)
         self.assertEqual(prefs.get_personal(self.profile, self.reader), {})
-        self.assertEqual(prefs.personal_default_tab(self.profile, self.reader, config), config.default_tab)
-        self.assertEqual(prefs.personal_items_per_page(self.profile, self.reader, config), config.items_per_page)
+        self.assertEqual(prefs.personal_default_tab(self.profile, self.reader, config), "memos")
+        self.assertEqual(prefs.personal_items_per_page(self.profile, self.reader, config), 50)
 
-    def test_a_none_removes_the_choice_so_the_profile_value_applies_again(self):
+    def test_a_none_removes_the_choice_so_the_standard_value_applies_again(self):
         prefs.set_personal(self.profile, self.editor, {"default_tab": "dashboard", "items_per_page": 5})
         stored = prefs.set_personal(self.profile, self.editor, {"default_tab": None})
         self.assertEqual(stored, {"items_per_page": 5})
@@ -54,14 +51,13 @@ class PersonalServiceTests(SeededViewsBase):
 
 
 class PersonalViewsTests(SeededViewsBase):
-    def test_landing_follows_my_choice_not_the_profile_and_not_another_user(self):
-        # The seed sets the profile's default_tab to "firms".
+    def test_landing_follows_my_choice_and_not_another_user(self):
         prefs.set_personal(self.profile, self.editor, {"default_tab": "outstanding"})
         self.login(self.editor)
         self.assertRedirects(self.client.get(reverse("fees_landing")), reverse("fees_outstanding"),
                              fetch_redirect_response=False)
         self.login(self.reader)
-        self.assertRedirects(self.client.get(reverse("fees_landing")), reverse("fees_firms"),
+        self.assertRedirects(self.client.get(reverse("fees_landing")), reverse("fees_memos"),
                              fetch_redirect_response=False)
 
     def test_memo_list_page_size_is_mine(self):
@@ -115,9 +111,6 @@ class MySettingsFeesSectionTests(SeededViewsBase):
         self.assertRedirects(resp, reverse("fees_settings") + "?tab=display", fetch_redirect_response=False)
         self.assertEqual(prefs.get_personal(self.profile, self.reader), {"default_tab": "dashboard", "items_per_page": 0})
         self.assertEqual(prefs.get_personal(self.profile, self.editor), {})
-        # The profile's own values are not changed by a personal save.
-        config = FeesSettings.objects.get(profile=self.profile)
-        self.assertEqual(config.default_tab, "firms")
 
     def test_the_opening_page_is_saved_from_start_screens_and_keeps_items_per_page(self):
         self.post(self.editor, {"fees-items_per_page": "10"})
@@ -127,7 +120,7 @@ class MySettingsFeesSectionTests(SeededViewsBase):
         self.post(self.editor, {"fees-items_per_page": "20"})  # not posted: the opening page stays
         self.assertEqual(prefs.get_personal(self.profile, self.editor), {"default_tab": "feebook", "items_per_page": 20})
 
-    def test_blank_boxes_go_back_to_the_profile_value(self):
+    def test_blank_boxes_go_back_to_the_standard_value(self):
         self.post(self.editor, {"fees-default_tab": "dashboard", "fees-items_per_page": "10"})
         self.post(self.editor, {"fees-default_tab": "", "fees-items_per_page": ""})
         self.assertEqual(prefs.get_personal(self.profile, self.editor), {})

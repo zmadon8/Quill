@@ -106,8 +106,8 @@ class ShellTests(UiPageBase):
         nav = self.html(self.page("fees_memos"))
         nav = nav[nav.index('<nav class="program-nav"'):nav.index("</nav>")]
         self.assertNotIn(">Statistics</a>", nav)
-        self.assertEqual(nav.count(">Dashboard</a>"), 1)
-        self.assertEqual(nav.count('href="%s"' % reverse("fees_dashboard")), 1)
+        self.assertNotIn(">Dashboard</a>", nav)
+        self.assertEqual(nav.count('href="%s"' % reverse("fees_dashboard")), 0)
 
     def test_statistics_entry_is_current_on_the_dashboard_and_statistics_pages(self):
         FeesSettings.objects.update_or_create(profile=self.profile, defaults={"statistics_enabled": True})
@@ -765,7 +765,7 @@ class DashboardScreenTests(UiPageBase):
     """T8.6: KPI boxes, customise, recent matters."""
 
     def settings_on(self, **extra):
-        FeesSettings.objects.update_or_create(profile=self.profile, defaults=dict({"dashboard_kpis_enabled": True}, **extra))
+        FeesSettings.objects.update_or_create(profile=self.profile, defaults=dict({"statistics_enabled": True}, **extra))
 
     def test_dashboard_landmarks_and_boxes(self):
         self.settings_on(statistics_enabled=True)
@@ -801,19 +801,12 @@ class DashboardScreenTests(UiPageBase):
         self.assertLess(grid.index("Drafts (Documents), Last 30 Days"), grid.index("Billed This Year"))
         self.assertNotIn("Billed (Last 30 Days)", grid)
 
-    def test_boxes_can_be_switched_off(self):
-        FeesSettings.objects.update_or_create(profile=self.profile, defaults={"dashboard_kpis_enabled": False})
-        text = self.assert_page(self.page("fees_dashboard"), "dashboard-off")
-        self.assertNotIn('aria-label="Dashboard boxes"', text)
-        self.assertNotIn('class="kpi-grid"', text)
-
-    def test_statistics_switch_trims_the_tab_strip(self):
+    def test_the_one_statistics_switch_takes_the_dashboard_away(self):
         self.settings_on(statistics_enabled=False)
-        text = self.html(self.page("fees_dashboard"))
-        # Statistics off: the tab strip holds the Dashboard tab only.
-        self.assertIn(">Dashboard</a>", text)
-        self.assertNotIn(">Standard</a>", text)
-        self.assertNotIn(">Explore</a>", text)
+        self.login(self.reader)
+        response = self.client.get(reverse("fees_dashboard"))
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], reverse("fees_landing"))
 
     def test_customise_is_for_editors_only_and_posts_to_the_existing_endpoint(self):
         self.settings_on()

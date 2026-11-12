@@ -101,6 +101,8 @@ def set_pref(profile, user, key, data):
 #: ``set_personal`` writes it, after the same validation as the profile settings.
 SETTINGS_KEY = "settings"
 _PERSONAL_FIELDS = ("default_tab", "items_per_page")
+#: Rows per page when the user has not chosen a number.
+DEFAULT_ITEMS_PER_PAGE = 50
 
 
 def get_personal(profile, user):
@@ -113,7 +115,7 @@ def get_personal(profile, user):
 def set_personal(profile, user, data):
     """Saves the personal Opening page and/or Items per page; returns the stored object.
 
-    A key given as ``None`` is removed, so the profile's value (then the default) applies again. Each value is checked
+    A key given as ``None`` is removed, so the standard value applies again. Each value is checked
     exactly like the profile setting of the same name (a bad value raises ``FeesError`` 422). No ``touch``: this is
     one person's preference, not fee data, and a Reader may keep their own.
     """
@@ -135,15 +137,11 @@ def set_personal(profile, user, data):
 
 
 def personal_default_tab(profile, user, settings):
-    """The Opening page for this user: their own choice, else the profile's ``default_tab``, else ``memos``."""
-    own = get_personal(profile, user).get("default_tab")
-    return own or getattr(settings, "default_tab", "") or "memos"
+    """The Opening page for this user: their own choice, else ``memos``. (``settings`` is kept for the callers.)"""
+    return get_personal(profile, user).get("default_tab") or "memos"
 
 
 def personal_items_per_page(profile, user, settings):
-    """Items per page for this user (0 means All): their own choice, else the profile's value, else 50."""
+    """Items per page for this user (0 means All): their own choice, else 50. (``settings`` is kept for the callers.)"""
     own = get_personal(profile, user).get("items_per_page")
-    if own is not None:
-        return own
-    value = getattr(settings, "items_per_page", None)
-    return 50 if value is None else value
+    return DEFAULT_ITEMS_PER_PAGE if own is None else own

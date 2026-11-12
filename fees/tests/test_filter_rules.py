@@ -120,14 +120,14 @@ class FyOptionsOnlyYearsTests(TestCase):
 
 class AllNoneControlsTests(WriteBase):
     def test_the_dashboard_customise_form_has_real_submit_buttons(self):
-        FeesSettings.objects.update_or_create(profile=self.profile, defaults={"dashboard_kpis_enabled": True})
+        FeesSettings.objects.update_or_create(profile=self.profile, defaults={"statistics_enabled": True})
         html = self.client.get(reverse("fees_dashboard")).content.decode()
         self.assertIn('data-select-all-none="kpi"', html)
         self.assertIn('<button type="submit" name="select" value="all"', html)
         self.assertIn('<button type="submit" name="select" value="none"', html)
 
     def test_all_and_none_reshow_the_boxes_and_save_nothing(self):
-        FeesSettings.objects.update_or_create(profile=self.profile, defaults={"dashboard_kpis_enabled": True})
+        FeesSettings.objects.update_or_create(profile=self.profile, defaults={"statistics_enabled": True})
         before = FeesSettings.objects.get(profile=self.profile).dashboard_kpis
         response = self.post("fees_dashboard_kpis", {"select": "all"})
         self.assertEqual(response.status_code, 302)

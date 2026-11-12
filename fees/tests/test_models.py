@@ -131,7 +131,6 @@ class SchemaTests(TestCase):
         settings = FeesSettings.objects.create(profile=profile)
         self.assertEqual(settings.default_tds_rate, Decimal("10"))
         self.assertTrue(settings.statistics_enabled)
-        self.assertTrue(settings.dashboard_kpis_enabled)
         self.assertEqual(settings.export_owner_name, "Ziyad Madon")
         self.assertEqual(settings.memo_filename_pattern, "")
         self.assertEqual(settings.data_version, 0)

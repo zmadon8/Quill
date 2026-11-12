@@ -73,6 +73,7 @@ from fees.services.excel_backup import (
     SETTINGS_COLUMNS,
     TABLES,
     WEB_MEMO_FLAGS_SHEET,
+    LEGACY_WEB_SETTINGS_KEYS,
     WEB_SETTINGS_KEYS,
     WEB_SETTINGS_SHEET,
 )
@@ -411,7 +412,6 @@ _SETTINGS_MONEY = ("default_fees_per_appearance", "default_fees_per_conference",
 _SETTINGS_BOOL = ("hide_payment_when_paid", "default_lines_enabled", "show_status_dots")
 _SETTINGS_TEXT = (
     "default_court_name",
-    "default_tab",
     "initial_financial_year",
     "memos_start_year",
     "feebook_start_year",
@@ -424,7 +424,9 @@ _SETTINGS_TEXT = (
 )
 _SETTINGS_SHEET_COLUMNS = ["id"] + [name for name, _kind, _default in SETTINGS_COLUMNS]
 _WEB_TEXT_KEYS = ("export_owner_name", "memo_filename_pattern") + tuple(MEMO_TEXT_DEFAULT_KEYS)
-_WEB_BOOL_KEYS = ("statistics_enabled", "dashboard_kpis_enabled", "dashboard_enabled", "show_bank")
+_WEB_BOOL_KEYS = ("statistics_enabled", "show_bank")
+#: Older files: the Dashboard switches now merged into Statistics (any one off turns it off).
+_LEGACY_STATISTICS_KEYS = ("dashboard_kpis_enabled", "dashboard_enabled")
 
 
 def _apply_settings_row(settings, values, number):
@@ -444,7 +446,7 @@ def _web_settings_found(workbook):
     found = {}
     for _number, values in _read_sheet(workbook, WEB_SETTINGS_SHEET, ["key", "value"], ["key", "value"]):
         key = _text(values["key"]).strip()
-        if key in WEB_SETTINGS_KEYS:
+        if key in WEB_SETTINGS_KEYS or key in LEGACY_WEB_SETTINGS_KEYS:
             found[key] = values["value"]
     return found
 
@@ -465,21 +467,6 @@ def _memo_flags(workbook, found):
     return flags, default
 
 
-def _items_per_page(value):
-    """The rows-per-page value of a ``WebSettings`` cell (0 to 1000, ``All`` is 0), or None when unusable."""
-    text = _text(value).strip().lower()
-    if text == "all":
-        return 0
-    try:
-        number = float(text)
-        whole = number == int(number)
-    except (ValueError, OverflowError):
-        return None
-    if not whole or not 0 <= number <= 1000:
-        return None
-    return int(number)
-
-
 def _apply_web_settings(settings, workbook, found=None):
     """Apply the ``WebSettings`` sheet (key, value) when present; unknown keys are ignored."""
     if found is None:
@@ -491,10 +478,9 @@ def _apply_web_settings(settings, workbook, found=None):
         settings.memo_signature_default = _bool(found["memo_signature_default"], default=False)
     if _text(found.get("list_default_filter")).strip() in ("all", "active"):
         settings.list_default_filter = _text(found["list_default_filter"]).strip()
-    if "items_per_page" in found:
-        per_page = _items_per_page(found["items_per_page"])
-        if per_page is not None:
-            settings.items_per_page = per_page
+    for key in _LEGACY_STATISTICS_KEYS:
+        if key in found and not _bool(found[key], default=True):
+            settings.statistics_enabled = False
     for key in _WEB_TEXT_KEYS:
         if key in found:
             text = _text(found[key])

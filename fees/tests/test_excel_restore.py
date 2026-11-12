@@ -273,7 +273,6 @@ class WebToWebRoundTripTests(TestCase):
         self.assertEqual(saved.export_owner_name, "Test Owner")
         self.assertEqual(saved.memo_filename_pattern, "pattern-x")
         self.assertFalse(saved.statistics_enabled)
-        self.assertFalse(saved.dashboard_kpis_enabled)
         self.assertEqual(saved.default_tds_rate, Decimal("12.50"))
 
     def test_signature_is_not_in_the_xlsx_and_round_trips_via_the_suite_backup_only(self):
@@ -426,7 +425,6 @@ class DesktopShapedFileTests(TestCase):
         self.assertEqual(saved.default_fees_per_appearance, Decimal("7000.00"))
         self.assertEqual(saved.default_tds_rate, Decimal("12.00"))
         self.assertEqual(saved.overdue_days, 30)
-        self.assertEqual(saved.default_tab, "dashboard")
         # Columns the file lacks take the desktop defaults (NOT NULL defaults), not NULL.
         self.assertTrue(saved.default_lines_enabled)
         self.assertTrue(saved.show_status_dots)
@@ -478,7 +476,6 @@ class SampleFileTests(TestCase):
         sample = rows_as_dicts(book["Settings"])[0]
         saved = FeesSettings.objects.get(profile=profile)
         self.assertEqual(saved.default_tds_rate, Decimal(str(sample["default_tds_rate"])).quantize(Decimal("0.01")))
-        self.assertEqual(saved.default_tab, sample["default_tab"])
         self.assertEqual(saved.overdue_days, int(sample["overdue_days"]))
         self.assertTrue(saved.default_lines_enabled)
 
@@ -860,25 +857,17 @@ class SignatureFlagRestoreTests(TestCase):
         saved = FeesSettings.objects.get(profile=profile)
         self.assertFalse(saved.memo_signature_default)
         self.assertEqual(saved.list_default_filter, "all")
-        self.assertEqual(saved.items_per_page, 50)
 
-    def test_items_per_page_round_trips_through_web_settings(self):
-        source = fees_profile("PerPage-Source")
-        seed_web_data(source)
-        FeesSettings.objects.update_or_create(profile=source, defaults={"items_per_page": 0})
-        target = fees_profile("PerPage-Target")
-        out = export_of(source)
-        restore(target, out)
-        out.close()
-        self.assertEqual(FeesSettings.objects.get(profile=target).items_per_page, 0)
-
-    def test_items_per_page_reads_numbers_and_all_and_ignores_bad_values(self):
-        for cell, expected in ((25, 25), ("40", 40), ("All", 0), (1000, 1000), (1001, 50), ("many", 50), (-3, 50), (2.5, 50)):
+    def test_older_web_settings_keys_are_accepted_and_the_dashboard_switches_merge_into_statistics(self):
+        for key, cell, expected in (
+            ("dashboard_enabled", 0, False), ("dashboard_kpis_enabled", 0, False), ("dashboard_enabled", 1, True),
+            ("items_per_page", 25, True), ("items_per_page", "All", True),
+        ):
             sheets = minimal_sheets(1)
-            sheets["WebSettings"] = [["key", "value"], ["items_per_page", cell]]
-            profile = fees_profile("PerPage-%s" % cell)
+            sheets["WebSettings"] = [["key", "value"], ["statistics_enabled", 1], [key, cell]]
+            profile = fees_profile("Legacy-%s-%s" % (key, cell))
             restore(profile, build_workbook(sheets))
-            self.assertEqual(FeesSettings.objects.get(profile=profile).items_per_page, expected, cell)
+            self.assertEqual(FeesSettings.objects.get(profile=profile).statistics_enabled, expected, (key, cell))
 
     def test_flag_sheet_overrides_the_default_per_memo(self):
         sheets = minimal_sheets(2)

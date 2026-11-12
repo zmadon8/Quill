@@ -1,6 +1,6 @@
-"""Owner round (2026-11): the Dashboard page and Bank can each be switched off in Settings (per profile, Editors).
+"""Owner round (2026-11): Statistics (with the Dashboard) and Bank can each be switched off in Settings (per profile, Editors).
 
-Dashboard off: no Dashboard in the header or the Statistics tabs, its address opens the person's first page, an Opening
+Statistics off: no Statistics or Dashboard in the header or the Statistics tabs, its address opens the person's first page, an Opening
 page of Dashboard opens Memos, and the program name links to the first page. Bank off: no Bank filter or column on
 Feebook, no Bank account box on a payment, no Bank column in the Feebook export, no bank list in Settings; a bank in an
 old link is ignored, and editing a payment keeps the bank it had. Both are on by default and round-trip through the
@@ -11,7 +11,8 @@ from django.urls import reverse
 
 from fees.models import FeesSettings, Payment
 from fees.pages import feebook_filters
-from fees.services import excel_backup
+from fees.personal_form import FeesPersonalForm
+from fees.services import excel_backup, prefs
 from fees.services import settings as settings_service
 from fees.services.excel_restore import _WEB_BOOL_KEYS
 from fees.tests.test_views_write import WriteBase
@@ -29,48 +30,44 @@ def _nav(html):
 class DashboardSwitchTests(WriteBase):
     def test_on_by_default_and_in_the_backup_keys(self):
         config = settings_service.get_settings(self.profile)
-        self.assertTrue(config["dashboard_enabled"])
         self.assertTrue(config["show_bank"])
-        for key in ("dashboard_enabled", "show_bank"):
+        self.assertNotIn("dashboard_enabled", config)
+        self.assertNotIn("dashboard_kpis_enabled", config)
+        for key in ("statistics_enabled", "show_bank"):
             self.assertIn(key, excel_backup.WEB_SETTINGS_KEYS)
             self.assertIn(key, _WEB_BOOL_KEYS)
+        for key in ("dashboard_enabled", "dashboard_kpis_enabled", "items_per_page"):
+            self.assertNotIn(key, excel_backup.WEB_SETTINGS_KEYS)
 
     def test_settings_page_saves_both_switches(self):
         page = self.client.get(reverse("fees_settings") + "?tab=years")
-        self.assertContains(page, 'name="dashboard_enabled"')
+        self.assertContains(page, 'name="statistics_enabled"')
+        self.assertNotContains(page, 'name="dashboard_enabled"')
+        self.assertNotContains(page, 'name="dashboard_kpis_enabled"')
         self.assertContains(page, 'name="show_bank"')
-        self.post("fees_settings", {"tab": "years", "dashboard_enabled": "0"})
+        self.post("fees_settings", {"tab": "years", "statistics_enabled": "0"})
         self.post("fees_settings", {"tab": "payments", "show_bank": "0"})
         row = FeesSettings.objects.get(profile=self.profile)
-        self.assertEqual((row.dashboard_enabled, row.show_bank), (False, False))
-        self.post("fees_settings", {"tab": "years", "dashboard_enabled": ["0", "1"]})
-        self.assertTrue(FeesSettings.objects.get(profile=self.profile).dashboard_enabled)
+        self.assertEqual((row.statistics_enabled, row.show_bank), (False, False))
+        self.post("fees_settings", {"tab": "years", "statistics_enabled": ["0", "1"]})
+        self.assertTrue(FeesSettings.objects.get(profile=self.profile).statistics_enabled)
 
-    def test_dashboard_off_leaves_the_header_and_tabs_and_its_address_opens_the_first_page(self):
-        _switch(self.profile, dashboard_enabled=False, statistics_enabled=True)
-        page = self.client.get(reverse("fees_statistics"))
-        text = page.content.decode()
-        self.assertNotIn(">Dashboard</a>", text)
-        self.assertIn('href="%s"' % reverse("fees_statistics"), _nav(text))
-        self.assertNotIn('href="%s"' % reverse("fees_dashboard"), text)   # neither the header entry, the tabs nor the program name
-        response = self.client.get(reverse("fees_dashboard"))
-        self.assertRedirects(response, reverse("fees_landing"), fetch_redirect_response=False)
-
-    def test_with_statistics_also_off_the_entry_is_left_out(self):
-        _switch(self.profile, dashboard_enabled=False, statistics_enabled=False)
+    def test_statistics_off_leaves_the_header_and_tabs_and_the_dashboard_address_opens_the_first_page(self):
+        _switch(self.profile, statistics_enabled=False)
         nav = _nav(self.client.get(reverse("fees_memos")).content.decode())
         self.assertNotIn(">Dashboard</a>", nav)
         self.assertNotIn(">Statistics</a>", nav)
         self.assertIn(">Memos</a>", nav)
+        response = self.client.get(reverse("fees_dashboard"))
+        self.assertRedirects(response, reverse("fees_landing"), fetch_redirect_response=False)
 
-    def test_an_opening_page_of_dashboard_opens_memos_and_is_not_offered(self):
-        _switch(self.profile, default_tab="dashboard")
+    def test_an_opening_page_of_dashboard_opens_memos_when_statistics_is_off_and_is_not_offered(self):
+        prefs.set_personal(self.profile, self.editor, {"default_tab": "dashboard"})
         self.assertRedirects(self.client.get(reverse("fees_landing")), reverse("fees_dashboard"), fetch_redirect_response=False)
-        _switch(self.profile, dashboard_enabled=False)
+        _switch(self.profile, statistics_enabled=False)
         self.assertRedirects(self.client.get(reverse("fees_landing")), reverse("fees_memos"), fetch_redirect_response=False)
-        page = self.client.get(reverse("fees_settings") + "?tab=display").content.decode()
-        start = page.index('name="default_tab"')
-        self.assertNotIn('value="dashboard"', page[start:page.index("</select>", start)])
+        form = FeesPersonalForm(profile=self.profile, user=self.editor, fees_settings=FeesSettings.objects.get(profile=self.profile))
+        self.assertNotIn("dashboard", [value for value, _label in form.fields["default_tab"].choices])
 
 
 @override_settings(SECURE_SSL_REDIRECT=False, FEES_ENABLED=True)
