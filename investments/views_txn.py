@@ -5,6 +5,7 @@ from decimal import Decimal
 
 from django.contrib import messages
 from django.core.paginator import Paginator
+from django.db import transaction as db_transaction
 from django.db.models import Q
 from django.http import Http404
 from django.shortcuts import redirect
@@ -180,6 +181,26 @@ def _resolve_folio(profile, user, d):
     return folio
 
 
+MAX_EXTRA_ROWS = 30
+
+
+def _extra_rows(request, profile, mode):
+    """The extra transaction rows posted with the page (their numbers are in ``extra_rows``), each bound to its own prefixed form."""
+    rows = []
+    if request.method != "POST":
+        return rows
+    seen = set()
+    for part in request.POST.get("extra_rows", "").split(","):
+        part = part.strip()
+        if not part.isdigit() or part in seen or len(rows) >= MAX_EXTRA_ROWS:
+            continue
+        seen.add(part)
+        row = forms.ExtraRowForm(request.POST, profile=profile, mode=mode, prefix="x" + part)
+        row.index = int(part)
+        rows.append(row)
+    return rows
+
+
 @inv_editor
 def txn_form(request, mode):
     """Add a purchase (buy), a sale (sell), or an entry awaiting allotment (awaiting_buy / awaiting_sell)."""
@@ -214,28 +235,44 @@ def txn_form(request, mode):
     if len(portfolios) == 1:
         initial["portfolio"] = portfolios[0]
     form = forms.TransactionForm(request.POST or None, profile=profile, mode=mode, initial=initial)
-    if request.method == "POST" and form.is_valid():
-        d = _clean_data(form)
-        try:
-            folio = _resolve_folio(profile, request.user, d)
-            side = SIDE_SELL if mode in ("sell", "awaiting_sell") else SIDE_BUY
-            awaiting = mode.startswith("awaiting")
-            tx.add_transaction(
-                profile, request.user, side=side, instrument=d["instrument"], portfolio=d["portfolio"], broker=d["broker"], date=d["date"],
-                units=d.get("units"), price=d.get("price"), charges=d.get("charges") or 0, folio=folio, awaiting=awaiting,
-                amount=d.get("amount"), expected_allotment_date=d.get("expected_allotment_date"), reference=d.get("reference", ""),
-                note=d.get("note", ""), allotment_date=d.get("allotment_date"), origin=d.get("origin") or ORIGIN_PURCHASE,
-                corporate_action=d.get("corporate_action"))
-        except InvestmentsError as err:
-            if err.code == "WOULD_GO_NEGATIVE":
-                return _refused(request, err, request.path)
-            _apply_form_errors(form, err)
-        else:
-            messages.success(request, "Saved.")
-            return redirect(reverse("investments_transactions"))
+    # More transactions added on the same page share the date, portfolio and broker; each posts under its own prefix (x1-units, ...).
+    extra = _extra_rows(request, profile, mode)
+    side = SIDE_SELL if mode in ("sell", "awaiting_sell") else SIDE_BUY
+    awaiting = mode.startswith("awaiting")
+    if request.method == "POST":
+        valid = [form.is_valid()] + [row.is_valid() for row in extra]
+        if all(valid):
+            d = _clean_data(form)
+            current = form
+            try:
+                # All the rows are saved together: one that is refused undoes the rest.
+                with db_transaction.atomic():
+                    folio = _resolve_folio(profile, request.user, d)
+                    tx.add_transaction(
+                        profile, request.user, side=side, instrument=d["instrument"], portfolio=d["portfolio"], broker=d["broker"],
+                        date=d["date"], units=d.get("units"), price=d.get("price"), charges=d.get("charges") or 0, folio=folio,
+                        awaiting=awaiting, amount=d.get("amount"), expected_allotment_date=d.get("expected_allotment_date"),
+                        reference=d.get("reference", ""), note=d.get("note", ""), allotment_date=d.get("allotment_date"),
+                        origin=d.get("origin") or ORIGIN_PURCHASE, corporate_action=d.get("corporate_action"))
+                    for row in extra:
+                        current = row
+                        r = row.cleaned_data
+                        tx.add_transaction(
+                            profile, request.user, side=side, instrument=r["instrument"], portfolio=d["portfolio"], broker=d["broker"],
+                            date=d["date"], units=r.get("units"), price=r.get("price"), charges=r.get("charges") or 0, awaiting=awaiting,
+                            amount=r.get("amount"), expected_allotment_date=d.get("expected_allotment_date"),
+                            reference=d.get("reference", ""), allotment_date=d.get("allotment_date"))
+            except InvestmentsError as err:
+                if err.code == "WOULD_GO_NEGATIVE":
+                    return _refused(request, err, request.path)
+                _apply_form_errors(current, err)
+            else:
+                messages.success(request, "Saved." if not extra else f"Saved {len(extra) + 1} transactions.")
+                return redirect(reverse("investments_transactions"))
     return page(request, "investments/txn_form.html", _form_context(profile, {
         "page_title_text": titles[mode], "form": form, "mode": mode, "is_sell": mode in ("sell", "awaiting_sell"),
-        "awaiting_mode": mode.startswith("awaiting"), "submit_label": "Save",
+        "awaiting_mode": mode.startswith("awaiting"), "submit_label": "Save", "extra_forms": extra,
+        "row_template": forms.ExtraRowForm(profile=profile, mode=mode, prefix="x__i__"), "extra_ids": ",".join(str(r.index) for r in extra),
     }))
 
 

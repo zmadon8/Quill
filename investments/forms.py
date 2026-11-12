@@ -114,7 +114,9 @@ class TransactionForm(ProfileForm):
     corporate_action = forms.ModelChoiceField(queryset=CorporateAction.objects.none(), required=False, label="Corporate action (bonus, split or demerger)")
     price = MoneyField(label="Price per unit", required=False, min_value=0)
     charges = MoneyField(label="Charges", required=False, min_value=0, initial=0)
-    allotment_date = forms.DateField(widget=date_widget(), label="Allotment date", required=False)
+    allotment_date = forms.DateField(
+        widget=date_widget(), label="Allotment date", required=False,
+        help_text="When the units were credited to you, if later than Date. It starts the holding period and the order units are sold in. Leave blank if the same as Date.")
     amount = MoneyField(label="Amount paid", required=False, min_value=0)
     expected_allotment_date = forms.DateField(widget=date_widget(), label="Expected allotment date", required=False)
     reference = forms.CharField(label="Reference", required=False, max_length=80)
@@ -131,6 +133,8 @@ class TransactionForm(ProfileForm):
         awaiting = mode.startswith("awaiting")
         if mode == "sell":
             self.fields["date"].label = "Date sold"
+        elif mode in ("buy", "edit"):
+            self.fields["date"].help_text = "The date you placed and paid for the order (the trade date)."
         if awaiting:
             for name in ("units", "price", "allotment_date", "origin", "corporate_action"):
                 del self.fields[name]
@@ -154,6 +158,13 @@ class TransactionForm(ProfileForm):
         if mode in ("sell", "awaiting_sell", "edit_sell"):
             del self.fields["new_folio"]
             # A sale asks for the date, investment, where it was held, units and price; charges and a note sit under "More".
+            self.more_fields = tuple(n for n in ("charges", "note") if n in self.fields)
+            self.more_label = "Charges and note"
+        elif mode in ("buy", "edit"):
+            # A purchase asks for the date, investment, where it goes, units and price; the rest sits under "More".
+            self.more_fields = tuple(n for n in ("allotment_date", "charges", "folio", "new_folio", "origin", "corporate_action", "note") if n in self.fields)
+            self.more_label = "Allotment date, charges, folio and more"
+        elif awaiting:
             self.more_fields = tuple(n for n in ("charges", "note") if n in self.fields)
             self.more_label = "Charges and note"
         if mode.startswith("edit"):
@@ -187,6 +198,31 @@ class TransactionForm(ProfileForm):
             elif cleaned.get("price") is None:
                 cleaned["price"] = 0
         return cleaned
+
+
+class ExtraRowForm(ProfileForm):
+    """One more transaction added on the buy or sell page: the date, portfolio and broker are shared with the main form, so a row only
+    asks for the investment, the units and price (or the amount, when awaiting allotment) and any charges."""
+
+    instrument = forms.ModelChoiceField(queryset=Instrument.objects.none(), label="Investment")
+    units = MoneyField(label="Units", required=False, min_value=0)
+    price = MoneyField(label="Price per unit", required=False, min_value=0)
+    amount = MoneyField(label="Amount paid", required=False, min_value=0)
+    charges = MoneyField(label="Charges", required=False, min_value=0, initial=0)
+
+    def __init__(self, *args, profile=None, mode="buy", **kwargs):
+        super().__init__(*args, profile=profile, **kwargs)
+        self.fields["instrument"].queryset = self.instruments()
+        if mode.startswith("awaiting"):
+            del self.fields["units"]
+            del self.fields["price"]
+            self.fields["amount"].required = True
+            if mode == "awaiting_sell":
+                self.fields["amount"].label = "Expected proceeds"
+        else:
+            del self.fields["amount"]
+            self.fields["units"].required = True
+            self.fields["price"].required = True
 
 
 class CompleteForm(forms.Form):
