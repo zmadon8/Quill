@@ -1,5 +1,5 @@
-"""The Overview's chosen figures (owner round 2026-11): the boxes at the top, and a table of figures for the whole history and the
-last 5, 3 and 1 years. Chosen per profile in Overview > Customise (``InvestmentSettings.overview``); an empty choice is the standard one.
+"""The Overview's chosen figures (owner round 2026-11): the boxes at the top, and a table of figures for the same periods as the chart
+(1M, 3M, 6M, 1Y, 3Y, 5Y and All). Chosen per profile in Overview > Customise (``InvestmentSettings.overview``); an empty choice is the standard one.
 
 Every period figure uses the same portfolio, broker and as-at date as the rest of the Overview. A period's opening value counts as money
 put in on its first day (as on the Performance page), so XIRR, the index comparison and the gain cover only that period. Figures from
@@ -42,8 +42,10 @@ METRICS = (
     ("drawdown", "Largest fall", "pct", "The biggest fall from a high in the period; from sampled values."),
 )
 STANDARD_METRICS = ("xirr", "index_xirr", "alpha", "gain", "fresh")
-PERIODS = (("all", "Since the start"), ("5", "5 years"), ("3", "3 years"), ("1", "1 year"))
-STANDARD_PERIODS = ("all", "5", "3", "1")
+PERIODS = (("1m", "1M"), ("3m", "3M"), ("6m", "6M"), ("1y", "1Y"), ("3y", "3Y"), ("5y", "5Y"), ("all", "All"))
+STANDARD_PERIODS = tuple(p for p, _l in PERIODS)
+#: Period ids stored before the table used the chart's periods (whole years): read as the matching new id.
+LEGACY_PERIODS = {"5": "5y", "3": "3y", "1": "1y"}
 
 _BOX_IDS = {b[0] for b in BOXES}
 _METRIC_IDS = {m[0] for m in METRICS}
@@ -55,21 +57,18 @@ def choice(settings_row):
     raw = (getattr(settings_row, "overview", None) or {}) if settings_row is not None else {}
     boxes = [b for b, _l, _h in BOXES if b in set(raw.get("boxes", STANDARD_BOXES))]
     metrics = [m for m, _l, _f, _h in METRICS if m in set(raw.get("metrics", STANDARD_METRICS))]
-    periods = [p for p, _l in PERIODS if p in set(raw.get("periods", STANDARD_PERIODS))]
+    periods = [p for p, _l in PERIODS if p in {LEGACY_PERIODS.get(x, x) for x in raw.get("periods", STANDARD_PERIODS)}]
     return {"boxes": boxes, "metrics": metrics, "periods": periods}
 
 
 def clean(boxes, metrics, periods):
     """The stored form of a choice (unknown ids dropped)."""
     return {"boxes": [b for b in boxes if b in _BOX_IDS], "metrics": [m for m in metrics if m in _METRIC_IDS],
-            "periods": [p for p in periods if p in _PERIOD_IDS]}
+            "periods": [p for p in dict.fromkeys(LEGACY_PERIODS.get(x, x) for x in periods) if p in _PERIOD_IDS]}
 
 
-def _years_back(day, years):
-    try:
-        return day.replace(year=day.year - years)
-    except ValueError:
-        return day.replace(year=day.year - years, day=28)
+#: Days back from the as-at date for each period key (the same as the chart periods; None = from the first purchase).
+PERIOD_DAYS = {"1m": 30, "3m": 92, "6m": 183, "1y": 365, "3y": 1096, "5y": 1825}
 
 
 def _opening_value(profile, *, portfolio, broker, start, include_dividends, settings_row, history=None, memo=None):
@@ -124,7 +123,7 @@ def compute(profile, *, portfolio, broker, as_of, include_dividends, settings_ro
     for pid, label in PERIODS:
         if pid not in wanted:
             continue
-        start = None if pid == "all" else _years_back(as_of, int(pid))
+        start = None if pid == "all" else as_of - timedelta(days=PERIOD_DAYS[pid])
         short = start is not None and start <= first   # the history is shorter than the period: it is the whole history
         if short:
             start = None
@@ -193,10 +192,6 @@ def _from_samples(sample, day0):
         if peak > 0:
             fall = max(fall, float((peak - lv) / peak))
     return twr, fall
-
-
-#: Days back from the as-at date for each period key (the same as the chart periods; None = from the first purchase).
-PERIOD_DAYS = {"1m": 30, "3m": 92, "6m": 183, "1y": 365, "3y": 1096, "5y": 1825}
 
 
 def period_figures(profile, *, portfolio, broker, as_of, include_dividends, settings_row, totals, period_key, index, history=None, memo=None):

@@ -31,8 +31,8 @@
 <div class="tw"><table data-table-id="inv-overview-periods" class="led"><thead><tr><th>Figure</th>{% for p in period_table.periods %}<th class="r">{{ p.label }}{% if p.short %} *{% endif %}</th>{% endfor %}</tr></thead><tbody>
 {% for row in period_table.rows %}<tr><td title="{{ row.help }}">{{ row.label }}</td>{% for v in row.values %}<td class="r">{% if v is None %}<span class="na">n/a</span>{% elif row.fmt == "money" %}{{ v|inr }}{% elif row.fmt == "money_signed" %}{{ v|inr_signed }}{% elif row.fmt == "pct_signed" %}{{ v|pct_signed }}{% else %}{{ v|pct }}{% endif %}</td>{% endfor %}</tr>{% endfor %}
 </tbody></table></div>
-<p class="hint">{% for p in period_table.periods %}{% if p.id == "all" %}Since the start: from the first purchase, {{ p.start|date:"j M Y" }}. {% elif p.short %}{{ p.label }} *: your history is shorter, so from the first purchase, {{ p.start|date:"j M Y" }}. {% else %}{{ p.label }}: from {{ p.start|date:"j M Y" }}. {% endif %}{% endfor %}The value at the start of a period counts as money put in on that day. Point at a figure's name for what it means.</p>
-{% elif can_edit and not customise_open %}<p class="hint"><a href="?customise=1#customise">Customise the Overview</a> to add figures for the whole history and the last 5, 3 and 1 years.</p>{% endif %}
+<p class="hint">{% for p in period_table.periods %}{% if p.id == "all" %}All: from the first purchase, {{ p.start|date:"j M Y" }}. {% elif p.short %}{{ p.label }} *: your history is shorter, so from the first purchase, {{ p.start|date:"j M Y" }}. {% else %}{{ p.label }}: from {{ p.start|date:"j M Y" }}. {% endif %}{% endfor %}The value at the start of a period counts as money put in on that day. Point at a figure's name for what it means.</p>
+{% elif can_edit and not customise_open %}<p class="hint"><a href="?customise=1#customise">Customise the Overview</a> to add figures for the same periods as the chart (1M to All).</p>{% endif %}
 {% if customise_open and can_edit %}
 <div class="panel" id="customise"><h3>Customise the Overview</h3>
 <form method="post" action="{% url 'investments_overview_save' %}">{% csrf_token %}
