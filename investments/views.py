@@ -178,7 +178,18 @@ def set_selection(request):
         "portfolio": request.POST.get("portfolio", ""), "broker": request.POST.get("broker", ""), "asat": request.POST.get("asat", "")}
     from .viewutil import safe_next
 
-    return redirect(safe_next(request, reverse("investments_dashboard")))
+    target = safe_next(request, reverse("investments_dashboard"))
+    if "type" in request.POST or "status" in request.POST:
+        # Holdings filters ride along in the query string of the page we return to.
+        from urllib.parse import parse_qsl, urlencode, urlsplit
+
+        parts = urlsplit(target)
+        query = dict(parse_qsl(parts.query))
+        for key in ("type", "status"):
+            if key in request.POST:
+                query[key] = request.POST[key]
+        target = parts.path + ("?" + urlencode(query) if query else "")
+    return redirect(target)
 
 
 @inv_reader
