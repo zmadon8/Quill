@@ -211,7 +211,7 @@ class ValidationTests(SimpleTestCase):
     def test_form_round_trip(self):
         post = {"f_" + name: sf.show(value, kind) for name, kind, value in sf.fields("yahoo", sf.default("yahoo"))}
         post["f_closes_path"] = "px.0.c"
-        submitted, errors = sf.parse_form("yahoo", post)
+        submitted, errors = sf.parse_form("yahoo", post, sf.default("yahoo"))
         self.assertEqual((errors, submitted["closes_path"]), ([], ["px", 0, "c"]))
         self.assertEqual(sf.validate("yahoo", submitted)[1], [])
 
@@ -255,9 +255,9 @@ class StoredConfigTests(InvTestCase):
         self.assertEqual(amfi.fetch(["122639"])["122639"][1], D("81.4012"))
         self.assertTrue(self.net.calls[0].startswith("https://amfi.example.test/nav.txt"))
         sf.save("nse_eq", {"url": "https://nse.example.test/{yyyy}{mm}{dd}.csv", "columns": {"close": ["Settle Price"]}}, self.user)
-        self.assertEqual(bhavcopy.url_for("nse_eq", d(2026, 11, 6)), "https://nse.example.test/20261106.csv")
+        self.assertEqual(bhavcopy.url_for("nse_eq", d(2026, 11, 6), sf.get("nse_eq")), "https://nse.example.test/20261106.csv")
         text = "TckrSymb,Settle Price,TradDt\nTCS,3200,2026-11-06\n"
-        self.assertEqual(bhavcopy.read_equity(lines(text), symbols=["TCS"])[("sym", "TCS")][1], D("3200.0000"))
+        self.assertEqual(bhavcopy.read_equity(lines(text), symbols=["TCS"], fmt=sf.get("nse_eq"))[("sym", "TCS")][1], D("3200.0000"))
         sf.save("mfapi", {"url": "https://mf.example.test/mf/{code}.json"}, self.user)
         self.net.add("mf.example.test", fixture("mfapi_122639.json"))
         mfapi.fetch("122639")

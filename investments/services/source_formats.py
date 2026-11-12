@@ -450,10 +450,10 @@ def show(value, kind):
     return str(value).replace("\t", "\\t")
 
 
-def parse_form(key, post):
+def parse_form(key, post, merged=None):
     """The submitted form as a format dict (not yet validated), or ``(None, errors)`` for a value that cannot even be read."""
     out, errors = {}, []
-    for name, kind, _value in fields(key):
+    for name, kind, _value in fields(key, merged):
         raw = (post.get("f_" + name) or "").strip() if kind != "text" else post.get("f_" + name, "")
         if kind == "list":
             value = [part.strip() for part in raw.replace("\n", ",").split(",") if part.strip()]
