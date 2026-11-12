@@ -51,3 +51,57 @@ def workbook(sheets):
 def response(file_name, sheets):
     handle = workbook(sheets)
     return FileResponse(handle, as_attachment=True, filename=file_name, content_type=XLSX_TYPE)
+
+
+def safe_file_name(name, suffix):
+    """A file name made from a user's text: letters, digits, spaces, dots, dashes and underscores only."""
+    stem = re.sub(r"[^\w .\-]", "", name or "").strip(" .") or "Investment"
+    stem = re.sub(r" {2,}", " ", stem)
+    return f"{stem[:80]} {suffix}.xlsx"
+
+
+TXN_HEADER = ["Date", "Allotment date", "Investment", "Code", "ISIN", "Type", "Buy / sell", "Units", "Price", "Charges", "Amount", "Portfolio", "Broker",
+              "Folio", "Status", "Opening", "Reference", "Note"]
+
+
+def _txn_line(t):
+    from .models import SIDE_BUY, STATUS_FINAL
+    from .services import core
+
+    if t.status == STATUS_FINAL and t.units is not None:
+        amount = core.buy_total(t) if t.side == SIDE_BUY else core.sell_total(t)
+    else:
+        amount = t.amount
+    i = t.instrument
+    return [t.date, t.allotment_date, i.name, i.code, i.isin, i.get_kind_display(), t.get_side_display(), t.units, t.price, t.charges, amount,
+            t.portfolio.name, t.broker.name, t.folio.number if t.folio else "", t.get_status_display(), t.is_opening, t.reference, t.note]
+
+
+def transaction_sheets(txns, transfers=None, dividends=None):
+    """The Transactions sheet, then Transfers and Dividends sheets when those are given (querysets with their related rows selected)."""
+    sheets = [("Transactions", TXN_HEADER, (_txn_line(t) for t in txns.iterator()))]
+    if transfers is not None:
+        sheets.append(("Transfers", ["Date", "Investment", "Units", "From portfolio", "From broker", "From folio", "To portfolio", "To broker", "To folio",
+                                     "Note"],
+                       ([r.date, r.instrument.name, r.units, r.from_portfolio.name, r.from_broker.name, r.from_folio.number if r.from_folio else "",
+                         r.to_portfolio.name, r.to_broker.name, r.to_folio.number if r.to_folio else "", r.note] for r in transfers.iterator())))
+    if dividends is not None:
+        sheets.append(("Dividends", ["Date received", "Investment", "Portfolio", "Broker", "Folio", "Amount", "Tax deducted", "Note"],
+                       ([r.date, r.instrument.name, r.portfolio.name, r.broker.name, r.folio.number if r.folio else "", r.amount, r.tax_deducted,
+                         r.note] for r in dividends.iterator())))
+    return sheets
+
+
+HOLDINGS_HEADER = ["Name", "Type", "Code", "ISIN", "Units", "Average cost", "Cost", "Price", "Price date", "Value", "Gain", "Gain %", "XIRR",
+                   "First bought", "Status", "Realised gain", "Dividends"]
+
+
+def holdings_sheet(rows):
+    out = []
+    for h in rows:
+        shown = h.is_held and not h.unpriced and not h.blocked
+        status = "Not bought yet" if h.empty else "Sold out" if not h.is_held else "Hidden" if h.is_hidden else "Held"
+        out.append([h.instrument.name, h.instrument.get_kind_display(), h.instrument.code, h.instrument.isin, h.units, h.avg_cost, h.cost, h.price,
+                    h.price_date, h.value if h.is_held and not h.blocked else None, h.gain if shown else None, h.gain_pct if shown else None,
+                    None if h.blocked else h.xirr, h.first_date, status, h.realised, h.dividends])
+    return [("Holdings", HOLDINGS_HEADER, out)]

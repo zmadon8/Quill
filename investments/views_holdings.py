@@ -67,6 +67,10 @@ def holdings_list(request):
         if status == "hidden" and not h.is_hidden:
             continue
         out.append(h)
+    if request.GET.get("export") == "xlsx":
+        from .exports import holdings_sheet, response
+
+        return response("Holdings.xlsx", holdings_sheet(out))
     return page(request, "investments/holdings.html", {
         "page_title_text": "Investments", "rows": out, "held_count": held_count, "sold_count": sold_count, "kind": kind, "status": status, "holdings_filters": True,
         "kinds": [("", "All types"), ("share", "Share"), ("fund", "Mutual fund"), ("alternative", "Alternative"), ("foreign", "Foreign")],
@@ -220,6 +224,15 @@ def investment(request, pk):
     h = rows[0] if rows else holdings.Holding(instrument=inst, empty=True)
     pi = masters.get_profile_investment(profile, inst) if request.user.is_authenticated and inst.pk else None
     txns = Transaction.objects.filter(profile=profile, instrument=inst).select_related("broker", "portfolio", "folio").order_by("-date", "-id")
+    if request.GET.get("export") == "xlsx":
+        from .exports import response, safe_file_name, transaction_sheets
+        from .models import Dividend
+
+        return response(safe_file_name(inst.name, "transactions"), transaction_sheets(
+            txns.select_related("instrument"),
+            Transfer.objects.filter(profile=profile, instrument=inst).select_related(
+                "instrument", "from_broker", "to_broker", "from_portfolio", "to_portfolio", "from_folio", "to_folio").order_by("-date", "-id"),
+            Dividend.objects.filter(profile=profile, instrument=inst).select_related("instrument", "portfolio", "broker", "folio").order_by("-date", "-id")))
     transfers = Transfer.objects.filter(profile=profile, instrument=inst).select_related(
         "from_broker", "to_broker", "from_portfolio", "to_portfolio", "from_folio", "to_folio")
     portfolios = {p.pk: p.name for p in profile_portfolios(profile)}

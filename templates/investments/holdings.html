@@ -1,6 +1,6 @@
 {% extends "investments/base_investments.html" %}
 {% load investments_money %}
-{% block page_actions %}{% if can_edit %}<p class="page-actions" role="group" aria-label="Investment actions"><a class="btn p" href="{% url 'investments_add_1' %}">Add investment</a><a class="btn q" href="{% url 'investments_import_statement' %}">Import a statement</a></p>{% endif %}{% endblock %}
+{% block page_actions %}<p class="page-actions" role="group" aria-label="Investment actions">{% if can_edit %}<a class="btn p" href="{% url 'investments_add_1' %}">Add investment</a><a class="btn q" href="{% url 'investments_import_statement' %}">Import a statement</a>{% endif %}<a class="btn q" href="?type={{ kind|urlencode }}&amp;status={{ status|urlencode }}&amp;export=xlsx">Export to Excel</a></p>{% endblock %}
 {% block inv_content %}
 <h1 class="visually-hidden">Investments</h1>
 {% if rows %}
