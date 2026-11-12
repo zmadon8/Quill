@@ -17,7 +17,7 @@ Decided case by case, when the profile applies an action (``CorporateActionRespo
 """
 from collections import namedtuple
 from datetime import timedelta
-from decimal import ROUND_DOWN, Decimal
+from decimal import ROUND_DOWN, Decimal, InvalidOperation
 
 from django.db import transaction
 from django.db.models import Count, Min, Q
@@ -333,10 +333,64 @@ def remove_demerger_allotments(profile, user, action):
     return bool(found)
 
 
+def _places(instrument):
+    return Decimal(1) if instrument.kind in ("share", "foreign") else Decimal("0.0001")
+
+
+def _bucket_key(bucket):
+    return f"{bucket.portfolio}:{bucket.broker}:{bucket.folio or 0}"
+
+
+def _overrides(profile, action):
+    response = CorporateActionResponse.objects.filter(profile=profile, action=action).only("units_override").first()
+    return dict(response.units_override or {}) if response else {}
+
+
+def _override_units(text, instrument):
+    """The units an override string stands for, or None when it is not a valid whole or four-decimal, non-negative number."""
+    try:
+        value = Decimal(str(text).strip())
+        if not value.is_finite() or value < 0 or value != value.quantize(_places(instrument), rounding=ROUND_DOWN):
+            return None
+        return value.quantize(_places(instrument))
+    except (InvalidOperation, ValueError):   # too many digits to quantize (for example 1e30)
+        return None
+
+
+def bucket_allotments(profile, action):
+    """The rows of the edit page for a demerger: one per portfolio, broker and folio that held the parent the day before the ex-date.
+
+    Each row has ``key``, the names, ``held``, ``default`` (from the ratio), ``override`` (the text the person entered, or ``""``), ``units``
+    (what the program enters: the override when there is one, else the default) and ``own`` (the person recorded shares there themselves,
+    so the program makes no entry and an override does nothing)."""
+    target = action.target_instrument
+    if action.kind != CA_DEMERGER or target is None:
+        return []
+    overrides = _overrides(profile, action)
+    own = {(t.portfolio_id, t.broker_id) for t in linked_transactions(profile, action).filter(auto_created=False)}
+    held_by = {b: h for b, h in _bucket_units_before(profile, action).items() if h > 0}
+    portfolios = dict(Portfolio.objects.filter(pk__in={b.portfolio for b in held_by}).values_list("pk", "name"))
+    brokers = dict(Broker.objects.filter(pk__in={b.broker for b in held_by}).values_list("pk", "name"))
+    folios = dict(Folio.objects.filter(pk__in={b.folio for b in held_by if b.folio}).values_list("pk", "name")) if any(b.folio for b in held_by) else {}
+    rows = []
+    for bucket, held in held_by.items():
+        key = _bucket_key(bucket)
+        default = _units_to_add(action, held, target)
+        override = overrides.get(key, "")
+        value = _override_units(override, target) if override != "" else None
+        rows.append({"key": key, "field": "units_" + key.replace(":", "_"), "portfolio": portfolios.get(bucket.portfolio, ""), "broker": brokers.get(bucket.broker, ""),
+                     "folio": folios.get(bucket.folio, "") if bucket.folio else "", "held": held, "default": default,
+                     "override": override, "units": default if value is None else value, "own": (bucket.portfolio, bucket.broker) in own})
+    rows.sort(key=lambda r: (r["portfolio"], r["broker"], r["folio"]))
+    return rows
+
+
 def sync_demerger_allotments(profile, user, action):
     """Make the new company's shares for an applied demerger match its ratio: one zero-price entry (origin demerger, tagged ``auto_created``)
     for each portfolio, broker and folio that held the parent the day before the ex-date, dated the ex-date, units from the ratio (whole
-    shares for a share, four decimals for a fund; never rounded up).
+    shares for a share, four decimals for a fund; never rounded up). Where the person entered the units they were allotted
+    (``CorporateActionResponse.units_override``) those are used instead; 0 means no entry. An override for a bucket that held nothing that
+    day is ignored but kept.
 
     Safe to run again after the demerger is edited: an entry the program made that still matches is kept, one that no longer matches is
     removed and made again, so nothing is counted twice. An entry the person recorded or edited themselves is never touched, and its
@@ -347,8 +401,16 @@ def sync_demerger_allotments(profile, user, action):
     changed = False
     wanted = {}
     if action.kind == CA_DEMERGER and target is not None:
+        overrides = _overrides(profile, action)
         for bucket, held in _bucket_units_before(profile, action).items():
-            units = _units_to_add(action, held, target) if held > 0 else Decimal(0)
+            if held <= 0:
+                continue
+            units = _units_to_add(action, held, target)
+            given = overrides.get(_bucket_key(bucket), "")
+            if given != "":
+                value = _override_units(given, target)
+                if value is not None:
+                    units = value
             if units > 0:
                 wanted[(bucket.portfolio, bucket.broker, bucket.folio)] = units
     own = set()
@@ -374,6 +436,52 @@ def sync_demerger_allotments(profile, user, action):
             note="Created from the corporate action; check the units against your statement")
         changed = True
     return changed
+
+
+@transaction.atomic
+def set_units_overrides(profile, user, action_id, overrides):
+    """Save the units the person was allotted in the demerged company, bucket by bucket. ``overrides`` maps ``"portfolio:broker:folio"``
+    (folio 0 for none) to a text: blank removes the override, else it must be a non-negative number (whole for a share, up to four decimals
+    for a fund) for a bucket that held the parent the day before the ex-date. Keys not given are left as they are. The program's entries
+    are made again when the demerger is applied. Returns whether anything changed."""
+    action = CorporateAction.objects.filter(pk=action_id).select_related("instrument", "target_instrument").first()
+    if action is None or action.instrument_id not in held_instrument_ids(profile):
+        raise not_found("corporate action")
+    if action.kind != CA_DEMERGER or action.target_instrument_id is None:
+        raise InvestmentsError("BAD_KIND", "Only a demerger with a new company has units to override.")
+    valid = {r["key"] for r in bucket_allotments(profile, action)}
+    response, _created = CorporateActionResponse.objects.get_or_create(profile=profile, action=action)
+    stored = dict(response.units_override or {})
+    for key, text in overrides.items():
+        text = (text or "").strip()
+        if text == "":
+            stored.pop(key, None)
+            continue
+        if key not in valid:
+            raise InvestmentsError("BAD_BUCKET", "That portfolio, broker and folio held none of this investment the day before the ex-date.")
+        value = _override_units(text, action.target_instrument)
+        if value is None:
+            places = "a whole number" if _places(action.target_instrument) == 1 else "a number with up to four decimals"
+            raise InvestmentsError("BAD_UNITS", f"Enter the units allotted as {places}, 0 or more, or leave it blank to use the calculated units.")
+        stored[key] = format(value, "f")
+    if stored == (response.units_override or {}):
+        return False
+    response.units_override = stored
+    response.version += 1
+    response.save(update_fields=["units_override", "version"])
+    if response.status == STATUS_APPLIED:
+        sync_demerger_allotments(profile, user, action)
+        violations = _violations_after(profile, action)
+        if violations:
+            from investments.services.transactions import _refuse
+
+            _refuse(violations, "Changing the units allotted")
+    history.record(profile, user, response, "edit", summary=f"Set the units allotted on the demerger of {action.instrument.name}")
+    from investments.services import fetch
+
+    fetch.bump_version()
+    core.touch(profile)
+    return True
 
 
 @transaction.atomic
@@ -584,5 +692,5 @@ def for_profile(profile):
     return rows
 
 
-__all__ = ["record", "update", "respond", "sync_demerger_allotments", "remove_demerger_allotments", "auto_apply", "apply_automatic", "apply_automatic_for_action", "change_kind", "create_unit_transactions", "applied", "applied_demergers", "demerger_terms", "demerger_gaps",
+__all__ = ["record", "update", "respond", "sync_demerger_allotments", "set_units_overrides", "bucket_allotments", "remove_demerger_allotments", "auto_apply", "apply_automatic", "apply_automatic_for_action", "change_kind", "create_unit_transactions", "applied", "applied_demergers", "demerger_terms", "demerger_gaps",
            "linked_transactions", "method_of", "pending", "pending_instrument_ids", "large_moves_without_action", "for_profile", "Q"]

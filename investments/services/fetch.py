@@ -380,6 +380,12 @@ def fetch_prices(*, ids=None, profile=None, trigger="cron", max_seconds=600, max
             schemes.refresh()
         except FetchError as exc:
             summary["failures"].append({"id": 0, "name": "AMFI scheme list", "error": str(exc)})
+        from investments.services import nse_list
+
+        try:
+            nse_list.refresh()
+        except FetchError as exc:
+            summary["failures"].append({"id": 0, "name": "NSE equity list", "error": str(exc)})
     # exchange rates for the foreign investments in use (plan 22)
     if ids is None and not out_of_time():
         from investments.services import fx

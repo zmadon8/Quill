@@ -609,6 +609,9 @@ class CorporateActionResponse(models.Model):
     #: Demerger only: whether the new company's shares keep the purchase dates of the parent lots they came from (the holding period carries
     #: over) or start on the date received (the default). A tax judgement, so it is the person's (and the CA's) choice.
     inherit_dates = models.BooleanField(default=False)
+    #: Demerger only: units the person says they were allotted, in place of the ratio figure, as ``{"portfolio:broker:folio": "units"}``
+    #: (folio 0 when the bucket has none). Kept when the demerger is edited or applied again.
+    units_override = models.JSONField(default=dict, blank=True)
     decided_at = models.DateTimeField(null=True, blank=True)
     decided_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
     version = models.PositiveIntegerField(default=1)
@@ -706,6 +709,20 @@ class AmfiScheme(models.Model):
 
     class Meta:
         indexes = [models.Index(fields=["name"], name="inv_amfischeme_name_idx")]
+
+
+class NseSecurity(models.Model):
+    """Every equity in NSE's list of listed securities (stored once in the shared data, so a share can be found by name, symbol or ISIN
+    when adding an investment). Re-creatable; not in the suite backup."""
+
+    symbol = models.CharField(max_length=40, unique=True)
+    name = models.CharField(max_length=250)
+    isin = models.CharField(max_length=20, blank=True, default="")
+    series = models.CharField(max_length=4, blank=True, default="")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["name"], name="inv_nsesec_name_idx"), models.Index(fields=["isin"], name="inv_nsesec_isin_idx")]
 
 
 # ---------------------------------------------------------------------------------------------------------------------

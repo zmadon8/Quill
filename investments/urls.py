@@ -76,6 +76,7 @@ urlpatterns += [
     path("transfers/<int:pk>/delete/", vt.transfer_delete, name="investments_transfer_delete"),
     path("switches/<int:pk>/delete/", vt.switch_delete, name="investments_switch_delete"),
     path("holdings/<int:pk>/", vh.investment, name="investments_investment"),
+    path("holdings/add/search/", vh.add_search, name="investments_add_search"),
     path("holdings/<int:pk>/added/", vh.added, name="investments_added"),
     path("holdings/<int:pk>/price/", vh.investment_price, name="investments_investment_price"),
     path("holdings/<int:pk>/price/<int:price_id>/delete/", vh.investment_price_delete, name="investments_investment_price_delete"),
