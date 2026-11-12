@@ -168,6 +168,7 @@ def build(profile, label, *, portfolio=None, broker=None, include_dividends=None
                                  # the original transactions give. The original transactions themselves are never changed.
                                  "origin": origin or "", "adjusted": bool(m.adjustment), "original_cost": m.original_cost})
     report.sales.sort(key=lambda s: (s["sold"], s["name"]))
+    report.interest_income = report.interest_income.quantize(Decimal("0.01"))  # a money figure, not a chain of high-precision division pieces
 
     cash = [(opening_day, -report.opening_value)] if report.opening_value else []
     cash += flows

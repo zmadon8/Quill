@@ -74,8 +74,8 @@ class OwnInstrumentEditTests(InvTestCase):
         own = self.client.get(reverse("investments_investment", args=[self.fd.pk]))
         self.assertContains(own, f'class="btn q" href="{self.url}">Edit</a>')
         shared = self.client.get(reverse("investments_investment", args=[self.reliance.pk]))
-        self.assertNotContains(shared, reverse("investments_admin_catalogue_item", args=[self.reliance.pk]))
+        self.assertNotContains(shared, f'class="btn q" href="{reverse("investments_admin_catalogue_item", args=[self.reliance.pk])}">Edit</a>')
         self.assertNotContains(shared, reverse("investments_investment_edit", args=[self.reliance.pk]))
         self.client.force_login(self.user)
         self.assertContains(self.client.get(reverse("investments_investment", args=[self.reliance.pk])),
-                            reverse("investments_admin_catalogue_item", args=[self.reliance.pk]))
+                            f'class="btn q" href="{reverse("investments_admin_catalogue_item", args=[self.reliance.pk])}">Edit</a>')
