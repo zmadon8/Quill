@@ -232,7 +232,7 @@ def customised():
     """The keys of the sources an Admin has changed."""
     from investments.models import DataSourceFormat
 
-    return list(DataSourceFormat.objects.exclude(config={}).values_list("key", flat=True))
+    return [row.key for row in DataSourceFormat.objects.all() if row.config]
 
 
 def reset(key):
@@ -352,6 +352,13 @@ def validate(key, config):
             cleaned = _path(value, name, errors)
             if cleaned is not None:
                 out[name] = cleaned
+        elif name == "delimiter":
+            if value in ("\t", "\\t", "tab"):
+                out[name] = "\t"
+            elif isinstance(value, str) and len(value) == 1 and value not in ' \r\n"' and ord(value) >= 32:
+                out[name] = value
+            else:
+                errors.append("delimiter: one character is needed (a comma, semicolon, pipe, or tab written as \\t).")
         elif isinstance(default, bool):
             errors.append(f"{name}: not changeable.")
         elif isinstance(default, int):
@@ -369,9 +376,7 @@ def validate(key, config):
                 out[name] = cleaned
         else:
             cleaned = _text(value, name, errors)
-            if cleaned is not None and name == "delimiter" and len(cleaned) != 1:
-                errors.append("delimiter: one character is needed.")
-            elif cleaned is not None:
+            if cleaned is not None:
                 out[name] = cleaned
     return out, errors
 
@@ -404,7 +409,7 @@ def show(value, kind):
         return ", ".join(value)
     if kind == "path":
         return ".".join(str(s) for s in value)
-    return str(value)
+    return str(value).replace("\t", "\\t")
 
 
 def parse_form(key, post):
