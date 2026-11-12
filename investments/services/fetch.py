@@ -278,11 +278,10 @@ def fetch_prices(*, ids=None, profile=None, trigger="cron", max_seconds=600, max
             try:
                 last = last_api_date(inst)
                 window = windows.get(inst.pk)
-                oldest = first_api_date(inst)
-                start = fetch_from(window, last, oldest)
-                backfill = bool(window and window[0] and oldest and window[0] - timedelta(days=WINDOW_LEAD_DAYS) < oldest - timedelta(days=WINDOW_LEAD_DAYS))
-                # the history from mfapi.in: the first time, when the window now opens before the stored prices, or after a gap (re-opened position)
-                if last is None or backfill or last < today - timedelta(days=WINDOW_LEAD_DAYS):
+                start = fetch_from(window, last)
+                # the history from mfapi.in: the first time, or after a gap (re-opened position). Not whenever the stored prices start after the
+                # window: a scheme's own history may begin later, and that would call mfapi.in on every run
+                if last is None or last < today - timedelta(days=WINDOW_LEAD_DAYS):
                     pause()
                     result = mfapi.fetch(symbol_for(inst, "mfapi"), start)
                     added, changed, _ = upsert_prices(inst, clip(result.rows, windows.get(inst.pk)), "api", "")

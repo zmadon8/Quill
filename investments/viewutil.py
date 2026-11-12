@@ -140,9 +140,17 @@ def price_status_line(profile):
     """The text beside Update Prices (plan 24.5) and whether there is anything to update."""
     from django.utils import timezone
 
-    from investments.services import fetch
+    from investments.models import SourceRun
+    from investments.services import fetch, statscache
 
-    info = fetch.status_summary(profile)
+    # the window of each investment is worked out from the transactions: kept with the other cached results, not redone on every render
+    def counts():
+        found = fetch.status_summary(profile)
+        return {"newest": found["newest"], "behind": len(found["stale"]) + len(found["never"]), "tracked": found["tracked"]}
+
+    cached = statscache.get_or_compute(profile, "price_status", {}, counts, today_sensitive=True)
+    info = {"tracked": cached["tracked"], "newest": datetime.date.fromisoformat(cached["newest"]) if cached["newest"] else None,
+            "last_run": SourceRun.objects.exclude(finished=None).order_by("-finished").values_list("finished", flat=True).first()}
     if not info["tracked"]:
         return {"inv_status": None, "inv_can_update": False}
     if not info["newest"]:
@@ -152,7 +160,7 @@ def price_status_line(profile):
         parts.append(f"Updated {timezone.localtime(info['last_run']):%-d %b %Y, %-I:%M %p}")
     if info["newest"]:
         parts.append(f"prices as of close {info['newest']:%-d %b}")
-    behind = len(info["stale"]) + len(info["never"])
+    behind = cached["behind"]
     if behind:
         parts.append(f"{behind} not updated")
     return {"inv_status": " \u00b7 ".join(parts) or "No prices yet. Update Prices, or ask an Admin to upload history.", "inv_can_update": True}
