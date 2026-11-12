@@ -1,6 +1,10 @@
 // Hover, touch and keyboard tooltips for the server-drawn SVG line charts (svg.ch.hv with data-hover). Without this script the chart is unchanged.
 (function () {
   var NS = 'http://www.w3.org/2000/svg';
+  // Focus that came from the keyboard (a click also focuses the chart, but must not leave the tooltip stuck).
+  function keyboardFocus(el) {
+    try { return el.matches(':focus-visible'); } catch (e) { return false; }
+  }
   function setup(svg) {
     var data;
     try { data = JSON.parse(svg.getAttribute('data-hover')); } catch (e) { return; }
@@ -63,7 +67,7 @@
     }
     svg.addEventListener('pointermove', function (ev) { show(nearest(ev)); });
     svg.addEventListener('pointerdown', function (ev) { show(nearest(ev)); });
-    svg.addEventListener('pointerleave', function (ev) { if (ev.pointerType !== 'touch' && document.activeElement !== svg) hide(); });
+    svg.addEventListener('pointerleave', function (ev) { if (ev.pointerType !== 'touch' && !keyboardFocus(svg)) hide(); });
     svg.addEventListener('blur', hide);
     svg.addEventListener('keydown', function (ev) {
       if (ev.key === 'ArrowLeft') { show(cur < 0 ? data.x.length - 1 : cur - 1); ev.preventDefault(); }
