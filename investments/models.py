@@ -401,6 +401,7 @@ class SourceRun(models.Model):
     tried = models.PositiveIntegerField(default=0)
     updated = models.PositiveIntegerField(default=0)
     failures = models.JSONField(default=list, blank=True)
+    formats = models.JSONField(default=list, blank=True)       # the format keys this run read successfully (clears their alerts)
     message = models.CharField(max_length=300, blank=True, default="")
 
     class Meta:

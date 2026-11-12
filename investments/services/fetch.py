@@ -263,10 +263,11 @@ def fetch_prices(*, ids=None, profile=None, trigger="cron", max_seconds=600, max
     # --- mutual funds: history by mfapi.in once, then the daily AMFI file (one download for all of them)
     if funds:
         run = SourceRun(source="amfi", trigger=trigger, started=timezone.now())
-        failures, updated = [], 0
+        failures, updated, read = [], 0, set()
         wanted = {i.pk: symbol_for(i, "amfi") for i in funds}
         try:
             found = amfi.fetch(list(wanted.values()))
+            read.add("amfi")
         except FetchError as exc:
             found = {}
             failures.append(source_formats.failure(0, "AMFI daily file", exc))
@@ -285,6 +286,7 @@ def fetch_prices(*, ids=None, profile=None, trigger="cron", max_seconds=600, max
                 if last is None or last < today - timedelta(days=WINDOW_LEAD_DAYS):
                     pause()
                     result = mfapi.fetch(symbol_for(inst, "mfapi"), start)
+                    read.add("mfapi")
                     added, changed, _ = upsert_prices(inst, clip(result.rows, windows.get(inst.pk)), "api", "")
                     updated += 1 if added or changed else 0
                 if code in found:
@@ -296,6 +298,7 @@ def fetch_prices(*, ids=None, profile=None, trigger="cron", max_seconds=600, max
             except (FetchError, InvestmentsError) as exc:
                 failures.append(source_formats.failure(inst.pk, inst.name, exc))
         run.tried, run.updated, run.failures, run.finished = len(funds), updated, failures, timezone.now()
+        run.formats = sorted(read)
         run.save()
         summary["updated"] += updated
         summary["failures"] += failures
@@ -323,7 +326,7 @@ def fetch_prices(*, ids=None, profile=None, trigger="cron", max_seconds=600, max
     yahoo_failures = []
     if others:
         run = SourceRun(source="yahoo", trigger=trigger, started=timezone.now())
-        failures, updated, tried = [], 0, 0
+        failures, updated, tried, read = [], 0, 0, set()
         for inst in others:
             if out_of_time():
                 summary["stopped"] = "run-time cap reached"
@@ -336,6 +339,7 @@ def fetch_prices(*, ids=None, profile=None, trigger="cron", max_seconds=600, max
                 since = fetch_from(window, last_api_date(inst), first_api_date(inst))
                 try:
                     result = yahoo.fetch(symbol_for(inst, "yahoo"), since, years=years, today=today)
+                    read.add("yahoo")
                 except FetchError as first_error:
                     # the fallback source, when one is set (plan 15.2); its basis must match, so only for raw-basis instruments or a basis-free source
                     if inst.fallback_source != "twelvedata":
@@ -344,6 +348,7 @@ def fetch_prices(*, ids=None, profile=None, trigger="cron", max_seconds=600, max
 
                     try:
                         result = twelvedata.fetch(symbol_for(inst, "twelvedata"), since, years=years, today=today)
+                        read.add("twelvedata")
                     except FetchError as second:
                         formatted = next((e for e in (first_error, second) if isinstance(e, FormatError)), None)
                         message = f"{first_error}; fallback: {second}"
@@ -362,6 +367,7 @@ def fetch_prices(*, ids=None, profile=None, trigger="cron", max_seconds=600, max
             except (FetchError, InvestmentsError) as exc:
                 failures.append(source_formats.failure(inst.pk, inst.name, exc))
         run.tried, run.updated, run.failures, run.finished = tried, updated, failures, timezone.now()
+        run.formats = sorted(read)
         run.message = summary["stopped"]
         run.save()
         summary["updated"] += updated

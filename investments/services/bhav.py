@@ -206,7 +206,7 @@ def run(instruments, *, today, trigger="cron", out_of_time=lambda: False, window
                              "error": f"not in the {bhavcopy.label(kind)} of {latest_file:%d %b %Y} (check its code, or set a 'bhavcopy' symbol on its catalogue page)"})
     message = "newest file: " + ", ".join(f"{bhavcopy.label(k)} {d:%d %b %Y}" for k, d in sorted(newest.items())) if newest else "no file found"
     result["run"] = SourceRun.objects.create(source="bhavcopy", trigger=trigger, started=started, finished=timezone.now(), tried=len(needing),
-                                             updated=result["updated"], failures=failures, message=message[:300])
+                                             updated=result["updated"], failures=failures, formats=sorted(files), message=message[:300])
     return result                                       # the caller bumps the price version
 
 

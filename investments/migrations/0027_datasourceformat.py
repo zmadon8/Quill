@@ -20,4 +20,9 @@ class Migration(migrations.Migration):
                 ("updated_by", models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name="+", to=settings.AUTH_USER_MODEL)),
             ],
         ),
+        migrations.AddField(
+            model_name="sourcerun",
+            name="formats",
+            field=models.JSONField(blank=True, default=list),
+        ),
     ]
