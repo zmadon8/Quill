@@ -42,3 +42,13 @@ The Settings strip (`templates/_settings_tabs.html`) uses `<nav class="subnav">`
 - Label-over-input pairs with `<br>` (`diary/import.html`, `offline_link.html`, `restore_preview.html`) could use `.field-row`. Skipped: they are single fields, so there is nothing to put beside them.
 - Hint paragraph margins and empty-state padding could not be judged without seeing the pages. Check at 375px and 1280px in a browser.
 - Duplicate page headings: confirm each program hides the page `<h1>` that repeats the tab name (`visually-hidden`). No violations were found by grep, but this needs a browser check.
+
+## Screenshots
+
+The `Screenshots` workflow (`.github/workflows/screenshots.yml`) photographs the main pages at 375px and 1280px wide, so layout can be reviewed without running the app. It runs on every pull request and by hand (Actions > Screenshots > Run workflow). It is non-blocking (`continue-on-error`) and separate from `ci.yml`, so it never fails a pull request.
+
+To get the pictures: open the pull request's Checks, open the Screenshots run, scroll to **Artifacts** and download **ui-screenshots** (a zip of PNGs named `<page>-375.png` and `<page>-1280.png`, kept 14 days).
+
+Pages covered: Home; Diary subjects, reading and settings; Fees dashboard, statistics, memos, New Memo, New Payment, a firm and the settings tabs; Investments overview, holdings, an investment, Buy (second card added, More fold open), Sell, reports and settings; my settings, suite settings and Admin users.
+
+How it stays safe and repeatable: a throwaway Postgres database, a throwaway secret key and password, small seeded demo data (`manage.py make_screenshot_data`, which reuses the Diary sample data, the Fees planning dataset and the Investments bench dataset), Investments lookup switched off, and a browser that blocks every request not to the local server. Any blocked request is listed at the end of the "Take screenshots" step, so a page that fetches from the network on render is easy to spot. Dates in the demo data follow the run date.

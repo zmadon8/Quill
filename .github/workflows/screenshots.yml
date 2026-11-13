@@ -1,0 +1,79 @@
+name: Screenshots
+
+# Non-blocking and separate from ci.yml: photographs the main pages at 375px and 1280px so design changes can be
+# reviewed without running the app. Download the PNGs from the run's Artifacts > ui-screenshots (docs/UI-AUDIT.md).
+# The server runs against a throwaway database with price fetching and Investments lookups off, and the browser
+# blocks every request that is not to the local server.
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  screenshots:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: quill
+          POSTGRES_PASSWORD: quill-test-password
+          POSTGRES_DB: quill_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U quill -d quill_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DJANGO_SECRET_KEY: ci-only-throwaway-key-not-a-secret
+      DATABASE_URL: postgres://quill:quill-test-password@localhost:5432/quill_test
+      DJANGO_DEBUG: "1"
+      DJANGO_TESTING: "1"
+      FEES_ENABLED: "1"
+      INVESTMENTS_ENABLED: "1"
+      PRICE_HELPER_ENABLED: "0"
+      DJANGO_SUPERUSER_USERNAME: shots
+      DJANGO_SUPERUSER_PASSWORD: ci-only-throwaway-Pass-48213
+      SCREENSHOT_USER: shots
+      SCREENSHOT_PASSWORD: ci-only-throwaway-Pass-48213
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install playwright
+          playwright install --with-deps chromium
+      - name: Migrate and create demo data
+        run: |
+          python manage.py migrate
+          python manage.py create_first_admin
+          python manage.py make_screenshot_data > ids.json
+      - name: Start the server
+        run: |
+          python manage.py runserver 127.0.0.1:8000 --noreload > server.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -fsS -o /dev/null http://127.0.0.1:8000/healthz/ && exit 0
+            sleep 1
+          done
+          tail -n 50 server.log
+          exit 1
+      - name: Take screenshots
+        run: python scripts/screenshots.py --base http://127.0.0.1:8000 --ids ids.json --out screenshots
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-screenshots
+          path: screenshots/*.png
+          if-no-files-found: warn
+          retention-days: 14
