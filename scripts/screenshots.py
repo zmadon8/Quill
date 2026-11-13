@@ -120,6 +120,8 @@ def main():
                         continue
                     if action == "buy_card":
                         buy_card(page)
+                    # A full-page capture draws a sticky bar where it sticks in the first viewport, not at the end of the page.
+                    page.add_style_tag(content=".button-bar,.save-bar{position:static !important}")
                     page.screenshot(path=str(out / f"{name}-{label}.png"), full_page=True)
                     taken += 1
                 except Exception as exc:  # one broken page must not stop the others

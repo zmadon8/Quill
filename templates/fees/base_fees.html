@@ -8,8 +8,8 @@
 {% block extra_css %}<link rel="stylesheet" href="{% static 'css/ledger.css' %}">
   <link rel="stylesheet" href="{% static 'css/fees.css' %}">{% endblock %}
 {% block program_name %}<a href="{% if fees_dashboard_on is False %}{% url 'fees_landing' %}{% else %}{% url 'fees_dashboard' %}{% endif %}" title="{{ program_full_label }}">{{ program_header_label|default:program_label }}</a>{% if fees_profile and not program_header_label %} <span class="profile-name">&middot; {{ fees_profile.name }}</span>{% endif %}{% if fees_other_profiles %}{% include "diary/_profile_switch.html" with other_profiles=fees_other_profiles %}{% endif %}{% endblock %}
-{% block program_nav %}{% for i in fees_nav %}<a href="{{ i.url }}"{% if i.on %} class="on" aria-current="page"{% endif %}>{{ i.name }}</a>
-  {% endfor %}{% endblock %}
+{% block program_nav %}<span class="nav-links">{% for i in fees_nav %}<a href="{{ i.url }}"{% if i.on %} class="on" aria-current="page"{% endif %}>{{ i.name }}</a>
+  {% endfor %}</span>{% endblock %}
 {% block search_tool %}{% include "_search_button.html" with popup=True %}{% endblock %}
 {% block search_panel %}<div class="search-pop" id="search-pop" hidden><form class="fees-search-form" role="search" method="get" action="{% url 'fees_search_page' %}"><label class="visually-hidden" for="search-pop-q">Search firms, matters and memos</label><input type="search" id="search-pop-q" name="q" value="{{ query|default:'' }}" placeholder="Search firms, matters and memos&hellip;" autocomplete="off" data-search-popup-input><button type="submit" class="primary">Search</button><a class="search-pop-all" href="{% url 'suite_search' %}" data-search-all>Search all programs</a></form></div>{% endblock %}
 {% block crumb_nav %}{% include "_settings_tabs.html" %}{% if back_url %}<div class="crumb-row"><nav class="breadcrumb" aria-label="Back"><a href="{{ back_url }}">&larr; {{ back_label|default:"Back" }}</a></nav></div>{% endif %}{% endblock %}
