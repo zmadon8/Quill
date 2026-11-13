@@ -7,6 +7,7 @@ name: Screenshots
 on:
   pull_request:
   push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -52,7 +53,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
-          pip install playwright
+          pip install playwright==1.49.1
           playwright install --with-deps chromium
       - name: Migrate and create demo data
         run: |

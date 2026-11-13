@@ -40,6 +40,9 @@ def pages(ids):
         ("inv-holdings", "/investments/holdings/", None),
         ("inv-investment", "/investments/holdings/{investment}/", None),
         ("inv-buy", "/investments/transactions/buy/", "buy_card"),
+        ("inv-add-type", "/investments/holdings/add/", None),
+        ("inv-add-investment", "/investments/holdings/add/details/?kind=share", None),
+        ("inv-add-fund", "/investments/holdings/add/details/?kind=fund", None),
         ("inv-sell", "/investments/transactions/sell/", None),
         ("inv-reports", "/investments/reports/", None),
         ("inv-settings", "/investments/settings/", None),
@@ -91,7 +94,7 @@ def main():
             page.goto(f"{args.base}/login/")
             page.fill("input[name=username]", os.environ["SCREENSHOT_USER"])
             page.fill("input[name=password]", os.environ["SCREENSHOT_PASSWORD"])
-            page.click("button[type=submit], input[type=submit]")
+            page.locator("form button[type=submit], form input[type=submit]").first.click()
             page.wait_for_load_state("load")
             if "/login/" in page.url:
                 print("Login failed", file=sys.stderr)
@@ -108,6 +111,10 @@ def main():
                 try:
                     response = page.goto(args.base + path)
                     page.wait_for_load_state("load")
+                    try:  # fetch-driven content (Fees KPIs, Investments overview) fills in after load
+                        page.wait_for_load_state("networkidle", timeout=10000)
+                    except Exception:
+                        pass
                     if response is None or response.status >= 400:
                         failed.append(f"{name}: HTTP {response.status if response else 'none'}")
                         continue

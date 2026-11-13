@@ -7,17 +7,19 @@ It is for CI only (``.github/workflows/screenshots.yml``)::
 It needs the first Admin to exist already (``create_first_admin``). It gives that Admin a Diary, a Fee Register and an
 Investments profile, fills each (the Diary sample Subjects, a small fees planning dataset, a small investments bench
 dataset), switches the Investments lookup off so no page needs the network, and prints one JSON object of record ids
-for ``scripts/screenshots.py``. It refuses to run if any profile other than the default ones already holds data, and it
-never prints settings or environment variables.
+for ``scripts/screenshots.py``. It refuses to run unless DJANGO_TESTING=1 is set (the workflow sets it), and refuses if
+any profile other than the default ones or an earlier "Screenshots ..." one exists. It never prints settings or
+environment variables. The lookup switch is suite-wide, which is why the guard comes before anything is written.
 """
 import json
+import os
 import random
 
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
 from accounts.models import ROLE_EDITOR, Profile, User
-from accounts.profiles import ensure_default_profile, set_user_profiles
+from accounts.profiles import DEFAULT_PROFILE_NAME, ensure_default_profile, set_user_profiles
 from accounts.suite import KEY_DIARY, KEY_FEES, KEY_INVESTMENTS
 
 SEED = 20260101
@@ -26,7 +28,20 @@ SEED = 20260101
 class Command(BaseCommand):
     help = __doc__.split("\n\n")[0]
 
+    def _guard(self):
+        if os.environ.get("DJANGO_TESTING") != "1":
+            raise CommandError("This command fills a throwaway database. Set DJANGO_TESTING=1 to confirm that it is one.")
+        others = (
+            Profile.objects.filter(deleted_at__isnull=True)
+            .exclude(name__iexact=DEFAULT_PROFILE_NAME)
+            .exclude(name__startswith="Screenshots ")
+            .exists()
+        )
+        if others:
+            raise CommandError("Refusing to run: this database has profiles other than the default and Screenshots ones.")
+
     def handle(self, *args, **options):
+        self._guard()
         user = User.objects.filter(is_superuser=True).order_by("pk").first()
         if user is None:
             raise CommandError("Create the first Admin first (create_first_admin).")
