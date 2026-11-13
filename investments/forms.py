@@ -57,9 +57,39 @@ class ProfileForm(forms.Form):
     more_fields = ()
     more_label = "More"
 
-    def __init__(self, *args, profile=None, **kwargs):
+    def __init__(self, *args, profile=None, held_units=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.profile = profile
+        #: ``{instrument id: units}`` held now; a view with several forms computes it once and passes it to each.
+        self.held_units = held_units
+        #: The stored NSE / AMFI record picked in the Investment box and not yet an Instrument (see ``add_pick_fields``); made at save.
+        self.new_pick = None
+
+    def add_pick_fields(self):
+        """Let the Investment box pick a share or fund from the NSE / AMFI lists: two hidden fields carry the source and code, and the
+        investment itself becomes optional while a pick is present (``clean_pick`` checks one or the other)."""
+        self.fields["new_source"] = forms.CharField(required=False, max_length=10, widget=forms.HiddenInput)
+        self.fields["new_code"] = forms.CharField(required=False, max_length=60, widget=forms.HiddenInput)
+        self.fields["instrument"].required = False
+        self.has_pick = True
+
+    has_pick = False
+
+    def clean_pick(self, cleaned):
+        """Resolve the picked code against the stored lists (never trusting a posted name); a code not in them is a form error."""
+        if not self.has_pick:
+            return
+        from investments.services import instrument_search
+
+        source, code = (cleaned.get("new_source") or "").strip(), (cleaned.get("new_code") or "").strip()
+        if cleaned.get("instrument"):
+            return   # a chosen investment wins over a stale pick
+        if source or code:
+            self.new_pick = instrument_search.lookup_record(source, code)
+            if self.new_pick is None:
+                self.add_error("instrument", "That share or fund is not in the NSE / AMFI list. Search and choose it again.")
+        elif "instrument" not in self.errors:
+            self.add_error("instrument", "This field is required.")
 
     @property
     def more_open(self):
@@ -78,7 +108,9 @@ class ProfileForm(forms.Form):
         queryset is unchanged, so every investment is still accepted when the form is posted."""
         from investments.services import holdings
 
-        held = holdings.held_instrument_ids(self.profile)
+        if self.held_units is None:
+            self.held_units = holdings.held_units(self.profile)
+        held = set(self.held_units)
         for name in names:
             field = self.fields[name]
             widget = HeldSelect(attrs=field.widget.attrs, held_ids=held)
@@ -169,6 +201,8 @@ class TransactionForm(ProfileForm):
             self.more_label = "Charges and note"
         if mode.startswith("edit"):
             self.fields["instrument"].disabled = False
+        if mode in ("buy", "awaiting_buy"):
+            self.add_pick_fields()
         # "Held only" starts ticked on every form; an edit of an entry for something no longer held starts unticked so the chosen investment shows.
         held = self.mark_held("instrument", default=True)
         if mode.startswith("edit") or "instrument" in self.initial:
@@ -185,7 +219,10 @@ class TransactionForm(ProfileForm):
 
     def clean(self):
         cleaned = super().clean()
+        self.clean_pick(cleaned)
         folio = cleaned.get("folio")
+        if folio and self.new_pick:
+            self.add_error("folio", "Choose a folio after the investment has been added.")
         if folio and cleaned.get("instrument") and (folio.instrument_id != cleaned["instrument"].pk or (cleaned.get("portfolio") and folio.portfolio_id != cleaned["portfolio"].pk)):
             self.add_error("folio", "That folio belongs to a different investment or portfolio.")
         if "origin" in self.fields:
@@ -220,7 +257,15 @@ class OpeningForm(ProfileForm):
         self.fields["portfolio"].queryset = Portfolio.objects.filter(profile=profile)
         self.fields["broker"].queryset = self.brokers()
         self.fields["folio"].queryset = Folio.objects.filter(profile=profile)
+        self.add_pick_fields()
         self.mark_held("instrument", default=True)
+
+    def clean(self):
+        cleaned = super().clean()
+        self.clean_pick(cleaned)
+        if cleaned.get("folio") and self.new_pick:
+            self.add_error("folio", "Choose a folio after the investment has been added.")
+        return cleaned
 
 
 class TransferForm(ProfileForm):

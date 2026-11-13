@@ -332,6 +332,13 @@ def held_instrument_ids(profile, portfolio=None, broker=None, as_of=None):
     return {h.instrument.pk for h in rows if h.is_held}
 
 
+def held_units(profile, portfolio=None, broker=None, as_of=None):
+    """``{instrument id: units}`` of the investments held now (see ``held_instrument_ids``). One holdings computation, so a page with
+    several forms asks once and hands the answer to each."""
+    rows, _totals = compute(profile, portfolio=portfolio, broker=broker, as_of=as_of, with_xirr=False)
+    return {h.instrument.pk: h.units for h in rows if h.is_held}
+
+
 def allocation(holdings):
     """``[(label, value, share)]`` by asset class, largest first, for the sorted-bars chart (plan 25.3)."""
     by = {}

@@ -18,7 +18,7 @@ from .models import (
     CA_DEMERGER, ORIGIN_DEMERGER, ORIGIN_PURCHASE, ORIGINS, SIDE_BUY, SIDE_SELL, STATUS_AWAITING, STATUS_FINAL, STATUS_PENDING_SIP,
     CorporateAction, Folio, Instrument, Transaction, Transfer,
 )
-from .services import core, corporate, masters, transactions as tx
+from .services import core, corporate, holdings, instrument_search, masters, transactions as tx
 from .viewutil import handle_errors, page, profile_or_404, selection
 
 PAGE_SIZE = 50
@@ -184,7 +184,14 @@ def _resolve_folio(profile, user, d):
 MAX_EXTRA_ROWS = 30
 
 
-def _extra_rows(request, profile, mode):
+def _resolve_pick(profile, user, card, d, made):
+    """A card that picked a share or fund from the NSE / AMFI lists gets its Instrument now, inside the save's atomic block (an existing one with
+    the same code or ISIN is reused; two cards picking the same new one share it). Nothing is made when the page is abandoned or invalid."""
+    if getattr(card, "new_pick", None):
+        d["instrument"] = instrument_search.resolve_pick(profile, user, card.new_pick, made)
+
+
+def _extra_rows(request, profile, mode, held_units=None):
     """The extra transaction cards posted with the page (their numbers are in ``extra_rows``), each a full transaction form under its own prefix.
 
     Returns ``(rows, problem)``; ``problem`` is a message when the list holds a bad, repeated or too many numbers (nothing is dropped silently).
@@ -202,7 +209,7 @@ def _extra_rows(request, profile, mode):
             problem = problem or "The extra transactions could not be read. Reload the page and try again."
             continue
         seen.add(part)
-        row = forms.TransactionForm(request.POST, profile=profile, mode=mode, prefix="x" + part)
+        row = forms.TransactionForm(request.POST, profile=profile, mode=mode, prefix="x" + part, held_units=held_units)
         row.index = int(part)
         rows.append(row)
     return rows, problem
@@ -241,9 +248,10 @@ def txn_form(request, mode):
     portfolios = list(Portfolio.objects.filter(profile=profile)[:2])
     if len(portfolios) == 1:
         initial["portfolio"] = portfolios[0]
-    form = forms.TransactionForm(request.POST or None, profile=profile, mode=mode, initial=initial)
+    held_units = holdings.held_units(profile)   # once for the page: every card (and the new-card template) shares it
+    form = forms.TransactionForm(request.POST or None, profile=profile, mode=mode, initial=initial, held_units=held_units)
     # More transactions added on the same page are full cards of their own; each posts under its own prefix (x1-date, x1-units, ...).
-    extra, extra_problem = _extra_rows(request, profile, mode)
+    extra, extra_problem = _extra_rows(request, profile, mode, held_units)
     side = SIDE_SELL if mode in ("sell", "awaiting_sell") else SIDE_BUY
     awaiting = mode.startswith("awaiting")
     if request.method == "POST":
@@ -255,10 +263,12 @@ def txn_form(request, mode):
             try:
                 # All the cards are saved together: one that is refused undoes the rest. They go in date order (the form first on a tie),
                 # so several sales of one holding are checked one after another against what is held on each date.
+                made = {}
                 with db_transaction.atomic():
                     for card in sorted([form, *extra], key=lambda c: c.cleaned_data["date"]):
                         current = card
                         d = _clean_data(card)
+                        _resolve_pick(profile, request.user, card, d, made)
                         folio = _resolve_folio(profile, request.user, d)
                         tx.add_transaction(
                             profile, request.user, side=side, instrument=d["instrument"], portfolio=d["portfolio"], broker=d["broker"],
@@ -276,7 +286,7 @@ def txn_form(request, mode):
     return page(request, "investments/txn_form.html", _form_context(profile, {
         "page_title_text": titles[mode], "form": form, "mode": mode, "is_sell": mode in ("sell", "awaiting_sell"),
         "awaiting_mode": mode.startswith("awaiting"), "submit_label": "Save", "extra_forms": extra,
-        "row_template": forms.TransactionForm(profile=profile, mode=mode, prefix="x__i__", initial={k: v for k, v in initial.items() if k == "portfolio"}), "extra_ids": ",".join(str(r.index) for r in extra),
+        "row_template": forms.TransactionForm(profile=profile, mode=mode, prefix="x__i__", held_units=held_units, initial={k: v for k, v in initial.items() if k == "portfolio"}), "extra_ids": ",".join(str(r.index) for r in extra),
     }), selectors=False, status_line=True)
 
 
@@ -425,7 +435,8 @@ def txn_opening(request):
             default = core.get_settings(profile, create=False).default_broker_for(inst.kind)
             if default:
                 initial["broker"] = default
-    form = forms.OpeningForm(request.POST or None, profile=profile, initial=initial)
+    held_units = holdings.held_units(profile)
+    form = forms.OpeningForm(request.POST or None, profile=profile, initial=initial, held_units=held_units)
     lines, line_errors = [], []
     rows = max(5, int(request.POST.get("rows", 5) or 5)) if request.method == "POST" else 5
     if request.method == "POST":
@@ -441,8 +452,10 @@ def txn_opening(request):
     if request.method == "POST" and form.is_valid() and not line_errors:
         d = form.cleaned_data
         try:
-            tx.add_opening_balances(profile, request.user, instrument=d["instrument"], portfolio=d["portfolio"], broker=d["broker"],
-                                    folio=d["folio"], lines=lines)
+            with db_transaction.atomic():   # a picked NSE / AMFI investment is made only if its lots are saved
+                _resolve_pick(profile, request.user, form, d, {})
+                tx.add_opening_balances(profile, request.user, instrument=d["instrument"], portfolio=d["portfolio"], broker=d["broker"],
+                                        folio=d["folio"], lines=lines)
         except InvestmentsError as err:
             if err.code == "WOULD_GO_NEGATIVE":
                 return _refused(request, err, request.path)
@@ -651,3 +664,62 @@ def _import_sample():
             [_date(2021, 3, 15), "Parag Parikh Flexi Cap Fund - Direct Growth", "122639", "Mutual Fund", "1234567/89", "Main", "Direct", "Buy", 41.2, 242.718, "Purchase"],
             [_date(2024, 10, 28), "Reliance Industries", "RELIANCE.NS", "Share", "", "Main", "Zerodha", "Buy", None, 10, "Bonus"]]
     return response("Holdings import sample.xlsx", [("Holdings", header, rows)])
+
+
+LOOKUP_LIMIT = 30
+
+
+def _last_price_text(close, day):
+    return f"Last price \u20b9{close:,.2f} on {day:%-d %b}" if close is not None and day else ""
+
+
+@inv_editor
+def txn_lookup(request):
+    """JSON for the Investment box on Buy and Opening balance. ``held=1``: the profile's held investments (units shown), filtered by ``q``.
+    ``held=0``: two groups once ``q`` has 2+ characters, ``in_quill`` (the profile's usable investments, tagged sold or not held when they are)
+    and ``nse_amfi`` (the stored NSE and AMFI lists, minus what is already in Quill). Never a 500."""
+    from django.db.models import OuterRef, Subquery
+    from django.http import JsonResponse
+
+    from .models import HOLDABLE_KINDS, Price
+
+    profile = profile_or_404(request)
+    q = request.GET.get("q", "").strip()
+    only_held = request.GET.get("held", "1") != "0"
+    lookup_on = instrument_search.lookup_enabled()
+    out = {"held": only_held, "in_quill": [], "nse_amfi": [], "message": "", "lookup": lookup_on, "add_url": reverse("investments_add_1")}
+    if not only_held and len(q) < 2:
+        return JsonResponse(out)
+    held_units = holdings.held_units(profile)
+    latest = Price.objects.filter(instrument=OuterRef("pk")).order_by("-date")
+    qs = Instrument.objects.filter(Q(profile=None) | Q(profile=profile), kind__in=HOLDABLE_KINDS)
+    if only_held:
+        qs = qs.filter(pk__in=list(held_units))
+    if q:
+        qs = qs.filter(Q(name__icontains=q) | Q(code__icontains=q) | Q(isin__icontains=q))
+    rows = list(qs.annotate(last_close=Subquery(latest.values("close")[:1]), last_day=Subquery(latest.values("date")[:1])).order_by("name")[:LOOKUP_LIMIT])
+    bought = set()
+    if not only_held and rows:
+        bought = set(Transaction.objects.filter(profile=profile, instrument_id__in=[r.pk for r in rows]).values_list("instrument_id", flat=True))
+    for r in rows:
+        units = held_units.get(r.pk)
+        tag = "" if units is not None else ("sold" if r.pk in bought else "not held")
+        out["in_quill"].append({
+            "id": r.pk, "kind": r.kind, "code": r.code, "isin": r.isin, "name": r.name, "tag": tag,
+            "units": f"{units.normalize():f}" if units is not None else "", "price_text": _last_price_text(r.last_close, r.last_day)})
+    if not only_held and lookup_on:
+        try:
+            found = instrument_search.search(profile, q)
+        except Exception:
+            __import__("logging").getLogger(__name__).exception("Buy lookup failed")
+            found = {"results": [], "message": "The NSE / AMFI search is not available just now."}
+        out["message"] = found["message"] if not out["in_quill"] else ""
+        for r in found["results"]:
+            if r["existing_id"]:
+                continue
+            price_text = r["extra"].replace("NAV ", "Last NAV \u20b9", 1) if r["source"] == "amfi" and r["extra"].startswith("NAV ") else ""
+            out["nse_amfi"].append({"source": r["source"], "kind": r["kind"], "code": r["code"], "isin": r["isin"], "name": r["name"],
+                                    "plan": r["plan"], "option": r["option"], "extra": r["extra"], "price_text": price_text})
+    elif not only_held:
+        out["message"] = "Lookup is switched off"
+    return JsonResponse(out)
