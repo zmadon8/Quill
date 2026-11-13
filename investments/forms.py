@@ -103,6 +103,29 @@ class ProfileForm(forms.Form):
         return record["name"] if record else ""
 
     @property
+    def pick_line(self):
+        """The "Share/Fund · code · ISIN · plan · option" hint for the posted NSE / AMFI pick (as the box shows it after choosing), else empty.
+        For an existing fund chosen in the box it is "code · ISIN · plan · option" (no "New")."""
+        if not (self.has_pick and self.is_bound):
+            return ""
+        from investments.services import instrument_search
+
+        chosen = self["instrument"].value()
+        if chosen:
+            inst = self.fields["instrument"].queryset.filter(pk=chosen).first() if str(chosen).isdigit() else None
+            if inst is None or inst.kind != "fund":
+                return ""
+            plan, option = instrument_search.fund_plans([inst.code]).get(inst.code, ("", ""))
+            bits = [inst.code, inst.isin, plan and f"{plan} Plan", option and f"{option} Option"]
+            return " \u00b7 ".join(b for b in bits if b)
+
+        r = instrument_search.lookup_record(self["new_source"].value(), self["new_code"].value())
+        if not r:
+            return ""
+        bits = ["Fund" if r["kind"] == "fund" else "Share", r["code"], r["isin"], r["plan"] and f"{r['plan']} Plan", r["option"] and f"{r['option']} Option"]
+        return "New \u00b7 " + " \u00b7 ".join(b for b in bits if b)
+
+    @property
     def more_open(self):
         for name in self.more_fields:
             if name not in self.fields:
@@ -176,8 +199,6 @@ class TransactionForm(ProfileForm):
         awaiting = mode.startswith("awaiting")
         if mode == "sell":
             self.fields["date"].label = "Date sold"
-        elif mode in ("buy", "edit"):
-            self.fields["date"].help_text = "The date you placed and paid for the order (the trade date)."
         if awaiting:
             for name in ("units", "price", "allotment_date", "origin", "corporate_action"):
                 del self.fields[name]

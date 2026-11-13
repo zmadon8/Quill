@@ -3,14 +3,14 @@
 {% if form.non_field_errors %}<div class="ban al" role="alert"><span>{{ form.non_field_errors|join:" " }}</span></div>{% endif %}
 <div class="row">
 {% for field in form.visible_fields %}{% if field.name not in more %}
-  <div class="fld{% if field.errors %} bad{% endif %}">
+  <div class="fld{% if field.errors %} bad{% endif %}{% if field.name == "date" and form.has_pick %} fld-date{% elif field.name == "instrument" and form.has_pick %} fld-invest{% endif %}">
     <label for="{{ field.id_for_label }}">{{ field.label }}</label>
     {{ field }}
-    {% if field.name == "instrument" and form.has_pick %}<div class="combo" data-combo data-for="{{ field.html_name }}" data-url="{% url 'investments_txn_lookup' %}" data-add-url="{% url 'investments_add_1' %}" data-pick-name="{{ form.pick_name }}" data-held="{% if form.held_default %}1{% else %}0{% endif %}" hidden></div><noscript><span class="note">Not in the list? <a href="{% url 'investments_add_1' %}">Add investment</a></span></noscript>
+    {% if field.name == "instrument" and form.has_pick %}<div class="combo" data-combo data-for="{{ field.html_name }}" data-url="{% url 'investments_txn_lookup' %}" data-add-url="{% url 'investments_add_1' %}" data-pick-name="{{ form.pick_name }}" data-pick-line="{{ form.pick_line }}" data-site-name="{{ site_name|default:'Madon.co.in' }}" data-held="{% if form.held_default %}1{% else %}0{% endif %}" hidden></div><noscript><span class="note">Not in the list? <a href="{% url 'investments_add_1' %}">Add investment</a></span></noscript>
     {% elif field.name in form.held_fields %}<label class="held-only" hidden><input type="checkbox" class="held-only-box" data-for="{{ field.html_name }}"{% if form.held_default %} checked{% endif %}> Held only</label>{% endif %}
     {% if field.help_text %}<span class="note">{{ field.help_text }}</span>{% endif %}
     {% for e in field.errors %}<span class="note err">{{ e }}</span>{% endfor %}
-  </div>
+  </div>{% if field.name == "instrument" and form.has_pick %}<div class="row-break" aria-hidden="true"></div>{% endif %}
 {% endif %}{% endfor %}
 </div>
 {% if more %}<details class="more-fields"{% if form.more_open %} open{% endif %}><summary>{{ form.more_label|default:"More" }}</summary>

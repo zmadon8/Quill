@@ -2,7 +2,7 @@
   "use strict";
   // Investment combobox on Buy and Opening balance. Progressive enhancement over the plain Investment select, which stays in the page (hidden
   // once this runs) and is the whole control without JavaScript. Held on: focusing lists the investments held now, typing filters. Held off:
-  // two or more characters search "In Quill" and "From NSE / AMFI" (JSON endpoint, debounced 250ms, stale requests aborted). Choosing an
+  // two or more characters search "In <site name>" and "From NSE / AMFI" (JSON endpoint, debounced 250ms, stale requests aborted). Choosing an
   // existing investment sets the select; choosing an NSE / AMFI one sets the hidden new_source and new_code, and the server makes the
   // investment only when the transaction is saved. Keys: ArrowDown / ArrowUp move, Enter chooses, Escape closes.
   if (!window.fetch) { return; }
@@ -27,6 +27,7 @@
     var code = form.querySelector("[name='" + prefix + "new_code']");
     if (!select || !src || !code) { return; }
     var url = box.getAttribute("data-url"), addUrl = box.getAttribute("data-add-url");
+    var siteName = box.getAttribute("data-site-name") || "Madon.co.in";
     var uid = (select.id || name) + "-combo";
 
     var heldLabel = el("label", "combo-held");
@@ -49,7 +50,7 @@
     list.setAttribute("aria-label", "Matching investments");
     var tagLine = el("p", "combo-line"); tagLine.hidden = true;
     var priceLine = el("p", "combo-line"); priceLine.hidden = true;
-    [heldLabel, input, list, tagLine, priceLine].forEach(function (n) { box.appendChild(n); });
+    [input, heldLabel, list, tagLine, priceLine].forEach(function (n) { box.appendChild(n); });
 
     var label = select.closest(".fld") && select.closest(".fld").querySelector("label[for='" + select.id + "']");
     if (label) { label.setAttribute("for", input.id); }
@@ -57,11 +58,11 @@
     box.hidden = false;
 
     var opt = select.options[select.selectedIndex];
-    if (select.value && opt) { input.value = opt.text; }
+    if (select.value && opt) { input.value = opt.text; var again = box.getAttribute("data-pick-line"); if (again) { tagLine.textContent = again; tagLine.hidden = false; } }
     if (!select.value && code.value) {
       // Shown again after an error: the stored name the server looked up for the posted code, else the code itself.
       var pickName = box.getAttribute("data-pick-name");
-      input.value = pickName || code.value; tagLine.textContent = "New: " + code.value; tagLine.hidden = false;
+      input.value = pickName || code.value; tagLine.textContent = box.getAttribute("data-pick-line") || ("New: " + code.value); tagLine.hidden = false;
     }
 
     var rows = [], active = -1, timer = null, controller = null;
@@ -86,8 +87,17 @@
       if (isNew) {
         var bits = [item.kind === "fund" ? "Fund" : "Share", item.code];
         if (item.isin) { bits.push(item.isin); }
+        if (item.plan) { bits.push(item.plan + " Plan"); }
+        if (item.option) { bits.push(item.option + " Option"); }
         tagLine.textContent = "New \u00b7 " + bits.join(" \u00b7 ");
       }
+      else if (item.kind === "fund") {
+        // An existing fund shows the same line, without "New": code, ISIN, Plan, Option.
+        tagLine.textContent = [item.code, item.isin, item.plan && item.plan + " Plan", item.option && item.option + " Option"].filter(Boolean).join(" \u00b7 ");
+        tagLine.hidden = !tagLine.textContent;
+        return;
+      }
+      else { tagLine.textContent = ""; }
       tagLine.hidden = !isNew;
     }
     function choose(item, isNew) {
@@ -112,7 +122,14 @@
       parent.appendChild(row);
       rows.push({ el: row, pick: onPick });
     }
-    function head(text) { list.appendChild(el("div", "search-suggest-head", text)); }
+    function head(text) {
+      var h = el("div", "search-suggest-head", text);
+      h.setAttribute("role", "presentation");
+      list.appendChild(h);
+    }
+    function sub(it) {
+      return [it.code, it.isin, it.plan && it.plan + " Plan", it.option && it.option + " Option", it.units ? it.units + " u" : ""].filter(Boolean).join(" \u00b7 ");
+    }
     function titled(row, title, sub, tag, isNew) {
       var t = el("span", "search-suggest-title", title);
       if (tag) { t.appendChild(el("span", "combo-tag" + (isNew ? " new" : ""), tag)); }
@@ -129,21 +146,20 @@
       var inq = d.in_quill || [], ext = d.nse_amfi || [];
       if (held.checked) {
         inq.forEach(function (it) {
-          addRow(list, "", function (r) { titled(r, it.name, [it.code, it.units ? it.units + " u" : ""].filter(Boolean).join(" \u00b7 ")); }, function () { choose(it, false); });
+          addRow(list, "", function (r) { titled(r, it.name, sub(it)); }, function () { choose(it, false); });
         });
         if (!inq.length) { list.appendChild(el("div", "search-suggest-empty", "Not held? Turn off Held to search everything")); }
       } else {
         if (inq.length) {
-          head("In Quill");
+          head("In " + siteName);
           inq.forEach(function (it) {
-            addRow(list, "", function (r) { titled(r, it.name, [it.code, it.units ? it.units + " u" : ""].filter(Boolean).join(" \u00b7 "), it.tag); }, function () { choose(it, false); });
+            addRow(list, "", function (r) { titled(r, it.name, sub(it), it.tag); }, function () { choose(it, false); });
           });
         }
         if (ext.length) {
           head("From NSE / AMFI");
           ext.forEach(function (it) {
-            var sub = [it.code, it.isin, it.plan, it.option].filter(Boolean).join(" \u00b7 ");
-            addRow(list, "", function (r) { titled(r, it.name, sub); }, function () { choose(it, true); });
+            addRow(list, "", function (r) { titled(r, it.name, sub(it)); }, function () { choose(it, true); });
           });
         }
         if (d.message && !inq.length && !ext.length) { list.appendChild(el("div", "search-suggest-empty", d.message)); }

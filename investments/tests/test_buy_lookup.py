@@ -75,6 +75,22 @@ class LookupEndpointTests(LookupBase):
         self.assertIn("55.10", self.get(q="axis", held="0")["nse_amfi"][0]["price_text"])
         self.assertTrue(out["add_url"].endswith(reverse("investments_add_1")))
 
+    def test_amfi_results_carry_plan_option_and_the_display_name(self):
+        row = self.get(q="axis", held="0")["nse_amfi"][0]
+        self.assertEqual((row["plan"], row["option"]), ("Direct", "Growth"))
+        self.assertEqual(row["name"], "Axis Bluechip Fund Direct Plan Growth Option")
+
+    def test_blank_stored_plan_and_option_are_read_from_the_name(self):
+        AmfiScheme.objects.create(code="900001", name="Zeta Value Fund - Regular Plan - IDCW Payout", isin="INF000000001", plan="", option="")
+        row = self.get(q="zeta", held="0")["nse_amfi"][0]
+        self.assertEqual((row["plan"], row["option"]), ("Regular", "IDCW Payout"))
+
+    def test_in_quill_fund_shows_plan_and_option_from_amfi_by_code(self):
+        AmfiScheme.objects.create(code=self.fund.code, name="Parag Parikh Flexi Cap Fund - Direct Plan - Growth", plan="Direct", option="Growth")
+        row = self.get(q="parag", held="0")["in_quill"][0]
+        self.assertEqual((row["plan"], row["option"]), ("Direct", "Growth"))
+        self.assertEqual((self.get(q="reliance", held="0")["in_quill"][0]["plan"]), "")
+
     def test_not_held_tag_and_last_price_text(self):
         Price.objects.create(instrument=self.reliance, date=d(2024, 11, 12), close=D("148.20"))
         out = self.get(q="reliance", held="0")
@@ -304,3 +320,13 @@ class LookupFailureTests(LookupBase):
             out = self.get(q="tata", held="0")
         self.assertEqual(out["nse_amfi"], [])
         self.assertIn("not available", out["message"])
+
+
+class BuyPickLineTests(LookupBase):
+    def test_form_shown_again_after_an_error_names_the_fund_plan_and_option(self):
+        post = {"date": "2026-11-05", "portfolio": self.portfolio.pk, "broker": self.zerodha.pk, "units": "", "price": "", "charges": "0",
+                "instrument": "", "new_source": "amfi", "new_code": "119551"}
+        html = self.client.post(reverse("investments_txn_new_buy"), post).content.decode()
+        self.assertIn("Direct Plan \u00b7 Growth Option", html)
+        self.assertIn("data-site-name=", html)
+        self.assertNotIn("The date you placed and paid", html)

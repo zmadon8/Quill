@@ -89,3 +89,9 @@ def standard_name(name, plan="", option=""):
     """The standardised name for a raw AMFI name. A stored plan or option wins over the one read from the name."""
     base, found_plan, found_option = parse(name)
     return compose(base, plan or found_plan, option or found_option)
+
+
+def plan_option(name, plan="", option=""):
+    """``(plan, option)`` for a scheme: the stored values, else the ones read from the raw name (blank when the name does not say)."""
+    _, found_plan, found_option = parse(name)
+    return plan or found_plan, option or found_option
