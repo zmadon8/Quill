@@ -704,11 +704,13 @@ def txn_lookup(request):
     bought = set()
     if not only_held and rows:
         bought = set(Transaction.objects.filter(profile=profile, instrument_id__in=[r.pk for r in rows]).values_list("instrument_id", flat=True))
+    plans = instrument_search.fund_plans([r.code for r in rows if r.kind == "fund"])
     for r in rows:
+        plan, option = plans.get(r.code, ("", "")) if r.kind == "fund" else ("", "")
         units = held_units.get(r.pk)
         tag = "" if units is not None else ("sold" if r.pk in bought else "not held")
         out["in_quill"].append({
-            "id": r.pk, "kind": r.kind, "code": r.code, "isin": r.isin, "name": r.name, "tag": tag,
+            "id": r.pk, "kind": r.kind, "code": r.code, "isin": r.isin, "name": r.name, "tag": tag, "plan": plan, "option": option,
             "units": f"{units.normalize():f}" if units is not None else "", "price_text": _last_price_text(r.last_close, r.last_day)})
     if not only_held and lookup_on:
         try:

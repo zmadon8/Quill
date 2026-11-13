@@ -1,6 +1,6 @@
 """One search over the stored NSE and AMFI lists, for the picker on the Add investment page."""
 from investments.models import KIND_FUND, KIND_SHARE, Instrument
-from investments.services import schemes, nse_list
+from investments.services import schemes, nse_list, fund_names
 from investments.adapters.base import FetchError
 from django.core.cache import cache
 from django.db.models import Q
@@ -66,7 +66,7 @@ def search(profile, query, kind=None, limit=30):
                 message = message or _try_refresh(schemes, "AMFI")
                 rows = schemes.find(q, limit) if not message else []
             found += [{"source": "amfi", "kind": KIND_FUND, "code": s.code, "name": s.display_name, "isin": s.isin,
-                       "plan": s.plan, "option": s.option, "raw_name": s.name,
+                       "plan": fund_names.plan_option(s.name, s.plan, s.option)[0], "option": fund_names.plan_option(s.name, s.plan, s.option)[1], "raw_name": s.name,
                        "extra": f"NAV {s.nav} on {s.nav_date:%-d %b}" if s.nav and s.nav_date else "AMFI"} for s in rows]
     found = found[:limit]
     by_code, by_isin = _existing(profile, {r["code"].upper() for r in found}, {r["isin"].upper() for r in found if r["isin"]})
@@ -95,8 +95,19 @@ def lookup_record(source, code):
     row = AmfiScheme.objects.filter(code=code).first()
     if row is None:
         return None
-    return {"source": "amfi", "kind": KIND_FUND, "code": row.code, "name": row.display_name, "isin": row.isin, "plan": row.plan, "option": row.option,
+    plan, option = fund_names.plan_option(row.name, row.plan, row.option)
+    return {"source": "amfi", "kind": KIND_FUND, "code": row.code, "name": row.display_name, "isin": row.isin, "plan": plan, "option": option,
             "asset_class": row.asset_class}
+
+
+def fund_plans(codes):
+    """``{scheme code: (plan, option)}`` for the AMFI schemes with these codes, in one query, so investments already held show them too."""
+    from investments.models import AmfiScheme
+
+    codes = {c for c in codes if c}
+    if not codes:
+        return {}
+    return {s.code: fund_names.plan_option(s.name, s.plan, s.option) for s in AmfiScheme.objects.filter(code__in=codes)}
 
 
 def resolve_pick(profile, user, record, made=None):
