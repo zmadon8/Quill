@@ -357,7 +357,7 @@ body.inv nav.seg a.on{background:var(--white);color:var(--ink);font-weight:600;b
 
 /* Update Prices in the header: a small refresh button; its progress text sits beside it and is empty until used. */
 body.inv .upd{display:inline-flex;align-items:center;gap:6px}
-body.inv .upd-btn{min-width:34px;min-height:34px;border:1px solid var(--line-strong,var(--ink));background:transparent;color:inherit;border-radius:var(--radius,2px);font-size:1.1rem;line-height:1;cursor:pointer}
+body.inv .upd-btn{min-width:34px;min-height:34px;border:0;background:none;color:inherit;font-size:1.1rem;line-height:1;cursor:pointer}
 body.inv .upd-btn:disabled{opacity:.5;cursor:not-allowed}
 body.inv .upd-status{max-width:14rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.8rem;color:var(--muted)}
 body.inv .upd-status:empty{display:none}
