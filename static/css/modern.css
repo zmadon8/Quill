@@ -13,11 +13,14 @@ body:is(.ledger, .look) .search-pop { border-color: var(--line); box-shadow: var
 body:is(.ledger, .look) :is(.fees-search-form, .search-pop-form) input[type=search] { border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--white); padding-left: 12px; }
 body:is(.ledger, .look) :is(.fees-search-form, .search-pop-form) input[type=search]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-tint); }
 
-/* Sub-tabs: the same pills. */
-:is(body.look .subnav, body.ledger :is(.tabs, .stat-tabs), body.inv nav.sub) { gap: 4px; padding-top: 8px; padding-bottom: 8px; }
-:is(body.look .subnav, body.ledger :is(.tabs, .stat-tabs), body.inv nav.sub) a { margin: 0; padding: 6px 12px; min-height: 0; border-bottom: 0; border-radius: var(--radius-pill); }
-:is(body.look .subnav, body.ledger :is(.tabs, .stat-tabs), body.inv nav.sub) a:hover { background: var(--paper-2); }
-:is(body.look .subnav, body.ledger :is(.tabs, .stat-tabs), body.inv nav.sub) a.on, body.ledger .tab.active { background: var(--accent-tint); color: var(--accent); }
+/* Sub-tabs: the same pills. The Settings strip (.subnav) is one strip in every program: the Fee Register and Investments (body.ledger) get the Home and Diary strip's layout too. */
+body.ledger .subnav { margin: 0; padding: 0 24px; border-bottom: 1px solid var(--line); background: var(--bg); gap: 4px; }
+body.ledger .subnav.sub-tabs { margin-top: 0; font-size: var(--small-size); }
+@media (max-width: 599px) { body.ledger .subnav { padding-left: 12px; padding-right: 12px; } }
+:is(body:is(.look, .ledger) .subnav, body.ledger :is(.tabs, .stat-tabs), body.inv nav.sub) { gap: 4px; padding-top: 8px; padding-bottom: 8px; }
+:is(body:is(.look, .ledger) .subnav, body.ledger :is(.tabs, .stat-tabs), body.inv nav.sub) a { margin: 0; padding: 6px 12px; min-height: 0; border-bottom: 0; border-radius: var(--radius-pill); }
+:is(body:is(.look, .ledger) .subnav, body.ledger :is(.tabs, .stat-tabs), body.inv nav.sub) a:hover { background: var(--paper-2); }
+:is(body:is(.look, .ledger) .subnav, body.ledger :is(.tabs, .stat-tabs), body.inv nav.sub) a.on, body.ledger .tab.active { background: var(--accent-tint); color: var(--accent); }
 body:is(.ledger, .look) .crumb-row { background: var(--bg); }
 body:is(.ledger, .look) .banner-warning { border-radius: 0; border-width: 0 0 1px 4px; }
 
