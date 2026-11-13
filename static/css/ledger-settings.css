@@ -17,3 +17,5 @@ body.ledger .bank-add { display: flex; gap: 8px; }
 body.ledger .bank-add input { flex: 1; }
 body.ledger .filename-builder { border: 0; padding: 0; margin: 8px 0 0; }
 @media (max-width: 640px) { body.ledger .settings-card :is(.grid-2, .grid-3) { grid-template-columns: 1fr; } }
+body.ledger .settings-panels, body.ledger .settings-card { min-width: 0; }
+@media (max-width: 599px) { body.ledger .settings-card .filters button { align-self: flex-start; } }
