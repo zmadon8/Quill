@@ -699,3 +699,14 @@ textarea.single-line { display: block; width: 100%; max-width: 28rem; min-height
 /* Text the user must type exactly to confirm (delete everything, restore): always shown with its real capitals, even
    inside a label that is drawn in small capitals. text-transform is inherited, so this rule on the text wins. */
 .exact-text { text-transform: none; letter-spacing: normal; font-variant: normal; font-size: 1rem; color: var(--ink, #1C1B19); user-select: all; }
+
+/* Search suggestions (fees search-suggest.js, investments instrument-picker.js): a dropdown under the search box. The parent form is position:relative.
+   Tap targets are at least 44px so a phone can pick a row. */
+.search-suggest { position: absolute; left: 0; right: 0; top: 100%; z-index: 200; width: 100%; max-height: min(60vh, 24rem); overflow-y: auto; -webkit-overflow-scrolling: touch; background: var(--white, #fff); border: 1px solid var(--line-strong, #c9c5bc); border-radius: var(--radius, 6px); box-shadow: var(--shadow-float, 0 8px 24px rgba(0,0,0,.15)); text-align: left; box-sizing: border-box; }
+.search-suggest[hidden] { display: none; }
+.search-suggest-head { padding: 8px 12px 4px; color: var(--muted, #6b6860); font-size: 13px; font-weight: 500; text-transform: none; letter-spacing: 0; }
+.search-suggest-option { display: flex; flex-direction: column; justify-content: center; gap: 1px; min-height: 44px; padding: 6px 12px; cursor: pointer; box-sizing: border-box; }
+.search-suggest-option.active { background: var(--paper-2, #f2f0ea); }
+.search-suggest-title { color: var(--ink, #1C1B19); overflow-wrap: anywhere; }
+.search-suggest-sub { color: var(--faint, #8a8679); font-size: .786rem; overflow-wrap: anywhere; }
+.search-suggest-empty { padding: 10px 12px; color: var(--muted, #6b6860); }

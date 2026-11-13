@@ -108,21 +108,8 @@ def add_2(request):
     if query and request.method != "POST":
         if not lookup_enabled():
             search_error = "Lookup is switched off by an Admin. Type the code instead."
-        elif kind == "fund":
-            from .services import schemes
-
-            hits = [{"code": s.code, "name": s.display_name, "raw_name": s.name, "isin": s.isin, "extra": f"NAV {s.nav} on {s.nav_date:%-d %b}" if s.nav and s.nav_date else ""}
-                    for s in schemes.find(query)]
-            if not hits:
-                search_error = "No scheme matched. The scheme list comes from AMFI's daily file and is refreshed weekly; you can also type the scheme code."
-        elif kind in ("share", "foreign"):
-            from .adapters import yahoo
-            from .adapters.base import FetchError
-
-            try:
-                hits = [{"code": h["symbol"], "name": h["name"], "isin": "", "extra": f"{h['exchange']} {h['type']}".strip()} for h in yahoo.search(query)]
-            except FetchError as exc:
-                search_error = f"The search could not be reached ({exc}). Type the code instead; the price check on the next step confirms it."
+        else:
+            hits, search_error = _plain_search(profile, kind, query)
     if request.method == "POST":
         form = forms.InstrumentForm(request.POST)
         if form.is_valid():
@@ -149,6 +136,31 @@ def add_2(request):
     return page(request, "investments/add_2.html", {"page_title_text": "Add investment: details", "form": form, "kind": kind,
                                                     "kind_label": KIND_LABELS.get(kind), "hits": hits, "search_error": search_error, "query": query,
                                                     "lookup_on": lookup_enabled()}, selectors=False)
+
+
+def _plain_search(profile, kind, query):
+    """The no-script Search on the Add page: the same stored NSE and AMFI lists as the picker, so both give the same hits.
+    Foreign investments, or shares when the NSE list cannot be had, fall back to Yahoo. Returns ``(hits, error)``."""
+    from .services import instrument_search
+
+    if kind not in ("share", "fund", "foreign"):
+        return [], ""
+    if kind in ("share", "fund"):
+        out = instrument_search.search(profile, query, kind)
+        hits = [{"code": r["code"], "name": r["name"], "raw_name": r["raw_name"], "isin": r["isin"], "extra": r["extra"]} for r in out["results"]]
+        if hits:
+            return hits, ""
+        if kind == "fund":
+            return [], "No scheme matched. The scheme list comes from AMFI's daily file and is refreshed weekly; you can also type the scheme code."
+        if "could not" not in out["message"]:
+            return [], out["message"]
+    from .adapters import yahoo
+    from .adapters.base import FetchError
+
+    try:
+        return [{"code": h["symbol"], "name": h["name"], "isin": "", "extra": f"{h['exchange']} {h['type']}".strip(), "raw_name": ""} for h in yahoo.search(query)], ""
+    except FetchError as exc:
+        return [], f"The search could not be reached ({exc}). Type the code instead; the price check on the next step confirms it."
 
 
 @inv_editor

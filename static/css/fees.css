@@ -94,14 +94,6 @@ body.ledger .total-card .total-label { color: var(--ink-3); font-size: 1rem; }
 body.ledger .total-card .total-amount { font-size: 1.43rem; font-weight: 600; font-variant-numeric: tabular-nums; }
 body.ledger .firm-status.is-active { color: #15803D; }
 body.ledger .firm-status.is-archived { color: var(--muted); }
-body.ledger .search-suggest { position: absolute; left: 0; right: 0; top: 100%; z-index: 60; max-height: 60vh; overflow: auto; background: var(--white); border: 1px solid var(--line-strong); border-radius: var(--radius); box-shadow: var(--shadow-float); text-align: left; }
-body.ledger .search-suggest[hidden] { display: none; }
-body.ledger .search-suggest-head { padding: 8px 12px 4px; color: var(--muted); font-size: 13px; font-weight: 500; text-transform: none; letter-spacing: 0; }
-body.ledger .search-suggest-option { display: flex; flex-direction: column; gap: 1px; padding: 6px 12px; cursor: pointer; }
-body.ledger .search-suggest-option.active { background: var(--paper-2); }
-body.ledger .search-suggest-title { color: var(--ink); }
-body.ledger .search-suggest-sub { color: var(--faint); font-size: .786rem; }
-body.ledger .search-suggest-empty { padding: 10px 12px; color: var(--muted); }
 body.ledger .kpi-customise-title { margin: 0 0 12px; font-size: 1.1rem; }
 body.ledger .kpi-customise-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; margin-bottom: 12px; }
 body.ledger .kpi-group { border: 0; margin: 0 0 12px; padding: 0; }
