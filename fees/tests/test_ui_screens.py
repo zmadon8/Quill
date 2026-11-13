@@ -55,7 +55,7 @@ SCREENS = (
 NOT_PAGES = {
     "fees_landing", "fees_dashboard_kpis", "fees_statistics_data", "fees_statistics_explore", "fees_statistics_views", "fees_statistics_view_delete",
     "fees_statistics_export", "fees_statistics_annual_export", "fees_statistics_tax_summary", "fees_memo_preview_number",
-    "fees_memo_preview_totals", "fees_memos_export", "fees_memo_delete", "fees_memo_write_off", "fees_memo_finalise",
+    "fees_memo_preview_totals", "fees_memo_picker", "fees_memo_matter_defaults", "fees_memos_export", "fees_memo_delete", "fees_memo_write_off", "fees_memo_finalise",
     "fees_memo_word", "fees_memo_statement", "fees_payment_payees", "fees_payment_delete", "fees_payment_assign",
     "fees_firm_status", "fees_group_detail", "fees_group_add", "fees_group_rename", "fees_group_remove", "fees_firm_statement_export",
     "fees_firm_ledger_export", "fees_matter_archive", "fees_matter_statement_export", "fees_matter_ledger_export",

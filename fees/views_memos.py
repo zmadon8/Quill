@@ -9,6 +9,7 @@ from fees import forms, scope
 from fees.decorators import fees_editor, fees_read_write, fees_reader, handle_fees_errors
 from fees.errors import FeesError
 from fees.pages import json_ok, memo_filters, page_number, render_page
+from fees.services import firms as firms_service
 from fees.services import filter_options, fy_options, matters, memo_fees, memo_lists, memos, payments, prefs
 from fees.services.fees_in_words import fees_in_words
 from fees.services import settings as settings_service
@@ -100,8 +101,48 @@ def memo_detail(request, memo_id):
     )
 
 
+def _flag(value):
+    return str(value or "").strip().lower() in ("1", "true", "on", "yes")
+
+
+def _matter_groups(profile, firm_id, show_archived):
+    """The matters of one firm for the picker as ``[{"name": group name, "matters": [...]}]`` (active only unless ``show_archived``)."""
+    if not firm_id:
+        return []
+    groups = {}
+    for matter in matters.list_matters(profile, firm_id=firm_id, status_filter="all" if show_archived else "active"):
+        groups.setdefault(matter.group.name, []).append(matter)
+    return [{"name": name, "matters": rows} for name, rows in groups.items()]
+
+
+def _picker(profile, matter_id="", firm_id="", show_archived=False):
+    """What the single Firm then Matter picker shows. The matter chosen (posted again or linked as ``?matter=``) fixes the firm; a chosen
+    archived firm or matter switches "Show archived" on so that it is still in the lists. A matter that is not this profile's is ignored."""
+    chosen = None
+    if str(matter_id).isdigit():
+        chosen = matters.list_matters(profile).filter(pk=int(matter_id)).first()
+    if chosen is not None:
+        firm_id = chosen.firm_id
+    firm_id = int(firm_id) if str(firm_id).isdigit() else None
+    firm_rows = list(firms_service.list_firms(profile, status_filter="all"))
+    if firm_id not in {f.pk for f in firm_rows}:
+        firm_id = None
+    selected = next((f for f in firm_rows if f.pk == firm_id), None)
+    show_archived = show_archived or bool(selected and selected.status == "archived") or bool(chosen and chosen.is_archived)
+    return {
+        "chosen": chosen,
+        "firm_id": firm_id,
+        "show_archived": show_archived,
+        "firms": [f for f in firm_rows if show_archived or f.status != "archived"],
+        "matter_groups": _matter_groups(profile, firm_id, show_archived),
+    }
+
+
 def _form_page(request, form, memo=None, based_on=None, errors=None, status=200):
     profile, _settings = scope.context(request)
+    picker = None
+    if memo is None:
+        picker = _picker(profile, form.get("matter_id", ""), request.GET.get("firm", ""), _flag(request.GET.get("archived")))
     return render_page(
         request,
         "fees/memo_form.html",
@@ -109,7 +150,7 @@ def _form_page(request, form, memo=None, based_on=None, errors=None, status=200)
             "form": form,
             "memo": memo,
             "based_on": based_on,
-            "matter_choices": matters.list_matters(profile, status_filter="active"),
+            "picker": picker,
             "has_signature": word_template.has_signature(profile),
             "errors": errors or [],
         },
@@ -139,6 +180,9 @@ def _create(request, based_on=None):
         data = forms.memo_data_from_post(request.POST)
         if data["matter_id"] is None:
             raise FeesError("INVALID_MEMO", "Choose a matter.")
+        firm_id = (request.POST.get("firm_id") or "").strip()
+        if firm_id and not matters.list_matters(profile, firm_id=int(firm_id) if firm_id.isdigit() else -1).filter(pk=data["matter_id"]).exists():
+            raise FeesError("INVALID_MEMO", "That matter does not belong to the chosen firm.")
         memo = memos.create_memo(profile, data, is_draft=request.POST.get("action") == "draft")
     except FeesError as err:
         return _failed(request, err, form, based_on=based_on)
@@ -156,8 +200,45 @@ def memo_new(request):
     form = forms.blank_memo_form(config)
     matter_id = request.GET.get("matter", "").strip()
     if matter_id.isdigit():
-        form = forms.apply_matter_defaults(form, matters.get_matter(profile, int(matter_id)))
+        matter = matters.get_matter(profile, int(matter_id))
+        firm_id = request.GET.get("firm", "").strip()
+        # The picker's own form sends the firm and the matter it last showed: a matter of another firm is left out (the firm was just changed).
+        if not firm_id.isdigit() or int(firm_id) == matter.firm_id:
+            form = forms.apply_matter_defaults(form, matter)
     return _form_page(request, form)
+
+
+@fees_reader
+@handle_fees_errors(json=True)
+@require_safe
+def memo_picker(request):
+    """JSON for the New Memo picker: the firms (active, or all with ``archived=1``) and, for ``firm=ID``, that firm's matters by group."""
+    profile, _settings = scope.context(request)
+    picker = _picker(profile, "", request.GET.get("firm", ""), _flag(request.GET.get("archived")))
+    return json_ok({
+        "show_archived": picker["show_archived"],
+        "firm_id": picker["firm_id"],
+        "firms": [{"id": f.pk, "name": f.name, "archived": f.status == "archived"} for f in picker["firms"]],
+        "groups": [
+            {"name": g["name"], "matters": [{"id": m.pk, "name": m.name, "archived": m.is_archived} for m in g["matters"]]}
+            for g in picker["matter_groups"]
+        ],
+    })
+
+
+@fees_reader
+@handle_fees_errors(json=True)
+@require_safe
+def memo_matter_defaults(request):
+    """JSON: the memo defaults of one matter (``?matter=ID``) as ``{field name: text}``, only the fields the matter fills. Reads only."""
+    profile, _settings = scope.context(request)
+    matter_id = request.GET.get("matter", "").strip()
+    if not matter_id.isdigit():
+        raise FeesError("INVALID_MEMO", "Choose a matter.")
+    matter = matters.get_matter(profile, int(matter_id))   # another profile's matter is a 404
+    values = forms.apply_matter_defaults({}, matter)
+    values.pop("matter_id", None)
+    return json_ok({"matter_id": matter.pk, "firm_id": matter.firm_id, "archived": matter.is_archived, "fields": values})
 
 
 @fees_read_write

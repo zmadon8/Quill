@@ -6,10 +6,15 @@
 <h1>{% if memo %}Edit memo {{ memo.memo_number|default:"(draft)" }}{% elif based_on %}New memo based on another{% else %}New memo{% endif %}</h1>
 {% if not can_edit %}<p class="muted">You can read this page but not save it.</p>{% endif %}
 {% if not memo %}
-<form method="get" action="{% url 'fees_memo_new' %}" class="filters">
-  <label>Start from a matter's defaults <select name="matter"><option value="">Choose</option>{% for m in matter_choices %}<option value="{{ m.pk }}"{% if form.matter_id == m.pk|stringformat:"s" %} selected{% endif %}>{{ m.firm.name }}: {{ m.name }}</option>{% endfor %}</select></label>
-  <button type="submit">Load Defaults</button>
+<form method="get" action="{% url 'fees_memo_new' %}" class="filters memo-picker" id="memo-picker" data-memo-picker{% if request.method == 'GET' and form.matter_id %} data-preselected="1"{% endif %}
+      data-picker-url="{% url 'fees_memo_picker' %}" data-defaults-url="{% url 'fees_memo_matter_defaults' %}">
+  <label>Firm <select name="firm" id="mp-firm" data-picker-firm><option value="">Choose a firm</option>{% for f in picker.firms %}<option value="{{ f.pk }}"{% if picker.firm_id == f.pk %} selected{% endif %}>{{ f.name }}{% if f.status == 'archived' %} (archived){% endif %}</option>{% endfor %}</select></label>
+  <label>Matter <select name="matter" id="mp-matter" data-picker-matter{% if not picker.firm_id %} disabled{% endif %}><option value="">{% if picker.firm_id %}Choose a matter{% else %}Choose a firm first{% endif %}</option>{% for g in picker.matter_groups %}{% if picker.matter_groups|length > 1 %}<optgroup label="{{ g.name }}">{% endif %}{% for m in g.matters %}<option value="{{ m.pk }}"{% if form.matter_id == m.pk|stringformat:"s" %} selected{% endif %}>{{ m.name }}{% if m.is_archived %} (archived){% endif %}</option>{% endfor %}{% if picker.matter_groups|length > 1 %}</optgroup>{% endif %}{% endfor %}</select></label>
+  <label class="check"><input type="checkbox" name="archived" value="1" data-picker-archived{% if picker.show_archived %} checked{% endif %}> Show archived firms and matters</label>
+  <noscript><button type="submit">Show matters and load defaults</button></noscript>
+  <span class="muted hint" data-picker-status role="status" aria-live="polite"></span>
 </form>
+<p class="hint muted" data-archived-note{% if not picker.chosen.is_archived %} hidden{% endif %}>This matter is archived. You can save a draft, but a memo can only be saved for an active matter.</p>
 {% endif %}
 {% include "fees/_form_errors.html" %}
 <form method="post" action="{{ request.path }}" class="memo-form" id="memo-form" data-memo-form
@@ -24,7 +29,7 @@
   <fieldset class="memo-card"><legend class="sr-only">Memo details</legend>
   <div class="memo-grid cols-2">
   {% if memo %}<p class="wide">Matter: {{ memo.firm_name }}: {{ memo.matter_name }}</p><input type="hidden" name="matter_id" value="{{ memo.matter_id }}">
-  {% else %}<label class="wide">Matter <select name="matter_id" required><option value="">Choose</option>{% for m in matter_choices %}<option value="{{ m.pk }}"{% if form.matter_id == m.pk|stringformat:"s" %} selected{% endif %}>{{ m.firm.name }}: {{ m.name }}</option>{% endfor %}</select></label>{% endif %}
+  {% else %}<input type="hidden" name="matter_id" value="{{ form.matter_id }}" data-matter-id><input type="hidden" name="firm_id" value="{{ picker.firm_id|default:'' }}" data-firm-id>{% endif %}
   <div class="field">
     <label for="f-date">Date</label>
     <div class="inline-row"><input id="f-date" type="date" name="date" value="{{ form.date }}"><button type="button" class="small" data-today>Today</button></div>
@@ -94,4 +99,4 @@
   </p>{% endif %}
 </form>
 {% endblock %}
-{% block page_js %}{% if can_edit %}<script src="{% static 'js/fees/memo-form.js' %}"></script>{% endif %}{% endblock %}
+{% block page_js %}{% if can_edit %}<script src="{% static 'js/fees/memo-form.js' %}"></script><script src="{% static 'js/fees/memo-picker.js' %}"></script>{% endif %}{% endblock %}
