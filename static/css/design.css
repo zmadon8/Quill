@@ -43,3 +43,7 @@ body:is(.ledger, .look) .search-pop { background: var(--white); border: 1px soli
 body:is(.ledger, .look) :is(.fees-search-form, .search-pop-form) input[type=search] { border: 0; border-bottom: 1px solid var(--ink); border-radius: 0; background: transparent; padding-left: 4px; }
 body:is(.ledger, .look) :is(.fees-search-form, .search-pop-form) input[type=search]:focus { box-shadow: none; }
 body:is(.ledger, .look) .banner-warning { margin: 0; }
+
+/* Shared page frame (Home, Diary, Fees, Investments) */
+body:is(.look, .ledger) .page { max-width: none; padding: 0 0 4rem; }
+body:is(.look, .ledger) main { box-sizing: border-box; max-width: 72rem; margin: 0 auto; padding: 20px 24px 0; }

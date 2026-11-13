@@ -26,11 +26,9 @@ body.ledger .muted, body.ledger .hint { color: var(--muted); }
 body.ledger .hint { font-size: .857rem; color: var(--faint); }
 
 /* ---- 2. Shell: top bar, tabs, back bar, page widths ---- */
-body.ledger .page { max-width: none; padding: 0 0 4rem; }
 body.ledger .crumb-row { position: static; background: var(--paper); border-bottom: 1px solid var(--line); padding: 6px 24px; min-height: 0; }
 body.ledger .breadcrumb a { min-height: 0; line-height: 1.5; font-weight: 700; color: var(--ink); }
 body.ledger .breadcrumb a:hover { color: var(--accent); text-decoration: none; }
-body.ledger main { box-sizing: border-box; max-width: 72rem; margin: 0 auto; padding: 20px 24px 0; }
 body.ledger.w-6xl main { max-width: 82.286rem; }  /* 1152px at the 14px root */
 body.ledger.w-5xl main { max-width: 73.143rem; }  /* 1024px */
 body.ledger.w-4xl main { max-width: 64rem; }      /* 896px */
@@ -54,20 +52,20 @@ body.ledger main :is(button, .button), body.ledger .search-pop button, body.ledg
   transition: background-color .15s, border-color .15s, color .15s;
 }
 body.ledger main :is(button, .button):hover, body.ledger .btn:hover { border-color: var(--ink); background: var(--paper-2); text-decoration: none; }
-body.ledger main :is(button.small, .button.small, .btn-sm), body.ledger .btn-sm { min-height: 0; padding: 4px 10px; font-size: .857rem; }
-body.ledger main :is(button.primary, .button.primary, button[type=submit]:not(.link):not(.danger):not(.secondary):not(.ghost):not(.success):not(.dng):not(.q)), body.ledger .search-pop button, body.ledger .btn-primary {
+body.ledger main :is(button.small, .button.small, .btn-sm), body.ledger :is(.btn-sm, .btn.sm, .page-actions .btn) { min-height: 0; padding: 4px 10px; font-size: .857rem; }
+body.ledger main :is(button.primary, .button.primary, button[type=submit]:not(.link):not(.danger):not(.secondary):not(.ghost):not(.success):not(.dng):not(.q)), body.ledger .search-pop button, body.ledger :is(.btn-primary, .btn.p) {
   background: var(--accent); border-color: var(--accent); color: var(--paper);
 }
-body.ledger main :is(button.primary, .button.primary, button[type=submit]:not(.link):not(.danger):not(.secondary):not(.ghost):not(.success):not(.dng):not(.q)):hover, body.ledger .search-pop button:hover, body.ledger .btn-primary:hover {
+body.ledger main :is(button.primary, .button.primary, button[type=submit]:not(.link):not(.danger):not(.secondary):not(.ghost):not(.success):not(.dng):not(.q)):hover, body.ledger .search-pop button:hover, body.ledger :is(.btn-primary, .btn.p):hover {
   background: var(--accent-hover); border-color: var(--accent-hover); color: var(--paper);
 }
-body.ledger main :is(button.secondary, .button.secondary), body.ledger .btn-secondary { background: transparent; border-color: var(--line-strong); color: var(--ink); }
+body.ledger main :is(button.secondary, .button.secondary), body.ledger :is(.btn-secondary, .btn.q) { background: transparent; border-color: var(--line-strong); color: var(--ink); }
 body.ledger main :is(button.ghost, .button.ghost), body.ledger .btn-ghost { background: transparent; border-color: transparent; color: var(--ink-2); }
 body.ledger main :is(button.ghost, .button.ghost):hover { background: var(--paper-2); border-color: transparent; }
 body.ledger main :is(button.success, .button.success), body.ledger .btn-success { background: transparent; border-color: var(--line-strong); color: #166534; }
 body.ledger main :is(button.success, .button.success):hover, body.ledger .btn-success:hover { border-color: #166534; background: #F0FDF4; }
-body.ledger main :is(button.danger, .button.danger), body.ledger .btn-danger { background: #991B1B; border-color: #991B1B; color: var(--paper); }
-body.ledger main :is(button.danger, .button.danger):hover, body.ledger .btn-danger:hover { background: #7F1D1D; border-color: #7F1D1D; color: var(--paper); }
+body.ledger main :is(button.danger, .button.danger), body.ledger :is(.btn-danger, .btn.dng) { background: #991B1B; border-color: #991B1B; color: var(--paper); }
+body.ledger main :is(button.danger, .button.danger):hover, body.ledger :is(.btn-danger, .btn.dng):hover { background: #7F1D1D; border-color: #7F1D1D; color: var(--paper); }
 body.ledger main :is(button.ink, .button.ink), body.ledger .btn-ink { background: var(--ink); border-color: var(--ink); color: var(--paper); }
 body.ledger main :is(button.ink, .button.ink):hover { background: #000; color: var(--paper); }
 body.ledger main button.link { min-height: 0; padding: 0; border: 0; background: none; color: var(--accent-hover); font-weight: 400; }
@@ -162,10 +160,10 @@ body.ledger .col-menu-list input { width: 16px; height: 16px; }
 body.ledger .filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 12px; margin: 0; padding: 12px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); }
 body.ledger .filters .push { margin-left: auto; }
 body.ledger .filters input[type=text], body.ledger .filters select { width: auto; max-width: 100%; }
-body.ledger .tabs, body.ledger .stat-tabs { display: flex; flex-wrap: wrap; gap: 0 20px; margin: 0; border-bottom: 1px solid var(--line); }
-body.ledger :is(.tabs, .stat-tabs) a { display: inline-flex; align-items: center; margin-bottom: -1px; padding: 0 4px 8px; border-bottom: 2px solid transparent; color: var(--muted); text-decoration: none; }
-body.ledger :is(.tabs, .stat-tabs) a:hover { color: var(--ink); text-decoration: none; }
-body.ledger :is(.tabs, .stat-tabs) a.on, body.ledger .tab.active { color: var(--ink); font-weight: 600; border-bottom-color: var(--accent); }
+body.ledger .tabs, body.ledger .stat-tabs, body.inv nav.sub { display: flex; flex-wrap: wrap; gap: 0 20px; margin: 0; border-bottom: 1px solid var(--line); }
+body.ledger :is(.tabs, .stat-tabs) a, body.inv nav.sub a { display: inline-flex; align-items: center; margin-bottom: -1px; padding: 0 4px 8px; border-bottom: 2px solid transparent; color: var(--muted); text-decoration: none; }
+body.ledger :is(.tabs, .stat-tabs) a:hover, body.inv nav.sub a:hover { color: var(--ink); text-decoration: none; }
+body.ledger :is(.tabs, .stat-tabs) a.on, body.inv nav.sub a.on, body.ledger .tab.active { color: var(--ink); font-weight: 600; border-bottom-color: var(--accent); }
 body.ledger .chips { display: flex; flex-wrap: wrap; gap: 4px 8px; margin: 0; }
 body.ledger :is(.chip, .chips .chip) { display: inline-flex; align-items: center; gap: 6px; min-height: 0; padding: 2px 8px; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--card); color: var(--ink); font-size: .857rem; cursor: pointer; }
 body.ledger main .chips button.chip { min-height: 0; padding: 2px 8px; font-weight: 400; }
@@ -215,7 +213,7 @@ body.ledger .breadcrumb + .breadcrumb { margin-left: 8px; }
 body.ledger .sub-tabs { margin: 0 0 12px; }
 /* Tabs on the left, the page's buttons (Export, New ...) on the same row at the right. */
 body.ledger .tab-bar { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 16px; margin: 0 0 12px; border-bottom: 1px solid var(--line); }
-body.ledger .tab-bar > :is(.tabs, .stat-tabs) { border-bottom: 0; margin: 0; }
+body.ledger .tab-bar > :is(.tabs, .stat-tabs, nav.sub) { border-bottom: 0; margin: 0; }
 body.ledger .tab-bar > .page-actions { margin: 0 0 6px auto; justify-content: flex-end; }
 /* Row buttons stay on one line at the end of the row. */
 body.ledger .row-actions { white-space: nowrap; }
