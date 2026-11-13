@@ -9,6 +9,7 @@ import logging
 log = logging.getLogger(__name__)
 RETRY_AFTER_SECONDS = 15 * 60   # after a failed fetch of an empty list, do not try again for this long
 LAST_ERROR_SECONDS = 30 * 24 * 3600   # how long the last error stays on the Settings status line
+ADMIN_FETCH_TIMEOUT = 20   # seconds per read for the admin Refresh button; two lists must finish inside the 60s gunicorn timeout
 
 
 LOOKUP_KEY = "lookup"   # the SourceSetting row that holds the switch; its fetch_mode is "off" when the lookup is switched off
@@ -126,12 +127,12 @@ def status():
 
 
 def refresh_now():
-    """Admin button: clear the retry throttle, then fetch both lists now (each fetch has its own timeout). Returns ``[(label, count or None, error)]``; never raises."""
+    """Admin button: clear the retry throttle, then fetch both lists now (each fetch is capped well under the 60s worker timeout: one try, short socket timeout). Returns ``[(label, count or None, error)]``; never raises."""
     results = []
     for label, service in (("NSE", nse_list), ("AMFI", schemes)):
         cache.delete(f"instrument_search:refresh_failed:{label}")
         try:
-            results.append((label, service.refresh(force=True), ""))
+            results.append((label, service.refresh(force=True, timeout=ADMIN_FETCH_TIMEOUT, tries=1), ""))
             cache.delete(_error_key(label))
         except FetchError as exc:
             cache.set(_error_key(label), str(exc)[:200], LAST_ERROR_SECONDS)

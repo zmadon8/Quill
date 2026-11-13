@@ -10,7 +10,7 @@
 <form method="post" class="inline-edit">{% csrf_token %}<input type="hidden" name="action" value="lookup"><label><input type="checkbox" name="lookup_enabled"{% if lookup_on %} checked{% endif %}> Search the NSE and AMFI lists when adding an investment</label> <button class="btn q sm">Save</button></form>
 {% if list_status %}<div class="tw"><table data-table-id="inv-settings_general-lists" class="led"><thead><tr><th>List</th><th class="num">Entries</th><th>Last refreshed</th><th>Last error</th></tr></thead><tbody>
 {% for l in list_status %}<tr><td>{{ l.label }}</td><td class="num">{{ l.count }}</td><td>{% if l.last %}{{ l.last|date:"j M Y H:i" }}{% else %}Never{% endif %}</td><td>{{ l.error|default:"None" }}</td></tr>{% endfor %}</tbody></table></div>
-<form method="post" class="inline-edit">{% csrf_token %}<input type="hidden" name="action" value="refresh_lists"><button class="btn q sm">Refresh lists now</button> <span class="hint">Downloads both lists now (up to a minute each).</span></form>{% endif %}{% endif %}
+<form method="post" class="inline-edit">{% csrf_token %}<input type="hidden" name="action" value="refresh_lists"><button class="btn q sm">Refresh lists now</button> <span class="hint">Downloads both lists now (this can take up to half a minute each).</span></form>{% endif %}{% endif %}
 <div class="sec"><h2>Portfolios</h2></div>
 <p class="hint">Every transaction belongs to exactly one portfolio, usually one per person. "All Portfolios" adds them together.</p>
 <div class="tw"><table data-table-id="inv-settings_general-1" class="led"><thead><tr><th>Portfolio</th><th>Owner</th><th></th></tr></thead><tbody>

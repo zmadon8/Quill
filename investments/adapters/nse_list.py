@@ -52,13 +52,13 @@ def iter_all(lines, fmt=None):
         raise FormatError(f"{LABEL}: {rows} rows were read and none had a symbol and a name.", key="nse_list")
 
 
-def fetch_list(store, url=None):
+def fetch_list(store, url=None, timeout=60, tries=None):
     """Stream the whole file once, handing each security to ``store`` (no list of all of them is kept)."""
     fmt = source_formats.get("nse_list")
     url = url or source_formats.url_for("nse_list", fmt, "INVESTMENTS_NSE_LIST_URL")
 
     def run():
-        with http.open_url(url, timeout=60, headers=bhavcopy.NSE_HEADERS) as response:
+        with http.open_url(url, timeout=timeout, headers=bhavcopy.NSE_HEADERS) as response:
             return store(iter_all((raw.decode("utf-8", "replace") for raw in response), fmt))
 
-    return http.with_retry(run)
+    return http.with_retry(run, tries=tries) if tries else http.with_retry(run)
