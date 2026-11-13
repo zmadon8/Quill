@@ -230,11 +230,22 @@ class TransactionForm(ProfileForm):
 
             if self.held_units is None:
                 self.held_units = holdings.held_units(self.profile)
-            keep = set(self.held_units)
+            held = set(self.held_units)
+            # Back-dated sales are allowed, so investments sold out since (any purchase, opening or transfer-in on record) are offered too, in
+            # their own group. One cheap query; the real check is on the sale's date (see clean()).
+            from investments.models import STATUS_FINAL, Transaction
+
+            history = set(Transaction.objects.filter(profile=self.profile, status=STATUS_FINAL, side="buy").values_list("instrument_id", flat=True).distinct())
+            own = set()
             if mode == "edit_sell" or (mode == "awaiting_sell" and self.initial.get("instrument")):
-                keep.add(getattr(self.initial.get("instrument"), "pk", self.initial.get("instrument")))
-            self.fields["instrument"].queryset = self.fields["instrument"].queryset.filter(pk__in=keep)
-            self.fields["instrument"].error_messages["invalid_choice"] = "You can only sell an investment you hold. Choose one from the list."
+                own.add(getattr(self.initial.get("instrument"), "pk", self.initial.get("instrument")))
+            sold_out = (history | own) - held
+            qs = self.fields["instrument"].queryset.filter(pk__in=held | sold_out)
+            self.fields["instrument"].queryset = qs
+            self.fields["instrument"].error_messages["invalid_choice"] = "Choose an investment you hold, or held in the past, from the list."
+            names = [(i.pk, str(i), i.pk in sold_out) for i in qs]
+            self.fields["instrument"].choices = [("", "---------")] + [(pk, label) for pk, label, old in names if not old] + (
+                [("Sold out (for back-dated sales)", [(pk, label) for pk, label, old in names if old])] if sold_out and any(n[2] for n in names) else [])
             self.break_before = ("units",)
             # A sale asks for the date, investment, where it was held, units and price; charges and a note sit under "More".
             self.more_fields = tuple(n for n in ("charges", "note") if n in self.fields)
@@ -270,6 +281,12 @@ class TransactionForm(ProfileForm):
     def clean(self):
         cleaned = super().clean()
         self.clean_pick(cleaned)
+        inst, day = cleaned.get("instrument"), cleaned.get("date")
+        if self.mode in ("sell", "awaiting_sell") and inst and day:
+            from investments.services import transactions as tx
+
+            if not tx.available_by_bucket(self.profile, inst, day):
+                self.add_error("instrument", f"You held none of this investment on {day.day} {day:%b %Y}.")
         folio = cleaned.get("folio")
         if folio and self.new_pick:
             self.add_error("folio", "Choose a folio after the investment has been added.")

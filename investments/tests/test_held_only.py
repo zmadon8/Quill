@@ -64,12 +64,17 @@ class HeldOnlyTests(InvTestCase):
         self.assertIn('<details class="more-fields">', html)
         self.assertIn("Charges and note", html)
 
-    def test_sale_has_no_held_only_box_and_lists_only_what_is_held(self):
+    def test_sale_has_no_held_only_box_and_lists_held_then_sold_out(self):
         html = self.form_html("investments_txn_new_sell")
         self.assertNotIn("held-only-box", html)
-        self.assertRegex(html, rf'<option value="{self.reliance.pk}"')
-        self.assertNotRegex(html, rf'<option value="{self.fund.pk}"')
-        self.assertNotRegex(html, rf'<option value="{self.tata.pk}"')
+        self.assertIn("Sold out (for back-dated sales)", html)
+        self.assertLess(html.index(f'<option value="{self.reliance.pk}"'), html.index("Sold out (for back-dated sales)"))
+        self.assertGreater(html.index(f'<option value="{self.fund.pk}"'), html.index("Sold out (for back-dated sales)"))
+        self.assertNotRegex(html, rf'<option value="{self.tata.pk}"')       # never bought: not offered
+
+    def test_instrument_link_preselects_a_sold_out_investment(self):
+        r = self.client.get(reverse("investments_txn_new_sell") + f"?instrument={self.fund.pk}")
+        self.assertRegex(r.content.decode(), rf'<option value="{self.fund.pk}"[^>]*selected')
 
     def test_tick_box_defaults(self):
         self.assertTrue(self.box(self.form_html("investments_txn_transfer")))
@@ -87,13 +92,26 @@ class HeldOnlyTests(InvTestCase):
         for name in ("investments_txn_new_sell", "investments_txn_transfer"):
             self.assertNotIn("data-combo", self.form_html(name))
 
-    def test_sale_of_something_not_held_is_refused_with_a_clear_message(self):
-        r = self.client.post(reverse("investments_txn_new_sell"), {
-            "date": "2024-02-01", "instrument": str(self.tata.pk), "portfolio": str(self.portfolio.pk), "broker": str(self.zerodha.pk),
-            "units": "1", "price": "10", "charges": "0"})
+    def sell_post(self, inst, day, units="1"):
+        return self.client.post(reverse("investments_txn_new_sell"), {
+            "date": day, "instrument": str(inst.pk), "portfolio": str(self.portfolio.pk), "broker": str(self.zerodha.pk),
+            "units": units, "price": "10", "charges": "0"})
+
+    def test_sale_of_something_never_held_is_refused_with_a_date_message(self):
+        r = self.sell_post(self.tata, "2024-02-01")
         self.assertEqual(r.status_code, 200)
-        self.assertContains(r, "You can only sell an investment you hold")
+        self.assertContains(r, "You held none of this investment on 1 Feb 2024.")
         self.assertEqual(Transaction.objects.filter(instrument=self.tata).count(), 0)
+
+    def test_back_dated_sale_of_a_since_sold_out_investment_succeeds(self):
+        self.buy(d(2023, 2, 1), 2, 55, instrument=self.fund)     # 7 bought, 5 sold in June: 2 were still held in March
+        r = self.sell_post(self.fund, "2023-03-01", "2")
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(Transaction.objects.filter(instrument=self.fund, side="sell").count(), 2)
+
+    def test_sale_dated_before_the_first_buy_is_refused(self):
+        r = self.sell_post(self.fund, "2022-12-31")
+        self.assertContains(r, "You held none of this investment on 31 Dec 2022.")
 
     def test_editing_an_awaiting_redemption_keeps_its_own_investment(self):
         a = tx.add_transaction(self.profile, self.user, side="sell", instrument=self.fund, portfolio=self.portfolio, broker=self.zerodha,
