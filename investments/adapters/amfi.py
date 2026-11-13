@@ -6,7 +6,7 @@ the format ``amfi`` of ``services/source_formats.py``, which an Admin can change
 import re
 from decimal import Decimal
 
-from investments.services import source_formats
+from investments.services import fund_names, source_formats
 
 from . import http
 from .base import FetchError, FormatError, clean_close
@@ -34,6 +34,21 @@ def _name(parts, fmt):
     """The scheme name. AMFI's newer lines have the plan and option as separate columns after the name; they are joined on
     with " - " so the result reads like the older single-column names ("Fund - Regular Plan - IDCW Option")."""
     return " - ".join(p.strip() for p in parts[fmt["name_from_col"]:fmt["nav_col"]] if p.strip())
+
+
+def _plan_option(parts, fmt):
+    """``(plan, option)`` from the separate columns between the name and the NAV ("Direct Plan", "Growth Option"), as "Direct" and "Growth"
+    (blank when the line has no such columns or they are not recognised). A column naming Direct or Regular is the plan, any other the option."""
+    plan, option = "", ""
+    for text in (p.strip() for p in parts[fmt["name_from_col"] + 1:fmt["nav_col"]]):
+        if not text or text == "-":
+            continue
+        _, found_plan, found_option = fund_names.parse(f"Fund {text}")
+        if found_plan:
+            plan = plan or found_plan
+        if found_option:
+            option = option or found_option
+    return plan, option
 
 
 def _unreadable(seen, fmt, first):
@@ -98,9 +113,10 @@ def _category(line, fmt):
     return re.sub(r"\s+", " ", text)[:80]
 
 
-def iter_all(lines, fmt=None, with_category=False):
+def iter_all(lines, fmt=None, with_category=False, with_plan=False):
     """Yield ``(code, name, isin, date, nav)`` for every scheme line (NAV may be None for "N.A."), or with ``with_category=True`` a sixth item,
-    the category heading that precedes the scheme's block ("" before the first). Raises :class:`FormatError` at the end when lines were
+    the category heading that precedes the scheme's block ("" before the first); ``with_plan=True`` then adds ``plan`` and ``option`` read from
+    AMFI's own plan and option columns ("Direct", "Growth"; blank for older lines without them). Raises :class:`FormatError` at the end when lines were
     read and none was a scheme with a readable date."""
     fmt = fmt or source_formats.default("amfi")
     readable, seen, first, category = False, 0, "", ""
@@ -123,7 +139,11 @@ def iter_all(lines, fmt=None, with_category=False):
         if day is not None:
             readable = True
         row = (code, _name(parts, fmt), "" if isin == "-" else isin, day, nav)
-        yield row + (category,) if with_category else row
+        if with_category:
+            row += (category,)
+        if with_plan:
+            row += _plan_option(parts, fmt)
+        yield row
     if seen and not readable:
         raise _unreadable(seen, fmt, first)
 
@@ -135,6 +155,6 @@ def fetch_scheme_list(store, url=None, timeout=60, tries=None):
 
     def run():
         with http.open_url(url, timeout=timeout) as response:
-            return store(iter_all((raw.decode("utf-8", "replace") for raw in response), fmt, with_category=True))
+            return store(iter_all((raw.decode("utf-8", "replace") for raw in response), fmt, with_category=True, with_plan=True))
 
     return http.with_retry(run, tries=tries) if tries else http.with_retry(run)
