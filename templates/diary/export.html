@@ -16,8 +16,8 @@
       <p>On screen: <strong>{{ scope_path|join:" > " }}</strong></p>
       <input type="hidden" name="kind" value="{{ scope_kind }}">
       <input type="hidden" name="pk" value="{{ scope_pk }}">
-      <p><button type="submit" name="type" value="view" class="primary">Download This View (Word)</button></p>
-      <p><button type="submit" name="type" value="offline_view">Download This View As An Offline Copy</button></p>
+      <p class="acts-row"><button type="submit" name="type" value="view" class="primary">Download This View (Word)</button>
+        <button type="submit" name="type" value="offline_view">Download This View As An Offline Copy</button></p>
       {% else %}
       <p class="meta">Open a Subject, Topic or Sub-topic and press <strong>Export</strong> in the header to export exactly that page.</p>
       {% endif %}
@@ -25,8 +25,8 @@
 
     <section class="settings-section">
       <h2>Full</h2>
-      <p><button type="submit" name="type" value="full" class="primary">Full: One Word File</button></p>
-      <p><button type="submit" name="type" value="by_subject" class="primary">Full: One File Per Subject (.zip)</button></p>
+      <p class="acts-row"><button type="submit" name="type" value="full" class="primary">Full: One Word File</button>
+        <button type="submit" name="type" value="by_subject" class="primary">Full: One File Per Subject (.zip)</button></p>
       <p class="meta">One Word file for each Subject and one for all Other Subjects together, with a manifest.txt that lists each file and its Item count.</p>
     </section>
 
@@ -38,7 +38,7 @@
 
     <section class="settings-section">
       <h2>Subject</h2>
-      <p>
+      <p class="acts-row">
         <label class="visually-hidden" for="export-subject">Subject</label>
         <select id="export-subject" name="subject_pk">
           {% for s in main_subjects %}<option value="{{ s.pk }}">{{ s.name }}</option>{% endfor %}
@@ -46,9 +46,9 @@
             {% for s in other_subjects %}<option value="{{ s.pk }}">{{ s.name }}</option>{% endfor %}
           </optgroup>{% endif %}
         </select>
+        <button type="submit" name="type" value="subject">Download This Subject (Word)</button>
+        <button type="submit" name="type" value="offline_subject">Download This Subject As An Offline Copy</button>
       </p>
-      <p><button type="submit" name="type" value="subject">Download This Subject (Word)</button>
-        <button type="submit" name="type" value="offline_subject">Download This Subject As An Offline Copy</button></p>
     </section>
   </form>
 

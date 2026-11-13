@@ -346,6 +346,8 @@ The Add investment page (Admins and Editors alike) searches two stored lists as 
 
 **Switch (Settings > Investments > General, Admin only, site-wide).** "Search the NSE and AMFI lists when adding an investment" is on by default. It is stored once for the whole site in the `SourceSetting` row `lookup` (`fetch_mode` `off` when switched off; no row means on), read through `instrument_search.lookup_enabled()`. Off: the Add investment page shows no picker (plain Search and manual entry remain), `holdings/add/search/` answers 403 "Lookup is switched off", the nightly job does not download the NSE list or the AMFI scheme list, and the first-search download does not happen. AMFI NAV price fetching for funds is a separate fetch and is unaffected. Who: Admin.
 
+**List status and Refresh lists now (same place, Admin only).** Under the switch, a small table shows for the NSE and AMFI lists the number of entries, when each was last refreshed and the last error (kept for 30 days, cleared by a successful refresh). "Refresh lists now" clears the 15-minute retry pause after a failed first-search download, then downloads both lists at once (each download has its own 60 second timeout) and shows a toast per list. It does nothing while the lookup is switched off. A non-Admin cannot see or use it. Who: Admin.
+
 The NSE address is the environment setting `INVESTMENTS_NSE_LIST_URL` (default `https://nsearchives.nseindia.com/content/equities/EQUITY_L.csv`); the AMFI address is `INVESTMENTS_AMFI_URL`.
 
 ## Data source formats (Catalogue > Price sources > Data source formats, Admin only, site-wide)

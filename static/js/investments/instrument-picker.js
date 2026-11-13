@@ -140,6 +140,13 @@
     timer = window.setTimeout(function () { fetchResults(q); }, 250);
   });
 
+  // On a phone the keyboard hides the list; bring the box to the middle of the visible area when it is focused.
+  input.addEventListener("focus", function () {
+    if (input.scrollIntoView && window.matchMedia && window.matchMedia("(max-width: 700px)").matches) {
+      window.setTimeout(function () { input.scrollIntoView({ block: "center" }); }, 300);
+    }
+  });
+
   input.addEventListener("keydown", function (e) {
     var shown = !list.hidden && options.length;
     if (e.key === "ArrowDown" && shown) {

@@ -44,10 +44,10 @@ def due():
     return last is None or timezone.now() - last > timedelta(days=REFRESH_DAYS)
 
 
-def refresh(force=False):
+def refresh(force=False, **limits):
     if not force and not due():
         return 0
-    return amfi.fetch_scheme_list(_store)
+    return amfi.fetch_scheme_list(_store, **limits)
 
 
 def find(query, limit=25):

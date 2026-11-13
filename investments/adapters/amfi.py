@@ -115,13 +115,13 @@ def iter_all(lines, fmt=None):
         raise _unreadable(seen, fmt, first)
 
 
-def fetch_scheme_list(store, url=None):
+def fetch_scheme_list(store, url=None, timeout=60, tries=None):
     """Stream the whole file once, handing each scheme to ``store`` (no list of all schemes is kept)."""
     fmt = source_formats.get("amfi")
     url = url or source_formats.url_for("amfi", fmt, "INVESTMENTS_AMFI_URL")
 
     def run():
-        with http.open_url(url, timeout=60) as response:
+        with http.open_url(url, timeout=timeout) as response:
             return store(iter_all((raw.decode("utf-8", "replace") for raw in response), fmt))
 
-    return http.with_retry(run)
+    return http.with_retry(run, tries=tries) if tries else http.with_retry(run)

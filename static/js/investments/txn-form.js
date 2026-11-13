@@ -19,18 +19,19 @@
   var dateField = field("date");
   var line = card.querySelector(".avail-units");
 
+  var folioAll = null;
   function filterFolios() {
     if (!folio) { return; }
     var iid = instrument ? String(instrument.value) : "";
     var pid = portfolio ? String(portfolio.value) : "";
     var allowed = {};
     folios.forEach(function (f) { if ((!iid || String(f.instrument) === iid) && (!pid || String(f.portfolio) === pid)) { allowed[f.id] = true; } });
-    Array.prototype.forEach.call(folio.options, function (o) {
-      if (!o.value) { return; }
-      var ok = !!allowed[o.value];
-      o.hidden = !ok; o.disabled = !ok;
-      if (!ok && o.selected) { folio.value = ""; }
-    });
+    // Options are removed and put back, not hidden: phone browsers ignore hidden on an option. The full list is captured on first use.
+    if (!folioAll) { folioAll = Array.prototype.slice.call(folio.options); }
+    var chosen = folio.value;
+    while (folio.options.length) { folio.remove(0); }
+    folioAll.forEach(function (o) { if (!o.value || allowed[o.value]) { folio.add(o); } });
+    folio.value = allowed[chosen] ? chosen : "";
   }
   function defaultBroker() {
     if (!instrument || !broker || broker.value) { return; }
