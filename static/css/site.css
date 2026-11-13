@@ -710,3 +710,7 @@ textarea.single-line { display: block; width: 100%; max-width: 28rem; min-height
 .search-suggest-title { color: var(--ink, #1C1B19); overflow-wrap: anywhere; }
 .search-suggest-sub { color: var(--faint, #8a8679); font-size: .786rem; overflow-wrap: anywhere; }
 .search-suggest-empty { padding: 10px 12px; color: var(--muted, #6b6860); }
+
+/* Shared: a wrapping row of buttons or short controls (use instead of one <p> per button). */
+.acts-row { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .75rem; }
+.section-actions { flex-wrap: wrap; }
