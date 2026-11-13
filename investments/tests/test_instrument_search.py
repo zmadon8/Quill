@@ -193,3 +193,45 @@ class FundPlanOptionTests(TestCase):
         self.assertEqual([s.code for s in schemes.find("foo idcw")], ["2"])
         self.assertEqual([s.code for s in schemes.find("foo dividend")], ["2"])
         self.assertEqual(AmfiScheme.objects.get(code="2").display_name, "Foo Fund Regular Plan IDCW Payout Option")
+
+
+class AddPagePlanOptionTests(InvTestCase):
+    def seed(self):
+        AmfiScheme.objects.create(code="118955", name="HDFC Flexi Cap Fund - Direct Plan - Growth Option", isin="INF179K01VQ5", plan="Direct", option="Growth")
+        AmfiScheme.objects.create(code="118954", name="HDFC Flexi Cap Fund - Growth Plan", isin="INF179K01XX0", plan="", option="Growth")
+        AmfiScheme.objects.create(code="900", name="Some ETF - Growth", plan="", option="Growth")
+
+    def test_infers_regular_only_with_a_direct_sibling(self):
+        from investments.services import schemes
+
+        self.seed()
+        self.assertEqual(schemes.infer_regular_plans(), 1)
+        self.assertEqual(AmfiScheme.objects.get(code="118954").plan, "Regular")
+        self.assertEqual(AmfiScheme.objects.get(code="118954").display_name, "HDFC Flexi Cap Fund Regular Plan Growth Option")
+        self.assertEqual(AmfiScheme.objects.get(code="900").plan, "")
+        self.assertEqual(schemes.infer_regular_plans(), 0)
+
+    def test_picked_fund_shows_plan_and_option_and_standard_name(self):
+        from investments.services import schemes
+
+        self.seed()
+        schemes.infer_regular_plans()
+        self.client.force_login(self.user)
+        html = self.client.get(reverse("investments_add_2"), {"kind": "fund", "pick_code": "118954", "pick_name": "raw"}).content.decode()
+        self.assertIn("HDFC Flexi Cap Fund Regular Plan Growth Option", html)
+        self.assertIn("scheme-plan-option", html)
+        self.assertIn("<dd data-scheme-plan>Regular</dd>", html)
+        self.assertIn("<dd data-scheme-option>Growth</dd>", html)
+
+    def test_plain_search_hit_shows_plan_and_option(self):
+        self.seed()
+        self.client.force_login(self.user)
+        html = self.client.get(reverse("investments_add_2"), {"kind": "fund", "q": "hdfc flexi"}).content.decode()
+        self.assertIn("Direct &middot; Growth &middot; 118955", html)
+
+    def test_scheme_lookup_endpoint(self):
+        self.seed()
+        self.client.force_login(self.user)
+        got = self.client.get(reverse("investments_add_scheme"), {"code": "118955"}).json()
+        self.assertEqual((got["found"], got["plan"], got["option"]), (True, "Direct", "Growth"))
+        self.assertEqual(self.client.get(reverse("investments_add_scheme"), {"code": "1"}).json(), {"found": False})

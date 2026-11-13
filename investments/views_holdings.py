@@ -102,6 +102,9 @@ def add_2(request):
     initial = {"kind": kind, "asset_class": "equity" if kind != "alternative" else "other", "currency": "USD" if kind == "foreign" else "INR"}
     if request.method != "POST" and (request.GET.get("pick_code") or request.GET.get("pick_name")):
         initial.update({"name": request.GET.get("pick_name", ""), "code": request.GET.get("pick_code", ""), "isin": request.GET.get("pick_isin", "")})
+        picked = _scheme_info(initial["code"]) if kind == "fund" else None
+        if picked:
+            initial.update({"name": picked["name"], "isin": initial["isin"] or picked["isin"]})
     from .services.instrument_search import lookup_enabled
 
     hits, search_error, query = [], "", request.GET.get("q", "").strip()
@@ -133,7 +136,8 @@ def add_2(request):
                     "kind_label": KIND_LABELS.get(data["kind"]), "private": data["kind"] == KIND_ALTERNATIVE}, selectors=False)
     else:
         form = forms.InstrumentForm(initial=initial)
-    return page(request, "investments/add_2.html", {"page_title_text": "Add investment: details", "form": form, "kind": kind,
+    scheme = _scheme_info(form["code"].value() or "") if kind == "fund" else None
+    return page(request, "investments/add_2.html", {"page_title_text": "Add investment: details", "form": form, "kind": kind, "scheme": scheme,
                                                     "kind_label": KIND_LABELS.get(kind), "hits": hits, "search_error": search_error, "query": query,
                                                     "lookup_on": lookup_enabled()}, selectors=False)
 
@@ -147,7 +151,7 @@ def _plain_search(profile, kind, query):
         return [], ""
     if kind in ("share", "fund"):
         out = instrument_search.search(profile, query, kind)
-        hits = [{"code": r["code"], "name": r["name"], "raw_name": r["raw_name"], "isin": r["isin"], "extra": r["extra"]} for r in out["results"]]
+        hits = [{"code": r["code"], "name": r["name"], "raw_name": r["raw_name"], "isin": r["isin"], "extra": r["extra"], "plan": r["plan"], "option": r["option"]} for r in out["results"]]
         if hits:
             return hits, ""
         if kind == "fund":
@@ -182,6 +186,25 @@ def add_search(request):
     return JsonResponse(out)
 
 
+def _scheme_info(code):
+    """The AMFI record for a scheme code as ``{"code", "name", "plan", "option", "isin"}`` (name standardised), or None."""
+    from .models import AmfiScheme
+
+    code = (code or "").strip()
+    s = AmfiScheme.objects.filter(code=code).first() if code else None
+    return {"code": s.code, "name": s.display_name, "plan": s.plan, "option": s.option, "isin": s.isin} if s else None
+
+
+@inv_editor
+def add_scheme(request):
+    """JSON for the Add page: the plan and option of the scheme code typed or picked. ``{"found": false}`` when it is not in the list."""
+    from django.http import JsonResponse
+
+    profile_or_404(request)
+    info = _scheme_info(request.GET.get("code", ""))
+    return JsonResponse({"found": True, **info} if info else {"found": False})
+
+
 def _price_check(data):
     """Before saving, fetch the latest price so the person can confirm the name, exchange and price date (plan 6). Never required."""
     import datetime as _dt
@@ -214,7 +237,8 @@ def _price_check(data):
 def added(request, pk):
     profile = profile_or_404(request)
     inst = _instrument_or_404(profile, pk)
-    return page(request, "investments/added.html", {"page_title_text": "Investment added", "inst": inst}, selectors=False)
+    return page(request, "investments/added.html", {"page_title_text": "Investment added", "inst": inst,
+                                                       "scheme": _scheme_info(inst.code) if inst.kind == "fund" else None}, selectors=False)
 
 
 # ------------------------------------------------------------------ one investment

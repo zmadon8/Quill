@@ -5,9 +5,10 @@ or without hyphens, in either order, with or without the words "Plan" and "Optio
 ones say "IDCW". The parser reads only the tail of the name, word by word from the end, as long as the words belong to a small
 vocabulary, so a fund called "Reliance Growth Fund" keeps its "Growth".
 
-The plan is left blank when the name does not say it. It is never guessed: a line such as "HDFC Flexi Cap Fund - Growth Plan" does not
-say Direct or Regular, and although every scheme before 2013 is what is now Regular, many current lines also omit the plan, so a
-blank is the only honest answer.
+The parser itself never guesses the plan: a line such as "HDFC Flexi Cap Fund - Growth Plan" does not say Direct or Regular, so
+``parse`` returns a blank plan for it. The guess is made elsewhere, from the database: since SEBI's 2013 rule every open-ended scheme
+offers both a Direct and a Regular plan, so a scheme whose plan is blank but which has a Direct sibling with the same ``base_key`` is
+Regular (``schemes.infer_regular_plans``). With no Direct sibling (ETFs, closed-ended and interval schemes) the plan stays blank.
 """
 import re
 
@@ -52,6 +53,11 @@ def parse(name):
     base = text[:start].rstrip(_TRIM)
     plan = next((_PLANS[w] for w in consumed if w in _PLANS), "")
     return base, plan, _option(consumed)
+
+
+def base_key(name):
+    """The base fund name, lower-cased with whitespace squeezed, to match the Direct and Regular lines of one fund."""
+    return " ".join(parse(name)[0].lower().split())
 
 
 def _option(words):

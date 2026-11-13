@@ -27,7 +27,9 @@ def _store_rows(rows):
         batch.append(AmfiScheme(code=code, name=name, isin=isin[:20], nav=nav, nav_date=day, plan=plan, option=option))
         if len(batch) >= BATCH:
             n += _flush(batch)
-    return n + _flush(batch)
+    n += _flush(batch)
+    infer_regular_plans()
+    return n
 
 
 def _flush(batch):
@@ -37,6 +39,17 @@ def _flush(batch):
     n = len(batch)
     batch.clear()
     return n
+
+
+def infer_regular_plans():
+    """Set plan Regular on schemes whose name does not say the plan but whose fund (same base name) also has a Direct plan: every
+    open-ended scheme has both since 2013. No Direct sibling (ETFs, closed-ended, interval) leaves the plan blank. Returns the count."""
+    rows = list(AmfiScheme.objects.values_list("pk", "name", "plan"))
+    direct = {fund_names.base_key(name) for _, name, plan in rows if plan == fund_names.PLAN_DIRECT}
+    ids = [pk for pk, name, plan in rows if not plan and fund_names.base_key(name) in direct]
+    for i in range(0, len(ids), BATCH):
+        AmfiScheme.objects.filter(pk__in=ids[i:i + BATCH]).update(plan=fund_names.PLAN_REGULAR)
+    return len(ids)
 
 
 def due():
