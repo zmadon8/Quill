@@ -220,6 +220,7 @@ body.inv .tools select,body.inv .tools input[type=date]{min-height:36px;font-siz
 body.inv .tools .sel label{display:block}
 body.inv .fld.bad input,body.inv .fld.bad select{border-color:var(--danger);border-width:2px}
 body.inv .fld input,body.inv .fld select{min-width:160px}
+body.inv .fld select[name=folio]{width:15ch;min-width:0}
 body.inv .fld .note.err{color:var(--danger)}
 body.inv button.btn{font-family:inherit;cursor:pointer;background:transparent}
 body.inv button.btn.p{background:var(--ox);color:#fff}

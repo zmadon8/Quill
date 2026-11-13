@@ -11,7 +11,7 @@
     <thead><tr><th>Portfolio</th><th>Broker</th><th>Folio</th><th class="num">Units held</th><th class="num">Calculated units</th><th class="num">Override units</th></tr></thead>
     <tbody>
     {% for r in allotments %}<tr>
-      <td>{{ r.portfolio }}</td><td>{{ r.broker }}</td><td>{{ r.folio|default:"-" }}</td>
+      <td>{{ r.portfolio }}</td><td>{{ r.broker }}</td><td class="fo" title="{{ r.folio|default:"-" }}">{{ r.folio|default:"-" }}</td>
       <td class="num">{{ r.held|floatformat:"-4" }}</td><td class="num">{{ r.default|floatformat:"-4" }}</td>
       <td class="num">{% if r.own %}<span class="note">recorded by you</span>{% else %}<input type="text" inputmode="decimal" name="{{ r.field }}" value="{{ r.override }}" placeholder="{{ r.default|floatformat:"-4" }}" aria-label="Override units for {{ r.portfolio }}, {{ r.broker }}">{% endif %}</td>
     </tr>{% endfor %}

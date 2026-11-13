@@ -66,8 +66,12 @@ main h2 { font-family: var(--font-serif); font-weight: 400; font-size: 1.5rem; }
 .meta, .label { font-size: var(--small-size); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
 .stack p { margin: 0 0 1rem; }
 .stack label { display: block; font-size: var(--small-size); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: .25rem; }
-input[type=text], input[type=password], input[type=search], input[type=email], select { width: 100%; max-width: 28rem; min-height: var(--tap); padding: .4rem .6rem; font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--muted); border-radius: 2px; }
+input[type=text], input[type=password], input[type=search], input[type=email], select { width: 100%; max-width: 28ch; min-height: var(--tap); padding: .4rem .6rem; font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--muted); border-radius: 2px; }
 input[type=file] { max-width: 100%; }
+input:is([type=search],[type=email],[type=url],.wide,[name*=name],[name*=address],[name*=note],[name*=memo],[name*=payee],[name*=url],[name*=subject],[name*=detail],[name*=query]), select.wide { max-width: 48ch; }
+textarea { width: 100%; max-width: 100%; box-sizing: border-box; }
+.fo { display: inline-block; max-width: 15ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
+td.fo { display: table-cell }
 .actions { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; margin-bottom: 1rem; }
 
 /* Tables: sans, hairline rows, serif for the first column is not forced. */

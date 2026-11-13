@@ -25,7 +25,7 @@
 {% if bucket_rows %}
 <div class="sec"><h2>Where it is held</h2></div>
 <div class="tw"><table data-table-id="inv-investment-1" class="led" data-sortable><thead><tr><th>Portfolio</th><th>Broker</th><th>Folio</th><th class="r">Units</th></tr></thead><tbody>
-{% for pf, br, fo, u in bucket_rows %}<tr><td>{{ pf }}</td><td>{{ br }}</td><td>{{ fo|default:"no folio" }}</td><td class="r" data-sort="{{ u }}">{{ u|units }}</td></tr>{% endfor %}
+{% for pf, br, fo, u in bucket_rows %}<tr><td>{{ pf }}</td><td>{{ br }}</td><td class="fo" title="{{ fo|default:"no folio" }}">{{ fo|default:"no folio" }}</td><td class="r" data-sort="{{ u }}">{{ u|units }}</td></tr>{% endfor %}
 </tbody></table></div>
 {% endif %}
 
@@ -96,7 +96,7 @@
 
 <div class="sec"><h2>Folio numbers</h2></div>
 {% if folio_units %}<div class="tw"><table data-table-id="inv-investment-7" class="led"><thead><tr><th>Folio</th><th>Portfolio</th><th class="r">Units held</th><th></th></tr></thead><tbody>
-{% for f, u in folio_units %}<tr><td>{{ f.number }}{% if f.notes %} <small class="na">{{ f.notes }}</small>{% endif %}</td><td>{{ f.portfolio.name }}</td><td class="r">{{ u|units }}</td><td class="act">{% if can_edit %}<form method="post" action="{% url 'investments_investment_folio' inst.pk %}" style="display:inline">{% csrf_token %}<button class="linklike" name="delete" value="{{ f.pk }}">Delete</button></form>{% endif %}</td></tr>{% endfor %}
+{% for f, u in folio_units %}<tr><td><span class="fo" title="{{ f.number }}">{{ f.number }}</span>{% if f.notes %} <small class="na">{{ f.notes }}</small>{% endif %}</td><td>{{ f.portfolio.name }}</td><td class="r">{{ u|units }}</td><td class="act">{% if can_edit %}<form method="post" action="{% url 'investments_investment_folio' inst.pk %}" style="display:inline">{% csrf_token %}<button class="linklike" name="delete" value="{{ f.pk }}">Delete</button></form>{% endif %}</td></tr>{% endfor %}
 {% if no_folio_units %}<tr class="sub"><td>No folio</td><td></td><td class="r">{{ no_folio_units|units }}</td><td></td></tr>{% endif %}</tbody></table></div>{% endif %}
 {% if can_edit %}<form method="post" action="{% url 'investments_investment_folio' inst.pk %}">{% csrf_token %}{% include "investments/_form.html" with form=folio_form %}<button class="btn q" type="submit">Add folio</button></form>{% endif %}
 
