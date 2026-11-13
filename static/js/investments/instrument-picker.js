@@ -58,6 +58,33 @@
     if (el) { el.value = value; el.dispatchEvent(new Event("change", { bubbles: true })); }
   }
 
+  // Plan and option under the form: from the chosen result, or looked up by the scheme code typed by hand.
+  var box = document.getElementById("scheme-plan-option");
+  var unknown = document.getElementById("scheme-unknown");
+  function showPlan(plan, option, found) {
+    if (!box) { return; }
+    box.querySelector("[data-scheme-plan]").textContent = plan || "not stated";
+    box.querySelector("[data-scheme-option]").textContent = option || "not stated";
+    box.hidden = !found;
+    if (unknown) { unknown.hidden = found; }
+  }
+  var codeField = document.getElementById("id_code");
+  if (box && codeField && window.fetch) {
+    var lookupTimer = null;
+    codeField.addEventListener("input", function () {
+      window.clearTimeout(lookupTimer);
+      var code = codeField.value.trim();
+      if (!code) { showPlan("", "", false); if (unknown) { unknown.hidden = true; } return; }
+      lookupTimer = window.setTimeout(function () {
+        var base = box.getAttribute("data-url");
+        window.fetch(base + "?code=" + encodeURIComponent(code), { credentials: "same-origin", headers: { "Accept": "application/json" } })
+          .then(function (r) { return r.ok ? r.json() : { found: false }; })
+          .then(function (b) { if (codeField.value.trim() === code) { showPlan(b.plan, b.option, !!b.found); } })
+          .catch(function () {});
+      }, 300);
+    });
+  }
+
   function choose(item) {
     if (item.existing_id && existingUrl) {
       window.location.href = existingUrl.replace("/0/", "/" + item.existing_id + "/");
@@ -67,6 +94,7 @@
     setField("name", item.name);
     setField("code", item.code);
     setField("isin", item.isin || "");
+    if (item.source === "amfi") { showPlan(item.plan, item.option, true); }
     close();
     var name = document.getElementById("id_name");
     if (name && name.focus) { name.focus(); }
@@ -96,7 +124,7 @@
       if (item.raw_name) { el.title = item.raw_name; }
       var sub = document.createElement("span");
       sub.className = "search-suggest-sub";
-      var bits = [item.code, item.isin, item.extra].filter(Boolean);
+      var bits = [item.plan, item.option, item.code, item.isin, item.extra].filter(Boolean);
       if (item.existing_id) { bits.push("already added: open it"); }
       sub.textContent = bits.join(" \u00b7 ");
       el.appendChild(title);

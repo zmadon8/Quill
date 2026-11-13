@@ -2,6 +2,7 @@
 {% block inv_content %}
 <div class="page-head"><h1>{{ inst.name }}</h1></div>
 <div class="stepper"><div class="done"><b>1</b>Type</div><div class="done"><b>2</b>Details</div><div class="done"><b>3</b>Confirm</div><div class="on"><b>4</b>What next</div></div>
+{% if scheme %}<p class="hint">Plan: {{ scheme.plan|default:"not stated" }} &middot; Option: {{ scheme.option|default:"not stated" }}</p>{% endif %}
 <p class="lead">Added. What would you like to do next?</p>
 <div class="choices">
   <div class="ch"><div><h3>Record a purchase</h3><p>Date, units, price and broker.</p></div><a class="btn p" href="{% url 'investments_txn_new_buy' %}?instrument={{ inst.pk }}">Add purchase</a></div>

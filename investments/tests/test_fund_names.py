@@ -43,3 +43,11 @@ class ParseTests(SimpleTestCase):
 
     def test_stored_values_win(self):
         self.assertEqual(fund_names.standard_name("X Fund - Growth", plan="Direct"), "X Fund Direct Plan Growth Option")
+
+
+class BaseKeyTests(SimpleTestCase):
+    def test_base_key_ignores_case_whitespace_plan_and_option(self):
+        a = fund_names.base_key("HDFC Flexi  Cap Fund - Direct Plan - Growth Option")
+        b = fund_names.base_key("hdfc flexi cap fund - Growth Plan")
+        self.assertEqual(a, b)
+        self.assertEqual(a, "hdfc flexi cap fund")
