@@ -97,10 +97,10 @@ class HeldOnlyTests(InvTestCase):
             "date": day, "instrument": str(inst.pk), "portfolio": str(self.portfolio.pk), "broker": str(self.zerodha.pk),
             "units": units, "price": "10", "charges": "0"})
 
-    def test_sale_of_something_never_held_is_refused_with_a_date_message(self):
+    def test_sale_of_something_never_held_is_refused(self):
         r = self.sell_post(self.tata, "2024-02-01")
         self.assertEqual(r.status_code, 200)
-        self.assertContains(r, "You held none of this investment on 1 Feb 2024.")
+        self.assertContains(r, "Choose an investment you hold, or held in the past, from the list.")
         self.assertEqual(Transaction.objects.filter(instrument=self.tata).count(), 0)
 
     def test_back_dated_sale_of_a_since_sold_out_investment_succeeds(self):
