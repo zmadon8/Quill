@@ -24,7 +24,9 @@ class RegistryNameTests(InvTestCase):
 
     def test_fund_shows_amfi_name(self):
         AmfiScheme.objects.create(code="122639", name="Parag Parikh Flexi Cap Fund - Direct Plan - Growth")
-        self.assertIn("Parag Parikh Flexi Cap Fund - Direct Plan - Growth", self.page(self.fund))
+        html = self.page(self.fund)
+        self.assertIn("Parag Parikh Flexi Cap Fund Direct Plan Growth Option", html)
+        self.assertIn("Parag Parikh Flexi Cap Fund - Direct Plan - Growth", html)   # the raw name, as the title
 
     def test_no_match_is_graceful(self):
         html = self.page(self.reliance)

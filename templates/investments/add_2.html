@@ -6,7 +6,7 @@
 {% if kind != "alternative" %}
 <form method="get" class="inline-edit" style="position:relative"><input type="hidden" name="kind" value="{{ kind }}"><label for="q">{% if kind == "fund" %}Fund name, scheme code or ISIN{% else %}Company name or code{% endif %}</label><input id="q" name="q" value="{{ query }}" size="34" autocomplete="off" {% if lookup_on %}data-instrument-picker {% endif %}data-kind="{{ kind }}" data-url="{% url 'investments_add_search' %}" data-existing-url="{% url 'investments_investment' 0 %}"><button class="btn q sm">Search</button></form>
 {% if search_error %}<p class="hint">{{ search_error }}</p>{% endif %}
-{% if hits %}<div class="res">{% for h in hits %}<div><span><a href="?kind={{ kind }}&pick_code={{ h.code|urlencode }}&pick_name={{ h.name|urlencode }}&pick_isin={{ h.isin|urlencode }}">{{ h.name }}</a> <small>{{ h.code }}{% if h.isin %} &middot; {{ h.isin }}{% endif %}</small></span><small>{{ h.extra }}</small></div>{% endfor %}</div>
+{% if hits %}<div class="res">{% for h in hits %}<div><span><a title="{{ h.raw_name }}" href="?kind={{ kind }}&pick_code={{ h.code|urlencode }}&pick_name={{ h.name|urlencode }}&pick_isin={{ h.isin|urlencode }}">{{ h.name }}</a> <small>{{ h.code }}{% if h.isin %} &middot; {{ h.isin }}{% endif %}</small></span><small>{{ h.extra }}</small></div>{% endfor %}</div>
 {% if kind == "fund" %}<p class="hint">Pick the exact plan and option (Direct or Regular, Growth or IDCW): each has its own scheme code.</p>{% else %}<p class="hint">NSE codes end in .NS and BSE codes in .BO.</p>{% endif %}{% endif %}
 {% endif %}
 <form method="post" class="form" novalidate>{% csrf_token %}

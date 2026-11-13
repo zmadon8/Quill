@@ -93,6 +93,7 @@
       var title = document.createElement("span");
       title.className = "search-suggest-title";
       title.textContent = item.name;
+      if (item.raw_name) { el.title = item.raw_name; }
       var sub = document.createElement("span");
       sub.className = "search-suggest-sub";
       var bits = [item.code, item.isin, item.extra].filter(Boolean);
