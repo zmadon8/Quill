@@ -321,6 +321,7 @@ class HeaderBuySellButtonsTests(InvTestCase):
         html = self.client.get(reverse("investments_dashboard")).content.decode()
         self.assertIn('class="buy-btn" href="%s"' % reverse("investments_txn_new_buy"), html)
         self.assertIn('class="sell-btn" href="%s"' % reverse("investments_txn_new_sell"), html)
+        self.assertIn('class="add-btn" href="%s"' % reverse("investments_add_1"), html)
 
     def test_viewer_does_not(self):
         from django.urls import reverse
@@ -330,3 +331,4 @@ class HeaderBuySellButtonsTests(InvTestCase):
         self.client.force_login(viewer)
         html = self.client.get(reverse("investments_dashboard")).content.decode()
         self.assertNotIn("buy-btn", html)
+        self.assertNotIn("add-btn", html)

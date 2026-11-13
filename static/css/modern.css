@@ -113,5 +113,5 @@ body.look .program-cards .program-card .program-link { border: 0; border-radius:
 body.inv .program-nav .buy-sell { display: inline-flex; gap: 6px; margin-left: 8px; align-items: center; }
 body.inv .program-nav .buy-sell a { display: inline-flex; align-items: center; height: 32px; padding: 0 14px; border-radius: var(--radius-pill); font: 600 13px var(--font-sans); text-decoration: none; border: 1px solid var(--accent); }
 body.inv .program-nav .buy-sell .buy-btn { background: var(--accent); color: var(--on-accent); }
-body.inv .program-nav .buy-sell .sell-btn { background: var(--white); color: var(--accent); }
+body.inv .program-nav .buy-sell .sell-btn, body.inv .program-nav .buy-sell .add-btn { background: var(--white); color: var(--accent); }
 @media (max-width: 899px) { body.inv .program-nav .buy-sell { margin-left: 0; } body.inv .program-nav .buy-sell a { height: 30px; padding: 0 12px; } }
