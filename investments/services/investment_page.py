@@ -127,7 +127,7 @@ def sip_schedules(profile, instrument):
 
 
 def registry_record(instrument):
-    """The NSE / AMFI record for a share or fund: ``{"source", "code", "name", "isin", "mismatch"}``, or None when the lookup is off,
+    """The NSE / AMFI record for a share or fund: ``{"source", "code", "name", "raw_name", "plan", "option", "isin", "mismatch"}``, or None when the lookup is off,
     the list holds no match or the investment is of another kind. One indexed query; .NS / .BO suffixes are ignored."""
     from investments.models import KIND_FUND, KIND_SHARE, AmfiScheme, NseSecurity
     from investments.services import instrument_search
@@ -150,4 +150,8 @@ def registry_record(instrument):
     if row is None:
         return None
     mismatch = bool(instrument.isin and row.isin and instrument.isin.strip().upper() != row.isin.upper())
-    return {"source": source, "code": found_code, "name": row.name, "isin": row.isin, "mismatch": mismatch}
+    plan = option = ""
+    name = row.name
+    if instrument.kind == KIND_FUND:
+        plan, option, name = row.plan, row.option, row.display_name
+    return {"source": source, "code": found_code, "name": name, "raw_name": row.name, "plan": plan, "option": option, "isin": row.isin, "mismatch": mismatch}

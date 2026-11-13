@@ -3,7 +3,7 @@ from datetime import timedelta
 from unittest import mock
 
 from django.core.cache import cache
-from django.test import Client, SimpleTestCase
+from django.test import Client, SimpleTestCase, TestCase
 from django.urls import reverse
 from django.utils import timezone
 
@@ -97,7 +97,7 @@ class SearchTests(FakeNetCase):
         self.assertEqual(by_source["amfi"]["code"], "100001")
         self.assertEqual(by_source["amfi"]["kind"], "fund")
         for r in out["results"]:
-            self.assertEqual(set(r), {"source", "kind", "code", "name", "isin", "extra", "existing_id"})
+            self.assertEqual(set(r), {"source", "kind", "code", "name", "isin", "plan", "option", "raw_name", "extra", "existing_id"})
 
     def test_search_by_isin_symbol_and_scheme_code(self):
         self.seed()
@@ -181,3 +181,15 @@ class EndpointTests(FakeNetCase):
         self.assertIn("data-instrument-picker", html)
         self.assertIn('<form method="get"', html)
         self.assertIn("instrument-picker.js", html)
+
+
+class FundPlanOptionTests(TestCase):
+    def test_find_matches_plan_and_option_fields_and_picker_shows_standard_name(self):
+        from investments.services import schemes
+
+        AmfiScheme.objects.create(code="1", name="Foo Fund - Direct Plan - Growth", plan="Direct", option="Growth")
+        AmfiScheme.objects.create(code="2", name="Foo Fund-Regular Dividend Payout", plan="Regular", option="IDCW Payout")
+        self.assertEqual([s.code for s in schemes.find("foo regular")], ["2"])
+        self.assertEqual([s.code for s in schemes.find("foo idcw")], ["2"])
+        self.assertEqual([s.code for s in schemes.find("foo dividend")], ["2"])
+        self.assertEqual(AmfiScheme.objects.get(code="2").display_name, "Foo Fund Regular Plan IDCW Payout Option")

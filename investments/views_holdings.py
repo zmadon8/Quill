@@ -111,7 +111,7 @@ def add_2(request):
         elif kind == "fund":
             from .services import schemes
 
-            hits = [{"code": s.code, "name": s.name, "isin": s.isin, "extra": f"NAV {s.nav} on {s.nav_date:%-d %b}" if s.nav and s.nav_date else ""}
+            hits = [{"code": s.code, "name": s.display_name, "raw_name": s.name, "isin": s.isin, "extra": f"NAV {s.nav} on {s.nav_date:%-d %b}" if s.nav and s.nav_date else ""}
                     for s in schemes.find(query)]
             if not hits:
                 search_error = "No scheme matched. The scheme list comes from AMFI's daily file and is refreshed weekly; you can also type the scheme code."
@@ -185,7 +185,7 @@ def _price_check(data):
 
             s = AmfiScheme.objects.filter(code=code).first()
             if s:
-                return {"ok": True, "name": s.name, "exchange": "AMFI", "price": s.nav, "date": s.nav_date}
+                return {"ok": True, "name": s.display_name, "plan": s.plan, "option": s.option, "exchange": "AMFI", "price": s.nav, "date": s.nav_date}
             return {"ok": False, "message": "That scheme code is not in the AMFI list stored here yet. Check it, or save and the nightly job will try it."}
         from .adapters import yahoo
 

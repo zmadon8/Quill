@@ -705,10 +705,19 @@ class AmfiScheme(models.Model):
     isin = models.CharField(max_length=20, blank=True, default="")
     nav = models.DecimalField(null=True, blank=True, **MONEY)
     nav_date = models.DateField(null=True, blank=True)
+    plan = models.CharField(max_length=10, blank=True, default="", help_text="Direct or Regular, read from the name; blank when the name does not say")
+    option = models.CharField(max_length=40, blank=True, default="", help_text="Growth, IDCW Payout, IDCW Reinvestment, Bonus ...; blank when the name does not say")
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         indexes = [models.Index(fields=["name"], name="inv_amfischeme_name_idx")]
+
+    @property
+    def display_name(self):
+        """"Base Fund Regular Plan Growth Option" (see ``services/fund_names``)."""
+        from investments.services import fund_names
+
+        return fund_names.standard_name(self.name, self.plan, self.option)
 
 
 class NseSecurity(models.Model):

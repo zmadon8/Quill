@@ -45,7 +45,7 @@ def _existing(profile, codes, isins):
 
 def search(profile, query, kind=None, limit=30):
     """``{"results": [...], "message": str}``. Each result has source (nse|amfi), kind (share|fund), code (NSE: SYMBOL.NS; AMFI: scheme code),
-    name, isin, extra and existing_id (the investment already there, or None). A list that is empty and cannot be fetched gives a message."""
+    name (a fund's is the standardised "Base Fund Regular Plan Growth Option"), isin, plan, option, raw_name (the AMFI name as listed), extra and existing_id (the investment already there, or None). A list that is empty and cannot be fetched gives a message."""
     q = (query or "").strip()
     message = ""
     found = []
@@ -57,13 +57,14 @@ def search(profile, query, kind=None, limit=30):
             if not rows and not _nse_has_rows():
                 message = _try_refresh(nse_list, "NSE")
                 rows = nse_list.find(q, limit) if not message else []
-            found += [{"source": "nse", "kind": KIND_SHARE, "code": f"{r.symbol}.NS", "name": r.name, "isin": r.isin, "extra": f"NSE {r.series}"} for r in rows]
+            found += [{"source": "nse", "kind": KIND_SHARE, "code": f"{r.symbol}.NS", "name": r.name, "isin": r.isin, "plan": "", "option": "", "raw_name": "", "extra": f"NSE {r.series}"} for r in rows]
         if kind in (None, "", "fund"):
             rows = schemes.find(q, limit)
             if not rows and not _amfi_has_rows():
                 message = message or _try_refresh(schemes, "AMFI")
                 rows = schemes.find(q, limit) if not message else []
-            found += [{"source": "amfi", "kind": KIND_FUND, "code": s.code, "name": s.name, "isin": s.isin,
+            found += [{"source": "amfi", "kind": KIND_FUND, "code": s.code, "name": s.display_name, "isin": s.isin,
+                       "plan": s.plan, "option": s.option, "raw_name": s.name,
                        "extra": f"NAV {s.nav} on {s.nav_date:%-d %b}" if s.nav and s.nav_date else "AMFI"} for s in rows]
     found = found[:limit]
     by_code, by_isin = _existing(profile, {r["code"].upper() for r in found}, {r["isin"].upper() for r in found if r["isin"]})
