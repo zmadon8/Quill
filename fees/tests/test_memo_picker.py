@@ -93,6 +93,42 @@ class PickerPageTests(PickerBase):
         self.assertIn('<option value="%d" selected>Matter Three</option>' % self.m3.pk, text)
         self.assertIn('name="firm_id" value="%d"' % self.firm_b.pk, text)
 
+    def test_the_form_shown_again_after_an_error_keeps_a_firm_chosen_without_a_matter_and_the_archived_tick(self):
+        firms.set_firm_status(self.profile, self.firm_b.pk, "archived")
+        response = self.client.post(self.url, {"firm_id": str(self.firm_b.pk), "show_archived": "1", "date": "", "action": "save"})
+        self.assertEqual(response.status_code, 422)
+        text = response.content.decode()
+        self.assertIn('<option value="%d" selected>Beta Ltd (archived)</option>' % self.firm_b.pk, text)
+        self.assertIn('name="firm_id" value="%d"' % self.firm_b.pk, text)
+        self.assertIn(" checked", text.split("data-picker-archived")[1].split(">")[0])
+        self.assertIn('name="show_archived" value="1"', text)
+
+    def test_the_form_shown_again_after_an_error_marks_only_the_unchanged_defaults_as_filled_in_for_you(self):
+        defaults = self.client.get(reverse("fees_memo_matter_defaults"), {"matter": self.m1.pk}).json()["fields"]
+        posted = {"matter_id": str(self.m1.pk), "date": "", "action": "save"}
+        posted.update(defaults)
+        posted["client"] = "Typed by hand"
+        text = self.client.post(self.url, posted).content.decode()
+        marker = text.split("data-autofilled-fields=")[1].split('"')[1] if "data-autofilled-fields=" in text else ""
+        names = marker.split()
+        self.assertNotIn("client", names)
+        for name in defaults:
+            if name != "client":
+                self.assertIn(name, names)
+
+    def test_a_fresh_page_marks_the_settings_cause_title_as_filled_in_for_you(self):
+        from fees.services import settings as settings_service
+        settings_service.update_settings(self.profile, {"default_court_name": "High Court"})
+        text = self.page()
+        self.assertIn("High Court", text)
+        self.assertIn("court_name", text.split("data-autofilled-fields=")[1].split('"')[1].split())
+
+    def test_defaults_endpoint_sends_the_settings_defaults_as_a_fallback(self):
+        from fees.services import settings as settings_service
+        settings_service.update_settings(self.profile, {"default_court_name": "High Court"})
+        out = self.client.get(reverse("fees_memo_matter_defaults"), {"matter": self.m1.pk}).json()
+        self.assertEqual(out["fallback"].get("court_name"), "High Court")
+
 
 class PickerEndpointTests(PickerBase):
     def test_picker_json_lists_active_firms_only_and_a_firms_matters_by_group(self):

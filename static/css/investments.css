@@ -379,7 +379,10 @@ body.inv .hv-tip i{display:inline-block;width:14px;border-top:2px solid var(--in
 /* Buy / Awaiting purchase / Opening balance cards: Date (narrow), the Investment box (rest of the row, with Held beside it), then a line break. */
 body.inv .fld.fld-date{flex:0 0 9.5rem;width:9.5rem}
 body.inv .fld.fld-date input{min-width:0;width:100%;box-sizing:border-box}
-body.inv .fld.fld-invest{flex:1 1 16rem;width:auto}
+body.inv .fld.fld-invest{flex:1 1 0;min-width:0;width:auto}
+body.inv .fld.fld-invest .combo{flex-wrap:nowrap}
+body.inv .fld.fld-invest .combo-input{flex:1 1 auto;min-width:4rem}
+body.inv .fld.fld-invest .combo-held{flex:none}
 body.inv .fld.fld-invest input[type=text]{min-width:0}
 body.inv .row-break{flex:0 0 100%;height:0;margin:0}
-@media (max-width:560px){body.inv .fld.fld-date{flex:1 1 100%;width:100%}body.inv .fld.fld-invest{flex:1 1 100%}}
+@media (max-width:560px){body.inv .fld.fld-date{flex:1 1 100%;width:100%}body.inv .fld.fld-invest{flex:1 1 100%}body.inv .fld.fld-invest .combo{flex-wrap:wrap}}

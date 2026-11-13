@@ -6,7 +6,7 @@
 <h1>{% if memo %}Edit memo {{ memo.memo_number|default:"(draft)" }}{% elif based_on %}New memo based on another{% else %}New memo{% endif %}</h1>
 {% if not can_edit %}<p class="muted">You can read this page but not save it.</p>{% endif %}
 {% if not memo %}
-<form method="get" action="{% url 'fees_memo_new' %}" class="filters memo-picker" id="memo-picker" data-memo-picker{% if request.method == 'GET' and form.matter_id %} data-preselected="1"{% endif %}
+<form method="get" action="{% url 'fees_memo_new' %}" class="filters memo-picker" id="memo-picker" data-memo-picker{% if picker.autofilled %} data-autofilled-fields="{{ picker.autofilled }}"{% endif %}
       data-picker-url="{% url 'fees_memo_picker' %}" data-defaults-url="{% url 'fees_memo_matter_defaults' %}">
   <label>Firm <select name="firm" id="mp-firm" data-picker-firm><option value="">Choose a firm</option>{% for f in picker.firms %}<option value="{{ f.pk }}"{% if picker.firm_id == f.pk %} selected{% endif %}>{{ f.name }}{% if f.status == 'archived' %} (archived){% endif %}</option>{% endfor %}</select></label>
   <label>Matter <select name="matter" id="mp-matter" data-picker-matter{% if not picker.firm_id %} disabled{% endif %}><option value="">{% if picker.firm_id %}Choose a matter{% else %}Choose a firm first{% endif %}</option>{% for g in picker.matter_groups %}{% if picker.matter_groups|length > 1 %}<optgroup label="{{ g.name }}">{% endif %}{% for m in g.matters %}<option value="{{ m.pk }}"{% if form.matter_id == m.pk|stringformat:"s" %} selected{% endif %}>{{ m.name }}{% if m.is_archived %} (archived){% endif %}</option>{% endfor %}{% if picker.matter_groups|length > 1 %}</optgroup>{% endif %}{% endfor %}</select></label>
@@ -29,7 +29,7 @@
   <fieldset class="memo-card"><legend class="sr-only">Memo details</legend>
   <div class="memo-grid cols-2">
   {% if memo %}<p class="wide">Matter: {{ memo.firm_name }}: {{ memo.matter_name }}</p><input type="hidden" name="matter_id" value="{{ memo.matter_id }}">
-  {% else %}<input type="hidden" name="matter_id" value="{{ form.matter_id }}" data-matter-id><input type="hidden" name="firm_id" value="{{ picker.firm_id|default:'' }}" data-firm-id>{% endif %}
+  {% else %}<input type="hidden" name="matter_id" value="{{ form.matter_id }}" data-matter-id><input type="hidden" name="firm_id" value="{{ picker.firm_id|default:'' }}" data-firm-id><input type="hidden" name="show_archived" value="{% if picker.show_archived %}1{% endif %}" data-archived-field>{% endif %}
   <div class="field">
     <label for="f-date">Date</label>
     <div class="inline-row"><input id="f-date" type="date" name="date" value="{{ form.date }}"><button type="button" class="small" data-today>Today</button></div>

@@ -19,7 +19,9 @@
   var pickerUrl = picker.getAttribute("data-picker-url");
   var defaultsUrl = picker.getAttribute("data-defaults-url");
   if (!firmSel || !matterSel || !archivedBox || !matterId || !firmId || !pickerUrl || !defaultsUrl) { return; }
-  var seq = 0;
+  var archivedField = form.querySelector("[data-archived-field]");
+  var reloadSeq = 0, defaultsSeq = 0;   // separate counters: a list reload must not drop a defaults response, or the reverse
+  var settingsFallback = {};            // Settings defaults sent with the last defaults response, used when a matter has no value
 
   function say(text) { if (status) { status.textContent = text || ""; } }
   function opt(value, text, selected) {
@@ -58,18 +60,20 @@
     if (note) { note.hidden = !archived; }
   }
   function reload(keepFirm) {
-    var mine = ++seq, keepMatter = matterSel.value;
+    var mine = ++reloadSeq, keepMatter = matterSel.value;
     say("Loading...");
     var url = pickerUrl + "?archived=" + (archivedBox.checked ? "1" : "0") + (keepFirm ? "&firm=" + encodeURIComponent(keepFirm) : "");
     return getJSON(url).then(function (d) {
-      if (mine !== seq || !d.ok) { if (mine === seq) { say("Could not load the list. Reload the page."); } return; }
+      if (mine !== reloadSeq || !d.ok) { if (mine === reloadSeq) { say("Could not load the list. Reload the page."); } return; }
+      archivedBox.checked = !!d.show_archived;   // the server turns it on when the chosen firm is archived
+      if (archivedField) { archivedField.value = d.show_archived ? "1" : ""; }
       fillFirms(d.firms, d.firm_id);
       firmId.value = d.firm_id || "";
       fillMatters(d.groups, !!d.firm_id);
       matterSel.value = keepMatter;   // stays chosen when it is still listed (the tick box was changed), else back to "Choose a matter"
       if (matterSel.value !== keepMatter || !keepMatter) { setMatter("", false); }
       say("");
-    }).catch(function () { if (mine === seq) { say("Could not load the list. Reload the page."); } });
+    }).catch(function () { if (mine === reloadSeq) { say("Could not load the list. Reload the page."); } });
   }
 
   function textBoxes() { return form.querySelectorAll("input[type=text], textarea"); }
@@ -80,7 +84,7 @@
     Object.keys(names).forEach(function (name) {
       var box = form.elements[name];
       if (!box || box.type === "hidden" || box.type === "checkbox" || box.name === "custom_memo_number") { return; }
-      var next = fields[name] || "", last = box.getAttribute("data-autofilled");
+      var next = fields[name] || settingsFallback[name] || "", last = box.getAttribute("data-autofilled");
       if (box.value.trim() === "" || (last !== null && box.value === last)) {
         box.value = next;
         if (next) { box.setAttribute("data-autofilled", next); } else { box.removeAttribute("data-autofilled"); }
@@ -90,27 +94,29 @@
     });
     return kept;
   }
-  function markPreselected() {
-    // A page opened with ?matter= already holds that matter's defaults, written by the server: treat them as filled in for you.
-    Array.prototype.forEach.call(textBoxes(), function (box) {
-      if (box.value.trim() !== "" && box.name !== "custom_memo_number") { box.setAttribute("data-autofilled", box.value); }
+  function markAutofilled(names) {
+    // The server says which boxes still hold the Settings / matter defaults it wrote (also after a failed save); anything else was typed.
+    names.split(/\s+/).forEach(function (name) {
+      var box = name && form.elements[name];
+      if (box && box.value.trim() !== "" && box.name !== "custom_memo_number") { box.setAttribute("data-autofilled", box.value); }
     });
   }
   function loadDefaults(id) {
-    var mine = ++seq;
+    var mine = ++defaultsSeq;
     say("Loading defaults...");
     return getJSON(defaultsUrl + "?matter=" + encodeURIComponent(id)).then(function (d) {
-      if (mine !== seq) { return; }
+      if (mine !== defaultsSeq) { return; }
       if (!d.ok) { say(d.message || "Could not load the defaults."); return; }
+      settingsFallback = d.fallback || {};
       setMatter(d.matter_id, d.archived);
       var kept = applyDefaults(d.fields || {});
       say("Defaults loaded." + (kept ? " " + kept + " box" + (kept === 1 ? "" : "es") + " you had filled in " + (kept === 1 ? "was" : "were") + " kept." : ""));
-    }).catch(function () { if (mine === seq) { say("Could not load the defaults."); } });
+    }).catch(function () { if (mine === defaultsSeq) { say("Could not load the defaults."); } });
   }
 
-  if (picker.getAttribute("data-preselected")) { markPreselected(); }
+  if (picker.getAttribute("data-autofilled-fields")) { markAutofilled(picker.getAttribute("data-autofilled-fields")); }
   firmSel.addEventListener("change", function () { firmId.value = firmSel.value; reload(firmSel.value); });
-  archivedBox.addEventListener("change", function () { reload(firmSel.value); });
+  archivedBox.addEventListener("change", function () { if (archivedField) { archivedField.value = archivedBox.checked ? "1" : ""; } reload(firmSel.value); });
   matterSel.addEventListener("change", function () {
     if (!matterSel.value) { setMatter("", false); say(""); return; }
     setMatter(matterSel.value, false);

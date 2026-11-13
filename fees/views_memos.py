@@ -138,11 +138,30 @@ def _picker(profile, matter_id="", firm_id="", show_archived=False):
     }
 
 
+def _settings_text_defaults(profile):
+    """The Settings defaults of the text boxes a matter can fill, as ``{field name: text}`` (only non-empty ones)."""
+    blank = forms.blank_memo_form(settings_service.get_settings(profile))
+    return {name: blank[name] for name in forms.MEMO_TEXT_FIELDS if blank.get(name)}
+
+
+def _autofilled(profile, form, chosen):
+    """Names of the text boxes whose value is still exactly what the Settings defaults and the chosen matter put there (computed here, so
+    the page knows after a failed save which boxes were filled for you and which the user typed). Space separated, for the picker script."""
+    expected = forms.blank_memo_form(settings_service.get_settings(profile))
+    if chosen is not None:
+        expected = forms.apply_matter_defaults(expected, chosen)
+    return " ".join(n for n in forms.MEMO_TEXT_FIELDS if form.get(n) and form.get(n) == expected.get(n))
+
+
 def _form_page(request, form, memo=None, based_on=None, errors=None, status=200):
     profile, _settings = scope.context(request)
     picker = None
     if memo is None:
-        picker = _picker(profile, form.get("matter_id", ""), request.GET.get("firm", ""), _flag(request.GET.get("archived")))
+        # After a failed save the firm and the archived tick come back in the POST (hidden firm_id / show_archived), not the query.
+        firm = request.GET.get("firm") or request.POST.get("firm_id", "")
+        archived = _flag(request.GET.get("archived")) or _flag(request.POST.get("show_archived"))
+        picker = _picker(profile, form.get("matter_id", ""), firm, archived)
+        picker["autofilled"] = _autofilled(profile, form, picker["chosen"])
     return render_page(
         request,
         "fees/memo_form.html",
@@ -238,7 +257,7 @@ def memo_matter_defaults(request):
     matter = matters.get_matter(profile, int(matter_id))   # another profile's matter is a 404
     values = forms.apply_matter_defaults({}, matter)
     values.pop("matter_id", None)
-    return json_ok({"matter_id": matter.pk, "firm_id": matter.firm_id, "archived": matter.is_archived, "fields": values})
+    return json_ok({"matter_id": matter.pk, "firm_id": matter.firm_id, "archived": matter.is_archived, "fields": values, "fallback": _settings_text_defaults(profile)})
 
 
 @fees_read_write

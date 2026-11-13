@@ -58,7 +58,7 @@
     box.hidden = false;
 
     var opt = select.options[select.selectedIndex];
-    if (select.value && opt) { input.value = opt.text; }
+    if (select.value && opt) { input.value = opt.text; var again = box.getAttribute("data-pick-line"); if (again) { tagLine.textContent = again; tagLine.hidden = false; } }
     if (!select.value && code.value) {
       // Shown again after an error: the stored name the server looked up for the posted code, else the code itself.
       var pickName = box.getAttribute("data-pick-name");
@@ -91,6 +91,13 @@
         if (item.option) { bits.push(item.option + " Option"); }
         tagLine.textContent = "New \u00b7 " + bits.join(" \u00b7 ");
       }
+      else if (item.kind === "fund") {
+        // An existing fund shows the same line, without "New": code, ISIN, Plan, Option.
+        tagLine.textContent = [item.code, item.isin, item.plan && item.plan + " Plan", item.option && item.option + " Option"].filter(Boolean).join(" \u00b7 ");
+        tagLine.hidden = !tagLine.textContent;
+        return;
+      }
+      else { tagLine.textContent = ""; }
       tagLine.hidden = !isNew;
     }
     function choose(item, isNew) {
