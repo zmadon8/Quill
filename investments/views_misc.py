@@ -101,6 +101,18 @@ def settings_general(request):
         instrument_search.set_lookup_enabled(request.POST.get("lookup_enabled") == "on")
         messages.success(request, "Saved. The lookup is now " + ("on." if instrument_search.lookup_enabled() else "off."))
         return redirect(reverse("investments_settings"))
+    if request.method == "POST" and request.POST.get("action") == "refresh_lists":
+        if not request.user.is_admin:
+            raise PermissionDenied
+        if not instrument_search.lookup_enabled():
+            messages.error(request, "The lookup is switched off, so the lists are not downloaded. Switch it on first.")
+        else:
+            for label, count, error in instrument_search.refresh_now():
+                if error:
+                    messages.error(request, f"The {label} list could not be refreshed: {error}.")
+                else:
+                    messages.success(request, f"The {label} list is refreshed ({count} entries read).")
+        return redirect(reverse("investments_settings"))
     row = core.get_settings(profile, create=False)
     initial = {f: getattr(row, f) for f in ("sip_mode", "awaiting_treatment", "awaiting_reminder_days", "corporate_action_mode",
                                             "long_term_days", "sectoral_enabled", "include_dividends", "alt_treatment")}
@@ -127,7 +139,8 @@ def settings_general(request):
                     messages.success(request, "Settings saved.")
                 return redirect(reverse("investments_settings"))
     return page(request, "investments/settings_general.html", {
-        "page_title_text": "Settings", "form": form, "lookup_on": instrument_search.lookup_enabled(), "portfolios": Portfolio.objects.filter(profile=profile),
+        "page_title_text": "Settings", "form": form, "lookup_on": instrument_search.lookup_enabled(),
+        "list_status": instrument_search.status() if request.user.is_admin else None, "portfolios": Portfolio.objects.filter(profile=profile),
         "portfolio_form": forms.PortfolioForm()}, selectors=False)
 
 

@@ -109,3 +109,60 @@ class LookupToggleTests(InvTestCase):
         resp = client.post(reverse("investments_settings"), {"action": "lookup"})
         self.assertEqual(resp.status_code, 403)
         self.assertTrue(instrument_search.lookup_enabled())
+
+
+class ListStatusRefreshTests(InvTestCase):
+    """Settings > Investments > General: Admin list status and the Refresh lists now button."""
+
+    def setUp(self):
+        super().setUp()
+        cache.clear()
+        self.addCleanup(cache.clear)
+        self.net = FakeNet()
+        for target, value in ((http, "_urlopen"), (http, "sleep")):
+            p = mock.patch.object(target, value, self.net if value == "_urlopen" else (lambda s: None))
+            p.start()
+            self.addCleanup(p.stop)
+
+    def test_admin_sees_status_and_button(self):
+        NseSecurity.objects.create(symbol="TCS", name="Tata Consultancy Services Limited", isin="INE467B01029", series="EQ")
+        self.client.force_login(self.user)
+        html = self.client.get(reverse("investments_settings")).content.decode()
+        self.assertIn("Refresh lists now", html)
+        self.assertIn('data-table-id="inv-settings_general-lists"', html)
+        self.assertIn("Never", html)   # the AMFI list is empty
+
+    def test_non_admin_sees_no_button_and_cannot_post(self):
+        user, profile = make_user("plain")
+        self.client.force_login(user)
+        html = self.client.get(reverse("investments_settings")).content.decode()
+        self.assertNotIn("Refresh lists now", html)
+        resp = self.client.post(reverse("investments_settings"), {"action": "refresh_lists"})
+        self.assertEqual(resp.status_code, 403)
+        self.assertEqual(self.net.calls, [])
+
+    def test_refresh_clears_throttle_and_loads_both_lists(self):
+        cache.set("instrument_search:refresh_failed:NSE", True, 900)
+        cache.set("instrument_search:refresh_failed:AMFI", True, 900)
+        self.net.add("EQUITY_L", NSE_CSV)
+        self.net.add("NAVAll", AMFI_TXT)
+        self.client.force_login(self.user)
+        resp = self.client.post(reverse("investments_settings"), {"action": "refresh_lists"}, follow=True)
+        self.assertEqual(resp.status_code, 200)
+        self.assertIsNone(cache.get("instrument_search:refresh_failed:NSE"))
+        self.assertIsNone(cache.get("instrument_search:refresh_failed:AMFI"))
+        self.assertTrue(NseSecurity.objects.exists())
+        self.assertTrue(AmfiScheme.objects.exists())
+        self.assertContains(resp, "list is refreshed")
+
+    def test_refresh_failure_is_shown_as_last_error(self):
+        self.client.force_login(self.user)
+        resp = self.client.post(reverse("investments_settings"), {"action": "refresh_lists"}, follow=True)
+        self.assertContains(resp, "could not be refreshed")
+        self.assertTrue(all(s["error"] for s in instrument_search.status()))
+
+    def test_refresh_does_nothing_while_lookup_is_off(self):
+        instrument_search.set_lookup_enabled(False)
+        self.client.force_login(self.user)
+        self.client.post(reverse("investments_settings"), {"action": "refresh_lists"})
+        self.assertEqual(self.net.calls, [])

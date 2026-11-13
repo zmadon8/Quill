@@ -8,6 +8,7 @@ import logging
 
 log = logging.getLogger(__name__)
 RETRY_AFTER_SECONDS = 15 * 60   # after a failed fetch of an empty list, do not try again for this long
+LAST_ERROR_SECONDS = 30 * 24 * 3600   # how long the last error stays on the Settings status line
 
 
 LOOKUP_KEY = "lookup"   # the SourceSetting row that holds the switch; its fetch_mode is "off" when the lookup is switched off
@@ -97,9 +98,46 @@ def _try_refresh(service, label):
             service.refresh()
     except FetchError as exc:
         cache.set(key, True, RETRY_AFTER_SECONDS)
+        cache.set(_error_key(label), str(exc)[:200], LAST_ERROR_SECONDS)
         return f"The {label} list could not be fetched ({exc}). You can type the details yourself."
     except Exception:  # a bad file must not break the page
         log.exception("%s list refresh failed", label)
         cache.set(key, True, RETRY_AFTER_SECONDS)
+        cache.set(_error_key(label), "the file could not be read", LAST_ERROR_SECONDS)
         return f"The {label} list could not be read. You can type the details yourself."
     return ""
+
+
+def _error_key(label):
+    return f"instrument_search:last_error:{label}"
+
+
+def status():
+    """For the Admin Settings page: per list the entry count, when it was last refreshed (None if never) and the last error ("" if none)."""
+    from django.db.models import Count, Max
+
+    from investments.models import AmfiScheme, NseSecurity
+
+    out = []
+    for label, model in (("NSE", NseSecurity), ("AMFI", AmfiScheme)):
+        agg = model.objects.aggregate(n=Count("pk"), last=Max("updated_at"))
+        out.append({"label": label, "count": agg["n"], "last": agg["last"], "error": cache.get(_error_key(label)) or ""})
+    return out
+
+
+def refresh_now():
+    """Admin button: clear the retry throttle, then fetch both lists now (each fetch has its own timeout). Returns ``[(label, count or None, error)]``; never raises."""
+    results = []
+    for label, service in (("NSE", nse_list), ("AMFI", schemes)):
+        cache.delete(f"instrument_search:refresh_failed:{label}")
+        try:
+            results.append((label, service.refresh(force=True), ""))
+            cache.delete(_error_key(label))
+        except FetchError as exc:
+            cache.set(_error_key(label), str(exc)[:200], LAST_ERROR_SECONDS)
+            results.append((label, None, str(exc)))
+        except Exception:  # a bad file must not break the page
+            log.exception("%s list refresh failed", label)
+            cache.set(_error_key(label), "the file could not be read", LAST_ERROR_SECONDS)
+            results.append((label, None, "the file could not be read"))
+    return results
