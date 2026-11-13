@@ -77,6 +77,54 @@ def search(profile, query, kind=None, limit=30):
     return {"results": found, "message": message}
 
 
+def lookup_record(source, code):
+    """The stored NSE or AMFI record a posted pick names, as ``{source, kind, code, name, isin, plan, option}``, or None when the code is not
+    in the stored list or the lookup is switched off. Name, ISIN and kind come from the stored record, never from what the page posted."""
+    from investments.models import AmfiScheme, NseSecurity
+
+    source, code = (source or "").strip().lower(), (code or "").strip()
+    if not code or source not in ("nse", "amfi") or not lookup_enabled():
+        return None
+    if source == "nse":
+        symbol = code[:-3] if code.upper().endswith(".NS") else ""
+        row = NseSecurity.objects.filter(symbol=symbol).first() if symbol else None
+        if row is None:
+            return None
+        return {"source": "nse", "kind": KIND_SHARE, "code": f"{row.symbol}.NS", "name": row.name, "isin": row.isin, "plan": "", "option": "",
+                "asset_class": "equity"}
+    row = AmfiScheme.objects.filter(code=code).first()
+    if row is None:
+        return None
+    return {"source": "amfi", "kind": KIND_FUND, "code": row.code, "name": row.display_name, "isin": row.isin, "plan": row.plan, "option": row.option,
+            "asset_class": row.asset_class}
+
+
+def resolve_pick(profile, user, record, made=None):
+    """The Instrument for a ``lookup_record``: the one already there (same code or ISIN), else a new one made now. ``made`` is a dict shared by
+    the cards of one save so two cards picking the same new investment get one. Call inside the save's atomic block."""
+    from investments.errors import InvestmentsError
+    from investments.services import fetch_defaults, masters
+
+    made = made if made is not None else {}
+    key = record["code"].upper()
+    if key in made:
+        return made[key]
+    by_code, by_isin = _existing(profile, {key}, {record["isin"].upper()} if record["isin"] else set())
+    pk = by_code.get(key) or (by_isin.get(record["isin"].upper()) if record["isin"] else None)
+    if pk:
+        obj = Instrument.objects.get(pk=pk)
+    else:
+        try:
+            obj = masters.create_instrument(profile, user, kind=record["kind"], name=record["name"], code=record["code"], isin=record["isin"],
+                                            asset_class=record.get("asset_class", "equity"), price_source=fetch_defaults.default_source(record["kind"]))
+        except InvestmentsError as err:
+            if err.code != "SIMILAR":
+                raise
+            obj = Instrument.objects.get(pk=err.details["existing_id"])
+    made[key] = obj
+    return obj
+
+
 def _nse_has_rows():
     from investments.models import NseSecurity
 

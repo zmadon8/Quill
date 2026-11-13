@@ -79,7 +79,7 @@
         var base = box.getAttribute("data-url");
         window.fetch(base + "?code=" + encodeURIComponent(code), { credentials: "same-origin", headers: { "Accept": "application/json" } })
           .then(function (r) { return r.ok ? r.json() : { found: false }; })
-          .then(function (b) { if (codeField.value.trim() === code) { showPlan(b.plan, b.option, !!b.found); } })
+          .then(function (b) { if (codeField.value.trim() === code) { showPlan(b.plan, b.option, !!b.found); if (b.found && b.asset_class) { setField("asset_class", b.asset_class); } } })
           .catch(function () {});
       }, 300);
     });
@@ -95,6 +95,7 @@
     setField("code", item.code);
     setField("isin", item.isin || "");
     if (item.source === "amfi") { showPlan(item.plan, item.option, true); }
+    if (item.source === "amfi" && codeField) { codeField.dispatchEvent(new Event("input", { bubbles: true })); }   // fills the asset class too
     close();
     var name = document.getElementById("id_name");
     if (name && name.focus) { name.focus(); }

@@ -104,7 +104,7 @@ def add_2(request):
         initial.update({"name": request.GET.get("pick_name", ""), "code": request.GET.get("pick_code", ""), "isin": request.GET.get("pick_isin", "")})
         picked = _scheme_info(initial["code"]) if kind == "fund" else None
         if picked:
-            initial.update({"name": picked["name"], "isin": initial["isin"] or picked["isin"]})
+            initial.update({"name": picked["name"], "isin": initial["isin"] or picked["isin"], "asset_class": picked["asset_class"]})
     from .services.instrument_search import lookup_enabled
 
     hits, search_error, query = [], "", request.GET.get("q", "").strip()
@@ -187,12 +187,12 @@ def add_search(request):
 
 
 def _scheme_info(code):
-    """The AMFI record for a scheme code as ``{"code", "name", "plan", "option", "isin"}`` (name standardised), or None."""
+    """The AMFI record for a scheme code as ``{"code", "name", "plan", "option", "isin", "asset_class"}`` (name standardised), or None."""
     from .models import AmfiScheme
 
     code = (code or "").strip()
     s = AmfiScheme.objects.filter(code=code).first() if code else None
-    return {"code": s.code, "name": s.display_name, "plan": s.plan, "option": s.option, "isin": s.isin} if s else None
+    return {"code": s.code, "name": s.display_name, "plan": s.plan, "option": s.option, "isin": s.isin, "asset_class": s.asset_class} if s else None
 
 
 @inv_editor

@@ -3,6 +3,7 @@
 Where each field sits in a line (counted from the front, or from the back with a negative number), the delimiter and the date formats are
 the format ``amfi`` of ``services/source_formats.py``, which an Admin can change. A body with lines that none can be read with is a
 :class:`FormatError`, so a changed layout is seen instead of silently pricing nothing."""
+import re
 from decimal import Decimal
 
 from investments.services import source_formats
@@ -88,11 +89,21 @@ def fetch(wanted, url=None):
     return found
 
 
-def iter_all(lines, fmt=None):
-    """Yield ``(code, name, isin, date, nav)`` for every scheme line (NAV may be None for "N.A."). Raises :class:`FormatError` at the end
-    when lines were read and none was a scheme with a readable date."""
+def _category(line, fmt):
+    """The scheme category a heading line names ("Open Ended Schemes(Debt Scheme - Liquid Fund)"), else None. Fund house lines and the column
+    heading line are not categories; a category line has no delimiter and says "Scheme" or "Schemes"."""
+    text = line.strip()
+    if not text or fmt["delimiter"] in text or not re.search(r"\bschemes?\b", text, re.I):
+        return None
+    return re.sub(r"\s+", " ", text)[:80]
+
+
+def iter_all(lines, fmt=None, with_category=False):
+    """Yield ``(code, name, isin, date, nav)`` for every scheme line (NAV may be None for "N.A."), or with ``with_category=True`` a sixth item,
+    the category heading that precedes the scheme's block ("" before the first). Raises :class:`FormatError` at the end when lines were
+    read and none was a scheme with a readable date."""
     fmt = fmt or source_formats.default("amfi")
-    readable, seen, first = False, 0, ""
+    readable, seen, first, category = False, 0, "", ""
     for line in lines:
         if not line.strip():
             continue
@@ -100,6 +111,7 @@ def iter_all(lines, fmt=None):
         first = first or line
         parts = _parts(line, fmt)
         if parts is None:
+            category = _category(line, fmt) or category
             continue
         try:
             isin = parts[fmt["isin_col"]].strip() if parts[fmt["isin_col"]].strip() not in ("-", "") else parts[fmt["isin_alt_col"]].strip()
@@ -110,7 +122,8 @@ def iter_all(lines, fmt=None):
             continue
         if day is not None:
             readable = True
-        yield code, _name(parts, fmt), "" if isin == "-" else isin, day, nav
+        row = (code, _name(parts, fmt), "" if isin == "-" else isin, day, nav)
+        yield row + (category,) if with_category else row
     if seen and not readable:
         raise _unreadable(seen, fmt, first)
 
@@ -122,6 +135,6 @@ def fetch_scheme_list(store, url=None, timeout=60, tries=None):
 
     def run():
         with http.open_url(url, timeout=timeout) as response:
-            return store(iter_all((raw.decode("utf-8", "replace") for raw in response), fmt))
+            return store(iter_all((raw.decode("utf-8", "replace") for raw in response), fmt, with_category=True))
 
     return http.with_retry(run, tries=tries) if tries else http.with_retry(run)

@@ -332,6 +332,26 @@ def held_instrument_ids(profile, portfolio=None, broker=None, as_of=None):
     return {h.instrument.pk for h in rows if h.is_held}
 
 
+def held_units(profile, portfolio=None, broker=None, as_of=None):
+    """``{instrument id: units}`` of the investments held now (see ``held_instrument_ids``). One holdings computation, so a page with
+    several forms asks once and hands the answer to each. For "now" (no ``as_of``) the answer is kept in the statistics cache, keyed by the
+    profile's data version, so the Buy box asking on every keystroke does not read the transactions again; a saved transaction bumps the
+    version. Stored as text (ids and units), read back as ints and Decimals."""
+    if as_of is not None:
+        return _held_units(profile, portfolio, broker, as_of)
+    from investments.services import statscache
+
+    payload = statscache.get_or_compute(
+        profile, "held_units", {"portfolio": portfolio, "broker": broker},
+        lambda: {str(pk): str(units) for pk, units in _held_units(profile, portfolio, broker, None).items()}, today_sensitive=True)
+    return {int(pk): Decimal(units) for pk, units in payload.items()}
+
+
+def _held_units(profile, portfolio, broker, as_of):
+    rows, _totals = compute(profile, portfolio=portfolio, broker=broker, as_of=as_of, with_xirr=False)
+    return {h.instrument.pk: h.units for h in rows if h.is_held}
+
+
 def allocation(holdings):
     """``[(label, value, share)]`` by asset class, largest first, for the sorted-bars chart (plan 25.3)."""
     by = {}

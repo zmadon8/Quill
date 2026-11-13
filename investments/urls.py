@@ -68,6 +68,7 @@ urlpatterns += [
     # a redemption awaiting its units (no mockup of its own; same form as the awaiting purchase)
     path("transactions/awaiting-redemption/", lambda request: vt.txn_form(request, "awaiting_sell"), name="investments_txn_new_awaiting_sell"),
     path("transactions/available/", views.available_units, name="investments_available_units"),
+    path("transactions/lookup/", vt.txn_lookup, name="investments_txn_lookup"),
     path("transactions/<int:pk>/edit/", vt.txn_edit, name="investments_txn_edit"),
     path("transactions/<int:pk>/delete/", vt.txn_delete, name="investments_txn_delete"),
     path("transactions/<int:pk>/complete/", vt.txn_complete, name="investments_txn_complete"),
