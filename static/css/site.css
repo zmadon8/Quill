@@ -714,3 +714,15 @@ textarea.single-line { display: block; width: 100%; max-width: 28rem; min-height
 /* Shared: a wrapping row of buttons or short controls (use instead of one <p> per button). */
 .acts-row { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .75rem; }
 .section-actions { flex-wrap: wrap; }
+
+/* Investment combobox on Buy and Opening balance (instrument-combobox.js): built over the plain select, which stays for no-JS. */
+.combo { position: relative; margin-top: 6px; }
+.combo[hidden] { display: none; }
+.combo-held { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; margin-bottom: 4px; font-size: .857rem; color: var(--muted, #6b6860); }
+.combo-input { width: 100%; min-height: 44px; box-sizing: border-box; }
+.combo .search-suggest-head { font-weight: 600; }
+.combo .search-suggest-option { min-height: 44px; }
+.combo-tag { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 9px; background: var(--paper-2, #f2f0ea); color: var(--muted, #6b6860); font-size: .75rem; }
+.combo-tag.new { background: var(--ink, #1C1B19); color: var(--white, #fff); }
+.combo-add { display: block; min-height: 44px; padding: 12px; box-sizing: border-box; }
+.combo-line { margin: 4px 0 0; font-size: .857rem; color: var(--muted, #6b6860); }

@@ -64,11 +64,21 @@ class HeldOnlyTests(InvTestCase):
         self.assertIn("Charges and note", html)
 
     def test_tick_box_defaults(self):
-        self.assertTrue(self.box(self.form_html("investments_txn_new_buy")))
         self.assertTrue(self.box(self.form_html("investments_txn_new_sell")))
-        self.assertTrue(self.box(self.form_html("investments_txn_opening")))
         self.assertTrue(self.box(self.form_html("investments_txn_transfer")))
         self.assertTrue(self.box(self.form_html("investments_txn_switch"), "from_instrument"))
+
+    def test_buy_and_opening_use_the_combobox_with_a_plain_select_fallback(self):
+        for name in ("investments_txn_new_buy", "investments_txn_opening"):
+            html = self.form_html(name)
+            self.assertIn('data-combo data-for="instrument"', html)
+            self.assertIn('data-held="1"', html)                       # its Held switch starts on
+            self.assertNotIn("held-only-box", html)
+            self.assertIn(reverse("investments_txn_lookup"), html)
+            self.assertRegex(html, r"<select [^>]*name=\"instrument\"")      # no-JS fallback
+            self.assertIn(f'<noscript><span class="note">Not in the list? <a href="{reverse("investments_add_1")}">Add investment</a>', html)
+        for name in ("investments_txn_new_sell", "investments_txn_transfer"):
+            self.assertNotIn("data-combo", self.form_html(name))
 
     def test_sale_of_something_not_held_starts_unticked(self):
         r = self.client.get(reverse("investments_txn_new_sell") + f"?instrument={self.fund.pk}")

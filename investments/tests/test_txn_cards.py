@@ -27,7 +27,8 @@ class TxnCardTests(InvTestCase):
                      "origin", "corporate_action", "note"):
             self.assertIn(f'name="x__i__-{name}"', template)
         self.assertIn('class="txn-card txn-row"', template)
-        self.assertIn('class="held-only-box" data-for="x__i__-instrument"', template)
+        self.assertIn('data-combo data-for="x__i__-instrument"', template)      # the combobox replaces the Held only box on Buy
+        self.assertNotIn("held-only-box", template)
 
     def test_sell_page_cards_show_units_available(self):
         html = self.client.get(reverse("investments_txn_new_sell")).content.decode()
