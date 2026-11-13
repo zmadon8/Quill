@@ -299,6 +299,10 @@ body.ledger .page-head > h1.visually-hidden + .page-actions { margin-left: auto;
 body.ledger .fees-form .field-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 16px; }
 body.ledger .fees-form .field-row > label { flex: 1 1 16rem; margin: 0; }
 body.ledger .fees-form .field-row > label.narrow { flex: 0 1 12rem; }
+body.ledger .fees-form .field-row > label.short { flex: 0 1 9rem; }
+body.ledger .fees-form .field-row > label.tiny { flex: 0 0 5rem; }
+body.ledger .fees-form .field-row > label.grow { flex: 1 1 14rem; }
+body.ledger .fees-form .field-row :is(input,select) { max-width: 100%; }
 body.ledger .fees-form .field-row input[type=text] { width: 100%; max-width: none; }
 body.ledger .fees-form input[readonly][aria-disabled=true] { background: var(--paper-2); color: var(--muted); cursor: not-allowed; }
 

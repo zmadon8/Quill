@@ -220,6 +220,7 @@ body.inv .tools select,body.inv .tools input[type=date]{min-height:36px;font-siz
 body.inv .tools .sel label{display:block}
 body.inv .fld.bad input,body.inv .fld.bad select{border-color:var(--danger);border-width:2px}
 body.inv .fld input,body.inv .fld select{min-width:160px}
+body.inv .fld select[name=folio]{width:15ch;min-width:0}
 body.inv .fld .note.err{color:var(--danger)}
 body.inv button.btn{font-family:inherit;cursor:pointer;background:transparent}
 body.inv button.btn.p{background:var(--ox);color:#fff}
@@ -349,6 +350,7 @@ body.inv nav.seg a{padding:4px 12px;border-radius:7px;font-size:13px;color:var(-
 body.inv nav.seg a.on{background:var(--white);color:var(--ink);font-weight:600;box-shadow:var(--shadow-card)}
 .more-fields { margin: .5rem 0 1rem; }
 .more-fields > summary { cursor: pointer; padding: .3rem 0; }
+.more-notes{display:flex;flex-direction:column;gap:2px;margin:0 0 12px}
 /* Each transaction on the buy and sell pages is a rounded card, so one transaction is clearly apart from the next. */
 .txn-card { border: 1px solid var(--line, var(--hair)); border-radius: 18px; background: var(--card, transparent); padding: 14px 20px 16px; margin: 0 0 16px; }
 .txn-card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
@@ -357,7 +359,7 @@ body.inv nav.seg a.on{background:var(--white);color:var(--ink);font-weight:600;b
 
 /* Update Prices in the header: a small refresh button; its progress text sits beside it and is empty until used. */
 body.inv .upd{display:inline-flex;align-items:center;gap:6px}
-body.inv .upd-btn{min-width:34px;min-height:34px;border:1px solid var(--line-strong,var(--ink));background:transparent;color:inherit;border-radius:var(--radius,2px);font-size:1.1rem;line-height:1;cursor:pointer}
+body.inv .upd-btn{min-width:34px;min-height:34px;border:0;background:none;color:inherit;font-size:1.1rem;line-height:1;cursor:pointer}
 body.inv .upd-btn:disabled{opacity:.5;cursor:not-allowed}
 body.inv .upd-status{max-width:14rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.8rem;color:var(--muted)}
 body.inv .upd-status:empty{display:none}

@@ -2,7 +2,7 @@
 {% with more=form.more_fields|default:'' %}{% for field in form.hidden_fields %}{{ field }}{% endfor %}
 {% if form.non_field_errors %}<div class="ban al" role="alert"><span>{{ form.non_field_errors|join:" " }}</span></div>{% endif %}
 <div class="row">
-{% for field in form.visible_fields %}{% if field.name not in more %}
+{% for field in form.visible_fields %}{% if field.name not in more %}{% if field.name in form.break_before %}<div class="row-break" aria-hidden="true"></div>{% endif %}
   <div class="fld{% if field.errors %} bad{% endif %}{% if field.name == "date" and form.has_pick %} fld-date{% elif field.name == "instrument" and form.has_pick %} fld-invest{% endif %}">
     <label for="{{ field.id_for_label }}">{{ field.label }}</label>
     {{ field }}
@@ -14,7 +14,26 @@
 {% endif %}{% endfor %}
 </div>
 {% if more %}<details class="more-fields"{% if form.more_open %} open{% endif %}><summary>{{ form.more_label|default:"More" }}</summary>
+{% if form.more_first %}<div class="row">
+{% for field in form.visible_fields %}{% if field.name in form.more_first %}
+  <div class="fld{% if field.errors %} bad{% endif %}">
+    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+    {{ field }}
+    {% for e in field.errors %}<span class="note err">{{ e }}</span>{% endfor %}
+  </div>
+{% endif %}{% endfor %}
+</div>
+<div class="more-notes">{% for field in form.visible_fields %}{% if field.name in more and field.help_text %}<span class="note"><b>{{ field.label }}:</b> {{ field.help_text }}</span>{% endif %}{% endfor %}</div>
 <div class="row">
+{% for field in form.visible_fields %}{% if field.name in more and field.name not in form.more_first %}
+  <div class="fld{% if field.errors %} bad{% endif %}">
+    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+    {{ field }}
+    {% for e in field.errors %}<span class="note err">{{ e }}</span>{% endfor %}
+  </div>
+{% endif %}{% endfor %}
+</div>
+{% else %}<div class="row">
 {% for field in form.visible_fields %}{% if field.name in more %}
   <div class="fld{% if field.errors %} bad{% endif %}">
     <label for="{{ field.id_for_label }}">{{ field.label }}</label>
@@ -23,4 +42,4 @@
     {% for e in field.errors %}<span class="note err">{{ e }}</span>{% endfor %}
   </div>
 {% endif %}{% endfor %}
-</div></details>{% endif %}{% endwith %}
+</div>{% endif %}</details>{% endif %}{% endwith %}

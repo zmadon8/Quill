@@ -56,6 +56,10 @@ class ProfileForm(forms.Form):
     #: Fields tucked under a "More" fold on the page (see ``_form.html``); it opens when one of them holds a value or an error.
     more_fields = ()
     more_label = "More"
+    #: Names of the "More" fields that make up its first line (their notes are gathered in one paragraph below it, the rest follow on one line).
+    more_first = ()
+    #: Fields that start a new line of the form (a row break is drawn before them).
+    break_before = ()
 
     def __init__(self, *args, profile=None, held_units=None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -173,7 +177,7 @@ class TransactionForm(ProfileForm):
     portfolio = forms.ModelChoiceField(queryset=Portfolio.objects.none(), label="Portfolio")
     broker = forms.ModelChoiceField(queryset=Broker.objects.none(), label="Broker", empty_label="Choose a broker")
     folio = forms.ModelChoiceField(queryset=Folio.objects.none(), label="Folio (optional)", required=False)
-    new_folio = forms.CharField(label="Or a new folio number", required=False, max_length=60)
+    new_folio = forms.CharField(label="New Folio Number", required=False, max_length=60)
     units = MoneyField(label="Units", required=False, min_value=0)
     origin = forms.ChoiceField(choices=ORIGINS, initial=ORIGIN_PURCHASE, required=False, label="How were these units acquired?",
                                help_text="Bonus shares, split units and shares received on a demerger need no price: they are added at a cost of 0. A demerger's cost comes from the parent's shares, not from this entry.")
@@ -221,13 +225,36 @@ class TransactionForm(ProfileForm):
                 self.fields["corporate_action"].label_from_instance = lambda a: f"{a.instrument.name}: {a.describe()} ({a.ex_date:%d %b %Y})"
         if mode in ("sell", "awaiting_sell", "edit_sell"):
             del self.fields["new_folio"]
+            # A sale can only be of what is held (an edit also keeps the entry's own investment); there is no "Held only" box to untick.
+            from investments.services import holdings
+
+            if self.held_units is None:
+                self.held_units = holdings.held_units(self.profile)
+            held = set(self.held_units)
+            # Back-dated sales are allowed, so investments sold out since (any purchase, opening or transfer-in on record) are offered too, in
+            # their own group. One cheap query; the real check is on the sale's date (see clean()).
+            from investments.models import STATUS_FINAL, Transaction
+
+            history = set(Transaction.objects.filter(profile=self.profile, status=STATUS_FINAL, side="buy").values_list("instrument_id", flat=True).distinct())
+            own = set()
+            if mode == "edit_sell" or (mode == "awaiting_sell" and self.initial.get("instrument")):
+                own.add(getattr(self.initial.get("instrument"), "pk", self.initial.get("instrument")))
+            sold_out = (history | own) - held
+            qs = self.fields["instrument"].queryset.filter(pk__in=held | sold_out)
+            self.fields["instrument"].queryset = qs
+            self.fields["instrument"].error_messages["invalid_choice"] = "Choose an investment you hold, or held in the past, from the list."
+            names = [(i.pk, str(i), i.pk in sold_out) for i in qs]
+            self.fields["instrument"].choices = [("", "---------")] + [(pk, label) for pk, label, old in names if not old] + (
+                [("Sold out (for back-dated sales)", [(pk, label) for pk, label, old in names if old])] if sold_out and any(n[2] for n in names) else [])
+            self.break_before = ("units",)
             # A sale asks for the date, investment, where it was held, units and price; charges and a note sit under "More".
             self.more_fields = tuple(n for n in ("charges", "note") if n in self.fields)
             self.more_label = "Charges and note"
         elif mode in ("buy", "edit"):
             # A purchase asks for the date, investment, where it goes, units and price; the rest sits under "More".
-            self.more_fields = tuple(n for n in ("allotment_date", "charges", "folio", "new_folio", "origin", "corporate_action", "note") if n in self.fields)
+            self.more_fields = tuple(n for n in ("folio", "new_folio", "origin", "allotment_date", "charges", "corporate_action", "note") if n in self.fields)
             self.more_label = "Allotment date, charges, folio and more"
+            self.more_first = tuple(n for n in ("folio", "new_folio", "origin") if n in self.fields)
         elif awaiting:
             self.more_fields = tuple(n for n in ("charges", "note") if n in self.fields)
             self.more_label = "Charges and note"
@@ -237,6 +264,8 @@ class TransactionForm(ProfileForm):
             self.add_pick_fields()
         # "Held only" starts ticked on every form; an edit of an entry for something no longer held starts unticked so the chosen investment shows.
         held = self.mark_held("instrument", default=True)
+        if mode in ("sell", "awaiting_sell", "edit_sell"):
+            self.held_fields = ()
         if mode.startswith("edit") or "instrument" in self.initial:
             chosen = getattr(self.initial.get("instrument"), "pk", self.initial.get("instrument"))
             if self.held_default and chosen and chosen not in held:
@@ -252,6 +281,12 @@ class TransactionForm(ProfileForm):
     def clean(self):
         cleaned = super().clean()
         self.clean_pick(cleaned)
+        inst, day = cleaned.get("instrument"), cleaned.get("date")
+        if self.mode in ("sell", "awaiting_sell") and inst and day:
+            from investments.services import transactions as tx
+
+            if not tx.available_by_bucket(self.profile, inst, day):
+                self.add_error("instrument", f"You held none of this investment on {day.day} {day:%b %Y}.")
         folio = cleaned.get("folio")
         if folio and self.new_pick:
             self.add_error("folio", "Choose a folio after the investment has been added.")

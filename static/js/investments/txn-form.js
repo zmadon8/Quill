@@ -50,7 +50,7 @@
     var mine = ++seq;
     fetch(url, { credentials: "same-origin" }).then(function (r) { return r.json(); }).then(function (d) {
       if (mine !== seq) { return; }
-      line.textContent = d && d.ok && d.place ? String(parseFloat(d.units)) : "not available";
+      line.textContent = d && d.ok && d.place ? (parseFloat(d.units) > 0 ? String(parseFloat(d.units)) : "0 (none held on this date)") : "not available";
     }).catch(function () { if (mine === seq) { line.textContent = "not available"; } });
   }
   function loadAvailable() {
