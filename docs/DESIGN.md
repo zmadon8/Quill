@@ -1567,3 +1567,11 @@ Decisions taken while building the Investments program. Where the plan was silen
 Decision: no text box may grow with its content or push its neighbours onto a new line. `static/css/site.css` caps every `input[type=text]`, password, search, email and `select` at `28ch` by default. Long fields opt in to `48ch` by their name (names, addresses, notes, memo, payee, URL, subject, details, query), by type (`search`, `email`, `url`) or with the `wide` class; textareas are full width. Layouts that already size their own fields (the fees `.field-row` with `.short`, `.tiny`, `.grow`, the Buy combobox) set their own widths and are unaffected.
 
 Folio is fixed at 15 characters (`15ch`). In the Investments forms the Folio select is `15ch` wide. In tables (Transactions, Dividends, the investment page lots and folios, the statement import review, corporate action rows) the cell carries `class="fo"` and `title="<full value>"`, so a longer folio is cut with an ellipsis and the full number appears when the cursor rests on it, the same way the Profile name does in the header.
+
+## Round: one frame, one tab strip, one button set (design consistency)
+
+- **Frame**: `.page` and `main` (72rem column, 20px/24px padding) are one shared rule in `design.css` for `body.look` and `body.ledger`, replacing identical copies in `look.css` and `ledger.css`. The `w-*` widths stay in `ledger.css`.
+- **Tabs**: the Fees `.tabs` / `.stat-tabs` underline rules in `ledger.css` now also list Investments `nav.sub`, so there is one rule set; the pill look from `modern.css` is unchanged. Investments' own copy in `investments.css` is deleted. Home and Diary `.subnav`, and the smaller second row (`.sub-tabs`), keep their rules because they differ in padding and background.
+- **Buttons**: three looks: primary (filled), secondary (outline), small/text. `btn p`, `btn q`, `btn sm`, `btn dng` are listed with `primary`, `secondary`, `small`, `danger` in `ledger.css`; Investments' duplicate button blocks are deleted. `button.linklike` is kept (it keeps the tap height, unlike `button.link`). Header Buy/Sell/Add stay bold text links, the refresh button stays borderless, and focus-visible outlines are untouched.
+- No template markup or class names changed. Per-page CSS budget stays 143360 bytes; the heaviest page fell from 142446 to 140356.
+

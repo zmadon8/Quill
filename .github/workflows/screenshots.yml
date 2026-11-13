@@ -6,6 +6,7 @@ name: Screenshots
 # blocks every request that is not to the local server.
 on:
   pull_request:
+  push:
   workflow_dispatch:
 
 permissions:

@@ -13,9 +13,9 @@ The Settings strip (`templates/_settings_tabs.html`) uses `<nav class="subnav">`
 
 ## Suggestions, not implemented
 
-- Merge `look.css` and the `body.ledger` rules into one set of shell rules, so a new component is styled once. Most of the differences found come from rules scoped to one body class.
-- Move `.tabs`, `.stat-tabs`, `nav.sub` and `.subnav` into one `.tab-strip` component.
-- Agree one set of button classes (`btn p`, `btn q`, small, secondary, primary) and map the old names onto it.
+- Merge `look.css` and the `body.ledger` rules into one set of shell rules, so a new component is styled once. Partly done: the page frame is shared in `design.css`; header, brand row, program nav, hints, toasts and footer were not moved.
+- Move `.subnav` and the `.sub-tabs` second row into the same rule set as `.tabs`, `.stat-tabs` and `nav.sub` (the last three are now one). `.subnav` differs in padding and background, so it needs a browser check first.
+- Button classes are mapped (see Design consistency below); `.link-buttons`, `button.linklike` and `.edit-btn` stay separate.
 - Review pages with a button on its own line beside a short form field (check on a 375px phone) and use `.page-actions` to put them in one row.
 - Review tall empty areas on Settings pages on wide screens; a two column grid for the short sections would use the space.
 - Add a screenshot test in CI at 375px and 1280px for Home, Diary, Fee Register, Investments and Settings to catch these differences.
@@ -43,9 +43,15 @@ The Settings strip (`templates/_settings_tabs.html`) uses `<nav class="subnav">`
 - Hint paragraph margins and empty-state padding could not be judged without seeing the pages. Check at 375px and 1280px in a browser.
 - Duplicate page headings: confirm each program hides the page `<h1>` that repeats the tab name (`visually-hidden`). No violations were found by grep, but this needs a browser check.
 
+## Design consistency (shell, tabs, buttons)
+
+- Shared page frame in `design.css`; Investments `nav.sub` joins the Fees tab rules in `ledger.css`; `btn p / q / sm / dng` join `primary / secondary / small / danger` in `ledger.css`. Duplicate blocks in `investments.css`, `look.css` and `ledger.css` were deleted. No markup changed.
+- Heaviest page CSS: 142446 to 140356 bytes (Investments), Fees dashboard 127739 to 128020 and Diary subjects 122360 to 122446 (the shared rule now sits in `design.css`, which every page loads); all CSS files together 202542 to 200297. Budget 143360.
+- Left: Home and Diary `.subnav` and `.sub-tabs` rules, `.tab-bar`, header and footer rules, toasts, hints, `button.linklike`, `.link-buttons`. Not verifiable without a browser; check against the Screenshots artifact.
+
 ## Screenshots
 
-The `Screenshots` workflow (`.github/workflows/screenshots.yml`) photographs the main pages at 375px and 1280px wide, so layout can be reviewed without running the app. It runs on every pull request and by hand (Actions > Screenshots > Run workflow). It is non-blocking (`continue-on-error`) and separate from `ci.yml`, so it never fails a pull request.
+The `Screenshots` workflow (`.github/workflows/screenshots.yml`) photographs the main pages at 375px and 1280px wide, so layout can be reviewed without running the app. It runs on every pull request, every push and by hand (Actions > Screenshots > Run workflow). It is non-blocking (`continue-on-error`) and separate from `ci.yml`, so it never fails a pull request.
 
 To get the pictures: open the pull request's Checks, open the Screenshots run, scroll to **Artifacts** and download **ui-screenshots** (a zip of PNGs named `<page>-375.png` and `<page>-1280.png`, kept 14 days).
 
