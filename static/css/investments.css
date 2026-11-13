@@ -328,7 +328,7 @@ body.inv nav.seg a.on{background:var(--white);color:var(--ink);font-weight:600;b
 .more-notes .note{display:inline;margin:0 .75em 0 0;padding:0;border:0;background:none;font-size:inherit;color:inherit}
 /* Buy and sell cards: portfolio, broker, units and price share one row on desktop. */
 .txn-card .fld select[name$=portfolio]{width:15ch;min-width:0}
-.txn-card .fld select[name$=broker]{width:17ch;min-width:0}
+.txn-card .fld select[name$=broker]{width:20ch;min-width:0}
 .txn-card .fld input[name$=units],.txn-card .fld input[name$=price]{width:11ch;min-width:0}
 /* Each transaction on the buy and sell pages is a rounded card, so one transaction is clearly apart from the next. */
 .txn-card { border: 1px solid var(--line, var(--hair)); border-radius: 18px; background: var(--card, transparent); padding: 14px 20px 16px; margin: 0 0 16px; }

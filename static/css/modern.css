@@ -121,8 +121,9 @@ body.inv .program-nav .buy-sell a { display: inline-flex; align-items: center; h
 body.inv .toggle[hidden] { display: none; }
 body:is(.ledger, .look) .program-nav .nav-links { display: contents; }
 @media (max-width: 599px) {
+  body:is(.ledger, .look) :is(.site-header, .program-nav) { min-width: 0; max-width: 100%; }
   body:is(.ledger, .look) .program-nav { flex-wrap: wrap; }
-  body:is(.ledger, .look) .program-nav .nav-links { display: flex; flex: 1 0 100%; order: 1; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  body:is(.ledger, .look) .program-nav .nav-links { display: flex; flex: 1 1 100%; min-width: 0; max-width: 100%; order: 1; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
   body:is(.ledger, .look) .program-nav .nav-links::-webkit-scrollbar { display: none; }
   body:is(.ledger, .look) .program-nav .nav-links a { flex: 0 0 auto; white-space: nowrap; }
   body.inv .program-nav .buy-sell { order: 2; align-self: center; margin: 0; }
