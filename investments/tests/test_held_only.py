@@ -7,6 +7,7 @@ from django.test import RequestFactory
 from django.urls import reverse
 
 from investments import forms
+from investments.models import Transaction
 from investments.services import holdings, masters, reports, transactions as tx
 from investments.tests.base import InvTestCase
 from investments.viewutil import held_only
@@ -63,8 +64,14 @@ class HeldOnlyTests(InvTestCase):
         self.assertIn('<details class="more-fields">', html)
         self.assertIn("Charges and note", html)
 
+    def test_sale_has_no_held_only_box_and_lists_only_what_is_held(self):
+        html = self.form_html("investments_txn_new_sell")
+        self.assertNotIn("held-only-box", html)
+        self.assertRegex(html, rf'<option value="{self.reliance.pk}"')
+        self.assertNotRegex(html, rf'<option value="{self.fund.pk}"')
+        self.assertNotRegex(html, rf'<option value="{self.tata.pk}"')
+
     def test_tick_box_defaults(self):
-        self.assertTrue(self.box(self.form_html("investments_txn_new_sell")))
         self.assertTrue(self.box(self.form_html("investments_txn_transfer")))
         self.assertTrue(self.box(self.form_html("investments_txn_switch"), "from_instrument"))
 
@@ -80,9 +87,13 @@ class HeldOnlyTests(InvTestCase):
         for name in ("investments_txn_new_sell", "investments_txn_transfer"):
             self.assertNotIn("data-combo", self.form_html(name))
 
-    def test_sale_of_something_not_held_starts_unticked(self):
-        r = self.client.get(reverse("investments_txn_new_sell") + f"?instrument={self.fund.pk}")
-        self.assertFalse(self.box(r.content.decode()))
+    def test_sale_of_something_not_held_is_refused_with_a_clear_message(self):
+        r = self.client.post(reverse("investments_txn_new_sell"), {
+            "date": "2024-02-01", "instrument": str(self.tata.pk), "portfolio": str(self.portfolio.pk), "broker": str(self.zerodha.pk),
+            "units": "1", "price": "10", "charges": "0"})
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, "You can only sell an investment you hold")
+        self.assertEqual(Transaction.objects.filter(instrument=self.tata).count(), 0)
 
     def test_server_still_accepts_an_investment_that_is_not_held(self):
         form = forms.TransactionForm({"date": "2024-01-01", "instrument": str(self.tata.pk), "portfolio": str(self.portfolio.pk),
@@ -188,3 +199,10 @@ class MultiRowTransactionTests(InvTestCase):
         html = self.client.get(reverse("investments_txn_new_buy")).content.decode()
         self.assertNotIn("trade date", html)
         self.assertIn("starts the holding period", html)
+        self.assertIn("New Folio Number", html)
+        self.assertNotIn("Or a new folio", html)
+        fold = html[html.index('<details class="more-fields"'):]
+        self.assertLess(fold.index('name="folio"'), fold.index('name="new_folio"'))
+        self.assertLess(fold.index('name="new_folio"'), fold.index('name="origin"'))
+        self.assertLess(fold.index('name="origin"'), fold.index('class="more-notes"'))
+        self.assertLess(fold.index('class="more-notes"'), fold.index('name="allotment_date"'))
