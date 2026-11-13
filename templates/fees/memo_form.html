@@ -37,8 +37,8 @@
   {% if not memo or not memo.is_draft %}
   <div class="field">
     <label for="f-number">Memo number</label>
-    <label class="check"><input type="checkbox" data-custom-number-tick{% if form.custom_memo_number %} checked{% endif %}> Custom Memo Number (type my own instead of auto-generating)</label>
-    <input id="f-number" type="text" name="custom_memo_number" value="{{ form.custom_memo_number }}" maxlength="100" placeholder="{% if memo %}{{ memo.memo_number }}{% else %}(set a date){% endif %}" aria-describedby="memo-number-hint">
+    <div class="inline-row"><label class="check"><input type="checkbox" data-custom-number-tick{% if form.custom_memo_number %} checked{% endif %}> Custom</label>
+    <input id="f-number" type="text" name="custom_memo_number" value="{{ form.custom_memo_number }}" maxlength="100" placeholder="{% if memo %}{{ memo.memo_number }}{% else %}(set a date){% endif %}" aria-describedby="memo-number-hint"></div>
     <span class="muted hint" id="memo-number-hint" data-number-hint aria-live="polite">{% if memo %}Memo number {{ memo.memo_number }}.{% endif %}</span>
   </div>
   {% else %}<div></div>{% endif %}
