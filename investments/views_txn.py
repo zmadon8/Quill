@@ -1,6 +1,7 @@
 """Transaction pages: the list, buy / sell / awaiting / opening balance / transfer / switch forms, edit, delete, complete."""
 import datetime
 import json
+import logging
 from decimal import Decimal
 
 from django.contrib import messages
@@ -20,6 +21,8 @@ from .models import (
 )
 from .services import core, corporate, holdings, instrument_search, masters, transactions as tx
 from .viewutil import handle_errors, page, profile_or_404, selection
+
+logger = logging.getLogger(__name__)
 
 PAGE_SIZE = 50
 
@@ -710,8 +713,8 @@ def txn_lookup(request):
     if not only_held and lookup_on:
         try:
             found = instrument_search.search(profile, q)
-        except Exception:
-            __import__("logging").getLogger(__name__).exception("Buy lookup failed")
+        except Exception:    # the box must never 500: a bad list or a database hiccup is logged and shown as "not available"
+            logger.exception("Buy lookup failed")
             found = {"results": [], "message": "The NSE / AMFI search is not available just now."}
         out["message"] = found["message"] if not out["in_quill"] else ""
         for r in found["results"]:

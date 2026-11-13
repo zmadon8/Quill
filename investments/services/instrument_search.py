@@ -90,11 +90,13 @@ def lookup_record(source, code):
         row = NseSecurity.objects.filter(symbol=symbol).first() if symbol else None
         if row is None:
             return None
-        return {"source": "nse", "kind": KIND_SHARE, "code": f"{row.symbol}.NS", "name": row.name, "isin": row.isin, "plan": "", "option": ""}
+        return {"source": "nse", "kind": KIND_SHARE, "code": f"{row.symbol}.NS", "name": row.name, "isin": row.isin, "plan": "", "option": "",
+                "asset_class": "equity"}
     row = AmfiScheme.objects.filter(code=code).first()
     if row is None:
         return None
-    return {"source": "amfi", "kind": KIND_FUND, "code": row.code, "name": row.display_name, "isin": row.isin, "plan": row.plan, "option": row.option}
+    return {"source": "amfi", "kind": KIND_FUND, "code": row.code, "name": row.display_name, "isin": row.isin, "plan": row.plan, "option": row.option,
+            "asset_class": row.asset_class}
 
 
 def resolve_pick(profile, user, record, made=None):
@@ -114,7 +116,7 @@ def resolve_pick(profile, user, record, made=None):
     else:
         try:
             obj = masters.create_instrument(profile, user, kind=record["kind"], name=record["name"], code=record["code"], isin=record["isin"],
-                                            asset_class="equity", price_source=fetch_defaults.default_source(record["kind"]))
+                                            asset_class=record.get("asset_class", "equity"), price_source=fetch_defaults.default_source(record["kind"]))
         except InvestmentsError as err:
             if err.code != "SIMILAR":
                 raise

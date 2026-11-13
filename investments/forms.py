@@ -92,6 +92,17 @@ class ProfileForm(forms.Form):
             self.add_error("instrument", "This field is required.")
 
     @property
+    def pick_name(self):
+        """The stored name of the NSE / AMFI investment posted in ``new_source`` / ``new_code``, so a page shown again after an error names
+        it instead of its code. Empty when nothing was picked, an investment was chosen instead, or the code is not in the stored lists."""
+        if not (self.has_pick and self.is_bound) or self["instrument"].value():
+            return ""
+        from investments.services import instrument_search
+
+        record = instrument_search.lookup_record(self["new_source"].value(), self["new_code"].value())
+        return record["name"] if record else ""
+
+    @property
     def more_open(self):
         for name in self.more_fields:
             if name not in self.fields:

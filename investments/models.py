@@ -707,6 +707,7 @@ class AmfiScheme(models.Model):
     nav_date = models.DateField(null=True, blank=True)
     plan = models.CharField(max_length=10, blank=True, default="", help_text="Direct or Regular, read from the name; blank when the name does not say")
     option = models.CharField(max_length=40, blank=True, default="", help_text="Growth, IDCW Payout, IDCW Reinvestment, Bonus ...; blank when the name does not say")
+    category = models.CharField(max_length=80, blank=True, default="", help_text="AMFI's category heading, such as Open Ended Schemes(Debt Scheme - Liquid Fund)")
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -718,6 +719,13 @@ class AmfiScheme(models.Model):
         from investments.services import fund_names
 
         return fund_names.standard_name(self.name, self.plan, self.option)
+
+    @property
+    def asset_class(self):
+        """equity, debt, gold or other, from the category heading when stored, else from the name (see ``services/asset_class``)."""
+        from investments.services import asset_class
+
+        return asset_class.for_fund(self.category, self.name)
 
 
 class NseSecurity(models.Model):

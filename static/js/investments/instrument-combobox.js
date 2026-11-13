@@ -58,7 +58,11 @@
 
     var opt = select.options[select.selectedIndex];
     if (select.value && opt) { input.value = opt.text; }
-    if (!select.value && code.value) { input.value = code.value; tagLine.textContent = "New: " + code.value; tagLine.hidden = false; }
+    if (!select.value && code.value) {
+      // Shown again after an error: the stored name the server looked up for the posted code, else the code itself.
+      var pickName = box.getAttribute("data-pick-name");
+      input.value = pickName || code.value; tagLine.textContent = "New: " + code.value; tagLine.hidden = false;
+    }
 
     var rows = [], active = -1, timer = null, controller = null;
 

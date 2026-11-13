@@ -4,6 +4,8 @@ from datetime import date as d
 from decimal import Decimal as D
 
 from django.core.cache import cache
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 from accounts.models import ROLE_READER
@@ -198,3 +200,107 @@ class OpeningPickTests(LookupBase):
         self.assertEqual(self.client.post(reverse("investments_txn_opening"), post).status_code, 200)
         self.assertEqual(Instrument.objects.count(), before)
         self.assertEqual(Transaction.objects.count(), 0)
+
+
+class AwaitingBuyPickTests(LookupBase):
+    """The Investment box on "Add a purchase awaiting allotment" is the same combobox as on Buy."""
+
+    url_awaiting = property(lambda self: reverse("investments_txn_new_awaiting"))
+
+    def post_card(self, **extra):
+        return {"date": "2024-11-04", "portfolio": self.portfolio.pk, "broker": self.zerodha.pk, "amount": "5000", "charges": "0", **extra}
+
+    def test_the_form_has_the_combobox_and_the_pick_fields(self):
+        html = self.client.get(self.url_awaiting).content.decode()
+        self.assertIn("data-combo", html)
+        self.assertIn('name="new_source"', html)
+        self.assertIn('name="new_code"', html)
+        self.assertIn(reverse("investments_txn_lookup"), html)
+
+    def test_a_new_amfi_pick_is_made_at_save_and_the_entry_is_awaiting(self):
+        r = self.client.post(self.url_awaiting, self.post_card(new_source="amfi", new_code="119551"))
+        self.assertRedirects(r, reverse("investments_transactions"))
+        txn = Transaction.objects.get()
+        self.assertEqual(txn.instrument.code, "119551")
+        self.assertEqual(txn.status, "awaiting")
+
+    def test_a_tampered_pick_makes_nothing(self):
+        before = Instrument.objects.count()
+        r = self.client.post(self.url_awaiting, self.post_card(new_source="amfi", new_code="000000"))
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual((Instrument.objects.count(), Transaction.objects.count()), (before, 0))
+
+    def test_the_lookup_serves_the_awaiting_form_too(self):
+        out = self.get(q="axis", held="0")
+        self.assertEqual([r["code"] for r in out["nse_amfi"]], ["119551"])
+
+
+class PickNameAfterErrorTests(LookupBase):
+    def test_the_combobox_gets_the_stored_name_when_the_page_is_shown_again(self):
+        # Units left out: a validation error, so the form is shown again with the pick still in it.
+        post = {"date": "2024-01-01", "portfolio": self.portfolio.pk, "broker": self.zerodha.pk, "price": "100", "new_source": "nse", "new_code": "TATASTEEL.NS"}
+        r = self.client.post(reverse("investments_txn_new_buy"), post)
+        self.assertEqual(r.status_code, 200)
+        self.assertIn('data-pick-name="Tata Steel Limited"', r.content.decode())
+        self.assertEqual(Instrument.objects.filter(code="TATASTEEL.NS").count(), 0)
+
+    def test_an_unknown_code_gives_no_name(self):
+        post = {"date": "2024-01-01", "portfolio": self.portfolio.pk, "broker": self.zerodha.pk, "price": "100", "new_source": "nse", "new_code": "NOPE.NS"}
+        self.assertIn('data-pick-name=""', self.client.post(reverse("investments_txn_new_buy"), post).content.decode())
+
+
+class FundAssetClassTests(LookupBase):
+    def pick(self, code, category, name):
+        AmfiScheme.objects.create(code=code, name=name, isin="INF" + code, plan="Direct", option="Growth", category=category)
+        self.client.post(reverse("investments_txn_new_buy"), self.card("", "2024-01-01", "10", "10", new_source="amfi", new_code=code))
+        return Instrument.objects.get(code=code).asset_class
+
+    def test_new_funds_get_their_asset_class_from_the_category(self):
+        self.assertEqual(self.pick("900001", "Open Ended Schemes(Debt Scheme - Liquid Fund)", "Acme Liquid Fund - Direct Plan - Growth"), "debt")
+        self.assertEqual(self.pick("900002", "Open Ended Schemes(Other Scheme - Gold ETF)", "Acme Gold ETF"), "gold")
+        self.assertEqual(self.pick("900003", "Open Ended Schemes(Hybrid Scheme - Arbitrage Fund)", "Acme Arbitrage Fund - Direct Plan - Growth"), "other")
+        self.assertEqual(self.pick("900004", "Open Ended Schemes ( Equity Scheme - Large Cap Fund )", "Acme Large Cap Fund - Direct Plan - Growth"), "equity")
+
+    def test_without_a_category_the_name_decides(self):
+        self.assertEqual(self.pick("900005", "", "Acme Overnight Fund - Direct Plan - Growth"), "debt")
+        self.assertEqual(self.pick("900006", "", "Acme Small Cap Fund - Direct Plan - Growth"), "equity")
+
+    def test_an_index_fund_category_defers_to_the_name(self):
+        self.assertEqual(self.pick("900007", "Open Ended Schemes(Other Scheme - Index Funds)", "Acme Gold Index Fund - Direct Plan - Growth"), "gold")
+        self.assertEqual(self.pick("900008", "Open Ended Schemes(Other Scheme - Index Funds)", "Acme Nifty 50 Index Fund - Direct Plan - Growth"), "equity")
+
+    def test_the_add_page_agrees(self):
+        AmfiScheme.objects.create(code="900009", name="Acme Liquid Fund - Direct Plan - Growth", category="Open Ended Schemes(Debt Scheme - Liquid Fund)")
+        html = self.client.get(reverse("investments_add_2"), {"kind": "fund", "pick_code": "900009"}).content.decode()
+        self.assertRegex(html, r'<option value="debt" selected>')
+        self.assertTrue(self.client.get(reverse("investments_add_scheme"), {"code": "900009"}).json()["asset_class"] == "debt")
+
+
+class LookupSpeedTests(LookupBase):
+    def test_a_repeated_held_lookup_does_not_read_the_transactions_and_follows_a_new_buy(self):
+        self.buy(d(2024, 1, 1), 120, 100)
+        first = self.get(q="", held="1")
+        self.assertEqual(first["in_quill"][0]["units"], "120")
+        with CaptureQueriesContext(connection) as ctx:
+            again = self.get(q="rel", held="1")
+        self.assertEqual(again["in_quill"][0]["units"], "120")
+        self.assertFalse([q for q in ctx.captured_queries if "investments_transaction" in q["sql"]])
+        self.buy(d(2024, 2, 1), 5, 100)      # a saved transaction bumps the data version
+        self.assertEqual(self.get(q="", held="1")["in_quill"][0]["units"], "125")
+
+    def test_cached_units_come_back_as_ints_and_decimals(self):
+        from investments.services import holdings
+
+        self.buy(d(2024, 1, 1), D("12.5"), 100)
+        for _ in range(2):
+            self.assertEqual(holdings.held_units(self.profile), {self.reliance.pk: D("12.5")})
+
+
+class LookupFailureTests(LookupBase):
+    def test_a_failing_search_is_logged_and_shown_as_unavailable(self):
+        from unittest import mock
+
+        with mock.patch.object(instrument_search, "search", side_effect=RuntimeError("boom")), self.assertLogs("investments.views_txn", "ERROR"):
+            out = self.get(q="tata", held="0")
+        self.assertEqual(out["nse_amfi"], [])
+        self.assertIn("not available", out["message"])
