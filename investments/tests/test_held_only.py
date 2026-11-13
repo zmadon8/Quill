@@ -184,7 +184,7 @@ class MultiRowTransactionTests(InvTestCase):
         self.assertRedirects(r, reverse("investments_transactions"))
         self.assertEqual(Transaction.objects.count(), 1)
 
-    def test_buy_form_explains_date_and_allotment_date(self):
+    def test_buy_form_explains_allotment_date_only(self):
         html = self.client.get(reverse("investments_txn_new_buy")).content.decode()
-        self.assertIn("trade date", html)
+        self.assertNotIn("trade date", html)
         self.assertIn("starts the holding period", html)

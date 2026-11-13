@@ -172,6 +172,18 @@ class PickerEndpointTests(PickerBase):
 
 
 class PickerSaveTests(PickerBase):
+    def memo_post(self, **over):
+        data = {
+            "matter_id": str(self.m3.pk),
+            "date": "2026-08-10",
+            "addressee_line1": "Typed addressee",
+            "num_appearances": "2",
+            "fees_per_appearance": "1000",
+            "action": "save",
+        }
+        data.update(over)
+        return data
+
     def test_a_matter_that_is_not_in_the_chosen_firm_is_rejected(self):
         before = Memo.objects.count()
         response = self.post("fees_memo_new", self.memo_post(matter_id=str(self.m3.pk), firm_id=str(self.firm_a.pk)))

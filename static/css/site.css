@@ -188,7 +188,7 @@ button.program-link { width: 100%; text-align: left; background: none; cursor: p
 .header-spacer { visibility: hidden; }
 /* Jump targets stop below the sticky breadcrumb row (--sticky-offset is measured by site.js). */
 .reading [id] { scroll-margin-top: calc(var(--sticky-offset, 0px) + .75rem); }
-/* Phone only: the Contents button at the right end of the sticky row opens the side panel. Dots plus lines, unlike the three plain lines of the Show header button at the left. */
+/* Phone only: the Contents button opens the side panel (dots plus lines). */
 .contents-icon { display: inline-flex; align-items: center; justify-content: center; width: var(--tap); min-width: var(--tap); height: var(--tap); padding: 0; margin-left: auto; color: var(--ink); border: 1px solid var(--hair); border-radius: 3px; background: var(--bg); cursor: pointer; }
 .contents-icon[aria-expanded="true"] { background: var(--panel); border-color: var(--ink); }
 /* Topic and Sub-topic headings are links that look like headings; only a quiet underline on hover or focus shows they can be clicked. */
@@ -517,8 +517,7 @@ th[aria-sort="descending"] a.sort-link::after { content: " \25BC"; font-size: .7
   .export-split .export-main { border-radius: 2px; }
 }
 
-/* Mobile and tablet (the Contents icon is shown below 900px): the Edit button sits right beside the Contents icon.
-   Order on the breadcrumb row: breadcrumb ... Export, Edit, Contents. Export takes the auto margin, so the three stay together at the right. */
+/* Below 900px: breadcrumb row order is breadcrumb, Export (auto margin), Edit, Contents. */
 @media (max-width: 899px) {
   .crumb-row > .export-split, .crumb-row > .export-link { order: 4; margin-left: auto; }
   .crumb-row > .bar-tools { order: 5; margin-left: 0; }
@@ -557,8 +556,7 @@ a.step:hover, a.step:focus-visible { border-color: var(--ink); background: var(-
 .word-tool:hover, .word-tool:focus-visible { color: var(--oxblood); border-color: var(--oxblood); }
 .header-style-choice { border: 0; padding: 0; margin: 0 0 .25rem; display: flex; gap: 1.5rem; }
 
-/* No boxes around icons, anywhere (round 15, D85). Every icon-only control keeps its 44px tap area and its keyboard
-   focus ring (:focus-visible above); hover turns it oxblood. Buttons that carry a word (Save, + Add, Edit...) keep their look. */
+/* No boxes around icons; icon-only controls keep a 44px tap area and focus ring, hover turns oxblood. */
 .home-button, .icon-tool, .back-button, .forward-button, .header-toggle, .contents-icon, .icon-button, .step,
 .program-nav .home-button, .program-nav .icon-tool, .program-nav button.nav-icon {
   border: 0; background: transparent; box-shadow: none; border-radius: 0; color: var(--ink);
@@ -587,8 +585,7 @@ a.step:hover, a.step:focus-visible { border-color: var(--ink); background: var(-
 .subnav a:hover, .subnav a:focus-visible { color: var(--ink); }
 .subnav a.on { color: var(--ink); border-bottom-color: var(--oxblood); font-weight: 600; }
 
-/* Hyperlinks on citations (D87). On: the citation is underlined and opens the link in a new tab.
-   Off (header switch): the citation looks and behaves like plain text; nothing reloads. */
+/* Citation links (D87): on = underlined, new tab; off = plain text. */
 a.cite-link { color: inherit; text-decoration: underline; text-decoration-color: var(--oxblood); text-underline-offset: .18em; }
 a.cite-link:hover, a.cite-link:focus-visible { color: var(--oxblood); }
 html.links-off a.cite-link { text-decoration: none; pointer-events: none; cursor: text; }
@@ -645,15 +642,12 @@ textarea.single-line { display: block; width: 100%; max-width: 28rem; min-height
 @media screen {
   html.justify-text .item-text, html.justify-text .note-text, html.justify-text .section-header strong, html.justify-text .case-line-body, html.justify-text .case-comment { text-align: justify; }
   html.justify-text .item-body, html.justify-text .note { text-align: justify; text-align-last: start; }
-  /* A flag box or a Note's Edit button that follows the text cannot break, so when it did not fit it dropped to a line of
-     its own and the text's real last line was stretched to the full width as if it were a middle line. Floated, they are
-     no longer part of the line: the last line of the text stays left-aligned, and the box sits at the right of that line
-     when it fits, or just below it at the right. The Note becomes a flow root so it still wraps its floated button. */
+  /* A floated flag box or Note Edit button keeps the text's last line left-aligned; the Note is a flow root so it wraps the button. */
   html.justify-text .item-body > .flag-text, html.justify-text .note > .note-edit { float: right; margin-left: .5rem; }
   html.justify-text .note { display: flow-root; }
 }
 
-/* Settings pages with left-hand sections (My settings, Case Law Diary settings, Fee Register settings). Every section is its own form with its own Save; static/js/settings-sections.js shows one section at a time (all are shown, one under the other, without JavaScript). */
+/* Settings pages with left-hand sections: one section at a time (all shown without JavaScript). */
 .settings-layout { display: grid; grid-template-columns: 13rem minmax(0, 1fr); gap: 0 2rem; align-items: start; }
 .settings-nav { display: flex; flex-direction: column; gap: .25rem; position: sticky; top: .5rem; }
 .settings-nav a { padding: .4rem .6rem; border-left: 3px solid transparent; text-decoration: none; color: inherit; }
@@ -696,12 +690,10 @@ textarea.single-line { display: block; width: 100%; max-width: 28rem; min-height
 .brand > a[data-tip] { position: relative; }
 .brand > a[data-tip]::after { content: attr(data-tip); position: absolute; left: 0; top: calc(100% + 6px); z-index: 60; padding: 4px 8px; background: var(--ink, #1C1B19); color: #fff; font: 13px/1.3 var(--font-sans, system-ui, sans-serif); font-style: normal; white-space: nowrap; border-radius: 3px; pointer-events: none; }
 
-/* Text the user must type exactly to confirm (delete everything, restore): always shown with its real capitals, even
-   inside a label that is drawn in small capitals. text-transform is inherited, so this rule on the text wins. */
+/* Text typed exactly to confirm: real capitals even inside a small-caps label (text-transform is inherited). */
 .exact-text { text-transform: none; letter-spacing: normal; font-variant: normal; font-size: 1rem; color: var(--ink, #1C1B19); user-select: all; }
 
-/* Search suggestions (fees search-suggest.js, investments instrument-picker.js): a dropdown under the search box. The parent form is position:relative.
-   Tap targets are at least 44px so a phone can pick a row. */
+/* Search suggestions: a dropdown under the search box (parent is position:relative); 44px tap targets. */
 .search-suggest { position: absolute; left: 0; right: 0; top: 100%; z-index: 200; width: 100%; max-height: min(60vh, 24rem); overflow-y: auto; -webkit-overflow-scrolling: touch; background: var(--white, #fff); border: 1px solid var(--line-strong, #c9c5bc); border-radius: var(--radius, 6px); box-shadow: var(--shadow-float, 0 8px 24px rgba(0,0,0,.15)); text-align: left; box-sizing: border-box; }
 .search-suggest[hidden] { display: none; }
 .search-suggest-head { padding: 8px 12px 4px; color: var(--muted, #6b6860); font-size: 13px; font-weight: 500; text-transform: none; letter-spacing: 0; }
@@ -715,16 +707,13 @@ textarea.single-line { display: block; width: 100%; max-width: 28rem; min-height
 .acts-row { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .75rem; }
 .section-actions { flex-wrap: wrap; }
 
-/* Investment combobox on Buy and Opening balance (instrument-combobox.js): built over the plain select, which stays for no-JS. */
+/* Investment combobox (instrument-combobox.js), over the plain select, which stays for no-JS. */
 .combo { position: relative; margin-top: 6px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
 .combo[hidden] { display: none; }
-.combo-held { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; font-size: .857rem; color: var(--muted, #6b6860); }
+.combo-held { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; margin: 0; flex: none; white-space: nowrap; font-size: .857rem; color: var(--muted, #6b6860); }
 .combo-input { flex: 1 1 12rem; min-width: 0; min-height: 44px; box-sizing: border-box; }
-.combo .search-suggest-head { position: sticky; top: 0; z-index: 1; padding: 5px 12px; background: var(--paper-2, #f2f0ea); border-top: 1px solid var(--line-strong, #c9c5bc); border-bottom: 1px solid var(--line, #e3e0d8); color: var(--muted, #6b6860); font-size: .6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; cursor: default; user-select: none; pointer-events: none; }
+.combo .search-suggest-head { position: sticky; top: 0; z-index: 1; padding: 5px 12px; background: var(--paper-2, #f2f0ea); border-top: 1px solid var(--line-strong, #c9c5bc); border-bottom: 1px solid var(--line, #e3e0d8); font-size: .6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; user-select: none; pointer-events: none; }
 .combo .search-suggest-head:first-child { border-top: 0; }
-/* Date, Investment box and Held tick box on one row (Buy, Awaiting purchase, Opening balance). */
-.combo .combo-held { margin: 0; white-space: nowrap; flex: 0 0 auto; }
-.combo .search-suggest-option { min-height: 44px; }
 .combo-tag { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 9px; background: var(--paper-2, #f2f0ea); color: var(--muted, #6b6860); font-size: .75rem; }
 .combo-tag.new { background: var(--ink, #1C1B19); color: var(--white, #fff); }
 .combo-add { display: block; min-height: 44px; padding: 12px; box-sizing: border-box; }
