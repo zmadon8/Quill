@@ -25,7 +25,7 @@
      {% if fees_bank_on %}<label class="short">Bank account <select name="bank_account_id"><option value="">None</option>{% for b in bank_choices %}<option value="{{ b.pk }}"{% if form.bank_account_id == b.pk|stringformat:"s" %} selected{% endif %}>{{ b.name }}</option>{% endfor %}</select></label>{% endif %}
      <label class="short">Mode <input type="text" name="payment_mode" value="{{ form.payment_mode }}" size="10"></label></div>
   <div class="chips" data-payee-chips hidden><span id="payee-chips-label" class="muted">Paid by before:</span> <span data-chip-list></span></div>
-  <p><label>Additional Details <input type="text" name="payment_details" value="{{ form.payment_details }}"></label></p>
+  <p><label>Additional Details <textarea name="payment_details" rows="1" cols="40">{{ form.payment_details }}</textarea></label></p>
   </fieldset>
   <fieldset class="alloc-set" data-alloc-set data-max-rows="{{ max_allocations }}"><legend>Allocate To Memos</legend>
     <p class="alloc-head"><span class="muted">Leave every row blank for an unaccounted payment.</span>{% if can_edit %} <button type="button" class="alloc-add" data-alloc-add hidden>+ Memo</button>{% endif %}</p>

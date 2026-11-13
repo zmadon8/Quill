@@ -95,6 +95,13 @@ class HeldOnlyTests(InvTestCase):
         self.assertContains(r, "You can only sell an investment you hold")
         self.assertEqual(Transaction.objects.filter(instrument=self.tata).count(), 0)
 
+    def test_editing_an_awaiting_redemption_keeps_its_own_investment(self):
+        a = tx.add_transaction(self.profile, self.user, side="sell", instrument=self.fund, portfolio=self.portfolio, broker=self.zerodha,
+                               date=d(2024, 6, 1), awaiting=True, amount=D(5000))
+        r = self.client.get(reverse("investments_txn_edit", args=[a.pk]))
+        self.assertEqual(r.status_code, 200)
+        self.assertRegex(r.content.decode(), rf'<option value="{self.fund.pk}"')
+
     def test_server_still_accepts_an_investment_that_is_not_held(self):
         form = forms.TransactionForm({"date": "2024-01-01", "instrument": str(self.tata.pk), "portfolio": str(self.portfolio.pk),
                                       "broker": str(self.zerodha.pk), "units": "1", "price": "10", "charges": "0"},

@@ -231,7 +231,7 @@ class TransactionForm(ProfileForm):
             if self.held_units is None:
                 self.held_units = holdings.held_units(self.profile)
             keep = set(self.held_units)
-            if mode == "edit_sell":
+            if mode == "edit_sell" or (mode == "awaiting_sell" and self.initial.get("instrument")):
                 keep.add(getattr(self.initial.get("instrument"), "pk", self.initial.get("instrument")))
             self.fields["instrument"].queryset = self.fields["instrument"].queryset.filter(pk__in=keep)
             self.fields["instrument"].error_messages["invalid_choice"] = "You can only sell an investment you hold. Choose one from the list."
