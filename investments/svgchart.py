@@ -1,6 +1,7 @@
 """Hand-drawn SVG line charts (plan 25.3: no chart library; every line differs by pattern as well as shade; a table version too).
 Pure Python. ``line_chart`` returns a dict the template draws: the polylines, axis ticks and the legend."""
 import json
+from datetime import date
 from decimal import Decimal
 
 from investments.money_auto import format_indian
@@ -65,6 +66,8 @@ def line_chart(days, lines, width=900, height=280, pad=(56, 16, 24, 30), markers
     marks_out = []
     first = lines[0][1] if lines else []
     for day, label, kind in markers or []:
+        if isinstance(day, str):   # markers kept in a cached payload carry ISO dates
+            day = date.fromisoformat(day)
         i = min(range(len(days)), key=lambda k: abs((days[k] - day).days))
         if first[i] is not None:
             marks_out.append({"x": round(x(i), 1), "y": round(y(first[i]), 1), "label": label, "kind": kind})

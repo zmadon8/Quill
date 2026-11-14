@@ -313,8 +313,7 @@ def investment(request, pk):
         price_chart = investment_page.price_chart(profile, inst, chart_start, as_of, index=index if index and index.pk != inst.pk else None)
     else:
         value_chart = chartview.value_chart(
-            profile, range_days, as_of, index=masters.default_index_for(profile), portfolio=portfolio, broker=broker, instrument_ids=[inst.pk],
-            markers=chartview.markers_for(profile, inst, as_of - _td(days=range_days or 36500), as_of))
+            profile, range_days, as_of, index=masters.default_index_for(profile), portfolio=portfolio, broker=broker, instrument_ids=[inst.pk])
     # Iterating ``txns`` here loaded every transaction of the investment, and the page then queried the newest 200 again: ask for the awaiting
     # ones on their own (there are few) and let the page list read the newest 200 once.
     awaiting_rows = list(txns.filter(status="awaiting"))

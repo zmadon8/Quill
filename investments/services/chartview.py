@@ -5,6 +5,7 @@ Both pages show the same two lines (the value, and the same money put into the i
 day, as the Overview's period figures do."""
 from datetime import date, timedelta
 
+from investments import markers
 from investments.models import Transaction
 from investments.services import series, statscache
 from investments.svgchart import line_chart
@@ -76,6 +77,21 @@ def markers_for(profile, instrument, start, end):
     return out
 
 
+def portfolio_markers(profile, days, *, portfolio=None, broker=None, instrument_ids=None):
+    """Purchases and sales of the chosen portfolio, broker and investments over ``days``, one marker per sampled day and side
+    (see ``investments.markers.aggregate``). Reads the transactions: call it only when the chart's figures are worked out."""
+    if len(days) < 2:
+        return []
+    qs = Transaction.objects.filter(profile=profile, status="final", date__range=(days[0], days[-1]), units__isnull=False, price__isnull=False)
+    if portfolio:
+        qs = qs.filter(portfolio_id=portfolio)
+    if broker:
+        qs = qs.filter(broker_id=broker)
+    if instrument_ids is not None:
+        qs = qs.filter(instrument_id__in=list(instrument_ids))
+    return markers.aggregate(days, [(d, side, units * price) for d, side, units, price in qs.values_list("date", "side", "units", "price")])
+
+
 def first_date(profile, *, portfolio=None, broker=None, instrument_ids=None):
     from django.db.models import Min
 
@@ -89,7 +105,7 @@ def first_date(profile, *, portfolio=None, broker=None, instrument_ids=None):
     return qs.aggregate(m=Min("date"))["m"]
 
 
-def value_chart(profile, days_back, end, *, index=None, portfolio=None, broker=None, instrument_ids=None, settings_row=None, markers=None, height=240):
+def value_chart(profile, days_back, end, *, index=None, portfolio=None, broker=None, instrument_ids=None, settings_row=None, height=240):
     """The drawn chart (``svgchart.line_chart``) of the value and the same money in ``index`` over the last ``days_back`` days up to
     ``end`` (None = from the first purchase), or None when there is too little to draw."""
     first = first_date(profile, portfolio=portfolio, broker=broker, instrument_ids=instrument_ids)
@@ -97,7 +113,7 @@ def value_chart(profile, days_back, end, *, index=None, portfolio=None, broker=N
         return None
     start = first if days_back is None else max(first, end - timedelta(days=days_back))
     params = {"start": start, "end": end, "first": first, "portfolio": portfolio, "broker": broker, "index": index.pk if index else None,
-              "instruments": sorted(instrument_ids) if instrument_ids is not None else None}
+              "instruments": sorted(instrument_ids) if instrument_ids is not None else None, "m": 2}
 
     def compute():
         days = series.sample_dates(start, end)
@@ -109,10 +125,11 @@ def value_chart(profile, days_back, end, *, index=None, portfolio=None, broker=N
         levels = series.sampled_prices(index, days) if index else [None] * len(days)
         equivalent = series.index_equivalent_values(days, flows, levels)
         return {"days": [d.isoformat() for d in days], "value": [float(v) for v in values],
-                "index": [None if v is None else float(v) for v in equivalent]}
+                "index": [None if v is None else float(v) for v in equivalent],
+                "markers": portfolio_markers(profile, days, portfolio=portfolio, broker=broker, instrument_ids=instrument_ids)}
 
     # cached per profile, selection, period and as-of date; valid until the data or the prices change (and the day, when it ends today)
     data = statscache.get_or_compute(profile, "value_chart", params, compute, today_sensitive=end >= date.today())
     name = index.name if index else "the index"
     return line_chart([date.fromisoformat(d) for d in data["days"]], [("Value", data["value"]), (f"Same money in {name}", data["index"])],
-                      height=height, markers=markers)
+                      height=height, markers=data.get("markers"))

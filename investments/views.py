@@ -77,7 +77,8 @@ def dashboard(request):
     range_key, range_days = chartview.choose(request, "1y")
     if range_days is None and data["chart"]:
         # the whole history is in the cached figures when a chosen figure (time-weighted return, largest fall) needed the sampled line
-        chart = line_chart([_date.fromisoformat(d) for d in data["chart"]["days"]], data["chart"]["lines"], height=240)
+        chart = line_chart([_date.fromisoformat(d) for d in data["chart"]["days"]], data["chart"]["lines"], height=240,
+                           markers=data["chart"].get("markers"))
     else:
         # otherwise every period, "All" included, is drawn on demand and kept in its own cache entry (the Holdings page has the table and
         # its 90-day lines, so the Overview no longer works them out)
