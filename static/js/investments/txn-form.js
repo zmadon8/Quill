@@ -19,7 +19,7 @@
   var dateField = field("date");
   var line = card.querySelector(".avail-units");
   var allBtn = card.querySelector(".sell-all");
-  var held = 0;
+  var held = 0, heldRaw = "";
 
   var folioAll = null;
   function filterFolios() {
@@ -44,7 +44,7 @@
   var seq = 0;
   function loadLine() {
     if (!line) { return; }
-    held = 0; if (allBtn) { allBtn.hidden = true; }
+    held = 0; heldRaw = ""; if (allBtn) { allBtn.hidden = true; }
     if (!instrument || !instrument.value) { line.textContent = "choose an investment"; return; }
     if (!portfolio || !portfolio.value || !broker || !broker.value) { line.textContent = "choose a portfolio and broker"; return; }
     var url = form.getAttribute("data-units-url") + "?instrument=" + encodeURIComponent(instrument.value) +
@@ -53,7 +53,7 @@
     var mine = ++seq;
     fetch(url, { credentials: "same-origin" }).then(function (r) { return r.json(); }).then(function (d) {
       if (mine !== seq) { return; }
-      held = d && d.ok && d.place ? parseFloat(d.units) : 0;
+      held = d && d.ok && d.place ? parseFloat(d.units) : 0; heldRaw = held > 0 ? String(d.units) : "";
       line.textContent = d && d.ok && d.place ? (held > 0 ? fmt(d.units) : "0 (none held on this date)") : "not available";
       if (allBtn) { allBtn.hidden = !(held > 0); }
     }).catch(function () { if (mine === seq) { line.textContent = "not available"; } });
@@ -82,7 +82,7 @@
     loadLine();
   }
   card.addEventListener("click", function (e) {
-    if (e.target === allBtn) { var r = field("remaining"), u = field("units"); if (isLump()) { if (r) { r.value = "0"; } } else if (u) { u.value = String(held); } return; }
+    if (e.target === allBtn) { var r = field("remaining"), u = field("units"); if (isLump()) { if (r) { r.value = "0"; } } else if (u) { u.value = heldRaw; } return; }
     var t = e.target.closest ? e.target.closest("button[data-b]") : null;
     if (t) { pick(t.getAttribute("data-p"), t.getAttribute("data-b"), t.getAttribute("data-f")); }
   });

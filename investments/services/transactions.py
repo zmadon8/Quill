@@ -307,13 +307,19 @@ def add_lump_sum_transaction(profile, user, *, side, instrument, portfolio, brok
                 and (r[2].pk if r[2] else None) == (folio.pk if folio else None)), ZERO)
     if total <= 0:
         raise InvestmentsError("NOTHING_HELD", f"You held none of {instrument.name} on {date.day} {date:%b %Y}.")
-    units = total if remaining == 0 else (total * amount / (amount + remaining)).quantize(Decimal("0.0001"))
+    if remaining == 0:
+        # Sell all: everything in the chosen place. What is held in other places keeps its share of the value (same value per unit).
+        units = here
+        if here > 0 and total > here:
+            remaining = (amount * (total - here) / here).quantize(Decimal("0.01"))
+    else:
+        units = (total * amount / (amount + remaining)).quantize(Decimal("0.0001"))
     if units <= 0:
         raise InvestmentsError("BAD_NUMBER", "That amount is too small compared with what remains.")
     if units > here:
         raise InvestmentsError("BAD_NUMBER",
                                "Selling this much needs more than is held in that Portfolio, Broker and Folio. Enter what remains of the whole "
-                               "investment (every place it is held), or sell the rest from the other place first.")
+                               "investment (every place it is held), or use Sell all to sell only what is held there.")
     price = (amount / units).quantize(Decimal("0.0001"), rounding=ROUND_CEILING)
     rounding = (units * price - amount).quantize(Decimal("0.0001"))
     extra = f" Price rounding {rounding.quantize(Decimal('0.01'))} added to charges." if rounding > Decimal("0.005") else ""

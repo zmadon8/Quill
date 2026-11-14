@@ -46,7 +46,7 @@ logger = logging.getLogger(__name__)
 
 #: Data models deleted by a clear or a restore, children first (``Allocation`` and ``Memo`` are
 #: PROTECT-ed, so allocations go before payments and memos, memos before matters, matters before
-#: groups, groups before firms). ``FeesSettings`` and ``WordTemplate`` are not deleted.
+#: groups, groups before firms). ``FeesSettings``, ``WordTemplate`` and ``FeesHistory`` are not deleted (the clear is itself logged, so History keeps the record).
 DELETE_ORDER = [
     SavedView,
     Allocation,

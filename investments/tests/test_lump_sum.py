@@ -100,6 +100,18 @@ class LumpSumTests(InvTestCase):
         self.assertEqual(h.units, D("0"))
         self.assertTrue(h.sold_out)
 
+    def test_sell_all_in_one_place_keeps_what_is_held_elsewhere(self):
+        from investments.models import Portfolio
+        other = Portfolio.objects.create(profile=self.profile, name="Other")
+        self.buy_lump(amount="6000000")
+        r = self.client.post(reverse("investments_txn_new_buy"), {**self.card("2024-01-02", lump_amount="4000000"), "portfolio": other.pk})
+        self.assertRedirects(r, reverse("investments_transactions"))
+        r = self.client.post(reverse("investments_txn_new_sell"), self.card("2024-07-01", lump_amount="6600000", remaining="0"))
+        self.assertRedirects(r, reverse("investments_transactions"))
+        sale = Transaction.objects.get(side="sell")
+        self.assertEqual(sale.units, D("6000000"))
+        self.assertEqual(AltValue.objects.get(instrument=self.chit).total_value, D("4400000.00"))
+
     def test_a_sale_needs_the_amount_remaining(self):
         self.buy_lump()
         r = self.client.post(reverse("investments_txn_new_sell"), self.card("2024-07-01", lump_amount="4000000"))

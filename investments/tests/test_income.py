@@ -351,11 +351,14 @@ class AlertTests(InvTestCase):
 
     def test_settings_page_saves(self):
         self.client.force_login(self.user)
-        r = self.client.post(reverse("investments_settings_alerts"), {"rule_a_enabled": "on", "rule_a_fall_pct": "4", "rule_a_rise_pct": "9", "rule_a_window_days": "10",
+        r = self.client.post(reverse("investments_settings_alerts"), {"rule_a_fall_enabled": "on", "rule_a_window_enabled": "on", "rule_a_fall_pct": "4", "rule_a_rise_pct": "9", "rule_a_window_days": "10",
                                                                         "rule_b_loss_pct": "15", "rule_b_gain_pct": "50", "maturity_alert_days": "20"})
         self.assertRedirects(r, reverse("investments_settings_alerts"))
         row = holdings.core.get_settings(self.profile)
         self.assertEqual((row.rule_a_fall_pct, row.rule_b_loss_enabled, row.rule_a_window_fall_pct), (D(4), False, None))
+        self.assertTrue(row.rule_a_fall_enabled)
+        self.assertTrue(row.rule_a_window_enabled)
+        self.assertFalse(row.rule_a_rise_enabled)
 
 
 class PageTests(InvTestCase):
