@@ -13,26 +13,19 @@
 {% if pending_actions %}<div class="ban al" role="alert"><span><b>{% for a in pending_actions|slice:":1" %}{{ a.get_kind_display }} pending: figures may be wrong.{% endfor %}</b> {% for a in pending_actions %}{{ a.instrument.name }} ({{ a.describe }}, {{ a.ex_date|date:"j M Y" }}){% if not forloop.last %}; {% endif %}{% endfor %}. Confirm or mark not applicable.</span><span class="r"><a href="{% url 'investments_corporate_actions' %}">Corporate actions</a></span></div>{% endif %}
 {% if unpriced %}<div class="ban wa"><span>{{ unpriced|length }} holding{{ unpriced|length|pluralize }} without a price ({% for h in unpriced|slice:":3" %}{{ h.name }}{% if not forloop.last %}, {% endif %}{% endfor %}{% if unpriced|length > 3 %} and more{% endif %}) are valued at cost.</span></div>{% endif %}
 {% if boxes %}<div class="strip">{% for b in boxes %}
-  {% if b == "value" %}<div class="f hl"><div class="lab">Current value</div><div class="fig">{{ totals.value|inr }}</div></div>
-  {% elif b == "invested" %}<div class="f"><div class="lab">Invested</div><div class="fig">{{ totals.invested|inr }}</div></div>
-  {% elif b == "gain" %}<div class="f"><div class="lab">Gain{% if card_period %} ({{ card_period }}){% endif %}</div><div class="fig">{{ totals.gain|inr_signed }}<small>{{ totals.gain_pct|pct_signed }}</small></div></div>
+  {% if b == "value" %}<div class="f hl"><div class="lab">Current value</div><div class="fig" title="{{ totals.value|inr }}">{{ totals.value|inr }}</div></div>
+  {% elif b == "invested" %}<div class="f"><div class="lab">Invested</div><div class="fig" title="{{ totals.invested|inr }}">{{ totals.invested|inr }}</div></div>
+  {% elif b == "gain" %}<div class="f"><div class="lab">Gain{% if card_period %} ({{ card_period }}){% endif %}</div><div class="fig" title="{{ totals.gain|inr_signed }} {{ totals.gain_pct|pct_signed }}">{{ totals.gain|inr_signed }}<small>{{ totals.gain_pct|pct_signed }}</small></div></div>
   {% elif b == "xirr" %}<div class="f"><div class="lab">Portfolio XIRR{% if card_period %} ({{ card_period }}){% endif %}</div><div class="fig">{{ totals.xirr|pct }}<small>yearly return on money you put in</small></div></div>
   {% elif b == "index_xirr" %}<div class="f"><div class="lab">{{ default_index.name|default:"Nifty 50" }} XIRR{% if card_period %} ({{ card_period }}){% endif %}</div><div class="fig">{{ totals.index_xirr|pct }}<small>same cash flows in the index</small></div></div>
   {% elif b == "alpha" %}<div class="f"><div class="lab">Alpha{% if card_period %} ({{ card_period }}){% endif %}</div><div class="fig">{{ totals.alpha|pct_signed }}</div></div>
-  {% elif b == "dividends" %}<div class="f"><div class="lab">Dividends received</div><div class="fig">{{ totals.dividends|inr }}<small>not part of current value</small></div></div>
+  {% elif b == "dividends" %}<div class="f"><div class="lab">Dividends received</div><div class="fig" title="{{ totals.dividends|inr }}">{{ totals.dividends|inr }}<small>not part of current value</small></div></div>
   {% elif b == "count" %}<div class="f"><div class="lab">Holdings</div><div class="fig">{{ totals.count }}</div></div>{% endif %}{% endfor %}
 </div>{% endif %}
 <div class="opts"><span>Dividends received {{ totals.dividends|inr }} <small class="na">(not part of current value)</small></span>
   <a class="chk" href="?div={% if include_div %}0{% else %}1{% endif %}" role="switch" aria-checked="{{ include_div|yesno:'true,false' }}"><i class="{% if include_div %}on{% endif %}"></i> Include dividends in XIRR</a>
   {% if include_div %}<span class="na">The index comparison is against the price index only (it leaves out the index's own dividends).</span>{% endif %}</div>
 {% for n in notes %}<p class="hint">{{ n }}</p>{% endfor %}
-{% if period_table.rows %}
-<div class="sec"><h2>Over time</h2>{% if can_edit %}<div class="acts"><a class="btn q sm" href="?customise=1#customise">Customise</a></div>{% endif %}</div>
-<div class="tw"><table data-table-id="inv-overview-periods" class="led"><thead><tr><th>Figure</th>{% for p in period_table.periods %}<th class="r">{{ p.label }}{% if p.short %} *{% endif %}</th>{% endfor %}</tr></thead><tbody>
-{% for row in period_table.rows %}<tr><td title="{{ row.help }}">{{ row.label }}</td>{% for v in row.values %}<td class="r">{% if v is None %}<span class="na">n/a</span>{% elif row.fmt == "money" %}{{ v|inr }}{% elif row.fmt == "money_signed" %}{{ v|inr_signed }}{% elif row.fmt == "pct_signed" %}{{ v|pct_signed }}{% else %}{{ v|pct }}{% endif %}</td>{% endfor %}</tr>{% endfor %}
-</tbody></table></div>
-<p class="hint">{% for p in period_table.periods %}{% if p.id == "all" %}All: from the first purchase, {{ p.start|date:"j M Y" }}. {% elif p.short %}{{ p.label }} *: your history is shorter, so from the first purchase, {{ p.start|date:"j M Y" }}. {% else %}{{ p.label }}: from {{ p.start|date:"j M Y" }}. {% endif %}{% endfor %}The value at the start of a period counts as money put in on that day. Point at a figure's name for what it means.</p>
-{% elif can_edit and not customise_open %}<p class="hint"><a href="?customise=1#customise">Customise the Overview</a> to add figures for the same periods as the chart (1M to All).</p>{% endif %}
 {% if customise_open and can_edit %}
 <div class="panel" id="customise"><h3>Customise the Overview</h3>
 <form method="post" action="{% url 'investments_overview_save' %}">{% csrf_token %}
@@ -47,6 +40,13 @@
 {% endif %}
 <div class="cols">
   <div>
+{% if period_table.rows %}
+<div class="sec"><h2>Over time</h2>{% if can_edit %}<div class="acts"><a class="btn q sm" href="?customise=1#customise">Customise</a></div>{% endif %}</div>
+<div class="tw"><table data-table-id="inv-overview-periods" class="led ov"><thead><tr><th>Figure</th>{% for p in period_table.periods %}<th class="r">{{ p.label }}{% if p.short %} *{% endif %}</th>{% endfor %}</tr></thead><tbody>
+{% for row in period_table.rows %}<tr><td title="{{ row.help }}">{{ row.label }}</td>{% for v in row.values %}<td class="r">{% if v is None %}<span class="na">n/a</span>{% elif row.fmt == "money" %}{{ v|inr }}{% elif row.fmt == "money_signed" %}{{ v|inr_signed }}{% elif row.fmt == "pct_signed" %}{{ v|pct_signed }}{% else %}{{ v|pct }}{% endif %}</td>{% endfor %}</tr>{% endfor %}
+</tbody></table></div>
+<p class="hint">{% for p in period_table.periods %}{% if p.id == "all" %}All: from the first purchase, {{ p.start|date:"j M Y" }}. {% elif p.short %}{{ p.label }} *: your history is shorter, so from the first purchase, {{ p.start|date:"j M Y" }}. {% else %}{{ p.label }}: from {{ p.start|date:"j M Y" }}. {% endif %}{% endfor %}The value at the start of a period counts as money put in on that day. Point at a figure's name for what it means.</p>
+{% elif can_edit and not customise_open %}<p class="hint"><a href="?customise=1#customise">Customise the Overview</a> to add figures for the same periods as the chart (1M to All).</p>{% endif %}
     {% if has_any %}<p class="hint">Every investment is listed on the <a href="{% url 'investments_holdings' %}">Holdings</a> page.</p>
     {% include "investments/_chart_block.html" with title="Value against the same money in the index" chart=chart ranges=chart_ranges anchor="chart" caption="Portfolio value and the same money invested in the index" %}{% endif %}
     {% if breakdown %}
