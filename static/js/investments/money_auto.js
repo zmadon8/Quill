@@ -42,13 +42,6 @@
     return parts.join(",") + "," + tail;
   }
 
-  function groupWestern(digits) {
-    var out = [];
-    while (digits.length > 3) { out.unshift(digits.slice(-3)); digits = digits.slice(0, -3); }
-    out.unshift(digits);
-    return out.join(",");
-  }
-
   function plain(paise, grouper) {
     var whole = paise / 100n, frac = paise % 100n;
     var text = grouper(whole.toString());
@@ -96,7 +89,7 @@
     var currency = opts.currency || "INR";
     var mode = opts.mode || "auto";
     var rupees = currency === "INR";
-    var grouper = rupees ? groupIndian : groupWestern;
+    var grouper = groupIndian;
     var sym = opts.symbol !== undefined && opts.symbol !== null ? opts.symbol : (SYMBOLS[currency] || currency + " ");
     var p = parse(value);
     var ex = exact(p);
@@ -138,7 +131,7 @@
     return neg + groupIndian(p.whole.toString()) + (f ? "." + f : "");
   }
 
-  var api = { formatUnits: formatUnits, formatAmount: formatAmount, groupIndian: groupIndian, groupWestern: groupWestern };
+  var api = { formatUnits: formatUnits, formatAmount: formatAmount, groupIndian: groupIndian };
   if (typeof module !== "undefined" && module.exports) { module.exports = api; }
   root.InvestmentsMoney = api;
 })(typeof window !== "undefined" ? window : globalThis);

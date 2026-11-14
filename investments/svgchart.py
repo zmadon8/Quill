@@ -3,6 +3,8 @@ Pure Python. ``line_chart`` returns a dict the template draws: the polylines, ax
 import json
 from decimal import Decimal
 
+from investments.money_auto import format_indian
+
 PATTERNS = ("", "6 4", "2 3", "10 3 2 3", "1 2", "8 2")
 SHADES = ("var(--s1)", "var(--s2)", "var(--s3)", "var(--ox)", "var(--s2)", "var(--s3)")
 
@@ -82,7 +84,7 @@ def _hover(days, lines, x):
     idx = sorted(set(range(0, count, step)) | {count - 1})
     series = []
     for label, vs in lines:
-        series.append({"l": str(label), "v": ["" if vs[i] is None else f"{float(vs[i]):,.2f}" for i in idx]})
+        series.append({"l": str(label), "v": ["" if vs[i] is None else format_indian(vs[i]) for i in idx]})
     return json.dumps({"x": [round(x(i), 1) for i in idx], "d": [days[i].strftime("%-d %b %Y") for i in idx], "s": series},
                       separators=(",", ":"), ensure_ascii=False)
 
@@ -93,9 +95,7 @@ def _fmt(v):
         return f"{v / 1e7:.1f} cr"
     if abs(v) >= 1e5:
         return f"{v / 1e5:.1f} lac"
-    if abs(v) >= 1e3:
-        return f"{v / 1e3:.0f} k"
-    return f"{v:.0f}"
+    return format_indian(v, 0)
 
 
 def as_float(v):

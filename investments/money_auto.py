@@ -15,7 +15,7 @@ Rules (owner decisions, plan 24.3 and the owner round of November 2026):
   rounds up to the next unit is shown in that unit.
 * Rounding is half away from zero on the exact amount. Negative amounts use a true minus sign before the symbol
   (``−₹60.30 k``); ``signed=True`` also puts ``+`` before a positive amount (gains).
-* Foreign amounts: Auto uses ``k`` and ``m`` (millions), Full shows the whole amount with Western grouping.
+* Foreign amounts: Auto uses ``k`` and ``m`` (millions), Full shows the whole amount; every grouping is Indian (D178).
 
 * Units (``format_units``): Full is the exact quantity, Indian grouping, trailing zeros dropped (or the decimals chosen in
   Settings > Display). Short keeps a quantity below 1,000 as Full shows it; from 1,000 it uses ``k`` / ``lac`` / ``cr`` like
@@ -26,7 +26,7 @@ Assumptions I made where the plan is silent are recorded in docs/DESIGN.md (D101
 """
 from decimal import ROUND_HALF_UP, Decimal
 
-__all__ = ["format_amount", "format_rupees", "format_units", "group_indian", "group_western", "AUTO", "FULL"]
+__all__ = ["format_amount", "format_rupees", "format_units", "format_indian", "group_indian", "AUTO", "FULL"]
 
 AUTO = "auto"
 FULL = "full"
@@ -70,16 +70,6 @@ def group_indian(digits):
     return ",".join(parts) + "," + tail
 
 
-def group_western(digits):
-    """``"1234567"`` to ``"1,234,567"``."""
-    out = []
-    while len(digits) > 3:
-        out.insert(0, digits[-3:])
-        digits = digits[:-3]
-    out.insert(0, digits)
-    return ",".join(out)
-
-
 def _plain(amount, grouper):
     """``amount`` (already rounded to 2 places, non-negative) as grouped text; paise only when there are some."""
     whole, frac = divmod(int(amount * 100), 100)
@@ -121,7 +111,7 @@ def _fixed(amount, places, grouper):
 def format_amount(value, *, currency="INR", mode=AUTO, signed=False, symbol=None, decimals=None):
     """Format ``value`` (Decimal, int, float or numeric string) for display.
 
-    ``currency`` is ``"INR"`` (rupees: Indian grouping, k / lac / cr) or any other code (k / m, Western grouping).
+    ``currency`` is ``"INR"`` (rupees: Indian grouping, k / lac / cr) or any other code (k / m, still Indian grouping).
     ``mode`` is ``"auto"`` or ``"full"``. ``signed`` adds ``+`` to positive amounts. ``symbol`` overrides the
     currency's symbol (an unknown code with no symbol is shown as ``"CODE "``). ``decimals`` (Settings > Display, 0 to 2) fixes the
     decimals of a full amount; short figures always show up to 2. None keeps the standard rule.
@@ -129,7 +119,7 @@ def format_amount(value, *, currency="INR", mode=AUTO, signed=False, symbol=None
     amount = _dec(value)
     negative = amount < _ZERO
     rupees = currency == "INR"
-    grouper = group_indian if rupees else group_western
+    grouper = group_indian
     sym = symbol if symbol is not None else _SYMBOLS.get(currency, f"{currency} ")
     magnitude = _round2(abs(amount))
     if rupees and mode != FULL:
@@ -157,6 +147,13 @@ def format_amount(value, *, currency="INR", mode=AUTO, signed=False, symbol=None
     if not suffix:
         return f"{sign}{sym}{_plain(scaled, grouper)}"
     return f"{sign}{sym}{scaled:.2f} {suffix}"
+
+
+def format_indian(value, places=2):
+    """Any number as text with Indian grouping and exactly ``places`` decimals (``-12,34,567.50``), for messages, counts and chart values."""
+    exact = _dec(value)
+    body = _fixed(abs(exact), places, group_indian)
+    return ("-" if exact < _ZERO and body.strip("0,.") else "") + body
 
 
 def format_rupees(value, *, mode=AUTO, signed=False):

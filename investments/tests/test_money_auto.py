@@ -7,7 +7,7 @@ from pathlib import Path
 
 from django.test import SimpleTestCase
 
-from investments.money_auto import format_amount, format_rupees, format_units, group_indian, group_western
+from investments.money_auto import format_amount, format_rupees, format_units, format_indian, group_indian
 
 HERE = Path(__file__).resolve().parent
 GOLDEN = HERE / "golden" / "money_auto.json"
@@ -40,7 +40,9 @@ class GoldenTableTests(SimpleTestCase):
         self.assertEqual(group_indian("1234567"), "12,34,567")
         self.assertEqual(group_indian("999"), "999")
         self.assertEqual(group_indian("1000"), "1,000")
-        self.assertEqual(group_western("1234567"), "1,234,567")
+        self.assertEqual(format_indian("1234567.5"), "12,34,567.50")
+        self.assertEqual(format_indian(-1234567, 0), "-12,34,567")
+        self.assertEqual(format_indian(0), "0.00")
 
     def test_rounding_is_on_exact_amount_not_on_rounded_figures(self):
         # Short rupees follow the Fee Register exactly: the unit is chosen on the exact amount (99,99,900 is below a crore, so lacs).
