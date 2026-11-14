@@ -167,16 +167,32 @@ class MyEditsTests(TestCase):
         svc.edit(self.profile, self.me, "item", self.item.pk, {"text": "<p>Offer rule, changed</p>"})
         self.client.force_login(self.me)
 
-    def test_my_own_changes_newest_first_with_links(self):
+    def test_everyones_changes_newest_first_with_who_and_links(self):
         resp = self.client.get(reverse("diary_history"))
         self.assertEqual(resp.status_code, 200)
         html = resp.content.decode()
         self.assertIn('<h1 class="visually-hidden">History</h1>', html)  # "My edits" is now History in the diary menu
-        self.assertNotIn("Theirs", html)
+        self.assertIn("<th>Who</th>", html)
+        self.assertIn("olga", html)  # the other user's change is listed, with her name
+        self.assertIn("eddie", html)
+        self.assertIn("My edits only", html)
         self.assertLess(html.index("Changed Item"), html.index("Added Item"))
         self.assertLess(html.index("Added Item"), html.index("Added Topic"))
         self.assertIn('href="%s"' % reverse("history", args=["item", self.item.pk]), html)
         self.assertIn("#n-item-%d" % self.item.pk, html)
+
+    def test_my_edits_only_filter_keeps_just_my_changes(self):
+        html = self.client.get(reverse("diary_history"), {"mine": "1"}).content.decode()
+        self.assertNotIn("olga", html)
+        self.assertIn("eddie", html)
+        self.assertIn('name="mine" value="1" checked', html)
+
+    def test_a_reader_can_read_the_history(self):
+        reader = join_main(User.objects.create_user("rita", password=PASSWORD), "reader")
+        self.client.force_login(reader)
+        html = self.client.get(reverse("diary_history")).content.decode()
+        self.assertIn("olga", html)
+        self.assertNotIn('href="%s"' % reverse("history", args=["item", self.item.pk]), html)  # per-record History is for Editors
 
     def test_the_old_my_edits_address_redirects_to_history(self):
         resp = self.client.get(reverse("my_edits"))

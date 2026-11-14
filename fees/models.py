@@ -14,6 +14,7 @@ from django.conf import settings
 from django.db import models
 from django.db.models import Q
 from django.db.models.functions import Lower
+from django.utils import timezone
 
 
 def money(**kwargs):
@@ -464,6 +465,34 @@ class SavedView(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class FeesHistory(models.Model):
+    """One line per action in a profile, for the History tab (who did what and when).
+
+    Written by the services (``fees.services.history.record``) in the same transaction as the change. It is a
+    short log, not a version store: ``summary`` says what was done and nothing here can restore a record. Rows
+    older than ``HISTORY_RETENTION_DAYS`` are removed by ``purge_old_history``. ``user`` is empty for work done
+    outside a request (an import run from the command line) and when the user was deleted.
+    """
+
+    profile = profile_fk()
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    at = models.DateTimeField(default=timezone.now)
+    action = models.CharField(max_length=20)
+    object_type = models.CharField(max_length=20)
+    object_id = models.BigIntegerField(null=True, blank=True)
+    summary = models.CharField(max_length=300, blank=True, default="")
+
+    class Meta:
+        ordering = ["-at", "-id"]
+        verbose_name_plural = "fees history"
+        indexes = [models.Index(fields=["profile", "at"], name="fees_hist_profile_at_idx")]
+
+    def __str__(self):
+        return f"{self.action} {self.object_type} {self.object_id}"
 
 
 class StatsCache(models.Model):

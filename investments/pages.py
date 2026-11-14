@@ -3,7 +3,7 @@
 ``PAGES`` has one row per page of the mockups. Phase 0 serves every row as an empty shell showing its empty-state text,
 so the whole menu works; a later phase replaces a row's view with the real one (the URL name stays the same).
 
-Navigation is five top entries (Overview, Holdings, Reports, Alerts, Settings), each with an optional second row of
+Navigation is six top entries (Overview, Holdings, Reports, Alerts, Catalogue, History), each with an optional second row of
 links, exactly as in the mockups.
 """
 from collections import namedtuple
@@ -23,6 +23,7 @@ TOP = (
     ("reports", "Reports", "investments_performance"),
     ("alerts", "Alerts", "investments_alerts"),
     ("catalogue", "Catalogue", "investments_admin_catalogue"),
+    ("history", "History", "investments_history"),
 )
 
 _NO_DATA = "Nothing here yet."
@@ -63,7 +64,7 @@ PAGES = (
     _p("reports", "reports/", "Other reports", "reports", "Other reports", "Pick a report."),
     _p("report_yearly", "reports/yearly/", "Year-by-year returns", "reports", "Other reports", "No completed financial years yet."),
     _p("report_compare_brokers", "reports/compare-brokers/", "Compare brokers", "reports", "Other reports", "Needs holdings with at least two brokers."),
-    _p("history", "history/", "History", "reports", "History", "No changes recorded yet."),
+    _p("history", "history/", "History", "history", None, "No changes recorded yet."),
     # Alerts
     _p("alerts", "alerts/", "Alerts and guardrails", "alerts", None, "No alerts. Set thresholds in Settings > Alerts."),
     # Settings
@@ -109,7 +110,7 @@ SUB_ROWS = {
     ),
     "reports": (
         ("Performance", "performance"), ("Charts", "charts"), ("Total Portfolio Value", "value"),
-        ("Annual Report", "annual"), ("Other reports", "reports"), ("History", "history"),
+        ("Annual Report", "annual"), ("Other reports", "reports"),
     ),
     "settings": (
         ("General", "settings"), ("Brokers", "settings_brokers"), ("Alerts", "settings_alerts"),

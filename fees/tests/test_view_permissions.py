@@ -98,6 +98,7 @@ ROUTES = {
     "fees_outstanding_summary_export": (R, ""),
     "fees_search": (R, "?q=alpha"),
     "fees_search_page": (R, "?q=alpha"),
+    "fees_history": (R, ""),
     "fees_settings": (RW, ""),
     "fees_bank_account_add": (W, ""),
     "fees_bank_account_rename": (W, ""),

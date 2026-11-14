@@ -33,6 +33,9 @@ def pages(ids):
         ("fees-new-payment", "/fees/payments/new/", None),
         ("fees-firm", "/fees/firms/{firm}/", None),
         ("fees-settings", "/fees/settings/", None),
+        ("fees-history", "/fees/history/", None),
+        ("diary-history", "/caselaw/history/", None),
+        ("diary-history-mine", "/caselaw/history/?mine=1", None),
     ]
     out += [(f"fees-settings-{t}", f"/fees/settings/?tab={t}", None) for t in fee_tabs]
     out += [
@@ -51,6 +54,7 @@ def pages(ids):
         ("inv-investment-lump", "/investments/holdings/{lump_investment}/", None),
         ("inv-reports", "/investments/reports/", None),
         ("inv-settings", "/investments/settings/", None),
+        ("inv-history", "/investments/history/", None),
         ("settings-my", "/my-settings/", None),
         ("settings-suite", "/settings/", None),
         ("admin-users", "/users/", None),

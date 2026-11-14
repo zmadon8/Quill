@@ -1,0 +1,26 @@
+{% extends "fees/base_fees.html" %}
+{% block page_title %}History - {{ program_label }}{% endblock %}
+{% block content %}
+<h1 class="visually-hidden">History</h1>
+<p class="muted">The last {{ limit }} actions in this profile, by everyone who works in it, newest first. Lines older than the history period are removed.</p>
+{% if rows %}
+<div class="table-wrap">
+<table class="ledger-table" data-table-id="fees-history">
+  <caption class="visually-hidden">The last {{ limit }} actions in this profile</caption>
+  <thead><tr><th scope="col">When</th><th scope="col">Who</th><th scope="col">Action</th><th scope="col">What</th></tr></thead>
+  <tbody>
+  {% for r in rows %}
+    <tr>
+      <td>{{ r.at|date:"j M Y, g:i a" }}</td>
+      <td>{{ r.who }}</td>
+      <td>{{ r.what }} {{ r.kind }}</td>
+      <td>{% if r.url %}<a href="{{ r.url }}">{{ r.summary }}</a>{% else %}{{ r.summary }}{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<p class="empty">Nothing has been recorded yet. Changes made from now on appear here.</p>
+{% endif %}
+{% endblock %}

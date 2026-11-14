@@ -36,6 +36,7 @@ from fees.models import (
     PeriodAdjustment,
     SavedView,
 )
+from fees.services import history
 from fees.services.heavy import heavy_operation
 from fees.services.memos import touch
 
@@ -137,5 +138,6 @@ def clear_all(profile, confirmation, user=None, backup_func=None):
             Profile.objects.select_for_update().get(pk=profile.pk)
             counts = wipe_profile_data(profile)
             reset_settings(profile)
+            history.record(profile, "clear", "profile", None, "Cleared all Fee Register data and reset the settings")
             touch(profile)
     return {"counts": counts, "backup_id": getattr(backup, "pk", None)}

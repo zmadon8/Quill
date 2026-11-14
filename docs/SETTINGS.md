@@ -245,7 +245,7 @@ Read in `config/settings.py` unless noted. Values below are the defaults.
 | `FEES_ENABLED` | `1` switches the Fee Register on. When unset it is on only for DEBUG, `DJANGO_ALLOW_SQLITE` or tests | Off in production | Server |
 | `REMEMBER_ME_DAYS` | Length of a "Remember me" sign-in | 30 | Server |
 | `PASSWORD_RESET_TIMEOUT` | Seconds a password reset link works | 3600 | Server |
-| `PROFILE_RETENTION_DAYS`, `USER_RETENTION_DAYS`, `HISTORY_RETENTION_DAYS` | Days before deleted profiles, deleted users and old history are purged (each at least 1) | 30 | Server |
+| `PROFILE_RETENTION_DAYS`, `USER_RETENTION_DAYS`, `HISTORY_RETENTION_DAYS` | Days before deleted profiles, deleted users and old history are purged (each at least 1). History here is the diary's edit history and the Fee Register's History lines (`fees.FeesHistory`); Investments history is permanent | 30 | Server |
 | `MAX_BACKUP_UPLOAD_MB` | Largest backup file accepted for restore | 30 | Server |
 | `OFFSITE_BACKUP_RETENTION_DAYS` | Days off-site copies are kept (at least 30) | 90 | Server |
 | `OFFSITE_BACKUP_ENDPOINT`, `_BUCKET`, `_ACCESS_KEY_ID`, `_SECRET_ACCESS_KEY`, `_REGION`, `_PREFIX` | Optional off-site copy of backups; off until configured (`backups/storage.py`) | Unset | Server |
@@ -269,6 +269,7 @@ backups** (Admin only) and applies to **Everyone**.
 | URL name | Before | Now |
 | --- | --- | --- |
 | `my_edits` | My edits page | Permanent redirect (301, query kept) to `diary_history` (`/caselaw/history/`). The page is History in the diary menu |
+| `diary_history`, `fees_history`, `investments_history` | History tab of each program | `/caselaw/history/` (`?mine=1` for My edits only), `/fees/history/`, `/investments/history/`. Last 100 actions in the open profile with the user who made them. Any role may read; Restore is Editor-only. No setting controls them |
 | `backup_email` | Email Backups page | GET redirects (302) to `backup_list?tab=email`. Its POST still saves, sends and tests the schedule |
 | `export_settings` | Export file name and date, any member | POST only; Editors only; saves the export file name and redirects to `profile_settings?tab=data`. The date format moved to Case Law Diary > Settings > My Number Formats. It still accepts `export_date_format` from old clients (blank leaves it) |
 | `profile_settings` | Redirect to My settings | The Case Law Diary Settings tab (`?tab=reading`, `numbers` or `data`); POST saves Reading, Editors and Admins only |

@@ -64,7 +64,7 @@ from fees.models import (
     PeriodAdjustment,
     SavedView,
 )
-from fees.services import integrity, memo_fees, payments
+from fees.services import history, integrity, memo_fees, payments
 from fees.services.clear_all import reset_settings, wipe_profile_data
 from fees.services.excel_backup import (
     MEMO_TEXT_DEFAULT_KEYS,
@@ -941,6 +941,7 @@ def restore_workbook(profile, source, confirmation, user=None, backup_func=None)
             try:
                 with transaction.atomic():
                     result = _load(profile, workbook)
+                    history.record(profile, "restore", "profile", None, "Restored the Fee Register from an Excel backup")
             except FeesError:
                 raise
             except Exception as exc:

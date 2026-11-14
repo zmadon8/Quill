@@ -180,8 +180,8 @@ def undo(request):
 
 # ------------------------------------------------------------------ History: my own edits (round 17, D92; "My edits" renamed History)
 
+#: The History page shows this many actions (an action that touched several records is one).
 MY_EDITS_PAGE = 100
-MY_EDITS_MAX = 1000
 #: How each kind of change reads in the list.
 DONE = {"create": "Added", "edit": "Changed", "move": "Moved", "reorder": "Reordered", "delete": "Moved to Trash",
         "restore": "Brought back", "convert": "Converted", "import": "Imported", "migrate": "Updated"}
@@ -209,21 +209,24 @@ def _where(kind, pk, profile):
 
 @profile_required
 def my_edits(request):
-    """Every change the signed-in user made in their profile, newest first, one line per action (an action that touched
-    several records, such as a delete of a Topic with its Items, is one line). Kept as long as the edit history is kept."""
+    """The last 100 actions in the profile by anyone with access to it, newest first, one line per action (an action that
+    touched several records, such as a delete of a Topic with its Items, is one line), with who did it. ``?mine=1``
+    ("My edits only") keeps only the signed-in user's. Any role may read it; the per-record History link (and Restore
+    behind it) is for Editors only. Kept as long as the edit history is kept."""
     profile = request.profile
-    try:
-        limit = max(MY_EDITS_PAGE, min(int(request.GET.get("limit", MY_EDITS_PAGE)), MY_EDITS_MAX))
-    except ValueError:
-        limit = MY_EDITS_PAGE
-    rows = list(VersionHistory.objects.filter(profile=profile, changed_by=request.user).order_by("-id")[: limit * 10])
+    limit = MY_EDITS_PAGE
+    mine = request.GET.get("mine") == "1"
+    rows = VersionHistory.objects.filter(profile=profile).select_related("changed_by")
+    if mine:
+        rows = rows.filter(changed_by=request.user)
+    rows = list(rows.order_by("-id")[: limit * 10])
     actions, by_group = [], {}
     for row in rows:
         key = row.group or ("row", row.pk)
         if key not in by_group:
             if len(actions) >= limit:
                 continue
-            by_group[key] = {"rows": [], "at": row.changed_at}
+            by_group[key] = {"rows": [], "at": row.changed_at, "who": _person(row.changed_by)}
             actions.append(by_group[key])
         by_group[key]["rows"].append(row)
     can_open_history = user_can_edit(request)
@@ -239,8 +242,7 @@ def my_edits(request):
             open_url=_where(main.record_type, main.record_id, profile),
         )
     return render(request, "diary/my_edits.html", {
-        "actions": actions, "has_more": len(actions) >= limit and limit < MY_EDITS_MAX,
-        "more_url": f"{reverse('diary_history')}?limit={min(limit + MY_EDITS_PAGE, MY_EDITS_MAX)}",
+        "actions": actions, "mine": mine, "limit": limit,
         "retention_days": settings.HISTORY_RETENTION_DAYS,
     })
 
