@@ -116,3 +116,16 @@ body.look .program-cards .program-card .program-link { border: 0; border-radius:
 body.inv .program-nav .buy-sell { display: inline-flex; gap: 6px; margin-left: 8px; align-items: center; }
 body.inv .program-nav .buy-sell a { display: inline-flex; align-items: center; height: 32px; padding: 0 8px; font: 700 14px var(--font-sans); text-decoration: none; border: 0; background: none; color: inherit; }
 @media (max-width: 899px) { body.inv .program-nav .buy-sell { margin-left: 0; } body.inv .program-nav .buy-sell a { height: 30px; padding: 0 6px; } }
+
+/* Header: a stray hidden control must stay hidden; on phones the program links are one scrolling row and Buy/Sell/Add share the icons row. */
+body.inv .toggle[hidden] { display: none; }
+body:is(.ledger, .look) .program-nav .nav-links { display: contents; }
+@media (max-width: 599px) {
+  body:is(.ledger, .look) :is(.site-header, .program-nav) { min-width: 0; max-width: 100%; }
+  body:is(.ledger, .look) .program-nav { flex-wrap: wrap; }
+  body:is(.ledger, .look) .program-nav .nav-links { display: flex; flex: 1 1 100%; min-width: 0; max-width: 100%; order: 1; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  body:is(.ledger, .look) .program-nav .nav-links::-webkit-scrollbar { display: none; }
+  body:is(.ledger, .look) .program-nav .nav-links a { flex: 0 0 auto; white-space: nowrap; }
+  body.inv .program-nav .buy-sell { order: 2; align-self: center; margin: 0; }
+  body:is(.ledger, .look) .program-nav .header-end { order: 3; flex-wrap: nowrap; }
+}

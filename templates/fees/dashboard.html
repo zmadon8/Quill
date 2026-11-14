@@ -3,11 +3,9 @@
 {% block page_title %}Dashboard - {{ program_label }}{% endblock %}
 {% block content %}
 <div class="page-head"><h1 class="visually-hidden">{% if fees_settings.statistics_enabled %}Statistics{% else %}Dashboard{% endif %}</h1></div>
+<div class="tab-bar">
 {% include "fees/_stats_tabs.html" with tab="dashboard" %}
-{% if kpis_enabled %}
-<section aria-label="Dashboard boxes" id="kpis">
-<dl class="kpi-grid">{% for k in kpi_rows %}<div class="kpi{% if forloop.first %} kpi-hero{% endif %}"><dt>{{ k.label }}</dt><dd class="money">{% if k.money %}{{ k.value|fees_money:money_unit }}{% else %}{{ k.value }}{% endif %}</dd></div>{% endfor %}</dl>
-{% if can_edit %}
+{% if kpis_enabled and can_edit %}
 <details class="kpi-customise"{% if customise_open %} open{% endif %}>
   <summary>Customise</summary>
   <form method="post" action="{% url 'fees_dashboard_kpis' %}" class="fees-form kpi-customise-form" data-kpi-customise>{% csrf_token %}
@@ -34,6 +32,10 @@
   <script src="{% static 'js/fees/dashboard-kpis.js' %}"></script>
 </details>
 {% endif %}
+</div>
+{% if kpis_enabled %}
+<section aria-label="Dashboard boxes" id="kpis">
+<dl class="kpi-grid">{% for k in kpi_rows %}<div class="kpi{% if forloop.first %} kpi-hero{% endif %}"><dt>{{ k.label }}</dt><dd class="money">{% if k.money %}{{ k.value|fees_money:money_unit }}{% else %}{{ k.value }}{% endif %}</dd></div>{% endfor %}</dl>
 </section>
 {% endif %}
 <div class="dash-panels">

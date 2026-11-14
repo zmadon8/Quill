@@ -4,13 +4,7 @@
    (static/css/tokens.css) plus the two new tokens --gain and --loss (owner to confirm, plan 25.3). */
 body.inv{--ox:var(--oxblood);--gain:#15803D;--loss:#B42318;--s1:#1e1c19;--s2:#5a5348;--s3:#8d8577;--s4:#b9b2a3;--s5:#d9d3c5;--data:1rem}
 /* The sub-tabs look like the Fee Register's (ledger.css .stat-tabs) and share a row with the page's buttons (.tab-bar). */
-body.inv nav.sub{display:flex;flex-wrap:wrap;gap:0 20px;margin:0;border-bottom:1px solid var(--line)}
-body.inv nav.sub a{display:inline-flex;align-items:center;margin-bottom:-1px;padding:0 4px 8px;border-bottom:2px solid transparent;color:var(--muted);text-decoration:none}
-body.inv nav.sub a:hover{color:var(--ink);text-decoration:none}
-body.inv nav.sub a.on{color:var(--ink);font-weight:600;border-bottom-color:var(--accent)}
-body.inv .tab-bar > nav.sub{border-bottom:0}
 /* Page buttons beside the sub-tabs are the Fee Register's small buttons, the main one first. */
-body.inv .page-actions .btn{min-height:0;padding:4px 10px;font-size:.857rem}
 body.inv .more-menu{position:relative}
 body.inv .more-menu > summary{list-style:none}
 body.inv .more-menu > summary::-webkit-details-marker{display:none}
@@ -24,11 +18,6 @@ body.inv .ctx,body.inv .util{display:flex;flex-wrap:wrap;align-items:flex-end;ga
 body.inv .sel{display:flex;flex-direction:column;gap:2px}
 body.inv .sel>span{font-weight:500;font-size:13px;text-transform:none;letter-spacing:0;color:var(--muted)}
 body.inv .sel.off{opacity:.38}
-body.inv .btn{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 13px;border:1px solid var(--ink);border-radius:2px;font-size:13.5px;background:transparent;cursor:default;white-space:nowrap}
-body.inv .btn.p{background:var(--ox);border-color:var(--ox);color:#fff}
-body.inv .btn.q{border-color:var(--hair);background:var(--panel)}
-body.inv .btn.sm{min-height:30px;padding:0 10px;font-size:12.5px}
-body.inv .btn.dng{border-color:var(--danger);color:var(--danger)}
 body.inv .btn.dis{opacity:.45}
 body.inv .toggle{display:inline-flex;border:1px solid var(--ink);border-radius:2px;overflow:hidden;font-size:12.5px}
 body.inv .toggle span{padding:0 10px;min-height:34px;display:flex;align-items:center;cursor:pointer;color:var(--muted)}
@@ -189,7 +178,7 @@ body.inv .nw{white-space:nowrap}
 @media(max-width:700px){
 body.inv .tw{max-width:100%}
 body.inv .res div{flex-wrap:wrap}
-body.inv .acts-row .btn,body.inv .acts .btn{min-height:44px}
+body.inv .acts-row .btn:not(.sm),body.inv .acts .btn:not(.sm){min-height:44px}
 }
 /* The header bar itself (height, padding, alignment) comes from the shared shell (design.css), as in the Case Law Diary and the
    Fee Register; only the Alerts count badge is the program's own. */
@@ -203,8 +192,6 @@ body.inv .panel h3 .sw{margin-left:14px}
 body.inv .fld .sw{align-self:flex-start;margin-left:0}
 
 /* ---------- shell alignment with the suite header (added by hand, not generated) ---------- */
-body.inv nav.sub a{color:var(--muted)}
-body.inv nav.sub a.on{color:var(--ink)}
 /* Page titles follow the Fee Register (ledger.css): a page a header entry or sub-tab opens keeps its <h1> for screen readers
    only; other pages show a plain <h1> in .page-head, with a muted line beside it where there is one. */
 body.inv .page-head .page-meta{margin:0;color:var(--muted);font-size:.857rem}
@@ -222,11 +209,6 @@ body.inv .fld.bad input,body.inv .fld.bad select{border-color:var(--danger);bord
 body.inv .fld input,body.inv .fld select{min-width:160px}
 body.inv .fld select[name=folio]{width:15ch;min-width:0}
 body.inv .fld .note.err{color:var(--danger)}
-body.inv button.btn{font-family:inherit;cursor:pointer;background:transparent}
-body.inv button.btn.p{background:var(--ox);color:#fff}
-body.inv button.btn.q{background:var(--panel)}
-body.inv .btn:disabled{opacity:.45;cursor:default}
-body.inv button.linklike{background:none;border:0;padding:0;color:var(--muted);text-decoration:underline;text-decoration-color:var(--hair);cursor:pointer;font:inherit}
 body.inv .inline-edit{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0}
 body.inv ul.plain{list-style:none;margin:8px 0;padding:0}
 body.inv ul.plain li{padding:6px 0;border-bottom:1px solid var(--hair)}
@@ -293,17 +275,9 @@ body.inv .fld .note.err{color:#B91C1C}
 body.inv .row{gap:12px 16px}
 body.inv .form{padding-top:0}
 body.inv .acts-row{gap:8px;margin-top:16px}
-/* Buttons: ledger.css .button / .primary / .secondary / .small / .danger */
-body.inv .btn,body.inv button.btn{min-height:var(--tap);padding:0 14px;gap:6px;border:1px solid var(--line-strong);border-radius:var(--radius);background:transparent;color:var(--ink);font:inherit;font-weight:500;line-height:1.2;cursor:pointer;text-decoration:none}
-body.inv .btn:hover{border-color:var(--ink);background:var(--paper-2);text-decoration:none}
-body.inv .btn.p,body.inv button.btn.p{background:var(--accent);border-color:var(--accent);color:var(--paper)}
-body.inv .btn.p:hover{background:var(--accent-hover);border-color:var(--accent-hover);color:var(--paper)}
-body.inv .btn.q,body.inv button.btn.q{background:transparent;border-color:var(--line-strong);color:var(--ink)}
-body.inv .btn.sm,body.inv button.btn.sm,body.inv .page-actions .btn{min-height:0;padding:4px 10px;font-size:.857rem}
-body.inv .btn.dng,body.inv button.btn.dng{background:#991B1B;border-color:#991B1B;color:var(--paper)}
-body.inv .btn.dng:hover{background:#7F1D1D;border-color:#7F1D1D}
+/* Buttons: btn p / q / sm / dng are ledger.css primary / secondary / small / danger (grouped there). */
 body.inv .btn:disabled,body.inv button:disabled{opacity:.45;cursor:not-allowed}
-body.inv button.linklike{color:var(--accent-hover);text-decoration:none}
+body.inv button.linklike{background:none;border:0;padding:0;color:var(--accent-hover);text-decoration:none;cursor:pointer;font:inherit}
 body.inv button.linklike:hover{text-decoration:underline}
 body.inv .toggle{border-color:var(--line-strong);border-radius:var(--radius);font-size:.857rem}
 body.inv .toggle span{min-height:calc(var(--tap) - 2px)}
@@ -350,7 +324,12 @@ body.inv nav.seg a{padding:4px 12px;border-radius:7px;font-size:13px;color:var(-
 body.inv nav.seg a.on{background:var(--white);color:var(--ink);font-weight:600;box-shadow:var(--shadow-card)}
 .more-fields { margin: .5rem 0 1rem; }
 .more-fields > summary { cursor: pointer; padding: .3rem 0; }
-.more-notes{display:flex;flex-direction:column;gap:2px;margin:0 0 12px}
+.more-notes{display:block;margin:0 0 8px;font-size:.8rem;line-height:1.4;color:var(--muted)}
+.more-notes .note{display:inline;margin:0 .75em 0 0;padding:0;border:0;background:none;font-size:inherit;color:inherit}
+/* Buy and sell cards: portfolio, broker, units and price share one row on desktop. */
+.txn-card .fld select[name$=portfolio]{width:15ch;min-width:0}
+.txn-card .fld select[name$=broker]{width:20ch;min-width:0}
+.txn-card .fld input[name$=units],.txn-card .fld input[name$=price]{width:11ch;min-width:0}
 /* Each transaction on the buy and sell pages is a rounded card, so one transaction is clearly apart from the next. */
 .txn-card { border: 1px solid var(--line, var(--hair)); border-radius: 18px; background: var(--card, transparent); padding: 14px 20px 16px; margin: 0 0 16px; }
 .txn-card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
@@ -387,3 +366,6 @@ body.inv .fld.fld-invest input[type=text]{min-width:0}
 body.inv .fld .combo-held-box{width:auto;min-width:0;margin:0}
 body.inv .row-break{flex:0 0 100%;height:0;margin:0}
 @media (max-width:560px){body.inv .fld.fld-date{flex:1 1 100%;width:100%}body.inv .fld.fld-invest{flex:1 1 100%}body.inv .fld.fld-invest .combo-row{flex-wrap:wrap}}
+/* A checkbox in a form field is an inline box beside its text, not a 160px-wide input. */
+body.inv .fld input[type=checkbox]{min-width:0;width:auto;margin:0}
+body.inv .fld>label:has(>input[type=checkbox]){display:flex;align-items:center;gap:6px}

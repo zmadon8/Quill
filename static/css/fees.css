@@ -157,3 +157,16 @@ body.ledger .status-paid:has(.status-sq) { background: var(--ok-tint); color: va
 body.ledger .status-partial:has(.status-sq) { background: var(--info-tint); color: var(--info); }
 body.ledger .status-unpaid:has(.status-sq) { background: var(--amber-bg); color: var(--amber-ink); }
 body.ledger .status-overdue:has(.status-sq) { background: var(--danger-tint); color: var(--danger); }
+
+/* Form layout tightening (screenshot review): payment line 1 on one row, payee capped, empty payee chips hidden; memo date compact. */
+body.ledger .chips[hidden] { display: none; }
+body.ledger .fees-form.payment-form .field-row > label:is(.short, .narrow, .tiny) { flex: 0 0 auto; }
+body.ledger .fees-form.payment-form .field-row > label.check { flex: 0 0 auto; }
+body.ledger .fees-form.payment-form .field-row input[name=amount], body.ledger .fees-form.payment-form .field-row input[name=tds_amount] { width: 12ch; }
+body.ledger .fees-form.payment-form .field-row input[name=tds_rate] { width: 5ch; }
+body.ledger .fees-form.payment-form .field-row > label.grow { flex: 1 1 14rem; max-width: 36ch; }
+body.ledger .fees-form .field-row input[type=date], body.ledger .memo-form .memo-card .memo-grid .field .inline-row input[type=date] { flex: 0 0 auto; width: 9.75rem; max-width: 100%; }
+/* Dashboard: Customise sits in the tab row, right-aligned; when open its panel takes the full row below the tabs. */
+body.ledger .tab-bar > .kpi-customise { margin: 0 0 6px auto; }
+body.ledger .tab-bar > .kpi-customise[open] { flex: 1 0 100%; }
+body.ledger .tab-bar > .kpi-customise > summary { margin-left: auto; width: max-content; }

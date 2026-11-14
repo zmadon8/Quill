@@ -8,8 +8,6 @@
 
 /* ---- Page frame: full-width top bar, centred content column ---- */
 body.look { font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; }
-body.look .page { max-width: none; padding: 0 0 4rem; }
-body.look main { box-sizing: border-box; max-width: 72rem; margin: 0 auto; padding: 20px 24px 0; }
 body.look .banner-warning { padding-left: 24px; padding-right: 24px; }
 body.look .crumb-row { padding-left: 24px; padding-right: 24px; background: var(--bg); border-bottom: 1px solid var(--line); }
 body.look .breadcrumb a { color: var(--ink-2); }
