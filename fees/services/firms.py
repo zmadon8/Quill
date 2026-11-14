@@ -56,6 +56,7 @@ from fees.models import (
     Matter,
     Memo,
 )
+from fees.services import history
 from fees.services.memo_fees import compute_is_overdue
 from fees.services.memos import touch
 from fees.services.money import round2
@@ -124,6 +125,7 @@ def create_firm(profile, name):
     with transaction.atomic():
         firm = Firm.objects.create(profile=profile, name=clean, status=FIRM_ACTIVE)
         Group.objects.create(profile=profile, firm=firm, name=clean)
+        history.record(profile, "create", "firm", firm.pk, f"Added firm {clean}")
         touch(profile)
     return firm
 
@@ -177,6 +179,7 @@ def set_firm_status(profile, firm_id, status):
     with transaction.atomic():
         firm.status = _normalize_status(status)
         firm.save(update_fields=["status", "updated_at"])
+        history.record(profile, "update", "firm", firm.pk, f"Set firm {firm.name} to {firm.status}")
         touch(profile)
     return firm
 
@@ -210,6 +213,7 @@ def update_firm(profile, firm_id, name=None, notes=None):
         update_fields.append("updated_at")
         with transaction.atomic():
             firm.save(update_fields=update_fields)
+            history.record(profile, "update", "firm", firm.pk, f"Changed firm {firm.name}")
             touch(profile)
     return firm
 
@@ -241,6 +245,7 @@ def add_group(profile, firm_id, name):
 
     with transaction.atomic():
         group = Group.objects.create(profile=profile, firm=firm, name=clean)
+        history.record(profile, "create", "group", group.pk, f"Added group {clean} to firm {firm.name}")
         touch(profile)
     return group
 
@@ -268,8 +273,10 @@ def update_group(profile, group_id, name):
         )
 
     with transaction.atomic():
+        old_name = group.name
         group.name = clean
         group.save(update_fields=["name", "updated_at"])
+        history.record(profile, "update", "group", group.pk, f"Renamed group {old_name} to {clean}")
         touch(profile)
     return group
 
@@ -298,7 +305,9 @@ def remove_group(profile, firm_id, group_id):
         )
 
     with transaction.atomic():
+        name = group.name
         group.delete()
+        history.record(profile, "delete", "group", group_id, f"Removed group {name}")
         touch(profile)
     return None
 

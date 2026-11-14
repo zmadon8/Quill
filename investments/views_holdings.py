@@ -114,16 +114,17 @@ def add_2(request):
         else:
             hits, search_error = _plain_search(profile, kind, query)
     if request.method == "POST":
-        form = forms.InstrumentForm(request.POST)
+        form = forms.InstrumentForm(request.POST, kind=kind)
         if form.is_valid():
             data = form.cleaned_data
             similar = masters.find_similar(profile, data["name"], data["code"], data["kind"])
             if request.POST.get("confirmed"):
                 try:
                     obj = masters.create_instrument(
-                        profile, request.user, kind=data["kind"], name=data["name"], code=data["code"], isin=data["isin"],
-                        currency=data["currency"], asset_class=data["asset_class"], sector=data["sector"],
-                        interest_rate=data["interest_rate"], interest_type=data["interest_type"], maturity_date=data["maturity_date"], taxed_as_interest=data["taxed_as_interest"],
+                        profile, request.user, kind=data["kind"], name=data["name"], code=data["code"], isin=data.get("isin", ""),
+                        currency=data.get("currency", "INR"), asset_class=data.get("asset_class", "equity"), sector=data.get("sector", ""),
+                        interest_rate=data.get("interest_rate"), interest_type=data.get("interest_type", "compound"), maturity_date=data.get("maturity_date"),
+                        taxed_as_interest=data.get("taxed_as_interest", False), lump_sum=data.get("lump_sum", False),
                         allow_duplicate=bool(request.POST.get("allow_duplicate")))
                 except InvestmentsError as err:
                     form.add_error(None, err.message)
@@ -135,7 +136,7 @@ def add_2(request):
                     "page_title_text": "Add investment: confirm", "form": form, "data": data, "similar": similar, "check": check,
                     "kind_label": KIND_LABELS.get(data["kind"]), "private": data["kind"] == KIND_ALTERNATIVE}, selectors=False)
     else:
-        form = forms.InstrumentForm(initial=initial)
+        form = forms.InstrumentForm(initial=initial, kind=kind)
     scheme = _scheme_info(form["code"].value() or "") if kind == "fund" else None
     return page(request, "investments/add_2.html", {"page_title_text": "Add investment: details", "form": form, "kind": kind, "scheme": scheme,
                                                     "kind_label": KIND_LABELS.get(kind), "hits": hits, "search_error": search_error, "query": query,

@@ -80,6 +80,7 @@ class Instrument(models.Model):
     expense_ratio = models.DecimalField(max_digits=6, decimal_places=3, null=True, blank=True, help_text="Mutual funds: total expense ratio %, entered by hand")
     maturity_date = models.DateField(null=True, blank=True)
     taxed_as_interest = models.BooleanField(default=False, help_text="Profit or loss on sales is Interest Income, not Capital Gains")
+    lump_sum = models.BooleanField(default=False, help_text="Alternative investment bought and sold in lump sums: no units or price per unit are asked for")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -152,15 +153,21 @@ class InvestmentSettings(models.Model):
     alt_treatment = models.CharField(max_length=10, default=ALT_UNCHANGED, choices=[(ALT_UNCHANGED, "Unchanged until next update"), (ALT_AVERAGED, "Averaged out")])
     money_default = models.CharField(max_length=5, default=MONEY_AUTO, choices=[(MONEY_AUTO, "Short (Thousand, Lac, Crore)"), (MONEY_FULL, "Full Figures")])
     # Alerts (plan 14). Rule A: against the previous close (and optionally over a window). Rule B: against the cost of units still held.
-    rule_a_enabled = models.BooleanField(default=True)
+    rule_a_fall_enabled = models.BooleanField(default=True)
+    rule_a_rise_enabled = models.BooleanField(default=True)
+    rule_a_window_enabled = models.BooleanField(default=True)
     rule_a_fall_pct = models.DecimalField(max_digits=6, decimal_places=2, default=5)
     rule_a_rise_pct = models.DecimalField(max_digits=6, decimal_places=2, default=8)
     rule_a_window_days = models.PositiveSmallIntegerField(default=7)
     rule_a_window_fall_pct = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True, default=15)
-    rule_b_enabled = models.BooleanField(default=True)
+    rule_b_loss_enabled = models.BooleanField(default=True)
+    rule_b_gain_enabled = models.BooleanField(default=True)
     rule_b_loss_pct = models.DecimalField(max_digits=6, decimal_places=2, default=20)
     rule_b_gain_pct = models.DecimalField(max_digits=6, decimal_places=2, default=40)
     guardrail_replaces_global = models.BooleanField(default=True)
+    guardrails_enabled = models.BooleanField(default=True)
+    maturity_enabled = models.BooleanField(default=True)
+    source_problems_enabled = models.BooleanField(default=True)
     alert_email = models.BooleanField(default=False)
     maturity_alert_days = models.PositiveSmallIntegerField(default=30)
     #: The holding-period cutoff chosen for each financial year, e.g. {"2024-25": 365}; a year without one uses long_term_days (plan 13.5).

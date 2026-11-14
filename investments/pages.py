@@ -3,7 +3,7 @@
 ``PAGES`` has one row per page of the mockups. Phase 0 serves every row as an empty shell showing its empty-state text,
 so the whole menu works; a later phase replaces a row's view with the real one (the URL name stays the same).
 
-Navigation is five top entries (Overview, Holdings, Reports, Alerts, Settings), each with an optional second row of
+Navigation is six top entries (Overview, Holdings, Reports, Alerts, Catalogue, History), each with an optional second row of
 links, exactly as in the mockups.
 """
 from collections import namedtuple
@@ -23,6 +23,7 @@ TOP = (
     ("reports", "Reports", "investments_performance"),
     ("alerts", "Alerts", "investments_alerts"),
     ("catalogue", "Catalogue", "investments_admin_catalogue"),
+    ("history", "History", "investments_history"),
 )
 
 _NO_DATA = "Nothing here yet."
@@ -63,13 +64,12 @@ PAGES = (
     _p("reports", "reports/", "Other reports", "reports", "Other reports", "Pick a report."),
     _p("report_yearly", "reports/yearly/", "Year-by-year returns", "reports", "Other reports", "No completed financial years yet."),
     _p("report_compare_brokers", "reports/compare-brokers/", "Compare brokers", "reports", "Other reports", "Needs holdings with at least two brokers."),
-    _p("history", "history/", "History", "reports", "History", "No changes recorded yet."),
+    _p("history", "history/", "History", "history", None, "No changes recorded yet."),
     # Alerts
-    _p("alerts", "alerts/", "Alerts and guardrails", "alerts", None, "No alerts. Set thresholds in Settings > Alerts."),
+    _p("alerts", "alerts/", "Alerts and guardrails", "alerts", None, "No alerts. Set thresholds under Alert settings on this page."),
     # Settings
     _p("settings", "settings/", "Settings: General", "settings", "General", "Settings."),
     _p("settings_brokers", "settings/brokers/", "Settings: Brokers", "settings", "Brokers", "Add the brokers and platforms you use."),
-    _p("settings_alerts", "settings/alerts/", "Settings: Alerts", "settings", "Alerts", "Alert thresholds."),
     _p("settings_display", "settings/display/", "Settings: Display", "settings", "Display", "Display choices."),
     _p("settings_insights", "settings/insights/", "Settings: Insights", "settings", "Insights", "Choose which insights to show."),
     _p("settings_indices", "settings/indices/", "Settings: Indices", "settings", "Indices", "The indices investments are compared with."),
@@ -109,10 +109,10 @@ SUB_ROWS = {
     ),
     "reports": (
         ("Performance", "performance"), ("Charts", "charts"), ("Total Portfolio Value", "value"),
-        ("Annual Report", "annual"), ("Other reports", "reports"), ("History", "history"),
+        ("Annual Report", "annual"), ("Other reports", "reports"),
     ),
     "settings": (
-        ("General", "settings"), ("Brokers", "settings_brokers"), ("Alerts", "settings_alerts"),
+        ("General", "settings"), ("Brokers", "settings_brokers"),
         ("Display", "settings_display"), ("Insights", "settings_insights"), ("Indices", "settings_indices"),
     ),
     "catalogue": (

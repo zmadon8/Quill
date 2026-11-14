@@ -8,7 +8,7 @@ from investments.services import alert_mail
 
 
 class Command(BaseCommand):
-    help = "Email the alerts that triggered overnight to the people who asked for it (Investments > Settings > Alerts)."
+    help = "Email the alerts that triggered overnight to the people who asked for it (Investments > Alerts > Alert settings)."
 
     def handle(self, *args, **options):
         from django.conf import settings

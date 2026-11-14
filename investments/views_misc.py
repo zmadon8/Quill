@@ -54,7 +54,8 @@ def history_list(request):
     instrument = request.GET.get("instrument") or None
     record_type = request.GET.get("type") or None
     rows = []
-    for row in history.rows_for(profile, instrument_id=instrument, record_type=record_type, limit=300):
+    for row in history.rows_for(profile, instrument_id=instrument, record_type=record_type, limit=history.LIMIT):
+        row.who = (row.changed_by.get_full_name() or row.changed_by.get_username()) if row.changed_by_id else "System"
         row.description = _describe(row)
         row.can_restore = history.can_restore(profile, row)
         older = InvestmentHistory.objects.filter(profile=profile, record_type=row.record_type, record_id=row.record_id,

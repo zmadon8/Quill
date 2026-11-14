@@ -104,25 +104,25 @@ def evaluate(profile, today=None):
                     return
                 out.append(Alert(key, kind, label, inst.pk, inst.name, portfolio.name, on, price, change, gain, gain_pct, term, to_long, rearm))
 
-            use_global = not (own and s.guardrail_replaces_global)
-            if use_global and s.rule_a_enabled and previous and inst.kind != KIND_ALTERNATIVE:
+            use_global = not (own and s.guardrails_enabled and s.guardrail_replaces_global)
+            if use_global and previous and inst.kind != KIND_ALTERNATIVE:
                 change = float((price - previous) / previous * HUNDRED)
-                if change <= -float(s.rule_a_fall_pct):
+                if s.rule_a_fall_enabled and change <= -float(s.rule_a_fall_pct):
                     add("rule_a", f"Fell {abs(change):.2f}% in a day", change)
-                elif change >= float(s.rule_a_rise_pct):
+                elif s.rule_a_rise_enabled and change >= float(s.rule_a_rise_pct):
                     add("rule_a", f"Rose {change:.2f}% in a day", change)
-                if s.rule_a_window_fall_pct:
+                if s.rule_a_window_enabled and s.rule_a_window_fall_pct:
                     window = [c for d, c in closes if d <= on - timedelta(days=s.rule_a_window_days)]
                     if window:
                         wchange = float((price - window[-1]) / window[-1] * HUNDRED)
                         if wchange <= -float(s.rule_a_window_fall_pct):
                             add("rule_a_window", f"Fell {abs(wchange):.2f}% over {s.rule_a_window_days} days", wchange)
-            if use_global and s.rule_b_enabled and gain_pct is not None:
-                if gain_pct <= -float(s.rule_b_loss_pct):
+            if use_global and gain_pct is not None:
+                if s.rule_b_loss_enabled and gain_pct <= -float(s.rule_b_loss_pct):
                     add("rule_b", f"{abs(gain_pct):.2f}% below cost", gain_pct, rearm=Decimal(str(-gain_pct)))
-                elif gain_pct >= float(s.rule_b_gain_pct):
+                elif s.rule_b_gain_enabled and gain_pct >= float(s.rule_b_gain_pct):
                     add("rule_b", f"{gain_pct:.2f}% above cost", gain_pct, rearm=Decimal(str(gain_pct)))
-            for g in own:
+            for g in (own if s.guardrails_enabled else []):
                 v = g.value
                 hit, label, measure = False, "", None
                 if g.kind == "target_gain" and gain_pct is not None and gain_pct >= float(v):
@@ -143,7 +143,7 @@ def evaluate(profile, today=None):
     # maturity and renewal dates of alternative investments (plan 11)
     from investments.models import Instrument
 
-    for inst in Instrument.objects.filter(profile=profile, maturity_date__isnull=False):
+    for inst in (Instrument.objects.filter(profile=profile, maturity_date__isnull=False) if s.maturity_enabled else []):
         days = (inst.maturity_date - today).days
         if 0 <= days <= s.maturity_alert_days:
             out.append(Alert(f"maturity:{inst.pk}:{inst.maturity_date}", "maturity", f"Matures in {days} day{'s' if days != 1 else ''} ({inst.maturity_date:%-d %b %Y})",

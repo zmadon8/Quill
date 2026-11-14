@@ -2,15 +2,17 @@
 {% block title %}History - {{ program_label }}{% endblock %}
 {% block content %}
 <h1{% if header_words %} class="visually-hidden"{% endif %}>History</h1>
-<p class="meta">Your own changes in {{ program_label }}, newest first (times in IST). An action that changed several records at once, such as deleting a Topic with its Items, is one line. Edits older than {{ retention_days }} days are removed from the history (the latest version of every record is always kept).</p>
+<p class="meta">The last {{ limit }} changes in this profile, by everyone who works in it, newest first (times in IST). An action that changed several records at once, such as deleting a Topic with its Items, is one line. Edits older than {{ retention_days }} days are removed from the history (the latest version of every record is always kept).</p>
+<form method="get" class="history-filter"><label><input type="checkbox" name="mine" value="1"{% if mine %} checked{% endif %} onchange="this.form.submit()"> My edits only</label> <noscript><button type="submit">Apply</button></noscript></form>
 {% if actions %}
 <div class="table-wrap">
 <table class="my-edits" data-table-id="my-edits">
-  <thead><tr><th>When</th><th>What I did</th><th>Record</th><th></th></tr></thead>
+  <thead><tr><th>When</th><th>Who</th><th>What was done</th><th>Record</th><th></th></tr></thead>
   <tbody>
   {% for a in actions %}
     <tr>
       <td>{{ a.at|date:"j M Y, H:i" }}</td>
+      <td>{{ a.who }}</td>
       <td>{{ a.done }} {{ a.kind }}{% if a.others %} <span class="meta">and {{ a.others }} more</span>{% endif %}</td>
       <td>{{ a.label }}</td>
       <td>{% if a.open_url %}<a href="{{ a.open_url }}">Open</a>{% else %}<span class="meta">in Trash or gone</span>{% endif %}{% if a.history_url %} &middot; <a href="{{ a.history_url }}">History</a>{% endif %}</td>
@@ -19,8 +21,7 @@
   </tbody>
 </table>
 </div>
-{% if has_more %}<p><a class="button" href="{{ more_url }}">Show More</a></p>{% endif %}
 {% else %}
-<p class="empty">You have not changed anything yet{% if retention_days %} in the last {{ retention_days }} days{% endif %}.</p>
+<p class="empty">{% if mine %}You have not changed anything yet{% else %}Nothing has been changed yet{% endif %}{% if retention_days %} in the last {{ retention_days }} days{% endif %}.</p>
 {% endif %}
 {% endblock %}

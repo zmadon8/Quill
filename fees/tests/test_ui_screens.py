@@ -44,6 +44,7 @@ SCREENS = (
     ("fees_outstanding", None, "", False),
     ("fees_outstanding_detail", None, "", False),
     ("fees_search_page", None, "?q=alpha", False),
+    ("fees_history", None, "", False),
     ("fees_settings", None, "", False),
     ("fees_backup", None, "", True),
     ("fees_backup_clear", None, "", True),
@@ -129,7 +130,7 @@ class EveryScreenTests(UiPageBase):
                                    ("fees_firms", "", "Firms"), ("fees_feebook", "", "Feebook"),
                                    ("fees_settings", "", "Settings"), ("fees_dashboard", "", "Statistics"),
                                    ("fees_statistics", "?tab=standard", "Statistics"),
-                                   ("fees_outstanding", "", "Outstanding by firm"),
+                                   ("fees_history", "", "History"), ("fees_outstanding", "", "Outstanding by firm"),
                                    ("fees_outstanding_detail", "", "Outstanding memos")):
             text = self.render(name, None, query, self.editor)
             self.assertRegex(text, r'<h1 class="visually-hidden">%s</h1>' % title, name)

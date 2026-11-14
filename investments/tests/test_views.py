@@ -107,7 +107,7 @@ class PageTests(InvTestCase):
         self.client.force_login(self.user)
         html = self.client.get(reverse("investments_history")).content.decode()
         self.assertIn("<th>Portfolio</th>", html)
-        self.assertNotIn("<th>Who</th>", html)
+        self.assertIn("<th>Who</th>", html)
         self.assertIn("<td>Spouse</td>", html)
 
     def test_delete_then_restore_from_history_page(self):

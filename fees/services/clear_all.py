@@ -36,6 +36,7 @@ from fees.models import (
     PeriodAdjustment,
     SavedView,
 )
+from fees.services import history
 from fees.services.heavy import heavy_operation
 from fees.services.memos import touch
 
@@ -45,7 +46,7 @@ logger = logging.getLogger(__name__)
 
 #: Data models deleted by a clear or a restore, children first (``Allocation`` and ``Memo`` are
 #: PROTECT-ed, so allocations go before payments and memos, memos before matters, matters before
-#: groups, groups before firms). ``FeesSettings`` and ``WordTemplate`` are not deleted.
+#: groups, groups before firms). ``FeesSettings``, ``WordTemplate`` and ``FeesHistory`` are not deleted (the clear is itself logged, so History keeps the record).
 DELETE_ORDER = [
     SavedView,
     Allocation,
@@ -137,5 +138,6 @@ def clear_all(profile, confirmation, user=None, backup_func=None):
             Profile.objects.select_for_update().get(pk=profile.pk)
             counts = wipe_profile_data(profile)
             reset_settings(profile)
+            history.record(profile, "clear", "profile", None, "Cleared all Fee Register data and reset the settings")
             touch(profile)
     return {"counts": counts, "backup_id": getattr(backup, "pk", None)}

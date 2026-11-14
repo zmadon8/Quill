@@ -68,6 +68,7 @@ from django.db.models import Sum
 
 from fees.errors import FeesError
 from fees.models import Allocation, Memo, Payment
+from fees.services import history
 from fees.services.memos import touch
 from fees.services.money import round2
 
@@ -364,6 +365,11 @@ def _apply_payment_fields(payment, data, tds_amount) -> None:
 # Create operations (R-PAY-3)
 # ---------------------------------------------------------------------------
 
+def _payment_name(payment) -> str:
+    """How a payment is named in a History line: its amount and date."""
+    return f"payment of {payment.amount} on {payment.date_of_payment}"
+
+
 def add_payment_to_memo(profile, memo_id, data) -> dict:
     """Adds a payment allocated wholly to one memo (the memo Payment modal, R-PAY-3).
 
@@ -387,6 +393,7 @@ def add_payment_to_memo(profile, memo_id, data) -> dict:
         _write_allocations(
             profile, payment, _resolve_allocations(data, tds_amount, memo.pk)
         )
+        history.record(profile, "create", "payment", payment.pk, f"Added {_payment_name(payment)} to memo {memo.memo_number or 'draft'}")
         touch(profile)
     return get_payment(profile, payment.pk)
 
@@ -409,6 +416,7 @@ def add_payment(profile, data) -> dict:
         _write_allocations(
             profile, payment, _resolve_allocations(data, tds_amount, None)
         )
+        history.record(profile, "create", "payment", payment.pk, f"Added {_payment_name(payment)}")
         touch(profile)
     return get_payment(profile, payment.pk)
 
@@ -428,6 +436,7 @@ def add_unaccounted_payment(profile, data) -> dict:
     with transaction.atomic():
         payment = _insert_payment(profile, data, tds_amount)
         _write_allocations(profile, payment, [])
+        history.record(profile, "create", "payment", payment.pk, f"Added unaccounted {_payment_name(payment)}")
         touch(profile)
     return get_payment(profile, payment.pk)
 
@@ -460,6 +469,7 @@ def assign_payment_to_memo(profile, payment_id, memo_id) -> dict:
                 }
             ],
         )
+        history.record(profile, "update", "payment", payment.pk, f"Attached {_payment_name(payment)} to memo {memo.memo_number or 'draft'}")
         touch(profile)
     return get_payment(profile, payment.pk)
 
@@ -583,6 +593,7 @@ def update_payment(profile, payment_id, data) -> dict:
                 # not change but we keep allocations as-is (no write needed).
                 pass
 
+        history.record(profile, "update", "payment", payment.pk, f"Changed {_payment_name(payment)}")
         touch(profile)
 
     return get_payment(profile, payment.pk)
@@ -610,8 +621,10 @@ def delete_payment(profile, payment_id) -> None:
             )
         )
         Allocation.objects.filter(payment=payment).delete()
+        name = _payment_name(payment)
         payment.delete()
         recompute_paid(memo_ids)
+        history.record(profile, "delete", "payment", payment_id, f"Deleted {name}")
         touch(profile)
 
 

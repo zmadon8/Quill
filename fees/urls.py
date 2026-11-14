@@ -6,6 +6,7 @@ from . import (
     views_exports,
     views_feebook,
     views_firms,
+    views_history,
     views_import,
     views_ledger,
     views_matters,
@@ -94,6 +95,8 @@ urlpatterns = [
     path("outstanding/detail/", views_outstanding.outstanding_detail, name="fees_outstanding_detail"),
     path("outstanding/export/", views_exports.outstanding_export, name="fees_outstanding_export"),
     path("outstanding/summary-export/", views_exports.outstanding_summary_export, name="fees_outstanding_summary_export"),
+    # History
+    path("history/", views_history.history_page, name="fees_history"),
     # Search
     path("search/", views_search.search_json, name="fees_search"),
     path("search/page/", views_search.search_page, name="fees_search_page"),

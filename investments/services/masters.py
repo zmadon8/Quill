@@ -147,7 +147,7 @@ SETTINGS_FIELDS = {
     "default_broker_share", "default_broker_fund", "default_broker_alternative", "default_broker_foreign", "sip_mode",
     "awaiting_treatment", "awaiting_reminder_days", "corporate_action_mode", "long_term_days", "default_index",
     "sectoral_enabled", "include_dividends", "alt_treatment", "money_default", "default_exchange",
-    "show_status_dots", "rule_a_enabled", "rule_a_fall_pct", "rule_a_rise_pct", "rule_a_window_days", "rule_a_window_fall_pct", "rule_b_enabled",
+    "show_status_dots", "rule_a_fall_enabled", "rule_a_rise_enabled", "rule_a_window_enabled", "rule_a_fall_pct", "rule_a_rise_pct", "rule_a_window_days", "rule_a_window_fall_pct", "rule_b_loss_enabled", "rule_b_gain_enabled", "guardrails_enabled", "maturity_enabled", "source_problems_enabled",
     "rule_b_loss_pct", "rule_b_gain_pct", "guardrail_replaces_global", "alert_email", "maturity_alert_days", "year_cutoffs", "insights_off", "concentration_limit", "compact_tables",
     "column_picker", "overview", "units_decimals", "rupee_decimals", "corporate_auto",
 }
@@ -212,7 +212,7 @@ def find_similar(profile, name="", code="", kind=None):
 @transaction.atomic
 def create_instrument(profile, user, *, kind, name, code="", isin="", currency="INR", asset_class="equity", sector="",
                       exchange="", price_source="manual", interest_rate=None, maturity_date=None, allow_duplicate=False, interest_type="compound",
-                      taxed_as_interest=False):
+                      taxed_as_interest=False, lump_sum=False):
     """Add an investment. Alternative investments are private to the profile; the rest are shared (plan 16.1). A look-alike is refused
     unless ``allow_duplicate`` (the page offers "use the existing one" instead)."""
     if kind not in HOLDABLE_KINDS:
@@ -231,7 +231,7 @@ def create_instrument(profile, user, *, kind, name, code="", isin="", currency="
         price_source="manual" if private else (price_source if price_source != "manual" else fetch_defaults.default_source(kind)),
         price_basis=fetch_defaults.default_basis(fetch_defaults.default_source(kind)) if not private else "",
         interest_rate=interest_rate, interest_type=interest_type if interest_type in ("simple", "compound") else "compound", maturity_date=maturity_date,
-        taxed_as_interest=bool(taxed_as_interest))
+        taxed_as_interest=bool(taxed_as_interest), lump_sum=private and bool(lump_sum))
     ProfileInvestment.objects.get_or_create(profile=profile, instrument=obj)
     core.touch(profile)
     return obj
@@ -351,7 +351,7 @@ def update_alt_interest(profile, user, instrument, *, interest_rate, interest_ty
     return instrument
 
 
-OWN_EDITABLE = ("name", "code", "isin", "currency", "asset_class", "sector", "interest_rate", "interest_type", "maturity_date", "taxed_as_interest")
+OWN_EDITABLE = ("name", "code", "isin", "currency", "asset_class", "sector", "interest_rate", "interest_type", "maturity_date", "taxed_as_interest", "lump_sum")
 
 
 @transaction.atomic
@@ -382,6 +382,10 @@ def update_own_instrument(profile, user, instrument, **values):
         raise InvestmentsError("BAD_RATE", "The interest rate must be between 0 and 1000 percent.")
     if "taxed_as_interest" in values:
         values["taxed_as_interest"] = bool(values["taxed_as_interest"])
+    if "lump_sum" in values:
+        values["lump_sum"] = bool(values["lump_sum"]) and instrument.kind == KIND_ALTERNATIVE
+        if values["lump_sum"] != instrument.lump_sum and Transaction.objects.filter(profile=profile, instrument=instrument).exists():
+            raise InvestmentsError("HAS_TRANSACTIONS", "Lump Sum cannot be changed once the investment has transactions.")
     if values.get("name") or values.get("code"):
         others = [i for i in find_similar(profile, values.get("name", instrument.name), values.get("code", instrument.code), instrument.kind)
                   if i.pk != instrument.pk]

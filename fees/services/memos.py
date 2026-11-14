@@ -51,7 +51,7 @@ from django.db.models import F
 
 from fees.errors import FeesError
 from fees.models import Allocation, FeesSettings, Matter, Memo, Payment, StatsCache
-from fees.services import memo_fees, memo_numbers
+from fees.services import history, memo_fees, memo_numbers
 from fees.services.financial_year import (
     current_financial_year,
     derive_financial_year,
@@ -378,6 +378,7 @@ def create_memo(profile, data, is_draft=False):
         memo.amount_received = 0
         memo.amount_tds = 0
         memo.save()
+        history.record(profile, "create", "memo", memo.pk, f"Added {history.memo_name(memo)}")
         touch(profile)
 
     return memo
@@ -444,6 +445,7 @@ def finalize_draft(profile, memo_id, custom_number=None):
                 "updated_at",
             ]
         )
+        history.record(profile, "finalise", "memo", memo.pk, f"Finalised draft as memo {memo.memo_number}")
         touch(profile)
 
     return memo
@@ -512,6 +514,7 @@ def update_memo(profile, memo_id, data):
 
         memo.total_fees = _stored_total_fees(memo)
         memo.save()
+        history.record(profile, "update", "memo", memo.pk, f"Changed {history.memo_name(memo)}")
         touch(profile)
 
     return memo
@@ -545,6 +548,10 @@ def set_memo_written_off(profile, memo_id, written_off):
     with transaction.atomic():
         memo.written_off = flag
         memo.save(update_fields=["written_off", "updated_at"])
+        history.record(
+            profile, "write_off" if flag else "unwrite_off", "memo", memo.pk,
+            f"{'Wrote off' if flag else 'Removed the write-off from'} {history.memo_name(memo)}",
+        )
         touch(profile)
 
     return memo
@@ -576,6 +583,7 @@ def delete_memo(profile, memo_id):
         raise FeesError("MEMO_NOT_FOUND", f"Memo {memo_id} not found")
 
     with transaction.atomic():
+        name = history.memo_name(memo)
         payment_ids = list(
             Allocation.objects.filter(memo=memo)
             .values_list("payment_id", flat=True)
@@ -591,6 +599,7 @@ def delete_memo(profile, memo_id):
             if orphan_ids:
                 Payment.objects.filter(pk__in=orphan_ids).delete()
         memo.delete()
+        history.record(profile, "delete", "memo", memo_id, f"Deleted {name}")
         touch(profile)
 
 
@@ -620,6 +629,7 @@ def move_memo(profile, memo_id, target_matter_id):
         memo.firm_id = target.firm_id
         memo.group_id = target.group_id
         memo.save(update_fields=["matter", "firm", "group", "updated_at"])
+        history.record(profile, "move", "memo", memo.pk, f"Moved {history.memo_name(memo)} to matter {target.name}")
         touch(profile)
     return memo
 

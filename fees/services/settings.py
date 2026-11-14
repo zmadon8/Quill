@@ -54,6 +54,7 @@ from django.db.models.functions import Lower
 from fees.errors import FeesError
 from fees.exports.filenames import validate_pattern
 from fees.models import BankAccount, FeesSettings, Payment
+from fees.services import history
 from fees.services.memos import touch
 
 __all__ = [
@@ -343,6 +344,10 @@ def update_settings(profile, data):
         changed = _merge(settings, data)
         if changed:
             settings.save(update_fields=changed + ["updated_at"])
+            history.record(
+                profile, "update", "settings", settings.pk,
+                "Changed settings: " + ", ".join(name.replace("_", " ") for name in changed),
+            )
         touch(profile)
     return get_settings(profile)
 
@@ -383,6 +388,7 @@ def add_bank_account(profile, name):
         if BankAccount.objects.filter(profile=profile, name__iexact=clean).exists():
             raise _invalid(f'Bank account "{clean}" already exists')
         account = BankAccount.objects.create(profile=profile, name=clean)
+        history.record(profile, "create", "bank", account.pk, f"Added bank account {clean}")
         touch(profile)
     return account
 
@@ -408,8 +414,10 @@ def update_bank_account(profile, account_id, name):
         )
         if dupe:
             raise _invalid(f'Bank account "{clean}" already exists')
+        old_name = account.name
         account.name = clean
         account.save(update_fields=["name", "updated_at"])
+        history.record(profile, "update", "bank", account.pk, f"Renamed bank account {old_name} to {clean}")
         touch(profile)
     return account
 
@@ -436,6 +444,8 @@ def delete_bank_account(profile, account_id):
                 "This bank account is used by a payment, so it cannot be removed.",
                 status=409,
             )
+        name = account.name
         account.delete()
+        history.record(profile, "delete", "bank", account_id, f"Removed bank account {name}")
         touch(profile)
     return None

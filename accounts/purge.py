@@ -105,25 +105,37 @@ def purge_old_history(now=None, chunk=1000):
     history is always in a fresh backup before it goes.
     """
     from diary.models import VersionHistory
+    from fees.models import FeesHistory
+    from fees.services import history as fees_history
 
     now = now or timezone.now()
     ids = list(purgeable_history(now).values_list("pk", flat=True))
-    if not ids:
+    fees_ids = list(fees_history.purgeable(now).values_list("pk", flat=True))
+    if not ids and not fees_ids:
         return None
     days = settings.HISTORY_RETENTION_DAYS
     if not todays_backup_ok(now):
         return PurgeLog.objects.create(
             ran_at=now,
             success=False,
-            message=f"Edit history not trimmed: no successful backup was taken today. {len(ids)} old version(s) are waiting.",
+            message=(
+                "Edit history not trimmed: no successful backup was taken today. "
+                f"{len(ids)} old version(s) and {len(fees_ids)} old Fee Register line(s) are waiting."
+            ),
         )
     removed = 0
+    fees_removed = 0
     with transaction.atomic():
         for start in range(0, len(ids), chunk):
             removed += VersionHistory.objects.filter(pk__in=ids[start:start + chunk]).delete()[0]
+        for start in range(0, len(fees_ids), chunk):
+            fees_removed += FeesHistory.objects.filter(pk__in=fees_ids[start:start + chunk]).delete()[0]
+    counts = {"diary.VersionHistory": removed}
+    if fees_removed:
+        counts["fees.FeesHistory"] = fees_removed
     return PurgeLog.objects.create(
         ran_at=now,
         success=True,
         message=f"Edit history older than {days} days trimmed (the newest version of every record is kept).",
-        counts={"diary.VersionHistory": removed},
+        counts=counts,
     )

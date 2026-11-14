@@ -91,7 +91,7 @@ from django.db import DataError, IntegrityError, transaction
 
 from fees.errors import FeesError
 from fees.models import FeesSettings, Firm, Group, Matter, Memo, NumberSequence
-from fees.services import memo_fees, memo_numbers, memos, payments
+from fees.services import history, memo_fees, memo_numbers, memos, payments
 from fees.services.excel_restore import MAX_UNCOMPRESSED_BYTES
 from fees.services.financial_year import current_financial_year, derive_financial_year
 from fees.services.heavy import Busy, heavy_operation  # noqa: F401 (Busy is part of the contract)
@@ -973,11 +973,16 @@ def import_memos(profile, rows, mapping, auto_number=False):
         # Lock the settings row so a concurrent change waits and the single bump below is exact.
         settings, _created = FeesSettings.objects.select_for_update().get_or_create(profile=profile)
         start_version = settings.data_version
-        if importer.needs_plan:
-            importer.plan(rows)
-        for index, row in enumerate(rows):
-            importer.process(row, index + 2)
-        importer.finish_groups()
+        with history.quiet():
+            if importer.needs_plan:
+                importer.plan(rows)
+            for index, row in enumerate(rows):
+                importer.process(row, index + 2)
+            importer.finish_groups()
+        history.record(
+            profile, "import", "memo", None,
+            f"Imported {importer.memos_created} memos and {importer.payments_created} payments from a file",
+        )
         FeesSettings.objects.filter(pk=settings.pk).update(data_version=start_version)
         memos.touch(profile)
     return importer.result()

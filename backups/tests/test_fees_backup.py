@@ -55,6 +55,7 @@ FEE_LABELS = [
     "fees.Allocation",
     "fees.PeriodAdjustment",
     "fees.SavedView",
+    "fees.FeesHistory",
 ]
 
 

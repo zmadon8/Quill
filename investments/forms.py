@@ -183,6 +183,9 @@ class TransactionForm(ProfileForm):
                                help_text="Bonus shares, split units and shares received on a demerger need no price: they are added at a cost of 0. A demerger's cost comes from the parent's shares, not from this entry.")
     corporate_action = forms.ModelChoiceField(queryset=CorporateAction.objects.none(), required=False, label="Corporate action (bonus, split or demerger)")
     price = MoneyField(label="Price per unit", required=False, min_value=0)
+    lump_amount = MoneyField(label="Amount", required=False, min_value=0, help_text="Lump Sum investment: the money paid or received")
+    remaining = MoneyField(label="Amount remaining after this sale", required=False, min_value=0,
+                           help_text="What you still hold of this investment after the sale (0 if all of it is sold)")
     charges = MoneyField(label="Charges", required=False, min_value=0, initial=0)
     allotment_date = forms.DateField(
         widget=date_widget(), label="Allotment date", required=False,
@@ -203,6 +206,12 @@ class TransactionForm(ProfileForm):
         awaiting = mode.startswith("awaiting")
         if mode == "sell":
             self.fields["date"].label = "Date sold"
+        # Lump Sum investments are asked for an amount (and, on a sale, what remains) instead of units and price. The page shows these two
+        # fields, and hides Units and Price, once such an investment is chosen; clean() enforces whichever set applies.
+        if mode not in ("buy", "sell"):
+            del self.fields["lump_amount"]
+        if mode != "sell":
+            del self.fields["remaining"]
         if awaiting:
             for name in ("units", "price", "allotment_date", "origin", "corporate_action"):
                 del self.fields[name]
@@ -213,12 +222,12 @@ class TransactionForm(ProfileForm):
             del self.fields["amount"]
             del self.fields["expected_allotment_date"]
             del self.fields["reference"]
-            self.fields["units"].required = True
+            self.fields["units"].required = mode not in ("buy", "sell")   # buy and sell check it in clean(): a Lump Sum asks for an amount instead
             if mode in ("sell", "edit_sell"):
                 del self.fields["allotment_date"]
                 del self.fields["origin"]
                 del self.fields["corporate_action"]
-                self.fields["price"].required = True
+                self.fields["price"].required = mode != "sell"
             else:
                 # A purchase needs its price; bonus and split units and shares received on a demerger do not (checked in clean()).
                 self.fields["corporate_action"].queryset = self.actions()
@@ -271,6 +280,21 @@ class TransactionForm(ProfileForm):
             if self.held_default and chosen and chosen not in held:
                 self.held_default = False
 
+    def clean_amounts(self, cleaned, inst):
+        """Units and price are required on a plain buy or sale unless the investment is a Lump Sum, which needs its amount (and, when sold, what
+        remains) instead. A Lump Sum purchase is recorded as units = amount at a price of 1; a sale's units and price are worked out when it is saved."""
+        if inst and inst.lump_sum:
+            need = ("lump_amount", "remaining") if self.mode == "sell" else ("lump_amount",)
+            for name in need:
+                if cleaned.get(name) is None and name not in self.errors:
+                    self.add_error(name, "This field is required.")
+            if cleaned.get("lump_amount") is not None and cleaned["lump_amount"] <= 0:
+                self.add_error("lump_amount", "The amount must be above zero.")
+        elif cleaned.get("units") is None and "units" not in self.errors:
+            self.add_error("units", "This field is required.")
+        if self.mode == "sell" and not (inst and inst.lump_sum) and cleaned.get("price") is None and "price" not in self.errors:
+            self.add_error("price", "This field is required.")
+
     def actions(self):
         """The bonuses, splits and demergers the person may link units to: those on investments they can see (a demerger also by its new company)."""
         from django.db.models import Q
@@ -287,12 +311,14 @@ class TransactionForm(ProfileForm):
 
             if not tx.available_by_bucket(self.profile, inst, day):
                 self.add_error("instrument", f"You held none of this investment on {day.day} {day:%b %Y}.")
+        if self.mode in ("buy", "sell"):
+            self.clean_amounts(cleaned, inst)
         folio = cleaned.get("folio")
         if folio and self.new_pick:
             self.add_error("folio", "Choose a folio after the investment has been added.")
         if folio and cleaned.get("instrument") and (folio.instrument_id != cleaned["instrument"].pk or (cleaned.get("portfolio") and folio.portfolio_id != cleaned["portfolio"].pk)):
             self.add_error("folio", "That folio belongs to a different investment or portfolio.")
-        if "origin" in self.fields:
+        if "origin" in self.fields and not (inst and inst.lump_sum):
             origin = cleaned["origin"] = cleaned.get("origin") or ORIGIN_PURCHASE
             if origin == ORIGIN_PURCHASE:
                 if cleaned.get("price") is None and "price" not in self.errors:
@@ -399,6 +425,31 @@ class InstrumentForm(forms.Form):
     maturity_date = forms.DateField(widget=date_widget(), required=False, label="Maturity date (optional)")
     taxed_as_interest = forms.BooleanField(required=False, label="Taxed as Interest",
                                            help_text="Profit or loss on sales is reported as Interest Income, not Capital Gains")
+    lump_sum = forms.BooleanField(required=False, label="Lump Sum (alternative investments only)",
+                                  help_text="Bought and sold in lump sums of money: no units or price per unit are asked for. Cannot be changed once there are transactions.")
+
+    # The kinds each optional field is asked for. A field not asked for is removed from the form, so it is neither shown nor read from a
+    # POST; the view and masters.create_instrument fill in the default for it.
+    FIELD_KINDS = {
+        "isin": (KIND_SHARE, "fund"),
+        "currency": (KIND_FOREIGN,),
+        "asset_class": ("fund", KIND_ALTERNATIVE),
+        "sector": (KIND_SHARE,),
+        "interest_rate": (KIND_ALTERNATIVE,),
+        "interest_type": (KIND_ALTERNATIVE,),
+        "maturity_date": (KIND_ALTERNATIVE,),
+        "taxed_as_interest": (KIND_ALTERNATIVE,),
+        "lump_sum": (KIND_ALTERNATIVE,),
+    }
+
+    def __init__(self, *args, kind=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        data = args[0] if args and args[0] is not None else kwargs.get("data")
+        kind = kind or (data.get("kind") if data else None) or (kwargs.get("initial") or {}).get("kind")
+        if kind in dict(KIND_CHOICES):
+            for name, kinds in self.FIELD_KINDS.items():
+                if kind not in kinds:
+                    del self.fields[name]
 
     def clean_currency(self):
         return (self.cleaned_data.get("currency") or "INR").upper()
@@ -411,7 +462,7 @@ class OwnInstrumentForm(InstrumentForm):
     """Edit an investment the profile owns (an alternative investment): the same fields and limits as adding one, without the kind."""
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(*args, kind=KIND_ALTERNATIVE, **kwargs)
         del self.fields["kind"]
 
 
@@ -646,16 +697,23 @@ class GuardrailForm(ProfileForm):
 
 
 class AlertSettingsForm(forms.Form):
-    rule_a_enabled = forms.BooleanField(required=False, label="Rule A: against the previous close")
+    """One switch per kind of alert, each next to its threshold. Insights (Settings > Insights) are separate and are not alerts."""
+    rule_a_fall_enabled = forms.BooleanField(required=False, label="Alert me when an investment falls in a day")
     rule_a_fall_pct = forms.DecimalField(min_value=0, max_digits=6, decimal_places=2, label="Fall in a day %")
+    rule_a_rise_enabled = forms.BooleanField(required=False, label="Alert me when an investment rises in a day")
     rule_a_rise_pct = forms.DecimalField(min_value=0, max_digits=6, decimal_places=2, label="Rise in a day %")
+    rule_a_window_enabled = forms.BooleanField(required=False, label="Alert me when an investment falls over several days")
     rule_a_window_days = forms.IntegerField(min_value=2, max_value=365, label="Over this many days")
     rule_a_window_fall_pct = forms.DecimalField(required=False, min_value=0, max_digits=6, decimal_places=2, label="Fall over those days % (blank: off)")
-    rule_b_enabled = forms.BooleanField(required=False, label="Rule B: against your cost")
+    rule_b_loss_enabled = forms.BooleanField(required=False, label="Alert me when a holding is below what I paid")
     rule_b_loss_pct = forms.DecimalField(min_value=0, max_digits=6, decimal_places=2, label="Below cost %")
+    rule_b_gain_enabled = forms.BooleanField(required=False, label="Alert me when a holding is above what I paid")
     rule_b_gain_pct = forms.DecimalField(min_value=0, max_digits=6, decimal_places=2, label="Above cost %")
-    guardrail_replaces_global = forms.BooleanField(required=False, label="A guardrail on a holding replaces the global rules for it")
+    guardrails_enabled = forms.BooleanField(required=False, label="Alert me when a guardrail I set is reached")
+    guardrail_replaces_global = forms.BooleanField(required=False, label="A guardrail on a holding replaces the daily and cost alerts for it")
+    maturity_enabled = forms.BooleanField(required=False, label="Alert me before an alternative investment matures")
     maturity_alert_days = forms.IntegerField(min_value=0, max_value=365, label="Warn before a maturity date (days)")
+    source_problems_enabled = forms.BooleanField(required=False, label="Warn me on the Alerts page when a price or list source cannot be read")
     alert_email = forms.BooleanField(required=False, label="Email me alerts that triggered overnight")
 
 

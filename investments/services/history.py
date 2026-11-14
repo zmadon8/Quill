@@ -89,6 +89,10 @@ def diff(old, new):
     return out
 
 
+#: How many rows the History page shows.
+LIMIT = 100
+
+
 def rows_for(profile, instrument_id=None, record_type=None, limit=500):
     qs = InvestmentHistory.objects.filter(profile=profile).select_related("changed_by")
     if instrument_id:

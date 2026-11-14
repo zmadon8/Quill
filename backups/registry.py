@@ -104,6 +104,7 @@ BACKUP_MODELS = [
     "fees.Allocation",
     "fees.PeriodAdjustment",
     "fees.SavedView",
+    "fees.FeesHistory",
     *INVESTMENTS_BACKUP_MODELS,
 ]
 
@@ -122,6 +123,7 @@ FEES_BACKUP_MODELS = [
     "fees.Allocation",
     "fees.PeriodAdjustment",
     "fees.SavedView",
+    "fees.FeesHistory",
 ]
 
 #: Models an older backup file may lack. Restoring such a file empties the table, so the built-in
@@ -158,7 +160,7 @@ PROFILE_MODELS = [
 #: Fee Register models that carry a ``profile`` column, parents first (same order as in
 #: ``BACKUP_MODELS``). This is a SEPARATE list from the diary ``PROFILE_MODELS`` so
 #: ``services.upgrade_old_document`` (which assigns unassigned diary rows to the diary "Main" profile)
-#: never iterates over fee models. ``StatsCache`` is derived data and is not listed. All 12 fee models
+#: never iterates over fee models. ``StatsCache`` is derived data and is not listed. All 13 fee models
 #: are profile-scoped, so this is the same set as ``FEES_BACKUP_MODELS``.
 FEES_PROFILE_MODELS = [
     "fees.FeesSettings",
@@ -173,6 +175,7 @@ FEES_PROFILE_MODELS = [
     "fees.Allocation",
     "fees.PeriodAdjustment",
     "fees.SavedView",
+    "fees.FeesHistory",
 ]
 
 

@@ -38,6 +38,7 @@ _NAV = (
     ("firms", "Firms", "fees_firms", ("fees_firm", "fees_matter")),
     ("feebook", "Feebook", "fees_feebook", ("fees_feebook",)),
     ("outstanding", "Outstanding", "fees_outstanding", ("fees_outstanding",)),
+    ("history", "History", "fees_history", ("fees_history",)),
 )
 
 

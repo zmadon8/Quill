@@ -19,3 +19,19 @@ class FeesEnabledMiddleware:
             if path == "/fees" or path.startswith("/fees/"):
                 raise Http404("The Fee Register is not available.")
         return self.get_response(request)
+
+
+class FeesActorMiddleware:
+    """Let the Fee Register services know who is acting, for the History tab (see ``fees.services.history``)."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        from fees.services import history
+
+        token = history.set_request(request)
+        try:
+            return self.get_response(request)
+        finally:
+            history.reset_request(token)

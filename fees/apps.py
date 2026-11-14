@@ -27,6 +27,7 @@ FEES_PROFILE_MODELS = [
     "fees.Allocation",
     "fees.PeriodAdjustment",
     "fees.SavedView",
+    "fees.FeesHistory",
 ]
 
 #: The URL name of the Fee Register's first page: ``fees_landing`` redirects to the user's chosen
