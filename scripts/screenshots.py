@@ -43,6 +43,8 @@ def pages(ids):
         ("inv-add-type", "/investments/holdings/add/", None),
         ("inv-add-investment", "/investments/holdings/add/details/?kind=share", None),
         ("inv-add-fund", "/investments/holdings/add/details/?kind=fund", None),
+        ("inv-add-foreign", "/investments/holdings/add/details/?kind=foreign", None),
+        ("inv-add-alternative", "/investments/holdings/add/details/?kind=alternative", None),
         ("inv-sell", "/investments/transactions/sell/", None),
         ("inv-sell-held", "/investments/transactions/sell/?instrument={investment}", "sell_card"),
         ("inv-sell-lump", "/investments/transactions/sell/?instrument={lump_investment}", "sell_card"),

@@ -428,6 +428,29 @@ class InstrumentForm(forms.Form):
     lump_sum = forms.BooleanField(required=False, label="Lump Sum (alternative investments only)",
                                   help_text="Bought and sold in lump sums of money: no units or price per unit are asked for. Cannot be changed once there are transactions.")
 
+    # The kinds each optional field is asked for. A field not asked for is removed from the form, so it is neither shown nor read from a
+    # POST; the view and masters.create_instrument fill in the default for it.
+    FIELD_KINDS = {
+        "isin": (KIND_SHARE, "fund"),
+        "currency": (KIND_FOREIGN,),
+        "asset_class": ("fund", KIND_ALTERNATIVE),
+        "sector": (KIND_SHARE,),
+        "interest_rate": (KIND_ALTERNATIVE,),
+        "interest_type": (KIND_ALTERNATIVE,),
+        "maturity_date": (KIND_ALTERNATIVE,),
+        "taxed_as_interest": (KIND_ALTERNATIVE,),
+        "lump_sum": (KIND_ALTERNATIVE,),
+    }
+
+    def __init__(self, *args, kind=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        data = args[0] if args and args[0] is not None else kwargs.get("data")
+        kind = kind or (data.get("kind") if data else None) or (kwargs.get("initial") or {}).get("kind")
+        if kind in dict(KIND_CHOICES):
+            for name, kinds in self.FIELD_KINDS.items():
+                if kind not in kinds:
+                    del self.fields[name]
+
     def clean_currency(self):
         return (self.cleaned_data.get("currency") or "INR").upper()
 
@@ -439,7 +462,7 @@ class OwnInstrumentForm(InstrumentForm):
     """Edit an investment the profile owns (an alternative investment): the same fields and limits as adding one, without the kind."""
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(*args, kind=KIND_ALTERNATIVE, **kwargs)
         del self.fields["kind"]
 
 
