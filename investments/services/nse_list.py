@@ -21,7 +21,7 @@ def _store(rows):
 def _store_rows(rows):
     batch, n = [], 0
     for symbol, name, isin, series in rows:
-        batch.append(NseSecurity(symbol=symbol[:40], name=name[:250], isin=isin[:20], series=series[:4]))
+        batch.append(NseSecurity(symbol=symbol[:40], name=name[:250], isin=isin[:20], series=series[:4], updated_at=timezone.now()))
         if len(batch) >= BATCH:
             n += _flush(batch)
     return n + _flush(batch)
@@ -30,7 +30,7 @@ def _store_rows(rows):
 def _flush(batch):
     if not batch:
         return 0
-    NseSecurity.objects.bulk_create(batch, update_conflicts=True, unique_fields=["symbol"], update_fields=["name", "isin", "series"])
+    NseSecurity.objects.bulk_create(batch, update_conflicts=True, unique_fields=["symbol"], update_fields=["name", "isin", "series", "updated_at"])
     n = len(batch)
     batch.clear()
     return n

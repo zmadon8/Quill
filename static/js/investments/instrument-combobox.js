@@ -36,7 +36,7 @@
     held.className = "combo-held-box";
     held.checked = box.getAttribute("data-held") === "1";
     heldLabel.appendChild(held);
-    heldLabel.appendChild(document.createTextNode(" Held"));
+    heldLabel.appendChild(document.createTextNode("Held"));
     var input = el("input", "combo-input");
     input.type = "text"; input.id = uid + "-input"; input.autocomplete = "off";
     input.placeholder = "Search by name, code or ISIN";
@@ -50,7 +50,9 @@
     list.setAttribute("aria-label", "Matching investments");
     var tagLine = el("p", "combo-line"); tagLine.hidden = true;
     var priceLine = el("p", "combo-line"); priceLine.hidden = true;
-    [input, heldLabel, list, tagLine, priceLine].forEach(function (n) { box.appendChild(n); });
+    var row = el("div", "combo-row");
+    row.appendChild(input); row.appendChild(heldLabel);
+    [row, list, tagLine, priceLine].forEach(function (n) { box.appendChild(n); });
 
     var label = select.closest(".fld") && select.closest(".fld").querySelector("label[for='" + select.id + "']");
     if (label) { label.setAttribute("for", input.id); }

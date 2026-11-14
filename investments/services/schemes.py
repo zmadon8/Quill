@@ -24,7 +24,10 @@ def _store_rows(rows):
     for code, name, isin, day, nav, *rest in rows:     # the adapter adds the category heading as a sixth item
         name = name[:250]
         _, plan, option = fund_names.parse(name)
-        batch.append(AmfiScheme(code=code, name=name, isin=isin[:20], nav=nav, nav_date=day, plan=plan, option=option, category=rest[0] if rest else ""))
+        if len(rest) >= 3:                       # AMFI's own plan and option columns win over the ones read from the joined name
+            plan, option = rest[1] or plan, rest[2] or option
+        batch.append(AmfiScheme(code=code, name=name, isin=isin[:20], nav=nav, nav_date=day, plan=plan, option=option, category=rest[0] if rest else "",
+                                updated_at=timezone.now()))
         if len(batch) >= BATCH:
             n += _flush(batch)
     n += _flush(batch)
@@ -35,7 +38,7 @@ def _store_rows(rows):
 def _flush(batch):
     if not batch:
         return 0
-    AmfiScheme.objects.bulk_create(batch, update_conflicts=True, unique_fields=["code"], update_fields=["name", "isin", "nav", "nav_date", "plan", "option", "category"])
+    AmfiScheme.objects.bulk_create(batch, update_conflicts=True, unique_fields=["code"], update_fields=["name", "isin", "nav", "nav_date", "plan", "option", "category", "updated_at"])
     n = len(batch)
     batch.clear()
     return n

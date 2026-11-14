@@ -712,13 +712,14 @@ textarea.single-line { display: block; width: 100%; max-width: 28rem; min-height
 .section-actions { flex-wrap: wrap; }
 
 /* Investment combobox (instrument-combobox.js), over the plain select, which stays for no-JS. */
-.combo { position: relative; margin-top: 6px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
+.combo { position: relative; margin-top: 6px; }
+.combo-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
 .combo[hidden] { display: none; }
-.combo-held { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; margin: 0; flex: none; white-space: nowrap; font-size: .857rem; color: var(--muted, #6b6860); }
-.combo-input { flex: 1 1 12rem; min-width: 0; min-height: 44px; box-sizing: border-box; }
+.combo-held { display: inline-flex; align-items: center; gap: 4px; width: auto; margin: 0; padding: 0; flex: none; white-space: nowrap; font-size: .857rem; color: var(--muted, #6b6860); }
+.combo-input { flex: 1 1 12rem; min-width: 0; max-width: none; min-height: 44px; box-sizing: border-box; }
 .combo .search-suggest-head { position: sticky; top: 0; z-index: 1; padding: 5px 12px; background: var(--paper-2, #f2f0ea); border-top: 1px solid var(--line-strong, #c9c5bc); border-bottom: 1px solid var(--line, #e3e0d8); font-size: .6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; user-select: none; pointer-events: none; }
 .combo .search-suggest-head:first-child { border-top: 0; }
 .combo-tag { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 9px; background: var(--paper-2, #f2f0ea); color: var(--muted, #6b6860); font-size: .75rem; }
 .combo-tag.new { background: var(--ink, #1C1B19); color: var(--white, #fff); }
 .combo-add { display: block; min-height: 44px; padding: 12px; box-sizing: border-box; }
-.combo-line { flex: 1 0 100%; margin: 4px 0 0; font-size: .857rem; color: var(--muted, #6b6860); }
+.combo-line { margin: 4px 0 0; font-size: .857rem; color: var(--muted, #6b6860); }
