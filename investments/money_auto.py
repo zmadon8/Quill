@@ -17,11 +17,16 @@ Rules (owner decisions, plan 24.3 and the owner round of November 2026):
   (``−₹60.30 k``); ``signed=True`` also puts ``+`` before a positive amount (gains).
 * Foreign amounts: Auto uses ``k`` and ``m`` (millions), Full shows the whole amount with Western grouping.
 
+* Units (``format_units``): Full is the exact quantity, Indian grouping, trailing zeros dropped (or the decimals chosen in
+  Settings > Display). Short keeps a quantity below 1,000 as Full shows it; from 1,000 it uses ``k`` / ``lac`` / ``cr`` like
+  rupees but with no symbol, a space before every suffix, up to 2 decimals, trailing zeros dropped (``1.56 k``, ``15.6 lac``,
+  ``1.2 cr``), and a figure that rounds up to the next unit is shown in that unit.
+
 Assumptions I made where the plan is silent are recorded in docs/DESIGN.md (D101 onwards).
 """
 from decimal import ROUND_HALF_UP, Decimal
 
-__all__ = ["format_amount", "format_rupees", "group_indian", "group_western", "AUTO", "FULL"]
+__all__ = ["format_amount", "format_rupees", "format_units", "group_indian", "group_western", "AUTO", "FULL"]
 
 AUTO = "auto"
 FULL = "full"
@@ -157,3 +162,32 @@ def format_amount(value, *, currency="INR", mode=AUTO, signed=False, symbol=None
 def format_rupees(value, *, mode=AUTO, signed=False):
     """Rupee amount in the chosen mode (see :func:`format_amount`)."""
     return format_amount(value, currency="INR", mode=mode, signed=signed)
+
+
+_UNIT_STEPS = ((Decimal(1000), "k"), (Decimal(100000), "lac"), (Decimal(10000000), "cr"))
+
+
+def format_units(value, *, mode=AUTO, decimals=None):
+    """A quantity of units in the chosen mode (see the module notes). ``decimals`` fixes the decimals of a Full quantity."""
+    exact = _dec(value)
+    magnitude = abs(exact)
+    neg = "-" if exact < _ZERO else ""
+    if mode != FULL and magnitude >= _UNIT_STEPS[0][0]:
+        idx = 0
+        while idx + 1 < len(_UNIT_STEPS) and magnitude >= _UNIT_STEPS[idx + 1][0]:
+            idx += 1
+        scaled = _round2(magnitude / _UNIT_STEPS[idx][0])
+        if idx + 1 < len(_UNIT_STEPS) and scaled * _UNIT_STEPS[idx][0] >= _UNIT_STEPS[idx + 1][0]:
+            idx += 1
+            scaled = _round2(magnitude / _UNIT_STEPS[idx][0])
+        whole, _dot, frac = f"{scaled:f}".partition(".")
+        frac = frac.rstrip("0")
+        return f"{neg}{group_indian(whole)}{'.' + frac if frac else ''} {_UNIT_STEPS[idx][1]}"
+    if decimals is not None:
+        text = f"{magnitude.quantize(Decimal(1).scaleb(-int(decimals)), rounding=ROUND_HALF_UP):f}"
+    else:
+        text = f"{magnitude:f}"
+        if "." in text:
+            text = text.rstrip("0").rstrip(".")
+    whole, _dot, frac = text.partition(".")
+    return f"{neg}{group_indian(whole)}{'.' + frac if frac else ''}"

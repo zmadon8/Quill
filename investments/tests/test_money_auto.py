@@ -7,7 +7,7 @@ from pathlib import Path
 
 from django.test import SimpleTestCase
 
-from investments.money_auto import format_amount, format_rupees, group_indian, group_western
+from investments.money_auto import format_amount, format_rupees, format_units, group_indian, group_western
 
 HERE = Path(__file__).resolve().parent
 GOLDEN = HERE / "golden" / "money_auto.json"
@@ -22,10 +22,13 @@ class GoldenTableTests(SimpleTestCase):
     def test_every_case(self):
         for case in _cases():
             with self.subTest(case=case):
-                got = format_amount(
-                    case["v"], currency=case.get("cur", "INR"), mode=case["mode"], signed=case.get("signed", False),
-                    decimals=case.get("dec")
-                )
+                if case.get("kind") == "units":
+                    got = format_units(case["v"], mode=case["mode"], decimals=case.get("dec"))
+                else:
+                    got = format_amount(
+                        case["v"], currency=case.get("cur", "INR"), mode=case["mode"], signed=case.get("signed", False),
+                        decimals=case.get("dec")
+                    )
                 self.assertEqual(got, case["out"])
 
     def test_accepts_decimal_int_float(self):
@@ -50,6 +53,24 @@ class GoldenTableTests(SimpleTestCase):
         for v in ("0", "7.5", "950", "85400", "99999.5", "2412600", "9999499", "24126000", "1234567890", "-60300"):
             with self.subTest(v=v):
                 self.assertEqual(format_rupees(v).replace("−", "-").replace("₹", ""), format_money(v, unit="truncated"))
+
+
+class UnitsFormatTests(SimpleTestCase):
+    def test_short_units_use_k_lac_cr_and_full_stays_exact(self):
+        self.assertEqual(format_units("1560", mode="auto"), "1.56 k")
+        self.assertEqual(format_units("1560", mode="full"), "1,560")
+        self.assertEqual(format_units(Decimal("1560000"), mode="auto"), "15.6 lac")
+        self.assertEqual(format_units(12000000, mode="auto"), "1.2 cr")
+        self.assertEqual(format_units("999.5", mode="auto"), "999.5")
+
+    def test_units_filter_carries_both_texts_for_the_toggle(self):
+        from investments.templatetags.investments_money import units
+
+        html = str(units(Decimal("1560.0000")))
+        self.assertIn('data-auto="1.56 k"', html)
+        self.assertIn('data-full="1,560"', html)
+        self.assertIn('class="m"', html)
+        self.assertEqual(units(None), "")
 
 
 class JavaScriptMirrorTests(SimpleTestCase):
