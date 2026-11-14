@@ -508,7 +508,6 @@ class NameForm(forms.Form):
 
 class PortfolioForm(forms.Form):
     name = forms.CharField(max_length=80)
-    owner_name = forms.CharField(max_length=80, required=False, label="Owner")
 
 
 class DeleteInstrumentForm(forms.Form):
