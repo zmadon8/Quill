@@ -183,6 +183,9 @@ class TransactionForm(ProfileForm):
                                help_text="Bonus shares, split units and shares received on a demerger need no price: they are added at a cost of 0. A demerger's cost comes from the parent's shares, not from this entry.")
     corporate_action = forms.ModelChoiceField(queryset=CorporateAction.objects.none(), required=False, label="Corporate action (bonus, split or demerger)")
     price = MoneyField(label="Price per unit", required=False, min_value=0)
+    lump_amount = MoneyField(label="Amount", required=False, min_value=0, help_text="Lump Sum investment: the money paid or received")
+    remaining = MoneyField(label="Amount remaining after this sale", required=False, min_value=0,
+                           help_text="What you still hold of this investment after the sale (0 if all of it is sold)")
     charges = MoneyField(label="Charges", required=False, min_value=0, initial=0)
     allotment_date = forms.DateField(
         widget=date_widget(), label="Allotment date", required=False,
@@ -203,6 +206,12 @@ class TransactionForm(ProfileForm):
         awaiting = mode.startswith("awaiting")
         if mode == "sell":
             self.fields["date"].label = "Date sold"
+        # Lump Sum investments are asked for an amount (and, on a sale, what remains) instead of units and price. The page shows these two
+        # fields, and hides Units and Price, once such an investment is chosen; clean() enforces whichever set applies.
+        if mode not in ("buy", "sell"):
+            del self.fields["lump_amount"]
+        if mode != "sell":
+            del self.fields["remaining"]
         if awaiting:
             for name in ("units", "price", "allotment_date", "origin", "corporate_action"):
                 del self.fields[name]
@@ -213,12 +222,12 @@ class TransactionForm(ProfileForm):
             del self.fields["amount"]
             del self.fields["expected_allotment_date"]
             del self.fields["reference"]
-            self.fields["units"].required = True
+            self.fields["units"].required = mode not in ("buy", "sell")   # buy and sell check it in clean(): a Lump Sum asks for an amount instead
             if mode in ("sell", "edit_sell"):
                 del self.fields["allotment_date"]
                 del self.fields["origin"]
                 del self.fields["corporate_action"]
-                self.fields["price"].required = True
+                self.fields["price"].required = mode != "sell"
             else:
                 # A purchase needs its price; bonus and split units and shares received on a demerger do not (checked in clean()).
                 self.fields["corporate_action"].queryset = self.actions()
@@ -271,6 +280,21 @@ class TransactionForm(ProfileForm):
             if self.held_default and chosen and chosen not in held:
                 self.held_default = False
 
+    def clean_amounts(self, cleaned, inst):
+        """Units and price are required on a plain buy or sale unless the investment is a Lump Sum, which needs its amount (and, when sold, what
+        remains) instead. A Lump Sum purchase is recorded as units = amount at a price of 1; a sale's units and price are worked out when it is saved."""
+        if inst and inst.lump_sum:
+            need = ("lump_amount", "remaining") if self.mode == "sell" else ("lump_amount",)
+            for name in need:
+                if cleaned.get(name) is None and name not in self.errors:
+                    self.add_error(name, "This field is required.")
+            if cleaned.get("lump_amount") is not None and cleaned["lump_amount"] <= 0:
+                self.add_error("lump_amount", "The amount must be above zero.")
+        elif cleaned.get("units") is None and "units" not in self.errors:
+            self.add_error("units", "This field is required.")
+        if self.mode == "sell" and not (inst and inst.lump_sum) and cleaned.get("price") is None and "price" not in self.errors:
+            self.add_error("price", "This field is required.")
+
     def actions(self):
         """The bonuses, splits and demergers the person may link units to: those on investments they can see (a demerger also by its new company)."""
         from django.db.models import Q
@@ -287,12 +311,14 @@ class TransactionForm(ProfileForm):
 
             if not tx.available_by_bucket(self.profile, inst, day):
                 self.add_error("instrument", f"You held none of this investment on {day.day} {day:%b %Y}.")
+        if self.mode in ("buy", "sell"):
+            self.clean_amounts(cleaned, inst)
         folio = cleaned.get("folio")
         if folio and self.new_pick:
             self.add_error("folio", "Choose a folio after the investment has been added.")
         if folio and cleaned.get("instrument") and (folio.instrument_id != cleaned["instrument"].pk or (cleaned.get("portfolio") and folio.portfolio_id != cleaned["portfolio"].pk)):
             self.add_error("folio", "That folio belongs to a different investment or portfolio.")
-        if "origin" in self.fields:
+        if "origin" in self.fields and not (inst and inst.lump_sum):
             origin = cleaned["origin"] = cleaned.get("origin") or ORIGIN_PURCHASE
             if origin == ORIGIN_PURCHASE:
                 if cleaned.get("price") is None and "price" not in self.errors:
@@ -399,6 +425,8 @@ class InstrumentForm(forms.Form):
     maturity_date = forms.DateField(widget=date_widget(), required=False, label="Maturity date (optional)")
     taxed_as_interest = forms.BooleanField(required=False, label="Taxed as Interest",
                                            help_text="Profit or loss on sales is reported as Interest Income, not Capital Gains")
+    lump_sum = forms.BooleanField(required=False, label="Lump Sum (alternative investments only)",
+                                  help_text="Bought and sold in lump sums of money: no units or price per unit are asked for. Cannot be changed once there are transactions.")
 
     def clean_currency(self):
         return (self.cleaned_data.get("currency") or "INR").upper()

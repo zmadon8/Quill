@@ -44,6 +44,9 @@ def pages(ids):
         ("inv-add-investment", "/investments/holdings/add/details/?kind=share", None),
         ("inv-add-fund", "/investments/holdings/add/details/?kind=fund", None),
         ("inv-sell", "/investments/transactions/sell/", None),
+        ("inv-sell-held", "/investments/transactions/sell/?instrument={investment}", "sell_card"),
+        ("inv-sell-lump", "/investments/transactions/sell/?instrument={lump_investment}", "sell_card"),
+        ("inv-investment-lump", "/investments/holdings/{lump_investment}/", None),
         ("inv-reports", "/investments/reports/", None),
         ("inv-settings", "/investments/settings/", None),
         ("settings-my", "/my-settings/", None),
@@ -60,6 +63,19 @@ def buy_card(page):
         add.click()
     for fold in page.locator("details.more-fields").all():
         fold.evaluate("el => { el.open = true; }")
+
+
+def sell_card(page):
+    """The Sell page with a broker chosen where the investment is held, so the grouped figure and the Sell all button show."""
+    broker = page.locator("select[name=broker]").first
+    values = [v for v in broker.locator("option").evaluate_all("els => els.map(e => e.value)") if v]
+    for value in values:
+        broker.select_option(value)
+        try:
+            page.wait_for_function("() => { const b = document.querySelector('.avail-units'); return b && /^[1-9]/.test(b.textContent); }", timeout=3000)
+            return
+        except Exception:
+            continue
 
 
 def main():
@@ -120,6 +136,8 @@ def main():
                         continue
                     if action == "buy_card":
                         buy_card(page)
+                    elif action == "sell_card":
+                        sell_card(page)
                     # A full-page capture draws a sticky bar where it sticks in the first viewport, not at the end of the page.
                     page.add_style_tag(content=".button-bar,.save-bar{position:static !important}")
                     page.screenshot(path=str(out / f"{name}-{label}.png"), full_page=True)

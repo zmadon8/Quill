@@ -23,6 +23,7 @@ class _Instrument:
         self.isin = data.get("isin", "")
         self.kind = data["kind"]
         self.price_source = data["price_source"]
+        self.lump_sum = data.get("lump_sum", False)   # absent from rows cached before lump sums existed
         self._kind_label = data["kind_label"]
 
     def get_kind_display(self):
@@ -74,7 +75,7 @@ def _dump(h, hidden_ids, stale, sparks):
     inst = h.instrument
     return {
         "instrument": {"id": inst.pk, "name": inst.name, "code": inst.code, "isin": inst.isin or "", "kind": inst.kind, "kind_label": inst.get_kind_display(),
-                       "price_source": inst.price_source},
+                       "price_source": inst.price_source, "lump_sum": inst.lump_sum},
         "units": str(h.units), "cost": str(h.cost), "value": str(h.value), "awaiting": str(h.awaiting),
         "first_date": h.first_date.isoformat() if h.first_date else None, "price_date": h.price_date.isoformat() if h.price_date else None,
         "price": str(h.price) if h.price is not None else None,

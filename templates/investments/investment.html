@@ -11,8 +11,8 @@
 {% if h.awaiting %}<div class="ban wa"><span><b>Awaiting allotment:</b> {{ h.awaiting|inr }} paid, units not known yet. Counted at cost.</span><span class="r"><a href="{% url 'investments_txn_to_confirm' %}">To complete</a></span></div>{% endif %}
 <div class="kvs">
   <div><div class="lab">Value</div><div class="v">{{ h.value|inr }}{% if h.unpriced %}<small> at cost, no price</small>{% endif %}</div></div>
-  <div><div class="lab">Units</div><div class="v">{{ h.units|units }}</div></div>
-  <div><div class="lab">Average cost</div><div class="v">{% if h.avg_cost %}{{ h.avg_cost|price }}{% else %}&ndash;{% endif %}</div></div>
+  {% if not inst.lump_sum %}<div><div class="lab">Units</div><div class="v">{{ h.units|units }}</div></div>
+  <div><div class="lab">Average cost</div><div class="v">{% if h.avg_cost %}{{ h.avg_cost|price }}{% else %}&ndash;{% endif %}</div></div>{% endif %}
   <div><div class="lab">Gain</div><div class="v">{% if h.unpriced or not h.is_held %}&ndash;{% else %}{{ h.gain|inr_signed }} <small>{{ h.gain_pct|pct_signed }}</small>{% endif %}</div></div>
   <div><div class="lab">XIRR</div><div class="v">{{ h.xirr|pct }}</div></div>
   <div><div class="lab">Price</div><div class="v">{% if h.price %}{{ h.price|price }} <small>{{ h.price_date|date:"j M Y" }}</small>{% else %}&ndash;{% endif %}</div></div>

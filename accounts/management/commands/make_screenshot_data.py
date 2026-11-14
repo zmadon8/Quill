@@ -97,4 +97,20 @@ class Command(BaseCommand):
             .values_list("pk", flat=True)
             .first()
         )
-        return {"investment": held, "spare_instrument": spare}
+        return {"investment": held, "spare_instrument": spare, "lump_investment": self._lump_sum(profile, user)}
+
+    def _lump_sum(self, profile, user):
+        """A Lump Sum alternative investment in crores: one purchase, one part sale, so its page, the Holdings row and the Sell page have large amounts."""
+        from datetime import date
+        from decimal import Decimal
+
+        from investments.models import Broker, Portfolio
+        from investments.services import masters, transactions
+
+        inst = masters.create_instrument(profile, user, kind="alternative", name="Family chit fund", asset_class="debt", lump_sum=True, allow_duplicate=True)
+        portfolio = Portfolio.objects.filter(profile=profile).first()
+        broker = Broker.objects.filter(profile=profile).first() or Broker.objects.create(profile=profile, name="Direct")
+        common = dict(instrument=inst, portfolio=portfolio, broker=broker)
+        transactions.add_lump_sum_transaction(profile, user, side="buy", date=date(2023, 4, 1), amount=Decimal("125000000"), **common)
+        transactions.add_lump_sum_transaction(profile, user, side="sell", date=date(2024, 10, 1), amount=Decimal("30000000"), remaining=Decimal("110000000"), **common)
+        return inst.pk

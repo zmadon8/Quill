@@ -273,6 +273,11 @@ def txn_form(request, mode):
                         d = _clean_data(card)
                         _resolve_pick(profile, request.user, card, d, made)
                         folio = _resolve_folio(profile, request.user, d)
+                        if d["instrument"].lump_sum and not awaiting:
+                            tx.add_lump_sum_transaction(
+                                profile, request.user, side=side, instrument=d["instrument"], portfolio=d["portfolio"], broker=d["broker"], date=d["date"],
+                                amount=d.get("lump_amount"), remaining=d.get("remaining"), folio=folio, charges=d.get("charges") or 0, note=d.get("note", ""))
+                            continue
                         tx.add_transaction(
                             profile, request.user, side=side, instrument=d["instrument"], portfolio=d["portfolio"], broker=d["broker"],
                             date=d["date"], units=d.get("units"), price=d.get("price"), charges=d.get("charges") or 0, folio=folio,
@@ -289,6 +294,7 @@ def txn_form(request, mode):
     return page(request, "investments/txn_form.html", _form_context(profile, {
         "page_title_text": titles[mode], "form": form, "mode": mode, "is_sell": mode in ("sell", "awaiting_sell"),
         "awaiting_mode": mode.startswith("awaiting"), "submit_label": "Save", "extra_forms": extra,
+        "lump_ids": ",".join(str(i) for i in Instrument.objects.filter(profile=profile, lump_sum=True).values_list("pk", flat=True)),
         "row_template": forms.TransactionForm(profile=profile, mode=mode, prefix="x__i__", held_units=held_units, initial={k: v for k, v in initial.items() if k == "portfolio"}), "extra_ids": ",".join(str(r.index) for r in extra),
     }), selectors=False, status_line=True)
 

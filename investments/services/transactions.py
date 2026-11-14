@@ -5,7 +5,7 @@ the whole history of the investment is replayed (``investments.lots``); a change
 portfolio bucket with negative units on any date is refused with the conflicting sales listed (plan 6, "Editing").
 """
 import datetime
-from decimal import Decimal
+from decimal import ROUND_CEILING, Decimal
 
 from django.db import transaction
 
@@ -283,6 +283,45 @@ def add_transaction(profile, user, *, side, instrument, portfolio, broker, date,
         from investments.services import corporate
 
         corporate.apply_automatic(profile, {instrument.pk})
+    return txn
+
+
+@transaction.atomic
+def add_lump_sum_transaction(profile, user, *, side, instrument, portfolio, broker, date, amount, remaining=None, folio=None, charges=0, note=""):
+    """Record a purchase or sale of a Lump Sum alternative investment (see docs/DESIGN.md, "Lump Sum investments").
+
+    Units are the money put in, at a price of 1, so lots, XIRR, holdings and the exports need no special case. A sale of ``amount`` leaving
+    ``remaining`` (the value of everything still held of the investment) sells the share ``amount / (amount + remaining)`` of the units held,
+    so the cost sold is that share of the cost held. The price is the sale's value per unit, rounded up to 4 places with the rounding added to
+    the charges so the proceeds are exactly ``amount`` less the charges. ``remaining`` is saved as the investment's value on the sale date."""
+    if not instrument.lump_sum:
+        raise InvestmentsError("BAD_COMBINATION", f"{instrument.name} is not a Lump Sum investment.")
+    amount = _dec(amount, "Amount", minimum=Decimal("0.01"))
+    if side == SIDE_BUY:
+        return add_transaction(profile, user, side=side, instrument=instrument, portfolio=portfolio, broker=broker, date=date, units=amount,
+                               price=Decimal(1), charges=charges, folio=folio, note=note)
+    remaining = _dec(remaining, "Amount remaining after this sale", minimum=ZERO)
+    rows = available_by_bucket(profile, instrument, date)
+    total = sum((r[3] for r in rows), ZERO)
+    here = sum((r[3] for r in rows if (r[0].pk if r[0] else None) == portfolio.pk and (r[1].pk if r[1] else None) == broker.pk
+                and (r[2].pk if r[2] else None) == (folio.pk if folio else None)), ZERO)
+    if total <= 0:
+        raise InvestmentsError("NOTHING_HELD", f"You held none of {instrument.name} on {date.day} {date:%b %Y}.")
+    units = total if remaining == 0 else (total * amount / (amount + remaining)).quantize(Decimal("0.0001"))
+    if units <= 0:
+        raise InvestmentsError("BAD_NUMBER", "That amount is too small compared with what remains.")
+    if units > here:
+        raise InvestmentsError("BAD_NUMBER",
+                               "Selling this much needs more than is held in that Portfolio, Broker and Folio. Enter what remains of the whole "
+                               "investment (every place it is held), or sell the rest from the other place first.")
+    price = (amount / units).quantize(Decimal("0.0001"), rounding=ROUND_CEILING)
+    rounding = (units * price - amount).quantize(Decimal("0.0001"))
+    extra = f" Price rounding {rounding.quantize(Decimal('0.01'))} added to charges." if rounding > Decimal("0.005") else ""
+    txn = add_transaction(profile, user, side=side, instrument=instrument, portfolio=portfolio, broker=broker, date=date, units=units, price=price,
+                          charges=_dec(charges or 0, "Charges", minimum=ZERO) + rounding, folio=folio, note=(((note or "").strip() + extra).strip())[:200])
+    from investments.services import prices
+
+    prices.set_alt_value(profile, user, instrument, date, remaining, note="Remaining after a sale")
     return txn
 
 
