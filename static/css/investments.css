@@ -369,12 +369,12 @@ body.inv .row-break{flex:0 0 100%;height:0;margin:0}
 /* A checkbox in a form field is an inline box beside its text, not a 160px-wide input. */
 body.inv .fld input[type=checkbox]{min-width:0;width:auto;margin:0}
 body.inv .fld>label:has(>input[type=checkbox]){display:flex;align-items:center;gap:6px}
-/* Overview cards: a figure scales with its card and stays on one line */
+/* Overview cards: the figure keeps its size as the maximum and shrinks only to fit on one line */
 body.inv .strip .f{container-type:inline-size;min-width:0;overflow:hidden}
-body.inv .strip .fig{font-size:clamp(14px,10.5cqi,24px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-body.inv .strip .fig small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:clamp(11px,5.5cqi,13.7px)}
+body.inv .strip .fig{font-size:clamp(1.1rem,9cqi,1.75rem);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.inv .strip .fig small{display:block;white-space:normal;font-size:.857rem}
 /* Over time: compact, in the chart's column */
-body.inv table.led.ov{min-width:0}
-body.inv table.led.ov th,body.inv table.led.ov td{padding:5px 8px}
-body.inv table.led.ov th{font-size:12.5px}
-body.inv table.led.ov td:first-child{white-space:nowrap}
+body.inv table.led.ov{min-width:0;width:100%;table-layout:auto;font-size:13px}
+body.inv table.led.ov th,body.inv table.led.ov td{padding:4px 6px;white-space:nowrap;font-size:13px}
+body.inv table.led.ov th:first-child,body.inv table.led.ov td:first-child{white-space:normal;max-width:9rem}
+body.inv table.led.ov .col-resizer{width:6px}
