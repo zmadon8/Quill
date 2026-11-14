@@ -646,16 +646,23 @@ class GuardrailForm(ProfileForm):
 
 
 class AlertSettingsForm(forms.Form):
-    rule_a_enabled = forms.BooleanField(required=False, label="Rule A: against the previous close")
+    """One switch per kind of alert, each next to its threshold. Insights (Settings > Insights) are separate and are not alerts."""
+    rule_a_fall_enabled = forms.BooleanField(required=False, label="Alert me when an investment falls in a day")
     rule_a_fall_pct = forms.DecimalField(min_value=0, max_digits=6, decimal_places=2, label="Fall in a day %")
+    rule_a_rise_enabled = forms.BooleanField(required=False, label="Alert me when an investment rises in a day")
     rule_a_rise_pct = forms.DecimalField(min_value=0, max_digits=6, decimal_places=2, label="Rise in a day %")
+    rule_a_window_enabled = forms.BooleanField(required=False, label="Alert me when an investment falls over several days")
     rule_a_window_days = forms.IntegerField(min_value=2, max_value=365, label="Over this many days")
     rule_a_window_fall_pct = forms.DecimalField(required=False, min_value=0, max_digits=6, decimal_places=2, label="Fall over those days % (blank: off)")
-    rule_b_enabled = forms.BooleanField(required=False, label="Rule B: against your cost")
+    rule_b_loss_enabled = forms.BooleanField(required=False, label="Alert me when a holding is below what I paid")
     rule_b_loss_pct = forms.DecimalField(min_value=0, max_digits=6, decimal_places=2, label="Below cost %")
+    rule_b_gain_enabled = forms.BooleanField(required=False, label="Alert me when a holding is above what I paid")
     rule_b_gain_pct = forms.DecimalField(min_value=0, max_digits=6, decimal_places=2, label="Above cost %")
-    guardrail_replaces_global = forms.BooleanField(required=False, label="A guardrail on a holding replaces the global rules for it")
+    guardrails_enabled = forms.BooleanField(required=False, label="Alert me when a guardrail I set is reached")
+    guardrail_replaces_global = forms.BooleanField(required=False, label="A guardrail on a holding replaces the daily and cost alerts for it")
+    maturity_enabled = forms.BooleanField(required=False, label="Alert me before an alternative investment matures")
     maturity_alert_days = forms.IntegerField(min_value=0, max_value=365, label="Warn before a maturity date (days)")
+    source_problems_enabled = forms.BooleanField(required=False, label="Warn me on the Alerts page when a price or list source cannot be read")
     alert_email = forms.BooleanField(required=False, label="Email me alerts that triggered overnight")
 
 

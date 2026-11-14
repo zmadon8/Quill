@@ -388,6 +388,7 @@ def parse_backup(raw, max_bytes):
     upgrade_old_items(document)
     _drop_removed_price_source(models_in_file)
     _drop_removed_portfolio_owner(models_in_file)
+    _split_alert_master_switches(models_in_file)
     return document
 
 
@@ -413,6 +414,20 @@ def _drop_removed_portfolio_owner(models_in_file):
     """Portfolio.owner_name was removed (investments 0034): an older backup that carries it still restores, the key is ignored."""
     for record in models_in_file.get("investments.Portfolio", []):
         record["fields"].pop("owner_name", None)
+
+
+def _split_alert_master_switches(models_in_file):
+    """Rule A and Rule B had one switch each (replaced by one switch per kind in investments 0035): an older backup's value is copied to each new switch."""
+    for record in models_in_file.get("investments.InvestmentSettings", []):
+        fields = record["fields"]
+        if "rule_a_enabled" in fields:
+            on = fields.pop("rule_a_enabled")
+            for name in ("rule_a_fall_enabled", "rule_a_rise_enabled", "rule_a_window_enabled"):
+                fields.setdefault(name, on)
+        if "rule_b_enabled" in fields:
+            on = fields.pop("rule_b_enabled")
+            for name in ("rule_b_loss_enabled", "rule_b_gain_enabled"):
+                fields.setdefault(name, on)
 
 
 def upgrade_old_items(document, now=None):

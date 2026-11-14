@@ -202,7 +202,7 @@ def alerts_page(request):
     return page(request, "investments/alerts.html", {
         "page_title_text": "Alerts and guardrails", "alerts": alerts.visible(profile), "guardrails": Guardrail.objects.filter(profile=profile).select_related("instrument", "portfolio"),
         "gform": gform, "settings_row": core.get_settings(profile, create=False), "next_week": date.today() + timedelta(days=7),
-        "format_problems": source_formats.problems(), "is_admin": bool(getattr(request.user, "is_admin", False))}, selectors=False, status_line=True)
+        "format_problems": source_formats.problems() if core.get_settings(profile, create=False).source_problems_enabled else [], "is_admin": bool(getattr(request.user, "is_admin", False))}, selectors=False, status_line=True)
 
 
 @inv_read_write

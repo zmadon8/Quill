@@ -4,8 +4,9 @@ from decimal import Decimal as D
 
 from django.test import SimpleTestCase
 from django.urls import reverse
+from django.utils import timezone
 
-from investments import corporate as corporate_math, lots
+from investments import corporate as corporate_math, forms, lots
 from investments.errors import InvestmentsError
 from investments.models import AlertState, CorporateAction, DividendSignal, Guardrail, Instrument, PinnedPrice, Portfolio, Price
 from investments.services import alerts, corporate, dividends, holdings, masters, transactions as tx
@@ -271,13 +272,90 @@ class AlertTests(InvTestCase):
         self.assertContains(r, 'class="dot"')
         self.assertEqual(fd.profile_id, self.profile.pk)
 
+    def _off(self, **switches):
+        masters.update_settings(self.profile, self.user, **{k: False for k in switches})
+
+    def _kinds(self):
+        return [a.kind for a in alerts.evaluate(self.profile)]
+
+    def test_daily_fall_switch(self):
+        self.close(1, 100)
+        self.close(0, 93)
+        self.assertIn("rule_a", self._kinds())
+        self._off(rule_a_fall_enabled=1)
+        self.assertNotIn("rule_a", self._kinds())
+
+    def test_daily_rise_switch(self):
+        self.close(1, 100)
+        self.close(0, 110)
+        self.assertIn("rule_a", self._kinds())
+        self._off(rule_a_rise_enabled=1)
+        self.assertNotIn("rule_a", self._kinds())
+
+    def test_rise_switch_off_leaves_fall_on(self):
+        self._off(rule_a_rise_enabled=1)
+        self.close(1, 100)
+        self.close(0, 93)
+        self.assertIn("rule_a", self._kinds())
+
+    def test_window_switch(self):
+        self.close(10, 100)
+        self.close(1, 90)
+        self.close(0, 84)
+        self.assertIn("rule_a_window", self._kinds())
+        self._off(rule_a_window_enabled=1)
+        self.assertNotIn("rule_a_window", self._kinds())
+
+    def test_below_cost_and_above_cost_switches(self):
+        self.close(1, 75)
+        self.close(0, 75)
+        self.assertIn("rule_b", self._kinds())
+        self._off(rule_b_loss_enabled=1)
+        self.assertNotIn("rule_b", self._kinds())
+        self.close(1, 150)
+        self.close(0, 150)
+        self.assertIn("rule_b", self._kinds())
+        self._off(rule_b_gain_enabled=1)
+        self.assertNotIn("rule_b", self._kinds())
+
+    def test_guardrail_switch_off_returns_global_rules(self):
+        self.close(1, 150)
+        self.close(0, 150)
+        Guardrail.objects.create(profile=self.profile, instrument=self.reliance, portfolio=self.portfolio, kind="target_gain", value=D(30))
+        self.assertEqual(self._kinds(), ["guardrail"])
+        self._off(guardrails_enabled=1)
+        self.assertEqual(self._kinds(), ["rule_b"])
+
+    def test_maturity_switch(self):
+        masters.create_instrument(self.profile, self.user, kind="alternative", name="FD", maturity_date=self.today + timedelta(days=10))
+        self.assertIn("maturity", self._kinds())
+        self._off(maturity_enabled=1)
+        self.assertNotIn("maturity", self._kinds())
+
+    def test_source_problems_switch_hides_the_notice(self):
+        from unittest import mock
+        self.client.force_login(self.user)
+        problem = [{"key": "k", "label": "Source X", "error": "no columns", "when": timezone.now()}]
+        with mock.patch("investments.views_income.source_formats.problems", return_value=problem):
+            self.assertContains(self.client.get(reverse("investments_alerts")), "could not be read")
+            self._off(source_problems_enabled=1)
+            self.assertNotContains(self.client.get(reverse("investments_alerts")), "could not be read")
+
+    def test_switches_start_on_and_the_page_shows_them(self):
+        row = holdings.core.get_settings(self.profile)
+        for name in forms.AlertSettingsForm.base_fields:
+            if name.endswith("_enabled"):
+                self.assertTrue(getattr(row, name), name)
+        self.client.force_login(self.user)
+        self.assertContains(self.client.get(reverse("investments_settings_alerts")), "falls in a day")
+
     def test_settings_page_saves(self):
         self.client.force_login(self.user)
         r = self.client.post(reverse("investments_settings_alerts"), {"rule_a_enabled": "on", "rule_a_fall_pct": "4", "rule_a_rise_pct": "9", "rule_a_window_days": "10",
                                                                         "rule_b_loss_pct": "15", "rule_b_gain_pct": "50", "maturity_alert_days": "20"})
         self.assertRedirects(r, reverse("investments_settings_alerts"))
         row = holdings.core.get_settings(self.profile)
-        self.assertEqual((row.rule_a_fall_pct, row.rule_b_enabled, row.rule_a_window_fall_pct), (D(4), False, None))
+        self.assertEqual((row.rule_a_fall_pct, row.rule_b_loss_enabled, row.rule_a_window_fall_pct), (D(4), False, None))
 
 
 class PageTests(InvTestCase):
