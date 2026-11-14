@@ -17,3 +17,11 @@ class RemovedPriceSourceTests(SimpleTestCase):
         self.assertEqual((first["price_source"], first["price_basis"]), ("yahoo", "split_adjusted"))
         self.assertEqual((second["price_source"], second["fallback_source"]), ("yahoo", ""))
         self.assertEqual([r["pk"] for r in models["investments.DataSourceFormat"]], [2])
+
+
+class RemovedPortfolioOwnerTests(SimpleTestCase):
+    def test_old_portfolio_owner_name_is_dropped_on_restore(self):
+        models = {"investments.Portfolio": [{"model": "investments.portfolio", "pk": 1, "fields": {"profile": 1, "name": "Main", "owner_name": "A. Person"}}]}
+        services._drop_removed_portfolio_owner(models)
+        self.assertEqual(models["investments.Portfolio"][0]["fields"], {"profile": 1, "name": "Main"})
+        services._drop_removed_portfolio_owner({})

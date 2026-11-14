@@ -367,3 +367,7 @@ How the program reads each external file or answer is data, not code, so an Admi
 ## Price history pruning (Investments > Settings > Price history, Admin only, site-wide)
 
 Stored in `PriceHistorySettings` (one row, suite-wide because prices are shared; investments 0003, defaults changed by 0029). **Pruning is automatic and on by default**: `prune_live` and `prune_archive` default on and `years_kept` defaults to 5. Each night, after a good backup (`prune_prices` is the last link of the cron chain), daily prices older than `years_kept` years are thinned to the last stored trading day of each month, for every investment and index. Pinned prices are never removed, and an investment with a missing required pin is left alone. An Admin can change the years (minimum 2) or switch pruning off on that page; no archive download or tick is needed to turn it on. Prices are fetched for the whole available history from the earliest purchase (not limited to 10 years); the old part is then thinned by the nightly step.
+
+## Portfolio owner name removed
+
+`Portfolio.owner_name` (the "Owner" box on Settings > General > Portfolios) was removed (investments 0034). It was only stored and shown on that page; no calculation, filter, report, export, alert, search, history entry or backup logic used it. Old JSON backups that carry `owner_name` still restore: the key is dropped on restore (`backups.services._drop_removed_portfolio_owner`). The Fee Register's `export_owner_name` is a different setting and is unchanged.

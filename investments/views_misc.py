@@ -151,9 +151,9 @@ def portfolio_action(request):
     if request.method == "POST":
         action = request.POST.get("action")
         if action == "add":
-            masters.add_portfolio(profile, request.user, request.POST.get("name"), request.POST.get("owner_name", ""))
+            masters.add_portfolio(profile, request.user, request.POST.get("name"))
         elif action == "rename":
-            masters.rename_portfolio(profile, request.user, int(request.POST["id"]), request.POST.get("name"), request.POST.get("owner_name", ""))
+            masters.rename_portfolio(profile, request.user, int(request.POST["id"]), request.POST.get("name"))
         elif action == "delete":
             masters.delete_portfolio(profile, request.user, int(request.POST["id"]))
         messages.success(request, "Saved.")

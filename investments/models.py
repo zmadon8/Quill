@@ -112,7 +112,6 @@ class ManualPrice(models.Model):
 class Portfolio(models.Model):
     profile = models.ForeignKey("accounts.Profile", on_delete=models.CASCADE, related_name="+")
     name = models.CharField(max_length=80)
-    owner_name = models.CharField(max_length=80, blank=True, default="")
 
     class Meta:
         ordering = ["name", "id"]

@@ -55,22 +55,22 @@ def default_index_for(profile):
 def ensure_default_portfolio(profile):
     """A new profile gets one portfolio named after it so a first purchase needs no set-up (plan 4: every transaction has one)."""
     if not Portfolio.objects.filter(profile=profile).exists():
-        Portfolio.objects.create(profile=profile, name=profile.name[:80], owner_name="")
+        Portfolio.objects.create(profile=profile, name=profile.name[:80])
         core.touch(profile)
 
 
 @transaction.atomic
-def add_portfolio(profile, user, name, owner_name=""):
+def add_portfolio(profile, user, name):
     name = _clean_name(name, "Portfolio name")
     if Portfolio.objects.filter(profile=profile, name__iexact=name).exists():
         raise InvestmentsError("DUPLICATE", "A portfolio with that name already exists.", 409)
-    obj = Portfolio.objects.create(profile=profile, name=name, owner_name=" ".join((owner_name or "").split())[:80])
+    obj = Portfolio.objects.create(profile=profile, name=name)
     core.touch(profile)
     return obj
 
 
 @transaction.atomic
-def rename_portfolio(profile, user, pk, name, owner_name=None):
+def rename_portfolio(profile, user, pk, name):
     obj = Portfolio.objects.filter(pk=pk, profile=profile).first()
     if obj is None:
         raise not_found("portfolio")
@@ -78,8 +78,6 @@ def rename_portfolio(profile, user, pk, name, owner_name=None):
     if Portfolio.objects.filter(profile=profile, name__iexact=name).exclude(pk=pk).exists():
         raise InvestmentsError("DUPLICATE", "A portfolio with that name already exists.", 409)
     obj.name = name
-    if owner_name is not None:
-        obj.owner_name = " ".join(owner_name.split())[:80]
     obj.save()
     core.touch(profile)
     return obj

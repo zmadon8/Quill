@@ -439,7 +439,7 @@ Django models in the `investments` app. Money is `Decimal`; units are `Decimal` 
 
 ### 16.3 Per-profile tables (all in the suite backup; each carries a `profile` foreign key)
 
-- **Portfolio:** name, owner name.
+- **Portfolio:** name. (The optional owner name was removed in migration 0034: it affected nothing.)
 - **Broker:** name, hidden flag; the default broker is a setting.
 - **Folio:** instrument, portfolio, folio number (any text), notes.
 - **Transaction:** date, buy/sell, instrument, portfolio, broker, folio, units, price, charges, and for foreign investments the currency, the rate used and the rupee amount. Also a link to a **Transfer** or **Switch** where one applies. Also: `status` (`final`, `awaiting`, or `pending_sip`), `allotment_date` (null until known; equal to the date for ordinary purchases), `expected_allotment_date`, `reference`, and `amount_paid` (set for awaiting entries). Units and price are null while awaiting.
