@@ -244,7 +244,7 @@
       "v": "1234567.89",
       "cur": "USD",
       "mode": "full",
-      "out": "$1,234,567.89"
+      "out": "$12,34,567.89"
     },
     {
       "v": "999999",
@@ -328,6 +328,154 @@
       "mode": "auto",
       "dec": 0,
       "out": "₹85.46k"
+    },
+    {
+      "kind": "units",
+      "v": "0",
+      "mode": "auto",
+      "out": "0"
+    },
+    {
+      "kind": "units",
+      "v": "12.5",
+      "mode": "auto",
+      "out": "12.5"
+    },
+    {
+      "kind": "units",
+      "v": "999.9999",
+      "mode": "auto",
+      "out": "999.9999"
+    },
+    {
+      "kind": "units",
+      "v": "1000",
+      "mode": "auto",
+      "out": "1 k"
+    },
+    {
+      "kind": "units",
+      "v": "1000",
+      "mode": "full",
+      "out": "1,000"
+    },
+    {
+      "kind": "units",
+      "v": "1560",
+      "mode": "auto",
+      "out": "1.56 k"
+    },
+    {
+      "kind": "units",
+      "v": "1560",
+      "mode": "full",
+      "out": "1,560"
+    },
+    {
+      "kind": "units",
+      "v": "15600",
+      "mode": "auto",
+      "out": "15.6 k"
+    },
+    {
+      "kind": "units",
+      "v": "156000",
+      "mode": "auto",
+      "out": "1.56 lac"
+    },
+    {
+      "kind": "units",
+      "v": "156000",
+      "mode": "full",
+      "out": "1,56,000"
+    },
+    {
+      "kind": "units",
+      "v": "1560000",
+      "mode": "auto",
+      "out": "15.6 lac"
+    },
+    {
+      "kind": "units",
+      "v": "12000000",
+      "mode": "auto",
+      "out": "1.2 cr"
+    },
+    {
+      "kind": "units",
+      "v": "99999.996",
+      "mode": "auto",
+      "out": "1 lac"
+    },
+    {
+      "kind": "units",
+      "v": "999999999",
+      "mode": "auto",
+      "out": "100 cr"
+    },
+    {
+      "kind": "units",
+      "v": "-2500",
+      "mode": "auto",
+      "out": "-2.5 k"
+    },
+    {
+      "kind": "units",
+      "v": "-2500",
+      "mode": "full",
+      "out": "-2,500"
+    },
+    {
+      "kind": "units",
+      "v": "1234567.891",
+      "mode": "auto",
+      "out": "12.35 lac"
+    },
+    {
+      "kind": "units",
+      "v": "1234567.891",
+      "mode": "full",
+      "out": "12,34,567.891"
+    },
+    {
+      "kind": "units",
+      "v": "50.1665",
+      "mode": "auto",
+      "out": "50.1665"
+    },
+    {
+      "kind": "units",
+      "v": "5.000",
+      "mode": "full",
+      "out": "5"
+    },
+    {
+      "kind": "units",
+      "v": "1234.5",
+      "mode": "full",
+      "dec": 0,
+      "out": "1,235"
+    },
+    {
+      "kind": "units",
+      "v": "1234.5",
+      "mode": "auto",
+      "dec": 0,
+      "out": "1.23 k"
+    },
+    {
+      "kind": "units",
+      "v": "7",
+      "mode": "auto",
+      "dec": 2,
+      "out": "7.00"
+    },
+    {
+      "kind": "units",
+      "v": "2000.123",
+      "mode": "full",
+      "dec": 2,
+      "out": "2,000.12"
     }
   ]
 }

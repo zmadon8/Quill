@@ -42,13 +42,6 @@
     return parts.join(",") + "," + tail;
   }
 
-  function groupWestern(digits) {
-    var out = [];
-    while (digits.length > 3) { out.unshift(digits.slice(-3)); digits = digits.slice(0, -3); }
-    out.unshift(digits);
-    return out.join(",");
-  }
-
   function plain(paise, grouper) {
     var whole = paise / 100n, frac = paise % 100n;
     var text = grouper(whole.toString());
@@ -96,7 +89,7 @@
     var currency = opts.currency || "INR";
     var mode = opts.mode || "auto";
     var rupees = currency === "INR";
-    var grouper = rupees ? groupIndian : groupWestern;
+    var grouper = groupIndian;
     var sym = opts.symbol !== undefined && opts.symbol !== null ? opts.symbol : (SYMBOLS[currency] || currency + " ");
     var p = parse(value);
     var ex = exact(p);
@@ -122,7 +115,23 @@
     return sign + sym + (scaled / 100n).toString() + "." + pad2(scaled % 100n) + " " + suffix;
   }
 
-  var api = { formatAmount: formatAmount, groupIndian: groupIndian, groupWestern: groupWestern };
+  // Mirror of format_units.
+  function formatUnits(value, opts) {
+    opts = opts || {};
+    var p = parse(value), ex = exact(p), neg = p.neg ? "-" : "", D = [1000n, 100000n, 10000000n], x = 0, s, f;
+    if (opts.mode !== "full" && ex.num >= 1000n * ex.den) {
+      while (x < 2 && ex.num >= D[x + 1] * ex.den) { x++; }
+      s = roundDiv(ex.num, ex.den, 100n, D[x]);
+      if (x < 2 && s * D[x] >= D[x + 1] * 100n) { x++; s = roundDiv(ex.num, ex.den, 100n, D[x]); }
+      f = pad2(s % 100n).replace(/0+$/, "");
+      return neg + groupIndian((s / 100n).toString()) + (f ? "." + f : "") + [" k", " lac", " cr"][x];
+    }
+    if (opts.decimals !== undefined && opts.decimals !== null) { return neg + fixedFull(ex, opts.decimals, groupIndian).text; }
+    f = p.frac.replace(/0+$/, "");
+    return neg + groupIndian(p.whole.toString()) + (f ? "." + f : "");
+  }
+
+  var api = { formatUnits: formatUnits, formatAmount: formatAmount, groupIndian: groupIndian };
   if (typeof module !== "undefined" && module.exports) { module.exports = api; }
   root.InvestmentsMoney = api;
 })(typeof window !== "undefined" ? window : globalThis);

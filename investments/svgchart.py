@@ -1,7 +1,10 @@
 """Hand-drawn SVG line charts (plan 25.3: no chart library; every line differs by pattern as well as shade; a table version too).
 Pure Python. ``line_chart`` returns a dict the template draws: the polylines, axis ticks and the legend."""
 import json
+from datetime import date
 from decimal import Decimal
+
+from investments.money_auto import format_indian
 
 PATTERNS = ("", "6 4", "2 3", "10 3 2 3", "1 2", "8 2")
 SHADES = ("var(--s1)", "var(--s2)", "var(--s3)", "var(--ox)", "var(--s2)", "var(--s3)")
@@ -63,6 +66,8 @@ def line_chart(days, lines, width=900, height=280, pad=(56, 16, 24, 30), markers
     marks_out = []
     first = lines[0][1] if lines else []
     for day, label, kind in markers or []:
+        if isinstance(day, str):   # markers kept in a cached payload carry ISO dates
+            day = date.fromisoformat(day)
         i = min(range(len(days)), key=lambda k: abs((days[k] - day).days))
         if first[i] is not None:
             marks_out.append({"x": round(x(i), 1), "y": round(y(first[i]), 1), "label": label, "kind": kind})
@@ -82,7 +87,7 @@ def _hover(days, lines, x):
     idx = sorted(set(range(0, count, step)) | {count - 1})
     series = []
     for label, vs in lines:
-        series.append({"l": str(label), "v": ["" if vs[i] is None else f"{float(vs[i]):,.2f}" for i in idx]})
+        series.append({"l": str(label), "v": ["" if vs[i] is None else format_indian(vs[i]) for i in idx]})
     return json.dumps({"x": [round(x(i), 1) for i in idx], "d": [days[i].strftime("%-d %b %Y") for i in idx], "s": series},
                       separators=(",", ":"), ensure_ascii=False)
 
@@ -93,9 +98,7 @@ def _fmt(v):
         return f"{v / 1e7:.1f} cr"
     if abs(v) >= 1e5:
         return f"{v / 1e5:.1f} lac"
-    if abs(v) >= 1e3:
-        return f"{v / 1e3:.0f} k"
-    return f"{v:.0f}"
+    return format_indian(v, 0)
 
 
 def as_float(v):
