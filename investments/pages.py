@@ -66,11 +66,10 @@ PAGES = (
     _p("report_compare_brokers", "reports/compare-brokers/", "Compare brokers", "reports", "Other reports", "Needs holdings with at least two brokers."),
     _p("history", "history/", "History", "history", None, "No changes recorded yet."),
     # Alerts
-    _p("alerts", "alerts/", "Alerts and guardrails", "alerts", None, "No alerts. Set thresholds in Settings > Alerts."),
+    _p("alerts", "alerts/", "Alerts and guardrails", "alerts", None, "No alerts. Set thresholds under Alert settings on this page."),
     # Settings
     _p("settings", "settings/", "Settings: General", "settings", "General", "Settings."),
     _p("settings_brokers", "settings/brokers/", "Settings: Brokers", "settings", "Brokers", "Add the brokers and platforms you use."),
-    _p("settings_alerts", "settings/alerts/", "Settings: Alerts", "settings", "Alerts", "Alert thresholds."),
     _p("settings_display", "settings/display/", "Settings: Display", "settings", "Display", "Display choices."),
     _p("settings_insights", "settings/insights/", "Settings: Insights", "settings", "Insights", "Choose which insights to show."),
     _p("settings_indices", "settings/indices/", "Settings: Indices", "settings", "Indices", "The indices investments are compared with."),
@@ -113,7 +112,7 @@ SUB_ROWS = {
         ("Annual Report", "annual"), ("Other reports", "reports"),
     ),
     "settings": (
-        ("General", "settings"), ("Brokers", "settings_brokers"), ("Alerts", "settings_alerts"),
+        ("General", "settings"), ("Brokers", "settings_brokers"),
         ("Display", "settings_display"), ("Insights", "settings_insights"), ("Indices", "settings_indices"),
     ),
     "catalogue": (

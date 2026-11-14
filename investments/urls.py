@@ -33,7 +33,6 @@ REAL = {
     "dividend_new": vi.dividend_form,
     "corporate_actions": vi.corporate_actions,
     "alerts": vi.alerts_page,
-    "settings_alerts": vi.settings_alerts,
     "settings_display": vm.settings_display,
     "settings_insights": vm.settings_insights,
     "settings_indices": vm.settings_indices,
@@ -64,6 +63,8 @@ def _moved_to_catalogue(request, rest):
 
 
 urlpatterns += [
+    # the old Settings > Alerts address (302 for a GET, 308 keeps a POST)
+    path("settings/alerts/", vi.settings_alerts, name="investments_settings_alerts"),
     re_path(r"^settings/(?P<rest>(?:catalogue|price-sources|price-upload|price-history)/.*)$", _moved_to_catalogue),
     # a redemption awaiting its units (no mockup of its own; same form as the awaiting purchase)
     path("transactions/awaiting-redemption/", lambda request: vt.txn_form(request, "awaiting_sell"), name="investments_txn_new_awaiting_sell"),

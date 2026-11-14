@@ -347,13 +347,13 @@ class AlertTests(InvTestCase):
             if name.endswith("_enabled"):
                 self.assertTrue(getattr(row, name), name)
         self.client.force_login(self.user)
-        self.assertContains(self.client.get(reverse("investments_settings_alerts")), "falls in a day")
+        self.assertContains(self.client.get(reverse("investments_alerts")), "falls in a day")
 
     def test_settings_page_saves(self):
         self.client.force_login(self.user)
-        r = self.client.post(reverse("investments_settings_alerts"), {"rule_a_fall_enabled": "on", "rule_a_window_enabled": "on", "rule_a_fall_pct": "4", "rule_a_rise_pct": "9", "rule_a_window_days": "10",
+        r = self.client.post(reverse("investments_alerts"), {"action": "settings", "rule_a_fall_enabled": "on", "rule_a_window_enabled": "on", "rule_a_fall_pct": "4", "rule_a_rise_pct": "9", "rule_a_window_days": "10",
                                                                         "rule_b_loss_pct": "15", "rule_b_gain_pct": "50", "maturity_alert_days": "20"})
-        self.assertRedirects(r, reverse("investments_settings_alerts"))
+        self.assertRedirects(r, reverse("investments_alerts") + "#alert-settings")
         row = holdings.core.get_settings(self.profile)
         self.assertEqual((row.rule_a_fall_pct, row.rule_b_loss_enabled, row.rule_a_window_fall_pct), (D(4), False, None))
         self.assertTrue(row.rule_a_fall_enabled)
@@ -390,3 +390,16 @@ class AlertEmailTests(InvTestCase):
             self.assertEqual(alert_mail.send_all()[0], 1)
             self.assertIn("below cost", mail.outbox[0].body)
             self.assertEqual(alert_mail.send_all()[0], 0)
+
+
+class AlertSettingsMovedTests(InvTestCase):
+    def test_old_settings_address_redirects(self):
+        self.client.force_login(self.user)
+        r = self.client.get(reverse("investments_settings_alerts"))
+        self.assertEqual((r.status_code, r["Location"]), (302, reverse("investments_alerts") + "#alert-settings"))
+        r = self.client.post(reverse("investments_settings_alerts"), {})
+        self.assertEqual((r.status_code, r["Location"]), (308, reverse("investments_alerts")))
+
+    def test_settings_sub_tabs_have_no_alerts_entry(self):
+        self.client.force_login(self.user)
+        self.assertNotContains(self.client.get(reverse("investments_settings")), reverse("investments_settings_alerts"))

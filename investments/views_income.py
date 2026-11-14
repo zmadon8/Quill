@@ -3,7 +3,7 @@ from datetime import date, timedelta
 
 from django.contrib import messages
 from django.db import transaction
-from django.http import Http404
+from django.http import Http404, HttpResponse
 from django.shortcuts import redirect
 from django.urls import reverse
 
@@ -182,9 +182,16 @@ def corporate_action_edit(request, pk):
 @handle_errors(fallback="investments_alerts")
 def alerts_page(request):
     profile = profile_or_404(request)
-    gform = forms.GuardrailForm(request.POST or None, profile=profile)
-    if request.method == "POST":
-        what = request.POST.get("action")
+    posted = request.method == "POST"
+    what = request.POST.get("action") if posted else None
+    gform = forms.GuardrailForm(request.POST if what == "guardrail" else None, profile=profile)
+    srow = core.get_settings(profile, create=False)
+    sform = forms.AlertSettingsForm(request.POST if what == "settings" else None, initial={f: getattr(srow, f) for f in forms.AlertSettingsForm.base_fields})
+    if posted and what == "settings" and sform.is_valid():
+        masters.update_settings(profile, request.user, **sform.cleaned_data)
+        messages.success(request, "Saved.")
+        return redirect(reverse("investments_alerts") + "#alert-settings")
+    if posted:
         if what in ("dismiss", "snooze", "rearm", "reset"):
             alerts.act(profile, request.POST.get("key", ""), what, until=parse_date(request.POST.get("until")), level=request.POST.get("level"))
             core.touch(profile)
@@ -200,19 +207,13 @@ def alerts_page(request):
             core.touch(profile)
         return redirect(reverse("investments_alerts"))
     return page(request, "investments/alerts.html", {
-        "page_title_text": "Alerts and guardrails", "alerts": alerts.visible(profile), "guardrails": Guardrail.objects.filter(profile=profile).select_related("instrument", "portfolio"),
+        "sform": sform, "page_title_text": "Alerts and guardrails", "alerts": alerts.visible(profile), "guardrails": Guardrail.objects.filter(profile=profile).select_related("instrument", "portfolio"),
         "gform": gform, "settings_row": core.get_settings(profile, create=False), "next_week": date.today() + timedelta(days=7),
         "format_problems": source_formats.problems() if core.get_settings(profile, create=False).source_problems_enabled else [], "is_admin": bool(getattr(request.user, "is_admin", False))}, selectors=False, status_line=True)
 
 
-@inv_read_write
 def settings_alerts(request):
-    profile = profile_or_404(request)
-    row = core.get_settings(profile, create=False)
-    fields = [f for f in forms.AlertSettingsForm.base_fields]
-    form = forms.AlertSettingsForm(request.POST or None, initial={f: getattr(row, f) for f in fields})
-    if request.method == "POST" and form.is_valid():
-        masters.update_settings(profile, request.user, **form.cleaned_data)
-        messages.success(request, "Saved.")
-        return redirect(reverse("investments_settings_alerts"))
-    return page(request, "investments/settings_alerts.html", {"page_title_text": "Alerts", "form": form}, selectors=False)
+    """The old Settings > Alerts address: the options now sit on the Alerts page (302 for a GET, 308 keeps a POST)."""
+    response = HttpResponse(status=308 if request.method == "POST" else 302)
+    response["Location"] = reverse("investments_alerts") + ("" if request.method == "POST" else "#alert-settings")
+    return response
