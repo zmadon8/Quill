@@ -7,7 +7,7 @@ from datetime import date, timedelta
 
 from investments import markers
 from investments.models import Transaction
-from investments.services import sale_steps, series, statscache
+from investments.services import core, sale_steps, series, statscache
 from investments.svgchart import line_chart
 
 #: (key, label, days back from the as-of date; None = from the first purchase).
@@ -105,6 +105,20 @@ def first_date(profile, *, portfolio=None, broker=None, instrument_ids=None):
     return qs.aggregate(m=Min("date"))["m"]
 
 
+def _hold_before_sales(days, value, entries, found):
+    """Under "unchanged", the line holds a Lump Sum's earlier value flat until its sale date, where the step drops from the value before the
+    sale. ``prices.alt_values`` counts a sale's value before as the value of the day before it (so valuations do not slope), which would
+    lift the chart's sample of that day to the value before the sale and slope the line up to it; the sample takes the previous sample's value
+    again unless that day has an entry of its own. Changes ``value`` in place."""
+    entered = set(entries)
+    for step in found:
+        eve = step["date"] - timedelta(days=1)
+        if eve in days and eve not in entered:
+            i = days.index(eve)
+            if i > 0:
+                value[i] = value[i - 1]
+
+
 def value_chart(profile, days_back, end, *, index=None, portfolio=None, broker=None, instrument_ids=None, settings_row=None, height=240, entries_of=None):
     """The drawn chart (``svgchart.line_chart``) of the value and the same money in ``index`` over the last ``days_back`` days up to
     ``end`` (None = from the first purchase), or None when there is too little to draw. ``entries_of`` is a hand-priced investment: every
@@ -113,9 +127,11 @@ def value_chart(profile, days_back, end, *, index=None, portfolio=None, broker=N
     if first is None or first >= end:
         return None
     start = first if days_back is None else max(first, end - timedelta(days=days_back))
+    settings_row = settings_row or core.get_settings(profile, create=False)
     params = {"start": start, "end": end, "first": first, "portfolio": portfolio, "broker": broker, "index": index.pk if index else None,
-              "instruments": sorted(instrument_ids) if instrument_ids is not None else None, "m": 4,
-              "entries": entries_of.pk if entries_of is not None else None}
+              "instruments": sorted(instrument_ids) if instrument_ids is not None else None, "m": 5,
+              "entries": entries_of.pk if entries_of is not None else None,
+              "treatment": settings_row.alt_treatment if entries_of is not None else None}
 
     def compute():
         entries = series.entry_dates(profile, entries_of, start, end) if entries_of is not None else []
@@ -133,6 +149,8 @@ def value_chart(profile, days_back, end, *, index=None, portfolio=None, broker=N
         if entries_of is not None and not portfolio and not broker:
             # a sale date gets a point just before the sale and one after it, drawn as a vertical drop (the markers use the original days)
             found = sale_steps.steps(profile, entries_of, start, end)
+            if entries_of.lump_sum and not entries_of.interest_rate and settings_row.alt_treatment != "averaged":
+                _hold_before_sales(days, value, entries, found)
             marker_days = days
             days, (value, index_line), notes = sale_steps.insert_points(days, [value, index_line], found)
         else:
