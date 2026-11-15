@@ -218,6 +218,27 @@ class PageTests(InvTestCase):
         # The Overview "Over time" table is a fixed figure-by-period grid, so it is not sortable.
         self.assertContains(self.client.get(reverse("investments_dashboard")), "<thead>")
 
+    def test_holdings_has_index_xirr_and_alpha_after_xirr_with_sort_values(self):
+        self.buy(d(2024, 1, 15), 10, 100)
+        html = self.client.get(reverse("investments_holdings")).content.decode()
+        head = html.split("<thead>")[1].split("</thead>")[0]
+        self.assertLess(head.index("XIRR (a year)</th>"), head.index(">Index XIRR</th>"))
+        self.assertLess(head.index(">Index XIRR</th>"), head.index("Alpha (XIRR &minus; Index XIRR)</th>"))
+        self.assertIn('data-col="index-xirr"', head)
+        self.assertIn('data-col="alpha"', head)
+        row = html.split("<tbody>")[1].split("</tr>")[0]
+        self.assertEqual(row.count("<td"), head.count("<th"))
+
+    def test_holdings_row_defaults_for_rows_cached_before_the_index_columns(self):
+        from investments.services import holdings_page
+
+        data = {"instrument": {"id": 1, "name": "X", "code": "X", "kind": "share", "price_source": "manual", "kind_label": "Share"},
+                "units": "1", "cost": "1", "value": "1", "awaiting": "0", "first_date": None, "price_date": None, "xirr": None, "unpriced": False,
+                "stale": False, "blocked": False, "is_held": True, "sold_out": False, "empty": False, "hidden": False, "spark": None}
+        row = holdings_page.Row(data)
+        self.assertEqual((row.index_xirr, row.alpha), (None, None))
+        self.assertEqual(holdings_page.Row({**data, "index_xirr": 0.1, "alpha": 0.02}).alpha, 0.02)
+
     def test_holdings_table_has_xirr_and_first_bought_columns_with_sort_values(self):
         self.buy(d(2024, 1, 15), 10, 100)
         html = self.client.get(reverse("investments_holdings")).content.decode()
