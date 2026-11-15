@@ -7,7 +7,7 @@ from decimal import Decimal as D
 
 from django.urls import reverse
 
-from investments.models import Price
+from investments.models import Instrument, Price
 from investments.services import chartview, core, investment_page, masters, prices, series
 from investments.services import transactions as tx
 from investments.svgchart import line_chart
@@ -146,7 +146,7 @@ class IndexFloorZeroTests(InvTestCase):
     def test_the_cached_chart_follows_the_setting(self):
         self.buy(d(2024, 1, 2), "10", "100")
         self.sell(d(2024, 2, 1), "10", "300")
-        index = masters.create_instrument(self.profile, self.user, kind="index", name="Test index", code="^TEST")
+        index = Instrument.objects.get(code="^NSEI")
         for inst in (index, self.reliance):
             for i in range(0, 120, 7):
                 Price.objects.create(instrument=inst, date=d(2024, 1, 1) + timedelta(days=i), close=D(100), source="api")

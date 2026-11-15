@@ -107,7 +107,7 @@ def holdings_sheet(rows):
     for h in rows:
         shown = h.is_held and not h.unpriced and not h.blocked
         status = "Not bought yet" if h.empty else "Sold out" if not h.is_held else "Hidden" if h.is_hidden else "Held"
-        lump = h.instrument.lump_sum   # money only: no units, average cost or price per unit (D192)
+        lump = getattr(h.instrument, "lump_sum", False)   # money only: no units, average cost or price per unit (D192)
         out.append([h.instrument.name, h.instrument.get_kind_display(), h.instrument.code, h.instrument.isin, None if lump else h.units,
                     None if lump else h.avg_cost, h.cost, None if lump else h.price, h.price_date, h.value if h.is_held and not h.blocked else None, h.gain if shown else None, h.gain_pct if shown else None,
                     None if h.blocked else h.xirr, None if h.blocked else h.index_xirr, None if h.blocked else h.alpha, h.first_date, status, h.realised, h.interest_income, h.dividends])

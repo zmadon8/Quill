@@ -81,7 +81,7 @@ class HoldingsSheetColumnTests(SimpleTestCase):
     """The Holdings sheet's Index XIRR and Alpha columns sit straight after XIRR and are written the way the XIRR column is."""
 
     def row(self, **over):
-        inst = SimpleNamespace(name="Fund A", code="A1", isin="", get_kind_display=lambda: "Mutual fund")
+        inst = SimpleNamespace(name="Fund A", code="A1", isin="", lump_sum=False, get_kind_display=lambda: "Mutual fund")
         base = dict(instrument=inst, is_held=True, unpriced=False, blocked=False, empty=False, is_hidden=False, units=D("10"), avg_cost=D("100"),
                     cost=D("1000"), price=D("120"), price_date=d(2024, 1, 1), value=D("1200"), gain=D("200"), gain_pct=D("0.2"), xirr=D("0.15"),
                     index_xirr=D("0.11"), alpha=D("0.04"), first_date=d(2022, 1, 1), realised=D("0"), interest_income=D("0"), dividends=D("0"))

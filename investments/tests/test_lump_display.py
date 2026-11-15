@@ -6,7 +6,7 @@ from django.urls import reverse
 
 from investments import exports, lump_display
 from investments.models import Transaction
-from investments.services import history, holdings, holdings_page, masters
+from investments.services import history, holdings_page, masters
 from investments.tests.base import InvTestCase
 
 
@@ -53,7 +53,8 @@ class LumpDisplayTests(InvTestCase):
         rows = lump_display.annotate(self.profile, list(Transaction.objects.filter(instrument=self.chit).select_related("instrument").order_by("date")))
         self.assertEqual(rows[0].value_after, D("100"))
         self.assertEqual(rows[1].value_after, D("90"))   # the sale's own entry wins
-        self.assertEqual(rows[2].value_after, D("80") + D("50"))   # 100 less the 20 sold, plus 50
+        # The 20 sold leaves 90, so it sold 20 / (20 + 90) of the 100 units held: 18.1818 units, leaving a cost of 81.8182; plus the 50 bought.
+        self.assertEqual(rows[2].value_after, D("81.8182") + D("50"))
 
     def test_transactions_list_has_value_after_and_no_lump_units(self):
         html = self.client.get(reverse("investments_transactions")).content.decode()
@@ -96,7 +97,7 @@ class LumpDisplayTests(InvTestCase):
         t = Transaction.objects.filter(instrument=self.chit).select_related("instrument", "portfolio", "broker", "folio").first()
         line = dict(zip(exports.TXN_HEADER, exports._txn_line(t)))
         self.assertEqual((line["Units"], line["Price"], line["Charges"]), (None, None, None))
-        rows, _t = holdings.compute(self.profile)
+        rows = holdings_page.load(self.profile)[0]
         sheet = exports.holdings_sheet(rows)[0][2]
         mine = next(r for r in sheet if r[0] == "Chit fund")
         self.assertIsNone(mine[exports.HOLDINGS_HEADER.index("Units")])
