@@ -42,6 +42,8 @@
     return parts.join(",") + "," + tail;
   }
 
+  function groupWestern(d) { return d.replace(/\B(?=(\d{3})+$)/g, ","); }
+
   function plain(paise, grouper) {
     var whole = paise / 100n, frac = paise % 100n;
     var text = grouper(whole.toString());
@@ -89,7 +91,7 @@
     var currency = opts.currency || "INR";
     var mode = opts.mode || "auto";
     var rupees = currency === "INR";
-    var grouper = groupIndian;
+    var grouper = rupees ? groupIndian : groupWestern;
     var sym = opts.symbol !== undefined && opts.symbol !== null ? opts.symbol : (SYMBOLS[currency] || currency + " ");
     var p = parse(value);
     var ex = exact(p);
