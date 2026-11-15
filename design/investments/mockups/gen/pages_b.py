@@ -154,11 +154,11 @@ def inv_alt():
 <div><div class="lab">Gain</div><div class="v">{money(46000, signed=True)} <small>{pct(9.2)}</small></div></div>
 <div><div class="lab">XIRR</div><div class="v">7.1% <small>FD benchmark 7.0%</small></div></div></div>
 <div class="cols eq"><div><div class="sec"><h2>Value over time</h2></div>{chart}</div>
-<div><div class="sec"><h2>Dated values</h2></div>{vals}
+<div><div class="sec"><h2>Manual Price History</h2></div>{vals}
 <div class="panel"><h3>Add a value</h3><div class="row" style="margin:0">{fld("Date","6 Nov 2026","sm")}{fld("Total value","₹","sm ph")}{fld("Unit price (optional)","","sm ph")}</div><div class="acts"><span class="btn p sm">Save value</span></div></div></div></div>"""
     return page("inv-alt.html", "HDFC Bank FD", "Holdings", "Investments", body, titlebar=False, ctx="pb",
                 crumb='<a href="holdings.html">Investments</a> / HDFC Bank FD (7.1%)',
-                anno=["Alternative investments replace the price chart and PE with dated values, interest rate and maturity date.",
+                anno=["Alternative investments replace the price chart and PE with a Manual Price History, interest rate and maturity date.",
                       "They count in Total Portfolio Value and portfolio XIRR but are left out of the CAGR view, which needs price history."])
 
 

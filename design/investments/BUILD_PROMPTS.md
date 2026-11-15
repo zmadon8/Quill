@@ -113,7 +113,7 @@ Complete the individual investment pages (purchase-by-purchase table, folios by 
 ## Prompt 9: Phase 6, alternative and foreign investments, SIPs, statement import, search, insights, extra reports (plan sections 6, 9, 11, 22, 24.2, 19)
 
 ```
-Build alternative investments (dated values, averaged-out or unchanged treatment, maturity alerts), foreign investments (dual currency, currency effect, the sectoral slot for a local index), SIP schedules, statement import (reuse the Fee Register's streaming importer; a matching line completes an awaiting entry), the header search panel, Insights (fixed rules; right-hand column), and the remaining reports. Match the corresponding mockups.
+Build alternative investments (manual price history, averaged-out or unchanged treatment, maturity alerts), foreign investments (dual currency, currency effect, the sectoral slot for a local index), SIP schedules, statement import (reuse the Fee Register's streaming importer; a matching line completes an awaiting entry), the header search panel, Insights (fixed rules; right-hand column), and the remaining reports. Match the corresponding mockups.
 ```
 
 ## Prompt 10: Phase 7, optional local helper (plan section 28)
