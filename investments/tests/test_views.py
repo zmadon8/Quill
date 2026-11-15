@@ -238,10 +238,10 @@ class PageTests(InvTestCase):
         start = date.today() - timedelta(days=500)
         for n in range(0, 501, 5):
             day = start + timedelta(days=n)
-            Price.objects.create(instrument=nifty, date=day, close=D(10000) * (D("1.0003") ** n), source="api")
-            Price.objects.create(instrument=self.reliance, date=day, close=D(100) * (D("1.0006") ** n), source="api")
-        Price.objects.create(instrument=nifty, date=date.today(), close=D(10000) * (D("1.0003") ** 500), source="api")
-        Price.objects.create(instrument=self.reliance, date=date.today(), close=D(100) * (D("1.0006") ** 500), source="api")
+            Price.objects.update_or_create(instrument=nifty, date=day, defaults={"close": D(10000) * (D("1.0003") ** n), "source": "api"})
+            Price.objects.update_or_create(instrument=self.reliance, date=day, defaults={"close": D(100) * (D("1.0006") ** n), "source": "api"})
+        Price.objects.update_or_create(instrument=nifty, date=date.today(), defaults={"close": D(10000) * (D("1.0003") ** 500), "source": "api"})
+        Price.objects.update_or_create(instrument=self.reliance, date=date.today(), defaults={"close": D(100) * (D("1.0006") ** 500), "source": "api"})
         self.buy(start + timedelta(days=5), 10, 100)
         html = self.client.get(reverse("investments_holdings")).content.decode()
         row = html.split("<tbody>")[1].split("</tr>")[0]
