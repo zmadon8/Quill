@@ -228,7 +228,7 @@ class TransactionForm(ProfileForm):
         else:
             del self.fields["amount"]
             del self.fields["expected_allotment_date"]
-            self.fields["price"].required = False   # clean_total() asks for it unless a total is given
+            self.fields["price"].required = False   # _resolve_total() asks for it unless a total is given
             del self.fields["reference"]
             self.fields["units"].required = mode not in ("buy", "sell")   # buy and sell check it in clean(): a Lump Sum asks for an amount instead
             if mode in ("sell", "edit_sell"):
@@ -287,7 +287,7 @@ class TransactionForm(ProfileForm):
             if self.held_default and chosen and chosen not in held:
                 self.held_default = False
 
-    def clean_total(self, cleaned, inst):
+    def _resolve_total(self, cleaned, inst):
         """An alternative investment that is not a Lump Sum may be entered as units with a price per unit, a total, or both. The total wins:
         the price is total / units to 4 decimal places. Shares and funds keep Units and Price; a Lump Sum keeps its amount."""
         total = cleaned.get("total")
@@ -339,7 +339,7 @@ class TransactionForm(ProfileForm):
 
             if not tx.available_by_bucket(self.profile, inst, day):
                 self.add_error("instrument", f"You held none of this investment on {day.day} {day:%b %Y}.")
-        self.clean_total(cleaned, inst)
+        self._resolve_total(cleaned, inst)
         if self.mode in ("buy", "sell"):
             self.clean_amounts(cleaned, inst)
         folio = cleaned.get("folio")
