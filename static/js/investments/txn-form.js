@@ -91,7 +91,7 @@
   function lumpChanged() {
     var on = isLump(), t = card.querySelector(".avail-t");
     ["units", "price"].forEach(function (n) { var w = wrap(field(n)); if (w) { w.style.display = on ? "none" : ""; } });
-    ["lump_amount", "remaining"].forEach(function (n) { var w = wrap(field(n)); if (w) { w.style.display = on ? "" : "none"; } });
+    ["lump_amount", "value_after", "remaining"].forEach(function (n) { var w = wrap(field(n)); if (w) { w.style.display = on ? "" : "none"; } });
     if (t) { t.hidden = on; }
   }
   if (instrument) { instrument.addEventListener("change", function () { defaultBroker(); filterFolios(); loadAvailable(); loadLine(); lumpChanged(); }); }

@@ -184,6 +184,8 @@ class TransactionForm(ProfileForm):
     corporate_action = forms.ModelChoiceField(queryset=CorporateAction.objects.none(), required=False, label="Corporate action (bonus, split or demerger)")
     price = MoneyField(label="Price per unit", required=False, min_value=0)
     lump_amount = MoneyField(label="Amount", required=False, min_value=0, help_text="Lump Sum investment: the money paid or received")
+    value_after = MoneyField(label="Value after this purchase (optional)", required=False, min_value=0,
+                             help_text="The whole investment worth after this purchase. Leave blank to add the amount to the last value you gave.")
     remaining = MoneyField(label="Amount remaining after this sale", required=False, min_value=0,
                            help_text="What you still hold of this investment after the sale (0 if all of it is sold)")
     charges = MoneyField(label="Charges", required=False, min_value=0, initial=0)
@@ -212,6 +214,8 @@ class TransactionForm(ProfileForm):
             del self.fields["lump_amount"]
         if mode != "sell":
             del self.fields["remaining"]
+        if mode != "buy":
+            del self.fields["value_after"]
         if awaiting:
             for name in ("units", "price", "allotment_date", "origin", "corporate_action"):
                 del self.fields[name]

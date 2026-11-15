@@ -147,11 +147,11 @@ class PageTests(InvTestCase):
         fd = masters.create_instrument(self.profile, self.user, kind="alternative", name="PPF - Ziyad", asset_class="debt")
         self.assertNotContains(self.client.get(reverse("investments_investment", args=[fd.pk])), 'id="refresh-price"')
 
-    def test_alternative_investment_page_takes_dated_values(self):
+    def test_alternative_investment_page_takes_manual_price_history(self):
         fd = masters.create_instrument(self.profile, self.user, kind="alternative", name="PPF - Ziyad", asset_class="debt")
         r = self.post("investments_investment_altvalue", {"date": "2024-03-31", "total_value": "7,85,000"}, [fd.pk])
         self.assertEqual(r.status_code, 302)
-        self.assertContains(self.client.get(reverse("investments_investment", args=[fd.pk])), "Dated value".replace("Dated value", "alternative investment"))
+        self.assertContains(self.client.get(reverse("investments_investment", args=[fd.pk])), "Manual Price History")
 
     def test_settings_general_saves(self):
         masters.ensure_builtin_indices()

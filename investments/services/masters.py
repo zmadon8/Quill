@@ -267,10 +267,10 @@ def alert_states_of(instrument):
 
 def delete_profile_records(profile, user, instrument, group, summary):
     """Delete everything ``profile`` recorded against ``instrument``, writing each logged record (transactions,
-    transfers, dividends, folio numbers, dated values, corporate action confirmations) to the permanent history first.
+    transfers, dividends, folio numbers, manual price history, corporate action confirmations) to the permanent history first.
 
     The order follows the protected links: switch links, then transactions, transfers, dividends and SIP schedules
-    (they point at folios), then folios, dated values, guardrails, alert states and the profile's own row."""
+    (they point at folios), then folios, manual price history, guardrails, alert states and the profile's own row."""
     from investments.models import CorporateActionResponse, Dividend, Guardrail, SipSchedule
 
     logged = (Transaction, Transfer, Dividend, Folio, AltValue)
@@ -347,8 +347,18 @@ def update_alt_interest(profile, user, instrument, *, interest_rate, interest_ty
             changed = True
     if changed:
         instrument.save(update_fields=list(new))
+        _drop_derived_values(profile, user, instrument, list(new))
         core.touch(profile)
     return instrument
+
+
+def _drop_derived_values(profile, user, instrument, changed):
+    """An alternative investment given an interest rate grows from its latest value, so the values made from its purchases (units times price,
+    which leave out the interest earned) are removed; values a person typed stay (D181)."""
+    if "interest_rate" in changed and instrument.interest_rate:
+        from investments.services import trade_prices
+
+        trade_prices.drop_per_unit_values(profile, user, instrument)
 
 
 OWN_EDITABLE = ("name", "code", "isin", "currency", "asset_class", "sector", "interest_rate", "interest_type", "maturity_date", "taxed_as_interest", "lump_sum")
@@ -402,6 +412,7 @@ def update_own_instrument(profile, user, instrument, **values):
             changed.append(key)
     if changed:
         instrument.save(update_fields=changed)
+        _drop_derived_values(profile, user, instrument, changed)
         core.touch(profile)
         if "taxed_as_interest" in changed:
             fetch.bump_version()
@@ -436,7 +447,7 @@ def update_shared_details(profile, user, instrument, **values):
 def delete_instrument(profile, user, instrument, confirm_name=None):
     """Delete an investment from this profile (plan 10).
 
-    * Editor: only when the profile has no transactions, transfers, folios or dated values for it.
+    * Editor: only when the profile has no transactions, transfers, folios or manual price history for it.
     * Admin: also when it has records, after typing the investment's name; a "Before deleting investment" backup is taken first
       and nothing is deleted if it cannot be made. The deletion is written to the permanent history.
     A shared instrument stays for other profiles; when nobody uses it any more it is removed with its prices.

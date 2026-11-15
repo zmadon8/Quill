@@ -136,7 +136,8 @@ def price_rows(instrument, start=None, end=None, page=1):
             close, source = manual[d][0], "manual"
         else:
             close, source = fetched[d]
-        rows.append({"date": d, "close": close, "source": source, "pinned": d in pinned})
+        note = manual[d][1] if d in manual else ""
+        rows.append({"date": d, "close": close, "source": source, "pinned": d in pinned, "note": note, "derived": prices.is_derived(note)})
     # highlight a one-day move of more than 40 percent that then recovers (plan 21.1)
     ordered = sorted(rows, key=lambda r: r["date"])
     for i, row in enumerate(ordered):
@@ -358,7 +359,7 @@ def clear_preview(instrument):
         out["problem"] = "An index is compared with purchases of every investment, so its price history is never cleared."
         return out
     if instrument.profile_id is not None or instrument.kind == "alternative":
-        out["problem"] = "This investment has no price history to clear. An alternative investment has dated values instead."
+        out["problem"] = "This investment has no price history to clear. An alternative investment has a Manual Price History instead."
         return out
     prices = Price.objects.filter(instrument=instrument)
     out["fetched"] = prices.filter(source__in=["api", "helper"]).count()

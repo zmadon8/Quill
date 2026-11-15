@@ -127,7 +127,26 @@ class Command(BaseCommand):
             .values_list("pk", flat=True)
             .first()
         )
-        return {"investment": held, "spare_instrument": spare, "lump_investment": self._lump_sum(profile, user)}
+        return {"investment": held, "spare_instrument": spare, "lump_investment": self._lump_sum(profile, user),
+                "manual_investment": self._manual_priced(profile, user)}
+
+    def _manual_priced(self, profile, user):
+        """An unlisted share priced by hand: two buys and a sale make its Manual Price History (From purchase, From sale) beside one hand entry."""
+        from datetime import date
+        from decimal import Decimal
+
+        from investments.models import Broker, Portfolio
+        from investments.services import masters, prices, transactions
+
+        inst = masters.create_instrument(profile, user, kind="share", name="Village mill (unlisted)", asset_class="equity", allow_duplicate=True)
+        portfolio = Portfolio.objects.filter(profile=profile).first()
+        broker = Broker.objects.filter(profile=profile).first() or Broker.objects.create(profile=profile, name="Direct")
+        common = dict(instrument=inst, portfolio=portfolio, broker=broker)
+        transactions.add_transaction(profile, user, side="buy", date=date(2023, 6, 1), units=Decimal("100"), price=Decimal("250"), **common)
+        transactions.add_transaction(profile, user, side="buy", date=date(2024, 2, 1), units=Decimal("50"), price=Decimal("300"), **common)
+        prices.set_manual_price(profile, user, inst, date(2024, 8, 1), Decimal("340"), "Valuer's note")
+        transactions.add_transaction(profile, user, side="sell", date=date(2024, 12, 1), units=Decimal("40"), price=Decimal("360"), **common)
+        return inst.pk
 
     def _lump_sum(self, profile, user):
         """A Lump Sum alternative investment in crores: one purchase, one part sale, so its page, the Holdings row and the Sell page have large amounts."""

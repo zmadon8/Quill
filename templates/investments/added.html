@@ -7,7 +7,7 @@
 <div class="choices">
   <div class="ch"><div><h3>Record a purchase</h3><p>Date, units, price and broker.</p></div><a class="btn p" href="{% url 'investments_txn_new_buy' %}?instrument={{ inst.pk }}">Add purchase</a></div>
   <div class="ch"><div><h3>Opening balance</h3><p>You already held it before using the program.</p></div><a class="btn q" href="{% url 'investments_txn_opening' %}?instrument={{ inst.pk }}">Opening balance</a></div>
-  <div class="ch"><div><h3>Enter a price</h3><p>{% if inst.kind == "alternative" %}Add a dated value on the investment page.{% else %}Prices are typed by hand for now.{% endif %}</p></div><a class="btn q" href="{% url 'investments_investment' inst.pk %}">Open the investment</a></div>
+  <div class="ch"><div><h3>Enter a price</h3><p>{% if inst.kind == "alternative" %}Add a value to its Manual Price History on the investment page.{% else %}Prices are typed by hand for now.{% endif %}</p></div><a class="btn q" href="{% url 'investments_investment' inst.pk %}">Open the investment</a></div>
   <div class="ch"><div><h3>Add another</h3><p></p></div><a class="btn q" href="{% url 'investments_add_1' %}">Add investment</a></div>
 </div>
 {% endblock %}
