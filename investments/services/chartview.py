@@ -127,11 +127,13 @@ def value_chart(profile, days_back, end, *, index=None, portfolio=None, broker=N
     if first is None or first >= end:
         return None
     start = first if days_back is None else max(first, end - timedelta(days=days_back))
-    if settings_row is None and entries_of is not None:
+    if settings_row is None:
         settings_row = core.get_settings(profile, create=False)   # only the treatment of one investment's chart needs it before the cache is read
+    floor_zero = settings_row.index_line_floor_zero
     params = {"start": start, "end": end, "first": first, "portfolio": portfolio, "broker": broker, "index": index.pk if index else None,
-              "instruments": sorted(instrument_ids) if instrument_ids is not None else None, "m": 5,
+              "instruments": sorted(instrument_ids) if instrument_ids is not None else None, "m": 6,
               "entries": entries_of.pk if entries_of is not None else None,
+              "floor": floor_zero,
               "treatment": settings_row.alt_treatment if entries_of is not None else None}
 
     def compute():
@@ -143,7 +145,7 @@ def value_chart(profile, days_back, end, *, index=None, portfolio=None, broker=N
             flows = list(flows)
             flows[0] = values[0]
         levels = series.sampled_prices(index, days) if index else [None] * len(days)
-        equivalent = series.index_equivalent_values(days, flows, levels)
+        equivalent = series.index_equivalent_values(days, flows, levels, floor_zero=floor_zero)
         value = [float(v) for v in values]
         index_line = [None if v is None else float(v) for v in equivalent]
         notes = []

@@ -289,12 +289,15 @@ def price_lines(instruments, days):
     return lines
 
 
-def index_equivalent_values(days, flows, index_levels):
-    """The same money put into the index: index units bought or sold with each period's flow at the level of that sample date."""
+def index_equivalent_values(days, flows, index_levels, floor_zero=False):
+    """The same money put into the index: index units bought or sold with each period's flow at the level of that sample date. With
+    ``floor_zero`` the index units never go below 0 (selling more than the index holds leaves nothing, and a later purchase starts from 0)."""
     units, out = Decimal(0), []
     for flow, level in zip(flows, index_levels):
         if level:
             units += flow / level
+            if floor_zero and units < 0:
+                units = Decimal(0)
             out.append(units * level)
         else:
             out.append(None)

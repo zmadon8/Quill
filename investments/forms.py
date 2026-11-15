@@ -577,6 +577,10 @@ class GeneralSettingsForm(forms.Form):
                                           help_text="Compare each investment with its own sector index too. Choose them, and add indices, in Settings > Indices.")
     include_dividends = forms.BooleanField(required=False, label="Include dividends in XIRR")
     alt_treatment = forms.ChoiceField(choices=[("unchanged", "Unchanged until the next update"), ("averaged", "Averaged out between updates")], label="Alternative investments between updates")
+    index_line_floor_zero = forms.BooleanField(required=False, label="Stop the Index line at 0",
+                                               help_text="On the charts, the Index line (the same money put into the index) stops at 0 instead of going below 0 "
+                                                         "when more is sold than was put in; a later purchase starts it again from 0. "
+                                                         "Index XIRR and Alpha still use your real cash flows.")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

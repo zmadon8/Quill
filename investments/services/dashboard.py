@@ -7,7 +7,7 @@ from decimal import Decimal
 from investments.services import chartview, core, holdings, overview, performance, series, statscache
 
 #: Bump when the cached payload gains or changes a part, so older cached payloads are not read (2: the Type/Portfolio/Broker breakdown; 3: its XIRR column; 4: the buy and sell markers of the chart).
-PAYLOAD_VERSION = 4
+PAYLOAD_VERSION = 5
 MONEY_FIELDS = ("units", "avg_cost", "price", "value", "gain", "awaiting", "cost", "dividends")
 
 
@@ -143,7 +143,7 @@ def compute(profile, portfolio=None, broker=None, as_of=None, include_dividends=
             values, flows = series.portfolio_value_series(profile, days, portfolio=portfolio, broker=broker, settings_row=settings_row)
             sample = (days, values, flows)
             levels = series.sampled_prices(index, days) if index else [None] * len(days)
-            equivalent = series.index_equivalent_values(days, flows, levels)
+            equivalent = series.index_equivalent_values(days, flows, levels, floor_zero=settings_row.index_line_floor_zero)
             chart = {"days": [d.isoformat() for d in days], "lines": [["Portfolio value", [float(v) for v in values]],
                                                                     [f"Same money in {index.name if index else 'the index'}", [None if v is None else float(v) for v in equivalent]]],
                      "markers": chartview.portfolio_markers(profile, days, portfolio=portfolio, broker=broker)}

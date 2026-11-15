@@ -116,7 +116,8 @@ def settings_general(request):
         return redirect(reverse("investments_settings"))
     row = core.get_settings(profile, create=False)
     initial = {f: getattr(row, f) for f in ("sip_mode", "awaiting_treatment", "awaiting_reminder_days", "corporate_action_mode",
-                                            "long_term_days", "sectoral_enabled", "include_dividends", "alt_treatment")}
+                                            "long_term_days", "sectoral_enabled", "include_dividends", "alt_treatment",
+                                            "index_line_floor_zero")}
     initial["default_index"] = row.default_index
     for key, _label in CORPORATE_AUTO_KINDS:
         initial[f"auto_{key}"] = "auto" if (row.corporate_auto or {}).get(key) else "ask"
