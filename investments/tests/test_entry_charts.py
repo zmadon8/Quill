@@ -98,10 +98,10 @@ class LumpSumValueChartTests(ManualPricedBase):
         self.lump("buy", d(2024, 1, 3), 1000000, value_after=D(1000000))
         self.lump("sell", d(2024, 6, 12), 300000, remaining=D(800000))
         dates, values = hover(self.chart())
-        by_date = dict(zip(dates, values))
-        self.assertEqual(by_date["3 Jan 2024"], "10,00,000.00")
-        self.assertEqual(by_date["11 Jun 2024"], "11,00,000.00")      # Before sale: amount sold plus remaining
-        self.assertEqual(by_date["12 Jun 2024"], "8,00,000.00")
+        points = list(zip(dates, values))
+        self.assertIn(("3 Jan 2024", "10,00,000.00"), points)
+        self.assertIn(("11 Jun 2024", "10,00,000.00"), points)         # the earlier value is held flat to the day before the sale
+        self.assertEqual([v for label, v in points if label == "12 Jun 2024"], ["11,00,000.00", "8,00,000.00"])   # before: sold plus remaining
 
     def test_a_new_trade_refreshes_the_cached_chart(self):
         self.lump("buy", d(2024, 1, 3), 1000000, value_after=D(1000000))

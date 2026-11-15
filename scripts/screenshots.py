@@ -59,6 +59,7 @@ def pages(ids):
         ("inv-sell-held", "/investments/transactions/sell/?instrument={investment}", "sell_card"),
         ("inv-sell-lump", "/investments/transactions/sell/?instrument={lump_investment}", "sell_card"),
         ("inv-investment-lump", "/investments/holdings/{lump_investment}/", None),
+        ("inv-investment-lump-example", "/investments/holdings/{lump_example}/", None),
         ("inv-investment-manual", "/investments/holdings/{manual_investment}/", None),
         ("inv-reports", "/investments/reports/", None),
         ("inv-alerts", "/investments/alerts/#alert-settings", None),

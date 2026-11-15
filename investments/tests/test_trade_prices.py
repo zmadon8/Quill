@@ -219,8 +219,42 @@ class LumpSumTradePriceTests(ManualPricedBase):
         row = self.value(d(2024, 1, 1))
         self.assertEqual((row.total_value, row.note), (D("130000"), "From purchase"))
 
-    def test_the_first_purchase_without_a_value_records_nothing(self):
+    def test_the_first_purchase_without_a_value_records_its_amount(self):
         self.lump("buy", d(2024, 1, 1), 100000)
+        row = self.value(d(2024, 1, 1))
+        self.assertEqual((row.total_value, row.note, row.value_before), (D("100000.00"), "From purchase", None))
+        self.assertEqual(AltValue.objects.count(), 1)
+
+    def test_a_second_first_day_purchase_adds_to_the_entry(self):
+        self.lump("buy", d(2024, 1, 1), 100000)
+        self.lump("buy", d(2024, 1, 1), 25000)
+        self.assertEqual(self.value(d(2024, 1, 1)).total_value, D("125000.00"))
+
+    def test_a_typed_value_after_wins_over_the_amount_on_a_first_purchase(self):
+        self.lump("buy", d(2024, 1, 1), 100000, value_after=D(130000))
+        self.assertEqual(self.value(d(2024, 1, 1)).total_value, D("130000"))
+
+    def test_the_first_purchase_leaves_a_value_a_person_typed_on_that_date(self):
+        prices.set_alt_value(self.profile, self.user, self.chit, d(2024, 1, 1), 99000, note="statement")
+        self.lump("buy", d(2024, 1, 1), 100000)
+        row = self.value(d(2024, 1, 1))
+        self.assertEqual((row.total_value, row.note), (D("99000"), "statement"))
+
+    def test_an_investment_with_an_interest_rate_gets_no_first_purchase_entry(self):
+        masters.update_own_instrument(self.profile, self.user, self.chit, interest_rate=D("7"))
+        self.lump("buy", d(2024, 1, 1), 100000)
+        self.assertEqual(AltValue.objects.count(), 0)
+
+    def test_a_purchase_after_everything_was_sold_starts_again_from_its_amount(self):
+        self.lump("buy", d(2024, 1, 1), 100000)
+        self.lump("sell", d(2024, 3, 1), 110000, remaining=D(0))
+        self.lump("buy", d(2024, 5, 1), 20000)
+        self.assertEqual(self.value(d(2024, 5, 1)).total_value, D("20000.00"))
+        self.assertEqual(self.value(d(2024, 3, 1)).total_value, D("0"))
+
+    def test_deleting_the_first_purchase_removes_its_entry(self):
+        buy = self.lump("buy", d(2024, 1, 1), 100000)
+        tx.delete_transaction(self.profile, self.user, buy.pk)
         self.assertEqual(AltValue.objects.count(), 0)
 
     def test_a_later_purchase_adds_its_amount_to_the_last_value(self):
@@ -292,7 +326,7 @@ class LumpSumTradePriceTests(ManualPricedBase):
         tx.delete_transaction(self.profile, self.user, sale.pk)
         self.lump("sell", d(2024, 7, 1), 50000, remaining=D(90000))
         self.assertEqual(self.value(d(2024, 7, 1)).value_before, D("140000.00"))
-        self.assertEqual(AltValue.objects.count(), 1)
+        self.assertEqual(AltValue.objects.count(), 2)      # the first purchase's value and the sale's
 
     def test_a_hand_value_on_the_sale_date_keeps_its_note_and_gets_the_value_before(self):
         self.lump("buy", d(2024, 1, 1), 140000)
@@ -346,7 +380,7 @@ class LumpSumTradePriceTests(ManualPricedBase):
         self.lump("buy", d(2024, 1, 1), 140000)
         sale = self.lump("sell", d(2024, 7, 1), 30000, remaining=D(110000))
         tx.delete_transaction(self.profile, self.user, sale.pk)
-        self.assertEqual(AltValue.objects.count(), 0)
+        self.assertEqual(list(AltValue.objects.values_list("date", "note")), [(d(2024, 1, 1), "From purchase")])
 
     def test_deleting_the_purchase_removes_its_value(self):
         buy = self.lump("buy", d(2024, 1, 1), 100000, value_after=D(130000))

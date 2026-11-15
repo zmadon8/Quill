@@ -133,14 +133,19 @@ def units_before(profile, instrument, day):
 def record_lump_purchase(profile, user, instrument, day, amount, value_after, held_before):
     """The value after a Lump Sum purchase. A value typed on the form is saved as it is (it replaces whatever is on that date). Without one,
     the amount is added to the last value given, but only when something was held before, there is such a value, the investment has no
-    interest rate (it grows from the latest value) and the date holds no value of a person's own."""
+    interest rate (it grows from the latest value) and the date holds no value of a person's own. When nothing was held before (the first
+    purchase, or one after everything was sold) the value is the amount itself, so the history starts at what was put in; an investment with
+    an interest rate gets none (its value grows from the purchase, an entry would only restate the amount)."""
     if value_after is not None:
         old = AltValue.objects.filter(profile=profile, instrument=instrument, date=day).first()
         # A typed value replaces one a person entered, but keeps that entry's note so deleting the purchase later does not delete it.
         keep = old.note if old is not None and not prices.is_derived(old.note) else prices.TAG_PURCHASE
         prices.save_alt_value(profile, user, instrument, day, value_after, note=keep, value_before=_before_after_purchase(profile, instrument, day))
         return
-    if instrument.interest_rate or held_before <= 0:
+    if instrument.interest_rate:
+        return
+    if held_before <= 0:
+        _first_purchase_value(profile, user, instrument, day, amount)
         return
     last = AltValue.objects.filter(profile=profile, instrument=instrument, date__lte=day).order_by("-date").first()
     if last is None:
@@ -149,6 +154,18 @@ def record_lump_purchase(profile, user, instrument, day, amount, value_after, he
         return
     prices.save_alt_value(profile, user, instrument, day, (last.total_value + amount).quantize(_PAISA),
                           note=last.note if last.date == day else prices.TAG_PURCHASE, value_before=_before_after_purchase(profile, instrument, day))
+
+
+def _first_purchase_value(profile, user, instrument, day, amount):
+    """The value on the date of a purchase made when nothing was held before it: the amount, noted From purchase. A second purchase on that
+    date adds to the entry this one made; a value of a person's own, or the entry of a sale on that date, is left alone."""
+    row = AltValue.objects.filter(profile=profile, instrument=instrument, date=day).first()
+    total = amount.quantize(_PAISA)
+    if row is not None:
+        if row.note != prices.TAG_PURCHASE:
+            return
+        total = (row.total_value + amount).quantize(_PAISA)
+    prices.save_alt_value(profile, user, instrument, day, total, note=prices.TAG_PURCHASE, value_before=_before_after_purchase(profile, instrument, day))
 
 
 def _before_after_purchase(profile, instrument, day):

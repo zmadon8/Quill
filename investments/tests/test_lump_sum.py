@@ -122,7 +122,7 @@ class LumpSumTests(InvTestCase):
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, "This field is required.")
         self.assertEqual(Transaction.objects.filter(side="sell").count(), 0)
-        self.assertEqual(AltValue.objects.count(), 0)
+        self.assertEqual(AltValue.objects.count(), 1)       # only the first purchase's value
 
     def test_a_sale_from_a_place_that_holds_too_little_is_refused(self):
         self.buy_lump()
@@ -130,7 +130,7 @@ class LumpSumTests(InvTestCase):
         r = self.client.post(reverse("investments_txn_new_sell"), post)
         self.assertEqual(r.status_code, 200)
         self.assertEqual(Transaction.objects.filter(side="sell").count(), 0)
-        self.assertEqual(AltValue.objects.count(), 0)
+        self.assertEqual(AltValue.objects.count(), 1)       # only the first purchase's value
 
     def test_a_sale_before_anything_was_bought_is_refused(self):
         self.buy_lump(day="2024-03-01")
