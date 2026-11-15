@@ -127,7 +127,8 @@ def value_chart(profile, days_back, end, *, index=None, portfolio=None, broker=N
     if first is None or first >= end:
         return None
     start = first if days_back is None else max(first, end - timedelta(days=days_back))
-    settings_row = settings_row or core.get_settings(profile, create=False)
+    if settings_row is None and entries_of is not None:
+        settings_row = core.get_settings(profile, create=False)   # only the treatment of one investment's chart needs it before the cache is read
     params = {"start": start, "end": end, "first": first, "portfolio": portfolio, "broker": broker, "index": index.pk if index else None,
               "instruments": sorted(instrument_ids) if instrument_ids is not None else None, "m": 5,
               "entries": entries_of.pk if entries_of is not None else None,

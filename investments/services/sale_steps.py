@@ -2,8 +2,9 @@
 Manual Price History (docs/DESIGN.md D188).
 
 * A Lump Sum keeps it (``AltValue.value_before``, written when the sale is saved). A sale saved before that was stored has none, so it is worked
-  out here from the sale's own transactions: the amount sold plus the value the sale left (``derived_value_before``). Migration 0038 stores
-  that figure for older sales; this keeps the page right for any date the migration did not reach.
+  out here from the sale's own transactions: the typed money amount sold plus the value the sale left (``derived_value_before``), and only for
+  an entry noted From sale, never a hand-typed one. Migration 0038 stores that figure for older sales; this keeps the page right for any date
+  the migration did not reach.
 * A share, fund or alternative investment priced per unit has nothing stored: it is worked out here, per profile, as the units held before
   the sale times the sale price (units are the profile's own, while a hand-priced share's price rows are shared by every profile).
 
@@ -21,6 +22,7 @@ from investments.services import core, trade_prices
 _PAISA = Decimal("0.01")
 _PRICE = Decimal("0.0001")
 _ONE_DAY = timedelta(days=1)
+TAG_SALE = "From sale"   # the note of an entry made by a sale (prices.TAG_SALE)
 _ROUNDING_NOTE = re.compile(r"Price rounding (\d+(?:\.\d+)?) added to charges")
 
 
@@ -54,21 +56,24 @@ def _lump_steps(profile, instrument, start, end):
         qs = qs.filter(date__gte=start)
     if end:
         qs = qs.filter(date__lte=end)
-    rows = list(qs.order_by("date").values_list("date", "value_before", "total_value"))
-    missing = [day for day, before, _after in rows if before is None]
+    rows = list(qs.order_by("date").values_list("date", "value_before", "total_value", "note"))
+    # a figure is worked out only for an entry the sale itself made (noted From sale): an entry with another note was typed by hand, and a hand
+    # value that cleared ``value_before`` (prices.set_alt_value) must not get its step back
+    rows = [r for r in rows if r[1] is not None or (r[3] or "").strip() == TAG_SALE]
+    missing = [day for day, before, _after, _note in rows if before is None]
     buys, events = set(), None
     if missing:
         buys = set(Transaction.objects.filter(profile=profile, instrument=instrument, side=SIDE_BUY, status=STATUS_FINAL, date__in=missing)
                    .values_list("date", flat=True))
         events = core.events_for(profile, instrument.pk)
     out = []
-    for day, before, after in rows:
+    for day, before, after, _note in rows:
         if before is None:
             # same-day rule (D188): no step on a date with a purchase; nothing held before the date: nothing was sold
             if day in buys or trade_prices.units_held(events, day - _ONE_DAY) <= 0:
                 continue
             before = derived_value_before(by_day[day], after)
-        if before < after:
+        elif before < after:
             continue
         out.append({"date": day, "before": before, "after": after, "sold": before - after})
     return out

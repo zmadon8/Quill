@@ -178,6 +178,24 @@ class LumpSaleDerivedBeforeTests(LumpSaleExampleBase):
         step = self.derived()[0]
         self.assertEqual((step["before"], step["after"]), (D("250.00"), D("30.00")))
 
+    def test_a_hand_corrected_sale_date_value_gets_no_derived_step(self):
+        # the person corrected the sale date's value by hand (the typed money amount of the value left is what matters now): the entry's note is
+        # their own and value_before is empty on purpose, so nothing is worked out from the sale
+        from investments.services import prices
+        self.buy_100_and_sell_200_leaving_50()
+        prices.set_alt_value(self.profile, self.user, self.chit, SALE_DAY, D("300"))
+        entry = AltValue.objects.get(profile=self.profile, instrument=self.chit, date=SALE_DAY)
+        self.assertIsNone(entry.value_before)
+        self.assertNotEqual(entry.note, "From sale")
+        self.assertEqual(self.derived(), [])
+        self.assertNotContains(self.page(), "Before sale (calculated)")
+
+    def test_an_entry_noted_from_sale_still_derives_the_step(self):
+        self.buy_100_and_sell_200_leaving_50()
+        self.clear_stored_before()
+        self.assertEqual(AltValue.objects.get(profile=self.profile, instrument=self.chit, date=SALE_DAY).note, "From sale")
+        self.assertEqual(self.derived()[0]["before"], D("250.00"))
+
     def test_the_history_marks_a_derived_figure_as_calculated(self):
         self.buy_100_and_sell_200_leaving_50()
         self.clear_stored_before()
@@ -221,12 +239,20 @@ class LumpSaleMigrationTests(LumpSaleExampleBase):
         self.migration().backfill(apps, None)
         self.assertEqual([r[0] for r in self.rows()], [SALE_DAY])
 
+    def test_it_leaves_a_hand_noted_sale_date_entry_alone(self):
+        from django.apps import apps
+        self.old_state()
+        AltValue.objects.filter(profile=self.profile, instrument=self.chit, date=SALE_DAY).update(total_value=D("300"), note="my correction")
+        self.migration().backfill(apps, None)
+        self.assertEqual(self.rows(), [(BUY_DAY, D("100.00"), "From purchase", None), (SALE_DAY, D("300.00"), "my correction", None)])
+
     def test_the_plain_functions(self):
         m = self.migration()
         self.assertEqual(m.sold_amount(D("3.0003"), D("11.1100"), "Price rounding 0.01 added to charges."), D("33.32"))
         self.assertEqual(m.derived_value_before([(D("100"), D("2"), "")], D("50")), D("250.00"))
         trades = [(BUY_DAY, "buy", D("100")), (SALE_DAY, "sell", D("80"))]
-        self.assertEqual(m.backfill_values_before(trades, {SALE_DAY: [(D("80"), D("2.5"), "")]}, [(SALE_DAY, None, D("50"))]), {SALE_DAY: D("250.00")})
-        self.assertEqual(m.backfill_values_before(trades, {SALE_DAY: [(D("80"), D("2.5"), "")]}, [(SALE_DAY, D("1"), D("50"))]), {})
+        self.assertEqual(m.backfill_values_before(trades, {SALE_DAY: [(D("80"), D("2.5"), "")]}, [(SALE_DAY, None, D("50"), "From sale")]), {SALE_DAY: D("250.00")})
+        self.assertEqual(m.backfill_values_before(trades, {SALE_DAY: [(D("80"), D("2.5"), "")]}, [(SALE_DAY, D("1"), D("50"), "From sale")]), {})
+        self.assertEqual(m.backfill_values_before(trades, {SALE_DAY: [(D("80"), D("2.5"), "")]}, [(SALE_DAY, None, D("50"), "my note")]), {})
         self.assertEqual(m.first_purchase_entry(trades, []), (BUY_DAY, D("100.00")))
         self.assertIsNone(m.first_purchase_entry(trades, [BUY_DAY]))

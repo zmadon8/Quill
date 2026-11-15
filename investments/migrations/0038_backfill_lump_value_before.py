@@ -12,6 +12,7 @@ from django.db import migrations
 
 PAISA = Decimal("0.01")
 TAG_PURCHASE = "From purchase"
+TAG_SALE = "From sale"
 ROUNDING_NOTE = re.compile(r"Price rounding (\d+(?:\.\d+)?) added to charges")
 
 
@@ -32,12 +33,13 @@ def held_before(trades, day):
 
 
 def backfill_values_before(trades, sells_by_day, entries):
-    """``{date: value before}`` for the entries (``[(date, value_before, total_value)]``) of one holding that lack it and sit on a date with a
-    sale, no purchase and units held before."""
+    """``{date: value before}`` for the entries (``[(date, value_before, total_value, note)]``) of one holding that lack it, are noted From sale (an entry
+    with any other note was typed by hand, and a hand value may have cleared ``value_before`` on purpose) and sit on a date with a sale, no
+    purchase and units held before."""
     buy_days = {d for d, side, _u in trades if side == "buy"}
     out = {}
-    for day, before, total in entries:
-        if before is not None or day not in sells_by_day or day in buy_days or held_before(trades, day) <= 0:
+    for day, before, total, note in entries:
+        if before is not None or (note or "").strip() != TAG_SALE or day not in sells_by_day or day in buy_days or held_before(trades, day) <= 0:
             continue
         value = derived_value_before(sells_by_day[day], total)
         if value >= total:
@@ -73,7 +75,7 @@ def backfill(apps, schema_editor):
                 if side == "sell" and u > 0 and p is not None and p > 0:
                     sells_by_day.setdefault(d, []).append((u, p, n))
             alt = AltValue.objects.filter(profile_id=profile_id, instrument=inst)
-            for day, value in backfill_values_before(trades, sells_by_day, [(a.date, a.value_before, a.total_value) for a in alt]).items():
+            for day, value in backfill_values_before(trades, sells_by_day, [(a.date, a.value_before, a.total_value, a.note) for a in alt]).items():
                 alt.filter(date=day).update(value_before=value)
             if not inst.interest_rate:
                 found = first_purchase_entry(trades, list(alt.values_list("date", flat=True)))
