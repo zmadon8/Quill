@@ -307,9 +307,21 @@ def investment(request, pk):
     folio_units = {}
     for (pf, br, fo), units in h.buckets.items():
         folio_units[fo] = folio_units.get(fo, Decimal(0)) + units
-    bucket_rows = sorted(((portfolios.get(pf, "?"), brokers.get(br, "?"), next((f.number for f in folios_qs if f.pk == fo), ""), units)
+    held_money = {}
+    if inst.lump_sum:       # the money still held in each place: the cost of its lots (a Lump Sum's units are bookkeeping)
+        for lot in h.lots:
+            key = (lot.bucket.portfolio, lot.bucket.broker, lot.bucket.folio)
+            held_money[key] = held_money.get(key, Decimal(0)) + lot.cost
+    bucket_rows = sorted(((portfolios.get(pf, "?"), brokers.get(br, "?"), next((f.number for f in folios_qs if f.pk == fo), ""),
+                           held_money[(pf, br, fo)] if inst.lump_sum else units)
                           for (pf, br, fo), units in h.buckets.items()), key=lambda r: (r[0], r[1], r[2]))
     counts = masters.records_of(profile, inst)
+    recent = list(InvestmentHistory.objects.filter(profile=profile, instrument_id_ref=inst.pk)[:8])
+    for r in recent:
+        r.description = r.summary
+        r.changes = []
+    if inst.lump_sum:
+        lump_display.describe_history(profile, recent, {inst.pk: inst.name})
     # One chart at a time, and only that one is worked out.
     chart_kind = chartview.chart_choice(request, has_price=inst.kind != KIND_ALTERNATIVE)
     price_chart = value_chart = None
@@ -334,7 +346,7 @@ def investment(request, pk):
                                                    "maturity_date": inst.maturity_date}, with_sector=inst.kind != KIND_ALTERNATIVE),
         "manual_prices": _flag_derived(ManualPrice.objects.filter(instrument=inst).order_by("-date")[:20], profile, inst) if inst.profile_id and inst.kind != KIND_ALTERNATIVE else [],
         "alt_values": _flag_derived(AltValue.objects.filter(profile=profile, instrument=inst).order_by("-date")[:20], profile, inst) if inst.kind == KIND_ALTERNATIVE else [],
-        "awaiting_rows": awaiting_rows, "history": InvestmentHistory.objects.filter(profile=profile, instrument_id_ref=inst.pk)[:8],
+        "awaiting_rows": awaiting_rows, "history": recent,
         "registry": investment_page.registry_record(inst),
         "kind_label": inst.get_kind_display(), "on": on, "as_of": as_of, "include_div": div,
         "chart": price_chart, "chart_kind": chart_kind, "chart_links": chartview.chart_links(request, chart_kind),

@@ -71,6 +71,27 @@ class LumpDisplayTests(InvTestCase):
         self.assertIn("Sold \u20b920.00 of Chit fund, leaving \u20b990.00", html)
         self.assertIn("Bought \u20b9100.00 of Chit fund", html)
 
+    def test_investment_page_recent_changes_and_header_in_money(self):
+        html = self.client.get(reverse("investments_investment", args=[self.chit.pk])).content.decode()
+        self.assertIn("Sold \u20b920.00 of Chit fund, leaving \u20b990.00", html)
+        self.assertIn("Bought \u20b9100.00 of Chit fund", html)
+        self.assertNotIn("Sold 20.0000", html)
+        self.assertNotIn('<div class="lab">Price</div>', html)
+        self.assertNotIn('<div class="lab">Average cost</div>', html)
+        self.assertIn("Amount held", html)
+
+    def test_other_investment_pages_keep_units_and_price_figures(self):
+        for inst in (self.plain, self.reliance, self.fund):
+            html = self.client.get(reverse("investments_investment", args=[inst.pk])).content.decode()
+            self.assertIn('<div class="lab">Price</div>', html, inst.name)
+            self.assertIn('<div class="lab">Units</div>', html, inst.name)
+
+    def test_home_recent_activity_describes_a_lump_sale_in_money(self):
+        from accounts import home_cards
+
+        what = [r["what"] for r in home_cards._investments_recent(self.profile)]
+        self.assertIn("Sold \u20b920.00 of Chit fund, leaving \u20b990.00", what)
+
     def test_exports_leave_units_and_price_blank_for_a_lump_sum(self):
         t = Transaction.objects.filter(instrument=self.chit).select_related("instrument", "portfolio", "broker", "folio").first()
         line = dict(zip(exports.TXN_HEADER, exports._txn_line(t)))

@@ -297,17 +297,23 @@ def _fees_recent(profile):
 
 
 def _investments_recent(profile):
-    from investments.models import InvestmentHistory
+    from investments import lump_display
+    from investments.models import Instrument, InvestmentHistory
 
+    rows = list(InvestmentHistory.objects.filter(profile=profile).select_related("changed_by").order_by("-changed_at", "-id")[:20])
+    for r in rows:
+        r.description = r.summary
+        r.changes = []
+    names = dict(Instrument.objects.filter(pk__in={r.instrument_id_ref for r in rows if r.instrument_id_ref}).values_list("pk", "name"))
+    lump_display.describe_history(profile, rows, names)
     out = []
     seen = set()
-    for r in (InvestmentHistory.objects.filter(profile=profile).order_by("-changed_at", "-id")
-              .values("summary", "changed_at", "group", "changed_by__first_name", "changed_by__username")[:20]):
-        if r["group"] and r["group"] in seen:
+    for r in rows:
+        if r.group and r.group in seen:
             continue
-        seen.add(r["group"])
-        out.append({"when": r["changed_at"], "what": r["summary"] or "Changed a record",
-                    "detail": r["changed_by__first_name"] or r["changed_by__username"] or "", "url": reverse("investments_history")})
+        seen.add(r.group)
+        who = r.changed_by.first_name or r.changed_by.username if r.changed_by_id else ""
+        out.append({"when": r.changed_at, "what": r.description or "Changed a record", "detail": who or "", "url": reverse("investments_history")})
         if len(out) >= RECENT_LIMIT:
             break
     return out

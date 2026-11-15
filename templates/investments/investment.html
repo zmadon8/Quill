@@ -15,7 +15,7 @@
   <div><div class="lab">Average cost</div><div class="v">{% if h.avg_cost %}{{ h.avg_cost|price }}{% else %}&ndash;{% endif %}</div></div>{% endif %}
   <div><div class="lab">Gain</div><div class="v">{% if h.unpriced or not h.is_held %}&ndash;{% else %}{{ h.gain|inr_signed }} <small>{{ h.gain_pct|pct_signed }}</small>{% endif %}</div></div>
   <div><div class="lab" title="{{ 'xirr'|measure_tip }}">XIRR (a year)</div><div class="v">{{ h.xirr|pct }}</div></div>
-  <div><div class="lab">Price</div><div class="v">{% if h.price %}{{ h.price|price }} <small>{{ h.price_date|date:"j M Y" }}</small>{% else %}&ndash;{% endif %}</div></div>
+  {% if not inst.lump_sum %}<div><div class="lab">Price</div><div class="v">{% if h.price %}{{ h.price|price }} <small>{{ h.price_date|date:"j M Y" }}</small>{% else %}&ndash;{% endif %}</div></div>{% endif %}
   <div><div class="lab">Cost held</div><div class="v">{{ h.cost_of_units|inr }}</div></div>
   <div><div class="lab">Realised gain</div><div class="v">{{ h.realised|inr_signed }}</div></div>
   {% if inst.taxed_as_interest or h.interest_income %}<div><div class="lab">Interest income</div><div class="v">{{ h.interest_income|inr_signed }}</div></div>{% endif %}
@@ -24,8 +24,8 @@
 
 {% if bucket_rows %}
 <div class="sec"><h2>Where it is held</h2></div>
-<div class="tw"><table data-table-id="inv-investment-1" class="led" data-sortable><thead><tr><th>Portfolio</th><th>Broker</th><th>Folio</th>{% if not inst.lump_sum %}<th class="r">Units</th>{% endif %}</tr></thead><tbody>
-{% for pf, br, fo, u in bucket_rows %}<tr><td>{{ pf }}</td><td>{{ br }}</td><td class="fo" title="{{ fo|default:"no folio" }}">{{ fo|default:"no folio" }}</td>{% if not inst.lump_sum %}<td class="r" data-sort="{{ u }}">{{ u|units }}</td>{% endif %}</tr>{% endfor %}
+<div class="tw"><table data-table-id="inv-investment-1" class="led" data-sortable><thead><tr><th>Portfolio</th><th>Broker</th><th>Folio</th><th class="r">{% if inst.lump_sum %}Amount held{% else %}Units{% endif %}</th></tr></thead><tbody>
+{% for pf, br, fo, u in bucket_rows %}<tr><td>{{ pf }}</td><td>{{ br }}</td><td class="fo" title="{{ fo|default:"no folio" }}">{{ fo|default:"no folio" }}</td><td class="r" data-sort="{{ u }}">{% if inst.lump_sum %}{{ u|inr }}{% else %}{{ u|units }}{% endif %}</td></tr>{% endfor %}
 </tbody></table></div>
 {% endif %}
 
@@ -122,6 +122,6 @@
 {% else %}<dl class="kv"><dt>Name</dt><dd>{{ inst.name }}</dd><dt>Code</dt><dd>{{ inst.code|default:"none" }}</dd>{% if registry %}<dt>{{ registry.source }} name</dt><dd>{{ registry.name }}{% if registry.plan %} &middot; Plan: {{ registry.plan }}{% endif %}{% if registry.option %} &middot; Option: {{ registry.option }}{% endif %}{% if registry.mismatch %} (registry ISIN {{ registry.isin }} differs){% endif %}</dd>{% endif %}<dt>ISIN</dt><dd>{{ inst.isin|default:"none" }}</dd><dt>Currency</dt><dd>{{ inst.currency }}</dd>{% if inst.taxed_as_interest %}<dt>Tax treatment</dt><dd>Taxed as Interest</dd>{% endif %}<dt>Price source</dt><dd>{{ inst.get_price_source_display }}</dd></dl>{% endif %}
 
 {% if history %}<div class="sec"><h2>Recent changes</h2><a class="lk" href="{% url 'investments_history' %}?instrument={{ inst.pk }}">All history</a></div>
-<ul class="plain">{% for r in history %}<li>{{ r.changed_at|date:"j M Y, g:i a" }} &middot; {{ r.summary|default:r.get_change_kind_display }}</li>{% endfor %}</ul>{% endif %}
+<ul class="plain">{% for r in history %}<li>{{ r.changed_at|date:"j M Y, g:i a" }} &middot; {{ r.description|default:r.get_change_kind_display }}</li>{% endfor %}</ul>{% endif %}
 {% if can_edit and can_delete %}<div class="sec"><a class="btn dng" href="{% url 'investments_inv_delete' inst.pk %}">Delete this investment</a></div>{% endif %}
 {% endblock %}
