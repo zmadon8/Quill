@@ -50,7 +50,14 @@ def purchase_rows(profile, instrument, holding, as_of):
 
 
 def range_52w(instrument, as_of):
-    rows = prices.series(instrument, as_of - timedelta(days=365), as_of)
+    """Lowest and highest price in the last 52 weeks. A hand-priced investment's price holds until the next entry, so when none was entered
+    in the window the one in force at its start is the range (a share priced once in two years still has one)."""
+    start = as_of - timedelta(days=365)
+    rows = prices.series(instrument, start, as_of)
+    if not rows and instrument.price_source in ("manual", "upload"):
+        before = prices.latest_prices([instrument.pk], start - timedelta(days=1)).get(instrument.pk)
+        if before:
+            rows = [before] + rows
     if not rows:
         return None, None
     closes = [c for _d, c in rows]
@@ -60,7 +67,8 @@ def range_52w(instrument, as_of):
 def price_chart(profile, instrument, start, end, index=None):
     """The price history with purchase and sale markers and, when ``index`` has prices, a dashed line of that index rebased to the
     instrument's first price in the window ("Same start in <index>"). None when the instrument has no prices to draw."""
-    days = series.sample_dates(start, end)
+    entries = series.entry_dates(profile, instrument, start, end)
+    days = series.with_entry_days(series.sample_dates(start, end), entries)     # a hand-priced investment shows every entry (D184)
     raw = series.sampled_prices(instrument, days)
     if not any(raw):
         return None
@@ -71,7 +79,7 @@ def price_chart(profile, instrument, start, end, index=None):
     rebased = _rebased_index(index, days, raw)
     if rebased:
         lines.append((f"Same start in {index.name}", rebased))
-    return line_chart(days, lines, height=220, markers=markers)
+    return line_chart(days, lines, height=220, markers=markers, by_date=bool(entries))
 
 
 def _rebased_index(index, days, raw):

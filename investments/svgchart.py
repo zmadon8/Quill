@@ -27,8 +27,9 @@ def _nice_ticks(lo, hi, count=5):
     return ticks
 
 
-def line_chart(days, lines, width=900, height=280, pad=(56, 16, 24, 30), markers=None):
-    """``lines`` is ``[(label, [value or None per day])]``. Returns ``{"width","height","paths","yticks","xticks","legend"}``."""
+def line_chart(days, lines, width=900, height=280, pad=(56, 16, 24, 30), markers=None, by_date=False):
+    """``lines`` is ``[(label, [value or None per day])]``. With ``by_date`` the x position follows the date (the days are not evenly
+    spaced, as when every Manual Price History entry is added to the sample days), else the position in the list. Returns ``{"width","height","paths","yticks","xticks","legend"}``."""
     left, right, top, bottom = pad
     values = [float(v) for _l, vs in lines for v in vs if v is not None]
     if not values or len(days) < 2:
@@ -39,7 +40,11 @@ def line_chart(days, lines, width=900, height=280, pad=(56, 16, 24, 30), markers
     plot_w, plot_h = width - left - right, height - top - bottom
     n = len(days) - 1
 
+    span = (days[-1] - days[0]).days if by_date else 0
+
     def x(i):
+        if by_date and span > 0:
+            return left + plot_w * (days[i] - days[0]).days / span
         return left + plot_w * i / n
 
     def y(v):
