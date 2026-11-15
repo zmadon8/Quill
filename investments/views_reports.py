@@ -50,8 +50,8 @@ def performance_view(request):
         from .exports import response
 
         word = "XIRR" if measure == "xirr" else "CAGR"
-        header = ["Investment", "From", f"{word} %", f"Default Index {word} %", "Alpha %"] + (
-            ["Sectoral index", f"Sectoral {word} %", "Alpha vs sectoral %"] if sectoral else [])
+        header = ["Investment", "From", f"{word} % (a year)", f"Default Index {word} % (a year)", "Alpha %"] + (
+            ["Sectoral index", f"Sectoral {word} % (a year)", "Alpha vs sectoral %"] if sectoral else [])
         cagr = measure == "cagr"
         data = [[r.instrument.name, r.starts or start, _pct(r.cagr if cagr else r.xirr), _pct(r.index_cagr if cagr else r.index_xirr), _pct(r.alpha)]
                 + ([r.sect_name, _pct(r.sect_cagr if cagr else r.sect_xirr), _pct(r.sect_alpha)] if sectoral else []) for r in rows]
@@ -248,8 +248,8 @@ def _annual_export(r):
 
     pct = (lambda v: None if v is None else round(v * 100, 2))
     summary = [["Starting portfolio value", r.opening_value], ["Amount invested", r.invested], ["Amount sold", r.sold], ["Fresh investments (invested less sold)", r.reinvested],
-               ["Short-term capital gains", r.short_gain], ["Long-term capital gains", r.long_gain], ["Interest income", r.interest_income], ["XIRR for the year %", pct(r.xirr)],
-               [f"{r.index_name} return %", pct(r.index_return)], ["Ending portfolio value", r.closing_value], ["Dividends received", r.dividends],
+               ["Short-term capital gains", r.short_gain], ["Long-term capital gains", r.long_gain], ["Interest income", r.interest_income], ["XIRR % (a year) for the year", pct(r.xirr)],
+               [f"{r.index_name} change over the year %", pct(r.index_return)], ["Ending portfolio value", r.closing_value], ["Dividends received", r.dividends],
                ["Tax deducted on dividends", r.dividend_tax], ["Unrealised gain at year end", r.unrealised], ["Long-term after (days held)", r.cutoff],
                ["Note", "A record-keeping aid, not tax advice. Check the treatment with your CA."]]
     sales = [[s["name"], s["bought"], s["sold"], s["days"], s["units"], s["cost"], s["proceeds"], s["gain"], "Long-term" if s["term"] == "long" else "Short-term",
@@ -270,7 +270,7 @@ def _annual_export(r):
         ("Interest income", ["Investment", "Bought (held from)", "Sold", "Days held", "Units", "Cost", "Proceeds", "Gain", "Term", "Note"], interest_sales),
         ("Holdings at year end", ["Investment", "Type", "Units", "Cost", "Value", "Unrealised gain", ""], held),
         ("Transactions", ["Date", "Investment", "Buy / sell", "Units", "Price", "Charges", "Amount awaiting", "Broker", "Portfolio", "Status"], txns),
-        ("By portfolio", ["Portfolio", "Starting value", "Invested", "Sold", "Short-term gains", "Long-term gains", "Interest income", "XIRR %", "Ending value"], by_pf)])
+        ("By portfolio", ["Portfolio", "Starting value", "Invested", "Sold", "Short-term gains", "Long-term gains", "Interest income", "XIRR % (a year)", "Ending value"], by_pf)])
 
 
 # ------------------------------------------------------------------ other reports and insights

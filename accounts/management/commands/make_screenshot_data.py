@@ -115,6 +115,7 @@ class Command(BaseCommand):
         profile = self._profile(user, KEY_INVESTMENTS, "Screenshots Investments")
         masters.ensure_default_portfolio(profile)
         masters.ensure_builtin_indices()
+        self._index_prices(profile)
         random.seed(SEED)
         ctx = bench.BenchContext(profile=profile, user=user, seed=SEED, size="small")
         bench_data.build(ctx)
@@ -130,36 +131,63 @@ class Command(BaseCommand):
         return {"investment": held, "spare_instrument": spare, "lump_investment": self._lump_sum(profile, user),
                 "manual_investment": self._manual_priced(profile, user)}
 
+    def _index_prices(self, profile):
+        """Nifty 50 (the Default Index, ^NSEI) closes on every weekday from 2021 to today, so Index XIRR, Alpha, the Overview index line and cards have real values."""
+        import math
+        from datetime import date, timedelta
+        from decimal import Decimal
+
+        from investments.models import Price
+        from investments.services import masters
+
+        index = masters.default_index_for(profile)
+        today = date.today()
+        day = date(2021, 1, 1)
+        rows = []
+        while day <= today:
+            if day.weekday() < 5:
+                t = (day - date(2021, 1, 1)).days / 365.0
+                close = 14000 * (1.13 ** t) * (1 + 0.04 * math.sin(t * 9))   # about 13 percent a year with a wobble
+                rows.append(Price(instrument=index, date=day, close=Decimal(f"{close:.2f}"), source="api", basis=""))
+            day += timedelta(days=1)
+        Price.objects.filter(instrument=index).delete()
+        Price.objects.bulk_create(rows, batch_size=500)
+
     def _manual_priced(self, profile, user):
-        """An unlisted share priced by hand: two buys and a sale make its Manual Price History (From purchase, From sale) beside one hand entry."""
-        from datetime import date
+        """An unlisted share priced by hand: buys and a sale at different prices (one over a year back, three inside the last year) make its Manual Price History (From purchase, From sale) beside one hand entry, so its price chart moves."""
+        from datetime import date, timedelta
         from decimal import Decimal
 
         from investments.models import Broker, Portfolio
         from investments.services import masters, prices, transactions
 
         inst = masters.create_instrument(profile, user, kind="share", name="Village mill (unlisted)", asset_class="equity", allow_duplicate=True)
+        masters.update_shared_details(profile, user, inst, price_source="manual")   # trade prices only stand as entries for a hand-priced investment
         portfolio = Portfolio.objects.filter(profile=profile).first()
         broker = Broker.objects.filter(profile=profile).first() or Broker.objects.create(profile=profile, name="Direct")
         common = dict(instrument=inst, portfolio=portfolio, broker=broker)
-        transactions.add_transaction(profile, user, side="buy", date=date(2023, 6, 1), units=Decimal("100"), price=Decimal("250"), **common)
-        transactions.add_transaction(profile, user, side="buy", date=date(2024, 2, 1), units=Decimal("50"), price=Decimal("300"), **common)
+        today = date.today()
+        transactions.add_transaction(profile, user, side="buy", date=today - timedelta(days=900), units=Decimal("100"), price=Decimal("250"), **common)
         prices.set_manual_price(profile, user, inst, date(2024, 8, 1), Decimal("340"), "Valuer's note")
-        transactions.add_transaction(profile, user, side="sell", date=date(2024, 12, 1), units=Decimal("40"), price=Decimal("360"), **common)
+        transactions.add_transaction(profile, user, side="buy", date=today - timedelta(days=300), units=Decimal("50"), price=Decimal("300"), **common)
+        transactions.add_transaction(profile, user, side="buy", date=today - timedelta(days=150), units=Decimal("20"), price=Decimal("320"), **common)
+        transactions.add_transaction(profile, user, side="sell", date=today - timedelta(days=60), units=Decimal("40"), price=Decimal("360"), **common)
         return inst.pk
 
     def _lump_sum(self, profile, user):
-        """A Lump Sum alternative investment in crores: one purchase, one part sale, so its page, the Holdings row and the Sell page have large amounts."""
+        """A Lump Sum alternative investment in crores: two purchases, a hand value and a part sale (value chart with a Before sale drop), so its page, the Holdings row and the Sell page have large amounts."""
         from datetime import date
         from decimal import Decimal
 
         from investments.models import Broker, Portfolio
-        from investments.services import masters, transactions
+        from investments.services import masters, prices, transactions
 
         inst = masters.create_instrument(profile, user, kind="alternative", name="Family chit fund", asset_class="debt", lump_sum=True, allow_duplicate=True)
         portfolio = Portfolio.objects.filter(profile=profile).first()
         broker = Broker.objects.filter(profile=profile).first() or Broker.objects.create(profile=profile, name="Direct")
         common = dict(instrument=inst, portfolio=portfolio, broker=broker)
-        transactions.add_lump_sum_transaction(profile, user, side="buy", date=date(2023, 4, 1), amount=Decimal("125000000"), **common)
+        transactions.add_lump_sum_transaction(profile, user, side="buy", date=date(2023, 4, 1), amount=Decimal("125000000"), value_after=Decimal("125000000"), **common)
+        prices.set_alt_value(profile, user, inst, date(2023, 10, 1), Decimal("138000000"), note="Statement")
+        transactions.add_lump_sum_transaction(profile, user, side="buy", date=date(2024, 1, 15), amount=Decimal("10000000"), **common)
         transactions.add_lump_sum_transaction(profile, user, side="sell", date=date(2024, 10, 1), amount=Decimal("30000000"), remaining=Decimal("110000000"), **common)
         return inst.pk

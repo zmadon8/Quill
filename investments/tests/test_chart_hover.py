@@ -32,6 +32,16 @@ class ChartHoverTests(SimpleTestCase):
         self.assertFalse(any(x.endswith(" k") or x.endswith(" M") for x in labels))
         self.assertEqual(svgchart._fmt(85000), "85,000")
 
+    def test_flat_line_axis_never_repeats_a_label(self):
+        days = [date(2024, 1, 1) + timedelta(days=i) for i in range(4)]
+        for values in ([340, 340.4, 339.7, 340.2], [340, 340, 340, 340], [340.01, 340.02, 340.03, 340.02]):
+            labels = [t["label"] for t in svgchart.line_chart(days, [("A", values)])["yticks"]]
+            self.assertEqual(len(labels), len(set(labels)), labels)
+        labels = [t["label"] for t in svgchart.line_chart(days, [("A", [339.5, 340, 340.5, 340])])["yticks"]]
+        self.assertTrue(all("." in x for x in labels), labels)
+        wide = [t["label"] for t in svgchart.line_chart(days, [("A", [100, 250, 400, 300])])["yticks"]]
+        self.assertFalse(any("." in x for x in wide), wide)
+
     def test_point_count_is_bounded_and_keeps_the_last_day(self):
         hover = json.loads(self.chart(n=1000)["hover"])
         self.assertLessEqual(len(hover["x"]), svgchart.HOVER_POINTS + 1)

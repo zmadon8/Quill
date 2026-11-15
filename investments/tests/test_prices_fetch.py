@@ -187,6 +187,11 @@ class FetchRunTests(InvTestCase):
         with self.assertRaises(InvestmentsError):
             fetch.upsert_prices(self.reliance, [(d(2026, 11, 1), D(5))], "api", "raw")
 
+    def test_a_date_repeated_in_one_batch_stores_one_price_the_last(self):
+        added, _, _ = fetch.upsert_prices(self.reliance, [(d(2026, 11, 1), D(5)), (d(2026, 11, 1), D(6))], "api", "")
+        self.assertEqual(added, 1)
+        self.assertEqual(Price.objects.get(instrument=self.reliance, date=d(2026, 11, 1)).close, D(6))
+
     def test_a_new_split_refetches_the_whole_history_and_keeps_uploads(self):
         Price.objects.create(instrument=self.reliance, date=d(2026, 10, 1), close=D("2600"), source="api", basis="split_adjusted")
         Price.objects.create(instrument=self.reliance, date=d(2026, 9, 1), close=D("2500"), source="upload", basis="split_adjusted")

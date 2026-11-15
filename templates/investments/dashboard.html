@@ -16,9 +16,9 @@
   {% if b == "value" %}<div class="f hl"><div class="lab">Current value</div><div class="fig">{{ totals.value|inr }}</div></div>
   {% elif b == "invested" %}<div class="f"><div class="lab">Invested</div><div class="fig">{{ totals.invested|inr }}</div></div>
   {% elif b == "gain" %}<div class="f"><div class="lab">Gain{% if card_period %} ({{ card_period }}){% endif %}</div><div class="fig">{{ totals.gain|inr_signed }}<small>{{ totals.gain_pct|pct_signed }}</small></div></div>
-  {% elif b == "xirr" %}<div class="f"><div class="lab">Portfolio XIRR{% if card_period %} ({{ card_period }}){% endif %}</div><div class="fig">{{ totals.xirr|pct }}<small>yearly return on money you put in</small></div></div>
-  {% elif b == "index_xirr" %}<div class="f"><div class="lab">{{ default_index.name|default:"Nifty 50" }} XIRR{% if card_period %} ({{ card_period }}){% endif %}</div><div class="fig">{{ totals.index_xirr|pct }}<small>same cash flows in the index</small></div></div>
-  {% elif b == "alpha" %}<div class="f"><div class="lab">Alpha{% if card_period %} ({{ card_period }}){% endif %}</div><div class="fig">{{ totals.alpha|pct_signed }}</div></div>
+  {% elif b == "xirr" %}<div class="f"><div class="lab" title="{{ 'xirr'|measure_tip }}">Portfolio XIRR{% if card_period %} ({{ card_period }}){% endif %}</div><div class="fig">{{ totals.xirr|pct }}<small>a year, on money you put in</small></div></div>
+  {% elif b == "index_xirr" %}<div class="f"><div class="lab" title="{{ 'xirr'|measure_tip }}">{{ default_index.name|default:"Nifty 50" }} XIRR{% if card_period %} ({{ card_period }}){% endif %}</div><div class="fig">{{ totals.index_xirr|pct }}<small>a year, same cash flows in the index</small></div></div>
+  {% elif b == "alpha" %}<div class="f"><div class="lab" title="{{ 'alpha'|measure_tip }}">Alpha{% if card_period %} ({{ card_period }}){% endif %}</div><div class="fig">{{ totals.alpha|pct_signed }}</div></div>
   {% elif b == "dividends" %}<div class="f"><div class="lab">Dividends received</div><div class="fig">{{ totals.dividends|inr }}<small>not part of current value</small></div></div>
   {% elif b == "count" %}<div class="f"><div class="lab">Holdings</div><div class="fig">{{ totals.count }}</div></div>{% endif %}{% endfor %}
 </div>{% endif %}
@@ -26,6 +26,7 @@
   <a class="chk" href="?div={% if include_div %}0{% else %}1{% endif %}" role="switch" aria-checked="{{ include_div|yesno:'true,false' }}"><i class="{% if include_div %}on{% endif %}"></i> Include dividends in XIRR</a>
   {% if include_div %}<span class="na">The index comparison is against the price index only (it leaves out the index's own dividends).</span>{% endif %}</div>
 {% for n in notes %}<p class="hint">{{ n }}</p>{% endfor %}
+<p class="hint">{{ "legend"|measure_tip }}</p>
 {% if customise_open and can_edit %}
 <div class="panel" id="customise"><h3>Customise the Overview</h3>
 <form method="post" action="{% url 'investments_overview_save' %}">{% csrf_token %}
@@ -51,7 +52,7 @@
     {% include "investments/_chart_block.html" with title="Value against the same money in the index" chart=chart ranges=chart_ranges anchor="chart" caption="Portfolio value and the same money invested in the index" %}{% endif %}
     {% if breakdown %}
     <div class="sec" id="breakdown"><h2>Portfolio value</h2><nav class="seg" aria-label="Breakdown">{% for l in breakdown_links %}<a href="{{ l.href }}"{% if l.on %} class="on" aria-current="true"{% endif %}>{{ l.label }}</a>{% endfor %}</nav></div>
-    <div class="tw"><table data-table-id="inv-overview-breakdown" class="led"><thead><tr><th>{% if breakdown_key == "type" %}Type{% elif breakdown_key == "portfolio" %}Portfolio{% else %}Broker{% endif %}</th><th class="r">Invested</th><th class="r">Value</th><th class="r">Gain</th><th class="r">Gain %</th><th class="r">XIRR</th><th class="r">Share</th></tr></thead><tbody>
+    <div class="tw"><table data-table-id="inv-overview-breakdown" class="led"><thead><tr><th>{% if breakdown_key == "type" %}Type{% elif breakdown_key == "portfolio" %}Portfolio{% else %}Broker{% endif %}</th><th class="r">Invested</th><th class="r">Value</th><th class="r">Gain</th><th class="r">Gain %</th><th class="r" title="{{ 'xirr'|measure_tip }}">XIRR (a year)</th><th class="r">Share</th></tr></thead><tbody>
     {% for r in breakdown.rows %}<tr><td>{{ r.name }}</td><td class="r">{{ r.invested|inr }}</td><td class="r">{{ r.value|inr }}</td><td class="r">{{ r.gain|inr_signed }}</td><td class="r">{{ r.gain_pct|pct_signed }}</td><td class="r">{{ r.xirr|pct_signed }}</td><td class="r">{{ r.share|pct }}</td></tr>{% endfor %}
     </tbody><tfoot><tr><th>Total</th><th class="r">{{ breakdown.total.invested|inr }}</th><th class="r">{{ breakdown.total.value|inr }}</th><th class="r">{{ breakdown.total.gain|inr_signed }}</th><th class="r">{{ breakdown.total.gain_pct|pct_signed }}</th><th class="r">{{ breakdown.total.xirr|pct_signed }}</th><th class="r">{{ breakdown.total.share|pct }}</th></tr></tfoot></table></div>
     {% endif %}

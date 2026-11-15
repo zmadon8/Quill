@@ -14,7 +14,7 @@ from .models import (
     KIND_ALTERNATIVE, AltValue, Folio, Instrument, InvestmentHistory, ManualPrice, Price, ProfileInvestment, Transaction,
     Transfer,
 )
-from .services import holdings, holdings_page, masters, prices
+from .services import holdings, holdings_page, masters, prices, series
 from .viewutil import handle_errors, page, profile_or_404, selection
 
 KIND_LABELS = dict((k, v) for k, v in forms.KIND_CHOICES)
@@ -278,6 +278,11 @@ def investment(request, pk):
     div = include_dividends(request, profile)
     rows, _t = holdings.compute(profile, portfolio=portfolio, broker=broker, as_of=as_of, instrument_ids=[inst.pk], include_dividends=div)
     range_key, range_days = chartview.choose(request, "1y")
+    if series.is_hand_priced(inst) and not (request.GET.get("range") or request.GET.get("days")):
+        since = as_of - _td(days=range_days)
+        recent = series.entry_dates(profile, inst, since, as_of) if inst.kind == "alternative" else prices.series(inst, since, as_of)
+        if len(recent) < 2 and series.entry_dates(profile, inst, as_of - _td(days=36500), as_of):
+            range_key, range_days = "all", None      # entries, but under two in the past year, would draw a flat line: show the whole history (D184)
     if range_days is None:
         chart_start = _first_price_date(inst) or (as_of - _td(days=365))
     else:
@@ -313,7 +318,8 @@ def investment(request, pk):
         price_chart = investment_page.price_chart(profile, inst, chart_start, as_of, index=index if index and index.pk != inst.pk else None)
     else:
         value_chart = chartview.value_chart(
-            profile, range_days, as_of, index=masters.default_index_for(profile), portfolio=portfolio, broker=broker, instrument_ids=[inst.pk])
+            profile, range_days, as_of, index=masters.default_index_for(profile), portfolio=portfolio, broker=broker, instrument_ids=[inst.pk],
+            entries_of=inst)
     # Iterating ``txns`` here loaded every transaction of the investment, and the page then queried the newest 200 again: ask for the awaiting
     # ones on their own (there are few) and let the page list read the newest 200 once.
     awaiting_rows = list(txns.filter(status="awaiting"))

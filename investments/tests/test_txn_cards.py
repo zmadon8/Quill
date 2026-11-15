@@ -91,3 +91,68 @@ class TxnCardTests(InvTestCase):
     def test_availability_needs_login(self):
         self.client.logout()
         self.assertNotEqual(self.client.get(reverse("investments_available_units"), {"instrument": self.reliance.pk}).status_code, 200)
+
+
+class AlternativeTotalTests(InvTestCase):
+    """Alternatives bought per unit: Units with a Price per unit, a Total amount, or both (D187)."""
+
+    def setUp(self):
+        super().setUp()
+        self.client.force_login(self.user)
+        self.art = masters.create_instrument(self.profile, self.user, kind="alternative", name="Painting set", asset_class="gold")
+        self.url = reverse("investments_txn_new_buy")
+
+    def card(self, prefix="", instrument=None, **extra):
+        p = prefix + "-" if prefix else ""
+        base = {"date": "2024-01-01", "instrument": (instrument or self.art).pk, "portfolio": self.portfolio.pk, "broker": self.zerodha.pk, "charges": "0"}
+        return {p + k: v for k, v in {**base, **extra}.items()}
+
+    def post(self, **extra):
+        return self.client.post(self.url, self.card(**extra))
+
+    def test_total_only_gives_price_to_four_places(self):
+        self.assertRedirects(self.post(units="3", total="100"), reverse("investments_transactions"))
+        self.assertEqual(Transaction.objects.get().price, D("33.3333"))
+
+    def test_price_only_still_works(self):
+        self.post(units="3", price="12.5")
+        self.assertEqual(Transaction.objects.get().price, D("12.5"))
+
+    def test_both_agreeing_keeps_the_price(self):
+        self.post(units="4", price="25", total="100")
+        self.assertEqual(Transaction.objects.get().price, D("25"))
+
+    def test_both_disagreeing_the_total_wins(self):
+        self.post(units="4", price="30", total="100")
+        self.assertEqual(Transaction.objects.get().price, D("25"))
+
+    def test_total_with_zero_units_is_refused(self):
+        r = self.post(units="0", total="100")
+        self.assertContains(r, "Units must be above zero")
+        self.assertEqual(Transaction.objects.count(), 0)
+
+    def test_neither_price_nor_total_is_refused(self):
+        self.assertContains(self.post(units="3"), "This field is required.")
+        self.assertEqual(Transaction.objects.count(), 0)
+
+    def test_shares_do_not_take_a_total(self):
+        r = self.post(instrument=self.reliance, units="3", total="100")
+        self.assertContains(r, "only be given for an alternative investment")
+        self.assertEqual(Transaction.objects.count(), 0)
+
+    def test_lump_sum_is_unchanged(self):
+        chit = masters.create_instrument(self.profile, self.user, kind="alternative", name="Chit", asset_class="debt", lump_sum=True)
+        self.client.post(self.url, self.card(instrument=chit, lump_amount="5000", total="7"))
+        t = Transaction.objects.get()
+        self.assertEqual((t.units, t.price), (D("5000"), D("1")))
+
+    def test_sell_with_total(self):
+        self.post(units="10", price="10")
+        r = self.client.post(reverse("investments_txn_new_sell"), self.card(date="2024-02-01", units="4", total="60"))
+        self.assertRedirects(r, reverse("investments_transactions"))
+        self.assertEqual(Transaction.objects.get(side="sell").price, D("15"))
+
+    def test_each_card_is_worked_out_on_its_own(self):
+        post = {**self.card(units="2", total="50"), "extra_rows": "1", **self.card("x1", units="4", price="3")}
+        self.client.post(self.url, post)
+        self.assertEqual(sorted(Transaction.objects.values_list("price", flat=True)), [D("3"), D("25")])

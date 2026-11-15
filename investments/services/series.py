@@ -16,7 +16,7 @@ from decimal import Decimal
 
 from investments import valuation
 from investments.models import (
-    AWAITING_LEAVE_OUT, KIND_ALTERNATIVE, SIDE_BUY, STATUS_AWAITING, STATUS_FINAL, Instrument, Transaction, Transfer,
+    AWAITING_LEAVE_OUT, KIND_ALTERNATIVE, SIDE_BUY, STATUS_AWAITING, STATUS_FINAL, AltValue, Instrument, Transaction, Transfer,
 )
 from investments.services import core, prices
 
@@ -75,6 +75,40 @@ def sampled_prices(instrument, days):
         i = bisect_right(keys, d)
         out.append(series[i - 1][1] if i else None)
     return out
+
+
+#: The most Manual Price History entries one chart adds to its sample days (the newest in the window).
+MAX_ENTRY_DAYS = 120
+
+
+def is_hand_priced(instrument):
+    """True for an alternative investment or a share or fund whose price source is manual or upload: its prices are Manual Price History entries."""
+    return instrument.kind == KIND_ALTERNATIVE or instrument.price_source in ("manual", "upload")
+
+
+def entry_dates(profile, instrument, start, end):
+    """The dates in ``start``..``end`` that hold a Manual Price History entry of a hand-priced investment, oldest first (newest ``MAX_ENTRY_DAYS``):
+    an alternative's own values, or the shared manual prices of a share or fund whose price source is manual or upload. A fetched
+    investment has none (its daily prices already give the line)."""
+    if not is_hand_priced(instrument):
+        return []
+    qs = (AltValue.objects.filter(profile=profile, instrument=instrument) if instrument.kind == KIND_ALTERNATIVE
+          else prices.ManualPrice.objects.filter(instrument=instrument))
+    found = qs.filter(date__gte=start, date__lte=end).order_by("-date").values_list("date", flat=True)[:MAX_ENTRY_DAYS]
+    return sorted(found)
+
+
+def with_entry_days(days, entries):
+    """``days`` plus each entry's date and the day before it (so the line steps at the entry instead of sloping from the sample before), kept
+    inside the window. Entries are prices that hold until the next one, and weekly or month-end sampling would otherwise skip a one-day entry
+    such as a Lump Sum's "Before sale" value."""
+    if not entries or not days:
+        return list(days)
+    extra = set()
+    for e in entries:
+        extra.add(e)
+        extra.add(e - timedelta(days=1))
+    return sorted({d for d in set(days) | extra if days[0] <= d <= days[-1]})
 
 
 #: Instruments whose prices are read together by ``sampled_prices_many``: one query per price table per chunk instead of per instrument,

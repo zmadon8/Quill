@@ -105,18 +105,21 @@ def first_date(profile, *, portfolio=None, broker=None, instrument_ids=None):
     return qs.aggregate(m=Min("date"))["m"]
 
 
-def value_chart(profile, days_back, end, *, index=None, portfolio=None, broker=None, instrument_ids=None, settings_row=None, height=240):
+def value_chart(profile, days_back, end, *, index=None, portfolio=None, broker=None, instrument_ids=None, settings_row=None, height=240, entries_of=None):
     """The drawn chart (``svgchart.line_chart``) of the value and the same money in ``index`` over the last ``days_back`` days up to
-    ``end`` (None = from the first purchase), or None when there is too little to draw."""
+    ``end`` (None = from the first purchase), or None when there is too little to draw. ``entries_of`` is a hand-priced investment: every
+    Manual Price History entry of it in the window then gets a point of its own (D184)."""
     first = first_date(profile, portfolio=portfolio, broker=broker, instrument_ids=instrument_ids)
     if first is None or first >= end:
         return None
     start = first if days_back is None else max(first, end - timedelta(days=days_back))
     params = {"start": start, "end": end, "first": first, "portfolio": portfolio, "broker": broker, "index": index.pk if index else None,
-              "instruments": sorted(instrument_ids) if instrument_ids is not None else None, "m": 2}
+              "instruments": sorted(instrument_ids) if instrument_ids is not None else None, "m": 3,
+              "entries": entries_of.pk if entries_of is not None else None}
 
     def compute():
-        days = series.sample_dates(start, end)
+        entries = series.entry_dates(profile, entries_of, start, end) if entries_of is not None else []
+        days = series.with_entry_days(series.sample_dates(start, end), entries)
         values, flows = series.portfolio_value_series(profile, days, portfolio=portfolio, broker=broker, instrument_ids=instrument_ids,
                                                       settings_row=settings_row)
         if start > first:
@@ -124,7 +127,7 @@ def value_chart(profile, days_back, end, *, index=None, portfolio=None, broker=N
             flows[0] = values[0]
         levels = series.sampled_prices(index, days) if index else [None] * len(days)
         equivalent = series.index_equivalent_values(days, flows, levels)
-        return {"days": [d.isoformat() for d in days], "value": [float(v) for v in values],
+        return {"by_date": bool(entries), "days": [d.isoformat() for d in days], "value": [float(v) for v in values],
                 "index": [None if v is None else float(v) for v in equivalent],
                 "markers": portfolio_markers(profile, days, portfolio=portfolio, broker=broker, instrument_ids=instrument_ids)}
 
@@ -132,4 +135,4 @@ def value_chart(profile, days_back, end, *, index=None, portfolio=None, broker=N
     data = statscache.get_or_compute(profile, "value_chart", params, compute, today_sensitive=end >= date.today())
     name = index.name if index else "the index"
     return line_chart([date.fromisoformat(d) for d in data["days"]], [("Value", data["value"]), (f"Same money in {name}", data["index"])],
-                      height=height, markers=data.get("markers"))
+                      height=height, markers=data.get("markers"), by_date=data.get("by_date", False))

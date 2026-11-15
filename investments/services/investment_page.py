@@ -3,7 +3,7 @@ the 52-week range, days until each purchase turns long-term, and the price chart
 from datetime import date, timedelta
 from decimal import Decimal
 
-from investments import lots
+from investments import lots, measures
 from investments.models import Guardrail
 from investments.services import core, masters, prices, series
 from investments.services.performance import IndexSeries
@@ -23,7 +23,7 @@ def _annualised(start_value, end_value, days):
 
 
 def purchase_rows(profile, instrument, holding, as_of):
-    """``(held, sold)``: each lot still held with its gain and CAGR next to the index CAGR over the same dates, and each sold portion."""
+    """``(held, sold)``: each lot still held with its gain and return (CAGR from a year, plain under it) next to the index figure on the same basis, and each sold portion."""
     settings_row = core.get_settings(profile, create=False)
     index = settings_row.default_index if settings_row.default_index_id else masters.default_index_for(profile)
     lots_held = sorted(holding.lots, key=lambda l: (l.bought_on, str(l.ref)))
@@ -38,19 +38,26 @@ def purchase_rows(profile, instrument, holding, as_of):
         ret, annual = _annualised(lot.cost, value, days) if value is not None else (None, False)
         then = level(lot.paid_on)
         iret, _ = _annualised(then, now_level, days) if then and now_level else (None, False)
-        held.append({"lot": lot, "value": value, "gain": None if value is None else value - lot.cost, "days": days, "return": ret, "annual": annual,
+        held.append({"lot": lot, "value": value, "gain": None if value is None else value - lot.cost, "days": days, "return": ret, "annual": annual, "basis": measures.basis(days, annual),
                      "index_return": iret, "diff": None if ret is None or iret is None else ret - iret,
                      "to_long": max(0, settings_row.long_term_days - days + 1) if days <= settings_row.long_term_days else 0})
     sold = []
     result = lots.replay(core.events_for(profile, instrument.pk), as_of=as_of)
     for m in result.matches:
         ret, annual = _annualised(m.cost, m.proceeds, m.holding_days)
-        sold.append({"m": m, "return": ret, "annual": annual})
+        sold.append({"m": m, "return": ret, "annual": annual, "basis": measures.basis(m.holding_days, annual)})
     return held, sold
 
 
 def range_52w(instrument, as_of):
-    rows = prices.series(instrument, as_of - timedelta(days=365), as_of)
+    """Lowest and highest price in the last 52 weeks. A hand-priced investment's price holds until the next entry, so when none was entered
+    in the window the one in force at its start is the range (a share priced once in two years still has one)."""
+    start = as_of - timedelta(days=365)
+    rows = prices.series(instrument, start, as_of)
+    if not rows and instrument.price_source in ("manual", "upload"):
+        before = prices.latest_prices([instrument.pk], start - timedelta(days=1)).get(instrument.pk)
+        if before:
+            rows = [before] + rows
     if not rows:
         return None, None
     closes = [c for _d, c in rows]
@@ -60,7 +67,8 @@ def range_52w(instrument, as_of):
 def price_chart(profile, instrument, start, end, index=None):
     """The price history with purchase and sale markers and, when ``index`` has prices, a dashed line of that index rebased to the
     instrument's first price in the window ("Same start in <index>"). None when the instrument has no prices to draw."""
-    days = series.sample_dates(start, end)
+    entries = series.entry_dates(profile, instrument, start, end)
+    days = series.with_entry_days(series.sample_dates(start, end), entries)     # a hand-priced investment shows every entry (D184)
     raw = series.sampled_prices(instrument, days)
     if not any(raw):
         return None
@@ -71,7 +79,7 @@ def price_chart(profile, instrument, start, end, index=None):
     rebased = _rebased_index(index, days, raw)
     if rebased:
         lines.append((f"Same start in {index.name}", rebased))
-    return line_chart(days, lines, height=220, markers=markers)
+    return line_chart(days, lines, height=220, markers=markers, by_date=bool(entries))
 
 
 def _rebased_index(index, days, raw):

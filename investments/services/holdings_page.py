@@ -9,8 +9,10 @@ from datetime import date
 from decimal import Decimal
 
 from investments.models import HOLDABLE_KINDS, KIND_ALTERNATIVE, ProfileInvestment
-from investments.services import fetch, holdings, prices, statscache
+from investments.services import fetch, holdings, performance, prices, statscache
 from investments.svgchart import sparkline
+
+PAYLOAD_VERSION = 2   # 2: Index XIRR and Alpha per row
 
 
 class _Instrument:
@@ -46,6 +48,8 @@ class Row:
         self.price_date = date.fromisoformat(data["price_date"]) if data["price_date"] else None
         self.price = Decimal(data["price"]) if data.get("price") else None
         self.xirr = data["xirr"]
+        self.index_xirr = data.get("index_xirr")   # absent from rows cached before the index columns existed
+        self.alpha = data.get("alpha")
         self.unpriced = data["unpriced"]
         self.stale = data["stale"]
         self.blocked = data["blocked"]
@@ -79,7 +83,7 @@ def _dump(h, hidden_ids, stale, sparks):
         "units": str(h.units), "cost": str(h.cost), "value": str(h.value), "awaiting": str(h.awaiting),
         "first_date": h.first_date.isoformat() if h.first_date else None, "price_date": h.price_date.isoformat() if h.price_date else None,
         "price": str(h.price) if h.price is not None else None,
-        "xirr": h.xirr, "unpriced": h.unpriced, "stale": inst.pk in stale, "blocked": h.blocked, "is_held": h.is_held,
+        "xirr": h.xirr, "index_xirr": h.index_xirr, "alpha": h.alpha, "unpriced": h.unpriced, "stale": inst.pk in stale, "blocked": h.blocked, "is_held": h.is_held,
         "sold_out": h.sold_out, "empty": h.empty, "hidden": inst.pk in hidden_ids, "spark": sparks.get(inst.pk),
         "realised": str(h.realised), "dividends": str(h.dividends), "interest_income": str(h.interest_income),
     }
@@ -88,6 +92,7 @@ def _dump(h, hidden_ids, stale, sparks):
 def compute(profile, portfolio=None, broker=None, as_of=None):
     """Every line the page can show (all types and statuses), plus the counts the page keeps: ``{"rows", "held_count", "sold_count"}``."""
     rows, _totals = holdings.compute(profile, portfolio=portfolio, broker=broker, as_of=as_of)
+    performance.decorate_with_index(profile, rows, holdings.Totals(), as_of or date.today())
     hidden_ids = set(ProfileInvestment.objects.filter(profile=profile, hidden=True).values_list("instrument_id", flat=True))
     # Investments added but not yet bought still belong in the list.
     # They are "Not bought yet", never "Held": nothing is held until units (or a purchase awaiting allotment) exist.
@@ -109,6 +114,6 @@ def compute(profile, portfolio=None, broker=None, as_of=None):
 
 def load(profile, portfolio=None, broker=None, as_of=None):
     """``(rows, held_count, sold_count)`` for the selection, from the cache while the data, the prices and the date are unchanged."""
-    payload = statscache.get_or_compute(profile, "holdings", {"p": portfolio, "b": broker, "a": as_of},
+    payload = statscache.get_or_compute(profile, "holdings", {"p": portfolio, "b": broker, "a": as_of, "v": PAYLOAD_VERSION},
                                         lambda: compute(profile, portfolio, broker, as_of), today_sensitive=True)
     return [Row(r) for r in payload["rows"]], payload["held_count"], payload["sold_count"]

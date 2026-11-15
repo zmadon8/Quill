@@ -16,9 +16,9 @@ BOXES = (
     ("value", "Current value", ""),
     ("invested", "Invested", "cost of what is held now"),
     ("gain", "Gain", "current value less cost"),
-    ("xirr", "Portfolio XIRR", "yearly return on money you put in"),
+    ("xirr", "Portfolio XIRR", "a year, on money you put in"),
     ("index_xirr", "{index} XIRR", "same cash flows in the index"),
-    ("alpha", "Alpha", "your XIRR less the index's"),
+    ("alpha", "Alpha", "your XIRR less the index's (a year)"),
     ("dividends", "Dividends received", "not part of current value"),
     ("count", "Holdings", "investments held now"),
 )
@@ -26,11 +26,11 @@ STANDARD_BOXES = ("invested", "value", "gain", "xirr", "index_xirr", "alpha")
 
 #: The period figures: (id, label, format, help). Formats: pct, pct_signed, money, money_signed.
 METRICS = (
-    ("xirr", "Your XIRR", "pct", "Yearly return on the money you put in; the value at the start counts as money put in."),
-    ("index_xirr", "{index} XIRR", "pct", "The same money on the same dates in the index."),
+    ("xirr", "Your XIRR (a year)", "pct", "XIRR: a yearly rate on the money you put in; the value at the start counts as money put in."),
+    ("index_xirr", "{index} XIRR (a year)", "pct", "XIRR of the same money on the same dates in the index."),
     ("alpha", "Alpha", "pct_signed", "Your XIRR less the index's."),
-    ("twr", "Time-weighted return (yearly)", "pct", "The portfolio's growth whatever money was added or taken out; from sampled values."),
-    ("index_return", "{index} change", "pct_signed", "The index's own rise or fall over the period."),
+    ("twr", "Time-weighted return (a year)", "pct", "The portfolio's growth whatever money was added or taken out; from sampled values."),
+    ("index_return", "{index} change over the period", "pct_signed", "The index's plain rise or fall over the period, not a yearly rate."),
     ("start_value", "Value at the start", "money", ""),
     ("end_value", "Value at the end", "money", ""),
     ("put_in", "Money put in", "money", "Purchases, including charges."),

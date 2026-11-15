@@ -218,11 +218,56 @@ class PageTests(InvTestCase):
         # The Overview "Over time" table is a fixed figure-by-period grid, so it is not sortable.
         self.assertContains(self.client.get(reverse("investments_dashboard")), "<thead>")
 
+    def test_holdings_has_index_xirr_and_alpha_after_xirr_with_sort_values(self):
+        self.buy(d(2024, 1, 15), 10, 100)
+        html = self.client.get(reverse("investments_holdings")).content.decode()
+        head = html.split("<thead>")[1].split("</thead>")[0]
+        self.assertLess(head.index("XIRR (a year)</th>"), head.index(">Index XIRR</th>"))
+        self.assertLess(head.index(">Index XIRR</th>"), head.index(">Alpha</th>"))
+        self.assertIn('data-col="index-xirr"', head)
+        self.assertIn('data-col="alpha"', head)
+        row = html.split("<tbody>")[1].split("</tr>")[0]
+        self.assertEqual(row.count("<td"), head.count("<th"))
+
+    def test_holdings_shows_index_xirr_and_alpha_values_when_index_prices_exist(self):
+        from datetime import date, timedelta
+
+        from investments.models import Price
+
+        nifty = Instrument.objects.get(code="^NSEI")
+        start = date.today() - timedelta(days=500)
+        for n in range(0, 501, 5):
+            day = start + timedelta(days=n)
+            Price.objects.update_or_create(instrument=nifty, date=day, defaults={"close": D(10000) * (D("1.0003") ** n), "source": "api"})
+            Price.objects.update_or_create(instrument=self.reliance, date=day, defaults={"close": D(100) * (D("1.0006") ** n), "source": "api"})
+        Price.objects.update_or_create(instrument=nifty, date=date.today(), defaults={"close": D(10000) * (D("1.0003") ** 500), "source": "api"})
+        Price.objects.update_or_create(instrument=self.reliance, date=date.today(), defaults={"close": D(100) * (D("1.0006") ** 500), "source": "api"})
+        self.buy(start + timedelta(days=5), 10, 100)
+        html = self.client.get(reverse("investments_holdings")).content.decode()
+        row = html.split("<tbody>")[1].split("</tr>")[0]
+        cells = row.split("<td")
+        index_cell, alpha_cell = cells[9], cells[10]   # name, type, code, units, value, gain, first bought, XIRR, Index XIRR, Alpha
+        self.assertNotIn("&ndash;", index_cell)
+        self.assertNotIn("&ndash;", alpha_cell)
+        self.assertIn("%", index_cell)
+        self.assertIn("%", alpha_cell)
+
+    def test_holdings_row_defaults_for_rows_cached_before_the_index_columns(self):
+        from investments.services import holdings_page
+
+        data = {"instrument": {"id": 1, "name": "X", "code": "X", "kind": "share", "price_source": "manual", "kind_label": "Share"},
+                "units": "1", "cost": "1", "value": "1", "awaiting": "0", "first_date": None, "price_date": None, "xirr": None, "unpriced": False,
+                "stale": False, "blocked": False, "is_held": True, "sold_out": False, "empty": False, "hidden": False, "spark": None}
+        row = holdings_page.Row(data)
+        self.assertEqual((row.index_xirr, row.alpha), (None, None))
+        self.assertEqual(holdings_page.Row({**data, "index_xirr": 0.1, "alpha": 0.02}).alpha, 0.02)
+
     def test_holdings_table_has_xirr_and_first_bought_columns_with_sort_values(self):
         self.buy(d(2024, 1, 15), 10, 100)
         html = self.client.get(reverse("investments_holdings")).content.decode()
         self.assertIn("<th class=\"r\">First bought</th>", html)
-        self.assertIn("<th class=\"r\">XIRR</th>", html)
+        self.assertIn("XIRR (a year)</th>", html)
+        self.assertIn("the yearly rate that fits every dated purchase", html)
         self.assertIn("15 Jan 2024", html)
         self.assertIn('data-sort="20240115"', html)
         # one header per cell, so the column sort in shell.js lines up

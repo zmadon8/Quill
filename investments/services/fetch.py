@@ -165,7 +165,7 @@ def upsert_prices(instrument, rows, source="api", basis=None):
         basis = instrument.price_basis
     if instrument.price_basis and basis and basis != instrument.price_basis:
         raise InvestmentsError("BASIS_MISMATCH", f"{instrument.name}: the rows are on a '{basis}' basis but the investment is '{instrument.price_basis}'.", 409)
-    rows = [(d, c) for d, c in rows if c is not None and c > 0]
+    rows = list({d: c for d, c in rows if c is not None and c > 0}.items())  # one row per date: the last wins, so a repeated date cannot break inv_price_unique
     if not rows:
         return 0, 0, 0
     existing = {p.date: p for p in Price.objects.filter(instrument=instrument, date__gte=min(d for d, _ in rows), date__lte=max(d for d, _ in rows))}

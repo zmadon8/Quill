@@ -1,5 +1,6 @@
 """Django forms for the Investments pages. They only check the shape of the input; every rule lives in the services."""
 from datetime import date
+from decimal import ROUND_HALF_UP, Decimal
 
 from django import forms
 
@@ -183,6 +184,8 @@ class TransactionForm(ProfileForm):
                                help_text="Bonus shares, split units and shares received on a demerger need no price: they are added at a cost of 0. A demerger's cost comes from the parent's shares, not from this entry.")
     corporate_action = forms.ModelChoiceField(queryset=CorporateAction.objects.none(), required=False, label="Corporate action (bonus, split or demerger)")
     price = MoneyField(label="Price per unit", required=False, min_value=0)
+    total = MoneyField(label="Total amount (optional)", required=False, min_value=0, decimal_places=2,
+                       help_text="Alternative investments bought per unit: give the price per unit or the total paid or received, or both. If both are given, the total wins and the price is worked out as total / units.")
     lump_amount = MoneyField(label="Amount", required=False, min_value=0, help_text="Lump Sum investment: the money paid or received")
     value_after = MoneyField(label="Value after this purchase (optional)", required=False, min_value=0,
                              help_text="The whole investment worth after this purchase. Leave blank to add the amount to the last value you gave.")
@@ -217,7 +220,7 @@ class TransactionForm(ProfileForm):
         if mode != "buy":
             del self.fields["value_after"]
         if awaiting:
-            for name in ("units", "price", "allotment_date", "origin", "corporate_action"):
+            for name in ("units", "price", "total", "allotment_date", "origin", "corporate_action"):
                 del self.fields[name]
             self.fields["amount"].required = True
             self.fields["amount"].label = "Amount paid" if mode == "awaiting_buy" else "Expected proceeds"
@@ -225,13 +228,13 @@ class TransactionForm(ProfileForm):
         else:
             del self.fields["amount"]
             del self.fields["expected_allotment_date"]
+            self.fields["price"].required = False   # _resolve_total() asks for it unless a total is given
             del self.fields["reference"]
             self.fields["units"].required = mode not in ("buy", "sell")   # buy and sell check it in clean(): a Lump Sum asks for an amount instead
             if mode in ("sell", "edit_sell"):
                 del self.fields["allotment_date"]
                 del self.fields["origin"]
                 del self.fields["corporate_action"]
-                self.fields["price"].required = mode != "sell"
             else:
                 # A purchase needs its price; bonus and split units and shares received on a demerger do not (checked in clean()).
                 self.fields["corporate_action"].queryset = self.actions()
@@ -284,6 +287,27 @@ class TransactionForm(ProfileForm):
             if self.held_default and chosen and chosen not in held:
                 self.held_default = False
 
+    def _resolve_total(self, cleaned, inst):
+        """An alternative investment that is not a Lump Sum may be entered as units with a price per unit, a total, or both. The total wins:
+        the price is total / units to 4 decimal places. Shares and funds keep Units and Price; a Lump Sum keeps its amount."""
+        total = cleaned.get("total")
+        if "total" not in self.fields or (inst and inst.lump_sum):
+            return
+        if total is None:
+            if self.mode == "edit_sell" and cleaned.get("price") is None and "price" not in self.errors:
+                self.add_error("price", "This field is required.")
+            return
+        if inst is None or inst.kind != KIND_ALTERNATIVE:
+            self.add_error("total", "A total amount can only be given for an alternative investment. Enter the price per unit.")
+            return
+        units = cleaned.get("units")
+        if units is None or "units" in self.errors:
+            return
+        if units <= 0:
+            self.add_error("total", "Units must be above zero to work out the price per unit from a total.")
+            return
+        cleaned["price"] = (total / units).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
+
     def clean_amounts(self, cleaned, inst):
         """Units and price are required on a plain buy or sale unless the investment is a Lump Sum, which needs its amount (and, when sold, what
         remains) instead. A Lump Sum purchase is recorded as units = amount at a price of 1; a sale's units and price are worked out when it is saved."""
@@ -315,6 +339,7 @@ class TransactionForm(ProfileForm):
 
             if not tx.available_by_bucket(self.profile, inst, day):
                 self.add_error("instrument", f"You held none of this investment on {day.day} {day:%b %Y}.")
+        self._resolve_total(cleaned, inst)
         if self.mode in ("buy", "sell"):
             self.clean_amounts(cleaned, inst)
         folio = cleaned.get("folio")
