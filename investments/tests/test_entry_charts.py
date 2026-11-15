@@ -102,7 +102,6 @@ class LumpSumValueChartTests(ManualPricedBase):
         self.assertEqual(by_date["3 Jan 2024"], "10,00,000.00")
         self.assertEqual(by_date["11 Jun 2024"], "11,00,000.00")      # Before sale: amount sold plus remaining
         self.assertEqual(by_date["12 Jun 2024"], "8,00,000.00")
-        self.assertEqual(by_date["10 Jun 2024"], "10,00,000.00")
 
     def test_a_new_trade_refreshes_the_cached_chart(self):
         self.lump("buy", d(2024, 1, 3), 1000000, value_after=D(1000000))

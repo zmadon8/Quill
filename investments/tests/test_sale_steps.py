@@ -5,7 +5,7 @@ from decimal import Decimal as D
 
 from django.urls import reverse
 
-from investments.models import AltValue
+from investments.models import AltValue, Instrument
 from investments.services import chartview, investment_page, masters, sale_steps
 from investments.services import transactions as tx
 from investments.tests.base import d
@@ -127,6 +127,9 @@ class LumpSumStepTests(ManualPricedBase):
 class PerUnitShareStepTests(ManualPricedBase):
     def setUp(self):
         super().setUp()
+        # Only a private (own) share or fund lists a Manual Price History on its page (D180); a shared one shows the shared price history.
+        Instrument.objects.filter(pk=self.reliance.pk).update(profile=self.profile)
+        self.reliance.refresh_from_db()
         self.buy(d(2024, 1, 10), 10, 100)
         self.sale = self.sell(d(2024, 5, 15), 4, 150)
 
