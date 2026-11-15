@@ -44,6 +44,7 @@
         row.appendChild(name); row.appendChild(val);
         tip.appendChild(row);
       });
+      if (data.n && data.n[i]) { var sale = document.createElement('span'); sale.textContent = data.n[i]; tip.appendChild(sale); }
       tip.hidden = false;
       var box = svg.getBoundingClientRect(), fig = svg.parentNode.getBoundingClientRect();
       var px = box.left - fig.left + gx * box.width / vb.width;

@@ -47,9 +47,11 @@ def _nice_ticks(lo, hi, count=5):
     return ticks
 
 
-def line_chart(days, lines, width=900, height=280, pad=(56, 16, 24, 30), markers=None, by_date=False):
+def line_chart(days, lines, width=900, height=280, pad=(56, 16, 24, 30), markers=None, by_date=False, notes=None):
     """``lines`` is ``[(label, [value or None per day])]``. With ``by_date`` the x position follows the date (the days are not evenly
-    spaced, as when every Manual Price History entry is added to the sample days), else the position in the list. Returns ``{"width","height","paths","yticks","xticks","legend"}``."""
+    spaced, as when every Manual Price History entry is added to the sample days), else the position in the list. ``notes`` is
+    ``[[date, text]]`` for a date that appears twice in ``days`` (a sale: the point before it, then the point after, so the line drops
+    vertically): the text is shown in the hover tooltip for both points and as the sale marker's title. Returns ``{"width","height","paths","yticks","xticks","legend"}``."""
     left, right, top, bottom = pad
     values = [float(v) for _l, vs in lines for v in vs if v is not None]
     if not values or len(days) < 2:
@@ -90,13 +92,15 @@ def line_chart(days, lines, width=900, height=280, pad=(56, 16, 24, 30), markers
     # markers: [(date, label, "buy" or "sell")] drawn on the first line at the nearest sample date (the purchases and sales on a price chart)
     marks_out = []
     first = lines[0][1] if lines else []
+    noted = {(date.fromisoformat(d) if isinstance(d, str) else d): t for d, t in notes or []}
     for day, label, kind in markers or []:
         if isinstance(day, str):   # markers kept in a cached payload carry ISO dates
             day = date.fromisoformat(day)
+        label = noted.get(day, label) if kind == "sell" else label
         i = min(range(len(days)), key=lambda k: abs((days[k] - day).days))
         if first[i] is not None:
             marks_out.append({"x": round(x(i), 1), "y": round(y(first[i]), 1), "label": label, "kind": kind})
-    hover = _hover(days, lines, x)
+    hover = _hover(days, lines, x, noted)
     return {"width": width, "height": height, "paths": paths, "hover": hover, "yticks": yticks, "xticks": xticks, "left": left, "right": width - right,
             "top": top, "bottom": height - bottom, "markers": marks_out}
 
@@ -104,17 +108,20 @@ def line_chart(days, lines, width=900, height=280, pad=(56, 16, 24, 30), markers
 HOVER_POINTS = 150
 
 
-def _hover(days, lines, x):
+def _hover(days, lines, x, noted=None):
     """Compact JSON for static/js/investments/chart-hover.js: x positions, date labels and each line's formatted values at up to
     HOVER_POINTS sample days (always including the first and last). Plain text; the template escapes it into a data attribute."""
     count = len(days)
     step = max(1, -(-count // HOVER_POINTS))
-    idx = sorted(set(range(0, count, step)) | {count - 1})
+    note_at = {i: noted[day] for i, day in enumerate(days) if noted and day in noted}
+    idx = sorted(set(range(0, count, step)) | {count - 1} | set(note_at))
     series = []
     for label, vs in lines:
         series.append({"l": str(label), "v": ["" if vs[i] is None else format_indian(vs[i]) for i in idx]})
-    return json.dumps({"x": [round(x(i), 1) for i in idx], "d": [days[i].strftime("%-d %b %Y") for i in idx], "s": series},
-                      separators=(",", ":"), ensure_ascii=False)
+    out = {"x": [round(x(i), 1) for i in idx], "d": [days[i].strftime("%-d %b %Y") for i in idx], "s": series}
+    if note_at:
+        out["n"] = {str(k): note_at[i] for k, i in enumerate(idx) if i in note_at}      # keyed by the position in this list
+    return json.dumps(out, separators=(",", ":"), ensure_ascii=False)
 
 
 def _fmt(v, places=0):

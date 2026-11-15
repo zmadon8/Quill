@@ -5,7 +5,7 @@ from decimal import Decimal
 
 from investments import lots, measures
 from investments.models import Guardrail
-from investments.services import core, masters, prices, series
+from investments.services import core, masters, prices, sale_steps, series
 from investments.services.performance import IndexSeries
 from investments.svgchart import line_chart
 
@@ -79,7 +79,13 @@ def price_chart(profile, instrument, start, end, index=None):
     rebased = _rebased_index(index, days, raw)
     if rebased:
         lines.append((f"Same start in {index.name}", rebased))
-    return line_chart(days, lines, height=220, markers=markers, by_date=bool(entries))
+    notes = []
+    if entries and instrument.kind != "alternative":
+        # a sale date gets two points, before and after the sale (the price is the same: the tooltip says what was sold)
+        found = sale_steps.steps(profile, instrument, start, end)
+        days, columns, notes = sale_steps.insert_points(days, [line for _l, line in lines], found, before_on_first=False)
+        lines = [(label, column) for (label, _l), column in zip(lines, columns)]
+    return line_chart(days, lines, height=220, markers=markers, by_date=bool(entries), notes=notes)
 
 
 def _rebased_index(index, days, raw):

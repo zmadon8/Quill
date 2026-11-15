@@ -7,7 +7,7 @@ from datetime import date, timedelta
 
 from investments import markers
 from investments.models import Transaction
-from investments.services import series, statscache
+from investments.services import sale_steps, series, statscache
 from investments.svgchart import line_chart
 
 #: (key, label, days back from the as-of date; None = from the first purchase).
@@ -114,7 +114,7 @@ def value_chart(profile, days_back, end, *, index=None, portfolio=None, broker=N
         return None
     start = first if days_back is None else max(first, end - timedelta(days=days_back))
     params = {"start": start, "end": end, "first": first, "portfolio": portfolio, "broker": broker, "index": index.pk if index else None,
-              "instruments": sorted(instrument_ids) if instrument_ids is not None else None, "m": 3,
+              "instruments": sorted(instrument_ids) if instrument_ids is not None else None, "m": 4,
               "entries": entries_of.pk if entries_of is not None else None}
 
     def compute():
@@ -127,12 +127,21 @@ def value_chart(profile, days_back, end, *, index=None, portfolio=None, broker=N
             flows[0] = values[0]
         levels = series.sampled_prices(index, days) if index else [None] * len(days)
         equivalent = series.index_equivalent_values(days, flows, levels)
-        return {"by_date": bool(entries), "days": [d.isoformat() for d in days], "value": [float(v) for v in values],
-                "index": [None if v is None else float(v) for v in equivalent],
-                "markers": portfolio_markers(profile, days, portfolio=portfolio, broker=broker, instrument_ids=instrument_ids)}
+        value = [float(v) for v in values]
+        index_line = [None if v is None else float(v) for v in equivalent]
+        notes = []
+        if entries_of is not None and not portfolio and not broker:
+            # a sale date gets a point just before the sale and one after it, drawn as a vertical drop (the markers use the original days)
+            found = sale_steps.steps(profile, entries_of, start, end)
+            marker_days = days
+            days, (value, index_line), notes = sale_steps.insert_points(days, [value, index_line], found)
+        else:
+            marker_days = days
+        return {"by_date": bool(entries), "days": [d.isoformat() for d in days], "value": value, "index": index_line, "notes": notes,
+                "markers": portfolio_markers(profile, marker_days, portfolio=portfolio, broker=broker, instrument_ids=instrument_ids)}
 
     # cached per profile, selection, period and as-of date; valid until the data or the prices change (and the day, when it ends today)
     data = statscache.get_or_compute(profile, "value_chart", params, compute, today_sensitive=end >= date.today())
     name = index.name if index else "the index"
     return line_chart([date.fromisoformat(d) for d in data["days"]], [("Value", data["value"]), (f"Same money in {name}", data["index"])],
-                      height=height, markers=data.get("markers"), by_date=data.get("by_date", False))
+                      height=height, markers=data.get("markers"), by_date=data.get("by_date", False), notes=data.get("notes"))

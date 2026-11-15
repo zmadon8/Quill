@@ -14,7 +14,7 @@ from .models import (
     KIND_ALTERNATIVE, AltValue, Folio, Instrument, InvestmentHistory, ManualPrice, Price, ProfileInvestment, Transaction,
     Transfer,
 )
-from .services import holdings, holdings_page, masters, prices, series
+from .services import holdings, holdings_page, masters, prices, sale_steps, series
 from .viewutil import handle_errors, page, profile_or_404, selection
 
 KIND_LABELS = dict((k, v) for k, v in forms.KIND_CHOICES)
@@ -332,8 +332,8 @@ def investment(request, pk):
                                                    "sectoral_index": pi.sectoral_index_id if pi else None,
                                                    "interest_rate": inst.interest_rate, "interest_type": inst.interest_type,
                                                    "maturity_date": inst.maturity_date}, with_sector=inst.kind != KIND_ALTERNATIVE),
-        "manual_prices": _flag_derived(ManualPrice.objects.filter(instrument=inst).order_by("-date")[:20]) if inst.profile_id and inst.kind != KIND_ALTERNATIVE else [],
-        "alt_values": _flag_derived(AltValue.objects.filter(profile=profile, instrument=inst).order_by("-date")[:20]) if inst.kind == KIND_ALTERNATIVE else [],
+        "manual_prices": _flag_derived(ManualPrice.objects.filter(instrument=inst).order_by("-date")[:20], profile, inst) if inst.profile_id and inst.kind != KIND_ALTERNATIVE else [],
+        "alt_values": _flag_derived(AltValue.objects.filter(profile=profile, instrument=inst).order_by("-date")[:20], profile, inst) if inst.kind == KIND_ALTERNATIVE else [],
         "awaiting_rows": awaiting_rows, "history": InvestmentHistory.objects.filter(profile=profile, instrument_id_ref=inst.pk)[:8],
         "registry": investment_page.registry_record(inst),
         "kind_label": inst.get_kind_display(), "on": on, "as_of": as_of, "include_div": div,
@@ -385,11 +385,14 @@ def profile_brokers(profile):
     return Broker.objects.filter(profile=profile)
 
 
-def _flag_derived(rows):
-    """The rows as a list, each marked ``derived`` when its note is one of the tags of an entry made from a transaction."""
+def _flag_derived(rows, profile=None, instrument=None):
+    """The rows as a list, each marked ``derived`` when its note is one of the tags of an entry made from a transaction. With ``profile`` and
+    ``instrument`` a sale row of a per-unit investment also gets ``calc_before``, its calculated value just before the sale (``sale_steps``)."""
     rows = list(rows)
     for row in rows:
         row.derived = prices.is_derived(row.note)
+    if instrument is not None:
+        sale_steps.add_calculated_before(profile, instrument, rows)
     return rows
 
 
