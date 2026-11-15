@@ -3,7 +3,7 @@
 wins over a fetched one for the same day.
 """
 from datetime import timedelta
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 
 from django.db import transaction
 from django.db.models import OuterRef, Subquery
@@ -165,7 +165,12 @@ def save_alt_value(profile, user, instrument, day, total_value, nav=None, note="
 
 @transaction.atomic
 def set_alt_value(profile, user, instrument, day, total_value, nav=None, note=""):
-    """Add or correct a hand-entered value of an alternative investment (logged in the permanent history)."""
+    """Add or correct a hand-entered value of an alternative investment (logged in the permanent history).
+
+    Without a ``total_value`` a per-unit alternative takes ``nav`` (a unit price): the total is the units held after that date's transactions times the
+    price, to 0.01 (D190). A total given with it wins and the price is stored as typed. Nothing is saved when no units were held on the date."""
+    if total_value in (None, ""):
+        total_value = _total_from_unit_price(profile, instrument, day, nav)
     total = Decimal(str(total_value).replace(",", "").strip())
     old = AltValue.objects.filter(profile=profile, instrument=instrument, date=day).first()
     # A hand correction keeps the stored value before a sale only while it still makes a sensible sale (D188): it is at least the new value and
@@ -174,6 +179,17 @@ def set_alt_value(profile, user, instrument, day, total_value, nav=None, note=""
     obj = save_alt_value(profile, user, instrument, day, total_value, nav, note, value_before=KEEP if keep else None)
     core.touch(profile)
     return obj
+
+
+def _total_from_unit_price(profile, instrument, day, nav):
+    if instrument.lump_sum or nav in (None, ""):
+        raise InvestmentsError("BAD_NUMBER", "Enter a total value.")
+    from investments.services import trade_prices  # trade_prices imports this module
+    units = trade_prices.units_held(core.events_for(profile, instrument.pk), day)
+    if units <= 0:
+        raise InvestmentsError("NO_UNITS", f"You held no units of {instrument.name} on {day.day} {day:%b %Y}, so a unit price cannot give a value. "
+                                           "Enter a total value instead.")
+    return (units * Decimal(str(nav).replace(",", "").strip())).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
 def sale_only_day(profile, instrument, day):

@@ -327,7 +327,7 @@ def investment(request, pk):
         "page_title_text": inst.name, "inst": inst, "h": h, "pi": pi, "txns": txns[:200], "transfers": transfers, "folios": folios_qs,
         "folio_units": [(f, folio_units.get(f.pk, Decimal(0))) for f in folios_qs], "no_folio_units": folio_units.get(None, Decimal(0)),
         "bucket_rows": bucket_rows, "counts": counts, "has_records": any(counts.values()),
-        "price_form": forms.PriceForm(), "alt_form": forms.AltValueForm(), "folio_form": forms.FolioForm(profile=profile),
+        "price_form": forms.PriceForm(), "alt_form": forms.AltValueForm(lump_sum=inst.lump_sum), "folio_form": forms.FolioForm(profile=profile),
         "details_form": _details_draft(request, inst) or forms.DetailsForm(initial={"notes": pi.notes if pi else "", "links": _links_text(pi.links if pi else []),
                                                    "sectoral_index": pi.sectoral_index_id if pi else None,
                                                    "interest_rate": inst.interest_rate, "interest_type": inst.interest_type,
@@ -445,10 +445,10 @@ def investment_altvalue(request, pk):
         prices.delete_alt_value(profile, request.user, int(request.POST["delete"]))
         messages.success(request, "Value deleted.")
     else:
-        form = forms.AltValueForm(request.POST)
+        form = forms.AltValueForm(request.POST, lump_sum=inst.lump_sum)
         if form.is_valid():
             d = form.cleaned_data
-            prices.set_alt_value(profile, request.user, inst, d["date"], d["total_value"], d["nav"], d["note"])
+            prices.set_alt_value(profile, request.user, inst, d["date"], d["total_value"], d.get("nav"), d["note"])
             messages.success(request, "Value saved.")
         else:
             _form_errors(request, form)

@@ -502,10 +502,31 @@ class PriceForm(forms.Form):
 
 
 class AltValueForm(forms.Form):
+    """A hand-entered value. A per-unit alternative may give a unit price instead of the total (worked out from the units held on that date);
+    a Lump Sum has no units, so it has no unit price and the total is required."""
+
     date = forms.DateField(widget=date_widget(), initial=date.today)
     total_value = MoneyField(label="Total value", min_value=0)
     nav = MoneyField(label="Unit price (optional)", required=False, min_value=0)
     note = forms.CharField(required=False, max_length=200)
+
+    def __init__(self, *args, lump_sum=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.lump_sum = lump_sum
+        if lump_sum:
+            del self.fields["nav"]
+            return
+        self.fields["total_value"].required = False
+        self.fields["total_value"].help_text = "Leave blank to enter a unit price instead."
+        self.fields["nav"].label = "Unit price"
+        self.fields["nav"].help_text = ("Instead of a total value: the value is worked out from the units you held on that date. "
+                                        "If you give both, the total value is used and the unit price is kept as typed.")
+
+    def clean(self):
+        data = super().clean()
+        if not self.lump_sum and not self.errors and data.get("total_value") is None and data.get("nav") is None:
+            raise forms.ValidationError("Enter a total value or a unit price.")
+        return data
 
 
 class FolioForm(forms.Form):
