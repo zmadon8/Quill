@@ -105,6 +105,13 @@ class UnitPricedManualInvestmentTests(ManualPricedBase):
         tx.delete_transaction(self.profile, self.user, mine.pk)
         self.assertEqual(self.manual(d(2024, 1, 5)).close, D("104"))
 
+    def test_a_trade_in_a_shared_instrument_bumps_the_shared_price_version(self):
+        from investments.services import fetch
+
+        before = fetch.price_version()
+        self.buy(d(2024, 1, 5), 10, 100)
+        self.assertGreater(fetch.price_version(), before)
+
     def test_opening_balances_estimates_and_bonus_units_are_not_prices(self):
         self.buy(d(2024, 1, 1), 10, 100, is_opening=True)
         self.buy(d(2024, 1, 2), 10, 100, is_estimated=True)
@@ -228,6 +235,14 @@ class LumpSumTradePriceTests(ManualPricedBase):
         prices.set_alt_value(self.profile, self.user, self.chit, d(2024, 4, 1), 200000, note="statement")
         self.lump("buy", d(2024, 4, 1), 10000)
         self.assertEqual((self.value(d(2024, 4, 1)).total_value, self.value(d(2024, 4, 1)).note), (D("200000.0000"), "statement"))
+
+    def test_a_typed_value_after_replaces_a_hand_value_but_keeps_its_note(self):
+        prices.set_alt_value(self.profile, self.user, self.chit, d(2024, 1, 1), 90000, note="statement")
+        buy = self.lump("buy", d(2024, 1, 1), 100000, value_after=D(130000))
+        row = self.value(d(2024, 1, 1))
+        self.assertEqual((row.total_value, row.note), (D("130000"), "statement"))
+        tx.delete_transaction(self.profile, self.user, buy.pk)
+        self.assertIsNotNone(self.value(d(2024, 1, 1)))
 
     def test_a_purchase_with_an_interest_rate_adds_nothing(self):
         masters.update_own_instrument(self.profile, self.user, self.chit, interest_rate=D(8))

@@ -15,7 +15,7 @@ from investments import lots
 from investments.models import (
     HOLDABLE_KINDS, KIND_ALTERNATIVE, ORIGIN_PURCHASE, SIDE_BUY, SIDE_SELL, STATUS_FINAL, AltValue, ManualPrice, Price, Transaction,
 )
-from investments.services import core, prices
+from investments.services import core, fetch, prices
 
 ZERO = Decimal(0)
 _PRICE = Decimal("0.0001")
@@ -70,6 +70,8 @@ def sync_trade_prices(profile, user, instrument, dates):
         _sync_alt(profile, user, instrument, days)
     else:
         _sync_manual(user, instrument, days, _trades_by_date(profile, instrument, days))
+        if instrument.profile_id is None:
+            fetch.bump_version()  # a shared price is read by every profile, whose caches the caller's touch does not reach
 
 
 def _sync_manual(user, instrument, days, trades):
@@ -133,7 +135,10 @@ def record_lump_purchase(profile, user, instrument, day, amount, value_after, he
     the amount is added to the last value given, but only when something was held before, there is such a value, the investment has no
     interest rate (it grows from the latest value) and the date holds no value of a person's own."""
     if value_after is not None:
-        prices.save_alt_value(profile, user, instrument, day, value_after, note=prices.TAG_PURCHASE)
+        old = AltValue.objects.filter(profile=profile, instrument=instrument, date=day).first()
+        # A typed value replaces one a person entered, but keeps that entry's note so deleting the purchase later does not delete it.
+        keep = old.note if old is not None and not prices.is_derived(old.note) else prices.TAG_PURCHASE
+        prices.save_alt_value(profile, user, instrument, day, value_after, note=keep)
         return
     if instrument.interest_rate or held_before <= 0:
         return

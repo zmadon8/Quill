@@ -28,6 +28,10 @@ class InvestmentPageEditTests(InvTestCase):
         html = self.client.get(self.page).content.decode()
         self.assertIn(f'href="{self.edit}?next={quote(self.page, safe="")}"', html)
 
+    def test_the_edit_link_keeps_the_filters_of_the_page(self):
+        html = self.client.get(self.page + "?on=2024-06-30").content.decode()
+        self.assertIn(f'href="{self.edit}?next={quote(self.page + "?on=2024-06-30", safe="")}"', html)
+
     def test_reader_sees_no_edit_link_and_cannot_open_the_edit_page(self):
         reader, _ = make_user("reader", ROLE_READER, profile=self.profile)
         self.client.force_login(reader)
