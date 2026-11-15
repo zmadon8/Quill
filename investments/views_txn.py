@@ -13,7 +13,7 @@ from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme, urlencode
 
-from . import forms
+from . import forms, lump_display
 from .decorators import inv_editor, inv_reader
 from .errors import InvestmentsError
 from .money_auto import format_indian
@@ -124,7 +124,7 @@ def transactions_list(request):
                                                                 [] if side == SIDE_SELL else corporate.automatic_unit_rows(profile, portfolio, broker, asat, q)))
     paginator = Paginator(qs.order_by("-date", "-id"), PAGE_SIZE)
     number = paginator.get_page(request.GET.get("page")).number
-    rows = [_txn_row(t) for t in paginator.page(number)]
+    rows = lump_display.annotate(profile, [_txn_row(t) for t in paginator.page(number)])
     # Units a bonus or split adds by itself are not transactions; they are shown among the page's rows by date, labelled and read-only.
     automatic = []
     if side != SIDE_SELL:

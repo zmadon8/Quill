@@ -7,7 +7,7 @@ from django.http import Http404
 from django.shortcuts import redirect
 from django.urls import reverse
 
-from . import forms
+from . import forms, lump_display
 from .decorators import inv_editor, inv_reader
 from .errors import InvestmentsError
 from .models import (
@@ -324,7 +324,7 @@ def investment(request, pk):
     # ones on their own (there are few) and let the page list read the newest 200 once.
     awaiting_rows = list(txns.filter(status="awaiting"))
     context = {
-        "page_title_text": inst.name, "inst": inst, "h": h, "pi": pi, "txns": txns[:200], "transfers": transfers, "folios": folios_qs,
+        "page_title_text": inst.name, "inst": inst, "h": h, "pi": pi, "txns": lump_display.annotate(profile, list(txns.select_related("instrument")[:200])) if inst.lump_sum else txns[:200], "transfers": transfers, "folios": folios_qs,
         "folio_units": [(f, folio_units.get(f.pk, Decimal(0))) for f in folios_qs], "no_folio_units": folio_units.get(None, Decimal(0)),
         "bucket_rows": bucket_rows, "counts": counts, "has_records": any(counts.values()),
         "price_form": forms.PriceForm(), "alt_form": forms.AltValueForm(lump_sum=inst.lump_sum), "folio_form": forms.FolioForm(profile=profile),

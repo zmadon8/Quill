@@ -73,7 +73,8 @@ def _txn_line(t):
     else:
         amount = t.amount
     i = t.instrument
-    return [t.date, t.allotment_date, i.name, i.code, i.isin, i.get_kind_display(), t.get_side_display(), t.units, t.price, t.charges, amount,
+    units, price, charges = (None, None, None) if i.lump_sum else (t.units, t.price, t.charges)   # a Lump Sum is money only (D192)
+    return [t.date, t.allotment_date, i.name, i.code, i.isin, i.get_kind_display(), t.get_side_display(), units, price, charges, amount,
             t.portfolio.name, t.broker.name, t.folio.number if t.folio else "", t.get_status_display(), t.is_opening, t.reference, t.note]
 
 
@@ -83,7 +84,7 @@ def transaction_sheets(txns, transfers=None, dividends=None, automatic=None):
     if transfers is not None:
         sheets.append(("Transfers", ["Date", "Investment", "Units", "From portfolio", "From broker", "From folio", "To portfolio", "To broker", "To folio",
                                      "Note"],
-                       ([r.date, r.instrument.name, r.units, r.from_portfolio.name, r.from_broker.name, r.from_folio.number if r.from_folio else "",
+                       ([r.date, r.instrument.name, None if r.instrument.lump_sum else r.units, r.from_portfolio.name, r.from_broker.name, r.from_folio.number if r.from_folio else "",
                          r.to_portfolio.name, r.to_broker.name, r.to_folio.number if r.to_folio else "", r.note] for r in transfers.iterator())))
     if dividends is not None:
         sheets.append(("Dividends", ["Date received", "Investment", "Portfolio", "Broker", "Folio", "Amount", "Tax deducted", "Note"],
@@ -106,7 +107,8 @@ def holdings_sheet(rows):
     for h in rows:
         shown = h.is_held and not h.unpriced and not h.blocked
         status = "Not bought yet" if h.empty else "Sold out" if not h.is_held else "Hidden" if h.is_hidden else "Held"
-        out.append([h.instrument.name, h.instrument.get_kind_display(), h.instrument.code, h.instrument.isin, h.units, h.avg_cost, h.cost, h.price,
-                    h.price_date, h.value if h.is_held and not h.blocked else None, h.gain if shown else None, h.gain_pct if shown else None,
+        lump = h.instrument.lump_sum   # money only: no units, average cost or price per unit (D192)
+        out.append([h.instrument.name, h.instrument.get_kind_display(), h.instrument.code, h.instrument.isin, None if lump else h.units,
+                    None if lump else h.avg_cost, h.cost, None if lump else h.price, h.price_date, h.value if h.is_held and not h.blocked else None, h.gain if shown else None, h.gain_pct if shown else None,
                     None if h.blocked else h.xirr, None if h.blocked else h.index_xirr, None if h.blocked else h.alpha, h.first_date, status, h.realised, h.interest_income, h.dividends])
     return [("Holdings", HOLDINGS_HEADER, out)]

@@ -138,6 +138,7 @@ def build(profile, label, *, portfolio=None, broker=None, include_dividends=None
 
     # capital gains: replay every investment's whole history once, keep the sales in this year that pass the filters
     names = dict(Instrument.objects.filter(pk__in=Transaction.objects.filter(profile=profile).values("instrument_id")).values_list("pk", "name"))
+    lump_ids = set(Instrument.objects.filter(pk__in=names, lump_sum=True).values_list("pk", flat=True))
     interest_ids = set(Instrument.objects.filter(pk__in=names, taxed_as_interest=True).values_list("pk", flat=True))
     pfs = list(Portfolio.objects.filter(profile=profile)) if with_portfolios and portfolio is None else []
     # The events are released investment by investment unless the per-portfolio breakdown below still needs them (memory, plan 26).
@@ -161,7 +162,7 @@ def build(profile, label, *, portfolio=None, broker=None, include_dividends=None
             else:
                 report.short_gain += m.gain
             origin = row_origins.get(m.buy_ref[1]) if isinstance(m.buy_ref, tuple) and m.buy_ref[0] == "txn" else None
-            report.sales.append({"name": names[iid], "bought": m.bought_on, "paid": m.paid_on, "sold": m.sold_on, "days": m.holding_days, "units": m.units,
+            report.sales.append({"name": names[iid], "bought": m.bought_on, "paid": m.paid_on, "sold": m.sold_on, "days": m.holding_days, "units": m.units, "lump_sum": iid in lump_ids,
                                  "cost": m.cost, "proceeds": m.proceeds, "gain": m.gain, "term": term, "interest": as_interest, "estimated": m.estimated,
                                  "bonus": (isinstance(m.buy_ref, tuple) and m.buy_ref[0] == "ca") or origin == "bonus",
                                  # The cost the gain uses, and (when a demerger moved cost between the parent and the new shares) the cost

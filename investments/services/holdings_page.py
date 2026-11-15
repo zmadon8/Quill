@@ -12,7 +12,7 @@ from investments.models import HOLDABLE_KINDS, KIND_ALTERNATIVE, ProfileInvestme
 from investments.services import fetch, holdings, performance, prices, statscache
 from investments.svgchart import sparkline
 
-PAYLOAD_VERSION = 2   # 2: Index XIRR and Alpha per row
+PAYLOAD_VERSION = 3   # 2: Index XIRR and Alpha per row; 3: lump_sum on each instrument
 
 
 class _Instrument:
