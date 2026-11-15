@@ -129,7 +129,8 @@ class Command(BaseCommand):
             .first()
         )
         return {"investment": held, "spare_instrument": spare, "lump_investment": self._lump_sum(profile, user),
-                "manual_investment": self._manual_priced(profile, user)}
+                "manual_investment": self._manual_priced(profile, user),
+                "lump_example": self._lump_example(profile, user)}
 
     def _index_prices(self, profile):
         """Nifty 50 (the Default Index, ^NSEI) closes on every weekday from 2021 to today, so Index XIRR, Alpha, the Overview index line and cards have real values."""
@@ -172,6 +173,23 @@ class Command(BaseCommand):
         transactions.add_transaction(profile, user, side="buy", date=today - timedelta(days=300), units=Decimal("50"), price=Decimal("300"), **common)
         transactions.add_transaction(profile, user, side="buy", date=today - timedelta(days=150), units=Decimal("20"), price=Decimal("320"), **common)
         transactions.add_transaction(profile, user, side="sell", date=today - timedelta(days=60), units=Decimal("40"), price=Decimal("360"), **common)
+        return inst.pk
+
+    def _lump_example(self, profile, user):
+        """The owner's example: a Lump Sum bought for 100, then 200 sold with 50 remaining. The chart shows 100 flat, 250 on the sale date, then 50 (D189)."""
+        from datetime import date, timedelta
+        from decimal import Decimal
+
+        from investments.models import Broker, Portfolio
+        from investments.services import masters, transactions
+
+        inst = masters.create_instrument(profile, user, kind="alternative", name="Test lump sum 100-200-50", asset_class="debt", lump_sum=True, allow_duplicate=True)
+        portfolio = Portfolio.objects.filter(profile=profile).first()
+        broker = Broker.objects.filter(profile=profile).first() or Broker.objects.create(profile=profile, name="Direct")
+        common = dict(instrument=inst, portfolio=portfolio, broker=broker)
+        today = date.today()
+        transactions.add_lump_sum_transaction(profile, user, side="buy", date=today - timedelta(days=160), amount=Decimal("100"), **common)
+        transactions.add_lump_sum_transaction(profile, user, side="sell", date=today - timedelta(days=60), amount=Decimal("200"), remaining=Decimal("50"), **common)
         return inst.pk
 
     def _lump_sum(self, profile, user):
