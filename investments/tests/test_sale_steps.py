@@ -5,6 +5,7 @@ from decimal import Decimal as D
 
 from django.urls import reverse
 
+from investments.models import AltValue
 from investments.services import chartview, investment_page, masters, sale_steps
 from investments.services import transactions as tx
 from investments.tests.base import d
@@ -56,6 +57,63 @@ class LumpSumStepTests(ManualPricedBase):
         page = self.client.get(reverse("investments_investment", args=[self.chit.pk]))
         self.assertContains(page, "Before sale: ")
         self.assertNotContains(page, "Before sale (calculated)")
+
+    def test_the_before_point_tooltip_carries_all_three_figures(self):
+        # Both points share one x, so the mouse may only ever reach the first one: its text must say before, after and sold.
+        self.lump("buy", d(2024, 1, 3), 1000000, value_after=D(1000000))
+        self.lump("sell", d(2024, 6, 12), 300000, remaining=D(800000))
+        before_point_note = points(self.chart(), "12 Jun 2024")[0][1]
+        for part in ("Before sale \u20b911,00,000.00", "after sale \u20b98,00,000.00", "sold \u20b93,00,000.00"):
+            self.assertIn(part, before_point_note)
+
+    def stored(self, day):
+        return AltValue.objects.filter(profile=self.profile, instrument=self.chit, date=day).first()
+
+    def test_same_day_sale_then_purchase_has_no_step_and_no_negative_sold(self):
+        self.lump("buy", d(2024, 1, 3), 1000000, value_after=D(1000000))
+        self.lump("sell", d(2024, 6, 12), 300000, remaining=D(800000))
+        self.lump("buy", d(2024, 6, 12), 500000)
+        row = self.stored(d(2024, 6, 12))
+        self.assertEqual((row.total_value, row.value_before), (D("1300000.00"), None))
+        self.assertEqual(sale_steps.steps(self.profile, self.chit), [])
+
+    def test_same_day_purchase_then_sale_has_no_step(self):
+        self.lump("buy", d(2024, 1, 3), 1000000, value_after=D(1000000))
+        self.lump("buy", d(2024, 6, 12), 500000)
+        self.lump("sell", d(2024, 6, 12), 300000, remaining=D(1200000))
+        row = self.stored(d(2024, 6, 12))
+        self.assertEqual((row.total_value, row.value_before), (D("1200000.00"), None))
+        self.assertEqual(sale_steps.steps(self.profile, self.chit), [])
+
+    def test_same_day_typed_purchase_value_clears_the_sale_step(self):
+        self.lump("buy", d(2024, 1, 3), 1000000, value_after=D(1000000))
+        self.lump("sell", d(2024, 6, 12), 300000, remaining=D(800000))
+        self.lump("buy", d(2024, 6, 12), 100000, value_after=D(900000))
+        self.assertEqual(self.stored(d(2024, 6, 12)).value_before, None)
+
+    def test_deleting_either_same_day_transaction_never_leaves_a_step(self):
+        for victim in ("buy", "sell"):
+            with self.subTest(deleted=victim):
+                AltValue.objects.all().delete()
+                tx_ids = {}
+                self.lump("buy", d(2024, 1, 3), 1000000, value_after=D(1000000))
+                tx_ids["sell"] = self.lump("sell", d(2024, 6, 12), 300000, remaining=D(800000))
+                tx_ids["buy"] = self.lump("buy", d(2024, 6, 12), 500000)
+                tx.delete_transaction(self.profile, self.user, tx_ids[victim].pk)
+                self.assertEqual(sale_steps.steps(self.profile, self.chit), [])
+                for step in sale_steps.steps(self.profile, self.chit):
+                    self.assertGreaterEqual(step["sold"], 0)
+                tx.delete_transaction(self.profile, self.user, tx_ids["buy" if victim == "sell" else "sell"].pk)
+                self.assertEqual(AltValue.objects.filter(profile=self.profile, instrument=self.chit, date=d(2024, 6, 12), value_before__isnull=False).count(), 0)
+
+    def test_a_hand_correction_above_the_value_before_clears_it(self):
+        from investments.services import prices
+        self.lump("buy", d(2024, 1, 3), 1000000, value_after=D(1000000))
+        self.lump("sell", d(2024, 6, 12), 300000, remaining=D(800000))
+        prices.set_alt_value(self.profile, self.user, self.chit, d(2024, 6, 12), D("900000"))
+        self.assertEqual(self.stored(d(2024, 6, 12)).value_before, D("1100000.00"))
+        prices.set_alt_value(self.profile, self.user, self.chit, d(2024, 6, 12), D("1200000"))
+        self.assertIsNone(self.stored(d(2024, 6, 12)).value_before)
 
     def test_deleting_the_sale_removes_the_step(self):
         self.lump("buy", d(2024, 1, 3), 1000000, value_after=D(1000000))

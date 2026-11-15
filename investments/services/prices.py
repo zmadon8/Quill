@@ -9,7 +9,7 @@ from django.db import transaction
 from django.db.models import OuterRef, Subquery
 
 from investments.errors import InvestmentsError, not_found
-from investments.models import AltValue, Instrument, ManualPrice, PinnedPrice, Price  # noqa: F401
+from investments.models import SIDE_BUY, SIDE_SELL, STATUS_FINAL, AltValue, Instrument, ManualPrice, PinnedPrice, Price, Transaction  # noqa: F401
 from investments.services import core, history
 
 
@@ -166,9 +166,20 @@ def save_alt_value(profile, user, instrument, day, total_value, nav=None, note="
 @transaction.atomic
 def set_alt_value(profile, user, instrument, day, total_value, nav=None, note=""):
     """Add or correct a hand-entered value of an alternative investment (logged in the permanent history)."""
-    obj = save_alt_value(profile, user, instrument, day, total_value, nav, note)
+    total = Decimal(str(total_value).replace(",", "").strip())
+    old = AltValue.objects.filter(profile=profile, instrument=instrument, date=day).first()
+    # A hand correction keeps the stored value before a sale only while it still makes a sensible sale (D188): it is at least the new value and
+    # a sale and no purchase is recorded on that date. Otherwise it is cleared, so "sold" is never negative or made up.
+    keep = old is not None and old.value_before is not None and old.value_before >= total and sale_only_day(profile, instrument, day)
+    obj = save_alt_value(profile, user, instrument, day, total_value, nav, note, value_before=KEEP if keep else None)
     core.touch(profile)
     return obj
+
+
+def sale_only_day(profile, instrument, day):
+    """True when ``instrument`` has a final sale and no final purchase on ``day`` (the only kind of day that keeps a ``value_before``)."""
+    final = Transaction.objects.filter(profile=profile, instrument=instrument, date=day, status=STATUS_FINAL)
+    return final.filter(side=SIDE_SELL).exists() and not final.filter(side=SIDE_BUY).exists()
 
 
 def remove_alt_value(profile, user, obj):

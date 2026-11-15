@@ -20,6 +20,20 @@ def move_before_sale_values(apps, schema_editor):
         old.delete()
 
 
+def restore_before_sale_rows(apps, schema_editor):
+    """Reverse: each ``value_before`` becomes a "Before sale" entry on the day before again (unless that day already has an entry), then is emptied."""
+    AltValue = apps.get_model("investments", "AltValue")
+    from datetime import timedelta
+
+    for sale in list(AltValue.objects.filter(value_before__isnull=False)):
+        day = sale.date - timedelta(days=1)
+        if not AltValue.objects.filter(profile_id=sale.profile_id, instrument_id=sale.instrument_id, date=day).exists():
+            AltValue.objects.create(profile_id=sale.profile_id, instrument_id=sale.instrument_id, date=day, total_value=sale.value_before,
+                                    note=TAG_BEFORE_SALE)
+        sale.value_before = None
+        sale.save(update_fields=["value_before"])
+
+
 class Migration(migrations.Migration):
     dependencies = [("investments", "0036_instrument_lump_sum")]
     operations = [
@@ -27,5 +41,5 @@ class Migration(migrations.Migration):
             model_name="altvalue", name="value_before",
             field=models.DecimalField(blank=True, decimal_places=4, help_text="Lump Sum: the whole holding's value just before that day's sale",
                                       max_digits=20, null=True)),
-        migrations.RunPython(move_before_sale_values, migrations.RunPython.noop),
+        migrations.RunPython(move_before_sale_values, restore_before_sale_rows),
     ]
