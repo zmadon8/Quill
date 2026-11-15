@@ -222,7 +222,8 @@ class PageTests(InvTestCase):
         self.buy(d(2024, 1, 15), 10, 100)
         html = self.client.get(reverse("investments_holdings")).content.decode()
         self.assertIn("<th class=\"r\">First bought</th>", html)
-        self.assertIn("<th class=\"r\">XIRR</th>", html)
+        self.assertIn("XIRR (a year)</th>", html)
+        self.assertIn("the yearly rate that fits every dated purchase", html)
         self.assertIn("15 Jan 2024", html)
         self.assertIn('data-sort="20240115"', html)
         # one header per cell, so the column sort in shell.js lines up

@@ -7,9 +7,10 @@
 {% if slug == "turning-long" %}<label>Within</label><select name="days" onchange="this.form.submit()"><option value="30"{% if days == 30 %} selected{% endif %}>30 days</option><option value="60"{% if days == 60 %} selected{% endif %}>60 days</option><option value="90"{% if days == 90 %} selected{% endif %}>90 days</option></select>{% endif %}
 {% if has_held_only %}{% include "investments/_held_only.html" %}<button class="btn q sm" type="submit">Show</button>{% endif %}
 <a class="btn q sm" href="?{{ request.GET.urlencode }}&export=xlsx">Export to Excel</a></form>
-{% if rows %}<div class="tw"><table data-table-id="inv-report-{{ slug }}" class="led" data-sortable><thead><tr>{% for h, k in t.columns %}<th{% if k != "text" %} class="r"{% endif %}>{{ h }}</th>{% endfor %}</tr></thead><tbody>
+{% if rows %}<div class="tw"><table data-table-id="inv-report-{{ slug }}" class="led" data-sortable><thead><tr>{% for h, k in t.columns %}<th{% if k != "text" %} class="r"{% endif %}{% with tip=h|heading_tip %}{% if tip %} title="{{ tip }}"{% endif %}{% endwith %}>{{ h }}</th>{% endfor %}</tr></thead><tbody>
 {% for row in rows %}<tr>{% for v, k in row %}{% include "investments/_cell.html" %}{% endfor %}</tr>{% endfor %}</tbody>
 {% if total %}<tfoot><tr>{% for v, k in total %}{% include "investments/_cell.html" %}{% endfor %}</tr></tfoot>{% endif %}</table></div>
 {% else %}<p class="lead na">Nothing to show yet.</p>{% endif %}
 {% for n in t.notes %}<p class="hint">{{ n }}</p>{% endfor %}
+{% if t.has_measures %}<p class="hint">{{ "legend"|measure_tip }}</p>{% endif %}
 {% endblock %}

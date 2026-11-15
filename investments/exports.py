@@ -97,7 +97,7 @@ def transaction_sheets(txns, transfers=None, dividends=None, automatic=None):
     return sheets
 
 
-HOLDINGS_HEADER = ["Name", "Type", "Code", "ISIN", "Units", "Average cost", "Cost", "Price", "Price date", "Value", "Gain", "Gain %", "XIRR",
+HOLDINGS_HEADER = ["Name", "Type", "Code", "ISIN", "Units", "Average cost", "Cost", "Price", "Price date", "Value", "Gain", "Gain %", "XIRR % (a year)",
                    "First bought", "Status", "Realised gain", "Interest income", "Dividends"]
 
 

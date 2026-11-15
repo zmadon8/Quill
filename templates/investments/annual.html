@@ -15,8 +15,8 @@
 <tr><td>5. Capital gains: short-term</td><td class="r">{{ r.short_gain|inr_signed }}</td></tr>
 <tr><td>&nbsp;&nbsp;&nbsp;Capital gains: long-term <small class="na">(held more than {{ r.cutoff }} days)</small></td><td class="r">{{ r.long_gain|inr_signed }}</td></tr>
 <tr><td>&nbsp;&nbsp;&nbsp;Interest income <small class="na">(sales of investments taxed as interest; not capital gains)</small></td><td class="r">{{ r.interest_income|inr_signed }}</td></tr>
-<tr><td>6. XIRR for the year{% if include_div %} <small class="na">including dividends</small>{% endif %}</td><td class="r">{{ r.xirr|pct }}</td></tr>
-<tr><td>&nbsp;&nbsp;&nbsp;{{ r.index_name|default:"Index" }} return for the year{% if r.approximate %} <span class="tag amb">approximate</span>{% endif %}</td><td class="r">{{ r.index_return|pct }}</td></tr>
+<tr><td title="{{ 'xirr'|measure_tip }}">6. XIRR for the year (a yearly rate){% if include_div %} <small class="na">including dividends</small>{% endif %}</td><td class="r">{{ r.xirr|pct }}</td></tr>
+<tr><td>&nbsp;&nbsp;&nbsp;{{ r.index_name|default:"Index" }} change over the year (not a yearly rate){% if r.approximate %} <span class="tag amb">approximate</span>{% endif %}</td><td class="r">{{ r.index_return|pct }}</td></tr>
 <tr><td>7. Ending portfolio value <small class="na">({% if r.completed %}31 March{% else %}today{% endif %})</small></td><td class="r">{{ r.closing_value|inr }}</td></tr>
 <tr><td>Dividends received <small class="na">(not part of portfolio value)</small></td><td class="r">{{ r.dividends|inr }}</td></tr>
 <tr><td>Tax deducted on dividends</td><td class="r">{{ r.dividend_tax|inr }}</td></tr>
@@ -36,7 +36,7 @@
 {% else %}<p class="na">Nothing was held at year end.</p>{% endif %}
 
 {% if r.by_portfolio|length > 1 %}<div class="sec"><h2>By portfolio</h2></div>
-<div class="tw"><table data-table-id="inv-annual-portfolios" class="led"><thead><tr><th>Portfolio</th><th class="r">Start</th><th class="r">Invested</th><th class="r">Sold</th><th class="r">Short-term</th><th class="r">Long-term</th><th class="r">Interest income</th><th class="r">XIRR</th><th class="r">End</th></tr></thead><tbody>
+<div class="tw"><table data-table-id="inv-annual-portfolios" class="led"><thead><tr><th>Portfolio</th><th class="r">Start</th><th class="r">Invested</th><th class="r">Sold</th><th class="r">Short-term</th><th class="r">Long-term</th><th class="r">Interest income</th><th class="r" title="{{ 'xirr'|measure_tip }}">XIRR (a year)</th><th class="r">End</th></tr></thead><tbody>
 {% for name, s in r.by_portfolio %}<tr><td>{{ name }}</td><td class="r">{{ s.opening_value|inr }}</td><td class="r">{{ s.invested|inr }}</td><td class="r">{{ s.sold|inr }}</td><td class="r">{{ s.short_gain|inr_signed }}</td><td class="r">{{ s.long_gain|inr_signed }}</td><td class="r">{{ s.interest_income|inr_signed }}</td><td class="r">{{ s.xirr|pct }}</td><td class="r">{{ s.closing_value|inr }}</td></tr>{% endfor %}</tbody></table></div>{% endif %}
 
 <div class="sec"><h2>Transactions in {{ label }}</h2></div>

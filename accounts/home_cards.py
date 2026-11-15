@@ -43,7 +43,7 @@ DIARY_METRICS = [("subjects", "Subjects"), ("items", "Items"), ("flagged", "Flag
                  ("per_subject", "Items per subject")]
 FEES_METRICS = [("memos_fy", "Memos this year"), ("outstanding", "Outstanding"), ("drafts", "Drafts"), ("fy", "Financial year"),
                 ("memos_total", "Memos issued (all time)"), ("payments", "Payments recorded")]
-INVESTMENTS_METRICS = [("value", "Value"), ("xirr", "XIRR (for the period you chose)"), ("alerts", "Alerts"), ("invested", "Invested"),
+INVESTMENTS_METRICS = [("value", "Value"), ("xirr", "XIRR (a year, over the period you chose)"), ("alerts", "Alerts"), ("invested", "Invested"),
                        ("gain", "Gain (for the period you chose)")]
 METRIC_CATALOGUE = {KEY_DIARY: DIARY_METRICS, KEY_FEES: FEES_METRICS, KEY_INVESTMENTS: INVESTMENTS_METRICS}
 DEFAULT_METRICS = {KEY_DIARY: ["subjects", "items", "flagged"], KEY_FEES: ["memos_fy", "outstanding", "drafts"],
@@ -113,7 +113,7 @@ def _investments_figures(profile, user=None):
     if "alerts" in keys:
         n_alerts = alerts.peek_count(profile)
         values["alerts"] = DASH if n_alerts is None else format_indian(n_alerts, 0)
-    labels = {"value": "Value", "xirr": "XIRR" + suffix, "alerts": "Alerts", "invested": "Invested", "gain": "Gain" + suffix}
+    labels = {"value": "Value", "xirr": "XIRR (a year)" + (f" over{suffix}" if suffix else ""), "alerts": "Alerts", "invested": "Invested", "gain": "Gain" + suffix}
     return [(labels[k], values[k]) for k in keys]
 
 

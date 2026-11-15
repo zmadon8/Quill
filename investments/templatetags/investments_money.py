@@ -9,6 +9,7 @@ import contextvars
 from django import template
 from django.utils.html import format_html
 
+from investments import measures
 from investments.money_auto import AUTO, FULL, format_amount, format_units
 
 register = template.Library()
@@ -99,3 +100,18 @@ def price(value):
     frac = frac.rstrip("0")
     frac = (frac + "00")[:max(2, len(frac))]
     return ("\u2212" if value < 0 else "") + group_indian(whole) + "." + frac
+
+
+@register.filter
+def measure_tip(key):
+    """The tooltip for a measure heading: ``"return"``, ``"cagr"``, ``"xirr"`` or ``"alpha"`` (wording in ``investments.measures``)."""
+    return measures.TIPS.get(key, "")
+
+
+@register.filter
+def heading_tip(heading):
+    """The tooltip for a column heading that names XIRR, CAGR or Alpha ("" for any other heading)."""
+    for key in ("XIRR", "CAGR", "Alpha"):
+        if key in heading:
+            return measures.TIPS[key.lower()]
+    return ""
