@@ -14,9 +14,9 @@
   <p class="hint"><button type="button" class="btn q" id="add-row" hidden>Add another transaction</button> <span id="add-row-note">Each transaction is entered on its own card with the same fields.</span></p>{% endif %}
   {% if is_sell and not awaiting_mode and txn %}<div class="panel" id="available"><h3>Units available to sell</h3><p class="hint" id="available-text">Choose the investment and date to see what is held with each broker and folio.</p></div>
   {% elif is_sell and awaiting_mode %}<p class="hint">A redemption waiting for its units reserves nothing and is not checked against what you hold until you complete it.</p>{% endif %}
-  <div class="acts-row"><button class="btn p" type="submit">{{ submit_label }}</button><a class="btn q" href="{% url 'investments_transactions' %}">Cancel</a></div>
+  <div class="acts-row"><button class="btn p" type="submit">{{ submit_label }}</button><a class="btn q" href="{% if next_url %}{{ next_url }}{% else %}{% url 'investments_transactions' %}{% endif %}">Cancel</a></div>
 </form>
-{% if can_delete and txn %}<form method="post" action="{% url 'investments_txn_delete' txn.pk %}" onsubmit="return confirm('Delete this entry? It can be brought back from History.')">{% csrf_token %}<button class="btn dng" type="submit">Delete this entry</button></form>{% endif %}
+{% if can_delete and txn %}<form method="post" action="{% url 'investments_txn_delete' txn.pk %}{% if next_url %}?next={{ next_url|urlencode:'' }}{% endif %}" onsubmit="return confirm('Delete this entry? It can be brought back from History.')">{% csrf_token %}<button class="btn dng" type="submit">Delete this entry</button></form>{% endif %}
 <script id="inv-default-brokers" type="application/json">{{ default_brokers_json|safe }}</script>
 <script id="inv-folios" type="application/json">{{ folios_json|safe }}</script>
 {% endblock %}

@@ -11,6 +11,7 @@ from django.db.models import Q
 from django.http import Http404
 from django.shortcuts import redirect
 from django.urls import reverse
+from django.utils.http import url_has_allowed_host_and_scheme, urlencode
 
 from . import forms
 from .decorators import inv_editor, inv_reader
@@ -26,6 +27,19 @@ from .viewutil import handle_errors, page, profile_or_404, selection
 logger = logging.getLogger(__name__)
 
 PAGE_SIZE = 50
+
+
+def _safe_next(request):
+    """The page to return to after an edit or delete: the `next` parameter if it is a safe path on this site, else the Transactions list."""
+    target = request.GET.get("next") or request.POST.get("next") or ""
+    if target.startswith("/") and not target.startswith("//") and "\\" not in target and url_has_allowed_host_and_scheme(
+            target, allowed_hosts={request.get_host()}, require_https=request.is_secure()):
+        return target
+    return ""
+
+
+def _with_next(url, target):
+    return url + "?" + urlencode({"next": target}) if target else url
 
 
 def _refused(request, err, back):
@@ -319,6 +333,7 @@ def txn_edit(request, pk):
     form = forms.TransactionForm(request.POST or None, profile=profile, mode=mode_for_form, initial=initial)
     if "new_folio" in form.fields:
         del form.fields["new_folio"]
+    next_url = _safe_next(request)
     if request.method == "POST" and form.is_valid():
         d = _clean_data(form)
         fields = dict(date=d["date"], instrument=d["instrument"], portfolio=d["portfolio"], broker=d["broker"], folio=d.get("folio"),
@@ -335,13 +350,13 @@ def txn_edit(request, pk):
             tx.edit_transaction(profile, request.user, pk, expected_version=request.POST.get("version"), **fields)
         except InvestmentsError as err:
             if err.code == "WOULD_GO_NEGATIVE":
-                return _refused(request, err, request.path)
+                return _refused(request, err, _with_next(request.path, next_url))
             _apply_form_errors(form, err)
         else:
             messages.success(request, "Saved.")
-            return redirect(reverse("investments_transactions"))
+            return redirect(next_url or reverse("investments_transactions"))
     return page(request, "investments/txn_form.html", _form_context(profile, {
-        "page_title_text": "Edit transaction", "form": form, "mode": mode_for_form, "is_sell": txn.side == SIDE_SELL,
+        "page_title_text": "Edit transaction", "next_url": next_url, "form": form, "mode": mode_for_form, "is_sell": txn.side == SIDE_SELL,
         "awaiting_mode": awaiting, "txn": txn, "submit_label": "Save changes", "version": txn.version,
         "exclude_id": txn.pk, "can_delete": True,
     }), selectors=False, status_line=True)
@@ -351,18 +366,20 @@ def txn_edit(request, pk):
 def txn_delete(request, pk):
     profile = profile_or_404(request)
     if request.method != "POST":
-        return redirect(reverse("investments_txn_edit", args=[pk]))
+        return redirect(_with_next(reverse("investments_txn_edit", args=[pk]), _safe_next(request)))
+    next_url = _safe_next(request)
+    edit_url = _with_next(reverse("investments_txn_edit", args=[pk]), next_url)
     try:
         tx.delete_transaction(profile, request.user, pk)
     except InvestmentsError as err:
         if err.code == "WOULD_GO_NEGATIVE":
-            return _refused(request, err, reverse("investments_txn_edit", args=[pk]))
+            return _refused(request, err, edit_url)
         if err.status == 404:
             raise Http404
         messages.error(request, err.message)
-        return redirect(reverse("investments_txn_edit", args=[pk]))
+        return redirect(edit_url)
     messages.success(request, "Deleted. You can bring it back from History.")
-    return redirect(reverse("investments_transactions"))
+    return redirect(next_url or reverse("investments_transactions"))
 
 
 @inv_editor
