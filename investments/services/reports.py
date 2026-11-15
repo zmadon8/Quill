@@ -9,6 +9,7 @@ from fees.services.financial_year import derive_financial_year
 
 from investments import indexcmp, lots, xirr
 from investments.models import Broker, Dividend, Instrument, Portfolio, ProfileInvestment, Transaction
+from investments.money_auto import format_indian
 from investments.services import annual, core, fetch, holdings, masters, performance, prices
 
 ZERO = Decimal(0)
@@ -145,7 +146,7 @@ def unrealised_lots(profile, portfolio=None, broker=None, **_):
         else:
             short += gain
         t.rows.append([h.instrument.name, lot.bought_on, lot.units, lot.cost, value, gain, term])
-    t.notes.append(f"Short-term {short:,.2f}, long-term {long_:,.2f}. Check with your CA before acting on it.")
+    t.notes.append(f"Short-term {format_indian(short)}, long-term {format_indian(long_)}. Check with your CA before acting on it.")
     return t
 
 

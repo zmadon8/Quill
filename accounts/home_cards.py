@@ -16,6 +16,7 @@ from django.urls import reverse
 from accounts.models import ROLE_EDITOR
 from accounts.profiles import request_role
 from accounts.suite import KEY_DIARY, KEY_FEES, KEY_INVESTMENTS
+from investments.money_auto import format_indian
 
 logger = logging.getLogger(__name__)
 
@@ -69,8 +70,8 @@ def _diary_figures(profile, user=None):
     live = set(Subject.objects.filter(profile=profile, deleted_at__isnull=True).values_list("pk", flat=True))
     items = sum(n for pk, (n, _f) in counts.items() if pk in live)
     flagged = sum(f for pk, (_n, f) in counts.items() if pk in live)
-    values = {"subjects": f"{len(live):,}", "items": f"{items:,}", "flagged": f"{flagged:,}", "clean": f"{items - flagged:,}",
-              "per_subject": f"{items / len(live):,.1f}" if live else DASH}
+    values = {"subjects": format_indian(len(live), 0), "items": format_indian(items, 0), "flagged": format_indian(flagged, 0), "clean": format_indian(items - flagged, 0),
+              "per_subject": format_indian(items / len(live), 1) if live else DASH}
     labels = dict(DIARY_METRICS)
     return [(labels[k], values[k]) for k in chosen_metrics(user, KEY_DIARY)]
 
@@ -82,16 +83,16 @@ def _fees_figures(profile, user=None):
     keys = chosen_metrics(user, KEY_FEES)
     labels = dict(FEES_METRICS)
     figures = dashboard_panels.home_figures(profile)
-    values = {"memos_fy": f"{figures['memos_fy']:,}", "outstanding": "\u20b9" + format_money(figures["outstanding"], unit="short"),
-              "drafts": f"{figures['drafts']:,}", "fy": str(figures.get("fy", DASH))}
+    values = {"memos_fy": format_indian(figures['memos_fy'], 0), "outstanding": "\u20b9" + format_money(figures["outstanding"], unit="short"),
+              "drafts": format_indian(figures['drafts'], 0), "fy": str(figures.get("fy", DASH))}
     if "memos_total" in keys:
         from fees.models import Memo
 
-        values["memos_total"] = f"{Memo.objects.filter(profile=profile, is_draft=False).count():,}"
+        values["memos_total"] = format_indian(Memo.objects.filter(profile=profile, is_draft=False).count(), 0)
     if "payments" in keys:
         from fees.models import Payment
 
-        values["payments"] = f"{Payment.objects.filter(profile=profile).count():,}"
+        values["payments"] = format_indian(Payment.objects.filter(profile=profile).count(), 0)
     return [(labels[k], values[k]) for k in keys]
 
 
@@ -111,7 +112,7 @@ def _investments_figures(profile, user=None):
     values["xirr"] = f"{totals['xirr'] * 100:.1f}%" if totals and totals.get("xirr") is not None else DASH
     if "alerts" in keys:
         n_alerts = alerts.peek_count(profile)
-        values["alerts"] = DASH if n_alerts is None else f"{n_alerts:,}"
+        values["alerts"] = DASH if n_alerts is None else format_indian(n_alerts, 0)
     labels = {"value": "Value", "xirr": "XIRR" + suffix, "alerts": "Alerts", "invested": "Invested", "gain": "Gain" + suffix}
     return [(labels[k], values[k]) for k in keys]
 
@@ -181,7 +182,7 @@ def _fees_details(profile, user):
         sections.append({"kind": "note", "title": "Fee Register: Dashboard", "text": " ".join(notes), "url": reverse("fees_dashboard")})
     if ids and config.get("statistics_enabled", True):
         values = dashboard.get_dashboard_kpis(profile, settings={**config, "dashboard_kpis": ",".join(ids)})
-        items = [(dashboard.KPI_LABELS[k], money(values[k]) if isinstance(values[k], str) else f"{values[k]:,}") for k in ids]
+        items = [(dashboard.KPI_LABELS[k], money(values[k]) if isinstance(values[k], str) else format_indian(values[k], 0)) for k in ids]
         sections.append({"kind": "kpis", "title": "Fee Register: Dashboard", "items": items, "url": reverse("fees_dashboard")})
     if "billed_by_month" in keys or "who_owes" in keys:
         panels = dashboard_panels.get_panels(profile)
@@ -231,7 +232,7 @@ def _investments_details(profile, user):
     figures = {"value": rupees(totals["value"]), "invested": rupees(totals["invested"]),
                "gain": rupees(totals["gain"], True) + (f" ({pct(totals.get('gain_pct'), True)})" if totals.get("gain_pct") is not None else ""),
                "xirr": pct(totals.get("xirr")), "index_xirr": pct(totals.get("index_xirr")), "alpha": pct(totals.get("alpha"), True),
-               "dividends": rupees(totals["dividends"]), "count": f"{totals.get('count', 0):,}"}
+               "dividends": rupees(totals["dividends"]), "count": format_indian(totals.get('count', 0), 0)}
     labels = {b: label.replace("{index}", "Index") for b, label, _h in overview.BOXES}
     with_period = {"gain", "xirr", "index_xirr", "alpha"}
     items = [(labels[k] + (suffix if k in with_period else ""), figures[k]) for k in keys if k in figures]

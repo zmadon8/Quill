@@ -16,6 +16,7 @@ from investments.models import (
     STATUS_AWAITING, STATUS_FINAL, STATUS_PENDING_SIP, ZERO_PRICE_ORIGINS, Broker, CorporateActionResponse, Folio, Portfolio, Switch, Transaction,
     Transfer, new_group,
 )
+from investments.money_auto import format_indian
 from investments.services import core, history, pins
 
 ZERO = Decimal(0)
@@ -525,8 +526,8 @@ def complete_transaction(profile, user, pk, *, allotment_date, units=None, nav=N
     units, nav, charges, total, difference = completion_figures(txn, units=units, nav=nav, charges=charges)
     if abs(difference) > tolerance_for(txn.amount) and not confirm_difference:
         raise InvestmentsError(
-            "DIFFERENCE", f"Units times NAV plus charges is {total:,.2f}, which differs from the amount paid "
-            f"({txn.amount:,.2f}) by {abs(difference):,.2f}. Tick the box to confirm if that is right (for example a partial allotment).",
+            "DIFFERENCE", f"Units times NAV plus charges is {format_indian(total)}, which differs from the amount paid "
+            f"({format_indian(txn.amount)}) by {format_indian(abs(difference))}. Tick the box to confirm if that is right (for example a partial allotment).",
             409, {"difference": difference, "total": total})
     txn.units, txn.price, txn.charges = units, nav, charges
     txn.allotment_date = allotment_date

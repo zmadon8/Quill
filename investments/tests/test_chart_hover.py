@@ -22,6 +22,16 @@ class ChartHoverTests(SimpleTestCase):
         self.assertEqual(hover["s"][1]["v"][0], "")          # no value on that day
         self.assertEqual(hover["d"][0], "1 Jan 2024")
 
+    def test_values_and_axis_use_indian_grouping(self):
+        days = [date(2024, 1, 1) + timedelta(days=i) for i in range(3)]
+        chart = svgchart.line_chart(days, [("A", [1234567.5, 2500000, 12000000])])
+        self.assertEqual(json.loads(chart["hover"])["s"][0]["v"], ["12,34,567.50", "25,00,000.00", "1,20,00,000.00"])
+        labels = [t["label"] for t in chart["yticks"]]
+        self.assertTrue(all("," not in x or x.replace(",", "").isdigit() for x in labels))
+        self.assertTrue(any(x.endswith(" lac") or x.endswith(" cr") for x in labels))
+        self.assertFalse(any(x.endswith(" k") or x.endswith(" M") for x in labels))
+        self.assertEqual(svgchart._fmt(85000), "85,000")
+
     def test_point_count_is_bounded_and_keeps_the_last_day(self):
         hover = json.loads(self.chart(n=1000)["hover"])
         self.assertLessEqual(len(hover["x"]), svgchart.HOVER_POINTS + 1)

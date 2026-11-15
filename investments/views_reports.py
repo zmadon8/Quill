@@ -7,7 +7,7 @@ from django.db.models import Q
 
 from .decorators import inv_editor as inv_read_write_view, inv_reader
 from .models import HOLDABLE_KINDS, KIND_INDEX, Broker, Instrument, Portfolio, ProfileInvestment
-from .services import core, holdings, masters, performance, series, statscache
+from .services import chartview, core, holdings, masters, performance, series, statscache
 from .svgchart import line_chart
 from .viewutil import held_only as held_only_param, page, parse_date, profile_or_404, selection
 
@@ -103,19 +103,23 @@ def charts_view(request):
     def compute():
         days = series.sample_dates(start, end)
         lines = []
+        marks = []
         if mode == "a":
             ids = [i for i in picked if i in held_ids] or None
             gb = int(group_broker) if group_broker and group_broker.isdigit() else broker
             values, flows = series.portfolio_value_series(profile, days, portfolio=portfolio, broker=gb, instrument_ids=ids, settings_row=settings_row)
             lines.append(("Portfolio", series.performance_index(values, flows)))
+            marks = chartview.portfolio_markers(profile, days, portfolio=portfolio, broker=gb, instrument_ids=ids)
         else:
             for inst, vals in series.price_lines(all_choices.filter(pk__in=picked), days):
                 lines.append((inst.name, vals))
+                if len(lines) == 1:   # markers sit on the first line, so they are that investment's own purchases and sales
+                    marks = chartview.portfolio_markers(profile, days, portfolio=portfolio, broker=broker, instrument_ids=[inst.pk])
         for inst, vals in series.price_lines(chosen_indices, days):
             lines.append((inst.name, vals))
-        return {"days": [d.isoformat() for d in days], "lines": [(label, [None if v is None else float(v) for v in vals]) for label, vals in lines]}
+        return {"days": [d.isoformat() for d in days], "lines": [(label, [None if v is None else float(v) for v in vals]) for label, vals in lines], "markers": marks}
 
-    params = {"m": mode, "s": start, "e": end, "p": portfolio, "b": broker, "i": chosen_index_ids, "v": picked, "g": group_broker}
+    params = {"x": 2, "m": mode, "s": start, "e": end, "p": portfolio, "b": broker, "i": chosen_index_ids, "v": picked, "g": group_broker}
     data = statscache.get_or_compute(profile, "chart", params, compute, today_sensitive=True)
     days = [date.fromisoformat(d) for d in data["days"]]
     lines = [(label, vals) for label, vals in data["lines"]]
@@ -124,7 +128,7 @@ def charts_view(request):
 
         return response(f"Chart {start:%Y-%m-%d} to {end:%Y-%m-%d}.xlsx", [("Chart", ["Date"] + [l for l, _ in lines],
                                                                          [[d] + [None if v[i] is None else round(v[i], 4) for _l, v in lines] for i, d in enumerate(days)])])
-    chart = line_chart(days, lines)
+    chart = line_chart(days, lines, markers=data.get("markers"))
     table = [(d, [None if v[i] is None else round(v[i], 2) for _l, v in lines]) for i, d in enumerate(days)]
     return page(request, "investments/charts.html", {
         "page_title_text": "Charts", "chart": chart, "lines": lines, "table": table[-60:], "table_all": len(table), "mode": mode, "period": period,
@@ -173,11 +177,12 @@ def value_view(request):
         def compute():
             days = series.sample_dates(first, on)
             values, _flows = series.portfolio_value_series(profile, days, portfolio=portfolio, broker=broker, settings_row=settings_row)
-            return {"days": [d.isoformat() for d in days], "values": [float(v) for v in values]}
+            return {"days": [d.isoformat() for d in days], "values": [float(v) for v in values],
+                    "markers": chartview.portfolio_markers(profile, days, portfolio=portfolio, broker=broker)}
 
-        data = statscache.get_or_compute(profile, "value_timeline", {"p": portfolio, "b": broker, "on": on, "alt": settings_row.alt_treatment}, compute,
+        data = statscache.get_or_compute(profile, "value_timeline", {"x": 2, "p": portfolio, "b": broker, "on": on, "alt": settings_row.alt_treatment}, compute,
                                          today_sensitive=True)
-        timeline = line_chart([date.fromisoformat(d) for d in data["days"]], [("Total Portfolio Value", data["values"])])
+        timeline = line_chart([date.fromisoformat(d) for d in data["days"]], [("Total Portfolio Value", data["values"])], markers=data.get("markers"))
     if request.GET.get("export") == "xlsx":
         from .exports import response
 

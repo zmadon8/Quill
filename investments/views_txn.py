@@ -15,6 +15,7 @@ from django.urls import reverse
 from . import forms
 from .decorators import inv_editor, inv_reader
 from .errors import InvestmentsError
+from .money_auto import format_indian
 from .models import (
     CA_DEMERGER, ORIGIN_DEMERGER, ORIGIN_PURCHASE, ORIGINS, SIDE_BUY, SIDE_SELL, STATUS_AWAITING, STATUS_FINAL, STATUS_PENDING_SIP,
     CorporateAction, Folio, Instrument, Transaction, Transfer,
@@ -679,7 +680,7 @@ LOOKUP_LIMIT = 30
 
 
 def _last_price_text(close, day):
-    return f"Last price \u20b9{close:,.2f} on {day:%-d %b}" if close is not None and day else ""
+    return f"Last price \u20b9{format_indian(close)} on {day:%-d %b}" if close is not None and day else ""
 
 
 @inv_editor

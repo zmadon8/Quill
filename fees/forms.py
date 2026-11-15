@@ -13,6 +13,7 @@ from fees.models import Matter, Memo, Payment
 from fees.services import matters as matter_service
 from fees.services import payments as payment_service
 from fees.services.memo_numbers import find_memo_id_by_number
+from fees.services.money import format_currency
 
 #: The text fields of a memo form, in page order.
 MEMO_TEXT_FIELDS = (
@@ -139,7 +140,7 @@ def parse_decimal(text, label="Amount", required=False):
     except InvalidOperation as exc:
         raise FeesError("INVALID_NUMBER", f"{label} must be a number.") from exc
     if not number.is_finite() or abs(number) >= MAX_AMOUNT:
-        raise FeesError("INVALID_NUMBER", f"{label} must be a number below {MAX_AMOUNT:,}.")
+        raise FeesError("INVALID_NUMBER", f"{label} must be a number below {format_currency(MAX_AMOUNT)}.")
     return number
 
 
@@ -153,7 +154,7 @@ def parse_int(text, label="Number", default=0):
     except ValueError as exc:
         raise FeesError("INVALID_NUMBER", f"{label} must be a whole number.") from exc
     if number < 0 or number > MAX_COUNT:
-        raise FeesError("INVALID_NUMBER", f"{label} must be between 0 and {MAX_COUNT:,}.")
+        raise FeesError("INVALID_NUMBER", f"{label} must be between 0 and {format_currency(MAX_COUNT)}.")
     return number
 
 

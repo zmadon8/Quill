@@ -7,6 +7,7 @@ from decimal import Decimal
 from fees.services.financial_year import current_financial_year
 
 from investments.models import AlertState, Dividend
+from investments.money_auto import format_indian
 from investments.services import core, dashboard, fetch
 
 KINDS = [
@@ -82,7 +83,7 @@ def _worked_out(profile, today):
                     .values_list("amount", flat=True), Decimal(0))
     if this or same_last:
         change = "up" if this >= same_last else "down"
-        add("dividends", 40, f"Dividends so far this financial year: Rs {this:,.0f}, {change} from Rs {same_last:,.0f} by this time last year.",
+        add("dividends", 40, f"Dividends so far this financial year: Rs {format_indian(this, 0)}, {change} from Rs {format_indian(same_last, 0)} by this time last year.",
             reverse("investments_report", args=["dividends"]), fy)
     stale = fetch.stale_ids([type("I", (), {"pk": r["id"]})() for r in rows if r["price_source"] not in ("manual", "upload")])
     if stale:

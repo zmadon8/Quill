@@ -4,10 +4,10 @@ The payload is plain JSON (money as text so no float ever touches a rupee amount
 from datetime import date
 from decimal import Decimal
 
-from investments.services import core, holdings, overview, performance, series, statscache
+from investments.services import chartview, core, holdings, overview, performance, series, statscache
 
-#: Bump when the cached payload gains or changes a part, so older cached payloads are not read (2: the Type/Portfolio/Broker breakdown; 3: its XIRR column).
-PAYLOAD_VERSION = 3
+#: Bump when the cached payload gains or changes a part, so older cached payloads are not read (2: the Type/Portfolio/Broker breakdown; 3: its XIRR column; 4: the buy and sell markers of the chart).
+PAYLOAD_VERSION = 4
 MONEY_FIELDS = ("units", "avg_cost", "price", "value", "gain", "awaiting", "cost", "dividends")
 
 
@@ -145,7 +145,8 @@ def compute(profile, portfolio=None, broker=None, as_of=None, include_dividends=
             levels = series.sampled_prices(index, days) if index else [None] * len(days)
             equivalent = series.index_equivalent_values(days, flows, levels)
             chart = {"days": [d.isoformat() for d in days], "lines": [["Portfolio value", [float(v) for v in values]],
-                                                                    [f"Same money in {index.name if index else 'the index'}", [None if v is None else float(v) for v in equivalent]]]}
+                                                                    [f"Same money in {index.name if index else 'the index'}", [None if v is None else float(v) for v in equivalent]]],
+                     "markers": chartview.portfolio_markers(profile, days, portfolio=portfolio, broker=broker)}
     payload = {
         "rows": [_row(h) for h in held], "has_any": bool(rows),
         "totals": {"invested": str(totals.invested), "value": str(totals.value), "gain": str(totals.gain), "gain_pct": totals.gain_pct,

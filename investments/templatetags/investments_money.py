@@ -9,7 +9,7 @@ import contextvars
 from django import template
 from django.utils.html import format_html
 
-from investments.money_auto import AUTO, FULL, format_amount
+from investments.money_auto import AUTO, FULL, format_amount, format_units
 
 register = template.Library()
 
@@ -73,23 +73,13 @@ def pct_signed(value):
 
 @register.filter
 def units(value):
-    """Units without trailing zeros (fund units keep up to four decimals), or with exactly the decimals chosen in Settings > Display."""
+    """Units as a toggling ``<span class="m">``: Full is exact (no trailing zeros, or the decimals chosen in Settings > Display), Short is k / lac / cr from 1,000."""
     if value is None:
         return ""
     places = DISPLAY.get().get("units")
-    if places is not None:
-        from decimal import ROUND_HALF_UP, Decimal
-
-        text = f"{Decimal(value).quantize(Decimal(1).scaleb(-int(places)), rounding=ROUND_HALF_UP):f}"
-    else:
-        text = f"{value:f}"
-        if "." in text:
-            text = text.rstrip("0").rstrip(".")
-    whole, _dot, frac = text.partition(".")
-    neg = whole.startswith("-")
-    whole = whole.lstrip("-")
-    from investments.money_auto import group_indian
-    return ("-" if neg else "") + group_indian(whole) + ("." + frac if frac else "")
+    auto = format_units(value, mode=AUTO, decimals=places)
+    full = format_units(value, mode=FULL, decimals=places)
+    return format_html('<span class="m" data-auto="{}" data-full="{}" title="{}">{}</span>', auto, full, full, auto)
 
 
 @register.filter
