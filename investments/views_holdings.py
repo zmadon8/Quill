@@ -326,8 +326,8 @@ def investment(request, pk):
                                                    "sectoral_index": pi.sectoral_index_id if pi else None,
                                                    "interest_rate": inst.interest_rate, "interest_type": inst.interest_type,
                                                    "maturity_date": inst.maturity_date}, with_sector=inst.kind != KIND_ALTERNATIVE),
-        "manual_prices": ManualPrice.objects.filter(instrument=inst).order_by("-date")[:10],
-        "alt_values": AltValue.objects.filter(profile=profile, instrument=inst).order_by("-date")[:20] if inst.kind == KIND_ALTERNATIVE else [],
+        "manual_prices": _flag_derived(ManualPrice.objects.filter(instrument=inst).order_by("-date")[:20]) if inst.profile_id and inst.kind != KIND_ALTERNATIVE else [],
+        "alt_values": _flag_derived(AltValue.objects.filter(profile=profile, instrument=inst).order_by("-date")[:20]) if inst.kind == KIND_ALTERNATIVE else [],
         "awaiting_rows": awaiting_rows, "history": InvestmentHistory.objects.filter(profile=profile, instrument_id_ref=inst.pk)[:8],
         "registry": investment_page.registry_record(inst),
         "kind_label": inst.get_kind_display(), "on": on, "as_of": as_of, "include_div": div,
@@ -377,6 +377,14 @@ def profile_brokers(profile):
     from .models import Broker
 
     return Broker.objects.filter(profile=profile)
+
+
+def _flag_derived(rows):
+    """The rows as a list, each marked ``derived`` when its note is one of the tags of an entry made from a transaction."""
+    rows = list(rows)
+    for row in rows:
+        row.derived = prices.is_derived(row.note)
+    return rows
 
 
 def _details_draft(request, inst):

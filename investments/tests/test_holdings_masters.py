@@ -73,7 +73,8 @@ class HoldingsTests(InvTestCase):
         masters.update_settings(self.profile, self.user, alt_treatment="averaged")
         (h,), _ = holdings.compute(self.profile, as_of=d(2024, 1, 6))
         self.assertEqual(h.value, D(100500))
-        self.assertEqual(InvestmentHistory.objects.filter(record_type="altvalue").count(), 2)
+        # The purchase made a value of its own (D181); the hand entry for the same date replaced it, and the second hand entry is new.
+        self.assertEqual(InvestmentHistory.objects.filter(record_type="altvalue").count(), 3)
 
     def test_allocation_sums_to_one(self):
         self.buy(d(2023, 1, 1), 10, 100)

@@ -277,7 +277,8 @@ def txn_form(request, mode):
                         if d["instrument"].lump_sum and not awaiting:
                             tx.add_lump_sum_transaction(
                                 profile, request.user, side=side, instrument=d["instrument"], portfolio=d["portfolio"], broker=d["broker"], date=d["date"],
-                                amount=d.get("lump_amount"), remaining=d.get("remaining"), folio=folio, charges=d.get("charges") or 0, note=d.get("note", ""))
+                                amount=d.get("lump_amount"), remaining=d.get("remaining"), value_after=d.get("value_after"), folio=folio,
+                                charges=d.get("charges") or 0, note=d.get("note", ""))
                             continue
                         tx.add_transaction(
                             profile, request.user, side=side, instrument=d["instrument"], portfolio=d["portfolio"], broker=d["broker"],

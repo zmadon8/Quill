@@ -13,11 +13,11 @@ from investments import lots
 from investments.errors import InvestmentsError, not_found
 from investments.models import (
     ACTION_ORIGINS, CA_DEMERGER, HOLDABLE_KINDS, METHOD_EVENTS, NO_PRICE_ORIGINS, ORIGIN_DEMERGER, ORIGIN_PURCHASE, ORIGINS, SIDE_BUY, SIDE_SELL,
-    STATUS_AWAITING, STATUS_FINAL, STATUS_PENDING_SIP, ZERO_PRICE_ORIGINS, Broker, CorporateActionResponse, Folio, Portfolio, Switch, Transaction,
-    Transfer, new_group,
+    STATUS_AWAITING, STATUS_FINAL, STATUS_PENDING_SIP, ZERO_PRICE_ORIGINS, Broker, CorporateActionResponse, Folio, Instrument, Portfolio, Switch,
+    Transaction, Transfer, new_group,
 )
 from investments.money_auto import format_indian
-from investments.services import core, history, pins
+from investments.services import core, history, pins, trade_prices
 
 ZERO = Decimal(0)
 #: Completion tolerance: units times NAV plus charges may differ from the amount paid by this much (rounding).
@@ -278,6 +278,8 @@ def add_transaction(profile, user, *, side, instrument, portfolio, broker, date,
         summary = f"{'Bought' if side == SIDE_BUY else 'Sold'} {units} {instrument.name}"
     history.record(profile, user, txn, "create", summary=summary)
     _pin(profile, txn)
+    if txn.status == STATUS_FINAL:
+        trade_prices.sync_trade_prices(profile, user, instrument, [txn.date])
     core.touch(profile)
     if origin == ORIGIN_PURCHASE and txn.status == STATUS_FINAL:
         # A profile that logs corporate actions automatically picks up the ones this purchase makes pending.
@@ -288,19 +290,27 @@ def add_transaction(profile, user, *, side, instrument, portfolio, broker, date,
 
 
 @transaction.atomic
-def add_lump_sum_transaction(profile, user, *, side, instrument, portfolio, broker, date, amount, remaining=None, folio=None, charges=0, note=""):
+def add_lump_sum_transaction(profile, user, *, side, instrument, portfolio, broker, date, amount, remaining=None, folio=None, charges=0, note="",
+                             value_after=None):
     """Record a purchase or sale of a Lump Sum alternative investment (see docs/DESIGN.md, "Lump Sum investments").
 
     Units are the money put in, at a price of 1, so lots, XIRR, holdings and the exports need no special case. A sale of ``amount`` leaving
     ``remaining`` (the value of everything still held of the investment) sells the share ``amount / (amount + remaining)`` of the units held,
     so the cost sold is that share of the cost held. The price is the sale's value per unit, rounded up to 4 places with the rounding added to
-    the charges so the proceeds are exactly ``amount`` less the charges. ``remaining`` is saved as the investment's value on the sale date."""
+    the charges so the proceeds are exactly ``amount`` less the charges. ``remaining`` is saved as the investment's value on the sale date, and
+    the value just before the sale (``amount + remaining``) on the day before; a purchase saves ``value_after`` if given, else the last value plus
+    the amount (``trade_prices``, D182)."""
     if not instrument.lump_sum:
         raise InvestmentsError("BAD_COMBINATION", f"{instrument.name} is not a Lump Sum investment.")
     amount = _dec(amount, "Amount", minimum=Decimal("0.01"))
+    held_before = trade_prices.units_before(profile, instrument, date)
     if side == SIDE_BUY:
-        return add_transaction(profile, user, side=side, instrument=instrument, portfolio=portfolio, broker=broker, date=date, units=amount,
-                               price=Decimal(1), charges=charges, folio=folio, note=note)
+        value_after = _dec(value_after, "Value after this purchase", allow_none=True, minimum=ZERO)
+        txn = add_transaction(profile, user, side=side, instrument=instrument, portfolio=portfolio, broker=broker, date=date, units=amount,
+                              price=Decimal(1), charges=charges, folio=folio, note=note)
+        trade_prices.record_lump_purchase(profile, user, instrument, date, amount, value_after, held_before)
+        core.touch(profile)
+        return txn
     remaining = _dec(remaining, "Amount remaining after this sale", minimum=ZERO)
     rows = available_by_bucket(profile, instrument, date)
     total = sum((r[3] for r in rows), ZERO)
@@ -326,9 +336,8 @@ def add_lump_sum_transaction(profile, user, *, side, instrument, portfolio, brok
     extra = f" Price rounding {rounding.quantize(Decimal('0.01'))} added to charges." if rounding > Decimal("0.005") else ""
     txn = add_transaction(profile, user, side=side, instrument=instrument, portfolio=portfolio, broker=broker, date=date, units=units, price=price,
                           charges=_dec(charges or 0, "Charges", minimum=ZERO) + rounding, folio=folio, note=(((note or "").strip() + extra).strip())[:200])
-    from investments.services import prices
-
-    prices.set_alt_value(profile, user, instrument, date, remaining, note="Remaining after a sale")
+    trade_prices.record_lump_sale(profile, user, instrument, txn, amount, remaining, held_before)
+    core.touch(profile)
     return txn
 
 
@@ -392,6 +401,24 @@ def add_switch(profile, user, *, date, portfolio, broker, from_instrument, units
 
 # ---------------------------------------------------------------- edit and delete
 
+def _sync_trade_prices(profile, user, txn, before):
+    """After an edit: the Manual Price History entries of the old investment and date and of the new one (they may be the same)."""
+    old_instrument_id, old_date = before
+    if old_instrument_id == txn.instrument_id:
+        trade_prices.sync_trade_prices(profile, user, txn.instrument, [old_date, txn.date])
+        return
+    trade_prices.sync_trade_prices(profile, user, Instrument.objects.get(pk=old_instrument_id), [old_date])
+    trade_prices.sync_trade_prices(profile, user, txn.instrument, [txn.date])
+
+
+def _forget_trade_prices(profile, user, instrument, side, day):
+    """After a final transaction is deleted: the entries made from it go (a Lump Sum's two values), or are worked out again without it."""
+    if instrument.lump_sum:
+        trade_prices.forget_lump(profile, user, instrument, side, day)
+    else:
+        trade_prices.sync_trade_prices(profile, user, instrument, [day])
+
+
 def _check_clash(txn, expected_version):
     if expected_version is not None and int(expected_version) != txn.version:
         raise InvestmentsError("CLASH", "Someone else changed this entry after you opened it. Reload and try again.", 409)
@@ -409,11 +436,18 @@ def edit_transaction(profile, user, pk, *, expected_version=None, **fields):
     unknown = set(fields) - allowed
     if unknown:
         raise InvestmentsError("BAD_FIELD", f"Cannot edit: {', '.join(sorted(unknown))}.")
+    before = (txn.instrument_id, txn.date)
+    before_lump = (txn.date, txn.units, txn.price, txn.instrument_id)
     for key, value in fields.items():
         if key in ("units", "price", "charges", "amount", "cost_override"):
             value = _dec(value, key, allow_none=key in ("units", "price", "amount", "cost_override"), minimum=ZERO)
         setattr(txn, key, value)
     txn.auto_created = False          # once a person edits it, it is theirs: editing the demerger no longer replaces it
+    if before_lump != (txn.date, txn.units, txn.price, txn.instrument_id) and (txn.instrument.lump_sum or Instrument.objects.filter(
+            pk=before_lump[3], lump_sum=True).exists()):
+        raise InvestmentsError(
+            "LUMP_SUM_EDIT", "The date and amount of a Lump Sum entry cannot be changed, because the investment's values are worked out from "
+            "them. Delete the entry and record it again. Its note, charges, broker, portfolio and folio can be changed.")
     _check_refs(profile, txn.instrument, txn.portfolio, txn.broker, txn.folio)
     _check_date(txn.date)
     _check_origin(profile, txn.instrument, txn.origin, txn.corporate_action, side=txn.side, awaiting=txn.status == STATUS_AWAITING,
@@ -441,6 +475,8 @@ def edit_transaction(profile, user, pk, *, expected_version=None, **fields):
     txn.save()
     history.record(profile, user, txn, "edit", summary=f"Edited {txn.instrument.name}")
     _pin(profile, txn)
+    if txn.status == STATUS_FINAL:
+        _sync_trade_prices(profile, user, txn, before)
     core.touch(profile)
     return txn
 
@@ -455,7 +491,11 @@ def delete_transaction(profile, user, pk, kind="delete"):
     if txn.status == STATUS_FINAL:
         _recheck(profile, txn.instrument_id, exclude_txn=txn.pk, what="Deleting this entry")
     history.record(profile, user, txn, kind, summary=f"{'Cancelled' if kind == 'cancel' else 'Deleted'} {txn.instrument.name}")
+    final = txn.status == STATUS_FINAL
+    instrument, side, day = txn.instrument, txn.side, txn.date
     txn.delete()
+    if final:
+        _forget_trade_prices(profile, user, instrument, side, day)
     core.touch(profile)
 
 
@@ -479,6 +519,8 @@ def delete_switch(profile, user, pk):
         leg.delete()
     history.record(profile, user, sw, "delete", group=group, summary="Deleted fund switch")
     sw.delete()
+    for leg in legs:
+        _forget_trade_prices(profile, user, leg.instrument, leg.side, leg.date)
     core.touch(profile)
 
 
@@ -540,6 +582,7 @@ def complete_transaction(profile, user, pk, *, allotment_date, units=None, nav=N
     txn.version += 1
     txn.save()
     history.record(profile, user, txn, "complete", summary=f"Completed {txn.instrument.name}: {units} units at {nav}")
+    trade_prices.sync_trade_prices(profile, user, txn.instrument, [txn.date])
     core.touch(profile)
     return txn
 
@@ -571,6 +614,7 @@ def confirm_pending(profile, user, pk, *, units=None, price=None):
     _recheck(profile, txn.instrument_id, add=[core.txn_event(txn)], exclude_txn=txn.pk, what="Confirming this entry")
     txn.save()
     history.record(profile, user, txn, "complete", summary=f"Confirmed SIP entry for {txn.instrument.name}")
+    trade_prices.sync_trade_prices(profile, user, txn.instrument, [txn.date])
     core.touch(profile)
     return txn
 

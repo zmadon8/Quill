@@ -114,11 +114,25 @@ def delete_manual_price(profile, user, price_id):
     core.touch(profile)
 
 
-@transaction.atomic
-def set_alt_value(profile, user, instrument, day, total_value, nav=None, note=""):
-    """Add or correct a dated value of an alternative investment (logged in the permanent history)."""
+# Notes that mark a Manual Price History entry as made automatically from a transaction (docs/DESIGN.md D181 and D182). They are stored in
+# the entry's note, so no model change is needed. A hand edit stores the person's own note, which stops the entry being derived.
+TAG_PURCHASE = "From purchase"
+TAG_SALE = "From sale"
+TAG_BOTH = "From purchase and sale"
+TAG_BEFORE_SALE = "Before sale"
+TAG_OLD_REMAINING = "Remaining after a sale"   # the note older Lump Sum sales were saved with; still recognised as derived
+DERIVED_NOTES = frozenset((TAG_PURCHASE, TAG_SALE, TAG_BOTH, TAG_BEFORE_SALE, TAG_OLD_REMAINING))
+
+
+def is_derived(note):
+    """True when ``note`` is one of the fixed tags of an entry made from a transaction (anything else is a hand entry)."""
+    return (note or "").strip() in DERIVED_NOTES
+
+
+def save_alt_value(profile, user, instrument, day, total_value, nav=None, note=""):
+    """Write one value of an alternative investment and log it, without bumping the profile's data version (the caller does that once)."""
     if instrument.profile_id != profile.pk:
-        raise InvestmentsError("NOT_ALTERNATIVE", "Dated values can only be entered for your own alternative investments.")
+        raise InvestmentsError("NOT_ALTERNATIVE", "Manual Price History values can only be entered for your own alternative investments.")
     total = Decimal(str(total_value).replace(",", "").strip())
     if total < 0:
         raise InvestmentsError("BAD_NUMBER", "A value cannot be negative.")
@@ -130,9 +144,22 @@ def set_alt_value(profile, user, instrument, day, total_value, nav=None, note=""
     obj.nav = Decimal(str(nav)) if nav not in (None, "") else None
     obj.note = (note or "")[:200]
     obj.save()
-    history.record(profile, user, obj, kind, summary=f"Value of {instrument.name} on {day}")
+    history.record(profile, user, obj, kind, summary=f"Value of {instrument.name} on {day}" + (f" ({obj.note.lower()})" if is_derived(obj.note) else ""))
+    return obj
+
+
+@transaction.atomic
+def set_alt_value(profile, user, instrument, day, total_value, nav=None, note=""):
+    """Add or correct a hand-entered value of an alternative investment (logged in the permanent history)."""
+    obj = save_alt_value(profile, user, instrument, day, total_value, nav, note)
     core.touch(profile)
     return obj
+
+
+def remove_alt_value(profile, user, obj):
+    """Delete one value and log it, without bumping the data version (the caller does that once)."""
+    history.record(profile, user, obj, "delete", summary=f"Deleted value of {obj.instrument.name}")
+    obj.delete()
 
 
 @transaction.atomic
@@ -140,8 +167,7 @@ def delete_alt_value(profile, user, pk):
     obj = AltValue.objects.filter(pk=pk, profile=profile).first()
     if obj is None:
         raise not_found("value")
-    history.record(profile, user, obj, "delete", summary=f"Deleted value of {obj.instrument.name}")
-    obj.delete()
+    remove_alt_value(profile, user, obj)
     core.touch(profile)
 
 

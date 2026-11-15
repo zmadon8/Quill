@@ -13,7 +13,7 @@ from django.db.models import Max
 
 from investments.errors import InvestmentsError, not_found
 from investments.models import (
-    AltValue, CorporateActionResponse, Dividend, Folio, InvestmentHistory, Switch, Transaction, Transfer, new_group,
+    STATUS_FINAL, AltValue, CorporateActionResponse, Dividend, Folio, InvestmentHistory, Switch, Transaction, Transfer, new_group,
 )
 
 #: record_type -> model. Only these are logged (plan 6: transactions, dividends, corporate action confirmations, folio
@@ -137,6 +137,10 @@ def restore(profile, user, history_id):
 
     if isinstance(obj, Transaction):
         txn_service._pin(profile, obj)
+        if obj.status == STATUS_FINAL:
+            from investments.services import trade_prices
+
+            trade_prices.sync_trade_prices(profile, user, obj.instrument, [obj.date])
     touch(profile)
     return obj
 

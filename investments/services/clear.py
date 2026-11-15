@@ -1,7 +1,7 @@
 """Clear a profile's transaction history (owner round 2026-11): Settings > General > Clear transaction history, Admin only.
 
 Deletes every record of trading in the profile: purchases and sales (awaiting ones too), transfers, fund switches, dividends, SIP
-schedules, folio numbers, alternative investments' dated values, corporate action confirmations and saved alert states; and, if
+schedules, folio numbers, alternative investments' manual price history, corporate action confirmations and saved alert states; and, if
 asked, the History log. Kept: the investments listed in the profile (with notes, links and sector index), portfolios, brokers,
 guardrails, settings, and everything shared (investments, prices, indices). A "Before clearing profile" backup is taken first and
 nothing is deleted if it cannot be made; restoring that backup brings everything back.
