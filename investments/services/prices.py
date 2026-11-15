@@ -2,6 +2,7 @@
 (``PinnedPrice``). Nothing outside the adapters knows which vendor supplied a price (plan 15.7), and a hand-entered price always
 wins over a fetched one for the same day.
 """
+from datetime import timedelta
 from decimal import Decimal
 
 from django.db import transaction
@@ -82,9 +83,18 @@ def series(instrument, start=None, end=None):
 def alt_values(profile, instrument_ids):
     """``{instrument id: [(date, total_value)]}`` for the profile's alternative investments, oldest first."""
     out = {}
-    for iid, day, total in AltValue.objects.filter(profile=profile, instrument_id__in=list(instrument_ids)).order_by("date").values_list(
-            "instrument_id", "date", "total_value"):
+    before = {}
+    for iid, day, total, value_before in AltValue.objects.filter(profile=profile, instrument_id__in=list(instrument_ids)).order_by("date").values_list(
+            "instrument_id", "date", "total_value", "value_before"):
         out.setdefault(iid, []).append((day, total))
+        if value_before is not None:
+            before.setdefault(iid, {})[day - timedelta(days=1)] = value_before
+    # A sale-date entry also holds the value just before that sale. It counts as the value on the day before, unless that day has an entry.
+    for iid, extra in before.items():
+        rows = out[iid]
+        have = {d for d, _ in rows}
+        rows.extend((d, v) for d, v in extra.items() if d not in have)
+        rows.sort(key=lambda r: r[0])
     return out
 
 
@@ -129,7 +139,10 @@ def is_derived(note):
     return (note or "").strip() in DERIVED_NOTES
 
 
-def save_alt_value(profile, user, instrument, day, total_value, nav=None, note=""):
+KEEP = object()   # "leave value_before as it is" for save_alt_value
+
+
+def save_alt_value(profile, user, instrument, day, total_value, nav=None, note="", value_before=KEEP):
     """Write one value of an alternative investment and log it, without bumping the profile's data version (the caller does that once)."""
     if instrument.profile_id != profile.pk:
         raise InvestmentsError("NOT_ALTERNATIVE", "Manual Price History values can only be entered for your own alternative investments.")
@@ -143,6 +156,8 @@ def save_alt_value(profile, user, instrument, day, total_value, nav=None, note="
     obj.total_value = total
     obj.nav = Decimal(str(nav)) if nav not in (None, "") else None
     obj.note = (note or "")[:200]
+    if value_before is not KEEP:
+        obj.value_before = Decimal(str(value_before)) if value_before is not None else None
     obj.save()
     history.record(profile, user, obj, kind, summary=f"Value of {instrument.name} on {day}" + (f" ({obj.note.lower()})" if is_derived(obj.note) else ""))
     return obj
@@ -192,7 +207,6 @@ def last_price_date(instrument_ids):
 def recent_closes(instrument_ids, as_of, days=90, points=30):
     """``{instrument id: [close, ...]}`` for the last ``days`` days up to ``as_of``, oldest first, thinned to at most ``points``
     values (a table sparkline). One query per price table for every investment at once; hand-entered prices win a tie."""
-    from datetime import timedelta
 
     ids = [i for i in instrument_ids if i]
     if not ids:

@@ -250,13 +250,59 @@ class LumpSumTradePriceTests(ManualPricedBase):
         self.lump("buy", d(2024, 3, 1), 50000)
         self.assertIsNone(self.value(d(2024, 3, 1)))
 
-    def test_a_sale_saves_the_value_before_it_on_the_day_before_and_what_remains_on_the_day(self):
+    def test_a_sale_saves_the_value_before_it_with_the_value_on_the_day(self):
         self.lump("buy", d(2024, 1, 1), 140000)
         sale = self.lump("sell", d(2024, 7, 1), 30000, remaining=D(110000))
-        before, after = self.value(d(2024, 6, 30)), self.value(d(2024, 7, 1))
-        self.assertEqual((before.total_value, before.note), (D("140000.00"), "Before sale"))
-        self.assertEqual((after.total_value, after.note), (D("110000"), "From sale"))
+        after = self.value(d(2024, 7, 1))
+        self.assertEqual((after.total_value, after.note, after.value_before), (D("110000"), "From sale", D("140000.00")))
+        self.assertIsNone(self.value(d(2024, 6, 30)))
         self.assertEqual(sale.units, D("30000"))
+
+    def test_the_value_before_a_sale_is_the_value_on_the_day_before_for_readers(self):
+        self.lump("buy", d(2024, 1, 1), 140000)
+        self.lump("sell", d(2024, 7, 1), 30000, remaining=D(110000))
+        rows = prices.alt_values(self.profile, [self.chit.pk])[self.chit.pk]
+        self.assertIn((d(2024, 6, 30), D("140000.00")), rows)
+        self.assertEqual(rows, sorted(rows))
+
+    def test_the_value_before_a_sale_follows_a_purchase_value_on_the_day_before(self):
+        self.lump("buy", d(2024, 6, 30), 140000, value_after=D(140000))
+        self.lump("sell", d(2024, 7, 1), 30000, remaining=D(100000))
+        self.assertEqual(self.value(d(2024, 7, 1)).value_before, D("130000.00"))
+        self.assertEqual(self.value(d(2024, 6, 30)).total_value, D("140000"))
+        rows = prices.alt_values(self.profile, [self.chit.pk])[self.chit.pk]
+        self.assertEqual([r for r in rows if r[0] == d(2024, 6, 30)], [(d(2024, 6, 30), D("140000.0000"))])     # a real entry wins
+
+    def test_a_second_sale_on_the_same_date_keeps_the_value_before_the_first(self):
+        self.lump("buy", d(2024, 1, 1), 140000)
+        self.lump("sell", d(2024, 7, 1), 30000, remaining=D(110000))
+        self.lump("sell", d(2024, 7, 1), 10000, remaining=D(100000))
+        row = self.value(d(2024, 7, 1))
+        self.assertEqual((row.total_value, row.value_before), (D("100000"), D("140000.00")))
+
+    def test_editing_a_sale_note_keeps_the_value_before(self):
+        self.lump("buy", d(2024, 1, 1), 140000)
+        sale = self.lump("sell", d(2024, 7, 1), 30000, remaining=D(110000))
+        tx.edit_transaction(self.profile, self.user, sale.pk, note="partial")
+        self.assertEqual(self.value(d(2024, 7, 1)).value_before, D("140000.00"))
+
+    def test_entering_the_sale_again_after_deleting_it_updates_the_value_before(self):
+        self.lump("buy", d(2024, 1, 1), 140000)
+        sale = self.lump("sell", d(2024, 7, 1), 30000, remaining=D(110000))
+        tx.delete_transaction(self.profile, self.user, sale.pk)
+        self.lump("sell", d(2024, 7, 1), 50000, remaining=D(90000))
+        self.assertEqual(self.value(d(2024, 7, 1)).value_before, D("140000.00"))
+        self.assertEqual(AltValue.objects.count(), 1)
+
+    def test_a_hand_value_on_the_sale_date_keeps_its_note_and_gets_the_value_before(self):
+        self.lump("buy", d(2024, 1, 1), 140000)
+        prices.set_alt_value(self.profile, self.user, self.chit, d(2024, 7, 1), 99000, note="statement")
+        sale = self.lump("sell", d(2024, 7, 1), 30000, remaining=D(110000))
+        row = self.value(d(2024, 7, 1))
+        self.assertEqual((row.note, row.total_value, row.value_before), ("statement", D("110000.0000"), D("140000.00")))
+        tx.delete_transaction(self.profile, self.user, sale.pk)
+        row = self.value(d(2024, 7, 1))
+        self.assertEqual((row.note, row.value_before), ("statement", None))
 
     def test_a_sale_shows_no_gain_or_loss_across_the_sale_day(self):
         self.lump("buy", d(2024, 1, 1), 140000)
@@ -276,12 +322,14 @@ class LumpSumTradePriceTests(ManualPricedBase):
         self.lump("sell", d(2024, 1, 1), 30000, remaining=D(110000))
         self.assertIsNone(self.value(d(2023, 12, 31)))
         self.assertEqual(self.value(d(2024, 1, 1)).note, "From sale")
+        self.assertIsNone(self.value(d(2024, 1, 1)).value_before)
 
     def test_a_sale_leaves_a_value_of_a_person_on_the_day_before_alone(self):
         self.lump("buy", d(2024, 1, 1), 140000)
         prices.set_alt_value(self.profile, self.user, self.chit, d(2024, 6, 30), 138000, note="statement")
         self.lump("sell", d(2024, 7, 1), 30000, remaining=D(110000))
         self.assertEqual(self.value(d(2024, 6, 30)).total_value, D("138000.0000"))
+        self.assertEqual(self.value(d(2024, 7, 1)).value_before, D("140000.00"))
 
     def test_sell_all_uses_the_adjusted_remaining_in_the_value_before(self):
         from investments.models import Portfolio
@@ -292,7 +340,7 @@ class LumpSumTradePriceTests(ManualPricedBase):
                                     date=d(2024, 1, 2), amount=D(40000))
         self.lump("sell", d(2024, 7, 1), 66000, remaining=D(0))
         self.assertEqual(self.value(d(2024, 7, 1)).total_value, D("44000.00"))
-        self.assertEqual(self.value(d(2024, 6, 30)).total_value, D("110000.00"))
+        self.assertEqual(self.value(d(2024, 7, 1)).value_before, D("110000.00"))
 
     def test_deleting_the_sale_removes_both_values(self):
         self.lump("buy", d(2024, 1, 1), 140000)
@@ -333,3 +381,33 @@ class LumpSumTradePriceTests(ManualPricedBase):
                 "lump_amount": "100000", "value_after": "130000"}
         self.assertRedirects(self.client.post(reverse("investments_txn_new_buy"), post), reverse("investments_transactions"))
         self.assertEqual(self.value(d(2024, 1, 1)).total_value, D("130000"))
+
+
+class BeforeSaleMigrationTests(ManualPricedBase):
+    def test_old_before_sale_rows_move_onto_the_sale_entry(self):
+        import importlib
+
+        from django.apps import apps
+
+        migration = importlib.import_module("investments.migrations.0037_altvalue_value_before")
+        chit = masters.create_instrument(self.profile, self.user, kind="alternative", name="Chit fund", asset_class="debt", lump_sum=True)
+
+        def make(day, total, note):
+            return AltValue.objects.create(profile=self.profile, instrument=chit, date=day, total_value=D(total), note=note)
+
+        make(d(2024, 6, 30), "140000", "Before sale")
+        make(d(2024, 7, 1), "110000", "From sale")
+        make(d(2024, 8, 9), "5000", "Before sale")          # no sale entry next day: left alone
+        make(d(2024, 9, 30), "90000", "Before sale")
+        make(d(2024, 10, 1), "60000", "statement")         # a hand value, not a sale tag: the earlier row stays
+        make(d(2024, 11, 30), "70000", "Before sale")
+        make(d(2024, 12, 1), "40000", "Remaining after a sale")
+        migration.move_before_sale_values(apps, None)
+        found = {a.date: (a.total_value, a.note, a.value_before) for a in AltValue.objects.filter(instrument=chit)}
+        self.assertEqual(found[d(2024, 7, 1)], (D("110000"), "From sale", D("140000")))
+        self.assertEqual(found[d(2024, 12, 1)], (D("40000"), "Remaining after a sale", D("70000")))
+        self.assertNotIn(d(2024, 6, 30), found)
+        self.assertNotIn(d(2024, 11, 30), found)
+        self.assertIn(d(2024, 8, 9), found)
+        self.assertIn(d(2024, 9, 30), found)
+        self.assertIsNone(found[d(2024, 10, 1)][2])

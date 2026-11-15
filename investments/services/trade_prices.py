@@ -151,22 +151,23 @@ def record_lump_purchase(profile, user, instrument, day, amount, value_after, he
 
 
 def record_lump_sale(profile, user, instrument, txn, amount, remaining, held_before):
-    """What a Lump Sum sale leaves: ``remaining`` on the sale date, and the value just before the sale (amount sold plus remaining) on the
-    day before, so the sale shows no false gain or loss. The earlier entry is skipped when nothing was held before the date, or when that
-    day already holds a value that is not a "Before sale" one (a person's value or a purchase value wins), or when a second sale on the same
-    date would replace the first sale's value (the first sale's pre-sale value is the one that applies)."""
+    """What a Lump Sum sale leaves: ``remaining`` as the value on the sale date, and the value just before the sale (amount sold plus
+    remaining) in that same entry's ``value_before``, so charts show no false gain or loss. Nothing is saved on the day before.
+
+    ``value_before`` is left empty when nothing was held before the date. A value a person typed on the sale date keeps its note (so deleting
+    the sale does not delete it); the remaining amount replaces its value, as the sale form says. A second sale on the same date keeps the first
+    sale's ``value_before``: it is the value before the day's first sale, and the later sale's amount plus remaining is not."""
     day = txn.date
-    prices.save_alt_value(profile, user, instrument, day, remaining, note=prices.TAG_SALE)
+    row = AltValue.objects.filter(profile=profile, instrument=instrument, date=day).first()
+    note = row.note if row is not None and not prices.is_derived(row.note) else prices.TAG_SALE
     if held_before <= 0:
-        return
-    before = day - _ONE_DAY
-    row = AltValue.objects.filter(profile=profile, instrument=instrument, date=before).first()
-    if row is not None:
-        if row.note != prices.TAG_BEFORE_SALE:
-            return
-        if Transaction.objects.filter(profile=profile, instrument=instrument, date=day, side=SIDE_SELL, status=STATUS_FINAL).exclude(pk=txn.pk).exists():
-            return
-    prices.save_alt_value(profile, user, instrument, before, (amount + remaining).quantize(_PAISA), note=prices.TAG_BEFORE_SALE)
+        before = None
+    elif row is not None and row.value_before is not None and Transaction.objects.filter(
+            profile=profile, instrument=instrument, date=day, side=SIDE_SELL, status=STATUS_FINAL).exclude(pk=txn.pk).exists():
+        before = row.value_before
+    else:
+        before = (amount + remaining).quantize(_PAISA)
+    prices.save_alt_value(profile, user, instrument, day, remaining, note=note, value_before=before)
 
 
 def forget_lump(profile, user, instrument, side, day):
@@ -174,10 +175,14 @@ def forget_lump(profile, user, instrument, side, day):
     final = Transaction.objects.filter(profile=profile, instrument=instrument, date=day, side=side, status=STATUS_FINAL)
     if final.exists():
         return
+    notes = (prices.TAG_SALE, prices.TAG_OLD_REMAINING) if side == SIDE_SELL else (prices.TAG_PURCHASE,)
+    for row in AltValue.objects.filter(profile=profile, instrument=instrument, date=day).select_related("instrument"):
+        if row.note in notes:
+            prices.remove_alt_value(profile, user, row)
+        elif side == SIDE_SELL and row.value_before is not None:
+            # a value a person typed stays; only the pre-sale value that belonged to the deleted sale goes
+            prices.save_alt_value(profile, user, instrument, day, row.total_value, nav=row.nav, note=row.note, value_before=None)
     if side == SIDE_SELL:
-        gone = [(day, (prices.TAG_SALE, prices.TAG_OLD_REMAINING)), (day - _ONE_DAY, (prices.TAG_BEFORE_SALE,))]
-    else:
-        gone = [(day, (prices.TAG_PURCHASE,))]
-    for when, notes in gone:
-        for row in AltValue.objects.filter(profile=profile, instrument=instrument, date=when, note__in=notes).select_related("instrument"):
+        # entries older versions saved on the day before
+        for row in AltValue.objects.filter(profile=profile, instrument=instrument, date=day - _ONE_DAY, note=prices.TAG_BEFORE_SALE).select_related("instrument"):
             prices.remove_alt_value(profile, user, row)
