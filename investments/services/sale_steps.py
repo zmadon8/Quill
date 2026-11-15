@@ -3,7 +3,7 @@ Manual Price History (docs/DESIGN.md D188).
 
 * A Lump Sum keeps it (``AltValue.value_before``, written when the sale is saved). A sale saved before that was stored has none, so it is worked
   out here from the sale's own transactions: the typed money amount sold plus the value the sale left (``derived_value_before``), and only for
-  an entry noted From sale, never a hand-typed one. Migration 0038 stores that figure for older sales; this keeps the page right for any date
+  an entry noted From sale (or Remaining after a sale, the note of the first Lump Sum sales), never a hand-typed one. Migration 0038 stores that figure for older sales; this keeps the page right for any date
   the migration did not reach.
 * A share, fund or alternative investment priced per unit has nothing stored: it is worked out here, per profile, as the units held before
   the sale times the sale price (units are the profile's own, while a hand-priced share's price rows are shared by every profile).
@@ -23,6 +23,8 @@ _PAISA = Decimal("0.01")
 _PRICE = Decimal("0.0001")
 _ONE_DAY = timedelta(days=1)
 TAG_SALE = "From sale"   # the note of an entry made by a sale (prices.TAG_SALE)
+TAG_OLD_REMAINING = "Remaining after a sale"   # the note the first Lump Sum sales were saved with (prices.TAG_OLD_REMAINING)
+_SALE_NOTES = (TAG_SALE, TAG_OLD_REMAINING)
 _ROUNDING_NOTE = re.compile(r"Price rounding (\d+(?:\.\d+)?) added to charges")
 
 
@@ -57,9 +59,9 @@ def _lump_steps(profile, instrument, start, end):
     if end:
         qs = qs.filter(date__lte=end)
     rows = list(qs.order_by("date").values_list("date", "value_before", "total_value", "note"))
-    # a figure is worked out only for an entry the sale itself made (noted From sale): an entry with another note was typed by hand, and a hand
+    # a figure is worked out only for an entry the sale itself made (noted From sale or Remaining after a sale): an entry with another note was typed by hand, and a hand
     # value that cleared ``value_before`` (prices.set_alt_value) must not get its step back
-    rows = [r for r in rows if r[1] is not None or (r[3] or "").strip() == TAG_SALE]
+    rows = [r for r in rows if r[1] is not None or (r[3] or "").strip() in _SALE_NOTES]
     missing = [day for day, before, _after, _note in rows if before is None]
     buys, events = set(), None
     if missing:
@@ -136,12 +138,12 @@ def insert_points(days, lines, found, before_on_first=True):
 
 
 def add_calculated_before(profile, instrument, rows):
-    """Marks each Manual Price History row that is a sale (``From sale`` or ``From purchase and sale``) of a per-unit investment with
+    """Marks each Manual Price History row that is a sale (``From sale``, ``From purchase and sale`` or the older ``Remaining after a sale``) of a per-unit investment with
     ``calc_before``: its worked-out value just before the sale. Rows of other days get None, and so does a Lump Sum's row that stores its own
     ``value_before``. Reads the transactions only when such a row is shown."""
     from investments.services import prices
 
-    sale_rows = [r for r in rows if r.note in (prices.TAG_SALE, prices.TAG_BOTH)]
+    sale_rows = [r for r in rows if r.note in (prices.TAG_SALE, prices.TAG_BOTH, prices.TAG_OLD_REMAINING)]
     for r in rows:
         r.calc_before = None
     if instrument.lump_sum:

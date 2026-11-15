@@ -13,6 +13,8 @@ from django.db import migrations
 PAISA = Decimal("0.01")
 TAG_PURCHASE = "From purchase"
 TAG_SALE = "From sale"
+TAG_OLD_REMAINING = "Remaining after a sale"
+SALE_NOTES = (TAG_SALE, TAG_OLD_REMAINING)
 ROUNDING_NOTE = re.compile(r"Price rounding (\d+(?:\.\d+)?) added to charges")
 
 
@@ -33,13 +35,13 @@ def held_before(trades, day):
 
 
 def backfill_values_before(trades, sells_by_day, entries):
-    """``{date: value before}`` for the entries (``[(date, value_before, total_value, note)]``) of one holding that lack it, are noted From sale (an entry
+    """``{date: value before}`` for the entries (``[(date, value_before, total_value, note)]``) of one holding that lack it, are noted From sale or Remaining after a sale (the note of the first Lump Sum sales; an entry
     with any other note was typed by hand, and a hand value may have cleared ``value_before`` on purpose) and sit on a date with a sale, no
     purchase and units held before."""
     buy_days = {d for d, side, _u in trades if side == "buy"}
     out = {}
     for day, before, total, note in entries:
-        if before is not None or (note or "").strip() != TAG_SALE or day not in sells_by_day or day in buy_days or held_before(trades, day) <= 0:
+        if before is not None or (note or "").strip() not in SALE_NOTES or day not in sells_by_day or day in buy_days or held_before(trades, day) <= 0:
             continue
         value = derived_value_before(sells_by_day[day], total)
         if value >= total:

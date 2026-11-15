@@ -112,10 +112,10 @@ class LumpSaleOldDataTests(LumpSaleExampleBase):
     """Entries saved before the value just before a sale was stored (and before a first purchase wrote a value): the sale date holds 50 "From
     sale" with no ``value_before`` and nothing else. The sale's own figures (200 sold, 50 remaining) are still in its transaction."""
 
-    def make_old_state(self):
+    def make_old_state(self, note="From sale"):
         self.buy_100_and_sell_200_leaving_50()
         AltValue.objects.filter(profile=self.profile, instrument=self.chit).exclude(date=SALE_DAY).delete()
-        AltValue.objects.filter(profile=self.profile, instrument=self.chit, date=SALE_DAY).update(value_before=None)
+        AltValue.objects.filter(profile=self.profile, instrument=self.chit, date=SALE_DAY).update(value_before=None, note=note)
         self.assertEqual(list(AltValue.objects.filter(profile=self.profile, instrument=self.chit).values_list("date", "total_value", "value_before")),
                          [(SALE_DAY, D("50.00"), None)])
 
@@ -127,6 +127,21 @@ class LumpSaleOldDataTests(LumpSaleExampleBase):
 
     def test_an_old_sale_still_draws_100_then_250_then_50(self):
         self.make_old_state()
+        self.assert_chart_steps_at_the_sale()
+        self.assert_header_value_is_50()
+
+    def test_the_first_lump_sum_sales_noted_remaining_after_a_sale_show_before_sale_250(self):
+        # the very first Lump Sum sales wrote only the remaining value, noted "Remaining after a sale", and no value before the sale
+        self.make_old_state("Remaining after a sale")
+        row = next(r for r in self.page().context["alt_values"] if r.date == SALE_DAY)
+        self.assertEqual((row.total_value, row.note, row.value_before, row.calc_before, row.derived), (D("50.00"), "Remaining after a sale", None, D("250.00"), True))
+        page = self.page()
+        self.assertContains(page, "Before sale (calculated): ")
+        self.assertContains(page, "250.00")
+        self.assertContains(page, '<span class="tag">Remaining after a sale</span>')
+
+    def test_the_first_lump_sum_sales_noted_remaining_after_a_sale_draw_100_then_250_then_50(self):
+        self.make_old_state("Remaining after a sale")
         self.assert_chart_steps_at_the_sale()
         self.assert_header_value_is_50()
 
@@ -224,6 +239,13 @@ class LumpSaleMigrationTests(LumpSaleExampleBase):
         self.migration().backfill(apps, None)
         self.assertEqual(self.rows(), [(BUY_DAY, D("100.00"), "From purchase", None), (SALE_DAY, D("50.00"), "From sale", D("250.00"))])
 
+    def test_it_stores_the_value_before_for_an_entry_noted_remaining_after_a_sale(self):
+        from django.apps import apps
+        self.old_state()
+        AltValue.objects.filter(profile=self.profile, instrument=self.chit, date=SALE_DAY).update(note="Remaining after a sale")
+        self.migration().backfill(apps, None)
+        self.assertEqual(self.rows(), [(BUY_DAY, D("100.00"), "From purchase", None), (SALE_DAY, D("50.00"), "Remaining after a sale", D("250.00"))])
+
     def test_running_it_twice_changes_nothing(self):
         from django.apps import apps
         self.old_state()
@@ -254,5 +276,7 @@ class LumpSaleMigrationTests(LumpSaleExampleBase):
         self.assertEqual(m.backfill_values_before(trades, {SALE_DAY: [(D("80"), D("2.5"), "")]}, [(SALE_DAY, None, D("50"), "From sale")]), {SALE_DAY: D("250.00")})
         self.assertEqual(m.backfill_values_before(trades, {SALE_DAY: [(D("80"), D("2.5"), "")]}, [(SALE_DAY, D("1"), D("50"), "From sale")]), {})
         self.assertEqual(m.backfill_values_before(trades, {SALE_DAY: [(D("80"), D("2.5"), "")]}, [(SALE_DAY, None, D("50"), "my note")]), {})
+        self.assertEqual(m.backfill_values_before(trades, {SALE_DAY: [(D("80"), D("2.5"), "")]}, [(SALE_DAY, None, D("50"), "Remaining after a sale")]),
+                         {SALE_DAY: D("250.00")})
         self.assertEqual(m.first_purchase_entry(trades, []), (BUY_DAY, D("100.00")))
         self.assertIsNone(m.first_purchase_entry(trades, [BUY_DAY]))
