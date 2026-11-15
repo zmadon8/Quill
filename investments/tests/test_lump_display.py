@@ -44,6 +44,17 @@ class LumpDisplayTests(InvTestCase):
         plain = lump_display.annotate(self.profile, list(Transaction.objects.filter(instrument=self.plain).select_related("instrument")))
         self.assertEqual((plain[0].lump_amount, plain[0].value_after), (None, None))
 
+    def test_value_after_falls_back_to_the_running_cost(self):
+        self.client.post(reverse("investments_txn_new_buy"), {"portfolio": self.portfolio.pk, "broker": self.zerodha.pk, "charges": "0",
+                                                              "date": "2024-05-01", "instrument": self.chit.pk, "lump_amount": "50"})
+        from investments.models import AltValue
+        AltValue.objects.filter(instrument=self.chit, date=d(2024, 1, 1)).delete()
+        AltValue.objects.filter(instrument=self.chit, date=d(2024, 5, 1)).delete()
+        rows = lump_display.annotate(self.profile, list(Transaction.objects.filter(instrument=self.chit).select_related("instrument").order_by("date")))
+        self.assertEqual(rows[0].value_after, D("100"))
+        self.assertEqual(rows[1].value_after, D("90"))   # the sale's own entry wins
+        self.assertEqual(rows[2].value_after, D("80") + D("50"))   # 100 less the 20 sold, plus 50
+
     def test_transactions_list_has_value_after_and_no_lump_units(self):
         html = self.client.get(reverse("investments_transactions")).content.decode()
         self.assertIn('<th class="r">Value after</th>', html)

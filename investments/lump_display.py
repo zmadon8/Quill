@@ -6,6 +6,7 @@ saved), in one query for the whole list. Other transactions get ``lump_amount`` 
 """
 from decimal import Decimal
 
+from investments import lots
 from investments.models import SIDE_BUY, STATUS_FINAL, AltValue
 from investments.services import core
 
@@ -21,7 +22,8 @@ def annotate(profile, txns):
     """Set ``lump_amount`` and ``value_after`` on each transaction of ``txns`` (a list; ``instrument`` must be loaded) and return it.
 
     ``value_after`` is the total value saved on the transaction's date by ``trade_prices.record_lump_purchase`` / ``record_lump_sale`` or typed by a
-    person; None (shown as a dash) when the date has no value entry."""
+    person. When the date has no value entry it is the running cost of what is held after that date (replayed from each investment's events,
+    one set of queries per investment, none per row); None only when nothing is held."""
     lumps = [t for t in txns if t.instrument.lump_sum]
     for t in txns:
         t.lump_amount = t.value_after = None
@@ -35,7 +37,21 @@ def annotate(profile, txns):
         amount = amount_of(t)
         t.lump_amount = None if amount is None else Decimal(amount).quantize(Decimal("0.01"))
         t.value_after = found.get((t.instrument_id, t.date))
+    _fill_running_cost(profile, [t for t in lumps if t.value_after is None])
     return txns
+
+
+def _fill_running_cost(profile, rows):
+    """Give rows with no value entry the cost of what the investment holds after their date."""
+    events, cost = {}, {}
+    for t in rows:
+        if t.instrument_id not in events:
+            events[t.instrument_id] = core.events_for(profile, t.instrument_id)
+        key = (t.instrument_id, t.date)
+        if key not in cost:
+            held = lots.replay(events[t.instrument_id], as_of=t.date)
+            cost[key] = held.cost() if held.units() > 0 else None
+        t.value_after = cost[key]
 
 
 def _rupees(value):
