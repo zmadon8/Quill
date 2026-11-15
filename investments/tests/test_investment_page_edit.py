@@ -96,6 +96,8 @@ class ManualPriceHistoryPageTests(InvTestCase):
 
     def test_a_private_manual_investment_shows_the_heading_and_the_tag(self):
         own = masters.create_instrument(self.profile, self.user, kind="share", name="Unlisted Co", asset_class="equity")
+        masters.update_shared_details(self.profile, self.user, own, price_source="manual")
+        own.refresh_from_db()
         self.buy(d(2024, 1, 5), 4, 250, instrument=own)
         r = self.client.get(reverse("investments_investment", args=[own.pk]))
         self.assertContains(r, "Manual Price History")
