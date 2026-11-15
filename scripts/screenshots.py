@@ -15,7 +15,12 @@ import sys
 from pathlib import Path
 from urllib.parse import urlparse
 
-WIDTHS = {"375": {"width": 375, "height": 800}, "1280": {"width": 1280, "height": 900}}
+WIDTHS = {"375": {"width": 375, "height": 800}, "1280": {"width": 1280, "height": 900},
+          "1600": {"width": 1600, "height": 900}}
+#: Pages taken at one width only: the wide Holdings table shows Index XIRR and Alpha without scrolling (a full-page shot cannot show a scrolled table).
+ONLY_AT = {"inv-holdings-wide": "1600"}
+#: Widths that take only the pages named in ONLY_AT for them.
+NARROW_ONLY = {"1600"}
 
 
 def pages(ids):
@@ -41,6 +46,8 @@ def pages(ids):
     out += [
         ("inv-overview", "/investments/dashboard/", None),
         ("inv-holdings", "/investments/holdings/", None),
+        ("inv-holdings-wide", "/investments/holdings/", None),
+        ("inv-holdings-scrolled", "/investments/holdings/", "scroll_table"),
         ("inv-investment", "/investments/holdings/{investment}/", None),
         ("inv-buy", "/investments/transactions/buy/", "buy_card"),
         ("inv-add-type", "/investments/holdings/add/", None),
@@ -62,6 +69,11 @@ def pages(ids):
         ("admin-users", "/users/", None),
     ]
     return out
+
+
+def scroll_table(page):
+    """Scroll the Holdings table to its right edge so the Index XIRR and Alpha columns show (the shot is taken at the table's top)."""
+    page.evaluate("document.querySelectorAll('.tw').forEach(function (el) { el.scrollLeft = el.scrollWidth; })")
 
 
 def buy_card(page):
@@ -124,6 +136,10 @@ def main():
                 print("Login failed", file=sys.stderr)
                 return 1
             for name, path, action in pages(ids):
+                if ONLY_AT.get(name, label) != label or (label in NARROW_ONLY and name not in ONLY_AT):
+                    continue
+                if name == "inv-holdings-scrolled" and label != "1280":
+                    continue
                 try:
                     path = path.format(**ids)
                 except KeyError as exc:
@@ -146,6 +162,8 @@ def main():
                         buy_card(page)
                     elif action == "sell_card":
                         sell_card(page)
+                    elif action == "scroll_table":
+                        scroll_table(page)
                     # A full-page capture draws a sticky bar where it sticks in the first viewport, not at the end of the page.
                     page.add_style_tag(content=".button-bar,.save-bar{position:static !important}")
                     page.screenshot(path=str(out / f"{name}-{label}.png"), full_page=True)

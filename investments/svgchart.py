@@ -1,6 +1,7 @@
 """Hand-drawn SVG line charts (plan 25.3: no chart library; every line differs by pattern as well as shade; a table version too).
 Pure Python. ``line_chart`` returns a dict the template draws: the polylines, axis ticks and the legend."""
 import json
+import math
 from datetime import date
 from decimal import Decimal
 
@@ -10,13 +11,32 @@ PATTERNS = ("", "6 4", "2 3", "10 3 2 3", "1 2", "8 2")
 SHADES = ("var(--s1)", "var(--s2)", "var(--s3)", "var(--ox)", "var(--s2)", "var(--s3)")
 
 
+def _small_step(raw):
+    """A 1, 2 or 5 step (times a power of ten) at or above ``raw``, for a range under five units."""
+    raw = max(raw, 1e-6)
+    power = 10 ** math.floor(math.log10(raw))
+    for m in (1, 2, 5, 10):
+        if m * power >= raw:
+            return round(m * power, 6)
+    return round(10 * power, 6)
+
+
+def _tick_labels(ticks):
+    """One label per tick; decimals are added until no two labels match (a flat price line spans well under one rupee)."""
+    for places in range(0, 5):
+        labels = [_fmt(t, places) for t in ticks]
+        if len(set(labels)) == len(labels):
+            return labels
+    return labels
+
+
 def _nice_ticks(lo, hi, count=5):
     if lo == hi:
         lo, hi = lo - 1, hi + 1
     span = hi - lo
     raw = span / count
     magnitude = 10 ** (len(str(int(abs(raw)))) - 1) if raw >= 1 else 1
-    step = max(magnitude, round(raw / magnitude) * magnitude) if raw >= 1 else round(raw, 2) or 0.01
+    step = max(magnitude, round(raw / magnitude) * magnitude) if raw >= 1 else _small_step(raw)
     start = (lo // step) * step
     ticks = []
     v = start
@@ -64,7 +84,7 @@ def line_chart(days, lines, width=900, height=280, pad=(56, 16, 24, 30), markers
             segments.append(current)
         paths.append({"label": label, "points": [" ".join(s) for s in segments], "dash": PATTERNS[k % len(PATTERNS)],
                       "stroke": SHADES[k % len(SHADES)], "width": 2 if k == 0 else 1.5})
-    yticks = [{"y": round(y(t), 1), "label": _fmt(t)} for t in ticks]
+    yticks = [{"y": round(y(t), 1), "label": label} for t, label in zip(ticks, _tick_labels(ticks))]
     marks = sorted({0, n // 4, n // 2, 3 * n // 4, n})
     xticks = [{"x": round(x(i), 1), "label": days[i].strftime("%b %Y" if (days[-1] - days[0]).days > 120 else "%-d %b")} for i in marks]
     # markers: [(date, label, "buy" or "sell")] drawn on the first line at the nearest sample date (the purchases and sales on a price chart)
@@ -97,13 +117,13 @@ def _hover(days, lines, x):
                       separators=(",", ":"), ensure_ascii=False)
 
 
-def _fmt(v):
+def _fmt(v, places=0):
     v = float(v)
     if abs(v) >= 1e7:
-        return f"{v / 1e7:.1f} cr"
+        return f"{v / 1e7:.{max(1, places)}f} cr"
     if abs(v) >= 1e5:
-        return f"{v / 1e5:.1f} lac"
-    return format_indian(v, 0)
+        return f"{v / 1e5:.{max(1, places)}f} lac"
+    return format_indian(v, places)
 
 
 def as_float(v):

@@ -223,11 +223,34 @@ class PageTests(InvTestCase):
         html = self.client.get(reverse("investments_holdings")).content.decode()
         head = html.split("<thead>")[1].split("</thead>")[0]
         self.assertLess(head.index("XIRR (a year)</th>"), head.index(">Index XIRR</th>"))
-        self.assertLess(head.index(">Index XIRR</th>"), head.index("Alpha (XIRR &minus; Index XIRR)</th>"))
+        self.assertLess(head.index(">Index XIRR</th>"), head.index(">Alpha</th>"))
         self.assertIn('data-col="index-xirr"', head)
         self.assertIn('data-col="alpha"', head)
         row = html.split("<tbody>")[1].split("</tr>")[0]
         self.assertEqual(row.count("<td"), head.count("<th"))
+
+    def test_holdings_shows_index_xirr_and_alpha_values_when_index_prices_exist(self):
+        from datetime import date, timedelta
+
+        from investments.models import Price
+
+        nifty = Instrument.objects.get(code="^NSEI")
+        start = date.today() - timedelta(days=500)
+        for n in range(0, 501, 5):
+            day = start + timedelta(days=n)
+            Price.objects.create(instrument=nifty, date=day, close=D(10000) * (D("1.0003") ** n), source="api")
+            Price.objects.create(instrument=self.reliance, date=day, close=D(100) * (D("1.0006") ** n), source="api")
+        Price.objects.create(instrument=nifty, date=date.today(), close=D(10000) * (D("1.0003") ** 500), source="api")
+        Price.objects.create(instrument=self.reliance, date=date.today(), close=D(100) * (D("1.0006") ** 500), source="api")
+        self.buy(start + timedelta(days=5), 10, 100)
+        html = self.client.get(reverse("investments_holdings")).content.decode()
+        row = html.split("<tbody>")[1].split("</tr>")[0]
+        cells = row.split("<td")
+        index_cell, alpha_cell = cells[9], cells[10]   # name, type, code, units, value, gain, first bought, XIRR, Index XIRR, Alpha
+        self.assertNotIn("&ndash;", index_cell)
+        self.assertNotIn("&ndash;", alpha_cell)
+        self.assertIn("%", index_cell)
+        self.assertIn("%", alpha_cell)
 
     def test_holdings_row_defaults_for_rows_cached_before_the_index_columns(self):
         from investments.services import holdings_page
