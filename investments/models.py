@@ -322,6 +322,7 @@ class AltValue(models.Model):
     nav = models.DecimalField(null=True, blank=True, **MONEY)
     total_value = models.DecimalField(**MONEY)
     note = models.CharField(max_length=200, blank=True, default="")
+    value_before = models.DecimalField(null=True, blank=True, **MONEY, help_text="Lump Sum: the whole holding's value just before that day's sale")
 
     class Meta:
         ordering = ["instrument_id", "date"]

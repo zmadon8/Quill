@@ -175,7 +175,7 @@ class Command(BaseCommand):
         return inst.pk
 
     def _lump_sum(self, profile, user):
-        """A Lump Sum alternative investment in crores: two purchases, a hand value and a part sale (value chart with a Before sale drop), so its page, the Holdings row and the Sell page have large amounts."""
+        """A Lump Sum alternative investment in crores: three purchases (one the day before the sale), a hand value and a part sale (value chart with a Before sale drop), so its page, the Holdings row and the Sell page have large amounts."""
         from datetime import date
         from decimal import Decimal
 
@@ -189,5 +189,7 @@ class Command(BaseCommand):
         transactions.add_lump_sum_transaction(profile, user, side="buy", date=date(2023, 4, 1), amount=Decimal("125000000"), value_after=Decimal("125000000"), **common)
         prices.set_alt_value(profile, user, inst, date(2023, 10, 1), Decimal("138000000"), note="Statement")
         transactions.add_lump_sum_transaction(profile, user, side="buy", date=date(2024, 1, 15), amount=Decimal("10000000"), **common)
-        transactions.add_lump_sum_transaction(profile, user, side="sell", date=date(2024, 10, 1), amount=Decimal("30000000"), remaining=Decimal("110000000"), **common)
+        # A purchase the day before the sale: the sale still shows its before and after values (D188)
+        transactions.add_lump_sum_transaction(profile, user, side="buy", date=date(2024, 9, 30), amount=Decimal("5000000"), value_after=Decimal("142000000"), **common)
+        transactions.add_lump_sum_transaction(profile, user, side="sell", date=date(2024, 10, 1), amount=Decimal("30000000"), remaining=Decimal("112000000"), **common)
         return inst.pk

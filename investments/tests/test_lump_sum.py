@@ -85,8 +85,8 @@ class LumpSumTests(InvTestCase):
         self.assertLess(abs(core.sell_total(sale) - D("4000000")), D("0.001"))     # proceeds are the amount typed
         value = AltValue.objects.get(profile=self.profile, instrument=self.chit, date=d(2024, 7, 1))
         self.assertEqual((value.total_value, value.note), (D("7000000"), "From sale"))
-        before = AltValue.objects.get(profile=self.profile, instrument=self.chit, date=d(2024, 6, 30))      # 40 lakh sold plus 70 lakh remaining
-        self.assertEqual((before.total_value, before.note), (D("11000000"), "Before sale"))
+        self.assertEqual(value.value_before, D("11000000"))      # 40 lakh sold plus 70 lakh remaining, kept on the sale date
+        self.assertFalse(AltValue.objects.filter(instrument=self.chit, date=d(2024, 6, 30)).exists())
         h = self.holding(d(2024, 7, 2))
         self.assertEqual(h.value, D("7000000"))
         self.assertLess(abs(h.realised - D("363636.36")), D("0.02"))                # 40 lakh less 4/11 of the 1 crore cost
@@ -98,7 +98,7 @@ class LumpSumTests(InvTestCase):
         sale = Transaction.objects.get(side="sell")
         self.assertEqual(sale.units, CRORE)
         self.assertEqual(AltValue.objects.get(instrument=self.chit, date=d(2024, 7, 1)).total_value, D("0"))
-        self.assertEqual(AltValue.objects.get(instrument=self.chit, date=d(2024, 6, 30)).total_value, D("11000000"))
+        self.assertEqual(AltValue.objects.get(instrument=self.chit, date=d(2024, 7, 1)).value_before, D("11000000"))
         h = self.holding(d(2024, 7, 2))
         self.assertEqual(h.units, D("0"))
         self.assertTrue(h.sold_out)
@@ -114,7 +114,7 @@ class LumpSumTests(InvTestCase):
         sale = Transaction.objects.get(side="sell")
         self.assertEqual(sale.units, D("6000000"))
         self.assertEqual(AltValue.objects.get(instrument=self.chit, date=d(2024, 7, 1)).total_value, D("4400000.00"))
-        self.assertEqual(AltValue.objects.get(instrument=self.chit, date=d(2024, 6, 30)).total_value, D("11000000.00"))   # 66 lakh sold plus 44 lakh left
+        self.assertEqual(AltValue.objects.get(instrument=self.chit, date=d(2024, 7, 1)).value_before, D("11000000.00"))   # 66 lakh sold plus 44 lakh left
 
     def test_a_sale_needs_the_amount_remaining(self):
         self.buy_lump()

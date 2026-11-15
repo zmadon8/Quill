@@ -138,7 +138,7 @@ def record_lump_purchase(profile, user, instrument, day, amount, value_after, he
         old = AltValue.objects.filter(profile=profile, instrument=instrument, date=day).first()
         # A typed value replaces one a person entered, but keeps that entry's note so deleting the purchase later does not delete it.
         keep = old.note if old is not None and not prices.is_derived(old.note) else prices.TAG_PURCHASE
-        prices.save_alt_value(profile, user, instrument, day, value_after, note=keep)
+        prices.save_alt_value(profile, user, instrument, day, value_after, note=keep, value_before=_before_after_purchase(profile, instrument, day))
         return
     if instrument.interest_rate or held_before <= 0:
         return
@@ -147,37 +147,55 @@ def record_lump_purchase(profile, user, instrument, day, amount, value_after, he
         return
     if last.date == day and last.note not in (prices.TAG_PURCHASE, prices.TAG_SALE, prices.TAG_OLD_REMAINING):
         return
-    prices.save_alt_value(profile, user, instrument, day, (last.total_value + amount).quantize(_PAISA), note=last.note if last.date == day else prices.TAG_PURCHASE)
+    prices.save_alt_value(profile, user, instrument, day, (last.total_value + amount).quantize(_PAISA),
+                          note=last.note if last.date == day else prices.TAG_PURCHASE, value_before=_before_after_purchase(profile, instrument, day))
+
+
+def _before_after_purchase(profile, instrument, day):
+    """What ``value_before`` becomes when a purchase changes the date's value. Same-day rule (D188): a date with both a purchase and a sale has
+    no ``value_before`` (the entry is the day's closing value, a net of both, and no step is drawn), whichever was recorded first. The purchase
+    changes the value the sale's ``value_before`` was measured against, so keeping it would show a wrong or negative "sold"."""
+    return None if Transaction.objects.filter(profile=profile, instrument=instrument, date=day, side=SIDE_SELL, status=STATUS_FINAL).exists() \
+        else prices.KEEP
 
 
 def record_lump_sale(profile, user, instrument, txn, amount, remaining, held_before):
-    """What a Lump Sum sale leaves: ``remaining`` on the sale date, and the value just before the sale (amount sold plus remaining) on the
-    day before, so the sale shows no false gain or loss. The earlier entry is skipped when nothing was held before the date, or when that
-    day already holds a value that is not a "Before sale" one (a person's value or a purchase value wins), or when a second sale on the same
-    date would replace the first sale's value (the first sale's pre-sale value is the one that applies)."""
+    """What a Lump Sum sale leaves: ``remaining`` as the value on the sale date, and the value just before the sale (amount sold plus
+    remaining) in that same entry's ``value_before``, so charts show no false gain or loss. Nothing is saved on the day before.
+
+    ``value_before`` is left empty when nothing was held before the date. A value a person typed on the sale date keeps its note (so deleting
+    the sale does not delete it); the remaining amount replaces its value, as the sale form says. A second sale on the same date keeps the first
+    sale's ``value_before``: it is the value before the day's first sale, and the later sale's amount plus remaining is not."""
     day = txn.date
-    prices.save_alt_value(profile, user, instrument, day, remaining, note=prices.TAG_SALE)
-    if held_before <= 0:
-        return
-    before = day - _ONE_DAY
-    row = AltValue.objects.filter(profile=profile, instrument=instrument, date=before).first()
-    if row is not None:
-        if row.note != prices.TAG_BEFORE_SALE:
-            return
-        if Transaction.objects.filter(profile=profile, instrument=instrument, date=day, side=SIDE_SELL, status=STATUS_FINAL).exclude(pk=txn.pk).exists():
-            return
-    prices.save_alt_value(profile, user, instrument, before, (amount + remaining).quantize(_PAISA), note=prices.TAG_BEFORE_SALE)
+    row = AltValue.objects.filter(profile=profile, instrument=instrument, date=day).first()
+    note = row.note if row is not None and not prices.is_derived(row.note) else prices.TAG_SALE
+    if held_before <= 0 or Transaction.objects.filter(profile=profile, instrument=instrument, date=day, side=SIDE_BUY, status=STATUS_FINAL).exists():
+        before = None   # nothing held before the date, or a purchase on the same date (same-day rule, D188: no step on a day with both)
+    elif row is not None and row.value_before is not None and Transaction.objects.filter(
+            profile=profile, instrument=instrument, date=day, side=SIDE_SELL, status=STATUS_FINAL).exclude(pk=txn.pk).exists():
+        before = row.value_before
+    else:
+        before = (amount + remaining).quantize(_PAISA)
+    prices.save_alt_value(profile, user, instrument, day, remaining, note=note, value_before=before)
 
 
 def forget_lump(profile, user, instrument, side, day):
-    """After a Lump Sum transaction is deleted: remove the entries made for it, unless another of the same kind remains on that date."""
+    """After a Lump Sum transaction is deleted: remove the entries made for it, unless another of the same kind remains on that date.
+
+    Same-day rule (D188): a date with a purchase and a sale holds one entry with no ``value_before``. Deleting either one leaves that entry's
+    value as it is (it cannot be split again) and ``value_before`` stays empty, so no step or "sold" figure appears until the sale is recorded
+    again. Deleting the sale removes a sale-noted entry (the day's value went with it); deleting the purchase removes a purchase-noted one."""
     final = Transaction.objects.filter(profile=profile, instrument=instrument, date=day, side=side, status=STATUS_FINAL)
     if final.exists():
         return
+    notes = (prices.TAG_SALE, prices.TAG_OLD_REMAINING) if side == SIDE_SELL else (prices.TAG_PURCHASE,)
+    for row in AltValue.objects.filter(profile=profile, instrument=instrument, date=day).select_related("instrument"):
+        if row.note in notes:
+            prices.remove_alt_value(profile, user, row)
+        elif side == SIDE_SELL and row.value_before is not None:
+            # a value a person typed stays; only the pre-sale value that belonged to the deleted sale goes
+            prices.save_alt_value(profile, user, instrument, day, row.total_value, nav=row.nav, note=row.note, value_before=None)
     if side == SIDE_SELL:
-        gone = [(day, (prices.TAG_SALE, prices.TAG_OLD_REMAINING)), (day - _ONE_DAY, (prices.TAG_BEFORE_SALE,))]
-    else:
-        gone = [(day, (prices.TAG_PURCHASE,))]
-    for when, notes in gone:
-        for row in AltValue.objects.filter(profile=profile, instrument=instrument, date=when, note__in=notes).select_related("instrument"):
+        # entries older versions saved on the day before
+        for row in AltValue.objects.filter(profile=profile, instrument=instrument, date=day - _ONE_DAY, note=prices.TAG_BEFORE_SALE).select_related("instrument"):
             prices.remove_alt_value(profile, user, row)
