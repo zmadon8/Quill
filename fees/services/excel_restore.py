@@ -55,6 +55,7 @@ from fees.errors import FeesError
 from fees.models import (
     Allocation,
     BankAccount,
+    Client,
     Firm,
     Group,
     Matter,
@@ -72,6 +73,8 @@ from fees.services.excel_backup import (
     OPTIONAL_SHEETS,
     SETTINGS_COLUMNS,
     TABLES,
+    WEB_CLIENTS_SHEET,
+    WEB_MATTER_CLIENTS_SHEET,
     WEB_MEMO_FLAGS_SHEET,
     LEGACY_WEB_SETTINGS_KEYS,
     WEB_SETTINGS_KEYS,
@@ -467,6 +470,32 @@ def _memo_flags(workbook, found):
     return flags, default
 
 
+def _restore_clients(profile, workbook, matter_ids):
+    """The web-only ``WebClients`` and ``WebMatterClients`` sheets: the clients, then each matter's client. Absent (an older file or a
+    desktop file): no clients. Returns the number of clients restored."""
+    if WEB_CLIENTS_SHEET not in workbook.sheetnames:
+        return 0
+    client_ids = {}
+    loader = _Loader(Client, client_ids)
+    seen = set()
+    for number, v in _read_sheet(workbook, WEB_CLIENTS_SHEET, ["id", "name"], ["id", "name"]):
+        name = _required_name(v["name"], WEB_CLIENTS_SHEET, number)
+        if name.lower() in seen:   # the names are unique per profile, whatever case
+            continue
+        seen.add(name.lower())
+        loader.add(_key(v["id"]), Client(profile=profile, name=name))
+    loader.flush()
+    by_client = {}
+    if WEB_MATTER_CLIENTS_SHEET in workbook.sheetnames:
+        for _number, v in _read_sheet(workbook, WEB_MATTER_CLIENTS_SHEET, ["matter_id", "client_id"], ["matter_id", "client_id"]):
+            matter_id, client_id = matter_ids.get(_key(v["matter_id"])), client_ids.get(_key(v["client_id"]))
+            if matter_id and client_id:
+                by_client.setdefault(client_id, []).append(matter_id)
+    for client_id, ids in by_client.items():
+        Matter.objects.filter(profile=profile, pk__in=ids).update(client_id=client_id)
+    return loader.count
+
+
 def _apply_web_settings(settings, workbook, found=None):
     """Apply the ``WebSettings`` sheet (key, value) when present; unknown keys are ignored."""
     if found is None:
@@ -686,7 +715,8 @@ def _load(profile, workbook):
             Matter(
                 profile=profile,
                 firm_id=_ref(firm_ids, v["firm_id"], "Matters", number, "firm"),
-                group_id=_ref(group_ids, v["partner_id"], "Matters", number, "group"),
+                # A blank partner_id is a matter with no partner (owner round 2026-11).
+                group_id=_ref(group_ids, v["partner_id"], "Matters", number, "partner") if _key(v["partner_id"]) is not None else None,
                 name=_required_name(v["name"], "Matters", number),
                 is_archived=_bool(v["is_archived"]),
                 short_name=_text(v["short_name"]),
@@ -694,7 +724,7 @@ def _load(profile, workbook):
                 addressee_line1=_text(v["addressee_line1"]),
                 addressee_line2=_text(v["addressee_line2"]),
                 court_name=_text(v["court_name"]),
-                client=_text(v["client"]),
+                client_position=_text(v["client"]),  # the backup format's "client" column is the Client Position
                 additional_details_left=_text(v["additional_details_left"]),
                 additional_details_right=_text(v["additional_details_right"]),
                 plaintiff_name=_text(v["plaintiff_name"]),
@@ -706,6 +736,8 @@ def _load(profile, workbook):
         )
     loader.flush()
     n_matters = loader.count
+
+    n_clients = _restore_clients(profile, workbook, matter_ids)
 
     # Bank accounts
     loader = _Loader(BankAccount, bank_ids)
@@ -749,7 +781,7 @@ def _load(profile, workbook):
             plaintiff_type=_text(v["plaintiff_type"]),
             defendant_name=_text(v["defendant_name"]),
             defendant_type=_text(v["defendant_type"]),
-            client=_text(v["client"]),
+            client_position=_text(v["client"]),  # the backup format's "client" column is the Client Position
             num_appearances=_int(v["num_appearances"], "Memos", number, "num_appearances"),
             dates_of_appearances=_text(v["dates_of_appearances"]),
             fees_per_appearance=_dec(v["fees_per_appearance"], "Memos", number, "fees_per_appearance"),
@@ -899,6 +931,7 @@ def _load(profile, workbook):
     counts = {
         "firms": n_firms,
         "groups": n_groups,
+        "clients": n_clients,
         "matters": n_matters,
         "bank_accounts": n_banks,
         "memos": n_memos,

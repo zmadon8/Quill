@@ -205,11 +205,10 @@ class InvestmentsUserPrefs(models.Model):
 
 
 class ProfileInvestment(models.Model):
-    """A profile's private details of a (shared) investment: hidden flag, notes, links, sectoral index (plan 16.3)."""
+    """A profile's private details of a (shared) investment: notes, links, sectoral index (plan 16.3)."""
 
     profile = models.ForeignKey("accounts.Profile", on_delete=models.CASCADE, related_name="+")
     instrument = models.ForeignKey(Instrument, on_delete=models.CASCADE, related_name="+")
-    hidden = models.BooleanField(default=False)
     notes = models.TextField(blank=True, default="")
     links = models.JSONField(default=list, blank=True)
     sectoral_index = models.ForeignKey(Instrument, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
@@ -655,6 +654,49 @@ class AlertState(models.Model):
     class Meta:
         constraints = [models.UniqueConstraint(fields=["profile", "key"], name="inv_alertstate_unique")]
 
+
+
+#: The report emails' cadences (owner round 2026-11): (key, label). Any number may be ticked at once; each sends its own email.
+CADENCE_WEEKLY, CADENCE_MONTHLY, CADENCE_QUARTERLY, CADENCE_ANNUAL = "weekly", "monthly", "quarterly", "annual"
+CADENCES = [(CADENCE_WEEKLY, "Weekly"), (CADENCE_MONTHLY, "Monthly"), (CADENCE_QUARTERLY, "Quarterly"), (CADENCE_ANNUAL, "Annual")]
+
+
+class PeriodicEmail(models.Model):
+    """A profile's report emails (Investments > Settings > Email reports): which cadences are on, and how far each has been sent.
+
+    The nightly job sends each ticked cadence once its period has ended (week Monday to Sunday, calendar month, calendar quarter, financial year
+    1 April to 31 March) to every person in ``PeriodicEmailRecipient`` who still uses the profile and has an email address. ``<cadence>_last_end`` is
+    the last day of the latest period sent, so a period is never sent twice and a missed night is made up on the next run."""
+
+    profile = models.OneToOneField("accounts.Profile", on_delete=models.CASCADE, related_name="+")
+    weekly = models.BooleanField(default=False)
+    monthly = models.BooleanField(default=False)
+    quarterly = models.BooleanField(default=False)
+    annual = models.BooleanField(default=False)
+    weekly_last_end = models.DateField(null=True, blank=True)
+    monthly_last_end = models.DateField(null=True, blank=True)
+    quarterly_last_end = models.DateField(null=True, blank=True)
+    annual_last_end = models.DateField(null=True, blank=True)
+    last_attempt_at = models.DateTimeField(null=True, blank=True)
+    last_ok = models.BooleanField(null=True, blank=True)
+    last_message = models.CharField(max_length=500, blank=True, default="")
+
+    def on(self, cadence):
+        return bool(getattr(self, cadence))
+
+    def last_end(self, cadence):
+        return getattr(self, f"{cadence}_last_end")
+
+
+class PeriodicEmailRecipient(models.Model):
+    """One person who gets a profile's report emails. Only someone with access to the profile can be chosen; the address and the name in
+    "Dear ..." are read from the user when each email is sent, and someone who has since lost access (or has no address) is skipped."""
+
+    profile = models.ForeignKey("accounts.Profile", on_delete=models.CASCADE, related_name="+")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+")
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["profile", "user"], name="inv_periodic_recipient_unique")]
 
 
 # ---------------------------------------------------------------------------------------------------------------------

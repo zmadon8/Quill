@@ -63,4 +63,4 @@ class HeldStatusTests(InvTestCase):
     def test_investment_page_of_a_never_bought_investment_shows_no_gain(self):
         response = self.client.get(reverse("investments_investment", args=[self.reliance.pk]))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Hide (not bought)")
+        self.assertNotContains(response, "Hide (")   # hidden investments were removed (D194)

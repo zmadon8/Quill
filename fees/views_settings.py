@@ -226,10 +226,10 @@ def _sample_memo():
         memo_number="2026-27/5",
         seq=5,
         date=datetime.date(2026, 7, 15),
-        client="Sample Client",
+        client_position="Sample Client Position",
         matter=SimpleNamespace(name="Sample Matter", short_name=""),
         firm=SimpleNamespace(name="Sample Firm"),
-        group=SimpleNamespace(name="Sample Group"),
+        group=SimpleNamespace(name="Sample Partner"),
     )
 
 

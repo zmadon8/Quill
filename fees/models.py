@@ -164,7 +164,7 @@ class Firm(models.Model):
 
 
 class Group(models.Model):
-    """A sub-division of a firm (DB table "partners"; the UI always says "Group").
+    """A sub-division of a firm (DB table "partners"; the UI says "Partner", and said "Group" before the 2026-11 owner round).
 
     Name unique within the firm, case-insensitive. ``profile`` is carried too so scoped queries and the
     profile purge and clear can filter by profile like every other table; the unique rule stays
@@ -191,6 +191,24 @@ class Group(models.Model):
         return self.name
 
 
+class Client(models.Model):
+    """The client a matter is for (owner round 2026-11): a list per profile, chosen on the matter, optional. Name unique per profile,
+    case-insensitive. Not the Client Position text (the party role typed on a matter and its memos)."""
+
+    profile = profile_fk()
+    name = models.CharField(max_length=200)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(Lower("name"), "profile", name="fees_client_name_unique_per_profile"),
+        ]
+
+    def __str__(self):
+        return self.name
+
+
 class Matter(models.Model):
     """A case or engagement under one firm and one group. Name unique within the firm, case-insensitive.
 
@@ -201,7 +219,10 @@ class Matter(models.Model):
 
     profile = profile_fk()
     firm = models.ForeignKey(Firm, on_delete=models.CASCADE, related_name="matters")
-    group = models.ForeignKey(Group, on_delete=models.CASCADE, related_name="matters")
+    # Optional (owner round 2026-11): a matter may have no partner.
+    group = models.ForeignKey(Group, null=True, blank=True, on_delete=models.SET_NULL, related_name="matters")
+    # Optional; deleting a client leaves its matters with no client.
+    client = models.ForeignKey(Client, null=True, blank=True, on_delete=models.SET_NULL, related_name="matters")
     name = models.CharField(max_length=150)
     is_archived = models.BooleanField(default=False)
     short_name = models.CharField(max_length=150, blank=True, default="")
@@ -210,7 +231,7 @@ class Matter(models.Model):
     addressee_line1 = models.CharField(max_length=300, blank=True, default="")
     addressee_line2 = models.CharField(max_length=300, blank=True, default="")
     court_name = models.TextField(blank=True, default="")  # multi-line Caption
-    client = models.CharField(max_length=300, blank=True, default="")
+    client_position = models.CharField(max_length=300, blank=True, default="")  # the party the work is for, as typed (was "client")
     additional_details_left = models.TextField(blank=True, default="")
     additional_details_right = models.TextField(blank=True, default="")
     plaintiff_name = models.CharField(max_length=300, blank=True, default="")
@@ -251,7 +272,7 @@ class Memo(models.Model):
     date = models.DateField(null=True, blank=True)
     matter = models.ForeignKey(Matter, on_delete=models.PROTECT, related_name="memos")
     firm = models.ForeignKey(Firm, on_delete=models.CASCADE, related_name="memos")
-    group = models.ForeignKey(Group, on_delete=models.CASCADE, related_name="memos")
+    group = models.ForeignKey(Group, null=True, blank=True, on_delete=models.SET_NULL, related_name="memos")  # the matter's, or none
     # Addressee and case snapshot (taken when the memo is created).
     addressee_line1 = models.CharField(max_length=300)
     addressee_line2 = models.CharField(max_length=300, blank=True, default="")
@@ -262,7 +283,7 @@ class Memo(models.Model):
     plaintiff_type = models.CharField(max_length=100, blank=True, default="")
     defendant_name = models.CharField(max_length=300, blank=True, default="")
     defendant_type = models.CharField(max_length=100, blank=True, default="")
-    client = models.CharField(max_length=300, blank=True, default="")
+    client_position = models.CharField(max_length=300, blank=True, default="")  # the party the work is for, as typed (was "client")
     # Fee lines.
     num_appearances = models.IntegerField(default=0)
     dates_of_appearances = models.TextField(blank=True, default="")

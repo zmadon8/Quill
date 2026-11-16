@@ -524,14 +524,14 @@ class CreateBasedOnTests(TestCase):
         src = memos.create_memo(
             self.profile,
             base_input(
-                self.matter.pk, client="Mr X", plaintiff_name="P"
+                self.matter.pk, client_position="Mr X", plaintiff_name="P"
             ),
         )
         form = memos.create_based_on(self.profile, src.pk)
         self.assertEqual(form["source_memo_id"], src.pk)
         self.assertEqual(form["date"], "")
         self.assertEqual(form["matter_id"], self.matter.pk)
-        self.assertEqual(form["client"], "Mr X")
+        self.assertEqual(form["client_position"], "Mr X")
         self.assertEqual(form["plaintiff_name"], "P")
         self.assertEqual(form["fees_per_appearance"], Decimal("5000.00"))
         self.assertNotIn("id", form)
@@ -845,14 +845,14 @@ class MemoPropertyTests(TestCase):
                     self.matter.pk,
                     num_appearances=n_app,
                     fees_per_appearance=f_app,
-                    client=client,
+                    client_position=client,
                 ),
             )
             form = memos.create_based_on(self.profile, src.pk)
             self.assertEqual(form["date"], "")
             self.assertEqual(form["matter_id"], self.matter.pk)
             self.assertEqual(form["num_appearances"], n_app)
-            self.assertEqual(form["client"], client)
+            self.assertEqual(form["client_position"], client)
             self.assertNotIn("id", form)
             self.assertNotIn("memo_number", form)
 

@@ -14,12 +14,14 @@ VIEWS = ("grouped", "summary", "flat")
 FLAT_SORTS = {
     "firm": lambda e: (e["firm_name"].lower(), e["partner_name"].lower(), e["matter_name"].lower(), _day(e)),
     "group": lambda e: (e["partner_name"].lower(), e["firm_name"].lower(), e["matter_name"].lower(), _day(e)),
+    # Client: matters with no client last.
+    "client": lambda e: (not e["client_name"], e["client_name"].lower(), e["firm_name"].lower(), e["matter_name"].lower(), _day(e)),
     "matter": lambda e: (e["matter_name"].lower(), e["firm_name"].lower(), _day(e)),
     "date": lambda e: (_day(e), e["firm_name"].lower(), e["matter_name"].lower()),
 }
 
 
-SORT_CHOICES = (("firm", "Firm"), ("group", "Group"), ("matter", "Matter"), ("date", "Date"), ("due", "Amount Due (High To Low)"))
+SORT_CHOICES = (("firm", "Firm"), ("group", "Partner"), ("client", "Client"), ("matter", "Matter"), ("date", "Date"), ("due", "Amount Due (High To Low)"))
 
 
 def _day(entry):

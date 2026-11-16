@@ -19,7 +19,7 @@
       <td class="r" data-sort="{% if h.index_xirr is None or h.blocked %}-999{% else %}{{ h.index_xirr|floatformat:6 }}{% endif %}">{% if h.index_xirr is None or h.blocked %}<span class="na">&ndash;</span>{% else %}{{ h.index_xirr|pct_signed }}{% endif %}</td>
       <td class="r" data-sort="{% if h.alpha is None or h.blocked %}-999{% else %}{{ h.alpha|floatformat:6 }}{% endif %}">{% if h.alpha is None or h.blocked %}<span class="na">&ndash;</span>{% else %}{{ h.alpha|pct_signed }}{% endif %}</td>
       <td class="r" data-sort="{{ h.price_date|date:'Ymd'|default:'0' }}">{% if h.price_date %}{{ h.price_date|date:"j M" }}{% else %}<span class="na">&ndash;</span>{% endif %}</td>
-      <td>{% if h.empty %}<span class="sq"></span>Not bought yet{% elif not h.is_held %}<span class="sq"></span>Sold out{% elif h.is_hidden %}Hidden{% else %}<span class="sq f"></span>Held{% endif %}</td>
+      <td>{% if h.empty %}<span class="sq"></span>Not bought yet{% elif not h.is_held %}<span class="sq"></span>Sold out{% else %}<span class="sq f"></span>Held{% endif %}</td>
       <td class="r spark-cell" data-sort="{{ h.spark.change|default_if_none:'' }}">{% include "investments/_spark.html" with s=h.spark %}</td>
     </tr>{% endfor %}
   </tbody>

@@ -73,6 +73,7 @@ PAGES = (
     _p("settings_display", "settings/display/", "Settings: Display", "settings", "Display", "Display choices."),
     _p("settings_insights", "settings/insights/", "Settings: Insights", "settings", "Insights", "Choose which insights to show."),
     _p("settings_indices", "settings/indices/", "Settings: Indices", "settings", "Indices", "The indices investments are compared with."),
+    _p("settings_email", "settings/email-reports/", "Settings: Email reports", "settings", "Email reports", "Weekly, monthly, quarterly and annual report emails."),
     # Catalogue (owner round 2026-11): the shared catalogue, price history and price sources are a page of their own, not Settings.
     _p("admin_catalogue", "catalogue/", "Investment catalogue", "catalogue", "Catalogue", "No shared investments yet."),
     _p("admin_price_history", "catalogue/price-history/", "Admin: Price history", "catalogue", "Price history", "Pruning, the price archive and pinned prices are set up in a later release.", admin=True),
@@ -114,6 +115,7 @@ SUB_ROWS = {
     "settings": (
         ("General", "settings"), ("Brokers", "settings_brokers"),
         ("Display", "settings_display"), ("Insights", "settings_insights"), ("Indices", "settings_indices"),
+        ("Email reports", "settings_email"),
     ),
     "catalogue": (
         ("Catalogue", "admin_catalogue"), ("Price history", "admin_price_history"), ("Price sources", "admin_prices"),

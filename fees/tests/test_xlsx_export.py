@@ -204,7 +204,7 @@ class FeebookTests(XlsxBase):
 
 class OutstandingTests(XlsxBase):
     ALL = [
-        "Firm", "Group", "Date", "Memo Number", "Matter Name", "Total Memo Amount", "Net of TDS",
+        "Firm", "Partner", "Client", "Date", "Memo Number", "Matter Name", "Total Memo Amount", "Net of TDS",
         "Already Paid", "Due",
     ]
 
@@ -215,12 +215,12 @@ class OutstandingTests(XlsxBase):
         self.assertEqual([c.value for c in rows[0]], self.ALL)
         body, total = rows[1:-1], rows[-1]
         self.assertTrue(body)
-        self.assertEqual(total[4].value, "TOTAL")
+        self.assertEqual(total[5].value, "TOTAL")
         self.assertTrue(all(c.font.b for c in total))
-        for index, label in ((5, "total"), (6, "net"), (7, "paid"), (8, "due")):
+        for index, label in ((6, "total"), (7, "net"), (8, "paid"), (9, "due")):
             self.assertEqual(total[index].value, sum(r[index].value for r in body), label)
             self.assertEqual(total[index].number_format, "#,##0")
-        self.assertEqual(body[0][2].value[2], ".")
+        self.assertEqual(body[0][3].value[2], ".")
 
     def test_visible_columns_and_total_label_position(self):
         _n, sheets = values(xlsx.export_outstanding(self.profile, visible_keys=["firm", "paid"]))

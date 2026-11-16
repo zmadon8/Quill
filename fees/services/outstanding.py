@@ -54,6 +54,7 @@ from decimal import Decimal
 from django.db.models.functions import Lower
 
 from fees.models import FeesSettings, Memo
+from fees.services import client_scope
 from fees.services import memo_fees
 from fees.services.money import round2
 
@@ -99,7 +100,7 @@ def _scoped_memos(profile, filters):
     """
     qs = (
         Memo.objects.filter(profile=profile, is_draft=False)
-        .select_related("firm", "matter", "group")
+        .select_related("firm", "matter", "group", "matter__client")
     )
 
     firm_id = filters.get("firm_id")
@@ -113,6 +114,8 @@ def _scoped_memos(profile, filters):
         pass
     elif group_id is not None:
         qs = qs.filter(group_id=group_id)
+
+    qs = client_scope.narrow(qs, filters.get("client_id"), "matter__")
 
     # Written-off memos are excluded unless explicitly included (Req #7).
     if not filters.get("include_written_off"):
@@ -208,7 +211,9 @@ def list_outstanding(profile, filters=None):
             "matter_name": memo.matter.name,
             "firm_id": memo.firm_id,
             "firm_name": memo.firm.name,
-            "partner_name": memo.group.name,
+            "partner_name": memo.group.name if memo.group_id else "",
+            "client_id": memo.matter.client_id,
+            "client_name": memo.matter.client.name if memo.matter.client_id else "",
             "total_fees": total_fees,
             "net_of_tds": net,
             "amount_paid": paid,
@@ -225,7 +230,9 @@ def list_outstanding(profile, filters=None):
                 "firm_id": memo.firm_id,
                 "firm_name": memo.firm.name,
                 "partner_id": memo.group_id,
-                "partner_name": memo.group.name,
+                "partner_name": memo.group.name if memo.group_id else "",
+                "client_id": memo.matter.client_id,
+                "client_name": memo.matter.client.name if memo.matter.client_id else "",
                 "entries": [],
                 "subtotal": Decimal("0.00"),
                 "subtotal_total": Decimal("0.00"),
@@ -333,7 +340,8 @@ def list_outstanding_by_firm(profile, filters=None, sort="amount", today=None):
 def list_outstanding_scope(profile, filters=None):
     """Distinct firms and partners (groups) with a qualifying outstanding memo.
 
-    Returns ``{"firms": [{"id", "name"}], "partners": [{"id", "firm_id", "name"}]}``
+    Returns ``{"firms": [{"id", "name"}], "partners": [{"id", "firm_id", "name"}], "clients": [{"id", "name"}], "no_client": bool}``
+    (``no_client``: some such memo's matter has no client)
     listing only the firms and groups that have at least one unpaid memo under the
     current view, so the Outstanding filter dropdowns show only names with
     applicable items. Honours ``include_written_off`` and ``overdue_only`` (the
@@ -349,13 +357,15 @@ def list_outstanding_scope(profile, filters=None):
     # and overdue_only only.
     qs = (
         Memo.objects.filter(profile=profile, is_draft=False)
-        .select_related("firm", "group")
+        .select_related("firm", "group", "matter__client")
     )
     if not filters.get("include_written_off"):
         qs = qs.filter(written_off=False)
 
     firms = {}
     partners = {}
+    clients = {}
+    no_client = False
     for memo in qs:
         total_fees = memo_fees.effective_total_fees(memo)
         paid = round2(memo.amount_paid)
@@ -364,7 +374,12 @@ def list_outstanding_scope(profile, filters=None):
         if overdue_only and not _is_overdue(memo, overdue_days):
             continue
         firms[memo.firm_id] = memo.firm.name
-        partners[memo.group_id] = {"firm_id": memo.firm_id, "name": memo.group.name}
+        if memo.group_id:
+            partners[memo.group_id] = {"firm_id": memo.firm_id, "name": memo.group.name}
+        if memo.matter.client_id:
+            clients[memo.matter.client_id] = memo.matter.client.name
+        else:
+            no_client = True
 
     firm_list = [
         {"id": firm_id, "name": name} for firm_id, name in firms.items()
@@ -377,4 +392,6 @@ def list_outstanding_scope(profile, filters=None):
     ]
     partner_list.sort(key=lambda p: p["name"].lower())
 
-    return {"firms": firm_list, "partners": partner_list}
+    client_list = sorted(({"id": pk, "name": name} for pk, name in clients.items()), key=lambda c: c["name"].lower())
+
+    return {"firms": firm_list, "partners": partner_list, "clients": client_list, "no_client": no_client}

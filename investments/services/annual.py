@@ -68,6 +68,8 @@ class Report:
     transactions: list = field(default_factory=list)
     awaiting: list = field(default_factory=list)
     by_portfolio: list = field(default_factory=list)
+    # The money in and out over the span, as XIRR takes it ((date, amount): paid in negative, received positive); the report emails use it.
+    flows: list = field(default_factory=list)
     provisional: bool = False
     approximate: bool = False
 
@@ -80,12 +82,36 @@ class Report:
         """Capital gains only; interest income is reported separately."""
         return self.short_gain + self.long_gain
 
+    def period_return(self):
+        """The return over the span as a fraction (0.021 is 2.1 percent), not a yearly rate: the Modified Dietz method, which weights each
+        purchase, sale and (when counted) dividend by the share of the span it was invested for. None when nothing was invested over the span."""
+        days = (self.closing - self.start).days + 1
+        if days <= 0:
+            return None
+        # Money put into the portfolio is the opposite of the investor's flow: a purchase (paid, negative) adds to the portfolio.
+        net_in = sum((-a for _d, a in self.flows), ZERO)
+        weighted = sum(((-a) * Decimal((self.closing - d).days) / Decimal(days) for d, a in self.flows), ZERO)
+        base = self.opening_value + weighted
+        if base <= 0:
+            return None
+        return float((self.closing_value - self.opening_value - net_in) / base)
+
 
 def build(profile, label, *, portfolio=None, broker=None, include_dividends=None, today=None, with_portfolios=True, events=None):
+    """The report for one financial year (``label`` such as ``"2025-26"``)."""
     today = today or date.today()
     settings_row = core.get_settings(profile, create=False)
     start, end, closing, completed = bounds(label, today)
-    report = Report(label, start, end, closing, completed, cutoff_for(settings_row, label))
+    return build_span(profile, start, end, closing, completed, label=label, cutoff=cutoff_for(settings_row, label), portfolio=portfolio, broker=broker,
+                      include_dividends=include_dividends, with_portfolios=with_portfolios, events=events, settings_row=settings_row)
+
+
+def build_span(profile, start, end, closing, completed, *, label, cutoff, portfolio=None, broker=None, include_dividends=None, with_portfolios=True,
+               events=None, settings_row=None):
+    """The same figures for any span of days, ``start`` to ``closing`` (both included). The periodic report emails use it for a week, a month or a
+    quarter, so their purchases, sales, gains and interest income are worked out exactly as the Annual Report works them out."""
+    settings_row = settings_row or core.get_settings(profile, create=False)
+    report = Report(label, start, end, closing, completed, cutoff)
     if include_dividends is None:
         include_dividends = settings_row.include_dividends
     opening_day = start - timedelta(days=1)
@@ -171,6 +197,7 @@ def build(profile, label, *, portfolio=None, broker=None, include_dividends=None
     report.sales.sort(key=lambda s: (s["sold"], s["name"]))
     report.interest_income = report.interest_income.quantize(Decimal("0.01"))  # a money figure, not a chain of high-precision division pieces
 
+    report.flows = list(flows)
     cash = [(opening_day, -report.opening_value)] if report.opening_value else []
     cash += flows
     if cash:
@@ -191,12 +218,12 @@ def build(profile, label, *, portfolio=None, broker=None, include_dividends=None
             report.by_portfolio.append((pfs[0].name, dataclasses.replace(report, by_portfolio=[])))
         else:
             for p in pfs:
-                sub = build(profile, label, portfolio=p.pk, broker=broker, include_dividends=include_dividends, today=today, with_portfolios=False,
-                            events=all_events)
+                sub = build_span(profile, start, end, closing, completed, label=label, cutoff=cutoff, portfolio=p.pk, broker=broker,
+                                 include_dividends=include_dividends, with_portfolios=False, events=all_events, settings_row=settings_row)
                 # only the summary figures are shown or exported per portfolio; drop the lists so they are not held for the whole page
                 sub.holdings, sub.allocation, sub.transactions, sub.awaiting, sub.sales = [], [], [], [], []
                 report.by_portfolio.append((p.name, sub))
     return report
 
 
-__all__ = ["bounds", "build", "year_choices", "cutoff_for", "KIND_INDEX", "SIDE_SELL"]
+__all__ = ["bounds", "build", "build_span", "year_choices", "cutoff_for", "KIND_INDEX", "SIDE_SELL"]

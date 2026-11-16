@@ -461,7 +461,7 @@ class FirmAndMatterWriteTests(WriteBase):
         self.assertRedirects(
             response, reverse("fees_firm_detail", kwargs={"firm_id": firm.pk}), fetch_redirect_response=False
         )
-        self.assertTrue(Group.objects.filter(firm=firm).exists())
+        self.assertFalse(Group.objects.filter(firm=firm).exists())  # a new firm has no partner (owner round 2026-11)
 
     def test_duplicate_firm_name_shows_the_form_again(self):
         response = self.post("fees_firm_new", {"name": "alpha & co"})
@@ -504,13 +504,14 @@ class FirmAndMatterWriteTests(WriteBase):
         self.post("fees_group_remove", {}, {"firm_id": firm.pk, "group_id": group.pk})
         self.assertFalse(Group.objects.filter(pk=group.pk).exists())
 
-    def test_a_group_with_matters_cannot_be_removed(self):
+    def test_removing_a_partner_with_matters_leaves_them_with_no_partner(self):
         firm = self.seed["firm_b"]
         group = Group.objects.get(firm=firm)  # Matter Three sits in it
         response = self.post("fees_group_remove", {}, {"firm_id": firm.pk, "group_id": group.pk})
         self.assertEqual(response.status_code, 302)
-        self.assertTrue(Group.objects.filter(pk=group.pk).exists())
-        self.assertTrue(any("matters" in m for m in self.messages(response)))
+        self.assertFalse(Group.objects.filter(pk=group.pk).exists())
+        self.assertTrue(Matter.objects.filter(profile=self.profile, firm=firm, group__isnull=True).exists())
+        self.assertTrue(any("no partner" in m for m in self.messages(response)))
 
     def test_a_group_of_another_firm_in_the_url_is_a_404(self):
         group_of_a = Group.objects.filter(firm=self.seed["firm_a"]).first()
@@ -545,10 +546,12 @@ class FirmAndMatterWriteTests(WriteBase):
         )
         self.assertEqual((matter.short_name, matter.court_name), ("M4", "Four Court"))
 
-    def test_create_matter_needs_a_firm_and_group(self):
-        response = self.post("fees_matter_new", self.matter_post(group_id=""))
+    def test_create_matter_needs_a_firm_but_not_a_partner(self):
+        response = self.post("fees_matter_new", self.matter_post(firm_id=""))
         self.assertEqual(response.status_code, 422)
-        self.assertContains(response, "Choose a firm and a group", status_code=422)
+        self.assertContains(response, "Choose a firm.", status_code=422)
+        self.post("fees_matter_new", self.matter_post(group_id=""))
+        self.assertIsNone(Matter.objects.get(profile=self.profile, name="Matter Four").group_id)
 
     def test_duplicate_matter_name(self):
         response = self.post("fees_matter_new", self.matter_post(name="matter one"))

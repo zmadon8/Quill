@@ -7,6 +7,7 @@ from the payment date, two queries whose rows are narrowed in memory), never one
 from __future__ import annotations
 
 from fees.models import Allocation, Firm, Group, Memo, Payment
+from fees.services import client_scope
 from fees.services.financial_year import derive_financial_year
 from fees.services.settings import get_settings
 
@@ -53,6 +54,7 @@ def memo_options(profile, filters, draft_mode):
     group_id = filters.get("group_id")
     if isinstance(group_id, int):
         base = base.filter(group_id=group_id)
+    base = client_scope.narrow(base, filters.get("client_id"), "matter__")
     matter_id = filters.get("matter_id")
     if matter_id is not None:
         base = base.filter(matter_id=matter_id)
@@ -77,6 +79,7 @@ def feebook_options(profile, filters, bank_accounts):
         allocations = Allocation.objects.filter(profile=profile).order_by()
         if group_id is not None:
             allocations = allocations.filter(memo__group_id=group_id)
+        allocations = client_scope.narrow(allocations, filters.get("client_id"), "memo__matter__")
         for day, firm_id, firm_name, bank_id in allocations.values_list(
             "payment__date_of_payment", "memo__firm_id", "memo__firm__name", "payment__bank_account_id"
         ).distinct():
@@ -114,7 +117,8 @@ def explore_options(profile, chosen):
 
 
 def narrow_outstanding_choices(profile, choices, filters):
-    """Narrow ``list_outstanding_scope`` output: groups to the chosen firm, firms to the chosen group's firm.
+    """Narrow ``list_outstanding_scope`` output: groups to the chosen firm, firms to the chosen group's firm. The clients are passed
+    through, with the chosen client added back when it has nothing outstanding in the view.
 
     Works on the lists already read; the chosen firm or group is added back (one small query each, only when it
     is missing) so it stays in its drop-down.
@@ -138,4 +142,13 @@ def narrow_outstanding_choices(profile, choices, filters):
         if row is not None:
             partners.append({"id": group_id, "firm_id": row[1], "name": row[0]})
             partners.sort(key=lambda p: p["name"].lower())
-    return {"firms": firms, "partners": partners}
+    clients = list(choices.get("clients", []))
+    client_id = filters.get("client_id")
+    if isinstance(client_id, int) and all(c["id"] != client_id for c in clients):
+        from fees.models import Client
+
+        name = Client.objects.filter(profile=profile, pk=client_id).values_list("name", flat=True).first()
+        if name is not None:
+            clients.append({"id": client_id, "name": name})
+            clients.sort(key=lambda c: c["name"].lower())
+    return {"firms": firms, "partners": partners, "clients": clients, "no_client": choices.get("no_client", False)}

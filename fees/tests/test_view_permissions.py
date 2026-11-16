@@ -24,7 +24,7 @@ from django.urls import reverse
 from accounts.models import ROLE_EDITOR, ROLE_READER, Profile, ProfileMembership
 from accounts.suite import KEY_FEES
 from fees import urls as fees_urls
-from fees.models import Group, SavedView
+from fees.models import Client, Group, SavedView
 from fees.services import word_template
 from fees.tests import xlsx_support as xs
 
@@ -78,6 +78,11 @@ ROUTES = {
     "fees_group_add": (W, ""),
     "fees_group_rename": (W, ""),
     "fees_group_remove": (W, ""),
+    "fees_firms_clients": (R, ""),
+    "fees_firms_client_add": (W, ""),
+    "fees_firms_client_detail": (R, ""),
+    "fees_firms_client_rename": (W, ""),
+    "fees_firms_client_delete": (W, ""),
     "fees_firm_statement": (R, ""),
     "fees_firm_statement_export": (R, ""),
     "fees_firm_ledger": (R, ""),
@@ -165,6 +170,7 @@ def id_kwargs(seed, profile):
         "payment_id": seed["single"]["id"],
         "account_id": seed["bank"].pk,
         "view_id": SavedView.objects.get(profile=profile).pk,
+        "client_id": Client.objects.get_or_create(profile=profile, name="Perm Client")[0].pk,
     }
 
 
@@ -181,7 +187,7 @@ class RouteTableTests(TestCase):
             self.assertIn(access, (R, RW, E, W, U, A, AW), name)
 
     def test_every_id_param_is_known(self):
-        known = {"memo_id", "firm_id", "group_id", "matter_id", "payment_id", "account_id", "view_id"}
+        known = {"memo_id", "firm_id", "group_id", "matter_id", "payment_id", "account_id", "view_id", "client_id"}
         for name, params in route_params().items():
             self.assertLessEqual(set(params), known, name)
 

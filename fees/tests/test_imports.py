@@ -37,7 +37,6 @@ from fees.services import imports, matters, memo_fees, memos
 from fees.services.financial_year import current_financial_year
 from fees.services.heavy import Busy
 from fees.services.imports import (
-    DEFAULT_GROUP_NAME,
     guess_mapping,
     import_memos,
     inspect_file,
@@ -774,7 +773,7 @@ class ImportMemosTests(TestCase):
         self.assertEqual(Payment.objects.get(profile=self.profile).date_of_payment, datetime.date(2026, 3, 1))
         self.assertEqual(result["memos_created"], 2)
 
-    def test_default_group_is_an_em_dash_and_partners_are_found_or_created(self):
+    def test_a_blank_partner_gives_no_partner_and_partners_are_found_or_created(self):
         rows = [
             {"Firm": "F", "Matter": "M1", "No": "INV-1", "Date": "2025-07-01", "Total": "1", "Paid": "0", "Partner": ""},
             {"Firm": "F", "Matter": "M2", "No": "INV-2", "Date": "2025-07-01", "Total": "1", "Paid": "0", "Partner": "Mr Shah"},
@@ -783,8 +782,8 @@ class ImportMemosTests(TestCase):
         import_memos(self.profile, rows, {**BASE_MAPPING, "partner_name": "Partner"})
         firm = Firm.objects.get(profile=self.profile)
         names = sorted(Group.objects.filter(firm=firm).values_list("name", flat=True))
-        self.assertEqual(names, sorted([EM_DASH, "Mr Shah"]))  # no group named after the firm
-        self.assertEqual(DEFAULT_GROUP_NAME, EM_DASH)
+        self.assertEqual(names, ["Mr Shah"])  # no partner named after the firm, and none for the blank cell
+        self.assertIsNone(Matter.objects.get(profile=self.profile, name="M1").group)
         self.assertEqual(Matter.objects.get(profile=self.profile, name="M3").group.name, "Mr Shah")
 
     def test_an_existing_matter_is_reused_even_under_another_group(self):
@@ -805,8 +804,8 @@ class ImportMemosTests(TestCase):
         ]
         import_memos(self.profile, rows, {**BASE_MAPPING, "court_name": "Court", "matter_client": "Client"})
         matter = Matter.objects.get(profile=self.profile)
-        self.assertEqual((matter.court_name, matter.client), ("High Court", "Cl 1"))
-        self.assertEqual(self.memo_by_number("INV-1").client, "Cl 1")  # memos snapshot their own row
+        self.assertEqual((matter.court_name, matter.client_position), ("High Court", "Cl 1"))
+        self.assertEqual(self.memo_by_number("INV-1").client_position, "Cl 1")  # memos snapshot their own row
         self.assertEqual(self.memo_by_number("INV-2").court_name, "High Court")
 
     def test_total_column_overrides_the_breakup_and_unmapped_total_uses_it(self):

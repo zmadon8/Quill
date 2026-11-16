@@ -26,7 +26,7 @@ MEMO_TEXT_FIELDS = (
     "plaintiff_type",
     "defendant_name",
     "defendant_type",
-    "client",
+    "client_position",
     "dates_of_appearances",
     "dates_of_conferences",
     "misc_drafting_description",
@@ -360,7 +360,8 @@ def echo_form(post, names):
 
 
 def matter_data_from_post(post):
-    """``(name, group_id, firm_id, memo_defaults)`` from a submitted matter form."""
+    """``(name, group_id, firm_id, memo_defaults)`` from a submitted matter form. A blank partner is ``matters.NO_PARTNER`` (the matter
+    has no partner), so a save can clear it."""
     defaults = {}
     for name in matter_service.MEMO_DEFAULT_FIELDS:
         if name == "addressee_use_firm_name":
@@ -371,7 +372,7 @@ def matter_data_from_post(post):
     group = (post.get("group_id") or "").strip()
     return (
         clean_text(post, "name", Matter, "Name"),
-        int(group) if group.isdigit() else None,
+        int(group) if group.isdigit() else matter_service.NO_PARTNER,
         int(firm) if firm.isdigit() else None,
         defaults,
     )

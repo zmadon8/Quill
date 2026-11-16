@@ -20,6 +20,7 @@ FEES_PROFILE_MODELS = [
     "fees.BankAccount",
     "fees.Firm",
     "fees.Group",
+    "fees.Client",
     "fees.Matter",
     "fees.Memo",
     "fees.NumberSequence",

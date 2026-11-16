@@ -53,7 +53,8 @@ ROW_DIMS = (
     ("financialYear", "Financial Year"),
     ("calendarMonth", "Calendar Month (across years)"),
     ("firm", "Firm"),
-    ("partner", "Group"),
+    ("partner", "Partner"),
+    ("client", "Client"),
     ("matter", "Matter"),
 )
 COL_DIMS = (

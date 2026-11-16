@@ -110,7 +110,8 @@ FEEBOOK_ALWAYS = ("date", "memo")
 
 OUTSTANDING_COLUMNS = (
     ("firm", "Firm", 28, False, lambda e: _text(e["firm_name"])),
-    ("partner", "Group", 22, False, lambda e: _text(e["partner_name"])),
+    ("partner", "Partner", 22, False, lambda e: _text(e["partner_name"])),
+    ("client", "Client", 22, False, lambda e: _text(e.get("client_name"))),
     ("date", "Date", 14, False, lambda e: format_date(e["date"])),
     ("memo", "Memo Number", 16, False, lambda e: _text(e["memo_number"])),
     ("matter", "Matter Name", 28, False, lambda e: _text(e["matter_name"])),

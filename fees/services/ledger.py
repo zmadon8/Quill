@@ -45,6 +45,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 from fees.models import Allocation, Memo
+from fees.services import client_scope
 from fees.services import memo_fees
 from fees.services.money import round2
 
@@ -110,6 +111,8 @@ def _apply_scope(qs, scope, prefix=""):
         pass
     elif group_id is not None:
         qs = qs.filter(**{f"{prefix}group_id": group_id})
+
+    qs = client_scope.narrow(qs, scope.get("client_id"), f"{prefix}matter__")
 
     return qs
 
@@ -246,6 +249,12 @@ def _scope_title(profile, scope):
     if firm_id is not None:
         firm = Firm.objects.filter(profile=profile, pk=firm_id).first()
         if firm is not None:
+            client_id = scope.get("client_id")
+            if client_id is not None:
+                from fees.models import Client
+
+                client = Client.objects.filter(profile=profile, pk=client_id).first() if client_id != client_scope.BLANK else None
+                return f"Statement - {firm.name} - {client.name if client else 'No client'}", ""
             return f"Statement - {firm.name}", ""
         return "Statement", ""
 

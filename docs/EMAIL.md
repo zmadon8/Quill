@@ -120,6 +120,9 @@ The app now protects against reason 2: when `EMAIL_HOST` is `smtp.gmail.com` (or
   * the **regular backup** (.json.gz, the whole suite; restore it on the Backups screen);
   * the **Case Law Diary Word copy** (.docx) and/or **HTML copy** (.html), one file per diary profile (with or without the Flags);
   * the **Fee Register Excel sheets** (.xlsx, the same workbook as Fee Register > Settings > Backup), one per Fee Register profile.
+  * the **Investments Holdings and Transactions** workbook (.xlsx: every investment with its status, and every transaction, transfer and dividend), one per Investments profile;
+  * the **Investments price archive** (.zip), always in emails of its own.
+  The page lists the kinds under a heading for the program each belongs to (Whole website, Case Law Diary, Fee Register, Investments).
   The Word and HTML files use the number and date formats of the Admin who last saved the schedule.
 * **One email by default:** everything that is due on a night goes in one email.
 * **Size of each email:** tick **Split into several emails** and set the most one email may carry (1 to 100 MB; it starts at `EMAIL_BACKUP_MAX_MB`, default 15). The files are then shared out over as few emails as possible (the fewest is found exactly for up to 12 files), keeping each kind of file together where that needs no extra email. A file larger than the limit by itself goes alone in its own email and the email says so.
@@ -127,6 +130,15 @@ The app now protects against reason 2: when `EMAIL_HOST` is `smtp.gmail.com` (or
 * The nightly cron job runs `python manage.py send_email_backups` right after the nightly backup. It sends the kinds that are due and does nothing otherwise. A planned day that was missed is made up once. A kind whose file could not be made or whose email failed is tried again the next night, and every Admin sees a warning bar at the top until a send succeeds.
 * Run by hand any time in the Render shell: `python manage.py send_email_backups --force`.
 * The same nightly job then runs `python manage.py refresh_offline_copies`, which remakes the saved copy behind each secret Offline link (Admins > Profiles > Offline link). A failure there does not affect backups or emails. Run it by hand any time in the Render shell.
+
+## 3a. Investments report emails
+
+**Investments > Settings > Email reports** (an Editor of the profile changes it; a Reader sees it):
+
+* Tick any of **Weekly**, **Monthly**, **Quarterly** and **Annual**; each sends its own email once its period ends (Monday to Sunday, the calendar month, the calendar quarter, the financial year 1 April to 31 March). A period that had already ended when you ticked it is not sent; **Send now** beside each sends the latest ended period at once.
+* Tick the people who get it. Only users of the profile can be chosen. Each gets an email of their own, to the address on their user account, starting "Dear" and their full name (else their user name). Someone who loses access or has no address is skipped and the page says so.
+* The email gives the growth over the period (a money-weighted return for the period, not a yearly rate) against the profile's Default Index, the market value of the profile and of each portfolio, and the purchases, sales, short and long term capital gains and interest income of the period, worked out exactly as the Annual Report does. It attaches an Excel workbook of the holdings at the end of the period and every transaction, transfer and dividend up to then; the annual email also attaches the Annual Report for that year.
+* The nightly job runs `python manage.py send_report_emails` after the alert emails. A missed night is made up the next night; a period is never sent twice. Problems show under **Last send** on the page.
 
 ### Please think about privacy
 

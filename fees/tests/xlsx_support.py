@@ -12,6 +12,7 @@
 import io
 from decimal import Decimal
 
+from fees.tests.partner_support import firm_with_partner
 from fees.models import (
     Allocation,
     BankAccount,
@@ -69,10 +70,10 @@ def status_dots_on(profile):
 
 def seed_web_data(profile):
     """Fill ``profile`` through the services. Returns a dict of the interesting objects."""
-    firm_a = firms.create_firm(profile, "Alpha & Co")
+    firm_a = firm_with_partner(profile, "Alpha & Co")
     group_a = Group.objects.get(firm=firm_a)
     group_a2 = firms.add_group(profile, firm_a.pk, "Second Group")
-    firm_b = firms.create_firm(profile, "Beta Ltd")
+    firm_b = firm_with_partner(profile, "Beta Ltd")
     group_b = Group.objects.get(firm=firm_b)
     matter_1 = matters.create_matter(
         profile, firm_a.pk, group_a.pk, "Matter One",
@@ -164,7 +165,7 @@ def snapshot(profile):
     """A comparable picture of the profile's fee data with no database ids in it."""
     memo_rows = Memo.objects.filter(profile=profile).values_list(
         "memo_number", "financial_year", "seq", "date", "matter__name", "firm__name", "group__name",
-        "addressee_line1", "addressee_line2", "client", "num_appearances", "fees_per_appearance",
+        "addressee_line1", "addressee_line2", "client_position", "matter__client__name", "num_appearances", "fees_per_appearance",
         "num_conferences", "fees_per_conference", "fees_misc_drafting", "num_drafts",
         "custom_fees_appearances", "custom_fees_conferences", "custom_fees_misc", "custom_total_fees",
         "written_off", "is_draft", "total_fees", "amount_paid", "amount_received", "amount_tds",

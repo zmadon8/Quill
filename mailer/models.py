@@ -10,15 +10,25 @@ FREQUENCY_CHOICES = [
 #: What can be emailed, in the order the page and the emails list them: (key, label).
 KIND_DATA, KIND_WORD, KIND_HTML, KIND_EXCEL = "data", "word", "html", "excel"
 KIND_ARCHIVE = "archive"
+KIND_INVBOOK = "invbook"
 KINDS = [
     (KIND_DATA, "Regular backup (.json.gz)"),
     (KIND_WORD, "Case Law Diary: Word copy (.docx)"),
     (KIND_HTML, "Case Law Diary: HTML copy (.html)"),
     (KIND_EXCEL, "Fee Register: Excel sheets (.xlsx)"),
+    (KIND_INVBOOK, "Investments: Holdings and Transactions (.xlsx)"),
     (KIND_ARCHIVE, "Investments: price archive (.zip)"),
 ]
 KIND_KEYS = [key for key, _ in KINDS]
 KIND_LABELS = dict(KINDS)
+#: The Email Backups page lists the kinds under a heading for the program they belong to: (program key, kinds, label under that heading).
+#: "suite" is the whole website (the regular backup); the other keys are ``accounts.suite`` program keys, so a renamed program shows its own name.
+KIND_GROUPS = [
+    ("suite", [(KIND_DATA, "Regular backup (.json.gz)")]),
+    ("diary", [(KIND_WORD, "Word copy (.docx)"), (KIND_HTML, "HTML copy (.html)")]),
+    ("fees", [(KIND_EXCEL, "Excel sheets (.xlsx)")]),
+    ("investments", [(KIND_INVBOOK, "Holdings and Transactions (.xlsx)"), (KIND_ARCHIVE, "Price archive (.zip)")]),
+]
 #: Default largest total of attachments in one email when splitting is on (Gmail refuses a message over 25 MB).
 DEFAULT_MAX_MB = 15
 WEEKDAY_CHOICES = [
@@ -56,6 +66,12 @@ class EmailBackupSchedule(models.Model):
     excel_weekday = models.PositiveSmallIntegerField(choices=WEEKDAY_CHOICES, default=0)
     excel_day_of_month = models.PositiveSmallIntegerField(default=1)
     excel_last_sent_at = models.DateTimeField(null=True, blank=True)
+    # Investments Holdings and Transactions workbook (owner round 2026-11): one .xlsx per Investments profile. Off by default.
+    invbook_enabled = models.BooleanField(default=False)
+    invbook_frequency = models.CharField(max_length=10, choices=FREQUENCY_CHOICES, default=FREQ_WEEKLY)
+    invbook_weekday = models.PositiveSmallIntegerField(choices=WEEKDAY_CHOICES, default=0)
+    invbook_day_of_month = models.PositiveSmallIntegerField(default=1)
+    invbook_last_sent_at = models.DateTimeField(null=True, blank=True)
     # Investments price archive (plan 17.5). Off by default; monthly. Always sent in emails of its own (see services._send_archive).
     archive_enabled = models.BooleanField(default=False)
     archive_frequency = models.CharField(max_length=10, choices=FREQUENCY_CHOICES, default=FREQ_MONTHLY)

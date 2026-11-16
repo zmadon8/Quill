@@ -1,4 +1,4 @@
-"""Firm pages: the list, one firm (its groups and matters), the new and edit forms, status and groups."""
+"""Firm pages: the list, one firm (its partners and matters), the new and edit forms, status and partners; and the Clients pages."""
 from django.contrib import messages
 from django.http import Http404
 from django.shortcuts import redirect
@@ -7,9 +7,9 @@ from django.views.decorators.http import require_http_methods, require_safe, req
 from fees import forms, scope
 from fees.decorators import fees_editor, fees_read_write, fees_reader, handle_fees_errors
 from fees.errors import FeesError
-from fees.models import Firm
+from fees.models import Firm, Matter
 from fees.pages import render_page
-from fees.services import firms
+from fees.services import clients, firms
 
 STATUS_FILTERS = ("all", "active", "archived")
 
@@ -79,6 +79,7 @@ def firm_detail(request, firm_id):
             "firm": detail["firm"],
             "groups": detail["groups"],
             "matter_rows": rows,
+            "unpartnered": any(row["matter"].group_id is None for row in rows),
             "matters_shown": shown,
             "matters_filters": ("all", "active"),
         },
@@ -126,7 +127,7 @@ def _group_of_firm(profile, firm_id, group_id):
     for group in firms.get_firm(profile, firm_id)["groups"]:
         if group.pk == group_id:
             return group
-    raise Http404("Group not found")
+    raise Http404("Partner not found")
 
 
 @fees_reader
@@ -138,7 +139,7 @@ def group_detail(request, firm_id, group_id):
     detail = firms.get_firm(profile, firm_id)
     group = next((g for g in detail["groups"] if g.pk == group_id), None)
     if group is None:
-        raise Http404("Group not found")
+        raise Http404("Partner not found")
     shown = request.GET.get("matters")
     if shown not in ("all", "active"):
         shown = default_list_filter(settings)
@@ -164,7 +165,7 @@ def group_detail(request, firm_id, group_id):
 def group_add(request, firm_id):
     profile, _settings = scope.context(request)
     firms.add_group(profile, firm_id, request.POST.get("name", ""))
-    messages.success(request, "Group added.")
+    messages.success(request, "Partner added.")
     return redirect("fees_firm_detail", firm_id=firm_id)
 
 
@@ -175,7 +176,7 @@ def group_rename(request, firm_id, group_id):
     profile, _settings = scope.context(request)
     _group_of_firm(profile, firm_id, group_id)
     firms.update_group(profile, group_id, request.POST.get("name", ""))
-    messages.success(request, "Group renamed.")
+    messages.success(request, "Partner renamed.")
     return redirect("fees_firm_detail", firm_id=firm_id)
 
 
@@ -185,6 +186,69 @@ def group_rename(request, firm_id, group_id):
 def group_remove(request, firm_id, group_id):
     profile, _settings = scope.context(request)
     _group_of_firm(profile, firm_id, group_id)
-    firms.remove_group(profile, firm_id, group_id)
-    messages.success(request, "Group removed.")
+    moved = firms.remove_group(profile, firm_id, group_id)
+    messages.success(request, "Partner removed." + (f" {moved} matter{'s' if moved != 1 else ''} now ha{'ve' if moved != 1 else 's'} no partner." if moved else ""))
     return redirect("fees_firm_detail", firm_id=firm_id)
+
+
+# ---------------------------------------------------------------------------
+# Clients (owner round 2026-11)
+# ---------------------------------------------------------------------------
+
+@fees_reader
+@handle_fees_errors()
+@require_safe
+def client_list(request):
+    profile, _settings = scope.context(request)
+    return render_page(request, "fees/clients.html", {"client_rows": clients.list_clients(profile)})
+
+
+@fees_editor
+@handle_fees_errors()
+@require_POST
+def client_add(request):
+    profile, _settings = scope.context(request)
+    client = clients.create_client(profile, request.POST.get("name", ""))
+    messages.success(request, f"Client {client.name} added.")
+    return redirect("fees_firms_clients")
+
+
+@fees_reader
+@handle_fees_errors()
+@require_safe
+def client_detail(request, client_id):
+    """One client: its matters (any firm), with links to the memos, the outstanding fees and the Feebook narrowed to it."""
+    profile, settings = scope.context(request)
+    client = next((c for c in clients.list_clients(profile) if c.pk == client_id), None)
+    if client is None:
+        raise Http404("Client not found")
+    shown = request.GET.get("matters")
+    if shown not in ("all", "active"):
+        shown = default_list_filter(settings)
+    rows = Matter.objects.filter(profile=profile, client_id=client_id).select_related("firm", "group").order_by("firm__name", "name")
+    if shown == "active":
+        rows = rows.filter(is_archived=False)
+    return render_page(request, "fees/client_detail.html", {
+        "client": client, "matter_rows": list(rows), "matters_shown": shown, "matters_filters": ("all", "active"),
+    })
+
+
+@fees_editor
+@handle_fees_errors()
+@require_POST
+def client_rename(request, client_id):
+    profile, _settings = scope.context(request)
+    clients.rename_client(profile, client_id, request.POST.get("name", ""))
+    messages.success(request, "Client renamed.")
+    return redirect("fees_firms_client_detail", client_id=client_id)
+
+
+@fees_editor
+@handle_fees_errors()
+@require_POST
+def client_delete(request, client_id):
+    profile, _settings = scope.context(request)
+    count = clients.delete_client(profile, client_id)
+    messages.success(request, "Client deleted." + (f" {count} matter{'s' if count != 1 else ''} now ha{'ve' if count != 1 else 's'} no client." if count else ""))
+    return redirect("fees_firms_clients")
+

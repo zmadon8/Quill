@@ -33,7 +33,8 @@ from accounts.models import Profile
 from accounts.suite import KEY_FEES
 from fees.errors import FeesError
 from fees.models import Matter, Memo
-from fees.services.firms import add_group, create_firm
+from fees.services.firms import add_group
+from fees.tests.partner_support import firm_with_partner as create_firm
 from fees.services.matters import (
     MAX_MATTER_NAME,
     archive_matter,

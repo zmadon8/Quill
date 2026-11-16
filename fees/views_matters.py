@@ -1,5 +1,6 @@
 """Matter pages: one matter (with its memos), the new and edit forms, and archive."""
 from django.contrib import messages
+from django.db import transaction
 from django.http import Http404
 from django.shortcuts import redirect
 from django.views.decorators.http import require_http_methods, require_safe, require_POST
@@ -8,17 +9,17 @@ from fees import forms, scope
 from fees.decorators import fees_editor, fees_read_write, fees_reader, handle_fees_errors
 from fees.errors import FeesError
 from fees.pages import int_or_none, render_page
-from fees.services import firms, matters, memo_lists
+from fees.services import clients, firms, matters, memo_lists
 from fees.services.matters import MEMO_DEFAULT_FIELDS
 
 
 def _form_values(matter=None):
     values = {name: "" for name in MEMO_DEFAULT_FIELDS if name != "addressee_use_firm_name"}
-    values.update(name="", firm_id="", group_id="", addressee_use_firm_name=False)
+    values.update(name="", firm_id="", group_id="", addressee_use_firm_name=False, client_id="", client_new="")
     if matter is not None:
         for name in MEMO_DEFAULT_FIELDS:
             values[name] = getattr(matter, name)
-        values.update(name=matter.name, firm_id=matter.firm_id, group_id=matter.group_id)
+        values.update(name=matter.name, firm_id=matter.firm_id, group_id=matter.group_id, client_id=matter.client_id or "")
     return values
 
 
@@ -27,7 +28,13 @@ def _echo(post):
     values["addressee_use_firm_name"] = post.get("addressee_use_firm_name") == "1"
     values["firm_id"] = int_or_none(post.get("firm_id")) or ""
     values["group_id"] = int_or_none(post.get("group_id")) or ""
+    values["client_id"] = int_or_none(post.get("client_id")) or ""
     return values
+
+
+def _chosen_client(profile, post):
+    """The Client the form chose (a typed new name wins over the list), or None."""
+    return clients.resolve(profile, int_or_none(post.get("client_id")), post.get("client_new", ""))
 
 
 def _form_page(request, matter, form, errors=None, status=200):
@@ -42,6 +49,7 @@ def _form_page(request, matter, form, errors=None, status=200):
             "form": form,
             "firm_choices": firms.list_firms(profile),
             "group_choices": groups,
+            "client_choices": clients.choices(profile),
             "errors": errors or [],
         },
         status=status,
@@ -62,9 +70,12 @@ def matter_new(request):
     if request.method == "POST":
         try:
             name, group_id, firm_id, defaults = forms.matter_data_from_post(request.POST)
-            if firm_id is None or group_id is None:
-                raise FeesError("INVALID_MATTER", "Choose a firm and a group.")
-            matter = matters.create_matter(profile, firm_id, group_id, name, **defaults)
+            if firm_id is None:
+                raise FeesError("INVALID_MATTER", "Choose a firm.")
+            with transaction.atomic():   # a new client typed on a form that then fails is not kept
+                client = _chosen_client(profile, request.POST)
+                matter = matters.create_matter(profile, firm_id, group_id, name, **defaults)
+                clients.set_matter_client(profile, matter, client)
         except FeesError as err:
             return _failed(request, err, None)
         messages.success(request, f"Matter {matter.name} created.")
@@ -107,9 +118,12 @@ def matter_edit(request, matter_id):
     if request.method == "POST":
         try:
             name, group_id, firm_id, defaults = forms.matter_data_from_post(request.POST)
-            matter = matters.update_matter(
-                profile, matter_id, name=name, firm_id=firm_id, group_id=group_id, **defaults
-            )
+            with transaction.atomic():
+                client = _chosen_client(profile, request.POST)
+                matter = matters.update_matter(
+                    profile, matter_id, name=name, firm_id=firm_id, group_id=group_id, **defaults
+                )
+                clients.set_matter_client(profile, matter, client)
         except FeesError as err:
             return _failed(request, err, matter)
         messages.success(request, "Matter saved.")
@@ -117,7 +131,7 @@ def matter_edit(request, matter_id):
     form = _form_values(matter)
     firm_id = int_or_none(request.GET.get("firm"))
     if firm_id is not None and firm_id != matter.firm_id:
-        # Moving the matter to another firm: show that firm's groups.
+        # Moving the matter to another firm: show that firm's partners.
         form["firm_id"] = firm_id
         form["group_id"] = ""
     return _form_page(request, matter, form)

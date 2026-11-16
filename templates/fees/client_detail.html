@@ -1,0 +1,17 @@
+{% extends "fees/base_fees.html" %}
+{% block page_width %}w-5xl{% endblock %}
+{% block page_title %}{{ client.name }} - Clients - {{ program_label }}{% endblock %}
+{% block crumb_nav %}{% url 'fees_firms_clients' as back %}{% include "fees/_back.html" with url=back label="Clients" %}{% endblock %}
+{% block content %}
+<div class="page-head"><h1>{{ client.name }} <small class="muted">(client)</small></h1>
+<p class="page-actions" role="group" aria-label="Client actions"><a class="button small secondary" href="{% url 'fees_memos' %}?client={{ client.pk }}">Memos</a> <a class="button small secondary" href="{% url 'fees_outstanding_detail' %}?client={{ client.pk }}">View Outstanding</a> <a class="button small secondary" href="{% url 'fees_feebook' %}?client={{ client.pk }}">Feebook</a>{% if can_edit %} <a class="button small secondary" href="#edit-client">Edit Client</a>{% endif %}</p></div>
+{% if can_edit %}<section id="edit-client" class="card" aria-labelledby="edit-client-heading"><h2 id="edit-client-heading">Edit Client</h2>
+<form method="post" action="{% url 'fees_firms_client_rename' client.pk %}" class="fees-form">{% csrf_token %}<label>Client name <input type="text" name="name" value="{{ client.name }}" maxlength="200" required></label> <button type="submit" class="small secondary">Rename</button></form>
+<form method="post" action="{% url 'fees_firms_client_delete' client.pk %}" class="fees-form">{% csrf_token %}<button type="submit" class="small ghost" onclick="return confirm('Delete this client? Its matters stay, with no client.')">Delete Client</button> <span class="muted">Its matters and memos stay; they simply have no client.</span></form></section>{% endif %}
+<section aria-labelledby="matters-heading">
+<h2 id="matters-heading">Matters</h2>
+<nav class="list-filter" aria-label="Show matters">{% for s in matters_filters %}{% if s == matters_shown %}<strong aria-current="true">{% if s == 'active' %}Active Only{% else %}All{% endif %}</strong>{% else %}<a href="?matters={{ s }}">{% if s == 'active' %}Active Only{% else %}All{% endif %}</a>{% endif %}{% if not forloop.last %} | {% endif %}{% endfor %}</nav>
+<div class="card group-card">
+<ul class="matter-list">{% for m in matter_rows %}<li><a href="{% url 'fees_matter_detail' m.pk %}">{{ m.name }}</a> <span class="muted">&middot; <a href="{% url 'fees_firm_detail' m.firm_id %}">{{ m.firm.name }}</a> &middot; {% if m.group %}{{ m.group.name }}{% else %}No partner{% endif %}</span>{% if m.is_archived %} <span class="muted">(archived)</span>{% endif %}</li>{% empty %}<li class="muted">No matters.</li>{% endfor %}</ul></div>
+</section>
+{% endblock %}

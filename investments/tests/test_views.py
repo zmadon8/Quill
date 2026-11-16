@@ -257,7 +257,7 @@ class PageTests(InvTestCase):
 
         data = {"instrument": {"id": 1, "name": "X", "code": "X", "kind": "share", "price_source": "manual", "kind_label": "Share"},
                 "units": "1", "cost": "1", "value": "1", "awaiting": "0", "first_date": None, "price_date": None, "xirr": None, "unpriced": False,
-                "stale": False, "blocked": False, "is_held": True, "sold_out": False, "empty": False, "hidden": False, "spark": None}
+                "stale": False, "blocked": False, "is_held": True, "sold_out": False, "empty": False, "spark": None}
         row = holdings_page.Row(data)
         self.assertEqual((row.index_xirr, row.alpha), (None, None))
         self.assertEqual(holdings_page.Row({**data, "index_xirr": 0.1, "alpha": 0.02}).alpha, 0.02)

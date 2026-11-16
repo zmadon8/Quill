@@ -36,6 +36,7 @@ REAL = {
     "settings_display": vm.settings_display,
     "settings_insights": vm.settings_insights,
     "settings_indices": vm.settings_indices,
+    "settings_email": vm.settings_email,
     "performance": vr.performance_view,
     "charts": vr.charts_view,
     "value": vr.value_view,

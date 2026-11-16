@@ -39,6 +39,7 @@ from decimal import Decimal
 from django.db.models import Count, Max
 
 from fees.models import FeesSettings, Memo
+from fees.services import client_scope
 from fees.services import memo_fees
 from fees.services.money import round2
 
@@ -165,6 +166,8 @@ def _filtered_queryset(profile, filters, draft_mode):
     elif group_id is not None:
         qs = qs.filter(group_id=group_id)
 
+    qs = client_scope.narrow(qs, filters.get("client_id"), "matter__")
+
     selected = filters.get("selected_matter_ids")
     if selected:
         qs = qs.filter(matter_id__in=list(selected))
@@ -180,7 +183,7 @@ def list_memos(profile, filters=None, draft_mode="exclude_drafts"):
     """Lists memos for ``profile`` as list-item dicts, newest first (R-MEMO-7).
 
     ``filters`` is an optional dict with any of ``financial_year``, ``firm_id``,
-    ``group_id`` (alias ``partner_id``), ``matter_id``, ``selected_matter_ids``
+    ``group_id`` (alias ``partner_id``), ``client_id`` (an id, or ``client_scope.BLANK``), ``matter_id``, ``selected_matter_ids``
     and ``unpaid_only``. ``draft_mode`` is ``"exclude_drafts"`` (default, the main
     Memos page), ``"drafts_only"`` or ``"all"``.
 

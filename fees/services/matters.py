@@ -38,6 +38,7 @@ __all__ = [
     "MAX_MATTER_NAME",
     "validate_name",
     "MEMO_DEFAULT_FIELDS",
+    "NO_PARTNER",
     "create_matter",
     "update_matter",
     "list_matters",
@@ -55,7 +56,7 @@ MEMO_DEFAULT_FIELDS = (
     "addressee_line2",
     "addressee_use_firm_name",
     "court_name",
-    "client",
+    "client_position",
     "additional_details_left",
     "additional_details_right",
     "plaintiff_name",
@@ -81,15 +82,21 @@ def validate_name(raw):
     return trimmed
 
 
+#: ``group_id`` meaning "no partner" (owner round 2026-11). ``update_matter`` keeps ``None`` as "unchanged", so clearing needs this.
+NO_PARTNER = "none"
+
+
 def _group_in_firm_or_raise(profile, firm_id, group_id):
-    """Returns the group if it belongs to ``firm_id`` in this profile, else raises."""
+    """Returns the group if it belongs to ``firm_id`` in this profile, else raises. No partner (``None`` / ``NO_PARTNER``) gives None."""
+    if group_id in (None, NO_PARTNER):
+        return None
     group = Group.objects.filter(
         profile=profile, pk=group_id, firm_id=firm_id
     ).first()
     if group is None:
         raise FeesError(
             "PARTNER_NOT_FOUND",
-            f"Group {group_id} is not part of firm {firm_id}",
+            f"Partner {group_id} is not part of firm {firm_id}",
         )
     return group
 
@@ -180,7 +187,10 @@ def update_matter(profile, matter_id, name=None, firm_id=None, group_id=None, **
         raise FeesError("MATTER_NOT_FOUND", f"Matter {matter_id} not found")
 
     target_firm_id = firm_id if firm_id is not None else matter.firm_id
-    target_group_id = group_id if group_id is not None else matter.group_id
+    if group_id == NO_PARTNER:
+        target_group_id = None
+    else:
+        target_group_id = group_id if group_id is not None else matter.group_id
     moved = target_firm_id != matter.firm_id or target_group_id != matter.group_id
 
     if moved:
@@ -271,7 +281,7 @@ def get_matter(profile, matter_id):
     """
     matter = (
         Matter.objects.filter(profile=profile, pk=matter_id)
-        .select_related("firm", "group")
+        .select_related("firm", "group", "client")
         .first()
     )
     if matter is None:

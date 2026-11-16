@@ -34,6 +34,7 @@ from django.db.models import Count, Min
 from fees.models import (
     Allocation,
     BankAccount,
+    Client,
     FeesSettings,
     Firm,
     Group,
@@ -52,6 +53,10 @@ __all__ = [
     "WEB_SETTINGS_HEADERS",
     "WEB_MEMO_FLAGS_SHEET",
     "WEB_MEMO_FLAGS_HEADERS",
+    "WEB_CLIENTS_SHEET",
+    "WEB_CLIENTS_HEADERS",
+    "WEB_MATTER_CLIENTS_SHEET",
+    "WEB_MATTER_CLIENTS_HEADERS",
     "SETTINGS_COLUMNS",
     "ELECTRON_ONLY_DEFAULTS",
     "NOT_NULL_DEFAULTS",
@@ -197,6 +202,13 @@ WEB_SETTINGS_HEADERS = ["key", "value"]
 WEB_MEMO_FLAGS_SHEET = "WebMemoFlags"
 WEB_MEMO_FLAGS_HEADERS = ["memo_id", "memo_number", "include_signature"]
 
+#: The Clients (owner round 2026-11) and which client each matter has: two more web-only sheets, so the desktop sheets stay the contract.
+#: An older file without them restores every matter with no client.
+WEB_CLIENTS_SHEET = "WebClients"
+WEB_CLIENTS_HEADERS = ["id", "name", "created_at"]
+WEB_MATTER_CLIENTS_SHEET = "WebMatterClients"
+WEB_MATTER_CLIENTS_HEADERS = ["matter_id", "client_id"]
+
 #: The five memo text defaults (R-SET-7) carried by ``WebSettings``.
 MEMO_TEXT_DEFAULT_KEYS = [
     "memo_default_name",
@@ -323,7 +335,7 @@ _MATTERS = [
     _c("id"), _c("firm_id"), _c("partner_id", "group_id"), _c("name"),
     _c("is_archived", conv=_bool), _const("is_custom", 0),
     _c("addressee_line1"), _c("addressee_line2"),
-    _c("addressee_use_firm_name", conv=_bool), _c("court_name"), _c("client"),
+    _c("addressee_use_firm_name", conv=_bool), _c("court_name"), _c("client", "client_position"),
     _c("additional_details_left"), _c("additional_details_right"),
     _c("plaintiff_name"), _c("plaintiff_type"), _c("defendant_name"), _c("defendant_type"),
     _c("notes"), _c("short_name"),
@@ -336,7 +348,7 @@ _MEMOS = [
     _c("addressee_line1"), _c("addressee_line2"), _c("court_name"),
     _c("additional_details_left"), _c("additional_details_right"),
     _c("plaintiff_name"), _c("plaintiff_type"), _c("defendant_name"), _c("defendant_type"),
-    _c("client"),
+    _c("client", "client_position"),
     _c("num_appearances"), _c("dates_of_appearances"), _c("fees_per_appearance", conv=_money),
     _c("num_conferences"), _c("dates_of_conferences"), _c("fees_per_conference", conv=_money),
     _c("misc_drafting_description"), _c("fees_misc_drafting", conv=_money),
@@ -521,6 +533,18 @@ def export_workbook(profile):
         .iterator(chunk_size=_CHUNK)
     )
     write_rows(flags_sheet, WEB_MEMO_FLAGS_HEADERS, flag_rows)
+
+    clients_sheet = workbook.create_sheet(WEB_CLIENTS_SHEET)
+    write_rows(clients_sheet, WEB_CLIENTS_HEADERS, (
+        [pk, name, _ts(created)]
+        for pk, name, created in Client.objects.filter(profile=profile).order_by("pk").values_list("pk", "name", "created_at").iterator(chunk_size=_CHUNK)
+    ))
+    links_sheet = workbook.create_sheet(WEB_MATTER_CLIENTS_SHEET)
+    write_rows(links_sheet, WEB_MATTER_CLIENTS_HEADERS, (
+        [pk, client_id]
+        for pk, client_id in Matter.objects.filter(profile=profile, client__isnull=False).order_by("pk").values_list("pk", "client_id")
+        .iterator(chunk_size=_CHUNK)
+    ))
 
     out = tempfile.TemporaryFile()
     workbook.save(out)

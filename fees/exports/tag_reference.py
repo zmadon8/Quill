@@ -49,6 +49,7 @@ GROUPS = (
             "LINE_13_DEFENDANT",
             "LINE_14_DEFENDANT_TYPE",
             "LINE_15_CLIENT",
+            "LINE_15A_CLIENT_NAME",
         ),
     ),
     (

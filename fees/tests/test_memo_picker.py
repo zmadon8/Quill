@@ -107,13 +107,13 @@ class PickerPageTests(PickerBase):
         defaults = self.client.get(reverse("fees_memo_matter_defaults"), {"matter": self.m1.pk}).json()["fields"]
         posted = {"matter_id": str(self.m1.pk), "date": "", "action": "save"}
         posted.update(defaults)
-        posted["client"] = "Typed by hand"
+        posted["client_position"] = "Typed by hand"
         text = self.client.post(self.url, posted).content.decode()
         marker = text.split("data-autofilled-fields=")[1].split('"')[1] if "data-autofilled-fields=" in text else ""
         names = marker.split()
-        self.assertNotIn("client", names)
+        self.assertNotIn("client_position", names)
         for name in defaults:
-            if name != "client":
+            if name != "client_position":
                 self.assertIn(name, names)
 
     def test_a_fresh_page_marks_the_settings_cause_title_as_filled_in_for_you(self):

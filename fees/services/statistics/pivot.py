@@ -118,11 +118,18 @@ def row_axis(r, dim):
     if dim == "firm":
         return f"firm:{r['firm_id']}", r["firm_name"], (r["firm_name"] or "").lower()
     if dim == "partner":
+        if r.get("partner_id") is None:
+            return "partner:none", "No partner", "\uffff"
         return (
             f"partner:{r['partner_id']}",
             r["partner_name"],
             (r["partner_name"] or "").lower(),
         )
+    if dim == "client":
+        # A matter with no client is one row, "No client", sorted last.
+        if r.get("client_id") is None:
+            return "client:none", "No client", "\uffff"
+        return f"client:{r['client_id']}", r["client_name"], (r["client_name"] or "").lower()
     if dim == "matter":
         return (
             f"matter:{r['matter_id']}",
@@ -182,6 +189,8 @@ def _driving_rows(profile, req, firm_ids, is_receipt):
             "memo__group__name",
             "memo__matter_id",
             "memo__matter__name",
+            "memo__matter__client_id",
+            "memo__matter__client__name",
             "amount",
             "tds_amount",
         )
@@ -203,6 +212,8 @@ def _driving_rows(profile, req, firm_ids, is_receipt):
                 "partner_name": a["memo__group__name"],
                 "matter_id": a["memo__matter_id"],
                 "matter_name": a["memo__matter__name"],
+                "client_id": a["memo__matter__client_id"],
+                "client_name": a["memo__matter__client__name"],
                 "num_appearances": 0,
                 "num_conferences": 0,
                 "num_drafts": 0,
@@ -229,6 +240,8 @@ def _driving_rows(profile, req, firm_ids, is_receipt):
         "group__name",
         "matter_id",
         "matter__name",
+        "matter__client_id",
+        "matter__client__name",
         "num_appearances",
         "num_conferences",
         "num_drafts",
@@ -245,6 +258,8 @@ def _driving_rows(profile, req, firm_ids, is_receipt):
             "partner_name": m["group__name"],
             "matter_id": m["matter_id"],
             "matter_name": m["matter__name"],
+            "client_id": m["matter__client_id"],
+            "client_name": m["matter__client__name"],
             "num_appearances": m["num_appearances"],
             "num_conferences": m["num_conferences"],
             "num_drafts": m["num_drafts"],

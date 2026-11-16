@@ -51,6 +51,7 @@ class FlowBase(TestCase):
         """A firm, its first group and a matter, all created through the forms."""
         self.post("fees_firm_new", {"name": "Acme Legal"})
         self.firm = Firm.objects.get(profile=self.profile, name="Acme Legal")
+        self.post("fees_group_add", {"name": "Acme Legal"}, {"firm_id": self.firm.pk})   # a new firm has no partner
         self.group = Group.objects.get(firm=self.firm)
         self.post("fees_group_add", {"name": "Senior Partner"}, {"firm_id": self.firm.pk})
         self.assertTrue(Group.objects.filter(firm=self.firm, name="Senior Partner").exists())
@@ -61,7 +62,7 @@ class FlowBase(TestCase):
                 "group_id": str(self.group.pk),
                 "name": "Varian Arbitration",
                 "court_name": "Original Cause Title",
-                "client": "Original Client",
+                "client_position": "Original Client",
             },
         )
         self.matter = Matter.objects.get(profile=self.profile, name="Varian Arbitration")
@@ -239,7 +240,7 @@ class LifecycleFlowTests(FlowBase):
 
     def test_a_saved_memo_is_frozen_against_later_matter_edits(self):
         self.make_setup()
-        memo = self.new_memo("2026-07-15", court_name="Original Cause Title", client="Original Client")
+        memo = self.new_memo("2026-07-15", court_name="Original Cause Title", client_position="Original Client")
         self.assertEqual(self.detail(memo)["court_name"], "Original Cause Title")
 
         response = self.post(
@@ -249,7 +250,7 @@ class LifecycleFlowTests(FlowBase):
                 "group_id": str(self.group.pk),
                 "name": "Varian Arbitration",
                 "court_name": "Changed Cause Title",
-                "client": "Changed Client",
+                "client_position": "Changed Client",
             },
             {"matter_id": self.matter.pk},
         )
@@ -259,7 +260,7 @@ class LifecycleFlowTests(FlowBase):
 
         after = self.detail(memo)
         self.assertEqual(after["court_name"], "Original Cause Title")
-        self.assertEqual(after["client"], "Original Client")
+        self.assertEqual(after["client_position"], "Original Client")
 
 
 class BackupRoundTripFlowTests(FlowBase):
