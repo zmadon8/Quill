@@ -153,7 +153,7 @@ class IndexFloorZeroTests(InvTestCase):
 
         def index_line():
             chart = chartview.value_chart(self.profile, None, d(2024, 3, 1), index=index, portfolio=None, broker=None)
-            return json.loads(chart["hover"])["s"][1]["v"]
+            return [None if v is None else float(v) for v in json.loads(chart["hover"])["s"][1]["v"]]
 
         plain = index_line()
         self.assertTrue(any(v is not None and v < 0 for v in plain))
