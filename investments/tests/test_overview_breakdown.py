@@ -49,7 +49,7 @@ class BreakdownTests(InvTestCase):
     def test_xirr_column_is_shown(self):
         self.client.force_login(self.user)
         page = self.client.get(reverse("investments_dashboard") + "?breakdown=broker").content.decode()
-        self.assertIn('XIRR (a year)</th><th class="r">Share</th>', page)
+        self.assertIn('XIRR</th><th class="r">Share</th>', page)
 
     def test_switching_renders_each_table(self):
         self.client.force_login(self.user)

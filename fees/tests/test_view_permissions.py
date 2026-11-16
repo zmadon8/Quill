@@ -87,6 +87,8 @@ ROUTES = {
     "fees_firm_statement_export": (R, ""),
     "fees_firm_ledger": (R, ""),
     "fees_firm_ledger_export": (R, ""),
+    "fees_firm_memos_export": (R, ""),
+    "fees_matter_memos_export": (R, ""),
     "fees_matter_new": (RW, ""),
     "fees_matter_detail": (R, ""),
     "fees_matter_edit": (RW, ""),

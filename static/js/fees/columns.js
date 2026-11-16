@@ -213,4 +213,15 @@
   }
 
   document.querySelectorAll("table[data-fees-columns], table[data-table-id]").forEach(init);
+  // An "Export to Excel" link with data-export-hide="<table key>" sends the columns hidden on that table in this browser (?hide=2,5),
+  // so the workbook has the columns shown on screen (owner round 2026-11: Matter and Firm page exports).
+  document.addEventListener("click", function (e) {
+    var link = e.target.closest && e.target.closest("a[data-export-hide]");
+    if (!link) { return; }
+    var hidden = read(link.getAttribute("data-export-hide")).filter(function (i) { return typeof i === "number" && i >= 0; });
+    if (!hidden.length) { return; }
+    e.preventDefault();
+    var href = link.getAttribute("href");
+    window.location.href = href + (href.indexOf("?") === -1 ? "?" : "&") + "hide=" + hidden.join(",");
+  });
 })();

@@ -18,7 +18,7 @@ from fees.services import history
 from fees.services.firms import validate_name
 from fees.services.memos import touch
 
-__all__ = ["MAX_CLIENT_NAME", "list_clients", "choices", "create_client", "rename_client", "delete_client", "find_or_create", "set_matter_client"]
+__all__ = ["MAX_CLIENT_NAME", "list_clients", "choices", "choices_for_firm", "create_client", "rename_client", "delete_client", "find_or_create", "set_matter_client"]
 
 MAX_CLIENT_NAME = 200
 
@@ -31,6 +31,18 @@ def list_clients(profile):
 def choices(profile):
     """``[{"id", "name"}]`` by name, for a drop-down."""
     return [{"id": pk, "name": name} for pk, name in Client.objects.filter(profile=profile).order_by(Lower("name"), "pk").values_list("pk", "name")]
+
+
+def choices_for_firm(profile, firm_id, keep_id=None):
+    """``[{"id", "name"}]`` for the matter form (owner round 2026-11): only the clients of this firm's ACTIVE matters, plus ``keep_id`` (the
+    matter's own client) so a saved choice is never lost. Another client is reached by typing its name in "or a new client" (an existing
+    name, in any case, is reused, never copied)."""
+    if firm_id is None:
+        return []
+    ids = set(Matter.objects.filter(profile=profile, firm_id=firm_id, is_archived=False, client__isnull=False).values_list("client_id", flat=True))
+    if keep_id:
+        ids.add(keep_id)
+    return [{"id": pk, "name": name} for pk, name in Client.objects.filter(profile=profile, pk__in=ids).order_by(Lower("name"), "pk").values_list("pk", "name")]
 
 
 def _clean(profile, name, exclude_pk=None):

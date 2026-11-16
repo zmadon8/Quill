@@ -32,7 +32,7 @@ class Table:
 def yearly(profile, portfolio=None, broker=None, **_):
     t = Table("Year-by-year returns", "Each financial year's XIRR next to the Default Index's change over the same year.",
               [("Financial year", "text"), ("Start value", "money"), ("Invested", "money"), ("Sold", "money"), ("Fresh investments", "money"), ("End value", "money"),
-               ("XIRR (a year)", "pct"), ("Index change over the year", "pct"), ("Difference", "pct")])
+               ("XIRR", "pct"), ("Index change over the year", "pct"), ("Difference", "pct")])
     for label in reversed(annual.year_choices(profile)):
         r = annual.build(profile, label, portfolio=portfolio, broker=broker, with_portfolios=False)
         diff = None if r.xirr is None or r.index_return is None else r.xirr - r.index_return
@@ -55,7 +55,7 @@ def best_worst(profile, portfolio=None, broker=None, years=1, held_only=False, *
         scored.append((r, gain))
     scored.sort(key=lambda x: (x[0].xirr is None, -(x[0].xirr or 0)))
     t = Table(f"Best and worst performers, last {years} year{'s' if years != 1 else ''}", "The top and bottom five by XIRR over the period, and the rupees of gain each added.",
-              [("", "text"), ("Investment", "text"), ("XIRR (a year)", "pct"), ("Index XIRR (a year)", "pct"), ("Alpha", "pct"), ("Gain in the period", "money")])
+              [("", "text"), ("Investment", "text"), ("XIRR", "pct"), ("Index XIRR", "pct"), ("Alpha", "pct"), ("Gain in the period", "money")])
     best = scored[:5]
     worst = [x for x in scored[::-1] if x[0].xirr is not None][:5]
     for tag, part in (("Best", best), ("Worst", worst)):
@@ -71,7 +71,7 @@ def scoreboard(profile, portfolio=None, broker=None, years=1, held_only=False, *
     rated = [r for r in rows if r.alpha is not None]
     beat = [r for r in rated if r.alpha > 0]
     t = Table("Index scoreboard", f"How many holdings beat the Default Index over the last {years} year{'s' if years != 1 else ''}, and by how much.",
-              [("Investment", "text"), ("XIRR (a year)", "pct"), ("Index XIRR (a year)", "pct"), ("Alpha", "pct")] + ([("Sectoral alpha", "pct")] if sectoral else []))
+              [("Investment", "text"), ("XIRR", "pct"), ("Index XIRR", "pct"), ("Alpha", "pct")] + ([("Sectoral alpha", "pct")] if sectoral else []))
     for r in sorted(rated, key=lambda r: -r.alpha):
         t.rows.append([r.instrument.name, r.xirr, r.index_xirr, r.alpha] + ([r.sect_alpha] if sectoral else []))
     t.notes.append(f"{len(beat)} of {len(rated)} beat the index" + (f"; {sum(1 for r in rated if r.sect_alpha and r.sect_alpha > 0)} beat their sectoral index" if sectoral else "") + ".")
@@ -217,7 +217,7 @@ def _group_table(profile, title, intro, groups, years):
     s = core.get_settings(profile, create=False)
     index = s.default_index if s.default_index_id else masters.default_index_for(profile)
     series = performance.IndexSeries(index, start, end) if index else None
-    t = Table(title, intro, [("", "text"), ("Invested", "money"), ("Current value", "money"), ("Gain", "money"), ("XIRR (a year)", "pct"), ("Index XIRR (a year)", "pct"), ("Alpha", "pct")])
+    t = Table(title, intro, [("", "text"), ("Invested", "money"), ("Current value", "money"), ("Gain", "money"), ("XIRR", "pct"), ("Index XIRR", "pct"), ("Alpha", "pct")])
     for name, kw in groups:
         rows, tot, _n, _s = performance.table(profile, start=start, end=end, **kw)
         now = holdings.compute(profile, **kw)[1]

@@ -368,7 +368,8 @@ class FirmScreenTests(UiPageBase):
         kwargs = {"firm_id": i["firm"], "group_id": group.pk}
         reader = self.assert_page(self.page("fees_group_detail", kwargs), "group")
         firm_id, group_id = i["firm"], group.pk
-        self.assertIn("%s?group=%d" % (reverse("fees_firm_statement", kwargs={"firm_id": firm_id}), group_id), reader)
+        # No Statement button: it showed the same as the Ledger (owner round 2026-11); the address still works.
+        self.assertNotIn("%s?group=%d" % (reverse("fees_firm_statement", kwargs={"firm_id": firm_id}), group_id), reader)
         self.assertIn("%s?group=%d" % (reverse("fees_firm_ledger", kwargs={"firm_id": firm_id}), group_id), reader)
         self.assertIn("?firm=%d&amp;group=%d" % (firm_id, group_id), reader)
         self.assertNotIn(reverse("fees_matter_new"), reader)

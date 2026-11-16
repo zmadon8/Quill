@@ -48,6 +48,12 @@
     else if (pop) { e.preventDefault(); openPop(); }
     else if (find) { e.preventDefault(); window.location.href = find; }
   });
+  // Ctrl+F (Cmd+F) on a page whose search bar is marked data-ctrl-f (the Home page, which searches every program) opens that bar instead of
+  // the browser's find-in-page (owner round 2026-11). Everywhere else Ctrl+F is left to the browser.
+  document.addEventListener("keydown", function (e) {
+    if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || e.code !== "KeyF") { return; }
+    if (pop && pop.hasAttribute("data-ctrl-f")) { e.preventDefault(); openPop(); }
+  });
   // "Search all programs" in the search bar carries what was typed.
   document.addEventListener("click", function (e) {
     var link = e.target.closest && e.target.closest("[data-search-all]");

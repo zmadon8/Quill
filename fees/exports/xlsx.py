@@ -33,6 +33,7 @@ Deliberate differences from the desktop: text titles use a plain hyphen where th
 """
 
 import itertools
+from decimal import Decimal
 import re
 import tempfile
 
@@ -285,6 +286,49 @@ def export_memos(profile, filters=None):
             ]
         )
     return f"Memos {_financial_year_label(filters)}.xlsx", book.save()
+
+
+#: The Matter page's memo table, in its column order (the Columns menu hides by position): (header, width, money, value of a list item).
+MATTER_MEMO_COLUMNS = (
+    ("No.", 16, False, lambda m: _text(m["memo_number"])),
+    ("Date", 14, False, lambda m: format_date(m["date"])),
+    ("Apps", 8, False, lambda m: m["num_appearances"] or 0),
+    ("Confs", 8, False, lambda m: m["num_conferences"] or 0),
+    ("Drafts", 8, False, lambda m: m["num_drafts"] or 0),
+    ("Total", 14, True, lambda m: m["total_fees"]),
+    ("Net of TDS", 14, True, lambda m: m["net_of_tds"]),
+    ("Received", 14, True, lambda m: m["amount_received"]),
+    ("TDS", 12, True, lambda m: m["amount_tds"]),
+    ("Due", 14, True, lambda m: m["amount_due"]),
+    ("Status", 14, False, lambda m: "Draft" if m["is_draft"] else "Written off" if m["written_off"] else
+     m["status"] + (" (overdue)" if m.get("is_overdue") else "")),
+)
+#: Columns the Columns menu never hides (No. and Status).
+MATTER_MEMO_FIXED = (0, 10)
+
+
+def export_matter_memos(items, title, hidden=(), with_matter=False):
+    """The memos of a Matter page (or of every matter of a Firm page, ``with_matter``) as one sheet: the Matter page's columns less the ones
+    hidden there (``hidden``: positions, as the Columns menu keeps them), and a bold total row. ``title`` names the file."""
+    shown = [c for i, c in enumerate(MATTER_MEMO_COLUMNS) if i in MATTER_MEMO_FIXED or i not in set(hidden)]
+    columns = ([("Matter", 32, False, lambda m: _text(m["matter_name"]))] if with_matter else []) + shown
+    book = _Book()
+    sheet = book.sheet("Memos", [c[1] for c in columns])
+    sheet.header([c[0] for c in columns])
+    sums = [Decimal("0") for _c in columns]
+    for item in items:
+        values = []
+        for n, (_h, _w, money, get) in enumerate(columns):
+            value = get(item)
+            if money:
+                sums[n] += Decimal(str(value or 0))
+                value = Money(value)
+            values.append(value)
+        sheet.row(values)
+    total = [Money(sums[n]) if c[2] else "" for n, c in enumerate(columns)]
+    total[0] = f"Total ({len(items)})"
+    sheet.row(total, bold=True)
+    return _xlsx_name(title, "Memos.xlsx"), book.save()
 
 
 # ---------------------------------------------------------------------------

@@ -1,5 +1,8 @@
 {% extends "base_suite_home.html" %}
 {% block title %}{{ home_name }}{% endblock %}
+{# Home searches every program (owner round 2026-11): the magnifier, Alt+F and Ctrl+F (Cmd+F) open this bar, which goes to Search everything. #}
+{% block search_tool %}{% include "_search_button.html" with popup=True %}{% endblock %}
+{% block search_panel %}<div class="search-pop" id="search-pop" data-ctrl-f hidden><form class="search-pop-form" role="search" method="get" action="{% url 'suite_search' %}"><label class="visually-hidden" for="search-pop-q">Search all programs</label><input type="search" id="search-pop-q" name="q" placeholder="Search all programs: judgments, memos, firms, investments&hellip;" autocomplete="off" data-search-popup-input><button type="submit" class="primary">Search</button></form></div>{% endblock %}
 {% block content %}
 <div class="launcher home-dash">
   <h1{% if home_header_words %} class="visually-hidden"{% endif %}>Programs</h1>
