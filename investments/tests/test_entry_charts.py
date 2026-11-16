@@ -2,6 +2,7 @@
 points of their own, weekly sampling does not skip them, a Lump Sum shows its "Before sale" drop, a new trade refreshes the cached chart,
 and a page whose entries are all old opens on the whole history instead of a flat last year."""
 import json
+import re
 from datetime import date as d, timedelta
 from decimal import Decimal as D
 
@@ -151,9 +152,19 @@ class IndexFloorZeroTests(InvTestCase):
             for i in range(0, 120, 7):
                 Price.objects.create(instrument=inst, date=d(2024, 1, 1) + timedelta(days=i), close=D(100), source="api")
 
+        def number(text):
+            """The hover holds display text (digit grouping, a typographic minus, maybe a currency sign): read the number out of it."""
+            if text is None:
+                return None
+            cleaned = str(text).replace("\u2212", "-").replace(",", "")
+            match = re.search(r"\d+(?:\.\d+)?", cleaned)
+            if match is None:
+                return None
+            return -float(match.group()) if "-" in cleaned else float(match.group())
+
         def index_line():
             chart = chartview.value_chart(self.profile, None, d(2024, 3, 1), index=index, portfolio=None, broker=None)
-            return [None if v is None else float(v) for v in json.loads(chart["hover"])["s"][1]["v"]]
+            return [number(v) for v in json.loads(chart["hover"])["s"][1]["v"]]
 
         plain = index_line()
         self.assertTrue(any(v is not None and v < 0 for v in plain))
