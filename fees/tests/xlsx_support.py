@@ -164,7 +164,7 @@ def snapshot(profile):
     """A comparable picture of the profile's fee data with no database ids in it."""
     memo_rows = Memo.objects.filter(profile=profile).values_list(
         "memo_number", "financial_year", "seq", "date", "matter__name", "firm__name", "group__name",
-        "addressee_line1", "addressee_line2", "client", "num_appearances", "fees_per_appearance",
+        "addressee_line1", "addressee_line2", "client_position", "matter__client__name", "num_appearances", "fees_per_appearance",
         "num_conferences", "fees_per_conference", "fees_misc_drafting", "num_drafts",
         "custom_fees_appearances", "custom_fees_conferences", "custom_fees_misc", "custom_total_fees",
         "written_off", "is_draft", "total_fees", "amount_paid", "amount_received", "amount_tds",
