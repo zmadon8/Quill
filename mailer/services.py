@@ -14,7 +14,7 @@ from django.utils import timezone
 
 from accounts.models import Profile
 from accounts.profiles import effective_export_name, safe_file_name
-from accounts.suite import KEY_DIARY, KEY_FEES
+from accounts.suite import KEY_DIARY, KEY_FEES, KEY_INVESTMENTS
 from backups import services as backup_services
 from backups.models import BackupFile
 from diary.wordexport import service as word_export
@@ -29,6 +29,7 @@ from .models import (
     KIND_DATA,
     KIND_EXCEL,
     KIND_HTML,
+    KIND_INVBOOK,
     KIND_KEYS,
     KIND_LABELS,
     KIND_WORD,
@@ -180,7 +181,24 @@ def _excel_files(schedule, now):
     return files, notes
 
 
-MAKERS = {KIND_DATA: _data_files, KIND_WORD: _word_files, KIND_HTML: _html_files, KIND_EXCEL: _excel_files}
+def _invbook_files(schedule, now):
+    """One .xlsx per live Investments profile: its holdings (every status) and every transaction, transfer and dividend, the same sheets as the
+    Excel buttons on Holdings > Investments and Holdings > Transactions."""
+    from investments import exports
+
+    files, notes = [], []
+    day = timezone.localdate(now).isoformat()
+    for profile in Profile.objects.filter(program=KEY_INVESTMENTS, deleted_at__isnull=True).order_by("name"):
+        try:
+            data = exports.workbook_bytes(exports.holdings_transactions_sheets(profile))
+        except Exception as exc:  # one profile's bad row: the other files still go
+            notes.append(f"The Holdings and Transactions file for {profile.name} could not be made: {exc}")
+            continue
+        files.append((safe_file_name(f"{effective_export_name(profile)} Holdings and Transactions {day}.xlsx"), data, XLSX_TYPE))
+    return files, notes
+
+
+MAKERS = {KIND_DATA: _data_files, KIND_WORD: _word_files, KIND_HTML: _html_files, KIND_EXCEL: _excel_files, KIND_INVBOOK: _invbook_files}
 # KIND_ARCHIVE has no maker on purpose: the price archive is built and sent one part at a time by ``_send_archive`` (plan 17.5).
 
 

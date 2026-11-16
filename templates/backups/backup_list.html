@@ -89,6 +89,7 @@
       <thead><tr><th scope="col">Send</th><th scope="col">How often</th><th scope="col">On (weekly)</th><th scope="col">Day (monthly)</th></tr></thead>
       <tbody>
       {% for row in email_form.kind_rows %}
+      {% ifchanged row.group %}<tr class="email-kind-group"><th scope="rowgroup" colspan="4">{{ row.group }}</th></tr>{% endifchanged %}
       <tr data-email-kind="{{ row.key }}">
         <th scope="row"><label class="check">{{ row.enabled }} {{ row.label }}</label>{% if row.enabled.errors %}{{ row.enabled.errors }}{% endif %}</th>
         <td><label class="visually-hidden" for="{{ row.frequency.id_for_label }}">How often: {{ row.label }}</label>{{ row.frequency }}{{ row.frequency.errors }}</td>
@@ -100,7 +101,7 @@
     </table>
     <div class="field-group">{{ email_form.archive_version.label_tag }} {{ email_form.archive_version }}</div>
     <p class="meta">The price archive (Investments) is always sent in emails of its own, one email per part, each part within the size limit below even when &ldquo;split&rdquo; is off. If it would need more than {{ archive_part_cap }} parts it is not sent and the Backups warning bar says so; download it from Investments &gt; Settings &gt; Price history instead.</p>
-    <p class="meta">The regular backup (.json.gz) is the whole suite and can be restored on the Backups screen{% if backup_size %}; the newest one is {{ backup_size|filesizeformat }}{% endif %}. The Word and HTML copies are the whole Case Law Diary to read, one file per diary profile. The Excel sheets are the Fee Register backup workbook, one per Fee Register profile. Weekly uses the day under &ldquo;On&rdquo;; monthly uses the day of the month (1 to 28).</p>
+    <p class="meta">The regular backup (.json.gz) is the whole suite and can be restored on the Backups screen{% if backup_size %}; the newest one is {{ backup_size|filesizeformat }}{% endif %}. The Word and HTML copies are the whole Case Law Diary to read, one file per diary profile. The Excel sheets are the Fee Register backup workbook, one per Fee Register profile. Holdings and Transactions is one workbook per Investments profile: every investment with its status, and every transaction, transfer and dividend. Weekly uses the day under &ldquo;On&rdquo;; monthly uses the day of the month (1 to 28).</p>
   </fieldset>
   {{ email_form.include_review.as_field_group }}
   <fieldset class="email-size">

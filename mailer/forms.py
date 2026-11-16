@@ -1,10 +1,15 @@
 from django import forms
 
-from .models import KINDS, EmailBackupSchedule
+from .models import KIND_GROUPS, KINDS, EmailBackupSchedule
 from .services import check_recipients
 
 #: Largest size the Admin may set for the files in one email.
 MAX_LIMIT_MB = 100
+
+
+#: Fields of kinds added after the page first existed (see ``__init__``).
+LATER_FIELDS = ("archive_frequency", "archive_weekday", "archive_day_of_month", "archive_version",
+                "invbook_frequency", "invbook_weekday", "invbook_day_of_month")
 
 
 def _kind_fields():
@@ -42,23 +47,29 @@ class EmailBackupForm(forms.ModelForm):
                 help_text="1 to 28, so every month has it.",
             )
 
-        # The price archive (Investments) was added later: a post that leaves its fields out (an older client, a test) keeps the current values.
-        for name in ("archive_frequency", "archive_weekday", "archive_day_of_month", "archive_version"):
+        # The price archive and the Holdings and Transactions workbook (Investments) were added later: a post that leaves their fields out
+        # (an older client, a test) keeps the current values.
+        for name in LATER_FIELDS:
             self.fields[name].required = False
 
     def _clean_archive_defaults(self, cleaned):
-        for name in ("archive_frequency", "archive_weekday", "archive_day_of_month", "archive_version"):
+        for name in LATER_FIELDS:
             if cleaned.get(name) in (None, "") and name not in self.errors:
                 cleaned[name] = getattr(self.instance, name)
         return cleaned
 
     def kind_rows(self):
-        """One row per kind of file for the page: the label and the four bound fields."""
-        return [
-            {"key": kind, "label": label, "enabled": self[f"{kind}_enabled"], "frequency": self[f"{kind}_frequency"],
-             "weekday": self[f"{kind}_weekday"], "day_of_month": self[f"{kind}_day_of_month"]}
-            for kind, label in KINDS
-        ]
+        """One row per kind of file for the page, under the program it belongs to: the program heading, the label and the four bound fields."""
+        from accounts.suite import get_names
+
+        names = get_names()
+        rows = []
+        for program, kinds in KIND_GROUPS:
+            heading = "Whole website" if program == "suite" else names.get(program, program)
+            for kind, label in kinds:
+                rows.append({"key": kind, "group": heading, "label": label, "enabled": self[f"{kind}_enabled"], "frequency": self[f"{kind}_frequency"],
+                             "weekday": self[f"{kind}_weekday"], "day_of_month": self[f"{kind}_day_of_month"]})
+        return rows
 
     def clean_recipients(self):
         addresses, error = check_recipients(self.cleaned_data.get("recipients", ""))
