@@ -174,7 +174,7 @@ def placeholder_values(memo, settings, today=None):
         "matter_name": matter.name or "",
         "short_name": short,
         "firm": memo.firm.name or "",
-        "partner": (memo.group.name if memo.group_id else "") or "",
+        "partner": getattr(memo.group, "name", "") or "",   # a memo may have no partner (memo.group is None)
         "date": _date_text(memo.date, "%d.%m.%Y"),
         "date_iso": _date_text(memo.date, "%Y-%m-%d"),
         "today": today.strftime("%Y-%m-%d"),
