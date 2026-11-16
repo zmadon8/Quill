@@ -680,6 +680,9 @@ class PeriodicEmail(models.Model):
     last_attempt_at = models.DateTimeField(null=True, blank=True)
     last_ok = models.BooleanField(null=True, blank=True)
     last_message = models.CharField(max_length=500, blank=True, default="")
+    # The wording, with tags (investments.services.report_template). Blank means the standard wording.
+    subject_template = models.CharField(max_length=300, blank=True, default="")
+    body_template = models.TextField(blank=True, default="")
 
     def on(self, cadence):
         return bool(getattr(self, cadence))

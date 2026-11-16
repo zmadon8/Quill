@@ -280,7 +280,7 @@ def settings_insights(request):
 
 @inv_read_write
 def settings_email(request):
-    """Investments > Settings > Email reports: the cadences, the people who get them, and Send now."""
+    """Investments > Settings > Email reports: the cadences, the people who get them, Send now, and the wording (with a preview)."""
     from django.db import transaction
     from django.utils import timezone
 
@@ -288,12 +288,44 @@ def settings_email(request):
 
     from .models import CADENCES, PeriodicEmail, PeriodicEmailRecipient
     from .services import periodic_mail
+    from .services import report_template as rt
 
     profile = profile_or_404(request)
     row = PeriodicEmail.objects.filter(profile=profile).first() or PeriodicEmail(profile=profile)
     people = periodic_mail.eligible_users(profile)
+    wording = {"subject": row.subject_template or rt.DEFAULT_SUBJECT, "body": row.body_template or rt.DEFAULT_BODY, "error": "", "preview": None,
+               "cadence": "monthly"}
     if request.method == "POST":
         action = request.POST.get("action", "save")
+        if action in ("wording_save", "wording_preview", "wording_reset"):
+            if action == "wording_reset":
+                row.subject_template, row.body_template = "", ""
+                row.save()
+                messages.success(request, "The standard wording is back.")
+                return redirect(reverse("investments_settings_email") + "#wording")
+            subject = " ".join(request.POST.get("subject_template", "").split())[:300]
+            body = request.POST.get("body_template", "").replace("\r\n", "\n")
+            wording.update(subject=subject or rt.DEFAULT_SUBJECT, body=body or rt.DEFAULT_BODY)
+            error = rt.validate(subject) and f"Subject: {rt.validate(subject)}" or rt.validate(body)
+            if not error and action == "wording_save":
+                # The standard wording is stored as blank, so a later improvement to it reaches profiles that never changed it.
+                row.subject_template = "" if subject in ("", rt.DEFAULT_SUBJECT) else subject
+                row.body_template = "" if body.strip() in ("", rt.DEFAULT_BODY.strip()) else body
+                row.save()
+                messages.success(request, "Wording saved.")
+                return redirect(reverse("investments_settings_email") + "#wording")
+            wording["error"] = error
+            if not error:   # preview with the typed (unsaved) wording, on this profile's real figures
+                cadence = request.POST.get("preview_cadence", "monthly")
+                cadence = cadence if cadence in dict(CADENCES) else "monthly"
+                wording["cadence"] = cadence
+                trial = PeriodicEmail(subject_template=subject, body_template=body)
+                try:
+                    p_subject, p_body, p_files = periodic_mail.preview(profile, cadence, trial, periodic_mail.recipient_name(request.user))
+                    wording["preview"] = {"subject": p_subject, "body": p_body, "files": p_files}
+                except Exception as exc:  # the figures could not be worked out; the wording is still shown as typed
+                    wording["error"] = f"The preview could not be made: {exc}"
+            # fall through: show the page again with the typed wording, the error or the preview
         if action.startswith("send_"):
             cadence = action[len("send_"):]
             if cadence not in dict(CADENCES):
@@ -301,6 +333,7 @@ def settings_email(request):
             ok, text = periodic_mail.send_now(profile, cadence)
             (messages.success if ok else messages.error)(request, text)
             return redirect(reverse("investments_settings_email"))
+    if request.method == "POST" and request.POST.get("action", "save") == "save":
         ticked = set(request.POST.getlist("cadence"))
         chosen = {int(v) for v in request.POST.getlist("user") if v.isdigit()} & {u.pk for u in people}
         today = timezone.localdate()
@@ -329,6 +362,7 @@ def settings_email(request):
     return page(request, "investments/settings_email.html", {
         "page_title_text": "Email reports", "row": row, "cadences": cadences, "configured": is_configured(), "skipped": skipped,
         "people": [{"user": u, "name": periodic_mail.recipient_name(u), "chosen": u.pk in chosen} for u in people],
+        "wording": wording, "tag_groups": rt.TAG_GROUPS, "blocks": rt.BLOCKS.items(), "default_subject": rt.DEFAULT_SUBJECT,
     }, selectors=False)
 
 

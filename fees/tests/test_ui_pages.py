@@ -434,15 +434,13 @@ class FirmScreenTests(UiPageBase):
         self.assertNotIn(">as <input", edit)
         self.assertIn("js/fees/matter-form.js", edit)
 
-    def test_client_position_shows_on_the_matter_and_firm_pages(self):
+    def test_client_position_is_not_shown_beside_the_firm_and_matter(self):
+        # Client Position is only for the memo exported to Word (owner round 2026-11), so no page lists it.
         i = self.ids()
         Matter.objects.filter(pk=i["matter"]).update(client_position="Acme Holdings")
-        matter = self.html(self.page("fees_matter_detail", {"matter_id": i["matter"]}))
-        self.assertIn("&middot; Client Position: Acme Holdings</p>", matter)
-        firm = self.html(self.page("fees_firm_detail", {"firm_id": i["firm"]}))
-        self.assertIn('<span class="muted">&middot; Client Position: Acme Holdings</span>', firm)
-        Matter.objects.filter(pk=i["matter"]).update(client_position="")
-        self.assertNotIn("Client Position:", self.html(self.page("fees_matter_detail", {"matter_id": i["matter"]})))
+        for page in (self.page("fees_matter_detail", {"matter_id": i["matter"]}), self.page("fees_firm_detail", {"firm_id": i["firm"]})):
+            self.assertNotIn("Acme Holdings", self.html(page))
+            self.assertNotIn("Client Position:", self.html(page))
 
 
 class FeebookAndPaymentTests(UiPageBase):

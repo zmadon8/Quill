@@ -14,7 +14,6 @@
   <dt>Addressee</dt><dd>{{ memo.addressee_line1 }}{% if memo.addressee_line2 %}, {{ memo.addressee_line2 }}{% endif %}</dd>
   <dt>Caption</dt><dd>{{ memo.court_name }}</dd>
   <dt>Parties</dt><dd>{{ memo.plaintiff_name }} {{ memo.plaintiff_type }} v. {{ memo.defendant_name }} {{ memo.defendant_type }}</dd>
-  <dt>Client Position</dt><dd>{{ memo.client_position }}</dd>
   <dt>Status</dt><dd>{% include "fees/_memo_status.html" with m=memo %}</dd>
 </dl>
 <h2>Fees</h2>
