@@ -2,7 +2,7 @@
 
 Ports ``firmService.test.ts`` and ``firmService.property.test.ts``:
 
-* create a firm also creates a same-named group in one transaction (R-FIRM-2);
+* create a firm makes no partner (owner round 2026-11: a matter may have no partner);
 * firm list order (``Lower(name)``) and the all/active/archived status filter on
   the STORED status (deviation from the original derived status, R-FIRM-5);
 * add / update / remove a group (the UI "Group"; the codes stay PARTNER);
@@ -10,7 +10,7 @@ Ports ``firmService.test.ts`` and ``firmService.property.test.ts``:
 * case-insensitive duplicate firm / group names -> ``DUPLICATE_*`` (brief 15 Q2:
   "ABC" then "abc"), with the DB constraint as the backstop;
 * invalid (blank / too long) names -> ``INVALID_*``;
-* removing a group still used by a matter -> ``GROUP_IN_USE`` (409);
+* removing a partner still used by a matter leaves those matters and memos with no partner;
 * matter roll-ups (no memos -> no status; Overdue/Unpaid/Paid precedence over
   live memos; all-written-off -> no status but ``has_written_off``);
 * recent matters (order, limit, latest memo number).
@@ -32,6 +32,7 @@ from django.test import TestCase
 
 from accounts.models import Profile
 from accounts.suite import KEY_FEES
+from fees.tests.partner_support import firm_with_partner
 from fees.errors import FeesError
 from fees.models import FIRM_ACTIVE, FIRM_ARCHIVED, FeesSettings, Firm, Group, Matter, Memo
 from fees.services.firms import (
@@ -82,14 +83,11 @@ class CreateFirmTests(TestCase):
     def setUp(self):
         self.profile = fees_profile()
 
-    def test_create_firm_also_creates_a_same_named_group(self):
+    def test_create_firm_makes_no_partner(self):
         firm = create_firm(self.profile, "  Acme & Co  ")
         self.assertEqual(firm.name, "Acme & Co")
         self.assertEqual(firm.status, FIRM_ACTIVE)
-        groups = list(firm.groups.all())
-        self.assertEqual(len(groups), 1)
-        self.assertEqual(groups[0].name, "Acme & Co")
-        self.assertEqual(groups[0].profile_id, self.profile.pk)
+        self.assertEqual(list(firm.groups.all()), [])  # a matter may have no partner (owner round 2026-11)
 
     def test_blank_name_is_invalid(self):
         with self.assertRaises(FeesError) as ctx:
@@ -231,7 +229,6 @@ class GroupTests(TestCase):
         self.assertEqual(ctx.exception.code, "FIRM_NOT_FOUND")
 
     def test_too_many_groups(self):
-        # The firm already has one same-named group from create_firm.
         while self.firm.groups.count() < MAX_GROUPS:
             add_group(self.profile, self.firm.pk, f"G{self.firm.groups.count()}")
         self.assertEqual(self.firm.groups.count(), MAX_GROUPS)
@@ -265,15 +262,16 @@ class GroupTests(TestCase):
             remove_group(self.profile, self.firm.pk, 999999)
         self.assertEqual(ctx.exception.code, "PARTNER_NOT_FOUND")
 
-    def test_remove_group_in_use_raises_409(self):
+    def test_removing_a_partner_in_use_leaves_its_matters_and_memos_with_no_partner(self):
         group = add_group(self.profile, self.firm.pk, "Used")
-        make_matter(self.profile, self.firm, group, "Case 1")
-        with self.assertRaises(FeesError) as ctx:
-            remove_group(self.profile, self.firm.pk, group.pk)
-        self.assertEqual(ctx.exception.code, "GROUP_IN_USE")
-        self.assertEqual(ctx.exception.status, 409)
-        # The group was NOT deleted (the guard runs before any delete).
-        self.assertTrue(Group.objects.filter(pk=group.pk).exists())
+        matter = make_matter(self.profile, self.firm, group, "Case 1")
+        memo = make_memo(self.profile, matter, self.firm, group)
+        self.assertEqual(remove_group(self.profile, self.firm.pk, group.pk), 1)
+        self.assertFalse(Group.objects.filter(pk=group.pk).exists())
+        matter.refresh_from_db()
+        memo.refresh_from_db()
+        self.assertIsNone(matter.group_id)
+        self.assertIsNone(memo.group_id)
 
 
 # ---------------------------------------------------------------------------
@@ -314,7 +312,7 @@ class CaseInsensitiveUniquenessTests(TestCase):
 class MatterRollupTests(TestCase):
     def setUp(self):
         self.profile = fees_profile()
-        self.firm = create_firm(self.profile, "Acme")
+        self.firm = firm_with_partner(self.profile, "Acme")
         self.group = self.firm.groups.first()
         FeesSettings.objects.update_or_create(
             profile=self.profile, defaults={"overdue_days": 30}
@@ -421,7 +419,7 @@ class MatterRollupTests(TestCase):
 class RecentMattersTests(TestCase):
     def setUp(self):
         self.profile = fees_profile()
-        self.firm = create_firm(self.profile, "Acme")
+        self.firm = firm_with_partner(self.profile, "Acme")
         self.group = self.firm.groups.first()
 
     def test_order_by_latest_date_and_limit(self):
@@ -499,11 +497,9 @@ class FirmPropertyTests(TestCase):
             created += 1
             # Name is stored trimmed.
             self.assertEqual(firm.name, core)
-            # A created firm always has exactly one same-named group.
-            groups = list(firm.groups.all())
-            self.assertEqual(len(groups), 1)
-            self.assertEqual(groups[0].name, firm.name)
+            # A created firm has no partner.
+            self.assertEqual(firm.groups.count(), 0)
         # The invariant held across the whole profile.
         self.assertEqual(Firm.objects.filter(profile=profile).count(), created)
         for firm in Firm.objects.filter(profile=profile):
-            self.assertEqual(firm.groups.count(), 1)
+            self.assertEqual(firm.groups.count(), 0)

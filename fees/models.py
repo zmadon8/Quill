@@ -219,7 +219,8 @@ class Matter(models.Model):
 
     profile = profile_fk()
     firm = models.ForeignKey(Firm, on_delete=models.CASCADE, related_name="matters")
-    group = models.ForeignKey(Group, on_delete=models.CASCADE, related_name="matters")
+    # Optional (owner round 2026-11): a matter may have no partner.
+    group = models.ForeignKey(Group, null=True, blank=True, on_delete=models.SET_NULL, related_name="matters")
     # Optional; deleting a client leaves its matters with no client.
     client = models.ForeignKey(Client, null=True, blank=True, on_delete=models.SET_NULL, related_name="matters")
     name = models.CharField(max_length=150)
@@ -271,7 +272,7 @@ class Memo(models.Model):
     date = models.DateField(null=True, blank=True)
     matter = models.ForeignKey(Matter, on_delete=models.PROTECT, related_name="memos")
     firm = models.ForeignKey(Firm, on_delete=models.CASCADE, related_name="memos")
-    group = models.ForeignKey(Group, on_delete=models.CASCADE, related_name="memos")
+    group = models.ForeignKey(Group, null=True, blank=True, on_delete=models.SET_NULL, related_name="memos")  # the matter's, or none
     # Addressee and case snapshot (taken when the memo is created).
     addressee_line1 = models.CharField(max_length=300)
     addressee_line2 = models.CharField(max_length=300, blank=True, default="")

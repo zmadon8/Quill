@@ -31,6 +31,7 @@ from accounts.models import Profile
 from accounts.suite import KEY_FEES
 from backups import services as backup_services
 from backups.models import BackupFile
+from fees.tests.partner_support import firm_with_partner
 from fees.errors import FeesError
 from fees.models import (
     Allocation,
@@ -320,7 +321,7 @@ class WebToWebRoundTripTests(TestCase):
 
     def test_new_memo_numbers_continue_from_the_restored_max_seq(self):
         profile = fees_profile("RT-Seq")
-        _firm = firms.create_firm(profile, "Firm")
+        _firm = firm_with_partner(profile, "Firm")
         group = Group.objects.get(firm=_firm)
         matter = matters.create_matter(profile, _firm.pk, group.pk, "M")
         memos.create_memo(profile, memo_input(matter.pk, date="2026-07-15"))
@@ -745,7 +746,7 @@ class RoundTripPropertyTests(TestCase):
     """Ports ``backupService.property.test.ts``: backup then restore preserves all data (25 seeded cases)."""
 
     def _build(self, rng, profile):
-        firm = firms.create_firm(profile, "Firm")
+        firm = firm_with_partner(profile, "Firm")
         group = Group.objects.get(firm=firm)
         extra_group = firms.add_group(profile, firm.pk, "P2") if rng.random() < 0.5 else None
         made = 0

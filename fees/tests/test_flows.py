@@ -51,6 +51,7 @@ class FlowBase(TestCase):
         """A firm, its first group and a matter, all created through the forms."""
         self.post("fees_firm_new", {"name": "Acme Legal"})
         self.firm = Firm.objects.get(profile=self.profile, name="Acme Legal")
+        self.post("fees_group_add", {"name": "Acme Legal"}, {"firm_id": self.firm.pk})   # a new firm has no partner
         self.group = Group.objects.get(firm=self.firm)
         self.post("fees_group_add", {"name": "Senior Partner"}, {"firm_id": self.firm.pk})
         self.assertTrue(Group.objects.filter(firm=self.firm, name="Senior Partner").exists())

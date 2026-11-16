@@ -59,6 +59,8 @@ def get_statistics(profile, breakdown):
     def key_label(row_id, name):
         if prefix is None:
             return name, name
+        if row_id is None:   # a matter with no partner (owner round 2026-11)
+            return f"{prefix}:none", "No partner"
         return f"{prefix}:{row_id}", name
 
     def group_for(key, label):

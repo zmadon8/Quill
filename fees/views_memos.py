@@ -113,7 +113,7 @@ def _matter_groups(profile, firm_id, show_archived):
         return []
     groups = {}
     for matter in matters.list_matters(profile, firm_id=firm_id, status_filter="all" if show_archived else "active"):
-        groups.setdefault(matter.group.name, []).append(matter)
+        groups.setdefault(matter.group.name if matter.group_id else "No partner", []).append(matter)
     return [{"name": name, "matters": rows} for name, rows in groups.items()]
 
 

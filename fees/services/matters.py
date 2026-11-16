@@ -38,6 +38,7 @@ __all__ = [
     "MAX_MATTER_NAME",
     "validate_name",
     "MEMO_DEFAULT_FIELDS",
+    "NO_PARTNER",
     "create_matter",
     "update_matter",
     "list_matters",
@@ -81,8 +82,14 @@ def validate_name(raw):
     return trimmed
 
 
+#: ``group_id`` meaning "no partner" (owner round 2026-11). ``update_matter`` keeps ``None`` as "unchanged", so clearing needs this.
+NO_PARTNER = "none"
+
+
 def _group_in_firm_or_raise(profile, firm_id, group_id):
-    """Returns the group if it belongs to ``firm_id`` in this profile, else raises."""
+    """Returns the group if it belongs to ``firm_id`` in this profile, else raises. No partner (``None`` / ``NO_PARTNER``) gives None."""
+    if group_id in (None, NO_PARTNER):
+        return None
     group = Group.objects.filter(
         profile=profile, pk=group_id, firm_id=firm_id
     ).first()
@@ -180,7 +187,10 @@ def update_matter(profile, matter_id, name=None, firm_id=None, group_id=None, **
         raise FeesError("MATTER_NOT_FOUND", f"Matter {matter_id} not found")
 
     target_firm_id = firm_id if firm_id is not None else matter.firm_id
-    target_group_id = group_id if group_id is not None else matter.group_id
+    if group_id == NO_PARTNER:
+        target_group_id = None
+    else:
+        target_group_id = group_id if group_id is not None else matter.group_id
     moved = target_firm_id != matter.firm_id or target_group_id != matter.group_id
 
     if moved:

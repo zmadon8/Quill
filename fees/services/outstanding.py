@@ -211,7 +211,7 @@ def list_outstanding(profile, filters=None):
             "matter_name": memo.matter.name,
             "firm_id": memo.firm_id,
             "firm_name": memo.firm.name,
-            "partner_name": memo.group.name,
+            "partner_name": memo.group.name if memo.group_id else "",
             "client_id": memo.matter.client_id,
             "client_name": memo.matter.client.name if memo.matter.client_id else "",
             "total_fees": total_fees,
@@ -230,7 +230,7 @@ def list_outstanding(profile, filters=None):
                 "firm_id": memo.firm_id,
                 "firm_name": memo.firm.name,
                 "partner_id": memo.group_id,
-                "partner_name": memo.group.name,
+                "partner_name": memo.group.name if memo.group_id else "",
                 "client_id": memo.matter.client_id,
                 "client_name": memo.matter.client.name if memo.matter.client_id else "",
                 "entries": [],
@@ -374,7 +374,8 @@ def list_outstanding_scope(profile, filters=None):
         if overdue_only and not _is_overdue(memo, overdue_days):
             continue
         firms[memo.firm_id] = memo.firm.name
-        partners[memo.group_id] = {"firm_id": memo.firm_id, "name": memo.group.name}
+        if memo.group_id:
+            partners[memo.group_id] = {"firm_id": memo.firm_id, "name": memo.group.name}
         if memo.matter.client_id:
             clients[memo.matter.client_id] = memo.matter.client.name
         else:

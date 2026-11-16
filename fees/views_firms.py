@@ -79,6 +79,7 @@ def firm_detail(request, firm_id):
             "firm": detail["firm"],
             "groups": detail["groups"],
             "matter_rows": rows,
+            "unpartnered": any(row["matter"].group_id is None for row in rows),
             "matters_shown": shown,
             "matters_filters": ("all", "active"),
         },
@@ -185,8 +186,8 @@ def group_rename(request, firm_id, group_id):
 def group_remove(request, firm_id, group_id):
     profile, _settings = scope.context(request)
     _group_of_firm(profile, firm_id, group_id)
-    firms.remove_group(profile, firm_id, group_id)
-    messages.success(request, "Partner removed.")
+    moved = firms.remove_group(profile, firm_id, group_id)
+    messages.success(request, "Partner removed." + (f" {moved} matter{'s' if moved != 1 else ''} now ha{'ve' if moved != 1 else 's'} no partner." if moved else ""))
     return redirect("fees_firm_detail", firm_id=firm_id)
 
 

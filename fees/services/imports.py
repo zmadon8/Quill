@@ -74,7 +74,8 @@ Deviations, all deliberate
 * Ungrouped payments are created as their row is read instead of after the last row (same result, but it
   keeps the queue small); only grouped rows are queued, as small tuples.
 * ``data_version`` is bumped ONCE for the whole import (R-IM-3), although each service call stamps it.
-* The default group is named with an em dash (``DEFAULT_GROUP_NAME``, written as an escape).
+* A row with no partner gives a matter with no partner (owner round 2026-11). ``DEFAULT_GROUP_NAME`` (an em dash) was the partner such
+  rows used to get; it is kept only so older code that imports it still works.
 
 ``openpyxl`` is imported inside functions only.
 """
@@ -626,6 +627,8 @@ class _Importer:
         return firm_id
 
     def find_or_create_group(self, firm_id, name):
+        if not name:
+            return None
         key = (firm_id, name.lower())
         group_id = self.group_ids.get(key)
         if group_id is not None:
@@ -804,7 +807,7 @@ class _Importer:
             self.warn(f"Row {row_no}: skipped (missing firm or matter name).")
             return
 
-        partner = self.get(row, "partner_name") or DEFAULT_GROUP_NAME
+        partner = self.get(row, "partner_name") or None   # no Partner column or a blank cell: the matter has no partner
         court = self.get(row, "court_name") or ""
         client = self.get(row, "matter_client") or ""
         plaintiff = self.get(row, "party_plaintiff") or ""

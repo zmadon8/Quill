@@ -9,7 +9,7 @@
 <dl>
   <dt>Date</dt><dd>{{ memo.date|fees_date }}</dd>
   <dt>Financial year</dt><dd>{{ memo.financial_year }}</dd>
-  <dt>Partner</dt><dd>{{ memo.group_name }}</dd>
+  <dt>Partner</dt><dd>{{ memo.group_name|default:"No partner" }}</dd>
   {% if memo.client_name %}<dt>Client</dt><dd>{{ memo.client_name }}</dd>{% endif %}
   <dt>Addressee</dt><dd>{{ memo.addressee_line1 }}{% if memo.addressee_line2 %}, {{ memo.addressee_line2 }}{% endif %}</dd>
   <dt>Caption</dt><dd>{{ memo.court_name }}</dd>

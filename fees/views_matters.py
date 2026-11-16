@@ -70,8 +70,8 @@ def matter_new(request):
     if request.method == "POST":
         try:
             name, group_id, firm_id, defaults = forms.matter_data_from_post(request.POST)
-            if firm_id is None or group_id is None:
-                raise FeesError("INVALID_MATTER", "Choose a firm and a partner.")
+            if firm_id is None:
+                raise FeesError("INVALID_MATTER", "Choose a firm.")
             with transaction.atomic():   # a new client typed on a form that then fails is not kept
                 client = _chosen_client(profile, request.POST)
                 matter = matters.create_matter(profile, firm_id, group_id, name, **defaults)

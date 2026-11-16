@@ -118,6 +118,8 @@ def row_axis(r, dim):
     if dim == "firm":
         return f"firm:{r['firm_id']}", r["firm_name"], (r["firm_name"] or "").lower()
     if dim == "partner":
+        if r.get("partner_id") is None:
+            return "partner:none", "No partner", "\uffff"
         return (
             f"partner:{r['partner_id']}",
             r["partner_name"],

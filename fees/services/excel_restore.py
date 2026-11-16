@@ -715,7 +715,8 @@ def _load(profile, workbook):
             Matter(
                 profile=profile,
                 firm_id=_ref(firm_ids, v["firm_id"], "Matters", number, "firm"),
-                group_id=_ref(group_ids, v["partner_id"], "Matters", number, "partner"),
+                # A blank partner_id is a matter with no partner (owner round 2026-11).
+                group_id=_ref(group_ids, v["partner_id"], "Matters", number, "partner") if _key(v["partner_id"]) is not None else None,
                 name=_required_name(v["name"], "Matters", number),
                 is_archived=_bool(v["is_archived"]),
                 short_name=_text(v["short_name"]),

@@ -1,0 +1,5 @@
+{# One matter on the firm page. Context: row, can_edit, fees_dots. #}
+<li>{% if fees_dots %}<span class="status-squares" role="img" aria-label="Memo status: {{ row.memo_status|default:'No memos' }}{% if row.has_written_off %}, has write-offs{% endif %}">{% if row.memo_status %}<span class="status-sq sq-{{ row.memo_status|lower }}" aria-hidden="true"></span>{% endif %}{% if row.has_written_off %}<span class="status-sq sq-written-off" aria-hidden="true"></span>{% endif %}</span>{% endif %}
+  <a href="{% url 'fees_matter_detail' row.matter.pk %}">{{ row.matter.name }}</a>{% if row.matter.client_position %} <span class="muted">&middot; Client Position: {{ row.matter.client_position }}</span>{% endif %}{% if row.matter.is_archived %} <span class="muted">(archived)</span>{% endif %}
+  <span class="muted">{{ row.memo_status|default:"No memos" }}{% if row.has_written_off %} (has write-offs){% endif %}</span>
+  {% if can_edit and not row.matter.is_archived %}<span class="row-actions"><a class="button small primary" href="{% url 'fees_memo_new' %}?matter={{ row.matter.pk }}" aria-label="New memo for {{ row.matter.name }}">+ Memo</a></span>{% endif %}</li>

@@ -12,6 +12,6 @@
 <h2 id="matters-heading">Matters</h2>
 <nav class="list-filter" aria-label="Show matters">{% for s in matters_filters %}{% if s == matters_shown %}<strong aria-current="true">{% if s == 'active' %}Active Only{% else %}All{% endif %}</strong>{% else %}<a href="?matters={{ s }}">{% if s == 'active' %}Active Only{% else %}All{% endif %}</a>{% endif %}{% if not forloop.last %} | {% endif %}{% endfor %}</nav>
 <div class="card group-card">
-<ul class="matter-list">{% for m in matter_rows %}<li><a href="{% url 'fees_matter_detail' m.pk %}">{{ m.name }}</a> <span class="muted">&middot; <a href="{% url 'fees_firm_detail' m.firm_id %}">{{ m.firm.name }}</a> &middot; {{ m.group.name }}</span>{% if m.is_archived %} <span class="muted">(archived)</span>{% endif %}</li>{% empty %}<li class="muted">No matters.</li>{% endfor %}</ul></div>
+<ul class="matter-list">{% for m in matter_rows %}<li><a href="{% url 'fees_matter_detail' m.pk %}">{{ m.name }}</a> <span class="muted">&middot; <a href="{% url 'fees_firm_detail' m.firm_id %}">{{ m.firm.name }}</a> &middot; {% if m.group %}{{ m.group.name }}{% else %}No partner{% endif %}</span>{% if m.is_archived %} <span class="muted">(archived)</span>{% endif %}</li>{% empty %}<li class="muted">No matters.</li>{% endfor %}</ul></div>
 </section>
 {% endblock %}

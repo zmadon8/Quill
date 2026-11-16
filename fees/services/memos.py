@@ -737,7 +737,7 @@ def get_memo(profile, memo_id):
         "firm_id": memo.firm_id,
         "group_id": memo.group_id,
         "firm_name": memo.firm.name,
-        "group_name": memo.group.name,
+        "group_name": memo.group.name if memo.group_id else "",
         "matter_name": memo.matter.name,
         "matter_short_name": memo.matter.short_name or None,
         "addressee_line1": memo.addressee_line1,

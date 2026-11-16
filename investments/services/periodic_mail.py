@@ -3,7 +3,7 @@
 Each ticked cadence sends once its period has ended: the week Monday to Sunday, the calendar month, the calendar quarter, the financial year
 1 April to 31 March. Every recipient gets an email of their own ("Dear <their name>") with the period's growth against the Default Index, the
 market value of the whole profile and of each portfolio, the purchases, sales, short and long term capital gains and interest income of the
-period, and an Excel workbook of the holdings on the last day of the period and every transaction up to it. The annual email also carries
+period, the same figures for the financial year so far (left out of the annual email, whose period is the year), and an Excel workbook of the holdings on the last day of the period and every transaction up to it. The annual email also carries
 the Annual Report workbook for the year.
 
 The figures come from ``annual.build_span``, the code behind the Annual Report, so they match it. The suite's email settings are used
@@ -122,6 +122,11 @@ def _day(d):
     return f"{d.day} {d:%b %Y}"
 
 
+def financial_year_start(day):
+    """1 April of the financial year ``day`` falls in."""
+    return date(day.year if day.month >= 4 else day.year - 1, 4, 1)
+
+
 def build_report(profile, cadence, start, end):
     """The ``annual.Report`` for the period (the annual cadence is the financial year itself)."""
     from investments.services import annual, core
@@ -135,16 +140,42 @@ def build_report(profile, cadence, start, end):
                              settings_row=settings_row)
 
 
-def body(name, report, cadence, site):
-    """The text of one email (the owner's wording)."""
+def build_year_to_date(profile, cadence, start, end):
+    """The ``annual.Report`` for the financial year so far (1 April to the end of the period), or None for the annual email (its period IS
+    the year) and for a period that starts on 1 April (the year so far is the period itself)."""
+    from investments.services import annual, core
+
+    fy_start = financial_year_start(end)
+    if cadence == CADENCE_ANNUAL or start == fy_start:
+        return None
+    settings_row = core.get_settings(profile, create=False)
+    label = financial_year_label(date(fy_start.year + 1, 3, 31))
+    return annual.build_span(profile, fy_start, end, end, True, label=label, cutoff=annual.cutoff_for(settings_row, label),
+                             settings_row=settings_row, with_portfolios=False)
+
+
+def _growth_line(opening, report, index):
+    return (f"{opening}, your investments {_moved(report.period_return())}, whereas {index} "
+            f"{_moved(report.index_return) if report.index_name else '(not available: no Default Index is set)'}.")
+
+
+def _money_line(opening, report):
+    return (f"{opening} you bought investments for {rupees(report.invested)} and sold investments for {rupees(report.sold)}. "
+            f"Short-term capital gains: {rupees(report.short_gain)}; long-term capital gains: {rupees(report.long_gain)}; "
+            f"interest income: {rupees(report.interest_income)}.")
+
+
+def body(name, report, cadence, site, year=None):
+    """The text of one email (the owner's wording). ``year`` is the financial year so far (``build_year_to_date``), shown beside each figure
+    of the period; for a period that starts on 1 April the email says the period figures are also the year's."""
     index = f"the Index ({report.index_name})" if report.index_name else "the Index"
-    lines = [
-        f"Dear {name},",
-        "",
-        f"During the period {_day(report.start)} to {_day(report.closing)}, your investments {_moved(report.period_return())}, whereas {index} "
-        f"{_moved(report.index_return) if report.index_name else '(not available: no Default Index is set)'}.",
-        "",
-    ]
+    fy_start = financial_year_start(report.closing)
+    fy_label = financial_year_label(date(fy_start.year + 1, 3, 31))
+    year_so_far = f"During the financial year {fy_label} so far ({_day(fy_start)} to {_day(report.closing)})"
+    lines = [f"Dear {name},", "", _growth_line(f"During the period {_day(report.start)} to {_day(report.closing)}", report, index)]
+    if year is not None:
+        lines.append(_growth_line(year_so_far, year, index))
+    lines.append("")
     portfolios = report.by_portfolio
     if portfolios:
         lines.append(f"The total market value of your investments is {rupees(report.closing_value)}, and that of the individual portfolios is as follows:")
@@ -152,17 +183,15 @@ def body(name, report, cadence, site):
             lines.append(f"{number}. {pf_name}: {rupees(sub.closing_value)}{'.' if number == len(portfolios) else ';'}")
     else:
         lines.append(f"The total market value of your investments is {rupees(report.closing_value)}.")
-    lines += [
-        "",
-        f"During this period you bought investments for {rupees(report.invested)} and sold investments for {rupees(report.sold)}. "
-        f"Short-term capital gains: {rupees(report.short_gain)}; long-term capital gains: {rupees(report.long_gain)}; "
-        f"interest income: {rupees(report.interest_income)}.",
-        "",
-        "Attached to this email is an excel sheet containing your holdings as on date, and a list of your transactions.",
-    ]
+    lines += ["", _money_line("During this period", report)]
+    if year is not None:
+        lines.append(_money_line(year_so_far + ",", year))
+    elif cadence != CADENCE_ANNUAL:
+        lines.append(f"This period is the start of the financial year {fy_label}, so these are also the figures for the year so far.")
+    lines += ["", "Attached to this email is an excel sheet containing your holdings as on date, and a list of your transactions."]
     if cadence == CADENCE_ANNUAL:
         lines.append(f"Also attached is the Annual Report for the financial year {report.label}, as an excel sheet.")
-    if report.provisional or report.approximate:
+    if report.provisional or report.approximate or (year is not None and (year.provisional or year.approximate)):
         lines += ["", "Some figures are provisional (purchases awaiting allotment are valued at cost, or a price is the nearest one available)."]
     lines += ["", "Regards,", site]
     return "\n".join(lines) + "\n"
@@ -195,6 +224,7 @@ def send_period(profile, cadence, start, end, users=None):
         return 0, problems + ["nobody to send to"]
     try:
         report = build_report(profile, cadence, start, end)
+        year = build_year_to_date(profile, cadence, start, end)
         files = attachments(profile, cadence, report)
     except Exception as exc:  # a bad row or a busy lock: nothing can be sent for this period
         logger.warning("Report email for profile %s (%s) could not be made: %s", profile.pk, cadence, exc)
@@ -204,7 +234,7 @@ def send_period(profile, cadence, start, end, users=None):
     sent = 0
     for user in users:
         try:
-            message = sender.build_message(subject, body(recipient_name(user), report, cadence, site), [user.email])
+            message = sender.build_message(subject, body(recipient_name(user), report, cadence, site, year), [user.email])
             for name, data, content_type in files:
                 message.attach(name, data, content_type)
             message.send(fail_silently=False)
