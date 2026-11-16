@@ -187,6 +187,8 @@ class InvestmentSettings(models.Model):
     show_status_dots = models.BooleanField(default=True)
     #: Which corporate actions are logged without asking, e.g. {"split": true}; a kind not listed (or false) waits for the person to approve it.
     corporate_auto = models.JSONField(default=dict, blank=True)
+    #: Stop the Index line ("same money in the index") at 0 instead of letting it go below 0 after selling more than was put in (D191).
+    index_line_floor_zero = models.BooleanField(default=False, help_text="Stop the Index line on the charts at 0 instead of letting it go below 0")
 
     def default_broker_for(self, kind):
         return {

@@ -2,12 +2,14 @@
 points of their own, weekly sampling does not skip them, a Lump Sum shows its "Before sale" drop, a new trade refreshes the cached chart,
 and a page whose entries are all old opens on the whole history instead of a flat last year."""
 import json
+import re
 from datetime import date as d, timedelta
 from decimal import Decimal as D
 
 from django.urls import reverse
 
-from investments.services import chartview, investment_page, masters, prices, series
+from investments.models import Instrument, Price
+from investments.services import chartview, core, investment_page, masters, prices, series
 from investments.services import transactions as tx
 from investments.svgchart import line_chart
 from investments.tests.base import InvTestCase
@@ -119,3 +121,56 @@ class LumpSumValueChartTests(ManualPricedBase):
         self.assertContains(page, 'class="on" aria-current="true">All</a>')
         self.assertIsNotNone(page.context["value_chart"])
 
+
+
+class IndexFloorZeroTests(InvTestCase):
+    def test_floor_stops_the_index_line_at_zero_and_restarts_from_zero(self):
+        days = [d(2024, 1, 1) + timedelta(days=7 * i) for i in range(4)]
+        flows = [D(100), D(-200), D(0), D(50)]
+        levels = [D(10), D(10), D(10), D(10)]
+        plain = series.index_equivalent_values(days, flows, levels)
+        floored = series.index_equivalent_values(days, flows, levels, floor_zero=True)
+        self.assertEqual(plain, [D(100), D(-100), D(-100), D(-50)])
+        self.assertEqual(floored, [D(100), D(0), D(0), D(50)])
+        self.assertEqual(series.index_equivalent_values(days, flows, levels, floor_zero=False), plain)
+
+    def test_the_setting_is_saved(self):
+        self.assertFalse(core.get_settings(self.profile, create=False).index_line_floor_zero)
+        self.client.force_login(self.user)
+        r = self.client.post(reverse("investments_settings"), {
+            "sip_mode": "pending", "awaiting_treatment": "cost", "awaiting_reminder_days": "7", "corporate_action_mode": "tag",
+            "long_term_days": "365", "alt_treatment": "unchanged", "index_line_floor_zero": "on"})
+        self.assertEqual(r.status_code, 302)
+        self.assertTrue(core.get_settings(self.profile, create=False).index_line_floor_zero)
+        self.assertContains(self.client.get(reverse("investments_settings")), 'name="index_line_floor_zero"')
+
+    def test_the_cached_chart_follows_the_setting(self):
+        self.buy(d(2024, 1, 2), "10", "100")
+        self.sell(d(2024, 2, 1), "10", "300")
+        index = Instrument.objects.get(code="^NSEI")
+        for inst in (index, self.reliance):
+            for i in range(0, 120, 7):
+                Price.objects.create(instrument=inst, date=d(2024, 1, 1) + timedelta(days=i), close=D(100), source="api")
+
+        def number(text):
+            """The hover holds display text (digit grouping, a typographic minus, maybe a currency sign): read the number out of it."""
+            if text is None:
+                return None
+            cleaned = str(text).replace("\u2212", "-").replace(",", "")
+            match = re.search(r"\d+(?:\.\d+)?", cleaned)
+            if match is None:
+                return None
+            return -float(match.group()) if "-" in cleaned else float(match.group())
+
+        def index_line():
+            chart = chartview.value_chart(self.profile, None, d(2024, 3, 1), index=index, portfolio=None, broker=None)
+            return [number(v) for v in json.loads(chart["hover"])["s"][1]["v"]]
+
+        plain = index_line()
+        self.assertTrue(any(v is not None and v < 0 for v in plain))
+        masters.update_settings(self.profile, self.user, index_line_floor_zero=True)
+        floored = index_line()
+        self.assertNotEqual(floored, plain)
+        self.assertTrue(all(v is None or v >= 0 for v in floored))
+        masters.update_settings(self.profile, self.user, index_line_floor_zero=False)
+        self.assertEqual(index_line(), plain)

@@ -60,6 +60,9 @@ def pages(ids):
         ("inv-sell-lump", "/investments/transactions/sell/?instrument={lump_investment}", "sell_card"),
         ("inv-investment-lump", "/investments/holdings/{lump_investment}/", None),
         ("inv-investment-lump-example", "/investments/holdings/{lump_example}/", None),
+        ("inv-investment-lump-example-floored", "/investments/holdings/{lump_example}/", "floor_on"),
+        ("inv-holdings-lump", "/investments/holdings/?type=alternative", None),
+        ("inv-transactions-lump", "/investments/transactions/?q=Test+lump+sum", None),
         ("inv-investment-manual", "/investments/holdings/{manual_investment}/", None),
         ("inv-reports", "/investments/reports/", None),
         ("inv-alerts", "/investments/alerts/#alert-settings", None),
@@ -75,6 +78,16 @@ def pages(ids):
 def scroll_table(page):
     """Scroll the Holdings table to its right edge so the Index XIRR and Alpha columns show (the shot is taken at the table's top)."""
     page.evaluate("document.querySelectorAll('.tw').forEach(function (el) { el.scrollLeft = el.scrollWidth; })")
+
+
+def set_index_floor(page, base, on):
+    """Switch Settings > Investments > General > "Stop the Index line at 0" on or off through the page itself, so later shots see the default again."""
+    page.goto(f"{base}/investments/settings/")
+    page.wait_for_load_state("load")
+    box = page.locator("input[name=index_line_floor_zero]")
+    box.set_checked(on)
+    page.get_by_role("button", name="Save settings").click()
+    page.wait_for_load_state("load")
 
 
 def buy_card(page):
@@ -150,6 +163,8 @@ def main():
                     failed.append(f"{name}: id missing")
                     continue
                 try:
+                    if action == "floor_on":
+                        set_index_floor(page, args.base, True)
                     response = page.goto(args.base + path)
                     page.wait_for_load_state("load")
                     try:  # fetch-driven content (Fees KPIs, Investments overview) fills in after load
@@ -171,6 +186,12 @@ def main():
                     taken += 1
                 except Exception as exc:  # one broken page must not stop the others
                     failed.append(f"{name}: {type(exc).__name__}")
+                finally:
+                    if action == "floor_on":  # whatever happened, later shots must see the default (off)
+                        try:
+                            set_index_floor(page, args.base, False)
+                        except Exception as exc:
+                            failed.append(f"{name}: setting not switched back ({type(exc).__name__})")
             context.close()
         browser.close()
 

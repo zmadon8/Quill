@@ -374,3 +374,10 @@ Stored in `PriceHistorySettings` (one row, suite-wide because prices are shared;
 ## Portfolio owner name removed
 
 `Portfolio.owner_name` (the "Owner" box on Settings > General > Portfolios) was removed (investments 0034). It was only stored and shown on that page; no calculation, filter, report, export, alert, search, history entry or backup logic used it. Old JSON backups that carry `owner_name` still restore: the key is dropped on restore (`backups.services._drop_removed_portfolio_owner`). The Fee Register's `export_owner_name` is a different setting and is unchanged.
+
+## Stop the Index line at 0 (Settings > Investments > General)
+
+`InvestmentSettings.index_line_floor_zero` (per profile, everyone in the profile; default off). The Index line on the Overview, Holdings and
+investment charts ("Same money in the index") buys index units with each purchase and sells them with each sale. When the sales add up to more
+than was put in, that line goes below 0. On, the line stops at 0 and a later purchase starts it again from 0. Off (the default) keeps the
+figures as they always were. Index XIRR and Alpha are not affected: they always use the real cash flows.
