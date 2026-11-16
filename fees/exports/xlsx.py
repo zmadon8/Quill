@@ -291,7 +291,7 @@ def export_memos(profile, filters=None):
 #: The Matter page's memo table, in its column order (the Columns menu hides by position): (header, width, money, value of a list item).
 MATTER_MEMO_COLUMNS = (
     ("No.", 16, False, lambda m: _text(m["memo_number"])),
-    ("Date", 14, False, lambda m: format_date(m["date"])),
+    ("Date", 14, False, lambda m: format_date(m["date"]) if m["date"] else ""),   # a draft may have no date yet
     ("Apps", 8, False, lambda m: m["num_appearances"] or 0),
     ("Confs", 8, False, lambda m: m["num_conferences"] or 0),
     ("Drafts", 8, False, lambda m: m["num_drafts"] or 0),

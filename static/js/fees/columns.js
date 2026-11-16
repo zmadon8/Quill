@@ -1,18 +1,11 @@
 (function () {
   "use strict";
   // Fee Register tables: hideable and resizable columns.
-  //
-  // Hide: add data-fees-columns="<unique-key>" to a <table> with a <thead>. A "Columns" menu (a <details> with one tick per
-  // heading) is added above the table. Choices are remembered in this browser (localStorage "quill.fees.hide.<key>").
-  // A heading with data-col-fixed stays visible and is not offered. Cells that span columns (colspan) shrink to fit.
-  //
-  // Resize: the drag handles, minimum and maximum widths and double-click reset live in the shared component
-  // static/js/resizable-columns.js (QuillColumns.attach), used by the whole suite. This file gives it a store for tables with a
-  // data-table-id: widths are loaded from the page (the JSON in #fees-col-widths, from the server preferences), saved with a
-  // debounced POST to the prefs endpoint, and kept in localStorage ("quill.fees.widths.<id>") if that POST fails. Widths are
-  // keyed by column (data-col on the heading, or a slug of its text) so hidden columns never shift them.
-  // "Reset Columns & Widths" at the bottom of the Columns menu clears both.
-  // Without JavaScript every column shows at its natural width.
+  // Hide: a <table data-fees-columns="<key>"> with a <thead> gets a "Columns" menu; choices stay in this browser
+  // (localStorage "quill.fees.hide.<key>"). A data-col-fixed heading is never offered; colspan cells shrink to fit.
+  // Resize: the shared static/js/resizable-columns.js (QuillColumns.attach). Widths of a data-table-id table come from
+  // #fees-col-widths (server prefs), are saved by a debounced POST, and kept in localStorage ("quill.fees.widths.<id>") if
+  // that fails; keyed by data-col (or the heading text) so hidden columns never shift them. "Reset Columns & Widths" clears both.
   var PREFIX = "quill.fees.hide.";
   var WIDTHS = "quill.fees.widths.";
   var script = document.currentScript;
@@ -213,8 +206,7 @@
   }
 
   document.querySelectorAll("table[data-fees-columns], table[data-table-id]").forEach(init);
-  // An "Export to Excel" link with data-export-hide="<table key>" sends the columns hidden on that table in this browser (?hide=2,5),
-  // so the workbook has the columns shown on screen (owner round 2026-11: Matter and Firm page exports).
+  // A link with data-export-hide="<key>" adds ?hide= (that table's hidden columns) so an export matches the screen.
   document.addEventListener("click", function (e) {
     var link = e.target.closest && e.target.closest("a[data-export-hide]");
     if (!link) { return; }
