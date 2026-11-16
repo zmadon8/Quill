@@ -31,11 +31,11 @@
 <p class="hint">Attached: {{ wording.preview.files|join:", " }}. Not saved yet: press Save Wording to keep it.</p>{% endif %}
 <details class="tag-list"><summary>Tags and blocks you can use</summary>
 {% for heading, rows in tag_groups %}<h3>{{ heading }}</h3>
-<div class="tbl"><table><thead><tr><th>Tag</th><th>What it gives</th><th>Example</th></tr></thead><tbody>
+<div class="tbl"><table data-table-id="email-tags-{{ forloop.counter }}"><thead><tr><th>Tag</th><th>What it gives</th><th>Example</th></tr></thead><tbody>
 {% for name, what, example in rows %}<tr><td><code>&#123;&#123;{{ name }}&#125;&#125;</code></td><td>{{ what }}</td><td>{{ example|linebreaksbr }}</td></tr>{% endfor %}
 </tbody></table></div>{% endfor %}
 <h3>Blocks</h3>
-<div class="tbl"><table><thead><tr><th>Block</th><th>Kept when</th></tr></thead><tbody>
+<div class="tbl"><table data-table-id="email-blocks"><thead><tr><th>Block</th><th>Kept when</th></tr></thead><tbody>
 {% for name, when in blocks %}<tr><td><code>&#123;&#123;#{{ name }}&#125;&#125; ... &#123;&#123;/{{ name }}&#125;&#125;</code></td><td>{{ when }}</td></tr>{% endfor %}
 </tbody></table></div>
 <p class="hint">Amounts are in full figures with Indian grouping (Rs. 48,12,550.40). Percentages have two decimals. A blank line left behind by a block that was dropped is removed.</p>
