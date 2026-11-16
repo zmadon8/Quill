@@ -222,7 +222,7 @@ class PageTests(InvTestCase):
         self.buy(d(2024, 1, 15), 10, 100)
         html = self.client.get(reverse("investments_holdings")).content.decode()
         head = html.split("<thead>")[1].split("</thead>")[0]
-        self.assertLess(head.index("XIRR (a year)</th>"), head.index(">Index XIRR</th>"))
+        self.assertLess(head.index("XIRR</th>"), head.index(">Index XIRR</th>"))
         self.assertLess(head.index(">Index XIRR</th>"), head.index(">Alpha</th>"))
         self.assertIn('data-col="index-xirr"', head)
         self.assertIn('data-col="alpha"', head)
@@ -266,7 +266,7 @@ class PageTests(InvTestCase):
         self.buy(d(2024, 1, 15), 10, 100)
         html = self.client.get(reverse("investments_holdings")).content.decode()
         self.assertIn("<th class=\"r\">First bought</th>", html)
-        self.assertIn("XIRR (a year)</th>", html)
+        self.assertIn("XIRR</th>", html)
         self.assertIn("the yearly rate that fits every dated purchase", html)
         self.assertIn("15 Jan 2024", html)
         self.assertIn('data-sort="20240115"', html)

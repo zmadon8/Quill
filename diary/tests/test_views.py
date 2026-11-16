@@ -368,9 +368,9 @@ class HomeIndexTests(TestCase):
                 self.assertEqual(button.count("<svg"), 1, name)
                 inner = button.split(">", 1)[1].rsplit("</button>", 1)[0]
                 self.assertEqual(re.sub(r"<svg.*?</svg>", "", inner, flags=re.S).strip(), "", name)
-            # The Home icon is on every page; the Search magnifier only on program (diary) pages.
+            # The Home icon is on every page; the Search magnifier on program (diary) pages and on Home (it searches every program).
             self.assertEqual(header.count('class="home-button"'), 1, name)
-            self.assertEqual(header.count("data-search-toggle"), 1 if name == "diary_home" else 0, name)
+            self.assertEqual(header.count("data-search-toggle"), 1 if name in ("diary_home", "home") else 0, name)
             # Icons are the default header bar (D84): Trash, Export, Help and Settings are icons on diary pages too.
             self.assertEqual(header.count("<svg") - 2, header.count('class="home-button"') + header.count("data-search-toggle")
                              + header.count("nav-icon"), name)

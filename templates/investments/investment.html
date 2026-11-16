@@ -14,7 +14,7 @@
   {% if not inst.lump_sum %}<div><div class="lab">Units</div><div class="v">{{ h.units|units }}</div></div>
   <div><div class="lab">Average cost</div><div class="v">{% if h.avg_cost %}{{ h.avg_cost|price }}{% else %}&ndash;{% endif %}</div></div>{% endif %}
   <div><div class="lab">Gain</div><div class="v">{% if h.unpriced or not h.is_held %}&ndash;{% else %}{{ h.gain|inr_signed }} <small>{{ h.gain_pct|pct_signed }}</small>{% endif %}</div></div>
-  <div><div class="lab" title="{{ 'xirr'|measure_tip }}">XIRR (a year)</div><div class="v">{{ h.xirr|pct }}</div></div>
+  <div><div class="lab" title="{{ 'xirr'|measure_tip }}">XIRR</div><div class="v">{{ h.xirr|pct }}</div></div>
   {% if not inst.lump_sum %}<div><div class="lab">Price</div><div class="v">{% if h.price %}{{ h.price|price }} <small>{{ h.price_date|date:"j M Y" }}</small>{% else %}&ndash;{% endif %}</div></div>{% endif %}
   <div><div class="lab">Cost held</div><div class="v">{{ h.cost_of_units|inr }}</div></div>
   <div><div class="lab">Realised gain</div><div class="v">{{ h.realised|inr_signed }}</div></div>

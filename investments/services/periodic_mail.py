@@ -154,47 +154,85 @@ def build_year_to_date(profile, cadence, start, end):
                              settings_row=settings_row, with_portfolios=False)
 
 
-def _growth_line(opening, report, index):
-    return (f"{opening}, your investments {_moved(report.period_return())}, whereas {index} "
-            f"{_moved(report.index_return) if report.index_name else '(not available: no Default Index is set)'}.")
+def _pct_figure(fraction):
+    """"2.14%", "-0.80%", or "(not available)"."""
+    return "(not available)" if fraction is None else f"{fraction * 100:.2f}%"
 
 
-def _money_line(opening, report):
-    return (f"{opening} you bought investments for {rupees(report.invested)} and sold investments for {rupees(report.sold)}. "
-            f"Short-term capital gains: {rupees(report.short_gain)}; long-term capital gains: {rupees(report.long_gain)}; "
-            f"interest income: {rupees(report.interest_income)}.")
+def values_and_flags(report, cadence, year=None, *, name="", site="", profile_name="", files=(), sent_on=None):
+    """``(values, flags)`` for ``report_template.render``: every tag in ``report_template.TAGS`` and every block in ``BLOCKS``.
+    ``year`` is the financial year so far (``build_year_to_date``); without it the year's tags give the period's own figures."""
+    fy_start = financial_year_start(report.closing)
+    fy = year or report
+    no_index = "(not available: no Default Index is set)"
+
+    def figures(r, prefix):
+        growth = r.period_return()
+        index = r.index_return if report.index_name else None
+        return {
+            f"{prefix}growth": _moved(growth),
+            f"{prefix}growth_pct": _pct_figure(growth),
+            f"{prefix}index_growth": _moved(index) if report.index_name else no_index,
+            f"{prefix}index_growth_pct": _pct_figure(index),
+            f"{prefix}alpha_pct": _pct_figure(growth - index if growth is not None and index is not None else None),
+            f"{prefix}opening_value": rupees(r.opening_value),
+            f"{prefix}invested": rupees(r.invested),
+            f"{prefix}sold": rupees(r.sold),
+            f"{prefix}net_invested": rupees(r.invested - r.sold),
+            f"{prefix}short_gain": rupees(r.short_gain),
+            f"{prefix}long_gain": rupees(r.long_gain),
+            f"{prefix}total_gain": rupees(r.short_gain + r.long_gain),
+            f"{prefix}interest_income": rupees(r.interest_income),
+            f"{prefix}dividends": rupees(r.dividends),
+        }
+
+    portfolios = report.by_portfolio
+    values = {
+        "recipient_name": name,
+        "recipient_first_name": (name.split() or [""])[0],
+        "site_name": site,
+        "profile_name": profile_name,
+        "report_type": CADENCE_LABELS[cadence],
+        "report_type_lower": CADENCE_LABELS[cadence].lower(),
+        "period_start": _day(report.start),
+        "period_end": _day(report.closing),
+        "fy_label": financial_year_label(date(fy_start.year + 1, 3, 31)),
+        "fy_start": _day(fy_start),
+        "sent_on": _day(sent_on or timezone.localdate()),
+        "index_name": report.index_name or "",
+        "total_value": rupees(report.closing_value),
+        "value_change": rupees(report.closing_value - report.opening_value),
+        "unrealised_gain": rupees(report.unrealised),
+        "portfolio_list": "\n".join(f"{n}. {pf_name}: {rupees(sub.closing_value)}{'.' if n == len(portfolios) else ';'}"
+                                    for n, (pf_name, sub) in enumerate(portfolios, start=1)),
+        "portfolio_count": str(len(portfolios)),
+        "attachment_list": "\n".join(f[0] for f in files),
+    }
+    values.update(figures(report, ""))
+    values.update(figures(fy, "fy_"))
+    flags = {
+        "if_index": bool(report.index_name),
+        "if_portfolios": bool(portfolios),
+        "if_year": year is not None,
+        "if_year_start": year is None and cadence != CADENCE_ANNUAL,
+        "if_annual": cadence == CADENCE_ANNUAL,
+        "if_provisional": bool(report.provisional or report.approximate or (year is not None and (year.provisional or year.approximate))),
+    }
+    return values, flags
+
+
+def compose(row, report, cadence, year=None, **context):
+    """``(subject, body)`` from the profile's wording (``row``: its ``PeriodicEmail``, or None for the standard wording)."""
+    from investments.services import report_template as rt
+
+    values, flags = values_and_flags(report, cadence, year, **context)
+    subject = rt.render(rt.subject_of(getattr(row, "subject_template", "")), values, flags, single_line=True)
+    return subject, rt.render(rt.body_of(getattr(row, "body_template", "")), values, flags)
 
 
 def body(name, report, cadence, site, year=None):
-    """The text of one email (the owner's wording). ``year`` is the financial year so far (``build_year_to_date``), shown beside each figure
-    of the period; for a period that starts on 1 April the email says the period figures are also the year's."""
-    index = f"the Index ({report.index_name})" if report.index_name else "the Index"
-    fy_start = financial_year_start(report.closing)
-    fy_label = financial_year_label(date(fy_start.year + 1, 3, 31))
-    year_so_far = f"During the financial year {fy_label} so far ({_day(fy_start)} to {_day(report.closing)})"
-    lines = [f"Dear {name},", "", _growth_line(f"During the period {_day(report.start)} to {_day(report.closing)}", report, index)]
-    if year is not None:
-        lines.append(_growth_line(year_so_far, year, index))
-    lines.append("")
-    portfolios = report.by_portfolio
-    if portfolios:
-        lines.append(f"The total market value of your investments is {rupees(report.closing_value)}, and that of the individual portfolios is as follows:")
-        for number, (pf_name, sub) in enumerate(portfolios, start=1):
-            lines.append(f"{number}. {pf_name}: {rupees(sub.closing_value)}{'.' if number == len(portfolios) else ';'}")
-    else:
-        lines.append(f"The total market value of your investments is {rupees(report.closing_value)}.")
-    lines += ["", _money_line("During this period", report)]
-    if year is not None:
-        lines.append(_money_line(year_so_far + ",", year))
-    elif cadence != CADENCE_ANNUAL:
-        lines.append(f"This period is the start of the financial year {fy_label}, so these are also the figures for the year so far.")
-    lines += ["", "Attached to this email is an excel sheet containing your holdings as on date, and a list of your transactions."]
-    if cadence == CADENCE_ANNUAL:
-        lines.append(f"Also attached is the Annual Report for the financial year {report.label}, as an excel sheet.")
-    if report.provisional or report.approximate or (year is not None and (year.provisional or year.approximate)):
-        lines += ["", "Some figures are provisional (purchases awaiting allotment are valued at cost, or a price is the nearest one available)."]
-    lines += ["", "Regards,", site]
-    return "\n".join(lines) + "\n"
+    """The standard wording for one email (kept for callers that only want the text)."""
+    return compose(None, report, cadence, year, name=name, site=site)[1]
 
 
 def attachments(profile, cadence, report):
@@ -230,11 +268,12 @@ def send_period(profile, cadence, start, end, users=None):
         logger.warning("Report email for profile %s (%s) could not be made: %s", profile.pk, cadence, exc)
         return 0, problems + [f"the report could not be made: {exc}"]
     site = sender.site_name()
-    subject = f"{site}: {CADENCE_LABELS[cadence].lower()} investments report, {_day(report.start)} to {_day(report.closing)}"
+    row = PeriodicEmail.objects.filter(profile=profile).first()
     sent = 0
     for user in users:
         try:
-            message = sender.build_message(subject, body(recipient_name(user), report, cadence, site, year), [user.email])
+            subject, text = compose(row, report, cadence, year, name=recipient_name(user), site=site, profile_name=profile.name, files=files)
+            message = sender.build_message(subject, text, [user.email])
             for name, data, content_type in files:
                 message.attach(name, data, content_type)
             message.send(fail_silently=False)
@@ -312,3 +351,22 @@ def send_now(profile, cadence, today=None):
     if row:
         _record(row, not problems and sent > 0, text)
     return (not problems and sent > 0), text
+
+
+def preview(profile, cadence, row, name, today=None):
+    """``(subject, body, attachment names)`` of the email the latest ended period of ``cadence`` would give, with the wording in ``row``
+    (which may be unsaved). Nothing is sent and no file is made."""
+    from accounts.profiles import effective_export_name
+    from mailer import sender
+
+    today = today or timezone.localdate()
+    start, end = latest_period(cadence, today)
+    report = build_report(profile, cadence, start, end)
+    year = build_year_to_date(profile, cadence, start, end)
+    stem = effective_export_name(profile)
+    files = [(f"{stem} Holdings and Transactions {report.closing.isoformat()}.xlsx",)]
+    if cadence == CADENCE_ANNUAL:
+        files.append((f"{stem} Annual Report {report.label}.xlsx",))
+    subject, text = compose(row, report, cadence, year, name=name, site=sender.site_name(), profile_name=profile.name, files=files)
+    return subject, text, [f[0] for f in files]
+

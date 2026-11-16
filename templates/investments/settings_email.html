@@ -15,6 +15,31 @@
 <ul class="plain">{% for p in people %}<li><label class="chk"><input type="checkbox" name="user" value="{{ p.user.pk }}"{% if p.chosen %} checked{% endif %}{% if not can_edit %} disabled{% endif %}> {{ p.name }}</label> <span class="na">{% if p.user.email %}{{ p.user.email }}{% else %}no email address: add one under Users{% endif %}</span></li>{% empty %}<li class="na">Nobody uses this profile yet.</li>{% endfor %}</ul>
 {% if can_edit %}<div class="acts-row"><button class="btn p" name="action" value="save">Save</button></div>{% endif %}
 </form>
+<div class="sec" id="wording"><h2>The email</h2></div>
+<p class="hint">One wording for every report email of this profile. Put a tag such as <code>&#123;&#123;growth&#125;&#125;</code> where a figure should go; keep a passage only when it applies by wrapping it in a block, <code>&#123;&#123;#if_year&#125;&#125; ... &#123;&#123;/if_year&#125;&#125;</code> (or <code>&#123;&#123;^if_year&#125;&#125; ... &#123;&#123;/if_year&#125;&#125;</code> for when it does not). The tags and blocks are listed below. Preview shows the email with this profile's real figures for the latest ended period, without saving or sending anything.</p>
+{% if wording.error %}<p class="error" role="alert">{{ wording.error }}</p>{% endif %}
+<form method="post" action="{% url 'investments_settings_email' %}#wording" class="form">{% csrf_token %}
+<div class="fld"><label for="subject_template">Subject</label><input id="subject_template" name="subject_template" value="{{ wording.subject }}" maxlength="300" size="90"{% if not can_edit %} readonly{% endif %}></div>
+<div class="fld"><label for="body_template">Body</label><textarea id="body_template" name="body_template" rows="24" cols="100" spellcheck="true"{% if not can_edit %} readonly{% endif %}>{{ wording.body }}</textarea></div>
+{% if can_edit %}<div class="acts-row"><button class="btn p" name="action" value="wording_save">Save Wording</button>
+<label>Preview the <select name="preview_cadence">{% for c in cadences %}<option value="{{ c.key }}"{% if wording.cadence == c.key %} selected{% endif %}>{{ c.label|lower }}</option>{% endfor %}</select> email</label> <button class="btn q" name="action" value="wording_preview">Preview</button>
+<button class="btn q" name="action" value="wording_reset" formnovalidate onclick="return confirm('Go back to the standard wording? Your changes are lost.')">Standard Wording</button></div>{% endif %}
+</form>
+{% if wording.preview %}<div class="sec"><h2>Preview</h2></div>
+<p><strong>Subject:</strong> {{ wording.preview.subject }}</p>
+<pre class="email-preview" style="white-space:pre-wrap;border:1px solid #ccc;padding:1rem;max-width:60rem">{{ wording.preview.body }}</pre>
+<p class="hint">Attached: {{ wording.preview.files|join:", " }}. Not saved yet: press Save Wording to keep it.</p>{% endif %}
+<details class="tag-list"><summary>Tags and blocks you can use</summary>
+{% for heading, rows in tag_groups %}<h3>{{ heading }}</h3>
+<div class="tbl"><table data-table-id="email-tags-{{ forloop.counter }}"><thead><tr><th>Tag</th><th>What it gives</th><th>Example</th></tr></thead><tbody>
+{% for name, what, example in rows %}<tr><td><code>&#123;&#123;{{ name }}&#125;&#125;</code></td><td>{{ what }}</td><td>{{ example|linebreaksbr }}</td></tr>{% endfor %}
+</tbody></table></div>{% endfor %}
+<h3>Blocks</h3>
+<div class="tbl"><table data-table-id="email-blocks"><thead><tr><th>Block</th><th>Kept when</th></tr></thead><tbody>
+{% for name, when in blocks %}<tr><td><code>&#123;&#123;#{{ name }}&#125;&#125; ... &#123;&#123;/{{ name }}&#125;&#125;</code></td><td>{{ when }}</td></tr>{% endfor %}
+</tbody></table></div>
+<p class="hint">Amounts are in full figures with Indian grouping (Rs. 48,12,550.40). Percentages have two decimals. A blank line left behind by a block that was dropped is removed.</p>
+</details>
 {% if row.last_attempt_at %}<div class="sec"><h2>Last send</h2></div>
 <p>{{ row.last_attempt_at|date:"j M Y H:i" }}: {% if row.last_ok %}OK{% else %}<span class="error">PROBLEM</span>{% endif %}. {{ row.last_message }}</p>{% endif %}
 {% endblock %}

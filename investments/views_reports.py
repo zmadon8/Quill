@@ -50,8 +50,8 @@ def performance_view(request):
         from .exports import response
 
         word = "XIRR" if measure == "xirr" else "CAGR"
-        header = ["Investment", "From", f"{word} % (a year)", f"Default Index {word} % (a year)", "Alpha %"] + (
-            ["Sectoral index", f"Sectoral {word} % (a year)", "Alpha vs sectoral %"] if sectoral else [])
+        header = ["Investment", "From", f"{word} %", f"Default Index {word} %", "Alpha %"] + (
+            ["Sectoral index", f"Sectoral {word} %", "Alpha vs sectoral %"] if sectoral else [])
         cagr = measure == "cagr"
         data = [[r.instrument.name, r.starts or start, _pct(r.cagr if cagr else r.xirr), _pct(r.index_cagr if cagr else r.index_xirr), _pct(r.alpha)]
                 + ([r.sect_name, _pct(r.sect_cagr if cagr else r.sect_xirr), _pct(r.sect_alpha)] if sectoral else []) for r in rows]

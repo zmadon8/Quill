@@ -113,7 +113,7 @@ def _investments_figures(profile, user=None):
     if "alerts" in keys:
         n_alerts = alerts.peek_count(profile)
         values["alerts"] = DASH if n_alerts is None else format_indian(n_alerts, 0)
-    labels = {"value": "Value", "xirr": "XIRR (a year)" + (f" over{suffix}" if suffix else ""), "alerts": "Alerts", "invested": "Invested", "gain": "Gain" + suffix}
+    labels = {"value": "Value", "xirr": "XIRR" + (f" over{suffix}" if suffix else ""), "alerts": "Alerts", "invested": "Invested", "gain": "Gain" + suffix}
     return [(labels[k], values[k]) for k in keys]
 
 

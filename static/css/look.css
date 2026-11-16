@@ -214,6 +214,14 @@ body.look :is(.case-comment, .case-line-comment) { font: normal 12.5px/1.6 var(-
 body.look a.cite-link { text-decoration: none; }
 body.look a.cite-link .citation { background: var(--info-tint); color: var(--info); }
 html.links-off body.look a.cite-link .citation { background: var(--paper-2); color: var(--ink-3); }
+/* One bubble per citation on the reading page (owner round 2026-11): its (a), (b) label on in-line multi-citation Items, the citation and its
+   comment all sit inside it. The citation inside is plain italic text; a citation with a link colours the whole bubble. */
+body.look .cite-bubble { display: inline-block; max-width: 100%; margin: 2px 0; padding: 1px 9px; border-radius: 6px; background: var(--paper-2); color: var(--ink-3); font: normal 12.5px/1.6 var(--font-sans); }
+body.look .cite-bubble.linked { background: var(--info-tint); color: var(--info); }
+html.links-off body.look .cite-bubble.linked { background: var(--paper-2); color: var(--ink-3); }
+body.look .cite-bubble .citation, body.look .cite-bubble a.cite-link .citation, html.links-off body.look .cite-bubble a.cite-link .citation { display: inline; margin: 0; padding: 0; border-radius: 0; background: none; color: inherit; font: italic 12.5px/1.6 var(--font-sans); }
+body.look .cite-bubble a.cite-link { color: inherit; }
+body.look .cite-bubble .num { color: inherit; font-style: normal; }
 body.look .note { border-radius: 8px; border-left: 0; background: var(--paper-2); }
 body.look .see-also a { color: var(--accent); font-weight: 600; }
 

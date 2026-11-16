@@ -99,3 +99,45 @@ def outstanding_summary_export(request):
     profile, settings = scope.context(request)
     sort = "name" if request.GET.get("sort") == "name" else "amount"
     return file_response(xlsx.export_outstanding_by_firm(profile, outstanding_filters(request.GET, overdue_on(settings)), sort), XLSX_TYPE)
+
+
+def _hidden_columns(request):
+    """``?hide=2,5``: the positions hidden in the Matter page's Columns menu (sent by columns.js from this browser's choice)."""
+    return [int(x) for x in (request.GET.get("hide") or "").split(",") if x.strip().isdigit()]
+
+
+@fees_reader
+@handle_fees_errors()
+@require_safe
+def matter_memos_export(request, matter_id):
+    """The Matter page's memo table as Excel: all its memos, or only the outstanding ones (``?outstanding=1``), with its shown columns."""
+    from fees.services import matters
+    from fees.views_matters import matter_memo_items
+
+    profile, _settings = scope.context(request)
+    matter = matters.get_matter(profile, matter_id)
+    outstanding_only = request.GET.get("outstanding") == "1"
+    items = matter_memo_items(profile, matter_id, outstanding_only)
+    title = f"Memos - {matter.name}" + (" - Outstanding" if outstanding_only else "")
+    return file_response(xlsx.export_matter_memos(items, title, _hidden_columns(request)), XLSX_TYPE)
+
+
+@fees_reader
+@handle_fees_errors()
+@require_safe
+def firm_memos_export(request, firm_id):
+    """Every memo of each matter the firm page shows (``?matters=all|active|archived``), matter by matter, with the Matter page's columns."""
+    from fees.services import firms
+    from fees.views_firms import filter_matter_rows, matters_shown
+    from fees.views_matters import matter_memo_items
+
+    profile, settings = scope.context(request)
+    detail = firms.get_firm(profile, firm_id)
+    shown = matters_shown(request, settings)
+    items = []
+    for row in filter_matter_rows(detail["matters"], shown):
+        items.extend(matter_memo_items(profile, row["matter"].pk))
+    label = {"active": " - Active Matters", "archived": " - Archived Matters"}.get(shown, "")
+    return file_response(xlsx.export_matter_memos(items, f"Memos - {detail['firm'].name}{label}", _hidden_columns(request), with_matter=True),
+                         XLSX_TYPE)
+

@@ -96,8 +96,8 @@ class HoldingsSheetColumnTests(SimpleTestCase):
 
     def test_columns_follow_xirr_in_order(self):
         header, out = self.lines(self.row())
-        at = header.index("XIRR % (a year)")
-        self.assertEqual(header[at:at + 3], ["XIRR % (a year)", "Index XIRR %", "Alpha (XIRR \u2212 Index XIRR) %"])
+        at = header.index("XIRR %")
+        self.assertEqual(header[at:at + 3], ["XIRR %", "Index XIRR %", "Alpha (XIRR \u2212 Index XIRR) %"])
         self.assertEqual(out[0][at:at + 3], [D("0.15"), D("0.11"), D("0.04")])
         self.assertEqual(len(out[0]), len(header))
 
@@ -119,7 +119,7 @@ class HoldingsSheetColumnTests(SimpleTestCase):
         header, _out = self.lines(self.row())
         handle = workbook(holdings_sheet([self.row()]))
         ws = load_workbook(handle).active
-        at = header.index("XIRR % (a year)")
+        at = header.index("XIRR %")
         cells = [ws.cell(row=2, column=at + 1 + n) for n in range(3)]
         self.assertEqual([c.value for c in cells], [0.15, 0.11, 0.04])
         self.assertEqual(len({c.number_format for c in cells}), 1)

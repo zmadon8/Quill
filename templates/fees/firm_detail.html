@@ -4,7 +4,7 @@
 {% block crumb_nav %}{% url 'fees_firms' as firms_url %}{% include "fees/_back.html" with url=firms_url label="Firms" %}{% endblock %}
 {% block content %}
 <div class="page-head"><h1>{{ firm.name }}{% if firm.status == 'archived' %} <small class="muted">(archived)</small>{% endif %}</h1>
-<p class="page-actions" role="group" aria-label="Firm actions"><a class="button small secondary" href="{% url 'fees_firm_statement' firm.pk %}">Statement</a> <a class="button small secondary" href="{% url 'fees_firm_ledger' firm.pk %}">Ledger</a> <a class="button small secondary" href="{% url 'fees_outstanding_detail' %}?firm={{ firm.pk }}">View Outstanding</a>{% if can_edit %} <a class="button small secondary" href="{% url 'fees_firm_edit' firm.pk %}">Edit Firm</a> <a class="button small primary" href="{% url 'fees_matter_new' %}?firm={{ firm.pk }}">New Matter</a>{% endif %}</p></div>
+<p class="page-actions" role="group" aria-label="Firm actions"><a class="button small secondary" href="{% url 'fees_firm_ledger' firm.pk %}">Ledger</a> <a class="button small secondary" href="{% url 'fees_firm_memos_export' firm.pk %}?matters={{ matters_shown }}" data-export-hide="matter-memos" title="Every memo of the matters shown below, with the columns shown on a Matter page">Export to Excel</a> <a class="button small secondary" href="{% url 'fees_outstanding_detail' %}?firm={{ firm.pk }}">View Outstanding</a>{% if can_edit %} <a class="button small secondary" href="{% url 'fees_firm_edit' firm.pk %}">Edit Firm</a> <a class="button small primary" href="{% url 'fees_matter_new' %}?firm={{ firm.pk }}">New Matter</a>{% endif %}</p></div>
 <div class="card firm-top">
 <div class="firm-notes">{% if firm.notes %}<p>{{ firm.notes|linebreaksbr }}</p>{% else %}<p class="muted">No notes.</p>{% endif %}</div>
 <section class="firm-groups" aria-labelledby="groups-heading">
@@ -16,7 +16,7 @@
 </div>
 <section aria-labelledby="matters-heading">
 <h2 id="matters-heading">Matters</h2>
-<nav class="list-filter" aria-label="Show matters">{% for s in matters_filters %}{% if s == matters_shown %}<strong aria-current="true">{% if s == 'active' %}Active Only{% else %}All{% endif %}</strong>{% else %}<a href="?matters={{ s }}">{% if s == 'active' %}Active Only{% else %}All{% endif %}</a>{% endif %}{% if not forloop.last %} | {% endif %}{% endfor %}</nav>
+<nav class="list-filter" aria-label="Show matters">{% for s in matters_filters %}{% if s == matters_shown %}<strong aria-current="true">{% if s == 'active' %}Active Only{% elif s == 'archived' %}Archived Only{% else %}All{% endif %}</strong>{% else %}<a href="?matters={{ s }}">{% if s == 'active' %}Active Only{% elif s == 'archived' %}Archived Only{% else %}All{% endif %}</a>{% endif %}{% if not forloop.last %} | {% endif %}{% endfor %}</nav>
 {% for g in groups %}<div class="card group-card"><h3 class="group-caption">{{ g.name }}</h3>
 <ul class="matter-list">{% for row in matter_rows %}{% if row.matter.group_id == g.pk %}{% include "fees/_firm_matter_row.html" %}{% endif %}{% endfor %}</ul></div>{% endfor %}
 {% if unpartnered %}<div class="card group-card"><h3 class="group-caption">No partner</h3>

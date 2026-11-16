@@ -14,6 +14,24 @@ from fees.services import clients, firms
 STATUS_FILTERS = ("all", "active", "archived")
 
 
+#: The firm page's matter filter (owner round 2026-11: Archived Only added).
+MATTER_FILTERS = ("all", "active", "archived")
+
+
+def matters_shown(request, settings):
+    """``?matters=`` (all, active or archived), else the Settings default."""
+    shown = request.GET.get("matters")
+    return shown if shown in MATTER_FILTERS else default_list_filter(settings)
+
+
+def filter_matter_rows(rows, shown):
+    if shown == "active":
+        return [row for row in rows if not row["matter"].is_archived]
+    if shown == "archived":
+        return [row for row in rows if row["matter"].is_archived]
+    return rows
+
+
 def default_list_filter(settings):
     """The Firms / matters default when the URL names no filter: the Settings choice (all or active)."""
     return "active" if getattr(settings, "list_default_filter", "all") == "active" else "all"
@@ -66,12 +84,8 @@ def firm_new(request):
 def firm_detail(request, firm_id):
     profile, settings = scope.context(request)
     detail = firms.get_firm(profile, firm_id)
-    shown = request.GET.get("matters")
-    if shown not in ("all", "active"):
-        shown = default_list_filter(settings)
-    rows = detail["matters"]
-    if shown == "active":
-        rows = [row for row in rows if not row["matter"].is_archived]
+    shown = matters_shown(request, settings)
+    rows = filter_matter_rows(detail["matters"], shown)
     return render_page(
         request,
         "fees/firm_detail.html",
@@ -81,7 +95,7 @@ def firm_detail(request, firm_id):
             "matter_rows": rows,
             "unpartnered": any(row["matter"].group_id is None for row in rows),
             "matters_shown": shown,
-            "matters_filters": ("all", "active"),
+            "matters_filters": MATTER_FILTERS,
         },
     )
 

@@ -43,14 +43,14 @@ class MeasureLabelPageTests(InvTestCase):
         html = self.client.get(reverse("investments_investment", args=[self.reliance.pk]) + "?on=2024-06-01").content.decode()
         self.assertIn("Return since bought</th>", html)
         self.assertIn("Index, same basis</th>", html)
-        self.assertIn("XIRR (a year)</div>", html)
+        self.assertIn("XIRR</div>", html)
         self.assertIn(measures.LEGEND, html)
 
     def test_holdings_and_year_by_year_headings(self):
         self.client.force_login(self.user)
         html = self.client.get(reverse("investments_holdings")).content.decode()
-        self.assertIn("XIRR (a year)</th>", html)
+        self.assertIn("XIRR</th>", html)
         self.assertIn(measures.LEGEND, html)
         names = [c[0] for c in reports.yearly(self.profile).columns]
-        self.assertEqual(names[-3:], ["XIRR (a year)", "Index change over the year", "Difference"])
+        self.assertEqual(names[-3:], ["XIRR", "Index change over the year", "Difference"])
         self.assertEqual(reports.yearly(self.profile).has_measures, True)

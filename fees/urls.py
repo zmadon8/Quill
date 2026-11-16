@@ -80,10 +80,12 @@ urlpatterns = [
     path("firms/<int:firm_id>/statement/export/", views_exports.firm_statement_export, name="fees_firm_statement_export"),
     path("firms/<int:firm_id>/ledger/", views_ledger.firm_ledger, name="fees_firm_ledger"),
     path("firms/<int:firm_id>/ledger/export/", views_exports.firm_ledger_export, name="fees_firm_ledger_export"),
+    path("firms/<int:firm_id>/memos/export/", views_exports.firm_memos_export, name="fees_firm_memos_export"),
     # Matters
     path("matters/new/", views_matters.matter_new, name="fees_matter_new"),
     path("matters/<int:matter_id>/", views_matters.matter_detail, name="fees_matter_detail"),
     path("matters/<int:matter_id>/edit/", views_matters.matter_edit, name="fees_matter_edit"),
+    path("matters/<int:matter_id>/memos/export/", views_exports.matter_memos_export, name="fees_matter_memos_export"),
     path("matters/<int:matter_id>/archive/", views_matters.matter_archive, name="fees_matter_archive"),
     path("matters/<int:matter_id>/statement/", views_ledger.matter_statement, name="fees_matter_statement"),
     path(

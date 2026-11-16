@@ -36,7 +36,7 @@
 {% else %}<p class="na">Nothing was held at year end.</p>{% endif %}
 
 {% if r.by_portfolio|length > 1 %}<div class="sec"><h2>By portfolio</h2></div>
-<div class="tw"><table data-table-id="inv-annual-portfolios" class="led"><thead><tr><th>Portfolio</th><th class="r">Start</th><th class="r">Invested</th><th class="r">Sold</th><th class="r">Short-term</th><th class="r">Long-term</th><th class="r">Interest income</th><th class="r" title="{{ 'xirr'|measure_tip }}">XIRR (a year)</th><th class="r">End</th></tr></thead><tbody>
+<div class="tw"><table data-table-id="inv-annual-portfolios" class="led"><thead><tr><th>Portfolio</th><th class="r">Start</th><th class="r">Invested</th><th class="r">Sold</th><th class="r">Short-term</th><th class="r">Long-term</th><th class="r">Interest income</th><th class="r" title="{{ 'xirr'|measure_tip }}">XIRR</th><th class="r">End</th></tr></thead><tbody>
 {% for name, s in r.by_portfolio %}<tr><td>{{ name }}</td><td class="r">{{ s.opening_value|inr }}</td><td class="r">{{ s.invested|inr }}</td><td class="r">{{ s.sold|inr }}</td><td class="r">{{ s.short_gain|inr_signed }}</td><td class="r">{{ s.long_gain|inr_signed }}</td><td class="r">{{ s.interest_income|inr_signed }}</td><td class="r">{{ s.xirr|pct }}</td><td class="r">{{ s.closing_value|inr }}</td></tr>{% endfor %}</tbody></table></div>{% endif %}
 
 <div class="sec"><h2>Transactions in {{ label }}</h2></div>

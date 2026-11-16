@@ -49,7 +49,7 @@ def _form_page(request, matter, form, errors=None, status=200):
             "form": form,
             "firm_choices": firms.list_firms(profile),
             "group_choices": groups,
-            "client_choices": clients.choices(profile),
+            "client_choices": clients.choices_for_firm(profile, firm_id, int_or_none(form.get("client_id")) or (matter.client_id if matter else None)),
             "errors": errors or [],
         },
         status=status,
@@ -90,18 +90,31 @@ def matter_new(request):
     return _form_page(request, None, form)
 
 
+def is_outstanding(item):
+    """A memo with fees outstanding, as on the Outstanding page: finalised, not written off, not fully paid."""
+    return not item["is_draft"] and not item["written_off"] and item["status"] == "Unpaid"
+
+
+def matter_memo_items(profile, matter_id, outstanding_only=False):
+    """The Matter page's memo rows (drafts too), or only the outstanding ones."""
+    items = memo_lists.list_memos_for_matter(profile, matter_id)
+    return [m for m in items if is_outstanding(m)] if outstanding_only else items
+
+
 @fees_reader
 @handle_fees_errors()
 @require_safe
 def matter_detail(request, matter_id):
     profile, settings = scope.context(request)
     matter = matters.get_matter(profile, matter_id)
-    items = memo_lists.list_memos_for_matter(profile, matter_id)
+    outstanding_only = request.GET.get("outstanding") == "1"
+    items = matter_memo_items(profile, matter_id, outstanding_only)
     return render_page(
         request,
         "fees/matter_detail.html",
         {
             "matter": matter,
+            "outstanding_only": outstanding_only,
             "items": items,
             "totals": memo_lists.footer_totals(items),
             "money_unit": settings.money_unit,

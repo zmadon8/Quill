@@ -4,9 +4,8 @@
   var home = script && script.dataset.home;
   var search = script && script.dataset.search;
 
-  // Alt+H (shown as Option-H on a Mac) goes Home, Alt+F (Option-F) opens Search. Ctrl+Alt works too.
-  // event.code is used because Option changes the typed letter on a Mac. Cmd is left alone.
-  // On the Search page Alt+F and the magnifier focus that page's own box; on other program pages it opens the search bar under the header.
+  // Alt+H (Option-H) goes Home, Alt+F (Option-F) opens Search; Ctrl+Alt works too. event.code, as Option changes the letter on a Mac.
+  // On the Search page Alt+F focuses its own box; elsewhere it opens the search bar under the header.
   var toggleBtn = document.querySelector("[data-search-toggle]");
   var pop = document.getElementById("search-pop");
   var popInput = document.querySelector("[data-search-popup-input]");
@@ -38,8 +37,7 @@
       closePop(false);
     });
   }
-  // Ctrl+K (Cmd+K on a Mac): the search box of the program in use, or Search everything where there is none (owner round 2026-11).
-  // Works from inside a field too; the rich-text editor uses Ctrl with B, I and U only.
+  // Ctrl+K (Cmd+K): this program's search box, else Search everything. Works in a field too (the editor uses Ctrl+B, I, U only).
   var find = script && script.getAttribute("data-find");
   document.addEventListener("keydown", function (e) {
     if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || e.code !== "KeyK") { return; }
@@ -47,6 +45,11 @@
     if (box) { e.preventDefault(); box.focus(); box.select(); }
     else if (pop) { e.preventDefault(); openPop(); }
     else if (find) { e.preventDefault(); window.location.href = find; }
+  });
+  // Ctrl+F opens a data-ctrl-f search bar (Home); elsewhere it is the browser's.
+  document.addEventListener("keydown", function (e) {
+    if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || e.code !== "KeyF") { return; }
+    if (pop && pop.hasAttribute("data-ctrl-f")) { e.preventDefault(); openPop(); }
   });
   // "Search all programs" in the search bar carries what was typed.
   document.addEventListener("click", function (e) {
@@ -70,7 +73,7 @@
     }
   });
 
-  // Jump flash: landing on #n-... (from a Search result, the Review list or a Contents link) briefly highlights the target.
+  // Jump flash: landing on #n-... (a Search result, Review list or Contents link) briefly highlights the target.
   var flashTimer = null;
   var flashed = null;
   var jumpFlash = function () {
@@ -194,8 +197,8 @@
     });
   }
 
-  // Breadcrumb "Subjects" link: switch the side panel between this Subject's Topic tree and the list of every Subject.
-  // On phones the panel is a slide-over, so the link opens it showing the list. Without JavaScript it just goes to the Subjects page.
+  // Breadcrumb "Subjects": switch the side panel between this Subject's Topics and every Subject (on phones it opens the
+  // slide-over on the list). Without JavaScript it goes to the Subjects page.
   var switcher = document.querySelector("[data-panel-switch]");
   var topicsView = document.querySelector("[data-panel-topics]");
   var subjectsView = document.querySelector("[data-panel-subjects]");
@@ -370,8 +373,8 @@
     if (sc) { sc.scrollTop = Math.max(0, link.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop - sc.clientHeight / 3); }
   });
 
-  // Sticky breadcrumb row: measure its height into --sticky-offset so jump targets stop below it (see scroll-margin-top in site.css).
-  // The "Show header" button (three lines) drops the whole header down over the page once it has scrolled out of view.
+  // Sticky breadcrumb row: its height goes into --sticky-offset so jump targets stop below it (scroll-margin-top in site.css).
+  // "Show header" (three lines) drops the header over the page once it has scrolled away.
   var crumbRow = document.querySelector(".crumb-row");
   if (crumbRow) {
     var rootStyle = document.documentElement.style;
@@ -382,7 +385,7 @@
     measure();
     window.addEventListener("resize", measure);
     if (window.ResizeObserver) { new ResizeObserver(measure).observe(crumbRow); }
-    // A hash in the address (from the All redirect) was jumped to before the offset was known: jump again, now and after layout/fonts.
+    // A hash jumped to before the offset was known: jump again, now and after layout and fonts.
     var userMoved = false;
     var markMoved = function () { userMoved = true; };
     window.addEventListener("wheel", markMoved, { passive: true });
@@ -451,8 +454,8 @@
     }
   }
 
-  // Reading view: remembered per browser in a cookie so the server can make the Contents links open the whole Subject
-  // or only that Topic or Sub-topic, as the browser used last (the profile's "view I used last" setting; other settings ignore it).
+  // Reading view: a cookie per browser, so the Contents links open the whole Subject or one Topic / Sub-topic as last used
+  // (the "view I used last" setting only).
   var reading = document.querySelector("[data-reading-view]");
   if (reading) {
     var wholeView = reading.getAttribute("data-reading-view") === "all";
@@ -460,7 +463,7 @@
   }
 
   // Topic and Sub-topic headings in the reading body are links that switch between the whole Subject and one Topic or Sub-topic.
-  // In Edit mode, while an editing card or an "+ Add" form is open the headings do not switch, so a click cannot lose unsaved work.
+  // In Edit mode, with an editing card or "+ Add" form open, headings do not switch (no unsaved work is lost).
   document.addEventListener("click", function (event) {
     var link = event.target.closest ? event.target.closest("a[data-heading-toggle]") : null;
     if (!link) { return; }
