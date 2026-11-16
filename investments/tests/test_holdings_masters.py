@@ -185,14 +185,6 @@ class MastersTests(InvTestCase):
         masters.delete_instrument(other, other_user, self.reliance)
         self.assertFalse(Instrument.objects.filter(pk=self.reliance.pk).exists())
 
-    def test_hide_only_when_sold_out(self):
-        self.buy(d(2024, 1, 1), 5, 10)
-        with self.assertRaises(InvestmentsError):
-            masters.update_profile_details(self.profile, self.user, self.reliance, hidden=True)
-        self.sell(d(2024, 2, 1), 5, 12)
-        masters.update_profile_details(self.profile, self.user, self.reliance, hidden=True)
-        self.assertTrue(ProfileInvestment.objects.get(profile=self.profile, instrument=self.reliance).hidden)
-
     def test_shared_details_are_admin_only(self):
         editor, _ = make_user("ed2", profile=self.profile)
         with self.assertRaises(InvestmentsError):

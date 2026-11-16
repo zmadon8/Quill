@@ -56,7 +56,6 @@ class Row:
         self.is_held = data["is_held"]
         self.sold_out = data["sold_out"]
         self.empty = data["empty"]
-        self.is_hidden = data["hidden"]
         self.spark = data["spark"]
         self.realised = Decimal(data.get("realised", "0"))
         self.dividends = Decimal(data.get("dividends", "0"))
@@ -75,7 +74,7 @@ class Row:
         return (self.cost - self.awaiting) / self.units if self.units else None
 
 
-def _dump(h, hidden_ids, stale, sparks):
+def _dump(h, stale, sparks):
     inst = h.instrument
     return {
         "instrument": {"id": inst.pk, "name": inst.name, "code": inst.code, "isin": inst.isin or "", "kind": inst.kind, "kind_label": inst.get_kind_display(),
@@ -84,7 +83,7 @@ def _dump(h, hidden_ids, stale, sparks):
         "first_date": h.first_date.isoformat() if h.first_date else None, "price_date": h.price_date.isoformat() if h.price_date else None,
         "price": str(h.price) if h.price is not None else None,
         "xirr": h.xirr, "index_xirr": h.index_xirr, "alpha": h.alpha, "unpriced": h.unpriced, "stale": inst.pk in stale, "blocked": h.blocked, "is_held": h.is_held,
-        "sold_out": h.sold_out, "empty": h.empty, "hidden": inst.pk in hidden_ids, "spark": sparks.get(inst.pk),
+        "sold_out": h.sold_out, "empty": h.empty, "spark": sparks.get(inst.pk),
         "realised": str(h.realised), "dividends": str(h.dividends), "interest_income": str(h.interest_income),
     }
 
@@ -93,7 +92,6 @@ def compute(profile, portfolio=None, broker=None, as_of=None):
     """Every line the page can show (all types and statuses), plus the counts the page keeps: ``{"rows", "held_count", "sold_count"}``."""
     rows, _totals = holdings.compute(profile, portfolio=portfolio, broker=broker, as_of=as_of)
     performance.decorate_with_index(profile, rows, holdings.Totals(), as_of or date.today())
-    hidden_ids = set(ProfileInvestment.objects.filter(profile=profile, hidden=True).values_list("instrument_id", flat=True))
     # Investments added but not yet bought still belong in the list.
     # They are "Not bought yet", never "Held": nothing is held until units (or a purchase awaiting allotment) exist.
     seen = {h.instrument.pk for h in rows}
@@ -106,8 +104,8 @@ def compute(profile, portfolio=None, broker=None, as_of=None):
     closes = prices.recent_closes([i.pk for i in spark_of], as_of or date.today())
     sparks = {iid: sparkline(vals) for iid, vals in closes.items()}
     return {
-        "rows": [_dump(h, hidden_ids, stale, sparks) for h in rows],
-        "held_count": sum(1 for h in rows if h.is_held and h.instrument.pk not in hidden_ids),
+        "rows": [_dump(h, stale, sparks) for h in rows],
+        "held_count": sum(1 for h in rows if h.is_held),
         "sold_count": sum(1 for h in rows if h.sold_out),
     }
 

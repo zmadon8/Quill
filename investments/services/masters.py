@@ -293,8 +293,8 @@ def get_profile_investment(profile, instrument):
 
 
 @transaction.atomic
-def update_profile_details(profile, user, instrument, *, notes=None, links=None, hidden=None, sectoral_index=None, sectoral_set=False):
-    """The profile's own details of an investment: notes, links, hidden flag, sectoral index (editable by an Editor; plan 10)."""
+def update_profile_details(profile, user, instrument, *, notes=None, links=None, sectoral_index=None, sectoral_set=False):
+    """The profile's own details of an investment: notes, links, sectoral index (editable by an Editor; plan 10)."""
     obj = get_profile_investment(profile, instrument)
     if notes is not None:
         obj.notes = notes
@@ -308,14 +308,6 @@ def update_profile_details(profile, user, instrument, *, notes=None, links=None,
                 raise InvestmentsError("BAD_LINK", "A link must start with http:// or https://.")
             clean.append({"label": (link.get("label") or url)[:80], "url": url[:500]})
         obj.links = clean
-    if hidden is not None:
-        if hidden:
-            from investments.services import holdings
-
-            h, _t = holdings.compute(profile, instrument_ids=[instrument.pk], with_xirr=False)
-            if any(not x.sold_out for x in h):
-                raise InvestmentsError("STILL_HELD", "Only a sold-out investment can be hidden.", 409)
-        obj.hidden = bool(hidden)
     if sectoral_set:
         if sectoral_index is not None and sectoral_index.kind != KIND_INDEX:
             raise InvestmentsError("BAD_INDEX", "The sectoral index must be an index.")

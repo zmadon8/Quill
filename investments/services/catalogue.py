@@ -463,7 +463,6 @@ def merge(user, keep, drop, reason=""):
     for pi in ProfileInvestment.objects.filter(instrument=drop):
         twin = ProfileInvestment.objects.filter(profile=pi.profile, instrument=keep).first()
         if twin:
-            twin.hidden = twin.hidden and pi.hidden
             twin.notes = "\n".join(x for x in (twin.notes, pi.notes) if x)
             twin.links = list({l["url"]: l for l in (twin.links + pi.links)}.values())
             twin.sectoral_index_id = twin.sectoral_index_id or pi.sectoral_index_id

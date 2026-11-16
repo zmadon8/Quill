@@ -187,10 +187,9 @@ def catalogue_action(request, pk):
         if pi is None:
             raise Http404
         sect = Instrument.objects.filter(pk=request.POST.get("sectoral") or 0, kind="index").first()
-        hidden = bool(request.POST.get("hidden"))
-        catalogue.log(user, inst, "profile_detail", pi.pk, "sectoral/hidden", f"{pi.sectoral_index_id}/{pi.hidden}", f"{getattr(sect, 'pk', None)}/{hidden}", reason)
-        pi.sectoral_index, pi.hidden = sect, hidden
-        pi.save(update_fields=["sectoral_index", "hidden"])
+        catalogue.log(user, inst, "profile_detail", pi.pk, "sectoral", f"{pi.sectoral_index_id}", f"{getattr(sect, 'pk', None)}", reason)
+        pi.sectoral_index = sect
+        pi.save(update_fields=["sectoral_index"])
         messages.success(request, "Saved.")
     else:
         raise Http404

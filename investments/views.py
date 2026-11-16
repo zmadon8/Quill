@@ -201,7 +201,7 @@ def set_selection(request):
 
         parts = urlsplit(target)
         query = dict(parse_qsl(parts.query))
-        allowed = {"type": {"", "share", "fund", "alternative", "foreign"}, "status": {"held", "sold_out", "not_bought", "hidden", "all"}}
+        allowed = {"type": {"", "share", "fund", "alternative", "foreign"}, "status": {"held", "sold_out", "not_bought", "all"}}
         for key in ("type", "status"):
             if request.POST.get(key, "") in allowed[key]:
                 query[key] = request.POST[key]

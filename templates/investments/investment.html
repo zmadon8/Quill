@@ -107,8 +107,7 @@
 {% if can_edit %}<form method="post" action="{% url 'investments_investment_folio' inst.pk %}">{% csrf_token %}{% include "investments/_form.html" with form=folio_form %}<button class="btn q" type="submit">Add folio</button></form>{% endif %}
 
 <div class="sec"><h2>Your details</h2></div>
-{% if can_edit %}<form method="post" action="{% url 'investments_investment_details' inst.pk %}">{% csrf_token %}{% include "investments/_form.html" with form=details_form %}<div class="acts-row"><button class="btn q" name="action" value="save">Save details</button>
-{% if not h.is_held %}{% if pi.hidden %}<button class="btn q" name="action" value="show">Show again</button>{% else %}<button class="btn q" name="action" value="hide">Hide ({% if h.empty %}not bought{% else %}sold out{% endif %})</button>{% endif %}{% endif %}</div></form>
+{% if can_edit %}<form method="post" action="{% url 'investments_investment_details' inst.pk %}">{% csrf_token %}{% include "investments/_form.html" with form=details_form %}<div class="acts-row"><button class="btn q" name="action" value="save">Save details</button></div></form>
 {% elif pi.notes %}<p>{{ pi.notes }}</p>{% endif %}
 
 <div class="sec"><h2>Shared details</h2></div>

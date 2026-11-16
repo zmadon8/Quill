@@ -58,13 +58,11 @@ def holdings_list(request):
     for h in all_rows:
         if kind and h.instrument.kind != kind:
             continue
-        if status == "held" and (not h.is_held or h.is_hidden):
+        if status == "held" and not h.is_held:
             continue
         if status == "sold_out" and not h.sold_out:
             continue
         if status == "not_bought" and not h.empty:
-            continue
-        if status == "hidden" and not h.is_hidden:
             continue
         out.append(h)
     if request.GET.get("export") == "xlsx":
@@ -74,7 +72,7 @@ def holdings_list(request):
     return page(request, "investments/holdings.html", {
         "page_title_text": "Investments", "rows": out, "held_count": held_count, "sold_count": sold_count, "kind": kind, "status": status, "holdings_filters": True,
         "kinds": [("", "All types"), ("share", "Share"), ("fund", "Mutual fund"), ("alternative", "Alternative"), ("foreign", "Foreign")],
-        "status_choices": [("held", "Held"), ("sold_out", "Sold out"), ("not_bought", "Not bought yet"), ("hidden", "Hidden"), ("all", "All")],
+        "status_choices": [("held", "Held"), ("sold_out", "Sold out"), ("not_bought", "Not bought yet"), ("all", "All")],
     })
 
 
@@ -499,33 +497,26 @@ def investment_folio(request, pk):
 def investment_details(request, pk):
     profile = profile_or_404(request)
     inst = _instrument_or_404(profile, pk)
-    action = request.POST.get("action", "save")
-    if action == "hide":
-        masters.update_profile_details(profile, request.user, inst, hidden=True)
-        messages.success(request, "Hidden. It stays in reports and history; show it again from Investments > Status > Hidden.")
-    elif action == "show":
-        masters.update_profile_details(profile, request.user, inst, hidden=False)
-    else:
-        form = forms.DetailsForm(request.POST, with_sector=inst.kind != KIND_ALTERNATIVE)
-        if form.is_valid():
-            with transaction.atomic():
-                if "interest_type" in form.fields:  # checked first, so a refused rate saves nothing
-                    masters.update_alt_interest(profile, request.user, inst, interest_rate=form.cleaned_data["interest_rate"],
-                                                interest_type=form.cleaned_data["interest_type"], maturity_date=form.cleaned_data["maturity_date"])
-                masters.update_profile_details(profile, request.user, inst, notes=form.cleaned_data["notes"],
-                                               links=_parse_links(form.cleaned_data["links"]))
-                if "sectoral_index" in form.fields:
-                    from .services import indices
+    form = forms.DetailsForm(request.POST, with_sector=inst.kind != KIND_ALTERNATIVE)
+    if form.is_valid():
+        with transaction.atomic():
+            if "interest_type" in form.fields:  # checked first, so a refused rate saves nothing
+                masters.update_alt_interest(profile, request.user, inst, interest_rate=form.cleaned_data["interest_rate"],
+                                            interest_type=form.cleaned_data["interest_type"], maturity_date=form.cleaned_data["maturity_date"])
+            masters.update_profile_details(profile, request.user, inst, notes=form.cleaned_data["notes"],
+                                           links=_parse_links(form.cleaned_data["links"]))
+            if "sectoral_index" in form.fields:
+                from .services import indices
 
-                    chosen = form.cleaned_data.get("sectoral_index")
-                    pi = masters.get_profile_investment(profile, inst)
-                    if (chosen.pk if chosen else None) != pi.sectoral_index_id:
-                        indices.set_sector_index(profile, request.user, inst, chosen)
-            messages.success(request, "Details saved.")
-        else:
-            _form_errors(request, form)
-            request.session["details_draft"] = {"pk": inst.pk, "data": {k: v for k, v in request.POST.items() if k != "csrfmiddlewaretoken"}}
-            return redirect(reverse("investments_investment", args=[pk]))
+                chosen = form.cleaned_data.get("sectoral_index")
+                pi = masters.get_profile_investment(profile, inst)
+                if (chosen.pk if chosen else None) != pi.sectoral_index_id:
+                    indices.set_sector_index(profile, request.user, inst, chosen)
+        messages.success(request, "Details saved.")
+    else:
+        _form_errors(request, form)
+        request.session["details_draft"] = {"pk": inst.pk, "data": {k: v for k, v in request.POST.items() if k != "csrfmiddlewaretoken"}}
+        return redirect(reverse("investments_investment", args=[pk]))
     return redirect(reverse("investments_investment", args=[pk]))
 
 

@@ -285,7 +285,7 @@ def settings_indices(request):
     profile = profile_or_404(request)
     settings_row = core.get_settings(profile, create=False)
     choices = list(Instrument.objects.filter(profile=None, kind="index").order_by("name"))
-    mine = list(ProfileInvestment.objects.filter(profile=profile, instrument__kind__in=("share", "fund", "foreign"), hidden=False)
+    mine = list(ProfileInvestment.objects.filter(profile=profile, instrument__kind__in=("share", "fund", "foreign"))
                 .select_related("instrument", "sectoral_index").order_by("instrument__name"))
     return page(request, "investments/settings_indices.html", {
         "page_title_text": "Indices", "rows": indices.listing(profile), "suggested": [s for s in indices.SUGGESTED

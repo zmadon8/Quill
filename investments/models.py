@@ -205,11 +205,10 @@ class InvestmentsUserPrefs(models.Model):
 
 
 class ProfileInvestment(models.Model):
-    """A profile's private details of a (shared) investment: hidden flag, notes, links, sectoral index (plan 16.3)."""
+    """A profile's private details of a (shared) investment: notes, links, sectoral index (plan 16.3)."""
 
     profile = models.ForeignKey("accounts.Profile", on_delete=models.CASCADE, related_name="+")
     instrument = models.ForeignKey(Instrument, on_delete=models.CASCADE, related_name="+")
-    hidden = models.BooleanField(default=False)
     notes = models.TextField(blank=True, default="")
     links = models.JSONField(default=list, blank=True)
     sectoral_index = models.ForeignKey(Instrument, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")

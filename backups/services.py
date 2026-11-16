@@ -388,6 +388,7 @@ def parse_backup(raw, max_bytes):
     upgrade_old_items(document)
     _drop_removed_price_source(models_in_file)
     _drop_removed_portfolio_owner(models_in_file)
+    _drop_removed_hidden_investments(models_in_file)
     _split_alert_master_switches(models_in_file)
     return document
 
@@ -414,6 +415,12 @@ def _drop_removed_portfolio_owner(models_in_file):
     """Portfolio.owner_name was removed (investments 0034): an older backup that carries it still restores, the key is ignored."""
     for record in models_in_file.get("investments.Portfolio", []):
         record["fields"].pop("owner_name", None)
+
+
+def _drop_removed_hidden_investments(models_in_file):
+    """ProfileInvestment.hidden was removed (investments 0040): an older backup that carries it still restores, the key is ignored."""
+    for record in models_in_file.get("investments.ProfileInvestment", []):
+        record["fields"].pop("hidden", None)
 
 
 def _split_alert_master_switches(models_in_file):
