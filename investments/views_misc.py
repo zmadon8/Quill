@@ -276,6 +276,62 @@ def settings_insights(request):
                                                                "limit": row.concentration_limit}, selectors=False)
 
 
+# ------------------------------------------------------------------ report emails (owner round 2026-11)
+
+@inv_read_write
+def settings_email(request):
+    """Investments > Settings > Email reports: the cadences, the people who get them, and Send now."""
+    from django.db import transaction
+    from django.utils import timezone
+
+    from mailer.services import is_configured
+
+    from .models import CADENCES, PeriodicEmail, PeriodicEmailRecipient
+    from .services import periodic_mail
+
+    profile = profile_or_404(request)
+    row = PeriodicEmail.objects.filter(profile=profile).first() or PeriodicEmail(profile=profile)
+    people = periodic_mail.eligible_users(profile)
+    if request.method == "POST":
+        action = request.POST.get("action", "save")
+        if action.startswith("send_"):
+            cadence = action[len("send_"):]
+            if cadence not in dict(CADENCES):
+                raise Http404
+            ok, text = periodic_mail.send_now(profile, cadence)
+            (messages.success if ok else messages.error)(request, text)
+            return redirect(reverse("investments_settings_email"))
+        ticked = set(request.POST.getlist("cadence"))
+        chosen = {int(v) for v in request.POST.getlist("user") if v.isdigit()} & {u.pk for u in people}
+        today = timezone.localdate()
+        with transaction.atomic():
+            for cadence, _label in CADENCES:
+                on = cadence in ticked
+                if on and not row.on(cadence):
+                    periodic_mail.start_from_now(row, cadence, today)
+                setattr(row, cadence, on)
+            row.save()
+            PeriodicEmailRecipient.objects.filter(profile=profile).exclude(user_id__in=chosen).delete()
+            have = set(PeriodicEmailRecipient.objects.filter(profile=profile).values_list("user_id", flat=True))
+            PeriodicEmailRecipient.objects.bulk_create([PeriodicEmailRecipient(profile=profile, user_id=pk) for pk in chosen - have])
+        if ticked and not chosen:
+            messages.warning(request, "Saved. Nobody is ticked, so nothing will be sent until you choose at least one person.")
+        else:
+            messages.success(request, "Saved.")
+        return redirect(reverse("investments_settings_email"))
+    chosen = set(PeriodicEmailRecipient.objects.filter(profile=profile).values_list("user_id", flat=True))
+    today = timezone.localdate()
+    cadences = []
+    for cadence, label in CADENCES:
+        start, end = periodic_mail.latest_period(cadence, today)
+        cadences.append({"key": cadence, "label": label, "on": row.on(cadence), "last_end": row.last_end(cadence), "latest_start": start, "latest_end": end})
+    _ok, skipped = periodic_mail.recipients(profile) if row.pk else ([], [])
+    return page(request, "investments/settings_email.html", {
+        "page_title_text": "Email reports", "row": row, "cadences": cadences, "configured": is_configured(), "skipped": skipped,
+        "people": [{"user": u, "name": periodic_mail.recipient_name(u), "chosen": u.pk in chosen} for u in people],
+    }, selectors=False)
+
+
 # ------------------------------------------------------------------ indices (owner round 2026-11)
 
 @inv_reader
