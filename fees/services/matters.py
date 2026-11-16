@@ -55,7 +55,7 @@ MEMO_DEFAULT_FIELDS = (
     "addressee_line2",
     "addressee_use_firm_name",
     "court_name",
-    "client",
+    "client_position",
     "additional_details_left",
     "additional_details_right",
     "plaintiff_name",
@@ -89,7 +89,7 @@ def _group_in_firm_or_raise(profile, firm_id, group_id):
     if group is None:
         raise FeesError(
             "PARTNER_NOT_FOUND",
-            f"Group {group_id} is not part of firm {firm_id}",
+            f"Partner {group_id} is not part of firm {firm_id}",
         )
     return group
 
@@ -271,7 +271,7 @@ def get_matter(profile, matter_id):
     """
     matter = (
         Matter.objects.filter(profile=profile, pk=matter_id)
-        .select_related("firm", "group")
+        .select_related("firm", "group", "client")
         .first()
     )
     if matter is None:

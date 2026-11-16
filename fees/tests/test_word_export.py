@@ -41,7 +41,7 @@ def sample_memo(**over):
         "plaintiff_type": "Plaintiff",
         "defendant_name": "",
         "defendant_type": "",
-        "client": "Acme",
+        "client_position": "Acme",
         "num_appearances": 2,
         "fees_per_appearance": Decimal("5000"),
         "fees_appearances": Decimal("10000"),

@@ -122,7 +122,7 @@ class SearchRankingTests(TestCase):
         )
 
     def test_firms_before_matters_before_memos(self):
-        make_memo(self.profile, self.matter, client="Match Client")
+        make_memo(self.profile, self.matter, client_position="Match Client")
         results = search.search(self.profile, "Match")
         kinds = [r["kind"] for r in results]
         self.assertEqual(kinds, ["firm", "matter", "memo"])
@@ -130,7 +130,7 @@ class SearchRankingTests(TestCase):
     def test_memo_matched_by_party_names(self):
         p = make_memo(self.profile, self.matter, plaintiff_name="Match Plaintiff")
         d = make_memo(self.profile, self.matter, defendant_name="Match Defendant")
-        c = make_memo(self.profile, self.matter, client="Match Client")
+        c = make_memo(self.profile, self.matter, client_position="Match Client")
         results = search.search(self.profile, "Match")
         memo_ids = {r["id"] for r in results if r["kind"] == "memo"}
         self.assertEqual(memo_ids, {p.pk, d.pk, c.pk})
@@ -147,7 +147,7 @@ class SearchRankingTests(TestCase):
                 num_conferences=0,
                 fees_per_conference=0,
                 fees_misc_drafting=100,
-                client="Match Client",
+                client_position="Match Client",
             ),
             is_draft=True,
         )
@@ -158,12 +158,12 @@ class SearchRankingTests(TestCase):
 
     def test_memos_ordered_by_fy_then_seq_desc(self):
         older = make_memo(self.profile, self.matter, date="2024-07-15",
-                          client="Match A")
+                          client_position="Match A")
         newer = make_memo(self.profile, self.matter, date="2026-07-15",
-                          client="Match B")
+                          client_position="Match B")
         # A later seq in the same (newest) FY must sort first.
         newest_seq = make_memo(self.profile, self.matter, date="2026-08-15",
-                               client="Match C")
+                               client_position="Match C")
         results = search.search(self.profile, "Match")
         memo_ids = [r["id"] for r in results if r["kind"] == "memo"]
         self.assertEqual(memo_ids, [newest_seq.pk, newer.pk, older.pk])
@@ -194,7 +194,7 @@ class SearchIsolationTests(TestCase):
         f_mine, g_mine = seed_firm(mine, "Shared Name")
         f_other, g_other = seed_firm(other, "Shared Name")
         m_other = seed_matter(other, f_other, g_other, "Shared Matter")
-        make_memo(other, m_other, client="Shared Client")
+        make_memo(other, m_other, client_position="Shared Client")
 
         results = search.search(mine, "Shared")
         self.assertEqual(len(results), 1)
@@ -244,7 +244,7 @@ class SearchQueryCountTests(TestCase):
     def test_three_queries(self):
         for i in range(5):
             make_memo(self.profile, self.matter, date=f"2026-0{i + 1}-15",
-                      client="Match Client")
+                      client_position="Match Client")
         # One query each for firms, matters and memos; select_related means the
         # matter / firm names cost no per-row query.
         with self.assertNumQueries(3):

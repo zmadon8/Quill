@@ -9,6 +9,7 @@ from fees import forms, scope
 from fees.decorators import fees_editor, fees_read_write, fees_reader, handle_fees_errors
 from fees.errors import FeesError
 from fees.pages import json_ok, memo_filters, page_number, render_page
+from fees.services import clients as clients_service
 from fees.services import firms as firms_service
 from fees.services import filter_options, fy_options, matters, memo_fees, memo_lists, memos, payments, prefs
 from fees.services.fees_in_words import fees_in_words
@@ -52,6 +53,7 @@ def _list_page(request, draft_mode, template):
             "totals": memo_lists.footer_totals(items),
             "filters": filters,
             "firm_choices": options["firms"],
+            "client_choices": clients_service.choices(profile),
             "fy_options": fy_options.financial_year_options(
                 profile, settings.memos_start_year, filters.get("financial_year"), only_years=options["years"]
             ),

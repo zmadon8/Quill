@@ -166,8 +166,17 @@ def _year_filter(query, default_year):
     return None if "fy" in query else default_year
 
 
+def _client(query, filters):
+    """``client``: a client's id, or ``blank`` for matters with no client (``fees.services.client_scope``)."""
+    from fees.services import client_scope
+
+    value = client_scope.parse(query.get("client"))
+    if value is not None:
+        filters["client_id"] = value
+
+
 def memo_filters(query, default_year=None):
-    """Memo list filters from a query string: ``fy``, ``firm``, ``group``, ``matter``, ``unpaid``.
+    """Memo list filters from a query string: ``fy``, ``firm``, ``group`` (the Partner), ``client``, ``matter``, ``unpaid``.
 
     ``default_year`` (the current financial year on the pages) is used only when ``fy`` is absent altogether; an
     explicit ``fy=`` (the All years choice) means every year. Exports pass no default.
@@ -180,13 +189,14 @@ def memo_filters(query, default_year=None):
         number = int_or_none(query.get(key))
         if number is not None:
             filters[name] = number
+    _client(query, filters)
     if flag(query.get("unpaid")):
         filters["unpaid_only"] = True
     return filters
 
 
 def feebook_filters(query, default_year=None, with_bank=True):
-    """Feebook filters: ``fy``, ``firm``, ``group``, ``bank``, ``unaccounted`` (``default_year`` as for the memos).
+    """Feebook filters: ``fy``, ``firm``, ``group`` (the Partner), ``client``, ``bank``, ``unaccounted`` (``default_year`` as for the memos).
     ``with_bank=False`` (Bank switched off) ignores a ``bank`` left in an old link, so nothing is filtered unseen."""
     filters = {}
     year = _year_filter(query, default_year)
@@ -197,6 +207,7 @@ def feebook_filters(query, default_year=None, with_bank=True):
         number = int_or_none(query.get(key))
         if number is not None:
             filters[name] = number
+    _client(query, filters)
     if flag(query.get("unaccounted")):
         filters["unaccounted_only"] = True
     return filters
@@ -206,7 +217,7 @@ AGE_KEYS = ("0-30", "31-60", "61-90", "90+")
 
 
 def outstanding_filters(query, overdue_enabled=True):
-    """Outstanding filters: ``firm``, ``group``, ``matter``, ``written_off``, ``overdue``, ``age``.
+    """Outstanding filters: ``firm``, ``group`` (the Partner), ``client``, ``matter``, ``written_off``, ``overdue``, ``age``.
 
     ``age`` is one of the ageing card ranges (``AGE_KEYS``). ``overdue_enabled=False`` (Overdue after days is 0)
     ignores ``overdue`` in an old link.
@@ -216,6 +227,7 @@ def outstanding_filters(query, overdue_enabled=True):
         number = int_or_none(query.get(key))
         if number is not None:
             filters[name] = number
+    _client(query, filters)
     if flag(query.get("written_off")):
         filters["include_written_off"] = True
     if overdue_enabled and flag(query.get("overdue")):

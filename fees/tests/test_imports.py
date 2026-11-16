@@ -805,8 +805,8 @@ class ImportMemosTests(TestCase):
         ]
         import_memos(self.profile, rows, {**BASE_MAPPING, "court_name": "Court", "matter_client": "Client"})
         matter = Matter.objects.get(profile=self.profile)
-        self.assertEqual((matter.court_name, matter.client), ("High Court", "Cl 1"))
-        self.assertEqual(self.memo_by_number("INV-1").client, "Cl 1")  # memos snapshot their own row
+        self.assertEqual((matter.court_name, matter.client_position), ("High Court", "Cl 1"))
+        self.assertEqual(self.memo_by_number("INV-1").client_position, "Cl 1")  # memos snapshot their own row
         self.assertEqual(self.memo_by_number("INV-2").court_name, "High Court")
 
     def test_total_column_overrides_the_breakup_and_unmapped_total_uses_it(self):

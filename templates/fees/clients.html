@@ -1,0 +1,12 @@
+{% extends "fees/base_fees.html" %}
+{% block page_width %}w-4xl{% endblock %}
+{% block page_title %}Clients - {{ program_label }}{% endblock %}
+{% block crumb_nav %}{% url 'fees_firms' as back %}{% include "fees/_back.html" with url=back label="Firms" %}{% endblock %}
+{% block content %}
+<h1>Clients</h1>
+<p class="muted">The client each matter is for, chosen on the matter (Edit Or Move Matter). A matter may have no client. Memos, Outstanding and Statistics can be narrowed to one client. This is not the Client Position typed on a matter.</p>
+{% if can_edit %}<form method="post" action="{% url 'fees_firms_client_add' %}" class="fees-form">{% csrf_token %}<label>New client <input type="text" name="name" maxlength="200" required></label> <button type="submit" class="small primary">Add Client</button></form>{% endif %}
+<ul class="firm-list" aria-label="{{ client_rows|length }} client{{ client_rows|length|pluralize }}">
+  {% for c in client_rows %}<li><a class="firm-name" href="{% url 'fees_firms_client_detail' c.pk %}">{{ c.name }}</a> <span class="muted">{{ c.matter_count }} matter{{ c.matter_count|pluralize }}</span></li>{% empty %}<li class="muted">No clients yet.</li>{% endfor %}
+</ul>
+{% endblock %}

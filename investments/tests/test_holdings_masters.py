@@ -3,7 +3,7 @@ from datetime import date as d
 from decimal import Decimal as D
 
 from investments.errors import InvestmentsError
-from investments.models import Folio, Instrument, InvestmentHistory, Portfolio, ProfileInvestment, Transaction
+from investments.models import Folio, Instrument, InvestmentHistory, Portfolio, Transaction
 from investments.services import holdings, masters, prices, transactions as tx
 from investments.tests.base import InvTestCase, make_user
 

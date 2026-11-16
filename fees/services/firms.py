@@ -3,7 +3,7 @@
 Ports ``firmService.ts`` to the Django ORM. Every function takes ``profile``
 explicitly (``accounts.Profile``) as its first argument and never reads the
 request or settings globally: a profile is one separate Fee Register, so every
-query is scoped to it. The UI always says "Group" but the model/table is
+query is scoped to it. The UI says "Partner" (it said "Group" before the 2026-11 owner round); the model/table is
 ``Group`` (DB table "partners"); the ORIGINAL error codes say PARTNER
 (``INVALID_PARTNER_NAME``, ``DUPLICATE_PARTNER_NAME``, ``PARTNER_NOT_FOUND``,
 ``TOO_MANY_PARTNERS``) and are kept verbatim so the ported toast strings line up
@@ -235,17 +235,17 @@ def add_group(profile, firm_id, name):
 
     if firm.groups.count() >= MAX_GROUPS:
         raise FeesError(
-            "TOO_MANY_PARTNERS", f"A firm may have at most {MAX_GROUPS} groups"
+            "TOO_MANY_PARTNERS", f"A firm may have at most {MAX_GROUPS} partners"
         )
 
     if firm.groups.filter(name__iexact=clean).exists():
         raise FeesError(
-            "DUPLICATE_PARTNER_NAME", f'Group "{clean}" already exists in this firm'
+            "DUPLICATE_PARTNER_NAME", f'Partner "{clean}" already exists in this firm'
         )
 
     with transaction.atomic():
         group = Group.objects.create(profile=profile, firm=firm, name=clean)
-        history.record(profile, "create", "group", group.pk, f"Added group {clean} to firm {firm.name}")
+        history.record(profile, "create", "group", group.pk, f"Added partner {clean} to firm {firm.name}")
         touch(profile)
     return group
 
@@ -259,7 +259,7 @@ def update_group(profile, group_id, name):
     """
     group = Group.objects.filter(profile=profile, pk=group_id).first()
     if group is None:
-        raise FeesError("PARTNER_NOT_FOUND", f"Group {group_id} not found")
+        raise FeesError("PARTNER_NOT_FOUND", f"Partner {group_id} not found")
 
     clean = validate_name(name, "INVALID_PARTNER_NAME", MAX_GROUP_NAME)
     dupe = (
@@ -269,14 +269,14 @@ def update_group(profile, group_id, name):
     )
     if dupe:
         raise FeesError(
-            "DUPLICATE_PARTNER_NAME", f'Group "{clean}" already exists in this firm'
+            "DUPLICATE_PARTNER_NAME", f'Partner "{clean}" already exists in this firm'
         )
 
     with transaction.atomic():
         old_name = group.name
         group.name = clean
         group.save(update_fields=["name", "updated_at"])
-        history.record(profile, "update", "group", group.pk, f"Renamed group {old_name} to {clean}")
+        history.record(profile, "update", "group", group.pk, f"Renamed partner {old_name} to {clean}")
         touch(profile)
     return group
 
@@ -295,19 +295,19 @@ def remove_group(profile, firm_id, group_id):
         profile=profile, pk=group_id, firm_id=firm_id
     ).first()
     if group is None:
-        raise FeesError("PARTNER_NOT_FOUND", f"Group {group_id} not found")
+        raise FeesError("PARTNER_NOT_FOUND", f"Partner {group_id} not found")
 
     if Matter.objects.filter(profile=profile, group=group).exists():
         raise FeesError(
             "GROUP_IN_USE",
-            "This group still has matters, so it cannot be removed.",
+            "This partner still has matters, so it cannot be removed.",
             status=409,
         )
 
     with transaction.atomic():
         name = group.name
         group.delete()
-        history.record(profile, "delete", "group", group_id, f"Removed group {name}")
+        history.record(profile, "delete", "group", group_id, f"Removed partner {name}")
         touch(profile)
     return None
 

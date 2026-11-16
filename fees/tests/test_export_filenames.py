@@ -31,7 +31,7 @@ def make_memo(
         memo_number=number,
         seq=seq,
         date=date,
-        client=client,
+        client_position=client,
         matter=SimpleNamespace(name=matter, short_name=short),
         firm=SimpleNamespace(name=firm),
         group=SimpleNamespace(name=group),
@@ -123,11 +123,12 @@ class PlaceholderTests(SimpleTestCase):
             "matter_name": "Full Name",
             "short_name": "Short",
             "firm": "Firm X",
-            "group": "Group Y",
+            "partner": "Group Y",
             "date": "15.07.2026",
             "date_iso": "2026-07-15",
             "today": "2026-08-09",
-            "client": "Client Z",
+            "client_position": "Client Z",
+            "client_name": "",
         }
         self.assertEqual(set(expected), set(PLACEHOLDERS))
         for key, value in expected.items():

@@ -26,7 +26,7 @@ MEMO_TEXT_FIELDS = (
     "plaintiff_type",
     "defendant_name",
     "defendant_type",
-    "client",
+    "client_position",
     "dates_of_appearances",
     "dates_of_conferences",
     "misc_drafting_description",

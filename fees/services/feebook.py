@@ -62,6 +62,7 @@ from ``memo_fees``), so the single-fee-rule guard in ``test_memo_fees`` holds.
 from __future__ import annotations
 
 from fees.models import Allocation, Payment
+from fees.services import client_scope
 from fees.services import memo_fees
 from fees.services.financial_year import derive_financial_year
 from fees.services.money import round2
@@ -127,6 +128,8 @@ def _allocation_rows(profile, filters):
         pass
     elif group_id is not None:
         qs = qs.filter(memo__group_id=group_id)
+
+    qs = client_scope.narrow(qs, filters.get("client_id"), "memo__matter__")
 
     bank_account_id = filters.get("bank_account_id")
     if bank_account_id is not None:

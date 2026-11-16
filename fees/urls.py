@@ -70,6 +70,12 @@ urlpatterns = [
     path("firms/<int:firm_id>/groups/add/", views_firms.group_add, name="fees_group_add"),
     path("firms/<int:firm_id>/groups/<int:group_id>/rename/", views_firms.group_rename, name="fees_group_rename"),
     path("firms/<int:firm_id>/groups/<int:group_id>/remove/", views_firms.group_remove, name="fees_group_remove"),
+    # Clients (owner round 2026-11). The names start "fees_firm" so the Firms tab stays underlined.
+    path("firms/clients/", views_firms.client_list, name="fees_firms_clients"),
+    path("firms/clients/add/", views_firms.client_add, name="fees_firms_client_add"),
+    path("firms/clients/<int:client_id>/", views_firms.client_detail, name="fees_firms_client_detail"),
+    path("firms/clients/<int:client_id>/rename/", views_firms.client_rename, name="fees_firms_client_rename"),
+    path("firms/clients/<int:client_id>/delete/", views_firms.client_delete, name="fees_firms_client_delete"),
     path("firms/<int:firm_id>/statement/", views_ledger.firm_statement, name="fees_firm_statement"),
     path("firms/<int:firm_id>/statement/export/", views_exports.firm_statement_export, name="fees_firm_statement_export"),
     path("firms/<int:firm_id>/ledger/", views_ledger.firm_ledger, name="fees_firm_ledger"),

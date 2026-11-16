@@ -87,7 +87,7 @@ class PathWalkTests(test_flows.FlowBase):
                 "group_id": str(self.group.pk),
                 "name": "Smoke Matter",
                 "court_name": "High Court",
-                "client": "Smoke Client",
+                "client_position": "Smoke Client",
             },
         )
         self.matter = Matter.objects.get(profile=self.profile, name="Smoke Matter")

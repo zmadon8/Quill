@@ -60,6 +60,7 @@ LINE_TAGS = (
     "LINE_13_DEFENDANT",
     "LINE_14_DEFENDANT_TYPE",
     "LINE_15_CLIENT",
+    "LINE_15A_CLIENT_NAME",
     "LINE_16_NUM_APPEARANCES",
     "L16W",
     "LINE_17_DATES_APPEARANCES",
@@ -96,7 +97,8 @@ TAG_DOCS = {
     "LINE_12_PLAINTIFF_TYPE": ("Plaintiff type, for example Plaintiff or Petitioner", "Plaintiff"),
     "LINE_13_DEFENDANT": ("Defendant or respondent name", "Sample Industries"),
     "LINE_14_DEFENDANT_TYPE": ("Defendant type, for example Defendant or Respondent", "Defendant"),
-    "LINE_15_CLIENT": ("Client name", "Example Traders"),
+    "LINE_15_CLIENT": ("Client position (the party the work is for, as typed on the matter)", "Example Traders"),
+    "LINE_15A_CLIENT_NAME": ("Client: the name chosen from the Clients list on the matter (blank when none)", "Example Holdings Ltd"),
     "LINE_16_NUM_APPEARANCES": ("Number of appearances, as a bare number (blank when 0)", "2"),
     "L16W": ("Number plus the right word (blank when 0)", "1 Appearance / 2 Appearances"),
     "LINE_17_DATES_APPEARANCES": ("Dates of the appearances, as typed", "03.04.2026, 17.04.2026"),
@@ -135,7 +137,7 @@ TAG_DOCS = {
     ),
     "SHOW_PLAINTIFF": ("Block kept when a plaintiff name has been entered", "{{#IF_PL}} ... {{/IF_PL}}"),
     "SHOW_DEFENDANT": ("Block kept when a defendant name has been entered", "{{#IF_DEF}} ... {{/IF_DEF}}"),
-    "SHOW_CLIENT": ("Block kept when a client name has been entered", "{{#IF_CLIENT}} ... {{/IF_CLIENT}}"),
+    "SHOW_CLIENT": ("Block kept when a client position has been entered", "{{#IF_CLIENT}} ... {{/IF_CLIENT}}"),
 }
 
 _LINE_PREFIX = re.compile(r"^LINE_(\d+[A-Z]?)_")
@@ -217,7 +219,7 @@ def _base_map(memo):
     show_misc = (memo.get("fees_misc_drafting") or 0) > 0 or bool(memo.get("misc_drafting_description"))
     plaintiff = memo.get("plaintiff_name") or ""
     defendant = memo.get("defendant_name") or ""
-    client = memo.get("client") or ""
+    client = memo.get("client_position") or ""
     total = memo.get("total_fees") or 0
     return {
         "LINE_1_DATE": format_date(memo["date"]) if memo.get("date") else "",
@@ -234,6 +236,7 @@ def _base_map(memo):
         "LINE_13_DEFENDANT": _text(defendant),
         "LINE_14_DEFENDANT_TYPE": _text(memo.get("defendant_type")),
         "LINE_15_CLIENT": _text(client),
+        "LINE_15A_CLIENT_NAME": _text(memo.get("client_name")),
         "SHOW_APPEARANCES": show_app,
         "SHOW_CONFERENCES": show_conf,
         "SHOW_MISC": show_misc,

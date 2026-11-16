@@ -548,7 +548,7 @@ class FirmAndMatterWriteTests(WriteBase):
     def test_create_matter_needs_a_firm_and_group(self):
         response = self.post("fees_matter_new", self.matter_post(group_id=""))
         self.assertEqual(response.status_code, 422)
-        self.assertContains(response, "Choose a firm and a group", status_code=422)
+        self.assertContains(response, "Choose a firm and a partner", status_code=422)
 
     def test_duplicate_matter_name(self):
         response = self.post("fees_matter_new", self.matter_post(name="matter one"))

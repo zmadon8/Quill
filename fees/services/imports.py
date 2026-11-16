@@ -163,7 +163,7 @@ IMPORT_FIELDS = (
     ("payee", "Payee", "Payment", False),
     ("payment_group", "Payment group (same value = paid together)", "Payment", False),
     ("court_name", "Court / cause title (to Matter)", "Matter details", False),
-    ("matter_client", "Client (role) (to Matter)", "Matter details", False),
+    ("matter_client", "Client Position (to Matter)", "Matter details", False),
     ("party_plaintiff", "Plaintiff / applicant", "Parties (optional)", False),
     ("party_defendant", "Defendant / respondent", "Parties (optional)", False),
 )
@@ -195,7 +195,7 @@ _NEEDLES = {
     "party_plaintiff": ("plaintiff", "applicant", "petitioner"),
     "party_defendant": ("defendant", "respondent"),
     "court_name": ("=court / cause title", "cause title", "=court", "court", "tribunal"),
-    "matter_client": ("=client", "client", "party role"),
+    "matter_client": ("=client", "client", "client position", "party role"),
 }
 
 
@@ -562,7 +562,7 @@ class _Importer:
         self.firm_ids = {}  # lower name -> firm id
         self.group_ids = {}  # (firm id, lower name) -> group id
         self.group_counts = {}  # firm id -> groups known
-        self.matters = {}  # (firm id, lower name) -> [matter id, has court, has client]
+        self.matters = {}  # (firm id, lower name) -> [matter id, has court, has client position]
         self.grouped = {}  # payment group -> [(memo id, net, tds, date, payee, row no)]
         self.quiet = False  # true during the planning pass, which must not warn
         self.assigned = {}  # row no -> planned automatic number text
@@ -636,14 +636,14 @@ class _Importer:
             if known is None:
                 known = Group.objects.filter(firm_id=firm_id).count()
             if known >= _MAX_GROUPS_PER_FIRM:
-                raise _RowSkip(f"the firm already has the most groups allowed ({_MAX_GROUPS_PER_FIRM}).")
+                raise _RowSkip(f"the firm already has the most partners allowed ({_MAX_GROUPS_PER_FIRM}).")
             group = Group.objects.create(profile=self.profile, firm_id=firm_id, name=name)
             self.group_counts[firm_id] = known + 1
         self.group_ids[key] = group.pk
         return group.pk
 
     def find_or_create_matter(self, firm_id, group_name, name, court, client):
-        """The matter by (firm, name), reused even under another group. Court and client fill only if blank."""
+        """The matter by (firm, name), reused even under another group. Court and client position fill only if blank."""
         key = (firm_id, name.lower())
         entry = self.matters.get(key)
         if entry is None:
@@ -657,17 +657,17 @@ class _Importer:
                     name=name,
                     is_archived=False,
                     court_name=court or "",
-                    client=client or "",
+                    client_position=client or "",
                 )
                 self.matters_created += 1
-            entry = self.matters[key] = [matter.pk, bool(matter.court_name), bool(matter.client)]
+            entry = self.matters[key] = [matter.pk, bool(matter.court_name), bool(matter.client_position)]
             return entry[0]
         updates = {}
         if court and not entry[1]:
             updates["court_name"] = court
             entry[1] = True
         if client and not entry[2]:
-            updates["client"] = client
+            updates["client_position"] = client
             entry[2] = True
         if updates:
             Matter.objects.filter(pk=entry[0]).update(**updates)
@@ -814,7 +814,7 @@ class _Importer:
         self.limit("partner name", partner, "group")
         self.limit("matter name", matter_name, "matter")
         self.limit("memo number", number_raw, "number")
-        for label, value in (("court name", court), ("client", client), ("plaintiff", plaintiff),
+        for label, value in (("court name", court), ("client position", client), ("plaintiff", plaintiff),
                              ("defendant", defendant), ("payee", payee)):
             self.limit(label, value, "text")
 
@@ -831,7 +831,7 @@ class _Importer:
             "force_custom_number": kind == "forced",
             "addressee_line1": firm_name,
             "court_name": court,
-            "client": client,
+            "client_position": client,
             "plaintiff_name": plaintiff,
             "defendant_name": defendant,
             "num_appearances": self.count(row, "num_appearances", row_no),

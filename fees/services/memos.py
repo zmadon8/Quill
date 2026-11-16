@@ -85,7 +85,7 @@ _SNAPSHOT_FIELDS = (
     "plaintiff_type",
     "defendant_name",
     "defendant_type",
-    "client",
+    "client_position",
 )
 
 #: Longest allowed caption text (same cap as the Settings default caption fields).
@@ -642,7 +642,7 @@ def create_based_on(profile, source_memo_id):
     """Returns prefilled FORM DATA from an existing memo (R-MEMO-4), NOT a saved memo.
 
     ``MEMO_NOT_FOUND`` if the source is missing / not in profile. Copies the
-    matter, addressee, court, details left/right, parties and types, client,
+    matter, addressee, court, details left/right, parties and types, client position,
     counts, rates, dates text, misc description / amount, ``num_drafts`` and all
     custom overrides. The date is blank (the user must enter one). This is a pure
     read: it does NOT bump ``data_version``.
@@ -697,7 +697,7 @@ def get_memo(profile, memo_id):
     """
     memo = (
         Memo.objects.filter(profile=profile, pk=memo_id)
-        .select_related("firm", "group", "matter")
+        .select_related("firm", "group", "matter", "matter__client")
         .first()
     )
     if memo is None:
@@ -749,7 +749,8 @@ def get_memo(profile, memo_id):
         "plaintiff_type": memo.plaintiff_type,
         "defendant_name": memo.defendant_name,
         "defendant_type": memo.defendant_type,
-        "client": memo.client,
+        "client_position": memo.client_position,
+        "client_name": memo.matter.client.name if memo.matter.client_id else "",
         "num_appearances": memo.num_appearances,
         "dates_of_appearances": memo.dates_of_appearances,
         "fees_per_appearance": memo.fees_per_appearance,

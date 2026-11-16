@@ -47,8 +47,8 @@ def status_for(code):
 MESSAGES = {
     "MATTER_ARCHIVED": "This matter is archived, so it cannot get a new memo.",
     "STATISTICS_DISABLED": "Statistics is switched off in Settings.",
-    "GROUP_IN_USE": "This group still has matters, so it cannot be removed.",
-    "TOO_MANY_PARTNERS": "This firm already has the most groups allowed.",
+    "GROUP_IN_USE": "This partner still has matters, so it cannot be removed.",
+    "TOO_MANY_PARTNERS": "This firm already has the most partners allowed.",
     "NO_TEMPLATE": "No Word template has been uploaded yet.",
     "RESTORE_FAILED": "The backup file could not be read.",
     "IMPORT_FAILED": "The spreadsheet could not be imported.",

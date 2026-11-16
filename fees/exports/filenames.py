@@ -31,12 +31,17 @@ PLACEHOLDERS = (
     "matter_name",
     "short_name",
     "firm",
-    "group",
+    "partner",
     "date",
     "date_iso",
     "today",
-    "client",
+    "client_position",
+    "client_name",
 )
+
+#: Placeholders kept working under an old name (not listed on the settings page): ``{client}`` was the Client Position before it was
+#: renamed, and ``{group}`` is the Partner, so a pattern saved with them gives the same names as before.
+LEGACY_PLACEHOLDERS = {"client": "client_position", "group": "partner"}
 
 _ILLEGAL = re.compile(r'[/\\:*?"<>|]')
 _CONTROL = re.compile(r"[\x00-\x1f\x7f]")
@@ -83,7 +88,7 @@ def _parse(pattern):
                 errors.append("Unbalanced brace: a { has no matching }")
                 return [], errors
             name = pattern[i + 1 : end]
-            if name not in PLACEHOLDERS:
+            if name not in PLACEHOLDERS and name not in LEGACY_PLACEHOLDERS:
                 errors.append("Unknown placeholder {%s}" % name)
                 return [], errors
             flush()
@@ -144,6 +149,12 @@ def _split_number(memo):
     return (num or str(memo.seq)), "", num
 
 
+def _client_name(matter):
+    """The name of the matter's Client (the list on the matter), or blank."""
+    client = getattr(matter, "client", None) if getattr(matter, "client_id", True) else None
+    return getattr(client, "name", "") or ""
+
+
 def _date_text(value, fmt):
     return value.strftime(fmt) if value else ""
 
@@ -163,12 +174,15 @@ def placeholder_values(memo, settings, today=None):
         "matter_name": matter.name or "",
         "short_name": short,
         "firm": memo.firm.name or "",
-        "group": memo.group.name or "",
+        "partner": memo.group.name or "",
         "date": _date_text(memo.date, "%d.%m.%Y"),
         "date_iso": _date_text(memo.date, "%Y-%m-%d"),
         "today": today.strftime("%Y-%m-%d"),
-        "client": memo.client or "",
+        "client_position": memo.client_position or "",
+        "client_name": _client_name(matter),
     }
+    for old_name, new_name in LEGACY_PLACEHOLDERS.items():
+        values[old_name] = values[new_name]
     return {key: sanitize_value(value) for key, value in values.items()}
 
 

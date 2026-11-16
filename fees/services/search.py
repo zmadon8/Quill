@@ -9,7 +9,7 @@ Behaviour (matching the TypeScript source):
 * the raw query is trimmed; under two characters it returns an empty list;
 * firms come first (ordered by the lower-cased name), then matters (ordered by
   the lower-cased name), then memos (matched on the memo number OR any of the
-  party-name snapshot fields plaintiff_name / defendant_name / client, ordered
+  party-name snapshot fields plaintiff_name / defendant_name / client_position, ordered
   by financial_year descending then seq descending);
 * each section is limited to ``limit`` rows and the combined list is finally
   sliced to ``limit``;
@@ -98,7 +98,7 @@ def search(profile, raw_query, limit=20):
             Q(memo_number__icontains=query)
             | Q(plaintiff_name__icontains=query)
             | Q(defendant_name__icontains=query)
-            | Q(client__icontains=query),
+            | Q(client_position__icontains=query),
             profile=profile,
         )
         .select_related("matter", "firm")

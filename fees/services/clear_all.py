@@ -26,6 +26,7 @@ from fees.errors import FeesError
 from fees.models import (
     Allocation,
     BankAccount,
+    Client,
     FeesSettings,
     Firm,
     Group,
@@ -54,6 +55,7 @@ DELETE_ORDER = [
     Payment,
     Memo,
     Matter,
+    Client,
     Group,
     Firm,
     BankAccount,

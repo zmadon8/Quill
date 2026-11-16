@@ -7,17 +7,18 @@
 <h1>{% if matter %}Edit {{ matter.name }}{% else %}New matter{% endif %}</h1>
 {% if not can_edit %}<p class="muted">You can read this page but not save it.</p>{% endif %}
 <form method="get" action="{{ request.path }}" class="filters" aria-label="{% if matter %}Move to another firm{% else %}Choose a firm{% endif %}">
-  {% if matter %}<p class="muted">To move this matter, choose the new firm, then its group below, then save.</p>{% endif %}
+  {% if matter %}<p class="muted">To move this matter, choose the new firm, then its partner below, then save.</p>{% endif %}
   <label>{% if matter %}Firm (change to move this matter){% else %}Firm{% endif %} <select name="firm">{% for f in firm_choices %}<option value="{{ f.pk }}"{% if form.firm_id == f.pk %} selected{% endif %}>{{ f.name }}</option>{% endfor %}</select></label>
-  <button type="submit">Show This Firm's Groups</button>
+  <button type="submit">Show This Firm's Partners</button>
 </form>
 {% include "fees/_form_errors.html" %}
 <form method="post" action="{{ request.path }}" class="fees-form">
   {% csrf_token %}
   <input type="hidden" name="firm_id" value="{{ form.firm_id }}">
-  <p><label>Group <select name="group_id" required><option value="">Choose</option>{% for g in group_choices %}<option value="{{ g.pk }}"{% if form.group_id == g.pk %} selected{% endif %}>{{ g.name }}</option>{% endfor %}</select></label></p>
+  <p><label>Partner <select name="group_id" required><option value="">Choose</option>{% for g in group_choices %}<option value="{{ g.pk }}"{% if form.group_id == g.pk %} selected{% endif %}>{{ g.name }}</option>{% endfor %}</select></label></p>
   <p><label>Name <input type="text" name="name" value="{{ form.name }}" maxlength="150" required></label> <label>Short name <input type="text" name="short_name" value="{{ form.short_name }}" maxlength="150"></label></p>
-  <p><label>Client <input type="text" name="client" value="{{ form.client }}" maxlength="300" size="40"></label></p>
+  <p class="field-row"><label>Client <select name="client_id"><option value="">None</option>{% for c in client_choices %}<option value="{{ c.id }}"{% if form.client_id == c.id %} selected{% endif %}>{{ c.name }}</option>{% endfor %}</select></label> <label>or a new client <input type="text" name="client_new" value="{{ form.client_new }}" maxlength="200" size="24"></label></p>
+  <p><label>Client Position <input type="text" name="client_position" value="{{ form.client_position }}" maxlength="300" size="40"></label></p>
   {# Addressee: the tick comes first; while it is ticked the two lines are greyed out (read-only, so what was typed is kept). matter-form.js keeps that in step; without the script the page shows the saved state. #}
   <p><label><input type="checkbox" name="addressee_use_firm_name" value="1" data-addressee-firm{% if form.addressee_use_firm_name %} checked{% endif %}> Use the firm name as the addressee</label></p>
   <p class="field-row" data-addressee-lines><label>Addressee, first line <input type="text" name="addressee_line1" value="{{ form.addressee_line1 }}" maxlength="300"{% if form.addressee_use_firm_name %} readonly aria-disabled="true"{% endif %}></label> <label>Addressee, second line <input type="text" name="addressee_line2" value="{{ form.addressee_line2 }}" maxlength="300"{% if form.addressee_use_firm_name %} readonly aria-disabled="true"{% endif %}></label></p>

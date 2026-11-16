@@ -372,9 +372,9 @@ class FirmScreenTests(UiPageBase):
         self.assertIn("%s?group=%d" % (reverse("fees_firm_ledger", kwargs={"firm_id": firm_id}), group_id), reader)
         self.assertIn("?firm=%d&amp;group=%d" % (firm_id, group_id), reader)
         self.assertNotIn(reverse("fees_matter_new"), reader)
-        self.assertNotIn("Edit Group", reader)
+        self.assertNotIn("Edit Partner", reader)
         editor = self.assert_page(self.page("fees_group_detail", kwargs, user=self.editor), "group-editor")
-        self.assertIn("Edit Group", editor)
+        self.assertIn("Edit Partner", editor)
         self.assertIn("%s?firm=%d&amp;group=%d" % (reverse("fees_matter_new"), firm_id, group_id), editor)
         self.assertIn(reverse("fees_group_rename", kwargs=kwargs), editor)
         self.assert_no_unlabelled_controls(editor, "group-editor")
@@ -417,12 +417,12 @@ class FirmScreenTests(UiPageBase):
         self.assertIn('name="firm_id" value="%d"' % other, moved)
 
     def test_matter_form_layout(self):
-        # Client sits under Short name; the firm-name tick comes before the two addressee lines, which share one row;
+        # Client Position sits under Short name; the firm-name tick comes before the two addressee lines, which share one row;
         # the plaintiff and defendant Type boxes sit on their own lines (they were labelled "as").
         i = self.ids()
         Matter.objects.filter(pk=i["matter"]).update(addressee_use_firm_name=True, addressee_line1="Kept")
         edit = self.html(self.page("fees_matter_edit", {"matter_id": i["matter"]}, user=self.editor))
-        order = [edit.index(x) for x in ('name="short_name"', 'name="client"', 'name="addressee_use_firm_name"',
+        order = [edit.index(x) for x in ('name="short_name"', 'name="client_position"', 'name="addressee_use_firm_name"',
                                          'name="addressee_line1"', 'name="addressee_line2"', 'name="court_name"')]
         self.assertEqual(order, sorted(order))
         row = edit.split("data-addressee-lines>")[1].split("</p>")[0]
@@ -434,15 +434,15 @@ class FirmScreenTests(UiPageBase):
         self.assertNotIn(">as <input", edit)
         self.assertIn("js/fees/matter-form.js", edit)
 
-    def test_client_shows_on_the_matter_and_firm_pages(self):
+    def test_client_position_shows_on_the_matter_and_firm_pages(self):
         i = self.ids()
-        Matter.objects.filter(pk=i["matter"]).update(client="Acme Holdings")
+        Matter.objects.filter(pk=i["matter"]).update(client_position="Acme Holdings")
         matter = self.html(self.page("fees_matter_detail", {"matter_id": i["matter"]}))
-        self.assertIn("&middot; Client: Acme Holdings</p>", matter)
+        self.assertIn("&middot; Client Position: Acme Holdings</p>", matter)
         firm = self.html(self.page("fees_firm_detail", {"firm_id": i["firm"]}))
-        self.assertIn('<span class="muted">&middot; Client: Acme Holdings</span>', firm)
-        Matter.objects.filter(pk=i["matter"]).update(client="")
-        self.assertNotIn("Client:", self.html(self.page("fees_matter_detail", {"matter_id": i["matter"]})))
+        self.assertIn('<span class="muted">&middot; Client Position: Acme Holdings</span>', firm)
+        Matter.objects.filter(pk=i["matter"]).update(client_position="")
+        self.assertNotIn("Client Position:", self.html(self.page("fees_matter_detail", {"matter_id": i["matter"]})))
 
 
 class FeebookAndPaymentTests(UiPageBase):
@@ -721,7 +721,7 @@ class OutstandingScreenTests(UiPageBase):
 
     def test_detail_views_and_sorts(self):
         for view in ("grouped", "summary", "flat"):
-            for sort in ("firm", "group", "matter", "date", "due"):
+            for sort in ("firm", "group", "client", "matter", "date", "due"):
                 with self.subTest(view=view, sort=sort):
                     self.assert_page(self.page("fees_outstanding_detail", query="?view=%s&sort=%s" % (view, sort)), view)
         summary = self.html(self.page("fees_outstanding_detail", query="?view=summary"))

@@ -7,6 +7,7 @@
 <form method="get" class="filters" aria-label="Filter the Feebook">
   {% include "fees/_fy_select.html" with name="fy" label="Financial Year" options=fy_options selected=filters.financial_year all_label="All Years" %}
   <label>Firm <select name="firm"><option value="">All</option>{% for f in firm_choices %}<option value="{{ f.pk }}"{% if filters.firm_id == f.pk %} selected{% endif %}>{{ f.name }}</option>{% endfor %}</select></label>
+  {% if client_choices or filters.client_id %}<label>Client <select name="client"><option value="">All</option>{% for c in client_choices %}<option value="{{ c.id }}"{% if filters.client_id == c.id %} selected{% endif %}>{{ c.name }}</option>{% endfor %}<option value="blank"{% if filters.client_id == "blank" %} selected{% endif %}>No client</option></select></label>{% endif %}
   {% if fees_bank_on %}<label>Bank <select name="bank"><option value="">All</option>{% for b in bank_choices %}<option value="{{ b.pk }}"{% if filters.bank_account_id == b.pk %} selected{% endif %}>{{ b.name }}</option>{% endfor %}</select></label>{% endif %}
   <label><input type="checkbox" name="unaccounted" value="1"{% if filters.unaccounted_only %} checked{% endif %}> Unaccounted Only</label>
   <button type="submit">Filter</button>
