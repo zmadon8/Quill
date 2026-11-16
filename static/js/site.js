@@ -46,7 +46,7 @@
     else if (pop) { e.preventDefault(); openPop(); }
     else if (find) { e.preventDefault(); window.location.href = find; }
   });
-  // Ctrl+F opens a search bar marked data-ctrl-f (Home: all programs); elsewhere it stays the browser's.
+  // Ctrl+F opens a data-ctrl-f search bar (Home); elsewhere it is the browser's.
   document.addEventListener("keydown", function (e) {
     if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || e.code !== "KeyF") { return; }
     if (pop && pop.hasAttribute("data-ctrl-f")) { e.preventDefault(); openPop(); }

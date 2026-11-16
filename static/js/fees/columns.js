@@ -206,7 +206,7 @@
   }
 
   document.querySelectorAll("table[data-fees-columns], table[data-table-id]").forEach(init);
-  // A link with data-export-hide="<key>" adds ?hide= (that table's hidden columns) so an export matches the screen.
+  // data-export-hide="<key>" on a link adds ?hide= (hidden columns) so an export matches the screen.
   document.addEventListener("click", function (e) {
     var link = e.target.closest && e.target.closest("a[data-export-hide]");
     if (!link) { return; }
