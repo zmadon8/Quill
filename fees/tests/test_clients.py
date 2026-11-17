@@ -3,7 +3,7 @@ addresses, the data migration and the old-backup shims."""
 import importlib
 
 from django.apps import apps
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from accounts.models import Profile
@@ -84,6 +84,7 @@ class ClientServiceTests(ClientBase):
         self.assertTrue(Client.objects.filter(pk=a.pk, firm=self.firm_a).exists())
 
 
+@override_settings(SECURE_SSL_REDIRECT=False, FEES_ENABLED=True)
 class ClientPagesTests(ClientBase):
     def setUp(self):
         super().setUp()
