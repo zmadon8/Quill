@@ -228,7 +228,7 @@ class GuessTests(SimpleTestCase):
 
     def test_every_field_has_an_entry(self):
         self.assertEqual(set(guess_mapping([])), {field[0] for field in imports.IMPORT_FIELDS})
-        self.assertEqual(len(imports.IMPORT_FIELDS), 24)
+        self.assertEqual(len(imports.IMPORT_FIELDS), 25)  # Client (to Matter) added (D213)
 
 
 # ---------------------------------------------------------------------------
