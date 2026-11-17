@@ -42,7 +42,7 @@ TAG_GROUPS = [
         ("short_gain", "Short-term capital gains", "Rs. 4,210.55"),
         ("long_gain", "Long-term capital gains", "Rs. 18,750"),
         ("total_gain", "Short and long term capital gains together", "Rs. 22,960.55"),
-        ("interest_income", "Gains on investments taxed as interest", "Rs. 0"),
+        ("interest_income", "Other income (gains on investments whose Capital Gains is off)", "Rs. 0"),
         ("dividends", "Dividends received", "Rs. 3,200"),
         ("unrealised_gain", "Gain on what is still held, at the end of the period", "Rs. 6,40,300"),
     ]),
@@ -59,7 +59,7 @@ TAG_GROUPS = [
         ("fy_short_gain", "Short-term capital gains", "Rs. 21,340.10"),
         ("fy_long_gain", "Long-term capital gains", "Rs. 96,500"),
         ("fy_total_gain", "Short and long term together", "Rs. 1,17,840.10"),
-        ("fy_interest_income", "Gains taxed as interest", "Rs. 12,480"),
+        ("fy_interest_income", "Other income so far this financial year", "Rs. 12,480"),
         ("fy_dividends", "Dividends received", "Rs. 18,900"),
     ]),
     ("Portfolios and attachments", [
@@ -91,8 +91,8 @@ During the period {{period_start}} to {{period_end}}, your investments {{growth}
 {{#if_portfolios}}The total market value of your investments is {{total_value}}, and that of the individual portfolios is as follows:
 {{portfolio_list}}{{/if_portfolios}}{{^if_portfolios}}The total market value of your investments is {{total_value}}.{{/if_portfolios}}
 
-During this period you bought investments for {{invested}} and sold investments for {{sold}}. Short-term capital gains: {{short_gain}}; long-term capital gains: {{long_gain}}; interest income: {{interest_income}}.
-{{#if_year}}During the financial year {{fy_label}} so far ({{fy_start}} to {{period_end}}), you bought investments for {{fy_invested}} and sold investments for {{fy_sold}}. Short-term capital gains: {{fy_short_gain}}; long-term capital gains: {{fy_long_gain}}; interest income: {{fy_interest_income}}.
+During this period you bought investments for {{invested}} and sold investments for {{sold}}. Short-term capital gains: {{short_gain}}; long-term capital gains: {{long_gain}}; other income: {{interest_income}}.
+{{#if_year}}During the financial year {{fy_label}} so far ({{fy_start}} to {{period_end}}), you bought investments for {{fy_invested}} and sold investments for {{fy_sold}}. Short-term capital gains: {{fy_short_gain}}; long-term capital gains: {{fy_long_gain}}; other income: {{fy_interest_income}}.
 {{/if_year}}{{#if_year_start}}This period is the start of the financial year {{fy_label}}, so these are also the figures for the year so far.
 {{/if_year_start}}
 Attached to this email is an excel sheet containing your holdings as on date, and a list of your transactions.

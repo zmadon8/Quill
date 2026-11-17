@@ -382,9 +382,9 @@ class ViewTests(ExportCase):
                 self.assertNotIn("export-menu", body)
                 self.assertNotIn("type=view&amp;", body)
 
-    def test_the_diary_header_has_no_settings_link(self):
+    def test_the_diary_header_has_the_settings_gear(self):
         body = self.login(self.editor).get(reverse("diary_home")).content.decode()
-        self.assertNotIn('aria-label="Settings"', body)
+        self.assertIn('aria-label="Settings"', body)  # the gear
         self.assertNotIn("Profile settings", body)
 
     def test_current_view_is_not_offered_on_search_review_trash_or_history(self):

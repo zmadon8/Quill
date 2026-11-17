@@ -35,6 +35,7 @@ DEFAULT_FORMATS = {
     "section_format": "paren_lower_alpha",
     "item_format": "paren_decimal",
     "multi_citation_format": "paren_lower_alpha",
+    "multi_citation_lines_format": "paren_lower_alpha",
 }
 
 READ_URL_NAMES = {"subject": "read_subject", "topic": "read_topic", "subtopic": "read_subtopic"}
@@ -278,8 +279,10 @@ def run_of(obj):
 
 def _item_block(item, data, fmts, label, depth, under_section):
     cases = data.cases_by_item.get(item.pk, [])
-    # One citation shows without a label; two or more are labelled with the Multi-Item citation format.
-    case_labels = numbering.number_siblings(len(cases), fmts["multi_citation_format"]) if len(cases) > 1 else [""] * len(cases)
+    # One citation shows without a label; two or more are labelled with the citation format of the Item's layout: one for citations
+    # in a line after the text, one for citations on separate lines.
+    cite_format = fmts["multi_citation_lines_format" if item.citation_layout == "lines" else "multi_citation_format"]
+    case_labels = numbering.number_siblings(len(cases), cite_format) if len(cases) > 1 else [""] * len(cases)
     return {
         "kind": "item",
         "id": item.pk,

@@ -21,7 +21,7 @@ class OwnInstrumentEditTests(InvTestCase):
 
     def data(self, **extra):
         data = {"name": "Bank FD", "code": "", "isin": "", "currency": "INR", "asset_class": "debt", "sector": "", "interest_rate": "7",
-                "interest_type": "compound", "maturity_date": ""}
+                "interest_type": "compound", "maturity_date": "", "capital_gains": "on"}
         data.update(extra)
         return data
 
@@ -37,12 +37,12 @@ class OwnInstrumentEditTests(InvTestCase):
         self.assertGreater(InvestmentSettings.objects.get(profile=self.profile).data_version, before)
         self.assertTrue(CatalogueHistory.objects.filter(instrument_id_ref=self.fd.pk, field="name", new="Post Office FD").exists())
 
-    def test_taxed_as_interest_bumps_shared_version(self):
+    def test_capital_gains_off_bumps_shared_version(self):
         self.client.force_login(self.editor)
         before = fetch.price_version()
-        self.client.post(self.url, self.data(taxed_as_interest="on"))
+        self.client.post(self.url, self.data(capital_gains=""))
         self.fd.refresh_from_db()
-        self.assertTrue(self.fd.taxed_as_interest)
+        self.assertFalse(self.fd.capital_gains)
         self.assertGreater(fetch.price_version(), before)
 
     def test_rate_limit_and_duplicate_refused(self):

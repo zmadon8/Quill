@@ -38,6 +38,7 @@ def feebook_page(request):
     )
     query = request.GET.copy()
     query.pop("page", None)
+    query.pop("filters", None)
     if "fy" not in query and filters.get("financial_year"):
         query["fy"] = filters["financial_year"]
     return render_page(
@@ -49,6 +50,9 @@ def feebook_page(request):
             "totals": totals,
             "filters": filters,
             "firm_choices": options["firms"],
+            "partner_choices": options["partners"],
+            "matter_choices": options["matters"],
+            "filters_open": request.GET.get("filters") == "open",
             "client_choices": clients_service.choices(profile),
             "fy_options": fy_options.financial_year_options(
                 profile, settings.feebook_start_year, filters.get("financial_year"), only_years=options["years"]

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
-{% block title %}Home - {{ program_label }}{% endblock %}
+{% block title %}{{ program_label }}{% endblock %}
 {% block content %}
 <div class="home-column subjects-page{% if not edit_mode %} subjects-cards{% endif %}" data-subjects-page>
   {% if not edit_mode %}<script>try{if(localStorage.getItem("quill.subjects.view")==="list"){document.querySelector("[data-subjects-page]").classList.remove("subjects-cards");}}catch(e){}</script>{% endif %}

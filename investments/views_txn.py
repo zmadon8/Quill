@@ -22,7 +22,7 @@ from .models import (
     CorporateAction, Folio, Instrument, Transaction, Transfer,
 )
 from .services import core, corporate, holdings, instrument_search, masters, transactions as tx
-from .viewutil import handle_errors, page, profile_or_404, selection
+from .viewutil import fy_filter, handle_errors, page, profile_or_404, selection
 
 logger = logging.getLogger(__name__)
 
@@ -81,10 +81,17 @@ def _row_date(row):
     return row["date"] if isinstance(row, dict) else row.date
 
 
+def _in_span(rows, span):
+    """The automatic bonus / split rows that fall inside the chosen Financial Year (all of them when no year is chosen)."""
+    return [r for r in rows if r["date"] >= span[0]] if span else rows
+
+
 @inv_reader
 def transactions_list(request):
     profile = profile_or_404(request)
-    portfolio, broker, asat = selection(request, profile)
+    portfolio, broker, _asat = selection(request, profile)
+    fy, span, fy_choices = fy_filter(request, profile)
+    asat = span[1] if span else None
     q = request.GET.get("q", "").strip()
     side = request.GET.get("side", "")
     qs = Transaction.objects.filter(profile=profile).select_related("instrument", "portfolio", "broker", "folio")
@@ -92,8 +99,8 @@ def transactions_list(request):
         qs = qs.filter(portfolio_id=portfolio)
     if broker:
         qs = qs.filter(broker_id=broker)
-    if asat:
-        qs = qs.filter(date__lte=asat)
+    if span:
+        qs = qs.filter(date__gte=span[0], date__lte=span[1])
     if q:
         qs = qs.filter(Q(instrument__name__icontains=q) | Q(instrument__code__icontains=q) | Q(reference__icontains=q) |
                        Q(folio__number__icontains=q) | Q(note__icontains=q))
@@ -117,18 +124,19 @@ def transactions_list(request):
         if broker:
             transfers = transfers.filter(Q(from_broker_id=broker) | Q(to_broker_id=broker))
             dividends = dividends.filter(broker_id=broker)
-        if asat:
-            transfers, dividends = transfers.filter(date__lte=asat), dividends.filter(date__lte=asat)
+        if span:
+            transfers = transfers.filter(date__gte=span[0], date__lte=span[1])
+            dividends = dividends.filter(date__gte=span[0], date__lte=span[1])
         return response("Transactions.xlsx", transaction_sheets(qs.order_by("-date", "-id"), transfers.order_by("-date", "-id"),
                                                                 dividends.order_by("-date", "-id"),
-                                                                [] if side == SIDE_SELL else corporate.automatic_unit_rows(profile, portfolio, broker, asat, q)))
+                                                                [] if side == SIDE_SELL else _in_span(corporate.automatic_unit_rows(profile, portfolio, broker, asat, q), span)))
     paginator = Paginator(qs.order_by("-date", "-id"), PAGE_SIZE)
     number = paginator.get_page(request.GET.get("page")).number
     rows = lump_display.annotate(profile, [_txn_row(t) for t in paginator.page(number)])
     # Units a bonus or split adds by itself are not transactions; they are shown among the page's rows by date, labelled and read-only.
     automatic = []
     if side != SIDE_SELL:
-        automatic = corporate.automatic_unit_rows(profile, portfolio, broker, asat, q)
+        automatic = _in_span(corporate.automatic_unit_rows(profile, portfolio, broker, asat, q), span)
         if automatic and number > 1:
             before = paginator.page(number - 1)[-1].date
             automatic = [a for a in automatic if a["date"] < before]
@@ -137,12 +145,14 @@ def transactions_list(request):
     rows = sorted([*rows, *({"auto": True, **a} for a in automatic)], key=_row_date, reverse=True) if automatic else rows
     transfers = []
     if not q and side not in (SIDE_BUY, SIDE_SELL) and number == 1:
-        transfers = list(Transfer.objects.filter(profile=profile).select_related(
-            "instrument", "from_broker", "to_broker", "from_portfolio", "to_portfolio")[:20])
+        transfers = Transfer.objects.filter(profile=profile)
+        if span:
+            transfers = transfers.filter(date__gte=span[0], date__lte=span[1])
+        transfers = list(transfers.select_related("instrument", "from_broker", "to_broker", "from_portfolio", "to_portfolio")[:20])
     awaiting = tx.awaiting_for(profile).count()
     return page(request, "investments/transactions.html", {
         "page_title_text": "Transactions", "rows": rows, "page_obj": paginator.page(number), "transfers": transfers, "q": q, "side": side,
-        "awaiting_count": awaiting, "total": paginator.count, "automatic_count": len(automatic),
+        "awaiting_count": awaiting, "total": paginator.count, "txn_filters": True, "fy": fy, "fy_choices": fy_choices, "automatic_count": len(automatic),
         "date_today": datetime.date.today(),
     })
 
@@ -494,7 +504,7 @@ def txn_opening(request):
     for message in line_errors:
         form.add_error(None, message)
     return page(request, "investments/txn_opening.html", _form_context(profile, {
-        "page_title_text": "Opening balance", "form": form, "row_numbers": range(rows),
+        "page_title_text": "Opening Balance", "form": form, "row_numbers": range(rows),
         "posted": request.POST if request.method == "POST" else {}}), selectors=False, status_line=True)
 
 
@@ -673,7 +683,7 @@ def import_statement(request):
     except InvestmentsError as err:
         error = err.message
         review = None
-    return page(request, "investments/import_statement.html", {"page_title_text": "Import a statement", "review": review, "token": token, "error": error,
+    return page(request, "investments/import_statement.html", {"page_title_text": "Import a Statement", "review": review, "token": token, "error": error,
                                                               "portfolios": portfolios, "brokers": brokers, "chosen": chosen,
                                                               "addable_kinds": statement_import.ADDABLE_KINDS, "origins": ORIGINS,
                                                               "origin_help": statement_import.origin_help()}, selectors=False)

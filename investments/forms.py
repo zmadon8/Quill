@@ -452,8 +452,8 @@ class InstrumentForm(forms.Form):
     interest_type = forms.ChoiceField(choices=[("compound", "Compound interest (yearly)"), ("simple", "Simple interest")], initial="compound", required=False,
                                       label="Interest type")
     maturity_date = forms.DateField(widget=date_widget(), required=False, label="Maturity date (optional)")
-    taxed_as_interest = forms.BooleanField(required=False, label="Taxed as Interest",
-                                           help_text="Profit or loss on sales is reported as Interest Income, not Capital Gains")
+    capital_gains = forms.BooleanField(required=False, initial=True, label="Capital Gains",
+                                       help_text="Profit or loss on sales is Capital Gains. Untick it and the profit or loss is reported as Other income instead.")
     lump_sum = forms.BooleanField(required=False, label="Lump Sum (alternative investments only)",
                                   help_text="Bought and sold in lump sums of money: no units or price per unit are asked for. Cannot be changed once there are transactions.")
 
@@ -467,7 +467,7 @@ class InstrumentForm(forms.Form):
         "interest_rate": (KIND_ALTERNATIVE,),
         "interest_type": (KIND_ALTERNATIVE,),
         "maturity_date": (KIND_ALTERNATIVE,),
-        "taxed_as_interest": (KIND_ALTERNATIVE,),
+        "capital_gains": (KIND_SHARE, "fund", KIND_FOREIGN, KIND_ALTERNATIVE),
         "lump_sum": (KIND_ALTERNATIVE,),
     }
 

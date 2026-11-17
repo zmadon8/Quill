@@ -217,7 +217,9 @@ def labels(key, objs, fmts):
     elif kind == "subtopic":
         values = numbering.number_siblings(len(objs), fmts["subtopic_format"])
     elif kind == "case":
-        values = numbering.number_siblings(len(objs), fmts["multi_citation_format"])
+        # The citations of an Item are labelled with the format for its layout (in a line, or on separate lines).
+        lines = Item._base_manager.filter(pk=key[2], citation_layout="lines").exists()
+        values = numbering.number_siblings(len(objs), fmts["multi_citation_lines_format" if lines else "multi_citation_format"])
     else:
         values = [""] * len(objs)
     return {ident(o): value for o, value in zip(objs, values)}

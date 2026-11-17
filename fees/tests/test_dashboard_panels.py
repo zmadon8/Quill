@@ -71,5 +71,5 @@ class PanelPageTests(UiPageBase):
         self.assertIn('aria-label="Outstanding by age of the memo"', text)
         for label in ("0-30 days", "31-60 days", "61-90 days", "Over 90 days"):
             self.assertIn(label, text)
-        self.assertIn(">Share of total</th>", text)
+        self.assertIn(">Share of total</a></th>", text)
         self.assertIn('class="share-bar"', text)

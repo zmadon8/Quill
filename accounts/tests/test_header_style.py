@@ -41,14 +41,20 @@ class HeaderStyleTests(TestCase):
         self.assertIn('class="icon-tool search-toggle"', header)
         self.assertIn('class="home-button" href=', header)
         self.assertIsNotNone(re.search(SIGN_OUT, header, re.S))
-        # Back, Forward, Search, Home and Sign out are the only icons
-        self.assertEqual(header.count("<svg"), 5)
+        # Back, Forward, the Settings gear, Search, Home and Sign out are the only icons
+        self.assertEqual(header.count("<svg"), 6)
 
-    def test_the_diary_header_has_no_settings_link(self):
+    def test_the_diary_header_has_the_settings_gear_left_of_the_user_name(self):
         header = self.header()
-        self.assertNotIn('aria-label="Settings"', header)
-        self.assertNotIn(reverse("profile_settings"), header)
+        self.assertIn('class="home-button gear-button" href="%s"' % reverse("profile_settings"), header)
+        self.assertIn('aria-label="Settings"', header)
         self.assertIn(reverse("my_settings"), header)  # the user name
+        self.assertLess(header.index("gear-button"), header.index('class="who"'))
+
+    def test_the_gear_opens_start_screens_on_home_and_the_program_settings_in_a_program(self):
+        home = self.header("home")
+        self.assertIn('class="home-button gear-button" href="%s?tab=start"' % reverse("my_settings"), home)
+        self.assertLess(home.index("gear-button"), home.index('class="who"'))
 
     def test_home_is_always_shown(self):
         self.assertIn('class="home-button" href=', self.header())
@@ -128,7 +134,7 @@ class SuiteHeaderTests(TestCase):
         return self._subnav(self.page(name, query), 0)
 
     def second_row(self, name, query=""):
-        parts = self.page(name, query).split('class="subnav sub-tabs"')
+        parts = self.page(name, query).split('class="settings-nav" aria-label="Pages of this tab"')
         return re.findall(r">([^<]+)</a>", parts[1].split("</nav>")[0]) if len(parts) > 1 else []
 
     def test_every_home_page_item_is_a_word_and_sign_out_is_an_icon(self):
@@ -150,7 +156,7 @@ class SuiteHeaderTests(TestCase):
         self.assertEqual(self.tabs("profile_settings"), self.ADMIN_TABS)  # inside the program, the same tabs
         for name, query in pages:
             self.assertEqual(self.tabs(name, query), self.ADMIN_TABS, (name, query))
-            self.assertNotIn('aria-label="Settings"', self.header(name, query), (name, query))
+            self.assertIn('aria-label="Settings"', self.header(name, query), (name, query))
         self.assertEqual(self.tabs("home"), [])
 
     def test_the_current_tab_is_marked(self):
@@ -168,8 +174,8 @@ class SuiteHeaderTests(TestCase):
         for name in ("user_list", "user_create"):
             self.assertEqual(self.second_row(name), ["Users", "Profiles", "Profile Access"], name)
         self.assertEqual(self.second_row("profile_list"), ["Users", "Profiles", "Profile Access"])
-        self.assertEqual(self.second_row("settings"), ["My Display", "Names"])
-        self.assertEqual(self.second_row("my_settings", "?tab=display"), ["My Display", "Names"])
+        self.assertEqual(self.second_row("settings"), ["My Display", "My Home Page", "Names"])
+        self.assertEqual(self.second_row("my_settings", "?tab=display"), ["My Display", "My Home Page", "Names"])
         self.assertEqual(self.second_row("my_settings"), [])
 
     def test_the_old_email_backups_and_import_tabs_are_gone(self):
@@ -187,9 +193,9 @@ class SuiteHeaderTests(TestCase):
         self.assertNotIn('aria-label="Judgments"', header)
         self.assertNotIn('aria-label="Case Law Diary"', header)
 
-    def test_there_is_no_settings_header_item(self):
+    def test_the_settings_gear_is_the_only_settings_item_in_the_header(self):
         header = self.header()
-        self.assertNotIn('aria-label="Settings"', header)
+        self.assertEqual(header.count('aria-label="Settings"'), 1)
         self.assertNotIn('aria-label="Case Law Diary"', header)
 
     def test_the_user_name_opens_my_settings(self):
@@ -202,7 +208,7 @@ class SuiteHeaderTests(TestCase):
         header = self.header()
         self.assertNotIn('aria-label="Admins"', header)
         self.assertIn('aria-label="Help"', header)
-        self.assertNotIn('aria-label="Settings"', header)
+        self.assertIn('aria-label="Settings"', header)
         self.assertEqual(self.tabs("my_settings"), self.USER_TABS)
         loner = User.objects.create_user("lone", password=PASSWORD)  # no program profile: only the personal tabs
         self.client.force_login(loner)

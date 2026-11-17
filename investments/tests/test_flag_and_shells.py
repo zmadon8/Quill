@@ -91,8 +91,8 @@ class ShellTests(TestCase):
                     self.assertContains(response, escape(page.empty))
                 for label in ("Overview", "Holdings", "Reports", "Alerts", "Catalogue"):
                     self.assertContains(response, label)
-                # No Settings item in the header: the user name opens My settings, whose tabs lead to the Investments settings.
-                self.assertNotContains(response, 'aria-label="Settings"')
+                # The gear in the header opens the Investments settings.
+                self.assertContains(response, 'class="home-button gear-button" href="%s"' % reverse("investments_settings"))
                 self.assertContains(response, 'data-money-mode="auto"')
 
     def test_selection_box_only_on_pages_that_use_the_selection(self):
@@ -129,7 +129,7 @@ class ShellTests(TestCase):
             self.assertContains(response, ">%s</a>" % label)
         self.assertContains(response, '<a href="/investments/catalogue/" class="on" aria-current="page">Catalogue</a>', html=False)
         settings_page = self.client.get(reverse("investments_settings")).content.decode()
-        sub = settings_page.split('aria-label="Section"')[1].split("</nav>")[0]
+        sub = settings_page.split('aria-label="Pages of Settings"')[1].split("</nav>")[0]
         for gone in ("Catalogue", "Price history", "Price sources"):
             self.assertNotIn(">%s</a>" % gone, sub)
 

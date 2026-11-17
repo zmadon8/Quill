@@ -147,17 +147,17 @@ class HeldOnlyTests(InvTestCase):
     # -- Charts
 
     def inv_select(self, html):
-        m = re.search(r'<select name="inv"[^>]*>(.*?)</select>', html, re.S)
-        self.assertIsNotNone(m, "no inv select")
+        m = re.search(r'<div class="col-menu-list"[^>]*>(<label title="All"[^>]*>.*?)</div>', html, re.S)
+        self.assertIsNotNone(m, "no Investments drop-down")
         return m.group(1)
 
     def test_charts_list_is_held_only_by_default(self):
         url = reverse("investments_charts") + "?period=1"
         on = self.inv_select(self.client.get(url).content.decode())
-        self.assertIn(f'<option value="{self.reliance.pk}"', on)
-        self.assertNotIn(f'<option value="{self.fund.pk}"', on)
+        self.assertIn(f'<input type="checkbox" name="inv" value="{self.reliance.pk}"', on)
+        self.assertNotIn(f'<input type="checkbox" name="inv" value="{self.fund.pk}"', on)
         off = self.inv_select(self.client.get(url + "&hf=1").content.decode())
-        self.assertIn(f'<option value="{self.fund.pk}"', off)
+        self.assertIn(f'<input type="checkbox" name="inv" value="{self.fund.pk}"', off)
 
     def test_dividends_and_data_check_are_held_only_by_default_too(self):
         for slug in ("dividends", "data-check"):
@@ -168,7 +168,7 @@ class HeldOnlyTests(InvTestCase):
 
     def test_charts_keep_a_picked_investment_visible(self):
         r = self.client.get(reverse("investments_charts") + f"?chart=b&period=1&inv={self.fund.pk}")
-        self.assertIn(f'<option value="{self.fund.pk}" selected>', r.content.decode())
+        self.assertIn(f'<input type="checkbox" name="inv" value="{self.fund.pk}" checked', r.content.decode())
 
     # -- Other reports
 

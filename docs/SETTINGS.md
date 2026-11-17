@@ -12,7 +12,7 @@ forms and templates (see "How this was checked" at the end). The "Who" column us
 ## 0. The Settings tabs
 
 Every setting is on one of these tabs of Settings (click your name at the top right, or **Settings** on Home). The same tab
-strip is across the top of every settings page, in the Home shell and inside each program. A setting appears on exactly one
+strip is across the top of every settings page, in the Home shell and inside each program. The pages or sections of a tab are listed down the left, as on Backup, and the page (with any text that explains it) fills the right-hand column; explanatory text is never placed above the two columns. The header's gear button, just left of the user's initials, opens Start Screens from the Home pages and the program's own Settings tab from inside a program. A setting appears on exactly one
 page. The Fee Register Opening page and Items per page are personal only (no profile-wide fallback).
 
 | Tab | Pages | What it holds | Who sees it |
@@ -20,9 +20,9 @@ page. The Fee Register Opening page and Items per page are personal only (no pro
 | Users & Profiles | Users, Profiles, Profile Access | Users & Profiles > Users (accounts, roles, access), Profiles (add, rename, delete, restore, clear, Offline link), Profile Access | Admin |
 | Account and Profile View | Account, Profile View | Email, letters in the header badge, Change my password; the profiles I can use in each program (and switching) | Everyone |
 | Backup | Saved backups, Email backups (`?tab=email`) | Backups, restore, the email schedule | Admin |
-| Display | My Display, Names | Justify text, colour theme, Home card figures, Home page extras; the names of the site, Home and the programs (`Names`, Admin) | Everyone; Names Admin |
+| Display | My Display, My Home Page, Names | My Display: justify text, colour theme. My Home Page: Home card figures, Home page extras. Names: the names of the site, Home and the programs (Admin) | Everyone; Names Admin |
 | Start Screens | When I open the site, one section per program | Open after login (`landing_program`), Case Law Diary opening page and Subject, Fee Register Opening page, Investments start page | Everyone, a program's section only if the user can open it |
-| Case Law Diary | Reading, My Number Formats, Data | View whole subject, My number formats and date in file names and Remove citation hyphen (Only you), Export file name, Word import, Offline link | A user with a Case Law Diary profile |
+| Case Law Diary | Reading, My Number Formats, Data | View whole subject, Hyperlinks on citations (this browser), My number formats and date in file names and Remove citation hyphen (Only you), Export file name, Word import, Offline link | A user with a Case Law Diary profile |
 | Fee Register | Memos, Payments, Word Documents, Years And Statistics, Display, Data | Every profile setting, plus My items per page (Only you, in Display) | A user with a Fee Register profile |
 | Investments | General, Brokers, Display, Insights, Indices | Every profile setting, plus Investments period for returns (Only you, in Display), and in General the site-wide lookup switch (Admin) | A user with an Investments profile |
 
@@ -136,7 +136,8 @@ All shown on **Settings > Case Law Diary > My Number Formats / Settings > Start 
 | `subtopic_format` | Number format of Sub-topics | Settings > Case Law Diary > My Number Formats / Settings > Start Screens > Number formats > Headings | Per user | Only you |
 | `section_format` | Number format of Sections | Settings > Case Law Diary > My Number Formats / Settings > Start Screens > Number formats > Sections and Items | Per user | Only you |
 | `item_format` | Number format of Items | Settings > Case Law Diary > My Number Formats / Settings > Start Screens > Number formats > Sections and Items | Per user | Only you |
-| `multi_citation_format` | Number format of the citations of an Item with several | Settings > Case Law Diary > My Number Formats / Settings > Start Screens > Number formats > Sections and Items | Per user | Only you |
+| `multi_citation_format` | Number format of the citations of an Item with several, when they follow its text in a line (Citations in a line) | Settings > Case Law Diary > My Number Formats > Items with several citations | Per user | Only you |
+| `multi_citation_lines_format` | The same, when each citation is on its own line (Citations on separate lines; migration `diary/0025` starts it as a copy of `multi_citation_format`). Which one applies depends on the Item's own layout (`Item.citation_layout`) | Settings > Case Law Diary > My Number Formats > Items with several citations | Per user | Only you |
 | `export_date_format` | Date in Word file names (and on the front page) | Settings > Case Law Diary > My Number Formats / Settings > Start Screens | Per user | Only you |
 
 ### 3.2 Case Law Diary > Settings (the tab that holds the per-profile settings)
@@ -147,6 +148,7 @@ as text and have no Save buttons (a Reader POST gets 403).
 | Section | Setting | Stored in | Stored | Who |
 | --- | --- | --- | --- | --- |
 | Reading | View whole subject | `Profile.reading_all_mode` | Per profile | Everyone in this profile |
+| Reading | Hyperlinks on citations (tick box, no Save) | `localStorage` `quill.links` | This browser | Only you |
 | Data | Export file name | `Profile.export_name` (saved by `export_settings`, Editors only) | Per profile | Everyone in this profile |
 | Data | Word export (link to the Export page) | No setting | n/a | n/a |
 | Data | Import from Word (link, Admin only) | No setting | n/a | n/a |
@@ -162,39 +164,39 @@ are noted: Opening page and Items per page are personal only (section 4.2).
 
 | Field | Setting | Section | Stored | Who |
 | --- | --- | --- | --- | --- |
-| `default_fees_per_appearance` | Fees / appearance (default fee) | 1 Memos > Default fees | Per profile | Everyone in this profile |
-| `default_fees_per_conference` | Fees / conference | 1 Memos > Default fees | Per profile | Everyone in this profile |
-| `default_fees_misc_drafting` | Misc / draft | 1 Memos > Default fees | Per profile | Everyone in this profile |
-| `default_lines_enabled` | Fee lines on by default | 1 Memos | Per profile | Everyone in this profile |
-| `default_court_name` | Caption (default court name) | 1 Memos > Memo text defaults | Per profile | Everyone in this profile |
-| `memo_default_name` | Name on memos | 1 Memos > Memo text defaults | Per profile | Everyone in this profile |
-| `memo_default_designation` | Designation | 1 Memos > Memo text defaults | Per profile | Everyone in this profile |
-| `memo_default_pan` | PAN | 1 Memos > Memo text defaults | Per profile | Everyone in this profile |
-| `memo_default_address` | Address | 1 Memos > Memo text defaults | Per profile | Everyone in this profile |
-| `memo_default_bank_details` | Bank details | 1 Memos > Memo text defaults | Per profile | Everyone in this profile |
-| `memo_signature_default` | Add the signature to new memos (offered only when a signature image is uploaded) | 1 Memos | Per profile | Everyone in this profile |
-| `default_tds_rate` | Default TDS rate (%) | 2 Payments | Per profile | Everyone in this profile |
-| `default_payment_amount` | Prefill amount received | 2 Payments | Per profile | Everyone in this profile |
-| `overdue_days` | Overdue after (days) | 2 Payments | Per profile | Everyone in this profile. At 0, overdue is off: no "View Overdue Memos Only" filter, Overdue legend key or Amount Overdue dashboard box shows anywhere |
-| `hide_payment_when_paid` | Hide the payment box when a memo is paid | 2 Payments | Per profile | Everyone in this profile |
-| `show_status_dots` | Show status markers | 2 Payments | Per profile | Everyone in this profile |
-| `show_bank` | Show bank (off: no Bank filter or column on Feebook, no Bank account box on a payment, no Bank column in the Feebook export, no Bank accounts list; recorded banks are kept) | 2 Payments | Per profile | Everyone in this profile |
-| `export_owner_name` | Owner name in file names | 3 Word documents | Per profile | Everyone in this profile |
-| `memo_filename_pattern` | File name pattern of every Word memo | 3 Word documents | Per profile | Everyone in this profile |
-| `initial_financial_year` | Statistics start year | 4 Years and statistics | Per profile | Everyone in this profile |
-| `memos_start_year` | Memos start year | 4 Years and statistics | Per profile | Everyone in this profile |
-| `feebook_start_year` | Feebook start year | 4 Years and statistics | Per profile | Everyone in this profile |
-| `statistics_enabled` | Statistics and Dashboard on or off, one switch for both pages and the Dashboard figures (off: neither is in the header; the Dashboard address and an Opening page of Dashboard open Memos). Replaces the old `dashboard_enabled` and `dashboard_kpis_enabled` | 4 Years and statistics | Per profile | Everyone in this profile |
+| `default_fees_per_appearance` | Fees / appearance (default fee) | Memos > Default fees | Per profile | Everyone in this profile |
+| `default_fees_per_conference` | Fees / conference | Memos > Default fees | Per profile | Everyone in this profile |
+| `default_fees_misc_drafting` | Misc / draft | Memos > Default fees | Per profile | Everyone in this profile |
+| `default_lines_enabled` | Fee lines on by default | Memos | Per profile | Everyone in this profile |
+| `default_court_name` | Caption (default court name) | Memos > Memo text defaults | Per profile | Everyone in this profile |
+| `memo_default_name` | Name on memos | Memos > Memo text defaults | Per profile | Everyone in this profile |
+| `memo_default_designation` | Designation | Memos > Memo text defaults | Per profile | Everyone in this profile |
+| `memo_default_pan` | PAN | Memos > Memo text defaults | Per profile | Everyone in this profile |
+| `memo_default_address` | Address | Memos > Memo text defaults | Per profile | Everyone in this profile |
+| `memo_default_bank_details` | Bank details | Memos > Memo text defaults | Per profile | Everyone in this profile |
+| `memo_signature_default` | Add the signature to new memos (offered only when a signature image is uploaded) | Memos | Per profile | Everyone in this profile |
+| `default_tds_rate` | Default TDS rate (%) | Payments | Per profile | Everyone in this profile |
+| `default_payment_amount` | Prefill amount received | Payments | Per profile | Everyone in this profile |
+| `overdue_days` | Overdue after (days) | Payments | Per profile | Everyone in this profile. At 0, overdue is off: no "View Overdue Memos Only" filter, Overdue legend key or Amount Overdue dashboard box shows anywhere |
+| `hide_payment_when_paid` | Hide the payment box when a memo is paid | Payments | Per profile | Everyone in this profile |
+| `show_status_dots` | Show status markers | Payments | Per profile | Everyone in this profile |
+| `show_bank` | Show bank (off: no Bank filter or column on Feebook, no Bank account box on a payment, no Bank column in the Feebook export, no Bank accounts list; recorded banks are kept) | Payments | Per profile | Everyone in this profile |
+| `export_owner_name` | Owner name in file names | Word documents | Per profile | Everyone in this profile |
+| `memo_filename_pattern` | File name pattern of every Word memo | Word documents | Per profile | Everyone in this profile |
+| `initial_financial_year` | Statistics start year | Years and statistics | Per profile | Everyone in this profile |
+| `memos_start_year` | Memos start year | Years and statistics | Per profile | Everyone in this profile |
+| `feebook_start_year` | Feebook start year | Years and statistics | Per profile | Everyone in this profile |
+| `statistics_enabled` | Statistics and Dashboard on or off, one switch for both pages and the Dashboard figures (off: neither is in the header; the Dashboard address and an Opening page of Dashboard open Memos). Replaces the old `dashboard_enabled` and `dashboard_kpis_enabled` | Years and statistics | Per profile | Everyone in this profile |
 | `dashboard_kpis` | Which dashboard figures show (the Customise box on the Dashboard, not on the Settings page) | Fee Register > Dashboard > Customise | Per profile | Everyone in this profile |
-| `money_unit` | Figures (full, thousands, lacs, crores) | 5 Display | Per profile | Everyone in this profile |
-| `list_default_filter` | Firms and matters: show by default (All or Active only) | 5 Display | Per profile | Everyone in this profile |
-| `money_suffix_thousands`, `money_suffix_lac`, `money_suffix_crore` | Suffix letters for short figures | 5 Display | Per profile | Everyone in this profile |
+| `money_unit` | Figures (full, thousands, lacs, crores) | Display | Per profile | Everyone in this profile |
+| `list_default_filter` | Firms and matters: show by default (All or Active only) | Display | Per profile | Everyone in this profile |
+| `money_suffix_thousands`, `money_suffix_lac`, `money_suffix_crore` | Suffix letters for short figures | Display | Per profile | Everyone in this profile |
 | `data_version` | Counter that invalidates the statistics cache | None; automatic | Per profile | n/a |
 | `profile`, `created_at`, `updated_at` | Owner and bookkeeping | None | Per profile | n/a |
 
-Related per-profile items on the same page: Bank accounts (`BankAccount`, section 2 Payments), the Word template and
-signature image (`WordTemplate`, section 3 Word documents), Edit Statistics (`PeriodAdjustment`, section 4), and the
-Excel backup download (section 6 Data). Section 6 Data also holds restore, import and Clear All Data, **Admin only**,
+Related per-profile items on the same page: Bank accounts (`BankAccount`, section Payments), the Word template and
+signature image (`WordTemplate`, section Word documents), Edit Statistics (`PeriodAdjustment`, Years and statistics), and the
+Excel backup download (Data). Data also holds restore, import and Clear All Data, **Admin only**,
 in a red box. The Excel backup carries the profile values above (the WebSettings sheet), so `FeesSettings` fields
 and that sheet stay in step.
 
@@ -206,9 +208,10 @@ One row per (profile, user, key), a JSON `data` object. Interface state, not fee
 | Key | Setting | Page and section | Stored | Who |
 | --- | --- | --- | --- | --- |
 | `settings` | `{"default_tab", "items_per_page"}`: your Opening page and Items per page. Resolution: your value, else Memos and 50. Clearing a box removes your value | Settings > Fee Register > Display / Settings > Start Screens | Per user per profile | Only you |
+| `stats-metrics` | `{"visible": [metric keys]}`: the rows of the Statistics > Standard table you chose to see (for example `num_appearances`, `amount_billed`). Resolution: your list, else every metric. Saving with none ticked removes your value | Statistics > Standard > Metrics | Per user per profile | Only you |
 | `col-widths:<table-id>` (for example `col-widths:memos`) | Column widths in pixels (40 to 1200, at most 60 columns) | Drag a column edge on a Fee Register table | Per user per profile | Only you |
 
-The `settings` key cannot be written through the column-width endpoint (it accepts only `col-widths:` keys).
+The `settings` and `stats-metrics` keys cannot be written through the column-width endpoint (it accepts only `col-widths:` keys); the Metrics box posts to `fees_statistics_metrics`, open to any Fee Register role because it is only your own display choice.
 
 **Where column widths are stored (every table is resizable).** One shared script, `static/js/resizable-columns.js`, draws the drag handles on every table that has a `data-table-id` (drag, or focus a handle and use the Left and Right arrow keys; double-click returns that column to its natural width). What differs is only where the numbers are kept:
 
@@ -225,7 +228,7 @@ Per browser and device, never on the server, never shared. Clearing site data re
 
 | Key | Setting | Where you change it | Who |
 | --- | --- | --- | --- |
-| `quill.links` | Links on or off (the chain icon switches citation Links; value `on` or `off`) | Chain icon in the Case Law Diary header | This browser |
+| `quill.links` | Links on or off (the "Hyperlinks on citations" tick box switches citation Links; value `on` or `off`) | Settings > Case Law Diary > Reading, "Hyperlinks on citations" tick box (takes effect at once, no Save) | This browser |
 | `quill.cols.<id>` | Column widths of every table outside the Fee Register (Admin Users, Profiles and Backups, the diary's History and the rest; the key is the table's `data-table-id`; a list of pixel widths, one per heading; Reset Column Widths button) | Drag a column edge | This browser |
 | `quill.fees.widths.<id>` | Fee Register column widths, a fallback copy if saving to the server fails | Drag a column edge | This browser |
 | `quill.fees.hide.<key>` | Fee Register hidden columns | Columns menu above a table | This browser |
@@ -319,7 +322,7 @@ and `mailer/models.py`; the `fields` of `accounts/forms.py`, `diary/forms.py`, `
 route table in `*/urls.py`. Rendering and the Django tests were not run in the sandbox that wrote this file; CI runs
 them.
 
-Note: the financial year filter on Memos, Drafts and Feebook is not a saved setting. With no `fy` in the link they open on the current year if it has rows, else the newest year with rows, else All years.
+Note: the filters on Memos, Drafts and Feebook are not saved settings. Only the Financial Year stays on the bar; Firm, Partner, Matter, Client, Bank, Unpaid Only and Unaccounted Only are in the window opened by View Filters, and Reset Filters opens the page with no filters at all. With no `fy` in the link the three lists open on the current year if it has rows, else the newest year with rows, else All years.
 
 ## Corporate actions: log automatically or approve (Settings > Investments > General)
 
@@ -381,3 +384,7 @@ Stored in `PriceHistorySettings` (one row, suite-wide because prices are shared;
 investment charts ("Same money in the index") buys index units with each purchase and sells them with each sale. When the sales add up to more
 than was put in, that line goes below 0. On, the line stops at 0 and a later purchase starts it again from 0. Off (the default) keeps the
 figures as they always were. Index XIRR and Alpha are not affected: they always use the real cash flows.
+
+## Capital Gains and Other income
+
+Every investment has a **Capital Gains** tick box (`Instrument.capital_gains`), on when an investment is added. Untick it and the profit or loss on a sale is reported as **Other income** (Annual Report, Total income summary, report emails, Excel exports) instead of short or long term capital gains; this is a record-keeping aid, the CA decides. It replaces the old "Taxed as Interest" box, which meant the opposite: investments 0043 turned an old "on" into Capital Gains off and an old "off" into on. A backup made before that still restores, with the old flag turned the same way. The report-email placeholders `{{interest_income}}` and `{{fy_interest_income}}` keep their names and now carry Other income.

@@ -105,8 +105,8 @@ def dividend_report(profile, portfolio=None, broker=None, held_only=False, **_):
 
 
 def income(profile, portfolio=None, broker=None, **_):
-    t = Table("Total income summary", "Dividends, capital gains and interest income (sales of investments taxed as interest) for each financial year.",
-              [("Financial year", "text"), ("Dividends", "money"), ("Short-term gains", "money"), ("Long-term gains", "money"), ("Interest income", "money"), ("Total", "money")])
+    t = Table("Total income summary", "Dividends, capital gains and other income (sales of investments whose Capital Gains is off) for each financial year.",
+              [("Financial year", "text"), ("Dividends", "money"), ("Short-term gains", "money"), ("Long-term gains", "money"), ("Other income", "money"), ("Total", "money")])
     for label in annual.year_choices(profile):
         r = annual.build(profile, label, portfolio=portfolio, broker=broker, with_portfolios=False)
         t.rows.append([label, r.dividends, r.short_gain, r.long_gain, r.interest_income, r.dividends + r.total_gain + r.interest_income])

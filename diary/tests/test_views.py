@@ -151,7 +151,7 @@ class HomeIndexTests(TestCase):
     def test_nav_marks_current_page(self):
         self.client.force_login(self.admin)
         resp = self.client.get(reverse("user_list"))
-        self.assertNotContains(resp, 'aria-label="Settings"')  # no Settings header item; the tab strip below marks the page
+        self.assertContains(resp, 'aria-label="Settings"')  # the gear; the tab strip below marks the page
         self.assertContains(resp, '<a href="%s" class="on" aria-current="page">Users &amp; Profiles</a>' % reverse("user_list"))  # its tab
         self.assertContains(resp, '<a href="%s" class="on" aria-current="page">Users</a>' % reverse("user_list"))  # its second row
         self.assertNotContains(resp, 'class="on" aria-current="page">Subjects</a>')
@@ -215,7 +215,7 @@ class HomeIndexTests(TestCase):
     def test_home_page_title_single_heading_and_edit_switch_at_bottom(self):
         self.client.force_login(self.admin)
         html = self.client.get(reverse("diary_home")).content.decode()
-        self.assertIn("<title>Home - ", html)
+        self.assertIn("<title>Case Law Diary</title>", html)
         self.assertEqual(html.count("<h1>"), 1)
         self.assertIn("<h1>Index of Subjects</h1>", html)
         self.assertNotIn("home-subtitle", html)
@@ -249,20 +249,22 @@ class HomeIndexTests(TestCase):
         self.assertIn('title="Home (&#8997;H)"', header)
         self.assertLess(header.index('class="brand"'), header.index("data-back"))
         self.assertLess(header.index("data-back"), header.index("data-forward"))
-        self.assertLess(header.index("data-forward"), header.index("home-button"))
+        home = header.index('class="home-button" href=')
+        self.assertLess(header.index("data-forward"), home)
         self.assertGreater(header.index("search-toggle"), header.index("Help"))
-        self.assertLess(header.index("search-toggle"), header.index("home-button"))
+        self.assertLess(header.index("search-toggle"), home)
+        self.assertLess(header.index("gear-button"), header.index('class="who"'))  # the Settings gear sits left of the initials
         self.assertLess(header.index('class="who"'), header.index("search-toggle"))
-        self.assertLess(header.index("home-button"), header.index('aria-label="Sign out"'))  # Sign out: far right
+        self.assertLess(home, header.index('aria-label="Sign out"'))  # Sign out: far right
         self.assertNotRegex(header, r'<input(?![^>]*type="hidden")')  # no typing box; Sign out's POST form carries a hidden csrf input
         self.assertIn('class="link nav-icon signout-button"', header)
         self.client.force_login(self.admin)
         for name in ("user_list", "settings", "backup_list"):
             suite_header = self.client.get(reverse(name)).content.decode().split('<header class="site-header"')[1].split("</header>")[0]
             self.assertIn('class="home-button" href="%s?home=1"' % reverse("home"), suite_header, name)
-            self.assertLess(suite_header.index("data-forward"), suite_header.index("home-button"), name)
-            self.assertLess(suite_header.index("home-button"), suite_header.index('aria-label="Sign out"'), name)
-            self.assertLess(suite_header.index('class="who"'), suite_header.index("home-button"), name)
+            self.assertLess(suite_header.index("data-forward"), suite_header.index('class="home-button" href='), name)
+            self.assertLess(suite_header.index('class="home-button" href='), suite_header.index('aria-label="Sign out"'), name)
+            self.assertLess(suite_header.index('class="who"'), suite_header.index('class="home-button" href='), name)
         home_header = self.client.get(reverse("home") + "?home=1").content.decode().split('<header class="site-header"')[1].split("</header>")[0]
         self.assertIn('aria-label="Sign out"', home_header)
         self.assertIn("home-button", home_header)
@@ -322,7 +324,7 @@ class HomeIndexTests(TestCase):
         self.assertIn(reverse("my_settings"), nav)
         self.assertIn("adam", nav)
         self.assertIn('aria-label="Sign out"', nav)
-        self.assertNotIn('aria-label="Settings"', nav)  # no Settings item: the user name opens settings
+        self.assertIn('class="home-button gear-button" href="%s?tab=start"' % reverse("my_settings"), nav)  # the gear opens Start Screens
         for gone in (reverse("search"), reverse("diary_home")):
             self.assertNotIn(gone, nav)
         self.assertNotIn(">Admin<", nav)
@@ -373,7 +375,7 @@ class HomeIndexTests(TestCase):
             self.assertEqual(header.count("data-search-toggle"), 1 if name in ("diary_home", "home") else 0, name)
             # Icons are the default header bar (D84): Trash, Export, Help and Settings are icons on diary pages too.
             self.assertEqual(header.count("<svg") - 2, header.count('class="home-button"') + header.count("data-search-toggle")
-                             + header.count("nav-icon"), name)
+                             + header.count("nav-icon") + header.count("gear-button"), name)
             self.assertIn('data-fallback="%s"' % reverse("home"), header)
 
     def test_no_review_tab_in_the_header_and_the_old_address_forwards_to_flags(self):

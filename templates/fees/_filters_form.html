@@ -1,8 +1,20 @@
-{# Filter bar. Context: filters, firm_choices, client_choices; optional show_fy (with fy_options), show_unpaid. #}
-<form method="get" class="filters">
+{# Filter bar for the Memos, Drafts and Feebook lists. The Financial Year stays on the bar; every other filter is in a window (a native <dialog>) opened by View Filters. Without a script View Filters is a link that reloads the page with the window already open (filters=open). Reset Filters is a link to the page with no filters. Context: filters, firm_choices, partner_choices, matter_choices, client_choices, fy_options, query_string, filters_open, reset_url; optional show_fy, show_unpaid (Memos), feebook (adds Bank and Unaccounted Only; bank_choices). #}
+<form method="get" class="filters" aria-label="Filter the list">
   {% if show_fy %}{% include "fees/_fy_select.html" with name="fy" label="Financial Year" options=fy_options selected=filters.financial_year all_label="All Years" %}{% endif %}
-  <label>Firm <select name="firm"><option value="">All</option>{% for f in firm_choices %}<option value="{{ f.pk }}"{% if filters.firm_id == f.pk %} selected{% endif %}>{{ f.name }}</option>{% endfor %}</select></label>
-  {% if client_choices or filters.client_id %}<label>Client <select name="client"><option value="">All</option>{% for c in client_choices %}<option value="{{ c.id }}"{% if filters.client_id == c.id %} selected{% endif %}>{{ c.name }}</option>{% endfor %}<option value="blank"{% if filters.client_id == "blank" %} selected{% endif %}>No client</option></select></label>{% endif %}
-  {% if show_unpaid %}<label><input type="checkbox" name="unpaid" value="1"{% if filters.unpaid_only %} checked{% endif %}> Unpaid Only</label>{% endif %}
   <button type="submit">Filter</button>
+  <a class="button small secondary" href="?{% if query_string %}{{ query_string }}&amp;{% endif %}filters=open" aria-haspopup="dialog" onclick="document.getElementById('filters-dialog').showModal();return false">View Filters</a>
+  <a class="button small secondary" href="{{ reset_url }}">Reset Filters</a>
+  <dialog id="filters-dialog" class="filter-dialog" aria-labelledby="filters-dialog-title"{% if filters_open %} open{% endif %}>
+    <h2 id="filters-dialog-title">Filters</h2>
+    <div class="dialog-fields">
+      <label>Firm <select name="firm"><option value="">All</option>{% for f in firm_choices %}<option value="{{ f.pk }}"{% if filters.firm_id == f.pk %} selected{% endif %}>{{ f.name }}</option>{% endfor %}</select></label>
+      <label>Partner <select name="group"><option value="">All</option>{% for g in partner_choices %}<option value="{{ g.pk }}"{% if filters.group_id == g.pk %} selected{% endif %}>{{ g.name }}</option>{% endfor %}</select></label>
+      <label>Matter <select name="matter"><option value="">All</option>{% for m in matter_choices %}<option value="{{ m.pk }}"{% if filters.matter_id == m.pk %} selected{% endif %}>{{ m.name }}</option>{% endfor %}</select></label>
+      {% if client_choices or filters.client_id %}<label>Client <select name="client"><option value="">All</option>{% for c in client_choices %}<option value="{{ c.id }}"{% if filters.client_id == c.id %} selected{% endif %}>{{ c.name }}</option>{% endfor %}<option value="blank"{% if filters.client_id == "blank" %} selected{% endif %}>No client</option></select></label>{% endif %}
+      {% if feebook and fees_bank_on %}<label>Bank <select name="bank"><option value="">All</option>{% for b in bank_choices %}<option value="{{ b.pk }}"{% if filters.bank_account_id == b.pk %} selected{% endif %}>{{ b.name }}</option>{% endfor %}</select></label>{% endif %}
+      {% if show_unpaid %}<label><input type="checkbox" name="unpaid" value="1"{% if filters.unpaid_only %} checked{% endif %}> Unpaid Only</label>{% endif %}
+      {% if feebook %}<label><input type="checkbox" name="unaccounted" value="1"{% if filters.unaccounted_only %} checked{% endif %}> Unaccounted Only</label>{% endif %}
+    </div>
+    <p class="dialog-actions"><button type="submit" class="primary">Apply Filters</button> <a class="button small secondary" href="?{{ query_string }}" onclick="this.closest('dialog').close();return false">Cancel</a></p>
+  </dialog>
 </form>

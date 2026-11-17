@@ -154,9 +154,7 @@ button.program-link { width: 100%; text-align: left; background: none; cursor: p
 .item-text p + p { display: block; margin-top: .4rem; }
 .citation { font-style: italic; color: var(--muted); }
 .case-comment { font-style: normal; color: var(--muted); }
-.case + .case { margin-left: .6em; }
 .case-line-comment { font-style: normal; }
-.case-line-comment + .cite-link, .case-line-comment + .citation { margin-left: .5em; }
 /* Citations on separate lines: "(a) <comment> - <citation>", the wrapped lines hang under the text, not the label. */
 .case-lines { margin-top: .35rem; }
 .case-line { display: flex; gap: .5rem; margin: .15rem 0; }
@@ -442,8 +440,7 @@ th[aria-sort="descending"] a.sort-link::after { content: " \25BC"; font-size: .7
 .settings-form fieldset { margin: 0 0 1rem; padding: .5rem 1rem 0; border: 1px solid var(--hair); }
 .settings-form legend { padding: 0 .4rem; font-size: var(--small-size); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .field-help { display: block; font-size: var(--small-size); color: var(--muted); margin-top: .25rem; }
-.format-layout { display: grid; gap: 1.5rem; }
-.format-preview-box { padding: .75rem 1rem 1rem; border: 1px solid var(--hair); background: var(--panel); align-self: start; }
+.format-preview-box { margin: 0 0 1rem; padding: .75rem 1rem 1rem; border: 1px solid var(--hair); background: var(--panel); align-self: start; }
 .format-preview-box h3 { margin: 0 0 .5rem; font-size: var(--small-size); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 400; }
 .format-preview { font-family: var(--font-serif); font-size: var(--text-size); }
 .pv { padding: .1rem 0; }
@@ -455,9 +452,6 @@ th[aria-sort="descending"] a.sort-link::after { content: " \25BC"; font-size: .7
 .pv-i2 { padding-left: 1.5rem; }
 .pv-i3 { padding-left: 2.25rem; }
 .pv-i4 { padding-left: 3rem; }
-@media (min-width: 900px) {
-  .format-layout { grid-template-columns: minmax(0, 24rem) minmax(0, 1fr); }
-}
 
 /* Note editor and link picker (Milestone 5). Rows are at least 44px high so they can be tapped on a phone. */
 .link-rows { list-style: none; margin: 0 0 .75rem; padding: 0; }
@@ -593,12 +587,7 @@ a.step:hover, a.step:focus-visible { border-color: var(--ink); background: var(-
 a.cite-link { color: inherit; text-decoration: underline; text-decoration-color: var(--oxblood); text-underline-offset: .18em; }
 a.cite-link:hover, a.cite-link:focus-visible { color: var(--oxblood); }
 html.links-off a.cite-link { text-decoration: none; pointer-events: none; cursor: text; }
-.links-toggle { position: relative; }
 .program-nav button.nav-word { background: none; border: 0; padding: 0; font: inherit; color: var(--muted); min-height: var(--tap); cursor: pointer; }
-html.links-off .links-toggle { color: var(--muted); }
-html.links-off .links-toggle.nav-icon svg { opacity: .45; }
-html.links-off .links-toggle .links-state::after { content: ""; position: absolute; left: 50%; top: 50%; width: 22px; height: 2px; background: currentColor; transform: translate(-50%, -50%) rotate(-45deg); }
-html.links-off .links-toggle.nav-word .links-state::after { width: 100%; transform: translate(-50%, -50%); }
 
 /* Grey hint inside an empty rich text box (round 16), like the hint in an empty plain box. */
 .rt-area { position: relative; }

@@ -5,7 +5,7 @@
 <h1 class="visually-hidden">Outstanding by firm</h1>
 {% include "fees/_outstanding_tabs.html" with tab="firm" %}
 <form method="get" class="filters" aria-label="Filter outstanding memos">
-  <label>Sort By <select name="sort"><option value="amount"{% if sort == "amount" %} selected{% endif %}>Amount Outstanding</option><option value="name"{% if sort == "name" %} selected{% endif %}>Firm Name</option></select></label>
+  <input type="hidden" name="sort" value="{% if sort_descending %}-{% endif %}{{ sort_key }}">
   <label><input type="checkbox" name="written_off" value="1"{% if filters.include_written_off %} checked{% endif %}> Include Written Off Memos</label>
   {% if fees_overdue_on %}<label><input type="checkbox" name="overdue" value="1"{% if filters.overdue_only %} checked{% endif %}> View Overdue Memos Only</label>{% endif %}
   <button type="submit">Filter</button>
@@ -14,10 +14,10 @@
 <div class="total-card" role="group" aria-label="Grand total"><span class="total-label">Total outstanding, {{ rows|length }} firm{{ rows|length|pluralize }}</span><span class="total-amount">{{ grand_total|fees_money:money_unit }}</span></div>
 <div class="table-card"><div class="table-wrap">
 <table class="ledger-table" data-fees-columns="outstanding-firms" data-table-id="outstanding-firms">
-  <caption>{{ rows|length }} firm{{ rows|length|pluralize }} with fees outstanding, sorted by {% if sort == "name" %}firm name{% else %}amount outstanding{% endif %}</caption>
-  <thead><tr><th scope="col" data-col-fixed>Firm</th><th scope="col" class="money">Memos</th><th scope="col" data-col="share">Share of total</th><th scope="col" class="money" data-col-fixed>Outstanding</th><th scope="col" data-col-fixed><span class="visually-hidden">View</span></th></tr></thead>
-  <tbody>{% for r in rows %}<tr><th scope="row"><a href="{% url 'fees_outstanding_detail' %}?{{ r.detail_query }}" aria-label="{{ r.firm_name }}: memos outstanding">{{ r.firm_name }}</a></th><td class="money">{{ r.memo_count }}</td><td class="share-cell"><span class="share-bar" aria-hidden="true"><span style="width:{{ r.share }}%"></span></span><span class="share-pct">{{ r.share }}%</span></td><td class="money due">{{ r.outstanding|fees_money:money_unit }}</td><td><a class="button small secondary" href="{% url 'fees_outstanding_detail' %}?{{ r.detail_query }}" aria-label="View memos outstanding for {{ r.firm_name }}">View</a></td></tr>{% empty %}<tr><td colspan="5">Nothing outstanding.</td></tr>{% endfor %}</tbody>
-  <tfoot><tr><th scope="row">Total ({{ rows|length }} firm{{ rows|length|pluralize }})</th><td class="money"></td><td></td><td class="money">{{ grand_total|fees_money:money_unit }}</td><td></td></tr></tfoot>
+  <caption>{{ rows|length }} firm{{ rows|length|pluralize }} with fees outstanding, sorted by {{ sort_key }}{% if sort_descending %}, descending{% endif %}; select a column heading to sort by it</caption>
+  <thead><tr><th scope="col" data-col-fixed aria-sort="{{ heads.firm.aria }}"><a class="sort-link" href="{{ heads.firm.url }}">Firm</a></th><th scope="col" class="money" aria-sort="{{ heads.memos.aria }}"><a class="sort-link" href="{{ heads.memos.url }}">Memos</a></th><th scope="col" data-col="share" aria-sort="{{ heads.share.aria }}"><a class="sort-link" href="{{ heads.share.url }}">Share of total</a></th><th scope="col" class="money" data-col-fixed aria-sort="{{ heads.outstanding.aria }}"><a class="sort-link" href="{{ heads.outstanding.url }}">Outstanding</a></th></tr></thead>
+  <tbody>{% for r in rows %}<tr><th scope="row"><a href="{% url 'fees_outstanding_detail' %}?{{ r.detail_query }}" aria-label="{{ r.firm_name }}: memos outstanding">{{ r.firm_name }}</a></th><td class="money">{{ r.memo_count }}</td><td class="share-cell"><span class="share-bar" aria-hidden="true"><span style="width:{{ r.share }}%"></span></span><span class="share-pct">{{ r.share }}%</span></td><td class="money due">{{ r.outstanding|fees_money:money_unit }}</td></tr>{% empty %}<tr><td colspan="4">Nothing outstanding.</td></tr>{% endfor %}</tbody>
+  <tfoot><tr><th scope="row">Total ({{ rows|length }} firm{{ rows|length|pluralize }})</th><td class="money"></td><td></td><td class="money">{{ grand_total|fees_money:money_unit }}</td></tr></tfoot>
 </table>
 </div></div>
 {% endblock %}

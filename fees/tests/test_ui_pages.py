@@ -12,7 +12,7 @@ from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils.html import escape
 
-from fees.models import FeesSettings, Group, Matter, Payment, SavedView
+from fees.models import Client, FeesSettings, Group, Matter, Payment, SavedView
 from fees.services import dashboard, memos, payments
 from fees.tests import xlsx_support as xs
 from fees.tests.test_views_read import SeededViewsBase
@@ -346,21 +346,47 @@ class FirmScreenTests(UiPageBase):
         self.assertNotIn(reverse("fees_firm_status", kwargs={"firm_id": i["firm"]}), text)
         self.assertNotIn(reverse("fees_firm_edit", kwargs={"firm_id": i["firm"]}), text)
 
-    def test_firm_page_for_an_editor_has_the_groups_panel(self):
+    def test_firm_page_has_partners_and_clients_buttons(self):
         i = self.ids()
         text = self.assert_page(self.page("fees_firm_detail", {"firm_id": i["firm"]}, user=self.editor), "firm-editor")
-        self.assertIn(reverse("fees_group_add", kwargs={"firm_id": i["firm"]}), text)
-        self.assertIn('class="group-pill-link"', text)
-        self.assertNotIn("aria-label=\"New name for group ", text)
+        self.assertIn('<a class="button secondary" href="%s">Partners</a>' % reverse("fees_firm_partners", kwargs={"firm_id": i["firm"]}), text)
+        self.assertIn('<a class="button secondary" href="%s">Clients</a>' % reverse("fees_firm_clients", kwargs={"firm_id": i["firm"]}), text)
+        self.assertNotIn('class="group-pill-link"', text)
+        self.assertNotIn(reverse("fees_group_add", kwargs={"firm_id": i["firm"]}), text)
         self.assertIn(reverse("fees_firm_status", kwargs={"firm_id": i["firm"]}), text)
         self.assert_no_unlabelled_controls(text, "firm-editor")
 
-    def test_group_pills_link_to_the_group_page(self):
+    def test_firm_page_switches_between_partner_wise_and_client_wise(self):
+        i = self.ids()
+        partner = self.html(self.page("fees_firm_detail", {"firm_id": i["firm"]}))
+        self.assertIn("Partner-wise</strong>", partner)
+        self.assertIn('href="?by=client&amp;matters=', partner)
+        client = self.html(self.page("fees_firm_detail", {"firm_id": i["firm"]}, "?by=client"))
+        self.assertIn("Client-wise</strong>", client)
+        self.assertIn('href="?by=partner&amp;matters=', client)
+        self.assertIn("Archived Only", client)
+
+    def test_partners_page_lists_the_partners_and_links_to_each(self):
         i = self.ids()
         group = Group.objects.filter(firm_id=i["firm"]).first()
         url = reverse("fees_group_detail", kwargs={"firm_id": i["firm"], "group_id": group.pk})
-        text = self.assert_page(self.page("fees_firm_detail", {"firm_id": i["firm"]}), "firm")
-        self.assertIn('<a class="group-pill-link" href="%s">%s</a>' % (url, escape(group.name)), text)
+        reader = self.assert_page(self.page("fees_firm_partners", {"firm_id": i["firm"]}), "partners")
+        self.assertIn('<a class="firm-name" href="%s">%s</a>' % (url, escape(group.name)), reader)
+        self.assertNotIn("/groups/add/", reader)
+        editor = self.assert_page(self.page("fees_firm_partners", {"firm_id": i["firm"]}, user=self.editor), "partners-editor")
+        self.assertIn(reverse("fees_group_add", kwargs={"firm_id": i["firm"]}), editor)
+        self.assert_no_unlabelled_controls(editor, "partners-editor")
+
+    def test_clients_page_lists_the_firms_clients(self):
+        i = self.ids()
+        client = Client.objects.create(profile=self.profile, name="Page Client")
+        Matter.objects.filter(pk=i["matter"]).update(client=client)
+        text = self.assert_page(self.page("fees_firm_clients", {"firm_id": i["firm"]}, user=self.editor), "clients-editor")
+        detail = reverse("fees_firm_client_detail", kwargs={"firm_id": i["firm"], "client_id": client.pk})
+        self.assertIn('<a class="firm-name" href="%s">Page Client</a>' % detail, text)
+        page = self.assert_page(self.page("fees_firm_client_detail", {"firm_id": i["firm"], "client_id": client.pk}, user=self.editor), "client-of-firm")
+        self.assertIn(reverse("fees_matter_detail", kwargs={"matter_id": i["matter"]}), page)
+        self.assertIn("Archived Only", page)
 
     def test_group_page_is_limited_to_its_group(self):
         i = self.ids()
@@ -684,10 +710,11 @@ class OutstandingScreenTests(UiPageBase):
         text = self.assert_page(self.page("fees_outstanding"), "outstanding")
         self.assertIn('data-fees-columns="outstanding-firms"', text)
         self.assertIn("<caption>", text)
-        self.assertIn('<th scope="col" class="money" data-col-fixed>Outstanding</th>', text)
+        self.assertRegex(text, r'<th scope="col" class="money" data-col-fixed aria-sort="descending"><a class="sort-link" href="\?sort=outstanding">Outstanding</a></th>')
         self.assertRegex(text, r'<th scope="row">Total \(\d+ firms?\)</th>')
         self.assertIn('class="total-card"', text)
-        self.assertIn('>View</a>', text)
+        self.assertNotIn('>View</a>', text)  # the firm's name is the link (owner round 2026-12)
+        self.assertNotIn('name="sort" value="amount"', text)
         self.assertIn(reverse("fees_outstanding_detail") + "?firm=%d" % self.ids()["firm"], text)
         self.assert_no_unlabelled_controls(text, "outstanding")
 
@@ -699,8 +726,12 @@ class OutstandingScreenTests(UiPageBase):
         text = self.html(self.page("fees_outstanding", query="?overdue=1&written_off=1"))
         self.assertRegex(text, r'href="%s\?[^"]*overdue=1' % re.escape(reverse("fees_outstanding_detail")))
 
+    def test_detail_for_a_firm_defaults_to_matter_totals(self):
+        text = self.assert_page(self.page("fees_outstanding_detail", query="?firm=%d" % self.ids()["firm"]), "detail-summary")
+        self.assertIn('data-fees-columns="outstanding-summary"', text)
+
     def test_detail_grouped_for_a_firm(self):
-        query = "?firm=%d" % self.ids()["firm"]
+        query = "?firm=%d&view=grouped" % self.ids()["firm"]
         text = self.assert_page(self.page("fees_outstanding_detail", query=query), "detail")
         self.assertIn('data-fees-columns="outstanding-grouped"', text)
         self.assertIn('scope="rowgroup"', text)
@@ -1004,7 +1035,7 @@ class StatusMarkerSettingTests(UiPageBase):
             ("drafts", "fees_memo_drafts", {}, ""),
             ("memo detail", "fees_memo_detail", {"memo_id": i["memo"]}, ""),
             ("outstanding detail", "fees_outstanding_detail", {}, ""),
-            ("outstanding detail by firm", "fees_outstanding_detail", {}, "?firm=%d" % i["firm"]),
+            ("outstanding detail by firm", "fees_outstanding_detail", {}, "?firm=%d&view=grouped" % i["firm"]),
         ]
 
     def other_pages(self):

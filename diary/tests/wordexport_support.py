@@ -16,6 +16,7 @@ DEFAULT_FMTS = {
     "section_format": "(a)",
     "item_format": "(1)",
     "multi_citation_format": "(a)",
+    "multi_citation_lines_format": "(a)",
 }
 
 

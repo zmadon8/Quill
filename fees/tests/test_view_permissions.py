@@ -44,6 +44,7 @@ ROUTES = {
     "fees_statistics_views": (RW, ""),
     "fees_statistics_view_delete": (W, ""),
     "fees_statistics_year_end": (R, "?fy=2026-27"),
+    "fees_statistics_metrics": (U, ""),
     "fees_statistics_export": (R, "?granularity=month&fy=2026-27"),
     "fees_statistics_annual_export": (R, "?fy=2026-27"),
     "fees_statistics_tax_summary": (R, "?fy=2026-27"),
@@ -78,6 +79,11 @@ ROUTES = {
     "fees_group_add": (W, ""),
     "fees_group_rename": (W, ""),
     "fees_group_remove": (W, ""),
+    "fees_firm_partners": (R, ""),
+    "fees_firm_clients": (R, ""),
+    "fees_firm_client_detail": (R, ""),
+    "fees_firm_client_rename": (W, ""),
+    "fees_firm_client_remove": (W, ""),
     "fees_firms_clients": (R, ""),
     "fees_firms_client_add": (W, ""),
     "fees_firms_client_detail": (R, ""),
@@ -135,7 +141,7 @@ ROUTES = {
 # POST-driven (its upload form lives on the backup page), so a GET sends the user back there.
 FIXTURE = Path(__file__).parent / "fixtures" / "Template 2-11-2026 (short tags).docx"
 
-REDIRECTS = {"fees_landing", "fees_backup_restore", "fees_backup_restored", "fees_backup_cleared"}
+REDIRECTS = {"fees_landing", "fees_statistics_metrics", "fees_backup_restore", "fees_backup_restored", "fees_backup_cleared"}
 
 # Editor-only routes that also accept POST (the payment forms are RW: a Reader may open them, only an Editor saves) (the rest of the E routes are GET only).
 E_POST = {"fees_memo_move"}

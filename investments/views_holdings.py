@@ -122,7 +122,7 @@ def add_2(request):
                         profile, request.user, kind=data["kind"], name=data["name"], code=data["code"], isin=data.get("isin", ""),
                         currency=data.get("currency", "INR"), asset_class=data.get("asset_class", "equity"), sector=data.get("sector", ""),
                         interest_rate=data.get("interest_rate"), interest_type=data.get("interest_type", "compound"), maturity_date=data.get("maturity_date"),
-                        taxed_as_interest=data.get("taxed_as_interest", False), lump_sum=data.get("lump_sum", False),
+                        capital_gains=data.get("capital_gains", True), lump_sum=data.get("lump_sum", False),
                         allow_duplicate=bool(request.POST.get("allow_duplicate")))
                 except InvestmentsError as err:
                     form.add_error(None, err.message)
@@ -462,6 +462,8 @@ def investment_altvalue(request, pk):
             messages.success(request, "Value saved.")
         else:
             _form_errors(request, form)
+    if request.POST.get("back") == "edit" and inst.profile_id == profile.pk:     # from the Edit page's Price History tab
+        return redirect(reverse("investments_investment_edit", args=[pk]) + "?tab=prices")
     return redirect(reverse("investments_investment", args=[pk]))
 
 
@@ -542,7 +544,12 @@ def investment_edit(request, pk):
             else:
                 messages.success(request, "Saved." if changed else "Nothing to change.")
                 return redirect(reverse("investments_investment", args=[pk]))
-    return page(request, "investments/investment_edit.html", {"page_title_text": f"Edit {inst.name}", "inst": inst, "form": form}, selectors=False, status_line=True)
+    tab = "prices" if request.GET.get("tab") == "prices" else "details"
+    context = {"page_title_text": f"Edit {inst.name}", "inst": inst, "form": form, "tab": tab}
+    if tab == "prices":     # the entry form and list of the investment's values (an own investment is an alternative one)
+        context.update({"alt_form": forms.AltValueForm(lump_sum=inst.lump_sum), "can_edit": True,
+                        "alt_values": _flag_derived(AltValue.objects.filter(profile=profile, instrument=inst).order_by("-date")[:20], profile, inst)})
+    return page(request, "investments/investment_edit.html", context, selectors=False, status_line=True)
 
 
 @inv_editor
@@ -552,8 +559,8 @@ def investment_shared(request, pk):
     profile = profile_or_404(request)
     inst = _instrument_or_404(profile, pk)
     allowed = {k: request.POST.get(k, "").strip() for k in ("name", "code", "isin", "sector", "currency") if k in request.POST}
-    if request.POST.get("taxed_marker"):
-        allowed["taxed_as_interest"] = request.POST.get("taxed_as_interest") == "1"
+    if request.POST.get("capital_marker"):
+        allowed["capital_gains"] = request.POST.get("capital_gains") == "1"
     if "name" in allowed and not allowed["name"]:
         raise InvestmentsError("REQUIRED", "Name is required.")
     masters.update_shared_details(profile, request.user, inst, **allowed)

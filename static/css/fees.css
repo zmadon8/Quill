@@ -170,3 +170,16 @@ body.ledger .fees-form .field-row input[type=date], body.ledger .memo-form .memo
 body.ledger .tab-bar > .kpi-customise { margin: 0 0 6px auto; }
 body.ledger .tab-bar > .kpi-customise[open] { flex: 1 0 100%; }
 body.ledger .tab-bar > .kpi-customise > summary { margin-left: auto; width: max-content; }
+
+/* Filter window of the Memos, Drafts and Feebook lists (owner round 2026-12) */
+body.ledger dialog.filter-dialog { width: min(34rem, 92vw); padding: 20px; color: var(--ink); background: var(--paper); border: 1px solid var(--line-strong); border-radius: var(--radius); box-shadow: var(--shadow-modal); }
+body.ledger dialog.filter-dialog::backdrop { background: rgba(0, 0, 0, .4); }
+body.ledger dialog.filter-dialog h2 { margin: 0 0 12px; }
+body.ledger dialog.filter-dialog .dialog-fields { display: grid; gap: 12px; }
+body.ledger dialog.filter-dialog select { width: 100%; }
+body.ledger dialog.filter-dialog .dialog-actions { display: flex; gap: 8px; margin: 16px 0 0; }
+body.ledger .firm-links { margin: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+/* Statistics: the From and To years always share one line; the Metrics box sits under the period bar */
+body.ledger .filters .fy-range { display: flex; flex-wrap: nowrap; gap: 8px 12px; min-width: 0; }
+body.ledger .filters .fy-range > label { flex: 1 1 auto; min-width: 0; }
+body.ledger .stat-metrics { margin: 8px 0; }

@@ -20,8 +20,8 @@ class SettingsScreenTests(UiPageBase):
         for key in ("memos", "payments", "word", "years", "display", "data"):
             self.assertIn('data-section="%s"' % key, text, key)
             self.assertIn('data-section-link="%s"' % key, text, key)
-        self.assertIn("1 Memos</a>", text)
-        self.assertIn("6 Data</a>", text)
+        self.assertIn("Memos</a>", text)
+        self.assertIn("Data</a>", text)
         self.assertIn("Bank accounts</h3>", text)
         self.assertIn("You have unsaved changes.", text)
         for name in ("export_owner_name", "memo_filename_pattern", "memo_default_name", "memo_default_designation",

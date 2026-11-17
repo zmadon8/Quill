@@ -390,6 +390,7 @@ def parse_backup(raw, max_bytes):
     _drop_removed_portfolio_owner(models_in_file)
     _drop_removed_hidden_investments(models_in_file)
     _split_alert_master_switches(models_in_file)
+    _invert_taxed_as_interest(models_in_file)
     return document
 
 
@@ -435,6 +436,16 @@ def _split_alert_master_switches(models_in_file):
             on = fields.pop("rule_b_enabled")
             for name in ("rule_b_loss_enabled", "rule_b_gain_enabled"):
                 fields.setdefault(name, on)
+
+
+def _invert_taxed_as_interest(models_in_file):
+    """Instrument.taxed_as_interest was replaced by Instrument.capital_gains, its opposite (investments 0043): an older backup's flag is
+    inverted into the new field, as the migration does for the database. A record that already has capital_gains keeps it."""
+    for record in models_in_file.get("investments.Instrument", []):
+        fields = record["fields"]
+        if "taxed_as_interest" in fields:
+            old = fields.pop("taxed_as_interest")
+            fields.setdefault("capital_gains", not old)
 
 
 def upgrade_old_items(document, now=None):

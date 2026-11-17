@@ -99,7 +99,7 @@ def transaction_sheets(txns, transfers=None, dividends=None, automatic=None):
 
 
 HOLDINGS_HEADER = ["Name", "Type", "Code", "ISIN", "Units", "Average cost", "Cost", "Price", "Price date", "Value", "Gain", "Gain %", "XIRR %", "Index XIRR %", "Alpha (XIRR − Index XIRR) %",
-                   "First bought", "Status", "Realised gain", "Interest income", "Dividends"]
+                   "First bought", "Status", "Realised gain", "Other income", "Dividends"]
 
 
 def holdings_sheet(rows):
@@ -118,7 +118,7 @@ def annual_sheets(r):
     """The Annual Report workbook's sheets for ``annual.Report`` ``r`` (the Annual Report page's Excel button and the annual report email)."""
     pct = (lambda v: None if v is None else round(v * 100, 2))
     summary = [["Starting portfolio value", r.opening_value], ["Amount invested", r.invested], ["Amount sold", r.sold], ["Fresh investments (invested less sold)", r.reinvested],
-               ["Short-term capital gains", r.short_gain], ["Long-term capital gains", r.long_gain], ["Interest income", r.interest_income], ["XIRR % for the year", pct(r.xirr)],
+               ["Short-term capital gains", r.short_gain], ["Long-term capital gains", r.long_gain], ["Other income", r.interest_income], ["XIRR % for the year", pct(r.xirr)],
                [f"{r.index_name} change over the year %", pct(r.index_return)], ["Ending portfolio value", r.closing_value], ["Dividends received", r.dividends],
                ["Tax deducted on dividends", r.dividend_tax], ["Unrealised gain at year end", r.unrealised], ["Long-term after (days held)", r.cutoff],
                ["Note", "A record-keeping aid, not tax advice. Check the treatment with your CA."]]
@@ -137,10 +137,10 @@ def annual_sheets(r):
     return [
         ("Summary", ["Item", r.label], summary),
         ("Capital gains", ["Investment", "Bought (held from)", "Sold", "Days held", "Units", "Cost", "Proceeds", "Gain", "Term", "Note"], sales),
-        ("Interest income", ["Investment", "Bought (held from)", "Sold", "Days held", "Units", "Cost", "Proceeds", "Gain", "Term", "Note"], interest_sales),
+        ("Other income", ["Investment", "Bought (held from)", "Sold", "Days held", "Units", "Cost", "Proceeds", "Gain", "Term", "Note"], interest_sales),
         ("Holdings at year end", ["Investment", "Type", "Units", "Cost", "Value", "Unrealised gain", ""], held),
         ("Transactions", ["Date", "Investment", "Buy / sell", "Units", "Price", "Charges", "Amount awaiting", "Broker", "Portfolio", "Status"], txns),
-        ("By portfolio", ["Portfolio", "Starting value", "Invested", "Sold", "Short-term gains", "Long-term gains", "Interest income", "XIRR %", "Ending value"], by_pf)]
+        ("By portfolio", ["Portfolio", "Starting value", "Invested", "Sold", "Short-term gains", "Long-term gains", "Other income", "XIRR %", "Ending value"], by_pf)]
 
 
 def holdings_transactions_sheets(profile, *, as_of=None, held_only=False):

@@ -421,7 +421,10 @@ class UserSettings(models.Model):
     subtopic_format = models.CharField(max_length=20, choices=FORMAT_CHOICES, default="decimal")
     section_format = models.CharField(max_length=20, choices=SECTION_FORMAT_CHOICES, default="paren_lower_alpha")
     item_format = models.CharField(max_length=20, choices=FORMAT_CHOICES, default="paren_decimal")
+    # How the citations of an Item with several are numbered: this one when they follow the text in a line ("inline"),
+    # ``multi_citation_lines_format`` when each is on its own line (Item.citation_layout "lines").
     multi_citation_format = models.CharField(max_length=20, choices=FORMAT_CHOICES, default="paren_lower_alpha")
+    multi_citation_lines_format = models.CharField(max_length=20, choices=FORMAT_CHOICES, default="paren_lower_alpha")
     export_date_format = models.CharField(max_length=20, choices=DATE_FORMAT_CHOICES, default="YYYY-MM-DD")
 
     class Meta:
