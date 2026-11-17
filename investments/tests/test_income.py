@@ -349,6 +349,13 @@ class AlertTests(InvTestCase):
         self.client.force_login(self.user)
         self.assertContains(self.client.get(reverse("investments_alerts")), "falls in a day")
 
+    def test_alert_settings_form_renders_every_field_so_a_save_is_valid(self):
+        # The window fields were missing from the page, so every save lacked a required value, was refused, and the page showed the old figures.
+        self.client.force_login(self.user)
+        html = self.client.get(reverse("investments_alerts")).content.decode()
+        for name in forms.AlertSettingsForm.base_fields:
+            self.assertIn(f'name="{name}"', html, name)
+
     def test_settings_page_saves(self):
         self.client.force_login(self.user)
         r = self.client.post(reverse("investments_alerts"), {"action": "settings", "rule_a_fall_enabled": "on", "rule_a_window_enabled": "on", "rule_a_fall_pct": "4", "rule_a_rise_pct": "9", "rule_a_window_days": "10",
