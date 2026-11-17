@@ -19,7 +19,7 @@ from investments.adapters.base import FetchError, FormatError
 from investments.errors import InvestmentsError
 from investments.models import (
     KIND_ALTERNATIVE, KIND_FUND, KIND_INDEX, BASIS_ADJ, Instrument, InvestmentSettings, Price, PriceStatus,
-    ProfileInvestment, SourceRun, SourceSymbol, SplitSignal, STATUS_FINAL, Transaction, Transfer,
+    ProfileInvestment, SIDE_BUY, SourceRun, SourceSymbol, SplitSignal, STATUS_PENDING_SIP, STATUS_TENTATIVE, Transaction, Transfer,
 )
 from investments.services import prices as price_service
 from investments.services import source_formats
@@ -27,9 +27,9 @@ from investments.services import source_formats
 BATCH = 500
 STALE_DAYS = 5
 UPDATE_BATCH = 10
-#: Days kept after the last unit is sold (the sale-date valuation needs a price) and fetched before the first purchase (a purchase on a
-#: non-trading day is valued at the previous close).
-WINDOW_BUFFER_DAYS = 7
+#: Days kept after the last unit is sold: none, because prices up to the sale date were collected while the units were held. Days fetched
+#: before the first purchase (a purchase on a non-trading day is valued at the previous close).
+WINDOW_BUFFER_DAYS = 0
 WINDOW_LEAD_DAYS = 7
 
 
@@ -59,9 +59,9 @@ def portfolio_start():
 
 def fetch_window(instrument_ids=None, today=None):
     """``{instrument id: (start, end)}`` for the investments someone has bought, across ALL profiles. ``start`` is the earliest transaction
-    or transfer date (a purchase, an opening balance, a transfer in, or one awaiting allotment); ``end`` is None while units (or a purchase
-    awaiting allotment, a SIP to confirm or a future-dated row) remain in any profile, else the date of the last row plus
-    ``WINDOW_BUFFER_DAYS``. Units are replayed as ``holdings.compute`` does (bonus, split and demerger units, applied corporate actions).
+    or transfer date (a purchase, an opening balance, a transfer in, or a tentative entry); ``end`` is None while units (or a tentative
+    purchase, a SIP to confirm or a future-dated row) remain in any profile, else the date of the last row plus ``WINDOW_BUFFER_DAYS``
+    (0: fetching stops once the last unit is sold). A tentative sale alone does not keep an investment open. Units are replayed as ``holdings.compute`` does (bonus, split and demerger units, applied corporate actions).
     An investment with no transactions at all (merely listed) has no entry, so no price history is fetched for it."""
     from accounts.models import Profile
     from investments.services import holdings
@@ -79,8 +79,9 @@ def fetch_window(instrument_ids=None, today=None):
     transfers = Transfer.objects.all()
     if instrument_ids is not None:
         txns, transfers = txns.filter(instrument_id__in=list(instrument_ids)), transfers.filter(instrument_id__in=list(instrument_ids))
-    for iid, pid, day, status in txns.values_list("instrument_id", "profile_id", "date", "status").iterator():
-        note(iid, pid, day, status != STATUS_FINAL)
+    for iid, pid, day, status, side in txns.values_list("instrument_id", "profile_id", "date", "status", "side").iterator():
+        # A tentative purchase will need prices once it is finalised; a tentative sale needs none (the units it sells are held, or not).
+        note(iid, pid, day, status == STATUS_PENDING_SIP or (status == STATUS_TENTATIVE and side == SIDE_BUY))
     for iid, pid, day in transfers.values_list("instrument_id", "profile_id", "date").iterator():
         note(iid, pid, day, False)
     profiles = Profile.objects.in_bulk(per_profile)
@@ -94,7 +95,7 @@ def fetch_window(instrument_ids=None, today=None):
 
 def tracked_with_windows(profile=None, ids=None, today=None):
     """``([Instrument], {id: (start, end)})``. An investment is tracked while it is inside its window: from its first purchase until
-    ``WINDOW_BUFFER_DAYS`` after the last unit was sold in every profile. A listed investment nobody has bought is not tracked. The indices
+    ``WINDOW_BUFFER_DAYS`` (0) after the last unit was sold in every profile. A listed investment nobody has bought is not tracked. The indices
     in use (default, sectoral, ^NSEI) are always tracked, from the earliest purchase of any profile (``start`` None when there is none)."""
     today = today or date.today()
     wanted = set(ProfileInvestment.objects.filter(**({"profile": profile} if profile else {})).values_list("instrument_id", flat=True))
