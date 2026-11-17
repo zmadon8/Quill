@@ -24,6 +24,7 @@ from fees.models import FeesUserPrefs
 __all__ = [
     "KEY_RE", "MIN_PX", "MAX_PX", "MAX_COLUMNS", "MAX_BYTES", "SETTINGS_KEY", "get_prefs", "get_all_widths", "set_pref",
     "get_personal", "set_personal", "personal_default_tab", "personal_items_per_page",
+    "METRICS_KEY", "get_metrics", "set_metrics",
 ]
 
 KEY_RE = re.compile(r"^col-widths:[a-z0-9][a-z0-9_-]{0,39}$")
@@ -145,3 +146,35 @@ def personal_items_per_page(profile, user, settings):
     """Items per page for this user (0 means All): their own choice, else 50. (``settings`` is kept for the callers.)"""
     own = get_personal(profile, user).get("items_per_page")
     return DEFAULT_ITEMS_PER_PAGE if own is None else own
+
+
+# ---------------------------------------------------------------------------
+# Statistics > Standard: which metric rows this user sees (owner round 2026-12)
+# ---------------------------------------------------------------------------
+
+#: The ``FeesUserPrefs`` key holding the metric rows a user chose to see: ``{"visible": ["num_appearances", ...]}``. Like
+#: ``SETTINGS_KEY`` it is not reachable through ``set_pref`` / the prefs endpoint; only ``set_metrics`` writes it.
+METRICS_KEY = "stats-metrics"
+MAX_METRICS = 40
+
+
+def get_metrics(profile, user):
+    """The metric keys this user chose to see, or ``None`` when they have not chosen (every metric shows). Read only."""
+    row = FeesUserPrefs.objects.filter(profile=profile, user=user, key=METRICS_KEY).first()
+    data = row.data if row is not None and isinstance(row.data, dict) else {}
+    visible = data.get("visible")
+    if not isinstance(visible, list) or not visible:
+        return None
+    return [k for k in visible if isinstance(k, str)]
+
+
+def set_metrics(profile, user, keys):
+    """Save the metric rows to show (``keys``, already checked against the known metrics by the view). No keys clears the choice, so every
+    metric shows again. No ``touch``: it is one person's preference, not fee data, and a Reader may keep their own."""
+    keys = list(dict.fromkeys(k for k in keys if isinstance(k, str)))[:MAX_METRICS]
+    with transaction.atomic():
+        if keys:
+            FeesUserPrefs.objects.update_or_create(profile=profile, user=user, key=METRICS_KEY, defaults={"data": {"visible": keys}})
+        else:
+            FeesUserPrefs.objects.filter(profile=profile, user=user, key=METRICS_KEY).delete()
+    return keys or None

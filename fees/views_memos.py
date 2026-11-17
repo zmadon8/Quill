@@ -53,7 +53,11 @@ def _list_page(request, draft_mode, template):
             "totals": memo_lists.footer_totals(items),
             "filters": filters,
             "firm_choices": options["firms"],
+            "partner_choices": options["partners"],
+            "matter_choices": options["matters"],
             "client_choices": clients_service.choices(profile),
+            # Without a script "View Filters" reloads the page with the filter window already open.
+            "filters_open": request.GET.get("filters") == "open",
             "fy_options": fy_options.financial_year_options(
                 profile, settings.memos_start_year, filters.get("financial_year"), only_years=options["years"]
             ),
@@ -67,6 +71,7 @@ def _without_page(request, filters):
     """The query string for the pager and the Export link; the financial year shown is carried even when defaulted."""
     query = request.GET.copy()
     query.pop("page", None)
+    query.pop("filters", None)
     if "fy" not in query and filters.get("financial_year"):
         query["fy"] = filters["financial_year"]
     return query.urlencode()

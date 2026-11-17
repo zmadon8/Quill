@@ -33,6 +33,7 @@ urlpatterns = [
     path("statistics/views/", views_statistics.saved_views, name="fees_statistics_views"),
     path("statistics/views/<int:view_id>/delete/", views_statistics.saved_view_delete, name="fees_statistics_view_delete"),
     path("statistics/year-end/", views_statistics.year_end, name="fees_statistics_year_end"),
+    path("statistics/metrics/", views_statistics.save_metrics, name="fees_statistics_metrics"),
     path("statistics/export/", views_statistics.export_statistics, name="fees_statistics_export"),
     path("statistics/annual-export/", views_statistics.export_annual, name="fees_statistics_annual_export"),
     path("statistics/tax-summary/", views_statistics.export_tax_summary, name="fees_statistics_tax_summary"),
@@ -70,6 +71,12 @@ urlpatterns = [
     path("firms/<int:firm_id>/groups/add/", views_firms.group_add, name="fees_group_add"),
     path("firms/<int:firm_id>/groups/<int:group_id>/rename/", views_firms.group_rename, name="fees_group_rename"),
     path("firms/<int:firm_id>/groups/<int:group_id>/remove/", views_firms.group_remove, name="fees_group_remove"),
+    # One firm's Partners and Clients pages (owner round 2026-12)
+    path("firms/<int:firm_id>/partners/", views_firms.firm_partners, name="fees_firm_partners"),
+    path("firms/<int:firm_id>/clients/", views_firms.firm_clients, name="fees_firm_clients"),
+    path("firms/<int:firm_id>/clients/<int:client_id>/", views_firms.firm_client_detail, name="fees_firm_client_detail"),
+    path("firms/<int:firm_id>/clients/<int:client_id>/rename/", views_firms.firm_client_rename, name="fees_firm_client_rename"),
+    path("firms/<int:firm_id>/clients/<int:client_id>/remove/", views_firms.firm_client_remove, name="fees_firm_client_remove"),
     # Clients (owner round 2026-11). The names start "fees_firm" so the Firms tab stays underlined.
     path("firms/clients/", views_firms.client_list, name="fees_firms_clients"),
     path("firms/clients/add/", views_firms.client_add, name="fees_firms_client_add"),

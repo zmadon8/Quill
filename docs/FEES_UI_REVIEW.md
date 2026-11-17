@@ -23,7 +23,9 @@ Sign-in: use a user with a Fee Register profile. Sample paths use id 1; take rea
 | Edit payment | `/fees/payments/1/edit/` | `fees_payment_edit` | RW (Reader opens, Editor saves) |
 | Firms | `/fees/firms/` | `fees_firms` | R |
 | New firm, Edit firm | `/fees/firms/new/`, `/fees/firms/1/edit/` | `fees_firm_new`, `fees_firm_edit` | E |
-| Firm (with Groups panel) | `/fees/firms/1/` | `fees_firm_detail` | R, groups E |
+| Firm (Partners and Clients buttons) | `/fees/firms/1/` | `fees_firm_detail` | R |
+| Firm partners | `/fees/firms/1/partners/` | `fees_firm_partners` | R, add and remove E |
+| Firm clients | `/fees/firms/1/clients/` | `fees_firm_clients` | R, rename and remove E |
 | Group (matters of one group) | `/fees/firms/1/groups/1/` | `fees_group_detail` | R, rename E |
 | Firm statement, Firm ledger | `/fees/firms/1/statement/`, `/fees/firms/1/ledger/` | `fees_firm_statement`, `fees_firm_ledger` | R |
 | New matter, Edit matter (move) | `/fees/matters/new/?firm=1`, `/fees/matters/1/edit/` | `fees_matter_new`, `fees_matter_edit` | E |

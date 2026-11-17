@@ -97,7 +97,7 @@ def outstanding_export(request):
 @require_safe
 def outstanding_summary_export(request):
     profile, settings = scope.context(request)
-    sort = "name" if request.GET.get("sort") == "name" else "amount"
+    sort = "name" if request.GET.get("sort") in ("name", "firm") else "amount"  # the page's own sort links are -firm, memos, ...
     return file_response(xlsx.export_outstanding_by_firm(profile, outstanding_filters(request.GET, overdue_on(settings)), sort), XLSX_TYPE)
 
 

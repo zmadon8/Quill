@@ -6,7 +6,7 @@ from the payment date, two queries whose rows are narrowed in memory), never one
 """
 from __future__ import annotations
 
-from fees.models import Allocation, Firm, Group, Memo, Payment
+from fees.models import Allocation, Firm, Group, Matter, Memo, Payment
 from fees.services import client_scope
 from fees.services.financial_year import derive_financial_year
 from fees.services.settings import get_settings
@@ -36,6 +36,22 @@ def _keep_firm(profile, pairs, firm_id):
     return pairs
 
 
+def _labelled(pairs, firm_names, firm_id):
+    """``pairs`` ({id: (name, firm id)}) as ``[{"pk", "name"}]`` by name. Without a chosen firm a name is followed by its firm, in
+    brackets, since two firms may have a partner or matter of the same name."""
+    rows = [(pk, name if firm_id is not None else f"{name} ({firm_names.get(fid, '')})") for pk, (name, fid) in pairs.items()]
+    return [{"pk": pk, "name": name} for pk, name in sorted(rows, key=lambda r: (r[1] or "").lower())]
+
+
+def _keep_chosen(profile, model, pairs, chosen):
+    """Add the chosen partner or matter to ``pairs`` ({id: (name, firm id)}) when the narrowing left it out (one small query, only then)."""
+    if chosen is not None and chosen not in pairs:
+        row = model.objects.filter(profile=profile, pk=chosen).values_list("name", "firm_id").first()
+        if row is not None:
+            pairs[chosen] = row
+    return pairs
+
+
 def _memo_base(profile, draft_mode):
     qs = Memo.objects.filter(profile=profile).order_by()
     if draft_mode == "exclude_drafts":
@@ -46,59 +62,90 @@ def _memo_base(profile, draft_mode):
 
 
 def memo_options(profile, filters, draft_mode):
-    """For the Memos and Drafts filter bar: ``{"firms": [{"pk","name"}], "years": {labels with a memo}}``.
+    """For the Memos and Drafts filter bar: ``{"firms", "partners", "matters": [{"pk","name"}], "years": {labels with a memo}}``.
 
-    The firm list follows the chosen financial year; the year list follows the chosen firm. Two queries.
+    Each list follows the other filters: firms follow the chosen year, partner and matter; partners follow the year, firm, client and
+    matter; matters follow the year, firm, client and partner; the year list follows the chosen firm. Five queries.
     """
-    base = _memo_base(profile, draft_mode)
-    group_id = filters.get("group_id")
-    if isinstance(group_id, int):
-        base = base.filter(group_id=group_id)
-    base = client_scope.narrow(base, filters.get("client_id"), "matter__")
+    base = client_scope.narrow(_memo_base(profile, draft_mode), filters.get("client_id"), "matter__")
+    group_id = filters.get("group_id") if isinstance(filters.get("group_id"), int) else None
     matter_id = filters.get("matter_id")
-    if matter_id is not None:
-        base = base.filter(matter_id=matter_id)
     firm_id = filters.get("firm_id")
     fy = filters.get("financial_year")
-    firm_qs = base.filter(financial_year=fy) if fy else base
-    year_qs = base.filter(firm_id=firm_id) if firm_id is not None else base
-    pairs = dict(firm_qs.values_list("firm_id", "firm__name").distinct())
-    years = set(year_qs.values_list("financial_year", flat=True).distinct())
-    return {"firms": _by_name(_keep_firm(profile, pairs, firm_id)), "years": years}
+
+    def narrowed(qs, year=True, firm=True, group=True, matter=True):
+        if year and fy:
+            qs = qs.filter(financial_year=fy)
+        if firm and firm_id is not None:
+            qs = qs.filter(firm_id=firm_id)
+        if group and group_id is not None:
+            qs = qs.filter(group_id=group_id)
+        if matter and matter_id is not None:
+            qs = qs.filter(matter_id=matter_id)
+        return qs
+
+    pairs = dict(narrowed(base, firm=False).values_list("firm_id", "firm__name").distinct())
+    years = set(narrowed(base, year=False).values_list("financial_year", flat=True).distinct())
+    firm_names = dict(Firm.objects.filter(profile=profile).values_list("pk", "name")) if firm_id is None else {}
+    partners = {pk: (name, fid) for pk, name, fid in narrowed(base, group=False).filter(group__isnull=False).values_list("group_id", "group__name", "group__firm_id").distinct()}
+    matters = {pk: (name, fid) for pk, name, fid in narrowed(base, matter=False).values_list("matter_id", "matter__name", "firm_id").distinct()}
+    return {
+        "firms": _by_name(_keep_firm(profile, pairs, firm_id)),
+        "partners": _labelled(_keep_chosen(profile, Group, partners, group_id), firm_names, firm_id),
+        "matters": _labelled(_keep_chosen(profile, Matter, matters, matter_id), firm_names, firm_id),
+        "years": years,
+    }
 
 
 def feebook_options(profile, filters, bank_accounts):
-    """For the Feebook filter bar: ``{"firms", "banks", "years"}``, each narrowed by the other two filters.
+    """For the Feebook filter bar: ``{"firms", "partners", "matters", "banks", "years"}``, each narrowed by the other filters.
 
     The year of a payment is worked out from its date, so the rows are read once (the allocations and the
     unaccounted payments, two queries) and narrowed in memory. ``bank_accounts`` is the profile's bank list.
     """
-    rows = []  # (financial year, firm id or None, firm name, bank id or None)
+    # (financial year, firm id or None, firm name, bank id or None, partner id, partner name, matter id, matter name); a payment
+    # with no memo (unaccounted) has no firm, partner or matter, and the firm, partner and matter filters leave it in.
+    rows = []
     if not filters.get("unaccounted_only"):
-        group_id = filters.get("group_id")
-        allocations = Allocation.objects.filter(profile=profile).order_by()
-        if group_id is not None:
-            allocations = allocations.filter(memo__group_id=group_id)
-        allocations = client_scope.narrow(allocations, filters.get("client_id"), "memo__matter__")
-        for day, firm_id, firm_name, bank_id in allocations.values_list(
-            "payment__date_of_payment", "memo__firm_id", "memo__firm__name", "payment__bank_account_id"
+        allocations = client_scope.narrow(Allocation.objects.filter(profile=profile).order_by(), filters.get("client_id"), "memo__matter__")
+        for day, firm_id, firm_name, bank_id, group_id, group_name, matter_id, matter_name in allocations.values_list(
+            "payment__date_of_payment", "memo__firm_id", "memo__firm__name", "payment__bank_account_id",
+            "memo__group_id", "memo__group__name", "memo__matter_id", "memo__matter__name",
         ).distinct():
-            rows.append((derive_financial_year(day), firm_id, firm_name, bank_id))
+            rows.append((derive_financial_year(day), firm_id, firm_name, bank_id, group_id, group_name, matter_id, matter_name))
     for day, bank_id in Payment.objects.filter(profile=profile, allocations__isnull=True).order_by().values_list(
         "date_of_payment", "bank_account_id"
     ).distinct():
-        rows.append((derive_financial_year(day), None, None, bank_id))
+        rows.append((derive_financial_year(day), None, None, bank_id, None, None, None, None))
     # The Feebook list never shows payments before the Initial-FY cutoff, so no drop-down may offer them either.
     cutoff = get_settings(profile)["feebook_start_year"]
     rows = [r for r in rows if r[0] >= cutoff]
     fy = filters.get("financial_year")
     firm_id = filters.get("firm_id")
     bank_id = filters.get("bank_account_id")
-    firms = {r[1]: r[2] for r in rows if r[1] is not None and (not fy or r[0] == fy) and (bank_id is None or r[3] == bank_id)}
-    years = {r[0] for r in rows if (firm_id is None or r[1] in (firm_id, None)) and (bank_id is None or r[3] == bank_id)}
-    bank_ids = {r[3] for r in rows if (not fy or r[0] == fy) and (firm_id is None or r[1] in (firm_id, None))}
+    group_id = filters.get("group_id")
+    matter_id = filters.get("matter_id")
+
+    def keep(r, year=True, firm=True, bank=True, group=True, matter=True):
+        return ((not year or not fy or r[0] == fy) and (not firm or firm_id is None or r[1] in (firm_id, None))
+                and (not bank or bank_id is None or r[3] == bank_id)
+                and (not group or group_id is None or r[1] is None or r[4] == group_id)
+                and (not matter or matter_id is None or r[1] is None or r[6] == matter_id))
+
+    firms = {r[1]: r[2] for r in rows if r[1] is not None and keep(r, firm=False)}
+    years = {r[0] for r in rows if keep(r, year=False)}
+    bank_ids = {r[3] for r in rows if keep(r, bank=False)}
     banks = [b for b in bank_accounts if b.pk in bank_ids or b.pk == bank_id]
-    return {"firms": _by_name(_keep_firm(profile, firms, firm_id)), "banks": banks, "years": years}
+    firm_names = {r[1]: r[2] for r in rows if r[1] is not None}
+    partners = {r[4]: (r[5], r[1]) for r in rows if r[4] is not None and keep(r, group=False)}
+    matters = {r[6]: (r[7], r[1]) for r in rows if r[6] is not None and keep(r, matter=False)}
+    return {
+        "firms": _by_name(_keep_firm(profile, firms, firm_id)),
+        "partners": _labelled(_keep_chosen(profile, Group, partners, group_id), firm_names, firm_id),
+        "matters": _labelled(_keep_chosen(profile, Matter, matters, matter_id), firm_names, firm_id),
+        "banks": banks,
+        "years": years,
+    }
 
 
 def explore_options(profile, chosen):

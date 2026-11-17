@@ -13,7 +13,7 @@ from fees.decorators import fees_editor, fees_read_write, fees_reader, handle_fe
 from fees.errors import FeesError
 from fees.exports import tax_summary, xlsx
 from fees.pages import TEXT_TYPE, XLSX_TYPE, file_response, flag, int_or_none, json_ok, render_page
-from fees.services import filter_options, firms, fy_options, statistics
+from fees.services import filter_options, firms, fy_options, prefs, statistics
 from fees.services.financial_year import current_financial_year
 from fees.services.heavy import heavy_operation
 
@@ -163,8 +163,13 @@ def _display_table(stats):
         total = None
         if key in _SUMMED_METRICS and periods:
             total = sum((period.get(key) or 0 for period in periods), 0)
-        rows.append({"label": label, "money": is_money, "cells": cells, "total": total})
+        rows.append({"key": key, "label": label, "money": is_money, "cells": cells, "total": total})
     return rows
+
+
+def metric_choices(visible):
+    """Every metric of the Standard table as ``{"key", "label", "on"}`` for the Metrics box; all on when the user has not chosen."""
+    return [{"key": key, "label": label, "on": visible is None or key in visible} for key, label, _money in xlsx.STAT_METRIC_ROWS]
 
 
 def adjustment_rows(profile, fy):
@@ -276,7 +281,13 @@ def statistics_page(request):
         stats = statistics.get_period_statistics(
             profile, granularity, None if granularity == "financialYear" else fy, stat_options(request.GET)
         )
-        context.update({"stats": stats, "table": _display_table(stats)})
+        visible = prefs.get_metrics(profile, request.user)
+        table = _display_table(stats)
+        context.update({
+            "stats": stats,
+            "table": table if visible is None else [row for row in table if row["key"] in visible] or table,
+            "metric_choices": metric_choices(visible),
+        })
     else:
         context.update(_explore_context(profile, request.GET))
         context["fy_options"] = fy_options.financial_year_options(
@@ -288,6 +299,27 @@ def statistics_page(request):
             saved_views=[dict(v, query=saved_view_query(v)) for v in statistics.list_saved_views(profile)],
         )
     return render_page(request, "fees/statistics.html", context)
+
+
+@fees_reader
+@handle_fees_errors()
+@require_http_methods(["GET", "HEAD", "POST"])
+def save_metrics(request):
+    """Save which metric rows the signed-in user's Standard table shows (any role: it is their own display choice, not fee data).
+    Nothing ticked shows every metric. A GET just goes back to the Standard tab."""
+    profile, _config = scope.context(request)
+    query = {"tab": "standard"}
+    if request.method == "POST":
+        known = {key for key, _label, _money in xlsx.STAT_METRIC_ROWS}
+        prefs.set_metrics(profile, request.user, [k for k in request.POST.getlist("metric") if k in known])
+        messages.success(request, "Metrics saved.")
+        granularity = request.POST.get("granularity", "")
+        year = (request.POST.get("fy") or "").strip()
+        if granularity in _GRANULARITIES:
+            query["granularity"] = granularity
+        if _FY_RE.match(year):
+            query["fy"] = year
+    return redirect(reverse("fees_statistics") + "?" + urlencode(query))
 
 
 @fees_reader

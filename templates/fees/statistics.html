@@ -19,6 +19,19 @@
   {% include "fees/_fy_select.html" with name="fy" label="Financial Year" options=fy_options selected=fy %}
   <button type="submit">Show</button>
 </form>
+<details class="kpi-customise stat-metrics">
+  <summary>Metrics</summary>
+  <form method="post" action="{% url 'fees_statistics_metrics' %}" class="fees-form" aria-label="Choose the metrics shown">{% csrf_token %}
+    <input type="hidden" name="granularity" value="{{ granularity }}"><input type="hidden" name="fy" value="{{ fy }}">
+    <fieldset class="kpi-group"><legend>Metrics shown in the table</legend>
+      {% include "_select_all_none.html" with name="metric" label="the metrics" %}
+      {% for m in metric_choices %}<label><input type="checkbox" name="metric" value="{{ m.key }}"{% if m.on %} checked{% endif %}> {{ m.label }}</label>
+      {% endfor %}
+    </fieldset>
+    <p class="muted">Kept for you in this Fee Register. With none ticked, every metric shows.</p>
+    <button type="submit" class="primary">Save Metrics</button>
+  </form>
+</details>
 <div class="table-wrap">
 <table class="ledger-table stat-table" data-table-id="statistics">
   <caption>Statistics by {% if granularity == "financialYear" %}financial year{% else %}{{ granularity }}{% if granularity == "month" or granularity == "quarter" %} for {{ fy }}{% endif %}{% endif %}</caption>
@@ -34,8 +47,10 @@
   <label>Rows <select name="row_dim">{% for id, label in row_dims %}<option value="{{ id }}"{% if id == chosen.row_dim %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
   <label>Columns <select name="col_dim">{% for id, label in col_dims %}<option value="{{ id }}"{% if id == chosen.col_dim %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
   <label>Firm <select name="firm_id"><option value="">All Firms</option>{% for f in firm_choices %}<option value="{{ f.pk }}"{% if f.pk == chosen.firm_id %} selected{% endif %}>{{ f.name }}</option>{% endfor %}</select></label>
+  <span class="fy-range">
   {% include "fees/_fy_select.html" with name="from_fy" label="From Financial Year" options=fy_options selected=chosen.from_fy all_label="Earliest" %}
   {% include "fees/_fy_select.html" with name="to_fy" label="To Financial Year" options=fy_options selected=chosen.to_fy all_label="Latest" %}
+  </span>
   <button type="submit">Show</button>
 </form>
 
@@ -52,7 +67,7 @@
 
 <div class="chart-tools" data-chart-tools hidden>
   <label><input type="checkbox" data-chart-on> Show chart</label>
-  <label>Chart Type <select data-chart-type><option value="bar">Bars (Grouped)</option><option value="stacked">Bars (Stacked)</option><option value="line">Line</option></select></label>
+  <label>Chart Type <select data-chart-type><option value="bar">Bars (Grouped)</option><option value="stacked">Bars (Stacked)</option><option value="line" selected>Line</option></select></label>
 </div>
 <figure class="pivot-chart" data-chart-figure hidden>
   <div data-chart-canvas></div>

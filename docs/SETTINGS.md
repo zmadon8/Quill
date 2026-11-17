@@ -206,9 +206,10 @@ One row per (profile, user, key), a JSON `data` object. Interface state, not fee
 | Key | Setting | Page and section | Stored | Who |
 | --- | --- | --- | --- | --- |
 | `settings` | `{"default_tab", "items_per_page"}`: your Opening page and Items per page. Resolution: your value, else Memos and 50. Clearing a box removes your value | Settings > Fee Register > Display / Settings > Start Screens | Per user per profile | Only you |
+| `stats-metrics` | `{"visible": [metric keys]}`: the rows of the Statistics > Standard table you chose to see (for example `num_appearances`, `amount_billed`). Resolution: your list, else every metric. Saving with none ticked removes your value | Statistics > Standard > Metrics | Per user per profile | Only you |
 | `col-widths:<table-id>` (for example `col-widths:memos`) | Column widths in pixels (40 to 1200, at most 60 columns) | Drag a column edge on a Fee Register table | Per user per profile | Only you |
 
-The `settings` key cannot be written through the column-width endpoint (it accepts only `col-widths:` keys).
+The `settings` and `stats-metrics` keys cannot be written through the column-width endpoint (it accepts only `col-widths:` keys); the Metrics box posts to `fees_statistics_metrics`, open to any Fee Register role because it is only your own display choice.
 
 **Where column widths are stored (every table is resizable).** One shared script, `static/js/resizable-columns.js`, draws the drag handles on every table that has a `data-table-id` (drag, or focus a handle and use the Left and Right arrow keys; double-click returns that column to its natural width). What differs is only where the numbers are kept:
 
@@ -319,7 +320,7 @@ and `mailer/models.py`; the `fields` of `accounts/forms.py`, `diary/forms.py`, `
 route table in `*/urls.py`. Rendering and the Django tests were not run in the sandbox that wrote this file; CI runs
 them.
 
-Note: the financial year filter on Memos, Drafts and Feebook is not a saved setting. With no `fy` in the link they open on the current year if it has rows, else the newest year with rows, else All years.
+Note: the filters on Memos, Drafts and Feebook are not saved settings. Only the Financial Year stays on the bar; Firm, Partner, Matter, Client, Bank, Unpaid Only and Unaccounted Only are in the window opened by View Filters, and Reset Filters opens the page with no filters at all. With no `fy` in the link the three lists open on the current year if it has rows, else the newest year with rows, else All years.
 
 ## Corporate actions: log automatically or approve (Settings > Investments > General)
 
