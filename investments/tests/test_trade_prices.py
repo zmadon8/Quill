@@ -125,7 +125,7 @@ class UnitPricedManualInvestmentTests(ManualPricedBase):
 
     def test_completing_an_awaiting_purchase_makes_the_entry(self):
         awaiting = tx.add_transaction(self.profile, self.user, side="buy", instrument=self.reliance, portfolio=self.portfolio, broker=self.zerodha,
-                                      date=d(2024, 1, 5), awaiting=True, amount=D(1000))
+                                      date=d(2024, 1, 5), tentative=True, amount=D(1000))
         self.assertEqual(ManualPrice.objects.count(), 0)
         tx.complete_transaction(self.profile, self.user, awaiting.pk, allotment_date=d(2024, 1, 6), units=D(10), nav=D(100))
         self.assertEqual(self.manual(d(2024, 1, 5)).close, D("100"))

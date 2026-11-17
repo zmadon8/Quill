@@ -6,9 +6,9 @@
 <div class="ban"><span>No holdings yet. <a href="{% url 'investments_start' %}">Getting started</a> shows what to do first.</span></div>
 {% endif %}
 {% if overdue %}
-<div class="ban al" role="alert"><span><b>{{ overdue|length }} purchase{{ overdue|length|pluralize:",s" }} still waiting for units</b> after {{ inv_settings.awaiting_reminder_days }} days.</span><span class="r"><a href="{% url 'investments_txn_to_confirm' %}">To complete</a></span></div>
+<div class="ban al" role="alert"><span><b>{{ overdue|length }} entr{{ overdue|length|pluralize:"y,ies" }} still tentative</b> after {{ inv_settings.awaiting_reminder_days }} days.</span><span class="r"><a href="{% url 'investments_txn_to_confirm' %}">To complete</a></span></div>
 {% elif awaiting %}
-<div class="ban wa"><span><b>Awaiting allotment:</b> {{ awaiting|length }} entr{{ awaiting|length|pluralize:"y,ies" }}{% if awaiting_total %}, {{ awaiting_total|inr }} paid{% endif %}. Counted at cost until the units are known.</span><span class="r"><a href="{% url 'investments_txn_to_confirm' %}">To complete</a></span></div>
+<div class="ban wa"><span><b>Tentative:</b> {{ awaiting|length }} entr{{ awaiting|length|pluralize:"y,ies" }}{% if awaiting_total %}, {{ awaiting_total|inr }} paid{% endif %}. Purchases are counted at cost until they are finalised; sales are ignored until then.</span><span class="r"><a href="{% url 'investments_txn_to_confirm' %}">To complete</a></span></div>
 {% endif %}
 {% if pending_actions %}<div class="ban al" role="alert"><span><b>{% for a in pending_actions|slice:":1" %}{{ a.get_kind_display }} pending: figures may be wrong.{% endfor %}</b> {% for a in pending_actions %}{{ a.instrument.name }} ({{ a.describe }}, {{ a.ex_date|date:"j M Y" }}){% if not forloop.last %}; {% endif %}{% endfor %}. Confirm or mark not applicable.</span><span class="r"><a href="{% url 'investments_corporate_actions' %}">Corporate actions</a></span></div>{% endif %}
 {% if unpriced %}<div class="ban wa"><span>{{ unpriced|length }} holding{{ unpriced|length|pluralize }} without a price ({% for h in unpriced|slice:":3" %}{{ h.name }}{% if not forloop.last %}, {% endif %}{% endfor %}{% if unpriced|length > 3 %} and more{% endif %}) are valued at cost.</span></div>{% endif %}

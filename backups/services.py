@@ -391,6 +391,7 @@ def parse_backup(raw, max_bytes):
     _drop_removed_hidden_investments(models_in_file)
     _split_alert_master_switches(models_in_file)
     _invert_taxed_as_interest(models_in_file)
+    _rename_awaiting_status(models_in_file)
     return document
 
 
@@ -446,6 +447,14 @@ def _invert_taxed_as_interest(models_in_file):
         if "taxed_as_interest" in fields:
             old = fields.pop("taxed_as_interest")
             fields.setdefault("capital_gains", not old)
+
+
+def _rename_awaiting_status(models_in_file):
+    """The transaction status "awaiting" was renamed "tentative" (investments 0044): an older backup's value is mapped, as the migration does for
+    the database. (The History's own snapshots are never edited; restoring an entry maps its status, see ``history.restore``.)"""
+    for record in models_in_file.get("investments.Transaction", []):
+        if record["fields"].get("status") == "awaiting":
+            record["fields"]["status"] = "tentative"
 
 
 def upgrade_old_items(document, now=None):

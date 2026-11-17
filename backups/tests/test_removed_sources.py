@@ -25,3 +25,15 @@ class RemovedPortfolioOwnerTests(SimpleTestCase):
         services._drop_removed_portfolio_owner(models)
         self.assertEqual(models["investments.Portfolio"][0]["fields"], {"profile": 1, "name": "Main"})
         services._drop_removed_portfolio_owner({})
+
+
+class AwaitingStatusRenamedTests(SimpleTestCase):
+    def test_an_old_backups_awaiting_status_becomes_tentative_on_restore(self):
+        models = {"investments.Transaction": [
+            {"model": "investments.transaction", "pk": 1, "fields": {"status": "awaiting", "amount": "500.0000"}},
+            {"model": "investments.transaction", "pk": 2, "fields": {"status": "final"}},
+            {"model": "investments.transaction", "pk": 3, "fields": {"status": "pending_sip"}},
+        ]}
+        services._rename_awaiting_status(models)
+        self.assertEqual([r["fields"]["status"] for r in models["investments.Transaction"]], ["tentative", "final", "pending_sip"])
+        services._rename_awaiting_status({})

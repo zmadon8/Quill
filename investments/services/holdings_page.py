@@ -93,7 +93,7 @@ def compute(profile, portfolio=None, broker=None, as_of=None):
     rows, _totals = holdings.compute(profile, portfolio=portfolio, broker=broker, as_of=as_of)
     performance.decorate_with_index(profile, rows, holdings.Totals(), as_of or date.today())
     # Investments added but not yet bought still belong in the list.
-    # They are "Not bought yet", never "Held": nothing is held until units (or a purchase awaiting allotment) exist.
+    # They are "Not bought yet", never "Held": nothing is held until units (or a tentative purchase) exist.
     seen = {h.instrument.pk for h in rows}
     extra = [holdings.Holding(instrument=pi.instrument, empty=True) for pi in
              ProfileInvestment.objects.filter(profile=profile).select_related("instrument") if pi.instrument_id not in seen

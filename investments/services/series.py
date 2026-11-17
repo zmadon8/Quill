@@ -5,7 +5,7 @@ more than `MAX_POINTS` points or `MAX_SERIES` lines. Prices are read one instrum
 instrument's rows, never all prices.
 
 * `portfolio_value_series`: the profile's value on each sample date (holdings at that date times the as-of price, alternative
-  investments by the chosen treatment, awaiting purchases at cost). Dividends are never in it.
+  investments by the chosen treatment, tentative purchases at cost). Dividends are never in it.
 * `performance_index`: Chart A's portfolio line, rebased to 100, built so that money added or withdrawn does not cause jumps (each
   period's growth is (value at the end less money added in the period) over the value at the start: a time-weighted return).
 * `price_lines`: Chart B and the index lines, each rebased to 100 on the first sample date it has a price.
@@ -16,7 +16,7 @@ from decimal import Decimal
 
 from investments import valuation
 from investments.models import (
-    AWAITING_LEAVE_OUT, KIND_ALTERNATIVE, SIDE_BUY, STATUS_AWAITING, STATUS_FINAL, AltValue, Instrument, Transaction, Transfer,
+    TENTATIVE_LEAVE_OUT, KIND_ALTERNATIVE, SIDE_BUY, STATUS_TENTATIVE, STATUS_FINAL, AltValue, Instrument, Transaction, Transfer,
 )
 from investments.services import core, prices
 
@@ -144,7 +144,7 @@ def sampled_prices_many(instruments, days):
 def portfolio_value_series(profile, days, *, portfolio=None, broker=None, instrument_ids=None, settings_row=None):
     """``(values, flows)``: the portfolio value on each sample date and the net money put in during each period (period 0: up to days[0])."""
     settings_row = settings_row or core.get_settings(profile, create=False)
-    leave_out = settings_row.awaiting_treatment == AWAITING_LEAVE_OUT
+    leave_out = settings_row.awaiting_treatment == TENTATIVE_LEAVE_OUT
     qs = Transaction.objects.filter(profile=profile, date__lte=days[-1]).only(*holdings_fields())
     if portfolio:
         qs = qs.filter(portfolio_id=portfolio)
@@ -197,10 +197,11 @@ def portfolio_value_series(profile, days, *, portfolio=None, broker=None, instru
     for iid, inst in instruments.items():
         events = []
         for t in by_inst.get(iid, []):
-            if t.status == STATUS_AWAITING:
-                if not leave_out and t.side == SIDE_BUY:
-                    events.append((t.date, ZERO, t.amount or ZERO))       # at cost, no units
-                    flows[period_of(t.date)] += t.amount or ZERO
+            if t.status == STATUS_TENTATIVE:
+                cost = None if leave_out or t.side != SIDE_BUY else core.tentative_cost(t)
+                if cost is not None:
+                    events.append((t.date, ZERO, cost))       # at cost, no units
+                    flows[period_of(t.date)] += cost
                 continue
             if t.status != STATUS_FINAL or t.units is None:
                 continue

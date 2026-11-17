@@ -103,9 +103,9 @@ class ImportTests(InvTestCase):
             statement_import.apply(self.profile, self.user, path, portfolio=self.portfolio, broker=self.zerodha)
         self.assertEqual(Transaction.objects.count(), 0)
 
-    def test_apply_saves_in_date_order_skips_duplicates_and_completes_awaiting(self):
+    def test_apply_saves_in_date_order_skips_duplicates_and_finalises_tentative(self):
         a = tx.add_transaction(self.profile, self.user, side="buy", instrument=self.fund, portfolio=self.portfolio, broker=self.zerodha, date=d(2024, 11, 4),
-                               awaiting=True, amount=D(50000))
+                               tentative=True, amount=D(50000))
         self.buy(d(2024, 1, 2), 10, 2500)
         path = csv_file("Date,Scheme Code,Type,Units,NAV,Folio\n05/11/2024,122639,Purchase,1000,50,F-1\n02/01/2024,RELIANCE.NS,Buy,10,2500,\n03/01/2024,RELIANCE.NS,Sell,5,2600,\n")
         r = statement_import.review(self.profile, path, portfolio=self.portfolio, broker=self.zerodha)
@@ -115,6 +115,16 @@ class ImportTests(InvTestCase):
         self.assertEqual((made, completed, skipped), (1, 1, 1))
         a.refresh_from_db()
         self.assertEqual((a.status, a.units, a.folio_id is None), ("final", D(1000), True))
+
+    def test_a_tentative_purchase_without_an_amount_matches_by_its_units_and_price(self):
+        a = tx.add_transaction(self.profile, self.user, side="buy", instrument=self.fund, portfolio=self.portfolio, broker=self.zerodha, date=d(2024, 11, 4),
+                               tentative=True, units=D(1000), price=D(50))
+        path = csv_file("Date,Scheme Code,Type,Units,NAV,Folio\n05/11/2024,122639,Purchase,1000,50,F-1\n")
+        r = statement_import.review(self.profile, path, portfolio=self.portfolio, broker=self.zerodha)
+        self.assertEqual(r.lines[0].completes, a)
+        statement_import.apply(self.profile, self.user, path, portfolio=self.portfolio, broker=self.zerodha)
+        a.refresh_from_db()
+        self.assertEqual((a.status, a.units, a.amount), ("final", D(1000), None))
 
     def test_a_sale_beyond_holdings_stops_the_whole_file(self):
         path = csv_file(self.HEADER + "02/01/2024,RELIANCE.NS,Buy,1,2500,0,\n03/01/2024,RELIANCE.NS,Sell,5,2600,0,\n")

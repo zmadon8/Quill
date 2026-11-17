@@ -71,7 +71,7 @@ def dashboard(request):
     pt = data.get("period_totals")
     if pt:
         totals.update({k: pt[k] for k in ("gain", "gain_pct", "xirr", "index_xirr", "alpha")})
-    awaiting = list(tx.awaiting_for(profile))
+    awaiting = list(tx.tentative_for(profile))
     overdue = [t for t in awaiting if tx.overdue(t, settings_row.awaiting_reminder_days)]
     index = masters.default_index_for(profile)
     range_key, range_days = chartview.choose(request, "1y")
@@ -87,7 +87,7 @@ def dashboard(request):
     rows = data["rows"]
     return page(request, "investments/dashboard.html", {
         "page_title_text": "Dashboard", "totals": totals, "card_period": "" if period == "all" else period.upper(), "allocation": data["allocation"], "chart": chart, "chart_ranges": chartview.links(request, range_key, "#chart"), "notes": data["notes"],
-        "awaiting": awaiting, "awaiting_total": sum((t.amount or Decimal(0) for t in awaiting if t.side == "buy"), Decimal(0)),
+        "awaiting": awaiting, "awaiting_total": sum((core.tentative_cost(t) or Decimal(0) for t in awaiting if t.side == "buy"), Decimal(0)),
         "overdue": overdue, "unpriced": [r for r in rows if r["unpriced"]], "has_any": data["has_any"],
         "default_index": index, "sectoral": settings_row.sectoral_enabled, "include_div": div,
         "insights": _insights(profile), "all_insights": request.GET.get("insights") == "all",
@@ -221,7 +221,7 @@ def set_selection(request):
         query = {k: v for k, v in query.items() if v != ""}
         target = parts.path + ("?" + urlencode(query) if query else "")
     if "txn_filters" in request.POST:
-        # The Transactions page's Search and Action: kept in the query string of the page we return to (blank means no filter), from page 1.
+        # The Transactions page's Search, Action and Tentative tick box: kept in the query string of the page we return to (blank means no filter), from page 1.
         from urllib.parse import parse_qsl, urlencode, urlsplit
 
         parts = urlsplit(target)
@@ -230,6 +230,7 @@ def set_selection(request):
         search, side = request.POST.get("q", "").strip()[:200], request.POST.get("side", "")
         query["q"] = search
         query["side"] = side if side in ("buy", "sell") else ""
+        query["tentative"] = "1" if request.POST.get("tentative") == "1" else ""
         query = {k: v for k, v in query.items() if v != ""}
         target = parts.path + ("?" + urlencode(query) if query else "")
     return redirect(target)
@@ -270,7 +271,7 @@ def available_units(request):
     if place is not None:
         units = sum((u for p, b, f, u in rows if (p.pk if p else None, b.pk if b else None, f.pk if f else None) == place), Decimal(0))
         return JsonResponse({"ok": True, "place": True, "units": str(units)})
-    awaiting = sum((t.amount or Decimal(0) for t in tx.awaiting_for(profile) if t.instrument_id == inst.pk and t.side == "buy"), Decimal(0))
+    awaiting = sum((core.tentative_cost(t) or Decimal(0) for t in tx.tentative_for(profile) if t.instrument_id == inst.pk and t.side == "buy"), Decimal(0))
     return JsonResponse({"ok": True, "awaiting": str(awaiting), "buckets": [
         {"portfolio": p.pk if p else None, "portfolio_name": p.name if p else "", "broker": b.pk if b else None,
          "broker_name": b.name if b else "", "folio": f.pk if f else None, "folio_name": f.number if f else "", "units": str(u)}

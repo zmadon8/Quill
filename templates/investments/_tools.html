@@ -11,6 +11,7 @@
     <input type="hidden" name="txn_filters" value="1">
     <div class="sel"><label for="sel-q"><span>Search</span></label><input id="sel-q" type="search" name="q" value="{{ q }}" placeholder="investment, folio, reference"></div>
     <div class="sel"><label for="sel-side"><span>Action</span></label><select id="sel-side" name="side" onchange="this.form.submit()"><option value="">All</option><option value="buy"{% if side == "buy" %} selected{% endif %}>Purchases</option><option value="sell"{% if side == "sell" %} selected{% endif %}>Sales</option></select></div>
+    <div class="sel"><label for="sel-tent"><span>Show</span></label><label class="chk"><input id="sel-tent" type="checkbox" name="tentative" value="1"{% if tentative %} checked{% endif %} onchange="this.form.submit()"> Tentative</label></div>
     <button class="visually-hidden" type="submit" tabindex="-1">Apply</button>
     {% endif %}
     {% if holdings_filters %}

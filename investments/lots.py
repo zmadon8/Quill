@@ -11,7 +11,7 @@ Rules implemented (plan section 6):
 * On the same date purchases (and transfers in) count before sales.
 * A purchase counts from its **effective date**: the allotment date if one is recorded, else the transaction date
   (the date paid). That is when the units exist and when the holding period starts. The caller leaves out entries that have
-  no units yet (awaiting allotment, pending SIP).
+  no units yet (tentative, pending SIP).
 * Charges are added to a purchase's cost and deducted from a sale's proceeds, and a sale's charges are spread over the lots it
   consumes in proportion to the units taken from each.
 * A **transfer** moves units from one bucket to another, taking the oldest lots first and keeping each lot's date and cost.

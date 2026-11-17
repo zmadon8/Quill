@@ -1,4 +1,4 @@
-"""Transaction pages: the list, buy / sell / awaiting / opening balance / transfer / switch forms, edit, delete, complete."""
+"""Transaction pages: the list, buy / sell (with Mark as Tentative) / opening balance / transfer / switch forms, edit, delete, finalise."""
 import datetime
 import json
 import logging
@@ -18,7 +18,7 @@ from .decorators import inv_editor, inv_reader
 from .errors import InvestmentsError
 from .money_auto import format_indian
 from .models import (
-    CA_DEMERGER, ORIGIN_DEMERGER, ORIGIN_PURCHASE, ORIGINS, SIDE_BUY, SIDE_SELL, STATUS_AWAITING, STATUS_FINAL, STATUS_PENDING_SIP,
+    CA_DEMERGER, ORIGIN_DEMERGER, ORIGIN_PURCHASE, ORIGINS, SIDE_BUY, SIDE_SELL, STATUS_TENTATIVE, STATUS_FINAL, STATUS_PENDING_SIP,
     CorporateAction, Folio, Instrument, Transaction, Transfer,
 )
 from .services import core, corporate, holdings, instrument_search, masters, transactions as tx
@@ -64,14 +64,20 @@ def _txn_row(t):
         t.tags.append((t.get_origin_display(), ""))
     if t.is_estimated:
         t.tags.append(("Estimated date", "amb"))
-    if t.status == STATUS_AWAITING:
-        t.tags.append(("Awaiting allotment", "amb"))
     if t.status == STATUS_PENDING_SIP:
         t.tags.append(("SIP, to confirm", "amb"))
     if t.switch_id:
         t.tags.append(("Switch", ""))
     if t.status == STATUS_FINAL and t.units is not None:
         t.total = core.buy_total(t) if t.side == SIDE_BUY else core.sell_total(t)
+    elif t.status == STATUS_TENTATIVE:
+        # What was given: the amount, else units x price (a tentative row may have neither: the page shows a dash).
+        if t.amount is not None:
+            t.total = t.amount
+        elif t.units is not None and t.price is not None:
+            t.total = core.buy_total(t) if t.side == SIDE_BUY else core.sell_total(t)
+        else:
+            t.total = None
     else:
         t.total = t.amount
     return t
@@ -94,6 +100,7 @@ def transactions_list(request):
     asat = span[1] if span else None
     q = request.GET.get("q", "").strip()
     side = request.GET.get("side", "")
+    tentative = request.GET.get("tentative") == "1"
     qs = Transaction.objects.filter(profile=profile).select_related("instrument", "portfolio", "broker", "folio")
     if portfolio:
         qs = qs.filter(portfolio_id=portfolio)
@@ -106,6 +113,8 @@ def transactions_list(request):
                        Q(folio__number__icontains=q) | Q(note__icontains=q))
     if side in (SIDE_BUY, SIDE_SELL):
         qs = qs.filter(side=side)
+    if tentative:
+        qs = qs.filter(status=STATUS_TENTATIVE)
     if request.GET.get("export") == "xlsx":
         from .exports import response, transaction_sheets
         from .models import Dividend
@@ -127,15 +136,16 @@ def transactions_list(request):
         if span:
             transfers = transfers.filter(date__gte=span[0], date__lte=span[1])
             dividends = dividends.filter(date__gte=span[0], date__lte=span[1])
-        return response("Transactions.xlsx", transaction_sheets(qs.order_by("-date", "-id"), transfers.order_by("-date", "-id"),
-                                                                dividends.order_by("-date", "-id"),
-                                                                [] if side == SIDE_SELL else _in_span(corporate.automatic_unit_rows(profile, portfolio, broker, asat, q), span)))
+        return response("Transactions.xlsx", transaction_sheets(qs.order_by("-date", "-id"),
+                                                                None if tentative else transfers.order_by("-date", "-id"),   # none of these is ever tentative
+                                                                None if tentative else dividends.order_by("-date", "-id"),
+                                                                [] if side == SIDE_SELL or tentative else _in_span(corporate.automatic_unit_rows(profile, portfolio, broker, asat, q), span)))
     paginator = Paginator(qs.order_by("-date", "-id"), PAGE_SIZE)
     number = paginator.get_page(request.GET.get("page")).number
     rows = lump_display.annotate(profile, [_txn_row(t) for t in paginator.page(number)])
     # Units a bonus or split adds by itself are not transactions; they are shown among the page's rows by date, labelled and read-only.
     automatic = []
-    if side != SIDE_SELL:
+    if side != SIDE_SELL and not tentative:
         automatic = _in_span(corporate.automatic_unit_rows(profile, portfolio, broker, asat, q), span)
         if automatic and number > 1:
             before = paginator.page(number - 1)[-1].date
@@ -144,14 +154,14 @@ def transactions_list(request):
             automatic = [a for a in automatic if a["date"] >= rows[-1].date]
     rows = sorted([*rows, *({"auto": True, **a} for a in automatic)], key=_row_date, reverse=True) if automatic else rows
     transfers = []
-    if not q and side not in (SIDE_BUY, SIDE_SELL) and number == 1:
+    if not q and side not in (SIDE_BUY, SIDE_SELL) and not tentative and number == 1:
         transfers = Transfer.objects.filter(profile=profile)
         if span:
             transfers = transfers.filter(date__gte=span[0], date__lte=span[1])
         transfers = list(transfers.select_related("instrument", "from_broker", "to_broker", "from_portfolio", "to_portfolio")[:20])
-    awaiting = tx.awaiting_for(profile).count()
+    awaiting = tx.tentative_for(profile).count()
     return page(request, "investments/transactions.html", {
-        "page_title_text": "Transactions", "rows": rows, "page_obj": paginator.page(number), "transfers": transfers, "q": q, "side": side,
+        "page_title_text": "Transactions", "rows": rows, "page_obj": paginator.page(number), "transfers": transfers, "q": q, "side": side, "tentative": tentative,
         "awaiting_count": awaiting, "total": paginator.count, "txn_filters": True, "fy": fy, "fy_choices": fy_choices, "automatic_count": len(automatic),
         "date_today": datetime.date.today(),
     })
@@ -243,16 +253,20 @@ def _extra_rows(request, profile, mode, held_units=None):
     return rows, problem
 
 
+def tentative_redirect(side):
+    """The old Awaiting allotment addresses (a purchase, a redemption): the Buy or Sell form with Mark as Tentative ticked (302)."""
+    return redirect(reverse("investments_txn_new_sell" if side == "sell" else "investments_txn_new_buy") + "?tentative=1")
+
+
 @inv_editor
 def txn_form(request, mode):
-    """Add a purchase (buy), a sale (sell), or an entry awaiting allotment (awaiting_buy / awaiting_sell)."""
+    """Add a purchase (buy) or a sale (sell). Each card may be marked as Tentative (``?tentative=1`` ticks it, as the old Awaiting allotment links do)."""
     profile = profile_or_404(request)
-    titles = {"buy": "Add a purchase", "sell": "Add a sale", "awaiting_buy": "Add a purchase awaiting allotment",
-              "awaiting_sell": "Add a redemption awaiting its units"}
+    titles = {"buy": "Add a purchase", "sell": "Add a sale"}
     if mode not in titles:
         raise Http404
     masters.ensure_default_portfolio(profile)
-    initial = {}
+    initial = {"tentative": True} if request.GET.get("tentative") == "1" else {}
     if request.GET.get("instrument"):
         inst = Instrument.objects.filter(pk=request.GET["instrument"]).first()
         if inst and inst.profile_id in (None, profile.pk):
@@ -280,8 +294,7 @@ def txn_form(request, mode):
     form = forms.TransactionForm(request.POST or None, profile=profile, mode=mode, initial=initial, held_units=held_units)
     # More transactions added on the same page are full cards of their own; each posts under its own prefix (x1-date, x1-units, ...).
     extra, extra_problem = _extra_rows(request, profile, mode, held_units)
-    side = SIDE_SELL if mode in ("sell", "awaiting_sell") else SIDE_BUY
-    awaiting = mode.startswith("awaiting")
+    side = SIDE_SELL if mode == "sell" else SIDE_BUY
     if request.method == "POST":
         valid = [form.is_valid()] + [row.is_valid() for row in extra]
         if extra_problem:
@@ -298,7 +311,8 @@ def txn_form(request, mode):
                         d = _clean_data(card)
                         _resolve_pick(profile, request.user, card, d, made)
                         folio = _resolve_folio(profile, request.user, d)
-                        if d["instrument"].lump_sum and not awaiting:
+                        tentative = bool(d.get("tentative"))
+                        if d["instrument"].lump_sum and not tentative:
                             tx.add_lump_sum_transaction(
                                 profile, request.user, side=side, instrument=d["instrument"], portfolio=d["portfolio"], broker=d["broker"], date=d["date"],
                                 amount=d.get("lump_amount"), remaining=d.get("remaining"), value_after=d.get("value_after"), folio=folio,
@@ -307,8 +321,7 @@ def txn_form(request, mode):
                         tx.add_transaction(
                             profile, request.user, side=side, instrument=d["instrument"], portfolio=d["portfolio"], broker=d["broker"],
                             date=d["date"], units=d.get("units"), price=d.get("price"), charges=d.get("charges") or 0, folio=folio,
-                            awaiting=awaiting, amount=d.get("amount"), expected_allotment_date=d.get("expected_allotment_date"),
-                            reference=d.get("reference", ""), note=d.get("note", ""), allotment_date=d.get("allotment_date"),
+                            tentative=tentative, amount=d.get("amount"), note=d.get("note", ""), allotment_date=d.get("allotment_date"),
                             origin=d.get("origin") or ORIGIN_PURCHASE, corporate_action=d.get("corporate_action"))
             except InvestmentsError as err:
                 if err.code == "WOULD_GO_NEGATIVE":
@@ -318,8 +331,8 @@ def txn_form(request, mode):
                 messages.success(request, "Saved." if not extra else f"Saved {len(extra) + 1} transactions.")
                 return redirect(reverse("investments_transactions"))
     return page(request, "investments/txn_form.html", _form_context(profile, {
-        "page_title_text": titles[mode], "form": form, "mode": mode, "is_sell": mode in ("sell", "awaiting_sell"),
-        "awaiting_mode": mode.startswith("awaiting"), "submit_label": "Save", "extra_forms": extra,
+        "page_title_text": titles[mode], "form": form, "mode": mode, "is_sell": mode == "sell",
+        "submit_label": "Save", "extra_forms": extra,
         "lump_ids": ",".join(str(i) for i in Instrument.objects.filter(profile=profile, lump_sum=True).values_list("pk", flat=True)),
         "row_template": forms.TransactionForm(profile=profile, mode=mode, prefix="x__i__", held_units=held_units, initial={k: v for k, v in initial.items() if k == "portfolio"}), "extra_ids": ",".join(str(r.index) for r in extra),
     }), selectors=False, status_line=True)
@@ -332,15 +345,14 @@ def txn_edit(request, pk):
         txn = tx.get_transaction(profile, pk)
     except InvestmentsError:
         raise Http404
-    awaiting = txn.status == STATUS_AWAITING
-    mode_for_form = "awaiting_" + txn.side if awaiting else ("edit_sell" if txn.side == SIDE_SELL else "edit")
+    tentative = txn.status == STATUS_TENTATIVE
+    mode_for_form = "edit_sell" if txn.side == SIDE_SELL else "edit"
     initial = {
         "date": txn.date, "instrument": txn.instrument, "portfolio": txn.portfolio, "broker": txn.broker, "folio": txn.folio,
         "units": txn.units, "price": txn.price, "charges": txn.charges, "allotment_date": txn.allotment_date, "amount": txn.amount,
-        "expected_allotment_date": txn.expected_allotment_date, "reference": txn.reference, "note": txn.note,
-        "origin": txn.origin, "corporate_action": txn.corporate_action_id,
+        "note": txn.note, "origin": txn.origin, "corporate_action": txn.corporate_action_id, "tentative": tentative,
     }
-    form = forms.TransactionForm(request.POST or None, profile=profile, mode=mode_for_form, initial=initial)
+    form = forms.TransactionForm(request.POST or None, profile=profile, mode=mode_for_form, initial=initial, tentative_edit=tentative)
     if "new_folio" in form.fields:
         del form.fields["new_folio"]
     next_url = _safe_next(request)
@@ -348,26 +360,26 @@ def txn_edit(request, pk):
         d = _clean_data(form)
         fields = dict(date=d["date"], instrument=d["instrument"], portfolio=d["portfolio"], broker=d["broker"], folio=d.get("folio"),
                       charges=d.get("charges") or 0, note=d.get("note", ""))
-        if awaiting:
-            fields.update(amount=d.get("amount"), expected_allotment_date=d.get("expected_allotment_date"), reference=d.get("reference", ""))
-        else:
-            fields.update(units=d.get("units"), price=d.get("price"))
-            if "allotment_date" in form.fields:
-                fields["allotment_date"] = d.get("allotment_date")
-            if "origin" in form.fields:
-                fields.update(origin=d.get("origin") or ORIGIN_PURCHASE, corporate_action=d.get("corporate_action"))
+        fields.update(units=d.get("units"), price=d.get("price"))
+        if tentative:
+            fields["amount"] = d.get("amount")     # cleared by the service when the entry is finalised
+        if "allotment_date" in form.fields:
+            fields["allotment_date"] = d.get("allotment_date")
+        if "origin" in form.fields:
+            fields.update(origin=d.get("origin") or ORIGIN_PURCHASE, corporate_action=d.get("corporate_action"))
         try:
-            tx.edit_transaction(profile, request.user, pk, expected_version=request.POST.get("version"), **fields)
+            tx.edit_transaction(profile, request.user, pk, expected_version=request.POST.get("version"),
+                                tentative=bool(d.get("tentative")) if tentative else None, **fields)
         except InvestmentsError as err:
             if err.code == "WOULD_GO_NEGATIVE":
                 return _refused(request, err, _with_next(request.path, next_url))
             _apply_form_errors(form, err)
         else:
-            messages.success(request, "Saved.")
+            messages.success(request, "Saved." if not tentative or d.get("tentative") else "Saved. It is now an ordinary entry.")
             return redirect(next_url or reverse("investments_transactions"))
     return page(request, "investments/txn_form.html", _form_context(profile, {
         "page_title_text": "Edit transaction", "next_url": next_url, "form": form, "mode": mode_for_form, "is_sell": txn.side == SIDE_SELL,
-        "awaiting_mode": awaiting, "txn": txn, "submit_label": "Save changes", "version": txn.version,
+        "txn": txn, "submit_label": "Save changes", "version": txn.version,
         "exclude_id": txn.pk, "can_delete": True,
     }), selectors=False, status_line=True)
 
@@ -397,7 +409,7 @@ def txn_delete(request, pk):
 def txn_cancel(request, pk):
     profile = profile_or_404(request)
     if request.method == "POST":
-        tx.cancel_awaiting(profile, request.user, pk)
+        tx.cancel_tentative(profile, request.user, pk)
         messages.success(request, "Cancelled. You can bring it back from History.")
     return redirect(reverse("investments_txn_to_confirm"))
 
@@ -409,9 +421,13 @@ def txn_complete(request, pk):
         txn = tx.get_transaction(profile, pk)
     except InvestmentsError:
         raise Http404
-    if txn.status != STATUS_AWAITING:
-        messages.info(request, "That entry is not waiting for allotment.")
+    if txn.status != STATUS_TENTATIVE:
+        messages.info(request, "That entry is not tentative.")
         return redirect(reverse("investments_txn_to_confirm"))
+    if txn.amount is None:
+        # The Finalise page works the figures out from the amount; without one, the entry is finalised on its edit page.
+        messages.info(request, "This tentative entry has no amount. Untick Mark as Tentative and enter its details to finalise it.")
+        return redirect(reverse("investments_txn_edit", args=[pk]))
     form = forms.CompleteForm(request.POST or None, initial={"allotment_date": txn.expected_allotment_date or datetime.date.today(),
                                                              "charges": txn.charges})
     needs_confirm = False
@@ -427,10 +443,10 @@ def txn_complete(request, pk):
                 needs_confirm = True
             form.add_error(None, err.message)
         else:
-            messages.success(request, "Completed. It is now an ordinary entry.")
+            messages.success(request, "Finalised. It is now an ordinary entry.")
             return redirect(reverse("investments_transactions"))
     return page(request, "investments/txn_complete.html", {
-        "page_title_text": "Complete a purchase awaiting allotment" if txn.side == SIDE_BUY else "Complete a redemption", "txn": txn, "form": form,
+        "page_title_text": "Finalise a tentative purchase" if txn.side == SIDE_BUY else "Finalise a tentative sale", "txn": txn, "form": form,
         "suggestions": tx.nav_suggestions(profile, txn), "needs_confirm": needs_confirm, "version": txn.version,
         "tolerance": tx.tolerance_for(txn.amount)}, selectors=False)
 
@@ -453,7 +469,7 @@ def to_complete(request):
     for t in tx.to_complete(profile):
         t.overdue = tx.overdue(t, settings_row.awaiting_reminder_days)
         t.waiting_days = (datetime.date.today() - t.date).days
-        t.suggest = tx.nav_suggestions(profile, t, limit=1)[0] if t.status == STATUS_AWAITING and tx.nav_suggestions(profile, t, limit=1) else None
+        t.suggest = tx.nav_suggestions(profile, t, limit=1)[0] if t.status == STATUS_TENTATIVE and tx.nav_suggestions(profile, t, limit=1) else None
         rows.append(t)
     return page(request, "investments/to_complete.html", {"page_title_text": "To complete", "rows": rows,
                                                            "reminder_days": settings_row.awaiting_reminder_days}, selectors=False, status_line=True)
@@ -665,7 +681,7 @@ def import_statement(request):
             path.unlink(missing_ok=True)
             alias_file.unlink(missing_ok=True)
             (staging / f"{token}-origins.json").unlink(missing_ok=True)
-            messages.success(request, f"{made} entr{'y' if made == 1 else 'ies'} saved, {completed} awaiting entr{'y' if completed == 1 else 'ies'} completed, "
+            messages.success(request, f"{made} entr{'y' if made == 1 else 'ies'} saved, {completed} tentative entr{'y' if completed == 1 else 'ies'} finalised, "
                                       f"{skipped} duplicate{'s' if skipped != 1 else ''} skipped.")
             return redirect(reverse("investments_transactions"))
         if request.method == "POST" and request.FILES.get("file"):

@@ -259,7 +259,7 @@ class AlertTests(InvTestCase):
 
     def test_awaiting_purchases_are_left_out(self):
         tx.add_transaction(self.profile, self.user, side="buy", instrument=self.fund, portfolio=self.portfolio, broker=self.zerodha,
-                           date=self.today - timedelta(days=3), awaiting=True, amount=D(5000))
+                           date=self.today - timedelta(days=3), tentative=True, amount=D(5000))
         Price.objects.create(instrument=self.fund, date=self.today, close=D(1), source="api")
         self.assertFalse([a for a in alerts.evaluate(self.profile) if a.instrument_id == self.fund.pk])
 

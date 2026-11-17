@@ -78,7 +78,7 @@ BLOCKS = {
     "if_year": "the financial year so far is a different span from the period (not on the annual email, nor for a period starting 1 April)",
     "if_year_start": "the period starts on 1 April and is not the annual one (so its figures are also the year's)",
     "if_annual": "this is the annual email (the Annual Report is attached)",
-    "if_provisional": "some figures are provisional (purchases awaiting allotment valued at cost, or a nearest available price)",
+    "if_provisional": "some figures are provisional (tentative purchases valued at cost, or a nearest available price)",
 }
 
 DEFAULT_SUBJECT = "{{site_name}}: {{report_type_lower}} investments report, {{period_start}} to {{period_end}}"
@@ -98,7 +98,7 @@ During this period you bought investments for {{invested}} and sold investments 
 Attached to this email is an excel sheet containing your holdings as on date, and a list of your transactions.
 {{#if_annual}}Also attached is the Annual Report for the financial year {{fy_label}}, as an excel sheet.
 {{/if_annual}}{{#if_provisional}}
-Some figures are provisional (purchases awaiting allotment are valued at cost, or a price is the nearest one available).
+Some figures are provisional (tentative purchases are valued at cost, or a price is the nearest one available).
 {{/if_provisional}}
 Regards,
 {{site_name}}

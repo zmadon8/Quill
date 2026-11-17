@@ -1,4 +1,4 @@
-"""Transactions: buy, sell, opening balance, transfer, switch, awaiting allotment and its completion (plan sections 6 and 19).
+"""Transactions: buy, sell, opening balance, transfer, switch, tentative entries and their finalising (plan sections 6 and 19).
 
 Every function takes ``(profile, user, ...)`` first and runs in one transaction. After each change that could affect units
 the whole history of the investment is replayed (``investments.lots``); a change that would leave any broker, folio or
@@ -13,7 +13,7 @@ from investments import lots
 from investments.errors import InvestmentsError, not_found
 from investments.models import (
     ACTION_ORIGINS, CA_DEMERGER, HOLDABLE_KINDS, METHOD_EVENTS, NO_PRICE_ORIGINS, ORIGIN_DEMERGER, ORIGIN_PURCHASE, ORIGINS, SIDE_BUY, SIDE_SELL,
-    STATUS_AWAITING, STATUS_FINAL, STATUS_PENDING_SIP, ZERO_PRICE_ORIGINS, Broker, CorporateActionResponse, Folio, Instrument, Portfolio, Switch,
+    STATUS_TENTATIVE, STATUS_FINAL, STATUS_PENDING_SIP, ZERO_PRICE_ORIGINS, Broker, CorporateActionResponse, Folio, Instrument, Portfolio, Switch,
     Transaction, Transfer, new_group,
 )
 from investments.money_auto import format_indian
@@ -78,7 +78,7 @@ def _check_date(value, name="Date", allow_future=False):
         raise InvestmentsError("FUTURE_DATE", f"{name} cannot be in the future.")
 
 
-def _check_origin(profile, instrument, origin, action, *, side, awaiting=False, is_opening=False):
+def _check_origin(profile, instrument, origin, action, *, side, tentative=False, is_opening=False):
     """The rules for how units were acquired. A purchase is ordinary. Bonus, split, demerger and no-cost entries are buys that need no
     price; a bonus, split or demerger may name its corporate action, and a demerger must (its cost comes from the action). Units for a bonus or
     split the profile has chosen to let the program add itself are refused, because they would be counted twice."""
@@ -88,7 +88,7 @@ def _check_origin(profile, instrument, origin, action, *, side, awaiting=False, 
         if action is not None:
             raise InvestmentsError("BAD_ORIGIN", "Only bonus, split or demerger units can belong to a corporate action.")
         return
-    if side != SIDE_BUY or awaiting:
+    if side != SIDE_BUY or tentative:
         raise InvestmentsError("BAD_ORIGIN", "Only a purchase entry can be bonus shares, split units, shares received on a demerger or a no-cost entry.")
     if is_opening:
         raise InvestmentsError("BAD_COMBINATION", "An opening balance is a purchase with its cost. Record bonus or split units as a separate entry.")
@@ -190,7 +190,7 @@ def nav_suggestions(profile, txn, limit=10):
     """Stored NAVs on and after the payment date with the units each would give. A suggestion only (plan 6)."""
     from investments.services import prices
 
-    if txn.status != STATUS_AWAITING or txn.amount is None:
+    if txn.status != STATUS_TENTATIVE or txn.amount is None:
         return []
     rows = []
     for day, nav in prices.series_from(txn.instrument, txn.date, limit):
@@ -209,10 +209,12 @@ def _new_txn(profile, user, side, instrument, portfolio, broker, folio, day, **e
 
 @transaction.atomic
 def add_transaction(profile, user, *, side, instrument, portfolio, broker, date, units=None, price=None, charges=0, folio=None,
-                    awaiting=False, amount=None, expected_allotment_date=None, reference="", note="", is_opening=False,
+                    tentative=False, amount=None, expected_allotment_date=None, reference="", note="", is_opening=False,
                     is_estimated=False, allotment_date=None, status=None, switch=None, currency=None, fx_rate=None,
                     rupee_amount=None, origin=ORIGIN_PURCHASE, corporate_action=None, auto_created=False):
-    """Record one purchase or sale. ``awaiting=True`` saves only the date paid and the amount (plan 6).
+    """Record one purchase or sale. ``tentative=True`` saves a tentative entry: only the date, side, investment, portfolio and broker are
+    needed; units, price, charges, allotment date and ``amount`` (the amount paid, or expected proceeds) are kept when given. A tentative
+    entry is never in lots, and is finalised later (``edit_transaction(tentative=False)`` or ``complete_transaction``).
 
     ``origin`` says how bought units came to be held: a purchase (the default, with a price), bonus shares, units from a split, shares
     received on a demerger, or other at no cost. Bonus, split and demerger entries have a price of 0 (a demerger's cost comes from its
@@ -221,20 +223,24 @@ def add_transaction(profile, user, *, side, instrument, portfolio, broker, date,
         raise InvestmentsError("BAD_SIDE", "Choose Buy or Sell.")
     _check_refs(profile, instrument, portfolio, broker, folio)
     _check_date(date)
-    _check_origin(profile, instrument, origin, corporate_action, side=side, awaiting=awaiting, is_opening=is_opening)
+    _check_origin(profile, instrument, origin, corporate_action, side=side, tentative=tentative, is_opening=is_opening)
     charges = _dec(charges or 0, "Charges", minimum=ZERO)
     common = dict(charges=charges, reference=(reference or "").strip(), note=(note or "").strip(), is_opening=is_opening,
                   is_estimated=is_estimated, switch=switch, currency=currency or instrument.currency)
-    if awaiting:
+    if tentative:
         if is_opening:
             raise InvestmentsError("BAD_COMBINATION", "An opening balance needs its units and cost.")
-        amount = _dec(amount, "Amount paid" if side == SIDE_BUY else "Expected proceeds", minimum=Decimal("0.01"))
+        units = _dec(units, "Units", allow_none=True, minimum=Decimal("0.0001"))
+        price = _dec(price, "Price", allow_none=True, minimum=ZERO)
+        amount = _dec(amount, "Amount paid" if side == SIDE_BUY else "Expected proceeds", allow_none=True, minimum=Decimal("0.01"))
         if expected_allotment_date:
             _check_date(expected_allotment_date, "Expected allotment date", allow_future=True)
-        txn = _new_txn(profile, user, side, instrument, portfolio, broker, folio, date, status=STATUS_AWAITING, amount=amount,
-                       expected_allotment_date=expected_allotment_date, **common)
+        if allotment_date and allotment_date < date:
+            raise InvestmentsError("BAD_DATE", "The allotment date cannot be before the date paid.")
+        txn = _new_txn(profile, user, side, instrument, portfolio, broker, folio, date, status=STATUS_TENTATIVE, units=units, price=price,
+                       amount=amount, allotment_date=allotment_date, expected_allotment_date=expected_allotment_date, **common)
         txn.save()
-        history.record(profile, user, txn, "create", summary=f"Awaiting {side} of {instrument.name}")
+        history.record(profile, user, txn, "create", summary=f"Tentative {side} of {instrument.name}")
         _pin(profile, txn)
         core.touch(profile)
         return txn
@@ -425,8 +431,12 @@ def _check_clash(txn, expected_version):
 
 
 @transaction.atomic
-def edit_transaction(profile, user, pk, *, expected_version=None, **fields):
-    """Edit any field of a transaction. ``fields`` uses the same names as ``add_transaction`` (only those given change)."""
+def edit_transaction(profile, user, pk, *, expected_version=None, tentative=None, **fields):
+    """Edit any field of a transaction. ``fields`` uses the same names as ``add_transaction`` (only those given change).
+
+    ``tentative=False`` on a tentative entry finalises it: it then needs the full details of an ordinary entry, and goes through the same
+    steps as a new final one (the lot check, the trade prices, automatic corporate actions); its ``amount`` is cleared. ``tentative=True``
+    keeps a tentative entry tentative. A final entry cannot be made tentative."""
     txn = Transaction.objects.select_for_update().filter(pk=pk, profile=profile).first()
     if txn is None:
         raise not_found("transaction")
@@ -436,6 +446,10 @@ def edit_transaction(profile, user, pk, *, expected_version=None, **fields):
     unknown = set(fields) - allowed
     if unknown:
         raise InvestmentsError("BAD_FIELD", f"Cannot edit: {', '.join(sorted(unknown))}.")
+    was_tentative = txn.status == STATUS_TENTATIVE
+    if tentative and not was_tentative:
+        raise InvestmentsError("BAD_FIELD", "A final entry cannot be made tentative. Delete it and record it again.", 409)
+    finalising = was_tentative and tentative is False
     before = (txn.instrument_id, txn.date)
     before_lump = (txn.date, txn.units, txn.price, txn.instrument_id)
     for key, value in fields.items():
@@ -443,22 +457,27 @@ def edit_transaction(profile, user, pk, *, expected_version=None, **fields):
             value = _dec(value, key, allow_none=key in ("units", "price", "amount", "cost_override"), minimum=ZERO)
         setattr(txn, key, value)
     txn.auto_created = False          # once a person edits it, it is theirs: editing the demerger no longer replaces it
-    if before_lump != (txn.date, txn.units, txn.price, txn.instrument_id) and (txn.instrument.lump_sum or Instrument.objects.filter(
-            pk=before_lump[3], lump_sum=True).exists()):
+    if (not was_tentative or finalising) and before_lump != (txn.date, txn.units, txn.price, txn.instrument_id) and (
+            txn.instrument.lump_sum or Instrument.objects.filter(pk=before_lump[3], lump_sum=True).exists()):
         raise InvestmentsError(
             "LUMP_SUM_EDIT", "The date and amount of a Lump Sum entry cannot be changed, because the investment's values are worked out from "
             "them. Delete the entry and record it again. Its note, charges, broker, portfolio and folio can be changed.")
     _check_refs(profile, txn.instrument, txn.portfolio, txn.broker, txn.folio)
     _check_date(txn.date)
-    _check_origin(profile, txn.instrument, txn.origin, txn.corporate_action, side=txn.side, awaiting=txn.status == STATUS_AWAITING,
+    _check_origin(profile, txn.instrument, txn.origin, txn.corporate_action, side=txn.side, tentative=was_tentative and not finalising,
                   is_opening=txn.is_opening)
     if txn.origin in ZERO_PRICE_ORIGINS:
         if txn.price not in (None, ZERO):
             raise InvestmentsError("BAD_NUMBER", "These units are recorded at no cost, so the price must be 0.")
         txn.price = ZERO
-    if txn.status == STATUS_AWAITING:
-        if txn.amount is None or txn.amount <= 0:
-            raise InvestmentsError("REQUIRED", "Amount paid is required.")
+    if was_tentative and not finalising:
+        # A tentative entry keeps whatever was typed; each figure that is given must still be sensible.
+        if txn.units is not None and txn.units <= 0:
+            raise InvestmentsError("BAD_NUMBER", "Units must be more than zero.")
+        if txn.amount is not None and txn.amount <= 0:
+            raise InvestmentsError("BAD_NUMBER", "The amount must be more than zero.")
+        if txn.allotment_date and txn.allotment_date < txn.date:
+            raise InvestmentsError("BAD_DATE", "The allotment date cannot be before the date paid.")
     else:
         if not txn.units or txn.units <= 0:
             raise InvestmentsError("BAD_NUMBER", "Units must be more than zero.")
@@ -466,6 +485,8 @@ def edit_transaction(profile, user, pk, *, expected_version=None, **fields):
             raise InvestmentsError("BAD_NUMBER", "Price must be more than zero.")
         if txn.allotment_date and txn.allotment_date < txn.date:
             raise InvestmentsError("BAD_DATE", "The allotment date cannot be before the date paid.")
+    if finalising:
+        txn.status, txn.amount = STATUS_FINAL, None
     old_instrument_ids = {Transaction.objects.values_list("instrument_id", flat=True).get(pk=txn.pk), txn.instrument_id}
     if txn.status == STATUS_FINAL:
         for instrument_id in old_instrument_ids:
@@ -473,11 +494,14 @@ def edit_transaction(profile, user, pk, *, expected_version=None, **fields):
             _recheck(profile, instrument_id, add=add, exclude_txn=txn.pk, what="This change")
     txn.version += 1
     txn.save()
-    history.record(profile, user, txn, "edit", summary=f"Edited {txn.instrument.name}")
+    history.record(profile, user, txn, "complete" if finalising else "edit",
+                   summary=f"Finalised {txn.instrument.name}" if finalising else f"Edited {txn.instrument.name}")
     _pin(profile, txn)
     if txn.status == STATUS_FINAL:
         _sync_trade_prices(profile, user, txn, before)
     core.touch(profile)
+    if finalising:
+        _after_finalising(profile, txn)
     return txn
 
 
@@ -524,7 +548,16 @@ def delete_switch(profile, user, pk):
     core.touch(profile)
 
 
-# ---------------------------------------------------------------- awaiting allotment
+# ---------------------------------------------------------------- tentative entries
+
+def _after_finalising(profile, txn):
+    """What a new final purchase does after it is saved, for a tentative one that has just become final: a profile that logs corporate
+    actions automatically picks up the ones this purchase makes pending."""
+    if txn.origin == ORIGIN_PURCHASE and txn.side == SIDE_BUY:
+        from investments.services import corporate
+
+        corporate.apply_automatic(profile, {txn.instrument_id})
+
 
 def completion_figures(txn, *, units=None, nav=None, charges=None):
     """Work out the third of units, NAV and amount (plan 6). Any two of units, nav and the amount paid give the third.
@@ -553,12 +586,18 @@ def tolerance_for(amount):
 @transaction.atomic
 def complete_transaction(profile, user, pk, *, allotment_date, units=None, nav=None, charges=None, confirm_difference=False,
                          expected_version=None):
-    """Turn an awaiting entry into an ordinary one. The date paid stays; the allotment date is recorded (plan 6)."""
+    """Finalise a tentative entry that has an amount: work out the units and NAV (any two of units, NAV and the amount give the third), and
+    make it an ordinary one. The date paid stays; the allotment date is recorded (plan 6)."""
     txn = Transaction.objects.select_for_update().filter(pk=pk, profile=profile).first()
     if txn is None:
         raise not_found("transaction")
-    if txn.status != STATUS_AWAITING:
-        raise InvestmentsError("NOT_AWAITING", "This entry is not waiting for allotment.", 409)
+    if txn.status != STATUS_TENTATIVE:
+        raise InvestmentsError("NOT_TENTATIVE", "This entry is not tentative.", 409)
+    if txn.amount is None:
+        # Units and price typed on the tentative entry stand in for the amount (a statement line matched by them completes it).
+        txn.amount = core.tentative_cost(txn)
+    if txn.amount is None:
+        raise InvestmentsError("NO_AMOUNT", "This tentative entry has no amount to work the figures from. Edit it, untick Mark as Tentative and enter its details.", 409)
     _check_clash(txn, expected_version)
     if not isinstance(allotment_date, datetime.date):
         raise InvestmentsError("BAD_DATE", "Enter the allotment date.")
@@ -574,8 +613,6 @@ def complete_transaction(profile, user, pk, *, allotment_date, units=None, nav=N
     txn.units, txn.price, txn.charges = units, nav, charges
     txn.allotment_date = allotment_date
     txn.status = STATUS_FINAL
-    if txn.side == SIDE_SELL:
-        pass
     _recheck(profile, txn.instrument_id, add=[core.txn_event(txn)], exclude_txn=txn.pk,
              what="Completing this redemption" if txn.side == SIDE_SELL else "Completing this purchase")
     txn.amount = None
@@ -584,16 +621,17 @@ def complete_transaction(profile, user, pk, *, allotment_date, units=None, nav=N
     history.record(profile, user, txn, "complete", summary=f"Completed {txn.instrument.name}: {units} units at {nav}")
     trade_prices.sync_trade_prices(profile, user, txn.instrument, [txn.date])
     core.touch(profile)
+    _after_finalising(profile, txn)
     return txn
 
 
 @transaction.atomic
-def cancel_awaiting(profile, user, pk):
+def cancel_tentative(profile, user, pk):
     txn = Transaction.objects.filter(pk=pk, profile=profile).first()
     if txn is None:
         raise not_found("transaction")
-    if txn.status != STATUS_AWAITING:
-        raise InvestmentsError("NOT_AWAITING", "Only an entry waiting for allotment can be cancelled this way.", 409)
+    if txn.status != STATUS_TENTATIVE:
+        raise InvestmentsError("NOT_TENTATIVE", "Only a tentative entry can be cancelled this way.", 409)
     delete_transaction(profile, user, pk, kind="cancel")
 
 
@@ -619,17 +657,17 @@ def confirm_pending(profile, user, pk, *, units=None, price=None):
     return txn
 
 
-def awaiting_for(profile):
-    return Transaction.objects.filter(profile=profile, status=STATUS_AWAITING).select_related("instrument", "broker", "portfolio").order_by("date", "id")
+def tentative_for(profile):
+    return Transaction.objects.filter(profile=profile, status=STATUS_TENTATIVE).select_related("instrument", "broker", "portfolio").order_by("date", "id")
 
 
 def to_complete(profile):
-    """Entries on the To complete page: awaiting allotment and pending SIP entries."""
-    return Transaction.objects.filter(profile=profile, status__in=[STATUS_AWAITING, STATUS_PENDING_SIP]).select_related(
+    """Entries on the To complete page: tentative and pending SIP entries."""
+    return Transaction.objects.filter(profile=profile, status__in=[STATUS_TENTATIVE, STATUS_PENDING_SIP]).select_related(
         "instrument", "broker", "portfolio").order_by("date", "id")
 
 
 def overdue(txn, days, today=None):
-    """True when an awaiting entry has waited longer than the reminder days (plan 6)."""
+    """True when a tentative entry has waited longer than the reminder days (plan 6)."""
     today = today or _today()
-    return txn.status == STATUS_AWAITING and (today - txn.date).days > days
+    return txn.status == STATUS_TENTATIVE and (today - txn.date).days > days

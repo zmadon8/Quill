@@ -78,14 +78,23 @@ class AnnualTests(InvTestCase):
         r = annual.build(self.profile, "2023-24", today=d(2026, 11, 9))
         self.assertEqual([s["cost"] for s in r.sales if s["term"] == "long"], [D(500)])
 
-    def test_awaiting_on_31_march_is_at_cost_and_provisional(self):
+    def test_tentative_on_31_march_is_at_cost_and_provisional(self):
         tx.add_transaction(self.profile, self.user, side="buy", instrument=self.fund, portfolio=self.portfolio, broker=self.zerodha, date=d(2024, 3, 20),
-                           awaiting=True, amount=D(5000))
+                           tentative=True, amount=D(5000))
         r = annual.build(self.profile, "2023-24", today=d(2026, 11, 9))
         self.assertTrue(r.provisional)
         self.assertEqual(len(r.awaiting), 1)
         self.assertEqual(r.closing_value, D(5 * 130) + D(5000))
         self.assertEqual(r.invested, D(1100) + D(5000))
+
+    def test_a_tentative_sale_changes_no_figure_but_marks_the_report_provisional(self):
+        plain = annual.build(self.profile, "2023-24", today=d(2026, 11, 9))
+        tx.add_transaction(self.profile, self.user, side="sell", instrument=self.reliance, portfolio=self.portfolio, broker=self.zerodha,
+                           date=d(2024, 3, 20), tentative=True)
+        r = annual.build(self.profile, "2023-24", today=d(2026, 11, 9))
+        self.assertTrue(r.provisional)
+        self.assertEqual((r.sold, r.invested, r.closing_value), (plain.sold, plain.invested, plain.closing_value))
+        self.assertEqual(plain.provisional, False)
 
     def test_reproduces_from_pins_after_the_prices_are_gone(self):
         pins.pin_all(today=d(2026, 11, 9))

@@ -58,6 +58,16 @@ def buy_total(txn):
     return Decimal(txn.units) * Decimal(txn.price) + Decimal(txn.charges or 0)
 
 
+def tentative_cost(txn):
+    """What a tentative purchase counts at: its ``amount`` when given, else units times price plus charges when both are given, else None
+    (nothing is known, so it counts for nothing). A tentative sale is never counted."""
+    if txn.amount is not None:
+        return Decimal(txn.amount)
+    if txn.units is not None and txn.price is not None:
+        return Decimal(txn.units) * Decimal(txn.price) + Decimal(txn.charges or 0)
+    return None
+
+
 def sell_total(txn):
     """Proceeds of a sale in rupees: units times price less charges (or the rupee amount for foreign)."""
     if txn.rupee_amount is not None:
@@ -129,7 +139,7 @@ def fill_demerger_receipts(profile, receipts, seen=frozenset(), cache=None):
 def events_for(profile, instrument_id=None, exclude_txn=None, exclude_transfer=None, _seen=frozenset()):
     """Lot events for the profile's final transactions and transfers (one instrument when given).
 
-    Entries that have no units yet (awaiting allotment) or are not confirmed (pending SIP) are left out: they have no
+    Entries that are tentative (they may have no units yet) or are not confirmed (pending SIP) are left out: they have no
     units, so they cannot be sold, are not in FIFO and do not count in average cost (plan 6).
     """
     txns = Transaction.objects.filter(profile=profile, status=STATUS_FINAL, units__isnull=False)

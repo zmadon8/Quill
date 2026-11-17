@@ -1,7 +1,6 @@
 (function () {
   "use strict";
-  // Transaction forms: default broker, folios by investment and portfolio, units available to sell, Sell all, Lump Sum fields. Each
-  // .txn-card (fields under its data-prefix) is wired alone; added cards fire "txn-card-added". Pages without cards use the form as one card.
+  // Transaction forms: broker default, folios, units to sell, Sell all, Lump Sum, Tentative. Each .txn-card (fields under its data-prefix) is wired alone; added cards fire "txn-card-added".
   function json(id) { var el = document.getElementById(id); try { return el ? JSON.parse(el.textContent) : null; } catch (e) { return null; } }
   var defaults = json("inv-default-brokers") || {};
   var folios = json("inv-folios") || [];
@@ -69,7 +68,7 @@
         return "<li><button type='button' class='linklike' data-p='" + b.portfolio + "' data-b='" + b.broker + "' data-f='" + (b.folio || "") + "'>" +
           esc(b.broker_name) + " / " + esc(b.portfolio_name) + (b.folio_name ? " / folio " + esc(b.folio_name) : "") + "</button>: <b>" + fmt(b.units) + "</b> units</li>";
       }).join("") + "</ul>";
-      if (parseFloat(d.awaiting) > 0) { html += "<p class='hint'>plus " + fmt(d.awaiting) + " awaiting allotment (cannot be sold until allotted)</p>"; }
+      if (parseFloat(d.awaiting) > 0) { html += "<p class='hint'>plus " + fmt(d.awaiting) + " tentative (cannot be sold until finalised)</p>"; }
       panel.innerHTML = html;
       if (d.buckets.length === 1) { pick(d.buckets[0].portfolio, d.buckets[0].broker, d.buckets[0].folio); }
     });
@@ -90,7 +89,7 @@
   // A Lump Sum investment is asked for an amount (and what remains after a sale) instead of units and price.
   function lumpChanged() {
     var on = isLump(), t = card.querySelector(".avail-t");
-    ["units", "price", "total"].forEach(function (n) { var w = wrap(field(n)); if (w) { w.style.display = on ? "none" : ""; } });
+    ["units", "price"].forEach(function (n) { var w = wrap(field(n)); if (w) { w.style.display = on ? "none" : ""; } });
     ["lump_amount", "value_after", "remaining"].forEach(function (n) { var w = wrap(field(n)); if (w) { w.style.display = on ? "" : "none"; } });
     if (t) { t.hidden = on; }
   }
@@ -111,6 +110,10 @@
     if (actionBox) { actionBox.style.display = noPrice ? "" : "none"; }
   }
   if (origin) { origin.addEventListener("change", originChanged); }
+  // "Mark as Tentative": the Amount box shows only while it is ticked (without scripts it always shows, with a note).
+  var tent = field("tentative");
+  function tentChanged() { var w = wrap(field("amount")); if (w) { w.style.display = tent.checked ? "" : "none"; } }
+  if (tent) { tent.addEventListener("change", tentChanged); tentChanged(); }
   originChanged(); lumpChanged();
   defaultBroker(); filterFolios(); loadAvailable(); loadLine();
   }

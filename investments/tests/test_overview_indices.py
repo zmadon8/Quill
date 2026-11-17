@@ -191,7 +191,7 @@ class ClearHistoryTests(InvTestCase):
         dividends.add(self.profile, self.user, date=d(2024, 6, 1), instrument=self.reliance, portfolio=self.portfolio, broker=self.zerodha, amount=D(50))
         masters.add_folio(self.profile, self.user, instrument=self.fund, portfolio=self.portfolio, number="F-1")
         tx.add_transaction(self.profile, self.user, side="buy", instrument=self.fund, portfolio=self.portfolio, broker=self.zerodha,
-                           date=d(2024, 2, 1), awaiting=True, amount=D(5000))
+                           date=d(2024, 2, 1), tentative=True, amount=D(5000))
         # a second profile with its own history must be left alone
         self.other_user, self.other = make_user("other-clear")
         from investments.models import Broker, Portfolio

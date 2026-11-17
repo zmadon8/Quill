@@ -16,7 +16,6 @@ REAL = {
     "transactions": vt.transactions_list,
     "txn_new_buy": lambda request: vt.txn_form(request, "buy"),
     "txn_new_sell": lambda request: vt.txn_form(request, "sell"),
-    "txn_new_awaiting": lambda request: vt.txn_form(request, "awaiting_buy"),
     "txn_opening": vt.txn_opening,
     "txn_transfer": vt.txn_transfer,
     "txn_switch": vt.txn_switch,
@@ -67,8 +66,9 @@ urlpatterns += [
     # the old Settings > Alerts address (302 for a GET, 308 keeps a POST)
     path("settings/alerts/", vi.settings_alerts, name="investments_settings_alerts"),
     re_path(r"^settings/(?P<rest>(?:catalogue|price-sources|price-upload|price-history)/.*)$", _moved_to_catalogue),
-    # a redemption awaiting its units (no mockup of its own; same form as the awaiting purchase)
-    path("transactions/awaiting-redemption/", lambda request: vt.txn_form(request, "awaiting_sell"), name="investments_txn_new_awaiting_sell"),
+    # The old "Awaiting allotment" addresses (a purchase, and a redemption) now open the Buy / Sell form with Mark as Tentative ticked.
+    path("transactions/awaiting/", lambda request: vt.tentative_redirect("buy"), name=None),
+    path("transactions/awaiting-redemption/", lambda request: vt.tentative_redirect("sell"), name=None),
     path("transactions/available/", views.available_units, name="investments_available_units"),
     path("transactions/lookup/", vt.txn_lookup, name="investments_txn_lookup"),
     path("transactions/<int:pk>/edit/", vt.txn_edit, name="investments_txn_edit"),

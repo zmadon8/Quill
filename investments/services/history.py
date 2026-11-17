@@ -13,7 +13,7 @@ from django.db.models import Max
 
 from investments.errors import InvestmentsError, not_found
 from investments.models import (
-    STATUS_FINAL, AltValue, CorporateActionResponse, Dividend, Folio, InvestmentHistory, Switch, Transaction, Transfer, new_group,
+    STATUS_FINAL, STATUS_TENTATIVE, AltValue, CorporateActionResponse, Dividend, Folio, InvestmentHistory, Switch, Transaction, Transfer, new_group,
 )
 
 #: record_type -> model. Only these are logged (plan 6: transactions, dividends, corporate action confirmations, folio
@@ -128,6 +128,8 @@ def restore(profile, user, history_id):
     for f in model._meta.concrete_fields:
         raw = row.snapshot.get(f.attname)
         values[f.attname] = f.to_python(raw) if raw is not None else None
+    if model is Transaction and values.get("status") == "awaiting":
+        values["status"] = STATUS_TENTATIVE          # an entry logged before "awaiting" became "tentative"
     obj = model(**values)
     if isinstance(obj, (Transaction, Transfer)):
         txn_service.verify_restored(profile, obj)

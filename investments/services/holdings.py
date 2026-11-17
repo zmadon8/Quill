@@ -2,7 +2,7 @@
 
 ``compute`` replays each investment's history once (FIFO per portfolio/broker/folio bucket), then filters the resulting lots by
 the chosen portfolio and broker. Prices come from ``services.prices`` (manual in Phase 1). An investment with no price is
-valued at cost and flagged ``unpriced``; an awaiting-allotment purchase is valued at cost (the default, plan 6) or left out,
+valued at cost and flagged ``unpriced``; a tentative purchase is valued at cost (the default, plan 6) or left out,
 as the profile's setting says.
 """
 from dataclasses import dataclass, field
@@ -11,7 +11,7 @@ from decimal import Decimal
 
 from investments import lots, valuation, xirr
 from investments.models import (
-    AWAITING_LEAVE_OUT, KIND_ALTERNATIVE, SIDE_BUY, STATUS_AWAITING, STATUS_FINAL, Instrument,
+    TENTATIVE_LEAVE_OUT, KIND_ALTERNATIVE, SIDE_BUY, STATUS_TENTATIVE, STATUS_FINAL, Instrument,
     Transaction, Transfer,
 )
 from investments.services import core, prices
@@ -24,8 +24,8 @@ UNIT_DUST = Decimal("0.00005")   # half the smallest unit stored (4 decimal plac
 class Holding:
     instrument: Instrument
     units: Decimal = ZERO
-    cost: Decimal = ZERO                 # cost of the units held (FIFO), plus awaiting purchases at cost
-    awaiting: Decimal = ZERO             # amount paid and not yet allotted
+    cost: Decimal = ZERO                 # cost of the units held (FIFO), plus tentative purchases at cost
+    awaiting: Decimal = ZERO             # tentative purchases, counted at cost (the internal name stays 'awaiting')
     price: Decimal = None
     price_date: date = None
     value: Decimal = ZERO
@@ -49,7 +49,7 @@ class Holding:
 
     @property
     def is_held(self):
-        """True only when units are held or a purchase is awaiting allotment."""
+        """True only when units are held or a tentative purchase is counted."""
         return not self.sold_out and not self.empty and (self.units > 0 or self.awaiting > 0)
 
     @property
@@ -150,7 +150,7 @@ def compute(profile, *, portfolio=None, broker=None, as_of=None, settings=None, 
 
     as_of = as_of or date.today()
     settings = settings or core.get_settings(profile, create=False)
-    leave_out = settings.awaiting_treatment == AWAITING_LEAVE_OUT
+    leave_out = settings.awaiting_treatment == TENTATIVE_LEAVE_OUT
     if include_dividends is None:
         include_dividends = settings.include_dividends
     block = settings.corporate_action_mode != CA_TAG
@@ -200,11 +200,13 @@ def compute(profile, *, portfolio=None, broker=None, as_of=None, settings=None, 
         for t in per_instrument.get(iid, []):
             if t.fx_rate:
                 fx = t.fx_rate
-            if t.status == STATUS_AWAITING:
+            if t.status == STATUS_TENTATIVE:
                 if leave_out or not _passes(portfolio, broker, t.portfolio_id, t.broker_id):
                     continue
-                amount = t.amount or ZERO
-                if t.side == SIDE_BUY:
+                # A tentative sale is ignored until it is finalised. A tentative purchase counts at its amount, else units x price + charges,
+                # else (nothing known) not at all.
+                amount = core.tentative_cost(t) if t.side == SIDE_BUY else None
+                if amount is not None:
                     h.awaiting += amount
                     flows.append((t.date, -amount))
                 continue
@@ -326,7 +328,7 @@ def held(holdings):
 
 
 def held_instrument_ids(profile, portfolio=None, broker=None, as_of=None):
-    """The ids of the investments held now (or on ``as_of``): units held, or a purchase awaiting allotment. Sold-out, empty and never-bought
+    """The ids of the investments held now (or on ``as_of``): units held, or a tentative purchase. Sold-out, empty and never-bought
     investments are left out. Used by the "Held only" tick box."""
     rows, _totals = compute(profile, portfolio=portfolio, broker=broker, as_of=as_of, with_xirr=False)
     return {h.instrument.pk for h in rows if h.is_held}

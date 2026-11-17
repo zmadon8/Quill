@@ -131,7 +131,7 @@ def annual_sheets(r):
     sales = [row for s, row in zip(r.sales, sales) if not s["interest"]]
     held = [[h.instrument.name, h.instrument.get_kind_display(), h.units, h.cost, h.value, h.value - h.cost, "Provisional" if (h.provisional or h.awaiting) else ""]
             for h in r.holdings]
-    txns = [[t.date, t.instrument.name, t.get_side_display(), t.units, t.price, t.charges, t.amount if t.status == "awaiting" else None, t.broker.name, t.portfolio.name,
+    txns = [[t.date, t.instrument.name, t.get_side_display(), t.units, t.price, t.charges, t.amount if t.status == "tentative" else None, t.broker.name, t.portfolio.name,
              t.get_status_display()] for t in r.transactions]
     by_pf = [[name, s.opening_value, s.invested, s.sold, s.short_gain, s.long_gain, s.interest_income, pct(s.xirr), s.closing_value] for name, s in r.by_portfolio]
     return [
@@ -139,7 +139,7 @@ def annual_sheets(r):
         ("Capital gains", ["Investment", "Bought (held from)", "Sold", "Days held", "Units", "Cost", "Proceeds", "Gain", "Term", "Note"], sales),
         ("Other income", ["Investment", "Bought (held from)", "Sold", "Days held", "Units", "Cost", "Proceeds", "Gain", "Term", "Note"], interest_sales),
         ("Holdings at year end", ["Investment", "Type", "Units", "Cost", "Value", "Unrealised gain", ""], held),
-        ("Transactions", ["Date", "Investment", "Buy / sell", "Units", "Price", "Charges", "Amount awaiting", "Broker", "Portfolio", "Status"], txns),
+        ("Transactions", ["Date", "Investment", "Buy / sell", "Units", "Price", "Charges", "Tentative amount", "Broker", "Portfolio", "Status"], txns),
         ("By portfolio", ["Portfolio", "Starting value", "Invested", "Sold", "Short-term gains", "Long-term gains", "Other income", "XIRR %", "Ending value"], by_pf)]
 
 

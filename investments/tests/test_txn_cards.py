@@ -1,4 +1,5 @@
 """Buy and sell pages: every added transaction is a full card; sales are checked cumulatively; the units-available endpoint."""
+import re
 from datetime import date as d
 from decimal import Decimal as D
 
@@ -93,8 +94,8 @@ class TxnCardTests(InvTestCase):
         self.assertNotEqual(self.client.get(reverse("investments_available_units"), {"instrument": self.reliance.pk}).status_code, 200)
 
 
-class AlternativeTotalTests(InvTestCase):
-    """Alternatives bought per unit: Units with a Price per unit, a Total amount, or both (D187)."""
+class PriceAndTentativeFormTests(InvTestCase):
+    """Price per unit is required on an ordinary entry (the Total amount box is gone); "Mark as Tentative" relaxes it."""
 
     def setUp(self):
         super().setUp()
@@ -110,49 +111,121 @@ class AlternativeTotalTests(InvTestCase):
     def post(self, **extra):
         return self.client.post(self.url, self.card(**extra))
 
-    def test_total_only_gives_price_to_four_places(self):
-        self.assertRedirects(self.post(units="3", total="100"), reverse("investments_transactions"))
-        self.assertEqual(Transaction.objects.get().price, D("33.3333"))
+    def test_there_is_no_total_box_any_more(self):
+        for url in (self.url, reverse("investments_txn_new_sell")):
+            html = self.client.get(url).content.decode()
+            self.assertNotIn('name="total"', html)
+            self.assertNotIn("Total amount", html)
 
-    def test_price_only_still_works(self):
-        self.post(units="3", price="12.5")
+    def test_price_and_units_are_required_on_an_ordinary_entry(self):
+        self.assertContains(self.post(units="3"), "This field is required.")
+        self.assertContains(self.post(price="10"), "This field is required.")
+        self.assertEqual(Transaction.objects.count(), 0)
+
+    def test_price_and_units_still_save(self):
+        self.assertRedirects(self.post(units="3", price="12.5"), reverse("investments_transactions"))
         self.assertEqual(Transaction.objects.get().price, D("12.5"))
 
-    def test_both_agreeing_keeps_the_price(self):
-        self.post(units="4", price="25", total="100")
-        self.assertEqual(Transaction.objects.get().price, D("25"))
-
-    def test_both_disagreeing_the_total_wins(self):
+    def test_a_posted_total_is_ignored(self):
         self.post(units="4", price="30", total="100")
-        self.assertEqual(Transaction.objects.get().price, D("25"))
-
-    def test_total_with_zero_units_is_refused(self):
-        r = self.post(units="0", total="100")
-        self.assertContains(r, "Units must be above zero")
-        self.assertEqual(Transaction.objects.count(), 0)
-
-    def test_neither_price_nor_total_is_refused(self):
-        self.assertContains(self.post(units="3"), "This field is required.")
-        self.assertEqual(Transaction.objects.count(), 0)
-
-    def test_shares_do_not_take_a_total(self):
-        r = self.post(instrument=self.reliance, units="3", total="100")
-        self.assertContains(r, "only be given for an alternative investment")
-        self.assertEqual(Transaction.objects.count(), 0)
+        self.assertEqual(Transaction.objects.get().price, D("30"))
 
     def test_lump_sum_is_unchanged(self):
         chit = masters.create_instrument(self.profile, self.user, kind="alternative", name="Chit", asset_class="debt", lump_sum=True)
-        self.client.post(self.url, self.card(instrument=chit, lump_amount="5000", total="7"))
+        self.client.post(self.url, self.card(instrument=chit, lump_amount="5000"))
         t = Transaction.objects.get()
         self.assertEqual((t.units, t.price), (D("5000"), D("1")))
 
-    def test_sell_with_total(self):
+    def test_edit_of_a_sale_still_needs_its_price(self):
         self.post(units="10", price="10")
-        r = self.client.post(reverse("investments_txn_new_sell"), self.card(date="2024-02-01", units="4", total="60"))
-        self.assertRedirects(r, reverse("investments_transactions"))
-        self.assertEqual(Transaction.objects.get(side="sell").price, D("15"))
+        sale = self.client.post(reverse("investments_txn_new_sell"), self.card(date="2024-02-01", units="4", price="15"))
+        self.assertRedirects(sale, reverse("investments_transactions"))
+        t = Transaction.objects.get(side="sell")
+        form = self.card(date="2024-02-01", units="4", version=t.version)
+        self.assertContains(self.client.post(reverse("investments_txn_edit", args=[t.pk]), form), "This field is required.")
 
-    def test_each_card_is_worked_out_on_its_own(self):
-        post = {**self.card(units="2", total="50"), "extra_rows": "1", **self.card("x1", units="4", price="3")}
+    # ---- Mark as Tentative
+
+    def test_the_buy_and_sell_forms_have_the_tick_box_and_the_amount_box(self):
+        self.buy(d(2024, 1, 1), 10, 100, instrument=self.art)
+        for url, label in ((self.url, "Amount paid"), (reverse("investments_txn_new_sell"), "Expected proceeds")):
+            html = self.client.get(url).content.decode()
+            self.assertIn('name="tentative"', html)
+            self.assertIn("Mark as Tentative", html)
+            self.assertIn('name="amount"', html)
+            self.assertIn(label, html)
+            self.assertIn("(only for a tentative entry)", html)
+
+    def test_the_old_awaiting_addresses_redirect_with_the_box_ticked(self):
+        for path, name in (("awaiting/", "investments_txn_new_buy"), ("awaiting-redemption/", "investments_txn_new_sell")):
+            r = self.client.get("/investments/transactions/" + path)
+            self.assertEqual((r.status_code, r["Location"]), (302, reverse(name) + "?tentative=1"))
+            tag = re.search(r'<input[^>]*name="tentative"[^>]*>', self.client.get(r["Location"]).content.decode()).group(0)
+            self.assertIn("checked", tag)
+
+    def test_only_the_four_basic_fields_are_needed_when_ticked(self):
+        r = self.post(tentative="on")
+        self.assertRedirects(r, reverse("investments_transactions"))
+        t = Transaction.objects.get()
+        self.assertEqual((t.status, t.units, t.price, t.amount), ("tentative", None, None, None))
+
+    def test_partial_values_are_kept(self):
+        self.post(tentative="on", units="5", amount="450")
+        t = Transaction.objects.get()
+        self.assertEqual((t.units, t.price, t.amount), (D("5"), None, D("450")))
+
+    def test_the_four_basic_fields_are_still_required_when_ticked(self):
+        r = self.client.post(self.url, {"tentative": "on", "date": "2024-01-01"})
+        self.assertContains(r, "This field is required.")
+        self.assertEqual(Transaction.objects.count(), 0)
+
+    def test_an_amount_typed_without_the_tick_is_not_kept(self):
+        self.post(units="3", price="10", amount="999")
+        self.assertIsNone(Transaction.objects.get().amount)
+
+    def test_a_tentative_sale_skips_the_you_held_none_check(self):
+        self.buy(d(2024, 3, 1), 10, 100, instrument=self.art)
+        r = self.client.post(reverse("investments_txn_new_sell"), self.card(date="2024-01-01", tentative="on", amount="900"))
+        self.assertRedirects(r, reverse("investments_transactions"))
+        self.assertEqual(Transaction.objects.get(side="sell").status, "tentative")
+        r = self.client.post(reverse("investments_txn_new_sell"), self.card(date="2024-01-01", units="1", price="9"))
+        self.assertContains(r, "You held none of this investment")
+
+    def test_a_tentative_entry_cannot_be_a_bonus(self):
+        r = self.post(tentative="on", origin="bonus")
+        self.assertContains(r, "ordinary purchase")
+        self.assertEqual(Transaction.objects.count(), 0)
+
+    def test_each_card_has_its_own_tick(self):
+        post = {**self.card(units="2", price="5"), "extra_rows": "1", **self.card("x1", tentative="on")}
         self.client.post(self.url, post)
-        self.assertEqual(sorted(Transaction.objects.values_list("price", flat=True)), [D("3"), D("25")])
+        self.assertEqual(sorted(Transaction.objects.values_list("status", flat=True)), ["final", "tentative"])
+
+    def test_editing_a_tentative_entry_shows_the_tick_and_untick_finalises_it(self):
+        self.post(tentative="on", amount="450")
+        t = Transaction.objects.get()
+        html = self.client.get(reverse("investments_txn_edit", args=[t.pk])).content.decode()
+        self.assertIn('name="tentative"', html)
+        self.assertIn("checked", re.search(r'<input[^>]*name="tentative"[^>]*>', html).group(0))
+        keep = self.client.post(reverse("investments_txn_edit", args=[t.pk]), self.card(tentative="on", units="5", amount="450", version=t.version))
+        self.assertEqual(keep.status_code, 302)
+        t.refresh_from_db()
+        self.assertEqual((t.status, t.units, t.amount), ("tentative", D("5"), D("450")))
+        refused = self.client.post(reverse("investments_txn_edit", args=[t.pk]), self.card(units="5", version=t.version))
+        self.assertContains(refused, "This field is required.")
+        done = self.client.post(reverse("investments_txn_edit", args=[t.pk]), self.card(units="5", price="90", version=t.version))
+        self.assertEqual(done.status_code, 302)
+        t.refresh_from_db()
+        self.assertEqual((t.status, t.amount, t.price), ("final", None, D("90")))
+
+    def test_a_final_entry_has_no_tick_box(self):
+        self.post(units="3", price="10")
+        t = Transaction.objects.get()
+        html = self.client.get(reverse("investments_txn_edit", args=[t.pk])).content.decode()
+        self.assertNotIn('name="tentative"', html)
+        self.assertNotIn('name="amount"', html)
+
+    def test_each_card_is_cleaned_on_its_own(self):
+        post = {**self.card(units="2", price="50"), "extra_rows": "1", **self.card("x1", units="4", price="3")}
+        self.client.post(self.url, post)
+        self.assertEqual(sorted(Transaction.objects.values_list("price", flat=True)), [D("3"), D("50")])

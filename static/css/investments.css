@@ -72,7 +72,7 @@ body.inv table.led tbody tr:hover{background:var(--panel)}
 body.inv table.led tfoot td{border-top:3px double var(--ink);border-bottom:0;font-weight:600;color:var(--ink);padding-top:12px}
 body.inv table.led tr.grp td{background:transparent;font-size:10.5px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);padding:16px 9px 6px;border-bottom:1px solid var(--ink)}
 body.inv table.led tr.sub td{color:var(--muted);font-size:13.5px}
-body.inv table.led tr.hi td{background:var(--amber-bg)}
+body.inv table.led tr.hi td{background:var(--amber-bg)}body.inv table.led tr.tn td:first-child{border-left:2px dashed var(--amber-line)}
 body.inv table.led td.act a{margin-left:10px;color:var(--muted);text-decoration:underline;text-decoration-color:var(--hair);font-size:13px}
 body.inv .total-row td{font-weight:600}
 body.inv .tag{display:inline-block;font:10.5px var(--font-sans);text-transform:none;letter-spacing:0;padding:1px 6px;border:1px solid var(--hair);border-radius:2px;color:var(--muted);white-space:nowrap;vertical-align:1px;margin-left:5px;background:transparent}
