@@ -190,8 +190,10 @@ def alert_count(request):
 def set_selection(request):
     """The portfolio / broker / as-at selectors (a plain GET form posts here so the choice is remembered)."""
     profile = profile_or_404(request)
-    request.session[f"inv_sel_{profile.pk}"] = {
-        "portfolio": request.POST.get("portfolio", ""), "broker": request.POST.get("broker", ""), "asat": request.POST.get("asat", "")}
+    key = f"inv_sel_{profile.pk}"
+    # Transactions and Dividends have no As at box (they filter by Financial Year), so keep the date chosen on the other pages.
+    asat = request.POST["asat"] if "asat" in request.POST else (request.session.get(key) or {}).get("asat", "")
+    request.session[key] = {"portfolio": request.POST.get("portfolio", ""), "broker": request.POST.get("broker", ""), "asat": asat}
     from .viewutil import safe_next
 
     target = safe_next(request, reverse("investments_dashboard"))
@@ -205,6 +207,30 @@ def set_selection(request):
         for key in ("type", "status"):
             if request.POST.get(key, "") in allowed[key]:
                 query[key] = request.POST[key]
+        target = parts.path + ("?" + urlencode(query) if query else "")
+    if "fy_filter" in request.POST:
+        # Transactions and Dividends: the Financial Year filter rides in the query string of the page we return to, from page 1.
+        import re
+        from urllib.parse import parse_qsl, urlencode, urlsplit
+
+        parts = urlsplit(target)
+        query = dict(parse_qsl(parts.query))
+        query.pop("page", None)
+        year = request.POST.get("fy", "").strip()
+        query["fy"] = year if re.fullmatch(r"\d{4}-\d{2}", year) else ""
+        query = {k: v for k, v in query.items() if v != ""}
+        target = parts.path + ("?" + urlencode(query) if query else "")
+    if "txn_filters" in request.POST:
+        # The Transactions page's Search and Action: kept in the query string of the page we return to (blank means no filter), from page 1.
+        from urllib.parse import parse_qsl, urlencode, urlsplit
+
+        parts = urlsplit(target)
+        query = dict(parse_qsl(parts.query))
+        query.pop("page", None)
+        search, side = request.POST.get("q", "").strip()[:200], request.POST.get("side", "")
+        query["q"] = search
+        query["side"] = side if side in ("buy", "sell") else ""
+        query = {k: v for k, v in query.items() if v != ""}
         target = parts.path + ("?" + urlencode(query) if query else "")
     return redirect(target)
 

@@ -212,7 +212,7 @@ def find_similar(profile, name="", code="", kind=None):
 @transaction.atomic
 def create_instrument(profile, user, *, kind, name, code="", isin="", currency="INR", asset_class="equity", sector="",
                       exchange="", price_source="manual", interest_rate=None, maturity_date=None, allow_duplicate=False, interest_type="compound",
-                      taxed_as_interest=False, lump_sum=False):
+                      capital_gains=True, lump_sum=False):
     """Add an investment. Alternative investments are private to the profile; the rest are shared (plan 16.1). A look-alike is refused
     unless ``allow_duplicate`` (the page offers "use the existing one" instead)."""
     if kind not in HOLDABLE_KINDS:
@@ -231,7 +231,7 @@ def create_instrument(profile, user, *, kind, name, code="", isin="", currency="
         price_source="manual" if private else (price_source if price_source != "manual" else fetch_defaults.default_source(kind)),
         price_basis=fetch_defaults.default_basis(fetch_defaults.default_source(kind)) if not private else "",
         interest_rate=interest_rate, interest_type=interest_type if interest_type in ("simple", "compound") else "compound", maturity_date=maturity_date,
-        taxed_as_interest=bool(taxed_as_interest), lump_sum=private and bool(lump_sum))
+        capital_gains=bool(capital_gains), lump_sum=private and bool(lump_sum))
     ProfileInvestment.objects.get_or_create(profile=profile, instrument=obj)
     core.touch(profile)
     return obj
@@ -353,14 +353,14 @@ def _drop_derived_values(profile, user, instrument, changed):
         trade_prices.drop_per_unit_values(profile, user, instrument)
 
 
-OWN_EDITABLE = ("name", "code", "isin", "currency", "asset_class", "sector", "interest_rate", "interest_type", "maturity_date", "taxed_as_interest", "lump_sum")
+OWN_EDITABLE = ("name", "code", "isin", "currency", "asset_class", "sector", "interest_rate", "interest_type", "maturity_date", "capital_gains", "lump_sum")
 
 
 @transaction.atomic
 def update_own_instrument(profile, user, instrument, **values):
     """Change the fields of an investment this profile owns (an alternative investment), by an Editor. Shared investments are refused (404):
     they are changed in the Catalogue by an Admin. Each change is written to the permanent history; the profile's cache is refreshed, and
-    every profile's when Taxed as Interest changes."""
+    every profile's when Capital Gains changes."""
     if instrument.profile_id != profile.pk or instrument.kind not in HOLDABLE_KINDS:
         raise not_found("investment")
     unknown = set(values) - set(OWN_EDITABLE)
@@ -382,8 +382,8 @@ def update_own_instrument(profile, user, instrument, **values):
     rate = values.get("interest_rate")
     if rate is not None and (rate < 0 or rate > 1000):
         raise InvestmentsError("BAD_RATE", "The interest rate must be between 0 and 1000 percent.")
-    if "taxed_as_interest" in values:
-        values["taxed_as_interest"] = bool(values["taxed_as_interest"])
+    if "capital_gains" in values:
+        values["capital_gains"] = bool(values["capital_gains"])
     if "lump_sum" in values:
         values["lump_sum"] = bool(values["lump_sum"]) and instrument.kind == KIND_ALTERNATIVE
         if values["lump_sum"] != instrument.lump_sum and Transaction.objects.filter(profile=profile, instrument=instrument).exists():
@@ -406,7 +406,7 @@ def update_own_instrument(profile, user, instrument, **values):
         instrument.save(update_fields=changed)
         _drop_derived_values(profile, user, instrument, changed)
         core.touch(profile)
-        if "taxed_as_interest" in changed:
+        if "capital_gains" in changed:
             fetch.bump_version()
     return changed
 
@@ -419,7 +419,7 @@ def update_shared_details(profile, user, instrument, **values):
     if instrument.profile_id not in (None, profile.pk):
         raise not_found("investment")
     allowed = {"name", "code", "isin", "exchange", "currency", "asset_class", "sector", "price_source", "fallback_source", "fetch_enabled",
-               "taxed_as_interest"}
+               "capital_gains"}
     unknown = set(values) - allowed
     if unknown:
         raise InvestmentsError("BAD_FIELD", f"Cannot change: {', '.join(sorted(unknown))}.")
@@ -427,7 +427,7 @@ def update_shared_details(profile, user, instrument, **values):
         setattr(instrument, key, value)
     instrument.save()
     core.touch(profile)
-    if "taxed_as_interest" in values:
+    if "capital_gains" in values:
         # The flag is shared by every profile holding the investment: their cached figures must be recomputed too.
         from investments.services import fetch
 

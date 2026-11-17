@@ -1,7 +1,7 @@
 {% extends "investments/base_investments.html" %}
 {% load investments_money %}
 {% block inv_content %}
-<div class="page-head"><h1>Import a statement</h1></div>
+<div class="page-head"><h1>Import a Statement</h1></div>
 <p class="hint">A CSV or Excel file with a header row and one transaction per row. The columns are found by their headings, in any order:</p>
 <ul class="hint"><li><b>Date of transaction</b>, <b>Transaction type</b> (Buy or Sell), <b>Transaction quantity</b> and <b>Transaction price</b> (or the amount).</li>
 <li><b>Investment code</b> (NSE code such as RELIANCE.NS, AMFI scheme code, or ISIN) and <b>Name of investment</b>: a code the program knows uses that investment; any other is added from its name, code and <b>Type</b> (Share, Mutual Fund, Foreign, Alternative) when you save.</li>

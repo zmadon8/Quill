@@ -279,14 +279,25 @@ def performance_index(values, flows):
     return out
 
 
-def price_lines(instruments, days):
-    """``[(instrument, [level or None])]`` rebased to 100 on each line's first priced sample date."""
+def price_lines(instruments, days, profile=None):
+    """``[(instrument, [level or None])]`` rebased to 100 on each line's first priced sample date. With ``profile``, an alternative
+    investment (which has no price feed) is drawn from the total values the profile entered for it, the last on or before each date."""
     lines = []
     for inst in list(instruments)[:MAX_SERIES]:
-        raw = sampled_prices(inst, days)
+        if profile is not None and inst.kind == KIND_ALTERNATIVE:
+            raw = _sampled_alt_values(profile, inst, days)
+        else:
+            raw = sampled_prices(inst, days)
         base = next((p for p in raw if p), None)
         lines.append((inst, [(p / base * 100) if (p is not None and base) else None for p in raw]))
     return lines
+
+
+def _sampled_alt_values(profile, instrument, days):
+    """``[total value or None]`` on each of ``days``: the profile's latest entered value on or before it (None before the first entry)."""
+    rows = prices.alt_values(profile, [instrument.pk]).get(instrument.pk, [])
+    keys = [d for d, _ in rows]
+    return [rows[i - 1][1] if i else None for i in (bisect_right(keys, d) for d in days)]
 
 
 def index_equivalent_values(days, flows, index_levels, floor_zero=False):

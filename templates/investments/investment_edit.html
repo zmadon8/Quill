@@ -1,9 +1,16 @@
 {% extends "investments/base_investments.html" %}
 {% block inv_content %}
 <div class="page-head"><h1>{{ page_title_text }}</h1></div>
+<nav class="tabs" aria-label="Edit"><a href="{% url 'investments_investment_edit' inst.pk %}"{% if tab == "details" %} class="on" aria-current="page"{% endif %}>Details</a><a href="{% url 'investments_investment_edit' inst.pk %}?tab=prices"{% if tab == "prices" %} class="on" aria-current="page"{% endif %}>Price History</a></nav>
+{% if tab == "prices" %}
+<div class="sec"><h2>Manual Price History</h2></div>
+{% include "investments/_alt_values.html" with back_edit=True %}
+<div class="acts-row"><a class="btn q" href="{% url 'investments_investment' inst.pk %}">Back to {{ inst.name }}</a></div>
+{% else %}
 <form method="post" class="form" novalidate>{% csrf_token %}
   <p class="hint">This investment is private to this profile. Changes are kept in the history.</p>
   {% include "investments/_form.html" %}
   <div class="acts-row"><button class="btn p" type="submit">Save</button><a class="btn q" href="{% url 'investments_investment' inst.pk %}">Cancel</a></div>
 </form>
+{% endif %}
 {% endblock %}

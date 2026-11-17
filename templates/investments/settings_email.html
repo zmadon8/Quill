@@ -1,7 +1,7 @@
 {% extends "investments/base_investments.html" %}
 {% block inv_content %}
 <h1 class="visually-hidden">Email reports</h1>
-<p class="hint">Emails a short report on this profile to the people you choose, each by name, once each ticked period ends: the week (Monday to Sunday), the month, the quarter, or the financial year (1 April to 31 March). Each email gives the growth over the period against the Default Index, the market value of the profile and of each portfolio, the purchases, sales, capital gains and interest income of the period, and attaches an Excel sheet of the holdings and every transaction. The annual email also attaches the Annual Report for the year. The nightly job (about 02:00 IST) sends whatever is due.</p>
+<p class="hint">Emails a short report on this profile to the people you choose, each by name, once each ticked period ends: the week (Monday to Sunday), the month, the quarter, or the financial year (1 April to 31 March). Each email gives the growth over the period against the Default Index, the market value of the profile and of each portfolio, the purchases, sales, capital gains and other income of the period, and attaches an Excel sheet of the holdings and every transaction. The annual email also attaches the Annual Report for the year. The nightly job (about 02:00 IST) sends whatever is due.</p>
 {% if not configured %}<p class="error" role="alert">Email is not set up on this server, so nothing can be sent yet (see Backups &gt; Email Backups).</p>{% endif %}
 {% for note in skipped %}<p class="hint amb">Not sent to: {{ note }}.</p>{% endfor %}
 <form method="post" class="form">{% csrf_token %}

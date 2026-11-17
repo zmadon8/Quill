@@ -384,3 +384,7 @@ Stored in `PriceHistorySettings` (one row, suite-wide because prices are shared;
 investment charts ("Same money in the index") buys index units with each purchase and sells them with each sale. When the sales add up to more
 than was put in, that line goes below 0. On, the line stops at 0 and a later purchase starts it again from 0. Off (the default) keeps the
 figures as they always were. Index XIRR and Alpha are not affected: they always use the real cash flows.
+
+## Capital Gains and Other income
+
+Every investment has a **Capital Gains** tick box (`Instrument.capital_gains`), on when an investment is added. Untick it and the profit or loss on a sale is reported as **Other income** (Annual Report, Total income summary, report emails, Excel exports) instead of short or long term capital gains; this is a record-keeping aid, the CA decides. It replaces the old "Taxed as Interest" box, which meant the opposite: investments 0043 turned an old "on" into Capital Gains off and an old "off" into on. A backup made before that still restores, with the old flag turned the same way. The report-email placeholders `{{interest_income}}` and `{{fy_interest_income}}` keep their names and now carry Other income.

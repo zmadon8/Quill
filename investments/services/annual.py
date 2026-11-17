@@ -55,7 +55,7 @@ class Report:
     closing_value: Decimal = ZERO
     short_gain: Decimal = ZERO
     long_gain: Decimal = ZERO
-    interest_income: Decimal = ZERO     # profit or loss on sales of investments marked Taxed as Interest (not capital gains)
+    interest_income: Decimal = ZERO     # profit or loss on sales of investments whose Capital Gains is off (Other income, not capital gains)
     xirr: float = None
     index_return: float = None
     index_name: str = ""
@@ -79,7 +79,7 @@ class Report:
 
     @property
     def total_gain(self):
-        """Capital gains only; interest income is reported separately."""
+        """Capital gains only; Other income is reported separately."""
         return self.short_gain + self.long_gain
 
     def period_return(self):
@@ -109,7 +109,7 @@ def build(profile, label, *, portfolio=None, broker=None, include_dividends=None
 def build_span(profile, start, end, closing, completed, *, label, cutoff, portfolio=None, broker=None, include_dividends=None, with_portfolios=True,
                events=None, settings_row=None):
     """The same figures for any span of days, ``start`` to ``closing`` (both included). The periodic report emails use it for a week, a month or a
-    quarter, so their purchases, sales, gains and interest income are worked out exactly as the Annual Report works them out."""
+    quarter, so their purchases, sales, gains and Other income are worked out exactly as the Annual Report works them out."""
     settings_row = settings_row or core.get_settings(profile, create=False)
     report = Report(label, start, end, closing, completed, cutoff)
     if include_dividends is None:
@@ -165,7 +165,7 @@ def build_span(profile, start, end, closing, completed, *, label, cutoff, portfo
     # capital gains: replay every investment's whole history once, keep the sales in this year that pass the filters
     names = dict(Instrument.objects.filter(pk__in=Transaction.objects.filter(profile=profile).values("instrument_id")).values_list("pk", "name"))
     lump_ids = set(Instrument.objects.filter(pk__in=names, lump_sum=True).values_list("pk", flat=True))
-    interest_ids = set(Instrument.objects.filter(pk__in=names, taxed_as_interest=True).values_list("pk", flat=True))
+    interest_ids = set(Instrument.objects.filter(pk__in=names, capital_gains=False).values_list("pk", flat=True))
     pfs = list(Portfolio.objects.filter(profile=profile)) if with_portfolios and portfolio is None else []
     # The events are released investment by investment unless the per-portfolio breakdown below still needs them (memory, plan 26).
     release = events is None and len(pfs) <= 1
