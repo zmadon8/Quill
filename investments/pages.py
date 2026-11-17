@@ -48,8 +48,7 @@ PAGES = (
     _p("txn_opening", "transactions/opening/", "Opening Balance", "holdings", "Transactions", "For holdings bought before you started using the program."),
     _p("txn_transfer", "transactions/transfer/", "Transfer", "holdings", "Transactions", "Move holdings between brokers, folios or portfolios, keeping dates and cost."),
     _p("txn_switch", "transactions/switch/", "Fund switch", "holdings", "Transactions", "A sale of one fund and a purchase of another, linked."),
-    _p("txn_new_awaiting", "transactions/awaiting/", "Add a purchase awaiting allotment", "holdings", "Transactions", "Paid, but the units and NAV are not known yet."),
-    _p("txn_to_confirm", "transactions/to-complete/", "To complete", "holdings", "Transactions", "Nothing to complete. Purchases awaiting allotment and pending SIP entries appear here."),
+    _p("txn_to_confirm", "transactions/to-complete/", "To complete", "holdings", "Transactions", "Nothing to complete. Tentative entries and pending SIP entries appear here."),
     _p("import_statement", "transactions/import/", "Import a Statement", "holdings", "Transactions", "Load trades from a broker or fund house file, then review them before saving."),
     # Holdings: other
     _p("dividends", "dividends/", "Dividends", "holdings", "Dividends", "No dividends recorded yet."),

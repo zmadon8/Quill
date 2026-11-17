@@ -1,9 +1,9 @@
 """Django forms for the Investments pages. They only check the shape of the input; every rule lives in the services."""
 from datetime import date
-from decimal import ROUND_HALF_UP, Decimal
 
 from django import forms
 
+from config.comma_numbers import CommaDecimalField, CommaIntegerField
 from investments.models import (
     ASSET_CLASSES, CA_BONUS, CA_DEMERGER, CA_SPLIT, HOLDABLE_KINDS, KIND_ALTERNATIVE, KIND_FOREIGN, KIND_FUND, KIND_SHARE, ORIGIN_PURCHASE, ORIGINS,
     CORPORATE_AUTO_KINDS, ZERO_PRICE_ORIGINS, Broker, CorporateAction, Folio, Instrument, Portfolio,
@@ -15,18 +15,13 @@ CHOICES_FOR_UNITS = [("auto", "Automatic: the program adds the units"), ("link",
                      ("create", "Create the transactions for me now (editable)")]
 
 
-class MoneyField(forms.DecimalField):
+class MoneyField(CommaDecimalField):
     """A decimal that accepts Indian digit grouping (1,23,456.50)."""
 
     def __init__(self, **kwargs):
         kwargs.setdefault("max_digits", 20)
         kwargs.setdefault("decimal_places", 4)
         super().__init__(**kwargs)
-
-    def to_python(self, value):
-        if isinstance(value, str):
-            value = value.replace(",", "").replace("\u20b9", "").strip()
-        return super().to_python(value)
 
 
 def date_widget():
@@ -171,7 +166,8 @@ class ProfileForm(forms.Form):
 
 
 class TransactionForm(ProfileForm):
-    """Add or edit one purchase or sale. ``mode``: buy, sell, awaiting_buy, awaiting_sell, edit."""
+    """Add or edit one purchase or sale. ``mode``: buy, sell, edit, edit_sell. "Mark as Tentative" (``tentative``) is on the Buy and Sell forms and
+    on the edit form of a tentative entry (``tentative_edit=True``): when ticked only the date, investment, portfolio and broker are required."""
 
     date = forms.DateField(widget=date_widget(), label="Date")
     instrument = forms.ModelChoiceField(queryset=Instrument.objects.none(), label="Investment")
@@ -184,8 +180,6 @@ class TransactionForm(ProfileForm):
                                help_text="Bonus shares, split units and shares received on a demerger need no price: they are added at a cost of 0. A demerger's cost comes from the parent's shares, not from this entry.")
     corporate_action = forms.ModelChoiceField(queryset=CorporateAction.objects.none(), required=False, label="Corporate action (bonus, split or demerger)")
     price = MoneyField(label="Price per unit", required=False, min_value=0)
-    total = MoneyField(label="Total amount (optional)", required=False, min_value=0, decimal_places=2,
-                       help_text="Alternative investments bought per unit: give the price per unit or the total paid or received, or both. If both are given, the total wins and the price is worked out as total / units.")
     lump_amount = MoneyField(label="Amount", required=False, min_value=0, help_text="Lump Sum investment: the money paid or received")
     value_after = MoneyField(label="Value after this purchase (optional)", required=False, min_value=0,
                              help_text="The whole investment worth after this purchase. Leave blank to add the amount to the last value you gave.")
@@ -195,12 +189,12 @@ class TransactionForm(ProfileForm):
     allotment_date = forms.DateField(
         widget=date_widget(), label="Allotment date", required=False,
         help_text="When the units were credited to you, if later than Date. It starts the holding period and the order units are sold in. Leave blank if the same as Date.")
-    amount = MoneyField(label="Amount paid", required=False, min_value=0)
-    expected_allotment_date = forms.DateField(widget=date_widget(), label="Expected allotment date", required=False)
-    reference = forms.CharField(label="Reference", required=False, max_length=80)
+    tentative = forms.BooleanField(label="Mark as Tentative", required=False,
+                                   help_text="Only the date, investment, portfolio and broker are needed.")
+    amount = MoneyField(label="Amount paid", required=False, min_value=0, help_text="(only for a tentative entry)")
     note = forms.CharField(label="Note", required=False, max_length=200)
 
-    def __init__(self, *args, profile=None, mode="buy", **kwargs):
+    def __init__(self, *args, profile=None, mode="buy", tentative_edit=False, **kwargs):
         super().__init__(*args, profile=profile, **kwargs)
         self.mode = mode
         self.fields["instrument"].queryset = self.instruments()
@@ -208,7 +202,6 @@ class TransactionForm(ProfileForm):
         self.fields["broker"].queryset = self.brokers()
         self.fields["folio"].queryset = Folio.objects.filter(profile=profile).select_related("instrument", "portfolio")
         self.fields["date"].initial = date.today()
-        awaiting = mode.startswith("awaiting")
         if mode == "sell":
             self.fields["date"].label = "Date sold"
         # Lump Sum investments are asked for an amount (and, on a sale, what remains) instead of units and price. The page shows these two
@@ -219,27 +212,23 @@ class TransactionForm(ProfileForm):
             del self.fields["remaining"]
         if mode != "buy":
             del self.fields["value_after"]
-        if awaiting:
-            for name in ("units", "price", "total", "allotment_date", "origin", "corporate_action"):
-                del self.fields[name]
-            self.fields["amount"].required = True
-            self.fields["amount"].label = "Amount paid" if mode == "awaiting_buy" else "Expected proceeds"
-            self.fields["date"].label = "Date paid" if mode == "awaiting_buy" else "Date of the redemption"
-        else:
+        if mode.startswith("edit") and not tentative_edit:
+            del self.fields["tentative"]      # only a tentative entry can be edited as one; a final entry never turns tentative
             del self.fields["amount"]
-            del self.fields["expected_allotment_date"]
-            self.fields["price"].required = False   # _resolve_total() asks for it unless a total is given
-            del self.fields["reference"]
-            self.fields["units"].required = mode not in ("buy", "sell")   # buy and sell check it in clean(): a Lump Sum asks for an amount instead
-            if mode in ("sell", "edit_sell"):
-                del self.fields["allotment_date"]
-                del self.fields["origin"]
-                del self.fields["corporate_action"]
-            else:
-                # A purchase needs its price; bonus and split units and shares received on a demerger do not (checked in clean()).
-                self.fields["corporate_action"].queryset = self.actions()
-                self.fields["corporate_action"].label_from_instance = lambda a: f"{a.instrument.name}: {a.describe()} ({a.ex_date:%d %b %Y})"
-        if mode in ("sell", "awaiting_sell", "edit_sell"):
+        else:
+            self.fields["amount"].label = "Expected proceeds" if mode in ("sell", "edit_sell") else "Amount paid"
+        if tentative_edit:
+            self.initial.setdefault("tentative", True)
+        # Units and Price are never required by the field itself: clean() asks for them unless the entry is tentative.
+        if mode in ("sell", "edit_sell"):
+            del self.fields["allotment_date"]
+            del self.fields["origin"]
+            del self.fields["corporate_action"]
+        else:
+            # A purchase needs its price; bonus and split units and shares received on a demerger do not (checked in clean()).
+            self.fields["corporate_action"].queryset = self.actions()
+            self.fields["corporate_action"].label_from_instance = lambda a: f"{a.instrument.name}: {a.describe()} ({a.ex_date:%d %b %Y})"
+        if mode in ("sell", "edit_sell"):
             del self.fields["new_folio"]
             # A sale can only be of what is held (an edit also keeps the entry's own investment); there is no "Held only" box to untick.
             from investments.services import holdings
@@ -253,7 +242,7 @@ class TransactionForm(ProfileForm):
 
             history = set(Transaction.objects.filter(profile=self.profile, status=STATUS_FINAL, side="buy").values_list("instrument_id", flat=True).distinct())
             own = set()
-            if mode == "edit_sell" or (mode == "awaiting_sell" and self.initial.get("instrument")):
+            if mode == "edit_sell":
                 own.add(getattr(self.initial.get("instrument"), "pk", self.initial.get("instrument")))
             sold_out = (history | own) - held
             qs = self.fields["instrument"].queryset.filter(pk__in=held | sold_out)
@@ -271,42 +260,18 @@ class TransactionForm(ProfileForm):
             self.more_fields = tuple(n for n in ("folio", "new_folio", "origin", "allotment_date", "charges", "corporate_action", "note") if n in self.fields)
             self.more_label = "Allotment date, charges, folio and more"
             self.more_first = tuple(n for n in ("folio", "new_folio", "origin") if n in self.fields)
-        elif awaiting:
-            self.more_fields = tuple(n for n in ("charges", "note") if n in self.fields)
-            self.more_label = "Charges and note"
         if mode.startswith("edit"):
             self.fields["instrument"].disabled = False
-        if mode in ("buy", "awaiting_buy"):
+        if mode == "buy":
             self.add_pick_fields()
         # "Held only" starts ticked on every form; an edit of an entry for something no longer held starts unticked so the chosen investment shows.
         held = self.mark_held("instrument", default=True)
-        if mode in ("sell", "awaiting_sell", "edit_sell"):
+        if mode in ("sell", "edit_sell"):
             self.held_fields = ()
         if mode.startswith("edit") or "instrument" in self.initial:
             chosen = getattr(self.initial.get("instrument"), "pk", self.initial.get("instrument"))
             if self.held_default and chosen and chosen not in held:
                 self.held_default = False
-
-    def _resolve_total(self, cleaned, inst):
-        """An alternative investment that is not a Lump Sum may be entered as units with a price per unit, a total, or both. The total wins:
-        the price is total / units to 4 decimal places. Shares and funds keep Units and Price; a Lump Sum keeps its amount."""
-        total = cleaned.get("total")
-        if "total" not in self.fields or (inst and inst.lump_sum):
-            return
-        if total is None:
-            if self.mode == "edit_sell" and cleaned.get("price") is None and "price" not in self.errors:
-                self.add_error("price", "This field is required.")
-            return
-        if inst is None or inst.kind != KIND_ALTERNATIVE:
-            self.add_error("total", "A total amount can only be given for an alternative investment. Enter the price per unit.")
-            return
-        units = cleaned.get("units")
-        if units is None or "units" in self.errors:
-            return
-        if units <= 0:
-            self.add_error("total", "Units must be above zero to work out the price per unit from a total.")
-            return
-        cleaned["price"] = (total / units).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
 
     def clean_amounts(self, cleaned, inst):
         """Units and price are required on a plain buy or sale unless the investment is a Lump Sum, which needs its amount (and, when sold, what
@@ -334,14 +299,24 @@ class TransactionForm(ProfileForm):
         cleaned = super().clean()
         self.clean_pick(cleaned)
         inst, day = cleaned.get("instrument"), cleaned.get("date")
-        if self.mode in ("sell", "awaiting_sell") and inst and day:
+        tentative = bool(cleaned.get("tentative")) if "tentative" in self.fields else False
+        if "amount" in self.fields and not tentative:
+            cleaned["amount"] = None
+        # A tentative sale is not checked against what is held (it reserves nothing until it is finalised).
+        if self.mode == "sell" and inst and day and not tentative:
             from investments.services import transactions as tx
 
             if not tx.available_by_bucket(self.profile, inst, day):
                 self.add_error("instrument", f"You held none of this investment on {day.day} {day:%b %Y}.")
-        self._resolve_total(cleaned, inst)
-        if self.mode in ("buy", "sell"):
-            self.clean_amounts(cleaned, inst)
+        if not tentative:
+            if self.mode in ("buy", "sell"):
+                self.clean_amounts(cleaned, inst)
+            else:
+                # An edit asks for its units (and a sale's price), as the fields themselves did before "Mark as Tentative".
+                if cleaned.get("units") is None and "units" not in self.errors:
+                    self.add_error("units", "This field is required.")
+                if self.mode == "edit_sell" and not (inst and inst.lump_sum) and cleaned.get("price") is None and "price" not in self.errors:
+                    self.add_error("price", "This field is required.")
         folio = cleaned.get("folio")
         if folio and self.new_pick:
             self.add_error("folio", "Choose a folio after the investment has been added.")
@@ -349,7 +324,10 @@ class TransactionForm(ProfileForm):
             self.add_error("folio", "That folio belongs to a different investment or portfolio.")
         if "origin" in self.fields and not (inst and inst.lump_sum):
             origin = cleaned["origin"] = cleaned.get("origin") or ORIGIN_PURCHASE
-            if origin == ORIGIN_PURCHASE:
+            if tentative:
+                if origin != ORIGIN_PURCHASE:
+                    self.add_error("origin", "A tentative entry is an ordinary purchase. Untick Mark as Tentative to record bonus or split units.")
+            elif origin == ORIGIN_PURCHASE:
                 if cleaned.get("price") is None and "price" not in self.errors:
                     self.add_error("price", "This field is required.")
             elif origin in ZERO_PRICE_ORIGINS:
@@ -448,7 +426,7 @@ class InstrumentForm(forms.Form):
     currency = forms.CharField(max_length=3, initial="INR", required=False)
     asset_class = forms.ChoiceField(choices=ASSET_CLASSES, initial="equity", label="Asset class")
     sector = forms.CharField(max_length=80, required=False)
-    interest_rate = forms.DecimalField(max_digits=7, decimal_places=3, min_value=0, max_value=1000, required=False, label="Interest rate % (optional)")
+    interest_rate = CommaDecimalField(max_digits=7, decimal_places=3, min_value=0, max_value=1000, required=False, label="Interest rate % (optional)")
     interest_type = forms.ChoiceField(choices=[("compound", "Compound interest (yearly)"), ("simple", "Simple interest")], initial="compound", required=False,
                                       label="Interest type")
     maturity_date = forms.DateField(widget=date_widget(), required=False, label="Maturity date (optional)")
@@ -548,7 +526,7 @@ class DetailsForm(forms.Form):
     notes = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}), required=False)
     links = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}), required=False, label="Website links (one per line: label | address)")
 
-    interest_rate = forms.DecimalField(max_digits=7, decimal_places=3, min_value=0, max_value=1000, required=False, label="Interest rate % (optional)")
+    interest_rate = CommaDecimalField(max_digits=7, decimal_places=3, min_value=0, max_value=1000, required=False, label="Interest rate % (optional)")
     interest_type = forms.ChoiceField(choices=[("compound", "Compound interest (yearly)"), ("simple", "Simple interest")], initial="compound", required=False,
                                       label="Interest type")
     maturity_date = forms.DateField(widget=date_widget(), required=False, label="Maturity date (optional)")
@@ -568,10 +546,10 @@ class DetailsForm(forms.Form):
 
 class GeneralSettingsForm(forms.Form):
     sip_mode = forms.ChoiceField(choices=[("pending", "Pending until confirmed (default)"), ("final", "Created as final")], label="SIP entries")
-    awaiting_treatment = forms.ChoiceField(choices=[("cost", "Count at cost (default)"), ("leave_out", "Leave out until allotted")], label="Awaiting allotment")
-    awaiting_reminder_days = forms.IntegerField(min_value=1, max_value=60, label="Reminder after (days)")
+    awaiting_treatment = forms.ChoiceField(choices=[("cost", "Count at cost (default)"), ("leave_out", "Leave out until finalised")], label="Tentative purchases")
+    awaiting_reminder_days = CommaIntegerField(min_value=1, max_value=60, label="Reminder after (days)")
     corporate_action_mode = forms.ChoiceField(choices=[("tag", "Tag and banner (default)"), ("block", "Block until confirmed")], label="Pending corporate actions")
-    long_term_days = forms.IntegerField(min_value=1, max_value=3650, label="Long-term after (days held)")
+    long_term_days = CommaIntegerField(min_value=1, max_value=3650, label="Long-term after (days held)")
     default_index = forms.ModelChoiceField(queryset=Instrument.objects.filter(kind="index"), required=False, label="Default Index", empty_label="Nifty 50 (default)")
     sectoral_enabled = forms.BooleanField(required=False, label="Use a sectoral index as well",
                                           help_text="Compare each investment with its own sector index too. Choose them, and add indices, in Settings > Indices.")
@@ -655,7 +633,7 @@ class CatalogueNewForm(forms.Form):
 class PruningForm(forms.Form):
     prune_live = forms.BooleanField(required=False, label="Prune the live database")
     prune_archive = forms.BooleanField(required=False, label="Prune the price archive")
-    years = forms.IntegerField(min_value=2, max_value=50, label="Years kept in full daily detail")
+    years = CommaIntegerField(min_value=2, max_value=50, label="Years kept in full daily detail")
     archive_confirmed = forms.BooleanField(required=False, label="I have downloaded a full price archive and I am keeping it (optional note)")
 
 
@@ -683,12 +661,12 @@ class CorporateActionForm(ProfileForm):
     ex_date = forms.DateField(widget=date_widget(), label="Ex-date (or allotment date for a bonus)")
     kind = forms.ChoiceField(choices=[("split", "Split"), ("bonus", "Bonus"), ("demerger", "Demerger (shares in a new company)"),
                                       ("other", "Other (merger, ...)")])
-    ratio_old = forms.DecimalField(required=False, min_value=0, decimal_places=4, max_digits=12, label="For every (old shares)")
-    ratio_new = forms.DecimalField(required=False, min_value=0, decimal_places=4, max_digits=12,
+    ratio_old = CommaDecimalField(required=False, min_value=0, decimal_places=4, max_digits=12, label="For every (old shares)")
+    ratio_new = CommaDecimalField(required=False, min_value=0, decimal_places=4, max_digits=12,
                                    label="New shares (split: becomes; bonus: free; demerger: new company shares received)")
     target_instrument = forms.ModelChoiceField(queryset=Instrument.objects.none(), required=False, label="Demerger: the new company",
                                                help_text="Add the new company under Investments first if it is not listed.")
-    cost_percent_to_target = forms.DecimalField(required=False, min_value=0, max_value=100, decimal_places=4, max_digits=7,
+    cost_percent_to_target = CommaDecimalField(required=False, min_value=0, max_value=100, decimal_places=4, max_digits=7,
                                                 label="Demerger: percent of the cost that moves to the new company",
                                                 help_text="From the company's notice. Your CA should confirm it. The parent's shares keep the rest. 0 leaves all the cost with the parent's shares; "
                                                           "100 moves all of it. You can change it later.")
@@ -753,27 +731,27 @@ class GuardrailForm(ProfileForm):
 class AlertSettingsForm(forms.Form):
     """One switch per kind of alert, each next to its threshold. Insights (Settings > Insights) are separate and are not alerts."""
     rule_a_fall_enabled = forms.BooleanField(required=False, label="Alert me when an investment falls in a day")
-    rule_a_fall_pct = forms.DecimalField(min_value=0, max_digits=6, decimal_places=2, label="Fall in a day %")
+    rule_a_fall_pct = CommaDecimalField(min_value=0, max_digits=6, decimal_places=2, label="Fall in a day %")
     rule_a_rise_enabled = forms.BooleanField(required=False, label="Alert me when an investment rises in a day")
-    rule_a_rise_pct = forms.DecimalField(min_value=0, max_digits=6, decimal_places=2, label="Rise in a day %")
+    rule_a_rise_pct = CommaDecimalField(min_value=0, max_digits=6, decimal_places=2, label="Rise in a day %")
     rule_a_window_enabled = forms.BooleanField(required=False, label="Alert me when an investment falls over several days")
-    rule_a_window_days = forms.IntegerField(min_value=2, max_value=365, label="Over this many days")
-    rule_a_window_fall_pct = forms.DecimalField(required=False, min_value=0, max_digits=6, decimal_places=2, label="Fall over those days % (blank: off)")
+    rule_a_window_days = CommaIntegerField(min_value=2, max_value=365, label="Over this many days")
+    rule_a_window_fall_pct = CommaDecimalField(required=False, min_value=0, max_digits=6, decimal_places=2, label="Fall over those days % (blank: off)")
     rule_b_loss_enabled = forms.BooleanField(required=False, label="Alert me when a holding is below what I paid")
-    rule_b_loss_pct = forms.DecimalField(min_value=0, max_digits=6, decimal_places=2, label="Below cost %")
+    rule_b_loss_pct = CommaDecimalField(min_value=0, max_digits=6, decimal_places=2, label="Below cost %")
     rule_b_gain_enabled = forms.BooleanField(required=False, label="Alert me when a holding is above what I paid")
-    rule_b_gain_pct = forms.DecimalField(min_value=0, max_digits=6, decimal_places=2, label="Above cost %")
+    rule_b_gain_pct = CommaDecimalField(min_value=0, max_digits=6, decimal_places=2, label="Above cost %")
     guardrails_enabled = forms.BooleanField(required=False, label="Alert me when a guardrail I set is reached")
     guardrail_replaces_global = forms.BooleanField(required=False, label="A guardrail on a holding replaces the daily and cost alerts for it")
     maturity_enabled = forms.BooleanField(required=False, label="Alert me before an alternative investment matures")
-    maturity_alert_days = forms.IntegerField(min_value=0, max_value=365, label="Warn before a maturity date (days)")
+    maturity_alert_days = CommaIntegerField(min_value=0, max_value=365, label="Warn before a maturity date (days)")
     source_problems_enabled = forms.BooleanField(required=False, label="Warn me on the Alerts page when a price or list source cannot be read")
     alert_email = forms.BooleanField(required=False, label="Email me alerts that triggered overnight")
 
 
 class SipForm(ProfileForm):
     amount = MoneyField(min_value=0, label="Amount each month (Rs)")
-    day_of_month = forms.IntegerField(min_value=1, max_value=31, label="Day of the month")
+    day_of_month = CommaIntegerField(min_value=1, max_value=31, label="Day of the month")
     portfolio = forms.ModelChoiceField(queryset=Portfolio.objects.none())
     broker = forms.ModelChoiceField(queryset=Broker.objects.none(), empty_label="Choose a broker")
     folio = forms.ModelChoiceField(queryset=Folio.objects.none(), required=False, label="Folio (optional)")

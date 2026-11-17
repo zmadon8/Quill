@@ -23,6 +23,7 @@ from django.db import transaction
 from django.db.models import Count, Min, Q
 from django.utils import timezone
 
+from config.comma_numbers import plain_number
 from investments import lots
 from investments.errors import InvestmentsError, not_found
 from investments.models import (
@@ -349,7 +350,7 @@ def _overrides(profile, action):
 def _override_units(text, instrument):
     """The units an override string stands for, or None when it is not a valid whole or four-decimal, non-negative number."""
     try:
-        value = Decimal(str(text).strip())
+        value = Decimal(plain_number(str(text)))
         if not value.is_finite() or value < 0 or value != value.quantize(_places(instrument), rounding=ROUND_DOWN):
             return None
         return value.quantize(_places(instrument))

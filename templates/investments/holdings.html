@@ -8,7 +8,7 @@
   <thead><tr><th>Name</th><th>Type</th><th>Code</th><th class="r">Units</th><th class="r">Value</th><th class="r">Gain</th><th class="r">First bought</th><th class="r" title="{{ 'xirr'|measure_tip }}">XIRR</th><th class="r" data-col="index-xirr" title="{{ 'index_xirr'|measure_tip }}">Index XIRR</th><th class="r" data-col="alpha" title="{{ 'alpha'|measure_tip }}">Alpha</th><th class="r">Price date</th><th>Status</th><th class="r" data-col="spark">90 days</th></tr></thead>
   <tbody>{% for h in rows %}
     <tr{% if not h.is_held %} class="sub"{% endif %}>
-      <td class="nm" data-sort="{{ h.instrument.name|lower }}"><a href="{% url 'investments_investment' h.instrument.pk %}">{{ h.instrument.name }}</a>{% if h.awaiting %}<span class="tag amb">Awaiting {{ h.awaiting|inr }}</span>{% endif %}{% if h.unpriced %}<span class="tag dash">No price</span>{% elif h.stale %}<span class="tag amb">Stale</span>{% endif %}</td>
+      <td class="nm" data-sort="{{ h.instrument.name|lower }}"><a href="{% url 'investments_investment' h.instrument.pk %}">{{ h.instrument.name }}</a>{% if h.awaiting %}<span class="tag amb">Tentative {{ h.awaiting|inr }}</span>{% endif %}{% if h.unpriced %}<span class="tag dash">No price</span>{% elif h.stale %}<span class="tag amb">Stale</span>{% endif %}</td>
       <td>{{ h.instrument.get_kind_display }}</td>
       <td data-sort="{{ h.instrument.code }}">{% if h.instrument.code %}<span class="na">{{ h.instrument.code }}</span>{% else %}<span class="na">no code</span>{% endif %}</td>
       <td class="r" data-sort="{{ h.units }}">{% if h.instrument.lump_sum %}<span class="na">&ndash;</span>{% else %}{{ h.units|units }}{% endif %}</td>

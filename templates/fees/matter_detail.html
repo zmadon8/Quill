@@ -11,6 +11,5 @@
 <h2>Memos</h2>
 <nav class="list-filter" aria-label="Show memos">{% if outstanding_only %}<a href="{% url 'fees_matter_detail' matter.pk %}">All Memos</a> | <strong aria-current="true">Outstanding Only</strong>{% else %}<strong aria-current="true">All Memos</strong> | <a href="?outstanding=1">Outstanding Only</a>{% endif %}</nav>
 {% include "fees/_memo_table.html" with table_key="matter-memos" matter_view=True %}
-{% if can_edit %}<section class="danger-zone" aria-labelledby="archive-heading"><h2 id="archive-heading">{% if matter.is_archived %}Make this matter active{% else %}Archive this matter{% endif %}</h2>
-<form method="post" action="{% url 'fees_matter_archive' matter.pk %}">{% csrf_token %}{% if matter.is_archived %}<input type="hidden" name="archive" value="0"><button type="submit">Make This Matter Active</button>{% else %}<input type="hidden" name="archive" value="1"><button type="submit">Archive This Matter</button>{% endif %}</form></section>{% endif %}
+{% if can_edit %}<form method="post" class="archive-action" action="{% url 'fees_matter_archive' matter.pk %}">{% csrf_token %}{% if matter.is_archived %}<input type="hidden" name="archive" value="0"><button type="submit">Make This Matter Active</button>{% else %}<input type="hidden" name="archive" value="1"><button type="submit">Archive This Matter</button>{% endif %}</form>{% endif %}
 {% endblock %}

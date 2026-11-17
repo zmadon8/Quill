@@ -51,6 +51,7 @@ from decimal import Decimal, InvalidOperation
 from django.db import transaction
 from django.db.models.functions import Lower
 
+from config.comma_numbers import plain_number
 from fees.errors import FeesError
 from fees.exports.filenames import validate_pattern
 from fees.models import BankAccount, FeesSettings, Payment
@@ -175,6 +176,11 @@ def _is_valid_financial_year(value):
     return (start + 1) % 100 == end
 
 
+#: Settings typed in a number box, where commas (1,000) are accepted.
+_NUMBER_KEYS = ("default_tds_rate", "overdue_days", "items_per_page", "default_fees_per_appearance", "default_fees_per_conference",
+                "default_fees_misc_drafting")
+
+
 def _as_decimal(value, message):
     """Coerces ``value`` to ``Decimal`` or raises the 422 validation error."""
     try:
@@ -190,6 +196,8 @@ def _validate_candidate(key, value):
     already been reset to the field default by ``_merge`` before validation).
     Raises ``FeesError("INVALID_SETTINGS", ...)`` (422) on a bad value.
     """
+    if key in _NUMBER_KEYS:
+        value = plain_number(value)
     if key == "default_tds_rate":
         rate = _as_decimal(value, "TDS rate must be between 0 and 100")
         if rate < 0 or rate > 100:

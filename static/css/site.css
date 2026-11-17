@@ -671,7 +671,7 @@ textarea.single-line { display: block; width: 100%; max-width: 28rem; min-height
 .email-kinds-table th[scope=row] { text-transform: none; letter-spacing: normal; font-size: inherit; font-weight: 400; color: inherit; }
 .email-kinds-table td, .email-kinds-table th { padding: .4rem .5rem; vertical-align: middle; }
 .stack .email-kinds-table label.check { display: inline-flex; align-items: center; gap: .5rem; margin: 0; font-size: inherit; letter-spacing: normal; text-transform: none; color: inherit; }
-.email-kinds-table input[type=number] { width: 5rem; }
+.email-kinds-table input[inputmode] { width: 5rem; }
 @media (max-width: 699px) {
   .email-kinds-table thead { display: none; }
   .email-kinds-table tr { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: .25rem .5rem; padding: .5rem 0; border-bottom: 1px solid var(--hair); }

@@ -40,10 +40,10 @@ ZERO_PRICE_ORIGINS = (ORIGIN_BONUS, ORIGIN_SPLIT, ORIGIN_DEMERGER)
 NO_PRICE_ORIGINS = (ORIGIN_BONUS, ORIGIN_SPLIT, ORIGIN_DEMERGER, ORIGIN_OTHER)
 #: Origins that belong to a corporate action (the row may name it).
 ACTION_ORIGINS = (ORIGIN_BONUS, ORIGIN_SPLIT, ORIGIN_DEMERGER)
-STATUS_FINAL, STATUS_AWAITING, STATUS_PENDING_SIP = "final", "awaiting", "pending_sip"
-STATUSES = [(STATUS_FINAL, "Final"), (STATUS_AWAITING, "Awaiting allotment"), (STATUS_PENDING_SIP, "SIP, to confirm")]
+STATUS_FINAL, STATUS_TENTATIVE, STATUS_PENDING_SIP = "final", "tentative", "pending_sip"
+STATUSES = [(STATUS_FINAL, "Final"), (STATUS_TENTATIVE, "Tentative"), (STATUS_PENDING_SIP, "SIP, to confirm")]
 
-AWAITING_AT_COST, AWAITING_LEAVE_OUT = "cost", "leave_out"
+TENTATIVE_AT_COST, TENTATIVE_LEAVE_OUT = "cost", "leave_out"
 CA_TAG, CA_BLOCK = "tag", "block"
 #: The kinds of corporate action a profile can have logged automatically (``InvestmentSettings.corporate_auto``), with their labels.
 CORPORATE_AUTO_KINDS = [("dividend", "Dividends"), ("split", "Stock splits"), ("bonus", "Bonus shares"), ("demerger", "Demergers"),
@@ -143,7 +143,7 @@ class InvestmentSettings(models.Model):
     default_broker_alternative = models.ForeignKey(Broker, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
     default_broker_foreign = models.ForeignKey(Broker, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
     sip_mode = models.CharField(max_length=10, default=SIP_PENDING, choices=[(SIP_PENDING, "Pending until confirmed"), (SIP_FINAL, "Created as final")])
-    awaiting_treatment = models.CharField(max_length=10, default=AWAITING_AT_COST, choices=[(AWAITING_AT_COST, "Count at cost"), (AWAITING_LEAVE_OUT, "Leave out until allotted")])
+    awaiting_treatment = models.CharField(max_length=10, default=TENTATIVE_AT_COST, choices=[(TENTATIVE_AT_COST, "Count at cost"), (TENTATIVE_LEAVE_OUT, "Leave out until finalised")])
     awaiting_reminder_days = models.PositiveSmallIntegerField(default=7)
     corporate_action_mode = models.CharField(max_length=10, default=CA_TAG, choices=[(CA_TAG, "Tag and banner"), (CA_BLOCK, "Block")])
     long_term_days = models.PositiveSmallIntegerField(default=365, help_text="Holding days after which a gain is long-term (default cutoff)")
@@ -277,7 +277,7 @@ class Transaction(models.Model):
     units = models.DecimalField(null=True, blank=True, **UNITS)
     price = models.DecimalField(null=True, blank=True, **MONEY)
     charges = models.DecimalField(default=0, **MONEY)
-    amount = models.DecimalField(null=True, blank=True, help_text="Awaiting entries: the amount paid (purchase) or expected proceeds (sale)", **MONEY)
+    amount = models.DecimalField(null=True, blank=True, help_text="Tentative entries: the amount paid (purchase) or expected proceeds (sale)", **MONEY)
     allotment_date = models.DateField(null=True, blank=True)
     expected_allotment_date = models.DateField(null=True, blank=True)
     reference = models.CharField(max_length=80, blank=True, default="")

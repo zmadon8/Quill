@@ -8,6 +8,7 @@ import datetime
 import re
 from decimal import Decimal, InvalidOperation
 
+from config.comma_numbers import plain_number
 from fees.errors import FeesError
 from fees.models import Matter, Memo, Payment
 from fees.services import matters as matter_service
@@ -130,7 +131,7 @@ def parse_date(text, label="Date"):
 
 def parse_decimal(text, label="Amount", required=False):
     """A ``Decimal`` from ``text`` (commas allowed), or ``None`` when blank and not required."""
-    value = (text or "").strip().replace(",", "")
+    value = plain_number(text or "")
     if not value:
         if required:
             raise FeesError("INVALID_NUMBER", f"{label} is required.")
@@ -146,7 +147,7 @@ def parse_decimal(text, label="Amount", required=False):
 
 def parse_int(text, label="Number", default=0):
     """A whole number from ``text``; ``default`` when blank."""
-    value = (text or "").strip().replace(",", "")
+    value = plain_number(text or "")
     if not value:
         return default
     try:

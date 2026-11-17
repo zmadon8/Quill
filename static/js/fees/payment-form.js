@@ -21,7 +21,7 @@
   function allRows() { return Array.prototype.slice.call(form.querySelectorAll("[data-alloc-rows] [data-alloc-row]")); }
   var rows = allRows();
 
-  function num(el) { return !el ? 0 : (M ? M.parse(el.value) : (parseFloat(el.value) || 0)); }
+  function num(el) { return !el ? 0 : (M ? M.parse(el.value) : (parseFloat(el.value.replace(/,/g, "")) || 0)); }
   function cents(x) { return Math.round(x * 100) / 100; }
   function money(x) { return M ? M.formatMoney(x, unit) : String(x); }
   // Whole numbers show without decimals; a fraction keeps two places.

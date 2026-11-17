@@ -470,29 +470,44 @@ def _memo_flags(workbook, found):
     return flags, default
 
 
-def _restore_clients(profile, workbook, matter_ids):
+def _restore_clients(profile, workbook, matter_ids, matter_scope, firm_ids):
     """The web-only ``WebClients`` and ``WebMatterClients`` sheets: the clients, then each matter's client. Absent (an older file or a
-    desktop file): no clients. Returns the number of clients restored."""
+    desktop file): no clients. Returns the number of clients restored.
+
+    A client belongs to one firm (owner round 2026-12). A file made since then has the client's ``firm_id`` on ``WebClients``. An older
+    file has none, so the firm comes from the matters that use the client, as the 0012 to 0014 migrations did: one firm gets the client; with
+    several, the firm with the most matters keeps it (a tie goes to the lowest new firm id) and every other firm gets a copy that its
+    matters are pointed at. An older client with no matter has no firm and is left out."""
     if WEB_CLIENTS_SHEET not in workbook.sheetnames:
         return 0
-    client_ids = {}
-    loader = _Loader(Client, client_ids)
-    seen = set()
-    for number, v in _read_sheet(workbook, WEB_CLIENTS_SHEET, ["id", "name"], ["id", "name"]):
-        name = _required_name(v["name"], WEB_CLIENTS_SHEET, number)
-        if name.lower() in seen:   # the names are unique per profile, whatever case
-            continue
-        seen.add(name.lower())
-        loader.add(_key(v["id"]), Client(profile=profile, name=name))
-    loader.flush()
-    by_client = {}
+    wanted = {}   # old client id -> (name, new firm id named in the file, or None)
+    for number, v in _read_sheet(workbook, WEB_CLIENTS_SHEET, ["id", "name", "firm_id"], ["id", "name"]):
+        home = firm_ids.get(_key(v["firm_id"])) if _key(v["firm_id"]) is not None else None
+        wanted[_key(v["id"])] = (_required_name(v["name"], WEB_CLIENTS_SHEET, number), home)
+    linked = {}   # old client id -> {new firm id: [new matter ids]}
     if WEB_MATTER_CLIENTS_SHEET in workbook.sheetnames:
         for _number, v in _read_sheet(workbook, WEB_MATTER_CLIENTS_SHEET, ["matter_id", "client_id"], ["matter_id", "client_id"]):
-            matter_id, client_id = matter_ids.get(_key(v["matter_id"])), client_ids.get(_key(v["client_id"]))
-            if matter_id and client_id:
-                by_client.setdefault(client_id, []).append(matter_id)
-    for client_id, ids in by_client.items():
-        Matter.objects.filter(profile=profile, pk__in=ids).update(client_id=client_id)
+            matter_id, client_key = matter_ids.get(_key(v["matter_id"])), _key(v["client_id"])
+            if matter_id and client_key in wanted:
+                linked.setdefault(client_key, {}).setdefault(matter_scope[matter_id][0], []).append(matter_id)
+    plan = {}     # (new firm id, lower-cased name) -> [name, [new matter ids]]; a name is made once per firm
+    for client_key, (name, home) in wanted.items():
+        by_firm = linked.get(client_key, {})
+        if home is None:
+            if not by_firm:
+                continue
+            home = sorted(by_firm, key=lambda firm_id: (-len(by_firm[firm_id]), firm_id))[0]
+        for firm_id in {home, *by_firm}:
+            plan.setdefault((firm_id, name.lower()), [name, []])[1].extend(by_firm.get(firm_id, []))
+
+    def attach(client, matter_pks):
+        if matter_pks:
+            Matter.objects.filter(profile=profile, pk__in=matter_pks).update(client_id=client.pk)
+
+    loader = _Loader(Client, hook=lambda client, matter_pks: attach(client, matter_pks))
+    for (firm_id, _lower), (name, matter_pks) in plan.items():
+        loader.add(None, Client(profile=profile, firm_id=firm_id, name=name), matter_pks)
+    loader.flush()
     return loader.count
 
 
@@ -737,7 +752,7 @@ def _load(profile, workbook):
     loader.flush()
     n_matters = loader.count
 
-    n_clients = _restore_clients(profile, workbook, matter_ids)
+    n_clients = _restore_clients(profile, workbook, matter_ids, matter_scope, firm_ids)
 
     # Bank accounts
     loader = _Loader(BankAccount, bank_ids)

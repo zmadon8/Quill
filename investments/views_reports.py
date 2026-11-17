@@ -5,6 +5,8 @@ from decimal import Decimal
 from django.contrib import messages
 from django.db.models import Q
 
+from config.comma_numbers import plain_number
+
 from .decorators import inv_editor as inv_read_write_view, inv_reader
 from .models import HOLDABLE_KINDS, KIND_INDEX, Broker, Instrument, Portfolio, ProfileInvestment, Transaction
 from .services import chartview, core, holdings, masters, performance, series, statscache
@@ -115,6 +117,8 @@ def charts_view(request):
     if held_only:
         choices = all_choices.filter(Q(pk__in=holdings.held_instrument_ids(profile, portfolio=portfolio, broker=broker)) | Q(pk__in=picked))
     group_broker = request.GET.get("group_broker")
+    # Moving average: off, or the trailing 50 or 200 closes, drawn beside every line (investments, the portfolio and the indices).
+    ma = int(request.GET["ma"]) if request.GET.get("ma", "").isdigit() and int(request.GET["ma"]) in series.MOVING_AVERAGES else None
     # The investments the chart is drawn for: None is the whole portfolio (Chart A, All); Chart B draws each investment's own line.
     if mode == "a":
         used = None if pick_state == "all" else [i for i in picked if i in held_ids]
@@ -125,22 +129,29 @@ def charts_view(request):
         days = series.sample_dates(start, end)
         lines = []
         marks = []
+
+        def add(label, vals, inst=None):
+            lines.append((label, vals))
+            if ma:
+                avg = series.moving_average_line(inst, days, ma, profile=profile) if inst is not None else series.sampled_moving_average(days, vals, ma)
+                lines.append((f"{label}, {ma}-day average", avg))
+
         if mode == "a":
             gb = int(group_broker) if group_broker and group_broker.isdigit() else broker
             if used is None or used:
                 values, flows = series.portfolio_value_series(profile, days, portfolio=portfolio, broker=gb, instrument_ids=used, settings_row=settings_row)
-                lines.append(("Portfolio", series.performance_index(values, flows)))
+                add("Portfolio", series.performance_index(values, flows))
                 marks = chartview.portfolio_markers(profile, days, portfolio=portfolio, broker=gb, instrument_ids=used)
         else:
-            for inst, vals in series.price_lines(all_choices.filter(pk__in=used), days, profile=profile):
-                lines.append((inst.name, vals))
-                if len(lines) == 1:   # markers sit on the first line, so they are that investment's own purchases and sales
+            for n, (inst, vals) in enumerate(series.price_lines(all_choices.filter(pk__in=used), days, profile=profile)):
+                add(inst.name, vals, inst)
+                if n == 0:   # markers sit on the first line, so they are that investment's own purchases and sales
                     marks = chartview.portfolio_markers(profile, days, portfolio=portfolio, broker=broker, instrument_ids=[inst.pk])
         for inst, vals in series.price_lines(chosen_indices, days):
-            lines.append((inst.name, vals))
+            add(inst.name, vals, inst)
         return {"days": [d.isoformat() for d in days], "lines": [(label, [None if v is None else float(v) for v in vals]) for label, vals in lines], "markers": marks}
 
-    params = {"x": 2, "m": mode, "s": start, "e": end, "p": portfolio, "b": broker, "i": chosen_index_ids, "v": used, "g": group_broker}
+    params = {"x": 2, "m": mode, "s": start, "e": end, "p": portfolio, "b": broker, "i": chosen_index_ids, "v": used, "g": group_broker, "ma": ma}
     data = statscache.get_or_compute(profile, "chart", params, compute, today_sensitive=True)
     days = [date.fromisoformat(d) for d in data["days"]]
     lines = [(label, vals) for label, vals in data["lines"]]
@@ -149,7 +160,7 @@ def charts_view(request):
 
         return response(f"Chart {start:%Y-%m-%d} to {end:%Y-%m-%d}.xlsx", [("Chart", ["Date"] + [l for l, _ in lines],
                                                                          [[d] + [None if v[i] is None else round(v[i], 4) for _l, v in lines] for i, d in enumerate(days)])])
-    chart = line_chart(days, lines, markers=data.get("markers"))
+    chart = line_chart(days, lines, markers=data.get("markers"), paired=bool(ma))
     # The Investments drop-down: All and None first, then each investment (a picked one stays listed under Held only).
     inv_options = [{"value": "all", "label": "All", "on": pick_state == "all", "solo": True}, {"value": "none", "label": "None", "on": pick_state == "none", "solo": True}]
     inv_options += [{"value": c.pk, "label": c.name, "on": pick_state == "some" and c.pk in picked} for c in choices]
@@ -161,6 +172,7 @@ def charts_view(request):
         "chosen_index_ids": chosen_index_ids, "inv_options": inv_options, "inv_summary": inv_summary,
         "index_options": [{"value": c.pk, "label": c.name, "on": c.pk in chosen_index_ids} for c in index_choices],
         "index_summary": _pick_summary([c.name for c in index_choices if c.pk in chosen_index_ids]), "brokers": Broker.objects.filter(profile=profile), "group_broker": group_broker,
+        "ma": ma, "ma_choices": series.MOVING_AVERAGES,
         "first": first})
 
 
@@ -255,7 +267,7 @@ def annual_view(request):
         if request_role(request, KEY_INVESTMENTS) != ROLE_EDITOR:
             raise PermissionDenied
         try:
-            days = int(request.POST.get("cutoff", ""))
+            days = int(plain_number(request.POST.get("cutoff", "")))
             if not 1 <= days <= 3650:
                 raise ValueError
         except ValueError:

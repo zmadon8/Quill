@@ -78,14 +78,23 @@ class AnnualTests(InvTestCase):
         r = annual.build(self.profile, "2023-24", today=d(2026, 11, 9))
         self.assertEqual([s["cost"] for s in r.sales if s["term"] == "long"], [D(500)])
 
-    def test_awaiting_on_31_march_is_at_cost_and_provisional(self):
+    def test_tentative_on_31_march_is_at_cost_and_provisional(self):
         tx.add_transaction(self.profile, self.user, side="buy", instrument=self.fund, portfolio=self.portfolio, broker=self.zerodha, date=d(2024, 3, 20),
-                           awaiting=True, amount=D(5000))
+                           tentative=True, amount=D(5000))
         r = annual.build(self.profile, "2023-24", today=d(2026, 11, 9))
         self.assertTrue(r.provisional)
         self.assertEqual(len(r.awaiting), 1)
         self.assertEqual(r.closing_value, D(5 * 130) + D(5000))
         self.assertEqual(r.invested, D(1100) + D(5000))
+
+    def test_a_tentative_sale_changes_no_figure_but_marks_the_report_provisional(self):
+        plain = annual.build(self.profile, "2023-24", today=d(2026, 11, 9))
+        tx.add_transaction(self.profile, self.user, side="sell", instrument=self.reliance, portfolio=self.portfolio, broker=self.zerodha,
+                           date=d(2024, 3, 20), tentative=True)
+        r = annual.build(self.profile, "2023-24", today=d(2026, 11, 9))
+        self.assertTrue(r.provisional)
+        self.assertEqual((r.sold, r.invested, r.closing_value), (plain.sold, plain.invested, plain.closing_value))
+        self.assertEqual(plain.provisional, False)
 
     def test_reproduces_from_pins_after_the_prices_are_gone(self):
         pins.pin_all(today=d(2026, 11, 9))
@@ -136,6 +145,25 @@ class InvestmentPageTests(InvTestCase):
         self.assertAlmostEqual(second["return"], 80 / 75 - 1, places=6)
         self.assertEqual(sold, [])
         self.assertEqual(investment_page.range_52w(self.reliance, d(2024, 6, 1)), (D(75), D(80)))
+
+    def test_sold_portion_shows_the_index_over_its_own_dates_and_alpha(self):
+        nifty = Instrument.objects.get(code="^NSEI")
+        for day, n, r in ((d(2023, 1, 2), 100, 50), (d(2024, 3, 1), 120, 90), (d(2024, 6, 1), 115, 80)):
+            Price.objects.create(instrument=nifty, date=day, close=D(n), source="api")
+            Price.objects.create(instrument=self.reliance, date=day, close=D(r), source="api")
+        self.buy(d(2023, 1, 2), 10, 50)
+        self.sell(d(2024, 3, 1), 10, 90)
+        from investments.services import holdings
+        rows, _ = holdings.compute(self.profile, as_of=d(2024, 6, 1))
+        h = [r for r in rows if r.instrument.pk == self.reliance.pk][0]
+        _held, (s,) = investment_page.purchase_rows(self.profile, self.reliance, h, d(2024, 6, 1))
+        days = (d(2024, 3, 1) - d(2023, 1, 2)).days
+        self.assertAlmostEqual(s["index_return"], (120 / 100) ** (365 / days) - 1, places=6)
+        self.assertAlmostEqual(s["alpha"], s["return"] - s["index_return"], places=9)
+        self.client.force_login(self.user)
+        page = self.client.get(reverse("investments_investment", args=[self.reliance.pk])).content.decode()
+        self.assertIn(">Index CAGR</th>", page)
+        self.assertIn(">Alpha</th>", page)
 
     def test_page_with_a_past_date_and_chart_markers(self):
         for n in range(60):

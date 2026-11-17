@@ -23,7 +23,7 @@ def _row(h):
 
 BREAKDOWNS = (("type", "by Type"), ("portfolio", "by Portfolio"), ("broker", "by Broker"))
 _CENT = Decimal("0.01")
-AWAITING_LABEL = "Awaiting allotment"
+TENTATIVE_LABEL = "Tentative purchases"
 
 
 def _group_xirrs(profile, rows, totals, ctx):
@@ -59,7 +59,7 @@ def _group_xirrs(profile, rows, totals, ctx):
 def _breakdowns(profile, held, rows=None, totals=None, ctx=None):
     """Invested, value, gain, gain % and share of the total for each group, three ways (by Type, Portfolio and Broker), as JSON-ready data:
     ``{key: {"rows": [...], "total": {...}}}``. Money is text quantized to 0.01. Units held are shared out by lot: a holding's value is split
-    over its lots by units (a purchase awaiting allotment has no lot and is a group of its own), so every way adds up to the Overview's value.
+    over its lots by units (a tentative purchase has no lot and is a group of its own), so every way adds up to the Overview's value.
     A holding blocked by a pending corporate action is left out, as it is from the totals."""
     from investments.models import Broker, Portfolio
 
@@ -83,8 +83,8 @@ def _breakdowns(profile, held, rows=None, totals=None, ctx=None):
             add("portfolio", names["portfolio"].get(lot.bucket.portfolio, "Unknown"), lot.cost, part)
             add("broker", names["broker"].get(lot.bucket.broker, "Unknown"), lot.cost, part)
         if h.awaiting:
-            add("portfolio", AWAITING_LABEL, h.awaiting, h.awaiting)
-            add("broker", AWAITING_LABEL, h.awaiting, h.awaiting)
+            add("portfolio", TENTATIVE_LABEL, h.awaiting, h.awaiting)
+            add("broker", TENTATIVE_LABEL, h.awaiting, h.awaiting)
 
     xirrs = _group_xirrs(profile, rows, totals, ctx) if ctx is not None else {}
 

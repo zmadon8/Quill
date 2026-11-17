@@ -119,6 +119,12 @@ class ShellTests(UiPageBase):
                 self.assertRegex(nav, r'<a href="%s" class="on" aria-current="page">Statistics</a>' % re.escape(reverse("fees_dashboard")))
                 self.assertNotIn(">Dashboard</a>", nav)
 
+    def test_statistics_show_by_names_month_quarter_and_financial_year(self):
+        FeesSettings.objects.update_or_create(profile=self.profile, defaults={"statistics_enabled": True})
+        text = self.html(self.page("fees_statistics"))
+        for value, label in (("month", "Month"), ("quarter", "Quarter"), ("financialYear", "Financial Year")):
+            self.assertRegex(text, r'<option value="%s"( selected)?>%s</option>' % (value, label))
+
     def test_body_carries_the_ledger_class_and_stylesheet_order(self):
         text = self.html(self.page("fees_memos"))
         self.assertRegex(text, r'<body class="ledger w-\dxl">')
@@ -359,10 +365,10 @@ class FirmScreenTests(UiPageBase):
     def test_firm_page_switches_between_partner_wise_and_client_wise(self):
         i = self.ids()
         partner = self.html(self.page("fees_firm_detail", {"firm_id": i["firm"]}))
-        self.assertIn("Partner-wise</strong>", partner)
+        self.assertIn("Partner</strong>", partner)
         self.assertIn('href="?by=client&amp;matters=', partner)
         client = self.html(self.page("fees_firm_detail", {"firm_id": i["firm"]}, "?by=client"))
-        self.assertIn("Client-wise</strong>", client)
+        self.assertIn("Client</strong>", client)
         self.assertIn('href="?by=partner&amp;matters=', client)
         self.assertIn("Archived Only", client)
 
@@ -379,7 +385,7 @@ class FirmScreenTests(UiPageBase):
 
     def test_clients_page_lists_the_firms_clients(self):
         i = self.ids()
-        client = Client.objects.create(profile=self.profile, name="Page Client")
+        client = Client.objects.create(profile=self.profile, firm_id=i["firm"], name="Page Client")
         Matter.objects.filter(pk=i["matter"]).update(client=client)
         text = self.assert_page(self.page("fees_firm_clients", {"firm_id": i["firm"]}, user=self.editor), "clients-editor")
         detail = reverse("fees_firm_client_detail", kwargs={"firm_id": i["firm"], "client_id": client.pk})

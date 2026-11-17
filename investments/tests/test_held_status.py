@@ -1,4 +1,4 @@
-"""An investment is "Held" only while units (or a purchase awaiting allotment) exist."""
+"""An investment is "Held" only while units (or a tentative purchase) exist."""
 from datetime import date as d
 
 from django.urls import reverse

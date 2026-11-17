@@ -80,12 +80,13 @@ class OverviewTests(InvTestCase):
         page = self.client.get(reverse("investments_dashboard") + "?customise=1")
         self.assertContains(page, "Customise the Overview")
         self.assertContains(page, "Over time")
-        self.client.post(reverse("investments_overview_save"), {"box": ["count", "value"], "metric": ["dividends"], "period": ["3y"]})
-        self.assertEqual(InvestmentSettings.objects.get(profile=self.profile).overview, {"boxes": ["count", "value"], "metrics": ["dividends"], "periods": ["3y"]})
+        self.client.post(reverse("investments_overview_save"), {"box": ["count", "value"], "metric": ["realised"], "period": ["3y"]})
+        self.assertEqual(InvestmentSettings.objects.get(profile=self.profile).overview, {"boxes": ["count", "value"], "metrics": ["realised"], "periods": ["3y"]})
         page = self.client.get(reverse("investments_dashboard")).content.decode()
         self.assertIn(">Holdings</div>", page)
         self.assertNotIn(">Portfolio XIRR</div>", page)
-        self.assertIn("Dividends received</td>", page)
+        self.assertIn("Gains booked on sales</td>", page)
+        self.assertNotIn("Dividends received", page)
         self.client.post(reverse("investments_overview_save"), {"standard": "1"})
         self.assertEqual(InvestmentSettings.objects.get(profile=self.profile).overview, {})
         reader, _ = make_user("rd-ov", role=ROLE_READER, profile=self.profile)
@@ -191,7 +192,7 @@ class ClearHistoryTests(InvTestCase):
         dividends.add(self.profile, self.user, date=d(2024, 6, 1), instrument=self.reliance, portfolio=self.portfolio, broker=self.zerodha, amount=D(50))
         masters.add_folio(self.profile, self.user, instrument=self.fund, portfolio=self.portfolio, number="F-1")
         tx.add_transaction(self.profile, self.user, side="buy", instrument=self.fund, portfolio=self.portfolio, broker=self.zerodha,
-                           date=d(2024, 2, 1), awaiting=True, amount=D(5000))
+                           date=d(2024, 2, 1), tentative=True, amount=D(5000))
         # a second profile with its own history must be left alone
         self.other_user, self.other = make_user("other-clear")
         from investments.models import Broker, Portfolio

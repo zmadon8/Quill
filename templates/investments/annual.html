@@ -6,7 +6,7 @@
 <a class="chk" href="?fy={{ label }}&div={% if include_div %}0{% else %}1{% endif %}" role="switch" aria-checked="{{ include_div|yesno:'true,false' }}"><i class="{% if include_div %}on{% endif %}"></i> Include dividends in XIRR</a>
 <a class="btn q" href="?fy={{ label }}&export=xlsx">Export to Excel</a></form>
 <p class="hint">{% if r.completed %}Values as at 31 March.{% else %}Values to date.{% endif %} A record-keeping aid, not tax advice. Check the treatment of gains, bonus shares, grandfathered holdings and foreign investments with your CA.</p>
-{% if r.provisional %}<div class="ban wa"><span>Some figures are <b>Provisional</b>: {% if r.awaiting %}{{ r.awaiting|length }} purchase{{ r.awaiting|length|pluralize }} awaiting allotment {% if r.completed %}on 31 March{% else %}today{% endif %} {{ r.awaiting|length|pluralize:"is,are" }} valued at cost{% endif %}{% if r.awaiting and r.provisional %}; {% endif %}a split or bonus may be waiting for confirmation.</span></div>{% endif %}
+{% if r.provisional %}<div class="ban wa"><span>Some figures are <b>Provisional</b>: {% if r.awaiting %}{{ r.awaiting|length }} tentative entr{{ r.awaiting|length|pluralize:"y,ies" }} {% if r.completed %}on 31 March{% else %}today{% endif %} (purchases valued at cost, sales left out){% endif %}{% if r.awaiting and r.provisional %}; {% endif %}a split or bonus may be waiting for confirmation.</span></div>{% endif %}
 <table data-table-id="inv-annual-summary" class="led"><tbody>
 <tr><td>1. Starting portfolio value <small class="na">(31 March before)</small></td><td class="r">{{ r.opening_value|inr }}</td></tr>
 <tr><td>2. Amount invested</td><td class="r">{{ r.invested|inr }}</td></tr>
@@ -21,7 +21,7 @@
 <tr><td>Dividends received <small class="na">(not part of portfolio value)</small></td><td class="r">{{ r.dividends|inr }}</td></tr>
 <tr><td>Tax deducted on dividends</td><td class="r">{{ r.dividend_tax|inr }}</td></tr>
 <tr><td>Unrealised gain at year end</td><td class="r">{{ r.unrealised|inr_signed }}</td></tr></tbody></table>
-{% if can_edit %}<form method="post" class="inline-edit">{% csrf_token %}<label for="cutoff">Long-term after (days held) for {{ label }}</label><input id="cutoff" name="cutoff" value="{{ r.cutoff }}" size="5"><button class="btn q sm">Save</button><span class="hint">Default for new years: {{ default_cutoff }} (Settings).</span></form>{% endif %}
+{% if can_edit %}<form method="post" class="inline-edit">{% csrf_token %}<label for="cutoff">Long-term after (days held) for {{ label }}</label><input id="cutoff" name="cutoff" value="{{ r.cutoff }}" size="5" inputmode="numeric"><button class="btn q sm">Save</button><span class="hint">Default for new years: {{ default_cutoff }} (Settings).</span></form>{% endif %}
 
 <div class="sec"><h2>Sale by sale</h2><span class="hint">first bought, first sold</span></div>
 {% if r.sales %}<div class="tw"><table data-table-id="inv-annual-sales" class="led" data-sortable><thead><tr><th>Investment</th><th>Held from</th><th>Sold</th><th class="r">Days</th><th class="r">Units</th><th class="r">Cost</th><th class="r">Proceeds</th><th class="r">Gain</th><th>Term</th></tr></thead><tbody>
@@ -41,5 +41,5 @@
 
 <div class="sec"><h2>Transactions in {{ label }}</h2></div>
 <div class="tw"><table data-table-id="inv-annual-txns" class="led" data-sortable><thead><tr><th>Date</th><th>Investment</th><th>Buy / sell</th><th class="r">Units</th><th class="r">Price</th><th>Broker</th></tr></thead><tbody>
-{% for t in r.transactions %}<tr><td data-sort="{{ t.date|date:'Y-m-d' }}">{{ t.date|date:"j M Y" }}</td><td>{{ t.instrument.name }}{% if t.status == "awaiting" %}<span class="tag amb">Awaiting</span>{% endif %}</td><td>{{ t.get_side_display }}</td><td class="r">{% if t.units is not None and not t.instrument.lump_sum %}{{ t.units|units }}{% endif %}</td><td class="r">{% if t.price is not None and not t.instrument.lump_sum %}{{ t.price|price }}{% else %}{{ t.amount|inr }}{% endif %}</td><td>{{ t.broker.name }}</td></tr>{% empty %}<tr><td colspan="6" class="na">None.</td></tr>{% endfor %}</tbody></table></div>
+{% for t in r.transactions %}<tr><td data-sort="{{ t.date|date:'Y-m-d' }}">{{ t.date|date:"j M Y" }}</td><td>{{ t.instrument.name }}{% if t.status == "tentative" %}<span class="tag amb">Tentative</span>{% endif %}</td><td>{{ t.get_side_display }}</td><td class="r">{% if t.units is not None and not t.instrument.lump_sum %}{{ t.units|units }}{% endif %}</td><td class="r">{% if t.price is not None and not t.instrument.lump_sum %}{{ t.price|price }}{% else %}{{ t.amount|inr }}{% endif %}</td><td>{{ t.broker.name }}</td></tr>{% empty %}<tr><td colspan="6" class="na">None.</td></tr>{% endfor %}</tbody></table></div>
 {% endblock %}

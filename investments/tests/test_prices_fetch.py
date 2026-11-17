@@ -9,7 +9,7 @@ from accounts.suite import KEY_INVESTMENTS
 from investments.adapters import amfi, http, mfapi, yahoo
 from investments.adapters.base import FetchError
 from investments.models import ManualPrice, PinnedPrice, Price, SourceRun, SplitSignal
-from investments.services import fetch, masters, prices
+from investments.services import fetch, masters, prices, transactions as tx
 from investments.tests.base import InvTestCase, make_user
 from investments.tests.fakehttp import FakeNet, fixture
 
@@ -255,7 +255,6 @@ class PriceWindowTests(InvTestCase):
     def other_profile_buy(self, day, units="5"):
         from accounts.models import Profile
         from investments.models import Broker, Portfolio
-        from investments.services import transactions as tx
         user, profile = make_user("second", profile=Profile.objects.create(name="second-inv", program=KEY_INVESTMENTS))
         portfolio = Portfolio.objects.create(profile=profile, name="Main")
         broker = Broker.objects.create(profile=profile, name="Zerodha")
@@ -295,18 +294,29 @@ class PriceWindowTests(InvTestCase):
         earliest = Price.objects.filter(instrument=self.fund).order_by("date").first().date
         self.assertGreaterEqual(earliest, d(2026, 11, 4) - timedelta(days=fetch.WINDOW_LEAD_DAYS))
 
-    def test_nothing_is_fetched_after_the_last_unit_is_sold_but_a_buffer_is_kept(self):
+    def test_nothing_is_fetched_after_the_last_unit_is_sold(self):
         self.buy(d(2026, 10, 1), 10, 1000)
         self.sell(d(2026, 10, 20), 10, 1100)
-        self.assertEqual(fetch.fetch_window([self.reliance.pk], d(2026, 11, 9)),
-                         {self.reliance.pk: (d(2026, 10, 1), d(2026, 10, 20) + timedelta(days=fetch.WINDOW_BUFFER_DAYS))})
-        self.assertIn(self.reliance, fetch.tracked_instruments(today=d(2026, 10, 27)))
-        self.assertNotIn(self.reliance, fetch.tracked_instruments(today=d(2026, 10, 28)))
+        self.assertEqual(fetch.WINDOW_BUFFER_DAYS, 0)
+        self.assertEqual(fetch.fetch_window([self.reliance.pk], d(2026, 11, 9)), {self.reliance.pk: (d(2026, 10, 1), d(2026, 10, 20))})
+        self.assertIn(self.reliance, fetch.tracked_instruments(today=d(2026, 10, 20)))       # the sale day itself was held
+        self.assertNotIn(self.reliance, fetch.tracked_instruments(today=d(2026, 10, 21)))
         self.net.add("RELIANCE.NS", fixture("yahoo_chart_reliance.json"))
         fetch.fetch_prices(ids=[self.reliance.pk], today=d(2026, 11, 9), rng=lambda: 0.0)
         self.assertEqual([c for c in self.net.calls if "RELIANCE" in c], [])
         stale = fetch.status_summary(today=d(2026, 11, 9))
         self.assertNotIn(self.reliance, stale["stale"] + stale["never"])
+
+    def test_a_tentative_purchase_keeps_it_open_but_a_tentative_sale_alone_does_not(self):
+        self.buy(d(2026, 10, 1), 10, 1000)
+        self.sell(d(2026, 10, 20), 10, 1100)
+        tx.add_transaction(self.profile, self.user, side="sell", instrument=self.reliance, portfolio=self.portfolio, broker=self.zerodha,
+                           date=d(2026, 10, 25), tentative=True, amount=D(500))
+        self.assertEqual(fetch.fetch_window([self.reliance.pk], d(2026, 11, 9)), {self.reliance.pk: (d(2026, 10, 1), d(2026, 10, 25))})
+        tx.add_transaction(self.profile, self.user, side="buy", instrument=self.reliance, portfolio=self.portfolio, broker=self.zerodha,
+                           date=d(2026, 11, 1), tentative=True)
+        self.assertEqual(fetch.fetch_window([self.reliance.pk], d(2026, 11, 9)), {self.reliance.pk: (d(2026, 10, 1), None)})
+        self.assertIn(self.reliance, fetch.tracked_instruments(today=d(2026, 11, 9)))
 
     def test_a_partial_sale_or_a_rebuy_keeps_it_open(self):
         self.buy(d(2026, 10, 1), 10, 1000)

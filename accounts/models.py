@@ -36,6 +36,9 @@ class User(AbstractUser):
     last_diary_path = models.CharField(max_length=500, blank=True, default="")
     # Diary round (1.5): justify the text that is normally left-aligned. On screen only; off unless chosen (My settings, Display).
     justify_text = models.BooleanField(default=False)
+    # Owner round (2026-12): add Indian-grouped commas to number boxes while typing (static/js/number-commas.js). On unless switched off
+    # (My settings, Display). The server accepts commas in every number box either way.
+    group_digits = models.BooleanField("Add commas while typing numbers", default=True)
     # Owner round (2026-11): the accent colour of every page, per user (My settings, Display; an Admin can set it too). Only the
     # accent changes (buttons, the current tab, links); status colours, the Word memo and the exports never do. tokens.css has one
     # html[data-theme] block per choice; the default, oxblood, needs none.

@@ -209,7 +209,9 @@ class GuessTests(SimpleTestCase):
         self.assertEqual(guess["total_fees"], "Total Fees")
         self.assertEqual(guess["amount_paid"], "Amount Paid")
         self.assertEqual(guess["payment_tds"], "TDS")
-        self.assertEqual(guess["matter_client"], "Client")
+        self.assertEqual(guess["client_name"], "Client")   # a Client column is the matter's Client
+        self.assertIsNone(guess["matter_client"])
+        self.assertEqual(guess_mapping(["Brief on Behalf of"])["matter_client"], "Brief on Behalf of")
         self.assertEqual(guess["court_name"], "Court")
         self.assertEqual(guess["payee"], "Payee")
         self.assertEqual(guess["payment_group"], "Payment Group")
@@ -226,7 +228,7 @@ class GuessTests(SimpleTestCase):
 
     def test_every_field_has_an_entry(self):
         self.assertEqual(set(guess_mapping([])), {field[0] for field in imports.IMPORT_FIELDS})
-        self.assertEqual(len(imports.IMPORT_FIELDS), 24)
+        self.assertEqual(len(imports.IMPORT_FIELDS), 25)  # Client (to Matter) added (D213)
 
 
 # ---------------------------------------------------------------------------
@@ -807,6 +809,34 @@ class ImportMemosTests(TestCase):
         self.assertEqual((matter.court_name, matter.client_position), ("High Court", "Cl 1"))
         self.assertEqual(self.memo_by_number("INV-1").client_position, "Cl 1")  # memos snapshot their own row
         self.assertEqual(self.memo_by_number("INV-2").court_name, "High Court")
+
+    def test_client_column_gives_the_matter_a_client_of_its_firm(self):
+        from fees.models import Client
+
+        rows = [
+            {"Firm": "F", "Matter": "M", "No": "INV-1", "Date": "2025-07-01", "Total": "1", "Paid": "0", "Client": "Acme Ltd"},
+            {"Firm": "F", "Matter": "M", "No": "INV-2", "Date": "2025-07-01", "Total": "1", "Paid": "0", "Client": "Other Ltd"},
+            {"Firm": "F", "Matter": "N", "No": "INV-3", "Date": "2025-07-01", "Total": "1", "Paid": "0", "Client": "acme ltd"},
+            {"Firm": "G", "Matter": "M", "No": "INV-4", "Date": "2025-07-01", "Total": "1", "Paid": "0", "Client": "Acme Ltd"},
+        ]
+        result = import_memos(self.profile, rows, {**BASE_MAPPING, "client_name": "Client"})
+        self.assertEqual(result["clients_created"], 2)   # one per firm; the same name in another case is reused
+        m = Matter.objects.get(profile=self.profile, firm__name="F", name="M")
+        self.assertEqual(m.client.name, "Acme Ltd")   # filled once, not overwritten by a later row
+        self.assertEqual(Matter.objects.get(profile=self.profile, firm__name="F", name="N").client_id, m.client_id)
+        g = Matter.objects.get(profile=self.profile, firm__name="G")
+        self.assertEqual(g.client.firm_id, g.firm_id)
+        self.assertNotEqual(g.client_id, m.client_id)
+        self.assertEqual(Client.objects.filter(profile=self.profile).count(), 2)
+
+    def test_client_column_fills_an_existing_matter_without_a_client(self):
+        firm = Firm.objects.create(profile=self.profile, name="F", status="active")
+        group = Group.objects.create(profile=self.profile, firm=firm, name="P")
+        matter = Matter.objects.create(profile=self.profile, firm=firm, group=group, name="M", is_archived=False)
+        rows = [{"Firm": "F", "Matter": "M", "No": "INV-1", "Date": "2025-07-01", "Total": "1", "Paid": "0", "Client": "Acme Ltd"}]
+        import_memos(self.profile, rows, {**BASE_MAPPING, "client_name": "Client"})
+        matter.refresh_from_db()
+        self.assertEqual((matter.client.name, matter.client.firm_id), ("Acme Ltd", firm.pk))
 
     def test_total_column_overrides_the_breakup_and_unmapped_total_uses_it(self):
         rows = [{"Firm": "F", "Matter": "M", "No": "INV-1", "Date": "2025-07-01", "Total": "777", "Paid": "0",

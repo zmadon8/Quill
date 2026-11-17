@@ -3,7 +3,7 @@
 One general adapter: the columns are found by name (date, buy or sell, investment by ISIN / code / scheme code / name, units, price or NAV,
 amount, charges, folio). Each broker's own layout would need its own small adapter once sample files are available. The person reviews the
 rows first; nothing is saved until they confirm, and the whole file is then saved in one transaction (a row that would break a selling limit
-stops the lot). A purchase line that matches an entry awaiting allotment (same investment, amount within tolerance, date within 10 days)
+stops the lot). A purchase line that matches a tentative purchase (same investment, amount, stored or worked out from its units and price, within tolerance, date within 10 days)
 completes that entry instead of making a duplicate; a line identical to a stored trade is skipped as a duplicate.
 
 An investment the program does not have yet is proposed for adding (owner round 2026-11): the review lists each one once, with a type,
@@ -35,10 +35,10 @@ from django.db.models import Q
 from investments.errors import InvestmentsError
 from investments.models import (
     CA_BONUS, CA_DEMERGER, CA_SPLIT, HOLDABLE_KINDS, KIND_ALTERNATIVE, KIND_FOREIGN, KIND_FUND, KIND_SHARE, METHOD_EVENTS, ORIGIN_BONUS,
-    ORIGIN_DEMERGER, ORIGIN_OTHER, ORIGIN_PURCHASE, ORIGIN_SPLIT, ORIGINS, STATUS_AWAITING, ZERO_PRICE_ORIGINS, AmfiScheme, Broker,
+    ORIGIN_DEMERGER, ORIGIN_OTHER, ORIGIN_PURCHASE, ORIGIN_SPLIT, ORIGINS, STATUS_TENTATIVE, ZERO_PRICE_ORIGINS, AmfiScheme, Broker,
     CorporateAction, CorporateActionResponse, Folio, Instrument, Portfolio, Transaction,
 )
-from investments.services import masters, source_formats, transactions as tx
+from investments.services import core, masters, source_formats, transactions as tx
 
 #: Each key's possible headings are the ``columns`` of the ``statement_import`` format (``services/source_formats.py``, where an Admin can add
 #: others), tried in order (an exact heading first, then a heading containing it). Order matters: "Transaction type" is the buy or sell
@@ -46,7 +46,7 @@ from investments.services import masters, source_formats, transactions as tx
 #: Keys matched only by an exact heading ("Brokerage" is charges, not the broker).
 EXACT_ONLY = {"portfolio", "broker", "origin"}
 SELL_WORDS = ("sell", "sale", "redeem", "redemption", "s", "switch out", "switch-out")
-AWAITING_DAYS = 10
+TENTATIVE_DAYS = 10
 #: The types a missing investment can be added as from a file. An alternative investment needs no code (it has no price feed).
 ADDABLE_KINDS = ((KIND_SHARE, "Share or ETF"), (KIND_FUND, "Mutual fund"), (KIND_FOREIGN, "Foreign share"), (KIND_ALTERNATIVE, "Alternative"))
 #: Words in a Type cell, and the type they mean.
@@ -421,16 +421,16 @@ def review(profile, source, aliases=None, portfolio=None, broker=None, origins=N
 
 
 def _mark_matches(profile, out):
-    awaiting = list(Transaction.objects.filter(profile=profile, status=STATUS_AWAITING, side="buy"))
+    tentative = [(a, core.tentative_cost(a)) for a in Transaction.objects.filter(profile=profile, status=STATUS_TENTATIVE, side="buy")]
     used = set()
     for line in out.lines:
         if line.problem or line.covered or line.instrument is None:   # an investment added by this file has nothing to complete or duplicate
             continue
         total = line.units * line.price + line.charges
-        for a in (awaiting if line.origin == ORIGIN_PURCHASE else []):
-            if a.pk in used or a.instrument_id != line.instrument.pk or not a.amount:
+        for a, cost in (tentative if line.origin == ORIGIN_PURCHASE else []):
+            if a.pk in used or a.instrument_id != line.instrument.pk or not cost:
                 continue
-            if abs((line.day - a.date).days) <= AWAITING_DAYS and abs(total - a.amount) <= tx.tolerance_for(a.amount) * 10:
+            if abs((line.day - a.date).days) <= TENTATIVE_DAYS and abs(total - cost) <= tx.tolerance_for(cost) * 10:
                 line.completes = a
                 used.add(a.pk)
                 break

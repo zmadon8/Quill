@@ -11,6 +11,6 @@
 <form method="post" class="form">{% csrf_token %}<input type="hidden" name="version" value="{{ version }}">
   <p class="hint">Enter any two of units, NAV and the amount (the amount paid is already known) and the third is worked out. A difference of up to {{ tolerance|inr }} is treated as rounding.</p>
   {% include "investments/_form.html" %}
-  <div class="acts-row"><button class="btn p" type="submit">Complete</button><a class="btn q" href="{% url 'investments_txn_to_confirm' %}">Back</a></div>
+  <div class="acts-row"><button class="btn p" type="submit">Finalise</button><a class="btn q" href="{% url 'investments_txn_to_confirm' %}">Back</a></div>
 </form>
 {% endblock %}

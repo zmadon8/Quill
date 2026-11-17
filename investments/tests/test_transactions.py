@@ -1,4 +1,4 @@
-"""Transactions: selling limits, refused edits, awaiting allotment, history, opening balances, transfers, switches."""
+"""Transactions: selling limits, refused edits, tentative entries, history, opening balances, transfers, switches."""
 from datetime import date as d
 from decimal import Decimal as D
 
@@ -94,10 +94,10 @@ class SellingLimitTests(InvTestCase):
         self.assertEqual(cm.exception.code, "CLASH")
 
 
-class AwaitingTests(InvTestCase):
+class TentativeTests(InvTestCase):
     def awaiting(self, amount="50000", day=d(2024, 11, 4), **kw):
         return tx.add_transaction(self.profile, self.user, side="buy", instrument=self.fund, portfolio=self.portfolio,
-                                  broker=self.zerodha, date=day, awaiting=True, amount=D(amount), **kw)
+                                  broker=self.zerodha, date=day, tentative=True, amount=D(amount), **kw)
 
     def test_counts_at_cost_with_no_units_and_adds_nothing_to_gain(self):
         self.awaiting()
@@ -170,12 +170,12 @@ class AwaitingTests(InvTestCase):
 
     def test_cancel_logs_and_can_be_restored(self):
         a = self.awaiting()
-        tx.cancel_awaiting(self.profile, self.user, a.pk)
+        tx.cancel_tentative(self.profile, self.user, a.pk)
         self.assertFalse(Transaction.objects.filter(pk=a.pk).exists())
         row = InvestmentHistory.objects.filter(record_id=a.pk).order_by("-version").first()
         self.assertEqual(row.change_kind, "cancel")
         history.restore(self.profile, self.user, row.pk)
-        self.assertTrue(Transaction.objects.filter(pk=a.pk, status="awaiting").exists())
+        self.assertTrue(Transaction.objects.filter(pk=a.pk, status="tentative").exists())
 
     def test_completion_is_in_the_history_with_old_and_new_values(self):
         a = self.awaiting()
@@ -186,10 +186,10 @@ class AwaitingTests(InvTestCase):
         self.assertIn("units", changed)
         self.assertIn("status", changed)
 
-    def test_awaiting_redemption_is_not_checked_until_completed(self):
+    def test_tentative_sale_is_not_checked_until_finalised(self):
         self.buy(d(2024, 1, 1), 10, 50, instrument=self.fund)
         a = tx.add_transaction(self.profile, self.user, side="sell", instrument=self.fund, portfolio=self.portfolio, broker=self.zerodha,
-                               date=d(2024, 6, 1), awaiting=True, amount=D(5000))
+                               date=d(2024, 6, 1), tentative=True, amount=D(5000))
         with self.assertRaises(InvestmentsError) as cm:
             tx.complete_transaction(self.profile, self.user, a.pk, allotment_date=d(2024, 6, 3), units=D(20), nav=D(250))
         self.assertEqual(cm.exception.code, "WOULD_GO_NEGATIVE")
@@ -198,6 +198,110 @@ class AwaitingTests(InvTestCase):
     def test_overdue_after_reminder_days(self):
         a = self.awaiting(day=d(2024, 11, 4))
         self.assertFalse(tx.overdue(a, 7, today=d(2024, 11, 11)))
+
+    # ---- Mark as Tentative: any of units, price and amount may be missing
+
+    def tentative(self, **kw):
+        base = dict(side="buy", instrument=self.fund, portfolio=self.portfolio, broker=self.zerodha, date=d(2024, 11, 4), tentative=True)
+        base.update(kw)
+        return tx.add_transaction(self.profile, self.user, **base)
+
+    def test_only_date_investment_portfolio_and_broker_are_needed(self):
+        t = self.tentative()
+        self.assertEqual((t.status, t.units, t.price, t.amount), ("tentative", None, None, None))
+        rows, totals = holdings.compute(self.profile, as_of=d(2024, 11, 10))
+        self.assertEqual(totals.invested, 0)          # nothing known: it counts for nothing
+
+    def test_partial_values_are_saved(self):
+        t = self.tentative(units=D(10), amount=D(600))
+        t.refresh_from_db()
+        self.assertEqual((t.units, t.price, t.amount), (D(10), None, D(600)))
+
+    def test_units_and_price_without_an_amount_count_at_cost_plus_charges(self):
+        self.tentative(units=D(10), price=D(50), charges=D(5))
+        rows, totals = holdings.compute(self.profile, as_of=d(2024, 11, 10))
+        self.assertEqual((rows[0].units, rows[0].awaiting, totals.invested), (D(0), D(505), D(505)))
+
+    def test_the_amount_wins_over_units_and_price(self):
+        self.tentative(units=D(10), price=D(50), amount=D(520))
+        rows, _totals = holdings.compute(self.profile, as_of=d(2024, 11, 10))
+        self.assertEqual(rows[0].awaiting, D(520))
+
+    def test_units_alone_count_for_nothing(self):
+        self.tentative(units=D(10))
+        _rows, totals = holdings.compute(self.profile, as_of=d(2024, 11, 10))
+        self.assertEqual(totals.invested, 0)
+
+    def test_a_tentative_sale_changes_nothing_and_reserves_nothing(self):
+        self.buy(d(2024, 1, 1), 10, 50, instrument=self.fund)
+        self.tentative(side="sell", date=d(2024, 6, 1), units=D(10), price=D(60), amount=D(600))
+        rows, _totals = holdings.compute(self.profile, as_of=d(2024, 11, 10))
+        self.assertEqual(rows[0].units, D(10))
+        self.sell(d(2024, 7, 1), 10, 60, instrument=self.fund)         # the whole holding is still free to sell
+
+    def test_a_bad_figure_is_refused(self):
+        with self.assertRaises(InvestmentsError):
+            self.tentative(units=D(0))
+        with self.assertRaises(InvestmentsError):
+            self.tentative(amount=D(0))
+
+    def test_a_tentative_entry_is_an_ordinary_purchase_only(self):
+        with self.assertRaises(InvestmentsError):
+            self.tentative(origin="bonus")
+
+    def test_editing_keeps_it_tentative_and_stores_what_is_given(self):
+        t = self.tentative(amount=D(500))
+        tx.edit_transaction(self.profile, self.user, t.pk, tentative=True, units=None, price=D(40), amount=D(450))
+        t.refresh_from_db()
+        self.assertEqual((t.status, t.units, t.price, t.amount), ("tentative", None, D(40), D(450)))
+
+    def test_finalising_by_edit_needs_the_full_details(self):
+        t = self.tentative(amount=D(500))
+        with self.assertRaises(InvestmentsError):
+            tx.edit_transaction(self.profile, self.user, t.pk, tentative=False, units=D(10), price=None)
+        t.refresh_from_db()
+        self.assertEqual(t.status, "tentative")
+
+    def test_finalising_by_edit_makes_an_ordinary_entry(self):
+        t = self.tentative(amount=D(500))
+        done = tx.edit_transaction(self.profile, self.user, t.pk, tentative=False, units=D(10), price=D(50), allotment_date=d(2024, 11, 6))
+        self.assertEqual((done.status, done.amount, done.units, done.price), ("final", None, D(10), D(50)))
+        rows, _totals = holdings.compute(self.profile, as_of=d(2024, 11, 10))
+        self.assertEqual((rows[0].units, rows[0].awaiting), (D(10), D(0)))
+        self.sell(d(2024, 11, 8), 10, 55, instrument=self.fund)
+        kinds = [v.change_kind for v in InvestmentHistory.objects.filter(record_type="transaction", record_id=t.pk).order_by("version")]
+        self.assertEqual(kinds[:2], ["create", "complete"])
+
+    def test_finalising_a_sale_by_edit_runs_the_lot_check(self):
+        self.buy(d(2024, 1, 1), 10, 50, instrument=self.fund)
+        t = self.tentative(side="sell", date=d(2024, 6, 1), amount=D(5000))
+        with self.assertRaises(InvestmentsError) as cm:
+            tx.edit_transaction(self.profile, self.user, t.pk, tentative=False, units=D(20), price=D(250))
+        self.assertEqual(cm.exception.code, "WOULD_GO_NEGATIVE")
+        tx.edit_transaction(self.profile, self.user, t.pk, tentative=False, units=D(10), price=D(500))
+
+    def test_a_final_entry_cannot_be_made_tentative(self):
+        buy = self.buy(d(2024, 1, 1), 10, 50)
+        with self.assertRaises(InvestmentsError):
+            tx.edit_transaction(self.profile, self.user, buy.pk, tentative=True)
+
+    def test_completing_needs_an_amount_unless_units_and_price_give_one(self):
+        t = self.tentative()
+        with self.assertRaises(InvestmentsError) as cm:
+            tx.complete_transaction(self.profile, self.user, t.pk, allotment_date=d(2024, 11, 6), units=D(10), nav=D(50))
+        self.assertEqual(cm.exception.code, "NO_AMOUNT")
+        u = self.tentative(units=D(10), price=D(50), date=d(2024, 11, 5))
+        done = tx.complete_transaction(self.profile, self.user, u.pk, allotment_date=d(2024, 11, 6), units=D(10), nav=D(50))
+        self.assertEqual((done.status, done.amount), ("final", None))
+
+    def test_a_restored_entry_from_an_old_history_snapshot_says_tentative(self):
+        a = self.awaiting()
+        tx.cancel_tentative(self.profile, self.user, a.pk)
+        row = InvestmentHistory.objects.filter(record_id=a.pk).order_by("-version").first()
+        row.snapshot["status"] = "awaiting"        # as an entry logged before the rename
+        row.save()
+        history.restore(self.profile, self.user, row.pk)
+        self.assertEqual(Transaction.objects.get(pk=a.pk).status, "tentative")
         self.assertTrue(tx.overdue(a, 7, today=d(2024, 11, 12)))
 
     def test_nav_suggestions(self):

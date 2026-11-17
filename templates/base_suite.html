@@ -5,6 +5,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  {% if group_digits %}<meta name="group-digits" content="on">{% endif %}
   <title>{% block title %}{% block program_title %}{{ site_name }}{% endblock %}{% endblock %}</title>
   {# Hyperlinks on citations on/off (D87): read before the page is drawn, so switching never needs a reload. #}
   <script>try{if(localStorage.getItem("quill.links")==="off"){document.documentElement.classList.add("links-off");}}catch(e){}</script>
@@ -65,5 +66,6 @@
   <script src="{% static 'js/site.js' %}" data-home="{% url 'home' %}?home=1" data-search="{% url 'search' %}" data-find="{% url 'suite_search' %}"></script>
   <script src="{% static 'js/search-toggles.js' %}"></script>
   <script src="{% static 'js/select-all-none.js' %}"></script>
+  <script src="{% static 'js/number-commas.js' %}"></script>
 </body>
 </html>

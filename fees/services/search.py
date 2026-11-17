@@ -58,7 +58,6 @@ PAGES = (
     ("Firms", "Every firm", "fees_firms", "", "all", False),
     ("New Firm", "Add a firm", "fees_firm_new", "", "editor", False),
     ("New Matter", "Add a matter", "fees_matter_new", "", "editor", False),
-    ("Clients", "The clients matters are for", "fees_firms_clients", "", "all", False),
     ("Feebook", "Payments received, by date", "fees_feebook", "", "all", False),
     ("Outstanding", "Fees due, by firm", "fees_outstanding", "", "all", False),
     ("Outstanding Memos", "Every memo with fees due", "fees_outstanding_detail", "", "all", False),
@@ -145,15 +144,15 @@ def search(profile, raw_query, limit=20, *, can_edit=True, statistics_on=True):
             }
         )
 
-    clients = Client.objects.filter(profile=profile, name__icontains=query).order_by(Lower("name"))[:limit]
+    clients = Client.objects.filter(profile=profile, name__icontains=query).select_related("firm").order_by(Lower("name"))[:limit]
     for client in clients:
         results.append(
             {
                 "kind": "client",
                 "id": client.pk,
                 "title": client.name,
-                "subtitle": "Client",
-                "url": reverse("fees_firms_client_detail", args=[client.pk]),
+                "subtitle": f"Client \u00b7 {client.firm.name}",
+                "url": reverse("fees_firm_client_detail", args=[client.firm_id, client.pk]),
             }
         )
 

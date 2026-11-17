@@ -47,11 +47,12 @@ def _nice_ticks(lo, hi, count=5):
     return ticks
 
 
-def line_chart(days, lines, width=900, height=280, pad=(56, 16, 24, 30), markers=None, by_date=False, notes=None):
+def line_chart(days, lines, width=900, height=280, pad=(56, 16, 24, 30), markers=None, by_date=False, notes=None, paired=False):
     """``lines`` is ``[(label, [value or None per day])]``. With ``by_date`` the x position follows the date (the days are not evenly
     spaced, as when every Manual Price History entry is added to the sample days), else the position in the list. ``notes`` is
     ``[[date, text]]`` for a date that appears twice in ``days`` (a sale: the point before it, then the point after, so the line drops
-    vertically): the text is shown in the hover tooltip for both points and as the sale marker's title. Returns ``{"width","height","paths","yticks","xticks","legend"}``."""
+    vertically): the text is shown in the hover tooltip for both points and as the sale marker's title. With ``paired`` the lines come in
+    pairs (a line, then its moving average): the average takes its line's shade, a fine dotted pattern and a thinner stroke. Returns ``{"width","height","paths","yticks","xticks","legend"}``."""
     left, right, top, bottom = pad
     values = [float(v) for _l, vs in lines for v in vs if v is not None]
     if not values or len(days) < 2:
@@ -84,6 +85,11 @@ def line_chart(days, lines, width=900, height=280, pad=(56, 16, 24, 30), markers
                 current.append(f"{x(i):.1f},{y(v):.1f}")
         if current:
             segments.append(current)
+        if paired:
+            pair, is_average = divmod(k, 2)
+            paths.append({"label": label, "points": [" ".join(s) for s in segments], "dash": "2 2" if is_average else PATTERNS[pair % len(PATTERNS)],
+                          "stroke": SHADES[pair % len(SHADES)], "width": 1.2 if is_average else (2 if pair == 0 else 1.5)})
+            continue
         paths.append({"label": label, "points": [" ".join(s) for s in segments], "dash": PATTERNS[k % len(PATTERNS)],
                       "stroke": SHADES[k % len(SHADES)], "width": 2 if k == 0 else 1.5})
     yticks = [{"y": round(y(t), 1), "label": label} for t, label in zip(ticks, _tick_labels(ticks))]

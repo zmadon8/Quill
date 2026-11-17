@@ -5,7 +5,7 @@ more than `MAX_POINTS` points or `MAX_SERIES` lines. Prices are read one instrum
 instrument's rows, never all prices.
 
 * `portfolio_value_series`: the profile's value on each sample date (holdings at that date times the as-of price, alternative
-  investments by the chosen treatment, awaiting purchases at cost). Dividends are never in it.
+  investments by the chosen treatment, tentative purchases at cost). Dividends are never in it.
 * `performance_index`: Chart A's portfolio line, rebased to 100, built so that money added or withdrawn does not cause jumps (each
   period's growth is (value at the end less money added in the period) over the value at the start: a time-weighted return).
 * `price_lines`: Chart B and the index lines, each rebased to 100 on the first sample date it has a price.
@@ -16,7 +16,7 @@ from decimal import Decimal
 
 from investments import valuation
 from investments.models import (
-    AWAITING_LEAVE_OUT, KIND_ALTERNATIVE, SIDE_BUY, STATUS_AWAITING, STATUS_FINAL, AltValue, Instrument, Transaction, Transfer,
+    TENTATIVE_LEAVE_OUT, KIND_ALTERNATIVE, SIDE_BUY, STATUS_TENTATIVE, STATUS_FINAL, AltValue, Instrument, Transaction, Transfer,
 )
 from investments.services import core, prices
 
@@ -144,7 +144,7 @@ def sampled_prices_many(instruments, days):
 def portfolio_value_series(profile, days, *, portfolio=None, broker=None, instrument_ids=None, settings_row=None):
     """``(values, flows)``: the portfolio value on each sample date and the net money put in during each period (period 0: up to days[0])."""
     settings_row = settings_row or core.get_settings(profile, create=False)
-    leave_out = settings_row.awaiting_treatment == AWAITING_LEAVE_OUT
+    leave_out = settings_row.awaiting_treatment == TENTATIVE_LEAVE_OUT
     qs = Transaction.objects.filter(profile=profile, date__lte=days[-1]).only(*holdings_fields())
     if portfolio:
         qs = qs.filter(portfolio_id=portfolio)
@@ -197,10 +197,11 @@ def portfolio_value_series(profile, days, *, portfolio=None, broker=None, instru
     for iid, inst in instruments.items():
         events = []
         for t in by_inst.get(iid, []):
-            if t.status == STATUS_AWAITING:
-                if not leave_out and t.side == SIDE_BUY:
-                    events.append((t.date, ZERO, t.amount or ZERO))       # at cost, no units
-                    flows[period_of(t.date)] += t.amount or ZERO
+            if t.status == STATUS_TENTATIVE:
+                cost = None if leave_out or t.side != SIDE_BUY else core.tentative_cost(t)
+                if cost is not None:
+                    events.append((t.date, ZERO, cost))       # at cost, no units
+                    flows[period_of(t.date)] += cost
                 continue
             if t.status != STATUS_FINAL or t.units is None:
                 continue
@@ -320,3 +321,45 @@ def downsampled(days, *lines):
 
 
 __all__ = ["sample_dates", "sampled_prices", "portfolio_value_series", "performance_index", "price_lines", "index_equivalent_values", "Instrument"]
+
+
+#: The moving-average choices on Reports > Charts: trading days of closes averaged.
+MOVING_AVERAGES = (50, 200)
+
+
+def moving_average_line(instrument, days, window, profile=None):
+    """``[level or None]``: the ``window``-close trailing average of ``instrument`` at each of ``days``, rebased with the same base as its
+    ``price_lines`` line (the first priced sample), so the line and its average share a scale. It uses every stored close (not only the
+    sample days), reading back far enough before the first day; a day with fewer than ``window`` closes behind it has no average yet. An
+    alternative investment (no price feed) has none."""
+    if not days or (profile is not None and instrument.kind == KIND_ALTERNATIVE):
+        return [None] * len(days)
+    raw = sampled_prices(instrument, days)
+    base = next((p for p in raw if p), None)
+    if not base:
+        return [None] * len(days)
+    closes = prices.series(instrument, days[0] - timedelta(days=window * 2 + 30), days[-1])
+    keys = [d for d, _ in closes]
+    sums = [0.0]
+    for _d, c in closes:
+        sums.append(sums[-1] + float(c))
+    out = []
+    for d in days:
+        i = bisect_right(keys, d)
+        out.append(None if i < window else (sums[i] - sums[i - window]) / window / float(base) * 100)
+    return out
+
+
+def sampled_moving_average(days, values, window):
+    """The trailing average of an already sampled line (the portfolio line, which has no daily closes): the mean of the samples within the
+    last ``window`` trading days (``window`` x 365 / 252 calendar days), or None until the line has that much history."""
+    span = timedelta(days=round(window * 365 / 252))
+    first = next((d for d, v in zip(days, values) if v is not None), None)
+    out = []
+    for n, d in enumerate(days):
+        if first is None or d - span < first:
+            out.append(None)
+            continue
+        inside = [float(v) for dd, v in zip(days[: n + 1], values[: n + 1]) if v is not None and dd > d - span]
+        out.append(sum(inside) / len(inside) if inside else None)
+    return out

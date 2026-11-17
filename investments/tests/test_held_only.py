@@ -29,9 +29,9 @@ class HeldOnlyTests(InvTestCase):
         ids = holdings.held_instrument_ids(self.profile)
         self.assertEqual(ids, {self.reliance.pk})
 
-    def test_helper_counts_a_purchase_awaiting_allotment(self):
+    def test_helper_counts_a_tentative_purchase(self):
         tx.add_transaction(self.profile, self.user, side="buy", instrument=self.tata, portfolio=self.portfolio, broker=self.zerodha, date=d(2023, 7, 1),
-                           awaiting=True, amount=D(1000))
+                           tentative=True, amount=D(1000))
         self.assertIn(self.tata.pk, holdings.held_instrument_ids(self.profile))
 
     def test_query_string_marker_tells_unticked_from_not_sent(self):
@@ -113,9 +113,9 @@ class HeldOnlyTests(InvTestCase):
         r = self.sell_post(self.fund, "2022-12-31")
         self.assertContains(r, "You held none of this investment on 31 Dec 2022.")
 
-    def test_editing_an_awaiting_redemption_keeps_its_own_investment(self):
+    def test_editing_a_tentative_sale_keeps_its_own_investment(self):
         a = tx.add_transaction(self.profile, self.user, side="sell", instrument=self.fund, portfolio=self.portfolio, broker=self.zerodha,
-                               date=d(2024, 6, 1), awaiting=True, amount=D(5000))
+                               date=d(2024, 6, 1), tentative=True, amount=D(5000))
         r = self.client.get(reverse("investments_txn_edit", args=[a.pk]))
         self.assertEqual(r.status_code, 200)
         self.assertRegex(r.content.decode(), rf'<option value="{self.fund.pk}"')

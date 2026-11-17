@@ -218,35 +218,35 @@ class OpeningPickTests(LookupBase):
         self.assertEqual(Transaction.objects.count(), 0)
 
 
-class AwaitingBuyPickTests(LookupBase):
-    """The Investment box on "Add a purchase awaiting allotment" is the same combobox as on Buy."""
+class TentativeBuyPickTests(LookupBase):
+    """The Investment box on Add a purchase is the same combobox when the entry is marked Tentative."""
 
-    url_awaiting = property(lambda self: reverse("investments_txn_new_awaiting"))
+    url_tentative = property(lambda self: reverse("investments_txn_new_buy"))
 
     def post_card(self, **extra):
-        return {"date": "2024-11-04", "portfolio": self.portfolio.pk, "broker": self.zerodha.pk, "amount": "5000", "charges": "0", **extra}
+        return {"date": "2024-11-04", "portfolio": self.portfolio.pk, "broker": self.zerodha.pk, "tentative": "on", "amount": "5000", "charges": "0", **extra}
 
     def test_the_form_has_the_combobox_and_the_pick_fields(self):
-        html = self.client.get(self.url_awaiting).content.decode()
+        html = self.client.get(self.url_tentative).content.decode()
         self.assertIn("data-combo", html)
         self.assertIn('name="new_source"', html)
         self.assertIn('name="new_code"', html)
         self.assertIn(reverse("investments_txn_lookup"), html)
 
-    def test_a_new_amfi_pick_is_made_at_save_and_the_entry_is_awaiting(self):
-        r = self.client.post(self.url_awaiting, self.post_card(new_source="amfi", new_code="119551"))
+    def test_a_new_amfi_pick_is_made_at_save_and_the_entry_is_tentative(self):
+        r = self.client.post(self.url_tentative, self.post_card(new_source="amfi", new_code="119551"))
         self.assertRedirects(r, reverse("investments_transactions"))
         txn = Transaction.objects.get()
         self.assertEqual(txn.instrument.code, "119551")
-        self.assertEqual(txn.status, "awaiting")
+        self.assertEqual(txn.status, "tentative")
 
     def test_a_tampered_pick_makes_nothing(self):
         before = Instrument.objects.count()
-        r = self.client.post(self.url_awaiting, self.post_card(new_source="amfi", new_code="000000"))
+        r = self.client.post(self.url_tentative, self.post_card(new_source="amfi", new_code="000000"))
         self.assertEqual(r.status_code, 200)
         self.assertEqual((Instrument.objects.count(), Transaction.objects.count()), (before, 0))
 
-    def test_the_lookup_serves_the_awaiting_form_too(self):
+    def test_the_lookup_serves_the_tentative_entry_too(self):
         out = self.get(q="axis", held="0")
         self.assertEqual([r["code"] for r in out["nse_amfi"]], ["119551"])
 

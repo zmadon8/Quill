@@ -7,6 +7,8 @@ from django.http import Http404
 from django.shortcuts import redirect
 from django.urls import reverse
 
+from config.comma_numbers import plain_number
+
 from . import forms, lump_display, pages
 from .decorators import inv_admin, inv_editor, inv_read_write, inv_reader
 from .errors import InvestmentsError
@@ -245,10 +247,7 @@ def settings_display(request):
         masters.set_money_preference(request.user, d["my_money"])
         messages.success(request, "Saved.")
         return redirect(reverse("investments_settings_display"))
-    from accounts.forms import MyInvestmentsForm
-
     return page(request, "investments/settings_simple.html", {"page_title_text": "Display", "form": form,
-                                                             "period_form": MyInvestmentsForm(instance=request.user),
                                                              "intro": "How amounts are shown. Excel exports always contain the exact figures."}, selectors=False)
 
 
@@ -261,7 +260,7 @@ def settings_insights(request):
     if request.method == "POST":
         on = set(request.POST.getlist("on"))
         try:
-            limit = Decimal(request.POST.get("limit", row.concentration_limit))
+            limit = Decimal(plain_number(str(request.POST.get("limit", row.concentration_limit))))
         except Exception:
             limit = row.concentration_limit
         masters.update_settings(profile, request.user, insights_off=[k for k, _l in insights.KINDS if k not in on], concentration_limit=limit)

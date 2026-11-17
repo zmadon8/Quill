@@ -270,7 +270,7 @@ class MySettingsForm(forms.ModelForm):
 
     class Meta:
         model = User
-        fields = ("email", "landing_program", "justify_text", "colour_theme", "header_initials", "remove_citation_hyphen",
+        fields = ("email", "landing_program", "justify_text", "group_digits", "colour_theme", "header_initials", "remove_citation_hyphen",
                   "investments_period", "investments_start_page")
         labels = {"justify_text": "Justify text"}
 
@@ -319,6 +319,12 @@ class MySettingsForm(forms.ModelForm):
             self.fields["justify_text"].help_text = (
                 "Lines up the right-hand edge of the text of Items, Sections and Notes on screen. Off: the text is left-aligned. "
                 "The Word export is not affected."
+            )
+        if "group_digits" in self.fields:
+            self.fields["group_digits"].required = False
+            self.fields["group_digits"].help_text = (
+                "Adds commas to numbers as you type them (12,34,567.50), in every program. Off: numbers stay as typed. "
+                "Commas you type are accepted either way."
             )
         _set_up_colour_theme(self)
         if "landing_program" in self.fields:
@@ -378,12 +384,12 @@ class MyInvestmentsForm(MySettingsForm):
 
 
 class MyDisplayForm(MySettingsForm):
-    """Display: justify text, colour theme and what Home shows."""
+    """Display: justify text, commas while typing numbers, colour theme and what Home shows."""
 
     landing_program = None  # only Start Screens has this field
 
     class Meta(MySettingsForm.Meta):
-        fields = ("justify_text", "colour_theme")
+        fields = ("justify_text", "group_digits", "colour_theme")
 
     # Home card figures: one tick-box group per program (declared in __init__ from home_cards.METRIC_CATALOGUE), at most 3 each.
     METRIC_FIELDS = (("home_metrics_diary", suite.KEY_DIARY, "Case Law Diary"), ("home_metrics_fees", suite.KEY_FEES, "Fee Register"),

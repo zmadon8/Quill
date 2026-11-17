@@ -1,7 +1,7 @@
 """The Annual Report (plan 13): one financial year, 1 April to 31 March; a completed year as at the end of 31 March, the current year as at
 today. Values are Total Portfolio Value (never dividends). Capital gains are first-in-first-out, short or long term by the cutoff chosen for
-the year (a default in Settings), with the per-lot cost override. Purchases awaiting allotment on the closing date are valued at cost and
-marked Provisional. A record-keeping aid, not tax advice: the treatments are for the CA to confirm.
+the year (a default in Settings), with the per-lot cost override. Tentative purchases on the closing date are valued at cost and the report is
+marked Provisional (a tentative sale is left out of the figures and marks it Provisional too). A record-keeping aid, not tax advice: the treatments are for the CA to confirm.
 """
 import dataclasses
 from dataclasses import dataclass, field
@@ -12,7 +12,7 @@ from fees.services.financial_year import current_financial_year, derive_financia
 
 from investments import lots, xirr
 from investments.models import (
-    KIND_INDEX, SIDE_BUY, SIDE_SELL, STATUS_AWAITING, STATUS_FINAL, Dividend, Instrument, Portfolio, Transaction,
+    KIND_INDEX, SIDE_BUY, SIDE_SELL, STATUS_TENTATIVE, STATUS_FINAL, Dividend, Instrument, Portfolio, Transaction,
 )
 from investments.services import core, holdings, masters, prices
 
@@ -131,10 +131,11 @@ def build_span(profile, start, end, closing, completed, *, label, cutoff, portfo
     if broker:
         txns = txns.filter(broker_id=broker)
     for t in txns.order_by("date", "id"):
-        if t.status == STATUS_AWAITING:
-            if t.side == SIDE_BUY and settings_row.awaiting_treatment != "leave_out":
-                report.invested += t.amount or ZERO
-                flows.append((t.date, -(t.amount or ZERO)))
+        if t.status == STATUS_TENTATIVE:
+            cost = core.tentative_cost(t) if t.side == SIDE_BUY and settings_row.awaiting_treatment != "leave_out" else None
+            if cost is not None:
+                report.invested += cost
+                flows.append((t.date, -cost))
             report.transactions.append(t)
             continue
         if t.status != STATUS_FINAL or t.units is None:
@@ -148,8 +149,9 @@ def build_span(profile, start, end, closing, completed, *, label, cutoff, portfo
             report.sold += amount
             flows.append((t.date, amount))
         report.transactions.append(t)
-    report.awaiting = [t for t in Transaction.objects.filter(profile=profile, status=STATUS_AWAITING, date__lte=closing).select_related("instrument")
+    report.awaiting = [t for t in Transaction.objects.filter(profile=profile, status=STATUS_TENTATIVE, date__lte=closing).select_related("instrument")
                        if (not portfolio or t.portfolio_id == portfolio) and (not broker or t.broker_id == broker)]
+    report.provisional = report.provisional or bool(report.awaiting)     # a tentative entry of any kind (even a sale, or one with no figures) makes it so
 
     divs = Dividend.objects.filter(profile=profile, date__range=(start, closing))
     if portfolio:

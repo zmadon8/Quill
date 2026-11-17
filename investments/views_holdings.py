@@ -330,9 +330,9 @@ def investment(request, pk):
         value_chart = chartview.value_chart(
             profile, range_days, as_of, index=masters.default_index_for(profile), portfolio=portfolio, broker=broker, instrument_ids=[inst.pk],
             entries_of=inst)
-    # Iterating ``txns`` here loaded every transaction of the investment, and the page then queried the newest 200 again: ask for the awaiting
+    # Iterating ``txns`` here loaded every transaction of the investment, and the page then queried the newest 200 again: ask for the tentative
     # ones on their own (there are few) and let the page list read the newest 200 once.
-    awaiting_rows = list(txns.filter(status="awaiting"))
+    awaiting_rows = list(txns.filter(status="tentative"))
     context = {
         "page_title_text": inst.name, "inst": inst, "h": h, "pi": pi, "txns": lump_display.annotate(profile, list(txns.select_related("instrument")[:200])) if inst.lump_sum else txns[:200], "transfers": transfers, "folios": folios_qs,
         "folio_units": [(f, folio_units.get(f.pk, Decimal(0))) for f in folios_qs], "no_folio_units": folio_units.get(None, Decimal(0)),
@@ -351,7 +351,6 @@ def investment(request, pk):
         "price_ranges": chartview.links(request, range_key, "#price"),
         "value_chart": value_chart,
         "value_ranges": chartview.links(request, range_key, "#value-chart"),
-        "div_href": chartview.toggled_href(request, "div", "0" if div else "1"),
         "keep_params": [(k, request.GET[k]) for k in ("chart", "range") if request.GET.get(k)],
         "range52": investment_page.range_52w(inst, as_of) if inst.kind != KIND_ALTERNATIVE else (None, None),
         "guardrails": investment_page.guardrails(profile, inst),

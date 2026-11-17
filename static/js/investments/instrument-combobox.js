@@ -1,10 +1,9 @@
 (function () {
   "use strict";
-  // Investment combobox on Buy and Opening balance. Progressive enhancement over the plain Investment select, which stays in the page (hidden
-  // once this runs) and is the whole control without JavaScript. Held on: focusing lists the investments held now, typing filters. Held off:
-  // two or more characters search "In <site name>" and "From NSE / AMFI" (JSON endpoint, debounced 250ms, stale requests aborted). Choosing an
-  // existing investment sets the select; choosing an NSE / AMFI one sets the hidden new_source and new_code, and the server makes the
-  // investment only when the transaction is saved. Keys: ArrowDown / ArrowUp move, Enter chooses, Escape closes.
+  // Investment combobox on Buy and Opening balance, over the plain Investment select (the whole control without JavaScript). Held on:
+  // focusing lists what is held, typing filters. Held off: two or more characters search this site and NSE / AMFI (JSON, debounced,
+  // stale requests aborted). An NSE / AMFI choice sets the hidden new_source and new_code; the server makes it when the transaction
+  // is saved. Keys: ArrowDown / ArrowUp move, Enter chooses, Escape closes.
   if (!window.fetch) { return; }
   var form = document.getElementById("txn-form") || document.querySelector("form.form");
   if (!form) { return; }

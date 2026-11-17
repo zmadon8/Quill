@@ -25,7 +25,7 @@ Found by reading the code; still to be confirmed on real data with `QUILL_PERF_L
 | `warm_investments_cache`, a nightly step after the backup chain | The price update makes every kept figure out of date; this works the Overview, its 1 year chart, Holdings and Alerts out before the first visit |
 | The Alerts badge is read from the cache, else filled in by a small request after the page loads | `alerts.count` could evaluate every holding inside every page request |
 | `selection()` is worked out once per request | The view and `page()` both asked (up to four existence queries) |
-| The investment page asks for its awaiting rows on their own | It iterated the whole transaction queryset and then queried the newest 200 again |
+| The investment page asks for its tentative rows on their own | It iterated the whole transaction queryset and then queried the newest 200 again |
 | Indexes: `Transfer(profile, instrument, date)`, `Transaction(profile, date)` | Transfers had none; the transaction list orders a profile's rows by date |
 
 More changes in the same round:

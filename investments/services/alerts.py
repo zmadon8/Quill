@@ -3,13 +3,14 @@
 Global rules (Settings): Rule A against the previous close (fall or rise in a day, and optionally a fall over a window), Rule B against
 the cost of the units still held after FIFO sales, checked per portfolio. Guardrails on one investment in one portfolio: target gain,
 stop-loss, price level, fall from peak since purchase; a guardrail replaces the global rules for that holding unless Settings says
-otherwise. Purchases awaiting allotment have no units and are left out. Alternative investments only use their last entered value.
+otherwise. Tentative entries are left out. Alternative investments only use their last entered value.
 An alert can be dismissed (for the price date it was raised on), snoozed to a date, or re-armed at a new level. It is a prompt only.
 """
 from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal
 
+from config.comma_numbers import plain_number
 from investments.models import KIND_ALTERNATIVE, AlertState, Guardrail, ManualPrice, Portfolio, Price
 from investments.services import core, holdings, statscache
 
@@ -213,7 +214,7 @@ def act(profile, key, action, until=None, level=None, today=None):
     elif action == "snooze":
         st.snoozed_until = until or today + timedelta(days=7)
     elif action == "rearm":
-        st.rearm_level = Decimal(str(level)) if level not in (None, "") else None
+        st.rearm_level = Decimal(plain_number(str(level))) if level not in (None, "") else None
         st.dismissed_on = today
     elif action == "reset":
         st.dismissed_on = st.snoozed_until = st.rearm_level = None

@@ -52,5 +52,17 @@ class MeasureLabelPageTests(InvTestCase):
         self.assertIn("XIRR</th>", html)
         self.assertIn(measures.LEGEND, html)
         names = [c[0] for c in reports.yearly(self.profile).columns]
-        self.assertEqual(names[-3:], ["XIRR", "Index change over the year", "Difference"])
+        self.assertEqual(names[-3:], ["XIRR", "Index change over the year", "Alpha"])
         self.assertEqual(reports.yearly(self.profile).has_measures, True)
+
+
+class YearByYearOrderTests(InvTestCase):
+    def test_newest_financial_year_first_and_alpha_column(self):
+        from datetime import date
+
+        self.buy(date(2022, 6, 1), 1, 100)
+        table = reports.yearly(self.profile)
+        labels = [row[0].split(" ")[0] for row in table.rows]
+        self.assertGreater(len(labels), 1)
+        self.assertEqual(labels, sorted(labels, reverse=True))
+        self.assertEqual(table.columns[-1][0], "Alpha")

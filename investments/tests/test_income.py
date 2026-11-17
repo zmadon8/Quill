@@ -207,9 +207,14 @@ class DividendTests(InvTestCase):
         r = self.client.get(reverse("investments_dividends"))
         self.assertContains(r, "Reliance Industries")
         self.assertContains(r, "2023-24")
-        r = self.client.get(reverse("investments_dashboard") + "?div=1")
-        self.assertContains(r, 'aria-checked="true"')
-        self.assertTrue(holdings.core.get_settings(self.profile).include_dividends)
+        r = self.client.get(reverse("investments_dashboard"))
+        self.assertNotContains(r, "Include dividends in XIRR")  # the switch is in Settings > General
+        self.assertNotContains(r, "Dividends received")
+        self.assertContains(r, 'name="period"')
+        self.client.get(reverse("investments_dashboard") + "?period=1y")
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.investments_period, "1y")
+        self.assertContains(self.client.get(reverse("investments_dashboard")), '<option value="1y" selected>')
 
 
 class AlertTests(InvTestCase):
@@ -259,7 +264,7 @@ class AlertTests(InvTestCase):
 
     def test_awaiting_purchases_are_left_out(self):
         tx.add_transaction(self.profile, self.user, side="buy", instrument=self.fund, portfolio=self.portfolio, broker=self.zerodha,
-                           date=self.today - timedelta(days=3), awaiting=True, amount=D(5000))
+                           date=self.today - timedelta(days=3), tentative=True, amount=D(5000))
         Price.objects.create(instrument=self.fund, date=self.today, close=D(1), source="api")
         self.assertFalse([a for a in alerts.evaluate(self.profile) if a.instrument_id == self.fund.pk])
 
@@ -348,6 +353,13 @@ class AlertTests(InvTestCase):
                 self.assertTrue(getattr(row, name), name)
         self.client.force_login(self.user)
         self.assertContains(self.client.get(reverse("investments_alerts")), "falls in a day")
+
+    def test_alert_settings_form_renders_every_field_so_a_save_is_valid(self):
+        # The window fields were missing from the page, so every save lacked a required value, was refused, and the page showed the old figures.
+        self.client.force_login(self.user)
+        html = self.client.get(reverse("investments_alerts")).content.decode()
+        for name in forms.AlertSettingsForm.base_fields:
+            self.assertIn(f'name="{name}"', html, name)
 
     def test_settings_page_saves(self):
         self.client.force_login(self.user)

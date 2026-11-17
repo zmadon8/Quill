@@ -32,9 +32,9 @@ def _echo(post):
     return values
 
 
-def _chosen_client(profile, post):
-    """The Client the form chose (a typed new name wins over the list), or None."""
-    return clients.resolve(profile, int_or_none(post.get("client_id")), post.get("client_new", ""))
+def _chosen_client(profile, post, firm_id):
+    """The Client the form chose, as a client of the matter's firm ``firm_id`` (a typed new name wins over the list), or None."""
+    return clients.resolve(profile, firm_id, int_or_none(post.get("client_id")), post.get("client_new", ""))
 
 
 def _form_page(request, matter, form, errors=None, status=200):
@@ -73,7 +73,7 @@ def matter_new(request):
             if firm_id is None:
                 raise FeesError("INVALID_MATTER", "Choose a firm.")
             with transaction.atomic():   # a new client typed on a form that then fails is not kept
-                client = _chosen_client(profile, request.POST)
+                client = _chosen_client(profile, request.POST, firm_id)
                 matter = matters.create_matter(profile, firm_id, group_id, name, **defaults)
                 clients.set_matter_client(profile, matter, client)
         except FeesError as err:
@@ -132,7 +132,7 @@ def matter_edit(request, matter_id):
         try:
             name, group_id, firm_id, defaults = forms.matter_data_from_post(request.POST)
             with transaction.atomic():
-                client = _chosen_client(profile, request.POST)
+                client = _chosen_client(profile, request.POST, firm_id if firm_id is not None else matter.firm_id)
                 matter = matters.update_matter(
                     profile, matter_id, name=name, firm_id=firm_id, group_id=group_id, **defaults
                 )

@@ -125,7 +125,7 @@ class SearchRankingTests(TestCase):
         from fees.models import Client
 
         partner = Group.objects.create(profile=self.profile, firm=self.firm, name="Match Partner")
-        Client.objects.create(profile=self.profile, name="Match Holdings")
+        Client.objects.create(profile=self.profile, firm=self.firm, name="Match Holdings")
         make_memo(self.profile, self.matter, plaintiff_name="Match Plaintiff")
         results = search.search(self.profile, "Match")
         kinds = [r["kind"] for r in results]

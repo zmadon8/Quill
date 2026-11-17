@@ -1,20 +1,11 @@
 (function () {
   "use strict";
-  // The ONE column-resizing component for the whole suite (Home, Admin, Backups, the diary and the Fee Register).
-  //
-  // Any <table> with a <thead> and a stable data-table-id="<id>" (lowercase letters, digits, - and _) gets a drag handle on
-  // the right edge of every heading: drag it, or focus it and use the Left and Right arrow keys; double-click a handle to
-  // return that column to its natural width. Tables whose first heading row uses colspan, has fewer than two headings, or has
-  // are left as they are (nothing to attach a handle to). With no <thead> at all, the first row's cells carry the handles.
-  //
-  // Storage is a plug-in "store" ({read(id, keys), write(id, widths, keys, natural)}):
-  //   - Suite and diary tables (this file, automatic): this browser's localStorage "quill.cols.<id>", a JSON array of pixel
-  //     widths, one per heading (the same key and format the diary and Backups tables always used). A "Reset Column Widths"
-  //     button is added above the table.
-  //   - Fee Register tables: static/js/fees/columns.js calls QuillColumns.attach() with a store that saves per user on the
-  //     server (the fees_prefs endpoint) and falls back to localStorage; it also drives the Columns show/hide menu.
-  // data-resizable-columns="<id>" is still read as an older spelling of data-table-id. Without JavaScript every column shows
-  // at its natural width.
+  // The ONE column-resizing component for the suite. A <table> with a <thead> and a stable data-table-id="<id>" gets a drag handle
+  // on each heading (drag, or focus it and use Left / Right; double-click resets that column). Tables with colspan in the first
+  // heading row or fewer than two headings are left alone; with no <thead> the first row's cells carry the handles.
+  // Storage is a plug-in store {read(id, keys), write(id, widths, keys, natural)}: here localStorage "quill.cols.<id>" (a JSON
+  // array of pixel widths); static/js/fees/columns.js passes a per-user server store through QuillColumns.attach().
+  // data-resizable-columns is an older spelling of data-table-id. Without JavaScript every column keeps its natural width.
   if (window.QuillColumns) { return; }
   var MIN = 40;
   var MAX = 1200;

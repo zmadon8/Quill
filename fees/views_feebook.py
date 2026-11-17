@@ -4,7 +4,6 @@ from django.views.decorators.http import require_safe
 from fees import scope
 from fees.decorators import fees_reader, handle_fees_errors
 from fees.pages import bank_on, feebook_filters, page_number, render_page
-from fees.services import clients as clients_service
 from fees.services import feebook, filter_options, fy_options, memo_lists, prefs
 from fees.services import settings as settings_service
 from fees.services.financial_year import current_financial_year
@@ -53,7 +52,8 @@ def feebook_page(request):
             "partner_choices": options["partners"],
             "matter_choices": options["matters"],
             "filters_open": request.GET.get("filters") == "open",
-            "client_choices": clients_service.choices(profile),
+            "client_choices": options["clients"],
+            "no_client_choice": options["no_client"],
             "fy_options": fy_options.financial_year_options(
                 profile, settings.feebook_start_year, filters.get("financial_year"), only_years=options["years"]
             ),

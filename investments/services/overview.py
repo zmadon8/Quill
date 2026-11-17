@@ -19,7 +19,6 @@ BOXES = (
     ("xirr", "Portfolio XIRR", "a year, on money you put in"),
     ("index_xirr", "{index} XIRR", "same cash flows in the index"),
     ("alpha", "Alpha", "your XIRR less the index's"),
-    ("dividends", "Dividends received", "not part of current value"),
     ("count", "Holdings", "investments held now"),
 )
 STANDARD_BOXES = ("invested", "value", "gain", "xirr", "index_xirr", "alpha")
@@ -37,7 +36,6 @@ METRICS = (
     ("taken_out", "Money taken out", "money", "Sales after charges (and dividends while they count in XIRR)."),
     ("fresh", "Fresh investments", "money_signed", "Money put in less money taken out."),
     ("gain", "Gain in the period", "money_signed", "Value at the end less value at the start less fresh investments."),
-    ("dividends", "Dividends received", "money", ""),
     ("realised", "Gains booked on sales", "money_signed", "Gains on the units sold in the period, first in first out."),
     ("drawdown", "Largest fall", "pct", "The biggest fall from a high in the period; from sampled values."),
 )

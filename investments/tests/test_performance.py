@@ -162,7 +162,7 @@ class PerformanceTests(InvTestCase):
     def test_value_series_and_total_value_exclude_nothing_but_dividends(self):
         self.buy(d(2022, 1, 1), 10, 100)
         tx.add_transaction(self.profile, self.user, side="buy", instrument=self.fund, portfolio=self.portfolio, broker=self.zerodha,
-                           date=d(2023, 6, 1), awaiting=True, amount=D(5000))
+                           date=d(2023, 6, 1), tentative=True, amount=D(5000))
         days = series.sample_dates(d(2022, 1, 1), d(2024, 1, 1))
         values, flows = series.portfolio_value_series(self.profile, days)
         rows, totals = holdings.compute(self.profile, as_of=d(2024, 1, 1))

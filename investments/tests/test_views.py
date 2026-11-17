@@ -74,14 +74,14 @@ class PageTests(InvTestCase):
         self.assertEqual(data["buckets"][0]["units"], "10.0000")
         self.assertEqual(data["buckets"][0]["broker_name"], "Zerodha")
 
-    def test_awaiting_flow_through_pages(self):
-        r = self.post("investments_txn_new_awaiting", {"date": "2024-11-04", "instrument": self.fund.pk, "portfolio": self.portfolio.pk,
-                                                       "broker": self.zerodha.pk, "amount": "50,000", "charges": "0"})
+    def test_tentative_flow_through_pages(self):
+        r = self.post("investments_txn_new_buy", {"date": "2024-11-04", "instrument": self.fund.pk, "portfolio": self.portfolio.pk,
+                                                  "broker": self.zerodha.pk, "tentative": "on", "amount": "50,000", "charges": "0"})
         self.assertRedirects(r, reverse("investments_transactions"))
         t = Transaction.objects.get()
-        self.assertEqual(t.status, "awaiting")
-        self.assertContains(self.client.get(reverse("investments_dashboard")), "waiting for units")      # paid in 2024: past the reminder
-        self.assertContains(self.client.get(reverse("investments_txn_to_confirm")), "Complete")
+        self.assertEqual(t.status, "tentative")
+        self.assertContains(self.client.get(reverse("investments_dashboard")), "still tentative")      # paid in 2024: past the reminder
+        self.assertContains(self.client.get(reverse("investments_txn_to_confirm")), "Finalise")
         prices.set_manual_price(self.profile, self.user, self.fund, d(2024, 11, 5), "50")
         self.assertContains(self.client.get(reverse("investments_txn_complete", args=[t.pk])), "1,000")
         r = self.post("investments_txn_complete", {"allotment_date": "2024-11-06", "units": "1000", "version": t.version}, [t.pk])
@@ -91,11 +91,11 @@ class PageTests(InvTestCase):
 
     def test_complete_with_unconfirmed_difference_shows_message(self):
         t = tx.add_transaction(self.profile, self.user, side="buy", instrument=self.fund, portfolio=self.portfolio, broker=self.zerodha,
-                               date=d(2024, 11, 4), awaiting=True, amount=D(50000))
+                               date=d(2024, 11, 4), tentative=True, amount=D(50000))
         r = self.post("investments_txn_complete", {"allotment_date": "2024-11-06", "units": "900", "nav": "50"}, [t.pk])
         self.assertContains(r, "differs from the amount paid")
         t.refresh_from_db()
-        self.assertEqual(t.status, "awaiting")
+        self.assertEqual(t.status, "tentative")
 
     def test_history_names_the_portfolio(self):
         from investments.models import Portfolio
