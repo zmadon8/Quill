@@ -23,6 +23,11 @@ class TentativePagesTests(InvTestCase):
                                          date=d(2024, 2, 2), tentative=True, amount=D(700))
         self.url = reverse("investments_transactions")
 
+    def test_the_tick_box_is_on_the_same_line_as_its_words(self):
+        html = self.client.get(reverse("investments_txn_new_buy")).content.decode()
+        self.assertRegex(html, r'<label class="chk" for="id_tentative"><input type="checkbox" name="tentative"[^>]*> Mark as Tentative</label>')
+        self.assertNotIn('<label for="id_tentative">', html)
+
     def test_a_tentative_row_has_the_tag_beside_the_action_the_class_and_dashes(self):
         html = self.client.get(self.url).content.decode()
         row = html[html.index(f'id="txn-{self.tent.pk}"'):]

@@ -1,1 +1,1 @@
-<p>{{ f.errors }}<label for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}</p>
+<p>{{ f.errors }}{% if f.widget_type == "checkbox" %}<label class="search-check" for="{{ f.id_for_label }}">{{ f }} {{ f.label }}</label>{% else %}<label for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}{% endif %}</p>
