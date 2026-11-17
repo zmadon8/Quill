@@ -147,7 +147,7 @@ class HeldOnlyTests(InvTestCase):
     # -- Charts
 
     def inv_select(self, html):
-        m = re.search(r'<div class="msel-list">(<label title="All">.*?)</div>', html, re.S)
+        m = re.search(r'<div class="col-menu-list"[^>]*>(<label title="All"[^>]*>.*?)</div>', html, re.S)
         self.assertIsNotNone(m, "no Investments drop-down")
         return m.group(1)
 

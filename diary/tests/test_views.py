@@ -262,9 +262,9 @@ class HomeIndexTests(TestCase):
         for name in ("user_list", "settings", "backup_list"):
             suite_header = self.client.get(reverse(name)).content.decode().split('<header class="site-header"')[1].split("</header>")[0]
             self.assertIn('class="home-button" href="%s?home=1"' % reverse("home"), suite_header, name)
-            self.assertLess(suite_header.index("data-forward"), suite_header.index("home-button"), name)
-            self.assertLess(suite_header.index("home-button"), suite_header.index('aria-label="Sign out"'), name)
-            self.assertLess(suite_header.index('class="who"'), suite_header.index("home-button"), name)
+            self.assertLess(suite_header.index("data-forward"), suite_header.index('class="home-button" href='), name)
+            self.assertLess(suite_header.index('class="home-button" href='), suite_header.index('aria-label="Sign out"'), name)
+            self.assertLess(suite_header.index('class="who"'), suite_header.index('class="home-button" href='), name)
         home_header = self.client.get(reverse("home") + "?home=1").content.decode().split('<header class="site-header"')[1].split("</header>")[0]
         self.assertIn('aria-label="Sign out"', home_header)
         self.assertIn("home-button", home_header)
