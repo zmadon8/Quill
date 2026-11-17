@@ -32,7 +32,7 @@ Public API
 The mapping is ``{field_id: header or None}``. Field ids are ``IMPORT_FIELDS`` (snake_case of the original
 camelCase names): ``firm_name`` and ``matter_name`` are required.
 
-Result: ``{"firms_created", "matters_created", "memos_created", "payments_created", "rows_processed",
+Result: ``{"firms_created", "matters_created", "clients_created", "memos_created", "payments_created", "rows_processed",
 "warnings", "warnings_total"}``. ``warnings`` keeps the first ``MAX_WARNINGS``; ``warnings_total`` counts all.
 
 Rules kept from the original
@@ -91,7 +91,7 @@ from decimal import Decimal, InvalidOperation
 from django.db import DataError, IntegrityError, transaction
 
 from fees.errors import FeesError
-from fees.models import FeesSettings, Firm, Group, Matter, Memo, NumberSequence
+from fees.models import Client, FeesSettings, Firm, Group, Matter, Memo, NumberSequence
 from fees.services import history, memo_fees, memo_numbers, memos, payments
 from fees.services.excel_restore import MAX_UNCOMPRESSED_BYTES
 from fees.services.financial_year import current_financial_year, derive_financial_year
@@ -164,6 +164,7 @@ IMPORT_FIELDS = (
     ("payee", "Payee", "Payment", False),
     ("payment_group", "Payment group (same value = paid together)", "Payment", False),
     ("court_name", "Court / cause title (to Matter)", "Matter details", False),
+    ("client_name", "Client (to Matter)", "Matter details", False),
     ("matter_client", "Brief on Behalf of (to Matter)", "Matter details", False),
     ("party_plaintiff", "Plaintiff / applicant", "Parties (optional)", False),
     ("party_defendant", "Defendant / respondent", "Parties (optional)", False),
@@ -196,7 +197,8 @@ _NEEDLES = {
     "party_plaintiff": ("plaintiff", "applicant", "petitioner"),
     "party_defendant": ("defendant", "respondent"),
     "court_name": ("=court / cause title", "cause title", "=court", "court", "tribunal"),
-    "matter_client": ("=client", "client", "brief on behalf of", "on behalf of", "client position", "party role"),
+    "client_name": ("=client", "=client name", "client name", "=client (to matter)"),
+    "matter_client": ("brief on behalf of", "on behalf of", "client position", "party role", "=brief"),
 }
 
 
@@ -555,6 +557,7 @@ class _Importer:
         self.auto_number = bool(auto_number)
         self.firms_created = 0
         self.matters_created = 0
+        self.clients_created = 0
         self.memos_created = 0
         self.payments_created = 0
         self.rows_processed = 0
@@ -563,7 +566,8 @@ class _Importer:
         self.firm_ids = {}  # lower name -> firm id
         self.group_ids = {}  # (firm id, lower name) -> group id
         self.group_counts = {}  # firm id -> groups known
-        self.matters = {}  # (firm id, lower name) -> [matter id, has court, has client position]
+        self.matters = {}  # (firm id, lower name) -> [matter id, has court, has client position, has client]
+        self.client_ids = {}  # (firm id, lower name) -> client id
         self.grouped = {}  # payment group -> [(memo id, net, tds, date, payee, row no)]
         self.quiet = False  # true during the planning pass, which must not warn
         self.assigned = {}  # row no -> planned automatic number text
@@ -645,8 +649,23 @@ class _Importer:
         self.group_ids[key] = group.pk
         return group.pk
 
-    def find_or_create_matter(self, firm_id, group_name, name, court, client):
-        """The matter by (firm, name), reused even under another group. Court and client position fill only if blank."""
+    def find_or_create_client(self, firm_id, name):
+        """The firm's client called ``name`` (any case), made when the firm has none: a client belongs to one firm."""
+        if not name:
+            return None
+        key = (firm_id, name.lower())
+        client_id = self.client_ids.get(key)
+        if client_id is None:
+            client = Client.objects.filter(profile=self.profile, firm_id=firm_id, name__iexact=name).only("pk").first()
+            if client is None:
+                client = Client.objects.create(profile=self.profile, firm_id=firm_id, name=name)
+                self.clients_created += 1
+            client_id = self.client_ids[key] = client.pk
+        return client_id
+
+    def find_or_create_matter(self, firm_id, group_name, name, court, client, client_name=""):
+        """The matter by (firm, name), reused even under another group. Court, Brief on Behalf of (``client``) and the Client
+        (``client_name``, a client of the matter's firm) fill only if blank."""
         key = (firm_id, name.lower())
         entry = self.matters.get(key)
         if entry is None:
@@ -661,9 +680,13 @@ class _Importer:
                     is_archived=False,
                     court_name=court or "",
                     client_position=client or "",
+                    client_id=self.find_or_create_client(firm_id, client_name),
                 )
                 self.matters_created += 1
-            entry = self.matters[key] = [matter.pk, bool(matter.court_name), bool(matter.client_position)]
+            entry = self.matters[key] = [matter.pk, bool(matter.court_name), bool(matter.client_position), bool(matter.client_id)]
+            if client_name and not entry[3]:
+                Matter.objects.filter(pk=matter.pk).update(client_id=self.find_or_create_client(firm_id, client_name))
+                entry[3] = True
             return entry[0]
         updates = {}
         if court and not entry[1]:
@@ -672,6 +695,9 @@ class _Importer:
         if client and not entry[2]:
             updates["client_position"] = client
             entry[2] = True
+        if client_name and not entry[3]:
+            updates["client_id"] = self.find_or_create_client(firm_id, client_name)
+            entry[3] = True
         if updates:
             Matter.objects.filter(pk=entry[0]).update(**updates)
         return entry[0]
@@ -810,12 +836,14 @@ class _Importer:
         partner = self.get(row, "partner_name") or None   # no Partner column or a blank cell: the matter has no partner
         court = self.get(row, "court_name") or ""
         client = self.get(row, "matter_client") or ""
+        client_name = self.get(row, "client_name") or ""
         plaintiff = self.get(row, "party_plaintiff") or ""
         defendant = self.get(row, "party_defendant") or ""
         payee = (self.get(row, "payee") or "") if "payee" in self.mapping else ""
         self.limit("firm name", firm_name, "firm")
         self.limit("partner name", partner, "group")
         self.limit("matter name", matter_name, "matter")
+        self.limit("client name", client_name, "firm")
         self.limit("memo number", number_raw, "number")
         for label, value in (("court name", court), ("brief on behalf of", client), ("plaintiff", plaintiff),
                              ("defendant", defendant), ("payee", payee)):
@@ -860,7 +888,7 @@ class _Importer:
             pay_date = self.date(row, "payment_date", row_no) if "payment_date" in self.mapping else ""
 
         firm_id = self.find_or_create_firm(firm_name)
-        data["matter_id"] = self.find_or_create_matter(firm_id, partner, matter_name, court, client)
+        data["matter_id"] = self.find_or_create_matter(firm_id, partner, matter_name, court, client, client_name)
         try:
             memo = memos.create_memo(self.profile, data, is_draft)
         except FeesError as error:
@@ -953,6 +981,7 @@ class _Importer:
         return {
             "firms_created": self.firms_created,
             "matters_created": self.matters_created,
+            "clients_created": self.clients_created,
             "memos_created": self.memos_created,
             "payments_created": self.payments_created,
             "rows_processed": self.rows_processed,

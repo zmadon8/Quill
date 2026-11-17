@@ -7,6 +7,7 @@
   <li>Rows read: {{ result.rows_processed }}</li>
   <li>Firms created: {{ result.firms_created }}</li>
   <li>Matters created: {{ result.matters_created }}</li>
+  <li>Clients created: {{ result.clients_created|default:0 }}</li>
   <li>Memos created: {{ result.memos_created }}</li>
   <li>Payments created: {{ result.payments_created }}</li>
 </ul>
