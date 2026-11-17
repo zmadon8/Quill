@@ -108,9 +108,11 @@ OPENING_PAGE_OFFERED = [
     ("subject", "A Chosen Subject"),
 ]
 
-#: Form field -> UserSettings column, for the five number formats.
+#: Form field -> UserSettings column, for the six number formats (the citations of an Item with several have one format
+#: for citations in a line and one for citations on separate lines).
 FORMAT_FIELDS = (
     "topic_format", "subtopic_format", "section_format", "item_format", "multi_citation_format",
+    "multi_citation_lines_format",
 )
 
 
@@ -131,7 +133,10 @@ class DiarySettingsForm(forms.Form):
     section_format = forms.ChoiceField(choices=SECTION_FORMAT_CHOICES, required=False, label="Sections")
     item_format = forms.ChoiceField(choices=FORMAT_CHOICES, required=False, label="Items")
     multi_citation_format = forms.ChoiceField(
-        choices=FORMAT_CHOICES, required=False, label="Citations of an Item with several"
+        choices=FORMAT_CHOICES, required=False, label="Citations in a line"
+    )
+    multi_citation_lines_format = forms.ChoiceField(
+        choices=FORMAT_CHOICES, required=False, label="Citations on separate lines"
     )
     export_date_format = forms.ChoiceField(
         choices=DATE_FORMAT_CHOICES, required=False, label="Date in Word file names"

@@ -6,19 +6,19 @@
 {% block page_js %}<script src="{% static 'js/fees/filename-preview.js' %}"></script><script src="{% static 'js/fees/filename-builder.js' %}"></script><script src="{% static 'js/settings-sections.js' %}"></script>{% endblock %}
 {% block content %}
 <h1 class="visually-hidden">Settings</h1>
+<div class="settings-layout" data-settings-sections data-initial="{{ tab }}">
+<nav class="settings-nav" aria-label="Settings sections">
+  <a href="?tab=memos" data-section-link="memos"{% if tab == "memos" %} class="on" aria-current="page"{% endif %}>Memos</a>
+  <a href="?tab=payments" data-section-link="payments"{% if tab == "payments" %} class="on" aria-current="page"{% endif %}>Payments</a>
+  <a href="?tab=word" data-section-link="word"{% if tab == "word" %} class="on" aria-current="page"{% endif %}>Word Documents</a>
+  <a href="?tab=years" data-section-link="years"{% if tab == "years" %} class="on" aria-current="page"{% endif %}>Years And Statistics</a>
+  <a href="?tab=display" data-section-link="display"{% if tab == "display" %} class="on" aria-current="page"{% endif %}>Display</a>
+  <a href="?tab=data" data-section-link="data"{% if tab == "data" %} class="on" aria-current="page"{% endif %}>Data</a>
+</nav>
+<div class="settings-panels">
 {% if not can_edit %}<p class="muted read-only-note">You can read the settings but not change them.</p>{% endif %}
 <p class="setting-help">These are shared by everyone using this profile, except where a setting says <em>Only you</em>. Your own Opening page is on <a href="{% url 'my_settings' %}?tab=start">Start Screens</a>; your own Items per page is in the Display section below.</p>
 {% include "fees/_form_errors.html" %}
-<div class="settings-layout" data-settings-sections data-initial="{{ tab }}">
-<nav class="settings-nav" aria-label="Settings sections">
-  <a href="?tab=memos" data-section-link="memos"{% if tab == "memos" %} class="on" aria-current="page"{% endif %}>1 Memos</a>
-  <a href="?tab=payments" data-section-link="payments"{% if tab == "payments" %} class="on" aria-current="page"{% endif %}>2 Payments</a>
-  <a href="?tab=word" data-section-link="word"{% if tab == "word" %} class="on" aria-current="page"{% endif %}>3 Word Documents</a>
-  <a href="?tab=years" data-section-link="years"{% if tab == "years" %} class="on" aria-current="page"{% endif %}>4 Years And Statistics</a>
-  <a href="?tab=display" data-section-link="display"{% if tab == "display" %} class="on" aria-current="page"{% endif %}>5 Display</a>
-  <a href="?tab=data" data-section-link="data"{% if tab == "data" %} class="on" aria-current="page"{% endif %}>6 Data</a>
-</nav>
-<div class="settings-panels">
 
 <section class="card settings-card settings-panel-body" data-section="memos" id="settings-memos">
 <h2>Memos</h2>

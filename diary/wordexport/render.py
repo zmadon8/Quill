@@ -154,7 +154,7 @@ class Renderer:
         self.doc.add(self.labelled(S_ITEM, label, self.item_runs(item), pos))
         if item.cases and item.layout == "lines":
             # Citations on separate lines: literal "(a)" labels in the user's citation format, text hanging under the text.
-            labels = numbering.number_siblings(len(item.cases), self.fmts["multi_citation_format"])
+            labels = numbering.number_siblings(len(item.cases), self.fmts["multi_citation_lines_format"])
             for case_label, case in zip(labels, item.cases):
                 self.doc.add(self.labelled(S_CASE_LINE, case_label, self.case_line_runs(case), pos + W))
         self.emit_notes(item.notes, pos + W)

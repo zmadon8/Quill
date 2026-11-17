@@ -151,7 +151,7 @@ class HomeIndexTests(TestCase):
     def test_nav_marks_current_page(self):
         self.client.force_login(self.admin)
         resp = self.client.get(reverse("user_list"))
-        self.assertNotContains(resp, 'aria-label="Settings"')  # no Settings header item; the tab strip below marks the page
+        self.assertContains(resp, 'aria-label="Settings"')  # the gear; the tab strip below marks the page
         self.assertContains(resp, '<a href="%s" class="on" aria-current="page">Users &amp; Profiles</a>' % reverse("user_list"))  # its tab
         self.assertContains(resp, '<a href="%s" class="on" aria-current="page">Users</a>' % reverse("user_list"))  # its second row
         self.assertNotContains(resp, 'class="on" aria-current="page">Subjects</a>')
@@ -322,7 +322,7 @@ class HomeIndexTests(TestCase):
         self.assertIn(reverse("my_settings"), nav)
         self.assertIn("adam", nav)
         self.assertIn('aria-label="Sign out"', nav)
-        self.assertNotIn('aria-label="Settings"', nav)  # no Settings item: the user name opens settings
+        self.assertIn('class="home-button gear-button" href="%s?tab=start"' % reverse("my_settings"), nav)  # the gear opens Start Screens
         for gone in (reverse("search"), reverse("diary_home")):
             self.assertNotIn(gone, nav)
         self.assertNotIn(">Admin<", nav)
@@ -373,7 +373,7 @@ class HomeIndexTests(TestCase):
             self.assertEqual(header.count("data-search-toggle"), 1 if name in ("diary_home", "home") else 0, name)
             # Icons are the default header bar (D84): Trash, Export, Help and Settings are icons on diary pages too.
             self.assertEqual(header.count("<svg") - 2, header.count('class="home-button"') + header.count("data-search-toggle")
-                             + header.count("nav-icon"), name)
+                             + header.count("nav-icon") + header.count("gear-button"), name)
             self.assertIn('data-fallback="%s"' % reverse("home"), header)
 
     def test_no_review_tab_in_the_header_and_the_old_address_forwards_to_flags(self):

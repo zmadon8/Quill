@@ -177,6 +177,8 @@ SETTINGS_SUBTABS = {
     ),
     "Display": (
         ("my_settings", "My Display", "all", _my_tab("display"), "?tab=display"),
+        # The Home page figures are the second section of the My Display page (opened by its address fragment).
+        ("my_settings", "My Home Page", "all", lambda n, request: False, "?tab=display#section-home"),
         ("settings", "Names", "admin", _plain(_is("settings")), ""),
     ),
 }

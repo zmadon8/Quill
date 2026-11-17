@@ -36,9 +36,9 @@
       {% if user.is_authenticated %}
       <nav class="program-nav" aria-label="Main">
         {% block program_nav %}{% endblock %}
-        {# Uniform on every page: the program brand, nav items and Back / Forward are on the left; the user name, Search, Home and Sign out (all but the name are icons) are on the right. #}
+        {# Uniform on every page: the program brand, nav items and Back / Forward are on the left; the Settings gear, the user's initials, Search, Home and Sign out (all icons) are on the right. #}
         <div class="header-end">
-          {% block who %}{% include "_header_user.html" %}{% endblock %}
+          {% block who %}{% block gear %}<a class="home-button gear-button" href="{% block gear_url %}{% url 'my_settings' %}?tab=start{% endblock %}" title="Settings" aria-label="Settings">{% include "icons/gear.svg.html" %}</a>{% endblock %}{% include "_header_user.html" %}{% endblock %}
           {% block search_tool %}{% endblock %}
           {% block nav_end %}{% include "_home_button.html" %}{% endblock %}
           {% include "_signout_button.html" %}

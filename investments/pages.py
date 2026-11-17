@@ -134,6 +134,14 @@ def current_slug(request):
     return name[len("investments_"):] if name.startswith("investments_") else ""
 
 
+def _on_settings_page(request):
+    """True on a Settings page: its pages are listed down the left (as Backup's sections are) instead of in the row under the header."""
+    slug = current_slug(request)
+    page = BY_SLUG.get(slug)
+    extra = EXTRA.get(slug)
+    return (page.group if page else (extra[0] if extra else "overview")) == "settings"
+
+
 def navigation(request, is_admin):
     """``(top, sub)``: the header entries and the second row for the current page, each a list of dicts."""
     slug = current_slug(request)
@@ -163,6 +171,7 @@ def render_context(request, profile, extra=None):
     settings_row = core.get_settings(profile, create=False) if profile is not None else None
     top, sub = navigation(request, is_admin)
     context = {
+        "inv_sub_side": _on_settings_page(request),
         "inv_profile": profile,
         "inv_settings": settings_row,
         "inv_tools": profile is not None,

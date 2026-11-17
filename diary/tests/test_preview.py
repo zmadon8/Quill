@@ -27,7 +27,12 @@ class DefaultsTests(unittest.TestCase):
         self.assertEqual(only(self.rows, "section"), ["(a)", "(b)"])
         self.assertEqual(only(self.rows, "citation"), ["(a)", "(b)"])
         items = [r["label"] for r in self.rows if r["kind"] == "item"]
-        self.assertEqual(items, ["(1)", "(2)", "(1)"])
+        self.assertEqual(items, ["(1)", "(2)", "(3)", "(1)"])
+
+    def test_both_citation_layouts_are_shown(self):
+        inline = [r for r in self.rows if "in a line" in r["text"]][0]
+        self.assertIn("(a) Sample v. Example (2020) 1 SCC 1 (b) Example v. Sample", inline["text"])
+        self.assertTrue(any("on separate lines" in r["text"] for r in self.rows))
 
     def test_restart_after_section(self):
         last_item = [r for r in self.rows if r["text"].startswith("First Item after")][0]
@@ -46,14 +51,16 @@ class ChosenFormatsTests(unittest.TestCase):
     def test_changed_set(self):
         rows = preview.build_preview({
             "topic": "I", "subtopic": "(A)", "section": "a", "item": "(a)",
-            "multi_citation": "1",
+            "multi_citation": "1", "multi_citation_lines": "I",
         })
         self.assertEqual(only(rows, "topic"), ["I.", "II."])
         self.assertEqual(only(rows, "subtopic"), ["(A)", "(B)"])
         self.assertEqual(only(rows, "section"), ["a.", "b."])
-        self.assertEqual(only(rows, "citation"), ["1", "2"])
+        self.assertEqual(only(rows, "citation"), ["I", "II"])  # on separate lines
+        inline = [r for r in rows if "in a line" in r["text"]][0]
+        self.assertIn("1 Sample v. Example (2020) 1 SCC 1 2 Example v. Sample", inline["text"])
         items = [r["label"] for r in rows if r["kind"] == "item"]
-        self.assertEqual(items, ["(a)", "(b)", "(a)"])
+        self.assertEqual(items, ["(a)", "(b)", "(c)", "(a)"])
 
     def test_none_and_section_n(self):
         rows = preview.build_preview({"topic": "none", "section": "Section 1", "item": "none"})
@@ -64,7 +71,7 @@ class ChosenFormatsTests(unittest.TestCase):
     def test_restart_after_section_with_other_formats(self):
         rows = preview.build_preview({"item": "A", "section": "Section 1"})
         items = [r["label"] for r in rows if r["kind"] == "item"]
-        self.assertEqual(items, ["A.", "B.", "A."])
+        self.assertEqual(items, ["A.", "B.", "C.", "A."])
 
     def test_bullets_are_not_given_a_full_stop(self):
         rows = preview.build_preview({"topic": "bullet", "item": "bullet"})

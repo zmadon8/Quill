@@ -3,7 +3,6 @@
 {% block title %}Start Screens - {{ site_name }}{% endblock %}
 {% block content %}
 <h1 class="visually-hidden">Start Screens</h1>
-<p class="field-help">Where the site opens for you: first when you sign in, then inside each program. Only yours.</p>
 <div class="settings-layout" data-settings-sections data-initial="site">
   <nav class="settings-nav" aria-label="Sections of this page">
     <a href="#section-site" data-section-link="site" class="on" aria-current="page">When I open the site</a>
@@ -15,6 +14,7 @@
 
   <section class="settings-panel-body" data-section="site" id="section-site">
     <h2>When I open the site</h2>
+    <p class="setting-help">Where the site opens for you: first when you sign in, then inside each program. Only yours.</p>
     <form method="post" action="{% url 'my_settings' %}" class="stack settings-section-form" data-section-form>
       {% csrf_token %}
       <input type="hidden" name="tab" value="start">

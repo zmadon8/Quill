@@ -91,8 +91,8 @@ class _Builder:
         if text and lines and not re.sub(r"<[^>]*>", "", text).rstrip().endswith(":"):
             colon = '<span class="item-colon">:</span>'  # the citations follow on their own lines
         body = [f'<span class="item-text">{text}{colon}</span>' if text else ""]
-        labels = numbering.number_siblings(len(item.cases), self.fmts["multi_citation_format"]) if len(item.cases) > 1 \
-            else [""] * len(item.cases)
+        cite_format = self.fmts["multi_citation_lines_format" if lines else "multi_citation_format"]
+        labels = numbering.number_siblings(len(item.cases), cite_format) if len(item.cases) > 1 else [""] * len(item.cases)
         if item.cases and lines:
             rows = []
             for case_label, case in zip(labels, item.cases):

@@ -17,6 +17,7 @@ ALL_FORMATS = {
     "section_format": "section_n",
     "item_format": "lower_roman",
     "multi_citation_format": "decimal",
+    "multi_citation_lines_format": "upper_roman",
 }
 
 
@@ -50,7 +51,7 @@ class SettingsPageTests(Base):
         self.assertContains(resp, "Index Of Subjects")
         self.assertNotContains(resp, 'name="topic_format"')
         resp = self.numbers()
-        self.assertContains(resp, "My number formats")
+        self.assertContains(resp, "My Number Formats")
         self.assertContains(resp, "Preview")
         for name in ALL_FORMATS:
             self.assertContains(resp, f'name="{name}"')

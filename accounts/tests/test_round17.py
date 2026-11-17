@@ -137,8 +137,8 @@ class SettingsTabsTests(TestCase):
 
     def test_the_user_name_opens_the_settings_area(self):
         diary = self.client.get(reverse("diary_home")).content.decode()
-        # No Settings link in the diary header; the user name in the header opens My settings.
-        self.assertNotIn('aria-label="Settings"', diary)
+        # The gear opens the diary's own settings; the user name in the header opens My settings.
+        self.assertIn('aria-label="Settings"', diary)  # the gear, left of the user name
         self.assertIn('class="who" href="%s"' % reverse("my_settings"), diary)
         display = self.client.get(reverse("my_settings"), {"tab": "display"}).content.decode()
         self.assertIn('class="subnav"', display)  # the Settings tabs
