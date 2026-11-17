@@ -1,4 +1,4 @@
-"""Owner round (2026-12): commas while typing numbers (D212). One per-user switch, on by default; the page flag is data-group-digits."""
+"""Owner round (2026-12): commas while typing numbers (D212). One per-user switch, on by default; the page flag is <meta name="group-digits">."""
 import re
 
 from django.contrib.auth import get_user_model
@@ -12,7 +12,8 @@ PASSWORD = "x-long-pass-123"
 
 
 def html_tag(page):
-    return re.search(r"<html[^>]*>", page).group(0)
+    """The page's <head>, where the flag sits (the <html> tag itself is left alone)."""
+    return page.split("</head>")[0]
 
 
 @override_settings(SECURE_SSL_REDIRECT=False)
@@ -26,8 +27,8 @@ class GroupDigitsSettingTests(TestCase):
 
     def test_the_setting_is_on_by_default(self):
         self.assertTrue(self.user.group_digits)
-        self.assertIn("data-group-digits", html_tag(self.page()))
-        self.assertIn("data-group-digits", html_tag(self.page("home")))
+        self.assertIn('<meta name="group-digits" content="on">', html_tag(self.page()))
+        self.assertIn('<meta name="group-digits" content="on">', html_tag(self.page("home")))
 
     def test_the_display_section_has_the_tick_box_ticked(self):
         page = self.page(tab="display")
@@ -45,8 +46,8 @@ class GroupDigitsSettingTests(TestCase):
         self.assertRedirects(resp, reverse("my_settings") + "?tab=display", fetch_redirect_response=False)
         self.user.refresh_from_db()
         self.assertFalse(self.user.group_digits)
-        self.assertNotIn("data-group-digits", html_tag(self.page()))
-        self.assertNotIn("data-group-digits", html_tag(self.page("home")))
+        self.assertNotIn('<meta name="group-digits" content="on">', html_tag(self.page()))
+        self.assertNotIn('<meta name="group-digits" content="on">', html_tag(self.page("home")))
         other.refresh_from_db()
         self.assertTrue(other.group_digits)
 
@@ -56,7 +57,7 @@ class GroupDigitsSettingTests(TestCase):
         self.client.post(reverse("my_settings"), {"tab": "display", "group_digits": "on", "colour_theme": "oxblood"})
         self.user.refresh_from_db()
         self.assertTrue(self.user.group_digits)
-        self.assertIn("data-group-digits", html_tag(self.page()))
+        self.assertIn('<meta name="group-digits" content="on">', html_tag(self.page()))
 
     def test_saving_another_section_leaves_it_alone(self):
         self.user.group_digits = False
@@ -67,7 +68,7 @@ class GroupDigitsSettingTests(TestCase):
 
     def test_the_login_page_has_no_attribute(self):
         self.client.logout()
-        self.assertNotIn("data-group-digits", html_tag(self.client.get(reverse("login")).content.decode()))
+        self.assertNotIn('<meta name="group-digits" content="on">', html_tag(self.client.get(reverse("login")).content.decode()))
 
     def test_it_travels_with_the_user_in_a_backup(self):
         from backups import registry

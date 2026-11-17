@@ -1,9 +1,8 @@
 (function () {
   "use strict";
-  // Adds Indian-grouped commas (12,34,567.50) to number boxes while typing. Off unless <html data-group-digits>.
+  // Adds Indian-grouped commas (12,34,567.50) to number boxes while typing. Off unless the page has <meta name="group-digits">.
   // A box opts out with data-no-group. The server accepts commas either way; scripts that read a box strip them.
-  var root = document.documentElement;
-  if (!root.hasAttribute("data-group-digits")) { return; }
+  if (!document.querySelector('meta[name="group-digits"]')) { return; }
   var BOX = 'input[inputmode="decimal"],input[inputmode="numeric"]';
 
   function group(v) {

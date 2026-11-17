@@ -1,10 +1,11 @@
 {% load static %}<!DOCTYPE html>
 {# Shared shell for every program in the suite (Option D "Chambers"). A program extends this and fills: #}
 {# program_name, program_nav, page_title; and crumb_nav (the breadcrumb row, only on judgment-list pages). See docs/DESIGN.md "Visual design". #}
-<html lang="en"{% if justify_text %} class="justify-text"{% endif %}{% if group_digits %} data-group-digits{% endif %}{% if colour_theme and colour_theme != "oxblood" %} data-theme="{{ colour_theme }}"{% endif %}>
+<html lang="en"{% if justify_text %} class="justify-text"{% endif %}{% if colour_theme and colour_theme != "oxblood" %} data-theme="{{ colour_theme }}"{% endif %}>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  {% if group_digits %}<meta name="group-digits" content="on">{% endif %}
   <title>{% block title %}{% block program_title %}{{ site_name }}{% endblock %}{% endblock %}</title>
   {# Hyperlinks on citations on/off (D87): read before the page is drawn, so switching never needs a reload. #}
   <script>try{if(localStorage.getItem("quill.links")==="off"){document.documentElement.classList.add("links-off");}}catch(e){}</script>

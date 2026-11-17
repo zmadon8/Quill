@@ -102,7 +102,7 @@ def header_style(request):
     user badge are always icons.
     ``justify_text``: True when the signed-in user chose to justify text (My settings, Display); base_suite.html puts the class on <html>.
     ``group_digits``: True when the signed-in user wants commas added while typing numbers (My settings, Display); base_suite.html puts
-    ``data-group-digits`` on <html> and static/js/number-commas.js does nothing without it.
+    ``<meta name="group-digits">`` in the page head and static/js/number-commas.js does nothing without it.
     ``colour_theme``: the signed-in user's accent colour (My settings, Display); base_suite.html puts it on <html data-theme>.
     ``remove_citation_hyphen``: True when the signed-in user left the hyphen out between an Item's text and its citations (My settings, Display)."""
     user = getattr(request, "user", None)
