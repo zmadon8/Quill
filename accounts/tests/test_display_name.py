@@ -20,7 +20,7 @@ class DisplayNameTests(BaseCase):
         self.client.force_login(self.user)
         resp = self.client.get(reverse("diary_home"))
         self.assertContains(resp, 'class="profile-name">&middot; Main</span>')
-        self.assertContains(resp, "<title>Home - Case Law Diary</title>")
+        self.assertContains(resp, "<title>Case Law Diary</title>")
 
     def test_display_name_replaces_the_header_brand_title_and_aria_label(self):
         self.set_name("Madon's Case Law")
@@ -30,7 +30,7 @@ class DisplayNameTests(BaseCase):
             self.assertContains(resp, 'aria-label="Madon&#x27;s Case Law: Home">Madon&#x27;s Case Law</a>', msg_prefix=name)
             self.assertNotContains(resp, 'class="profile-name"', msg_prefix=name)
             self.assertNotContains(resp, "Case Law Diary: Home", msg_prefix=name)
-        self.assertContains(self.client.get(reverse("diary_home")), "<title>Home - Madon&#x27;s Case Law</title>")
+        self.assertContains(self.client.get(reverse("diary_home")), "<title>Madon&#x27;s Case Law</title>")
 
     def test_header_brand_still_links_to_the_program_index(self):
         self.set_name("Mine")

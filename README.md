@@ -26,7 +26,7 @@ The longer plans are in `docs/PLAN.md` (what is built when), `docs/DESIGN.md` (h
 
 - **Phone fixes and speed (round 13b):** on a phone and tablet the Edit button now sits beside the Contents icon. The full-screen editing card is sized to the visible screen (so the Save buttons stay in view when the keyboard opens), no longer pops the keyboard up by itself on a touch screen, shows "Saving..." and "Saved.", and shows any failure in a red band under the top bar. Pages are compressed on the way out, a Topic or Sub-topic page no longer loads the rest of the Subject, and scrolling does less work.
 
-- **Round 16:** a page keeps your place when it reloads; citations can carry a **Link** (switch links on and off with the chain icon); **For review is merged into the Flags** (None, Pending, Overruled, Doubted, Other; a drop-down with text beside every flag but None; Sections too); a **Flags** tab lists flagged records and citations with or without links, grouped by Subject; Search's ticks are History, Group by Subject, Citations, Flags, Headers. See `docs/DESIGN.md` D87-D90.
+- **Round 16:** a page keeps your place when it reloads; citations can carry a **Link** (switch links on and off with the Hyperlinks on citations tick box in Settings > Case Law Diary > Reading); **For review is merged into the Flags** (None, Pending, Overruled, Doubted, Other; a drop-down with text beside every flag but None; Sections too); a **Flags** tab lists flagged records and citations with or without links, grouped by Subject; Search's ticks are History, Group by Subject, Citations, Flags, Headers. See `docs/DESIGN.md` D87-D90.
 
 ## How to edit
 

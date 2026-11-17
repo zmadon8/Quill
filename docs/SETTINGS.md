@@ -22,7 +22,7 @@ page. The Fee Register Opening page and Items per page are personal only (no pro
 | Backup | Saved backups, Email backups (`?tab=email`) | Backups, restore, the email schedule | Admin |
 | Display | My Display, My Home Page, Names | My Display: justify text, colour theme. My Home Page: Home card figures, Home page extras. Names: the names of the site, Home and the programs (Admin) | Everyone; Names Admin |
 | Start Screens | When I open the site, one section per program | Open after login (`landing_program`), Case Law Diary opening page and Subject, Fee Register Opening page, Investments start page | Everyone, a program's section only if the user can open it |
-| Case Law Diary | Reading, My Number Formats, Data | View whole subject, My number formats and date in file names and Remove citation hyphen (Only you), Export file name, Word import, Offline link | A user with a Case Law Diary profile |
+| Case Law Diary | Reading, My Number Formats, Data | View whole subject, Hyperlinks on citations (this browser), My number formats and date in file names and Remove citation hyphen (Only you), Export file name, Word import, Offline link | A user with a Case Law Diary profile |
 | Fee Register | Memos, Payments, Word Documents, Years And Statistics, Display, Data | Every profile setting, plus My items per page (Only you, in Display) | A user with a Fee Register profile |
 | Investments | General, Brokers, Display, Insights, Indices | Every profile setting, plus Investments period for returns (Only you, in Display), and in General the site-wide lookup switch (Admin) | A user with an Investments profile |
 
@@ -148,6 +148,7 @@ as text and have no Save buttons (a Reader POST gets 403).
 | Section | Setting | Stored in | Stored | Who |
 | --- | --- | --- | --- | --- |
 | Reading | View whole subject | `Profile.reading_all_mode` | Per profile | Everyone in this profile |
+| Reading | Hyperlinks on citations (tick box, no Save) | `localStorage` `quill.links` | This browser | Only you |
 | Data | Export file name | `Profile.export_name` (saved by `export_settings`, Editors only) | Per profile | Everyone in this profile |
 | Data | Word export (link to the Export page) | No setting | n/a | n/a |
 | Data | Import from Word (link, Admin only) | No setting | n/a | n/a |
@@ -226,7 +227,7 @@ Per browser and device, never on the server, never shared. Clearing site data re
 
 | Key | Setting | Where you change it | Who |
 | --- | --- | --- | --- |
-| `quill.links` | Links on or off (the chain icon switches citation Links; value `on` or `off`) | Chain icon in the Case Law Diary header | This browser |
+| `quill.links` | Links on or off (the "Hyperlinks on citations" tick box switches citation Links; value `on` or `off`) | Settings > Case Law Diary > Reading, "Hyperlinks on citations" tick box (takes effect at once, no Save) | This browser |
 | `quill.cols.<id>` | Column widths of every table outside the Fee Register (Admin Users, Profiles and Backups, the diary's History and the rest; the key is the table's `data-table-id`; a list of pixel widths, one per heading; Reset Column Widths button) | Drag a column edge | This browser |
 | `quill.fees.widths.<id>` | Fee Register column widths, a fallback copy if saving to the server fails | Drag a column edge | This browser |
 | `quill.fees.hide.<key>` | Fee Register hidden columns | Columns menu above a table | This browser |

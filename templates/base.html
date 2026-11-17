@@ -23,7 +23,6 @@
   {% if current_profile %}<a href="{% url 'export' %}{% block export_scope %}{% endblock %}" class="{% if current == 'export' %}on{% endif %}"{% if current == 'export' %} aria-current="page"{% endif %} aria-label="Export" title="Export">{% if header_words %}Export{% else %}{% include "icons/export.svg.html" %}{% endif %}</a>{% endif %}
   {# History (was "My edits" under Settings): my own changes in this profile, newest first. #}
   {% if current_profile %}<a href="{% url 'diary_history' %}" class="{% if current == 'diary_history' %}on{% endif %}"{% if current == 'diary_history' %} aria-current="page"{% endif %} aria-label="History" title="History">{% if header_words %}History{% else %}{% include "icons/history.svg.html" %}{% endif %}</a>{% endif %}
-  {# The Links toggle (hyperlinks on citations on/off) now lives on the Edit bar, just left of Edit: see templates/diary/_edit_switch.html. #}
   <a href="{% url 'help' %}" class="{% if current == 'help' %}on{% endif %}"{% if current == 'help' %} aria-current="page"{% endif %} aria-label="Help" title="Help">{% if header_words %}Help{% else %}{% include "icons/help.svg.html" %}{% endif %}</a>
   {# No Settings link here: the user name in the header opens My settings, whose tabs include the diary's own settings. #}
 {% endwith %}{% endblock %}
