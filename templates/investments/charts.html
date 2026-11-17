@@ -10,7 +10,9 @@
   <div class="sel"><span>Investments</span>{% include "investments/_held_only.html" %}{% include "investments/_multi_pick.html" with name="inv" options=inv_options summary=inv_summary %}</div>
   {% if mode == "a" %}<div class="sel"><span>Held with</span><select name="group_broker"><option value="">Any broker</option>{% for b in brokers %}<option value="{{ b.pk }}"{% if group_broker == b.pk|stringformat:"s" %} selected{% endif %}>{{ b.name }}</option>{% endfor %}</select></div>{% endif %}
   <div class="sel"><span>Indices</span>{% include "investments/_multi_pick.html" with name="index" options=index_options summary=index_summary %}</div>
+  <div class="sel"><span>Moving average</span><select name="ma"><option value="">Off</option>{% for n in ma_choices %}<option value="{{ n }}"{% if n == ma %} selected{% endif %}>{{ n }}-day</option>{% endfor %}</select></div>
   <button class="btn q" type="submit">Draw</button><a class="btn q" href="?{{ request.GET.urlencode }}&export=xlsx">Export to Excel</a></form>
+{% if ma %}<p class="hint">Each line has its {{ ma }}-day moving average beside it, on the same scale, so an investment's trend can be read against the index's. It is the average of the last {{ ma }} closes{% if mode == "a" %} (for the portfolio line, of the chart's points over the same span){% endif %}; it starts once that many closes are stored.</p>{% endif %}
 {% if mode == "a" %}<p class="hint">The portfolio line shows performance, not size: money you add or take out does not make it jump.</p>{% endif %}
 {% include "investments/_chart.html" with caption="Lines rebased to 100" %}
 <details><summary>Table of the chart ({{ table_all }} points{% if table_all > 60 %}, the last 60 shown; the Excel file has all{% endif %})</summary>
