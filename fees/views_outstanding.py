@@ -50,14 +50,53 @@ def _scope_choices(profile, filters):
     )
 
 
+#: By Firm columns that sort from the table headings: key -> (heading, sort key, first click goes descending).
+SUMMARY_SORTS = {
+    "firm": ("Firm", lambda r: r["firm_name"].lower(), False),
+    "memos": ("Memos", lambda r: r["memo_count"], True),
+    "share": ("Share of total", lambda r: r["outstanding"], True),
+    "outstanding": ("Outstanding", lambda r: r["outstanding"], True),
+}
+#: The old ``?sort=name`` / ``?sort=amount`` values (links, bookmarks, the Excel export) still work.
+_SUMMARY_ALIASES = {"name": "firm", "amount": "-outstanding"}
+SUMMARY_DEFAULT_SORT = "-outstanding"
+
+
+def parse_summary_sort(raw):
+    """``(key, descending)`` from ``?sort=`` ("firm", "-firm", "name", ...); the default is Outstanding, high to low."""
+    raw = _SUMMARY_ALIASES.get(raw, raw or SUMMARY_DEFAULT_SORT)
+    descending = raw.startswith("-")
+    key = raw[1:] if descending else raw
+    if key not in SUMMARY_SORTS:
+        return parse_summary_sort(SUMMARY_DEFAULT_SORT)
+    return key, descending
+
+
+def _summary_headers(query, key, descending):
+    """Sortable heading descriptors (label, link, aria-sort) for the By Firm table. A heading's first click sorts it the
+    natural way (A to Z, or high to low for numbers); clicking the sorted heading again reverses it. The other
+    filters in ``query`` (a dict) stay in the link."""
+    out = {}
+    for name, (label, _fn, first_desc) in SUMMARY_SORTS.items():
+        on = name == key
+        if on:
+            target = name if descending else f"-{name}"
+        else:
+            target = f"-{name}" if first_desc else name
+        out[name] = {"label": label, "url": "?" + urlencode(dict(query, sort=target)),
+                     "aria": ("descending" if descending else "ascending") if on else "none"}
+    return out
+
+
 @fees_reader
 @handle_fees_errors()
 @require_safe
 def outstanding_summary(request):
     profile, settings = scope.context(request)
     filters = outstanding_filters(request.GET, overdue_on(settings))
-    sort = "name" if request.GET.get("sort") == "name" else "amount"
-    rows = outstanding.list_outstanding_by_firm(profile, filters, sort)
+    key, descending = parse_summary_sort(request.GET.get("sort"))
+    rows = outstanding.list_outstanding_by_firm(profile, filters, "name")  # A to Z; the sort below is stable
+    rows.sort(key=SUMMARY_SORTS[key][1], reverse=descending)
     carried = {k: "1" for k, name in (("written_off", "include_written_off"), ("overdue", "overdue_only")) if filters.get(name)}
     grand_total = sum((r["outstanding"] for r in rows), start=0)
     # Share of the total per firm (a bar on each row) and the four ageing totals above the table (owner round 2026-11).
@@ -72,7 +111,9 @@ def outstanding_summary(request):
             "ageing": [dict(b, detail_query=urlencode(dict(carried, age=b["key"]))) for b in outstanding.ageing_totals(rows)],
             "grand_total": grand_total,
             "filters": filters,
-            "sort": sort,
+            "sort_key": key,
+            "sort_descending": descending,
+            "heads": _summary_headers(carried, key, descending),
             "money_unit": settings.money_unit,
             "query_string": _query_without_overdue(request, settings),
         },
@@ -88,7 +129,8 @@ def outstanding_detail(request):
     groups = outstanding.list_outstanding(profile, filters)
     view = request.GET.get("view")
     if view not in VIEWS:
-        view = "grouped" if "firm_id" in filters else "flat"
+        # One firm's memos open as Matter Totals; every firm together as one flat list (owner round 2026-12).
+        view = "summary" if "firm_id" in filters else "flat"
     flat_sort = request.GET.get("sort") if request.GET.get("sort") in (*FLAT_SORTS, "due") else "firm"
     # The view and sort choices are not filters, so the Export link leaves them out.
     export_query = {k: v for k, v in request.GET.items() if k not in ("view", "sort") and (k != "overdue" or overdue_on(settings))}

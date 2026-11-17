@@ -18,7 +18,7 @@ from fees.services import history
 from fees.services.firms import validate_name
 from fees.services.memos import touch
 
-__all__ = ["MAX_CLIENT_NAME", "list_clients", "choices", "choices_for_firm", "create_client", "rename_client", "delete_client", "find_or_create", "set_matter_client"]
+__all__ = ["MAX_CLIENT_NAME", "list_clients", "list_clients_for_firm", "rename_for_firm", "clear_for_firm", "choices", "choices_for_firm", "create_client", "rename_client", "delete_client", "find_or_create", "set_matter_client"]
 
 MAX_CLIENT_NAME = 200
 
@@ -26,6 +26,17 @@ MAX_CLIENT_NAME = 200
 def list_clients(profile):
     """Every client of the profile, by name, each with ``matter_count``."""
     return list(Client.objects.filter(profile=profile).annotate(matter_count=Count("matters")).order_by(Lower("name"), "pk"))
+
+
+def list_clients_for_firm(profile, firm_id):
+    """The clients of one firm (owner round 2026-12): the clients its matters are for, by name, each with ``matter_count`` (this firm's
+    matters only, archived ones included). A client is chosen per matter, so it belongs to a firm through its matters, as a Partner does
+    through its firm; one client may sit under several firms."""
+    return list(
+        Client.objects.filter(profile=profile, matters__firm_id=firm_id)
+        .annotate(matter_count=Count("matters"))
+        .order_by(Lower("name"), "pk")
+    )
 
 
 def choices(profile):
@@ -119,3 +130,36 @@ def set_matter_client(profile, matter, client):
         return
     matter.client = client
     matter.save(update_fields=["client", "updated_at"])
+
+
+def rename_for_firm(profile, firm_id, client_id, name):
+    """Rename a client for ONE firm (owner round 2026-12). When only this firm's matters use the client it is simply renamed; when other
+    firms use it too, this firm's matters move to the client of the new name (made if needed, or the existing one of that name, in any
+    case), so the other firms keep the old name. Returns the client this firm's matters now have."""
+    client = _get(profile, client_id)
+    clean = validate_name(name, "INVALID_CLIENT_NAME", MAX_CLIENT_NAME)
+    if not Matter.objects.filter(profile=profile, client=client).exclude(firm_id=firm_id).exists():
+        return rename_client(profile, client_id, clean)
+    target = Client.objects.filter(profile=profile, name__iexact=clean).first()
+    if target is not None and target.pk == client.pk:
+        return client
+    with transaction.atomic():
+        target = target or Client.objects.create(profile=profile, name=clean)
+        count = Matter.objects.filter(profile=profile, firm_id=firm_id, client=client).update(client=target)
+        history.record(profile, "update", "client", target.pk, f"Moved {count} matter{'s' if count != 1 else ''} of one firm from client {client.name} to {clean}")
+        touch(profile)
+    return target
+
+
+def clear_for_firm(profile, firm_id, client_id):
+    """Take a client off this firm's matters (they keep everything else and simply have no client). A client left with no matter at all
+    is deleted. Returns the number of matters changed."""
+    client = _get(profile, client_id)
+    with transaction.atomic():
+        count = Matter.objects.filter(profile=profile, firm_id=firm_id, client=client).update(client=None)
+        name = client.name
+        if not Matter.objects.filter(profile=profile, client=client).exists():
+            client.delete()
+        history.record(profile, "update", "client", client_id, f"Removed client {name} from {count} matter{'s' if count != 1 else ''} of one firm")
+        touch(profile)
+    return count

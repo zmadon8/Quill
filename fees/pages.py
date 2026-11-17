@@ -196,13 +196,13 @@ def memo_filters(query, default_year=None):
 
 
 def feebook_filters(query, default_year=None, with_bank=True):
-    """Feebook filters: ``fy``, ``firm``, ``group`` (the Partner), ``client``, ``bank``, ``unaccounted`` (``default_year`` as for the memos).
+    """Feebook filters: ``fy``, ``firm``, ``group`` (the Partner), ``matter``, ``client``, ``bank``, ``unaccounted`` (``default_year`` as for the memos).
     ``with_bank=False`` (Bank switched off) ignores a ``bank`` left in an old link, so nothing is filtered unseen."""
     filters = {}
     year = _year_filter(query, default_year)
     if year:
         filters["financial_year"] = year
-    keys = (("firm", "firm_id"), ("group", "group_id")) + ((("bank", "bank_account_id"),) if with_bank else ())
+    keys = (("firm", "firm_id"), ("group", "group_id"), ("matter", "matter_id")) + ((("bank", "bank_account_id"),) if with_bank else ())
     for key, name in keys:
         number = int_or_none(query.get(key))
         if number is not None:

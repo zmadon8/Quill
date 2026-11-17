@@ -36,6 +36,7 @@ Filters (brief 6.2):
   Unaccounted rows have no memo and so no firm or group; they IGNORE these
   filters and still appear (Q7, deliberate: they are not tied to a firm). A
   ``partner_id`` of ``"none"`` is a no-op (mirrors ``memo_lists``).
+* ``matter_id``: allocation rows only, like the firm and partner (owner round 2026-12).
 * ``bank_account_id``: applies to BOTH kinds of row.
 * ``unaccounted_only``: suppresses the allocation rows, leaving only
   unaccounted payments.
@@ -130,6 +131,10 @@ def _allocation_rows(profile, filters):
         qs = qs.filter(memo__group_id=group_id)
 
     qs = client_scope.narrow(qs, filters.get("client_id"), "memo__matter__")
+
+    matter_id = filters.get("matter_id")
+    if matter_id is not None:
+        qs = qs.filter(memo__matter_id=matter_id)
 
     bank_account_id = filters.get("bank_account_id")
     if bank_account_id is not None:

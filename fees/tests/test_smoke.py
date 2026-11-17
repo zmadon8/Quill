@@ -75,7 +75,7 @@ class PathWalkTests(test_flows.FlowBase):
 
         # 2. Add a group (a partner) to the firm.
         self.post("fees_group_add", {"name": "Smoke Partner"}, {"firm_id": firm.pk})
-        self.assertContains(self.get("fees_firm_detail", {"firm_id": firm.pk}), "Smoke Partner")
+        self.assertContains(self.get("fees_firm_partners", {"firm_id": firm.pk}), "Smoke Partner")
 
         # 3. Create a matter under the firm and group.
         self.firm = firm
