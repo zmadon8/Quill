@@ -392,6 +392,7 @@ def parse_backup(raw, max_bytes):
     _split_alert_master_switches(models_in_file)
     _invert_taxed_as_interest(models_in_file)
     _rename_awaiting_status(models_in_file)
+    _give_clients_a_firm(models_in_file)
     return document
 
 
@@ -455,6 +456,40 @@ def _rename_awaiting_status(models_in_file):
     for record in models_in_file.get("investments.Transaction", []):
         if record["fields"].get("status") == "awaiting":
             record["fields"]["status"] = "tentative"
+
+
+def _give_clients_a_firm(models_in_file):
+    """A fee Client belongs to one firm (fees 0012 to 0014): a client record of an older backup, which has no ``firm``, takes the firm of
+    the matters that use it, as the migration does for the database. One firm: that firm. Several: the firm with the most matters keeps the
+    record (a tie goes to the lowest firm id) and every other firm gets a copy (a new pk) that its matters are pointed at. A client no
+    matter uses has no firm and is left out. A record that already has a ``firm`` is left alone."""
+    clients = models_in_file.get("fees.Client")
+    if not clients or all("firm" in record["fields"] for record in clients):
+        return
+    matters = models_in_file.get("fees.Matter", [])
+    by_client = {}
+    for record in matters:
+        fields = record["fields"]
+        if fields.get("client") is not None:
+            by_client.setdefault(fields["client"], {}).setdefault(fields.get("firm"), []).append(record)
+    next_pk = max(int(record["pk"]) for record in clients) + 1
+    out = []
+    for record in clients:
+        if "firm" in record["fields"]:
+            out.append(record)
+            continue
+        by_firm = by_client.get(record["pk"], {})
+        if not by_firm:
+            continue
+        order = sorted(by_firm, key=lambda firm: (-len(by_firm[firm]), firm))
+        record["fields"]["firm"] = order[0]
+        out.append(record)
+        for firm in order[1:]:
+            out.append({"model": record["model"], "pk": next_pk, "fields": dict(record["fields"], firm=firm)})
+            for matter in by_firm[firm]:
+                matter["fields"]["client"] = next_pk
+            next_pk += 1
+    models_in_file["fees.Client"] = out
 
 
 def upgrade_old_items(document, now=None):

@@ -85,10 +85,7 @@ ROUTES = {
     "fees_firm_client_rename": (W, ""),
     "fees_firm_client_remove": (W, ""),
     "fees_firms_clients": (R, ""),
-    "fees_firms_client_add": (W, ""),
     "fees_firms_client_detail": (R, ""),
-    "fees_firms_client_rename": (W, ""),
-    "fees_firms_client_delete": (W, ""),
     "fees_firm_statement": (R, ""),
     "fees_firm_statement_export": (R, ""),
     "fees_firm_ledger": (R, ""),
@@ -141,7 +138,7 @@ ROUTES = {
 # POST-driven (its upload form lives on the backup page), so a GET sends the user back there.
 FIXTURE = Path(__file__).parent / "fixtures" / "Template 2-11-2026 (short tags).docx"
 
-REDIRECTS = {"fees_landing", "fees_statistics_metrics", "fees_backup_restore", "fees_backup_restored", "fees_backup_cleared"}
+REDIRECTS = {"fees_landing", "fees_firms_clients", "fees_firms_client_detail", "fees_statistics_metrics", "fees_backup_restore", "fees_backup_restored", "fees_backup_cleared"}
 
 # Editor-only routes that also accept POST (the payment forms are RW: a Reader may open them, only an Editor saves) (the rest of the E routes are GET only).
 E_POST = {"fees_memo_move"}
@@ -178,7 +175,7 @@ def id_kwargs(seed, profile):
         "payment_id": seed["single"]["id"],
         "account_id": seed["bank"].pk,
         "view_id": SavedView.objects.get(profile=profile).pk,
-        "client_id": Client.objects.get_or_create(profile=profile, name="Perm Client")[0].pk,
+        "client_id": Client.objects.get_or_create(profile=profile, firm=seed["firm_a"], name="Perm Client")[0].pk,
     }
 
 

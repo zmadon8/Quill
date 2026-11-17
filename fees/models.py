@@ -192,17 +192,22 @@ class Group(models.Model):
 
 
 class Client(models.Model):
-    """The client a matter is for (owner round 2026-11): a list per profile, chosen on the matter, optional. Name unique per profile,
-    case-insensitive. Not the Brief on Behalf of text (the ``client_position`` field) (the party role typed on a matter and its memos)."""
+    """The client a matter is for (owner round 2026-11): chosen on the matter, optional. Since owner round 2026-12 a client belongs to
+    exactly one firm (like a Partner), and its name is unique within the firm, case-insensitive. Not the Brief on Behalf of text (the
+    ``client_position`` field) (the party role typed on a matter and its memos). ``profile`` is carried too, like on ``Group``."""
 
     profile = profile_fk()
+    firm = models.ForeignKey(Firm, on_delete=models.CASCADE, related_name="clients")
     name = models.CharField(max_length=200)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(Lower("name"), "profile", name="fees_client_name_unique_per_profile"),
+            models.UniqueConstraint(Lower("name"), "firm", name="fees_client_name_unique_per_firm"),
+        ]
+        indexes = [
+            models.Index(fields=["profile", "firm"], name="fees_client_profile_firm_idx"),
         ]
 
     def __str__(self):

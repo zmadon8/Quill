@@ -203,9 +203,10 @@ WEB_MEMO_FLAGS_SHEET = "WebMemoFlags"
 WEB_MEMO_FLAGS_HEADERS = ["memo_id", "memo_number", "include_signature"]
 
 #: The Clients (owner round 2026-11) and which client each matter has: two more web-only sheets, so the desktop sheets stay the contract.
-#: An older file without them restores every matter with no client.
+#: An older file without them restores every matter with no client. A client's firm_id (owner round 2026-12) is absent from older files,
+#: whose clients take the firm of their matters on restore.
 WEB_CLIENTS_SHEET = "WebClients"
-WEB_CLIENTS_HEADERS = ["id", "name", "created_at"]
+WEB_CLIENTS_HEADERS = ["id", "name", "firm_id", "created_at"]
 WEB_MATTER_CLIENTS_SHEET = "WebMatterClients"
 WEB_MATTER_CLIENTS_HEADERS = ["matter_id", "client_id"]
 
@@ -536,8 +537,8 @@ def export_workbook(profile):
 
     clients_sheet = workbook.create_sheet(WEB_CLIENTS_SHEET)
     write_rows(clients_sheet, WEB_CLIENTS_HEADERS, (
-        [pk, name, _ts(created)]
-        for pk, name, created in Client.objects.filter(profile=profile).order_by("pk").values_list("pk", "name", "created_at").iterator(chunk_size=_CHUNK)
+        [pk, name, firm_id, _ts(created)]
+        for pk, name, firm_id, created in Client.objects.filter(profile=profile).order_by("pk").values_list("pk", "name", "firm_id", "created_at").iterator(chunk_size=_CHUNK)
     ))
     links_sheet = workbook.create_sheet(WEB_MATTER_CLIENTS_SHEET)
     write_rows(links_sheet, WEB_MATTER_CLIENTS_HEADERS, (
