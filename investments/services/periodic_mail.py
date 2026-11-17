@@ -2,7 +2,7 @@
 
 Each ticked cadence sends once its period has ended: the week Monday to Sunday, the calendar month, the calendar quarter, the financial year
 1 April to 31 March. Every recipient gets an email of their own ("Dear <their name>") with the period's growth against the Default Index, the
-market value of the whole profile and of each portfolio, the purchases, sales, short and long term capital gains and interest income of the
+market value of the whole profile and of each portfolio, the purchases, sales, short and long term capital gains and other income of the
 period, the same figures for the financial year so far (left out of the annual email, whose period is the year), and an Excel workbook of the holdings on the last day of the period and every transaction up to it. The annual email also carries
 the Annual Report workbook for the year.
 

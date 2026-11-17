@@ -132,7 +132,7 @@ def corporate_actions(request):
             messages.success(request, "Saved.")
             return redirect(reverse("investments_corporate_actions"))
     return page(request, "investments/corporate_actions.html", {
-        "page_title_text": "Corporate actions", "rows": corporate.for_profile(profile), "pending": corporate.pending(profile), "form": form,
+        "page_title_text": "Corporate Actions", "rows": corporate.for_profile(profile), "pending": corporate.pending(profile), "form": form,
         "moves": corporate.large_moves_without_action(profile), "mode": core.get_settings(profile, create=False).corporate_action_mode,
         "unit_choices": forms.CHOICES_FOR_UNITS}, selectors=False, status_line=True)
 

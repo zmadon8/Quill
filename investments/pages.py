@@ -45,25 +45,25 @@ PAGES = (
     _p("transactions", "transactions/", "Transactions", "holdings", "Transactions", "No transactions yet. Add a purchase or an opening balance."),
     _p("txn_new_buy", "transactions/buy/", "Add a purchase", "holdings", "Transactions", "Record what you bought."),
     _p("txn_new_sell", "transactions/sell/", "Add a sale", "holdings", "Transactions", "Record what you sold."),
-    _p("txn_opening", "transactions/opening/", "Opening balance", "holdings", "Transactions", "For holdings bought before you started using the program."),
+    _p("txn_opening", "transactions/opening/", "Opening Balance", "holdings", "Transactions", "For holdings bought before you started using the program."),
     _p("txn_transfer", "transactions/transfer/", "Transfer", "holdings", "Transactions", "Move holdings between brokers, folios or portfolios, keeping dates and cost."),
     _p("txn_switch", "transactions/switch/", "Fund switch", "holdings", "Transactions", "A sale of one fund and a purchase of another, linked."),
     _p("txn_new_awaiting", "transactions/awaiting/", "Add a purchase awaiting allotment", "holdings", "Transactions", "Paid, but the units and NAV are not known yet."),
     _p("txn_to_confirm", "transactions/to-complete/", "To complete", "holdings", "Transactions", "Nothing to complete. Purchases awaiting allotment and pending SIP entries appear here."),
-    _p("import_statement", "transactions/import/", "Import a statement", "holdings", "Transactions", "Load trades from a broker or fund house file, then review them before saving."),
+    _p("import_statement", "transactions/import/", "Import a Statement", "holdings", "Transactions", "Load trades from a broker or fund house file, then review them before saving."),
     # Holdings: other
     _p("dividends", "dividends/", "Dividends", "holdings", "Dividends", "No dividends recorded yet."),
     _p("dividend_new", "dividends/new/", "Add a dividend", "holdings", "Dividends", "Record a dividend you received."),
-    _p("corporate_actions", "corporate-actions/", "Corporate actions", "holdings", "Corporate actions", "No splits or bonuses recorded."),
+    _p("corporate_actions", "corporate-actions/", "Corporate Actions", "holdings", "Corporate Actions", "No splits or bonuses recorded."),
     _p("brokers", "brokers/", "Brokers", "holdings", "Brokers", "No brokers yet. Add one in Settings > Brokers."),
     # Reports
     _p("performance", "reports/performance/", "Performance", "reports", "Performance", "No performance figures yet. They appear once you have purchases and prices."),
     _p("charts", "reports/charts/", "Charts", "reports", "Charts", "No data to chart yet."),
     _p("value", "reports/value/", "Total Portfolio Value", "reports", "Total Portfolio Value", "No holdings to value yet."),
     _p("annual", "reports/annual/", "Annual Report", "reports", "Annual Report", "No transactions in this financial year."),
-    _p("reports", "reports/", "Other reports", "reports", "Other reports", "Pick a report."),
-    _p("report_yearly", "reports/yearly/", "Year-by-year returns", "reports", "Other reports", "No completed financial years yet."),
-    _p("report_compare_brokers", "reports/compare-brokers/", "Compare brokers", "reports", "Other reports", "Needs holdings with at least two brokers."),
+    _p("reports", "reports/", "Other Reports", "reports", "Other Reports", "Pick a report."),
+    _p("report_yearly", "reports/yearly/", "Year-by-year returns", "reports", "Other Reports", "No completed financial years yet."),
+    _p("report_compare_brokers", "reports/compare-brokers/", "Compare brokers", "reports", "Other Reports", "Needs holdings with at least two brokers."),
     _p("history", "history/", "History", "history", None, "No changes recorded yet."),
     # Alerts
     _p("alerts", "alerts/", "Alerts and guardrails", "alerts", None, "No alerts. Set thresholds under Alert settings on this page."),
@@ -88,7 +88,7 @@ BY_SLUG = {p.slug: p for p in PAGES}
 EXTRA = {
     "investment": ("holdings", "Investments"), "added": ("holdings", "Investments"), "inv_delete": ("holdings", "Investments"),
     "txn_edit": ("holdings", "Transactions"), "txn_complete": ("holdings", "Transactions"), "txn_refused": ("holdings", "Transactions"),
-    "broker_detail": ("holdings", "Brokers"), "admin_catalogue_item": ("catalogue", "Catalogue"), "report": ("reports", "Other reports"),
+    "broker_detail": ("holdings", "Brokers"), "admin_catalogue_item": ("catalogue", "Catalogue"), "report": ("reports", "Other Reports"),
     "dividend_edit": ("holdings", "Dividends"),
     "admin_source_formats": ("catalogue", "Price sources"), "admin_source_format": ("catalogue", "Price sources"),
 }
@@ -106,11 +106,11 @@ def url_of(slug):
 SUB_ROWS = {
     "holdings": (
         ("Investments", "holdings"), ("Transactions", "transactions"), ("Dividends", "dividends"),
-        ("Corporate actions", "corporate_actions"), ("Brokers", "brokers"),
+        ("Corporate Actions", "corporate_actions"), ("Brokers", "brokers"),
     ),
     "reports": (
         ("Performance", "performance"), ("Charts", "charts"), ("Total Portfolio Value", "value"),
-        ("Annual Report", "annual"), ("Other reports", "reports"),
+        ("Annual Report", "annual"), ("Other Reports", "reports"),
     ),
     "settings": (
         ("General", "settings"), ("Brokers", "settings_brokers"),

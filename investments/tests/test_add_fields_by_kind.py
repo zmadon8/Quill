@@ -6,10 +6,10 @@ from investments.models import Instrument
 from investments.tests.base import InvTestCase
 
 SHOWN = {
-    "share": {"isin", "sector"},
-    "fund": {"isin", "asset_class"},
-    "foreign": {"currency"},
-    "alternative": {"asset_class", "interest_rate", "interest_type", "maturity_date", "taxed_as_interest", "lump_sum"},
+    "share": {"isin", "sector", "capital_gains"},
+    "fund": {"isin", "asset_class", "capital_gains"},
+    "foreign": {"currency", "capital_gains"},
+    "alternative": {"asset_class", "interest_rate", "interest_type", "maturity_date", "capital_gains", "lump_sum"},
 }
 OPTIONAL = set(forms.InstrumentForm.FIELD_KINDS)
 

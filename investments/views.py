@@ -206,6 +206,18 @@ def set_selection(request):
             if request.POST.get(key, "") in allowed[key]:
                 query[key] = request.POST[key]
         target = parts.path + ("?" + urlencode(query) if query else "")
+    if "txn_filters" in request.POST:
+        # The Transactions page's Search and Action: kept in the query string of the page we return to (blank means no filter), from page 1.
+        from urllib.parse import parse_qsl, urlencode, urlsplit
+
+        parts = urlsplit(target)
+        query = dict(parse_qsl(parts.query))
+        query.pop("page", None)
+        search, side = request.POST.get("q", "").strip()[:200], request.POST.get("side", "")
+        query["q"] = search
+        query["side"] = side if side in ("buy", "sell") else ""
+        query = {k: v for k, v in query.items() if v != ""}
+        target = parts.path + ("?" + urlencode(query) if query else "")
     return redirect(target)
 
 

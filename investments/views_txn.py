@@ -142,7 +142,7 @@ def transactions_list(request):
     awaiting = tx.awaiting_for(profile).count()
     return page(request, "investments/transactions.html", {
         "page_title_text": "Transactions", "rows": rows, "page_obj": paginator.page(number), "transfers": transfers, "q": q, "side": side,
-        "awaiting_count": awaiting, "total": paginator.count, "automatic_count": len(automatic),
+        "awaiting_count": awaiting, "total": paginator.count, "txn_filters": True, "automatic_count": len(automatic),
         "date_today": datetime.date.today(),
     })
 
@@ -494,7 +494,7 @@ def txn_opening(request):
     for message in line_errors:
         form.add_error(None, message)
     return page(request, "investments/txn_opening.html", _form_context(profile, {
-        "page_title_text": "Opening balance", "form": form, "row_numbers": range(rows),
+        "page_title_text": "Opening Balance", "form": form, "row_numbers": range(rows),
         "posted": request.POST if request.method == "POST" else {}}), selectors=False, status_line=True)
 
 
@@ -673,7 +673,7 @@ def import_statement(request):
     except InvestmentsError as err:
         error = err.message
         review = None
-    return page(request, "investments/import_statement.html", {"page_title_text": "Import a statement", "review": review, "token": token, "error": error,
+    return page(request, "investments/import_statement.html", {"page_title_text": "Import a Statement", "review": review, "token": token, "error": error,
                                                               "portfolios": portfolios, "brokers": brokers, "chosen": chosen,
                                                               "addable_kinds": statement_import.ADDABLE_KINDS, "origins": ORIGINS,
                                                               "origin_help": statement_import.origin_help()}, selectors=False)

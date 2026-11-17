@@ -145,8 +145,8 @@ class LumpSumTests(InvTestCase):
         h = self.holding(d(2025, 7, 1))
         self.assertEqual(h.value, D("7000000") * D("1.1") + D("0"))          # simple interest, 365 days at 10% on the remaining amount
 
-    def test_taxed_as_interest_books_the_gain_as_interest_income(self):
-        masters.update_own_instrument(self.profile, self.user, self.chit, taxed_as_interest=True)
+    def test_capital_gains_off_books_the_gain_as_other_income(self):
+        masters.update_own_instrument(self.profile, self.user, self.chit, capital_gains=False)
         self.buy_lump()
         self.client.post(reverse("investments_txn_new_sell"), self.card("2024-07-01", lump_amount="4000000", remaining="7000000"))
         h = self.holding(d(2024, 7, 2))

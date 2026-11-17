@@ -103,8 +103,8 @@ def compute(profile, *, portfolio, broker, as_of, include_dividends, settings_ro
         from investments.models import Instrument
 
         events_by = core.events_by_instrument(profile)
-        # Profit on an investment taxed as interest is Interest Income, not a capital gain booked on a sale.
-        interest = set(Instrument.objects.filter(pk__in=list(events_by), taxed_as_interest=True).values_list("pk", flat=True))
+        # Profit on an investment whose Capital Gains is off is Other income, not a capital gain booked on a sale.
+        interest = set(Instrument.objects.filter(pk__in=list(events_by), capital_gains=False).values_list("pk", flat=True))
         for iid, events in events_by.items():
             if iid in interest:
                 continue

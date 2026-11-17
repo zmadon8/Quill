@@ -6,7 +6,7 @@ from django.contrib import messages
 from django.db.models import Q
 
 from .decorators import inv_editor as inv_read_write_view, inv_reader
-from .models import HOLDABLE_KINDS, KIND_INDEX, Broker, Instrument, Portfolio, ProfileInvestment
+from .models import HOLDABLE_KINDS, KIND_INDEX, Broker, Instrument, Portfolio, ProfileInvestment, Transaction
 from .services import chartview, core, holdings, masters, performance, series, statscache
 from .svgchart import line_chart
 from .viewutil import held_only as held_only_param, page, parse_date, profile_or_404, selection
@@ -88,30 +88,51 @@ def charts_view(request):
     start, end = _chart_window(period, request, first)
     mode = "b" if request.GET.get("chart") == "b" else "a"
     held_ids = list(ProfileInvestment.objects.filter(profile=profile).values_list("instrument_id", flat=True))
+    # Every kind of investment the profile has (shares, funds, alternative and foreign), narrowed to the chosen portfolio and broker.
     all_choices = Instrument.objects.filter(pk__in=held_ids, kind__in=HOLDABLE_KINDS).order_by("name")
+    if portfolio or broker:
+        in_view = Transaction.objects.filter(profile=profile)
+        if portfolio:
+            in_view = in_view.filter(portfolio_id=portfolio)
+        if broker:
+            in_view = in_view.filter(broker_id=broker)
+        all_choices = all_choices.filter(pk__in=in_view.values("instrument_id"))
     index_choices = Instrument.objects.filter(kind=KIND_INDEX).order_by("name")
     chosen_index_ids = [int(i) for i in request.GET.getlist("index") if i.isdigit()] or [getattr(masters.default_index_for(profile), "pk", None)]
     chosen_indices = list(index_choices.filter(pk__in=[i for i in chosen_index_ids if i]))[: series.MAX_SERIES - 1]
-    picked = [int(i) for i in request.GET.getlist("inv") if i.isdigit()]
+    # Investments: "All" (the default), "None" or the ones ticked. A form sent with nothing ticked (marker "sf") means None.
+    values = request.GET.getlist("inv")
+    picked = [int(i) for i in values if i.isdigit()]
+    if "all" in values or (not values and not request.GET.get("sf")):
+        pick_state, picked = "all", []
+    elif picked:
+        pick_state = "some"
+    else:
+        pick_state = "none"
     held_only = held_only_param(request)
     # The "Held only" tick box narrows the list to what is held now; anything already picked stays in it so a chosen line never vanishes.
     choices = all_choices
     if held_only:
         choices = all_choices.filter(Q(pk__in=holdings.held_instrument_ids(profile, portfolio=portfolio, broker=broker)) | Q(pk__in=picked))
     group_broker = request.GET.get("group_broker")
+    # The investments the chart is drawn for: None is the whole portfolio (Chart A, All); Chart B draws each investment's own line.
+    if mode == "a":
+        used = None if pick_state == "all" else [i for i in picked if i in held_ids]
+    else:
+        used = [c.pk for c in choices][: series.MAX_SERIES] if pick_state == "all" else ([] if pick_state == "none" else picked)
 
     def compute():
         days = series.sample_dates(start, end)
         lines = []
         marks = []
         if mode == "a":
-            ids = [i for i in picked if i in held_ids] or None
             gb = int(group_broker) if group_broker and group_broker.isdigit() else broker
-            values, flows = series.portfolio_value_series(profile, days, portfolio=portfolio, broker=gb, instrument_ids=ids, settings_row=settings_row)
-            lines.append(("Portfolio", series.performance_index(values, flows)))
-            marks = chartview.portfolio_markers(profile, days, portfolio=portfolio, broker=gb, instrument_ids=ids)
+            if used is None or used:
+                values, flows = series.portfolio_value_series(profile, days, portfolio=portfolio, broker=gb, instrument_ids=used, settings_row=settings_row)
+                lines.append(("Portfolio", series.performance_index(values, flows)))
+                marks = chartview.portfolio_markers(profile, days, portfolio=portfolio, broker=gb, instrument_ids=used)
         else:
-            for inst, vals in series.price_lines(all_choices.filter(pk__in=picked), days):
+            for inst, vals in series.price_lines(all_choices.filter(pk__in=used), days, profile=profile):
                 lines.append((inst.name, vals))
                 if len(lines) == 1:   # markers sit on the first line, so they are that investment's own purchases and sales
                     marks = chartview.portfolio_markers(profile, days, portfolio=portfolio, broker=broker, instrument_ids=[inst.pk])
@@ -119,7 +140,7 @@ def charts_view(request):
             lines.append((inst.name, vals))
         return {"days": [d.isoformat() for d in days], "lines": [(label, [None if v is None else float(v) for v in vals]) for label, vals in lines], "markers": marks}
 
-    params = {"x": 2, "m": mode, "s": start, "e": end, "p": portfolio, "b": broker, "i": chosen_index_ids, "v": picked, "g": group_broker}
+    params = {"x": 2, "m": mode, "s": start, "e": end, "p": portfolio, "b": broker, "i": chosen_index_ids, "v": used, "g": group_broker}
     data = statscache.get_or_compute(profile, "chart", params, compute, today_sensitive=True)
     days = [date.fromisoformat(d) for d in data["days"]]
     lines = [(label, vals) for label, vals in data["lines"]]
@@ -129,12 +150,23 @@ def charts_view(request):
         return response(f"Chart {start:%Y-%m-%d} to {end:%Y-%m-%d}.xlsx", [("Chart", ["Date"] + [l for l, _ in lines],
                                                                          [[d] + [None if v[i] is None else round(v[i], 4) for _l, v in lines] for i, d in enumerate(days)])])
     chart = line_chart(days, lines, markers=data.get("markers"))
+    # The Investments drop-down: All and None first, then each investment (a picked one stays listed under Held only).
+    inv_options = [{"value": "all", "label": "All", "on": pick_state == "all", "solo": True}, {"value": "none", "label": "None", "on": pick_state == "none", "solo": True}]
+    inv_options += [{"value": c.pk, "label": c.name, "on": pick_state == "some" and c.pk in picked} for c in choices]
+    inv_summary = {"all": "All", "none": "None"}.get(pick_state) or _pick_summary([c.name for c in choices if c.pk in picked])
     table = [(d, [None if v[i] is None else round(v[i], 2) for _l, v in lines]) for i, d in enumerate(days)]
     return page(request, "investments/charts.html", {
         "page_title_text": "Charts", "chart": chart, "lines": lines, "table": table[-60:], "table_all": len(table), "mode": mode, "period": period,
         "periods": CHART_PERIODS, "start": start, "end": end, "held_only": held_only, "choices": choices, "picked": picked, "index_choices": index_choices,
-        "chosen_index_ids": chosen_index_ids, "brokers": Broker.objects.filter(profile=profile), "group_broker": group_broker,
+        "chosen_index_ids": chosen_index_ids, "inv_options": inv_options, "inv_summary": inv_summary,
+        "index_options": [{"value": c.pk, "label": c.name, "on": c.pk in chosen_index_ids} for c in index_choices],
+        "index_summary": _pick_summary([c.name for c in index_choices if c.pk in chosen_index_ids]), "brokers": Broker.objects.filter(profile=profile), "group_broker": group_broker,
         "first": first})
+
+
+def _pick_summary(names):
+    """The closed drop-down's text: the one name ticked, or how many."""
+    return names[0] if len(names) == 1 else (f"{len(names)} selected" if names else "None")
 
 
 def holdings_first_date(profile):
@@ -256,7 +288,7 @@ def reports_index(request):
     from .services.reports import REPORTS
 
     profile_or_404(request)
-    return page(request, "investments/reports.html", {"page_title_text": "Other reports", "reports": [(slug, label) for slug, (_fn, label) in REPORTS.items()]}, selectors=False, status_line=True)
+    return page(request, "investments/reports.html", {"page_title_text": "Other Reports", "reports": [(slug, label) for slug, (_fn, label) in REPORTS.items()]}, selectors=False, status_line=True)
 
 
 @inv_reader
