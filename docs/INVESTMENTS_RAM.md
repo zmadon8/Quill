@@ -96,7 +96,7 @@ The command builds its dataset inside a transaction that is rolled back, so it l
 | Planning dataset and memory bench, compared with 26.1 | Pass in the sandbox (table above). **Render-only:** the 0.5 CPU and real-worker figures |
 | Dark-launch flag: every `/investments/` URL is a 404 when off, and backups, restores and migrations still work; helper endpoints are a 404 when the helper is off | Pass (`test_flag_and_shells`, `test_helper`) |
 | Backup round trip; fetched prices absent; history survives the purge | Pass (`test_backup_restore_round_trip_reproduces_data_and_history`, `test_history_survives_the_nightly_history_purge`) |
-| Awaiting allotment (every point listed) | Pass (`test_transactions` awaiting tests, statement import completing an awaiting purchase, alerts leaving it out, `test_overdue_after_reminder_days`). PE: there is no PE feed (PE is an Admin-entered field), so there is nothing to exclude |
+| Awaiting allotment, now Mark as Tentative (every point listed) | Pass (`test_transactions` tentative tests, statement import finalising a tentative purchase, alerts leaving it out, `test_overdue_after_reminder_days`). PE: there is no PE feed (PE is an Admin-entered field), so there is nothing to exclude |
 | Catalogue (every point listed) | Pass (`test_catalogue`). The Excel export test is skipped locally without openpyxl; CI runs it |
 | Pins (layer-A-only restore, transaction pin, 31 March pin, split adjustment, sectoral backfill) | Pass (`test_pins_pruning_archive`, `test_annual.test_reproduces_from_pins_after_the_prices_are_gone`, `test_income`) |
 | Pruning (preview, first-activation confirmation, missing pin, pinned rows, after backup only, switch off, approximate marker) | Pass (`test_pins_pruning_archive`) |
