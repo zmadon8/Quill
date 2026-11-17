@@ -193,7 +193,7 @@ class Group(models.Model):
 
 class Client(models.Model):
     """The client a matter is for (owner round 2026-11): a list per profile, chosen on the matter, optional. Name unique per profile,
-    case-insensitive. Not the Client Position text (the party role typed on a matter and its memos)."""
+    case-insensitive. Not the Brief on Behalf of text (the ``client_position`` field) (the party role typed on a matter and its memos)."""
 
     profile = profile_fk()
     name = models.CharField(max_length=200)

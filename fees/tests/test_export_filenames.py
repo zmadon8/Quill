@@ -129,7 +129,7 @@ class PlaceholderTests(SimpleTestCase):
             "date": "15.07.2026",
             "date_iso": "2026-07-15",
             "today": "2026-08-09",
-            "client_position": "Client Z",
+            "brief_on_behalf_of": "Client Z",
             "client_name": "Client W",
         }
         self.assertEqual(set(expected), set(PLACEHOLDERS))

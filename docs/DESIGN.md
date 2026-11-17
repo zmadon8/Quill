@@ -1716,3 +1716,8 @@ Each Overview card is a size container (`container-type: inline-size`). Its figu
 
 - **D201. Case Law Diary: the comment and the (a), (b) label sit inside the citation bubble.** [Owner (2026-11).] On the reading page each citation is one bubble (`.cite-bubble`, `look.css`): for citations in a line, its label, the citation and its comment; for citations on separate lines, the comment and the citation (the label stays in its hanging column). A citation with a link colours the whole bubble (plain again when Hyperlinks are off). The Word and Offline copies are unchanged.
 
+- **D202. "Brief on Behalf of"; Fee Register search; Pages in every program's search.** [Owner (2026-11).]
+  - The text field `client_position` (D197) is labelled **Brief on Behalf of** on the matter and memo forms, the import column, the Word tag list and the file-name token `{brief_on_behalf_of}` (the older `{client_position}` and `{client}` still work). The field name and the backup column are unchanged.
+  - Fee Register search no longer looks in Brief on Behalf of. It now finds Partners (by name, opening the partner's page) and Clients (opening the client's page), as well as firms, matters and memos (number, plaintiff, defendant). Order: pages, firms, partners, clients, matters, memos.
+  - Every program's search also finds the program's **Pages** (Fee Register: `fees.services.search.PAGES`; Case Law Diary: `diary/page_search.py`; Investments already did). A page matches when a word of its title starts with what was typed, or (from three letters) a word of its description. Pages the person cannot open (Editor or Admin only, Statistics switched off) are left out. Search everything shows them too.
+

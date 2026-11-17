@@ -1,7 +1,7 @@
 """Clients for the Fee Register (owner round 2026-11).
 
 A Client is the person or company a matter is for, kept as a list per profile and chosen (optionally) on each matter. Matters and their
-memos can then be filtered and sorted by Client wherever they can be filtered and sorted by Partner. It is not the Client Position text
+memos can then be filtered and sorted by Client wherever they can be filtered and sorted by Partner. It is not the Brief on Behalf of text (the ``client_position`` field)
 (the party role typed on a matter and copied onto its memos).
 
 Names are 1 to 200 characters, unique per profile whatever the case. Deleting a client leaves its matters with no client.

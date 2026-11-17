@@ -460,7 +460,10 @@ def search(request):
         base_params["flags"] = 1
     if headers_only:
         base_params["headers"] = 1
+    from diary import page_search
+
     context = {
+        "pages": page_search.page_results(query, user_can_edit(request), request.user.is_admin),
         "q": query, "searched": searched, "total": len(results),
         "main_subjects": panel["panel_main"], "other_subjects": panel["panel_other"],
         "chosen_subject": subject_id, "citations_only": citations_only, "flags_only": flags_only,

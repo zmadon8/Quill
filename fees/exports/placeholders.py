@@ -97,7 +97,7 @@ TAG_DOCS = {
     "LINE_12_PLAINTIFF_TYPE": ("Plaintiff type, for example Plaintiff or Petitioner", "Plaintiff"),
     "LINE_13_DEFENDANT": ("Defendant or respondent name", "Sample Industries"),
     "LINE_14_DEFENDANT_TYPE": ("Defendant type, for example Defendant or Respondent", "Defendant"),
-    "LINE_15_CLIENT": ("Client position (the party the work is for, as typed on the matter)", "Example Traders"),
+    "LINE_15_CLIENT": ("Brief on Behalf of (as typed on the matter)", "Example Traders"),
     "LINE_15A_CLIENT_NAME": ("Client: the name chosen from the Clients list on the matter (blank when none)", "Example Holdings Ltd"),
     "LINE_16_NUM_APPEARANCES": ("Number of appearances, as a bare number (blank when 0)", "2"),
     "L16W": ("Number plus the right word (blank when 0)", "1 Appearance / 2 Appearances"),
@@ -137,7 +137,7 @@ TAG_DOCS = {
     ),
     "SHOW_PLAINTIFF": ("Block kept when a plaintiff name has been entered", "{{#IF_PL}} ... {{/IF_PL}}"),
     "SHOW_DEFENDANT": ("Block kept when a defendant name has been entered", "{{#IF_DEF}} ... {{/IF_DEF}}"),
-    "SHOW_CLIENT": ("Block kept when a client position has been entered", "{{#IF_CLIENT}} ... {{/IF_CLIENT}}"),
+    "SHOW_CLIENT": ("Block kept when Brief on Behalf of has been entered", "{{#IF_CLIENT}} ... {{/IF_CLIENT}}"),
 }
 
 _LINE_PREFIX = re.compile(r"^LINE_(\d+[A-Z]?)_")

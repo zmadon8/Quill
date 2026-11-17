@@ -12,27 +12,37 @@ _ITEM_URLS = {"firm": "fees_firm_detail", "matter": "fees_matter_detail", "memo"
 
 
 def _with_urls(results):
-    """Each result with the ``url`` of the page it opens."""
-    return [dict(r, url=reverse(_ITEM_URLS[r["kind"]], args=[r["id"]])) for r in results]
+    """Each result with the ``url`` of the page it opens (pages, partners and clients carry theirs already)."""
+    return [r if r.get("url") else dict(r, url=reverse(_ITEM_URLS[r["kind"]], args=[r["id"]])) for r in results]
+
+
+def _options(request, settings):
+    """Who is searching: pages they cannot open are not offered."""
+    from accounts.models import ROLE_EDITOR
+    from accounts.profiles import request_role
+    from accounts.suite import KEY_FEES
+    from fees.pages import dashboard_on
+
+    return {"can_edit": request_role(request, KEY_FEES) == ROLE_EDITOR, "statistics_on": dashboard_on(settings)}
 
 
 @fees_reader
 @handle_fees_errors(json=True)
 @require_safe
 def search_json(request):
-    profile, _settings = scope.context(request)
+    profile, settings = scope.context(request)
     query = request.GET.get("q", "")
-    return json_ok({"query": query.strip(), "results": _with_urls(search_service.search(profile, query))})
+    return json_ok({"query": query.strip(), "results": _with_urls(search_service.search(profile, query, **_options(request, settings)))})
 
 
 @fees_reader
 @handle_fees_errors()
 @require_safe
 def search_page(request):
-    profile, _settings = scope.context(request)
+    profile, settings = scope.context(request)
     query = request.GET.get("q", "")
     return render_page(
         request,
         "fees/search.html",
-        {"query": query.strip(), "results": search_service.search(profile, query, limit=100)},
+        {"query": query.strip(), "results": _with_urls(search_service.search(profile, query, limit=100, **_options(request, settings)))},
     )

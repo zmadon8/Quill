@@ -35,13 +35,13 @@ PLACEHOLDERS = (
     "date",
     "date_iso",
     "today",
-    "client_position",
+    "brief_on_behalf_of",
     "client_name",
 )
 
-#: Placeholders kept working under an old name (not listed on the settings page): ``{client}`` was the Client Position before it was
+#: Placeholders kept working under an old name (not listed on the settings page): ``{client}`` and ``{client_position}`` were Brief on Behalf of before it was
 #: renamed, and ``{group}`` is the Partner, so a pattern saved with them gives the same names as before.
-LEGACY_PLACEHOLDERS = {"client": "client_position", "group": "partner"}
+LEGACY_PLACEHOLDERS = {"client": "brief_on_behalf_of", "client_position": "brief_on_behalf_of", "group": "partner"}
 
 _ILLEGAL = re.compile(r'[/\\:*?"<>|]')
 _CONTROL = re.compile(r"[\x00-\x1f\x7f]")
@@ -178,7 +178,7 @@ def placeholder_values(memo, settings, today=None):
         "date": _date_text(memo.date, "%d.%m.%Y"),
         "date_iso": _date_text(memo.date, "%Y-%m-%d"),
         "today": today.strftime("%Y-%m-%d"),
-        "client_position": memo.client_position or "",
+        "brief_on_behalf_of": memo.client_position or "",
         "client_name": _client_name(matter),
     }
     for old_name, new_name in LEGACY_PLACEHOLDERS.items():

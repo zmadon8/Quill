@@ -164,7 +164,7 @@ IMPORT_FIELDS = (
     ("payee", "Payee", "Payment", False),
     ("payment_group", "Payment group (same value = paid together)", "Payment", False),
     ("court_name", "Court / cause title (to Matter)", "Matter details", False),
-    ("matter_client", "Client Position (to Matter)", "Matter details", False),
+    ("matter_client", "Brief on Behalf of (to Matter)", "Matter details", False),
     ("party_plaintiff", "Plaintiff / applicant", "Parties (optional)", False),
     ("party_defendant", "Defendant / respondent", "Parties (optional)", False),
 )
@@ -196,7 +196,7 @@ _NEEDLES = {
     "party_plaintiff": ("plaintiff", "applicant", "petitioner"),
     "party_defendant": ("defendant", "respondent"),
     "court_name": ("=court / cause title", "cause title", "=court", "court", "tribunal"),
-    "matter_client": ("=client", "client", "client position", "party role"),
+    "matter_client": ("=client", "client", "brief on behalf of", "on behalf of", "client position", "party role"),
 }
 
 
@@ -817,7 +817,7 @@ class _Importer:
         self.limit("partner name", partner, "group")
         self.limit("matter name", matter_name, "matter")
         self.limit("memo number", number_raw, "number")
-        for label, value in (("court name", court), ("client position", client), ("plaintiff", plaintiff),
+        for label, value in (("court name", court), ("brief on behalf of", client), ("plaintiff", plaintiff),
                              ("defendant", defendant), ("payee", payee)):
             self.limit(label, value, "text")
 
