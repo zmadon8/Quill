@@ -32,14 +32,15 @@ class Table:
 def yearly(profile, portfolio=None, broker=None, **_):
     t = Table("Year-by-year returns", "Each financial year's XIRR next to the Default Index's change over the same year.",
               [("Financial year", "text"), ("Start value", "money"), ("Invested", "money"), ("Sold", "money"), ("Fresh investments", "money"), ("End value", "money"),
-               ("XIRR", "pct"), ("Index change over the year", "pct"), ("Difference", "pct")])
-    for label in reversed(annual.year_choices(profile)):
+               ("XIRR", "pct"), ("Index change over the year", "pct"), ("Alpha", "pct")])
+    # Newest financial year first (year_choices is already newest first).
+    for label in annual.year_choices(profile):
         r = annual.build(profile, label, portfolio=portfolio, broker=broker, with_portfolios=False)
         diff = None if r.xirr is None or r.index_return is None else r.xirr - r.index_return
         t.rows.append([label + ("" if r.completed else " (to date)"), r.opening_value, r.invested, r.sold,
                        (r.invested - r.sold).quantize(Decimal("0.01")), r.closing_value, r.xirr, r.index_return, diff])
     t.notes.append("Fresh investments is Invested less Sold: the new money you put in during the year, as on the Overview.")
-    t.notes.append("The index change is the plain rise or fall of the index over the year; XIRR is a yearly rate on the money you put in, so the two are different measures.")
+    t.notes.append("The index change is the plain rise or fall of the index over the year; XIRR is a yearly rate on the money you put in, so the two are different measures. Alpha is the XIRR less the index change.")
     return t
 
 

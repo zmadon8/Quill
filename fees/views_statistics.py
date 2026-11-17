@@ -19,6 +19,8 @@ from fees.services.heavy import heavy_operation
 
 _FY_RE = re.compile(r"^\d{4}-\d{2}$")
 _GRANULARITIES = ("month", "quarter", "financialYear")
+#: What the Show By drop-down calls each choice (the values stay the same in addresses and saved views).
+GRANULARITY_LABELS = {"month": "Month", "quarter": "Quarter", "financialYear": "Financial Year"}
 _OPTION_FLAGS = (
     "pro_rate_current_month",
     "exclude_future_months",
@@ -273,6 +275,7 @@ def statistics_page(request):
         "granularity": granularity,
         "fy": fy,
         "granularities": _GRANULARITIES,
+        "granularity_choices": [(g, GRANULARITY_LABELS[g]) for g in _GRANULARITIES],
         "money_unit": config.money_unit,
         "months": MONTH_NAMES,
         "fy_options": fy_options.financial_year_options(profile, config.initial_financial_year, fy),

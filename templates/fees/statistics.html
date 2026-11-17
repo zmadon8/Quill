@@ -15,7 +15,7 @@
 {% if tab == "standard" %}
 <form method="get" class="filters" aria-label="Choose the period">
   <input type="hidden" name="tab" value="standard">
-  <label>Show By <select name="granularity">{% for g in granularities %}<option value="{{ g }}"{% if g == granularity %} selected{% endif %}>{{ g }}</option>{% endfor %}</select></label>
+  <label>Show By <select name="granularity">{% for g, label in granularity_choices %}<option value="{{ g }}"{% if g == granularity %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
   {% include "fees/_fy_select.html" with name="fy" label="Financial Year" options=fy_options selected=fy %}
   <button type="submit">Show</button>
 </form>

@@ -119,6 +119,12 @@ class ShellTests(UiPageBase):
                 self.assertRegex(nav, r'<a href="%s" class="on" aria-current="page">Statistics</a>' % re.escape(reverse("fees_dashboard")))
                 self.assertNotIn(">Dashboard</a>", nav)
 
+    def test_statistics_show_by_names_month_quarter_and_financial_year(self):
+        FeesSettings.objects.update_or_create(profile=self.profile, defaults={"statistics_enabled": True})
+        text = self.html(self.page("fees_statistics"))
+        for value, label in (("month", "Month"), ("quarter", "Quarter"), ("financialYear", "Financial Year")):
+            self.assertRegex(text, r'<option value="%s"( selected)?>%s</option>' % (value, label))
+
     def test_body_carries_the_ledger_class_and_stylesheet_order(self):
         text = self.html(self.page("fees_memos"))
         self.assertRegex(text, r'<body class="ledger w-\dxl">')
