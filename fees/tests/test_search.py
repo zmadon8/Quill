@@ -121,19 +121,37 @@ class SearchRankingTests(TestCase):
             self.profile, self.firm, self.group, "Match Matter"
         )
 
-    def test_firms_before_matters_before_memos(self):
-        make_memo(self.profile, self.matter, client_position="Match Client")
+    def test_firms_before_partners_and_clients_before_matters_before_memos(self):
+        from fees.models import Client
+
+        partner = Group.objects.create(profile=self.profile, firm=self.firm, name="Match Partner")
+        Client.objects.create(profile=self.profile, name="Match Holdings")
+        make_memo(self.profile, self.matter, plaintiff_name="Match Plaintiff")
         results = search.search(self.profile, "Match")
         kinds = [r["kind"] for r in results]
-        self.assertEqual(kinds, ["firm", "matter", "memo"])
+        self.assertEqual(kinds, ["firm", "partner", "client", "matter", "memo"])
+        found = next(r for r in results if r["kind"] == "partner")
+        self.assertEqual(found["subtitle"], "Partner \u00b7 Match Firm")
+        self.assertIn(f"/groups/{partner.pk}/", found["url"])
+
+    def test_brief_on_behalf_of_is_not_searched(self):
+        make_memo(self.profile, self.matter, client_position="Zebra Traders")
+        self.assertEqual(search.search(self.profile, "Zebra"), [])
+
+    def test_pages_come_first_and_respect_the_role(self):
+        titles = [r["title"] for r in search.search(self.profile, "outstanding") if r["kind"] == "page"]
+        self.assertEqual(titles, ["Outstanding", "Outstanding Memos"])
+        self.assertTrue(search.search(self.profile, "import")[0]["kind"] == "page")
+        self.assertNotIn("Import", [r["title"] for r in search.search(self.profile, "import", can_edit=False)])   # Editors only
+        self.assertFalse([r for r in search.search(self.profile, "explore", statistics_on=False) if r["kind"] == "page"])
 
     def test_memo_matched_by_party_names(self):
         p = make_memo(self.profile, self.matter, plaintiff_name="Match Plaintiff")
         d = make_memo(self.profile, self.matter, defendant_name="Match Defendant")
-        c = make_memo(self.profile, self.matter, client_position="Match Client")
+        make_memo(self.profile, self.matter, client_position="Match Client")   # Brief on Behalf of: not searched
         results = search.search(self.profile, "Match")
         memo_ids = {r["id"] for r in results if r["kind"] == "memo"}
-        self.assertEqual(memo_ids, {p.pk, d.pk, c.pk})
+        self.assertEqual(memo_ids, {p.pk, d.pk})
 
     def test_draft_memo_titled_draft(self):
         draft = memos.create_memo(
@@ -147,7 +165,7 @@ class SearchRankingTests(TestCase):
                 num_conferences=0,
                 fees_per_conference=0,
                 fees_misc_drafting=100,
-                client_position="Match Client",
+                plaintiff_name="Match Client",
             ),
             is_draft=True,
         )
@@ -158,12 +176,12 @@ class SearchRankingTests(TestCase):
 
     def test_memos_ordered_by_fy_then_seq_desc(self):
         older = make_memo(self.profile, self.matter, date="2024-07-15",
-                          client_position="Match A")
+                          plaintiff_name="Match A")
         newer = make_memo(self.profile, self.matter, date="2026-07-15",
-                          client_position="Match B")
+                          plaintiff_name="Match B")
         # A later seq in the same (newest) FY must sort first.
         newest_seq = make_memo(self.profile, self.matter, date="2026-08-15",
-                               client_position="Match C")
+                               plaintiff_name="Match C")
         results = search.search(self.profile, "Match")
         memo_ids = [r["id"] for r in results if r["kind"] == "memo"]
         self.assertEqual(memo_ids, [newest_seq.pk, newer.pk, older.pk])
@@ -194,7 +212,7 @@ class SearchIsolationTests(TestCase):
         f_mine, g_mine = seed_firm(mine, "Shared Name")
         f_other, g_other = seed_firm(other, "Shared Name")
         m_other = seed_matter(other, f_other, g_other, "Shared Matter")
-        make_memo(other, m_other, client_position="Shared Client")
+        make_memo(other, m_other, plaintiff_name="Shared Client")
 
         results = search.search(mine, "Shared")
         self.assertEqual(len(results), 1)
@@ -244,9 +262,9 @@ class SearchQueryCountTests(TestCase):
     def test_three_queries(self):
         for i in range(5):
             make_memo(self.profile, self.matter, date=f"2026-0{i + 1}-15",
-                      client_position="Match Client")
-        # One query each for firms, matters and memos; select_related means the
-        # matter / firm names cost no per-row query.
-        with self.assertNumQueries(3):
+                      plaintiff_name="Match Client")
+        # One query each for firms, partners, clients, matters and memos (the pages are a fixed list);
+        # select_related means the matter / firm names cost no per-row query.
+        with self.assertNumQueries(5):
             results = search.search(self.profile, "Match")
             self.assertTrue(len(results) >= 3)

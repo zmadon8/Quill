@@ -7,16 +7,15 @@ the header search box, returning a small, ranked, typed result list.
 Behaviour (matching the TypeScript source):
 
 * the raw query is trimmed; under two characters it returns an empty list;
-* firms come first (ordered by the lower-cased name), then matters (ordered by
-  the lower-cased name), then memos (matched on the memo number OR any of the
-  party-name snapshot fields plaintiff_name / defendant_name / client_position, ordered
-  by financial_year descending then seq descending);
+* pages of the program come first (owner round 2026-11: "include search for Pages"), then firms (ordered by the lower-cased
+  name), then partners and clients (owner round 2026-11), then matters (ordered by the lower-cased name), then memos (matched on
+  the memo number OR the party names plaintiff_name / defendant_name, ordered by financial_year descending then seq descending).
+  Brief on Behalf of (``client_position``) is NOT searched: it only fills the memo's Word export (owner round 2026-11);
 * each section is limited to ``limit`` rows and the combined list is finally
   sliced to ``limit``;
-* a result is ``{"kind", "id", "title", "subtitle"}`` where kind is one of
-  "firm" / "matter" / "memo"; a matter's subtitle is "Matter" plus its firm
-  name; a memo's title is its number (or "(draft)") and its subtitle is "Memo"
-  plus its matter name plus its firm name.
+* a result is ``{"kind", "id", "title", "subtitle", "url"}`` where kind is one of "page" / "firm" / "partner" / "client" /
+  "matter" / "memo"; a matter's subtitle is "Matter" plus its firm name; a memo's title is its number (or "(draft)") and its
+  subtitle is "Memo" plus its matter name plus its firm name; a partner's subtitle is "Partner" plus its firm name.
 
 Q6 (brief line 1159, R-RD-7): the original SQL built ``lower(col) LIKE '%q%'``
 without escaping, so a user query containing ``%`` or ``_`` (the SQL LIKE
@@ -30,24 +29,76 @@ Scoping (design section 11): every query is filtered by ``profile`` like the
 sibling read services. This is a pure READ: it never bumps ``data_version``.
 
 Query-count discipline (asserted in the tests with ``assertNumQueries``): the
-service runs THREE queries, one each for firms, matters and memos.
+service runs FIVE queries, one each for firms, partners, clients, matters and memos (the pages are a fixed list).
 ``select_related`` on the matter / firm means reading their names costs no
 per-row query.
 """
 from __future__ import annotations
 
+import re
+
 from django.db.models import Q
 from django.db.models.functions import Lower
 
-from fees.models import Firm, Matter, Memo
+from django.urls import reverse
 
-__all__ = ["search"]
+from fees.models import Client, Firm, Group, Matter, Memo
+
+__all__ = ["search", "PAGES", "page_results"]
+
+#: The program's pages, for search: (title, what it is, URL name, query string, who: "all" / "editor", needs Statistics on).
+PAGES = (
+    ("Dashboard", "Statistics: the main figures at a glance", "fees_dashboard", "", "all", True),
+    ("Statistics", "Statistics: fees by month, quarter or year", "fees_statistics", "", "all", True),
+    ("Explore", "Statistics: build your own table and chart", "fees_statistics", "?tab=explore", "all", True),
+    ("Memos", "Every finalised memo", "fees_memos", "", "all", False),
+    ("Drafts", "Memos not yet finalised", "fees_memo_drafts", "", "all", False),
+    ("New Memo", "Write a memo", "fees_memo_new", "", "editor", False),
+    ("New Payment", "Record a payment received", "fees_payment_new", "", "editor", False),
+    ("Firms", "Every firm", "fees_firms", "", "all", False),
+    ("New Firm", "Add a firm", "fees_firm_new", "", "editor", False),
+    ("New Matter", "Add a matter", "fees_matter_new", "", "editor", False),
+    ("Clients", "The clients matters are for", "fees_firms_clients", "", "all", False),
+    ("Feebook", "Payments received, by date", "fees_feebook", "", "all", False),
+    ("Outstanding", "Fees due, by firm", "fees_outstanding", "", "all", False),
+    ("Outstanding Memos", "Every memo with fees due", "fees_outstanding_detail", "", "all", False),
+    ("History", "What was added, changed or deleted", "fees_history", "", "all", False),
+    ("Settings: Memos", "Memo numbers, defaults and the memo text", "fees_settings", "?tab=memos", "all", False),
+    ("Settings: Payments", "TDS, payment amount, bank accounts", "fees_settings", "?tab=payments", "all", False),
+    ("Settings: Word Documents", "The Word template, signature and file names", "fees_settings", "?tab=word", "all", False),
+    ("Settings: Years And Statistics", "Financial years and the Statistics switch", "fees_settings", "?tab=years", "all", False),
+    ("Settings: Display", "Money format, status markers, page sizes", "fees_settings", "?tab=display", "all", False),
+    ("Settings: Data", "Backup, restore, import and clearing", "fees_settings", "?tab=data", "all", False),
+    ("Backup And Restore", "The Excel backup of this Fee Register", "fees_backup", "", "editor", False),
+    ("Import", "Load memos from a spreadsheet", "fees_import", "", "editor", False),
+)
+
+
+def _page_matches(query, title, what):
+    """A page matches when a word of its title starts with ``query`` (or the title holds it whole), or, from three letters on, a word of
+    its description starts with it. Word starts keep a two-letter query from finding half the pages."""
+    q = " ".join(re.findall(r"\w+", query.casefold())) or query.casefold()
+    words = re.findall(r"\w+", title.casefold())
+    if q in " ".join(words) and (" " in q or any(w.startswith(q) for w in words)):
+        return True
+    return len(q) >= 3 and any(w.startswith(q) for w in re.findall(r"\w+", what.casefold()))
+
+
+def page_results(query, can_edit=True, statistics_on=True):
+    """The pages that match ``query`` (``_page_matches``), in menu order; pages the person cannot open are left out."""
+    out = []
+    for title, what, url_name, extra, who, needs_stats in PAGES:
+        if (who == "editor" and not can_edit) or (needs_stats and not statistics_on):
+            continue
+        if _page_matches(query, title, what):
+            out.append({"kind": "page", "id": None, "title": title, "subtitle": f"Page \u00b7 {what}", "url": reverse(url_name) + extra})
+    return out
 
 #: The shortest query that searches; a shorter one returns nothing (brief 6.8).
 _MIN_QUERY_LEN = 2
 
 
-def search(profile, raw_query, limit=20):
+def search(profile, raw_query, limit=20, *, can_edit=True, statistics_on=True):
     """Searches firms, matters and memos for ``profile`` (R-RD-7, brief 6.8, Q6).
 
     Returns a ranked list of ``{"kind", "id", "title", "subtitle"}`` dicts:
@@ -62,7 +113,7 @@ def search(profile, raw_query, limit=20):
     if len(query) < _MIN_QUERY_LEN:
         return []
 
-    results = []
+    results = page_results(query, can_edit, statistics_on)[:limit]
 
     firms = (
         Firm.objects.filter(profile=profile, name__icontains=query)
@@ -75,6 +126,34 @@ def search(profile, raw_query, limit=20):
                 "id": firm.pk,
                 "title": firm.name,
                 "subtitle": "Firm",
+            }
+        )
+
+    partners = (
+        Group.objects.filter(profile=profile, name__icontains=query)
+        .select_related("firm")
+        .order_by(Lower("name"), Lower("firm__name"))[:limit]
+    )
+    for group in partners:
+        results.append(
+            {
+                "kind": "partner",
+                "id": group.pk,
+                "title": group.name,
+                "subtitle": f"Partner \u00b7 {group.firm.name}",
+                "url": reverse("fees_group_detail", args=[group.firm_id, group.pk]),
+            }
+        )
+
+    clients = Client.objects.filter(profile=profile, name__icontains=query).order_by(Lower("name"))[:limit]
+    for client in clients:
+        results.append(
+            {
+                "kind": "client",
+                "id": client.pk,
+                "title": client.name,
+                "subtitle": "Client",
+                "url": reverse("fees_firms_client_detail", args=[client.pk]),
             }
         )
 
@@ -97,8 +176,7 @@ def search(profile, raw_query, limit=20):
         Memo.objects.filter(
             Q(memo_number__icontains=query)
             | Q(plaintiff_name__icontains=query)
-            | Q(defendant_name__icontains=query)
-            | Q(client_position__icontains=query),
+            | Q(defendant_name__icontains=query),
             profile=profile,
         )
         .select_related("matter", "firm")

@@ -20,25 +20,35 @@ PER_PROGRAM = 8
 MIN_LEN = 2
 
 
-def _diary(profile, q):
+def _diary(request, profile, q):
+    from accounts.models import ROLE_EDITOR
+    from accounts.profiles import request_role
+    from diary import page_search
     from diary.search import run_search
 
+    pages = [{"title": p["title"], "subtitle": p["what"], "kind": "Page", "url": p["url"]}
+             for p in page_search.page_results(q, request_role(request, KEY_DIARY) == ROLE_EDITOR, request.user.is_admin)]
     hits = run_search(profile, q)
-    return len(hits), [{"title": h.label, "subtitle": " \u203a ".join(name for name, _url in h.path), "kind": h.kind, "url": h.url}
-                       for h in hits[:PER_PROGRAM]], reverse("search") + "?q=" + _quote(q)
+    found = pages + [{"title": h.label, "subtitle": " \u203a ".join(name for name, _url in h.path), "kind": h.kind, "url": h.url} for h in hits[:PER_PROGRAM]]
+    return len(pages) + len(hits), found[:PER_PROGRAM], reverse("search") + "?q=" + _quote(q)
 
 
-def _fees(profile, q):
+def _fees(request, profile, q):
+    from accounts.models import ROLE_EDITOR
+    from accounts.profiles import request_role
+    from fees.pages import dashboard_on
+    from fees.services import settings as fees_settings
     from fees.services.search import search
 
-    hits = search(profile, q, limit=50)
+    hits = search(profile, q, limit=50, can_edit=request_role(request, KEY_FEES) == ROLE_EDITOR,
+                  statistics_on=dashboard_on(fees_settings.get_settings(profile)))
     urls = {"firm": "fees_firm_detail", "matter": "fees_matter_detail", "memo": "fees_memo_detail"}
     return len(hits), [{"title": h["title"], "subtitle": h.get("subtitle", ""), "kind": h["kind"].capitalize(),
-                        "url": reverse(urls[h["kind"]], args=[h["id"]])} for h in hits[:PER_PROGRAM]], \
+                        "url": h.get("url") or reverse(urls[h["kind"]], args=[h["id"]])} for h in hits[:PER_PROGRAM]], \
         reverse("fees_search_page") + "?q=" + _quote(q)
 
 
-def _investments(profile, q):
+def _investments(request, profile, q):
     from investments import pages
     from investments.services.search import search
 
@@ -79,7 +89,7 @@ def suite_search(request):
         section = {"key": key, "name": names.get(key, key), "results": [], "total": 0, "more": "", "failed": False}
         if searched:
             try:
-                section["total"], section["results"], section["more"] = fn(profile, q)
+                section["total"], section["results"], section["more"] = fn(request, profile, q)
             except Exception:  # one program must never break the page
                 logger.exception("Search everything: %s failed", key)
                 section["failed"] = True
