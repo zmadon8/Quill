@@ -215,8 +215,10 @@ body.look a.cite-link { text-decoration: none; }
 body.look a.cite-link .citation { background: var(--info-tint); color: var(--info); }
 html.links-off body.look a.cite-link .citation { background: var(--paper-2); color: var(--ink-3); }
 /* One bubble per citation on the reading page (owner round 2026-11): its (a), (b) label on in-line multi-citation Items, the citation and its
-   comment all sit inside it. The citation inside is plain italic text; a citation with a link colours the whole bubble. */
-body.look .cite-bubble { display: inline-block; max-width: 100%; margin: 2px 0; padding: 1px 9px; border-radius: 6px; background: var(--paper-2); color: var(--ink-3); font: normal 12.5px/1.6 var(--font-sans); }
+   comment all sit inside it. The citation inside is plain italic text; a citation with a link colours the whole bubble. The bubble flows
+   like text (inline, each line piece drawn as its own rounded box), so it follows the Item's text on the same line and wraps mid-bubble
+   instead of jumping whole to a new line and leaving a stretched line behind it. */
+body.look .cite-bubble { display: inline; padding: 1px 7px; border-radius: 6px; -webkit-box-decoration-break: clone; box-decoration-break: clone; background: var(--paper-2); color: var(--ink-3); font: normal 12.5px/1.6 var(--font-sans); }
 body.look .cite-bubble.linked { background: var(--info-tint); color: var(--info); }
 html.links-off body.look .cite-bubble.linked { background: var(--paper-2); color: var(--ink-3); }
 body.look .cite-bubble .citation, body.look .cite-bubble a.cite-link .citation, html.links-off body.look .cite-bubble a.cite-link .citation { display: inline; margin: 0; padding: 0; border-radius: 0; background: none; color: inherit; font: italic 12.5px/1.6 var(--font-sans); }
