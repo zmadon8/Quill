@@ -207,9 +207,14 @@ class DividendTests(InvTestCase):
         r = self.client.get(reverse("investments_dividends"))
         self.assertContains(r, "Reliance Industries")
         self.assertContains(r, "2023-24")
-        r = self.client.get(reverse("investments_dashboard") + "?div=1")
-        self.assertContains(r, 'aria-checked="true"')
-        self.assertTrue(holdings.core.get_settings(self.profile).include_dividends)
+        r = self.client.get(reverse("investments_dashboard"))
+        self.assertNotContains(r, "Include dividends in XIRR")  # the switch is in Settings > General
+        self.assertNotContains(r, "Dividends received")
+        self.assertContains(r, 'name="period"')
+        self.client.get(reverse("investments_dashboard") + "?period=1y")
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.investments_period, "1y")
+        self.assertContains(self.client.get(reverse("investments_dashboard")), '<option value="1y" selected>')
 
 
 class AlertTests(InvTestCase):

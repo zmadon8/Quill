@@ -24,7 +24,7 @@ page. The Fee Register Opening page and Items per page are personal only (no pro
 | Start Screens | When I open the site, one section per program | Open after login (`landing_program`), Case Law Diary opening page and Subject, Fee Register Opening page, Investments start page | Everyone, a program's section only if the user can open it |
 | Case Law Diary | Reading, My Number Formats, Data | View whole subject, Hyperlinks on citations (this browser), My number formats and date in file names and Remove citation hyphen (Only you), Export file name, Word import, Offline link | A user with a Case Law Diary profile |
 | Fee Register | Memos, Payments, Word Documents, Years And Statistics, Display, Data | Every profile setting, plus My items per page (Only you, in Display) | A user with a Fee Register profile |
-| Investments | General, Brokers, Display, Insights, Indices | Every profile setting, plus Investments period for returns (Only you, in Display), and in General the site-wide lookup switch (Admin) | A user with an Investments profile |
+| Investments | General, Brokers, Display, Insights, Indices | Every profile setting, and in General the site-wide lookup switch (Admin) | A user with an Investments profile |
 
 The Investments **Catalogue** (the shared catalogue, Price history and Price sources) is a page of Investments itself, not a
 settings tab. Its old addresses under `/investments/settings/` redirect (308) to `/investments/catalogue/...`.
@@ -45,7 +45,7 @@ settings tab. Its old addresses under `/investments/settings/` redirect (308) to
 | Fee Register Opening page | Settings > Start Screens |
 | Fee Register Items per page | Settings > Fee Register > Display |
 | Investments start page | Settings > Start Screens |
-| Investments period for returns | Settings > Investments > Display |
+| Investments period for returns | The **Period** drop-down under the cards on Investments > Overview |
 | Remove the hyphen before the citation | Settings > Case Law Diary > My Number Formats |
 | Column widths of every table in the suite (Fee Register tables also keep hidden columns) | Dragged on the tables themselves |
 
@@ -81,7 +81,7 @@ are in a section of their own on the diary Settings tab, apart from the shared o
 | `colour_theme` | Colour theme: Oxblood (default), Royal Blue, Navy, Violet, Plum or Teal. Changes the accent (buttons, current tab, links) on every page; status colours and exports never change | Settings > Display; an Admin on the user's edit screen | Per user | Only you |
 | `header_initials` | Letters in the header badge: up to 3, shown upper-case in the round badge at the top right. Blank: the first letters of your first and last name | Settings > Account and Profile View | Per user | Only you |
 | `remove_citation_hyphen` | Remove the hyphen before the citation: on, the Case Law Diary on screen leaves out the " - " between an Item's text and its inline citations (default off). The Word export and offline copy keep the hyphen. The ";" between several inline citations is always gone | Settings > Case Law Diary > My Number Formats | Per user | Only you |
-| `investments_period` | Investments period for returns: 1M, 3M, 6M, 1Y, 3Y, 5Y or All (default). The period behind Gain, Portfolio XIRR, index XIRR and Alpha on the Investments Overview cards and Portfolio XIRR on Home. A period longer than the history uses the whole history | Settings > Investments > Display | Per user | Only you |
+| `investments_period` | Investments period for returns: 1M, 3M, 6M, 1Y, 3Y, 5Y or All (default). The period behind Gain, Portfolio XIRR, index XIRR and Alpha on the Investments Overview cards and Portfolio XIRR on Home. A period longer than the history uses the whole history | Investments > Overview, **Period** drop-down under the cards | Per user | Only you |
 | `my_money` (Short or Full) | Investments number display: the Short / Full choice applies to every number, units included. Short shows 1,000 and more units as k, lac or cr (1.56 k, 15.6 lac, 1.2 cr), Full the exact Indian-grouped quantity. The units decimals choice (Settings > Investments > Display) still fixes the decimals of a Full quantity and of a Short quantity below 1,000 | Settings > Investments > Display, and the Short / Full buttons on every Investments page | Per user | Only you |
 | `rule_a_fall_enabled`, `rule_a_rise_enabled`, `rule_a_window_enabled`, `rule_b_loss_enabled`, `rule_b_gain_enabled`, `guardrails_enabled`, `maturity_enabled`, `source_problems_enabled` | Alert switches: one per kind (fall in a day, rise in a day, fall over several days, below cost, above cost, guardrails, maturity dates, source-problem notice). All on to begin with; a switched-off kind does not appear on the Alerts page, the red dot, Home or the alert email. The levels (`rule_a_fall_pct`, `rule_a_rise_pct`, `rule_a_window_days`, `rule_a_window_fall_pct`, `rule_b_loss_pct`, `rule_b_gain_pct`, `maturity_alert_days`) sit beside them. Insights are separate (Settings > Insights) | Investments > Alerts > Alert settings | Per profile | Everyone in this profile |
 | `investments_start_page` | Investments start page: Overview (default), Holdings, Transactions, Reports, Alerts or Catalogue. A page you have hidden falls back to the first page that is shown | Settings > Start Screens | Per user | Only you |

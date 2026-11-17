@@ -29,8 +29,7 @@
 </tbody></table></div>
 {% endif %}
 
-<form method="get" class="inline-edit"><label for="on">Price and value on</label>{% for k, v in keep_params %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}<input type="date" id="on" name="on" value="{{ as_of|date:'Y-m-d' }}" max="{% now 'Y-m-d' %}"><button class="btn q sm">Show</button>{% if on %}<a href="?">Today</a>{% endif %}
-<a class="chk" href="{{ div_href }}" role="switch" aria-checked="{{ include_div|yesno:'true,false' }}"><i class="{% if include_div %}on{% endif %}"></i> Include dividends in XIRR</a></form>
+<form method="get" class="inline-edit"><label for="on">Price and value on</label>{% for k, v in keep_params %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}<input type="date" id="on" name="on" value="{{ as_of|date:'Y-m-d' }}" max="{% now 'Y-m-d' %}"><button class="btn q sm">Show</button>{% if on %}<a href="?">Today</a>{% endif %}</form>
 <dl class="kv">{% if inst.kind != "alternative" %}<dt>52-week range</dt><dd>{% if range52.0 %}{{ range52.0|price }} to {{ range52.1|price }}{% else %}not enough prices{% endif %}</dd>
 {% if inst.next_results_date %}<dt>Next results</dt><dd>{{ inst.next_results_date|date:"j M Y" }}</dd>{% endif %}{% endif %}
 {% if inst.sector %}<dt>Sector</dt><dd>{{ inst.sector }}</dd>{% endif %}{% if inst.interest_rate %}<dt>Interest rate</dt><dd>{{ inst.interest_rate }}% {{ inst.get_interest_type_display|lower }}</dd>{% endif %}{% if inst.maturity_date %}<dt>Matures</dt><dd>{{ inst.maturity_date|date:"j M Y" }}</dd>{% endif %}

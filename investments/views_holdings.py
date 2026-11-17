@@ -351,7 +351,6 @@ def investment(request, pk):
         "price_ranges": chartview.links(request, range_key, "#price"),
         "value_chart": value_chart,
         "value_ranges": chartview.links(request, range_key, "#value-chart"),
-        "div_href": chartview.toggled_href(request, "div", "0" if div else "1"),
         "keep_params": [(k, request.GET[k]) for k in ("chart", "range") if request.GET.get(k)],
         "range52": investment_page.range_52w(inst, as_of) if inst.kind != KIND_ALTERNATIVE else (None, None),
         "guardrails": investment_page.guardrails(profile, inst),

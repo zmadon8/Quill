@@ -66,6 +66,15 @@ def dashboard(request):
 
     div = include_dividends(request, profile)
     period = getattr(request.user, "investments_period", "all") or "all"
+    wanted = request.GET.get("period")
+    from django.contrib.auth import get_user_model
+
+    period_choices = get_user_model().INVESTMENTS_PERIOD_CHOICES
+    choices = dict(period_choices)
+    if wanted in choices and wanted != period:
+        # The Period drop-down under the cards: a personal choice (any role), also used for Portfolio XIRR on Home.
+        request.user.investments_period = period = wanted
+        request.user.save(update_fields=["investments_period"])
     data = dashboard_service.load(profile, portfolio, broker, asat, div, period)
     totals = dict(data["totals"])
     pt = data.get("period_totals")
@@ -89,7 +98,7 @@ def dashboard(request):
         "page_title_text": "Dashboard", "totals": totals, "card_period": "" if period == "all" else period.upper(), "allocation": data["allocation"], "chart": chart, "chart_ranges": chartview.links(request, range_key, "#chart"), "notes": data["notes"],
         "awaiting": awaiting, "awaiting_total": sum((core.tentative_cost(t) or Decimal(0) for t in awaiting if t.side == "buy"), Decimal(0)),
         "overdue": overdue, "unpriced": [r for r in rows if r["unpriced"]], "has_any": data["has_any"],
-        "default_index": index, "sectoral": settings_row.sectoral_enabled, "include_div": div,
+        "default_index": index, "sectoral": settings_row.sectoral_enabled, "include_div": div, "card_period_key": period, "card_period_choices": period_choices,
         "insights": _insights(profile), "all_insights": request.GET.get("insights") == "all",
         "pending_actions": __import__("investments.services.corporate", fromlist=["pending"]).pending(profile),
         **_overview_context(request, settings_row, data, index),
