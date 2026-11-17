@@ -505,7 +505,7 @@
     document.addEventListener("click", function (e) { if (!menu.hidden && !box.contains(e.target)) { close(false); } });
   });
 
-  // Hyperlinks on citations on/off (D87): a tick box in Settings > Display. It only changes how the page looks (a class
+  // Hyperlinks on citations on/off (D87): a tick box in Settings > Case Law Diary > Reading. It only changes how the page looks (a class
   // on the page, remembered by this browser), so nothing reloads and you stay exactly where you are. The box has no name
   // and is not part of the Save form: it takes effect at once.
   var linkSwitches = document.querySelectorAll("[data-links-toggle]");
