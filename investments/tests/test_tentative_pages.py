@@ -101,7 +101,7 @@ class TentativePagesTests(InvTestCase):
 
 class TentativeCostTests(InvTestCase):
     def make(self, **kw):
-        return Transaction(side="buy", status="tentative", charges=D(0), **kw)
+        return Transaction(**{"side": "buy", "status": "tentative", "charges": D(0), **kw})
 
     def test_cost_is_the_amount_else_units_times_price_plus_charges_else_nothing(self):
         self.assertEqual(core.tentative_cost(self.make(amount=D(500), units=D(2), price=D(10))), D(500))
