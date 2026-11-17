@@ -340,8 +340,9 @@ def list_outstanding_by_firm(profile, filters=None, sort="amount", today=None):
 def list_outstanding_scope(profile, filters=None):
     """Distinct firms and partners (groups) with a qualifying outstanding memo.
 
-    Returns ``{"firms": [{"id", "name"}], "partners": [{"id", "firm_id", "name"}], "clients": [{"id", "name"}], "no_client": bool}``
-    (``no_client``: some such memo's matter has no client)
+    Returns ``{"firms": [{"id", "name"}], "partners": [{"id", "firm_id", "name"}], "clients": [{"id", "firm_id", "name"}],
+    "no_client": bool, "client_rows": {(client id or None, firm id, partner id or None)}}`` (``no_client``: some such memo's matter has
+    no client; ``client_rows`` lets ``filter_options.narrow_outstanding_choices`` narrow the clients by the chosen firm and partner)
     listing only the firms and groups that have at least one unpaid memo under the
     current view, so the Outstanding filter dropdowns show only names with
     applicable items. Honours ``include_written_off`` and ``overdue_only`` (the
@@ -365,6 +366,7 @@ def list_outstanding_scope(profile, filters=None):
     firms = {}
     partners = {}
     clients = {}
+    client_rows = set()
     no_client = False
     for memo in qs:
         total_fees = memo_fees.effective_total_fees(memo)
@@ -376,8 +378,9 @@ def list_outstanding_scope(profile, filters=None):
         firms[memo.firm_id] = memo.firm.name
         if memo.group_id:
             partners[memo.group_id] = {"firm_id": memo.firm_id, "name": memo.group.name}
+        client_rows.add((memo.matter.client_id, memo.firm_id, memo.group_id))
         if memo.matter.client_id:
-            clients[memo.matter.client_id] = memo.matter.client.name
+            clients[memo.matter.client_id] = (memo.matter.client.name, memo.firm_id)
         else:
             no_client = True
 
@@ -392,6 +395,8 @@ def list_outstanding_scope(profile, filters=None):
     ]
     partner_list.sort(key=lambda p: p["name"].lower())
 
-    client_list = sorted(({"id": pk, "name": name} for pk, name in clients.items()), key=lambda c: c["name"].lower())
+    client_list = sorted(
+        ({"id": pk, "firm_id": firm_id, "name": name} for pk, (name, firm_id) in clients.items()), key=lambda c: c["name"].lower()
+    )
 
-    return {"firms": firm_list, "partners": partner_list, "clients": client_list, "no_client": no_client}
+    return {"firms": firm_list, "partners": partner_list, "clients": client_list, "no_client": no_client, "client_rows": client_rows}

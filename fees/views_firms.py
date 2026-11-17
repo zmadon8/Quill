@@ -7,7 +7,7 @@ from django.views.decorators.http import require_http_methods, require_safe, req
 from fees import forms, scope
 from fees.decorators import fees_editor, fees_read_write, fees_reader, handle_fees_errors
 from fees.errors import FeesError
-from fees.models import Firm, Matter
+from fees.models import Client, Firm, Matter
 from fees.pages import render_page
 from fees.services import clients, firms
 
@@ -260,9 +260,9 @@ def firm_clients(request, firm_id):
 
 
 def _client_of_firm(profile, firm_id, client_id):
-    """``(firm, client)``: the client may be any client of this profile (one with no matter in this firm shows an empty list)."""
+    """``(firm, client)``: the client must belong to this firm (another firm's client, or another profile's, is a 404)."""
     firm = firms.get_firm(profile, firm_id)["firm"]  # another profile's firm is a 404 first
-    client = next((c for c in clients.list_clients(profile) if c.pk == client_id), None)
+    client = Client.objects.filter(profile=profile, pk=client_id, firm_id=firm_id).first()
     if client is None:
         raise Http404("Client not found")
     return firm, client
@@ -272,7 +272,7 @@ def _client_of_firm(profile, firm_id, client_id):
 @handle_fees_errors()
 @require_safe
 def firm_client_detail(request, firm_id, client_id):
-    """One client of a firm: its matters in this firm only (the firm page's matter list, limited to this client)."""
+    """One client of a firm: its matters (the firm page's matter list, limited to this client)."""
     profile, settings = scope.context(request)
     firm, client = _client_of_firm(profile, firm_id, client_id)
     shown = matters_shown(request, settings)
@@ -307,61 +307,24 @@ def firm_client_remove(request, firm_id, client_id):
 
 
 # ---------------------------------------------------------------------------
-# Clients (owner round 2026-11)
+# The old global Clients pages (owner round 2026-12: a client belongs to one firm and has no tab of its own). The two addresses that
+# could be bookmarked still work, as redirects.
 # ---------------------------------------------------------------------------
 
 @fees_reader
-@handle_fees_errors()
 @require_safe
 def client_list(request):
-    profile, _settings = scope.context(request)
-    return render_page(request, "fees/clients.html", {"client_rows": clients.list_clients(profile)})
-
-
-@fees_editor
-@handle_fees_errors()
-@require_POST
-def client_add(request):
-    profile, _settings = scope.context(request)
-    client = clients.create_client(profile, request.POST.get("name", ""))
-    messages.success(request, f"Client {client.name} added.")
-    return redirect("fees_firms_clients")
+    """The old Clients tab: now the Firms list."""
+    return redirect("fees_firms", permanent=False)
 
 
 @fees_reader
 @handle_fees_errors()
 @require_safe
 def client_detail(request, client_id):
-    """One client: its matters (any firm), with links to the memos, the outstanding fees and the Feebook narrowed to it."""
-    profile, settings = scope.context(request)
-    client = next((c for c in clients.list_clients(profile) if c.pk == client_id), None)
-    if client is None:
+    """The old client page: now the client's page under its firm (a client that is not the profile's is a 404)."""
+    profile, _settings = scope.context(request)
+    firm_id = Client.objects.filter(profile=profile, pk=client_id).values_list("firm_id", flat=True).first()
+    if firm_id is None:
         raise Http404("Client not found")
-    shown = matters_shown(request, settings)
-    rows = Matter.objects.filter(profile=profile, client_id=client_id).select_related("firm", "group").order_by("firm__name", "name")
-    if shown != "all":
-        rows = rows.filter(is_archived=(shown == "archived"))
-    return render_page(request, "fees/client_detail.html", {
-        "client": client, "matter_rows": list(rows), "matters_shown": shown, "matters_filters": MATTER_FILTERS,
-    })
-
-
-@fees_editor
-@handle_fees_errors()
-@require_POST
-def client_rename(request, client_id):
-    profile, _settings = scope.context(request)
-    clients.rename_client(profile, client_id, request.POST.get("name", ""))
-    messages.success(request, "Client renamed.")
-    return redirect("fees_firms_client_detail", client_id=client_id)
-
-
-@fees_editor
-@handle_fees_errors()
-@require_POST
-def client_delete(request, client_id):
-    profile, _settings = scope.context(request)
-    count = clients.delete_client(profile, client_id)
-    messages.success(request, "Client deleted." + (f" {count} matter{'s' if count != 1 else ''} now ha{'ve' if count != 1 else 's'} no client." if count else ""))
-    return redirect("fees_firms_clients")
-
+    return redirect("fees_firm_client_detail", firm_id=firm_id, client_id=client_id)

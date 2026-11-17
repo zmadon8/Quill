@@ -31,7 +31,7 @@ from django.db.models.functions import Lower
 
 from fees.errors import FeesError
 from fees.models import Firm, Group, Matter, Memo
-from fees.services import history
+from fees.services import clients as clients_service, history
 from fees.services.memos import MAX_MEMO_TEXT, touch
 
 __all__ = [
@@ -176,7 +176,8 @@ def update_matter(profile, matter_id, name=None, firm_id=None, group_id=None, **
     "unchanged". When ``firm_id`` and/or ``group_id`` change, the target firm must
     exist (``FIRM_NOT_FOUND``) and the target group must belong to the target firm
     (``PARTNER_NOT_FOUND``). A rename or a move checks the TARGET firm for a
-    case-insensitive name collision (``DUPLICATE_MATTER_NAME``). The matter row and
+    case-insensitive name collision (``DUPLICATE_MATTER_NAME``). A move to another firm also gives the matter that firm's client of the
+    same name as its client (a client belongs to one firm; the target firm's one is reused, else made). The matter row and
     ALL its memos are updated in one ``transaction.atomic()`` so the denormalised
     ``firm_id`` / ``group_id`` on memos stay in step with the matter. The
     matter-level memo-default fields in ``memo_defaults`` are also applied.
@@ -244,6 +245,9 @@ def update_matter(profile, matter_id, name=None, firm_id=None, group_id=None, **
             Memo.objects.filter(profile=profile, matter=matter).update(
                 firm_id=target_firm_id, group_id=target_group_id
             )
+            if matter.client_id and matter.client.firm_id != target_firm_id:
+                # A client belongs to one firm: the matter takes the target firm's client of the same name (made if needed).
+                clients_service.set_matter_client(profile, matter, clients_service.for_firm(profile, target_firm_id, matter.client))
         if update_fields:
             verb = "Moved" if moved else "Changed"
             history.record(profile, "move" if moved else "update", "matter", matter.pk, f"{verb} matter {matter.name}")

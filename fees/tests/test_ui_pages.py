@@ -379,7 +379,7 @@ class FirmScreenTests(UiPageBase):
 
     def test_clients_page_lists_the_firms_clients(self):
         i = self.ids()
-        client = Client.objects.create(profile=self.profile, name="Page Client")
+        client = Client.objects.create(profile=self.profile, firm_id=i["firm"], name="Page Client")
         Matter.objects.filter(pk=i["matter"]).update(client=client)
         text = self.assert_page(self.page("fees_firm_clients", {"firm_id": i["firm"]}, user=self.editor), "clients-editor")
         detail = reverse("fees_firm_client_detail", kwargs={"firm_id": i["firm"], "client_id": client.pk})
