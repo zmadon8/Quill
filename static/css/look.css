@@ -224,6 +224,17 @@ html.links-off body.look .cite-bubble.linked { background: var(--paper-2); color
 body.look .cite-bubble .citation, body.look .cite-bubble a.cite-link .citation, html.links-off body.look .cite-bubble a.cite-link .citation { display: inline; margin: 0; padding: 0; border-radius: 0; background: none; color: inherit; font: italic 12.5px/1.6 var(--font-sans); }
 body.look .cite-bubble a.cite-link { color: inherit; }
 body.look .cite-bubble .num { color: inherit; font-style: normal; }
+/* In-line citations as tiles (owner round 2026-12): the Item's text and each citation sit on a 12-column grid that packs densely, so a
+   shorter citation may move up into a gap beside the text or a longer one. The tile classes (t1 to t5, from diary/reading.py TILES) are
+   3, 4, 6, 8 and 12 columns; on a phone 6 or 12. Flags, Notes and "Linked from" take a whole row. */
+body.look .cite-pack { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); grid-auto-flow: row dense; gap: 6px 8px; align-items: start; }
+body.look .cite-pack > * { grid-column: 1 / -1; }
+body.look .cite-pack > .t1 { grid-column: span 3; } body.look .cite-pack > .t2 { grid-column: span 4; } body.look .cite-pack > .t3 { grid-column: span 6; } body.look .cite-pack > .t4 { grid-column: span 8; }
+body.look .cite-pack > :is(.cite-sep, .t0) { display: none; }
+body.look .cite-pack > .case { text-align: left; }
+body.look .cite-pack > .item-text:not(.t5) { text-align: left; }
+body.look .cite-pack .cite-bubble { display: inline-block; max-width: 100%; box-sizing: border-box; padding: 3px 9px; line-height: 1.45; }
+@media (max-width: 40rem) { body.look .cite-pack > :is(.t1, .t2) { grid-column: span 6; } body.look .cite-pack > :is(.t3, .t4, .item-text) { grid-column: 1 / -1; } }
 body.look .note { border-radius: 8px; border-left: 0; background: var(--paper-2); }
 body.look .see-also a { color: var(--accent); font-weight: 600; }
 
