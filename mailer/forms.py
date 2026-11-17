@@ -1,5 +1,7 @@
 from django import forms
 
+from config.comma_numbers import CommaIntegerField
+
 from .models import KIND_GROUPS, KINDS, EmailBackupSchedule
 from .services import check_recipients
 
@@ -21,7 +23,7 @@ class EmailBackupForm(forms.ModelForm):
         required=False, label="Send to", widget=forms.Textarea(attrs={"rows": 2}),
         help_text="One or more email addresses, separated by commas or new lines (at most 10).",
     )
-    max_attachment_mb = forms.IntegerField(
+    max_attachment_mb = CommaIntegerField(
         min_value=1, max_value=MAX_LIMIT_MB, initial=15, label="Most attachments in one email (MB)",
         help_text="Gmail refuses an email over 25 MB, and files grow by about a third when emailed, so 15 is safe for Gmail.",
     )
@@ -42,7 +44,7 @@ class EmailBackupForm(forms.ModelForm):
             self.fields[f"{kind}_enabled"].label = label
             self.fields[f"{kind}_frequency"].label = "How often"
             self.fields[f"{kind}_weekday"].label = "On"
-            self.fields[f"{kind}_day_of_month"] = forms.IntegerField(
+            self.fields[f"{kind}_day_of_month"] = CommaIntegerField(
                 min_value=1, max_value=28, initial=1, label="Day of the month",
                 help_text="1 to 28, so every month has it.",
             )

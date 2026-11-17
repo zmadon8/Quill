@@ -3,6 +3,7 @@ from datetime import date
 
 from django import forms
 
+from config.comma_numbers import CommaDecimalField, CommaIntegerField
 from investments.models import (
     ASSET_CLASSES, CA_BONUS, CA_DEMERGER, CA_SPLIT, HOLDABLE_KINDS, KIND_ALTERNATIVE, KIND_FOREIGN, KIND_FUND, KIND_SHARE, ORIGIN_PURCHASE, ORIGINS,
     CORPORATE_AUTO_KINDS, ZERO_PRICE_ORIGINS, Broker, CorporateAction, Folio, Instrument, Portfolio,
@@ -14,18 +15,13 @@ CHOICES_FOR_UNITS = [("auto", "Automatic: the program adds the units"), ("link",
                      ("create", "Create the transactions for me now (editable)")]
 
 
-class MoneyField(forms.DecimalField):
+class MoneyField(CommaDecimalField):
     """A decimal that accepts Indian digit grouping (1,23,456.50)."""
 
     def __init__(self, **kwargs):
         kwargs.setdefault("max_digits", 20)
         kwargs.setdefault("decimal_places", 4)
         super().__init__(**kwargs)
-
-    def to_python(self, value):
-        if isinstance(value, str):
-            value = value.replace(",", "").replace("\u20b9", "").strip()
-        return super().to_python(value)
 
 
 def date_widget():
@@ -430,7 +426,7 @@ class InstrumentForm(forms.Form):
     currency = forms.CharField(max_length=3, initial="INR", required=False)
     asset_class = forms.ChoiceField(choices=ASSET_CLASSES, initial="equity", label="Asset class")
     sector = forms.CharField(max_length=80, required=False)
-    interest_rate = forms.DecimalField(max_digits=7, decimal_places=3, min_value=0, max_value=1000, required=False, label="Interest rate % (optional)")
+    interest_rate = CommaDecimalField(max_digits=7, decimal_places=3, min_value=0, max_value=1000, required=False, label="Interest rate % (optional)")
     interest_type = forms.ChoiceField(choices=[("compound", "Compound interest (yearly)"), ("simple", "Simple interest")], initial="compound", required=False,
                                       label="Interest type")
     maturity_date = forms.DateField(widget=date_widget(), required=False, label="Maturity date (optional)")
@@ -530,7 +526,7 @@ class DetailsForm(forms.Form):
     notes = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}), required=False)
     links = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}), required=False, label="Website links (one per line: label | address)")
 
-    interest_rate = forms.DecimalField(max_digits=7, decimal_places=3, min_value=0, max_value=1000, required=False, label="Interest rate % (optional)")
+    interest_rate = CommaDecimalField(max_digits=7, decimal_places=3, min_value=0, max_value=1000, required=False, label="Interest rate % (optional)")
     interest_type = forms.ChoiceField(choices=[("compound", "Compound interest (yearly)"), ("simple", "Simple interest")], initial="compound", required=False,
                                       label="Interest type")
     maturity_date = forms.DateField(widget=date_widget(), required=False, label="Maturity date (optional)")
@@ -551,9 +547,9 @@ class DetailsForm(forms.Form):
 class GeneralSettingsForm(forms.Form):
     sip_mode = forms.ChoiceField(choices=[("pending", "Pending until confirmed (default)"), ("final", "Created as final")], label="SIP entries")
     awaiting_treatment = forms.ChoiceField(choices=[("cost", "Count at cost (default)"), ("leave_out", "Leave out until finalised")], label="Tentative purchases")
-    awaiting_reminder_days = forms.IntegerField(min_value=1, max_value=60, label="Reminder after (days)")
+    awaiting_reminder_days = CommaIntegerField(min_value=1, max_value=60, label="Reminder after (days)")
     corporate_action_mode = forms.ChoiceField(choices=[("tag", "Tag and banner (default)"), ("block", "Block until confirmed")], label="Pending corporate actions")
-    long_term_days = forms.IntegerField(min_value=1, max_value=3650, label="Long-term after (days held)")
+    long_term_days = CommaIntegerField(min_value=1, max_value=3650, label="Long-term after (days held)")
     default_index = forms.ModelChoiceField(queryset=Instrument.objects.filter(kind="index"), required=False, label="Default Index", empty_label="Nifty 50 (default)")
     sectoral_enabled = forms.BooleanField(required=False, label="Use a sectoral index as well",
                                           help_text="Compare each investment with its own sector index too. Choose them, and add indices, in Settings > Indices.")
@@ -637,7 +633,7 @@ class CatalogueNewForm(forms.Form):
 class PruningForm(forms.Form):
     prune_live = forms.BooleanField(required=False, label="Prune the live database")
     prune_archive = forms.BooleanField(required=False, label="Prune the price archive")
-    years = forms.IntegerField(min_value=2, max_value=50, label="Years kept in full daily detail")
+    years = CommaIntegerField(min_value=2, max_value=50, label="Years kept in full daily detail")
     archive_confirmed = forms.BooleanField(required=False, label="I have downloaded a full price archive and I am keeping it (optional note)")
 
 
@@ -665,12 +661,12 @@ class CorporateActionForm(ProfileForm):
     ex_date = forms.DateField(widget=date_widget(), label="Ex-date (or allotment date for a bonus)")
     kind = forms.ChoiceField(choices=[("split", "Split"), ("bonus", "Bonus"), ("demerger", "Demerger (shares in a new company)"),
                                       ("other", "Other (merger, ...)")])
-    ratio_old = forms.DecimalField(required=False, min_value=0, decimal_places=4, max_digits=12, label="For every (old shares)")
-    ratio_new = forms.DecimalField(required=False, min_value=0, decimal_places=4, max_digits=12,
+    ratio_old = CommaDecimalField(required=False, min_value=0, decimal_places=4, max_digits=12, label="For every (old shares)")
+    ratio_new = CommaDecimalField(required=False, min_value=0, decimal_places=4, max_digits=12,
                                    label="New shares (split: becomes; bonus: free; demerger: new company shares received)")
     target_instrument = forms.ModelChoiceField(queryset=Instrument.objects.none(), required=False, label="Demerger: the new company",
                                                help_text="Add the new company under Investments first if it is not listed.")
-    cost_percent_to_target = forms.DecimalField(required=False, min_value=0, max_value=100, decimal_places=4, max_digits=7,
+    cost_percent_to_target = CommaDecimalField(required=False, min_value=0, max_value=100, decimal_places=4, max_digits=7,
                                                 label="Demerger: percent of the cost that moves to the new company",
                                                 help_text="From the company's notice. Your CA should confirm it. The parent's shares keep the rest. 0 leaves all the cost with the parent's shares; "
                                                           "100 moves all of it. You can change it later.")
@@ -735,27 +731,27 @@ class GuardrailForm(ProfileForm):
 class AlertSettingsForm(forms.Form):
     """One switch per kind of alert, each next to its threshold. Insights (Settings > Insights) are separate and are not alerts."""
     rule_a_fall_enabled = forms.BooleanField(required=False, label="Alert me when an investment falls in a day")
-    rule_a_fall_pct = forms.DecimalField(min_value=0, max_digits=6, decimal_places=2, label="Fall in a day %")
+    rule_a_fall_pct = CommaDecimalField(min_value=0, max_digits=6, decimal_places=2, label="Fall in a day %")
     rule_a_rise_enabled = forms.BooleanField(required=False, label="Alert me when an investment rises in a day")
-    rule_a_rise_pct = forms.DecimalField(min_value=0, max_digits=6, decimal_places=2, label="Rise in a day %")
+    rule_a_rise_pct = CommaDecimalField(min_value=0, max_digits=6, decimal_places=2, label="Rise in a day %")
     rule_a_window_enabled = forms.BooleanField(required=False, label="Alert me when an investment falls over several days")
-    rule_a_window_days = forms.IntegerField(min_value=2, max_value=365, label="Over this many days")
-    rule_a_window_fall_pct = forms.DecimalField(required=False, min_value=0, max_digits=6, decimal_places=2, label="Fall over those days % (blank: off)")
+    rule_a_window_days = CommaIntegerField(min_value=2, max_value=365, label="Over this many days")
+    rule_a_window_fall_pct = CommaDecimalField(required=False, min_value=0, max_digits=6, decimal_places=2, label="Fall over those days % (blank: off)")
     rule_b_loss_enabled = forms.BooleanField(required=False, label="Alert me when a holding is below what I paid")
-    rule_b_loss_pct = forms.DecimalField(min_value=0, max_digits=6, decimal_places=2, label="Below cost %")
+    rule_b_loss_pct = CommaDecimalField(min_value=0, max_digits=6, decimal_places=2, label="Below cost %")
     rule_b_gain_enabled = forms.BooleanField(required=False, label="Alert me when a holding is above what I paid")
-    rule_b_gain_pct = forms.DecimalField(min_value=0, max_digits=6, decimal_places=2, label="Above cost %")
+    rule_b_gain_pct = CommaDecimalField(min_value=0, max_digits=6, decimal_places=2, label="Above cost %")
     guardrails_enabled = forms.BooleanField(required=False, label="Alert me when a guardrail I set is reached")
     guardrail_replaces_global = forms.BooleanField(required=False, label="A guardrail on a holding replaces the daily and cost alerts for it")
     maturity_enabled = forms.BooleanField(required=False, label="Alert me before an alternative investment matures")
-    maturity_alert_days = forms.IntegerField(min_value=0, max_value=365, label="Warn before a maturity date (days)")
+    maturity_alert_days = CommaIntegerField(min_value=0, max_value=365, label="Warn before a maturity date (days)")
     source_problems_enabled = forms.BooleanField(required=False, label="Warn me on the Alerts page when a price or list source cannot be read")
     alert_email = forms.BooleanField(required=False, label="Email me alerts that triggered overnight")
 
 
 class SipForm(ProfileForm):
     amount = MoneyField(min_value=0, label="Amount each month (Rs)")
-    day_of_month = forms.IntegerField(min_value=1, max_value=31, label="Day of the month")
+    day_of_month = CommaIntegerField(min_value=1, max_value=31, label="Day of the month")
     portfolio = forms.ModelChoiceField(queryset=Portfolio.objects.none())
     broker = forms.ModelChoiceField(queryset=Broker.objects.none(), empty_label="Choose a broker")
     folio = forms.ModelChoiceField(queryset=Folio.objects.none(), required=False, label="Folio (optional)")

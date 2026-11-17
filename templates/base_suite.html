@@ -1,7 +1,7 @@
 {% load static %}<!DOCTYPE html>
 {# Shared shell for every program in the suite (Option D "Chambers"). A program extends this and fills: #}
 {# program_name, program_nav, page_title; and crumb_nav (the breadcrumb row, only on judgment-list pages). See docs/DESIGN.md "Visual design". #}
-<html lang="en"{% if justify_text %} class="justify-text"{% endif %}{% if colour_theme and colour_theme != "oxblood" %} data-theme="{{ colour_theme }}"{% endif %}>
+<html lang="en"{% if justify_text %} class="justify-text"{% endif %}{% if group_digits %} data-group-digits{% endif %}{% if colour_theme and colour_theme != "oxblood" %} data-theme="{{ colour_theme }}"{% endif %}>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -65,5 +65,6 @@
   <script src="{% static 'js/site.js' %}" data-home="{% url 'home' %}?home=1" data-search="{% url 'search' %}" data-find="{% url 'suite_search' %}"></script>
   <script src="{% static 'js/search-toggles.js' %}"></script>
   <script src="{% static 'js/select-all-none.js' %}"></script>
+  <script src="{% static 'js/number-commas.js' %}"></script>
 </body>
 </html>

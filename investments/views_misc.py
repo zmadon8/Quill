@@ -7,6 +7,8 @@ from django.http import Http404
 from django.shortcuts import redirect
 from django.urls import reverse
 
+from config.comma_numbers import plain_number
+
 from . import forms, lump_display, pages
 from .decorators import inv_admin, inv_editor, inv_read_write, inv_reader
 from .errors import InvestmentsError
@@ -258,7 +260,7 @@ def settings_insights(request):
     if request.method == "POST":
         on = set(request.POST.getlist("on"))
         try:
-            limit = Decimal(request.POST.get("limit", row.concentration_limit))
+            limit = Decimal(plain_number(str(request.POST.get("limit", row.concentration_limit))))
         except Exception:
             limit = row.concentration_limit
         masters.update_settings(profile, request.user, insights_off=[k for k, _l in insights.KINDS if k not in on], concentration_limit=limit)

@@ -1,14 +1,12 @@
 (function () {
   "use strict";
-  // "Held only" tick box on the transaction forms: leave out the investments that are not held now (data-held on each option). The chosen
-  // option is never removed, and without JavaScript the tick box stays hidden and every investment is listed. The server accepts any
-  // investment either way. Kept apart from txn-form.js so the forms that only need this do not get its broker and folio behaviour.
+  // "Held only" tick box on the transaction forms: leave out investments not held now (data-held on each option). The chosen option
+  // stays; without JavaScript the box is hidden and every investment is listed. Apart from txn-form.js so other forms stay light.
   var form = document.getElementById("txn-form") || document.querySelector("form.form");
   if (!form) { return; }
   function field(name) { return form.querySelector("[name='" + name + "']"); }
-  // Every option of each select, in the original order, captured when the select is wired (a card added later is a fresh copy of the template,
-  // so it has its own full list). Options are removed from and put back into the select rather than hidden: iOS Safari and other phone browsers
-  // ignore hidden/display:none on an option and only grey out a disabled one, so the not held investments stayed visible on phones.
+  // Every option of each select, in order, captured when the select is wired. Options are removed and put back, not hidden: phone
+  // browsers ignore hidden on an option.
   var all = new WeakMap();
   function applyHeld(box) {
     var select = field(box.getAttribute("data-for"));

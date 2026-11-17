@@ -16,7 +16,7 @@
 
   function field(name) { return form.elements[name]; }
   function val(name) { var f = field(name); return f ? f.value : ""; }
-  function num(name) { return M ? M.parse(val(name)) : (parseFloat(val(name)) || 0); }
+  function num(name) { return M ? M.parse(val(name)) : (parseFloat(val(name).replace(/,/g, "")) || 0); }
   function money(x) { return M ? M.formatMoney(x, unit) : String(x); }
   function cents(x) { return Math.round(x * 100) / 100; }
 
@@ -31,7 +31,7 @@
     return LINES[line].fields.some(function (n) {
       var f = field(n);
       if (!f) { return false; }
-      if (f.type === "number" || /^(fees_|custom_)/.test(n)) { return num(n) !== 0; }
+      if (/^(num_|fees_|custom_)/.test(n)) { return num(n) !== 0; }
       return f.value.trim() !== "";
     });
   }
@@ -40,7 +40,7 @@
     LINES[line].fields.forEach(function (n) {
       var f = field(n);
       if (!f) { return; }
-      if (!on && clear) { f.value = (f.type === "number" || /^(fees_)/.test(n)) ? "0" : ""; }
+      if (!on && clear) { f.value = /^(num_|fees_)/.test(n) ? "0" : ""; }
       f.disabled = false;
       f.readOnly = !on;
       f.setAttribute("aria-disabled", on ? "false" : "true");

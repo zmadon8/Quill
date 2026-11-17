@@ -165,7 +165,7 @@ def _profile_view_groups(request):
 @require_http_methods(["GET", "POST"])
 def my_settings(request):
     """Settings that are only mine, over three pages of the Settings tab strip (``?tab=``): Account and Profile View (the default:
-    email, letters in the header badge, password, the profiles I use), Display (justify text, colour theme, Home card figures
+    email, letters in the header badge, password, the profiles I use), Display (justify text, commas while typing numbers, colour theme, Home card figures
     and extras) and Start Screens (the program that opens after sign-in and the start page of each program). The personal
     sections of a program (Case Law Diary number formats, Fee Register Items per page, Investments period) are saved here too
     but shown on that program's own Settings page, so each setting appears once.

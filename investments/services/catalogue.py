@@ -11,6 +11,7 @@ from decimal import Decimal
 from django.db import transaction
 from django.db.models import Count, Max, Q
 
+from config.comma_numbers import plain_number
 from investments.errors import InvestmentsError, forbidden, not_found
 from investments.models import (
     AltValue, CatalogueHistory, Folio, Instrument, InvestmentSettings, ManualPrice, PinnedPrice, Price, ProfileInvestment, SourceSymbol,
@@ -203,7 +204,7 @@ def _pins_on(instrument, day):
 def set_price(user, instrument, day, close, reason=""):
     """Edit or add a price: it becomes a hand-entered row that the nightly update never overwrites; the original is kept in the log."""
     require_editor(user)
-    close = Decimal(str(close).replace(",", "").strip()).quantize(Decimal("0.0001"))
+    close = Decimal(plain_number(str(close))).quantize(Decimal("0.0001"))
     if close <= 0:
         raise InvestmentsError("BAD_NUMBER", "A price must be more than zero.")
     old = prices.series(instrument, day, day)

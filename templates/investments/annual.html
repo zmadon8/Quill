@@ -21,7 +21,7 @@
 <tr><td>Dividends received <small class="na">(not part of portfolio value)</small></td><td class="r">{{ r.dividends|inr }}</td></tr>
 <tr><td>Tax deducted on dividends</td><td class="r">{{ r.dividend_tax|inr }}</td></tr>
 <tr><td>Unrealised gain at year end</td><td class="r">{{ r.unrealised|inr_signed }}</td></tr></tbody></table>
-{% if can_edit %}<form method="post" class="inline-edit">{% csrf_token %}<label for="cutoff">Long-term after (days held) for {{ label }}</label><input id="cutoff" name="cutoff" value="{{ r.cutoff }}" size="5"><button class="btn q sm">Save</button><span class="hint">Default for new years: {{ default_cutoff }} (Settings).</span></form>{% endif %}
+{% if can_edit %}<form method="post" class="inline-edit">{% csrf_token %}<label for="cutoff">Long-term after (days held) for {{ label }}</label><input id="cutoff" name="cutoff" value="{{ r.cutoff }}" size="5" inputmode="numeric"><button class="btn q sm">Save</button><span class="hint">Default for new years: {{ default_cutoff }} (Settings).</span></form>{% endif %}
 
 <div class="sec"><h2>Sale by sale</h2><span class="hint">first bought, first sold</span></div>
 {% if r.sales %}<div class="tw"><table data-table-id="inv-annual-sales" class="led" data-sortable><thead><tr><th>Investment</th><th>Held from</th><th>Sold</th><th class="r">Days</th><th class="r">Units</th><th class="r">Cost</th><th class="r">Proceeds</th><th class="r">Gain</th><th>Term</th></tr></thead><tbody>

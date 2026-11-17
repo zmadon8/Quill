@@ -13,6 +13,8 @@ from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme, urlencode
 
+from config.comma_numbers import plain_number
+
 from . import forms, lump_display
 from .decorators import inv_editor, inv_reader
 from .errors import InvestmentsError
@@ -499,8 +501,8 @@ def txn_opening(request):
             if not (raw["date"] or raw["units"] or raw["cost"]):
                 continue
             try:
-                lines.append({"date": datetime.date.fromisoformat(raw["date"]), "units": Decimal(raw["units"].replace(",", "")),
-                              "cost_per_unit": Decimal(raw["cost"].replace(",", "")), "estimated": bool(raw["estimated"])})
+                lines.append({"date": datetime.date.fromisoformat(raw["date"]), "units": Decimal(plain_number(raw["units"])),
+                              "cost_per_unit": Decimal(plain_number(raw["cost"])), "estimated": bool(raw["estimated"])})
             except Exception:
                 line_errors.append(f"Row {i + 1}: enter a date, units and cost per unit.")
     if request.method == "POST" and form.is_valid() and not line_errors:

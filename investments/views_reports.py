@@ -5,6 +5,8 @@ from decimal import Decimal
 from django.contrib import messages
 from django.db.models import Q
 
+from config.comma_numbers import plain_number
+
 from .decorators import inv_editor as inv_read_write_view, inv_reader
 from .models import HOLDABLE_KINDS, KIND_INDEX, Broker, Instrument, Portfolio, ProfileInvestment, Transaction
 from .services import chartview, core, holdings, masters, performance, series, statscache
@@ -265,7 +267,7 @@ def annual_view(request):
         if request_role(request, KEY_INVESTMENTS) != ROLE_EDITOR:
             raise PermissionDenied
         try:
-            days = int(request.POST.get("cutoff", ""))
+            days = int(plain_number(request.POST.get("cutoff", "")))
             if not 1 <= days <= 3650:
                 raise ValueError
         except ValueError:

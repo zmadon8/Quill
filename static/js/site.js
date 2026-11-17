@@ -92,10 +92,8 @@
   jumpFlash();
   window.addEventListener("hashchange", jumpFlash);
 
-  // Back and Forward stay inside this site. Each tab keeps its own list of the site pages it has shown
-  // (sessionStorage, so a new tab starts fresh). Only same-origin paths are ever stored or followed, so
-  // the buttons can never take you to another website or the browser's start page. The browser's own
-  // Back and Forward buttons are not touched.
+  // Back and Forward stay inside this site: each tab keeps its own list of site pages (sessionStorage), and only same-origin
+  // paths are stored or followed. The browser's own buttons are not touched.
   var back = document.querySelector("[data-back]");
   var forward = document.querySelector("[data-forward]");
   if (back || forward) {
@@ -197,8 +195,7 @@
     });
   }
 
-  // Breadcrumb "Subjects": switch the side panel between this Subject's Topics and every Subject (on phones it opens the
-  // slide-over on the list). Without JavaScript it goes to the Subjects page.
+  // Breadcrumb "Subjects": switch the side panel between this Subject's Topics and every Subject. Without JavaScript it goes to the Subjects page.
   var switcher = document.querySelector("[data-panel-switch]");
   var topicsView = document.querySelector("[data-panel-topics]");
   var subjectsView = document.querySelector("[data-panel-subjects]");
@@ -440,8 +437,7 @@
       document.addEventListener("click", function (e) {
         if (isOpen() && !siteHeader.contains(e.target) && !headerBtn.contains(e.target)) { closeHeader(false); }
       });
-      // Scroll events come many times a frame on a phone, and reading the position forces the page to be laid out each time:
-      // do the check at most once per frame.
+      // Scroll fires many times a frame on a phone: check at most once per frame.
       var framePending = false;
       window.addEventListener("scroll", function () {
         if (framePending) { return; }
@@ -462,15 +458,13 @@
     document.cookie = "quill_in_context=" + (wholeView ? "1" : "0") + "; path=/; max-age=31536000; SameSite=Lax";
   }
 
-  // Topic and Sub-topic headings in the reading body are links that switch between the whole Subject and one Topic or Sub-topic.
-  // In Edit mode, with an editing card or "+ Add" form open, headings do not switch (no unsaved work is lost).
+  // Topic and Sub-topic headings in the reading body switch between the whole Subject and one Topic (not while an Edit card is open).
   document.addEventListener("click", function (event) {
     var link = event.target.closest ? event.target.closest("a[data-heading-toggle]") : null;
     if (!link) { return; }
     if (document.querySelector("[data-inline-card], [data-inline-add]")) { event.preventDefault(); }
   });
-  // Export split button (desktop): the caret opens a menu (This page / Full diary / By Subject). Keyboard: Enter/Space/Down opens,
-  // Up/Down/Home/End move, Esc closes and returns focus to the caret; a click outside closes it.
+  // Export split button (desktop): the caret opens a menu. Enter/Space/Down opens; Up/Down/Home/End move; Esc or a click outside closes.
   document.querySelectorAll("[data-export-menu]").forEach(function (box) {
     var more = box.querySelector(".export-more");
     var menu = box.querySelector(".export-menu");
@@ -505,9 +499,8 @@
     document.addEventListener("click", function (e) { if (!menu.hidden && !box.contains(e.target)) { close(false); } });
   });
 
-  // Hyperlinks on citations on/off (D87): a tick box in Settings > Case Law Diary > Reading. It only changes how the page looks (a class
-  // on the page, remembered by this browser), so nothing reloads and you stay exactly where you are. The box has no name
-  // and is not part of the Save form: it takes effect at once.
+  // Hyperlinks on citations on/off (D87): a tick box in Settings > Case Law Diary > Reading. It only sets a class on the page
+  // (remembered by this browser), takes effect at once and is not part of the Save form.
   var linkSwitches = document.querySelectorAll("[data-links-toggle]");
   if (linkSwitches.length) {
     var root = document.documentElement;
@@ -546,9 +539,8 @@
     if (field.form.requestSubmit) { field.form.requestSubmit(); } else { field.form.submit(); }
   });
 
-  // The header name (a program page): its full Home page name shows at once on hover, not after the browser's slow
-  // tooltip delay. The title is moved to data-tip while the pointer is over the name (so the slow one does not show
-  // as well) and put back after; without this script the browser tooltip still works.
+  // The header name (a program page): its full Home page name shows at once on hover. The title moves to data-tip while the
+  // pointer is over the name (so the slow browser tooltip does not show too) and is put back after.
   Array.prototype.forEach.call(document.querySelectorAll(".brand > a[title]"), function (a) {
     function show() {
       var text = a.getAttribute("title");

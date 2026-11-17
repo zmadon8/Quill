@@ -57,17 +57,17 @@
   </fieldset>
   <fieldset class="memo-card"><legend class="sr-only">Fees</legend>
     <div class="fee-line" data-line="appearances"><div class="memo-grid cols-3">
-      <label>No. of appearances <input type="number" min="0" name="num_appearances" value="{{ form.num_appearances }}"></label>
+      <label>No. of appearances <input type="text" inputmode="numeric" name="num_appearances" value="{{ form.num_appearances }}"></label>
       <label>Fees / appearance <input type="text" inputmode="decimal" name="fees_per_appearance" value="{{ form.fees_per_appearance }}"></label>
       <label>Dates of appearances <input type="text" name="dates_of_appearances" value="{{ form.dates_of_appearances }}"></label>
     </div></div>
     <div class="fee-line" data-line="conferences"><div class="memo-grid cols-3">
-      <label>No. of conferences <input type="number" min="0" name="num_conferences" value="{{ form.num_conferences }}"></label>
+      <label>No. of conferences <input type="text" inputmode="numeric" name="num_conferences" value="{{ form.num_conferences }}"></label>
       <label>Fees / conference <input type="text" inputmode="decimal" name="fees_per_conference" value="{{ form.fees_per_conference }}"></label>
       <label>Dates of conferences <input type="text" name="dates_of_conferences" value="{{ form.dates_of_conferences }}"></label>
     </div></div>
     <div class="memo-grid cols-3 drafts-row">
-      <label>No. of drafts (statistics only; does not affect the memo total) <input type="number" min="0" name="num_drafts" value="{{ form.num_drafts }}"></label>
+      <label>No. of drafts (statistics only; does not affect the memo total) <input type="text" inputmode="numeric" name="num_drafts" value="{{ form.num_drafts }}"></label>
     </div>
     <div class="fee-line" data-line="misc"><div class="memo-grid cols-3">
       <label class="span-2">Misc / drafting description <input type="text" name="misc_drafting_description" value="{{ form.misc_drafting_description }}"></label>

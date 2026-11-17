@@ -1,10 +1,5 @@
-/* Keep my place (round 16, D87).
-   Whenever a page is reloaded (by the browser, by a phone that reloads a tab, or by the diary after a change), or the diary
-   brings you back to the same page after a form (Undo, Move, Delete, the Edit switch...), it opens where you were instead
-   of at the top. The place is the entry at the top of your screen (its id) and how far down the screen it sat, so it still
-   works when something above it was added or removed. Kept per page for this browser tab only (sessionStorage).
-   Also after a GET filter form that returns to the same page, and after a POST that redirects back to the same address.
-   A fresh visit through a link still opens at the top (or at the entry the link points to). */
+/* Keep my place: after a reload, or a form that returns to the same page, the page opens at the entry that was at the top of your
+   screen (its id and how far down it sat), not at the top. Kept per page for this tab only (sessionStorage). A link still opens at the top. */
 (function () {
   "use strict";
   var PLACES = "quill.places", MARK = "quill.keep", MAX_AGE = 10 * 60 * 1000;
