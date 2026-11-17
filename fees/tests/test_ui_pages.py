@@ -359,10 +359,10 @@ class FirmScreenTests(UiPageBase):
     def test_firm_page_switches_between_partner_wise_and_client_wise(self):
         i = self.ids()
         partner = self.html(self.page("fees_firm_detail", {"firm_id": i["firm"]}))
-        self.assertIn("Partner-wise</strong>", partner)
+        self.assertIn("Partner</strong>", partner)
         self.assertIn('href="?by=client&amp;matters=', partner)
         client = self.html(self.page("fees_firm_detail", {"firm_id": i["firm"]}, "?by=client"))
-        self.assertIn("Client-wise</strong>", client)
+        self.assertIn("Client</strong>", client)
         self.assertIn('href="?by=partner&amp;matters=', client)
         self.assertIn("Archived Only", client)
 

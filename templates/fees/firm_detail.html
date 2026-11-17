@@ -14,12 +14,13 @@
 </div>
 <section aria-labelledby="matters-heading">
 <h2 id="matters-heading">Matters</h2>
-<nav class="list-filter" aria-label="Group matters by">Show matters: {% if by == 'client' %}<a href="?by=partner&amp;matters={{ matters_shown }}">Partner-wise</a> | <strong aria-current="true">Client-wise</strong>{% else %}<strong aria-current="true">Partner-wise</strong> | <a href="?by=client&amp;matters={{ matters_shown }}">Client-wise</a>{% endif %}</nav>
+<div class="list-filter-bar" style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:.25rem 1rem">
 {% include "fees/_matter_filter_nav.html" %}
+<nav class="list-filter" aria-label="Sort matters by">Sort by: {% if by == 'client' %}<a href="?by=partner&amp;matters={{ matters_shown }}">Partner</a> | <strong aria-current="true">Client</strong>{% else %}<strong aria-current="true">Partner</strong> | <a href="?by=client&amp;matters={{ matters_shown }}">Client</a>{% endif %}</nav>
+</div>
 {% for s in sections %}{% if s.rows or by == 'partner' %}<div class="card group-card"><h3 class="group-caption">{{ s.title }}</h3>
 <ul class="matter-list">{% for row in s.rows %}{% include "fees/_firm_matter_row.html" %}{% endfor %}</ul></div>{% endif %}{% endfor %}
 {% if not matter_rows %}<p class="muted">No matters.</p>{% endif %}
 </section>
-{% if can_edit %}<section class="danger-zone" aria-labelledby="status-heading"><h2 id="status-heading">{% if firm.status == 'archived' %}Make this firm active{% else %}Archive this firm{% endif %}</h2>
-<form method="post" action="{% url 'fees_firm_status' firm.pk %}">{% csrf_token %}{% if firm.status == 'archived' %}<input type="hidden" name="status" value="active"><button type="submit">Make This Firm Active</button>{% else %}<input type="hidden" name="status" value="archived"><button type="submit">Archive This Firm</button>{% endif %}</form></section>{% endif %}
+{% if can_edit %}<form method="post" class="archive-action" action="{% url 'fees_firm_status' firm.pk %}">{% csrf_token %}{% if firm.status == 'archived' %}<input type="hidden" name="status" value="active"><button type="submit">Make This Firm Active</button>{% else %}<input type="hidden" name="status" value="archived"><button type="submit">Archive This Firm</button>{% endif %}</form>{% endif %}
 {% endblock %}
