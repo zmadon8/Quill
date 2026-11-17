@@ -249,11 +249,13 @@ class HomeIndexTests(TestCase):
         self.assertIn('title="Home (&#8997;H)"', header)
         self.assertLess(header.index('class="brand"'), header.index("data-back"))
         self.assertLess(header.index("data-back"), header.index("data-forward"))
-        self.assertLess(header.index("data-forward"), header.index("home-button"))
+        home = header.index('class="home-button" href=')
+        self.assertLess(header.index("data-forward"), home)
         self.assertGreater(header.index("search-toggle"), header.index("Help"))
-        self.assertLess(header.index("search-toggle"), header.index("home-button"))
+        self.assertLess(header.index("search-toggle"), home)
+        self.assertLess(header.index("gear-button"), header.index('class="who"'))  # the Settings gear sits left of the initials
         self.assertLess(header.index('class="who"'), header.index("search-toggle"))
-        self.assertLess(header.index("home-button"), header.index('aria-label="Sign out"'))  # Sign out: far right
+        self.assertLess(home, header.index('aria-label="Sign out"'))  # Sign out: far right
         self.assertNotRegex(header, r'<input(?![^>]*type="hidden")')  # no typing box; Sign out's POST form carries a hidden csrf input
         self.assertIn('class="link nav-icon signout-button"', header)
         self.client.force_login(self.admin)
