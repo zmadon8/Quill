@@ -215,7 +215,7 @@ class HomeIndexTests(TestCase):
     def test_home_page_title_single_heading_and_edit_switch_at_bottom(self):
         self.client.force_login(self.admin)
         html = self.client.get(reverse("diary_home")).content.decode()
-        self.assertIn("<title>Home - ", html)
+        self.assertIn("<title>Case Law Diary</title>", html)
         self.assertEqual(html.count("<h1>"), 1)
         self.assertIn("<h1>Index of Subjects</h1>", html)
         self.assertNotIn("home-subtitle", html)

@@ -67,41 +67,31 @@ class HyperlinkEditingTests(ItemEditorTestCase):
                                                (None, "", "", EXACT)]))
         self.assertEqual(Case._base_manager.filter(item=item, deleted_at__isnull=True, url=EXACT).count(), 1)
 
-    def test_the_reading_view_links_the_citation_and_the_bar_has_the_switch(self):
+    def test_the_reading_view_links_the_citation_and_the_page_head_has_no_switch(self):
         item, first, second = self.cited()
         Case.objects.filter(pk=first.pk).update(url=EXACT)
         html = self.client.get(reverse("read_topic", args=[self.topic.pk])).content.decode()
         self.assertIn('<a class="cite-link" href="%s" target="_blank" rel="noopener noreferrer"' % EXACT.replace("&", "&amp;"), html)
         self.assertIn("C v D", html)
         self.assertEqual(html.count('class="cite-link"'), 1)  # the citation without an address is plain text
-        self.assertIn('data-links-toggle', html)
-        self.assertIn('role="switch"', html)
+        self.assertNotIn('data-links-toggle', html)  # the chain icon moved into Settings
         self.assertIn('localStorage.getItem("quill.links")', html)  # applied before the page is drawn: no reload
         self.assertIn("js/keep-place.js", html)
 
-    def test_the_links_toggle_sits_on_the_edit_bar_left_of_edit_for_an_editor(self):
-        # The toggle moved from the header onto the same bar as Edit, just to its left.
+    def test_the_edit_bar_holds_only_edit_and_a_reader_has_no_bar(self):
         html = self.client.get(reverse("read_topic", args=[self.topic.pk]) + "?edit=1").content.decode()
         self.assertIn('data-bar-tools', html)
-        self.assertIn('data-links-toggle', html)
         self.assertIn('data-edit-switch', html)
-        self.assertLess(html.index('data-links-toggle'), html.index('data-edit-switch'))  # Links is left of Edit
-
-    def test_a_reader_still_gets_the_links_toggle_on_a_reading_page(self):
-        # Readers have no Edit button, but the Links toggle still works for them on reading pages.
+        self.assertNotIn('data-links-toggle', html)
         html = self.reader_client.get(reverse("read_topic", args=[self.topic.pk])).content.decode()
-        self.assertIn('data-bar-tools', html)
-        self.assertIn('data-links-toggle', html)
-        self.assertNotIn('data-edit-switch', html)
+        self.assertNotIn('data-links-toggle', html)
 
-    def test_the_links_toggle_is_always_the_icon_even_when_the_header_shows_words(self):
-        # Owner round (2026-11): Words is the default header style, which used to print "Links"; it is the chain icon now.
-        html = self.client.get(reverse("read_topic", args=[self.topic.pk])).content.decode()
-        button = html[html.index("data-links-toggle"):]
-        button = button[:button.index("</button>")]
-        self.assertIn("<svg", button)
-        self.assertNotIn("Links<", button)
-        self.assertIn('aria-label="Hyperlinks on citations"', html)
+    def test_the_links_tick_box_is_on_the_diary_settings_reading_section(self):
+        html = self.client.get(reverse("profile_settings")).content.decode()
+        box = html[html.index("data-links-toggle") - 120:]
+        box = box[:box.index("</label>")]
+        self.assertIn('type="checkbox"', box)
+        self.assertNotIn("name=", box)  # not part of any Save form: it takes effect at once
 
     def test_history_and_undo_carry_the_address(self):
         item, first, second = self.cited()

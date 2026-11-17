@@ -505,27 +505,20 @@
     document.addEventListener("click", function (e) { if (!menu.hidden && !box.contains(e.target)) { close(false); } });
   });
 
-  // Hyperlinks on citations on/off (D87): a switch in the header bar. It only changes how the page looks (a class on
-  // the page, remembered by this browser), so nothing reloads and you stay exactly where you are.
+  // Hyperlinks on citations on/off (D87): a tick box in Settings > Display. It only changes how the page looks (a class
+  // on the page, remembered by this browser), so nothing reloads and you stay exactly where you are. The box has no name
+  // and is not part of the Save form: it takes effect at once.
   var linkSwitches = document.querySelectorAll("[data-links-toggle]");
   if (linkSwitches.length) {
     var root = document.documentElement;
-    var showLinks = function () {
-      var on = !root.classList.contains("links-off");
-      Array.prototype.forEach.call(linkSwitches, function (b) {
-        b.setAttribute("aria-checked", on ? "true" : "false");
-        b.title = "Hyperlinks on citations: " + (on ? "on (press to turn off)" : "off (press to turn on)");
-      });
-    };
     Array.prototype.forEach.call(linkSwitches, function (b) {
-      b.addEventListener("click", function () {
-        var off = !root.classList.contains("links-off");
+      b.checked = !root.classList.contains("links-off");
+      b.addEventListener("change", function () {
+        var off = !b.checked;
         root.classList.toggle("links-off", off);
         try { window.localStorage.setItem("quill.links", off ? "off" : "on"); } catch (err) { /* private mode */ }
-        showLinks();
       });
     });
-    showLinks();
   }
 
   // Flags (D88): the text box beside a flag is greyed out while None is chosen. One helper for every form.

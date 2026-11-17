@@ -37,6 +37,11 @@
       <span class="setting-help">Yes: clicking a Subject opens the whole Subject. No: it opens the Contents page with a "Read Whole Subject" button. Only its Editors can change them.</span>
     </div>
     {% endif %}
+    {# Not part of any Save form (no name): it takes effect at once and is remembered by this browser (localStorage quill.links, static/js/site.js). #}
+    <div class="setting-row">
+      <label class="search-check" for="links-toggle"><input type="checkbox" id="links-toggle" data-links-toggle checked> Hyperlinks on citations</label>{% include "_who_tag.html" with who="you" %}
+      <span class="setting-help">Tick to show a citation that has a web address as a link you can open. Untick to show every citation as plain text. It changes at once, without Save, and is remembered by this browser.</span>
+    </div>
   </section>
 
   <section class="settings-panel-body" data-section="numbers" id="section-numbers">
