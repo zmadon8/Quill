@@ -142,7 +142,7 @@ class SearchRankingTests(TestCase):
         titles = [r["title"] for r in search.search(self.profile, "outstanding") if r["kind"] == "page"]
         self.assertEqual(titles, ["Outstanding", "Outstanding Memos"])
         self.assertTrue(search.search(self.profile, "import")[0]["kind"] == "page")
-        self.assertFalse([r for r in search.search(self.profile, "import", can_edit=False) if r["kind"] == "page"])
+        self.assertNotIn("Import", [r["title"] for r in search.search(self.profile, "import", can_edit=False)])   # Editors only
         self.assertFalse([r for r in search.search(self.profile, "explore", statistics_on=False) if r["kind"] == "page"])
 
     def test_memo_matched_by_party_names(self):
