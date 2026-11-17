@@ -12,7 +12,7 @@ from .decorators import inv_editor, inv_read_write, inv_reader
 from .errors import InvestmentsError
 from .models import CorporateAction, CorporateActionResponse, Dividend, Guardrail, Instrument, Portfolio
 from .services import alerts, core, corporate, dividends, masters, source_formats
-from .viewutil import handle_errors, page, parse_date, profile_or_404, selection
+from .viewutil import fy_filter, handle_errors, page, parse_date, profile_or_404, selection
 
 
 # ------------------------------------------------------------------ dividends
@@ -21,11 +21,14 @@ from .viewutil import handle_errors, page, parse_date, profile_or_404, selection
 def dividends_list(request):
     profile = profile_or_404(request)
     portfolio, broker, _asat = selection(request, profile)
+    fy, span, fy_choices = fy_filter(request, profile)
     qs = Dividend.objects.filter(profile=profile).select_related("instrument", "portfolio", "broker", "folio")
     if portfolio:
         qs = qs.filter(portfolio_id=portfolio)
     if broker:
         qs = qs.filter(broker_id=broker)
+    if span:
+        qs = qs.filter(date__gte=span[0], date__lte=span[1])
     rows = list(qs[:500])
     if request.GET.get("export") == "xlsx":
         from .exports import response
@@ -33,7 +36,7 @@ def dividends_list(request):
         return response("Dividends.xlsx", [("Dividends", ["Date received", "Investment", "Portfolio", "Broker", "Folio", "Amount", "Tax deducted", "Note"],
                                             [[r.date, r.instrument.name, r.portfolio.name, r.broker.name, r.folio.number if r.folio else "", r.amount,
                                               r.tax_deducted, r.note] for r in qs.iterator()])])
-    return page(request, "investments/dividends.html", {"page_title_text": "Dividends", "rows": rows, "years": dividends.by_year(profile, portfolio, broker),
+    return page(request, "investments/dividends.html", {"page_title_text": "Dividends", "rows": rows, "fy": fy, "fy_choices": fy_choices, "years": dividends.by_year(profile, portfolio, broker),
                                                        "due": dividends.due(profile)})
 
 

@@ -3,7 +3,10 @@
   <form class="ctx" method="post" action="{% url 'investments_set_selection' %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
     <div class="sel"><label for="sel-portfolio"><span>Portfolio</span></label><select id="sel-portfolio" name="portfolio" onchange="this.form.submit()"><option value="">All Portfolios</option>{% for p in inv_portfolios %}<option value="{{ p.pk }}"{% if p.pk == sel_portfolio %} selected{% endif %}>{{ p.name }}</option>{% endfor %}</select></div>
     <div class="sel"><label for="sel-broker"><span>Broker</span></label><select id="sel-broker" name="broker" onchange="this.form.submit()"><option value="">All brokers</option>{% for b in inv_brokers %}<option value="{{ b.pk }}"{% if b.pk == sel_broker %} selected{% endif %}>{{ b.name }}</option>{% endfor %}</select></div>
+    {% if fy_choices is not None %}<div class="sel"><label for="sel-fy"><span>Financial Year</span></label><select id="sel-fy" name="fy" onchange="this.form.submit()"><option value="">All years</option>{% for y in fy_choices %}<option value="{{ y }}"{% if y == fy %} selected{% endif %}>{{ y }}</option>{% endfor %}</select></div><input type="hidden" name="fy_filter" value="1">
+    {% else %}
     <div class="sel"><label for="sel-asat"><span>As at</span></label><input id="sel-asat" type="date" name="asat" value="{{ sel_asat|date:'Y-m-d' }}" max="{% now 'Y-m-d' %}" onchange="this.form.submit()"></div>
+    {% endif %}
     {% if txn_filters %}{# Transactions: Search and Action sit in the same box and apply on change or Enter; set_selection puts them back in the page's query #}
     <input type="hidden" name="txn_filters" value="1">
     <div class="sel"><label for="sel-q"><span>Search</span></label><input id="sel-q" type="search" name="q" value="{{ q }}" placeholder="investment, folio, reference"></div>
@@ -15,5 +18,5 @@
     <div class="sel"><label for="sel-status"><span>Status</span></label><select id="sel-status" name="status" onchange="this.form.submit()">{% for key, label in status_choices %}<option value="{{ key }}"{% if key == status %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
     {% endif %}
   </form>
-  <div class="status"><span id="update-status">{{ inv_status|default:"Prices are entered by hand." }}</span>{% if sel_asat %} &middot; <b>As at {{ sel_asat|date:"j M Y" }}</b>{% endif %}</div>
+  <div class="status"><span id="update-status">{{ inv_status|default:"Prices are entered by hand." }}</span>{% if sel_asat and fy_choices is None %} &middot; <b>As at {{ sel_asat|date:"j M Y" }}</b>{% endif %}</div>
 </div>

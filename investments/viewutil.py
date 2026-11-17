@@ -59,6 +59,21 @@ def selection(request, profile):
     return portfolio, broker, asat
 
 
+def fy_filter(request, profile):
+    """The Financial Year filter on Transactions and Dividends: ``(label, (first day, last day) or None, choices)``.
+    ``fy`` in the query string is a label such as ``2025-26``; blank or unknown means every year."""
+    import re
+
+    from .services import annual
+
+    choices = annual.year_choices(profile)
+    label = request.GET.get("fy", "").strip()
+    if not re.fullmatch(r"\d{4}-\d{2}", label):
+        return "", None, choices
+    start, end, _closing, _done = annual.bounds(label)
+    return label, (start, end), choices
+
+
 def held_only(request, default=True):
     """The "Held only" tick box on a report page. The form sends a hidden marker ``hf=1`` with the tick box ``held=1``, so an unticked box
     (marker present, ``held`` absent) means off, and a page opened without the marker uses ``default``."""
@@ -70,7 +85,7 @@ def held_only(request, default=True):
 def page(request, template, context=None, status=200, selectors=True, status_line=False):
     """Render an Investments page with the header entries, role flag, selectors and number-display choice added.
 
-    ``selectors`` shows the Portfolio / Broker / As at box and is for pages whose figures use the selection. ``status_line`` shows the
+    ``selectors`` shows the Portfolio / Broker / As at box (Transactions and Dividends show a Financial Year filter instead of As at) and is for pages whose figures use the selection. ``status_line`` shows the
     Update Prices status line on its own row on a page without the box."""
     profile = scope.for_profile(request)
     extra = dict(context or {})
