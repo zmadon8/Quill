@@ -146,6 +146,25 @@ class InvestmentPageTests(InvTestCase):
         self.assertEqual(sold, [])
         self.assertEqual(investment_page.range_52w(self.reliance, d(2024, 6, 1)), (D(75), D(80)))
 
+    def test_sold_portion_shows_the_index_over_its_own_dates_and_alpha(self):
+        nifty = Instrument.objects.get(code="^NSEI")
+        for day, n, r in ((d(2023, 1, 2), 100, 50), (d(2024, 3, 1), 120, 90), (d(2024, 6, 1), 115, 80)):
+            Price.objects.create(instrument=nifty, date=day, close=D(n), source="api")
+            Price.objects.create(instrument=self.reliance, date=day, close=D(r), source="api")
+        self.buy(d(2023, 1, 2), 10, 50)
+        self.sell(d(2024, 3, 1), 10, 90)
+        from investments.services import holdings
+        rows, _ = holdings.compute(self.profile, as_of=d(2024, 6, 1))
+        h = [r for r in rows if r.instrument.pk == self.reliance.pk][0]
+        _held, (s,) = investment_page.purchase_rows(self.profile, self.reliance, h, d(2024, 6, 1))
+        days = (d(2024, 3, 1) - d(2023, 1, 2)).days
+        self.assertAlmostEqual(s["index_return"], (120 / 100) ** (365 / days) - 1, places=6)
+        self.assertAlmostEqual(s["alpha"], s["return"] - s["index_return"], places=9)
+        self.client.force_login(self.user)
+        page = self.client.get(reverse("investments_investment", args=[self.reliance.pk])).content.decode()
+        self.assertIn(">Index CAGR</th>", page)
+        self.assertIn(">Alpha</th>", page)
+
     def test_page_with_a_past_date_and_chart_markers(self):
         for n in range(60):
             Price.objects.create(instrument=self.reliance, date=d.today() - timedelta(days=n), close=D(100 + n), source="api")

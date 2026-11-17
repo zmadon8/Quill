@@ -27,7 +27,9 @@ def purchase_rows(profile, instrument, holding, as_of):
     settings_row = core.get_settings(profile, create=False)
     index = settings_row.default_index if settings_row.default_index_id else masters.default_index_for(profile)
     lots_held = sorted(holding.lots, key=lambda l: (l.bought_on, str(l.ref)))
-    first = min([l.paid_on for l in lots_held] + [as_of])
+    result = lots.replay(core.events_for(profile, instrument.pk), as_of=as_of)
+    # The index series covers the held lots and the sold portions, so each sold portion is compared with the index over its own dates.
+    first = min([l.paid_on for l in lots_held] + [m.paid_on for m in result.matches] + [as_of])
     level = IndexSeries(index, first, as_of).level if index else (lambda d: None)
     now_level = level(as_of)
     price = holding.price
@@ -42,10 +44,14 @@ def purchase_rows(profile, instrument, holding, as_of):
                      "index_return": iret, "diff": None if ret is None or iret is None else ret - iret,
                      "to_long": max(0, settings_row.long_term_days - days + 1) if days <= settings_row.long_term_days else 0})
     sold = []
-    result = lots.replay(core.events_for(profile, instrument.pk), as_of=as_of)
     for m in result.matches:
         ret, annual = _annualised(m.cost, m.proceeds, m.holding_days)
-        sold.append({"m": m, "return": ret, "annual": annual, "basis": measures.basis(m.holding_days, annual)})
+        # The index from the day paid to the day sold, on the same basis as the Return (CAGR from a year, plain under it); Alpha is the
+        # Return less that figure.
+        then, at_sale = level(m.paid_on), level(m.sold_on)
+        iret, _ = _annualised(then, at_sale, m.holding_days) if then and at_sale else (None, False)
+        sold.append({"m": m, "return": ret, "annual": annual, "basis": measures.basis(m.holding_days, annual),
+                     "index_return": iret, "alpha": None if ret is None or iret is None else ret - iret})
     return held, sold
 
 
