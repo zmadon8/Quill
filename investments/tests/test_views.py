@@ -246,7 +246,7 @@ class PageTests(InvTestCase):
         html = self.client.get(reverse("investments_holdings")).content.decode()
         row = html.split("<tbody>")[1].split("</tr>")[0]
         cells = row.split("<td")
-        index_cell, alpha_cell = cells[9], cells[10]   # name, type, code, units, value, gain, first bought, XIRR, Index XIRR, Alpha
+        index_cell, alpha_cell = cells[11], cells[12]   # name, type, code, units, average price, invested value, value, gain, first bought, XIRR, Index XIRR, Alpha
         self.assertNotIn("&ndash;", index_cell)
         self.assertNotIn("&ndash;", alpha_cell)
         self.assertIn("%", index_cell)

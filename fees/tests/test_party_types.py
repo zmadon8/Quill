@@ -104,7 +104,7 @@ class MemoFormPartyTypeTests(WriteBase):
         self.assertContains(response, '<option value="Querists">Querists</option>', html=False)
         self.assertContains(response, '<option value="Respondents">Respondents</option>', html=False)
         self.assertContains(response, "Custom…")
-        self.assertLess(html.index('<option value="">(none)</option>'), html.index('<option value="Applicant"'))
+        self.assertRegex(html, r'<option value=""( selected)?>\(none\)</option><option value="Applicant"')
 
     def test_the_form_follows_the_settings_list(self):
         settings_service.update_settings(self.profile, {"plaintiff_types": ["Only one"]})

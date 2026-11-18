@@ -487,7 +487,7 @@ class FirmScreenTests(UiPageBase):
         self.assertIn('name="addressee_line2"', row)
         for side in ("plaintiff", "defendant"):
             line = edit.split('name="%s_name"' % side)[1].split("</p>")[0]
-            self.assertIn('>Type <input type="text" name="%s_type"' % side, line)
+            self.assertIn('>Type \n<select name="%s_type_choice"' % side, line)
         self.assertNotIn(">as <input", edit)
         self.assertIn("js/fees/matter-form.js", edit)
 
