@@ -63,6 +63,7 @@ def _list_page(request, draft_mode, template):
             ),
             "money_unit": settings.money_unit,
             "query_string": _without_page(request, filters),
+            "max_allocations": payments.MAX_ALLOCATIONS,
         },
     )
 

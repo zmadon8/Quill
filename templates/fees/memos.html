@@ -8,6 +8,7 @@
 <p class="page-actions" role="group" aria-label="Memo actions">{% if can_edit %}<a class="button small primary" href="{% url 'fees_memo_new' %}">New Memo</a> {% endif %}<a class="button small secondary" href="{% url 'fees_memos_export' %}?{{ query_string }}">Export To Excel</a></p>
 </div>
 {% url 'fees_memos' as reset_url %}{% include "fees/_filters_form.html" with show_fy=True show_unpaid=True reset_url=reset_url %}
-{% include "fees/_memo_table.html" with table_key="memos" legend=True %}
+{% include "fees/_memo_table.html" with table_key="memos" legend=True pay_ticks=True %}
 {% include "fees/_pager.html" %}
 {% endblock %}
+{% block page_js %}{% load static %}{% if can_edit %}<script src="{% static 'js/fees/outstanding.js' %}"></script>{% endif %}{% endblock %}

@@ -228,12 +228,28 @@ class MemoScreenTests(UiPageBase):
         self.assertNotIn(">Payment</a>", text)
         self.assert_no_unlabelled_controls(text, "memos")
 
-    def test_editor_sees_payment_buttons_unless_hidden_on_paid(self):
+    def test_editor_ticks_memos_to_pay_instead_of_a_payment_button(self):
         editor = self.html(self.page("fees_memos", user=self.editor))
-        self.assertIn('class="button small success" href="%s?memo=' % reverse("fees_payment_new"), editor)
+        self.assertNotIn(">Payment</a>", editor)
+        self.assertIn('<form method="get" action="%s" data-pay-form' % reverse("fees_payment_new"), editor)
+        self.assertIn(">Pay Ticked Memos</button>", editor)
+        head = editor[editor.index("<thead>"):editor.index("</thead>")]
+        self.assertLess(head.index("Select to pay"), head.index(">No.</th>"))   # the tick column is on the far left
+        ticks = editor.count('type="checkbox" name="memo"')
+        self.assertGreater(ticks, 0)
+        self.assertIn("js/fees/outstanding.js", editor)
         FeesSettings.objects.update_or_create(profile=self.profile, defaults={"hide_payment_when_paid": True})
         hidden = self.html(self.page("fees_memos", user=self.editor))
-        self.assertLessEqual(hidden.count('class="button small success"'), editor.count('class="button small success"'))
+        self.assertLessEqual(hidden.count('type="checkbox" name="memo"'), ticks)
+        reader = self.html(self.page("fees_memos"))
+        self.assertNotIn("data-pay-form", reader)
+        self.assertNotIn('name="memo"', reader)
+
+    def test_matter_page_ticks_memos_to_pay(self):
+        i = self.ids()
+        editor = self.html(self.page("fees_matter_detail", {"matter_id": i["matter"]}, user=self.editor))
+        self.assertIn(">Pay Ticked Memos</button>", editor)
+        self.assertNotIn(">Payment</a>", editor)
 
     def test_reader_has_no_new_memo_button(self):
         text = self.html(self.page("fees_memos"))
@@ -269,6 +285,14 @@ class MemoScreenTests(UiPageBase):
         self.assertIn("data-fee-total hidden", text)
         self.assertIn('data-totals-url="%s"' % reverse("fees_memo_preview_totals"), text)
         self.assert_no_unlabelled_controls(text, "form")
+        # The addressee's second line may run over several lines.
+        self.assertRegex(text, r'<textarea name="addressee_line2" rows="1" style="resize:vertical"')
+
+    def test_addressee_second_line_keeps_its_line_breaks(self):
+        from fees.forms import clean_text
+        from fees.models import Memo
+
+        self.assertEqual(clean_text({"addressee_line2": "Mumbai\r\nIndia\n"}, "addressee_line2", Memo), "Mumbai\nIndia")
 
     def test_reader_sees_the_form_without_the_script_or_save_buttons(self):
         text = self.assert_page(self.page("fees_memo_new"), "form-reader")

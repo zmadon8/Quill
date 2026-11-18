@@ -94,6 +94,7 @@ body.inv .panel{border:1px solid var(--hair);background:var(--panel);padding:18p
 body.inv .panel h3{font:400 20px var(--font-serif);margin:0 0 10px}
 body.inv .row{display:flex;flex-wrap:wrap;gap:12px 16px;margin:0 0 16px}
 body.inv .fld{display:flex;flex-direction:column;gap:4px;min-width:0}
+body.inv .fld input[type=checkbox]{min-width:0}body.inv .fld-tick>.chk{min-height:40px;font-size:14px}
 body.inv .fld .note{color:var(--muted)}
 body.inv .acts-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
 body.inv .stepper{display:flex;gap:0;margin:22px 0 6px;border-bottom:1px solid var(--hair)}

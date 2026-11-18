@@ -277,24 +277,6 @@ def run_of(obj):
     return ""
 
 
-#: The tiles of an Item's in-line citations on the reading page (owner round 2026-12): an Item with in-line citations lays its text and
-#: each citation out as tiles on a 12-column grid that packs them densely (a shorter citation may move up into a gap, so the order can
-#: change). ``(tile class, columns, characters it holds on about two lines)``, smallest first; anything longer takes the whole row.
-TILES = (("t1", 3, 26), ("t2", 4, 38), ("t3", 6, 62), ("t4", 8, 86))
-#: The Item's text is in a larger type than a citation (one of its characters is about 1.35 citation characters wide) and should stay on
-#: one line where it can, so its length counts this many times when its tile is chosen.
-TEXT_WIDTH = 2.7
-
-
-def tile_for(chars):
-    """The tile class for a piece of about ``chars`` citation-sized characters: the smallest that holds it on about two lines, else "t5"
-    (the whole row)."""
-    for name, _columns, holds in TILES:
-        if chars <= holds:
-            return name
-    return "t5"
-
-
 def _item_block(item, data, fmts, label, depth, under_section):
     cases = data.cases_by_item.get(item.pk, [])
     # One citation shows without a label; two or more are labelled with the citation format of the Item's layout: one for citations
@@ -319,11 +301,9 @@ def _item_block(item, data, fmts, label, depth, under_section):
         "colon": len(cases) > 1 and item.citation_layout == "lines" and bool(item.text_plain.strip())
                  and not item.text_plain.rstrip().endswith(":"),
         "cases": [
-            {"label": lab, "citation": c.citation, "url": c.url, "comment": _html(c.comment), "has_comment": bool(c.comment_plain.strip()),
-             "tile": tile_for(len(lab) + len(c.citation or c.url or "") + len(c.comment_plain.strip()) + 2)}
+            {"label": lab, "citation": c.citation, "url": c.url, "comment": _html(c.comment), "has_comment": bool(c.comment_plain.strip())}
             for lab, c in zip(case_labels, cases)
         ],
-        "text_tile": tile_for(len(item.text_plain.strip()) * TEXT_WIDTH) if item.text_plain.strip() else "t0",
         "flag": item.flag if item.flag != "none" else "",
         "flag_label": flag_label(item.flag, item.flag_text),
         "notes": [_note_block(n, data) for n in data.notes_by.get(("item", item.pk), [])],

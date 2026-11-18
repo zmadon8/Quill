@@ -917,6 +917,13 @@ class ReadingCitationTests(TestCase):
         self.assertEqual([c["label"] for c in block["cases"]], ["(a)", "(b)", "(c)"])
         self.assertEqual([c["has_comment"] for c in block["cases"]], [True, False, True])
 
+    def test_inline_citations_are_packed_and_the_reader_loads_the_packer(self):
+        self.client.force_login(join_main(User.objects.create_user("pack-reader", password=PASSWORD)))
+        subject = Subject.objects.get(name=SAMPLE_PREFIX + "Contract Law")
+        html = self.client.get(reverse("read_subject", args=[subject.pk])).content.decode()
+        self.assertIn('class="item-body cite-pack"', html)
+        self.assertIn("js/cite-pack.js", html)
+
     def test_an_item_without_a_citation_has_no_cases(self):
         item = Item.objects.get(text__contains="placed directly under the Subject")
         item.cases.all().delete()  # the sample gives this Item one citation; take it away

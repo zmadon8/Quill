@@ -1,11 +1,11 @@
-{# Renders a Django form in the Chambers style. Context: form. A form may name more_fields (plain forms have none, so the lookup is defaulted to empty: an undefined name is None in an if tag and testing membership in None would hide every field): those are tucked under a "More" fold (open when they hold a value or an error). #}
+{# Renders a Django form in the Chambers style. A tick box sits on the same line as its words ("[x] Mark as Tentative"), not under a label. Context: form. A form may name more_fields (plain forms have none, so the lookup is defaulted to empty: an undefined name is None in an if tag and testing membership in None would hide every field): those are tucked under a "More" fold (open when they hold a value or an error). #}
 {% with more=form.more_fields|default:'' %}{% for field in form.hidden_fields %}{{ field }}{% endfor %}
 {% if form.non_field_errors %}<div class="ban al" role="alert"><span>{{ form.non_field_errors|join:" " }}</span></div>{% endif %}
 <div class="row">
 {% for field in form.visible_fields %}{% if field.name not in more %}{% if field.name in form.break_before %}<div class="row-break" aria-hidden="true"></div>{% endif %}
-  <div class="fld{% if field.errors %} bad{% endif %}{% if field.name == "units" or field.name == "price" or field.name == "lump_amount" or field.name == "remaining" or field.name == "value_after" %} fld-num{% endif %}{% if field.name == "date" and form.has_pick %} fld-date{% elif field.name == "instrument" and form.has_pick %} fld-invest{% endif %}">
-    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-    {{ field }}
+  <div class="fld{% if field.errors %} bad{% endif %}{% if field.widget_type == "checkbox" %} fld-tick{% endif %}{% if field.name == "units" or field.name == "price" or field.name == "lump_amount" or field.name == "remaining" or field.name == "value_after" %} fld-num{% endif %}{% if field.name == "date" and form.has_pick %} fld-date{% elif field.name == "instrument" and form.has_pick %} fld-invest{% endif %}">
+    {% if field.widget_type == "checkbox" %}<label class="chk" for="{{ field.id_for_label }}">{{ field }} {{ field.label }}</label>{% else %}<label for="{{ field.id_for_label }}">{{ field.label }}</label>
+    {{ field }}{% endif %}
     {% if field.name == "instrument" and form.has_pick %}<div class="combo" data-combo data-for="{{ field.html_name }}" data-url="{% url 'investments_txn_lookup' %}" data-add-url="{% url 'investments_add_1' %}" data-pick-name="{{ form.pick_name }}" data-pick-line="{{ form.pick_line }}" data-site-name="{{ site_name|default:'Madon.co.in' }}" data-held="{% if form.held_default %}1{% else %}0{% endif %}" hidden></div><noscript><span class="note">Not in the list? <a href="{% url 'investments_add_1' %}">Add investment</a></span></noscript>
     {% elif field.name in form.held_fields %}<label class="held-only" hidden><input type="checkbox" class="held-only-box" data-for="{{ field.html_name }}"{% if form.held_default %} checked{% endif %}> Held only</label>{% endif %}
     {% if field.help_text %}<span class="note">{{ field.help_text }}</span>{% endif %}
@@ -17,8 +17,8 @@
 {% if form.more_first %}<div class="row">
 {% for field in form.visible_fields %}{% if field.name in form.more_first %}
   <div class="fld{% if field.errors %} bad{% endif %}">
-    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-    {{ field }}
+    {% if field.widget_type == "checkbox" %}<label class="chk" for="{{ field.id_for_label }}">{{ field }} {{ field.label }}</label>{% else %}<label for="{{ field.id_for_label }}">{{ field.label }}</label>
+    {{ field }}{% endif %}
     {% for e in field.errors %}<span class="note err">{{ e }}</span>{% endfor %}
   </div>
 {% endif %}{% endfor %}
@@ -27,8 +27,8 @@
 <div class="row">
 {% for field in form.visible_fields %}{% if field.name in more and field.name not in form.more_first %}
   <div class="fld{% if field.errors %} bad{% endif %}">
-    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-    {{ field }}
+    {% if field.widget_type == "checkbox" %}<label class="chk" for="{{ field.id_for_label }}">{{ field }} {{ field.label }}</label>{% else %}<label for="{{ field.id_for_label }}">{{ field.label }}</label>
+    {{ field }}{% endif %}
     {% for e in field.errors %}<span class="note err">{{ e }}</span>{% endfor %}
   </div>
 {% endif %}{% endfor %}
@@ -36,8 +36,8 @@
 {% else %}<div class="row">
 {% for field in form.visible_fields %}{% if field.name in more %}
   <div class="fld{% if field.errors %} bad{% endif %}">
-    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-    {{ field }}
+    {% if field.widget_type == "checkbox" %}<label class="chk" for="{{ field.id_for_label }}">{{ field }} {{ field.label }}</label>{% else %}<label for="{{ field.id_for_label }}">{{ field.label }}</label>
+    {{ field }}{% endif %}
     {% if field.help_text %}<span class="note">{{ field.help_text }}</span>{% endif %}
     {% for e in field.errors %}<span class="note err">{{ e }}</span>{% endfor %}
   </div>

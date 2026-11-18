@@ -9,7 +9,7 @@ from fees import forms, scope
 from fees.decorators import fees_editor, fees_read_write, fees_reader, handle_fees_errors
 from fees.errors import FeesError
 from fees.pages import int_or_none, render_page
-from fees.services import clients, firms, matters, memo_lists
+from fees.services import clients, firms, matters, memo_lists, payments
 from fees.services.matters import MEMO_DEFAULT_FIELDS
 
 
@@ -118,6 +118,7 @@ def matter_detail(request, matter_id):
             "items": items,
             "totals": memo_lists.footer_totals(items),
             "money_unit": settings.money_unit,
+            "max_allocations": payments.MAX_ALLOCATIONS,
         },
     )
 
