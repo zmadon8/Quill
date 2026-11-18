@@ -228,6 +228,20 @@ class MemoScreenTests(UiPageBase):
         self.assertNotIn(">Payment</a>", text)
         self.assert_no_unlabelled_controls(text, "memos")
 
+    def test_memos_filters_are_firm_partner_and_matter_on_the_bar(self):
+        for name in ("fees_memos", "fees_memo_drafts"):
+            text = self.html(self.page(name))
+            bar = text[text.index('class="filters"'):text.index("</form>", text.index('class="filters"'))]
+            self.assertNotIn("View Filters", bar, name)
+            self.assertNotIn("Reset Filters", bar, name)
+            self.assertNotIn("<dialog", bar, name)
+            self.assertNotIn('name="unpaid"', bar, name)
+            self.assertLess(bar.index('name="fy"'), bar.index('name="firm"'))
+            self.assertLess(bar.index('name="firm"'), bar.index('name="group"'))
+            self.assertLess(bar.index('name="group"'), bar.index('name="matter"'))
+            self.assertEqual(bar.count(' class="capped"'), 3, name)
+            self.assertEqual(bar.count("this.form.submit()"), 4, name)   # the year and each of the three apply at once
+
     def test_editor_ticks_memos_to_pay_instead_of_a_payment_button(self):
         editor = self.html(self.page("fees_memos", user=self.editor))
         self.assertNotIn(">Payment</a>", editor)
