@@ -1,0 +1,7 @@
+{# Additional details (left and right) on the memo and matter forms: a tick, off unless either box has text; the two boxes show only while it is ticked (js/fees/additional-details.js; the boxes stay hidden without the script unless they hold text). Saving with the tick off clears both (the marker additional_details_present tells the server the tick was on the page). Context: form. #}
+{% with on=form.additional_details_left|default:form.additional_details_right %}
+<input type="hidden" name="additional_details_present" value="1">
+<label class="check wide"><input type="checkbox" name="additional_details" value="1" data-addl-tick{% if on %} checked{% endif %}> Additional Details</label>
+<label data-addl-box{% if not on %} hidden{% endif %}>Additional details (left) <textarea name="additional_details_left" rows="1">{{ form.additional_details_left }}</textarea></label>
+<label data-addl-box{% if not on %} hidden{% endif %}>Additional details (right) <textarea name="additional_details_right" rows="1">{{ form.additional_details_right }}</textarea></label>
+{% endwith %}

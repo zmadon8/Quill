@@ -294,6 +294,11 @@ def clean_text(post, name, model, label=None):
     return value
 
 
+def _additional_details_off(post):
+    """True when the form showed the Additional Details tick (its marker was sent) and it was left off: both boxes are then cleared."""
+    return post.get("additional_details_present") == "1" and post.get("additional_details") != "1"
+
+
 def memo_data_from_post(post):
     """The memo dict for ``memos.create_memo`` / ``update_memo`` from a submitted memo form.
 
@@ -308,6 +313,8 @@ def memo_data_from_post(post):
     }
     for name in MEMO_TEXT_FIELDS:
         data[name] = clean_text(post, name, Memo)
+    if _additional_details_off(post):
+        data["additional_details_left"] = data["additional_details_right"] = ""
     for name in MEMO_COUNT_FIELDS:
         data[name] = parse_int(post.get(name), name.replace("_", " ").capitalize())
     for name in MEMO_RATE_FIELDS:
@@ -388,6 +395,10 @@ def matter_data_from_post(post):
             defaults[name] = (post.get(name) or "") == "1"
         else:
             defaults[name] = clean_text(post, name, Matter)
+    if _additional_details_off(post):
+        for name in ("additional_details_left", "additional_details_right"):
+            if name in defaults:
+                defaults[name] = ""
     firm = (post.get("firm_id") or "").strip()
     group = (post.get("group_id") or "").strip()
     return (
