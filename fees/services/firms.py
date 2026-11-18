@@ -310,17 +310,17 @@ def remove_group(profile, firm_id, group_id):
 # Roll-ups and recent matters (R-FIRM-4, brief 5.12)
 # ---------------------------------------------------------------------------
 
-def _overdue_days_for(profile):
-    """Reads ``FeesSettings.overdue_days`` ONCE (0 when there is no settings row)."""
-    value = (
+def _rollup_settings_for(profile):
+    """Reads ``overdue_days`` and ``written_off_enabled`` ONCE: ``(days, on)``, ``(0, True)`` when there is no settings row."""
+    row = (
         FeesSettings.objects.filter(profile=profile)
-        .values_list("overdue_days", flat=True)
+        .values("overdue_days", "written_off_enabled")
         .first()
-    )
-    return value or 0
+    ) or {}
+    return (row.get("overdue_days") or 0, row.get("written_off_enabled", True))
 
 
-def matter_rollups(profile, firm_id, overdue_days=None):
+def matter_rollups(profile, firm_id, overdue_days=None, written_off_on=None):
     """Per-matter rolled-up status over a firm's NON-DRAFT memos (R-FIRM-4).
 
     Folds every non-draft memo of the firm per matter. A memo's status comes from
@@ -336,11 +336,14 @@ def matter_rollups(profile, firm_id, overdue_days=None):
 
     ``overdue_days`` defaults to the profile's ``FeesSettings.overdue_days`` read
     once here; a caller that already holds it (e.g. a firm page rendering many
-    firms) passes it in to avoid repeated settings reads. Returns
+    firms) passes it in to avoid repeated settings reads. ``written_off_on`` (the Written off memos switch) is read
+    with it; when off, no memo counts as written off (all are live) and ``has_written_off`` is False. Returns
     ``{matter_id: {"memo_status": ..., "has_written_off": bool}}``.
     """
-    if overdue_days is None:
-        overdue_days = _overdue_days_for(profile)
+    if overdue_days is None or written_off_on is None:
+        days, on = _rollup_settings_for(profile)
+        overdue_days = days if overdue_days is None else overdue_days
+        written_off_on = on if written_off_on is None else written_off_on
 
     rows = Memo.objects.filter(profile=profile, firm_id=firm_id, is_draft=False).values(
         "matter_id", "date", "written_off", "total_fees", "amount_paid"
@@ -362,7 +365,7 @@ def matter_rollups(profile, firm_id, overdue_days=None):
 
         total = round2(r["total_fees"])
         paid = round2(r["amount_paid"])
-        written_off = bool(r["written_off"])
+        written_off = bool(r["written_off"]) and written_off_on
         is_paid = paid >= total
         is_overdue = compute_is_overdue(
             r["date"], "Paid" if is_paid else "Unpaid", written_off, overdue_days

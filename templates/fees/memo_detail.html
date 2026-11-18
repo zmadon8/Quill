@@ -55,7 +55,7 @@
 {% endif %}
 {% if can_edit %}<details class="more-menu"><summary>More</summary>
   <p><a href="{% url 'fees_memo_move' memo.id %}">Move this memo to another matter</a></p>
-  {% if not memo.is_draft %}<form method="post" action="{% url 'fees_memo_write_off' memo.id %}">{% csrf_token %}
+  {% if not memo.is_draft and fees_written_off_on %}<form method="post" action="{% url 'fees_memo_write_off' memo.id %}">{% csrf_token %}
     {% if memo.written_off %}<input type="hidden" name="written_off" value="0"><button type="submit">Remove The Write-off</button>
     {% else %}<input type="hidden" name="written_off" value="1"><button type="submit">Write Off As A Bad Debt</button>{% endif %}
   </form>{% endif %}

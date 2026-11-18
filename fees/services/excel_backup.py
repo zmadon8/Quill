@@ -226,6 +226,7 @@ WEB_SETTINGS_KEYS = [
     "memo_filename_pattern",
     "statistics_enabled",
     "show_bank",
+    "written_off_enabled",
 ] + MEMO_TEXT_DEFAULT_KEYS + [
     "memo_signature_default",
     "list_default_filter",

@@ -314,6 +314,7 @@ class Command(BaseCommand):
         on = {
             "statistics_enabled": True,
             "overdue_days": 0,
+            "written_off_enabled": True,
             "initial_financial_year": "2015-16",
         }
         return lambda: dashboard.get_dashboard_kpis(self.planning, settings=on)

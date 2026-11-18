@@ -10,7 +10,7 @@
   <label>Client <select name="client"><option value="">All</option>{% for c in choices.clients %}<option value="{{ c.id }}"{% if filters.client_id == c.id %} selected{% endif %}>{{ c.name }}</option>{% endfor %}{% if choices.no_client or filters.client_id == "blank" %}<option value="blank"{% if filters.client_id == "blank" %} selected{% endif %}>No client</option>{% endif %}</select></label>
   <label>View <select name="view"><option value="grouped"{% if view == "grouped" %} selected{% endif %}>Grouped By Matter</option><option value="summary"{% if view == "summary" %} selected{% endif %}>Summary (Matter Totals)</option><option value="flat"{% if view == "flat" %} selected{% endif %}>In Order (Flat List)</option></select></label>
   <label>Sort The Flat List By <select name="sort">{% for key, name in sorts %}<option value="{{ key }}"{% if flat_sort == key %} selected{% endif %}>{{ name }}</option>{% endfor %}</select></label>
-  <label><input type="checkbox" name="written_off" value="1"{% if filters.include_written_off %} checked{% endif %}> Include Written Off Memos</label>
+  {% if fees_written_off_on %}<label><input type="checkbox" name="written_off" value="1"{% if filters.include_written_off %} checked{% endif %}> Include Written Off Memos</label>{% endif %}
   {% if fees_overdue_on %}<label><input type="checkbox" name="overdue" value="1"{% if filters.overdue_only %} checked{% endif %}> View Overdue Memos Only</label>{% endif %}
   {% if filters.age %}<input type="hidden" name="age" value="{{ filters.age }}">{% endif %}
   <button type="submit">Filter</button>
