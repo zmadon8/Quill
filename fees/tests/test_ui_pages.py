@@ -244,7 +244,8 @@ class MemoScreenTests(UiPageBase):
 
     def test_outstanding_all_memos_filters_apply_at_once_with_capped_lists(self):
         text = self.html(self.page("fees_outstanding_detail"))
-        bar = text[text.index('<form method="get"'):text.index("</form>")]
+        start = text.index('aria-label="Filter outstanding memos"')
+        bar = text[start:text.index("</form>", start)]
         self.assertEqual(bar.count('<button type="submit">Filter</button>'), bar.count('<noscript><button type="submit">Filter</button></noscript>'))
         for name in ("firm", "group", "client"):
             self.assertRegex(bar, r'<select name="%s" class="capped" onchange="' % name)
