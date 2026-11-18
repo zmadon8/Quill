@@ -68,6 +68,8 @@ class User(AbstractUser):
     # Owner round (2026-11): extra Dashboard / Overview items shown below the cards on Home, {"fees": [ids], "investments": [ids]}
     # (My settings, Display). Missing or empty means none; see accounts/home_cards.py.
     home_details = models.JSONField("Home page extras", default=dict, blank=True)
+    # Owner round (2026-12): off hides every figure on the Home cards and the details below them (My settings, Display, My Home Page).
+    home_show_figures = models.BooleanField("Show figures on the Home page", default=True)
     # Owner round (2026-11): Case Law Diary display. On: no " - " between the Item text and its inline citations. Off (default): as before.
     remove_citation_hyphen = models.BooleanField("Remove the hyphen before the citation", default=False)
     # Who is active (round: markers, payments, activity). ``last_seen_at`` is touched by accounts.middleware at most once
