@@ -239,7 +239,7 @@ class MemoScreenTests(UiPageBase):
             self.assertLess(bar.index('name="fy"'), bar.index('name="firm"'))
             self.assertLess(bar.index('name="firm"'), bar.index('name="group"'))
             self.assertLess(bar.index('name="group"'), bar.index('name="matter"'))
-            self.assertEqual(bar.count('class="capped"'), 3, name)
+            self.assertEqual(bar.count(' class="capped"'), 3, name)
             self.assertEqual(bar.count("this.form.submit()"), 4, name)   # the year and each of the three apply at once
 
     def test_editor_ticks_memos_to_pay_instead_of_a_payment_button(self):

@@ -79,7 +79,7 @@ class OverviewTests(InvTestCase):
         self.client.force_login(self.user)
         page = self.client.get(reverse("investments_dashboard") + "?customise=1")
         self.assertContains(page, "Customise the Overview")
-        self.assertContains(page, "Over time")
+        self.assertContains(page, "Returns by period")
         self.client.post(reverse("investments_overview_save"), {"box": ["count", "value"], "metric": ["realised"], "period": ["3y"]})
         self.assertEqual(InvestmentSettings.objects.get(profile=self.profile).overview, {"boxes": ["count", "value"], "metrics": ["realised"], "periods": ["3y"]})
         page = self.client.get(reverse("investments_dashboard")).content.decode()

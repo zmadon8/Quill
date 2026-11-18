@@ -129,7 +129,8 @@ body:is(.ledger, .look) .program-nav .nav-links { display: contents; }
   body.inv .program-nav .buy-sell { order: 2; align-self: center; margin: 0; }
   body:is(.ledger, .look) .program-nav .header-end { order: 3; flex-wrap: nowrap; }
 }
-/* One size for every Fee Register and Investments button (D218): regular 32px (44 on touch), small 28px (36 on touch). */
+/* Button sizes (D218). The last column's grip sits clear of a scroll bar laid over the table. */
+th:last-child>.col-resizer{right:14px!important}
 body.ledger{--tap-sm:28px}@media (max-width:599px),(pointer:coarse){body.ledger{--tap-sm:36px}}
 body.ledger main :is(button,.button,.btn):not(.link,.linklike,.chip,.alloc-remove,.kpi-arrow,.alloc-default-submit){min-height:var(--tap);padding:0 14px;font-size:14px;line-height:1.2}
 body.ledger main :is(button.small,.button.small,.btn.sm,.btn-sm,.page-actions :is(.btn,.button,button),td :is(button,.button,.btn),.table-tools :is(button,.button,.btn)):not(.link,.linklike,.chip,.alloc-remove,.kpi-arrow,.alloc-default-submit),body.ledger .col-menu>summary{min-height:var(--tap-sm);padding:0 10px;font-size:13px;line-height:1.2}
