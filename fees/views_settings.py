@@ -68,6 +68,9 @@ def settings_context(profile, fy=None, tab="memos"):
         "filename_tokens": PLACEHOLDERS,
         "filename_errors": validate_pattern(config["memo_filename_pattern"]),
         "config": config,
+        "party_types_text": {"plaintiff": "\n".join(config["plaintiff_types"]), "defendant": "\n".join(config["defendant_types"])},
+        "max_party_types": settings_service.MAX_PARTY_TYPES,
+        "max_party_type": settings_service.MAX_PARTY_TYPE,
         "start_year_options": fy_options.start_year_options(
             profile, (config["initial_financial_year"], config["memos_start_year"], config["feebook_start_year"])
         ),

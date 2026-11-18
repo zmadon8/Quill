@@ -10,6 +10,7 @@ from fees.decorators import fees_editor, fees_read_write, fees_reader, handle_fe
 from fees.errors import FeesError
 from fees.pages import int_or_none, render_page
 from fees.services import clients, firms, matters, memo_lists, payments
+from fees.services import settings as settings_service
 from fees.services.matters import MEMO_DEFAULT_FIELDS
 
 
@@ -24,7 +25,7 @@ def _form_values(matter=None):
 
 
 def _echo(post):
-    values = {name: post.get(name, "") for name in _form_values()}
+    values = {name: forms.posted_party_type(post, name) if name in forms.PARTY_TYPE_FIELDS else post.get(name, "") for name in _form_values()}
     values["addressee_use_firm_name"] = post.get("addressee_use_firm_name") == "1"
     values["firm_id"] = int_or_none(post.get("firm_id")) or ""
     values["group_id"] = int_or_none(post.get("group_id")) or ""
@@ -49,6 +50,7 @@ def _form_page(request, matter, form, errors=None, status=200):
             "form": form,
             "firm_choices": firms.list_firms(profile),
             "group_choices": groups,
+            "party_types": settings_service.party_types(profile),
             "client_choices": clients.choices_for_firm(profile, firm_id, int_or_none(form.get("client_id")) or (matter.client_id if matter else None)),
             "errors": errors or [],
         },

@@ -67,6 +67,7 @@ from fees.models import (
 )
 from fees.services import history, integrity, memo_fees, payments
 from fees.services.clear_all import reset_settings, wipe_profile_data
+from fees.services.settings import MAX_PARTY_TYPE, MAX_PARTY_TYPES, party_type_lines
 from fees.services.excel_backup import (
     MEMO_TEXT_DEFAULT_KEYS,
     NOT_NULL_DEFAULTS,
@@ -77,6 +78,7 @@ from fees.services.excel_backup import (
     WEB_MATTER_CLIENTS_SHEET,
     WEB_MEMO_FLAGS_SHEET,
     LEGACY_WEB_SETTINGS_KEYS,
+    WEB_LIST_KEYS,
     WEB_SETTINGS_KEYS,
     WEB_SETTINGS_SHEET,
 )
@@ -531,7 +533,21 @@ def _apply_web_settings(settings, workbook, found=None):
             if key == "export_owner_name" and not text.strip():
                 continue  # keep the default name rather than a blank one
             setattr(settings, key, text)
+    for key in WEB_LIST_KEYS:
+        if key in found:
+            setattr(settings, key, _party_type_list(found[key]))
     return len(found)
+
+
+def _party_type_list(value):
+    """The entries of a Plaintiff / Defendant type list cell (one per line): trimmed, cut to the column length, repeats (any case) dropped, at most 50."""
+    seen, entries = set(), []
+    for line in party_type_lines(_text(value)):
+        line = line[:MAX_PARTY_TYPE]
+        if line.lower() not in seen and len(entries) < MAX_PARTY_TYPES:
+            seen.add(line.lower())
+            entries.append(line)
+    return entries
 
 
 # ---------------------------------------------------------------------------

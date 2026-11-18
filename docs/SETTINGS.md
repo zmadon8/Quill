@@ -173,6 +173,8 @@ are noted: Opening page and Items per page are personal only (section 4.2).
 | `memo_default_name` | Name on memos | Memos > Memo text defaults | Per profile | Everyone in this profile |
 | `memo_default_designation` | Designation | Memos > Memo text defaults | Per profile | Everyone in this profile |
 | `memo_default_pan` | PAN | Memos > Memo text defaults | Per profile | Everyone in this profile |
+| `plaintiff_types` | Plaintiff types | Memos > Party types | Per profile | Everyone in this profile |
+| `defendant_types` | Defendant types | Memos > Party types | Per profile | Everyone in this profile |
 | `memo_default_address` | Address | Memos > Memo text defaults | Per profile | Everyone in this profile |
 | `memo_default_bank_details` | Bank details | Memos > Memo text defaults | Per profile | Everyone in this profile |
 | `memo_signature_default` | Add the signature to new memos (offered only when a signature image is uploaded) | Memos | Per profile | Everyone in this profile |

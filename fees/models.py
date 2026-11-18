@@ -33,6 +33,23 @@ FIRM_ARCHIVED = "archived"
 FIRM_STATUS_CHOICES = [(FIRM_ACTIVE, "Active"), (FIRM_ARCHIVED, "Archived")]
 
 
+#: The first Plaintiff type and Defendant type lists of a profile (owner round 2026-12); the Settings page edits them.
+DEFAULT_PLAINTIFF_TYPES = (
+    "Applicant", "Applicants", "Claimant", "Claimants", "Petitioner", "Petitioners", "Plaintiff", "Plaintiffs", "Querist", "Querists",
+)
+DEFAULT_DEFENDANT_TYPES = ("Defendant", "Defendants", "Respondent", "Respondents")
+
+
+def default_plaintiff_types():
+    """A fresh list of the initial Plaintiff types (a callable default, so rows never share one list)."""
+    return list(DEFAULT_PLAINTIFF_TYPES)
+
+
+def default_defendant_types():
+    """A fresh list of the initial Defendant types."""
+    return list(DEFAULT_DEFENDANT_TYPES)
+
+
 class FeesSettings(models.Model):
     """One row per profile: all porting-brief section 9 keys plus the new web switches.
 
@@ -82,6 +99,9 @@ class FeesSettings(models.Model):
     memo_default_address = models.TextField(blank=True, default="")  # multi-line (R-SET-7, recent change)
     memo_default_bank_details = models.TextField(blank=True, default="")  # multi-line
     memo_default_pan = models.CharField(max_length=20, blank=True, default="")
+    # The drop-down lists for a memo's and a matter's Plaintiff type and Defendant type (edited in Settings).
+    plaintiff_types = models.JSONField(default=default_plaintiff_types, blank=True)
+    defendant_types = models.JSONField(default=default_defendant_types, blank=True)
     # Cache stamp (R-DATA-6).
     data_version = models.BigIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)

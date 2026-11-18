@@ -178,6 +178,7 @@ def _form_page(request, form, memo=None, based_on=None, errors=None, status=200)
             "memo": memo,
             "based_on": based_on,
             "picker": picker,
+            "party_types": settings_service.party_types(profile),
             "has_signature": word_template.has_signature(profile),
             "errors": errors or [],
         },
