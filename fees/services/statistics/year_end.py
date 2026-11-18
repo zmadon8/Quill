@@ -20,7 +20,7 @@ from decimal import Decimal
 from django.db.models import Count, Min, Q, Sum
 from django.db.models.functions import ExtractMonth, ExtractYear
 
-from fees.models import Allocation, Memo
+from fees.models import Allocation, FeesSettings, Memo
 from fees.services.financial_year import derive_financial_year
 from fees.services.money import round2
 from fees.services.statistics.periods import get_period_statistics
@@ -48,6 +48,9 @@ def get_year_end_summary(profile, financial_year, options=None):
         (p for p in fy_periods if p["financial_year"] == financial_year), None
     )
 
+    # With Written off memos switched off nothing counts as written off (the memos stay billed and unpaid).
+    written_off_on = not FeesSettings.objects.filter(profile=profile, written_off_enabled=False).exists()
+
     # Billed (stored effective total) and written-off for the FY's non-draft memos.
     memo_agg = (
         Memo.objects.filter(
@@ -62,7 +65,7 @@ def get_year_end_summary(profile, financial_year, options=None):
         )
     )
     total_billed = round2(memo_agg["total_billed"] or _ZERO)
-    total_written_off = round2(memo_agg["total_written_off"] or _ZERO)
+    total_written_off = round2(memo_agg["total_written_off"] or _ZERO) if written_off_on else _ZERO
     memo_count = memo_agg["memo_count"] or 0
 
     # Received (net) and TDS by PAYMENT date FY (receipt basis), bucketed in

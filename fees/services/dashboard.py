@@ -382,6 +382,8 @@ def get_dashboard_summary(profile, now=None, settings=None, with_appearances=Tru
         settings = get_settings(profile)
     overdue_days = settings.get("overdue_days") or 0
     statistics_enabled = bool(settings.get("statistics_enabled", True))
+    # With Written off memos switched off a written-off memo is an ordinary unpaid one (and there is no written-off total).
+    written_off_on = bool(settings.get("written_off_enabled", True))
 
     today = _as_date(now)
     today_iso = local_iso(today)
@@ -421,7 +423,7 @@ def get_dashboard_summary(profile, now=None, settings=None, with_appearances=Tru
         if date_iso[:7] == ym:
             billed_this_month = round2(billed_this_month + total)
 
-        if row["written_off"]:
+        if written_off_on and row["written_off"]:
             written_off_total = round2(written_off_total + total)
             continue
 

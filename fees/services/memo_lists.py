@@ -72,29 +72,30 @@ FOOTER_FIELDS = (
 
 
 def _settings_for(profile):
-    """Reads ``default_tds_rate`` and ``overdue_days`` for ``profile`` in ONE query.
+    """Reads ``default_tds_rate``, ``overdue_days`` and ``written_off_enabled`` for ``profile`` in ONE query.
 
-    Returns ``(default_tds_rate, overdue_days)`` as plain numbers, each falling
-    back to 0 when the profile has no settings row yet. This is a read, so it
+    Returns ``(default_tds_rate, overdue_days, written_off_on)``: the numbers fall
+    back to 0 and the switch to True when the profile has no settings row yet. This is a read, so it
     does NOT get-or-create the row (unlike the mutating services' ``touch``).
     """
     row = (
         FeesSettings.objects.filter(profile=profile)
-        .values("default_tds_rate", "overdue_days")
+        .values("default_tds_rate", "overdue_days", "written_off_enabled")
         .first()
     ) or {}
-    return (row.get("default_tds_rate") or 0, row.get("overdue_days") or 0)
+    return (row.get("default_tds_rate") or 0, row.get("overdue_days") or 0, row.get("written_off_enabled", True))
 
 
-def _row_to_item(memo, default_tds_rate, overdue_days):
+def _row_to_item(memo, default_tds_rate, overdue_days, written_off_on=True):
     """Builds one list-item dict from a ``Memo`` row (derived values via ``memo_fees``).
 
     ``total_fees`` is the stored total resolved through the single fee rule;
     ``amount_paid`` / ``amount_received`` / ``amount_tds`` are the stored columns;
     ``status`` and ``amount_due`` come from ``status_and_due`` (gross paid vs
     total); ``net_of_tds`` is at the settings default rate; ``is_overdue`` uses the
-    settings ``overdue_days``.
+    settings ``overdue_days``. With Written off memos switched off, ``written_off`` is False on every row.
     """
+    written_off = memo.written_off and written_off_on
     total_fees = memo_fees.effective_total_fees(memo)
     amount_paid = round2(memo.amount_paid)
     amount_received = round2(memo.amount_received)
@@ -102,7 +103,7 @@ def _row_to_item(memo, default_tds_rate, overdue_days):
     due = memo_fees.status_and_due(total_fees, amount_paid)
     net = memo_fees.net_of_tds(total_fees, default_tds_rate)
     overdue = memo_fees.compute_is_overdue(
-        memo.date, due.status, memo.written_off, overdue_days
+        memo.date, due.status, written_off, overdue_days
     )
     return {
         "id": memo.pk,
@@ -124,7 +125,7 @@ def _row_to_item(memo, default_tds_rate, overdue_days):
         "amount_tds": amount_tds,
         "amount_due": due.amount_due,
         "status": due.status,
-        "written_off": memo.written_off,
+        "written_off": written_off,
         "is_overdue": overdue,
     }
 
@@ -194,9 +195,9 @@ def list_memos(profile, filters=None, draft_mode="exclude_drafts"):
     Python after the status is derived, so no third query is needed.
     """
     filters = filters or {}
-    default_tds_rate, overdue_days = _settings_for(profile)
+    default_tds_rate, overdue_days, written_off_on = _settings_for(profile)
     qs = _filtered_queryset(profile, filters, draft_mode)
-    items = [_row_to_item(memo, default_tds_rate, overdue_days) for memo in qs]
+    items = [_row_to_item(memo, default_tds_rate, overdue_days, written_off_on) for memo in qs]
     if filters.get("unpaid_only"):
         items = [item for item in items if item["status"] == "Unpaid"]
     return items
@@ -209,11 +210,11 @@ def iter_memos(profile, filters=None, draft_mode="exclude_drafts", chunk_size=50
     never holds every ``Memo`` object at once (R-NFR-2). Two queries (settings, then the memo rows).
     """
     filters = filters or {}
-    default_tds_rate, overdue_days = _settings_for(profile)
+    default_tds_rate, overdue_days, written_off_on = _settings_for(profile)
     qs = _filtered_queryset(profile, filters, draft_mode)
     unpaid_only = bool(filters.get("unpaid_only"))
     for memo in qs.iterator(chunk_size=chunk_size):
-        item = _row_to_item(memo, default_tds_rate, overdue_days)
+        item = _row_to_item(memo, default_tds_rate, overdue_days, written_off_on)
         if unpaid_only and item["status"] != "Unpaid":
             continue
         yield item

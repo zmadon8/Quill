@@ -74,21 +74,22 @@ _UNPAID = "Unpaid"
 
 
 def _settings_for(profile):
-    """Reads ``default_tds_rate`` and ``overdue_days`` for ``profile`` in ONE query.
+    """Reads ``default_tds_rate``, ``overdue_days`` and ``written_off_enabled`` for ``profile`` in ONE query.
 
-    Returns ``(default_tds_rate, overdue_days)`` as plain numbers, each falling
-    back to 0 when the profile has no settings row yet. A read, so it does NOT
-    get-or-create the row (mirrors ``memo_lists._settings_for``).
+    Returns ``(default_tds_rate, overdue_days, written_off_on)``: the two numbers fall
+    back to 0 and the switch to True when the profile has no settings row yet. A read, so it does NOT
+    get-or-create the row (mirrors ``memo_lists._settings_for``). With the switch off a memo's
+    ``written_off`` flag is ignored everywhere in this module (the memo is outstanding like any unpaid one).
     """
     row = (
         FeesSettings.objects.filter(profile=profile)
-        .values("default_tds_rate", "overdue_days")
+        .values("default_tds_rate", "overdue_days", "written_off_enabled")
         .first()
     ) or {}
-    return (row.get("default_tds_rate") or 0, row.get("overdue_days") or 0)
+    return (row.get("default_tds_rate") or 0, row.get("overdue_days") or 0, row.get("written_off_enabled", True))
 
 
-def _scoped_memos(profile, filters):
+def _scoped_memos(profile, filters, written_off_on=True):
     """The scoped, draft-free ``Memo`` queryset for the outstanding view.
 
     Applies the common filters (``firm_id``; ``partner_id`` alias ``group_id``,
@@ -117,8 +118,8 @@ def _scoped_memos(profile, filters):
 
     qs = client_scope.narrow(qs, filters.get("client_id"), "matter__")
 
-    # Written-off memos are excluded unless explicitly included (Req #7).
-    if not filters.get("include_written_off"):
+    # Written-off memos are excluded unless explicitly included (Req #7); with the feature off there are none.
+    if written_off_on and not filters.get("include_written_off"):
         qs = qs.filter(written_off=False)
 
     return qs
@@ -140,14 +141,14 @@ def age_index(key):
     return len(AGEING_BUCKETS) - 1
 
 
-def _is_overdue(memo, overdue_days):
+def _is_overdue(memo, overdue_days, written_off_on=True):
     """Whether an (already unpaid) memo is overdue, via the shared rule.
 
     A written-off memo can never be overdue, which ``compute_is_overdue`` already
     enforces from the memo's ``written_off`` flag.
     """
     return memo_fees.compute_is_overdue(
-        memo.date, _UNPAID, memo.written_off, overdue_days
+        memo.date, _UNPAID, memo.written_off and written_off_on, overdue_days
     )
 
 
@@ -170,9 +171,9 @@ def list_outstanding(profile, filters=None):
     for the memo rows. The grouping, subtotals and ordering are pure in-memory.
     """
     filters = filters or {}
-    default_tds_rate, overdue_days = _settings_for(profile)
+    default_tds_rate, overdue_days, written_off_on = _settings_for(profile)
 
-    qs = _scoped_memos(profile, filters)
+    qs = _scoped_memos(profile, filters, written_off_on)
 
     selected = filters.get("selected_matter_ids")
     if selected:
@@ -195,7 +196,7 @@ def list_outstanding(profile, filters=None):
         if paid >= total_fees:
             continue
 
-        is_overdue = _is_overdue(memo, overdue_days)
+        is_overdue = _is_overdue(memo, overdue_days, written_off_on)
         if overdue_only and not is_overdue:
             continue
         if not _in_age_range(memo, filters, today):
@@ -219,7 +220,7 @@ def list_outstanding(profile, filters=None):
             "amount_paid": paid,
             "due": due,
             "is_overdue": is_overdue,
-            "is_written_off": memo.written_off,
+            "is_written_off": memo.written_off and written_off_on,
         }
 
         group = groups.get(memo.matter_id)
@@ -297,18 +298,18 @@ def list_outstanding_by_firm(profile, filters=None, sort="amount", today=None):
     settings and the memo rows.
     """
     filters = filters or {}
-    _default_tds_rate, overdue_days = _settings_for(profile)
+    _default_tds_rate, overdue_days, written_off_on = _settings_for(profile)
     overdue_only = filters.get("overdue_only") is True
     today = today or datetime.date.today()
 
     by_firm = {}
-    for memo in _scoped_memos(profile, filters):
+    for memo in _scoped_memos(profile, filters, written_off_on):
         total_fees = memo_fees.effective_total_fees(memo)
         outstanding = round2(total_fees - round2(memo.amount_paid))
         # Only unpaid balances.
         if outstanding <= 0:
             continue
-        if overdue_only and not _is_overdue(memo, overdue_days):
+        if overdue_only and not _is_overdue(memo, overdue_days, written_off_on):
             continue
         if not _in_age_range(memo, filters, today):
             continue
@@ -350,7 +351,7 @@ def list_outstanding_scope(profile, filters=None):
     case-insensitively. Two queries: the settings and the memo rows.
     """
     filters = filters or {}
-    _default_tds_rate, overdue_days = _settings_for(profile)
+    _default_tds_rate, overdue_days, written_off_on = _settings_for(profile)
     overdue_only = filters.get("overdue_only") is True
 
     # Scope ignores firm / partner narrowing so the dropdowns can offer every
@@ -360,7 +361,7 @@ def list_outstanding_scope(profile, filters=None):
         Memo.objects.filter(profile=profile, is_draft=False)
         .select_related("firm", "group", "matter__client")
     )
-    if not filters.get("include_written_off"):
+    if written_off_on and not filters.get("include_written_off"):
         qs = qs.filter(written_off=False)
 
     firms = {}
@@ -373,7 +374,7 @@ def list_outstanding_scope(profile, filters=None):
         paid = round2(memo.amount_paid)
         if paid >= total_fees:
             continue
-        if overdue_only and not _is_overdue(memo, overdue_days):
+        if overdue_only and not _is_overdue(memo, overdue_days, written_off_on):
             continue
         firms[memo.firm_id] = memo.firm.name
         if memo.group_id:

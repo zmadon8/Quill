@@ -182,6 +182,7 @@ are noted: Opening page and Items per page are personal only (section 4.2).
 | `default_tds_rate` | Default TDS rate (%) | Payments | Per profile | Everyone in this profile |
 | `default_payment_amount` | Prefill amount received | Payments | Per profile | Everyone in this profile |
 | `overdue_days` | Overdue after (days) | Payments | Per profile | Everyone in this profile. At 0, overdue is off: no "View Overdue Memos Only" filter, Overdue legend key or Amount Overdue dashboard box shows anywhere |
+| `written_off_enabled` | Written off memos (off: no Write Off or Remove The Write-off button, no "Include Written Off Memos" tick, no Written Off legend key, dashboard box or Year End line; a memo written off before counts as unpaid and outstanding again. Nothing is deleted: turn it on to see the write-offs again) | Payments | Per profile | Everyone in this profile |
 | `hide_payment_when_paid` | Hide the payment box when a memo is paid | Payments | Per profile | Everyone in this profile |
 | `show_status_dots` | Show status markers | Payments | Per profile | Everyone in this profile |
 | `show_bank` | Show bank (off: no Bank filter or column on Feebook, no Bank account box on a payment, no Bank column in the Feebook export, no Bank accounts list; recorded banks are kept) | Payments | Per profile | Everyone in this profile |

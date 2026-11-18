@@ -90,6 +90,9 @@ class FeesSettings(models.Model):
     # column, the payment form, the Feebook export, the Settings list).
     # Switching Bank off hides it only: stored bank accounts and the banks on payments are kept and backed up.
     show_bank = models.BooleanField(default=True)
+    # Owner round (2027-01): the Written Off feature can be switched off. Off hides every Write Off button and tick and
+    # treats a written-off memo as unpaid; the flag on the memos is kept, so switching back on restores the write-offs.
+    written_off_enabled = models.BooleanField(default=True)
     # New file-name settings (requirements R-FN-1, R-FN-2).
     export_owner_name = models.CharField(max_length=80, default="Ziyad Madon")
     memo_filename_pattern = models.CharField(max_length=200, blank=True, default="")

@@ -46,7 +46,7 @@ from decimal import Decimal
 
 from fees.models import Allocation, Memo
 from fees.services import client_scope
-from fees.services import memo_fees
+from fees.services import memo_fees, write_off_switch
 from fees.services.money import round2
 
 __all__ = [
@@ -143,7 +143,9 @@ def build_ledger(profile, scope=None) -> list:
     scope = scope or {}
 
     memo_qs = _apply_scope(
-        Memo.objects.filter(profile=profile, is_draft=False).select_related("matter"),
+        write_off_switch.annotate_switch(
+            Memo.objects.filter(profile=profile, is_draft=False).select_related("matter")
+        ),
         scope,
     )
 
@@ -158,7 +160,7 @@ def build_ledger(profile, scope=None) -> list:
     # kind 0 = memo, 1 = payment, so memos come first on the same day.
     events = []
     for memo in memo_qs:
-        suffix = " (written off)" if memo.written_off else ""
+        suffix = " (written off)" if write_off_switch.is_written_off(memo) else ""
         number = memo.memo_number if memo.memo_number is not None else _DRAFT_LABEL
         events.append(
             {
@@ -311,9 +313,9 @@ def build_statement(profile, scope=None) -> dict:
     title, subtitle = _scope_title(profile, scope)
 
     memo_qs = _apply_scope(
-        Memo.objects.filter(profile=profile, is_draft=False)
-        .select_related("matter")
-        .order_by("date", "seq", "id"),
+        write_off_switch.annotate_switch(
+            Memo.objects.filter(profile=profile, is_draft=False).select_related("matter")
+        ).order_by("date", "seq", "id"),
         scope,
     )
 
@@ -328,7 +330,7 @@ def build_statement(profile, scope=None) -> dict:
         if outstanding < 0:
             outstanding = _ZERO
         status = memo_fees.status_and_due(total, paid).status
-        if memo.written_off:
+        if write_off_switch.is_written_off(memo):
             status = "Written Off"
 
         rows.append(

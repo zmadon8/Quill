@@ -705,17 +705,19 @@ def get_memo(profile, memo_id):
 
     settings = (
         FeesSettings.objects.filter(profile=profile)
-        .values("default_tds_rate", "overdue_days")
+        .values("default_tds_rate", "overdue_days", "written_off_enabled")
         .first()
     ) or {}
     default_tds_rate = settings.get("default_tds_rate") or 0
     overdue_days = settings.get("overdue_days") or 0
+    # With Written off memos switched off the memo is shown as an ordinary unpaid one (the flag itself is kept).
+    written_off = memo.written_off and settings.get("written_off_enabled", True)
 
     fees = memo_fees.resolve_memo_fees(memo)
     due = memo_fees.status_and_due(fees.total_fees, memo.amount_paid)
     net = memo_fees.net_of_tds(fees.total_fees, default_tds_rate)
     overdue = memo_fees.compute_is_overdue(
-        memo.date, due.status, memo.written_off, overdue_days
+        memo.date, due.status, written_off, overdue_days
     )
 
     allocations = Allocation.objects.filter(memo=memo).select_related("payment")
@@ -778,7 +780,7 @@ def get_memo(profile, memo_id):
         "status": due.status,
         "date_of_last_payment": last_payment,
         "payment_count": payment_count,
-        "written_off": memo.written_off,
+        "written_off": written_off,
         "is_overdue": overdue,
         "is_custom_number": memo_numbers.is_custom_number(memo),
         "custom_memo_number": (
