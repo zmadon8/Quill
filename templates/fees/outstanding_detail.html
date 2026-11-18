@@ -5,15 +5,15 @@
 <h1 class="visually-hidden">Outstanding memos</h1>
 {% include "fees/_outstanding_tabs.html" with tab="all" %}
 <form method="get" class="filters" aria-label="Filter outstanding memos">
-  <label>Firm <select name="firm"><option value="">All</option>{% for f in choices.firms %}<option value="{{ f.id }}"{% if filters.firm_id == f.id %} selected{% endif %}>{{ f.name }}</option>{% endfor %}</select></label>
-  <label>Partner <select name="group"><option value="">All</option>{% for g in choices.partners %}<option value="{{ g.id }}"{% if filters.group_id == g.id %} selected{% endif %}>{{ g.name }}</option>{% endfor %}</select></label>
-  <label>Client <select name="client"><option value="">All</option>{% for c in choices.clients %}<option value="{{ c.id }}"{% if filters.client_id == c.id %} selected{% endif %}>{{ c.name }}</option>{% endfor %}{% if choices.no_client or filters.client_id == "blank" %}<option value="blank"{% if filters.client_id == "blank" %} selected{% endif %}>No client</option>{% endif %}</select></label>
-  <label>View <select name="view"><option value="grouped"{% if view == "grouped" %} selected{% endif %}>Grouped By Matter</option><option value="summary"{% if view == "summary" %} selected{% endif %}>Summary (Matter Totals)</option><option value="flat"{% if view == "flat" %} selected{% endif %}>In Order (Flat List)</option></select></label>
-  <label>Sort The Flat List By <select name="sort">{% for key, name in sorts %}<option value="{{ key }}"{% if flat_sort == key %} selected{% endif %}>{{ name }}</option>{% endfor %}</select></label>
-  {% if fees_written_off_on %}<label><input type="checkbox" name="written_off" value="1"{% if filters.include_written_off %} checked{% endif %}> Include Written Off Memos</label>{% endif %}
-  {% if fees_overdue_on %}<label><input type="checkbox" name="overdue" value="1"{% if filters.overdue_only %} checked{% endif %}> View Overdue Memos Only</label>{% endif %}
+  <label>Firm <select name="firm" class="capped" onchange="this.form.group.value='';this.form.client.value='';this.form.submit()"><option value="">All</option>{% for f in choices.firms %}<option value="{{ f.id }}"{% if filters.firm_id == f.id %} selected{% endif %}>{{ f.name }}</option>{% endfor %}</select></label>
+  <label>Partner <select name="group" class="capped" onchange="this.form.submit()"><option value="">All</option>{% for g in choices.partners %}<option value="{{ g.id }}"{% if filters.group_id == g.id %} selected{% endif %}>{{ g.name }}</option>{% endfor %}</select></label>
+  <label>Client <select name="client" class="capped" onchange="this.form.submit()"><option value="">All</option>{% for c in choices.clients %}<option value="{{ c.id }}"{% if filters.client_id == c.id %} selected{% endif %}>{{ c.name }}</option>{% endfor %}{% if choices.no_client or filters.client_id == "blank" %}<option value="blank"{% if filters.client_id == "blank" %} selected{% endif %}>No client</option>{% endif %}</select></label>
+  <label>View <select name="view" onchange="this.form.submit()"><option value="grouped"{% if view == "grouped" %} selected{% endif %}>Grouped By Matter</option><option value="summary"{% if view == "summary" %} selected{% endif %}>Summary (Matter Totals)</option><option value="flat"{% if view == "flat" %} selected{% endif %}>In Order (Flat List)</option></select></label>
+  <label>Sort The Flat List By <select name="sort" onchange="this.form.submit()">{% for key, name in sorts %}<option value="{{ key }}"{% if flat_sort == key %} selected{% endif %}>{{ name }}</option>{% endfor %}</select></label>
+  {% if fees_written_off_on %}<label><input type="checkbox" name="written_off" value="1"{% if filters.include_written_off %} checked{% endif %} onchange="this.form.submit()"> Include Written Off Memos</label>{% endif %}
+  {% if fees_overdue_on %}<label><input type="checkbox" name="overdue" value="1"{% if filters.overdue_only %} checked{% endif %} onchange="this.form.submit()"> View Overdue Memos Only</label>{% endif %}
   {% if filters.age %}<input type="hidden" name="age" value="{{ filters.age }}">{% endif %}
-  <button type="submit">Filter</button>
+  <noscript><button type="submit">Filter</button></noscript>
 </form>
 {% if filters.age %}<p class="active-filter" role="status">Showing only memos aged {{ age_label }}. <a href="{% url 'fees_outstanding_detail' %}{% if clear_age_query %}?{{ clear_age_query }}{% endif %}">Show all ages</a></p>{% endif %}
 <div class="total-card" role="group" aria-label="Grand total"><span class="total-label">Total outstanding, {{ memo_count }} memo{{ memo_count|pluralize }}</span><span class="total-amount">{{ grand_total|fees_money:money_unit }}</span></div>

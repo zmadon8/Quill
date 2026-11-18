@@ -242,6 +242,15 @@ class MemoScreenTests(UiPageBase):
             self.assertEqual(bar.count(' class="capped"'), 3, name)
             self.assertEqual(bar.count("this.form.submit()"), 5 if name == "fees_memos" else 4, name)   # each applies at once
 
+    def test_outstanding_all_memos_filters_apply_at_once_with_capped_lists(self):
+        text = self.html(self.page("fees_outstanding_detail"))
+        bar = text[text.index('<form method="get"'):text.index("</form>")]
+        self.assertEqual(bar.count('<button type="submit">Filter</button>'), bar.count('<noscript><button type="submit">Filter</button></noscript>'))
+        for name in ("firm", "group", "client"):
+            self.assertRegex(bar, r'<select name="%s" class="capped" onchange="' % name)
+        for name in ("view", "sort"):
+            self.assertIn('<select name="%s" onchange="this.form.submit()"' % name, bar)
+
     def test_editor_ticks_memos_to_pay_instead_of_a_payment_button(self):
         editor = self.html(self.page("fees_memos", user=self.editor))
         self.assertNotIn(">Payment</a>", editor)

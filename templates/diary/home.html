@@ -8,6 +8,8 @@
   <h1{% if home_header_words %} class="visually-hidden"{% endif %}>Programs</h1>
   <div class="home-welcome"><p class="home-greeting">{{ greeting }}, {{ user.get_full_name|default:user.username }}</p><p class="muted">{{ today|date:"l, j F Y" }}</p></div>
   {# Owner round (2026-11): one card per program with a few live figures (accounts/home_cards.py). The program-link markup inside each card is unchanged. #}
+  {# Show figures: the same switch as Settings > Display > My Home Page; a plain form, so it works without a script. #}
+  <form method="post" action="{% url 'home_figures' %}" class="home-figures-switch" style="display:flex;justify-content:flex-end;margin:0 0 6px">{% csrf_token %}<input type="hidden" name="show" value="{% if user.home_show_figures %}0{% else %}1{% endif %}"><label class="search-check"><input type="checkbox"{% if user.home_show_figures %} checked{% endif %} onchange="this.form.submit()"> Show figures</label><noscript><button type="submit" class="small">{% if user.home_show_figures %}Hide{% else %}Show{% endif %}</button></noscript></form>
   <div class="program-cards">
   {% if diary_profile or home_diary_others %}
   <section class="program-card" aria-label="{{ diary_name }}">

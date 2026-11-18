@@ -289,3 +289,23 @@ class HomeDetailsTests(TestCase):
         field = User._meta.get_field("home_details")
         self.assertEqual(field.get_default(), {})
         self.assertTrue(field.blank)
+
+
+class HomeFiguresSwitchTests(HomeDashboardTests):
+    """Owner round 2026-12: the Show figures switch on the Home page is the My Home Page setting."""
+
+    def test_the_switch_on_home_turns_the_figures_off_and_on(self):
+        page = self.home(self.editor)
+        self.assertIn('action="%s"' % reverse("home_figures"), page)
+        self.assertRegex(page, r'<input type="checkbox" checked onchange="this.form.submit\(\)"> Show figures')
+        self.client.post(reverse("home_figures"), {"show": "0"})
+        self.editor.refresh_from_db()
+        self.assertFalse(self.editor.home_show_figures)
+        self.assertIn('name="show" value="1"', self.home(self.editor))
+        self.client.post(reverse("home_figures"), {"show": "1"})
+        self.editor.refresh_from_db()
+        self.assertTrue(self.editor.home_show_figures)
+
+    def test_the_switch_needs_a_post(self):
+        self.client.force_login(self.editor)
+        self.assertEqual(self.client.get(reverse("home_figures")).status_code, 405)
