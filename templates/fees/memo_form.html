@@ -43,7 +43,7 @@
   </div>
   {% else %}<div></div>{% endif %}
   <label>Addressee line 1 <input type="text" name="addressee_line1" value="{{ form.addressee_line1 }}"></label>
-  <label>Addressee, second line (Enter for a new line) <textarea name="addressee_line2" rows="3" maxlength="300">{{ form.addressee_line2 }}</textarea></label>
+  <label>Addressee, second line (Enter for a new line) <textarea name="addressee_line2" rows="1" style="resize:vertical" maxlength="300">{{ form.addressee_line2 }}</textarea></label>
   <label>Cause title <textarea name="court_name" rows="4">{{ form.court_name }}</textarea></label>
   <label>Brief on Behalf of <input type="text" name="client_position" value="{{ form.client_position }}"></label>
   <label>Additional details (left) <textarea name="additional_details_left" rows="1">{{ form.additional_details_left }}</textarea></label>

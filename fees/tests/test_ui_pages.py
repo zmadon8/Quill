@@ -286,7 +286,7 @@ class MemoScreenTests(UiPageBase):
         self.assertIn('data-totals-url="%s"' % reverse("fees_memo_preview_totals"), text)
         self.assert_no_unlabelled_controls(text, "form")
         # The addressee's second line may run over several lines.
-        self.assertRegex(text, r'<textarea name="addressee_line2" rows="3"')
+        self.assertRegex(text, r'<textarea name="addressee_line2" rows="1" style="resize:vertical"')
 
     def test_addressee_second_line_keeps_its_line_breaks(self):
         from fees.forms import clean_text
