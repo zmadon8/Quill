@@ -121,7 +121,20 @@
   });
 
   // Picking a memo: the row's amount becomes what is due (at most what is left of the payment), at the row's rate.
+  function showDue(row) {
+    // The amount due of the chosen memo, beside the drop-down.
+    var out = row.querySelector("[data-alloc-due]"), sel = cell(row, "memo");
+    if (!out || !sel) { return; }
+    var opt = sel.options[sel.selectedIndex], due = opt && opt.value ? parseFloat(opt.getAttribute("data-due")) : NaN;
+    out.textContent = "";
+    if (isNaN(due)) { return; }
+    var b = document.createElement("strong");
+    b.textContent = "Rs " + (window.FeesMoney ? window.FeesMoney.formatMoney(due, form.getAttribute("data-money-unit") || "full") : due);
+    out.appendChild(document.createTextNode("Due "));
+    out.appendChild(b);
+  }
   function pickMemo(row) {
+    showDue(row);
     var sel = cell(row, "memo");
     var opt = sel.options[sel.selectedIndex];
     var due = opt ? parseFloat(opt.getAttribute("data-due")) : NaN;

@@ -76,10 +76,12 @@ def memo_options(profile, memo_ids=(), numbers=(), money_unit="full", written_of
             {
                 "number": r["memo_number"],
                 "due": str(due),
+                # Shown beside the drop-down (owner round 2026-12), not inside it, so the memo's own words have the room.
+                "due_text": format_money(due, unit=money_unit),
                 # The firm and the client (when the matter has one) always show, so the right memo is easy to find.
                 "label": " \u00b7 ".join(
                     part for part in (r["memo_number"], r["matter__firm__name"], r["matter__name"], r["matter__client__name"]) if part
-                ) + f" (Rs {format_money(due, unit=money_unit)} Due)",
+                ),
             }
         )
     return options, sorted(matters)

@@ -670,7 +670,7 @@ class FeebookAndPaymentTests(UiPageBase):
         text = self.html(self.page("fees_payment_new", user=self.editor))
         matter = self.seed["matter_1"]
         parts = [memo.memo_number, matter.firm.name, matter.name] + ([matter.client.name] if matter.client_id else [])
-        label = escape("%s (Rs 14,000 Due)" % " \u00b7 ".join(parts))
+        label = escape(" \u00b7 ".join(parts))   # the amount due is beside the drop-down, not inside it
         self.assertIn('<option value="%s" data-due="14000.00">%s</option>' % (memo.memo_number, label), text)
         self.assertIn('<option value="">Select...</option>', text)
 
@@ -699,7 +699,8 @@ class FeebookAndPaymentTests(UiPageBase):
         memo = self.new_memos(1)[0]
         dto = payments.add_payment_to_memo(self.profile, memo.pk, {"amount": 14000, "date_of_payment": "2026-08-01"})
         text = self.html(self.page("fees_payment_edit", {"payment_id": dto["id"]}, user=self.editor))
-        self.assertRegex(text, r'<option value="%s" data-due="0.00" selected>[^<]*\(Rs 0 Due\)</option>' % re.escape(memo.memo_number))
+        self.assertRegex(text, r'<option value="%s" data-due="0.00" selected>[^<]*</option>' % re.escape(memo.memo_number))
+        self.assertIn("Due <strong>Rs 0</strong>", text)   # beside the drop-down
 
     def test_options_cost_one_query_however_many_rows(self):
         found = self.new_memos(6)
