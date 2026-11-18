@@ -232,6 +232,15 @@ body.look .cite-pack > :is(.cite-sep, .no-text) { display: none; }
 body.look .cite-pack > .case { text-align: left; }
 body.look .cite-pack > :is(.note, .linked-from, .see-also) { flex-basis: 100%; order: 999; } body.look .cite-pack > .flag-text { order: 998; }
 body.look .cite-pack .cite-bubble { display: inline-block; max-width: 100%; box-sizing: border-box; padding: 3px 9px; line-height: 1.45; }
+/* Arranged bubbles (D226): cite-pack.js places the text and each bubble in two-line bands; the flag, Notes and "Linked from" follow below. */
+body.look .cite-band.packed { display: block; position: relative; }
+body.look .cite-band.packed > .case .cite-bubble { display: block; }
+/* The plain style (D226): no bubble; a hyphen after the text, then each citation in italics with its number and comment. */
+body.look .cite-plain .cite-bubble, html.links-off body.look .cite-plain .cite-bubble.linked, body.look .cite-plain .cite-bubble.linked { display: inline; padding: 0; border-radius: 0; background: none; color: var(--ink-3); font: inherit; }
+body.look .cite-plain .cite-bubble .citation { font-style: italic; font-size: .92em; }
+body.look .cite-plain .cite-bubble.linked .citation { color: var(--info); }
+html.links-off body.look .cite-plain .cite-bubble.linked .citation { color: inherit; }
+body.look .cite-plain .cite-bubble .num { color: var(--muted); }
 body.look .note { border-radius: 8px; border-left: 0; background: var(--paper-2); }
 body.look .see-also a { color: var(--accent); font-weight: 600; }
 

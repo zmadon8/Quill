@@ -791,12 +791,19 @@ class ReadingScreenTests(TestCase):
         self.assertContains(resp, "See also: ")
         self.assertContains(resp, "Carlill v. Carbolic Smoke Ball Co")
         self.assertNotContains(resp, " ; ")
-        # Several citations are labelled (a), (b); a single citation shows without a label.
+        # The bubbles (the standard citation style) are not numbered in a line; the plain style numbers several citations (a), (b), and
+        # a single citation shows without a label in every style.
+        self.assertNotContains(resp, '<span class="num">(a)</span> <em class="citation">Carlill', html=False)
+        self.assertContains(resp, '<span class="case-comment">', html=False)
+        reader = self.users["reader"]
+        reader.citation_style = "plain"
+        reader.save(update_fields=["citation_style"])
+        resp = self.client.get(reverse("read_subject", args=[self.contract.pk]))
         self.assertContains(
             resp, '<span class="num">(a)</span> <em class="citation">Carlill v. Carbolic Smoke Ball Co [1893] 1 QB 256</em>',
             html=False)
         self.assertNotContains(resp, '<span class="num">(a)</span> <em class="citation">Harvey', html=False)
-        self.assertContains(resp, '<span class="case-comment">', html=False)
+        self.assertContains(resp, 'class="item-body cite-plain"')
 
     def test_topic_and_subtopic_views_show_correct_buttons_and_numbers(self):
         self.client.force_login(self.users["reader"])
@@ -923,6 +930,38 @@ class ReadingCitationTests(TestCase):
         html = self.client.get(reverse("read_subject", args=[subject.pk])).content.decode()
         self.assertIn('class="item-body cite-pack"', html)
         self.assertIn("js/cite-pack.js", html)
+
+    def test_the_citation_style_is_per_user(self):
+        user = join_main(User.objects.create_user("style-reader", password=PASSWORD))
+        self.client.force_login(user)
+        subject = Subject.objects.get(name=SAMPLE_PREFIX + "Contract Law")
+        page = lambda: self.client.get(reverse("read_subject", args=[subject.pk])).content.decode()
+        self.assertEqual(user.citation_style, "bubbles")
+        self.assertIn('class="item-body cite-pack"', page())
+        user.citation_style = "arranged"
+        user.save(update_fields=["citation_style"])
+        self.assertIn('class="item-body cite-pack cite-band"', page())
+        self.client.post(reverse("my_settings"), {"tab": "diary", "citation_style": "plain", "number_citation_lines": "on"})
+        user.refresh_from_db()
+        self.assertEqual(user.citation_style, "plain")
+        self.assertIn('class="item-body cite-plain"', page())
+        self.client.post(reverse("my_settings"), {"tab": "diary", "citation_style": "nonsense"})
+        user.refresh_from_db()
+        self.assertEqual(user.citation_style, "plain")
+        other = join_main(User.objects.create_user("style-other", password=PASSWORD))
+        self.assertEqual(other.citation_style, "bubbles")   # another user keeps the standard
+
+    def test_citations_on_separate_lines_are_numbered_unless_turned_off(self):
+        # The sample's "Revocation of an offer" Item shows its two citations on separate lines.
+        subject = Subject.objects.get(name=SAMPLE_PREFIX + "Contract Law")
+        user = join_main(User.objects.create_user("lines-num", password=PASSWORD))
+        self.client.force_login(user)
+        html = self.client.get(reverse("read_subject", args=[subject.pk])).content.decode()
+        self.assertIn('<div class="case-line"><span class="num">(a)</span>', html)
+        user.number_citation_lines = False
+        user.save(update_fields=["number_citation_lines"])
+        html = self.client.get(reverse("read_subject", args=[subject.pk])).content.decode()
+        self.assertNotIn('<div class="case-line"><span class="num">', html)
 
     def test_an_item_without_a_citation_has_no_cases(self):
         item = Item.objects.get(text__contains="placed directly under the Subject")
