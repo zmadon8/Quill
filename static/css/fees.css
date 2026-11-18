@@ -183,3 +183,4 @@ body.ledger .firm-links { margin: 0; display: flex; flex-wrap: wrap; gap: 8px; }
 body.ledger .filters .fy-range { display: flex; flex-wrap: nowrap; gap: 8px 12px; min-width: 0; }
 body.ledger .filters .fy-range > label { flex: 1 1 auto; min-width: 0; }
 body.ledger .stat-metrics { margin: 8px 0; }
+body.ledger .filters select.capped { width: auto; max-width: 15rem; text-overflow: ellipsis; }

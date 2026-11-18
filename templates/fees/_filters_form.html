@@ -1,6 +1,13 @@
-{# Filter bar for the Memos, Drafts and Feebook lists. The Financial Year stays on the bar; every other filter is in a window (a native <dialog>) opened by View Filters. Without a script View Filters is a link that reloads the page with the window already open (filters=open). Reset Filters is a link to the page with no filters. Context: filters, firm_choices, partner_choices, matter_choices, client_choices, no_client_choice, fy_options, query_string, filters_open, reset_url; optional show_fy, show_unpaid (Memos), feebook (adds Bank and Unaccounted Only; bank_choices). #}
+{# Filter bar for the Memos, Drafts and Feebook lists. With inline (Memos and Draft Memos) the bar is the Financial Year, Firm, Partner and Matter only, each sent as soon as it changes (a new Firm clears the Partner and Matter, a new Partner the Matter, so the lists below follow it); the drop-downs are capped in width so a long name never stretches the bar. Otherwise: The Financial Year stays on the bar; every other filter is in a window (a native <dialog>) opened by View Filters. Without a script View Filters is a link that reloads the page with the window already open (filters=open). Reset Filters is a link to the page with no filters. Context: filters, firm_choices, partner_choices, matter_choices, client_choices, no_client_choice, fy_options, query_string, filters_open, reset_url; optional show_fy, show_unpaid (Memos), feebook (adds Bank and Unaccounted Only; bank_choices). #}
 <form method="get" class="filters" aria-label="Filter the list">
   {% if show_fy %}{% include "fees/_fy_select.html" with name="fy" label="Financial Year" options=fy_options selected=filters.financial_year all_label="All Years" autosubmit=True %}{% endif %}
+  {% if inline %}
+  <label>Firm <select class="capped" name="firm" onchange="this.form.group.value='';this.form.matter.value='';this.form.submit()"><option value="">All</option>{% for f in firm_choices %}<option value="{{ f.pk }}" title="{{ f.name }}"{% if filters.firm_id == f.pk %} selected{% endif %}>{{ f.name }}</option>{% endfor %}</select></label>
+  <label>Partner <select class="capped" name="group" onchange="this.form.matter.value='';this.form.submit()"><option value="">All</option>{% for g in partner_choices %}<option value="{{ g.pk }}" title="{{ g.name }}"{% if filters.group_id == g.pk %} selected{% endif %}>{{ g.name }}</option>{% endfor %}</select></label>
+  <label>Matter <select class="capped" name="matter" onchange="this.form.submit()"><option value="">All</option>{% for m in matter_choices %}<option value="{{ m.pk }}" title="{{ m.name }}"{% if filters.matter_id == m.pk %} selected{% endif %}>{{ m.name }}</option>{% endfor %}</select></label>
+  {% if filters.client_id %}{# a link from a client's page narrows to that client: kept while the other filters change, with a way out #}<input type="hidden" name="client" value="{{ filters.client_id }}"><span class="muted">{% for c in client_choices %}{% if c.pk == filters.client_id %}Client: {{ c.name }}{% endif %}{% empty %}One client{% endfor %} <a href="?fy={{ filters.financial_year|default:'' }}{% if filters.firm_id %}&amp;firm={{ filters.firm_id }}{% endif %}">All clients</a></span>{% endif %}
+  <noscript><button type="submit" class="small secondary">Show</button></noscript>
+  {% else %}
   <a class="button small secondary" href="?{% if query_string %}{{ query_string }}&amp;{% endif %}filters=open" aria-haspopup="dialog" onclick="document.getElementById('filters-dialog').showModal();return false">View Filters</a>
   <a class="button small secondary" href="{{ reset_url }}">Reset Filters</a>
   <dialog id="filters-dialog" class="filter-dialog" aria-labelledby="filters-dialog-title"{% if filters_open %} open{% endif %}>
@@ -16,4 +23,5 @@
     </div>
     <p class="dialog-actions"><button type="submit" class="primary">Apply Filters</button> <a class="button small secondary" href="?{{ query_string }}" onclick="this.closest('dialog').close();return false">Cancel</a></p>
   </dialog>
+  {% endif %}
 </form>
