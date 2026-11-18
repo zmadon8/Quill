@@ -177,7 +177,6 @@ body.inv .nw{white-space:nowrap}
 @media(max-width:700px){
 body.inv .tw{max-width:100%}
 body.inv .res div{flex-wrap:wrap}
-body.inv .acts-row .btn:not(.sm),body.inv .acts .btn:not(.sm){min-height:44px}
 }
 /* The header bar itself (height, padding, alignment) comes from the shared shell (design.css), as in the Case Law Diary and the
    Fee Register; only the Alerts count badge is the program's own. */

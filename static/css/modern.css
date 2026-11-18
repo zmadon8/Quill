@@ -36,7 +36,7 @@ body.inv table.led tr.grp td { letter-spacing: .04em; font-size: 12px; font-weig
 /* ---- Buttons and fields: rounded, white secondary, filled accent primary ---- */
 body:is(.ledger, .look) main :is(button, .button):not(.link):not(.linklike):not(.program-link), body.ledger .btn, body.inv .btn { border-radius: var(--radius); box-shadow: 0 1px 2px rgba(16, 24, 40, .05); }
 body:is(.ledger, .look) main :is(.button.secondary, button.secondary, .button:not(.primary):not(.danger)) { background: var(--white); }
-body.inv .btn { min-height: 36px; padding: 0 14px; border-color: var(--line-strong); background: var(--white); color: var(--ink-2); font-size: 14px; font-weight: 500; }
+body.inv .btn { border-color: var(--line-strong); background: var(--white); color: var(--ink-2); font-weight: 500; }
 body.inv .btn.p, body.inv button.btn.p { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 body.inv .btn.dng { background: var(--white); border-color: var(--danger); color: var(--danger); }
 body.inv .toggle { border-color: var(--line-strong); border-radius: var(--radius); }
@@ -129,3 +129,7 @@ body:is(.ledger, .look) .program-nav .nav-links { display: contents; }
   body.inv .program-nav .buy-sell { order: 2; align-self: center; margin: 0; }
   body:is(.ledger, .look) .program-nav .header-end { order: 3; flex-wrap: nowrap; }
 }
+/* One size for every Fee Register and Investments button (D218): regular 32px (44 on touch), small 28px (36 on touch). */
+body.ledger{--tap-sm:28px}@media (max-width:599px),(pointer:coarse){body.ledger{--tap-sm:36px}}
+body.ledger main :is(button,.button,.btn):not(.link,.linklike,.chip,.alloc-remove,.kpi-arrow,.alloc-default-submit){min-height:var(--tap);padding:0 14px;font-size:14px;line-height:1.2}
+body.ledger main :is(button.small,.button.small,.btn.sm,.btn-sm,.page-actions :is(.btn,.button,button),td :is(button,.button,.btn),.table-tools :is(button,.button,.btn)):not(.link,.linklike,.chip,.alloc-remove,.kpi-arrow,.alloc-default-submit),body.ledger .col-menu>summary{min-height:var(--tap-sm);padding:0 10px;font-size:13px;line-height:1.2}

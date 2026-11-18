@@ -133,7 +133,6 @@ body.ledger .ledger-table .subtotal :is(td, th) { font-weight: 600; background: 
 body.ledger .ledger-table td:has(> input[type=checkbox]) { min-width: 32px; text-align: center; }
 body.ledger .ledger-table input[type=checkbox] { width: 16px; height: 16px; }
 body.ledger .ledger-table td input[type=text], body.ledger .ledger-table td input[type=number] { min-height: 0; padding: 3px 8px; }
-body.ledger .ledger-table td button, body.ledger .ledger-table td .button { min-height: 0; padding: 3px 10px; font-size: .857rem; }
 body.ledger .ledger-table .amount-hand, body.ledger .ledger-table td.hand { font-style: italic; color: var(--accent-hover); }
 body.ledger .ledger-table .current-col { background: var(--paper-2); }
 body.ledger .ledger-table .future-col { color: var(--faint); }
