@@ -63,6 +63,10 @@ __all__ = [
     "MAX_BANK_NAME",
     "MAX_DETAILS",
     "MAX_SUFFIX",
+    "MAX_PARTY_TYPES",
+    "MAX_PARTY_TYPE",
+    "party_type_lines",
+    "party_types",
     "SETTINGS_KEYS",
     "get_settings",
     "update_settings",
@@ -132,12 +136,49 @@ SETTINGS_KEYS = frozenset(
         "memo_default_address",
         "memo_default_bank_details",
         "memo_default_pan",
+        "plaintiff_types",
+        "defendant_types",
     )
 )
+
+#: Limits of the Plaintiff type and Defendant type lists (an entry has to fit the 100-character type column of a memo and a matter).
+MAX_PARTY_TYPES = 50
+MAX_PARTY_TYPE = 100
 
 #: The settings keys surfaced by ``get_settings`` (SETTINGS_KEYS plus the cache
 #: stamp so a caller can read the current ``data_version`` without a second hop).
 _READ_KEYS = tuple(sorted(SETTINGS_KEYS)) + ("data_version",)
+
+
+def party_type_lines(value):
+    """The entries of a Plaintiff / Defendant type list typed one per line, trimmed, blank lines dropped.
+
+    A list (or tuple) is taken as it is, each entry trimmed. Used by the Settings form and by the backup restore."""
+    items = value.splitlines() if isinstance(value, str) else list(value or ())
+    lines = []
+    for item in items:
+        text = " ".join(str(item).split())
+        if text:
+            lines.append(text)
+    return lines
+
+
+def _party_types(value, label):
+    """The validated list for ``label`` ("Plaintiff types" or "Defendant types"): at most 50 entries of at most 100
+    characters, no two the same in any letter case."""
+    if not isinstance(value, (str, list, tuple)):
+        raise _invalid(f"{label} must be a list")
+    entries = party_type_lines(value)
+    if len(entries) > MAX_PARTY_TYPES:
+        raise _invalid(f"{label} can have at most {MAX_PARTY_TYPES} entries")
+    seen = set()
+    for entry in entries:
+        if len(entry) > MAX_PARTY_TYPE:
+            raise _invalid(f"Each of the {label.lower()} must be at most {MAX_PARTY_TYPE} characters")
+        if entry.lower() in seen:
+            raise _invalid(f"{label} has \"{entry}\" more than once")
+        seen.add(entry.lower())
+    return entries
 
 
 def _invalid(message):
@@ -160,6 +201,12 @@ def get_settings(profile):
     """
     settings, _created = FeesSettings.objects.get_or_create(profile=profile)
     return {key: getattr(settings, key) for key in _READ_KEYS}
+
+
+def party_types(profile):
+    """``{"plaintiff": [...], "defendant": [...]}``: the Plaintiff type and Defendant type drop-down lists of the profile's memo and matter forms."""
+    config = get_settings(profile)
+    return {"plaintiff": config["plaintiff_types"], "defendant": config["defendant_types"]}
 
 
 # ---------------------------------------------------------------------------
@@ -301,6 +348,8 @@ def _validate_candidate(key, value):
         if len(text) > 120:
             raise _invalid("This field must be at most 120 characters")
         return text
+    if key in ("plaintiff_types", "defendant_types"):
+        return _party_types(value, "Plaintiff types" if key == "plaintiff_types" else "Defendant types")
     if key == "memo_default_pan":
         text = str(value)
         if len(text) > 20:

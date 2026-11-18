@@ -389,7 +389,7 @@ class MyDisplayForm(MySettingsForm):
     landing_program = None  # only Start Screens has this field
 
     class Meta(MySettingsForm.Meta):
-        fields = ("justify_text", "group_digits", "colour_theme")
+        fields = ("justify_text", "group_digits", "colour_theme", "home_show_figures")
 
     # Home card figures: one tick-box group per program (declared in __init__ from home_cards.METRIC_CATALOGUE), at most 3 each.
     METRIC_FIELDS = (("home_metrics_diary", suite.KEY_DIARY, "Case Law Diary"), ("home_metrics_fees", suite.KEY_FEES, "Fee Register"),
@@ -399,6 +399,10 @@ class MyDisplayForm(MySettingsForm):
         super().__init__(*args, **kwargs)
         from accounts import home_cards
 
+        self.fields["home_show_figures"].required = False
+        self.fields["home_show_figures"].help_text = (
+            "Off: the cards on Home show only the program names, and nothing is shown below the cards. The figures you pick below are kept."
+        )
         for name, program, title in self.METRIC_FIELDS:
             self.fields[name] = forms.MultipleChoiceField(
                 required=False, label=f"Home card figures: {title}", choices=home_cards.METRIC_CATALOGUE[program],
@@ -420,6 +424,12 @@ class MyDisplayForm(MySettingsForm):
                 widget=forms.CheckboxSelectMultiple,
                 help_text=f"Items from the {title} {source} to show below the cards on Home. None ticked: nothing extra.")
             self.fields[name].initial = home_cards.chosen_details(self.instance, program)
+
+    def clean_home_show_figures(self):
+        # The page sends home_show_present with the tick box; a POST without it leaves the choice as it was (an unticked box sends nothing).
+        if "home_show_present" not in self.data:
+            return self.instance.home_show_figures
+        return bool(self.cleaned_data.get("home_show_figures"))
 
     def _clean_metrics(self, name):
         from accounts import home_cards

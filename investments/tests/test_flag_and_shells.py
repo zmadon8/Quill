@@ -140,6 +140,13 @@ class ShellTests(TestCase):
             self.assertEqual(response.status_code, 308, old)
             self.assertTrue(response["Location"].endswith("/investments/" + new), response["Location"])
 
+    def test_overview_period_menu_follows_the_as_at_date(self):
+        html = self.client.get(reverse("investments_dashboard")).content.decode()
+        self.assertEqual(html.count('id="ov-period"'), 1)
+        self.assertLess(html.index('id="sel-asat"'), html.index('id="ov-period"'))
+        self.assertIn('name="period" form="ov-period-form"', html)
+        self.assertEqual(html.count('id="ov-period-form"'), 1)
+
     def test_landing_opens_the_users_start_page(self):
         self.user.investments_start_page = "holdings"
         self.user.save()

@@ -61,6 +61,7 @@ __all__ = [
     "ELECTRON_ONLY_DEFAULTS",
     "NOT_NULL_DEFAULTS",
     "WEB_SETTINGS_KEYS",
+    "WEB_LIST_KEYS",
     "LEGACY_WEB_SETTINGS_KEYS",
     "MEMO_TEXT_DEFAULT_KEYS",
     "settings_backup_columns",
@@ -228,7 +229,12 @@ WEB_SETTINGS_KEYS = [
 ] + MEMO_TEXT_DEFAULT_KEYS + [
     "memo_signature_default",
     "list_default_filter",
+    "plaintiff_types",
+    "defendant_types",
 ]
+
+#: The ``WebSettings`` keys that hold a list: written one entry per line in a single cell (an older file has neither, so a restore keeps the defaults).
+WEB_LIST_KEYS = ("plaintiff_types", "defendant_types")
 
 #: Keys an older file may still carry in ``WebSettings``: the Dashboard switches that were merged into
 #: ``statistics_enabled`` (a restore turns Statistics off if any of them is off) and the profile-wide Items per page
@@ -462,6 +468,8 @@ def _web_settings_rows(settings):
     rows = []
     for key in WEB_SETTINGS_KEYS:
         value = getattr(settings, key)
+        if key in WEB_LIST_KEYS:
+            value = "\n".join(value)
         rows.append([key, _bool(value) if isinstance(value, bool) else value])
     return rows
 

@@ -49,9 +49,9 @@
   <label>Additional details (left) <textarea name="additional_details_left" rows="1">{{ form.additional_details_left }}</textarea></label>
   <label>Additional details (right) <textarea name="additional_details_right" rows="1">{{ form.additional_details_right }}</textarea></label>
   <label>Plaintiff name <input type="text" name="plaintiff_name" value="{{ form.plaintiff_name }}"></label>
-  <label>Plaintiff type <input type="text" name="plaintiff_type" value="{{ form.plaintiff_type }}"></label>
+  <label>Plaintiff type {% include "fees/_party_type.html" with name="plaintiff_type" label="Plaintiff type" types=party_types.plaintiff value=form.plaintiff_type %}</label>
   <label>Defendant name <input type="text" name="defendant_name" value="{{ form.defendant_name }}"></label>
-  <label>Defendant type <input type="text" name="defendant_type" value="{{ form.defendant_type }}"></label>
+  <label>Defendant type {% include "fees/_party_type.html" with name="defendant_type" label="Defendant type" types=party_types.defendant value=form.defendant_type %}</label>
   {% if has_signature %}<label class="check wide"><input type="hidden" name="include_signature" value="0"><input type="checkbox" name="include_signature" value="1"{% if form.include_signature %} checked{% endif %}> Include the signature on the Word memo</label>{% endif %}
   </div>
   </fieldset>
@@ -99,4 +99,4 @@
   </p>{% endif %}
 </form>
 {% endblock %}
-{% block page_js %}{% if can_edit %}<script src="{% static 'js/fees/memo-form.js' %}"></script><script src="{% static 'js/fees/memo-picker.js' %}"></script>{% endif %}{% endblock %}
+{% block page_js %}{% if can_edit %}<script src="{% static 'js/fees/party-type.js' %}"></script><script src="{% static 'js/fees/memo-form.js' %}"></script><script src="{% static 'js/fees/memo-picker.js' %}"></script>{% endif %}{% endblock %}

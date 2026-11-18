@@ -239,7 +239,7 @@ class ExportContractTests(TestCase):
             ["export_owner_name", "memo_filename_pattern", "statistics_enabled",
              "show_bank", "memo_default_name", "memo_default_designation",
              "memo_default_address", "memo_default_bank_details", "memo_default_pan",
-             "memo_signature_default", "list_default_filter"],
+             "memo_signature_default", "list_default_filter", "plaintiff_types", "defendant_types"],
         )
         self.assertEqual(values["show_bank"], 1)   # owner round 2026-11: on by default
         self.assertEqual(values["export_owner_name"], "Test Owner")

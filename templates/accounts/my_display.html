@@ -25,6 +25,8 @@
     <section class="settings-panel-body" data-section="home" id="section-home">
       <h2>My Home Page</h2>
       <p class="setting-help">What the Home page shows you. Only yours.</p>
+      <input type="hidden" name="home_show_present" value="1">
+      {% include "_setting_row.html" with f=display_form.home_show_figures help=display_form.home_show_figures.help_text who="you" checkbox=True %}
       <input type="hidden" name="home_metrics_present" value="1">
       {% include "_setting_row_multi.html" with f=display_form.home_metrics_diary help=display_form.home_metrics_diary.help_text who="you" %}
       {% include "_setting_row_multi.html" with f=display_form.home_metrics_fees help=display_form.home_metrics_fees.help_text who="you" %}

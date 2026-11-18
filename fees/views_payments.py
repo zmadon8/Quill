@@ -58,7 +58,8 @@ def memo_options(profile, memo_ids=(), numbers=(), money_unit="full"):
         Memo.objects.filter(profile=profile, is_draft=False, memo_number__isnull=False)
         .filter(wanted)
         .order_by(F("date").desc(nulls_last=True), "-id")
-        .values("id", "memo_number", "matter_id", "firm_id", "matter__name", "total_fees", "amount_paid")
+        .values("id", "memo_number", "matter_id", "firm_id", "matter__name", "matter__firm__name", "matter__client__name", "total_fees",
+                "amount_paid")
     )
     known = [r for r in rows if r["id"] in memo_ids]
     matters = {r["matter_id"] for r in known}
@@ -72,7 +73,10 @@ def memo_options(profile, memo_ids=(), numbers=(), money_unit="full"):
             {
                 "number": r["memo_number"],
                 "due": str(due),
-                "label": f"{r['memo_number']} \u00b7 {r['matter__name']} (Rs {format_money(due, unit=money_unit)} Due)",
+                # The firm and the client (when the matter has one) always show, so the right memo is easy to find.
+                "label": " \u00b7 ".join(
+                    part for part in (r["memo_number"], r["matter__firm__name"], r["matter__name"], r["matter__client__name"]) if part
+                ) + f" (Rs {format_money(due, unit=money_unit)} Due)",
             }
         )
     return options, sorted(matters)

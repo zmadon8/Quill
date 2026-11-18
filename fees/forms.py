@@ -263,9 +263,28 @@ def payment_form_from_dto(dto):
 # ---------------------------------------------------------------------------
 
 
+#: The two type boxes that are a drop-down plus a Custom box (``<name>_choice`` and ``<name>_custom``), and the drop-down's Custom value.
+PARTY_TYPE_FIELDS = ("plaintiff_type", "defendant_type")
+PARTY_CUSTOM = "__custom__"
+
+
+def posted_party_type(post, name):
+    """The Plaintiff type or Defendant type (``name``) a form sent. The drop-down (``<name>_choice``) gives the type; Custom, or no
+    choice with a Custom box filled in, gives the Custom box (``<name>_custom``). A plain ``<name>`` post (no drop-down) is used as it is."""
+    choice, custom = post.get(name + "_choice"), post.get(name + "_custom")
+    if choice is None and custom is None:
+        return post.get(name) or ""
+    choice = (choice or "").strip()
+    return (custom or "").strip() if choice in ("", PARTY_CUSTOM) else choice
+
+
+def _posted_text(post, name):
+    return posted_party_type(post, name) if name in PARTY_TYPE_FIELDS else post.get(name)
+
+
 def clean_text(post, name, model, label=None):
     """The posted text for ``name``, checked against the model field's length. Blank is ``""``."""
-    value = (post.get(name) or "").replace("\r\n", "\n")
+    value = (_posted_text(post, name) or "").replace("\r\n", "\n")
     if name not in ("additional_details_left", "additional_details_right", "notes", "payment_details",
                     "dates_of_appearances", "dates_of_conferences", "misc_drafting_description"):
         value = value.strip()
@@ -357,7 +376,7 @@ def payment_data_from_post(post, profile, bank_ids):
 
 def echo_form(post, names):
     """The submitted values for ``names`` as a form dict (so a failed save shows what the user typed)."""
-    return {name: post.get(name, "") for name in names}
+    return {name: posted_party_type(post, name) if name in PARTY_TYPE_FIELDS else post.get(name, "") for name in names}
 
 
 def matter_data_from_post(post):
@@ -422,6 +441,10 @@ SETTINGS_NUMBERS = (
 )
 
 
+#: Settings keys that are lists typed one entry per line (the Plaintiff type and Defendant type lists).
+SETTINGS_LINE_LISTS = ("plaintiff_types", "defendant_types")
+
+
 def settings_data_from_post(post):
     """The partial settings dict for ``settings.update_settings``: only keys present in the form are included."""
     data = {}
@@ -429,6 +452,9 @@ def settings_data_from_post(post):
         if name in post:
             data[name] = post.getlist(name)[-1] == "1"
     for name in SETTINGS_TEXT:
+        if name in post:
+            data[name] = (post.get(name) or "").replace("\r\n", "\n")
+    for name in SETTINGS_LINE_LISTS:
         if name in post:
             data[name] = (post.get(name) or "").replace("\r\n", "\n")
     for name in SETTINGS_NUMBERS:

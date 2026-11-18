@@ -77,18 +77,33 @@
   }
 
   function textBoxes() { return form.querySelectorAll("input[type=text], textarea"); }
+  // Plaintiff type and Defendant type are a drop-down (<name>_choice) plus a Custom box (<name>_custom); together they act as one box.
+  var CUSTOM = "__custom__";
+  function party(name) {
+    var sel = form.elements[name + "_choice"], txt = form.elements[name + "_custom"];
+    return sel && txt ? { sel: sel, txt: txt } : null;
+  }
+  function partyValue(p) { return (p.sel.value === "" || p.sel.value === CUSTOM) ? p.txt.value.trim() : p.sel.value; }
+  function setParty(p, value) {
+    var listed = Array.prototype.some.call(p.sel.options, function (o) { return o.value === value && value !== CUSTOM; });
+    p.sel.value = value === "" ? "" : (listed ? value : CUSTOM);
+    p.txt.value = (value !== "" && !listed) ? value : "";
+    p.sel.dispatchEvent(new Event("change"));   // does not bubble: shows or hides the Custom box without marking the form changed
+  }
   function applyDefaults(fields) {
     var kept = 0, names = {};
     Object.keys(fields).forEach(function (k) { names[k] = true; });
     Array.prototype.forEach.call(textBoxes(), function (box) { if (box.hasAttribute("data-autofilled")) { names[box.name] = true; } });
+    ["plaintiff_type", "defendant_type"].forEach(function (name) { var p = party(name); if (p && p.sel.hasAttribute("data-autofilled")) { names[name] = true; } });
     Object.keys(names).forEach(function (name) {
-      var box = form.elements[name];
+      var p = party(name), box = p ? p.sel : form.elements[name];
       if (!box || box.type === "hidden" || box.type === "checkbox" || box.name === "custom_memo_number") { return; }
       var next = fields[name] || settingsFallback[name] || "", last = box.getAttribute("data-autofilled");
-      if (box.value.trim() === "" || (last !== null && box.value === last)) {
-        box.value = next;
+      var current = p ? partyValue(p) : box.value;
+      if (current.trim() === "" || (last !== null && current === last)) {
+        if (p) { setParty(p, next); } else { box.value = next; }
         if (next) { box.setAttribute("data-autofilled", next); } else { box.removeAttribute("data-autofilled"); }
-      } else if (next && box.value !== next) {
+      } else if (next && current !== next) {
         kept += 1;
       }
     });
@@ -97,8 +112,8 @@
   function markAutofilled(names) {
     // The server says which boxes still hold the Settings / matter defaults it wrote (also after a failed save); anything else was typed.
     names.split(/\s+/).forEach(function (name) {
-      var box = name && form.elements[name];
-      if (box && box.value.trim() !== "" && box.name !== "custom_memo_number") { box.setAttribute("data-autofilled", box.value); }
+      var p = name && party(name), box = p ? p.sel : name && form.elements[name], value = p ? partyValue(p) : box && box.value;
+      if (box && value.trim() !== "" && box.name !== "custom_memo_number") { box.setAttribute("data-autofilled", value); }
     });
   }
   function loadDefaults(id) {

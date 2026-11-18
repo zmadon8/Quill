@@ -337,18 +337,17 @@ def build(request, diary_profile, fees_profile, investments_profile, names):
     user = request.user
     cards, recent, actions, details = {}, [], [], []
     programs = (
-        (KEY_DIARY, diary_profile, _diary_figures, _diary_recent, "book",
-         "Your subjects, topics and the judgments that matter."),
-        (KEY_FEES, fees_profile, _fees_figures, _fees_recent, "receipt",
-         "Memos, payments and what each firm still owes."),
-        (KEY_INVESTMENTS, investments_profile, _investments_figures, _investments_recent, "chart",
-         "Holdings, returns against the index, and alerts."),
+        (KEY_DIARY, diary_profile, _diary_figures, _diary_recent, "book"),
+        (KEY_FEES, fees_profile, _fees_figures, _fees_recent, "receipt"),
+        (KEY_INVESTMENTS, investments_profile, _investments_figures, _investments_recent, "chart"),
     )
-    for key, profile, figures, recent_fn, icon, blurb in programs:
+    # My settings > Display > My Home Page can turn every figure off: no figures on the cards, no details below them (and nothing is worked out for them).
+    show_figures = getattr(user, "home_show_figures", True)
+    for key, profile, figures, recent_fn, icon in programs:
         if profile is None:
             continue
-        cards[key] = {"key": key, "icon": icon, "blurb": blurb, "figures": _safe(figures, profile, user) or []}
-        if key in DETAIL_PROGRAMS:
+        cards[key] = {"key": key, "icon": icon, "figures": (_safe(figures, profile, user) or []) if show_figures else []}
+        if show_figures and key in DETAIL_PROGRAMS:
             sections = _safe(_fees_details if key == KEY_FEES else _investments_details, profile, user) or []
             if sections:
                 details.append({"program": key, "program_name": names.get(key, ""), "sections": sections})

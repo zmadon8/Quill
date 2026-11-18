@@ -6,6 +6,9 @@
     {% if fy_choices is not None %}<div class="sel"><label for="sel-fy"><span>Financial Year</span></label><select id="sel-fy" name="fy" onchange="this.form.submit()"><option value="">All years</option>{% for y in fy_choices %}<option value="{{ y }}"{% if y == fy %} selected{% endif %}>{{ y }}</option>{% endfor %}</select></div><input type="hidden" name="fy_filter" value="1">
     {% else %}
     <div class="sel"><label for="sel-asat"><span>As at</span></label><input id="sel-asat" type="date" name="asat" value="{{ sel_asat|date:'Y-m-d' }}" max="{% now 'Y-m-d' %}" onchange="this.form.submit()"></div>
+    {% if card_period_choices %}{# Overview: Period sits right after As at. It belongs to the small GET form below the figures (form="ov-period-form"), because this form saves the selection. #}
+    <div class="sel"><label for="ov-period"><span>Period</span></label><select id="ov-period" name="period" form="ov-period-form" onchange="document.getElementById('ov-period-form').submit()">{% for key, label in card_period_choices %}<option value="{{ key }}"{% if key == card_period_key %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+    {% endif %}
     {% endif %}
     {% if txn_filters %}{# Transactions: Search and Action sit in the same box and apply on change or Enter; set_selection puts them back in the page's query #}
     <input type="hidden" name="txn_filters" value="1">

@@ -79,6 +79,7 @@ are in a section of their own on the diary Settings tab, apart from the shared o
 | `landing_program` | Open after login | Settings > Start Screens (Users & Profiles > Users edits it for another user as "Open after login") | Per user | Only you |
 | `justify_text` | Justify text | Settings > Display | Per user | Only you |
 | `group_digits` | Add commas while typing numbers: on (default), every number box in every program regroups what you type in Indian grouping (12,34,567.50) and keeps the caret in place. Off: numbers stay as typed. Commas you type are accepted either way | Settings > Display > My Display | Per user | Only you |
+| `home_show_figures` | Show figures on the Home page: on (default). Off: the Home cards show only the program names, and the details below the cards are left out. The figures you picked are kept | Settings > Display > My Home Page | Per user | Only you |
 | `colour_theme` | Colour theme: Oxblood (default), Royal Blue, Navy, Violet, Plum or Teal. Changes the accent (buttons, current tab, links) on every page; status colours and exports never change | Settings > Display; an Admin on the user's edit screen | Per user | Only you |
 | `header_initials` | Letters in the header badge: up to 3, shown upper-case in the round badge at the top right. Blank: the first letters of your first and last name | Settings > Account and Profile View | Per user | Only you |
 | `remove_citation_hyphen` | Remove the hyphen before the citation: on, the Case Law Diary on screen leaves out the " - " between an Item's text and its inline citations (default off). The Word export and offline copy keep the hyphen. The ";" between several inline citations is always gone | Settings > Case Law Diary > My Number Formats | Per user | Only you |
@@ -173,6 +174,8 @@ are noted: Opening page and Items per page are personal only (section 4.2).
 | `memo_default_name` | Name on memos | Memos > Memo text defaults | Per profile | Everyone in this profile |
 | `memo_default_designation` | Designation | Memos > Memo text defaults | Per profile | Everyone in this profile |
 | `memo_default_pan` | PAN | Memos > Memo text defaults | Per profile | Everyone in this profile |
+| `plaintiff_types` | Plaintiff types | Memos > Party types | Per profile | Everyone in this profile |
+| `defendant_types` | Defendant types | Memos > Party types | Per profile | Everyone in this profile |
 | `memo_default_address` | Address | Memos > Memo text defaults | Per profile | Everyone in this profile |
 | `memo_default_bank_details` | Bank details | Memos > Memo text defaults | Per profile | Everyone in this profile |
 | `memo_signature_default` | Add the signature to new memos (offered only when a signature image is uploaded) | Memos | Per profile | Everyone in this profile |

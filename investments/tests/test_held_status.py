@@ -42,6 +42,20 @@ class HeldStatusTests(InvTestCase):
         self.assertIn("</span>Held</td>", page)
         self.assertNotIn("Parag Parikh", page)
 
+    def test_average_price_and_invested_value_follow_the_units_still_held(self):
+        self.buy(d(2023, 1, 1), 10, 100)
+        self.buy(d(2023, 2, 1), 10, 200)
+        self.sell(d(2023, 6, 1), 10, 300)   # first in, first out: the 100 lot goes, the 200 lot stays
+        page = self.page("held")
+        head = page[page.index("<thead>"):page.index("</thead>")]
+        self.assertLess(head.index(">Units</th>"), head.index(">Average price</th>"))
+        self.assertLess(head.index(">Average price</th>"), head.index(">Invested value</th>"))
+        self.assertLess(head.index(">Invested value</th>"), head.index(">Value</th>"))
+        row = page[page.index("Reliance Industries"):]
+        row = row[:row.index("</tr>")]
+        self.assertIn('data-sort="200', row)    # average price of the 10 units still held
+        self.assertIn('data-sort="2000', row)   # invested value: what those units cost
+
     def test_all_shows_each_with_its_own_status(self):
         self.buy(d(2023, 1, 1), 10, 100)
         page = self.page("all")

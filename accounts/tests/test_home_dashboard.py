@@ -164,6 +164,33 @@ class HomeMetricsChoiceTests(TestCase):
         self.user.refresh_from_db()
         self.assertEqual(self.user.home_metrics, {})
 
+    def test_cards_have_no_explanatory_text(self):
+        html = self.home()
+        for text in ("Your subjects, topics and the judgments that matter.", "Memos, payments and what each firm still owes.",
+                     "Holdings, returns against the index, and alerts."):
+            self.assertNotIn(text, html)
+        self.assertNotIn("program-blurb", html)
+
+    def test_figures_can_be_turned_off(self):
+        self.post(home_show_present="1")  # the box unticked
+        self.user.refresh_from_db()
+        self.assertFalse(self.user.home_show_figures)
+        html = self.home()
+        self.assertIn('class="program-card"', html)
+        self.assertNotIn("program-stats", html)
+        self.assertNotIn("<dt>Subjects</dt>", html)
+        self.post(home_show_present="1", home_show_figures="on")
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.home_show_figures)
+        self.assertIn("<dt>Subjects</dt>", self.home())
+
+    def test_a_post_without_the_marker_leaves_the_choice(self):
+        self.user.home_show_figures = False
+        self.user.save()
+        self.post(home_metrics_present="1")
+        self.user.refresh_from_db()
+        self.assertFalse(self.user.home_show_figures)
+
     def test_stale_stored_keys_fall_back(self):
         from accounts import home_cards
 

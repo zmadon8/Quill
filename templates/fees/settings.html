@@ -44,6 +44,12 @@
       <div class="setting-row"><label>Address <textarea name="memo_default_address" rows="3" cols="40">{{ config.memo_default_address }}</textarea></label>{% include "_who_tag.html" with who="profile" %}<span class="setting-help">The address printed on the memo.</span></div>
       <div class="setting-row"><label>Bank details <textarea name="memo_default_bank_details" rows="3" cols="40">{{ config.memo_default_bank_details }}</textarea></label>{% include "_who_tag.html" with who="profile" %}<span class="setting-help">Where the client should pay, printed on the memo.</span></div>
     </div>
+    <h3 class="small-caps">Party types</h3>
+    <p class="setting-help">The choices in the Plaintiff type and Defendant type drop-down lists on the memo and matter forms. A memo or matter can also use its own Custom type.</p>
+    <div class="grid-2">
+      <div class="setting-row"><label>Plaintiff types <textarea name="plaintiff_types" rows="6" cols="30">{{ party_types_text.plaintiff }}</textarea></label>{% include "_who_tag.html" with who="profile" %}<span class="setting-help">One type per line, in the order the list shows them. Add, change, remove or reorder lines. Up to {{ max_party_types }} lines of {{ max_party_type }} characters, none repeated. Memos and matters already saved keep their type.</span></div>
+      <div class="setting-row"><label>Defendant types <textarea name="defendant_types" rows="6" cols="30">{{ party_types_text.defendant }}</textarea></label>{% include "_who_tag.html" with who="profile" %}<span class="setting-help">One type per line, as for Plaintiff types.</span></div>
+    </div>
     {% if template_info.has_signature %}<div class="setting-row"><label><input type="hidden" name="memo_signature_default" value="0"><input type="checkbox" name="memo_signature_default" value="1"{% if config.memo_signature_default %} checked{% endif %}> Tick Signature on new memos by default</label>{% include "_who_tag.html" with who="profile" %}<span class="setting-help">New memos start with the signature image ticked.</span></div>
     {% else %}<p class="hint" data-signature-hint>Upload a signature image in the Word template box to use this.</p>{% endif %}
   </fieldset>
