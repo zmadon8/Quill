@@ -10,7 +10,7 @@ from fees import forms, scope
 from fees.decorators import fees_editor, fees_read_write, handle_fees_errors
 from fees.errors import FeesError
 from fees.models import Memo, Payment
-from fees.pages import bank_on, int_list, int_or_none, json_ok, render_page
+from fees.pages import bank_on, int_list, int_or_none, json_ok, render_page, written_off_on
 from fees.services import memo_numbers, memos, payments
 from fees.services import settings as settings_service
 from fees.services.money import format_money
@@ -39,7 +39,7 @@ def _memo_ids(query):
     return seen[: payments.MAX_ALLOCATIONS]
 
 
-def memo_options(profile, memo_ids=(), numbers=(), money_unit="full"):
+def memo_options(profile, memo_ids=(), numbers=(), money_unit="full", written_off_on=True):
     """The memos a payment row can pick, from ONE query: ``(options, matter_ids)``.
 
     Options are the profile's numbered non-draft memos with an amount due and not written off, newest first,
@@ -49,7 +49,10 @@ def memo_options(profile, memo_ids=(), numbers=(), money_unit="full"):
     """
     memo_ids = list(memo_ids)
     numbers = [n for n in numbers if n]
-    wanted = Q(written_off=False, total_fees__gt=F("amount_paid"))
+    # Written-off memos are not offered, unless the feature is switched off (then they are ordinary unpaid memos).
+    wanted = Q(total_fees__gt=F("amount_paid"))
+    if written_off_on:
+        wanted &= Q(written_off=False)
     if memo_ids:
         wanted |= Q(pk__in=memo_ids)
     if numbers:
@@ -73,10 +76,12 @@ def memo_options(profile, memo_ids=(), numbers=(), money_unit="full"):
             {
                 "number": r["memo_number"],
                 "due": str(due),
+                # Shown beside the drop-down (owner round 2026-12), not inside it, so the memo's own words have the room.
+                "due_text": format_money(due, unit=money_unit),
                 # The firm and the client (when the matter has one) always show, so the right memo is easy to find.
                 "label": " \u00b7 ".join(
                     part for part in (r["memo_number"], r["matter__firm__name"], r["matter__name"], r["matter__client__name"]) if part
-                ) + f" (Rs {format_money(due, unit=money_unit)} Due)",
+                ),
             }
         )
     return options, sorted(matters)
@@ -89,7 +94,8 @@ def _form_page(request, form, payment=None, memo_ids=None, errors=None, status=2
         memo_ids = [a["memo_id"] for a in payment["allocations"]]
     unit = getattr(config, "money_unit", None) or "full"
     options, matter_ids = memo_options(
-        profile, memo_ids, [row["memo_number"].strip() for row in form["rows"]], money_unit=unit
+        profile, memo_ids, [row["memo_number"].strip() for row in form["rows"]], money_unit=unit,
+        written_off_on=written_off_on(config),
     )
     return render_page(
         request,

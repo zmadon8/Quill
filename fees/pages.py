@@ -67,6 +67,12 @@ def bank_on(settings):
     return _flag(settings, "show_bank")
 
 
+def written_off_on(settings):
+    """True unless the Written Off feature is switched off in Settings: then no write-off button, tick, key or column
+    shows, and a memo written off earlier counts as unpaid. The flag on the memos is kept."""
+    return _flag(settings, "written_off_enabled")
+
+
 def nav_for(request, settings):
     """The header entries for this page. The first entry is Statistics with the Dashboard as its first tab; it is left
     out when Statistics (which covers the Dashboard) is switched off."""
@@ -102,6 +108,8 @@ def render_page(request, template, context=None, status=200):
         "fees_bank_on": bank_on(settings),
         # False when "Overdue after (days)" is 0: then no overdue filter, legend or button shows anywhere.
         "fees_overdue_on": overdue_on(settings),
+        # False when Written off memos is switched off in Settings: no write-off control, key or status shows anywhere.
+        "fees_written_off_on": written_off_on(settings),
         # The user's other Fee Register profiles, for the header switcher (memberships are cached, so no query).
         "fees_other_profiles": [m.profile for m in request_memberships(request, KEY_FEES)[1:]],
         # The user's saved column widths per table id, embedded in the page (one small query).

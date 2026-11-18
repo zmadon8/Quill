@@ -271,6 +271,15 @@ def profile_switch(request):
     return redirect(program.landing_url_name if program is not None else "home")
 
 
+@login_required
+@require_POST
+def home_figures(request):
+    """The Show figures switch on the Home page (owner round 2026-12): the same setting as Settings > Display > My Home Page."""
+    request.user.home_show_figures = request.POST.get("show") == "1"
+    request.user.save(update_fields=["home_show_figures"])
+    return redirect(reverse("home") + "?home=1")
+
+
 class MyPasswordChangeView(auth_views.PasswordChangeView):
     """Settings > Account > Change my password (D93): the current password, then the new one twice (the usual rules)."""
 

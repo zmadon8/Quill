@@ -8,7 +8,7 @@ from django.views.decorators.http import require_http_methods, require_safe, req
 from fees import forms, scope
 from fees.decorators import fees_editor, fees_read_write, fees_reader, handle_fees_errors
 from fees.errors import FeesError
-from fees.pages import json_ok, memo_filters, page_number, render_page
+from fees.pages import json_ok, memo_filters, page_number, render_page, written_off_on
 from fees.services import firms as firms_service
 from fees.services import filter_options, fy_options, matters, memo_fees, memo_lists, memos, payments, prefs
 from fees.services.fees_in_words import fees_in_words
@@ -362,7 +362,9 @@ def memo_delete(request, memo_id):
 @handle_fees_errors()
 @require_POST
 def memo_write_off(request, memo_id):
-    profile, _settings = scope.context(request)
+    profile, config = scope.context(request)
+    if not written_off_on(config):
+        raise FeesError("INVALID_MEMO", "Written off memos is switched off in Settings.")
     written_off = request.POST.get("written_off") == "1"
     memos.set_memo_written_off(profile, memo_id, written_off)
     messages.success(request, "Memo written off." if written_off else "Write-off removed.")

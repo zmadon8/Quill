@@ -33,6 +33,7 @@ body.ledger.w-6xl main { max-width: 82.286rem; }  /* 1152px at the 14px root */
 body.ledger.w-5xl main { max-width: 73.143rem; }  /* 1024px */
 body.ledger.w-4xl main { max-width: 64rem; }      /* 896px */
 body.ledger.w-3xl main { max-width: 54.857rem; }  /* 768px */
+@media (min-width:1400px){body.ledger:is(.w-6xl,.w-5xl) main{max-width:min(94vw,130rem)}} /* lists and tables use a large screen */
 body.ledger main > * + * { margin-top: 16px; }
 body.ledger main > h1 + *, body.ledger main > .page-head + * { margin-top: 16px; }
 body.ledger main h1, body.ledger .page-title { margin: 0; padding: 0; border: 0; font-size: 1.75rem; font-weight: 400; line-height: 1.25; }

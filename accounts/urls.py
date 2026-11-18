@@ -36,6 +36,7 @@ urlpatterns = [
         name="password_reset_complete",
     ),
     path("my-settings/", views.my_settings, name="my_settings"),
+    path("my-settings/home-figures/", views.home_figures, name="home_figures"),
     # Owner round (2026-11): Search everything (every program the user can open). /search/ is the legacy diary redirect.
     path("find/", views_suite_search.suite_search, name="suite_search"),
     path("my-settings/password/", views.MyPasswordChangeView.as_view(), name="password_change"),

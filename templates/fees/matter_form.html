@@ -12,22 +12,40 @@
   <button type="submit">Show This Firm's Partners</button>
 </form>
 {% include "fees/_form_errors.html" %}
-<form method="post" action="{{ request.path }}" class="fees-form">
+<form method="post" action="{{ request.path }}" class="fees-form memo-form">
   {% csrf_token %}
   <input type="hidden" name="firm_id" value="{{ form.firm_id }}">
-  <p><label>Partner <select name="group_id"><option value="">No partner</option>{% for g in group_choices %}<option value="{{ g.pk }}"{% if form.group_id == g.pk %} selected{% endif %}>{{ g.name }}</option>{% endfor %}</select></label></p>
-  <p><label>Name <input type="text" name="name" value="{{ form.name }}" maxlength="150" required></label> <label>Short name <input type="text" name="short_name" value="{{ form.short_name }}" maxlength="150"></label></p>
-  <p class="field-row"><label>Client <select name="client_id"><option value="">None</option>{% for c in client_choices %}<option value="{{ c.id }}"{% if form.client_id == c.id %} selected{% endif %}>{{ c.name }}</option>{% endfor %}</select></label> <label>or type a client's name <input type="text" name="client_new" title="The list shows the clients of this firm. Type a new client's name here to add it to this firm; a name this firm already has is reused." value="{{ form.client_new }}" maxlength="200" size="24"></label></p>
-  <p><label>Brief on Behalf of <input type="text" name="client_position" value="{{ form.client_position }}" maxlength="300" size="40"></label> <span class="muted">(used only in the memo exported to Word)</span></p>
+  <fieldset class="memo-card"><legend class="sr-only">Matter</legend>
+  <div class="memo-grid cols-2">
+  <label>Name <input type="text" name="name" value="{{ form.name }}" maxlength="150" required></label>
+  <label>Short name <input type="text" name="short_name" value="{{ form.short_name }}" maxlength="150"></label>
+  <label>Partner <select name="group_id"><option value="">No partner</option>{% for g in group_choices %}<option value="{{ g.pk }}"{% if form.group_id == g.pk %} selected{% endif %}>{{ g.name }}</option>{% endfor %}</select></label>
+  <div class="field"><label>Client <select name="client_id"><option value="">None</option>{% for c in client_choices %}<option value="{{ c.id }}"{% if form.client_id == c.id %} selected{% endif %}>{{ c.name }}</option>{% endfor %}</select></label>
+    <label>or type a client's name <input type="text" name="client_new" title="The list shows the clients of this firm. Type a new client's name here to add it to this firm; a name this firm already has is reused." value="{{ form.client_new }}" maxlength="200" size="24"></label></div>
+  </div>
+  </fieldset>
+  <fieldset class="memo-card"><legend class="sr-only">Memo details for this matter</legend>
+  <p class="muted">A new memo for this matter starts with these.</p>
+  <div class="memo-grid cols-2">
   {# Addressee: the tick comes first; while it is ticked the two lines are greyed out (read-only, so what was typed is kept). matter-form.js keeps that in step; without the script the page shows the saved state. #}
-  <p><label><input type="checkbox" name="addressee_use_firm_name" value="1" data-addressee-firm{% if form.addressee_use_firm_name %} checked{% endif %}> Use the firm name as the addressee</label></p>
-  <p class="field-row" data-addressee-lines><label>Addressee, first line <input type="text" name="addressee_line1" value="{{ form.addressee_line1 }}" maxlength="300"{% if form.addressee_use_firm_name %} readonly aria-disabled="true"{% endif %}></label> <label>Addressee, second line (Enter for a new line) <textarea name="addressee_line2" rows="1" style="resize:vertical" maxlength="300"{% if form.addressee_use_firm_name %} readonly aria-disabled="true"{% endif %}>{{ form.addressee_line2 }}</textarea></label></p>
-  <p><label>Caption <textarea name="court_name" rows="2" cols="50">{{ form.court_name }}</textarea></label></p>
-  <p><label>Details, left <textarea name="additional_details_left" rows="2" cols="40">{{ form.additional_details_left }}</textarea></label> <label>Details, right <textarea name="additional_details_right" rows="2" cols="40">{{ form.additional_details_right }}</textarea></label></p>
-  <p class="field-row"><label>Plaintiff <input type="text" name="plaintiff_name" value="{{ form.plaintiff_name }}"></label> <label class="narrow">Type {% include "fees/_party_type.html" with name="plaintiff_type" label="Plaintiff type" types=party_types.plaintiff value=form.plaintiff_type %}</label></p>
-  <p class="field-row"><label>Defendant <input type="text" name="defendant_name" value="{{ form.defendant_name }}"></label> <label class="narrow">Type {% include "fees/_party_type.html" with name="defendant_type" label="Defendant type" types=party_types.defendant value=form.defendant_type %}</label></p>
-  <p><label>Notes <textarea name="notes" rows="3" cols="50">{{ form.notes }}</textarea></label></p>
-  {% if can_edit %}<p><button type="submit" class="primary">Save</button> <a href="{% if matter %}{% url 'fees_matter_detail' matter.pk %}{% else %}{% url 'fees_firms' %}{% endif %}">Cancel</a></p>{% endif %}
+  <label class="check wide"><input type="checkbox" name="addressee_use_firm_name" value="1" data-addressee-firm{% if form.addressee_use_firm_name %} checked{% endif %}> Use the firm name as the addressee</label>
+  <div class="field wide" data-addressee-lines><div class="memo-grid cols-2">
+  <label>Addressee line 1 <input type="text" name="addressee_line1" value="{{ form.addressee_line1 }}" maxlength="300"{% if form.addressee_use_firm_name %} readonly aria-disabled="true"{% endif %}></label>
+  <label>Addressee, second line (Enter for a new line) <textarea name="addressee_line2" rows="1" style="resize:vertical" maxlength="300"{% if form.addressee_use_firm_name %} readonly aria-disabled="true"{% endif %}>{{ form.addressee_line2 }}</textarea></label>
+  </div></div>
+  <label>Cause title <textarea name="court_name" rows="4">{{ form.court_name }}</textarea></label>
+  <label>Brief on Behalf of <span class="muted">(used only in the memo exported to Word)</span> <input type="text" name="client_position" value="{{ form.client_position }}" maxlength="300"></label>
+  {% include "fees/_additional_details.html" %}
+  <label>Plaintiff name <input type="text" name="plaintiff_name" value="{{ form.plaintiff_name }}"></label>
+  <label>Plaintiff type {% include "fees/_party_type.html" with name="plaintiff_type" label="Plaintiff type" types=party_types.plaintiff value=form.plaintiff_type %}</label>
+  <label>Defendant name <input type="text" name="defendant_name" value="{{ form.defendant_name }}"></label>
+  <label>Defendant type {% include "fees/_party_type.html" with name="defendant_type" label="Defendant type" types=party_types.defendant value=form.defendant_type %}</label>
+  </div>
+  </fieldset>
+  <fieldset class="memo-card"><legend class="sr-only">Notes</legend>
+  <div class="memo-grid"><label>Notes <textarea name="notes" rows="3">{{ form.notes }}</textarea></label></div>
+  </fieldset>
+  {% if can_edit %}<p class="button-bar"><a class="button" href="{% if matter %}{% url 'fees_matter_detail' matter.pk %}{% else %}{% url 'fees_firms' %}{% endif %}">Cancel</a> <button type="submit" class="primary">Save</button></p>{% endif %}
 </form>
 {% endblock %}
-{% block page_js %}{% if can_edit %}<script src="{% static 'js/fees/party-type.js' %}"></script><script src="{% static 'js/fees/matter-form.js' %}"></script>{% endif %}{% endblock %}
+{% block page_js %}{% if can_edit %}<script src="{% static 'js/fees/party-type.js' %}"></script><script src="{% static 'js/fees/additional-details.js' %}"></script><script src="{% static 'js/fees/matter-form.js' %}"></script>{% endif %}{% endblock %}

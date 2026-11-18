@@ -16,7 +16,8 @@ from fees.services.matters import MEMO_DEFAULT_FIELDS
 
 def _form_values(matter=None):
     values = {name: "" for name in MEMO_DEFAULT_FIELDS if name != "addressee_use_firm_name"}
-    values.update(name="", firm_id="", group_id="", addressee_use_firm_name=False, client_id="", client_new="")
+    # A new matter uses the firm name as the addressee unless the tick is taken off (owner round 2026-12).
+    values.update(name="", firm_id="", group_id="", addressee_use_firm_name=True, client_id="", client_new="")
     if matter is not None:
         for name in MEMO_DEFAULT_FIELDS:
             values[name] = getattr(matter, name)

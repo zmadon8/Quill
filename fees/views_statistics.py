@@ -174,6 +174,14 @@ def metric_choices(visible):
     return [{"key": key, "label": label, "on": visible is None or key in visible} for key, label, _money in xlsx.STAT_METRIC_ROWS]
 
 
+def _shown(key, value):
+    """A stored replacement as the grid shows it: the appearance, conference and draft counts are kept as decimals in the database
+    (3.00), but they are whole numbers, so they show (and are sent back) as 3."""
+    if value is not None and key in ("override_appearances", "override_conferences", "override_drafts") and value == value.to_integral_value():
+        return int(value)
+    return value
+
+
 def adjustment_rows(profile, fy):
     """Twelve month rows in financial-year order, each with the saved adjustment values (blank when none)."""
     saved = {row["month"]: row for row in statistics.list_adjustments(profile, fy)}
@@ -189,7 +197,7 @@ def adjustment_rows(profile, fy):
                     for key in _ADJUSTMENT_COUNTS
                 ],
                 "overrides": [
-                    {"key": key, "label": key[len("override_"):].replace("_", " ").capitalize(), "value": row.get(key)}
+                    {"key": key, "label": key[len("override_"):].replace("_", " ").capitalize(), "value": _shown(key, row.get(key))}
                     for key in _ADJUSTMENT_OVERRIDES
                 ],
             }

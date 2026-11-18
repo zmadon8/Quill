@@ -152,8 +152,15 @@ def parse_int(text, label="Number", default=0):
         return default
     try:
         number = int(value)
-    except ValueError as exc:
-        raise FeesError("INVALID_NUMBER", f"{label} must be a whole number.") from exc
+    except ValueError:
+        # "3.00" or "3.0" (a figure the page showed back from a stored decimal) is the whole number 3.
+        try:
+            exact = Decimal(value)
+        except InvalidOperation as exc:
+            raise FeesError("INVALID_NUMBER", f"{label} must be a whole number.") from exc
+        if not exact.is_finite() or exact != exact.to_integral_value():
+            raise FeesError("INVALID_NUMBER", f"{label} must be a whole number.")
+        number = int(exact)
     if number < 0 or number > MAX_COUNT:
         raise FeesError("INVALID_NUMBER", f"{label} must be between 0 and {format_currency(MAX_COUNT)}.")
     return number
@@ -190,6 +197,12 @@ def posted_row_indexes(post):
     return sorted(found)
 
 
+def _today_iso():
+    from django.utils import timezone
+
+    return timezone.localdate().isoformat()
+
+
 def blank_payment_form(config, memo=None, prefill=None):
     """A new payment form's starting values. ``memo`` is a ``memos.get_memo`` dict; ``prefill`` a
     ``payments.payment_prefill`` dict (the amount to suggest)."""
@@ -199,7 +212,7 @@ def blank_payment_form(config, memo=None, prefill=None):
         "tds_rate": _text(config.get("default_tds_rate", "0")),
         "auto_tds": bool(prefill.get("auto_tds", True)),
         "tds_amount": _text(prefill.get("tds_amount", "")) if prefill.get("tds_amount") else "",
-        "date_of_payment": "",
+        "date_of_payment": _today_iso(),   # a new payment starts on today's date (owner round 2026-12)
         "payee": "",
         "bank_account_id": "",
         "payment_mode": "",
@@ -294,6 +307,11 @@ def clean_text(post, name, model, label=None):
     return value
 
 
+def _additional_details_off(post):
+    """True when the form showed the Additional Details tick (its marker was sent) and it was left off: both boxes are then cleared."""
+    return post.get("additional_details_present") == "1" and post.get("additional_details") != "1"
+
+
 def memo_data_from_post(post):
     """The memo dict for ``memos.create_memo`` / ``update_memo`` from a submitted memo form.
 
@@ -308,6 +326,8 @@ def memo_data_from_post(post):
     }
     for name in MEMO_TEXT_FIELDS:
         data[name] = clean_text(post, name, Memo)
+    if _additional_details_off(post):
+        data["additional_details_left"] = data["additional_details_right"] = ""
     for name in MEMO_COUNT_FIELDS:
         data[name] = parse_int(post.get(name), name.replace("_", " ").capitalize())
     for name in MEMO_RATE_FIELDS:
@@ -388,6 +408,10 @@ def matter_data_from_post(post):
             defaults[name] = (post.get(name) or "") == "1"
         else:
             defaults[name] = clean_text(post, name, Matter)
+    if _additional_details_off(post):
+        for name in ("additional_details_left", "additional_details_right"):
+            if name in defaults:
+                defaults[name] = ""
     firm = (post.get("firm_id") or "").strip()
     group = (post.get("group_id") or "").strip()
     return (
@@ -409,6 +433,7 @@ SETTINGS_FLAGS = (
     "show_status_dots",
     "statistics_enabled",
     "show_bank",
+    "written_off_enabled",
     "memo_signature_default",
 )
 #: Settings keys that are text or choices (passed through as typed; the service validates them).

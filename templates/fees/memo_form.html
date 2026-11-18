@@ -46,8 +46,7 @@
   <label>Addressee, second line (Enter for a new line) <textarea name="addressee_line2" rows="1" style="resize:vertical" maxlength="300">{{ form.addressee_line2 }}</textarea></label>
   <label>Cause title <textarea name="court_name" rows="4">{{ form.court_name }}</textarea></label>
   <label>Brief on Behalf of <input type="text" name="client_position" value="{{ form.client_position }}"></label>
-  <label>Additional details (left) <textarea name="additional_details_left" rows="1">{{ form.additional_details_left }}</textarea></label>
-  <label>Additional details (right) <textarea name="additional_details_right" rows="1">{{ form.additional_details_right }}</textarea></label>
+  {% include "fees/_additional_details.html" %}
   <label>Plaintiff name <input type="text" name="plaintiff_name" value="{{ form.plaintiff_name }}"></label>
   <label>Plaintiff type {% include "fees/_party_type.html" with name="plaintiff_type" label="Plaintiff type" types=party_types.plaintiff value=form.plaintiff_type %}</label>
   <label>Defendant name <input type="text" name="defendant_name" value="{{ form.defendant_name }}"></label>
@@ -99,4 +98,4 @@
   </p>{% endif %}
 </form>
 {% endblock %}
-{% block page_js %}{% if can_edit %}<script src="{% static 'js/fees/party-type.js' %}"></script><script src="{% static 'js/fees/memo-form.js' %}"></script><script src="{% static 'js/fees/memo-picker.js' %}"></script>{% endif %}{% endblock %}
+{% block page_js %}{% if can_edit %}<script src="{% static 'js/fees/party-type.js' %}"></script><script src="{% static 'js/fees/additional-details.js' %}"></script><script src="{% static 'js/fees/memo-form.js' %}"></script><script src="{% static 'js/fees/memo-picker.js' %}"></script>{% endif %}{% endblock %}

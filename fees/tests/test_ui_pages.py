@@ -235,12 +235,22 @@ class MemoScreenTests(UiPageBase):
             self.assertNotIn("View Filters", bar, name)
             self.assertNotIn("Reset Filters", bar, name)
             self.assertNotIn("<dialog", bar, name)
-            self.assertNotIn('name="unpaid"', bar, name)
+            self.assertEqual('name="unpaid"' in bar, name == "fees_memos", name)   # Outstanding Only, on Memos
             self.assertLess(bar.index('name="fy"'), bar.index('name="firm"'))
             self.assertLess(bar.index('name="firm"'), bar.index('name="group"'))
             self.assertLess(bar.index('name="group"'), bar.index('name="matter"'))
             self.assertEqual(bar.count(' class="capped"'), 3, name)
-            self.assertEqual(bar.count("this.form.submit()"), 4, name)   # the year and each of the three apply at once
+            self.assertEqual(bar.count("this.form.submit()"), 5 if name == "fees_memos" else 4, name)   # each applies at once
+
+    def test_outstanding_all_memos_filters_apply_at_once_with_capped_lists(self):
+        text = self.html(self.page("fees_outstanding_detail"))
+        start = text.index('aria-label="Filter outstanding memos"')
+        bar = text[start:text.index("</form>", start)]
+        self.assertEqual(bar.count('<button type="submit">Filter</button>'), bar.count('<noscript><button type="submit">Filter</button></noscript>'))
+        for name in ("firm", "group", "client"):
+            self.assertRegex(bar, r'<select name="%s" class="capped" onchange="' % name)
+        for name in ("view", "sort"):
+            self.assertIn('<select name="%s" onchange="this.form.submit()"' % name, bar)
 
     def test_editor_ticks_memos_to_pay_instead_of_a_payment_button(self):
         editor = self.html(self.page("fees_memos", user=self.editor))
@@ -466,6 +476,8 @@ class FirmScreenTests(UiPageBase):
         i = self.ids()
         text = self.assert_page(self.page("fees_matter_detail", {"matter_id": i["matter"]}), "matter")
         self.assertIn('data-fees-columns="matter-memos"', text)
+        self.assertIn('name="outstanding" value="1" onchange="this.form.submit()"> Outstanding Only</label>', text)   # a tick, as on Memos
+        self.assertNotIn('class="list-filter" aria-label="Show memos"', text)
         self.assertIn('<th scope="col" class="money">Apps</th>', text)
         self.assertIn('<th scope="col" class="money">Confs</th>', text)
         self.assertNotIn(">Payment</a>", text)
@@ -488,22 +500,53 @@ class FirmScreenTests(UiPageBase):
         self.assertIn('name="firm_id" value="%d"' % other, moved)
 
     def test_matter_form_layout(self):
-        # Client Position sits under Short name; the firm-name tick comes before the two addressee lines, which share one row;
-        # the plaintiff and defendant Type boxes sit on their own lines (they were labelled "as").
+        # Laid out like the memo form (owner round 2026-12): the firm-name tick, then the two addressee lines, the cause title,
+        # Brief on Behalf of, the Additional Details tick and the parties, each a drop-down type beside its name.
         i = self.ids()
         Matter.objects.filter(pk=i["matter"]).update(addressee_use_firm_name=True, addressee_line1="Kept")
         edit = self.html(self.page("fees_matter_edit", {"matter_id": i["matter"]}, user=self.editor))
-        order = [edit.index(x) for x in ('name="short_name"', 'name="client_position"', 'name="addressee_use_firm_name"',
-                                         'name="addressee_line1"', 'name="addressee_line2"', 'name="court_name"')]
+        self.assertIn('class="fees-form memo-form"', edit)
+        order = [edit.index(x) for x in ('name="short_name"', 'name="addressee_use_firm_name"', 'name="addressee_line1"', 'name="addressee_line2"',
+                                         'name="court_name"', 'name="client_position"', 'name="additional_details"', 'name="plaintiff_name"',
+                                         'name="defendant_name"')]
         self.assertEqual(order, sorted(order))
-        row = edit.split("data-addressee-lines>")[1].split("</p>")[0]
-        self.assertIn('name="addressee_line1" value="Kept" maxlength="300" readonly aria-disabled="true"', row)
-        self.assertIn('name="addressee_line2"', row)
+        self.assertIn('name="addressee_line1" value="Kept" maxlength="300" readonly aria-disabled="true"', edit)
+        self.assertIn(">Cause title <textarea", edit)
+        self.assertNotIn("Details, left", edit)
         for side in ("plaintiff", "defendant"):
-            line = edit.split('name="%s_name"' % side)[1].split("</p>")[0]
-            self.assertIn('>Type \n<select name="%s_type_choice"' % side, line)
-        self.assertNotIn(">as <input", edit)
+            self.assertIn('<select name="%s_type_choice"' % side, edit)
         self.assertIn("js/fees/matter-form.js", edit)
+        self.assertIn("js/fees/additional-details.js", edit)
+
+    def test_additional_details_tick_is_off_and_hides_the_boxes_until_there_is_text(self):
+        i = self.ids()
+        for name, kwargs in (("fees_matter_edit", {"matter_id": i["matter"]}), ("fees_memo_new", None)):
+            Matter.objects.filter(pk=i["matter"]).update(additional_details_left="", additional_details_right="")
+            text = self.html(self.page(name, kwargs, user=self.editor))
+            self.assertRegex(text, r'<input type="checkbox" name="additional_details" value="1" data-addl-tick> Additional Details', name)
+            self.assertEqual(text.count("<label data-addl-box hidden>"), 2, name)
+        Matter.objects.filter(pk=i["matter"]).update(additional_details_left="Left text")
+        text = self.html(self.page("fees_matter_edit", {"matter_id": i["matter"]}, user=self.editor))
+        self.assertIn('data-addl-tick checked>', text)
+        self.assertEqual(text.count("<label data-addl-box>"), 2)
+
+    def test_additional_details_are_cleared_when_the_tick_is_left_off(self):
+        from fees.forms import memo_data_from_post
+
+        base = {"matter_id": "1", "date": "2026-08-01", "additional_details_left": "L", "additional_details_right": "R"}
+        kept = memo_data_from_post({**base, "additional_details_present": "1", "additional_details": "1"})
+        self.assertEqual((kept["additional_details_left"], kept["additional_details_right"]), ("L", "R"))
+        cleared = memo_data_from_post({**base, "additional_details_present": "1"})
+        self.assertEqual((cleared["additional_details_left"], cleared["additional_details_right"]), ("", ""))
+        self.assertEqual(memo_data_from_post(base)["additional_details_left"], "L")   # a form without the tick is unchanged
+
+    def test_a_new_matter_uses_the_firm_name_as_the_addressee_and_a_new_payment_starts_today(self):
+        from django.utils import timezone
+
+        new = self.html(self.page("fees_matter_new", user=self.editor))
+        self.assertIn('name="addressee_use_firm_name" value="1" data-addressee-firm checked>', new)
+        payment = self.html(self.page("fees_payment_new", user=self.editor))
+        self.assertIn('name="date_of_payment" value="%s"' % timezone.localdate().isoformat(), payment)
 
     def test_client_position_is_not_shown_beside_the_firm_and_matter(self):
         # Client Position is only for the memo exported to Word (owner round 2026-11), so no page lists it.
@@ -627,7 +670,7 @@ class FeebookAndPaymentTests(UiPageBase):
         text = self.html(self.page("fees_payment_new", user=self.editor))
         matter = self.seed["matter_1"]
         parts = [memo.memo_number, matter.firm.name, matter.name] + ([matter.client.name] if matter.client_id else [])
-        label = escape("%s (Rs 14,000 Due)" % " \u00b7 ".join(parts))
+        label = escape(" \u00b7 ".join(parts))   # the amount due is beside the drop-down, not inside it
         self.assertIn('<option value="%s" data-due="14000.00">%s</option>' % (memo.memo_number, label), text)
         self.assertIn('<option value="">Select...</option>', text)
 
@@ -656,7 +699,8 @@ class FeebookAndPaymentTests(UiPageBase):
         memo = self.new_memos(1)[0]
         dto = payments.add_payment_to_memo(self.profile, memo.pk, {"amount": 14000, "date_of_payment": "2026-08-01"})
         text = self.html(self.page("fees_payment_edit", {"payment_id": dto["id"]}, user=self.editor))
-        self.assertRegex(text, r'<option value="%s" data-due="0.00" selected>[^<]*\(Rs 0 Due\)</option>' % re.escape(memo.memo_number))
+        self.assertRegex(text, r'<option value="%s" data-due="0.00" selected>[^<]*</option>' % re.escape(memo.memo_number))
+        self.assertIn("Due <strong>Rs 0</strong>", text)   # beside the drop-down
 
     def test_options_cost_one_query_however_many_rows(self):
         found = self.new_memos(6)
@@ -986,6 +1030,21 @@ class StatisticsPageTests(UiPageBase):
         self.assertIn('name="working_days" value="21"', text)
         self.assertIn('value="5000', text)
         self.assertIn("Adjustments saved.", text)
+
+    def test_a_month_with_replaced_counts_can_be_saved_again(self):
+        # The replaced counts are stored as decimals (3.00); the grid showed them back as "3.00", which then failed as "not a
+        # whole number" on the next save of that month. They now show as whole numbers, and "3.00" is accepted too.
+        self.login(self.editor)
+        url = reverse("fees_settings_statistics_grid")
+        base = {"return_to": "settings", "fy": "2026-27", "month": "5"}
+        self.client.post(url, {**base, "working_days": "20", "override_appearances": "3"})
+        text = self.html(self.client.get(reverse("fees_settings") + "?fy=2026-27"))
+        self.assertIn('name="override_appearances" value="3" ', text)
+        response = self.client.post(url, {**base, "working_days": "22", "override_appearances": "3.00"})
+        text = self.html(self.client.get(response["Location"]))
+        self.assertIn("Adjustments saved.", text)
+        self.assertNotIn("whole number", text)
+        self.assertIn('name="working_days" value="22"', text)
 
     def test_edit_form_error_is_a_message_not_json(self):
         self.login(self.editor)

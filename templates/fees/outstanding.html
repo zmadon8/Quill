@@ -6,7 +6,7 @@
 {% include "fees/_outstanding_tabs.html" with tab="firm" %}
 <form method="get" class="filters" aria-label="Filter outstanding memos">
   <input type="hidden" name="sort" value="{% if sort_descending %}-{% endif %}{{ sort_key }}">
-  <label><input type="checkbox" name="written_off" value="1"{% if filters.include_written_off %} checked{% endif %} onchange="this.form.submit()"> Include Written Off Memos</label>
+  {% if fees_written_off_on %}<label><input type="checkbox" name="written_off" value="1"{% if filters.include_written_off %} checked{% endif %} onchange="this.form.submit()"> Include Written Off Memos</label>{% endif %}
   {% if fees_overdue_on %}<label><input type="checkbox" name="overdue" value="1"{% if filters.overdue_only %} checked{% endif %} onchange="this.form.submit()"> View Overdue Memos Only</label>{% endif %}
   <noscript><button type="submit">Filter</button></noscript>
 </form>

@@ -125,6 +125,7 @@
       settingsFallback = d.fallback || {};
       setMatter(d.matter_id, d.archived);
       var kept = applyDefaults(d.fields || {});
+      if (window.FeesAdditionalDetails) { window.FeesAdditionalDetails.sync(); }
       say("Defaults loaded." + (kept ? " " + kept + " box" + (kept === 1 ? "" : "es") + " you had filled in " + (kept === 1 ? "was" : "were") + " kept." : ""));
     }).catch(function () { if (mine === defaultsSeq) { say("Could not load the defaults."); } });
   }

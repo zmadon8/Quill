@@ -429,7 +429,7 @@ _SETTINGS_TEXT = (
 )
 _SETTINGS_SHEET_COLUMNS = ["id"] + [name for name, _kind, _default in SETTINGS_COLUMNS]
 _WEB_TEXT_KEYS = ("export_owner_name", "memo_filename_pattern") + tuple(MEMO_TEXT_DEFAULT_KEYS)
-_WEB_BOOL_KEYS = ("statistics_enabled", "show_bank")
+_WEB_BOOL_KEYS = ("statistics_enabled", "show_bank", "written_off_enabled")
 #: Older files: the Dashboard switches now merged into Statistics (any one off turns it off).
 _LEGACY_STATISTICS_KEYS = ("dashboard_kpis_enabled", "dashboard_enabled")
 
