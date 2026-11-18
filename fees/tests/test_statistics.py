@@ -626,9 +626,9 @@ class QueryCountTests(TestCase):
         with self.assertNumQueries(5):
             get_period_statistics(self.profile, "month", "2025-26", {}, NOW)
 
-    def test_pivot_billed_is_two_queries(self):
-        # settings read + the single memo driving query.
-        with self.assertNumQueries(2):
+    def test_pivot_billed_is_three_queries(self):
+        # settings read + the single memo driving query + the Edit Statistics figures (one read, D229).
+        with self.assertNumQueries(3):
             get_pivot(
                 self.profile,
                 {"measure": "billed", "row_dim": "financialYear", "col_dim": "none"},
