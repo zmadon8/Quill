@@ -8,7 +8,7 @@
   //   with its amount due (or what is left of the payment) at the row's rate. With the row's auto box ticked, its
   //   TDS follows its amount until you type your own.
   // - Remaining: the gross amount (received plus TDS) less what the rows take.
-  // - Payee chips: names used before on payments for the memos' matters (data-payees-url, data-matters).
+  // - Payee chips: names used before on payments for the memos' matters, each with the firm and client (data-payees-url, data-matters).
   var form = document.querySelector("[data-payment-form]");
   if (!form) { return; }
   var M = window.FeesMoney;
@@ -198,7 +198,8 @@
           var b = document.createElement("button");
           b.type = "button";
           b.className = "chip";
-          b.textContent = p.payee;
+          // The firm and the client of the matter paid for are shown too; a click fills in the payee only.
+          b.textContent = [p.payee, p.firm, p.client].filter(Boolean).join(" \u00b7 ");
           b.addEventListener("click", function () { form.elements.payee.value = p.payee; form.elements.payee.focus(); });
           list.appendChild(b);
           list.appendChild(document.createTextNode(" "));

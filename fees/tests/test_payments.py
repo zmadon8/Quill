@@ -632,6 +632,16 @@ class PayeesForMattersTests(TestCase):
         acme = next(r for r in result if r["payee"].lower() == "acme")
         self.assertEqual(acme["count"], 2)
 
+    def test_each_suggestion_names_the_firm_and_the_client(self):
+        from fees.services import clients
+
+        client = clients.create_client(self.profile, self.matter.firm_id, "Acme Ltd")
+        self.matter.client = client
+        self.matter.save()
+        payments.add_payment_to_memo(self.profile, self.memo.pk, {"amount": 100, "date_of_payment": "2026-08-01", "payee": "Acme"})
+        (row,) = payments.payees_for_matters(self.profile, [self.matter.pk])
+        self.assertEqual((row["payee"], row["firm"], row["client"]), ("Acme", self.matter.firm.name, "Acme Ltd"))
+
     def test_blank_payees_ignored(self):
         payments.add_payment_to_memo(
             self.profile,

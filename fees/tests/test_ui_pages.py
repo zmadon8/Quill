@@ -611,7 +611,9 @@ class FeebookAndPaymentTests(UiPageBase):
     def test_memo_options_show_number_matter_and_amount_due(self):
         memo = self.new_memos(1, date="2030-03-01")[0]
         text = self.html(self.page("fees_payment_new", user=self.editor))
-        label = escape("%s \u00b7 %s (Rs 14,000 Due)" % (memo.memo_number, self.seed["matter_1"].name))
+        matter = self.seed["matter_1"]
+        parts = [memo.memo_number, matter.firm.name, matter.name] + ([matter.client.name] if matter.client_id else [])
+        label = escape("%s (Rs 14,000 Due)" % " \u00b7 ".join(parts))
         self.assertIn('<option value="%s" data-due="14000.00">%s</option>' % (memo.memo_number, label), text)
         self.assertIn('<option value="">Select...</option>', text)
 

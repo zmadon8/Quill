@@ -666,10 +666,10 @@ def list_payments_for_memo(profile, memo_id) -> list:
 def payees_for_matters(profile, matter_ids) -> list:
     """Distinct non-blank payees on payments allocated to memos of ``matter_ids`` (R-PAY-6).
 
-    Grouped case-insensitively on the trimmed payee, ordered by the last payment
-    date descending then the count descending. Returns dicts
-    ``{payee, count, last_date}`` where ``payee`` is the spelling on the latest
-    payment. A pure read: it does NOT bump ``data_version``.
+    Grouped case-insensitively on the trimmed payee and by the firm and client of the matter paid for (owner round
+    2026-12: a suggestion always says whose matter it was), ordered by the last payment date descending then the
+    count descending. Returns dicts ``{payee, firm, client, count, last_date}`` where ``payee`` is the spelling on
+    the latest payment and ``client`` is "" when the matter has none. A pure read: it does NOT bump ``data_version``.
     """
     ids = [mid for mid in (matter_ids or []) if mid is not None]
     if not ids:
@@ -681,7 +681,7 @@ def payees_for_matters(profile, matter_ids) -> list:
         )
         .exclude(payee="")
         .distinct()
-        .values("id", "payee", "date_of_payment")
+        .values("id", "payee", "date_of_payment", "allocations__memo__matter__firm__name", "allocations__memo__matter__client__name")
     )
 
     groups = {}
@@ -689,12 +689,16 @@ def payees_for_matters(profile, matter_ids) -> list:
         payee = (row["payee"] or "").strip()
         if not payee:
             continue
-        key = payee.lower()
+        firm = row["allocations__memo__matter__firm__name"] or ""
+        client = row["allocations__memo__matter__client__name"] or ""
+        key = (payee.lower(), firm, client)
         pay_date = row["date_of_payment"]
         bucket = groups.get(key)
         if bucket is None:
             groups[key] = {
                 "payee": payee,
+                "firm": firm,
+                "client": client,
                 "count": 1,
                 "last_date": pay_date,
             }
