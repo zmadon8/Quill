@@ -190,6 +190,12 @@ def posted_row_indexes(post):
     return sorted(found)
 
 
+def _today_iso():
+    from django.utils import timezone
+
+    return timezone.localdate().isoformat()
+
+
 def blank_payment_form(config, memo=None, prefill=None):
     """A new payment form's starting values. ``memo`` is a ``memos.get_memo`` dict; ``prefill`` a
     ``payments.payment_prefill`` dict (the amount to suggest)."""
@@ -199,7 +205,7 @@ def blank_payment_form(config, memo=None, prefill=None):
         "tds_rate": _text(config.get("default_tds_rate", "0")),
         "auto_tds": bool(prefill.get("auto_tds", True)),
         "tds_amount": _text(prefill.get("tds_amount", "")) if prefill.get("tds_amount") else "",
-        "date_of_payment": "",
+        "date_of_payment": _today_iso(),   # a new payment starts on today's date (owner round 2026-12)
         "payee": "",
         "bank_account_id": "",
         "payment_mode": "",

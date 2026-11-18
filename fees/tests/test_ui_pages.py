@@ -530,6 +530,14 @@ class FirmScreenTests(UiPageBase):
         self.assertEqual((cleared["additional_details_left"], cleared["additional_details_right"]), ("", ""))
         self.assertEqual(memo_data_from_post(base)["additional_details_left"], "L")   # a form without the tick is unchanged
 
+    def test_a_new_matter_uses_the_firm_name_as_the_addressee_and_a_new_payment_starts_today(self):
+        from django.utils import timezone
+
+        new = self.html(self.page("fees_matter_new", user=self.editor))
+        self.assertIn('name="addressee_use_firm_name" value="1" data-addressee-firm checked>', new)
+        payment = self.html(self.page("fees_payment_new", user=self.editor))
+        self.assertIn('name="date_of_payment" value="%s"' % timezone.localdate().isoformat(), payment)
+
     def test_client_position_is_not_shown_beside_the_firm_and_matter(self):
         # Client Position is only for the memo exported to Word (owner round 2026-11), so no page lists it.
         i = self.ids()
