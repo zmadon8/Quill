@@ -152,8 +152,15 @@ def parse_int(text, label="Number", default=0):
         return default
     try:
         number = int(value)
-    except ValueError as exc:
-        raise FeesError("INVALID_NUMBER", f"{label} must be a whole number.") from exc
+    except ValueError:
+        # "3.00" or "3.0" (a figure the page showed back from a stored decimal) is the whole number 3.
+        try:
+            exact = Decimal(value)
+        except InvalidOperation as exc:
+            raise FeesError("INVALID_NUMBER", f"{label} must be a whole number.") from exc
+        if not exact.is_finite() or exact != exact.to_integral_value():
+            raise FeesError("INVALID_NUMBER", f"{label} must be a whole number.")
+        number = int(exact)
     if number < 0 or number > MAX_COUNT:
         raise FeesError("INVALID_NUMBER", f"{label} must be between 0 and {format_currency(MAX_COUNT)}.")
     return number

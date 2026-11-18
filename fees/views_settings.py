@@ -279,7 +279,8 @@ def _save_adjustment(profile, post):
         "extra_drafts": forms.parse_int(post.get("extra_drafts"), "Extra drafts"),
     }
     for key in ("override_appearances", "override_conferences", "override_drafts"):
-        adjustment[key] = _optional(post.get(key), lambda v, k=key: forms.parse_int(v, k))
+        label = "Replace " + key[len("override_"):]
+        adjustment[key] = _optional(post.get(key), lambda v, k=label: forms.parse_int(v, k))
     for key in ("override_billed", "override_received", "override_received_plus_tds"):
         adjustment[key] = forms.parse_decimal(post.get(key), key)
     statistics.save_adjustment(profile, adjustment)

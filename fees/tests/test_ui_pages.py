@@ -1030,6 +1030,21 @@ class StatisticsPageTests(UiPageBase):
         self.assertIn('value="5000', text)
         self.assertIn("Adjustments saved.", text)
 
+    def test_a_month_with_replaced_counts_can_be_saved_again(self):
+        # The replaced counts are stored as decimals (3.00); the grid showed them back as "3.00", which then failed as "not a
+        # whole number" on the next save of that month. They now show as whole numbers, and "3.00" is accepted too.
+        self.login(self.editor)
+        url = reverse("fees_settings_statistics_grid")
+        base = {"return_to": "settings", "fy": "2026-27", "month": "5"}
+        self.client.post(url, {**base, "working_days": "20", "override_appearances": "3"})
+        text = self.html(self.client.get(reverse("fees_settings") + "?fy=2026-27"))
+        self.assertIn('name="override_appearances" value="3" ', text)
+        response = self.client.post(url, {**base, "working_days": "22", "override_appearances": "3.00"})
+        text = self.html(self.client.get(response["Location"]))
+        self.assertIn("Adjustments saved.", text)
+        self.assertNotIn("whole number", text)
+        self.assertIn('name="working_days" value="22"', text)
+
     def test_edit_form_error_is_a_message_not_json(self):
         self.login(self.editor)
         response = self.client.post(
