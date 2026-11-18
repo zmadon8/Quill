@@ -707,3 +707,45 @@ class StatisticsMemoryTests(TestCase):
                 profile,
                 {"measure": "billed", "row_dim": "month", "col_dim": "financialYear"},
             )
+
+
+class ExploreUsesEditStatisticsTests(TestCase):
+    """Explore uses the figures typed in Settings > Edit Statistics, as Standard does (D229)."""
+
+    def setUp(self):
+        from fees.services.statistics import save_adjustment
+
+        self.profile = fees_profile("Explore-Adjust")
+        early_initial_fy(self.profile)
+        firm = make_firm(self.profile, "Firm")
+        group = make_group(self.profile, firm, "P")
+        matter = make_matter(self.profile, firm, group, "M")
+        make_memo(self.profile, matter, "2026-07-15", apps=1, fee=100)   # July 2026: 1 appearance, billed 100
+        self.firm = firm
+        save_adjustment(self.profile, {"financial_year": "2026-27", "month": 7, "extra_appearances": 2, "override_billed": Decimal("500")})
+        save_adjustment(self.profile, {"financial_year": "2026-27", "month": 8, "override_billed": Decimal("300")})   # no memo in August
+
+    def pivot(self, **req):
+        return get_pivot(self.profile, {"col_dim": "none", **req})
+
+    def test_extras_and_replacements_change_the_time_rows(self):
+        apps = self.pivot(measure="appearances", row_dim="month")
+        by_month = {r["key"]: r["total"] for r in apps["rows"]}
+        self.assertEqual(by_month["2026-27-07"], 3)
+        self.assertTrue(apps["adjusted"])
+        billed = self.pivot(measure="billed", row_dim="financialYear")
+        self.assertEqual({r["key"]: r["total"] for r in billed["rows"]}["2026-27"], Decimal("800"))
+        by_month = {r["key"]: r["total"] for r in self.pivot(measure="billed", row_dim="month")["rows"]}
+        self.assertEqual((by_month["2026-27-07"], by_month["2026-27-08"]), (Decimal("500"), Decimal("300")))
+
+    def test_firm_rows_or_a_chosen_firm_leave_them_out_and_say_so(self):
+        by_firm = self.pivot(measure="billed", row_dim="firm")
+        self.assertEqual(by_firm["grand_total"], Decimal("100"))
+        self.assertFalse(by_firm["adjusted"])
+        self.assertTrue(by_firm["adjustments_left_out"])
+        one_firm = self.pivot(measure="billed", row_dim="financialYear", firm_id=self.firm.pk)
+        self.assertEqual(one_firm["grand_total"], Decimal("100"))
+
+    def test_a_year_outside_the_range_is_not_used(self):
+        later = self.pivot(measure="billed", row_dim="financialYear", from_fy="2027-28")
+        self.assertEqual(later["grand_total"], 0)
