@@ -72,6 +72,15 @@ class User(AbstractUser):
     home_show_figures = models.BooleanField("Show figures on the Home page", default=True)
     # Owner round (2026-11): Case Law Diary display. On: no " - " between the Item text and its inline citations. Off (default): as before.
     remove_citation_hyphen = models.BooleanField("Remove the hyphen before the citation", default=False)
+    # Owner round (2026-12): how an Item's citations look on the reading page (a personal choice, on screen only).
+    CITATION_PLAIN, CITATION_BUBBLES, CITATION_ARRANGED = "plain", "bubbles", "arranged"
+    CITATION_STYLE_CHOICES = [
+        (CITATION_PLAIN, "Plain text after a hyphen, always numbered"),
+        (CITATION_BUBBLES, "Bubbles"),
+        (CITATION_ARRANGED, "Bubbles, arranged to fill the space"),
+    ]
+    citation_style = models.CharField("Citations", max_length=10, choices=CITATION_STYLE_CHOICES, default=CITATION_BUBBLES)
+    number_citation_lines = models.BooleanField("Number citations on separate lines", default=True)
     # Who is active (round: markers, payments, activity). ``last_seen_at`` is touched by accounts.middleware at most once
     # a minute; ``can_see_active`` lets an Admin show this user the Active Now panel on Home (Admins always see it).
     last_seen_at = models.DateTimeField(null=True, blank=True)

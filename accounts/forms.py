@@ -286,6 +286,12 @@ class MySettingsForm(forms.ModelForm):
             return self.instance.header_initials
         return value
 
+    def clean_citation_style(self):
+        value = self.cleaned_data.get("citation_style")
+        if "citation_style" not in self.data or not value:
+            return self.instance.citation_style or "bubbles"
+        return value
+
     def clean_investments_period(self):
         value = self.cleaned_data.get("investments_period")
         if "investments_period" not in self.data or not value:
@@ -307,10 +313,22 @@ class MySettingsForm(forms.ModelForm):
             self.fields["header_initials"].help_text = (
                 "Up to 3 letters shown in the round badge at the top right of every page. Blank: the first letters of your first and last name."
             )
+        if "citation_style" in self.fields:
+            self.fields["citation_style"].required = False
+            self.fields["citation_style"].help_text = (
+                "Case Law Diary, on screen. Plain: a hyphen after the Item's text, then each citation and its comment as text, numbered "
+                "(a), (b) when there are two or more. Bubbles: each citation and its comment in a bubble, not numbered when they follow the "
+                "text. Bubbles, arranged: the same bubbles, long ones wrapped onto two lines and short ones stacked, so more fit beside the text."
+            )
+        if "number_citation_lines" in self.fields:
+            self.fields["number_citation_lines"].required = False
+            self.fields["number_citation_lines"].help_text = (
+                "For the two bubble styles: number the citations (a), (b) when an Item shows them on separate lines. The plain style always numbers them."
+            )
         if "remove_citation_hyphen" in self.fields:
             self.fields["remove_citation_hyphen"].required = False
             self.fields["remove_citation_hyphen"].help_text = (
-                "Case Law Diary, on screen: leaves out the hyphen between an Item's text and its citations. Off: the hyphen is shown."
+                "Case Law Diary, on screen, the plain style: leaves out the hyphen between an Item's text and its citations. Off: the hyphen is shown."
             )
         if "email" in self.fields:
             self.fields["email"].help_text = "Used only to email you a link if you forget your password."
@@ -371,7 +389,7 @@ class MyCitationForm(MySettingsForm):
     landing_program = None  # only Start Screens has this field
 
     class Meta(MySettingsForm.Meta):
-        fields = ("remove_citation_hyphen",)
+        fields = ("citation_style", "number_citation_lines", "remove_citation_hyphen")
 
 
 class MyInvestmentsForm(MySettingsForm):

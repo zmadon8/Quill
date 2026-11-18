@@ -111,7 +111,10 @@ def header_style(request):
     group_digits = bool(signed_in and getattr(user, "group_digits", False))
     theme = (getattr(user, "colour_theme", "") if signed_in else "") or "oxblood"
     return {"header_words": True, "justify_text": justify, "group_digits": group_digits, "colour_theme": theme,
-            "remove_citation_hyphen": bool(signed_in and getattr(user, "remove_citation_hyphen", False))}
+            "remove_citation_hyphen": bool(signed_in and getattr(user, "remove_citation_hyphen", False)),
+            # Owner round (2026-12): the citation style of the reading page and whether citations on separate lines are numbered.
+            "citation_style": (getattr(user, "citation_style", "") if signed_in else "") or "bubbles",
+            "number_citation_lines": bool(getattr(user, "number_citation_lines", True)) if signed_in else True}
 
 
 #: The main Home page header (D86): each entry is one header item; its tabs are the sub-pages shown across the top of
