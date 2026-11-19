@@ -1,10 +1,14 @@
 from django.urls import include, path
 from django.views.generic import RedirectView
 
+from config import csp
+
 # Browser page requests go Home; anything else gets templates/404.html. See diary/not_found.py.
 handler404 = "diary.not_found.not_found"
 
 urlpatterns = [
+    # Browsers send Content-Security-Policy reports here (report-only; see config/csp.py).
+    path("csp-report/", csp.report, name="csp_report"),
     path("", include("accounts.urls")),
     path("", include("diary.root_urls")),
     # /caselaw and /caselaw/ go to the Subjects page, /caselaw/subjects/ (permanent, as the owner asked).
