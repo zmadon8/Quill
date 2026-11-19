@@ -17,3 +17,15 @@ body.ledger .stat-table :is(td, th).current-col, body.ledger .stat-table :is(td,
 body.ledger .stat-table td.total-col { font-weight: 600; }
 body.ledger .stat-table thead th:first-child { position: sticky; left: 0; z-index: 3; }
 body.ledger .stat-table td.hand { font-style: italic; color: var(--accent); cursor: help; }
+
+/* Explore chart: hover, touch and keyboard values (chart-hover.js, as in the Investments charts). */
+body.ledger .chart-plot { position: relative; width: max-content; }
+body.ledger .pivot-chart svg.hv { touch-action: pan-y; cursor: crosshair; }
+body.ledger .pivot-chart svg.hv:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+body.ledger .pivot-chart svg .hv-guide { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; pointer-events: none; }
+body.ledger .pivot-chart .hv-tip { position: absolute; top: 6px; z-index: 5; pointer-events: none; background: var(--card); color: var(--ink); border: 1px solid var(--line-strong); border-radius: 4px; padding: 6px 9px; font-size: .893rem; line-height: 1.4; box-shadow: var(--shadow-float, 0 2px 8px rgba(0,0,0,.15)); white-space: nowrap; }
+body.ledger .pivot-chart .hv-tip[hidden] { display: none; }
+body.ledger .pivot-chart .hv-tip b { display: block; margin-bottom: 2px; }
+body.ledger .pivot-chart .hv-tip span { display: flex; justify-content: space-between; gap: 14px; }
+body.ledger .pivot-chart .hv-tip i { display: inline-block; width: 14px; border-top: 2px solid var(--ink); vertical-align: middle; margin-right: 6px; }
+

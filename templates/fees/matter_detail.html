@@ -9,8 +9,9 @@
 <p class="subtitle muted"><a href="{% url 'fees_firm_detail' matter.firm_id %}">{{ matter.firm.name }}</a> &middot; {% if matter.group %}{{ matter.group.name }}{% else %}No partner{% endif %}{% if matter.client %} &middot; Client: {{ matter.client.name }}{% endif %}</p>
 {% if matter.notes %}<section class="card" aria-labelledby="notes-heading"><h2 id="notes-heading">Notes</h2><p>{{ matter.notes|linebreaksbr }}</p></section>{% endif %}
 <h2>Memos</h2>
-<form method="get" class="filters" aria-label="Show memos"><label class="check"><input type="checkbox" name="outstanding" value="1"{% if outstanding_only %} checked{% endif %} onchange="this.form.submit()"> Outstanding Only</label><noscript><button type="submit" class="small secondary">Show</button></noscript></form>
-{% include "fees/_memo_table.html" with table_key="matter-memos" matter_view=True pay_ticks=True %}
+{# The Outstanding Only tick box sits in the table toolbar (beside Pay Ticked Memos and Columns) and belongs to this form. #}
+<form method="get" id="matter-filter" aria-label="Show memos"><noscript><button type="submit" class="small secondary">Show Outstanding Only</button></noscript></form>
+{% include "fees/_memo_table.html" with table_key="matter-memos" matter_view=True pay_ticks=True outstanding_toggle=True %}
 {% if can_edit %}<form method="post" class="archive-action" action="{% url 'fees_matter_archive' matter.pk %}">{% csrf_token %}{% if matter.is_archived %}<input type="hidden" name="archive" value="0"><button type="submit">Make This Matter Active</button>{% else %}<input type="hidden" name="archive" value="1"><button type="submit">Archive This Matter</button>{% endif %}</form>{% endif %}
 {% endblock %}
 {% block page_js %}{% load static %}{% if can_edit %}<script src="{% static 'js/fees/outstanding.js' %}"></script>{% endif %}{% endblock %}

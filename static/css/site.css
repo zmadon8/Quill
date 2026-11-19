@@ -77,6 +77,9 @@ td.fo { display: table-cell }
 /* Tables: sans, hairline rows, serif for the first column is not forced. */
 .table-wrap { overflow-x: auto; }
 table { border-collapse: collapse; width: 100%; }
+/* Data tables (the ones with an id) are as wide as their contents; add .table-full to stretch one. */
+table[data-table-id], table[data-resizable-columns] { width: auto; }
+table[data-table-id].table-full, table[data-resizable-columns].table-full { width: 100%; }
 th { font-weight: 600; font-size: var(--small-size); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); text-align: left; padding: .6rem .5rem; border-bottom: 1px solid var(--ink); }
 td { text-align: left; padding: .75rem .5rem; border-bottom: 1px solid var(--hair); }
 td a { display: inline-block; min-height: var(--tap); line-height: var(--tap); padding: 0 .25rem; }
@@ -305,6 +308,7 @@ th[aria-sort="descending"] a.sort-link::after { content: " \25BC"; font-size: .7
 .col-resizer::after { content: ""; position: absolute; top: 20%; bottom: 20%; right: 6px; border-right: 1px solid var(--muted); }
 .col-resizer:hover::after, .col-resizer:focus-visible::after { border-right: 3px solid var(--focus); right: 5px; }
 .table-tools { margin: 0 0 .5rem; }
+.table-tools[hidden] { display: none !important; }
 
 @media (min-width: 600px) {
   .subject-index { columns: 2; }

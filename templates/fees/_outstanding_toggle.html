@@ -1,0 +1,2 @@
+{# The Outstanding Only tick box of a matter page. It belongs to the form with id matter-filter (a plain GET form), so it can sit in the table toolbar. #}
+<label class="check"><input type="checkbox" name="outstanding" value="1" form="matter-filter"{% if outstanding_only %} checked{% endif %} onchange="this.form.submit()"> Outstanding Only</label>

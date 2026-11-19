@@ -181,15 +181,25 @@
       list.appendChild(reset);
       menu.appendChild(list);
       var wrap = table.closest(".table-wrap, .tw") || table;
+      // Slot rule: a page can name the row where the menu belongs (data-columns-for="<table id>", for example the row with the
+      // Pay Ticked Memos buttons or the filter row), so the menu does not need a row of its own.
+      var slot = null;
+      var slots = document.querySelectorAll("[data-columns-for]");
+      for (var s = 0; s < slots.length; s++) {
+        var target = slots[s].getAttribute("data-columns-for");
+        if (target === id || target === key) { slot = slots[s]; break; }
+      }
       // Compact rule: when a section heading row (.sec) sits right above the table, the menu joins its buttons on that line.
       var head = wrap.previousElementSibling;
-      var acts = head && head.classList.contains("sec") ? head.querySelector(".acts") : null;
-      if (head && head.classList.contains("sec") && !acts) {
+      var acts = !slot && head && head.classList.contains("sec") ? head.querySelector(".acts") : null;
+      if (!slot && head && head.classList.contains("sec") && !acts) {
         acts = document.createElement("div");
         acts.className = "acts";
         head.appendChild(acts);
       }
-      if (acts) {
+      if (slot) {
+        slot.appendChild(menu);
+      } else if (acts) {
         acts.appendChild(menu);
       } else {
         var tools = document.createElement("p");
