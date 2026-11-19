@@ -15,6 +15,12 @@ _IGNORED_ON_HEADINGS = {"sz", "szCs", "color", "rFonts"}
 _RUN_PARTS_OK = {"rPr", "t", "lastRenderedPageBreak"}
 
 
+#: The two parts that are read are refused above this size once unpacked (a real diary is a few MB), and so is a zip with too many entries.
+MAX_PART_BYTES = 150 * 1024 * 1024
+MAX_ENTRIES = 5000
+_PARTS = {"word/document.xml", "word/numbering.xml"}
+
+
 class DocxError(Exception):
     """The file is not a readable Word document, or lacks a part the importer needs."""
 
@@ -59,8 +65,10 @@ def _numbering_formats(numbering_root):
         abstract[a.get(W + "abstractNumId")] = levels
     out = {}
     for n in numbering_root.findall(W + "num"):
-        abstract_id = n.find(W + "abstractNumId").get(W + "val")
-        out[n.get(W + "numId")] = abstract.get(abstract_id, {})
+        abstract_ref = n.find(W + "abstractNumId")
+        if abstract_ref is None:  # a <w:num> with no abstract numbering: nothing to learn from it
+            continue
+        out[n.get(W + "numId")] = abstract.get(abstract_ref.get(W + "val"), {})
     return out
 
 
@@ -68,11 +76,17 @@ def read_docx(data):
     """Parse the bytes of a .docx. Returns (paragraphs, notes) where notes is a dict of facts about the file."""
     try:
         archive = zipfile.ZipFile(io.BytesIO(data))
+        names = archive.namelist()
+        # A small zip can expand to gigabytes (a "zip bomb"): refuse a part that claims to be too big before it is read.
+        too_big = [i.filename for i in archive.infolist() if i.filename in _PARTS and i.file_size > MAX_PART_BYTES]
+        if too_big or len(names) > MAX_ENTRIES:
+            raise DocxError("This Word file is too large to read safely.")
         document = ET.fromstring(archive.read("word/document.xml"))
-        numbering = (
-            ET.fromstring(archive.read("word/numbering.xml")) if "word/numbering.xml" in archive.namelist() else None
-        )
-    except (zipfile.BadZipFile, KeyError, ET.ParseError) as exc:
+        numbering = ET.fromstring(archive.read("word/numbering.xml")) if "word/numbering.xml" in names else None
+    except DocxError:
+        raise
+    except (zipfile.BadZipFile, zipfile.LargeZipFile, KeyError, ET.ParseError, RuntimeError, ValueError, OSError) as exc:
+        # RuntimeError is an encrypted entry; ValueError and OSError are damaged ones.
         raise DocxError("This is not a readable Word (.docx) file.") from exc
     formats = _numbering_formats(numbering) if numbering is not None else {}
 

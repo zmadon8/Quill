@@ -110,7 +110,7 @@ _database_url = os.environ.get("DATABASE_URL", "").strip()
 if _database_url:
     # ssl_require is off: Render's internal database URL does not need it.
     DATABASES = {
-        "default": dj_database_url.parse(_database_url, conn_max_age=600, ssl_require=False)
+        "default": dj_database_url.parse(_database_url, conn_max_age=600, conn_health_checks=True, ssl_require=False)
     }
 elif DEBUG or ALLOW_SQLITE:
     DATABASES = {
@@ -200,6 +200,8 @@ USER_RETENTION_DAYS = max(1, _int("USER_RETENTION_DAYS", 30))
 # Days of edit history kept; older versions are purged nightly (the newest version of every record is always kept).
 HISTORY_RETENTION_DAYS = max(1, _int("HISTORY_RETENTION_DAYS", 30))
 MAX_BACKUP_UPLOAD_MB = _int("MAX_BACKUP_UPLOAD_MB", 30)
+# The most a backup that is already stored may hold once unpacked (the nightly backup of a growing database must stay restorable).
+MAX_BACKUP_STORED_MB = _int("MAX_BACKUP_STORED_MB", 300)
 # Off-site copies: how many days to keep them (the storage itself is chosen by OFFSITE_BACKUP_* env vars).
 OFFSITE_BACKUP_RETENTION_DAYS = max(30, _int("OFFSITE_BACKUP_RETENTION_DAYS", 90))
 
@@ -233,6 +235,9 @@ if _flag("GZIP_RESPONSES", default=True):
     MIDDLEWARE.insert(1, "config.middleware.TextGZipMiddleware")  # right after SecurityMiddleware
 # QUILL_PERF_LOG=1 logs the time and number of database queries of every Investments request (and adds a Server-Timing header). Off by default.
 PERF_LOG = _flag("QUILL_PERF_LOG", default=False)
+# How many proxies add their own entry to the end of X-Forwarded-For (Render: 1). The visitor's address is counted from the end,
+# because the start of that header is whatever the visitor sent (used by the login and password-reset limits).
+TRUSTED_PROXY_HOPS = max(1, _int("TRUSTED_PROXY_HOPS", 1))
 # A "Forgot my password" link works for this many seconds (one hour).
 PASSWORD_RESET_TIMEOUT = _int("PASSWORD_RESET_TIMEOUT", 3600)
 # Largest total size of the files attached to one backup email (files grow by about a third when sent, and most mailboxes refuse more than about 25 MB; Amazon SES refuses more than 10 MB, so set 6 there).

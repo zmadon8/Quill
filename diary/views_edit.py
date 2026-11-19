@@ -141,19 +141,29 @@ def _kind(request):
 
 def _record_id(request, name="id"):
     value = request.POST.get(name, "")
-    if not value.isdigit():
+    if not (value.isascii() and value.isdigit()):  # isdigit alone also accepts characters such as "\u00b2", which int() refuses
         raise Http404("That record does not exist.")
     return int(value)
 
 
+def _number_or_none(value):
+    """A version sent by a page: absent gives None (no check), a whole number is used, anything else is refused (it used to skip the
+    check, so a damaged or hand-made request could overwrite newer work)."""
+    value = (value or "").strip()
+    if not value:
+        return None
+    if value.isascii() and value.isdigit():
+        return int(value)
+    raise ServiceError("That page is out of date. Reload it and try again.")
+
+
 def _version(request):
-    value = request.POST.get("version", "")
-    return int(value) if value.isdigit() else None
+    return _number_or_none(request.POST.get("version", ""))
 
 
 def _index(request):
     value = request.POST.get("index", "")
-    return int(value) if value.isdigit() else None
+    return int(value) if (value.isascii() and value.isdigit()) else None
 
 
 def _parent(request, name="parent"):
@@ -162,7 +172,7 @@ def _parent(request, name="parent"):
     if not value:
         return None
     kind, _, pk = value.partition(":")
-    if kind not in EDIT_KINDS or not pk.isdigit():
+    if kind not in EDIT_KINDS or not (pk.isascii() and pk.isdigit()):
         raise Http404("Unknown place.")
     return kind, int(pk)
 
@@ -193,7 +203,7 @@ def _after(source, name="after", kinds=AFTER_KINDS):
     if not value:
         return None
     kind, _, pk = value.partition(":")
-    if kind not in kinds or not pk.isdigit():
+    if kind not in kinds or not (pk.isascii() and pk.isdigit()):
         raise Http404("Unknown place.")
     return kind, int(pk)
 
@@ -237,8 +247,7 @@ def _choice(request):
 
 
 def _expected(request, name):
-    value = request.POST.get(name, "")
-    return int(value) if value.isdigit() else None
+    return _number_or_none(request.POST.get(name, ""))
 
 
 def _add_page(request):
@@ -250,7 +259,7 @@ def _add_page(request):
     """
     value = request.GET.get("after", "") or request.GET.get("parent", "")
     kind, _, pk = value.partition(":")
-    if kind not in EDIT_KINDS or not pk.isdigit():
+    if kind not in EDIT_KINDS or not (pk.isascii() and pk.isdigit()):
         raise Http404("Unknown place.")
     record = get_record(Ctx(request.profile, request.user), kind, int(pk), lock=False)
     choices = inline.add_choices(request.profile, kind, record)
@@ -654,7 +663,7 @@ def level(request):
     if direction not in ("promote", "demote"):
         raise Http404("Unknown change of level.")
     target_raw = request.POST.get("target", "")
-    target_id = int(target_raw) if target_raw.isdigit() else None
+    target_id = int(target_raw) if (target_raw.isascii() and target_raw.isdigit()) else None
     obj = get_record(Ctx(request.profile, request.user), kind, record_id, lock=False)
     wants_target = direction == "demote" and kind in svc_levels.NEEDS_TARGET
     options = svc_levels.targets(request.profile, request.user, kind, record_id) if wants_target else []

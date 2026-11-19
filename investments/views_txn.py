@@ -603,7 +603,6 @@ def switch_delete(request, pk):
 
 @inv_editor
 def import_statement(request):
-    import json
     import os
     import secrets
     import tempfile

@@ -6,6 +6,7 @@ from decimal import Decimal
 
 from django.conf import settings
 from django.db import transaction
+from django.db.models import F, Q
 from django.utils import timezone
 
 from investments.errors import InvestmentsError
@@ -44,11 +45,14 @@ def authenticate(header):
     if row is None:
         return None
     now = timezone.now()
-    if row.window_start is None or now - row.window_start > timedelta(hours=1):
-        row.window_start, row.window_calls = now, 0
-    row.window_calls += 1
-    row.last_used_at = now
-    row.save(update_fields=["window_start", "window_calls", "last_used_at"])
+    # Counted in the database in one statement, so calls arriving together are not lost (a read, add one and save would lose some).
+    mine = PriceHelperToken.objects.filter(pk=row.pk)
+    started = mine.filter(Q(window_start__isnull=True) | Q(window_start__lt=now - timedelta(hours=1))).update(
+        window_start=now, window_calls=1, last_used_at=now
+    )
+    if not started:
+        mine.update(window_calls=F("window_calls") + 1, last_used_at=now)
+    row.refresh_from_db(fields=["window_start", "window_calls", "last_used_at"])
     if row.window_calls > CALLS_PER_HOUR:
         raise InvestmentsError("RATE_LIMIT", "Too many calls this hour.", 429)
     return row
@@ -75,14 +79,16 @@ def wanted(today=None):
     expected = today - timedelta(days=1)
     while expected.weekday() >= 5:
         expected -= timedelta(days=1)
-    stale = fetch.stale_ids(fetch.tracked_instruments(), today)
+    tracked = fetch.tracked_instruments()  # once: the stale list and the loop must be about the same set
+    stale = fetch.stale_ids(tracked, today)
     out = []
-    for inst in fetch.tracked_instruments():
+    for inst in tracked:
         source = inst.price_source
         m = mode(source)
-        if m == "server" or (m == "either" and inst.pk not in stale and fetch.last_api_date(inst)):
+        last = fetch.last_api_date(inst)
+        if m == "server" or (m == "either" and inst.pk not in stale and last):
             continue
-        out.append({"symbol": fetch.symbol_for(inst, source), "source": source, "last": (fetch.last_api_date(inst) or None) and fetch.last_api_date(inst).isoformat(),
+        out.append({"symbol": fetch.symbol_for(inst, source), "source": source, "last": last.isoformat() if last else None,
                     "expected": expected.isoformat(), "basis": inst.price_basis})
     return out
 

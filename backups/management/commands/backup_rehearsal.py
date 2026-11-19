@@ -11,7 +11,7 @@ def rehearse(user=None):
     "manual"), so the rehearsal also proves that a backup can be written, read and checked here.
     """
     backup = services.create_backup("manual", user)
-    document = services.parse_backup(backup.data, settings.MAX_BACKUP_UPLOAD_MB * 1024 * 1024)
+    document = services.parse_backup(backup.data, max(settings.MAX_BACKUP_UPLOAD_MB, settings.MAX_BACKUP_STORED_MB) * 1024 * 1024)
     rows = []
     problems = []
     for model in registry.get_models():

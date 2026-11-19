@@ -118,11 +118,17 @@ def backup_delete(request, pk):
     return render(request, "backups/backup_confirm_delete.html", {"backup": backup})
 
 
+def _stored_max_bytes():
+    """The limit for reading a backup that is already stored (it passed the upload limit or was made here, and its checksum is checked).
+    Larger than the upload limit, so a big database's own nightly backup can always be previewed and restored."""
+    return max(_max_bytes(), settings.MAX_BACKUP_STORED_MB * 1024 * 1024)
+
+
 def _load_document(backup):
     raw = bytes(backup.data)
     if hashlib.sha256(raw).hexdigest() != backup.sha256:
         raise services.BackupError("This stored backup does not match its checksum and may be damaged.")
-    return services.parse_backup(raw, _max_bytes())
+    return services.parse_backup(raw, _stored_max_bytes())
 
 
 @admin_required

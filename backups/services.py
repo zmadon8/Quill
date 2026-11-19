@@ -28,7 +28,7 @@ from accounts.suite import KEY_DIARY as DEFAULT_PROGRAM
 from diary import legacy_merge as legacy
 from diary import nested_conversion, review_flags, subtopic_one, topic_one
 
-from fees.services.heavy import heavy_operation
+from fees.services.heavy import Busy, heavy_operation
 
 from . import policy, registry, storage as offsite_storage
 from .models import BackupFile, BackupLog
@@ -247,10 +247,10 @@ def create_backup(kind, user=None, use_applied_state=False):
     """
     started = timezone.now()
     try:
-        # R-NFR-6: only one heavy suite operation at a time. "suite_backup" is shared
-        # with restore so a backup and a restore cannot run at once. The pre-restore
-        # safety backup runs inside restore_backup on the same session; PostgreSQL
-        # advisory locks are re-entrant and counted, so this nested acquire succeeds
+        # R-NFR-6: only one heavy suite operation at a time. restore_backup also takes this
+        # "suite_backup" lock for the whole restore, so a backup and a restore cannot run at
+        # once. The pre-restore safety backup runs inside restore_backup on the same session;
+        # PostgreSQL advisory locks are re-entrant and counted, so this nested acquire succeeds
         # and each finally releases once, keeping the count balanced.
         with heavy_operation("suite_backup"):
             app_registry = applied_state_apps() if use_applied_state else None
@@ -288,6 +288,9 @@ def create_backup(kind, user=None, use_applied_state=False):
                     backup=backup,
                     created_by=user,
                 )
+    except Busy:
+        # Another backup or a restore is running: that is not a failed backup, so no failure is logged and the Admin banner stays quiet.
+        raise
     except Exception as exc:
         _log_failure(kind, started, exc, user)
         raise
@@ -350,7 +353,7 @@ def parse_backup(raw, max_bytes):
             raise BackupError("This file is too large to be a valid backup.")
     try:
         document = json.loads(data.decode("utf-8"))
-    except (UnicodeDecodeError, ValueError):
+    except (UnicodeDecodeError, ValueError, RecursionError):  # RecursionError: JSON nested absurdly deep
         raise BackupError("This is not a backup file (the contents cannot be read).")
     if not isinstance(document, dict) or document.get("format") != FORMAT_MARKER:
         raise BackupError("This is not a Judgment Diary backup file.")
@@ -381,18 +384,21 @@ def parse_backup(raw, max_bytes):
                 or not isinstance(record.get("fields"), dict)
             ):
                 raise BackupError(f"This backup file is damaged (bad record in {label}).")
-    old_roles = _normalise_user_records(models_in_file.get("accounts.User", []))
-    _normalise_profile_records(models_in_file.get("accounts.Profile", []))
-    upgrade_old_document(document, roles=old_roles)
-    _fill_membership_roles(models_in_file.get("accounts.ProfileMembership", []), old_roles)
-    upgrade_old_items(document)
-    _drop_removed_price_source(models_in_file)
-    _drop_removed_portfolio_owner(models_in_file)
-    _drop_removed_hidden_investments(models_in_file)
-    _split_alert_master_switches(models_in_file)
-    _invert_taxed_as_interest(models_in_file)
-    _rename_awaiting_status(models_in_file)
-    _give_clients_a_firm(models_in_file)
+    try:
+        old_roles = _normalise_user_records(models_in_file.get("accounts.User", []))
+        _normalise_profile_records(models_in_file.get("accounts.Profile", []))
+        upgrade_old_document(document, roles=old_roles)
+        _fill_membership_roles(models_in_file.get("accounts.ProfileMembership", []), old_roles)
+        upgrade_old_items(document)
+        _drop_removed_price_source(models_in_file)
+        _drop_removed_portfolio_owner(models_in_file)
+        _drop_removed_hidden_investments(models_in_file)
+        _split_alert_master_switches(models_in_file)
+        _invert_taxed_as_interest(models_in_file)
+        _rename_awaiting_status(models_in_file)
+        _give_clients_a_firm(models_in_file)
+    except (KeyError, TypeError, ValueError, AttributeError) as exc:
+        raise BackupError("This backup file is damaged (a record has the wrong kind of value).") from exc
     return document
 
 
@@ -748,7 +754,8 @@ def restore_backup(document, user):
         # R-NFR-6: guard the destructive restore. The pre-restore safety backup above
         # has already finished and released its own "suite_backup" lock, so this takes
         # "suite_restore" cleanly; a backup or restore on another connection is refused.
-        with heavy_operation("suite_restore"), transaction.atomic():
+        # "suite_backup" is taken as well, so a nightly or manual backup cannot start in the middle of the replacement.
+        with heavy_operation("suite_backup"), heavy_operation("suite_restore"), transaction.atomic():
             batches = []
             for model in registry.get_models():
                 records = document["models"].get(model._meta.label, [])

@@ -169,17 +169,22 @@ def _is_real_date(value) -> bool:
 MAX_ALLOCATIONS = 200
 
 
+def _finite_decimal(value):
+    """``value`` as a Decimal, or None when it is not a real finite number (text, NaN, Infinity)."""
+    try:
+        number = Decimal(str(value))
+    except (ValueError, TypeError, ArithmeticError):
+        return None
+    return number if number.is_finite() else None
+
+
 def validate_payment(data) -> None:
     """Validates a payment input per R-PAY-2, raising ``INVALID_PAYMENT`` on failure.
 
     ``amount`` must be strictly greater than 0; ``date_of_payment`` must be a REAL
     calendar date; ``tds_rate`` (when present) must be ``0 <= rate < 100``.
     """
-    amount = _get(data, "amount")
-    try:
-        amount_dec = Decimal(str(amount))
-    except (ValueError, TypeError, ArithmeticError):
-        amount_dec = None
+    amount_dec = _finite_decimal(_get(data, "amount"))
     if amount_dec is None or not (amount_dec > 0):
         raise FeesError("INVALID_PAYMENT", "Payment amount must be greater than 0")
 
@@ -188,8 +193,8 @@ def validate_payment(data) -> None:
 
     rate = _get(data, "tds_rate")
     if rate is not None:
-        rate_dec = Decimal(str(rate))
-        if rate_dec < 0 or rate_dec >= 100:
+        rate_dec = _finite_decimal(rate)
+        if rate_dec is None or rate_dec < 0 or rate_dec >= 100:
             raise FeesError("INVALID_PAYMENT", "TDS rate must be between 0 and 100")
 
     allocations = _get(data, "allocations")
@@ -198,6 +203,14 @@ def validate_payment(data) -> None:
             "INVALID_PAYMENT",
             f"A payment can be split over at most {MAX_ALLOCATIONS} memos; this one has {len(allocations)}.",
         )
+    # An amount or TDS figure on a memo row cannot be negative or not a number (the database refuses a negative memo total with an error page).
+    for row in allocations or []:
+        for key in ("amount", "tds_amount"):
+            if row.get(key) in (None, ""):
+                continue
+            figure = _finite_decimal(row.get(key))
+            if figure is None or figure < 0:
+                raise FeesError("INVALID_PAYMENT", "The amounts split over the memos cannot be negative.")
 
 
 # ---------------------------------------------------------------------------
@@ -220,7 +233,11 @@ def recompute_paid(memo_ids) -> None:
     (the memos newly allocated AND any memo that lost an allocation).
     """
     ids = {mid for mid in memo_ids if mid is not None}
-    for memo_id in ids:
+    if ids and transaction.get_connection().in_atomic_block:
+        # Lock the memos (in a fixed order, so two payments cannot wait on each other) before summing their allocations: otherwise
+        # two payments saved at the same moment each miss the other's allocation and the later write leaves a wrong total.
+        list(Memo.objects.select_for_update().filter(pk__in=ids).order_by("pk").values_list("pk", flat=True))
+    for memo_id in sorted(ids):
         agg = Allocation.objects.filter(memo_id=memo_id).aggregate(
             net=Sum("amount"), tds=Sum("tds_amount")
         )
