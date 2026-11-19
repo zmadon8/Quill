@@ -17,7 +17,6 @@ ROLE_CHOICES = [
     (ROLE_EDITOR, "Editor"),
     (ROLE_READER, "Reader"),
 ]
-ROLE_VALUES = [value for value, _label in ROLE_CHOICES]
 
 
 class User(AbstractUser):

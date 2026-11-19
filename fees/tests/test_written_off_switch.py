@@ -55,7 +55,7 @@ class WrittenOffSwitchTests(WriteBase):
         detail = self.get("fees_memo_detail", memo_id=self.memo.pk)
         self.assertContains(detail, "Remove The Write-off")
         self.assertContains(self.get("fees_outstanding"), "Include Written Off Memos")
-        self.assertContains(self.get("fees_memos", "?fy="), "Written Off</span></p>")
+        self.assertContains(self.get("fees_memos", "?fy="), "Written Off</span></span>")  # the last item of the one-line status key
         self.assertContains(self.get("fees_memos", "?fy="), "status-written-off")
         self.assertContains(self.get("fees_statistics_year_end", f"?fy={self.memo.financial_year}"), "Written off")
         self.assertNotIn(self.memo.pk, self.outstanding_ids())
