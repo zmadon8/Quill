@@ -44,6 +44,7 @@ ROUTES = {
     "fees_statistics_views": (RW, ""),
     "fees_statistics_view_delete": (W, ""),
     "fees_statistics_year_end": (R, "?fy=2026-27"),
+    "fees_statistics_explain": (R, ""),
     "fees_statistics_metrics": (U, ""),
     "fees_statistics_export": (R, "?granularity=month&fy=2026-27"),
     "fees_statistics_annual_export": (R, "?fy=2026-27"),

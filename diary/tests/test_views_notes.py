@@ -115,10 +115,11 @@ class AddNoteTests(NoteViewCase):
         second = Note.objects.get(text_plain="second")
         self.assertEqual((self.get(self.note).position, second.position), (1, 2))
 
-    def test_an_empty_note_is_refused(self):
+    def test_a_link_to_without_text_is_allowed(self):
         resp = self.add(f"topic:{self.topic.pk}", self.topic, text="")
-        self.assertEqual(resp.status_code, 400)
-        self.assertEqual(Note.objects.count(), 1)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(Note.objects.count(), 2)
+        self.assertEqual(Note.objects.order_by("-pk").first().text, "")
 
     def test_the_add_form_offers_note_everywhere(self):
         for ref in (f"subject:{self.subject.pk}", f"topic:{self.topic.pk}", f"item:{self.one.pk}", f"section:{self.sec.pk}"):

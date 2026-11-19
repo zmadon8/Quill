@@ -20,6 +20,7 @@ SCREENS = (
     ("fees_settings", None, "?fy=2026-27", False),
     ("fees_statistics", None, "?tab=explore&measure=billed&row_dim=financialYear&col_dim=none", False),
     ("fees_statistics_year_end", None, "?fy=2026-27", False),
+    ("fees_statistics_explain", None, "", False),
     ("fees_memos", None, "", False),
     ("fees_memo_drafts", None, "", False),
     ("fees_memo_new", None, "", True),

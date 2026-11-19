@@ -28,7 +28,7 @@ FIELD_LABELS = {
     "note": "Link To",
     "url": "Link",
 }
-KIND_LABELS = {"subject": "Subject", "topic": "Topic", "subtopic": "Sub-topic"}
+KIND_LABELS = {"subject": "Subject", "topic": "Topic", "subtopic": "Sub-topic", "note": "Link To"}
 _LABEL_LENGTH = 100
 
 
