@@ -368,6 +368,10 @@ class Memo(models.Model):
             models.Index(
                 fields=["profile", "is_draft", "written_off"], name="fees_memo_profile_state_idx"
             ),
+            # The Memos list order (drafts last, newest financial year and number first), so the database need not sort every memo.
+            models.Index(
+                fields=["profile", "is_draft", "-financial_year", "-seq"], name="fees_memo_profile_list_idx"
+            ),
         ]
 
     def __str__(self):
@@ -442,8 +446,6 @@ class Allocation(models.Model):
 
     class Meta:
         indexes = [
-            models.Index(fields=["payment"], name="fees_allocation_payment_idx"),
-            models.Index(fields=["memo"], name="fees_allocation_memo_idx"),
             models.Index(fields=["profile", "memo"], name="fees_alloc_profile_memo_idx"),
         ]
 

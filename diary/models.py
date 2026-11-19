@@ -107,6 +107,13 @@ CHANGE_KIND_CHOICES = [
 ]
 
 
+
+def live_index(name, *fields):
+    """An index over the records that are not in the Trash (``deleted_at IS NULL``): the reading, search and reordering queries
+    always ask for live records only, so this keeps them from scanning the trashed rows too."""
+    return models.Index(fields=list(fields), name=name, condition=Q(deleted_at__isnull=True))
+
+
 class Record(models.Model):
     """Fields every diary record carries (section 3)."""
 
@@ -279,6 +286,12 @@ class Section(Record):
             ),
             models.CheckConstraint(condition=Q(needs_review=False), name="section_review_retired"),
         ]
+        indexes = [
+            live_index("section_subtopic_live_idx", "subtopic", "position"),
+            live_index("section_topic_live_idx", "topic", "position"),
+            live_index("section_subject_live_idx", "subject", "position"),
+            live_index("section_profile_live_idx", "profile"),
+        ]
 
     def __str__(self):
         return self.name
@@ -322,6 +335,12 @@ class Item(RichTextMixin, Record):
             models.CheckConstraint(condition=Q(citation=""), name="item_plain_has_no_citation"),
             models.CheckConstraint(condition=Q(needs_review=False), name="item_review_retired"),
         ]
+        indexes = [
+            live_index("item_subtopic_live_idx", "subtopic", "position"),
+            live_index("item_topic_live_idx", "topic", "position"),
+            live_index("item_subject_live_idx", "subject", "position"),
+            live_index("item_profile_live_idx", "profile"),
+        ]
 
     def clean(self):
         super().clean()
@@ -347,6 +366,12 @@ class Case(RichTextMixin, Record):
     comment = models.TextField(blank=True)
     comment_plain = models.TextField(blank=True, editable=False)
     position = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        indexes = [
+            live_index("case_item_live_idx", "item", "position"),
+            live_index("case_profile_live_idx", "profile"),
+        ]
 
     def clean(self):
         super().clean()
@@ -376,6 +401,14 @@ class Note(RichTextMixin, Record):
                 condition=exactly_one(["subject", "topic", "subtopic", "item", "section"]),
                 name="note_exactly_one_parent",
             ),
+        ]
+        indexes = [
+            live_index("note_subtopic_live_idx", "subtopic", "position"),
+            live_index("note_topic_live_idx", "topic", "position"),
+            live_index("note_subject_live_idx", "subject", "position"),
+            live_index("note_item_live_idx", "item", "position"),
+            live_index("note_section_live_idx", "section", "position"),
+            live_index("note_profile_live_idx", "profile"),
         ]
 
     def __str__(self):
@@ -472,7 +505,11 @@ class VersionHistory(models.Model):
 
     class Meta:
         verbose_name_plural = "version history"
-        indexes = [models.Index(fields=["record_type", "record_id", "version"], name="versionhist_record_idx")]
+        indexes = [
+            models.Index(fields=["record_type", "record_id", "version"], name="versionhist_record_idx"),
+            # The My edits page: one person's changes in a profile, newest first.
+            models.Index(fields=["profile", "changed_by", "changed_at"], name="versionhist_user_idx"),
+        ]
 
     def __str__(self):
         return f"{self.record_type} {self.record_id} v{self.version}"
