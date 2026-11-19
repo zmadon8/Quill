@@ -67,7 +67,7 @@ from django.db import transaction
 from django.db.models import Sum
 
 from fees.errors import FeesError
-from fees.models import Allocation, Memo, Payment
+from fees.models import Allocation, Matter, Memo, Payment
 from fees.services import history
 from fees.services.memos import touch
 from fees.services.money import round2
@@ -87,6 +87,7 @@ __all__ = [
     "delete_payment",
     "list_payments_for_memo",
     "payees_for_matters",
+    "payer_suggestions",
     "payment_prefill",
 ]
 
@@ -717,6 +718,38 @@ def payees_for_matters(profile, matter_ids) -> list:
 
     ordered = sorted(groups.values(), key=_sort_key, reverse=True)
     return ordered
+
+
+def payer_suggestions(profile, matter_ids) -> list:
+    """The names offered under "Paid by before" on the payment form, one entry per bubble.
+
+    ``[{"name", "kind"}]`` where ``kind`` is ``"firm"`` (the firm of each matter), ``"client"`` (its client, when it has one)
+    or ``"payee"`` (anyone who paid on a payment for these matters before, most recent first). Firms come first, then clients,
+    then payees. A name is shown once, whatever it is (a payee called the same as the firm is the firm's bubble), compared
+    case-insensitively. A pure read: it does NOT bump ``data_version``.
+    """
+    ids = [mid for mid in (matter_ids or []) if mid is not None]
+    if not ids:
+        return []
+
+    matters = {m.pk: m for m in Matter.objects.filter(profile=profile, pk__in=ids).select_related("firm", "client")}
+    ordered = [matters[mid] for mid in ids if mid in matters]
+
+    out, seen = [], set()
+
+    def add(name, kind):
+        name = (name or "").strip()
+        if name and name.lower() not in seen:
+            seen.add(name.lower())
+            out.append({"name": name, "kind": kind})
+
+    for matter in ordered:
+        add(matter.firm.name, "firm")
+    for matter in ordered:
+        add(matter.client.name if matter.client_id else "", "client")
+    for row in payees_for_matters(profile, ids):
+        add(row["payee"], "payee")
+    return out
 
 
 # ---------------------------------------------------------------------------

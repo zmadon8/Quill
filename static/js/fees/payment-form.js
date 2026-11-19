@@ -206,14 +206,19 @@
     fetch(url + "?matters=" + encodeURIComponent(matters), { credentials: "same-origin", headers: { Accept: "application/json" } })
       .then(function (r) { return r.json(); })
       .then(function (d) {
-        if (!d || !d.ok || !d.payees || !d.payees.length) { return; }
-        d.payees.slice(0, 8).forEach(function (p) {
+        // One bubble each for the firm, the client and every earlier payee; a click puts that name in the Payee box.
+        var names = d && d.ok ? (d.suggestions || (d.payees || []).map(function (p) { return { name: p.payee, kind: "payee" }; })) : [];
+        if (!names.length) { return; }
+        var titles = { firm: "The firm", client: "The client", payee: "Paid before" };
+        var payees = 0;
+        names.forEach(function (p) {
+          if (p.kind === "payee" && ++payees > 8) { return; }
           var b = document.createElement("button");
           b.type = "button";
-          b.className = "chip";
-          // The firm and the client of the matter paid for are shown too; a click fills in the payee only.
-          b.textContent = [p.payee, p.firm, p.client].filter(Boolean).join(" \u00b7 ");
-          b.addEventListener("click", function () { form.elements.payee.value = p.payee; form.elements.payee.focus(); });
+          b.className = "chip chip-" + p.kind;
+          b.textContent = p.name;
+          b.title = (titles[p.kind] || "Suggestion") + ": " + p.name;
+          b.addEventListener("click", function () { form.elements.payee.value = p.name; form.elements.payee.focus(); });
           list.appendChild(b);
           list.appendChild(document.createTextNode(" "));
         });
