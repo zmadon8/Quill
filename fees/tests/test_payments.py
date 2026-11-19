@@ -642,6 +642,23 @@ class PayeesForMattersTests(TestCase):
         (row,) = payments.payees_for_matters(self.profile, [self.matter.pk])
         self.assertEqual((row["payee"], row["firm"], row["client"]), ("Acme", self.matter.firm.name, "Acme Ltd"))
 
+    def test_bubbles_for_the_firm_the_client_and_earlier_payees(self):
+        from fees.services import clients
+
+        client = clients.create_client(self.profile, self.matter.firm_id, "Acme Ltd")
+        self.matter.client = client
+        self.matter.save()
+        firm = self.matter.firm.name
+        for day, payee in (("2026-08-01", "Acme"), ("2026-09-01", firm.upper()), ("2026-10-01", "Beta")):
+            payments.add_payment_to_memo(self.profile, self.memo.pk, {"amount": 100, "date_of_payment": day, "payee": payee})
+        # The firm, the client, then earlier payees (most recent first); a payee named like the firm is not shown twice.
+        self.assertEqual(
+            payments.payer_suggestions(self.profile, [self.matter.pk]),
+            [{"name": firm, "kind": "firm"}, {"name": "Acme Ltd", "kind": "client"},
+             {"name": "Beta", "kind": "payee"}, {"name": "Acme", "kind": "payee"}],
+        )
+        self.assertEqual(payments.payer_suggestions(self.profile, []), [])
+
     def test_blank_payees_ignored(self):
         payments.add_payment_to_memo(
             self.profile,

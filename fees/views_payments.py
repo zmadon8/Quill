@@ -234,6 +234,11 @@ def payment_assign(request, payment_id):
 @handle_fees_errors(json=True)
 @require_safe
 def payees(request):
-    """JSON: payee names used before on payments for the given matters (``?matters=1,2``)."""
+    """JSON: who to offer as the payer for the given matters (``?matters=1,2``): their firm, their client and earlier payees."""
     profile, _settings = scope.context(request)
-    return json_ok({"payees": payments.payees_for_matters(profile, int_list(request.GET.get("matters")))})
+    matters = int_list(request.GET.get("matters"))
+    return json_ok({
+        "payees": payments.payees_for_matters(profile, matters),
+        # What the form shows: a bubble each for the firm, the client and every earlier payee.
+        "suggestions": payments.payer_suggestions(profile, matters),
+    })
