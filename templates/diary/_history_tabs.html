@@ -1,0 +1,2 @@
+{# The two sub-pages of History: the changes made, and the Trash (Editors only, as before). Context: tab ("history" or "trash"). #}
+{% if diary_editor %}<nav class="subnav" aria-label="Sections of this page"><a href="{% url 'diary_history' %}"{% if tab == "history" %} class="on" aria-current="page"{% endif %}>History</a><a href="{% url 'trash' %}"{% if tab == "trash" %} class="on" aria-current="page"{% endif %}>Trash</a></nav>{% endif %}

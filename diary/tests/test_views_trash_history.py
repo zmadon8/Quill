@@ -52,9 +52,11 @@ class TrashAccessTests(TrashTestCase):
         self.assertEqual(self.reader_client.get(url).status_code, 403)
 
     def test_only_editors_get_a_trash_link(self):
+        # The Trash is a tab of History (it was a header item): Editors see the tab, Readers do not.
         link = f'href="{self.trash_url}"'
-        self.assertContains(self.client.get(reverse("diary_home")), link)
-        self.assertNotContains(self.reader_client.get(reverse("diary_home")), link)
+        self.assertContains(self.client.get(reverse("diary_history")), link)
+        self.assertNotContains(self.reader_client.get(reverse("diary_history")), link)
+        self.assertNotContains(self.client.get(reverse("diary_home")), link)
 
     def test_the_trash_screen_is_get_only_and_restore_is_post_only(self):
         self.assertEqual(self.client.post(self.trash_url).status_code, 405)

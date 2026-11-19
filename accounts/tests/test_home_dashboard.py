@@ -172,14 +172,14 @@ class HomeMetricsChoiceTests(TestCase):
         self.assertNotIn("program-blurb", html)
 
     def test_figures_can_be_turned_off(self):
-        self.post(home_show_present="1")  # the box unticked
+        self.client.post(reverse("home_figures"), {"show": "0"})  # the switch on the Home page, unticked
         self.user.refresh_from_db()
         self.assertFalse(self.user.home_show_figures)
         html = self.home()
         self.assertIn('class="program-card"', html)
         self.assertNotIn("program-stats", html)
         self.assertNotIn("<dt>Subjects</dt>", html)
-        self.post(home_show_present="1", home_show_figures="on")
+        self.client.post(reverse("home_figures"), {"show": "1"})
         self.user.refresh_from_db()
         self.assertTrue(self.user.home_show_figures)
         self.assertIn("<dt>Subjects</dt>", self.home())
@@ -190,6 +190,56 @@ class HomeMetricsChoiceTests(TestCase):
         self.post(home_metrics_present="1")
         self.user.refresh_from_db()
         self.assertFalse(self.user.home_show_figures)
+
+    def test_the_settings_page_has_no_show_figures_row_and_is_compact(self):
+        html = self.client.get(reverse("my_settings") + "?tab=display").content.decode()
+        self.assertNotIn("home_show_figures", html)
+        self.assertNotIn("home_show_present", html)
+        self.assertIn("settings-compact", html)
+        for name in ("home_metrics_diary", "home_metrics_fees", "home_metrics_investments", "home_details_fees", "home_details_investments"):
+            self.assertIn('name="%s"' % name, html)
+        self.assertLess(html.index('name="home_metrics_fees"'), html.index('name="home_details_fees"'))
+
+    def test_the_fee_card_offers_the_original_figures_and_every_dashboard_figure(self):
+        from accounts import home_cards
+
+        offered = [k for k, _label in home_cards.metric_catalogue("fees")]
+        for key in ("memos_fy", "outstanding", "drafts", "fy", "memos_total", "payments"):
+            self.assertIn(key, offered)
+        for key in ("billed_this_year", "billed_this_month", "fees_per_day_last30", "fees_per_day_this_month", "fees_per_day_this_year",
+                    "appearances_per_week_last30", "appearances_per_week_this_month", "appearances_per_week_this_year", "conferences_this_year"):
+            self.assertIn(key, offered)
+        for twin in ("memos_this_year", "total_outstanding", "draft_memos_count"):
+            self.assertNotIn(twin, offered)  # the original Memos this year, Outstanding and Drafts are the same figures
+        self.assertEqual(len(offered), len(set(offered)))
+
+    def test_the_investments_card_offers_the_overview_figures(self):
+        from accounts import home_cards
+
+        offered = [k for k, _label in home_cards.metric_catalogue("investments")]
+        for key in ("value", "xirr", "alerts", "invested", "gain", "index_xirr", "alpha", "count"):
+            self.assertIn(key, offered)
+        resp = self.post(home_metrics_present="1", home_metrics_investments=["alpha", "count", "index_xirr"])
+        self.assertEqual(resp.status_code, 302)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.home_metrics["investments"], ["index_xirr", "alpha", "count"])
+
+    def test_the_fee_card_shows_the_chosen_dashboard_figures(self):
+        resp = self.post(home_metrics_present="1", home_metrics_fees=["billed_this_year", "fees_per_day_last30", "appearances_per_week_last30"])
+        self.assertEqual(resp.status_code, 302)
+        html = self.home()
+        for label in ("Billed This Year", "Fees / Day (Last 30 Days)", "Appearances / Week (Last 30 Days)"):
+            self.assertIn("<dt>%s</dt>" % label, html)
+        self.assertNotIn("<dt>Outstanding</dt>", html)
+
+    def test_dashboard_figures_on_the_card_are_a_dash_when_statistics_are_off(self):
+        from fees.models import FeesSettings
+
+        self.post(home_metrics_present="1", home_metrics_fees=["billed_this_year", "payments"])
+        FeesSettings.objects.filter(profile=self.fees).update(statistics_enabled=False)
+        html = self.home()
+        self.assertIn("<div><dt>Billed This Year</dt><dd>\u2013</dd></div>", html)
+        self.assertIn("<dt>Payments recorded</dt>", html)  # a figure that does not need Statistics still shows
 
     def test_stale_stored_keys_fall_back(self):
         from accounts import home_cards
@@ -298,6 +348,8 @@ class HomeFiguresSwitchTests(HomeDashboardTests):
         page = self.home(self.editor)
         self.assertIn('action="%s"' % reverse("home_figures"), page)
         self.assertRegex(page, r'<input type="checkbox" checked onchange="this.form.submit\(\)"> Show figures')
+        # On the greeting's line, not a row of its own.
+        self.assertRegex(page, r'class="home-welcome-row"><p class="home-greeting">[^<]*</p><form[^>]*home-figures-switch')
         self.client.post(reverse("home_figures"), {"show": "0"})
         self.editor.refresh_from_db()
         self.assertFalse(self.editor.home_show_figures)

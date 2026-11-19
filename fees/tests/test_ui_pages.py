@@ -269,6 +269,19 @@ class MemoScreenTests(UiPageBase):
         self.assertNotIn("data-pay-form", reader)
         self.assertNotIn('name="memo"', reader)
 
+    def test_pay_ticked_memos_is_never_greyed_out(self):
+        """Owner round 2026-12: the button looks the same with nothing ticked; pressed then, the page says "Please select a memo first"."""
+        from pathlib import Path
+
+        for page in (self.page("fees_memos", user=self.editor), self.page("fees_outstanding_detail", user=self.editor)):
+            html = self.html(page)
+            button = html[html.index('<button type="submit" name="ticked" value="1" class="success">'):]
+            self.assertTrue(button.startswith('<button type="submit" name="ticked" value="1" class="success">Pay Ticked Memos</button>'))
+            self.assertNotIn("disabled", button[:button.index("</button>")])
+        script = (Path(__file__).resolve().parents[2] / "static" / "js" / "fees" / "outstanding.js").read_text()
+        self.assertIn("Please select a memo first", script)
+        self.assertNotIn(".disabled", script)
+
     def test_matter_page_ticks_memos_to_pay(self):
         i = self.ids()
         editor = self.html(self.page("fees_matter_detail", {"matter_id": i["matter"]}, user=self.editor))

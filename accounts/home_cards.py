@@ -45,7 +45,27 @@ FEES_METRICS = [("memos_fy", "Memos this year"), ("outstanding", "Outstanding"),
                 ("memos_total", "Memos issued (all time)"), ("payments", "Payments recorded")]
 INVESTMENTS_METRICS = [("value", "Value"), ("xirr", "XIRR (a year, over the period you chose)"), ("alerts", "Alerts"), ("invested", "Invested"),
                        ("gain", "Gain (for the period you chose)")]
-METRIC_CATALOGUE = {KEY_DIARY: DIARY_METRICS, KEY_FEES: FEES_METRICS, KEY_INVESTMENTS: INVESTMENTS_METRICS}
+#: Fee Register figures that the Dashboard also has under another name: the card keeps its original ids for them (a saved choice keeps working).
+_FEES_SAME_AS_ORIGINAL = ("memos_this_year", "total_outstanding", "draft_memos_count")
+#: The Investments Overview's figures that a card can show, besides the original five: (id, label).
+_INVESTMENTS_MORE = [("index_xirr", "Index XIRR (same period)"), ("alpha", "Alpha (for the period you chose)"), ("count", "Holdings")]
+
+
+def metric_catalogue(program):
+    """``[(id, label)]`` of the figures a user may put on ``program``'s Home card, in the order shown.
+
+    The Fee Register offers the original six and every Dashboard figure (so Fees / Day, Appearances / Week and the amount billed this
+    year are there too); Investments the original five and every Overview figure. The Case Law Diary's are unchanged.
+    """
+    if program == KEY_FEES:
+        from fees.services.dashboard import KPI_LABELS
+
+        return FEES_METRICS + [(k, label) for k, label in KPI_LABELS.items() if k not in _FEES_SAME_AS_ORIGINAL]
+    if program == KEY_INVESTMENTS:
+        return INVESTMENTS_METRICS + _INVESTMENTS_MORE
+    return DIARY_METRICS
+
+
 DEFAULT_METRICS = {KEY_DIARY: ["subjects", "items", "flagged"], KEY_FEES: ["memos_fy", "outstanding", "drafts"],
                    KEY_INVESTMENTS: ["value", "xirr", "alerts"]}
 
@@ -54,7 +74,7 @@ def chosen_metrics(user, program):
     """The metric ids to show for ``program``: the user's valid choice (at most MAX_METRICS, in order), else the defaults."""
     stored = getattr(user, "home_metrics", None)
     stored = stored.get(program) if isinstance(stored, dict) else None
-    valid = {k for k, _label in METRIC_CATALOGUE[program]}
+    valid = {k for k, _label in metric_catalogue(program)}
     keys = []
     for k in stored if isinstance(stored, list) else []:
         if k in valid and k not in keys:
@@ -77,11 +97,13 @@ def _diary_figures(profile, user=None):
 
 
 def _fees_figures(profile, user=None):
-    from fees.services import dashboard_panels
+    from fees.pages import overdue_on, written_off_on
+    from fees.services import dashboard, dashboard_panels
+    from fees.services import settings as settings_service
     from fees.services.money import format_money
 
     keys = chosen_metrics(user, KEY_FEES)
-    labels = dict(FEES_METRICS)
+    labels = dict(metric_catalogue(KEY_FEES))
     figures = dashboard_panels.home_figures(profile)
     values = {"memos_fy": format_indian(figures['memos_fy'], 0), "outstanding": "\u20b9" + format_money(figures["outstanding"], unit="short"),
               "drafts": format_indian(figures['drafts'], 0), "fy": str(figures.get("fy", DASH))}
@@ -93,6 +115,23 @@ def _fees_figures(profile, user=None):
         from fees.models import Payment
 
         values["payments"] = format_indian(Payment.objects.filter(profile=profile).count(), 0)
+    # The Dashboard figures (worked out, and kept, by the Dashboard's own code). Switched off with Statistics: a dash.
+    kpi_keys = [k for k in keys if k in dashboard.KPI_LABELS]
+    if kpi_keys:
+        config = settings_service.get_settings(profile)
+        shown = bool(config.get("statistics_enabled", True))
+        kpis = dashboard.get_dashboard_kpis(profile, settings={**config, "dashboard_kpis": ",".join(kpi_keys)}) if shown else {}
+        for k in kpi_keys:
+            off = (not shown or (k == "amount_overdue" and not overdue_on(config)) or (k == "written_off_total" and not written_off_on(config)))
+            kind = dashboard.kpi_kind(k)
+            if off or k not in kpis:
+                values[k] = DASH
+            elif kind == "money":
+                values[k] = "\u20b9" + format_money(Decimal(str(kpis[k])), unit="short")
+            elif kind == "rate":
+                values[k] = str(kpis[k])
+            else:
+                values[k] = format_indian(kpis[k], 0)
     return [(labels[k], values[k]) for k in keys]
 
 
@@ -113,7 +152,15 @@ def _investments_figures(profile, user=None):
     if "alerts" in keys:
         n_alerts = alerts.peek_count(profile)
         values["alerts"] = DASH if n_alerts is None else format_indian(n_alerts, 0)
-    labels = {"value": "Value", "xirr": "XIRR" + (f" over{suffix}" if suffix else ""), "alerts": "Alerts", "invested": "Invested", "gain": "Gain" + suffix}
+    if "index_xirr" in keys:
+        values["index_xirr"] = f"{totals['index_xirr'] * 100:.1f}%" if totals and totals.get("index_xirr") is not None else DASH
+    if "alpha" in keys:
+        alpha = totals.get("alpha") if totals else None
+        values["alpha"] = DASH if alpha is None else ("+" if alpha > 0 else "\u2212" if alpha < 0 else "") + f"{abs(alpha) * 100:.1f}%"
+    if "count" in keys:
+        values["count"] = format_indian(totals["count"], 0) if totals and totals.get("count") is not None else DASH
+    labels = {"value": "Value", "xirr": "XIRR" + (f" over{suffix}" if suffix else ""), "alerts": "Alerts", "invested": "Invested", "gain": "Gain" + suffix,
+              "index_xirr": "Index XIRR" + suffix, "alpha": "Alpha" + suffix, "count": "Holdings"}
     return [(labels[k], values[k]) for k in keys]
 
 
@@ -182,7 +229,8 @@ def _fees_details(profile, user):
         sections.append({"kind": "note", "title": "Fee Register: Dashboard", "text": " ".join(notes), "url": reverse("fees_dashboard")})
     if ids and config.get("statistics_enabled", True):
         values = dashboard.get_dashboard_kpis(profile, settings={**config, "dashboard_kpis": ",".join(ids)})
-        items = [(dashboard.KPI_LABELS[k], money(values[k]) if isinstance(values[k], str) else format_indian(values[k], 0)) for k in ids]
+        shown = {"money": lambda v: money(v), "rate": str, "count": lambda v: format_indian(v, 0)}
+        items = [(dashboard.KPI_LABELS[k], shown[dashboard.kpi_kind(k)](values[k])) for k in ids]
         sections.append({"kind": "kpis", "title": "Fee Register: Dashboard", "items": items, "url": reverse("fees_dashboard")})
     if "billed_by_month" in keys or "who_owes" in keys:
         panels = dashboard_panels.get_panels(profile)

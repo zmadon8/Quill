@@ -96,6 +96,20 @@ class MemoWriteTests(WriteBase):
         data.update(over)
         return data
 
+    def test_the_drafts_count_box_shows_only_while_statistics_are_on(self):
+        label = "No. of drafts (statistics only; does not affect the memo total)"
+        self.assertIn(label, self.client.get(reverse("fees_memo_new")).content.decode())
+        FeesSettings.objects.filter(profile=self.profile).update(statistics_enabled=False)
+        off = self.client.get(reverse("fees_memo_new")).content.decode()
+        self.assertNotIn(label, off)
+        self.assertNotIn("No. of drafts", off)
+        self.assertIn('<input type="hidden" name="num_drafts" value="0">', off)
+        # The number a memo already holds is sent back unchanged, so switching Statistics off never loses it.
+        memo = memos.create_memo(self.profile, {**xs.memo_input(self.seed["matter_1"].pk), "num_drafts": 3})
+        edit = self.client.get(reverse("fees_memo_edit", kwargs={"memo_id": memo.pk})).content.decode()
+        self.assertIn('<input type="hidden" name="num_drafts" value="3">', edit)
+        self.assertNotIn("No. of drafts", edit)
+
     def test_create_memo(self):
         before = self.version()
         response = self.post("fees_memo_new", self.memo_post())
@@ -300,6 +314,19 @@ class PaymentWriteTests(WriteBase):
         }
         data.update(over)
         return data
+
+    def test_pay_ticked_with_nothing_ticked_says_so_and_sends_nobody_to_a_blank_form(self):
+        url = reverse("fees_payment_new")
+        response = self.client.get(url + "?ticked=1", HTTP_REFERER="http://testserver" + reverse("fees_memos"))
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], "http://testserver" + reverse("fees_memos"))  # back to the page it came from
+        self.assertIn("Please select a memo first", self.messages(response))
+        no_referer = self.client.get(url + "?ticked=1")
+        self.assertRedirects(no_referer, reverse("fees_memos"), fetch_redirect_response=False)
+        # With a memo ticked, or from the Feebook's own Add Payment link, the form opens as before.
+        memo = self.new_memo()
+        self.assertEqual(self.client.get(url + "?ticked=1&memo=%d" % memo.pk).status_code, 200)
+        self.assertEqual(self.client.get(url).status_code, 200)
 
     def test_unaccounted_payment(self):
         response = self.post("fees_payment_new", self.payment_post())

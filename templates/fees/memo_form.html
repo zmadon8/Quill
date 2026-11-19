@@ -65,9 +65,9 @@
       <label>Fees / conference <input type="text" inputmode="decimal" name="fees_per_conference" value="{{ form.fees_per_conference }}"></label>
       <label>Dates of conferences <input type="text" name="dates_of_conferences" value="{{ form.dates_of_conferences }}"></label>
     </div></div>
-    <div class="memo-grid cols-3 drafts-row">
+    {% if fees_settings.statistics_enabled %}<div class="memo-grid cols-3 drafts-row">
       <label>No. of drafts (statistics only; does not affect the memo total) <input type="text" inputmode="numeric" name="num_drafts" value="{{ form.num_drafts }}"></label>
-    </div>
+    </div>{% else %}{# Statistics off: nothing to ask, but the number already saved is sent back unchanged. #}<input type="hidden" name="num_drafts" value="{{ form.num_drafts }}">{% endif %}
     <div class="fee-line" data-line="misc"><div class="memo-grid cols-3">
       <label class="span-2">Misc / drafting description <input type="text" name="misc_drafting_description" value="{{ form.misc_drafting_description }}"></label>
       <label>Fees for misc / drafting <input type="text" inputmode="decimal" name="fees_misc_drafting" value="{{ form.fees_misc_drafting }}"></label>

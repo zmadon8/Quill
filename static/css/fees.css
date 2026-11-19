@@ -114,9 +114,6 @@ body.ledger .kpi-arrow:disabled { opacity: .35; cursor: default; }
 @media (max-width: 40rem) { body.ledger .kpi-customise-cols { grid-template-columns: 1fr; } }
 
 /* ==== Owner round 2026-11: Dashboard panels, Outstanding ageing, status pills ==== */
-body.ledger .kpi.kpi-hero { background: linear-gradient(135deg, var(--accent), var(--accent-deep)); border-color: transparent; }
-body.ledger .kpi.kpi-hero dt, body.ledger .kpi.kpi-hero dd, body.ledger .kpi.kpi-hero dt a { color: var(--on-accent); }
-body.ledger .kpi.kpi-hero dt { opacity: .8; }
 body.ledger .dash-panels { display: grid; grid-template-columns: minmax(0, 1fr) minmax(18rem, 24rem); gap: 16px; align-items: start; }
 body.ledger .dash-panel { padding: 18px 20px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-card); box-shadow: var(--shadow-card); }
 body.ledger .dash-panel-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; }
@@ -212,4 +209,6 @@ body.ledger .section-head { display: flex; flex-wrap: wrap; align-items: center;
 body.ledger .section-head > h2 { margin-top: 0; margin-bottom: 0; }
 body.ledger .section-head:has(.col-menu[open]) { position: relative; z-index: 40; }
 body.ledger .filters > .push:empty { display: none; }
+/* Pay Ticked Memos pressed with nothing ticked: the line beside the buttons says so. */
+body.ledger .bulk-bar [data-pay-summary].pay-error { color: var(--danger, #b00020); font-weight: 600; }
 

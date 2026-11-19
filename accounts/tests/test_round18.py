@@ -47,10 +47,12 @@ class SeveralProfilesTests(TestCase):
         body = self.client.get(reverse("diary_home")).content.decode()
         self.assertIn("Junior subject", body)
         self.assertNotIn("Main subject", body)
-        self.assertIn('href="%s"' % reverse("trash"), body)  # Editor in Junior: Trash is offered
+        history = self.client.get(reverse("diary_history")).content.decode()
+        self.assertIn('href="%s"' % reverse("trash"), history)  # Editor in Junior: Trash is offered, as a tab of History
+        self.assertNotIn('href="%s"' % reverse("trash"), body)  # no longer in the header
         self.assertEqual(get_profile_for(self.user), self.junior)  # remembered for the next login too
         self.client.post(reverse("profile_switch"), {"profile": self.main.pk})
-        self.assertNotIn('href="%s"' % reverse("trash"), self.client.get(reverse("diary_home")).content.decode())
+        self.assertNotIn('href="%s"' % reverse("trash"), self.client.get(reverse("diary_history")).content.decode())
 
     def test_records_of_the_other_profile_are_not_reachable(self):
         junior_subject = Subject.objects.get(name="Junior subject")

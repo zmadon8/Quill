@@ -72,7 +72,7 @@ from __future__ import annotations
 
 import calendar
 import datetime
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 
 from django.db.models import DecimalField, Sum, Value
 from django.db.models.functions import Coalesce
@@ -129,7 +129,26 @@ KPI_IDS = (
     "written_off_total",
     "draft_memos_count",
     "draft_memos_total",
+    # Worked out from the billed and appearances figures above (owner round 2026-12). Offered on request (Customise, the Home
+    # card, the Home page); not among the boxes shown when none is chosen (DEFAULT_KPI_IDS).
+    "fees_per_day_last30",
+    "fees_per_day_this_month",
+    "fees_per_day_this_year",
+    "appearances_per_week_last30",
+    "appearances_per_week_this_month",
+    "appearances_per_week_this_year",
 )
+
+#: The boxes shown when none is chosen: every KPI except the rates, so a Dashboard nobody changed looks as it did.
+OPTIONAL_KPIS = (
+    "fees_per_day_last30",
+    "fees_per_day_this_month",
+    "fees_per_day_this_year",
+    "appearances_per_week_last30",
+    "appearances_per_week_this_month",
+    "appearances_per_week_this_year",
+)
+DEFAULT_KPI_IDS = tuple(k for k in KPI_IDS if k not in OPTIONAL_KPIS)
 
 #: Which computation produces each KPI id. ``get_dashboard_kpis`` runs only the groups that the
 #: selected ids need, so an unselected group issues no queries (owner items 2.4 and 2.12):
@@ -160,12 +179,41 @@ KPI_GROUPS = {
     "received_last30": "received30",
     "appearances_this_month": "appearances",
     "appearances_this_year": "appearances",
+    "fees_per_day_last30": "derived",
+    "fees_per_day_this_month": "derived",
+    "fees_per_day_this_year": "derived",
+    "appearances_per_week_last30": "derived",
+    "appearances_per_week_this_month": "derived",
+    "appearances_per_week_this_year": "derived",
+}
+
+#: The rates: id -> (the figure it is worked out from, the span in days it covers, "day" or "week").
+#: Fees / Day is the billed amount divided by the days of the span; Appearances / Week is the appearances divided by the weeks of the
+#: span. "Last 30 days" is 30 days; "this month" is the calendar month so far (the days up to and including today, so the figure
+#: is an average per day so far, not diluted by days to come); "this year" is the financial year so far, counted the same way.
+DERIVED_KPIS = {
+    "fees_per_day_last30": ("billed_last30", "last30", "day"),
+    "fees_per_day_this_month": ("billed_this_month", "month", "day"),
+    "fees_per_day_this_year": ("billed_this_year", "year", "day"),
+    "appearances_per_week_last30": ("appearances_last30", "last30", "week"),
+    "appearances_per_week_this_month": ("appearances_this_month", "month", "week"),
+    "appearances_per_week_this_year": ("appearances_this_year", "year", "week"),
 }
 
 #: The Customise panel's groups, in display order: (group title, KPI ids). Every id in ``KPI_IDS``
 #: sits in exactly one group (a test holds that).
 KPI_DISPLAY_GROUPS = (
-    ("Billing", ("billed_this_month", "billed_this_year", "billed_last30")),
+    (
+        "Billing",
+        (
+            "billed_this_month",
+            "billed_this_year",
+            "billed_last30",
+            "fees_per_day_last30",
+            "fees_per_day_this_month",
+            "fees_per_day_this_year",
+        ),
+    ),
     ("Receipts", ("received_this_month", "received_this_year", "received_last30")),
     ("Memos", ("memos_this_month", "memos_this_year", "memos_last30")),
     (
@@ -174,6 +222,9 @@ KPI_DISPLAY_GROUPS = (
             "appearances_this_month",
             "appearances_this_year",
             "appearances_last30",
+            "appearances_per_week_last30",
+            "appearances_per_week_this_month",
+            "appearances_per_week_this_year",
             "conferences_this_month",
             "conferences_this_year",
             "conferences_last30",
@@ -219,6 +270,12 @@ KPI_LABELS = {
     "written_off_total": "Written Off",
     "draft_memos_count": "Draft Memos",
     "draft_memos_total": "Draft Memos Total",
+    "fees_per_day_last30": "Fees / Day (Last 30 Days)",
+    "fees_per_day_this_month": "Fees / Day This Month",
+    "fees_per_day_this_year": "Fees / Day This Year",
+    "appearances_per_week_last30": "Appearances / Week (Last 30 Days)",
+    "appearances_per_week_this_month": "Appearances / Week This Month",
+    "appearances_per_week_this_year": "Appearances / Week This Year",
 }
 
 #: The money KPI ids (serialised as ``str(Decimal)`` in the cached / returned
@@ -235,15 +292,32 @@ _MONEY_KPIS = frozenset(
         "amount_overdue",
         "written_off_total",
         "draft_memos_total",
+        "fees_per_day_last30",
+        "fees_per_day_this_month",
+        "fees_per_day_this_year",
     )
 )
+
+#: Rates shown with one decimal place (serialised as a string like the money ids); every other id is a whole-number count.
+_RATE_KPIS = frozenset(
+    (
+        "appearances_per_week_last30",
+        "appearances_per_week_this_month",
+        "appearances_per_week_this_year",
+    )
+)
+
+
+def kpi_kind(kpi) -> str:
+    """``"money"``, ``"rate"`` (a decimal such as appearances a week) or ``"count"``: how the value of ``kpi`` is shown."""
+    return "money" if kpi in _MONEY_KPIS else "rate" if kpi in _RATE_KPIS else "count"
 
 #: The result returned when the dashboard-KPIs switch is OFF: every id at 0
 #: (money as the string "0", counts as the int 0). A fresh dict per access so a
 #: caller can never mutate the shared default.
 def _empty_kpis():
     return {
-        kpi: ("0" if kpi in _MONEY_KPIS else 0) for kpi in KPI_IDS
+        kpi: ("0" if kpi in _MONEY_KPIS else "0.0" if kpi in _RATE_KPIS else 0) for kpi in KPI_IDS
     }
 
 
@@ -254,11 +328,11 @@ EMPTY_KPIS = _empty_kpis()
 def selected_kpi_ids(settings):
     """The KPI ids the user chose (the comma list in ``dashboard_kpis``), in saved order.
 
-    Unknown ids are dropped; an empty or missing selection means every KPI (the default).
+    Unknown ids are dropped; an empty or missing selection means the default boxes (every KPI except the rates).
     """
     chosen = [k.strip() for k in str((settings or {}).get("dashboard_kpis") or "").split(",")]
     chosen = list(dict.fromkeys(k for k in chosen if k in KPI_GROUPS))
-    return chosen or list(KPI_IDS)
+    return chosen or list(DEFAULT_KPI_IDS)
 
 
 def order_kpis(ticked, previous=(), move=""):
@@ -552,7 +626,9 @@ def _compute_kpis(profile, today, settings, selected=None):
     for the appearances figures.
     """
     selected = list(KPI_IDS) if selected is None else list(selected)
-    groups = {KPI_GROUPS[kpi] for kpi in selected}
+    # A rate is worked out from the figure beside it, so that figure's group has to run too.
+    needed = set(selected) | {DERIVED_KPIS[kpi][0] for kpi in selected if kpi in DERIVED_KPIS}
+    groups = {KPI_GROUPS[kpi] for kpi in needed} - {"derived"}
     values = {}
     if "summary" in groups:
         values.update(get_dashboard_summary(profile, today, settings=settings, with_appearances=False))
@@ -567,7 +643,31 @@ def _compute_kpis(profile, today, settings, selected=None):
         )
         values["appearances_this_month"] = appearances["month"]
         values["appearances_this_year"] = appearances["year"]
+    for kpi in selected:
+        if kpi in DERIVED_KPIS:
+            values[kpi] = _rate(values, today, *DERIVED_KPIS[kpi])
     return _to_json_safe(values, selected)
+
+
+def _days_in_span(span, today):
+    """The days a span covers up to and including ``today``: 30, the day of the month, or the days of the financial year so far."""
+    if span == "last30":
+        return 30
+    if span == "month":
+        return today.day
+    fy_start = datetime.date(int(derive_financial_year(local_iso(today))[:4]), 4, 1)
+    return (today - fy_start).days + 1
+
+
+def _rate(values, today, base, span, per):
+    """Fees a day (money) or appearances a week (one decimal) over ``span``; 0 when the span has no days."""
+    days = _days_in_span(span, today)
+    amount = Decimal(str(values[base]))
+    if days <= 0:
+        return _ZERO
+    if per == "day":
+        return round2(amount / Decimal(days))
+    return (amount * 7 / Decimal(days)).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)
 
 
 def _to_json_safe(values, ids=KPI_IDS):
@@ -577,6 +677,8 @@ def _to_json_safe(values, ids=KPI_IDS):
         value = values[kpi]
         if kpi in _MONEY_KPIS:
             out[kpi] = str(round2(value))
+        elif kpi in _RATE_KPIS:
+            out[kpi] = str(Decimal(str(value)).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP))
         else:
             out[kpi] = int(value)
     return out

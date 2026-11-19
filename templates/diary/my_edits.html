@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}History - {{ program_label }}{% endblock %}
 {% block content %}
+{% include "diary/_history_tabs.html" with tab="history" %}
 <h1{% if header_words %} class="visually-hidden"{% endif %}>History</h1>
 <p class="meta">The last {{ limit }} changes in this profile, by everyone who works in it, newest first (times in IST). An action that changed several records at once, such as deleting a Topic with its Items, is one line. Edits older than {{ retention_days }} days are removed from the history (the latest version of every record is always kept).</p>
 <form method="get" class="history-filter"><label><input type="checkbox" name="mine" value="1"{% if mine %} checked{% endif %} onchange="this.form.submit()"> My edits only</label> <noscript><button type="submit">Apply</button></noscript></form>

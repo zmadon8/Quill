@@ -29,7 +29,7 @@ A fixed ``now`` of 20 Feb 2026 (inside FY 2025-26) keeps pro-rating and the
 last-30-days window deterministic.
 """
 import datetime
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 from unittest import mock
 
 from django.test import TestCase, tag
@@ -224,6 +224,66 @@ class SwitchOffZeroQueriesTests(TestCase):
 
 
 # ---------------------------------------------------------------------------
+# Fees / Day and Appearances / Week (owner round 2026-12).
+# ---------------------------------------------------------------------------
+
+class RateKpiTests(TestCase):
+    """Worked out from the billed and appearances figures. NOW is 20 Feb 2026: the month so far is 20 days, the financial year so far
+    (1 Apr 2025 to 20 Feb 2026, both days counted) is 326 days, and the last 30 days are 30."""
+
+    def setUp(self):
+        self.profile = fees_profile("Rate-Dash")
+        early_initial_fy(self.profile)
+        self.firm = make_firm(self.profile)
+        self.group = make_group(self.profile, self.firm)
+        self.matter = make_matter(self.profile, self.firm, self.group)
+
+    _seed = KpiCatalogueTests._seed
+
+    RATES = ("fees_per_day_last30", "fees_per_day_this_month", "fees_per_day_this_year",
+             "appearances_per_week_last30", "appearances_per_week_this_month", "appearances_per_week_this_year")
+
+    def test_fees_a_day(self):
+        self._seed()
+        kpis = dashboard.get_dashboard_kpis(self.profile, NOW, settings=_config(",".join(self.RATES[:3])))
+        self.assertEqual(kpis["fees_per_day_last30"], "133.33")        # 4000 / 30
+        self.assertEqual(kpis["fees_per_day_this_month"], "200.00")    # 4000 / 20
+        self.assertEqual(kpis["fees_per_day_this_year"], "33.74")      # 11000 / 326
+        self.assertEqual(dashboard.kpi_kind("fees_per_day_last30"), "money")
+
+    def test_appearances_a_week(self):
+        self._seed()
+        both = _config("appearances_last30,appearances_this_month,appearances_this_year," + ",".join(self.RATES[3:]))
+        kpis = dashboard.get_dashboard_kpis(self.profile, NOW, settings=both)
+        self.assertEqual(kpis["appearances_per_week_last30"], "1.2")   # 5 appearances in 30 days: 5 * 7 / 30 = 1.17
+        for rate, base, days in (("appearances_per_week_this_month", "appearances_this_month", 20),
+                                 ("appearances_per_week_this_year", "appearances_this_year", 326)):
+            want = (Decimal(kpis[base]) * 7 / days).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)
+            self.assertEqual(kpis[rate], str(want), rate)
+        self.assertEqual(dashboard.kpi_kind("appearances_per_week_last30"), "rate")
+
+    def test_a_rate_alone_runs_the_group_of_its_base_and_nothing_else(self):
+        self._seed()
+        with mock.patch.object(dashboard, "get_dashboard_summary", side_effect=AssertionError("summary")), \
+                mock.patch.object(dashboard, "stats_appearances", side_effect=AssertionError("appearances")):
+            kpis = dashboard.get_dashboard_kpis(self.profile, NOW, settings=_config("fees_per_day_last30"))
+        self.assertEqual(kpis, {"fees_per_day_last30": "133.33"})
+
+    def test_the_month_so_far_counts_the_days_up_to_today(self):
+        self._seed()
+        tenth = datetime.date(2026, 2, 10)
+        kpis = dashboard.get_dashboard_kpis(self.profile, tenth, settings=_config("fees_per_day_this_month"))
+        self.assertEqual(kpis["fees_per_day_this_month"], "400.00")   # 4000 billed in the 10 days so far
+
+    def test_nothing_billed_is_zero_and_switched_off_is_zero(self):
+        empty = dashboard.get_dashboard_kpis(self.profile, NOW, settings=_config(",".join(self.RATES)))
+        self.assertEqual(empty["fees_per_day_this_year"], "0.00")
+        self.assertEqual(empty["appearances_per_week_this_year"], "0.0")
+        off = dashboard.get_dashboard_kpis(self.profile, NOW, settings={"statistics_enabled": False})
+        self.assertEqual((off["fees_per_day_last30"], off["appearances_per_week_last30"]), ("0", "0.0"))
+
+
+# ---------------------------------------------------------------------------
 # Appearances agree with the statistics engine.
 # ---------------------------------------------------------------------------
 
@@ -298,9 +358,11 @@ class SelectedKpiGroupsTests(TestCase):
         make_memo(self.profile, matter, "2026-02-10", apps=2, misc=1000)
 
     def test_selected_ids_drop_unknown_and_default_to_everything(self):
-        self.assertEqual(dashboard.selected_kpi_ids({}), list(dashboard.KPI_IDS))
+        self.assertEqual(dashboard.selected_kpi_ids({}), list(dashboard.DEFAULT_KPI_IDS))
         self.assertEqual(dashboard.selected_kpi_ids({"dashboard_kpis": "nope, memos_last30"}), ["memos_last30"])
-        self.assertEqual(dashboard.selected_kpi_ids({"dashboard_kpis": "nope"}), list(dashboard.KPI_IDS))
+        self.assertEqual(dashboard.selected_kpi_ids({"dashboard_kpis": "nope"}), list(dashboard.DEFAULT_KPI_IDS))
+        # The rates are offered on request; a Dashboard nobody changed does not gain them.
+        self.assertEqual(set(dashboard.KPI_IDS) - set(dashboard.DEFAULT_KPI_IDS), set(dashboard.OPTIONAL_KPIS))
 
     def test_every_kpi_id_belongs_to_a_group(self):
         self.assertEqual(set(dashboard.KPI_GROUPS), set(dashboard.KPI_IDS))
@@ -333,7 +395,7 @@ class SelectedKpiGroupsTests(TestCase):
 
     def test_default_selection_returns_the_whole_catalogue(self):
         result = dashboard.get_dashboard_kpis(self.profile, NOW, settings=_config(""))
-        self.assertEqual(set(result), set(dashboard.KPI_IDS))
+        self.assertEqual(set(result), set(dashboard.DEFAULT_KPI_IDS))
 
     def test_a_changed_selection_is_not_served_from_the_other_selection_cache(self):
         first = dashboard.get_dashboard_kpis(self.profile, NOW, settings=_config("memos_this_month"))

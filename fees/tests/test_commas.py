@@ -76,5 +76,7 @@ class NumberBoxTemplateTests(SimpleTestCase):
     def test_every_number_box_in_the_fees_templates_has_an_inputmode(self):
         for name in ("fees/settings.html", "fees/memo_form.html", "fees/payment_form.html"):
             for tag in re.findall(r"<input[^>]*>", self.read(name)):
+                if 'type="hidden"' in tag:
+                    continue  # a value sent back unchanged (the drafts count while Statistics is off) is not a box to type in
                 if re.search(r'name="(default_fees_|default_tds|fees_|custom_fees|custom_total|amount|tds_|num_|overdue_days)', tag):
                     self.assertIn("inputmode=", tag, tag)
