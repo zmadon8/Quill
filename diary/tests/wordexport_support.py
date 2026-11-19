@@ -4,7 +4,7 @@
 way ``diary.wordexport.gather`` would from the database: alphabetical headings, Items and Sections by position,
 a split line as an Item with one citation.
 """
-from diary import review_flags
+from diary import oldversions
 from diary.importer.plan import ITEM, SECTION, SUBJECT, SUBTOPIC, TOPIC
 from diary.models import flag_label
 from diary.sorting import sort_key
@@ -22,7 +22,7 @@ DEFAULT_FMTS = {
 
 def _flag(marked, note):
     """The flag an imported record gets (D88: the import's note became a flag Other), as it reads in Word."""
-    flag, text = review_flags.merge("none", "", marked, note)
+    flag, text = oldversions.merge("none", "", marked, note)
     return flag_label(flag, text)
 
 
