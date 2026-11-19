@@ -951,6 +951,19 @@ class ReadingCitationTests(TestCase):
         other = join_main(User.objects.create_user("style-other", password=PASSWORD))
         self.assertEqual(other.citation_style, "bubbles")   # another user keeps the standard
 
+    def test_citations_can_be_as_large_as_the_item_text(self):
+        user = join_main(User.objects.create_user("size-reader", password=PASSWORD))
+        self.client.force_login(user)
+        subject = Subject.objects.get(name=SAMPLE_PREFIX + "Contract Law")
+        page = lambda: self.client.get(reverse("read_subject", args=[subject.pk])).content.decode()
+        self.assertFalse(user.citation_full_size)
+        self.assertNotIn(" cite-big", page())
+        self.client.post(reverse("my_settings"), {"tab": "diary", "citation_style": "bubbles", "number_citation_lines": "on",
+                                                  "citation_full_size": "on"})
+        user.refresh_from_db()
+        self.assertTrue(user.citation_full_size)
+        self.assertIn('class="item-body cite-big cite-pack"', page())
+
     def test_citations_on_separate_lines_are_numbered_unless_turned_off(self):
         # The sample's "Revocation of an offer" Item shows its two citations on separate lines.
         subject = Subject.objects.get(name=SAMPLE_PREFIX + "Contract Law")

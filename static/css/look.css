@@ -232,6 +232,8 @@ body.look .cite-pack > :is(.cite-sep, .no-text) { display: none; }
 body.look .cite-pack > .case { text-align: left; }
 body.look .cite-pack > :is(.note, .linked-from, .see-also) { flex-basis: 100%; order: 999; } body.look .cite-pack > .flag-text { order: 998; }
 body.look .cite-pack .cite-bubble { display: inline-block; max-width: 100%; box-sizing: border-box; padding: 3px 9px; line-height: 1.45; }
+/* Citations as large as the Item's text (My Number Formats, D230). */
+html body.look .item-body.cite-big :is(.citation, .case-comment, .case-line-comment, .cite-bubble), html.links-off body.look .item-body.cite-big .cite-bubble a.cite-link .citation { font-size: 17px; }
 /* Arranged bubbles (D226): cite-pack.js places the text and each bubble in two-line bands; the flag, Notes and "Linked from" follow below. */
 body.look .cite-band.packed { display: block; position: relative; }
 body.look .cite-band.packed > .case .cite-bubble { display: block; }

@@ -114,7 +114,8 @@ def header_style(request):
             "remove_citation_hyphen": bool(signed_in and getattr(user, "remove_citation_hyphen", False)),
             # Owner round (2026-12): the citation style of the reading page and whether citations on separate lines are numbered.
             "citation_style": (getattr(user, "citation_style", "") if signed_in else "") or "bubbles",
-            "number_citation_lines": bool(getattr(user, "number_citation_lines", True)) if signed_in else True}
+            "number_citation_lines": bool(getattr(user, "number_citation_lines", True)) if signed_in else True,
+            "citation_full_size": bool(signed_in and getattr(user, "citation_full_size", False))}
 
 
 #: The main Home page header (D86): each entry is one header item; its tabs are the sub-pages shown across the top of
