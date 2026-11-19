@@ -56,6 +56,7 @@
 
 {% if pivot_error %}<p class="notice" role="alert">{{ pivot_error }}</p>{% endif %}
 {% if pivot %}
+{% if pivot.adjusted %}<p class="muted">Includes the figures entered in Settings &gt; Edit Statistics.</p>{% elif pivot.adjustments_left_out %}<p class="muted">The figures entered in Settings &gt; Edit Statistics are for the whole profile, month by month, so they are used only when the rows are months, quarters or years and no firm is chosen.</p>{% endif %}
 <div class="table-wrap">
 <table class="ledger-table pivot-table stat-table" id="pivot-table" data-table-id="statistics-pivot">
   <caption>{% for id, label in measures %}{% if id == chosen.measure %}{{ label }}{% endif %}{% endfor %} by {% for id, label in row_dims %}{% if id == chosen.row_dim %}{{ label|lower }}{% endif %}{% endfor %}{% if chosen.col_dim != "none" %}, across {% for id, label in col_dims %}{% if id == chosen.col_dim %}{{ label|lower }}{% endif %}{% endfor %}{% endif %}</caption>
