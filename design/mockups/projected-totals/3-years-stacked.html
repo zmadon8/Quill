@@ -1,0 +1,20 @@
+<!doctype html><meta charset=utf-8><title>Billed by financial year</title><style>
+body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:#1f2933;background:#f7f7f5;margin:0;padding:24px}
+.card{background:#fff;border:1px solid #e3e6ea;border-radius:10px;padding:18px 22px;max-width:900px;margin:0 auto 22px}
+h1{font-size:20px;font-weight:600;margin:0 0 4px}h2{font-size:15px;font-weight:600;margin:0 0 2px}
+.sub{color:#6b7280;font-size:13px;margin:0 0 10px}
+.legend{display:flex;gap:18px;font-size:12.5px;color:#374151;margin:4px 0 0}
+.legend i{display:inline-block;width:26px;vertical-align:middle;margin-right:6px}
+.legend b{display:inline-block;width:14px;height:12px;vertical-align:middle;margin-right:6px}
+.legend b.hatch{background:repeating-linear-gradient(45deg,rgba(36,87,166,.45) 0 2px,transparent 2px 6px);outline:1px dashed #2457a6}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.kpi{border:1px solid #e3e6ea;border-radius:8px;padding:10px 12px}
+.kpi .l{font-size:12px;color:#6b7280}.kpi .v{font-size:20px;font-weight:600;margin-top:2px}
+.kpi .p{font-size:12.5px;color:#2457a6;margin-top:2px}.kpi .p em{font-style:normal;border-bottom:1px dashed #2457a6}
+table{border-collapse:collapse;font-size:12.5px;width:100%}th,td{padding:5px 8px;border-bottom:1px solid #eef0f2;text-align:right}
+th:first-child,td:first-child{text-align:left}thead th{color:#6b7280;font-weight:600}
+td.proj{color:#2457a6;font-style:italic}th.proj{color:#2457a6}
+</style>
+<div class="card"><h1>Amount Billed by financial year</h1>
+<p class="sub">The current year is one stacked column: billed so far (solid) and the projected rest of the year (hatched). Past years show what was billed.</p>
+<svg viewBox="0 0 860 320" width="860" height="320" role="img"><defs><pattern id="hatch2" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#2457a6" stroke-width="2" opacity=".45"/></pattern></defs><line x1="64" x2="840" y1="284.0" y2="284.0" stroke="#e3e6ea"/><text x="56" y="288.0" text-anchor="end" font-size="11" fill="#6b7280">₹0.00 L</text><line x1="64" x2="840" y1="218.0" y2="218.0" stroke="#e3e6ea"/><text x="56" y="222.0" text-anchor="end" font-size="11" fill="#6b7280">₹10.00 L</text><line x1="64" x2="840" y1="152.0" y2="152.0" stroke="#e3e6ea"/><text x="56" y="156.0" text-anchor="end" font-size="11" fill="#6b7280">₹20.00 L</text><line x1="64" x2="840" y1="86.0" y2="86.0" stroke="#e3e6ea"/><text x="56" y="90.0" text-anchor="end" font-size="11" fill="#6b7280">₹30.00 L</text><line x1="64" x2="840" y1="20.0" y2="20.0" stroke="#e3e6ea"/><text x="56" y="24.0" text-anchor="end" font-size="11" fill="#6b7280">₹40.00 L</text><rect x="117.3" y="95.9" width="87.3" height="188.1" fill="#8fa9d4"/><text x="161.0" y="87.9" text-anchor="middle" font-size="12" fill="#1f2933">₹28.50 L</text><text x="161.0" y="308" text-anchor="middle" font-size="12" fill="#6b7280">2023-24</text><rect x="311.4" y="72.1" width="87.3" height="211.9" fill="#8fa9d4"/><text x="355.0" y="64.1" text-anchor="middle" font-size="12" fill="#1f2933">₹32.10 L</text><text x="355.0" y="308" text-anchor="middle" font-size="12" fill="#6b7280">2024-25</text><rect x="505.4" y="55.6" width="87.3" height="228.4" fill="#8fa9d4"/><text x="549.0" y="47.6" text-anchor="middle" font-size="12" fill="#1f2933">₹34.60 L</text><text x="549.0" y="308" text-anchor="middle" font-size="12" fill="#6b7280">2025-26</text><rect x="699.4" y="126.3" width="87.3" height="157.7" fill="#2457a6"/><rect x="699.4" y="33.8" width="87.3" height="92.5" fill="url(#hatch2)" stroke="#2457a6" stroke-dasharray="4 3"/><text x="743.0" y="25.8" text-anchor="middle" font-size="12" font-weight="600" fill="#2457a6">Projected ₹37.91 L</text><text x="743.0" y="205.1" text-anchor="middle" font-size="12" font-weight="600" fill="#fff">So far ₹23.90 L</text><text x="743.0" y="308" text-anchor="middle" font-size="12" fill="#6b7280">2026-27</text></svg><p class="legend"><span><b style="background:#2457a6"></b>Actual</span><span><b class="hatch"></b>Projected (rest of the year)</span></p></div>

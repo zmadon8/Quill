@@ -246,7 +246,7 @@ def label(obj):
     if kind == "case":
         return obj.citation[:60] or f"Case {obj.pk}"
     if kind == "note":
-        return obj.text_plain.strip()[:60] or f"Note {obj.pk}"
+        return obj.text_plain.strip()[:60] or f"Link To {obj.pk}"
     for target_kind in ("subject", "topic", "subtopic", "section", "item"):
         target_id = getattr(obj, f"{target_kind}_id", None)
         if target_id is not None:

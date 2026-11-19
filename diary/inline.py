@@ -22,7 +22,7 @@ CHOICE_LABELS = {
     "inside:item": "Item inside",
     "inside:topic": "Topic",
     "inside:subtopic": "Sub-topic",
-    "inside:note": "Note",
+    "inside:note": "Link To",
 }
 #: What can carry a citation (the others get a greyed-out citation box).
 CITATION_WHATS = ("item",)

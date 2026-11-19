@@ -315,7 +315,7 @@ def add(request):
     parent, index = None, None
     after = choice["after"] if choice else _after(post)
     if choice and choice["parent"]:
-        # A Note goes after the Items and Sections of its parent (the service keeps that order), so it is added last.
+        # A Link To goes after the Items and Sections of its parent (the service keeps that order), so it is added last.
         parent, index = choice["parent"], (None if kind == "note" else 0)
     elif after:
         allowed = AFTER_CHOICES[after[0]]
@@ -344,9 +344,8 @@ def add(request):
     cases = []
     if kind == "note":
         text = sanitise_html(typed) if post.get("text_format") == "html" else _html(typed)
-        if not plain_text(text).strip():
-            raise ServiceError("Type the Note text first.")
-        fields["text"] = text
+        # The text is optional: a Link To can be just its links.
+        fields["text"] = text if plain_text(text).strip() else ""
     if kind == "item":
         # The script sends cleaned HTML (text_format=html); without it the box is plain typed text.
         text = sanitise_html(typed) if post.get("text_format") == "html" else _html(typed)
@@ -371,7 +370,7 @@ def add(request):
     if pick and is_fetch(request):
         return inline.ok(request, kind=kind, id=result.record.pk, version=result.record.version, redirect=pick)
     if pick:
-        messages.success(request, "Added the Note. Choose the place to link it to.")
+        messages.success(request, "Added the Link To. Choose the place to link it to.")
         return redirect(pick)
     if is_fetch(request):
         record = result.record
@@ -381,7 +380,7 @@ def add(request):
                    if kind in ("item", "section") and not housed else {"reload": True})
         return inline.ok(request, kind=kind, id=record.pk, version=record.version, after=f"{kind}:{record.pk}", **payload)
     if kind == "note":
-        messages.success(request, "Added the Note. Add its links below, or press Back to reading.")
+        messages.success(request, "Added the Link To. Add its links below, or press Back to reading.")
         return redirect(f"{reverse('edit_note', args=[result.record.pk])}?{urlencode({'next': _next(request)})}")
     messages.success(request, f"Added the {ADD_NICE.get(what, NICE[kind])}.")
     return redirect(_next(request))

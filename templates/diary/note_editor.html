@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 {% load static diary_tags %}
-{% block title %}Edit Note{% endblock %}
+{% block title %}Edit Link To{% endblock %}
 {# The Note editor (Milestone 5, docs/DESIGN.md D33 to D40): text, links (add, remove, reorder with the tree picker) and More. Every button posts this whole form, so the text typed so far is saved first. #}
 {% block content %}
 <div class="home-column item-editor note-editor">
-  <h1>Edit Note</h1>
+  <h1>Edit Link To</h1>
   <p><a href="{{ back }}">Back to reading</a>{% if where %} &middot; On: {{ where }}{% endif %}</p>
   {% if theirs %}
   <details class="saved-version" open>
@@ -23,14 +23,14 @@
     <button type="submit" class="visually-hidden" tabindex="-1" aria-hidden="true">Save</button>
 
     <div class="field">
-      <div class="field-label">Text</div>
+      <div class="field-label">Text (optional)</div>
       <p class="hint">Bold, italic and underline only. Press Enter for a new paragraph, Shift+Enter for a line break.</p>
-      {% include "diary/_richtext_field.html" with rname="text" rvalue=values.text rlabel="Note text" rhint="Text of the Note" rrows=6 %}
+      {% include "diary/_richtext_field.html" with rname="text" rvalue=values.text rlabel="Link To text (optional)" rhint="Text of the Link To (optional)" rrows=6 %}
     </div>
 
     <fieldset class="field note-links">
       <legend class="field-label">Links (See also)</legend>
-      <p class="hint">Each link shows under the Note as &ldquo;See also&rdquo; and takes the reader to that place. The place it points to shows &ldquo;Linked from&rdquo; this Note.</p>
+      <p class="hint">Each link shows under the Link To as &ldquo;See also&rdquo; and takes the reader to that place. The place it points to shows &ldquo;Linked from&rdquo; this Link To.</p>
       {% if links %}
       <ol class="link-rows">
         {% for l in links %}
@@ -47,7 +47,7 @@
         {% endfor %}
       </ol>
       {% else %}
-      <p class="hint">This Note has no links yet.</p>
+      <p class="hint">This Link To has no links yet.</p>
       {% endif %}
       <button type="submit" formaction="{% url 'edit_note_pick' %}" name="purpose" value="link">Add A Link&hellip;</button>
     </fieldset>

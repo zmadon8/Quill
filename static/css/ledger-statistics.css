@@ -29,3 +29,10 @@ body.ledger .pivot-chart .hv-tip b { display: block; margin-bottom: 2px; }
 body.ledger .pivot-chart .hv-tip span { display: flex; justify-content: space-between; gap: 14px; }
 body.ledger .pivot-chart .hv-tip i { display: inline-block; width: 14px; border-top: 2px solid var(--ink); vertical-align: middle; margin-right: 6px; }
 
+
+/* Explain Statistics (the button under the Standard table, and its page). */
+.explain-link { margin-top: 1rem; }
+.explain-stats h2 { margin-top: 1.75rem; }
+.explain-list dt { font-weight: 600; margin-top: .6rem; }
+.explain-list dd { margin: .15rem 0 0; }
+.explain-table td, .explain-table th[scope=row] { text-align: left; vertical-align: top; white-space: normal; }

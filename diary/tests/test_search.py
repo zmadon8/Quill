@@ -107,7 +107,7 @@ class MatchEachRecordTypeTests(SearchTestBase):
         item = self.item("Parent item")
         note = Note.objects.create(profile=self.profile, item=item, text=para("Gnu remark"))
         results = self.search("gnu")
-        self.assertEqual([(r.kind, r.label) for r in results], [("Note", "Gnu remark")])
+        self.assertEqual([(r.kind, r.label) for r in results], [("Link To", "Gnu remark")])
         self.assertTrue(results[0].url.endswith("#n-note-%d" % note.pk))
         self.assertEqual(results[0].path[-1], ("Parent item", None))
 

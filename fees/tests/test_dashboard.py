@@ -40,9 +40,10 @@ from fees.models import Firm, Group, Matter
 from fees.services import dashboard, payments, settings
 from fees.services import memos as memos_service
 from fees.services.statistics import get_period_statistics
+from fees.services.statistics.periods import working_days_completed
 from fees.tests.datasets import build_planning_dataset
 
-# A fixed "now" in FY 2025-26; the last-30-days window is 23 Jan 2026 .. 20 Feb 2026.
+# A fixed "now" in FY 2025-26; the last-30-days window is 21 Jan 2026 .. 20 Feb 2026 (the day after 20 Jan, to today).
 NOW = datetime.date(2026, 2, 20)
 
 
@@ -228,8 +229,12 @@ class SwitchOffZeroQueriesTests(TestCase):
 # ---------------------------------------------------------------------------
 
 class RateKpiTests(TestCase):
-    """Worked out from the billed and appearances figures. NOW is 20 Feb 2026: the month so far is 20 days, the financial year so far
-    (1 Apr 2025 to 20 Feb 2026, both days counted) is 326 days, and the last 30 days are 30."""
+    """Fees / Day = billed / working days completed. Appearances / Week = appearances / working days completed * 5.
+
+    NOW is 20 Feb 2026. Every month of FY 2025-26 from April to February has 20 working days entered (March has none).
+    Working days completed: this month 20 * 20 / 28 = 14.3 -> 14; this year 10 full months (Apr to Jan) = 200, plus 14 = 214;
+    the last 30 days (21 Jan to 20 Feb) are 11 of January's 31 days and 20 of February's 28: 20 * 11 / 31 + 20 * 20 / 28 = 21.4 -> 21.
+    """
 
     def setUp(self):
         self.profile = fees_profile("Rate-Dash")
@@ -243,39 +248,59 @@ class RateKpiTests(TestCase):
     RATES = ("fees_per_day_last30", "fees_per_day_this_month", "fees_per_day_this_year",
              "appearances_per_week_last30", "appearances_per_week_this_month", "appearances_per_week_this_year")
 
+    def _enter_working_days(self, per_month=20):
+        from fees.services.statistics import save_adjustment
+        for month in (4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2):
+            save_adjustment(self.profile, {"financial_year": "2025-26", "month": month, "working_days": per_month})
+
+    def test_working_days_completed(self):
+        self._enter_working_days()
+        self.assertEqual(working_days_completed(self.profile, NOW), {"month": 14, "year": 214, "last30": 21})
+
     def test_fees_a_day(self):
         self._seed()
+        self._enter_working_days()
         kpis = dashboard.get_dashboard_kpis(self.profile, NOW, settings=_config(",".join(self.RATES[:3])))
-        self.assertEqual(kpis["fees_per_day_last30"], "133.33")        # 4000 / 30
-        self.assertEqual(kpis["fees_per_day_this_month"], "200.00")    # 4000 / 20
-        self.assertEqual(kpis["fees_per_day_this_year"], "33.74")      # 11000 / 326
+        self.assertEqual(kpis["fees_per_day_last30"], "190.48")        # 4000 / 21
+        self.assertEqual(kpis["fees_per_day_this_month"], "285.71")    # 4000 / 14
+        self.assertEqual(kpis["fees_per_day_this_year"], "51.40")      # 11000 / 214
         self.assertEqual(dashboard.kpi_kind("fees_per_day_last30"), "money")
 
-    def test_appearances_a_week(self):
+    def test_appearances_a_week_is_the_daily_figure_times_five(self):
         self._seed()
+        self._enter_working_days()
         both = _config("appearances_last30,appearances_this_month,appearances_this_year," + ",".join(self.RATES[3:]))
         kpis = dashboard.get_dashboard_kpis(self.profile, NOW, settings=both)
-        self.assertEqual(kpis["appearances_per_week_last30"], "1.2")   # 5 appearances in 30 days: 5 * 7 / 30 = 1.17
-        for rate, base, days in (("appearances_per_week_this_month", "appearances_this_month", 20),
-                                 ("appearances_per_week_this_year", "appearances_this_year", 326)):
-            want = (Decimal(kpis[base]) * 7 / days).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)
+        self.assertEqual(kpis["appearances_per_week_last30"], "1.2")   # 5 appearances: 5 * 5 / 21 = 1.19
+        for rate, base, days in (("appearances_per_week_this_month", "appearances_this_month", 14),
+                                 ("appearances_per_week_this_year", "appearances_this_year", 214)):
+            want = (Decimal(kpis[base]) * 5 / days).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)
             self.assertEqual(kpis[rate], str(want), rate)
         self.assertEqual(dashboard.kpi_kind("appearances_per_week_last30"), "rate")
 
     def test_a_rate_alone_runs_the_group_of_its_base_and_nothing_else(self):
         self._seed()
+        self._enter_working_days()
         with mock.patch.object(dashboard, "get_dashboard_summary", side_effect=AssertionError("summary")), \
                 mock.patch.object(dashboard, "stats_appearances", side_effect=AssertionError("appearances")):
             kpis = dashboard.get_dashboard_kpis(self.profile, NOW, settings=_config("fees_per_day_last30"))
-        self.assertEqual(kpis, {"fees_per_day_last30": "133.33"})
+        self.assertEqual(kpis, {"fees_per_day_last30": "190.48"})
 
-    def test_the_month_so_far_counts_the_days_up_to_today(self):
+    def test_the_month_so_far_counts_the_working_days_gone(self):
         self._seed()
+        self._enter_working_days()
         tenth = datetime.date(2026, 2, 10)
         kpis = dashboard.get_dashboard_kpis(self.profile, tenth, settings=_config("fees_per_day_this_month"))
-        self.assertEqual(kpis["fees_per_day_this_month"], "400.00")   # 4000 billed in the 10 days so far
+        self.assertEqual(kpis["fees_per_day_this_month"], "571.43")   # 4000 billed / (20 * 10 / 28 = 7.1 -> 7 working days)
+
+    def test_no_working_days_entered_is_zero(self):
+        self._seed()
+        kpis = dashboard.get_dashboard_kpis(self.profile, NOW, settings=_config(",".join(self.RATES)))
+        self.assertEqual(kpis["fees_per_day_this_month"], "0.00")
+        self.assertEqual(kpis["appearances_per_week_this_year"], "0.0")
 
     def test_nothing_billed_is_zero_and_switched_off_is_zero(self):
+        self._enter_working_days()
         empty = dashboard.get_dashboard_kpis(self.profile, NOW, settings=_config(",".join(self.RATES)))
         self.assertEqual(empty["fees_per_day_this_year"], "0.00")
         self.assertEqual(empty["appearances_per_week_this_year"], "0.0")

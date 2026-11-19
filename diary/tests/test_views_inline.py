@@ -72,14 +72,14 @@ class AddFormTests(InlineTestCase):
     def test_after_a_topic_the_choices_are_item_inside_subtopic_topic(self):
         body = self.form("topic:%d" % self.topic.pk).json()
         self.assertEqual([(c["value"], c["label"]) for c in body["choices"]],
-                         [("inside:item", "Item inside"), ("inside:subtopic", "Sub-topic"), ("inside:note", "Note"),
+                         [("inside:item", "Item inside"), ("inside:subtopic", "Sub-topic"), ("inside:note", "Link To"),
                           ("after:topic", "Topic")])
 
     def test_after_a_subtopic_the_choices_are_item_inside_and_subtopic(self):
         sub = self.make("subtopic", ("topic", self.topic.pk), name="General")
         body = self.form("subtopic:%d" % sub.pk).json()
         self.assertEqual([(c["value"], c["label"]) for c in body["choices"]],
-                         [("inside:item", "Item inside"), ("inside:note", "Note"), ("after:subtopic", "Sub-topic")])
+                         [("inside:item", "Item inside"), ("inside:note", "Link To"), ("after:subtopic", "Sub-topic")])
 
     def test_every_subject_offers_item_topic_and_note(self):
         # D81: Subjects under Other Subjects are treated like any other, and a Sub-topic always sits in a Topic.

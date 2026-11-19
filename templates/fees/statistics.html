@@ -39,6 +39,7 @@
   <tbody>{% for row in table %}<tr><th scope="row">{{ row.label }}</th>{% for c in row.cells %}<td class="money{% if c.current %} current-col{% endif %}{% if c.overridden %} hand{% endif %}"{% if c.overridden %} title="Entered by hand in Settings, Start Years &amp; Statistics"{% endif %}>{% if row.money %}{{ c.value|fees_money:money_unit }}{% else %}{{ c.value|default_if_none:"" }}{% endif %}</td>{% endfor %}{% if stats.periods|length > 1 %}<td class="money total-col">{% if row.total is not None %}{% if row.money %}{{ row.total|fees_money:money_unit }}{% else %}{{ row.total }}{% endif %}{% endif %}</td>{% endif %}</tr>{% endfor %}</tbody>
 </table>
 </div>
+<p class="page-actions explain-link"><a class="button secondary" href="{% url 'fees_statistics_explain' %}">Explain Statistics</a></p>
 
 {% else %}
 <form method="get" class="filters" aria-label="Choose the pivot">

@@ -18,7 +18,7 @@ KIND_WORDS = {
 }
 RECORD_WORDS = {
     "subject": "Subject", "topic": "Topic", "subtopic": "Sub-topic", "section": "Section", "item": "Item",
-    "case": "Case", "note": "Note", "notelink": "Note link",
+    "case": "Case", "note": "Link To", "notelink": "Link To link",
 }
 
 

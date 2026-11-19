@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% block title %}{% if purpose == "move" %}Move Note{% else %}Choose a place{% endif %}{% endblock %}
+{% block title %}{% if purpose == "move" %}Move Link To{% else %}Choose a place{% endif %}{% endblock %}
 {# The tree picker for Notes (Milestone 5): drill down through Subjects, Topics, Sub-topics; every Subject, Topic, Sub-topic, Section and Item can be chosen. #}
 {% block content %}
 <div class="home-column note-pick">
-  <h1>{% if purpose == "move" %}Move the Note to&hellip;{% elif purpose == "retarget" %}Point the link at&hellip;{% else %}Link the Note to&hellip;{% endif %}</h1>
-  <p class="hint">Note: {{ note_label }}. Open a Subject, Topic or Sub-topic to see what is inside it, then choose the place.</p>
+  <h1>{% if purpose == "move" %}Move the Link To to&hellip;{% elif purpose == "retarget" %}Point the link at&hellip;{% else %}Link the Link To to&hellip;{% endif %}</h1>
+  <p class="hint">Link To: {{ note_label }}. Open a Subject, Topic or Sub-topic to see what is inside it, then choose the place.</p>
   <nav class="pick-crumbs" aria-label="Where you are">
     <a href="{{ base }}">All Subjects</a>{% for c in crumbs %} &rsaquo; <a href="{{ base }}&amp;at={{ c.at|urlencode }}">{{ c.label }}</a>{% endfor %}{% if here %} &rsaquo; <strong>{{ here.label }}</strong>{% endif %}
   </nav>

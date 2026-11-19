@@ -25,7 +25,7 @@ FIELD_LABELS = {
     "citation": "Citation",
     "comment": "Comment",
     "flag": "Flag",
-    "note": "Note",
+    "note": "Link To",
     "url": "Link",
 }
 KIND_LABELS = {"subject": "Subject", "topic": "Topic", "subtopic": "Sub-topic"}
@@ -220,7 +220,7 @@ def _records(profile, tree, citations_only, flags_only, headers_only=False, flag
         return
     for row in Note.objects.filter(profile=profile, deleted_at__isnull=True).values(
             "pk", "subject_id", "topic_id", "subtopic_id", "item_id", "section_id", "text_plain", "position"):
-        label = _short(row["text_plain"]) or "Note"
+        label = _short(row["text_plain"]) or "Link To"
         own = (1, row["position"], row["pk"])
         if row["item_id"]:
             info = item_info.get(row["item_id"])

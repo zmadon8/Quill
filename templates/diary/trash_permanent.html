@@ -7,11 +7,11 @@
   <ul>{% for name, n in counts %}<li>{{ n }} {{ name }}{{ n|pluralize }}</li>{% endfor %}</ul>
   <p class="hint">The version history is kept, and numbers are never reused.</p>
   {% if links %}
-  <h2>Refused: other Notes link to this</h2>
+  <h2>Refused: other Links To point here</h2>
   <p>Nothing was deleted. Decide what to do with each link first: point it at another place, or remove it for good (its version history is kept). Then try again.</p>
   <ul class="link-list">
     {% for l in links %}<li>
-      <p>Note &ldquo;{{ l.note_label }}&rdquo; ({% if l.live %}live{% else %}in the Trash{% endif %}) links to the {{ l.target_type }} &ldquo;{{ l.target_label }}&rdquo;.</p>
+      <p>Link To &ldquo;{{ l.note_label }}&rdquo; ({% if l.live %}live{% else %}in the Trash{% endif %}) links to the {{ l.target_type }} &ldquo;{{ l.target_label }}&rdquo;.</p>
       <div class="edit-actions">
         <a class="edit-btn" href="{% url 'edit_note_pick' %}?purpose=retarget&amp;link={{ l.link_id }}&amp;next={{ back|urlencode }}">Point it somewhere else&hellip;</a>
         <form method="post" action="{% url 'edit_note_link' %}">

@@ -440,6 +440,17 @@ def year_end(request):
 @fees_reader
 @handle_fees_errors()
 @require_safe
+def explain(request):
+    """Explain Statistics: the formula and meaning of every metric (a fixed page, no figures, no queries beyond the page's own)."""
+    _profile, config = scope.context(request)
+    if config is not None and not config.statistics_enabled:
+        return render_page(request, "fees/statistics.html", {"stats_off": True})
+    return render_page(request, "fees/statistics_explain.html", {"tab": "standard"})
+
+
+@fees_reader
+@handle_fees_errors()
+@require_safe
 def export_statistics(request):
     profile, config = scope.context(request)
     ensure_statistics_on(config)

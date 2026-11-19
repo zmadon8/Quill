@@ -1,0 +1,85 @@
+{% extends "fees/base_fees.html" %}
+{% load static %}
+{% block extra_css %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/ledger-statistics.css' %}">{% endblock %}
+{% block page_title %}Explain Statistics - {{ program_label }}{% endblock %}
+{% block content %}
+{# Explain Statistics: the formula and meaning of every figure on the Statistics page and the Dashboard. Fixed text; keep it in step with fees/services/statistics/periods.py and fees/services/dashboard.py. #}
+<div class="explain-stats">
+<h1>Explain Statistics</h1>
+<p><a href="{% url 'fees_statistics' %}?tab=standard">Back to Statistics</a></p>
+
+<h2 id="basics">The basics</h2>
+<dl class="explain-list">
+  <dt>Which memos count</dt>
+  <dd>A memo counts in the month of its memo date and in the financial year it belongs to (1 April to 31 March). Draft memos are left out, unless the page is asked to include them; they are then counted in the current month.</dd>
+  <dt>Which payments count</dt>
+  <dd>Amount Received and Received + TDS follow the date of the payment, not the date of the memo it paid. Amount Recovered follows the memo: it is what has been paid against the memos issued in the period, whenever it was paid.</dd>
+  <dt>Entered by hand</dt>
+  <dd>In Settings, Start Years &amp; Statistics, each month can have its working days, extra appearances, conferences and drafts, and figures that replace the worked-out ones. Extras are added to the memo counts. A replacement figure is used instead of the worked-out one and is marked in the table.</dd>
+</dl>
+
+<h2 id="working-days">Working days completed</h2>
+<p>Every rate divides by the working days completed, never by calendar days. The working days of a month are the ones entered for it in Settings, Start Years &amp; Statistics.</p>
+<dl class="explain-list">
+  <dt>A past month</dt><dd>Its entered working days, in full.</dd>
+  <dt>The current month</dt><dd>Entered working days &times; (today&rsquo;s date &divide; days in the month), rounded to a whole day. Example: 20 working days in November, on 19 November: 20 &times; 19 &divide; 30 = 12.7, so 13.</dd>
+  <dt>A future month</dt><dd>0.</dd>
+  <dt>A quarter or a financial year</dt><dd>The sum of its months, worked out as above.</dd>
+  <dt>The last 30 days</dt><dd>From the day after today&rsquo;s date last month up to today (on 19 November: 20 October to 19 November). Each month in it gives its entered working days &times; (its days inside the window &divide; its days in all), and the total is rounded to a whole day. Example, with 22 working days entered for October and 20 for November: 22 &times; 12 &divide; 31 = 8.5, plus 20 &times; 19 &divide; 30 = 12.7, total 21.2, so 21.</dd>
+  <dt>No working days entered</dt><dd>The rate shows 0.</dd>
+</dl>
+
+<h2 id="standard">Statistics, Standard table</h2>
+<p>One column per month, quarter or financial year (Show By). The Total column adds up the counts and amounts; rates and percentages have no total.</p>
+<div class="table-wrap">
+<table class="ledger-table explain-table">
+  <caption>Formula of each metric in the Standard table</caption>
+  <thead><tr><th scope="col">Metric</th><th scope="col">Formula</th><th scope="col">Notes</th></tr></thead>
+  <tbody>
+    <tr><th scope="row">Appearances</th><td>Sum of appearances on the memos of the period + extra appearances entered</td><td>A replacement figure, if entered, is used instead.</td></tr>
+    <tr><th scope="row">Conferences</th><td>Sum of conferences on the memos of the period + extra conferences entered</td><td>As above.</td></tr>
+    <tr><th scope="row">Drafts</th><td>Sum of drafts (documents) on the memos of the period + extra drafts entered</td><td>As above.</td></tr>
+    <tr><th scope="row">Amount Billed</th><td>Sum of the total fees of the memos of the period</td><td>As above.</td></tr>
+    <tr><th scope="row">Amount Recovered</th><td>Sum of payments + TDS against the memos issued in the period</td><td>Grows as those memos are paid, even in later months.</td></tr>
+    <tr><th scope="row">% Recovered</th><td>Amount Recovered &divide; Amount Billed &times; 100</td><td>0 when nothing was billed.</td></tr>
+    <tr><th scope="row">Amount Received</th><td>Sum of payments dated in the period (net of TDS)</td><td>By payment date.</td></tr>
+    <tr><th scope="row">Received + TDS</th><td>Sum of payments + TDS dated in the period</td><td>By payment date.</td></tr>
+    <tr><th scope="row">Fees / Day</th><td>Amount Billed &divide; working days completed</td><td>See <a href="#working-days">Working days completed</a>.</td></tr>
+    <tr><th scope="row">Appearances / Week</th><td>Appearances &divide; working days completed &times; 5</td><td>A working week is 5 working days.</td></tr>
+    <tr><th scope="row">Conferences / Week</th><td>Conferences &divide; working days completed &times; 5</td><td></td></tr>
+    <tr><th scope="row">Drafts / Week</th><td>Drafts &divide; working days completed &times; 5</td><td></td></tr>
+    <tr><th scope="row">Fees / Week</th><td>Amount Billed &divide; working days completed &times; 5</td><td>The same as Fees / Day &times; 5.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2 id="dashboard">Dashboard and Home boxes</h2>
+<p>Three periods: <strong>This Month</strong> (the calendar month so far), <strong>This Year</strong> (the financial year so far) and <strong>Last 30 Days</strong> (from the day after today&rsquo;s date last month up to today).</p>
+<div class="table-wrap">
+<table class="ledger-table explain-table">
+  <caption>Formula of each Dashboard box</caption>
+  <thead><tr><th scope="col">Box</th><th scope="col">Formula</th></tr></thead>
+  <tbody>
+    <tr><th scope="row">Billed</th><td>Sum of the total fees of the memos dated in the period</td></tr>
+    <tr><th scope="row">Fees / Day</th><td>Billed &divide; working days completed in the period</td></tr>
+    <tr><th scope="row">Received</th><td>Sum of payments + TDS dated in the period</td></tr>
+    <tr><th scope="row">Memos</th><td>Number of memos dated in the period</td></tr>
+    <tr><th scope="row">Appearances</th><td>This Month and This Year: as in the Standard table (with the extras and replacements entered). Last 30 Days: sum of appearances on the memos dated in the window.</td></tr>
+    <tr><th scope="row">Appearances / Week</th><td>Appearances &divide; working days completed in the period &times; 5</td></tr>
+    <tr><th scope="row">Conferences</th><td>Sum of conferences on the memos dated in the period</td></tr>
+    <tr><th scope="row">Drafts (Documents)</th><td>Sum of drafts on the memos dated in the period (This Year and Last 30 Days)</td></tr>
+    <tr><th scope="row">Total Outstanding</th><td>For every memo not fully paid and not written off: total fees &minus; paid (payments + TDS), added up. As at today.</td></tr>
+    <tr><th scope="row">Amount Overdue</th><td>The part of Total Outstanding on memos older than the overdue days set in Settings</td></tr>
+    <tr><th scope="row">Memos Awaiting Payment</th><td>Number of memos with something outstanding</td></tr>
+    <tr><th scope="row">Written Off</th><td>Total fees of the memos marked written off</td></tr>
+    <tr><th scope="row">Draft Memos / Draft Memos Total</th><td>Number and total fees of the memos still marked as drafts</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2 id="year-end">Year End</h2>
+<p>Totals for one financial year: memos, billed, received, TDS, written off, new matters, active firms, appearances, and Appearances / Week (appearances &divide; working days completed in the year &times; 5).</p>
+
+<p><a class="button secondary" href="{% url 'fees_statistics' %}?tab=standard">Back to Statistics</a></p>
+</div>
+{% endblock %}

@@ -47,7 +47,7 @@ from fees.services.financial_year import derive_financial_year
 from fees.services.money import round2
 from fees.services.statistics._common import FY_RE, max_fy
 
-__all__ = ["get_period_statistics"]
+__all__ = ["get_period_statistics", "working_days_completed", "last_month_window_start"]
 
 _ZERO = Decimal("0")
 
@@ -207,6 +207,67 @@ def _per_week(count, working_days) -> Decimal:
     if working_days > 0:
         return round2((Decimal(str(count)) * 5) / Decimal(str(working_days)))
     return _ZERO
+
+
+def last_month_window_start(today) -> datetime.date:
+    """First day of "the last 30 days": the day after today's date in the previous month (19 Nov -> 20 Oct; 20 Oct to 19 Nov)."""
+    year, month = (today.year, today.month - 1) if today.month > 1 else (today.year - 1, 12)
+    same_day = datetime.date(year, month, min(today.day, monthrange(year, month)[1]))
+    return same_day + datetime.timedelta(days=1)
+
+
+def working_days_completed(profile, now=None) -> dict:
+    """Working days completed so far, for the Dashboard rates: ``{"month", "year", "last30"}`` (whole numbers).
+
+    The working days of each month are the ones entered in Edit Statistics (``PeriodAdjustment.working_days``), read in ONE
+    query. A past month counts in full, a future month counts 0, and the current month counts the entered figure pro-rated by
+    the days gone (the same rule the Statistics page uses, so the two always agree).
+
+    * ``month``: the current calendar month so far.
+    * ``year``: the current financial year so far (1 April up to today).
+    * ``last30``: the period from the day after today's date last month to today (19 Nov: 20 Oct to 19 Nov). Each month in it
+      gives its entered working days x (its days inside the window / its days), and the total is rounded to a whole day.
+    """
+    if now is None:
+        now = datetime.date.today()
+    if isinstance(now, datetime.datetime):
+        now = now.date()
+    fy = derive_financial_year(now)
+    entered = {
+        (r["financial_year"], r["month"]): r["working_days"] or 0
+        for r in PeriodAdjustment.objects.filter(profile=profile).values("financial_year", "month", "working_days")
+    }
+
+    def done_in_month(year, month):
+        wd = entered.get((derive_financial_year(datetime.date(year, month, 1)), month), 0)
+        if (year, month) > (now.year, now.month):
+            return 0
+        if (year, month) == (now.year, now.month):
+            return wd * (now.day / monthrange(year, month)[1])
+        return wd
+
+    fy_start_year = int(fy[:4])
+    year_total = sum(
+        done_in_month(fy_start_year if m >= 4 else fy_start_year + 1, m) for m in FY_MONTH_ORDER
+    )
+
+    # The last-30-days window: each month it touches gives its entered working days pro-rated by the share of that month's
+    # calendar days inside the window. The current month's share is the days gone, so it matches the "this month" figure.
+    last30 = 0.0
+    counted = {}
+    day = last_month_window_start(now)
+    while day <= now:
+        counted[(day.year, day.month)] = counted.get((day.year, day.month), 0) + 1
+        day += datetime.timedelta(days=1)
+    for (year, month), days_in_window in counted.items():
+        wd = entered.get((derive_financial_year(datetime.date(year, month, 1)), month), 0)
+        last30 += wd * days_in_window / monthrange(year, month)[1]
+
+    return {
+        "month": _js_round(done_in_month(now.year, now.month)),
+        "year": _js_round(year_total),
+        "last30": _js_round(last30),
+    }
 
 
 def get_period_statistics(profile, granularity, financial_year, options=None, now=None):

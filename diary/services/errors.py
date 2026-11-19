@@ -71,7 +71,7 @@ class PermanentDeleteRefused(Refused):
 
     def __init__(self, links):
         super().__init__(
-            "Other Notes link to this. Decide what to do with each link first; nothing was deleted.",
+            "Other Links To point here. Decide what to do with each link first; nothing was deleted.",
             links=links,
         )
         self.links = links
