@@ -318,7 +318,8 @@ class PaymentWriteTests(WriteBase):
     def test_pay_ticked_with_nothing_ticked_says_so_and_sends_nobody_to_a_blank_form(self):
         url = reverse("fees_payment_new")
         response = self.client.get(url + "?ticked=1", HTTP_REFERER="http://testserver" + reverse("fees_memos"))
-        self.assertRedirects(response, reverse("fees_memos"), fetch_redirect_response=False)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], "http://testserver" + reverse("fees_memos"))  # back to the page it came from
         self.assertIn("Please select a memo first", self.messages(response))
         no_referer = self.client.get(url + "?ticked=1")
         self.assertRedirects(no_referer, reverse("fees_memos"), fetch_redirect_response=False)
