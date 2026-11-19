@@ -530,6 +530,13 @@ class FirmScreenTests(UiPageBase):
         self.assertIn('data-addl-tick checked>', text)
         self.assertEqual(text.count("<label data-addl-box>"), 2)
 
+    def test_the_hidden_additional_details_boxes_are_not_shown_by_the_grid(self):
+        # The memo grid draws its labels as flex boxes, which overrides the hidden attribute unless a rule says otherwise.
+        from pathlib import Path
+
+        css = (Path(__file__).resolve().parents[2] / "static" / "css" / "fees.css").read_text()
+        self.assertIn("body.ledger .memo-form [data-addl-box][hidden] { display: none; }", css)
+
     def test_additional_details_are_cleared_when_the_tick_is_left_off(self):
         from fees.forms import memo_data_from_post
 

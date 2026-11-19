@@ -248,6 +248,8 @@ def _explore_context(profile, query):
         "rows": rows,
         "totals": [pivot["column_totals"].get(col["key"]) for col in columns],
         "grand_total": pivot["grand_total"],
+        "adjusted": pivot.get("adjusted", False),
+        "adjustments_left_out": pivot.get("adjustments_left_out", False),
     }
     context["chart_data"] = {
         "money": pivot["money"],

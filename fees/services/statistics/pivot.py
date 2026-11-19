@@ -37,7 +37,7 @@ from decimal import Decimal
 from django.db.models.functions import ExtractMonth, ExtractYear
 
 from fees.errors import FeesError
-from fees.models import Allocation, Memo
+from fees.models import Allocation, Memo, PeriodAdjustment
 from fees.services.financial_year import derive_financial_year, quarter_of_month
 from fees.services.money import round2
 from fees.services.statistics._common import max_fy
@@ -62,6 +62,17 @@ MONEY_MEASURES = frozenset(
 
 #: Measures that count DISTINCT matters per cell (set size, not a sum).
 _DISTINCT_MATTER_MEASURES = frozenset(["matters", "mattersNew"])
+
+#: Measures that Settings > Edit Statistics can change month by month (D229): (extra field or None, override field).
+_ADJUSTABLE = {
+    "appearances": ("extra_appearances", "ov_appearances"),
+    "conferences": ("extra_conferences", "ov_conferences"),
+    "drafts": ("extra_drafts", "ov_drafts"),
+    "billed": (None, "ov_billed"),
+    "received": (None, "ov_received"),
+    "receivedPlusTds": (None, "ov_received_plus_tds"),
+}
+_TIME_ROWS = frozenset(["month", "quarter", "financialYear", "calendarMonth"])
 
 #: Per-week measures delegate to the period engine.
 _PER_WEEK_MEASURES = frozenset(["appearancesPerWeek", "feesPerWeek"])
@@ -324,6 +335,11 @@ def get_pivot(profile, req):
     row_meta = {}
     cells = {}  # row_key -> {col_key: value}
     matter_sets = {}  # "row_key|col_key" -> set of matter ids
+    # Edit Statistics (Settings) holds figures per month for the whole profile, so they can be used when the rows and columns are
+    # times and no firm is chosen; month_vals keeps each month's worked-out value so a replacement can take its place.
+    adjustable = measure in _ADJUSTABLE
+    by_time = row_dim in _TIME_ROWS and not firm_ids
+    month_vals = {}  # (financial year, calendar month) -> value from the memos / payments
 
     for r in _driving_rows(profile, req, firm_ids, is_receipt):
         if is_matters_new and first_memo_by_matter.get(r["matter_id"]) != r["memo_id"]:
@@ -343,6 +359,37 @@ def get_pivot(profile, req):
         else:
             value = measure_value(measure, r)
             row_cells[ca_key] = round2((row_cells.get(ca_key, _ZERO)) + value)
+            if adjustable and by_time:
+                mk = (r["financial_year"], int(r["cal_month"]))
+                month_vals[mk] = month_vals.get(mk, _ZERO) + value
+
+    adjusted = False
+    if adjustable and by_time:
+        extra_field, ov_field = _ADJUSTABLE[measure]
+        rows = PeriodAdjustment.objects.filter(profile=profile)
+        if req.get("from_fy"):
+            rows = rows.filter(financial_year__gte=req["from_fy"])
+        if req.get("to_fy"):
+            rows = rows.filter(financial_year__lte=req["to_fy"])
+        for adj in rows:
+            base = month_vals.get((adj.financial_year, adj.month), _ZERO)
+            override = getattr(adj, ov_field)
+            if override is not None:
+                new = Decimal(override)
+            else:
+                new = base + Decimal((getattr(adj, extra_field) or 0) if extra_field else 0)
+            delta = round2(new - base)
+            if not delta:
+                continue
+            # The month as a driving row would place it: its row and column, made if no memo fell in that month.
+            synthetic = {"cal_month": adj.month, "financial_year": adj.financial_year}
+            ra_key, ra_label, ra_sort = row_axis(synthetic, row_dim)
+            ca_key, ca_label, ca_sort = col_axis(synthetic, col_dim)
+            row_meta.setdefault(ra_key, (ra_label, ra_sort))
+            col_meta.setdefault(ca_key, (ca_label, ca_sort))
+            row_cells = cells.setdefault(ra_key, {})
+            row_cells[ca_key] = round2(row_cells.get(ca_key, _ZERO) + delta)
+            adjusted = True
 
     columns = [
         {"key": key, "label": meta[0]}
@@ -377,6 +424,9 @@ def get_pivot(profile, req):
         "rows": rows_out,
         "column_totals": column_totals,
         "grand_total": grand_total,
+        # Whether figures typed in Settings > Edit Statistics changed any cell; and when they could not be used.
+        "adjusted": adjusted,
+        "adjustments_left_out": adjustable and not by_time,
     }
 
 
