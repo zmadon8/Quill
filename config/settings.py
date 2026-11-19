@@ -238,6 +238,9 @@ else:
 # Compress pages and text on the way out (much less to download on a phone). Set GZIP_RESPONSES=0 to switch off.
 if _flag("GZIP_RESPONSES", default=True):
     MIDDLEWARE.insert(1, "config.middleware.TextGZipMiddleware")  # right after SecurityMiddleware
+# Search keeps the records it matched in each web worker's memory for this many seconds, and builds them again at once when any
+# record of the profile changes (diary/searchcache.py). 0 switches it off; the tests leave it off except where they test it.
+SEARCH_CACHE_SECONDS = _int("SEARCH_CACHE_SECONDS", 0 if "test" in sys.argv[1:2] or os.environ.get("DJANGO_TESTING") == "1" else 600)
 # QUILL_PERF_LOG=1 logs the time and number of database queries of every Investments request (and adds a Server-Timing header). Off by default.
 PERF_LOG = _flag("QUILL_PERF_LOG", default=False)
 # How many proxies add their own entry to the end of X-Forwarded-For (Render: 1). The visitor's address is counted from the end,

@@ -782,6 +782,9 @@ def restore_backup(document, user):
         raise BackupError(f"The restore failed and nothing was changed. ({exc})")
 
     counts = {m._meta.label: len(objs) for m, objs in batches}
+    from diary import searchcache
+
+    searchcache.clear()  # the restore replaced every record: Search must read them again (other workers notice by their fingerprint)
     # ``user`` may be a request.user SimpleLazyObject, so do not use type(user).
     survivor = None
     if user is not None and user.pk and get_user_model()._default_manager.filter(pk=user.pk).exists():

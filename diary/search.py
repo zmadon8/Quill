@@ -2,8 +2,10 @@
 
 The profile's live text is loaded in a fixed number of queries (three for the headings, then Sections, Items,
 Cases and Notes), turned into in-memory records and matched with the pure rules of diary/searchtext.py. Nothing
-is stored for search, so every way of changing data (editing, import, conversions, restore, Undo) stays correct
-without extra work.
+is stored for search in the database. The records are kept in the web worker's memory for a short while and are
+built again as soon as any record of the profile has changed (diary/searchcache.py explains how that is noticed
+without any write path having to say so), so every way of changing data (editing, import, conversions, restore,
+Undo) stays correct without extra work.
 
 Trash is excluded: a deleted record, and anything below a deleted Subject, Topic or Sub-topic, a Case of a deleted Item, a Note on a deleted Item or Section. Where a record sits
 in the Diary comes from diary/locate.py, the same code the Review list uses.
@@ -12,7 +14,7 @@ from dataclasses import dataclass, field
 
 from django.urls import reverse
 
-from . import searchtext
+from . import searchcache, searchtext
 from .locate import Tree
 from .models import FLAG_NONE, Case, Item, Note, Section, flag_label
 
@@ -51,7 +53,7 @@ class _Record:
     """One searchable record, before matching."""
 
     __slots__ = ("kind", "label", "place", "extra_path", "anchor", "fields", "tail", "flag_text",
-                 "flag", "self_heading", "text", "link")
+                 "flag", "self_heading", "text", "link", "norms")
 
     def __init__(self, kind, label, place, anchor, fields, tail, extra_path=(), flag_text="",
                  flag="", self_heading=None, text="", link=""):
@@ -67,6 +69,7 @@ class _Record:
         self.flag = flag
         self.self_heading = self_heading
         self.link = link
+        self.norms = None  # the fields as they are compared, worked out on first use and kept with the record
 
 
 def _short(text):
@@ -290,12 +293,14 @@ def _results(records, parsed, subject_id=None, flag_kind=None):
                 subject_ok[pk] = any(piece in name for piece in parsed.subjects)
             if not subject_ok[pk]:
                 continue
-        matched = searchtext.match_fields(rec.fields, parsed)
+        if rec.norms is None:
+            rec.norms = [searchtext.normalise(text) for _key, text in rec.fields]
+        matched = searchtext.match_fields(rec.fields, parsed, rec.norms)
         if matched is None:
             continue
         score = 0
         if terms:
-            score = 2 if len(terms) > 1 and searchtext.contains_whole_query(rec.fields, terms) else 1
+            score = 2 if len(terms) > 1 and searchtext.contains_whole_query(rec.fields, terms, rec.norms) else 1
         key, text = next(((k, t) for k, t in rec.fields if k in matched), rec.fields[0] if rec.fields else ("", ""))
         segments = searchtext.snippet(text, matched.get(key, []))
         headings = place.headings
@@ -338,14 +343,16 @@ def run_search(profile, query, subject_id=None, citations_only=False, flags_only
     has_filter = bool(parsed.subjects) or parsed.flags is not None
     if parsed.expr is None and not (has_filter or citations_only or flags_only):
         return []
-    tree = Tree.load(profile)
-    return _results(_records(profile, tree, citations_only, flags_only, headers_only, flag_kind), parsed, subject_id,
-                    flag_kind)
+    records = searchcache.cached(
+        profile, ("search", citations_only, flags_only, headers_only, flag_kind),
+        lambda: list(_records(profile, Tree.load(profile), citations_only, flags_only, headers_only, flag_kind)))
+    return _results(records, parsed, subject_id, flag_kind)
 
 
 def run_links(profile, query, with_links=True):
     """The Hyperlinks page (D89): every citation with a web address (``with_links``; the words are looked for in the
     address) or every citation without one (looked for in the citation), as SearchResults in Diary order."""
     parsed = searchtext.parse_search(query)
-    tree = Tree.load(profile)
-    return _results(_link_records(profile, tree, with_links), parsed)
+    records = searchcache.cached(
+        profile, ("links", bool(with_links)), lambda: list(_link_records(profile, Tree.load(profile), with_links)))
+    return _results(records, parsed)
