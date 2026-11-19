@@ -18,9 +18,6 @@ body:is(.ledger, .look) .brand { font-family: var(--font-serif); font-style: ita
 body:is(.ledger, .look) .brand a { color: var(--ink); border-bottom: 0; }
 body:is(.ledger, .look) .brand a:hover { color: var(--accent); text-decoration: none; }
 body:is(.ledger, .look) .brand .profile-name { font-family: var(--font-sans); font-style: normal; font-size: 12px; color: var(--muted); }
-body:is(.ledger, .look) .history-buttons { gap: 2px; }
-body:is(.ledger, .look) .back-button, body:is(.ledger, .look) .forward-button { width: 28px; min-width: 28px; height: 28px; border: 0; background: transparent; color: var(--muted); }
-body:is(.ledger, .look) .back-button:hover, body:is(.ledger, .look) .forward-button:hover { color: var(--ink); background: var(--paper-2); }
 body:is(.ledger, .look) .program-nav { flex: 1 1 auto; align-items: stretch; gap: 0 20px; font-size: 14px; }
 body:is(.ledger, .look) .program-nav a:not(.home-button) { padding: 12px 2px 10px; min-height: 0; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; }
 body:is(.ledger, .look) .program-nav a:not(.home-button):hover { color: var(--ink); text-decoration: none; }

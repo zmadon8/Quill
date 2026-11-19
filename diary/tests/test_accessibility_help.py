@@ -28,8 +28,7 @@ class AccessibilityTests(TestCase):
         resp = self.client.get(reverse("diary_home"))
         self.assertContains(resp, 'aria-label="Home"')
         self.assertContains(resp, 'aria-label="Search"')
-        self.assertContains(resp, 'aria-label="Back"')
-        self.assertContains(resp, 'aria-label="Forward"')
+        self.assertNotContains(resp, 'aria-label="Forward"')  # no copies of the browser's own buttons
 
     def test_search_input_has_a_label(self):
         resp = self.client.get(reverse("diary_home"))

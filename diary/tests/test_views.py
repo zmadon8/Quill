@@ -247,10 +247,8 @@ class HomeIndexTests(TestCase):
         self.assertIn('class="home-button" href="%s?home=1"' % reverse("home"), header)
         self.assertIn('aria-label="Home"', header)
         self.assertIn('title="Home (&#8997;H)"', header)
-        self.assertLess(header.index('class="brand"'), header.index("data-back"))
-        self.assertLess(header.index("data-back"), header.index("data-forward"))
         home = header.index('class="home-button" href=')
-        self.assertLess(header.index("data-forward"), home)
+        self.assertLess(header.index('class="brand"'), home)
         self.assertGreater(header.index("search-toggle"), header.index("Help"))
         self.assertLess(header.index("search-toggle"), home)
         self.assertLess(header.index("gear-button"), header.index('class="who"'))  # the Settings gear sits left of the initials
@@ -262,7 +260,7 @@ class HomeIndexTests(TestCase):
         for name in ("user_list", "settings", "backup_list"):
             suite_header = self.client.get(reverse(name)).content.decode().split('<header class="site-header"')[1].split("</header>")[0]
             self.assertIn('class="home-button" href="%s?home=1"' % reverse("home"), suite_header, name)
-            self.assertLess(suite_header.index("data-forward"), suite_header.index('class="home-button" href='), name)
+            self.assertLess(suite_header.index('class="brand"'), suite_header.index('class="home-button" href='), name)
             self.assertLess(suite_header.index('class="home-button" href='), suite_header.index('aria-label="Sign out"'), name)
             self.assertLess(suite_header.index('class="who"'), suite_header.index('class="home-button" href='), name)
         home_header = self.client.get(reverse("home") + "?home=1").content.decode().split('<header class="site-header"')[1].split("</header>")[0]
@@ -337,7 +335,6 @@ class HomeIndexTests(TestCase):
         for name in ("home", "diary_home", "search", "user_list", "backup_list", "settings"):
             html = self.client.get(reverse(name)).content.decode()
             header = html.split('<header class="site-header"')[1].split("</header>")[0]
-            self.assertIn("data-back", header, name)
             if name in ("home", "user_list", "backup_list", "settings"):
                 self.assertIn('<a href="%s?home=1" title="Go to Home (&#8997;H)" aria-label="Go to Home">' % reverse("home"), header, name)
             else:
@@ -350,33 +347,20 @@ class HomeIndexTests(TestCase):
                 self.assertNotIn(">Home</a>", header, name)
                 self.assertIn(">Case Law Diary</a>", header, name)  # brand; the Home icon has no text
 
-    def test_back_and_forward_sit_right_of_the_program_name(self):
+    def test_header_has_no_back_and_forward_arrows(self):
+        """The browser's own Back and Forward are enough, so the header carries no copies of them."""
         self.client.force_login(self.admin)
         for name in ("home", "diary_home", "user_list"):
             header = self.client.get(reverse(name)).content.decode().split('<header class="site-header"')[1].split("</header>")[0]
-            brand = header.index('class="brand"')
-            back = header.index("data-back")
-            forward = header.index("data-forward")
-            self.assertLess(brand, back, name)
-            self.assertLess(back, forward, name)
-            self.assertLess(forward, header.index('class="program-nav"'), name)
-            self.assertIn('aria-label="Back"', header)
-            self.assertIn('aria-label="Forward"', header)
-            self.assertNotIn("Back</button>", header)
-            self.assertNotIn("Forward</button>", header)
-            for attr in ("data-back", "data-forward"):
-                start = header.rindex("<button", 0, header.index(attr))
-                button = header[start : header.index("</button>", start) + len("</button>")]
-                self.assertEqual(button.count("<svg"), 1, name)
-                inner = button.split(">", 1)[1].rsplit("</button>", 1)[0]
-                self.assertEqual(re.sub(r"<svg.*?</svg>", "", inner, flags=re.S).strip(), "", name)
+            for attr in ("data-back", "data-forward", "history-buttons", 'aria-label="Back"', 'aria-label="Forward"'):
+                self.assertNotIn(attr, header, name)
+            self.assertLess(header.index('class="brand"'), header.index('class="program-nav"'), name)
             # The Home icon is on every page; the Search magnifier on program (diary) pages and on Home (it searches every program).
             self.assertEqual(header.count('class="home-button"'), 1, name)
             self.assertEqual(header.count("data-search-toggle"), 1 if name in ("diary_home", "home") else 0, name)
             # Icons are the default header bar (D84): Trash, Export, Help and Settings are icons on diary pages too.
-            self.assertEqual(header.count("<svg") - 2, header.count('class="home-button"') + header.count("data-search-toggle")
+            self.assertEqual(header.count("<svg"), header.count('class="home-button"') + header.count("data-search-toggle")
                              + header.count("nav-icon") + header.count("gear-button"), name)
-            self.assertIn('data-fallback="%s"' % reverse("home"), header)
 
     def test_no_review_tab_in_the_header_and_the_old_address_forwards_to_flags(self):
         # The Review tab was removed (D74); the Review page became the Flags page (D88, D89), which the header links to.

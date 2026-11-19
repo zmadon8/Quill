@@ -20,10 +20,6 @@ body.look .brand .profile-name { opacity: 1; }
 body.look .brand a:hover, body.look .brand a:focus-visible { border-bottom-color: transparent; }
 /* Icon-only header controls keep a 44px tap area (the shared shell draws them 30px). */
 body.look .program-nav .icon-tool, body.look .program-nav .home-button, body.look .program-nav .signout-button { height: var(--tap); min-width: var(--tap); }
-body.look .back-button, body.look .forward-button { width: var(--tap); min-width: var(--tap); height: var(--tap); }
-@media (min-width: 900px) and (pointer: fine) {
-  body.look .back-button, body.look .forward-button { width: 32px; min-width: 32px; height: 32px; }
-}
 @media (max-width: 599px) {
   body.look .site-header { padding: 0 12px; }
   body.look main { padding: 16px 12px 0; }
