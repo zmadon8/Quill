@@ -74,6 +74,8 @@ body.ledger .memo-form .memo-grid.cols-3 { grid-template-columns: repeat(3, minm
 body.ledger .memo-form .memo-grid > .wide { grid-column: 1 / -1; }
 body.ledger .memo-form .memo-grid > .span-2 { grid-column: span 2; }
 body.ledger .memo-form .memo-grid > label, body.ledger .memo-form .memo-grid > .field { display: flex; flex-direction: column; gap: 4px; margin: 0; min-width: 0; }
+/* The grid shows its labels as flex boxes, which would override the hidden attribute: the Additional Details boxes stay hidden until ticked. */
+body.ledger .memo-form [data-addl-box][hidden] { display: none; }
 body.ledger .memo-form .memo-grid > .field > label:not(.check) { display: flex; margin: 0; }
 body.ledger .memo-form .memo-grid input:not([type=checkbox]):not([type=hidden]), body.ledger .memo-form .memo-grid textarea, body.ledger .memo-form .memo-grid select { width: 100%; box-sizing: border-box; }
 body.ledger .memo-form .inline-row { display: flex; gap: 8px; align-items: center; }
