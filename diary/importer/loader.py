@@ -12,7 +12,7 @@ from django.db import DatabaseError, transaction
 
 from accounts.models import Profile
 from diary.models import Case, Item, Note, NoteLink, Section, Subject, Subtopic, Topic, VersionHistory
-from diary import review_flags
+from diary import oldversions
 from diary.richtext import sanitise_html
 
 from .plan import ITEM, SECTION, SUBJECT, SUBTOPIC, TOPIC, html_signature
@@ -139,10 +139,10 @@ def _create_all(plan, profile, user):
             # The import's own notes ("Imported whole as Text ...") are flags Other with the note (D88; they were
             # For review marks before For review was merged into the Flags). Every Section is flagged (decision I10).
             if node.kind == SECTION:
-                flag, flag_text = review_flags.merge("none", "", True, node.review_note)
+                flag, flag_text = oldversions.merge("none", "", True, node.review_note)
                 obj = Section(name=node.name, flag=flag, flag_text=flag_text, **{parent_field: parent}, **extra, **common)
             else:
-                flag, flag_text = review_flags.merge("none", "", node.needs_review, node.review_note)
+                flag, flag_text = oldversions.merge("none", "", node.needs_review, node.review_note)
                 obj = Item(text=node.text_html, flag=flag, flag_text=flag_text,
                            **{parent_field: parent}, **extra, **common)
         obj.save()

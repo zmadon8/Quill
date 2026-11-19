@@ -6,7 +6,7 @@ and what type of Item it is are not touched here: Undo reverses moves and conver
 """
 from django.db import transaction
 
-from .. import nested_conversion as legacy
+from .. import oldversions
 from ..models import Case, VersionHistory
 from .core import Ctx, check_version, commit, create, get_record, make_result
 from .errors import NotFound, Refused
@@ -35,10 +35,8 @@ def restore_version(profile, user, kind, record_id, version, expected_version=No
         if snap.get("needs_review"):
             # A version saved before For review was merged into the Flags (D88): its mark comes back as the flag,
             # exactly as the migration folded it, so nothing of it is lost.
-            from ..review_flags import merge
-
             snap = dict(snap)
-            snap["flag"], snap["flag_text"] = merge(snap.get("flag"), snap.get("flag_text"), True, snap.get("review_note"))
+            snap["flag"], snap["flag_text"] = oldversions.merge(snap.get("flag"), snap.get("flag_text"), True, snap.get("review_note"))
         # A version from before the Multi-Item merge (10d) or Nested Items (round 10) may say "multi" or
         # "nested": every Item is a plain Item now, so that is no obstacle.
         changes = {name: snap[name] for name in EDITABLE[kind] if name in snap and snap[name] != getattr(obj, name)}
@@ -47,7 +45,7 @@ def restore_version(profile, user, kind, record_id, version, expected_version=No
             # Citations of an Item live in its Cases; Item.citation stays empty. An old version's citation
             # (before 10d, or a Nested Item's) becomes Case (a).
             changes.pop("citation", None)
-            old_citation = legacy.old_snapshot_citation(snap)
+            old_citation = oldversions.old_snapshot_citation(snap)
         if not changes and old_citation is None:
             return make_result(ctx, obj)
         check_version(obj, expected_version, mine=changes)

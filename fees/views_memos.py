@@ -39,9 +39,9 @@ def _list_page(request, draft_mode, template):
             if chosen:
                 filters["financial_year"] = chosen
             options = filter_options.memo_options(profile, filters, draft_mode)
-    items = memo_lists.list_memos(profile, filters, draft_mode=draft_mode)
-    page_items, meta = memo_lists.paginate(
-        items, page_number(request.GET), memo_lists.page_size_for(prefs.personal_items_per_page(profile, request.user, settings))
+    page_items, meta, totals = memo_lists.list_page(
+        profile, filters, draft_mode,
+        page_number(request.GET), memo_lists.page_size_for(prefs.personal_items_per_page(profile, request.user, settings)),
     )
     return render_page(
         request,
@@ -49,7 +49,7 @@ def _list_page(request, draft_mode, template):
         {
             "items": page_items,
             "meta": meta,
-            "totals": memo_lists.footer_totals(items),
+            "totals": totals,
             "filters": filters,
             "firm_choices": options["firms"],
             "partner_choices": options["partners"],

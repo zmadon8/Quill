@@ -9,6 +9,7 @@ import json
 
 from django.contrib import messages
 from django.core.serializers.json import DjangoJSONEncoder
+from django.http import HttpResponse
 from django.shortcuts import redirect
 from django.views.decorators.http import require_http_methods, require_safe
 
@@ -16,7 +17,7 @@ from fees import scope
 from fees.decorators import fees_admin, fees_editor, handle_fees_errors
 from fees.errors import FeesError
 from fees.pages import XLSX_TYPE, file_response, render_page
-from fees.services import clear_all, excel_backup, excel_restore
+from fees.services import clear_all, excel_backup, excel_restore, payment_audit
 from fees.services.excel_restore import RESTORE_CONFIRMATION
 from fees.services.heavy import heavy_operation
 
@@ -118,3 +119,15 @@ def restored(request):
 @require_safe
 def cleared(request):
     return _result_page(request, CLEAR_RESULT_KEY, "fees/clear_result.html")
+
+
+@fees_admin
+@handle_fees_errors()
+@require_safe
+def payment_audit_page(request):
+    """Plain text: the payment data checked before database rules are added (read-only, suite Admin only)."""
+    profile, _settings = scope.context(request)
+    text = "\n".join(payment_audit.format_report(payment_audit.audit_profile(profile))) + "\n"
+    response = HttpResponse(text, content_type="text/plain; charset=utf-8")
+    response["Cache-Control"] = "no-store"
+    return response

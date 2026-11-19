@@ -134,8 +134,8 @@ FEES_BACKUP_MODELS = [
 
 #: Models an older backup file may lack. Restoring such a file empties the table, so the built-in
 #: defaults apply (a backup made before the Settings page existed has no display names). Profiles and
-#: memberships are optional too, and so are Trash batches (added in Milestone 3; an older file simply has none): see ``services.upgrade_old_document`` for how an older file is
-#: given a default "Main" profile.
+#: memberships are optional too, and so are Trash batches (added in Milestone 3; an older file simply has none). Files of much earlier releases
+#: are no longer converted (D235): only the newest backup, made by the current release, has to restore.
 #: Every fee model is optional too: a backup taken before the Fee Register existed has none of these
 #: sections, and restoring such a file simply empties the fee tables (the restore guard R-BK-4 warns
 #: when that would discard current fee data).
@@ -165,8 +165,7 @@ PROFILE_MODELS = [
 
 #: Fee Register models that carry a ``profile`` column, parents first (same order as in
 #: ``BACKUP_MODELS``). This is a SEPARATE list from the diary ``PROFILE_MODELS`` so
-#: ``services.upgrade_old_document`` (which assigns unassigned diary rows to the diary "Main" profile)
-#: never iterates over fee models. ``StatsCache`` is derived data and is not listed. All 14 fee models
+#: the diary list above never iterates over fee models (``profile_summary`` counts both). ``StatsCache`` is derived data and is not listed. All 14 fee models
 #: are profile-scoped, so this is the same set as ``FEES_BACKUP_MODELS``.
 FEES_PROFILE_MODELS = [
     "fees.FeesSettings",

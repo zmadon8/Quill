@@ -1,17 +1,13 @@
 from django.db import migrations
 from django.db.migrations.exceptions import IrreversibleError
 
-from diary import nested_conversion as conversion
+from diary.migrations._retired import refuse_old_data
 
 
 def convert_forwards(apps, schema_editor):
-    """Turn every Nested Item into an ordinary Item whose citations are Cases (sub-item text becomes the comment).
-
-    The mapping, the before/after count checks and the "migrate" history rows are in
-    diary/nested_conversion.py, shared with the backup loader. Any failed check raises and the whole
-    migration is rolled back.
-    """
-    conversion.migrate_nested(apps)
+    """The data move this migration once made has been retired (see diary/migrations/_retired.py): it only checks that
+    there is nothing for it to move."""
+    refuse_old_data(apps, "Item", "Case")
 
 
 def convert_backwards(apps, schema_editor):

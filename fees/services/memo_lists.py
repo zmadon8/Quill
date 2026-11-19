@@ -34,17 +34,23 @@ tests assert these bounds with ``assertNumQueries``.
 """
 from __future__ import annotations
 
+import logging
 from decimal import Decimal
 
-from django.db.models import Count, Max
+from django.db import connection
+from django.db.models import Count, DecimalField, ExpressionWrapper, F, Max, Sum, Value
+from django.db.models.functions import Coalesce, Round
 
 from fees.models import FeesSettings, Memo
 from fees.services import client_scope
 from fees.services import memo_fees
 from fees.services.money import round2
 
+logger = logging.getLogger(__name__)
+
 __all__ = [
     "list_memos",
+    "list_page",
     "list_drafts",
     "list_memos_for_matter",
     "list_recent_matters",
@@ -130,7 +136,7 @@ def _row_to_item(memo, default_tds_rate, overdue_days, written_off_on=True):
     }
 
 
-def _filtered_queryset(profile, filters, draft_mode):
+def _filtered_queryset(profile, filters, draft_mode, related=True, ordered=True):
     """The ordered, scoped ``Memo`` queryset for a listing (no evaluation yet).
 
     Applies the draft mode and the optional filters (financial year, firm,
@@ -142,7 +148,9 @@ def _filtered_queryset(profile, filters, draft_mode):
     if draft_mode not in _DRAFT_MODES:
         raise ValueError(f"unknown draft_mode: {draft_mode!r}")
 
-    qs = Memo.objects.filter(profile=profile).select_related("firm", "matter")
+    qs = Memo.objects.filter(profile=profile)
+    if related:
+        qs = qs.select_related("firm", "matter")
 
     if draft_mode == "exclude_drafts":
         qs = qs.filter(is_draft=False)
@@ -177,7 +185,7 @@ def _filtered_queryset(profile, filters, draft_mode):
         if matter_id is not None:
             qs = qs.filter(matter_id=matter_id)
 
-    return qs.order_by("is_draft", "-financial_year", "-seq", "-id")
+    return qs.order_by("is_draft", "-financial_year", "-seq", "-id") if ordered else qs
 
 
 def list_memos(profile, filters=None, draft_mode="exclude_drafts"):
@@ -253,6 +261,38 @@ def footer_totals(items):
     return result
 
 
+def _page_window(total, page, page_size):
+    """``(meta, start, end)`` for ``total`` rows: the page asked for (clamped into range) and which rows it holds.
+
+    ``page_size`` of ``None`` (or <= 0) means "no paging": one page with every row (``end`` is None).
+    """
+    if not page_size or page_size <= 0:
+        meta = {
+            "page": 1,
+            "page_size": None,
+            "total": total,
+            "total_pages": 1,
+            "has_prev": False,
+            "has_next": False,
+        }
+        return meta, 0, None
+
+    total_pages = (total + page_size - 1) // page_size if total else 1
+    current = page if page >= 1 else 1
+    if current > total_pages:
+        current = total_pages
+    start = (current - 1) * page_size
+    meta = {
+        "page": current,
+        "page_size": page_size,
+        "total": total,
+        "total_pages": total_pages,
+        "has_prev": current > 1,
+        "has_next": current < total_pages,
+    }
+    return meta, start, start + page_size
+
+
 def paginate(items, page=1, page_size=None):
     """Returns ``(page_items, meta)`` for an already-built list of ``items``.
 
@@ -263,34 +303,78 @@ def paginate(items, page=1, page_size=None):
     a Python list adds no query; the caller typically pairs this with a single
     ``list_memos`` call.
     """
-    total = len(items)
-    if not page_size or page_size <= 0:
-        meta = {
-            "page": 1,
-            "page_size": None,
-            "total": total,
-            "total_pages": 1,
-            "has_prev": False,
-            "has_next": False,
-        }
-        return items, meta
+    meta, start, end = _page_window(len(items), page, page_size)
+    return (items if end is None else items[start:end]), meta
 
-    total_pages = (total + page_size - 1) // page_size if total else 1
-    current = page if page >= 1 else 1
-    if current > total_pages:
-        current = total_pages
-    start = (current - 1) * page_size
-    end = start + page_size
-    page_items = items[start:end]
-    meta = {
-        "page": current,
-        "page_size": page_size,
-        "total": total,
-        "total_pages": total_pages,
-        "has_prev": current > 1,
-        "has_next": current < total_pages,
+
+def _footer_aggregate(qs, default_tds_rate):
+    """The footer totals of the memos in ``qs`` worked out by the database (same figures as ``footer_totals``).
+
+    Each row's net of TDS is ``total - round2(total * rate / 100)`` (rounded per row, half away from zero, like
+    ``memo_fees.net_of_tds``), so the sum is taken over those per-row figures, not over a rounded sum.
+    """
+    money = DecimalField(max_digits=20, decimal_places=2)
+    less_tds = Round(
+        ExpressionWrapper(
+            F("total_fees") * Value(Decimal(str(default_tds_rate)), output_field=DecimalField(max_digits=7, decimal_places=2)) / Value(Decimal(100)),
+            output_field=DecimalField(max_digits=30, decimal_places=8),
+        ),
+        2,
+    )
+    zero = Value(Decimal("0"), output_field=money)
+    # The names are not the column names: an aggregate may not share a name with a field of the model.
+    row = qs.order_by().aggregate(
+        n_rows=Count("pk"),
+        sum_total=Coalesce(Sum("total_fees"), zero),
+        sum_net=Coalesce(Sum(ExpressionWrapper(F("total_fees") - less_tds, output_field=money)), zero),
+        sum_received=Coalesce(Sum("amount_received"), zero),
+        sum_tds=Coalesce(Sum("amount_tds"), zero),
+        sum_due=Coalesce(Sum(ExpressionWrapper(F("total_fees") - F("amount_paid"), output_field=money)), zero),
+    )
+    totals = {
+        "total_fees": round2(row["sum_total"]),
+        "net_of_tds": round2(row["sum_net"]),
+        "amount_received": round2(row["sum_received"]),
+        "amount_tds": round2(row["sum_tds"]),
+        "amount_due": round2(row["sum_due"]),
     }
-    return page_items, meta
+    assert set(totals) == set(FOOTER_FIELDS)
+    totals["count"] = row["n_rows"]
+    return totals
+
+
+def list_page(profile, filters=None, draft_mode="exclude_drafts", page=1, page_size=None):
+    """One page of the memo list, its footer totals and the pager data: ``(page_items, meta, totals)``.
+
+    Gives exactly what ``list_memos`` + ``paginate`` + ``footer_totals`` give, but the database counts, adds up and cuts out
+    the page, so a long register costs about the same on every page: three queries (settings, the totals, the page's rows),
+    and only the rows shown are built. ``unpaid_only`` is applied by the database as "stored total is more than stored paid"
+    (what ``status_and_due`` says, on the stored columns that ``fees_check`` keeps honest).
+
+    Every row shown is still worked out by ``_row_to_item`` (the one rule). If a row's effective total ever differs from its
+    stored ``total_fees`` (the stored columns have drifted), or the database is not PostgreSQL (SQLite rounds differently),
+    the old all-in-Python path is used for that request, so a wrong stored figure can never make this page disagree with
+    the rest of the app.
+    """
+    filters = filters or {}
+    if connection.vendor == "postgresql":
+        default_tds_rate, overdue_days, written_off_on = _settings_for(profile)
+        counted = _filtered_queryset(profile, filters, draft_mode, related=False, ordered=False)
+        if filters.get("unpaid_only"):
+            counted = counted.filter(total_fees__gt=F("amount_paid"))
+        totals = _footer_aggregate(counted, default_tds_rate)
+        meta, start, end = _page_window(totals["count"], page, page_size)
+        rows = _filtered_queryset(profile, filters, draft_mode)
+        if filters.get("unpaid_only"):
+            rows = rows.filter(total_fees__gt=F("amount_paid"))
+        rows = list(rows[start:end] if end is not None else rows)
+        items = [_row_to_item(memo, default_tds_rate, overdue_days, written_off_on) for memo in rows]
+        if all(item["total_fees"] == round2(memo.total_fees) for item, memo in zip(items, rows)):
+            return items, meta, totals
+        logger.warning("Memo list: stored total_fees differs from the fee rule on a listed memo; using the full path (run fees_check)")
+    everything = list_memos(profile, filters, draft_mode=draft_mode)
+    page_items, meta = paginate(everything, page, page_size)
+    return page_items, meta, footer_totals(everything)
 
 
 def page_size_for(items_per_page):
