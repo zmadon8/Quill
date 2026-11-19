@@ -81,6 +81,8 @@ class User(AbstractUser):
     ]
     citation_style = models.CharField("Citations", max_length=10, choices=CITATION_STYLE_CHOICES, default=CITATION_BUBBLES)
     number_citation_lines = models.BooleanField("Number citations on separate lines", default=True)
+    # Owner round (2026-12): on, citations and their comments are the size of the Item's text (17px) instead of 14px.
+    citation_full_size = models.BooleanField("Citations as large as the Item's text", default=False)
     # Who is active (round: markers, payments, activity). ``last_seen_at`` is touched by accounts.middleware at most once
     # a minute; ``can_see_active`` lets an Admin show this user the Active Now panel on Home (Admins always see it).
     last_seen_at = models.DateTimeField(null=True, blank=True)

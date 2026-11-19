@@ -325,6 +325,11 @@ class MySettingsForm(forms.ModelForm):
             self.fields["number_citation_lines"].help_text = (
                 "For the two bubble styles: number the citations (a), (b) when an Item shows them on separate lines. The plain style always numbers them."
             )
+        if "citation_full_size" in self.fields:
+            self.fields["citation_full_size"].required = False
+            self.fields["citation_full_size"].help_text = (
+                "Case Law Diary, on screen: show citations and their comments in the same size as the Item's text. Off: a little smaller."
+            )
         if "remove_citation_hyphen" in self.fields:
             self.fields["remove_citation_hyphen"].required = False
             self.fields["remove_citation_hyphen"].help_text = (
@@ -389,7 +394,7 @@ class MyCitationForm(MySettingsForm):
     landing_program = None  # only Start Screens has this field
 
     class Meta(MySettingsForm.Meta):
-        fields = ("citation_style", "number_citation_lines", "remove_citation_hyphen")
+        fields = ("citation_style", "number_citation_lines", "citation_full_size", "remove_citation_hyphen")
 
 
 class MyInvestmentsForm(MySettingsForm):

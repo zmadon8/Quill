@@ -70,6 +70,7 @@
       {% include "_setting_row.html" with f=numbers_form.export_date_format help="The date at the end of the Word file names you export, and on the front page." who="you" %}
       {% include "_setting_row.html" with f=citation_form.citation_style help=citation_form.citation_style.help_text who="you" %}
       {% include "_setting_row.html" with f=citation_form.number_citation_lines help=citation_form.number_citation_lines.help_text who="you" checkbox=True %}
+      {% include "_setting_row.html" with f=citation_form.citation_full_size help=citation_form.citation_full_size.help_text who="you" checkbox=True %}
       {% include "_setting_row.html" with f=citation_form.remove_citation_hyphen help=citation_form.remove_citation_hyphen.help_text who="you" checkbox=True %}
       <div class="format-preview-box" aria-live="polite">
         <h3>Preview</h3>
