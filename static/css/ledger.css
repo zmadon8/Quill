@@ -113,9 +113,8 @@ body.ledger .alert-ok { padding: 12px 16px; background: #F0FDF4; border: 1px sol
 /* ---- 6. Tables ---- */
 body.ledger .table-wrap { width: fit-content; max-width: 100%; overflow: auto; max-height: 70vh; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); -webkit-overflow-scrolling: touch; }
 body.ledger .table-wrap.plain { border: 0; background: transparent; max-height: none; }
-/* Tables are as wide as their contents (each column only as wide as its widest cell), not stretched across the page; add .table-full to a table, its .table-wrap or its .table-card to stretch it. */
+/* Content-width tables (.table-full stretches one; see fees.css). */
 body.ledger :is(.ledger-table, table.ledger) { width: auto; border-collapse: collapse; font-size: 1rem; line-height: 1.4; }
-body.ledger :is(.ledger-table, table.ledger).table-full { width: 100%; }
 body.ledger :is(.ledger-table, table.ledger) caption { text-align: left; padding: 8px 12px; color: var(--muted); font-size: .857rem; }
 body.ledger :is(.ledger-table, table.ledger) th { padding: 8px 12px; text-align: left; vertical-align: bottom; background: var(--card); color: var(--muted); font-size: 13px; font-weight: 500; text-transform: none; letter-spacing: 0; white-space: nowrap; position: relative; border-bottom: 0; }
 body.ledger :is(.ledger-table, table.ledger) thead th { position: sticky; top: 0; z-index: 2; box-shadow: inset 0 -1px 0 var(--ink); }
@@ -141,9 +140,6 @@ body.ledger .ledger-table .current-col { background: var(--paper-2); }
 body.ledger .ledger-table .future-col { color: var(--faint); }
 body.ledger .ledger-table .total-col { background: var(--paper-2); font-weight: 600; }
 body.ledger .table-card { width: fit-content; min-width: min(100%, 24rem); max-width: 100%; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); }
-body.ledger :is(.table-wrap, .table-card).table-full { width: 100%; }
-/* In a list card the table's caption only repeats the Total row; it stays for screen readers. */
-body.ledger .table-card .ledger-table > caption { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 body.ledger .table-card > .table-wrap { border: 0; border-radius: 0; }
 body.ledger .table-card > .table-tools { margin: 0; padding: 8px 12px; border-bottom: 1px solid var(--line); justify-content: flex-end; }
 
@@ -313,24 +309,3 @@ body.ledger .fees-form input[readonly][aria-disabled=true] { background: var(--p
    or the open Columns list is partly hidden behind the table. Also lift the heading row's buttons while the menu is open. */
 body.ledger .table-tools:has(.col-menu[open]), body.ledger .sec:has(.col-menu[open]) { position: relative; z-index: 40; }
 body.ledger .col-menu[open] { z-index: 40; }
-
-/* Rows that host the Columns menu (columns.js looks for data-columns-for="<table id>"): the menu sits at the right end of the row, so it needs no row of its own. */
-body.ledger :is(.bulk-bar, .filters, .table-tools) > .col-menu, body.ledger :is(.bulk-bar, .filters) > [data-columns-for] { margin-left: auto; }
-body.ledger :is(.bulk-bar, .filters) > [data-columns-for] > .col-menu { margin: 0; }
-body.ledger .bulk-bar:has(.col-menu[open]), body.ledger .filters:has(.col-menu[open]) { position: relative; z-index: 40; }
-body.ledger :is(.bulk-bar, .table-tools) .status-legend { display: inline-flex; padding: 0; border: 0; background: transparent; }
-body.ledger :is(.bulk-bar, .table-tools, .page-actions) label.check { display: inline-flex; align-items: center; gap: 6px; margin: 0; font-size: 1rem; }
-body.ledger .table-tools:empty { display: none; }
-body.ledger :is(.table-tools, .bulk-bar) .tools-summary { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; color: var(--ink-3); }
-body.ledger .table-tools .tools-summary { margin-right: auto; }
-body.ledger :is(.table-tools, .bulk-bar) .tools-summary strong { color: var(--ink); font-size: 1.14rem; font-variant-numeric: tabular-nums; }
-/* A filter card with no visible control (for example both Outstanding switches are off in Settings) takes no space. */
-body.ledger .filters:not(:has(label, select, a, button, input:not([type=hidden]))) { display: none; }
-/* A filter card that holds one or two controls is only as wide as they are. */
-body.ledger .filters.compact { width: fit-content; max-width: 100%; }
-/* A section heading with the Columns menu at its right end. */
-body.ledger .section-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 16px; }
-body.ledger .section-head > h2 { margin-top: 0; margin-bottom: 0; }
-body.ledger .section-head:has(.col-menu[open]) { position: relative; z-index: 40; }
-body.ledger .filters > .push:empty { display: none; }
-
