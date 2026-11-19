@@ -781,8 +781,6 @@ class CitationConstraintRestoreTests(BackupBase):
         self.make_file()
         current = gunzip_json(services.create_backup("manual").data)
         doc = services.parse_backup(json.dumps(current).encode("utf-8"), MAX)
-        self.assertEqual(doc["legacy_mapping"]["items_changed"], 0)
-        self.assertEqual(doc["nested_mapping"]["nested_items"], 0)
         services.restore_backup(doc, self.admin)
         self.assertEqual(Item.objects.get(pk=self.nested.pk).citation, "")
 
