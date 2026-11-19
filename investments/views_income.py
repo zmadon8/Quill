@@ -3,6 +3,7 @@ from datetime import date, timedelta
 
 from django.contrib import messages
 from django.db import transaction
+from django.db.models import Q
 from django.http import Http404, HttpResponse
 from django.shortcuts import redirect
 from django.urls import reverse
@@ -51,7 +52,7 @@ def dividend_form(request, pk=None):
     if obj:
         initial = {f: getattr(obj, f) for f in ("date", "instrument", "portfolio", "broker", "folio", "amount", "tax_deducted", "note")}
     else:
-        inst = Instrument.objects.filter(pk=request.GET.get("instrument") or 0).first()
+        inst = Instrument.objects.filter(Q(profile=None) | Q(profile=profile), pk=request.GET.get("instrument") or 0).first()  # shared, or this profile's own
         if inst:
             initial["instrument"] = inst
         if request.GET.get("date"):
@@ -85,7 +86,7 @@ def dividend_form(request, pk=None):
     inst = form["instrument"].value()
     day = parse_date(str(form["date"].value() or "")) or date.today()
     if inst and str(inst).isdigit():
-        found = Instrument.objects.filter(pk=inst).first()
+        found = Instrument.objects.filter(Q(profile=None) | Q(profile=profile), pk=inst).first()
         if found:
             suggest = dividends.suggestion(profile, found, day)
     return page(request, "investments/dividend_form.html", {"page_title_text": "Edit dividend" if obj else "Add a dividend", "form": form, "obj": obj,

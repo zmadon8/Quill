@@ -32,6 +32,11 @@
     if (window.FeesMoney && data.money) { return window.FeesMoney.formatCurrency(n); }
     return String(Math.round(n * 100) / 100);
   }
+  // Axis labels are short (k / lac / cr) so they always fit; the tooltip and the table above hold the full figures.
+  function tick(n) {
+    if (data.money && window.FeesMoney) { return window.FeesMoney.formatMoney(n, "short"); }
+    return String(Math.round(n * 100) / 100);
+  }
   function niceMax(v) {
     if (v <= 0) { return 1; }
     var p = Math.pow(10, Math.floor(Math.log(v) / Math.LN10));
@@ -46,8 +51,7 @@
     });
     var type = kind ? kind.value : "bar";
     var stacked = type === "stacked";
-    var W = Math.max(480, 60 + rows.length * (type === "line" ? 40 : 28 * (stacked ? 1 : series.length) + 16)), H = 320;
-    var L = 90, B = 90, T = 12, R = 12, pw = W - L - R, ph = H - T - B;
+    var H = 320, B = 90, T = 12, R = 12, ph = H - T - B;
     var top = 0, low = 0;
     rows.forEach(function (r, ri) {
       var pos = 0, neg = 0;
@@ -58,14 +62,20 @@
       });
     });
     top = niceMax(top); low = low < 0 ? -niceMax(-low) : 0;
+    var FRACTIONS = [0, 0.25, 0.5, 0.75, 1];
+    var tickText = FRACTIONS.map(function (f) { return tick(low + (top - low) * f); });
+    // The left margin follows the longest axis label (16 px digits are about 9.6 px wide), so a label is never cut off.
+    var L = Math.max(48, Math.ceil(Math.max.apply(null, tickText.map(function (t) { return t.length; })) * 9.6) + 16);
+    var W = Math.max(480, L + 12 + rows.length * (type === "line" ? 40 : 28 * (stacked ? 1 : series.length) + 16));
+    var pw = W - L - R;
     function y(v) { return T + ph * (top - v) / (top - low); }
     var svg = el("svg", { viewBox: "0 0 " + W + " " + H, width: W, height: H, role: "img", "aria-label": "Chart of the table above. The table holds the same figures." });
     var ink = css("--ink", "#222"), hair = css("--hair", "#ccc"), muted = css("--muted", "#666");
-    [0, 0.25, 0.5, 0.75, 1].forEach(function (f) {
+    FRACTIONS.forEach(function (f, fi) {
       var v = low + (top - low) * f;
       el("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: hair, "stroke-width": 1 }, svg);
       var t = el("text", { x: L - 6, y: y(v) + 5, "text-anchor": "end", fill: muted, "font-size": 16 }, svg);
-      t.textContent = fmt(v);
+      t.textContent = tickText[fi];
     });
     el("line", { x1: L, x2: W - R, y1: y(0), y2: y(0), stroke: ink, "stroke-width": 1 }, svg);
     var band = pw / rows.length;
@@ -79,8 +89,7 @@
         var pts = s.values.map(function (v, ri) { return (L + band * ri + band / 2) + "," + y(v); });
         el("polyline", { points: pts.join(" "), fill: "none", stroke: s.color, "stroke-width": 2, "stroke-dasharray": si % 2 ? "6 3" : "none" }, svg);
         s.values.forEach(function (v, ri) {
-          var dot = el("circle", { cx: L + band * ri + band / 2, cy: y(v), r: 3.5, fill: s.color }, svg);
-          el("title", {}, dot).textContent = s.label + ", " + rows[ri].label + ": " + fmt(v);
+          el("circle", { cx: L + band * ri + band / 2, cy: y(v), r: 3.5, fill: s.color }, svg);
         });
       });
     } else {
@@ -91,13 +100,33 @@
           var v = s.values[ri], from, to, x = stacked ? x0 : x0 + bw * si;
           if (stacked) { if (v >= 0) { from = pos; pos += v; to = pos; } else { from = neg; neg += v; to = neg; } }
           else { from = 0; to = v; }
-          var rect = el("rect", { x: x, y: Math.min(y(from), y(to)), width: bw, height: Math.abs(y(from) - y(to)), fill: s.color, stroke: ink, "stroke-width": 0.5 }, svg);
-          el("title", {}, rect).textContent = s.label + ", " + r.label + ": " + fmt(v);
+          el("rect", { x: x, y: Math.min(y(from), y(to)), width: bw, height: Math.abs(y(from) - y(to)), fill: s.color, stroke: ink, "stroke-width": 0.5 }, svg);
         });
       });
     }
     canvas.textContent = "";
-    canvas.appendChild(svg);
+    // Hover, touch and keyboard values (the same component as the Investments charts, static/js/investments/chart-hover.js).
+    var plot = document.createElement("div");
+    plot.className = "chart-plot";
+    plot.appendChild(svg);
+    var tip = document.createElement("div");
+    tip.className = "hv-tip";
+    tip.setAttribute("role", "status");
+    tip.hidden = true;
+    plot.appendChild(tip);
+    canvas.appendChild(plot);
+    if (window.QuillChartHover) {
+      svg.setAttribute("class", "ch hv");
+      svg.setAttribute("tabindex", "0");
+      svg.setAttribute("data-top", T);
+      svg.setAttribute("data-bottom", H - B);
+      svg.setAttribute("data-hover", JSON.stringify({
+        x: rows.map(function (r, ri) { return L + band * ri + band / 2; }),
+        d: rows.map(function (r) { return r.label; }),
+        s: series.map(function (s) { return { l: s.label, c: s.color, v: s.values.map(fmt) }; })
+      }));
+      window.QuillChartHover.setup(svg);
+    }
     var legend = document.createElement("ul");
     legend.className = "chart-legend";
     series.forEach(function (s) {

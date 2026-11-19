@@ -64,6 +64,8 @@ def backup_now(request):
 @admin_required
 def backup_download(request, pk):
     backup = get_object_or_404(BackupFile, pk=pk)
+    # A backup holds every password hash and all business data: who took one, and when, is kept in the log.
+    logger.info("Backup downloaded: id=%s file=%s by user id=%s", backup.pk, backup.filename, request.user.pk)
     # Wrap the stored gzip bytes once (R2): the memoryview is sent straight out, no second copy.
     return FileResponse(
         io.BytesIO(backup.data if isinstance(backup.data, bytes) else bytes(backup.data)),
@@ -118,11 +120,17 @@ def backup_delete(request, pk):
     return render(request, "backups/backup_confirm_delete.html", {"backup": backup})
 
 
+def _stored_max_bytes():
+    """The limit for reading a backup that is already stored (it passed the upload limit or was made here, and its checksum is checked).
+    Larger than the upload limit, so a big database's own nightly backup can always be previewed and restored."""
+    return max(_max_bytes(), settings.MAX_BACKUP_STORED_MB * 1024 * 1024)
+
+
 def _load_document(backup):
     raw = bytes(backup.data)
     if hashlib.sha256(raw).hexdigest() != backup.sha256:
         raise services.BackupError("This stored backup does not match its checksum and may be damaged.")
-    return services.parse_backup(raw, _max_bytes())
+    return services.parse_backup(raw, _stored_max_bytes())
 
 
 @admin_required

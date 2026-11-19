@@ -296,10 +296,10 @@ You normally do not touch these; the Blueprint sets them.
 3. Only an Admin can change roles. The last active Admin cannot be disabled, deleted or changed to another role. The first account made with `create_first_admin` is an Admin.
 4. People who already existed before roles were added become Admin if they were Admins, otherwise Reader.
 
-## Addresses, Back and Forward, and times
+## Addresses and times
 
 - The Case Law Diary is under `/caselaw/` (for example `/caselaw/subjects/`, `/caselaw/search/`, `/caselaw/review/`, `/caselaw/import/`). Old addresses without `/caselaw/` are redirected. Home, Users, Profiles, Settings, Backups, login and logout stay at the top level. Fees and Investments will later be `/fees/` and `/investments/`. Typing `/caselaw` redirects (301) to `/caselaw/subjects/` (`/caselaw/home/` is a harmless alias that also redirects there), and an address that does not exist redirects temporarily (302) to Home (the renamed addresses keep their permanent 301); see docs/DESIGN.md D24 and D26.
-- **Back** and **Forward** buttons (arrow icons only, no text) sit right of the program name. They only move between pages of this site (never to another website or the browser's start page). Each browser tab has its own list; a new tab starts fresh. With no earlier page, Back goes to Home.
+- There are no Back and Forward arrows in the header: the browser's own buttons do that. A page that belongs under another one has its own link back to it (for example "← Firm" on a matter page).
 - All times shown (Backups, logs, reports, backup file names) are in **IST**. They are stored in UTC and converted for display.
 
 ## Contents panel (Round 4)

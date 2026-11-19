@@ -57,7 +57,8 @@ body.inv .ins li .x{position:absolute;right:0;top:9px;color:var(--muted);font-si
 body.inv .ins li small{display:block;color:var(--muted);font-size:12px;margin-top:3px}
 body.inv .ins .more{display:block;margin-top:10px;font-size:12px;text-transform:none;letter-spacing:0;color:var(--muted)}
 body.inv .tw{overflow-x:auto;-webkit-overflow-scrolling:touch}
-body.inv table.led{width:100%;border-collapse:collapse;font-size:var(--data);line-height:1.4}
+body.inv table.led{width:auto;border-collapse:collapse;font-size:var(--data);line-height:1.4}
+body.inv table.led.table-full{width:100%}
 body.inv table.led caption{text-align:left;color:var(--muted);font-size:13px;padding:0 0 8px}
 body.inv table.led th{font-size:13px;text-transform:none;letter-spacing:0;color:var(--muted);font-weight:500;text-align:left;padding:9px 9px;border-bottom:1.5px solid var(--ink);vertical-align:bottom;white-space:nowrap}
 body.inv table.led th.sorted{color:var(--ink)}

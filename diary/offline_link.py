@@ -27,9 +27,9 @@ RESUME_PREFIX = "r:"
 def download_ip(request):
     """The visitor's address for the limit: the LAST X-Forwarded-For entry (added by Render's proxy, so the client
     cannot forge it), else REMOTE_ADDR. The first entry is supplied by the client and is never trusted here."""
-    forwarded = request.META.get("HTTP_X_FORWARDED_FOR", "")
-    ip = forwarded.split(",")[-1].strip() if forwarded else ""
-    return (ip or request.META.get("REMOTE_ADDR", ""))[:60]
+    from accounts.netutil import client_ip
+
+    return client_ip(request, 60)
 
 
 def make_copy(link, user=None):

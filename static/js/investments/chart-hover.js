@@ -53,6 +53,7 @@
       tip.style.left = Math.max(0, left) + 'px';
     }
     function lineColour(k) {
+      if (data.s[k] && data.s[k].c) return data.s[k].c; // the Fee Register's Explore chart sends each colour
       // the legend swatches carry the same stroke as the lines
       var sw = svg.parentNode.querySelectorAll('figcaption line')[k];
       return sw ? sw.getAttribute('stroke') : 'currentColor';
@@ -78,5 +79,6 @@
       else if (ev.key === 'Escape') { hide(); }
     });
   }
+  window.QuillChartHover = { setup: setup };
   Array.prototype.forEach.call(document.querySelectorAll('svg.ch.hv[data-hover]'), setup);
 })();

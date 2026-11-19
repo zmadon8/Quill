@@ -14,6 +14,8 @@ import datetime
 import hashlib
 import hmac
 import os
+import re
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -28,6 +30,18 @@ ENV_REGION = "OFFSITE_BACKUP_REGION"
 ENV_PREFIX = "OFFSITE_BACKUP_PREFIX"
 
 TIMEOUT_SECONDS = 60
+ATTEMPTS = 3
+RETRY_PAUSES = (1, 3)  # seconds before the second and third attempt
+
+
+def _error_code(exc):
+    """The short error name an S3 service puts in the body of a refusal (for example SignatureDoesNotMatch), or ""."""
+    try:
+        text = exc.read(4096).decode("utf-8", "replace")
+    except Exception:  # the body is only a hint
+        return ""
+    match = re.search(r"<Code>([A-Za-z]{3,60})</Code>", text)
+    return match.group(1) if match else ""
 
 
 class StorageError(Exception):
@@ -141,14 +155,26 @@ class S3CompatibleStorage:
             if name != "host":
                 request.add_header(name, value)
         request.add_header("Authorization", auth)
-        try:
-            with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS) as response:
-                return response.read()
-        except urllib.error.HTTPError as exc:
-            raise StorageError(f"The storage service refused the request (HTTP {exc.code}).") from None
-        except (urllib.error.URLError, OSError, TimeoutError) as exc:
-            reason = getattr(exc, "reason", exc)
-            raise StorageError(f"Could not reach the storage service ({reason.__class__.__name__}).") from None
+        # A busy or briefly unreachable service is tried again (3 attempts, 1 s then 3 s apart); a refusal that will not change
+        # (wrong key, no permission, no such bucket) is reported at once.
+        last = None
+        for attempt in range(ATTEMPTS):
+            if attempt:
+                time.sleep(RETRY_PAUSES[attempt - 1])
+            try:
+                with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS) as response:
+                    return response.read()
+            except urllib.error.HTTPError as exc:
+                detail = _error_code(exc)
+                last = StorageError(
+                    f"The storage service refused the request (HTTP {exc.code}{', ' + detail if detail else ''})."
+                )
+                if exc.code < 500 and exc.code not in (408, 429):
+                    raise last from None
+            except (urllib.error.URLError, OSError, TimeoutError) as exc:
+                reason = getattr(exc, "reason", exc)
+                last = StorageError(f"Could not reach the storage service ({reason.__class__.__name__}).")
+        raise last from None
 
     def put(self, key, data):
         self._request("PUT", self._full_key(key), body=data)

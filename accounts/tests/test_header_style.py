@@ -41,8 +41,8 @@ class HeaderStyleTests(TestCase):
         self.assertIn('class="icon-tool search-toggle"', header)
         self.assertIn('class="home-button" href=', header)
         self.assertIsNotNone(re.search(SIGN_OUT, header, re.S))
-        # Back, Forward, the Settings gear, Search, Home and Sign out are the only icons
-        self.assertEqual(header.count("<svg"), 6)
+        # The Settings gear, Search, Home and Sign out are the only icons (no Back and Forward: the browser has them)
+        self.assertEqual(header.count("<svg"), 4)
 
     def test_the_diary_header_has_the_settings_gear_left_of_the_user_name(self):
         header = self.header()

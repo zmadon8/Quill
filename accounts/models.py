@@ -17,7 +17,6 @@ ROLE_CHOICES = [
     (ROLE_EDITOR, "Editor"),
     (ROLE_READER, "Reader"),
 ]
-ROLE_VALUES = [value for value, _label in ROLE_CHOICES]
 
 
 class User(AbstractUser):
@@ -251,6 +250,13 @@ class FailedLogin(models.Model):
     ip = models.CharField(max_length=64, blank=True)
     at = models.DateTimeField(db_index=True)
 
+    class Meta:
+        # The throttle asks "how many from this address since...", then "how many for this name from this address since...".
+        indexes = [
+            models.Index(fields=["ip", "at"], name="failedlogin_ip_at_idx"),
+            models.Index(fields=["username_lower", "at"], name="failedlogin_user_at_idx"),
+        ]
+
     def __str__(self):
         return f"{self.username_lower} at {self.at:%Y-%m-%d %H:%M:%S}"
 
@@ -264,6 +270,12 @@ class ResetRequest(models.Model):
     email_lower = models.CharField(max_length=254, db_index=True)
     ip = models.CharField(max_length=64, blank=True)
     at = models.DateTimeField(db_index=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["ip", "at"], name="resetreq_ip_at_idx"),
+            models.Index(fields=["email_lower", "at"], name="resetreq_email_at_idx"),
+        ]
 
     def __str__(self):
         return f"{self.email_lower} at {self.at:%Y-%m-%d %H:%M:%S}"
@@ -332,6 +344,12 @@ class OfflineDownload(models.Model):
     link = models.ForeignKey(OfflineLink, on_delete=models.CASCADE)
     ip = models.CharField(max_length=64, blank=True)
     at = models.DateTimeField(db_index=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["link", "at"], name="offdl_link_at_idx"),
+            models.Index(fields=["ip", "at"], name="offdl_ip_at_idx"),
+        ]
 
     def __str__(self):
         return f"{self.link_id} at {self.at:%Y-%m-%d %H:%M:%S}"

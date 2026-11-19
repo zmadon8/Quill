@@ -88,11 +88,14 @@
       return out;
     }
 
+    // The "Reset Column Widths" row (opts.resetButton) is only shown while some width has been changed.
+    var resetRow = null;
     // Puts the custom widths on the <col> elements; columns without one keep their measured natural width.
     function layout() {
       var gone = hidden();
       cols.forEach(function (c, i) { c.classList.toggle("col-hidden", gone.indexOf(i) !== -1); });
       var set = Object.keys(widths).some(function (k) { return keys.indexOf(k) !== -1; });
+      if (resetRow) { resetRow.hidden = !set; }
       if (!set) {
         table.classList.remove("fixed-cols");
         table.style.width = "";
@@ -195,7 +198,9 @@
       button.addEventListener("click", resetWidths);
       var tools = document.createElement("p");
       tools.className = "table-tools";
+      tools.hidden = true;
       tools.appendChild(button);
+      resetRow = tools;
       var wrap = table.closest(".table-wrap") || table;
       wrap.parentNode.insertBefore(tools, wrap);
     }

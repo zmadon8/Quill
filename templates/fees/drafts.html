@@ -7,8 +7,7 @@
 <nav class="stat-tabs sub-tabs" aria-label="Memo lists"><a href="{% url 'fees_memos' %}">Memos</a><a href="{% url 'fees_memo_drafts' %}" class="on" aria-current="page">Draft Memos</a></nav>
 <p class="page-actions" role="group" aria-label="Draft actions">{% if can_edit %}<a class="button small primary" href="{% url 'fees_memo_new' %}">New Memo</a>{% endif %}</p>
 </div>
-<p class="muted">A draft has no memo number yet. Open a draft to finish it.</p>
 {% url 'fees_memo_drafts' as reset_url %}{% include "fees/_filters_form.html" with show_fy=True inline=True reset_url=reset_url %}
-{% include "fees/_memo_table.html" with table_key="drafts" %}
+{% include "fees/_memo_table.html" with table_key="drafts" toolbar_note="A draft has no memo number yet. Open a draft to finish it." %}
 {% include "fees/_pager.html" %}
 {% endblock %}

@@ -139,6 +139,22 @@ def lock_sequence(ctx, key):
         MODELS[COLUMN_TYPE[column]]._base_manager.select_for_update().filter(pk=value, profile_id=ctx.profile_id).first()
 
 
+def _renumber(ctx, member, number):
+    """Give sibling ``member`` the position ``number``, saved on a freshly locked copy of its row.
+
+    ``members()`` read the siblings without a lock, so saving that older copy could write an out-of-date text over an edit made
+    in the meantime (and repeat its version number). The locked copy carries the latest text and version; only the position changes.
+    """
+    fresh = type(member)._base_manager.select_for_update().filter(pk=member.pk, profile_id=ctx.profile_id).first()
+    if fresh is None or fresh.deleted_at is not None:
+        return
+    if get_pos(fresh) != number:
+        set_pos(fresh, number)
+        commit(ctx, fresh, "reorder", check=False)
+    set_pos(member, number)
+    member.version = fresh.version
+
+
 def place(ctx, obj, key, index=None, kind="reorder"):
     """Put ``obj`` at 0-based ``index`` (None = last) of the live sequence ``key`` and save it.
 
@@ -163,8 +179,7 @@ def place(ctx, obj, key, index=None, kind="reorder"):
             set_pos(obj, number)
             commit(ctx, obj, kind, check=False)
         elif get_pos(member) != number:
-            set_pos(member, number)
-            commit(ctx, member, "reorder", check=False)
+            _renumber(ctx, member, number)
     return at
 
 
@@ -191,8 +206,7 @@ def make_room(ctx, key, index=None):
     for i, member in enumerate(others):
         number = i + 1 if i < at else i + 2
         if get_pos(member) != number:
-            set_pos(member, number)
-            commit(ctx, member, "reorder", check=False)
+            _renumber(ctx, member, number)
     return at + 1
 
 
@@ -202,8 +216,7 @@ def normalize(ctx, key):
         return  # stored positions of headings are the kept Word order: never renumbered
     for number, member in enumerate(members(ctx.profile_id, key), start=1):
         if get_pos(member) != number:
-            set_pos(member, number)
-            commit(ctx, member, "reorder", check=False)
+            _renumber(ctx, member, number)
 
 
 def labels(key, objs, fmts):

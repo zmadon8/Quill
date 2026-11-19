@@ -11,6 +11,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from . import landing, programs, suite
+from .netutil import client_ip
 from .models import (
     ROLE_CHOICES,
     FailedLogin,
@@ -31,9 +32,7 @@ THROTTLE_MESSAGE = "Too many failed attempts. Try again in 15 minutes."
 def _client_ip(request):
     if request is None:
         return ""
-    forwarded = request.META.get("HTTP_X_FORWARDED_FOR", "")
-    ip = forwarded.split(",")[0].strip() if forwarded else request.META.get("REMOTE_ADDR", "")
-    return ip[:64]
+    return client_ip(request, 64)
 
 
 class ThrottledAuthenticationForm(AuthenticationForm):
@@ -69,7 +68,8 @@ class ThrottledAuthenticationForm(AuthenticationForm):
                 FailedLogin.objects.create(username_lower=username, ip=ip, at=timezone.now())
             raise
         if username:
-            FailedLogin.objects.filter(username_lower=username).delete()
+            # Only this address's failures are cleared: signing in from one place must not reset the count of guesses made from elsewhere.
+            FailedLogin.objects.filter(username_lower=username, ip=ip).delete()
         return cleaned
 
 

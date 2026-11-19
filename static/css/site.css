@@ -16,9 +16,6 @@ a { color: inherit; }
 .brand a:hover, .brand a:focus-visible { color: var(--oxblood); border-bottom-color: var(--oxblood); }
 .home-button, .icon-tool { display: inline-flex; align-items: center; justify-content: center; width: var(--tap); min-width: var(--tap); height: var(--tap); color: var(--ink); border: 1px solid var(--hair); border-radius: 3px; text-decoration: none; }
 .home-button:hover, .home-button:focus-visible, .icon-tool:hover, .icon-tool:focus-visible { color: var(--oxblood); border-color: var(--oxblood); }
-.history-buttons { display: inline-flex; gap: .4rem; }
-.back-button, .forward-button { padding: 0; width: var(--tap); min-width: var(--tap); }
-.back-button:disabled, .forward-button:disabled { opacity: .45; cursor: not-allowed; }
 .brand { font-family: var(--font-serif); font-style: italic; font-size: 1.75rem; line-height: 1.1; }
 .profile-name { font-size: var(--small-size); font-style: normal; opacity: .7; }
 /* Switch profile (round 18, D95): a small menu next to the header name, for someone with several profiles. */
@@ -77,6 +74,9 @@ td.fo { display: table-cell }
 /* Tables: sans, hairline rows, serif for the first column is not forced. */
 .table-wrap { overflow-x: auto; }
 table { border-collapse: collapse; width: 100%; }
+/* Data tables (the ones with an id) are as wide as their contents; add .table-full to stretch one. */
+table[data-table-id], table[data-resizable-columns] { width: auto; }
+table[data-table-id].table-full, table[data-resizable-columns].table-full { width: 100%; }
 th { font-weight: 600; font-size: var(--small-size); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); text-align: left; padding: .6rem .5rem; border-bottom: 1px solid var(--ink); }
 td { text-align: left; padding: .75rem .5rem; border-bottom: 1px solid var(--hair); }
 td a { display: inline-block; min-height: var(--tap); line-height: var(--tap); padding: 0 .25rem; }
@@ -305,6 +305,7 @@ th[aria-sort="descending"] a.sort-link::after { content: " \25BC"; font-size: .7
 .col-resizer::after { content: ""; position: absolute; top: 20%; bottom: 20%; right: 6px; border-right: 1px solid var(--muted); }
 .col-resizer:hover::after, .col-resizer:focus-visible::after { border-right: 3px solid var(--focus); right: 5px; }
 .table-tools { margin: 0 0 .5rem; }
+.table-tools[hidden] { display: none !important; }
 
 @media (min-width: 600px) {
   .subject-index { columns: 2; }
@@ -555,12 +556,12 @@ a.step:hover, a.step:focus-visible { border-color: var(--ink); background: var(-
 .header-style-choice { border: 0; padding: 0; margin: 0 0 .25rem; display: flex; gap: 1.5rem; }
 
 /* No boxes around icons; icon-only controls keep a 44px tap area and focus ring, hover turns oxblood. */
-.home-button, .icon-tool, .back-button, .forward-button, .header-toggle, .contents-icon, .icon-button, .step,
+.home-button, .icon-tool, .header-toggle, .contents-icon, .icon-button, .step,
 .program-nav .home-button, .program-nav .icon-tool, .program-nav button.nav-icon {
   border: 0; background: transparent; box-shadow: none; border-radius: 0; color: var(--ink);
 }
 .home-button:hover, .home-button:focus-visible, .icon-tool:hover, .icon-tool:focus-visible,
-.back-button:hover:not(:disabled), .forward-button:hover:not(:disabled), .header-toggle:hover, .contents-icon:hover,
+.header-toggle:hover, .contents-icon:hover,
 .icon-button:hover, a.step:hover, a.step:focus-visible, .program-nav button.nav-icon:hover {
   background: transparent; color: var(--oxblood);
 }

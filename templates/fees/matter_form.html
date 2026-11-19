@@ -6,7 +6,7 @@
 {% block content %}
 <h1>{% if matter %}Edit {{ matter.name }}{% else %}New matter{% endif %}</h1>
 {% if not can_edit %}<p class="muted">You can read this page but not save it.</p>{% endif %}
-<form method="get" action="{{ request.path }}" class="filters" aria-label="{% if matter %}Move to another firm{% else %}Choose a firm{% endif %}">
+<form method="get" action="{{ request.path }}" class="filters compact" aria-label="{% if matter %}Move to another firm{% else %}Choose a firm{% endif %}">
   {% if matter %}<p class="muted">To move this matter, choose the new firm, then its partner below (or No partner), then save.</p>{% endif %}
   <label>{% if matter %}Firm (change to move this matter){% else %}Firm{% endif %} <select name="firm">{% for f in firm_choices %}<option value="{{ f.pk }}"{% if form.firm_id == f.pk %} selected{% endif %}>{{ f.name }}</option>{% endfor %}</select></label>
   <button type="submit">Show This Firm's Partners</button>

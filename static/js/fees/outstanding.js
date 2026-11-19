@@ -17,7 +17,7 @@
     if (!out) { return; }
     var sum = 0;
     Array.prototype.forEach.call(boxes, function (b) { sum += M ? M.parse(b.getAttribute("data-due")) : (parseFloat(b.getAttribute("data-due")) || 0); });
-    if (!boxes.length) { out.textContent = "Tick memos to settle them with one payment (up to " + MAX + ")."; return; }
+    if (!boxes.length) { out.textContent = "Tick memos to pay them together."; return; }
     var text = boxes.length + " memo" + (boxes.length === 1 ? "" : "s") + " ticked, due " + (M ? M.formatCurrency(sum) : sum) + ".";
     if (boxes.length > MAX) { text += " One payment can settle at most " + MAX + ": untick " + (boxes.length - MAX) + "."; }
     out.textContent = text;

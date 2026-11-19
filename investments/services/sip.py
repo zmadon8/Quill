@@ -77,6 +77,12 @@ def create_due_entries(today=None):
                 break                       # wait for the NAV; later months wait too, so the order is kept
             nav_day, nav = navs[0]
             with transaction.atomic():
+                # Locked and read again: a second run at the same moment (the nightly job and a manual one) waits here, then sees
+                # last_done already moved on and makes nothing, so one day never gets two entries.
+                fresh = SipSchedule.objects.select_for_update().filter(pk=s.pk, active=True).first()
+                if fresh is None or (fresh.last_done is not None and fresh.last_done >= day):
+                    s.last_done = fresh.last_done if fresh is not None else s.last_done
+                    continue
                 units = (s.amount / nav).quantize(Decimal("0.0001"))
                 t = Transaction.objects.create(
                     profile=s.profile, date=day, side="buy", status=STATUS_FINAL if mode_final else STATUS_PENDING_SIP, instrument=s.instrument,

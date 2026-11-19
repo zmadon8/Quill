@@ -376,7 +376,6 @@ class Price(models.Model):
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=["instrument", "date"], name="inv_price_unique")]
-        indexes = [models.Index(fields=["instrument", "date"], name="inv_price_instr_date_idx")]
 
 
 class SourceSymbol(models.Model):

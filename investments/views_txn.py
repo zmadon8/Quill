@@ -188,7 +188,7 @@ def _folio_options(profile):
 
 def _form_context(profile, extra):
     base = {
-        "default_brokers_json": json.dumps(_default_broker_map(profile)), "folios_json": json.dumps(_folio_options(profile)),
+        "default_brokers": _default_broker_map(profile), "folios": _folio_options(profile),  # rendered with |json_script, which escapes "</script>"
         "units_url": reverse("investments_available_units"),
     }
     base.update(extra)
@@ -603,7 +603,6 @@ def switch_delete(request, pk):
 
 @inv_editor
 def import_statement(request):
-    import json
     import os
     import secrets
     import tempfile

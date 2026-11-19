@@ -11,6 +11,7 @@
   {% else %}
   <a class="button small secondary" href="?{% if query_string %}{{ query_string }}&amp;{% endif %}filters=open" aria-haspopup="dialog" onclick="document.getElementById('filters-dialog').showModal();return false">View Filters</a>
   <a class="button small secondary" href="{{ reset_url }}">Reset Filters</a>
+  {% if feebook %}<span class="push" data-columns-for="feebook"></span>{% endif %}
   <dialog id="filters-dialog" class="filter-dialog" aria-labelledby="filters-dialog-title"{% if filters_open %} open{% endif %}>
     <h2 id="filters-dialog-title">Filters</h2>
     <div class="dialog-fields">

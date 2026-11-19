@@ -476,7 +476,7 @@ class FirmScreenTests(UiPageBase):
         i = self.ids()
         text = self.assert_page(self.page("fees_matter_detail", {"matter_id": i["matter"]}), "matter")
         self.assertIn('data-fees-columns="matter-memos"', text)
-        self.assertIn('name="outstanding" value="1" onchange="this.form.submit()"> Outstanding Only</label>', text)   # a tick, as on Memos
+        self.assertIn('name="outstanding" value="1" form="matter-filter" onchange="this.form.submit()"> Outstanding Only</label>', text)   # a tick in the table toolbar (it belongs to the matter-filter form)
         self.assertNotIn('class="list-filter" aria-label="Show memos"', text)
         self.assertIn('<th scope="col" class="money">Apps</th>', text)
         self.assertIn('<th scope="col" class="money">Confs</th>', text)
@@ -809,7 +809,7 @@ class OutstandingScreenTests(UiPageBase):
         self.assertIn("<caption>", text)
         self.assertRegex(text, r'<th scope="col" class="money" data-col-fixed aria-sort="descending"><a class="sort-link" href="\?sort=outstanding">Outstanding</a></th>')
         self.assertRegex(text, r'<th scope="row">Total \(\d+ firms?\)</th>')
-        self.assertIn('class="total-card"', text)
+        self.assertIn('class="tools-summary"', text)   # the total sits in the table's toolbar row, beside Columns
         self.assertNotIn('>View</a>', text)  # the firm's name is the link (owner round 2026-12)
         self.assertNotIn('name="sort" value="amount"', text)
         self.assertIn(reverse("fees_outstanding_detail") + "?firm=%d" % self.ids()["firm"], text)
