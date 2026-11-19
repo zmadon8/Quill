@@ -8,13 +8,18 @@
   var M = window.FeesMoney;
   var out = form.querySelector("[data-pay-summary]");
   var MAX = parseInt(form.getAttribute("data-max"), 10) || 200;
-  // Pay Ticked Memos is greyed out (and does nothing) until at least one memo is ticked.
-  var pay = form.querySelector(".bulk-bar button[type=submit]");
+  // Pay Ticked Memos looks the same whether or not anything is ticked; pressed with nothing ticked it says so (and sends nothing).
+  var NOTHING = "Please select a memo first";
+  function warn(text) {
+    if (!out) { window.alert(text); return; }
+    out.textContent = text;
+    out.classList.add("pay-error");
+  }
   function ticked() { return form.querySelectorAll('input[type="checkbox"][name="memo"]:checked'); }
   function refresh() {
     var boxes = ticked();
-    if (pay) { pay.disabled = !boxes.length; }
     if (!out) { return; }
+    out.classList.remove("pay-error");
     var sum = 0;
     Array.prototype.forEach.call(boxes, function (b) { sum += M ? M.parse(b.getAttribute("data-due")) : (parseFloat(b.getAttribute("data-due")) || 0); });
     if (!boxes.length) { out.textContent = "Tick memos to pay them together."; return; }
@@ -25,7 +30,8 @@
   // One comma-separated memo= keeps the address short; more than MAX ticked is stopped here with a clear message.
   form.addEventListener("submit", function (e) {
     var ids = Array.prototype.map.call(ticked(), function (b) { return b.value; }).filter(Boolean);
-    if (!ids.length || ids.length > MAX) { e.preventDefault(); refresh(); return; }
+    if (!ids.length) { e.preventDefault(); refresh(); warn(NOTHING); return; }
+    if (ids.length > MAX) { e.preventDefault(); refresh(); return; }
     if (ids.length < 2) { return; }
     e.preventDefault();
     var action = form.getAttribute("action") || "";

@@ -29,7 +29,7 @@ def _pct(v):
 def performance_view(request):
     profile = profile_or_404(request)
     portfolio, broker, _asat = selection(request, profile)
-    measure = "cagr" if request.GET.get("measure") == "cagr" else "xirr"
+    measure = "xirr" if request.GET.get("measure") == "xirr" else "cagr"  # CAGR unless XIRR is asked for
     period = request.GET.get("period", "1")
     try:
         if period == "custom":

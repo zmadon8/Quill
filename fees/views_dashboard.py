@@ -30,7 +30,7 @@ def _kpi_rows(values, chosen):
                 "id": kpi,
                 "label": dashboard.KPI_LABELS[kpi],
                 "value": value,
-                "money": isinstance(value, str),
+                "money": dashboard.kpi_kind(kpi) == "money",
             }
         )
     return rows

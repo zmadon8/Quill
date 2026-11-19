@@ -35,7 +35,7 @@
 </div>
 {% if kpis_enabled %}
 <section aria-label="Dashboard boxes" id="kpis">
-<dl class="kpi-grid">{% for k in kpi_rows %}<div class="kpi{% if forloop.first %} kpi-hero{% endif %}"><dt>{{ k.label }}</dt><dd class="money">{% if k.money %}{{ k.value|fees_money:money_unit }}{% else %}{{ k.value }}{% endif %}</dd></div>{% endfor %}</dl>
+<dl class="kpi-grid">{% for k in kpi_rows %}<div class="kpi"><dt>{{ k.label }}</dt><dd class="money">{% if k.money %}{{ k.value|fees_money:money_unit }}{% else %}{{ k.value }}{% endif %}</dd></div>{% endfor %}</dl>
 </section>
 {% endif %}
 <div class="dash-panels">

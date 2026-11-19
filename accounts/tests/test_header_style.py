@@ -11,7 +11,7 @@ from diary.tests.helpers import join_main
 
 User = get_user_model()
 PASSWORD = "x-long-pass-123"
-NAMES = ("Trash", "Export", "Help")
+NAMES = ("Export", "Help")  # the Trash is a tab of History, not a header item
 SIGN_OUT = r'<button type="submit" class="link nav-icon signout-button" aria-label="Sign out" title="Sign out">(.*?)</button>'
 
 

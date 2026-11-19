@@ -4,10 +4,11 @@ from django.contrib import messages
 from django.db.models import F, Q
 from django.http import Http404
 from django.shortcuts import redirect
+from django.urls import reverse
 from django.views.decorators.http import require_http_methods, require_safe, require_POST
 
 from fees import forms, scope
-from fees.decorators import fees_editor, fees_read_write, handle_fees_errors
+from fees.decorators import fees_editor, fees_read_write, handle_fees_errors, safe_back
 from fees.errors import FeesError
 from fees.models import Memo, Payment
 from fees.pages import bank_on, int_list, int_or_none, json_ok, render_page, written_off_on
@@ -172,6 +173,10 @@ def payment_new(request):
             return _form_page(request, _echo(request.POST), memo_ids=memo_ids, errors=[err.message], status=err.status)
         return _after_save(request, dto)
     config = settings_service.get_settings(profile)
+    if not memo_ids and request.GET.get("ticked"):
+        # "Pay Ticked Memos" pressed with nothing ticked (the page's script normally says so before sending anything).
+        messages.error(request, "Please select a memo first")
+        return redirect(safe_back(request, reverse("fees_memos")))
     if not memo_ids:
         return _form_page(request, forms.blank_payment_form(config))
     found = [memos.get_memo(profile, n) for n in memo_ids]

@@ -132,6 +132,21 @@ class PerformanceTests(InvTestCase):
         self.assertIn("Nifty 50 CAGR", html)
         self.assertNotIn("Nifty 50 XIRR", html)
 
+    def test_cagr_is_the_measure_unless_xirr_is_asked_for(self):
+        self.buy(d(2022, 1, 1), 10, 100)
+        self.client.force_login(self.user)
+        url = reverse("investments_performance") + "?period=custom&from=2023-01-01&to=2024-01-01"
+        default = self.client.get(url)
+        self.assertEqual(default.context["measure"], "cagr")
+        html = default.content.decode()
+        self.assertIn('<option value="cagr" selected', html)
+        self.assertNotIn('<option value="xirr" selected', html)
+        self.assertIn("Nifty 50 CAGR", html)
+        asked = self.client.get(url + "&measure=xirr")
+        self.assertEqual(asked.context["measure"], "xirr")
+        self.assertIn('<option value="xirr" selected', asked.content.decode())
+        self.assertEqual(self.client.get(url + "&measure=nonsense").context["measure"], "cagr")
+
     def test_sectoral_columns_only_while_switched_on(self):
         bank = Instrument.objects.create(profile=None, kind="index", name="Nifty Bank", code="^NSEBANK", price_source="yahoo", price_basis="split_adjusted")
         for n in range(0, 800, 1):

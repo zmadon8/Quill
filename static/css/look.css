@@ -251,3 +251,17 @@ body.look .search-section-head { display: flex; align-items: center; gap: 10px; 
 body.look .search-section-head h2 { margin: 0; font-size: 17px; }
 body.look .count-pill { padding: 0 9px; border-radius: var(--radius-pill); background: var(--paper-2); color: var(--ink-3); font-size: 12px; font-weight: 600; }
 body.look .dash-more { margin-left: auto; font-size: 13px; font-weight: 500; }
+
+/* Settings > Display > My Home Page: the tick boxes and their words sit close together, in columns. */
+body.look .settings-compact h2 { margin-bottom: .15rem; }
+body.look .settings-compact > .setting-help { margin: 0 0 .5rem; }
+body.look .settings-compact .setting-row { margin: 0 0 .65rem; }
+body.look .settings-compact .setting-row > .setting-label { display: inline; }
+body.look .settings-compact .metric-choices { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: 0 .75rem; margin: .2rem 0 0; }
+body.look .settings-compact .metric-choices .search-check { min-height: 1.7rem; margin: 0; padding: 0; line-height: 1.25; }
+body.look .settings-compact .setting-help { margin-top: .1rem; line-height: 1.3; }
+/* Home: the Show figures switch on the greeting's line. */
+body.look .home-welcome-row { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 16px; }
+body.look .home-figures-switch { margin: 0; }
+body.look .home-figures-switch .search-check { min-height: 0; }
+
