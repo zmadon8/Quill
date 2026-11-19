@@ -241,6 +241,10 @@ if _flag("GZIP_RESPONSES", default=True):
 # Search keeps the records it matched in each web worker's memory for this many seconds, and builds them again at once when any
 # record of the profile changes (diary/searchcache.py). 0 switches it off; the tests leave it off except where they test it.
 SEARCH_CACHE_SECONDS = _int("SEARCH_CACHE_SECONDS", 0 if "test" in sys.argv[1:2] or os.environ.get("DJANGO_TESTING") == "1" else 600)
+# Content-Security-Policy in report-only mode (config/csp.py): browsers report what a policy would block, nothing is blocked.
+# CSP_REPORT_ONLY=0 switches it off.
+if _flag("CSP_REPORT_ONLY", default=True):
+    MIDDLEWARE.insert(1, "config.csp.CspReportOnlyMiddleware")
 # QUILL_PERF_LOG=1 logs the time and number of database queries of every Investments request (and adds a Server-Timing header). Off by default.
 PERF_LOG = _flag("QUILL_PERF_LOG", default=False)
 # How many proxies add their own entry to the end of X-Forwarded-For (Render: 1). The visitor's address is counted from the end,
