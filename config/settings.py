@@ -29,9 +29,14 @@ ALLOW_SQLITE = os.environ.get("DJANGO_ALLOW_SQLITE") == "1"
 
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "")
 if not SECRET_KEY:
-    # DJANGO_ALLOW_SQLITE=1 is a local dev/test flag, so it also permits a throwaway key.
-    if DEBUG or ALLOW_SQLITE:
+    # DJANGO_ALLOW_SQLITE=1 is a local dev/test flag, so it also permits a throwaway key. Only DEBUG uses the fixed, publicly known
+    # one; without DEBUG the key is random for each start, so a host that forgot to set it can never run with a key anyone can read.
+    if DEBUG:
         SECRET_KEY = "insecure-debug-only-key"
+    elif ALLOW_SQLITE:
+        import secrets
+
+        SECRET_KEY = secrets.token_urlsafe(50)
     else:
         raise ImproperlyConfigured("DJANGO_SECRET_KEY must be set (or DJANGO_DEBUG=1).")
 
@@ -249,8 +254,8 @@ if not DEBUG:
     SECURE_REDIRECT_EXEMPT = [r"^healthz/?$"]
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
-    # Short for now; raise (e.g. to one year) once HTTPS is confirmed stable.
-    SECURE_HSTS_SECONDS = 3600
+    # Short for now; raise it (SECURE_HSTS_SECONDS=31536000 is one year) once HTTPS is confirmed stable. No code change is needed.
+    SECURE_HSTS_SECONDS = _int("SECURE_HSTS_SECONDS", 3600)
     X_FRAME_OPTIONS = "DENY"
 
 LOGGING = {

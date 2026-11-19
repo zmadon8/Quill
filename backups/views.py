@@ -64,6 +64,8 @@ def backup_now(request):
 @admin_required
 def backup_download(request, pk):
     backup = get_object_or_404(BackupFile, pk=pk)
+    # A backup holds every password hash and all business data: who took one, and when, is kept in the log.
+    logger.info("Backup downloaded: id=%s file=%s by user id=%s", backup.pk, backup.filename, request.user.pk)
     # Wrap the stored gzip bytes once (R2): the memoryview is sent straight out, no second copy.
     return FileResponse(
         io.BytesIO(backup.data if isinstance(backup.data, bytes) else bytes(backup.data)),

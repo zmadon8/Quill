@@ -13,6 +13,7 @@ class Command(BaseCommand):
         except Exception as exc:
             # Non-zero exit so the host (Render cron job) marks the run as failed.
             raise CommandError(f"Daily backup FAILED: {exc}")
+        # create_backup already removed the backups beyond the keep count; this only catches any left over.
         removed = services.prune_old_backups()
         # Off-site copy: no-op unless set up; failures are logged and shown in the warning banner, not fatal here.
         services.upload_offsite(backup)
