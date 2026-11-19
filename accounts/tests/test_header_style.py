@@ -44,6 +44,19 @@ class HeaderStyleTests(TestCase):
         # The Settings gear, Search, Home and Sign out are the only icons (no Back and Forward: the browser has them)
         self.assertEqual(header.count("<svg"), 4)
 
+    def test_the_trash_is_a_tab_of_history_not_a_header_item(self):
+        self.assertNotIn(reverse("trash"), self.header())
+        history = self.client.get(reverse("diary_history")).content.decode()
+        self.assertIn('<nav class="subnav" aria-label="Sections of this page"><a href="%s" class="on" aria-current="page">History</a>'
+                      '<a href="%s">Trash</a></nav>' % (reverse("diary_history"), reverse("trash")), history)
+        trash = self.client.get(reverse("trash")).content.decode()
+        self.assertIn('<a href="%s" class="on" aria-current="page">Trash</a>' % reverse("trash"), trash)
+        header = trash.split('<header class="site-header"')[1].split("</header>")[0]
+        self.assertIn('<a href="%s" class="on"' % reverse("diary_history"), header)  # History stays lit on the Trash page
+        reader = join_main(User.objects.create_user("rita", password=PASSWORD), "reader")
+        self.client.force_login(reader)
+        self.assertNotIn(reverse("trash"), self.client.get(reverse("diary_history")).content.decode())
+
     def test_the_diary_header_has_the_settings_gear_left_of_the_user_name(self):
         header = self.header()
         self.assertIn('class="home-button gear-button" href="%s"' % reverse("profile_settings"), header)
