@@ -1,17 +1,13 @@
 from django.db import migrations, models
 from django.db.migrations.exceptions import IrreversibleError
 
-from diary import legacy_merge as legacy
+from diary.migrations._retired import refuse_old_data
 
 
 def merge_forwards(apps, schema_editor):
-    """Move every non-nested Item's citation into its first Case and turn Multi-Items into Items.
-
-    The mapping, the before/after count check and the "migrate" history rows are in
-    diary/legacy_merge.py, shared with the backup loader. Any failed check raises and the whole
-    migration is rolled back.
-    """
-    legacy.migrate_items(apps)
+    """The data move this migration once made has been retired (see diary/migrations/_retired.py): it only checks that
+    there is nothing for it to move."""
+    refuse_old_data(apps, "Item", "Case")
 
 
 def merge_backwards(apps, schema_editor):

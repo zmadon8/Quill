@@ -160,7 +160,7 @@ def apply_snapshot(obj, snap):
     # A version saved before For review was merged into the Flags (D88) is brought back with its mark folded into the
     # flag, exactly as the migration did; the retired switch itself stays off.
     if getattr(obj, "needs_review", False):
-        from ..review_flags import merge
+        from ..oldversions import merge
 
         obj.flag, obj.flag_text = merge(getattr(obj, "flag", "none"), getattr(obj, "flag_text", ""), True, obj.review_note)
         obj.needs_review, obj.review_note = False, ""

@@ -8,7 +8,6 @@ from django.urls import reverse
 
 from accounts.models import Profile
 from accounts.suite import KEY_FEES
-from backups import services as backup_services
 from fees.errors import FeesError
 from fees.models import Client, Matter
 from fees.services import client_scope, clients, filter_options, matters, outstanding
@@ -242,24 +241,3 @@ class ClientMigrationTests(ClientBase):
         self.assertEqual(Client.objects.filter(name__iexact="twin").count(), 1)
 
 
-class OldBackupTests(ClientBase):
-    def test_an_old_backup_clients_take_the_firm_of_their_matters(self):
-        def matter(pk, firm, client):
-            return {"model": "fees.matter", "pk": pk, "fields": {"firm": firm, "client": client}}
-
-        models = {
-            "fees.Client": [
-                {"model": "fees.client", "pk": 1, "fields": {"name": "Shared"}},
-                {"model": "fees.client", "pk": 2, "fields": {"name": "Idle"}},
-                {"model": "fees.client", "pk": 3, "fields": {"name": "Once"}},
-            ],
-            "fees.Matter": [matter(1, 10, 1), matter(2, 10, 1), matter(3, 20, 1), matter(4, 20, 3), matter(5, 10, None)],
-        }
-        backup_services._give_clients_a_firm(models)
-        by_pk = {r["pk"]: r["fields"] for r in models["fees.Client"]}
-        self.assertEqual(sorted(by_pk), [1, 3, 4])
-        self.assertEqual((by_pk[1]["firm"], by_pk[3]["firm"], by_pk[4]["firm"], by_pk[4]["name"]), (10, 20, 20, "Shared"))
-        self.assertEqual([m["fields"]["client"] for m in models["fees.Matter"]], [1, 1, 4, 3, None])
-        backup_services._give_clients_a_firm(models)   # already in the new shape: left alone
-        self.assertEqual(len(models["fees.Client"]), 3)
-        backup_services._give_clients_a_firm({})

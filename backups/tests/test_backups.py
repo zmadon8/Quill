@@ -31,7 +31,7 @@ from diary.models import (
     UserSettings,
     VersionHistory,
 )
-from diary.tests.helpers import allow_old_shape_items, main_profile
+from diary.tests.helpers import main_profile
 
 User = get_user_model()
 PASSWORD = "correct-horse-battery-9"
@@ -315,45 +315,6 @@ class RestoreServiceTests(BackupBase):
             del record["fields"]["role"]
         return services.parse_backup(gzip.compress(json.dumps(doc).encode("utf-8")), MAX)
 
-    def test_restore_old_backup_with_user_role_maps_to_membership_role(self):
-        main = main_profile()
-        for user in (self.admin, self.alice, self.bob):
-            ProfileMembership.objects.create(user=user, profile=main)
-        old = self.old_user_backup({"boss": "admin", "alice": "editor", "bob": "reader"})
-        ProfileMembership.objects.all().update(role="reader")
-        services.restore_backup(old, self.admin)
-        self.assertEqual(self.membership_roles(), {"boss": "editor", "alice": "editor", "bob": "reader"})
-        self.assertTrue(User.objects.get(username="boss").is_superuser)
-        self.assertFalse(User.objects.get(username="alice").is_superuser)
-
-    def test_restore_old_backup_with_admin_role_but_no_superuser_flag(self):
-        old = self.old_user_backup({"boss": "admin", "alice": "reader", "bob": "reader"})
-        for record in old["models"]["accounts.User"]:
-            record["fields"]["is_superuser"] = False
-            record["fields"]["role"] = {"boss": "admin"}.get(record["fields"]["username"], "reader")
-        old = services.parse_backup(gzip.compress(json.dumps(old).encode("utf-8")), MAX)
-        services.restore_backup(old, self.admin)
-        self.assertTrue(User.objects.get(username="boss").is_superuser)
-
-    def test_restore_old_backup_without_memberships_defaults_to_reader_and_maps_roles(self):
-        doc = services.parse_backup(services.create_backup("manual").data, MAX)
-        del doc["models"]["accounts.ProfileMembership"]
-        del doc["models"]["accounts.Profile"]
-        for record in doc["models"]["accounts.User"]:
-            record["fields"]["role"] = "editor" if record["fields"]["username"] == "alice" else "reader"
-        old = services.parse_backup(gzip.compress(json.dumps(doc).encode("utf-8")), MAX)
-        services.restore_backup(old, self.admin)
-        self.assertEqual(self.membership_roles(), {"boss": "editor", "alice": "editor", "bob": "reader"})
-
-    def test_restore_old_backup_without_any_role_defaults_to_reader(self):
-        main = main_profile()
-        ProfileMembership.objects.create(user=self.alice, profile=main, role="editor")
-        doc = services.parse_backup(services.create_backup("manual").data, MAX)
-        for record in doc["models"]["accounts.ProfileMembership"]:
-            del record["fields"]["role"]
-        old = services.parse_backup(gzip.compress(json.dumps(doc).encode("utf-8")), MAX)
-        services.restore_backup(old, self.admin)
-        self.assertEqual(self.membership_roles(), {"alice": "reader"})
 
     def test_restore_old_backup_without_display_names_uses_defaults(self):
         SuiteName.objects.create(key="diary", display_name="Renamed")
@@ -547,76 +508,11 @@ class OldFileWithoutTrashBatchesTests(BackupBase):
         self.assertEqual((row["in_file"], row["in_database_now"], row["would_be_removed"]), (0, 1, 1))
 
 
-class OldFileWithoutProfilesTests(BackupBase):
-    """A backup made before profiles existed restores into a default "Main" profile."""
-
-    build = DiaryRoundTripTests.build
-
-    def old_file(self):
-        doc = services.parse_backup(services.create_backup("manual").data, MAX)
-        del doc["models"]["accounts.Profile"]
-        del doc["models"]["accounts.ProfileMembership"]
-        doc["models"]["diary.Subject"] = [
-            record for record in doc["models"]["diary.Subject"] if record["fields"]["name"] != "Junior notes"
-        ]
-        for label in registry.PROFILE_MODELS:
-            for record in doc["models"][label]:
-                del record["fields"]["profile"]
-        return json.dumps(doc).encode("utf-8")
-
-    def test_old_file_gets_main_profile(self):
-        self.build()
-        doc = services.parse_backup(self.old_file(), MAX)
-        self.assertEqual([r["fields"]["name"] for r in doc["models"]["accounts.Profile"]], ["Main"])
-        users = len(doc["models"]["accounts.User"])
-        self.assertEqual(len(doc["models"]["accounts.ProfileMembership"]), users)
-        summary = services.profile_summary(doc)
-        self.assertEqual([(row["name"], row["users"]) for row in summary], [("Main", users)])
-        self.assertGreater(summary[0]["records"], 0)
-
-    def test_old_file_restores_everything_into_main(self):
-        self.build()
-        doc = services.parse_backup(self.old_file(), MAX)
-        services.restore_backup(doc, self.admin)
-        self.assertEqual(list(Profile.objects.values_list("name", flat=True)), ["Main"])
-        main = Profile.objects.get(name="Main")
-        self.assertTrue(Subject.objects.exists())
-        self.assertFalse(Subject.objects.exclude(profile=main).exists())
-        self.assertFalse(Item.objects.exclude(profile=main).exists())
-        self.assertFalse(VersionHistory.objects.exclude(profile=main).exists())
-        self.assertEqual(ProfileMembership.objects.filter(profile=main).count(), User.objects.count())
-
-    def test_file_with_profiles_is_not_changed(self):
-        self.build()
-        doc = services.parse_backup(services.create_backup("manual").data, MAX)
-        self.assertFalse(services.upgrade_old_document(doc))
-        self.assertEqual(
-            sorted(r["fields"]["name"] for r in doc["models"]["accounts.Profile"]), ["Junior", "Main"]
-        )
-
-
 class ReadingAllDefaultBackupTests(BackupBase):
     def test_the_removed_boolean_is_not_written(self):
         doc = services.parse_backup(services.create_backup("manual").data, MAX)
         self.assertNotIn("reading_all_default", doc["models"]["accounts.Profile"][0]["fields"])
 
-    def test_an_old_backup_on_remember_restores_as_the_explicit_mode(self):
-        doc = services.parse_backup(services.create_backup("manual").data, MAX)
-        for record in doc["models"]["accounts.Profile"]:
-            record["fields"]["reading_all_mode"] = "remember"
-            record["fields"]["reading_all_default"] = False
-        doc = services.parse_backup(gzip.compress(json.dumps(doc).encode("utf-8")), MAX)
-        services.restore_backup(doc, self.admin)
-        self.assertEqual(Profile.objects.get(name="Main").reading_all_mode, "always_off")
-
-    def test_an_old_backup_with_an_explicit_mode_ignores_the_boolean(self):
-        doc = services.parse_backup(services.create_backup("manual").data, MAX)
-        for record in doc["models"]["accounts.Profile"]:
-            record["fields"]["reading_all_mode"] = "always_on"
-            record["fields"]["reading_all_default"] = False
-        doc = services.parse_backup(gzip.compress(json.dumps(doc).encode("utf-8")), MAX)
-        services.restore_backup(doc, self.admin)
-        self.assertEqual(Profile.objects.get(name="Main").reading_all_mode, "always_on")
 
     def test_display_name_round_trips_and_an_old_backup_restores_it_blank(self):
         Profile.objects.filter(pk=main_profile().pk).update(display_name="Madon's Case Law")
@@ -635,15 +531,6 @@ class ReadingAllDefaultBackupTests(BackupBase):
         doc = services.parse_backup(services.create_backup("manual").data, MAX)
         self.assertEqual(doc["models"]["accounts.Profile"][0]["fields"]["reading_all_mode"], "always_off")
         Profile.objects.filter(pk=main_profile().pk).update(reading_all_mode="always_on")
-        services.restore_backup(doc, self.admin)
-        self.assertEqual(Profile.objects.get(name="Main").reading_all_mode, "always_off")
-
-    def test_backup_without_mode_but_with_the_boolean_restores_the_explicit_mode(self):
-        doc = services.parse_backup(services.create_backup("manual").data, MAX)
-        for record in doc["models"]["accounts.Profile"]:
-            del record["fields"]["reading_all_mode"]
-            record["fields"]["reading_all_default"] = False
-        doc = services.parse_backup(gzip.compress(json.dumps(doc).encode("utf-8")), MAX)
         services.restore_backup(doc, self.admin)
         self.assertEqual(Profile.objects.get(name="Main").reading_all_mode, "always_off")
 
@@ -682,6 +569,51 @@ class LastDiaryPathBackupTests(BackupBase):
             del record["fields"]["last_diary_path"]
         services.restore_backup(doc, self.admin)
         self.assertEqual(User.objects.get(username="alice").last_diary_path, "")
+
+
+class LastBackupTests(BackupBase):
+    """Only the newest backup (made by the current release) has to restore. Files made by much earlier releases are no longer
+    converted. A column that a later release drops is ignored, and one it adds takes its default, so yesterday's file still restores."""
+
+    def make_subject(self):
+        subject = Subject.objects.create(profile=main_profile(), name="Contract", landing_position=1)
+        topic = Topic.objects.create(profile=main_profile(), subject=subject, name="Offer")
+        item = Item.objects.create(profile=main_profile(), topic=topic, text="<p>one</p>", text_plain="one", position=1)
+        Case.objects.create(profile=main_profile(), item=item, citation="A v B", position=1)
+        return subject, topic, item
+
+    def test_a_backup_made_now_restores_the_diary_and_the_users(self):
+        ProfileMembership.objects.create(user=self.alice, profile=main_profile(), role="editor")
+        self.make_subject()
+        doc = services.parse_backup(services.create_backup("daily").data, MAX)
+        Subject.objects.all().delete()
+        User.objects.filter(pk=self.bob.pk).delete()
+        services.restore_backup(doc, self.admin)
+        self.assertEqual(self.usernames(), {"boss", "alice", "bob"})
+        self.assertEqual(list(Item.objects.values_list("text_plain", flat=True)), ["one"])
+        self.assertEqual(list(Case.objects.values_list("citation", flat=True)), ["A v B"])
+        self.assertEqual(dict(ProfileMembership.objects.values_list("user__username", "role")), {"alice": "editor"})
+
+    def test_a_column_the_models_no_longer_have_is_ignored(self):
+        self.make_subject()
+        doc = services.parse_backup(services.create_backup("daily").data, MAX)
+        for label in ("accounts.User", "diary.Item", "diary.Subject"):
+            for record in doc["models"][label]:
+                record["fields"]["a_column_dropped_later"] = "ignored"
+        again = services.parse_backup(gzip.compress(json.dumps(doc).encode("utf-8")), MAX)
+        services.restore_backup(again, self.admin)
+        self.assertEqual(self.usernames(), {"boss", "alice", "bob"})
+        self.assertEqual(Item.objects.count(), 1)
+
+    def test_a_file_that_a_much_older_release_made_is_refused_with_a_message_not_a_crash(self):
+        doc = services.parse_backup(services.create_backup("daily").data, MAX)
+        doc["format_version"] = 0
+        with self.assertRaises(services.BackupError):
+            services.parse_backup(gzip.compress(json.dumps(doc).encode("utf-8")), MAX)
+        doc["format_version"] = services.FORMAT_VERSION
+        doc["models"]["accounts.User"][0]["fields"] = "not a dictionary"
+        with self.assertRaises(services.BackupError):
+            services.parse_backup(gzip.compress(json.dumps(doc).encode("utf-8")), MAX)
 
 
 class ViewTests(BackupBase):
@@ -844,17 +776,6 @@ class CitationConstraintRestoreTests(BackupBase):
                 record["fields"].update(kind="nested", citation="N v M")
         return old
 
-    def test_a_file_with_a_stray_citation_is_mapped_then_restored(self):
-        old = self.make_file()
-        for record in old["models"]["diary.Item"]:
-            if record["pk"] == self.item.pk:
-                record["fields"]["citation"] = "Stray v File"
-        doc = services.parse_backup(json.dumps(old).encode("utf-8"), MAX)
-        self.assertEqual(doc["legacy_mapping"]["cases_created"], 1)
-        services.restore_backup(doc, self.admin)
-        self.assertEqual(self.item.cases.get().citation, "Stray v File")
-        self.assertFalse(Item.objects.exclude(citation="").exists())
-        self.assertEqual([c.citation for c in self.nested.cases.all()], ["N v M"])  # the Nested Item's citation too
 
     def test_a_file_in_the_current_shape_restores_unchanged(self):
         self.make_file()
@@ -984,321 +905,3 @@ class FriendlyErrorTests(TestCase):
         self.assertEqual(resp.status_code, 200)
 
 
-class OldFormatItemsTests(BackupBase):
-    """10d: a backup made before Multi-Item was merged into Item is mapped exactly as migration 0010 maps the
-    live database (diary/legacy_merge.py)."""
-
-    def setUp(self):
-        allow_old_shape_items(self)
-        super().setUp()
-
-    def build_old(self, with_nested=True):
-        """Old-format rows written straight to the tables: citations on Items, kind 'multi'."""
-        profile = main_profile()
-        subject = Subject.objects.create(profile=profile, name="Contract")
-        topic = Topic.objects.create(profile=profile, subject=subject, name="Formation", position=1)
-        sub = Subtopic.objects.create(profile=profile, topic=topic, name="Offer")
-        make = lambda **kw: Item.objects.create(profile=profile, subtopic=sub, **kw)  # noqa: E731
-        self.plain = make(text="p", citation="A v B", position=1)
-        self.bare = make(text="b", position=2)
-        self.multi = make(text="m", position=3)
-        Item.objects.filter(pk=self.multi.pk).update(kind="multi")
-        Case.objects.create(profile=profile, item=self.multi, citation="C1", comment="<i>c</i>", position=1)
-        Case.objects.create(profile=profile, item=self.multi, citation="C2", position=2)
-        if with_nested:
-            self.nested = make(text="n", kind="nested", citation="N v M", position=4)
-        make(text="t", citation="T v U", position=5, deleted_at=timezone.now())
-        make(text="s", citation="  ", position=6)
-        return gunzip_json(services.create_backup("manual").data)
-
-    def shape(self):
-        items = list(Item.objects.order_by("pk").values_list("pk", "kind", "citation", "version", "deleted_at"))
-        cases = sorted(
-            Case.objects.values_list("item_id", "position", "citation", "comment", "version", "deleted_at", "delete_batch")
-        )
-        history = sorted(
-            VersionHistory.objects.filter(change_kind="migrate").values_list("record_type", "version", "change_kind")
-        )
-        return items, cases, history
-
-    def test_restoring_an_old_file_maps_like_the_migration(self):
-        from django.apps import apps
-
-        from diary import legacy_merge as legacy
-
-        old = self.build_old(with_nested=False)  # the Nested Item part has its own test (OldNestedFileTests)
-        legacy.migrate_items(apps)
-        migrated = self.shape()
-
-        doc = services.parse_backup(json.dumps(old).encode("utf-8"), MAX)
-        self.assertEqual(doc["legacy_mapping"]["cases_created"], 3)
-        services.restore_backup(doc, self.admin)
-        self.assertEqual(self.shape(), migrated)
-
-    def test_mapped_result(self):
-        old = self.build_old()
-        doc = services.parse_backup(json.dumps(old).encode("utf-8"), MAX)
-        stats = doc["legacy_mapping"]
-        self.assertEqual(
-            (stats["items_changed"], stats["cases_created"], stats["multi_to_plain"], stats["whitespace_only"],
-             stats["nested_with_citation_kept"]),
-            (4, 3, 1, 1, 1),
-        )
-        self.assertEqual(doc["counts"]["diary.Case"], 6)  # 5, and the Nested Item's own citation as Case (a)
-        services.restore_backup(doc, self.admin)
-        self.assertFalse(Item.objects.exclude(citation="").exists())
-        self.assertFalse(Item.objects.filter(kind__in=["multi", "nested"]).exists())
-        self.assertEqual([c.citation for c in self.nested.cases.all()], ["N v M"])
-        self.assertEqual(self.plain.cases.get().citation, "A v B")
-        self.assertEqual(Case.objects.get(citation="  ").item.text_plain, "s")
-        trashed = Case.objects.get(citation="T v U")
-        self.assertIsNotNone(trashed.deleted_at)
-        self.assertEqual(VersionHistory.objects.filter(change_kind="migrate", record_type="case").count(), 4)  # 3 moved citations + the Nested Item's own
-        # Primary keys of new rows do not collide, and the sequences continue after them.
-        extra = Case.objects.create(profile=main_profile(), item=self.plain, citation="Later", position=5)
-        self.assertGreater(extra.pk, max(Case.objects.exclude(pk=extra.pk).values_list("pk", flat=True)))
-
-    def test_preview_says_the_file_is_old_and_counts_include_the_mapping(self):
-        old = self.build_old()
-        doc = services.parse_backup(json.dumps(old).encode("utf-8"), MAX)
-        rows = {r["label"]: r for r in services.preview_restore(doc)}
-        self.assertEqual(rows["diary.Case"]["in_file"], 6)
-        self.assertIn("3 citation(s) moved into Case (a)", services.legacy.describe(doc["legacy_mapping"]))
-
-    def test_restore_log_mentions_the_mapping(self):
-        old = self.build_old()
-        doc = services.parse_backup(json.dumps(old).encode("utf-8"), MAX)
-        services.restore_backup(doc, self.admin)
-        self.assertIn("moved into Case (a)", BackupLog.objects.filter(kind="restore").latest("pk").message)
-
-    def test_a_new_format_file_is_not_changed(self):
-        self.build_old(with_nested=False)
-        from django.apps import apps
-
-        from diary import legacy_merge as legacy
-
-        legacy.migrate_items(apps)
-        doc = services.parse_backup(services.create_backup("manual").data, MAX)
-        self.assertEqual(doc["legacy_mapping"]["items_changed"], 0)
-        self.assertEqual(doc["nested_mapping"]["nested_items"], 0)
-        self.assertEqual(doc["counts"]["diary.Case"], 5)
-
-    def test_trashed_cases_are_reported_and_not_touched(self):
-        profile = main_profile()
-        subject = Subject.objects.create(profile=profile, name="Contract")
-        sub = Subtopic.objects.create(profile=profile, subject=subject, name="Offer")
-        item = Item.objects.create(profile=profile, subtopic=sub, text="j", citation="A v B; C v D", position=1)
-        gone = Case.objects.create(profile=profile, item=item, citation="A v B", position=1, deleted_at=timezone.now())
-        old = gunzip_json(services.create_backup("manual").data)
-        doc = services.parse_backup(json.dumps(old).encode("utf-8"), MAX)
-        self.assertEqual(doc["legacy_mapping"]["trashed_cases_beside"], 1)
-        self.assertIn("Cases in Trash", services.legacy.describe(doc["legacy_mapping"]))
-        services.restore_backup(doc, self.admin)
-        live = list(Case.objects.filter(item=item, deleted_at__isnull=True).values_list("citation", "position"))
-        self.assertEqual(live, [("A v B; C v D", 1)])
-        gone.refresh_from_db()
-        self.assertEqual((gone.position, gone.deleted_at is None), (1, False))
-
-    def test_unmappable_data_is_refused_with_a_message(self):
-        old = self.build_old()
-        for record in old["models"]["diary.Case"]:
-            if record["fields"]["citation"] == "C1":
-                record["fields"]["item"] = self.plain.pk
-                record["fields"]["position"] = 0
-        with self.assertRaises(services.BackupError):
-            services.parse_backup(json.dumps(old).encode("utf-8"), MAX)
-
-
-class OldNestedFileTests(BackupBase):
-    """Round 10: Nested Items are gone. A backup made before it has kind "nested" Items with sub-items under
-    ``parent_item``; restoring it maps them with diary.nested_conversion, the code migration 0015 uses."""
-
-    def make_file(self, trashed=False):
-        profile = main_profile()
-        subject = Subject.objects.create(profile=profile, name="Contract")
-        topic = Topic.objects.create(profile=profile, subject=subject, name="Formation")
-        self.parent = Item.objects.create(profile=profile, topic=topic, text="<p>Parent</p>", position=1)
-        self.kid1 = Item.objects.create(profile=profile, topic=topic, text="<p>first sub-item</p>", position=2,
-                                        flag="overruled", flag_text="by X")
-        self.kid2 = Item.objects.create(profile=profile, topic=topic, text="<p>second sub-item</p>", position=3)
-        self.k1case = Case.objects.create(profile=profile, item=self.kid1, citation="K1 v L", position=1)
-        self.note = Note.objects.create(profile=profile, item=self.kid1, text="kid note", position=1)
-        elsewhere = Note.objects.create(profile=profile, topic=topic, text="elsewhere")
-        self.link = NoteLink.objects.create(profile=profile, note=elsewhere, item=self.kid1)
-        UserSettings.objects.create(user=self.alice)
-        if trashed:
-            batch = TrashBatch.objects.create(profile=profile, root_type="item", root_id=self.parent.pk, label="Gone")
-            stamp = timezone.now()
-            for item in (self.parent, self.kid1, self.kid2):
-                Item.objects.filter(pk=item.pk).update(deleted_at=stamp, delete_batch=batch.id)
-            Case.objects.update(deleted_at=stamp, delete_batch=batch.id)
-        old = gunzip_json(services.create_backup("manual").data)
-        for record in old["models"]["diary.Item"]:  # the old file shape
-            fields = record["fields"]
-            fields["parent_item"] = None
-            if record["pk"] == self.parent.pk:
-                fields.update(kind="nested", citation="N v M")
-            elif record["pk"] in (self.kid1.pk, self.kid2.pk):
-                fields.update(parent_item=self.parent.pk, topic=None, position=1 if record["pk"] == self.kid1.pk else 2)
-            fields.pop("citation_layout", None)
-        for record in old["models"]["diary.UserSettings"]:
-            record["fields"]["nested_item_format"] = "bullet"
-        return old
-
-    def parse(self, old):
-        return services.parse_backup(json.dumps(old).encode("utf-8"), MAX)
-
-    def test_a_nested_item_becomes_an_item_whose_citations_carry_the_sub_item_text(self):
-        doc = self.parse(self.make_file())
-        stats = doc["nested_mapping"]
-        self.assertEqual((stats["nested_items"], stats["children_folded"], stats["notes_moved"],
-                          stats["links_retargeted"]), (1, 2, 1, 1))
-        self.assertIn("1 Nested Item(s)", services.nested_conversion.describe(stats))
-        services.restore_backup(doc, self.admin)
-
-        parent = Item.objects.get(pk=self.parent.pk)
-        # The conversion's own note was a For review mark; it is now the flag Other (D88).
-        self.assertEqual((parent.kind, parent.citation, parent.citation_layout, parent.needs_review, parent.flag),
-                         ("plain", "", "lines", False, "other"))
-        self.assertIn("Converted from a Nested Item", parent.flag_text)
-        cases = list(parent.cases.order_by("position"))
-        self.assertEqual([(c.position, c.citation) for c in cases], [(1, "N v M"), (2, "K1 v L"), (3, "")])
-        self.assertEqual(cases[0].comment, "")
-        self.assertEqual(cases[1].comment_plain, "first sub-item [Overruled: by X]")
-        self.assertEqual(cases[2].comment_plain, "second sub-item")
-        self.assertEqual(cases[1].pk, self.k1case.pk)  # the sub-item's own Case moved, not copied
-
-    def test_notes_and_links_of_the_sub_items_move_to_the_item(self):
-        services.restore_backup(self.parse(self.make_file()), self.admin)
-        self.assertEqual(Note.objects.get(pk=self.note.pk).item_id, self.parent.pk)
-        self.assertEqual(NoteLink.objects.get(pk=self.link.pk).item_id, self.parent.pk)
-
-    def test_sub_items_wait_in_a_trash_batch_and_nothing_nested_is_left(self):
-        services.restore_backup(self.parse(self.make_file()), self.admin)
-        for kid in (self.kid1, self.kid2):
-            kid = Item.objects.get(pk=kid.pk)
-            self.assertIsNotNone(kid.deleted_at)
-            self.assertIn("Nested Item conversion", TrashBatch.objects.get(pk=kid.delete_batch).label)
-            self.assertEqual(kid.topic_id, Item.objects.get(pk=self.parent.pk).topic_id)
-        self.assertFalse(Item.objects.filter(kind="nested").exists())
-        self.assertFalse(Item.objects.exclude(citation="").exists())
-        rows = VersionHistory.objects.filter(change_kind="migrate", record_type="item")
-        self.assertEqual({r.record_id for r in rows}, {self.parent.pk, self.kid1.pk, self.kid2.pk})
-        self.assertIn("Nested Item(s) became ordinary Items",
-                      BackupLog.objects.filter(kind="restore").latest("pk").message)
-
-    def test_the_removed_settings_column_in_an_old_file_is_dropped(self):
-        old = self.make_file()
-        doc = self.parse(old)
-        self.assertTrue(all("nested_item_format" not in r["fields"] for r in doc["models"]["diary.UserSettings"]))
-        services.restore_backup(doc, self.admin)
-        self.assertTrue(UserSettings.objects.filter(user=self.alice).exists())
-
-    def test_a_nested_item_that_was_in_trash_stays_in_trash_with_its_citations(self):
-        services.restore_backup(self.parse(self.make_file(trashed=True)), self.admin)
-        parent = Item.objects.get(pk=self.parent.pk)
-        self.assertIsNotNone(parent.deleted_at)
-        self.assertEqual(parent.cases.count(), 3)
-        self.assertFalse(parent.cases.filter(deleted_at__isnull=True).exists())
-        self.assertTrue(all(c.delete_batch == parent.delete_batch for c in parent.cases.all()))
-        self.assertFalse(Item.objects.filter(deleted_at__isnull=True, topic__isnull=False).exists())
-
-    def test_the_old_file_is_mapped_before_anything_is_inserted(self):
-        old = self.make_file()
-        doc = self.parse(old)
-        nested = [r for r in doc["models"]["diary.Item"] if r["fields"].get("kind") == "nested"]
-        self.assertEqual(nested, [])
-        self.assertTrue(all("parent_item" not in r["fields"] for r in doc["models"]["diary.Item"]))
-
-
-class OldReviewFileTests(BackupBase):
-    """Round 16 (D88): a backup made before For review was merged into the Flags is restored with each mark folded into
-    the Flag, exactly as migration 0021 does for the live database (diary/review_flags.py)."""
-
-    def make_file(self):
-        profile = main_profile()
-        subject = Subject.objects.create(profile=profile, name="Contract")
-        topic = Topic.objects.create(profile=profile, subject=subject, name="Formation", position=1)
-        self.plain = Item.objects.create(profile=profile, topic=topic, text="<p>plain</p>", position=1)
-        self.flagged = Item.objects.create(profile=profile, topic=topic, text="<p>flagged</p>", position=2,
-                                           flag="overruled", flag_text="by X v Y")
-        self.bare = Item.objects.create(profile=profile, topic=topic, text="<p>bare</p>", position=3)
-        self.untouched = Item.objects.create(profile=profile, topic=topic, text="<p>untouched</p>", position=4)
-        self.section = Section.objects.create(profile=profile, topic=topic, name="Sec", position=5)
-        old = gunzip_json(services.create_backup("manual").data)
-        marks = {self.plain.pk: "check   the\nyear", self.flagged.pk: "see appeal", self.bare.pk: ""}
-        for record in old["models"]["diary.Item"]:
-            if record["pk"] in marks:
-                record["fields"].update(needs_review=True, review_note=marks[record["pk"]])
-        for record in old["models"]["diary.Section"]:
-            record["fields"].update(needs_review=True, review_note="heading to confirm")
-            record["fields"].pop("flag", None)  # an old file has no flags on Sections
-            record["fields"].pop("flag_text", None)
-        return old
-
-    def test_marks_become_flags_before_anything_is_inserted(self):
-        doc = services.parse_backup(json.dumps(self.make_file()).encode("utf-8"), MAX)
-        stats = doc["review_mapping"]
-        self.assertEqual((stats["items"], stats["sections"], stats["kept_flag"]), (3, 1, 1))
-        services.restore_backup(doc, self.admin)
-        got = {i.pk: (i.flag, i.flag_text, i.needs_review, i.review_note) for i in Item.objects.all()}
-        self.assertEqual(got[self.plain.pk], ("other", "check the year", False, ""))
-        self.assertEqual(got[self.flagged.pk], ("overruled", "by X v Y \u00b7 For review: see appeal", False, ""))
-        self.assertEqual(got[self.bare.pk], ("other", "For review", False, ""))
-        self.assertEqual(got[self.untouched.pk], ("none", "", False, ""))
-        section = Section.objects.get(pk=self.section.pk)
-        self.assertEqual((section.flag, section.flag_text, section.needs_review), ("other", "heading to confirm", False))
-        self.assertIn("marked For review now carry the review note as a Flag",
-                      BackupLog.objects.filter(kind="restore").latest("pk").message)
-        self.assertTrue(VersionHistory.objects.filter(change_kind="migrate", record_type="section").exists())
-
-    def test_a_merged_file_is_not_changed_again(self):
-        services.restore_backup(services.parse_backup(json.dumps(self.make_file()).encode("utf-8"), MAX), self.admin)
-        again = services.parse_backup(services.create_backup("manual").data, MAX)
-        self.assertEqual((again["review_mapping"]["items"], again["review_mapping"]["sections"]), (0, 0))
-
-
-class OldLooseItemsFileTests(BackupBase):
-    """Round 10 (D61): Items directly under a Subject go into its Topic "1" when an older backup file is restored,
-    exactly as migration 0017 does for the live database (diary/topic_one.py). Since D82 a Sub-topic directly under a
-    Subject is housed first (diary/subtopic_one.py, migration 0018), so nothing is left loose any more."""
-
-    def make_file(self):
-        profile = main_profile()
-        self.plain = Subject.objects.create(profile=profile, name="Plain")
-        self.holder = Subject.objects.create(profile=profile, name="Holder")
-        Subtopic.objects.create(profile=profile, subject=self.holder, name="Direct")
-        self.a = Item.objects.create(profile=profile, subject=self.plain, text="<p>a</p>", position=1)
-        self.b = Item.objects.create(profile=profile, subject=self.plain, text="<p>b</p>", position=2)
-        self.kept = Item.objects.create(profile=profile, subject=self.holder, text="<p>k</p>", position=1)
-        return gunzip_json(services.create_backup("manual").data)
-
-    def test_loose_items_are_housed_before_anything_is_inserted(self):
-        doc = services.parse_backup(json.dumps(self.make_file()).encode("utf-8"), MAX)
-        stats = doc["housing_mapping"]
-        # Plain gets a new Topic "1"; Holder's Topic "1" was made by the Sub-topic housing and is reused here.
-        self.assertEqual((stats["subjects_housed"], stats["topics_made"], stats["topics_reused"], stats["items_moved"],
-                          stats["left_under_subjects_with_subtopics"]), (2, 1, 1, 3, 0))
-        sub_stats = doc["subtopic_mapping"]
-        self.assertEqual((sub_stats["subjects_housed"], sub_stats["topics_made"], sub_stats["subtopics_moved"]), (1, 1, 1))
-        self.assertEqual(doc["counts"]["diary.Topic"], len(doc["models"]["diary.Topic"]))
-        services.restore_backup(doc, self.admin)
-        topic = Topic.objects.get(subject=self.plain)
-        self.assertEqual(topic.name, "1")
-        self.assertEqual(list(Item.objects.filter(topic=topic).order_by("position").values_list("pk", "position")),
-                         [(self.a.pk, 1), (self.b.pk, 2)])
-        self.assertIsNone(Item.objects.get(pk=self.a.pk).subject_id)
-        holder_topic = Topic.objects.get(subject=self.holder)
-        self.assertEqual(holder_topic.name, "1")
-        kept = Item.objects.get(pk=self.kept.pk)
-        self.assertEqual((kept.subject_id, kept.topic_id), (None, holder_topic.pk))
-        self.assertEqual(Subtopic.objects.get(name="Direct").topic_id, holder_topic.pk)
-        self.assertIn("now in a Topic called", BackupLog.objects.filter(kind="restore").latest("pk").message)
-        self.assertTrue(VersionHistory.objects.filter(change_kind="migrate", record_type="topic").exists())
-
-    def test_a_housed_file_is_not_changed_again(self):
-        doc = services.parse_backup(json.dumps(self.make_file()).encode("utf-8"), MAX)
-        services.restore_backup(doc, self.admin)
-        again = services.parse_backup(services.create_backup("manual").data, MAX)
-        self.assertEqual(again["housing_mapping"]["items_moved"], 0)
-        self.assertEqual(again["subtopic_mapping"]["subtopics_moved"], 0)

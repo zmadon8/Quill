@@ -21,13 +21,6 @@ from django.db import connection, transaction
 from django.db.migrations.loader import MigrationLoader
 from django.utils import timezone
 
-from accounts.models import ROLE_EDITOR, ROLE_READER
-from accounts.profiles import DEFAULT_PROFILE_NAME
-from accounts.suite import KEY_DIARY as DEFAULT_PROGRAM
-
-from diary import legacy_merge as legacy
-from diary import nested_conversion, review_flags, subtopic_one, topic_one
-
 from fees.services.heavy import Busy, heavy_operation
 
 from . import policy, registry, storage as offsite_storage
@@ -384,204 +377,7 @@ def parse_backup(raw, max_bytes):
                 or not isinstance(record.get("fields"), dict)
             ):
                 raise BackupError(f"This backup file is damaged (bad record in {label}).")
-    try:
-        old_roles = _normalise_user_records(models_in_file.get("accounts.User", []))
-        _normalise_profile_records(models_in_file.get("accounts.Profile", []))
-        upgrade_old_document(document, roles=old_roles)
-        _fill_membership_roles(models_in_file.get("accounts.ProfileMembership", []), old_roles)
-        upgrade_old_items(document)
-        _drop_removed_price_source(models_in_file)
-        _drop_removed_portfolio_owner(models_in_file)
-        _drop_removed_hidden_investments(models_in_file)
-        _split_alert_master_switches(models_in_file)
-        _invert_taxed_as_interest(models_in_file)
-        _rename_awaiting_status(models_in_file)
-        _give_clients_a_firm(models_in_file)
-    except (KeyError, TypeError, ValueError, AttributeError) as exc:
-        raise BackupError("This backup file is damaged (a record has the wrong kind of value).") from exc
     return document
-
-
-def _drop_removed_price_source(models_in_file):
-    """Twelve Data was removed: an instrument in an old backup that used it gets the default source for its kind, its fallback is
-    cleared, and the rows kept for that source (symbols, run settings, formats) are left out, as investments 0028 does for the database."""
-    from investments.services import fetch_defaults
-
-    for record in models_in_file.get("investments.Instrument", []):
-        fields = record["fields"]
-        if fields.get("price_source") == "twelvedata":
-            source = fetch_defaults.default_source(fields.get("kind"))
-            fields["price_source"] = source
-            fields["price_basis"] = fetch_defaults.default_basis(source)
-        if fields.get("fallback_source") == "twelvedata":
-            fields["fallback_source"] = ""
-    for label, field in (("investments.SourceSetting", "source"), ("investments.DataSourceFormat", "key"), ("investments.SourceSymbol", "source")):
-        if label in models_in_file:
-            models_in_file[label] = [r for r in models_in_file[label] if r["fields"].get(field) != "twelvedata"]
-
-
-def _drop_removed_portfolio_owner(models_in_file):
-    """Portfolio.owner_name was removed (investments 0034): an older backup that carries it still restores, the key is ignored."""
-    for record in models_in_file.get("investments.Portfolio", []):
-        record["fields"].pop("owner_name", None)
-
-
-def _drop_removed_hidden_investments(models_in_file):
-    """ProfileInvestment.hidden was removed (investments 0040): an older backup that carries it still restores, the key is ignored."""
-    for record in models_in_file.get("investments.ProfileInvestment", []):
-        record["fields"].pop("hidden", None)
-
-
-def _split_alert_master_switches(models_in_file):
-    """Rule A and Rule B had one switch each (replaced by one switch per kind in investments 0035): an older backup's value is copied to each new switch."""
-    for record in models_in_file.get("investments.InvestmentSettings", []):
-        fields = record["fields"]
-        if "rule_a_enabled" in fields:
-            on = fields.pop("rule_a_enabled")
-            for name in ("rule_a_fall_enabled", "rule_a_rise_enabled", "rule_a_window_enabled"):
-                fields.setdefault(name, on)
-        if "rule_b_enabled" in fields:
-            on = fields.pop("rule_b_enabled")
-            for name in ("rule_b_loss_enabled", "rule_b_gain_enabled"):
-                fields.setdefault(name, on)
-
-
-def _invert_taxed_as_interest(models_in_file):
-    """Instrument.taxed_as_interest was replaced by Instrument.capital_gains, its opposite (investments 0043): an older backup's flag is
-    inverted into the new field, as the migration does for the database. A record that already has capital_gains keeps it."""
-    for record in models_in_file.get("investments.Instrument", []):
-        fields = record["fields"]
-        if "taxed_as_interest" in fields:
-            old = fields.pop("taxed_as_interest")
-            fields.setdefault("capital_gains", not old)
-
-
-def _rename_awaiting_status(models_in_file):
-    """The transaction status "awaiting" was renamed "tentative" (investments 0044): an older backup's value is mapped, as the migration does for
-    the database. (The History's own snapshots are never edited; restoring an entry maps its status, see ``history.restore``.)"""
-    for record in models_in_file.get("investments.Transaction", []):
-        if record["fields"].get("status") == "awaiting":
-            record["fields"]["status"] = "tentative"
-
-
-def _give_clients_a_firm(models_in_file):
-    """A fee Client belongs to one firm (fees 0012 to 0014): a client record of an older backup, which has no ``firm``, takes the firm of
-    the matters that use it, as the migration does for the database. One firm: that firm. Several: the firm with the most matters keeps the
-    record (a tie goes to the lowest firm id) and every other firm gets a copy (a new pk) that its matters are pointed at. A client no
-    matter uses has no firm and is left out. A record that already has a ``firm`` is left alone."""
-    clients = models_in_file.get("fees.Client")
-    if not clients or all("firm" in record["fields"] for record in clients):
-        return
-    matters = models_in_file.get("fees.Matter", [])
-    by_client = {}
-    for record in matters:
-        fields = record["fields"]
-        if fields.get("client") is not None:
-            by_client.setdefault(fields["client"], {}).setdefault(fields.get("firm"), []).append(record)
-    next_pk = max(int(record["pk"]) for record in clients) + 1
-    out = []
-    for record in clients:
-        if "firm" in record["fields"]:
-            out.append(record)
-            continue
-        by_firm = by_client.get(record["pk"], {})
-        if not by_firm:
-            continue
-        order = sorted(by_firm, key=lambda firm: (-len(by_firm[firm]), firm))
-        record["fields"]["firm"] = order[0]
-        out.append(record)
-        for firm in order[1:]:
-            out.append({"model": record["model"], "pk": next_pk, "fields": dict(record["fields"], firm=firm)})
-            for matter in by_firm[firm]:
-                matter["fields"]["client"] = next_pk
-            next_pk += 1
-    models_in_file["fees.Client"] = out
-
-
-def upgrade_old_items(document, now=None):
-    """Map a backup made before the Multi-Item merge (10d) to the current Item shape.
-
-    Items with kind "multi" or an own ``citation`` are mapped by ``diary.legacy_merge``, the very code
-    the data migration uses: citations move into a new first Case, Multi-Items become Items, and "migrate"
-    history rows record each change. A file already in the new shape is left alone. The statistics are
-    kept in ``document["legacy_mapping"]`` so the restore preview and log can say what was mapped.
-    """
-    stamp = (now or timezone.now()).isoformat()
-    try:
-        stats = legacy.upgrade_document_items(document["models"], stamp)
-    except legacy.LegacyConflict as exc:
-        raise BackupError(f"This backup holds data that cannot be mapped to the current format. {exc}")
-    # Then Nested Items (round 10): sub-items become citations with comments, via diary.nested_conversion.
-    nested = nested_conversion.upgrade_document_nested(document["models"], stamp)
-    # Then: Sub-topics directly under a Subject go into its Topic "1" (D82), and last the Items and Sections directly under a
-    # Subject go into the same Topic "1" (D61). The order matters: Items are left loose while their Subject holds Sub-topics.
-    housed_sub = subtopic_one.house_document(document["models"], stamp)
-    housed = topic_one.house_document(document["models"], stamp)
-    document["subtopic_mapping"] = housed_sub
-    # Last: For review marks are folded into the Flags (D88), as migration 0021 does for the live database.
-    document["review_mapping"] = review_flags.upgrade_document(document["models"], stamp)
-    document["legacy_mapping"] = stats
-    document["nested_mapping"] = nested
-    document["housing_mapping"] = housed
-    reviewed = document["review_mapping"]
-    if (stats["items_changed"] or nested["nested_items"] or housed["subjects_housed"] or housed_sub["subjects_housed"]
-            or reviewed["items"] or reviewed["sections"]):
-        counts = document.setdefault("counts", {})
-        for label in ("diary.Item", "diary.Section", "diary.Subtopic", "diary.Topic", "diary.Case", "diary.Note", "diary.NoteLink",
-                      "diary.TrashBatch", "diary.VersionHistory"):
-            if label in document["models"]:
-                counts[label] = len(document["models"][label])
-    return stats
-
-
-def upgrade_old_document(document, now=None, roles=None):
-    """Give a backup made before profiles existed a default "Main" profile.
-
-    If the file has no profiles (no ``accounts.Profile`` section, or an empty one as written by
-    a pre-migration backup taken before profiles existed), a "Main" Case Law Diary profile is added,
-    every user in the file is given access to it, and every diary record without a ``profile``
-    is put into it. A file that already has profiles is left untouched. Returns True if changed.
-    ``roles`` maps user pk to the membership role (from an old ``User.role``); missing means Reader.
-    """
-    models_in_file = document["models"]
-    if models_in_file.get("accounts.Profile"):
-        return False
-    stamp = (now or timezone.now()).isoformat()
-    profile_pk = 1
-    models_in_file["accounts.Profile"] = [
-        {
-            "model": "accounts.profile",
-            "pk": profile_pk,
-            "fields": {
-                "program": DEFAULT_PROGRAM,
-                "name": DEFAULT_PROFILE_NAME,
-                "deleted_at": None,
-                "created_at": stamp,
-                "updated_at": stamp,
-            },
-        }
-    ]
-    models_in_file["accounts.ProfileMembership"] = [
-        {
-            "model": "accounts.profilemembership",
-            "pk": number,
-            "fields": {
-                "user": user["pk"],
-                "profile": profile_pk,
-                "program": DEFAULT_PROGRAM,
-                "role": (roles or {}).get(user["pk"], ROLE_READER),
-                "created_at": stamp,
-            },
-        }
-        for number, user in enumerate(models_in_file.get("accounts.User", []), start=1)
-    ]
-    for label in registry.PROFILE_MODELS:
-        for record in models_in_file.get(label, []):
-            record["fields"].setdefault("profile", profile_pk)
-    document.setdefault("counts", {})
-    document["counts"]["accounts.Profile"] = 1
-    document["counts"]["accounts.ProfileMembership"] = len(models_in_file["accounts.ProfileMembership"])
-    return True
 
 
 def profile_summary(document):
@@ -607,47 +403,6 @@ def profile_summary(document):
             }
         )
     return sorted(rows, key=lambda row: (row["program"], row["name"].lower()))
-
-
-def _normalise_user_records(records):
-    """Make user records match the current User model, so older backups still restore.
-
-    Older files have a ``role`` on each user (Admin, Editor or Reader); it now lives on the profile
-    membership. The column is removed from the record, a user who was an Admin by role is a
-    superuser, and the old role is returned as ``{user pk: "editor" or "reader"}`` (Editor and Admin
-    map to Editor, anything else to Reader) for memberships that lack a role. ``is_staff`` follows
-    ``is_superuser``. This is done here because restoring writes rows without calling ``User.save()``.
-    """
-    roles = {}
-    for record in records:
-        fields = record["fields"]
-        old_role = fields.pop("role", None)
-        fields.pop("light_mode", None)  # a switch that existed for a short while and was withdrawn (D81)
-        is_superuser = bool(fields.get("is_superuser")) or old_role == "admin"
-        fields["is_superuser"] = is_superuser
-        fields["is_staff"] = is_superuser
-        roles[record["pk"]] = ROLE_EDITOR if is_superuser or old_role == "editor" else ROLE_READER
-    return roles
-
-
-def _normalise_profile_records(records):
-    """Drop ``reading_all_default`` (removed). A profile on the "remember" mode, or with no mode, whose boolean was
-    False becomes always_off; with True it stays "remember" (which now opens the whole Subject before any view is kept)."""
-    for record in records:
-        fields = record["fields"]
-        if "reading_all_default" not in fields:
-            continue
-        whole = fields.pop("reading_all_default")
-        if not whole and fields.get("reading_all_mode", "remember") == "remember":
-            fields["reading_all_mode"] = "always_off"
-
-
-def _fill_membership_roles(records, roles):
-    """Give memberships without a valid role the role mapped from the user's old role (else Reader)."""
-    for record in records:
-        fields = record["fields"]
-        if fields.get("role") not in (ROLE_EDITOR, ROLE_READER):
-            fields["role"] = roles.get(fields.get("user"), ROLE_READER)
 
 
 def _file_has_active_admin(document):
@@ -792,12 +547,7 @@ def restore_backup(document, user):
         kind="restore",
         success=True,
         message="Restored: "
-        + ", ".join(f"{label} {n}" for label, n in counts.items())
-        + (" " + legacy.describe(document.get("legacy_mapping") or legacy.new_stats())).rstrip()
-        + (" " + nested_conversion.describe(document.get("nested_mapping") or nested_conversion.new_stats())).rstrip()
-        + (" " + subtopic_one.describe(document.get("subtopic_mapping") or subtopic_one.new_stats())).rstrip()
-        + (" " + topic_one.describe(document.get("housing_mapping") or topic_one.new_stats())).rstrip()
-        + (" " + review_flags.describe(document.get("review_mapping") or review_flags.new_stats())).rstrip(),
+        + ", ".join(f"{label} {n}" for label, n in counts.items()),
         created_by=survivor,
     )
     return counts

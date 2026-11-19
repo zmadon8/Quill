@@ -8,7 +8,6 @@
   <p>A safety backup of the current data is taken first, so this step can be undone by restoring that safety backup.</p>
   <p>Anyone whose account is not in the file will be signed out and removed.</p>
 </div>
-{% if legacy_note %}<div class="warning-box"><p><strong>This is an older backup.</strong> {{ legacy_note }} The counts below already include these changes.</p></div>{% endif %}
 {% if will_empty %}
 <div class="warning-box" style="border-color: #b00020; border-left-color: #b00020; color: #b00020;">
   <p><strong>Warning: this file does not contain some record types that currently hold data.</strong></p>

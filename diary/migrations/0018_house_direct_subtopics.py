@@ -1,16 +1,13 @@
 from django.db import migrations
 from django.db.migrations.exceptions import IrreversibleError
 
-from diary import subtopic_one, topic_one
+from diary.migrations._retired import refuse_old_data
 
 
 def house_forwards(apps, schema_editor):
-    """Move every Sub-topic that sits directly under a Subject into the Subject's Topic named "1" (made when needed), then
-    house any Items and Sections that were left loose under such a Subject (migration 0017 skipped them) in the same Topic.
-    The mapping, the count checks and the "migrate" history rows are in diary/subtopic_one.py and diary/topic_one.py, shared
-    with the backup loader. Any failed check raises and the whole migration is rolled back."""
-    subtopic_one.migrate_direct(apps)
-    topic_one.migrate_loose(apps)
+    """The data move this migration once made has been retired (see diary/migrations/_retired.py): it only checks that
+    there is nothing for it to move."""
+    refuse_old_data(apps, "Subtopic", "Item", "Section")
 
 
 def house_backwards(apps, schema_editor):

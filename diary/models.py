@@ -34,9 +34,8 @@ SECTION_FORMAT_CHOICES = FORMAT_CHOICES + [("section_n", "Section 1, Section 2")
 
 KIND_PLAIN = "plain"
 # LEGACY: "multi" (10d) and "nested" (round 10) are no longer stored or chosen kinds. Every Item holds its
-# citations as Cases; an Item with two or more live Cases is shown as (a), (b). Old backup files and old
-# history snapshots may still name the old values; diary/legacy_merge.py and diary/nested_conversion.py map
-# them. ``Item.kind`` stays as a column with the one value "plain".
+# citations as Cases; an Item with two or more live Cases is shown as (a), (b). Old history snapshots may still
+# name the old values (diary/oldversions.py reads them). ``Item.kind`` stays as a column with the one value "plain".
 KIND_CHOICES = [
     (KIND_PLAIN, "Item"),
 ]
@@ -309,8 +308,8 @@ class Item(RichTextMixin, Record):
     text = models.TextField(blank=True)
     text_plain = models.TextField(blank=True, editable=False)
     # LEGACY: the citations of an Item live in Cases (Case position order), and this column is always empty
-    # (migrations 0010 and 0015). It is kept so that old backup files and old history snapshots (which carry it)
-    # can still be read and mapped (diary/legacy_merge.py, diary/nested_conversion.py).
+    # (migrations 0010 and 0015). It is kept so that old history snapshots (which carry it) can still be read
+    # (diary/oldversions.py); a later release can drop the column.
     citation = models.CharField(max_length=1000, blank=True)
     flag = models.CharField(max_length=10, choices=FLAG_CHOICES, default=FLAG_NONE)
     flag_text = models.TextField(blank=True)
