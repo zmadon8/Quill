@@ -40,7 +40,7 @@
     if (id) { broker.value = String(id); }
   }
   // The figure at the bottom of a sale card: units held as at the card's date for its investment, portfolio, broker and folio.
-  var seq = 0;
+  var seq = 0, availSeq = 0;
   function loadLine() {
     if (!line) { return; }
     held = 0; heldRaw = ""; if (allBtn) { allBtn.hidden = true; }
@@ -62,16 +62,18 @@
     if (!panel || card !== form || !form.getAttribute("data-sell") || !instrument || !instrument.value) { return; }
     var url = form.getAttribute("data-units-url") + "?instrument=" + encodeURIComponent(instrument.value) + "&date=" + encodeURIComponent(dateField ? dateField.value : "");
     if (form.getAttribute("data-exclude")) { url += "&exclude=" + form.getAttribute("data-exclude"); }
-    fetch(url, { credentials: "same-origin" }).then(function (r) { return r.json(); }).then(function (d) {
+    var mine = ++availSeq; // a slower, older answer never replaces a newer one
+    fetch(url, { credentials: "same-origin" }).then(function (r) { if (!r.ok) { throw new Error("not available"); } return r.json(); }).then(function (d) {
+      if (mine !== availSeq) { return; }
       if (!d.ok || !d.buckets.length) { panel.textContent = "Nothing is held on this date, so nothing can be sold."; return; }
       var html = "<ul class='plain'>" + d.buckets.map(function (b) {
-        return "<li><button type='button' class='linklike' data-p='" + b.portfolio + "' data-b='" + b.broker + "' data-f='" + (b.folio || "") + "'>" +
+        return "<li><button type='button' class='linklike' data-p='" + esc(b.portfolio) + "' data-b='" + esc(b.broker) + "' data-f='" + esc(b.folio || "") + "'>" +
           esc(b.broker_name) + " / " + esc(b.portfolio_name) + (b.folio_name ? " / folio " + esc(b.folio_name) : "") + "</button>: <b>" + fmt(b.units) + "</b> units</li>";
       }).join("") + "</ul>";
       if (parseFloat(d.awaiting) > 0) { html += "<p class='hint'>plus " + fmt(d.awaiting) + " tentative (cannot be sold until finalised)</p>"; }
       panel.innerHTML = html;
       if (d.buckets.length === 1) { pick(d.buckets[0].portfolio, d.buckets[0].broker, d.buckets[0].folio); }
-    });
+    }).catch(function () { if (mine === availSeq) { panel.textContent = "Not available. Choose the portfolio and broker yourself."; } });
   }
   function pick(p, b, f) {
     if (portfolio && p) { portfolio.value = String(p); }

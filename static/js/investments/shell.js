@@ -24,11 +24,15 @@
     document.documentElement.setAttribute("data-money", m);
   }
   function set(m) {
+    var before = document.documentElement.getAttribute("data-money") || "auto";
     try { localStorage.setItem(KEY, m); } catch (e) { /* private mode */ }
     apply(m);
     if (toggle && window.fetch) {
       var body = new URLSearchParams(); body.set("mode", m);
-      fetch(toggle.getAttribute("data-post"), { method: "POST", credentials: "same-origin", headers: { "X-CSRFToken": csrf() }, body: body });
+      // If the server did not keep the choice (signed out, no network), go back to what it still has instead of showing a choice that will not stay.
+      fetch(toggle.getAttribute("data-post"), { method: "POST", credentials: "same-origin", headers: { "X-CSRFToken": csrf() }, body: body })
+        .then(function (r) { if (!r.ok) { throw new Error("not saved"); } })
+        .catch(function () { try { localStorage.setItem(KEY, before); } catch (e) { /* private mode */ } apply(before); });
     }
   }
   document.addEventListener("click", function (e) {

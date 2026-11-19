@@ -75,6 +75,12 @@
 
   // Jump flash: landing on #n-... (a Search result, Review list or Contents link) briefly highlights the target.
   var flashTimer = null;
+  // A page address can carry any text after "#": decode it and put it in a selector without ever throwing.
+  function safeDecode(text) { try { return decodeURIComponent(text); } catch (err) { return text; } }
+  function cssEscape(text) {
+    if (window.CSS && window.CSS.escape) { return window.CSS.escape(text); }
+    return String(text).replace(/["\\\]\[]/g, "\\$&");
+  }
   var flashed = null;
   var jumpFlash = function () {
     var id = window.location.hash.replace(/^#/, "");
@@ -82,7 +88,7 @@
     if (flashTimer) { window.clearTimeout(flashTimer); flashTimer = null; }
     if (id.indexOf("n-") !== 0) { return; }
     var el;
-    try { el = document.getElementById(decodeURIComponent(id)); } catch (err) { return; }
+    try { el = document.getElementById(safeDecode(id)); } catch (err) { return; }
     if (!el) { return; }
     void el.offsetWidth; // restart the animation if the same target is flashed twice
     el.classList.add("jump-flash");
@@ -328,7 +334,7 @@
       var open;
       var hashNow = window.location.hash.replace(/^#/, "");
       if (node.hasAttribute("data-toc-current")) { open = true; }
-      else if (hashNow && node.querySelector('[data-anchor="' + hashNow + '"]')) { open = true; }
+      else if (hashNow && node.querySelector('[data-anchor="' + cssEscape(hashNow) + '"]')) { open = true; }
       else if (Object.prototype.hasOwnProperty.call(saved, id)) { open = !!saved[id]; }
       else { open = false; }
       setOpen(node, open);
@@ -350,7 +356,7 @@
     // Keep the current entry in view inside the panel's own scrollbar (the page is not scrolled).
     var scroller = box.closest(".panel-scroll") || box.closest(".contents-panel");
     var hashId = window.location.hash.replace(/^#/, "");
-    var target = box.querySelector("[data-toc-current] > .toc-row") || (hashId && box.querySelector('a[data-anchor="' + hashId + '"]'));
+    var target = box.querySelector("[data-toc-current] > .toc-row") || (hashId && box.querySelector('a[data-anchor="' + cssEscape(hashId) + '"]'));
     if (scroller && target) {
       var offset = target.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
       scroller.scrollTop = Math.max(0, offset - scroller.clientHeight / 3);
@@ -361,7 +367,7 @@
   window.addEventListener("hashchange", function () {
     var id = window.location.hash.replace(/^#/, "");
     if (!id) { return; }
-    var link = document.querySelector('[data-toc] a[data-anchor="' + id + '"]');
+    var link = document.querySelector('[data-toc] a[data-anchor="' + cssEscape(id) + '"]');
     if (!link) { return; }
     var node = link.closest("[data-toc-node]");
     var btn = node && node.querySelector("[data-toc-toggle]");
@@ -391,7 +397,7 @@
     var jumpToHash = function () {
       if (window.quillKeepPlace && window.quillKeepPlace.restoring) { return; } // a reload keeps your place instead (D87)
       var id = window.location.hash.replace(/^#/, "");
-      var el = id ? document.getElementById(decodeURIComponent(id)) : null;
+      var el = id ? document.getElementById(safeDecode(id)) : null;
       if (el) { measure(); el.scrollIntoView(); }
     };
     jumpToHash();
@@ -455,7 +461,7 @@
   var reading = document.querySelector("[data-reading-view]");
   if (reading) {
     var wholeView = reading.getAttribute("data-reading-view") === "all";
-    document.cookie = "quill_in_context=" + (wholeView ? "1" : "0") + "; path=/; max-age=31536000; SameSite=Lax";
+    document.cookie = "quill_in_context=" + (wholeView ? "1" : "0") + "; path=/; max-age=31536000; SameSite=Lax" + (window.location.protocol === "https:" ? "; Secure" : "");
   }
 
   // Topic and Sub-topic headings in the reading body switch between the whole Subject and one Topic (not while an Edit card is open).

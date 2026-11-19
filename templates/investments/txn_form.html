@@ -16,7 +16,7 @@
   <div class="acts-row"><button class="btn p" type="submit">{{ submit_label }}</button><a class="btn q" href="{% if next_url %}{{ next_url }}{% else %}{% url 'investments_transactions' %}{% endif %}">Cancel</a></div>
 </form>
 {% if can_delete and txn %}<form method="post" action="{% url 'investments_txn_delete' txn.pk %}{% if next_url %}?next={{ next_url|urlencode:'' }}{% endif %}" onsubmit="return confirm('Delete this entry? It can be brought back from History.')">{% csrf_token %}<button class="btn dng" type="submit">Delete this entry</button></form>{% endif %}
-<script id="inv-default-brokers" type="application/json">{{ default_brokers_json|safe }}</script>
-<script id="inv-folios" type="application/json">{{ folios_json|safe }}</script>
+{{ default_brokers|json_script:"inv-default-brokers" }}
+{{ folios|json_script:"inv-folios" }}
 {% endblock %}
 {% block page_js %}{% load static %}<script src="{% static 'js/investments/txn-form.js' %}"></script><script src="{% static 'js/investments/held-only.js' %}"></script><script src="{% static 'js/investments/instrument-combobox.js' %}"></script><script src="{% static 'js/investments/txn-rows.js' %}"></script>{% endblock %}

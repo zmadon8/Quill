@@ -61,6 +61,7 @@
   var moveUrl = root.getAttribute("data-move-url");
   var nextUrl = root.getAttribute("data-next") || window.location.pathname + window.location.search;
   var current = null; // the open add form or card: { node, row, button, kind }
+  var opening = false; // a form or card is being fetched: a second click meanwhile is ignored (it would open two)
 
   function el(tag, attrs, text) {
     var node = document.createElement(tag);
@@ -78,11 +79,24 @@
     options = options || {};
     options.credentials = "same-origin";
     options.headers = { "X-Requested-With": "fetch", "Accept": "application/json" };
+    // A request that hangs (a weak phone connection) is stopped after 30 seconds, so Save works again instead of staying dead.
+    var timer = null;
+    if (window.AbortController) {
+      var controller = new AbortController();
+      options.signal = controller.signal;
+      timer = window.setTimeout(function () { controller.abort(); }, 30000);
+    }
     return fetch(url, options).then(function (response) {
       return response.json().then(
         function (data) { return { status: response.status, data: data }; },
         function () { return { status: response.status, data: null }; }
       );
+    }).then(function (result) {
+      window.clearTimeout(timer);
+      return result;
+    }, function (err) {
+      window.clearTimeout(timer);
+      throw err;
     });
   }
 
@@ -235,12 +249,14 @@
   var HEADING_KINDS = { topic: 1, subtopic: 1, section: 1 };
 
   function openAdd(button, choice) {
-    if (!closeCurrent(false)) { return; }
+    if (opening || !closeCurrent(false)) { return; }
     var row = rowOf(button);
     var ref = button.getAttribute("data-ref");
     if (!row || !ref) { return; }
     button.setAttribute("aria-expanded", "true");
+    opening = true;
     request(addUrl + "?" + new URLSearchParams({ ref: ref, next: nextUrl }).toString()).then(function (result) {
+      opening = false;
       if (!result.data || !result.data.ok) { window.location.href = button.href; return; }
       var form = parseFragment(result.data.html);
       place(row, form);
@@ -253,7 +269,7 @@
       if (window.QuillRichText) { window.QuillRichText.initAll(form); }
       setupAdd(form);
       form.scrollIntoView({ block: "nearest" });
-    }).catch(function () { window.location.href = button.href; });
+    }).catch(function () { opening = false; window.location.href = button.href; });
   }
 
   function setupAdd(form) {
@@ -344,12 +360,16 @@
         body.delete("case_citation"); body.delete("case_comment");
       }
       busy = true;
+      // Two-argument then: only a failed request says "Nothing was added". A problem while showing a saved result must not,
+      // because the server has already saved it (pressing Save again would add it twice); the page is reloaded instead.
       request(form.action, { method: "POST", body: body }).then(function (result) {
         busy = false;
-        if (!(result.data && result.data.ok)) { setThen(""); failed(form, result); return; }
-        if (result.data.redirect) { window.location.href = result.data.redirect; return; }
-        saved(result.data);
-      }).catch(function () {
+        try {
+          if (!(result.data && result.data.ok)) { setThen(""); failed(form, result); return; }
+          if (result.data.redirect) { window.location.href = result.data.redirect; return; }
+          saved(result.data);
+        } catch (err) { window.location.reload(); }
+      }, function () {
         busy = false;
         setThen("");
         showErrors(form, ["Could not reach the server. Nothing was added."]);
@@ -385,11 +405,13 @@
 
   // ---- "Edit": the editing card ----
   function openCard(button) {
-    if (!closeCurrent(false)) { return; }
+    if (opening || !closeCurrent(false)) { return; }
     var row = rowOf(button);
     if (!row) { return; }
+    opening = true;
     var query = new URLSearchParams({ kind: row.getAttribute("data-kind"), id: row.getAttribute("data-id"), next: nextUrl });
     request(cardUrl + "?" + query.toString()).then(function (result) {
+      opening = false;
       if (!result.data || !result.data.ok) { window.location.href = button.href || window.location.href; return; }
       var card = parseFragment(result.data.html);
       place(row, card);
@@ -403,7 +425,7 @@
       // On a phone the keyboard would pop up at once and cover the buttons: the person taps the field they want instead.
       if (first && !(window.matchMedia && window.matchMedia("(pointer: coarse)").matches)) { first.focus(); }
       card.scrollIntoView({ block: "nearest" });
-    }).catch(function () { if (button.href) { window.location.href = button.href; } });
+    }).catch(function () { opening = false; if (button.href) { window.location.href = button.href; } });
   }
 
   // Phone: the editing card is full screen. Phone browsers do not shrink a fixed box when the keyboard opens (and iOS can scroll it
@@ -542,7 +564,10 @@
       toast(deleted ? "Moving to Trash\u2026" : "Saving\u2026");
       var body = new FormData(card);
       if (extra) { body.set(extra[0], extra[1]); }
-      request(url, { method: "POST", body: body }).then(function (r) { card.removeAttribute("aria-busy"); done(r, deleted); }).catch(function () {
+      request(url, { method: "POST", body: body }).then(function (r) {
+        card.removeAttribute("aria-busy");
+        try { done(r, deleted); } catch (err) { window.location.reload(); } // already saved on the server: do not offer Save again
+      }, function () {
         busy = false;
         card.removeAttribute("aria-busy");
         showErrors(card, ["Could not reach the server. Nothing was changed. Check your connection and press Save again."]);
