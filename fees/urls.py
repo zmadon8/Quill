@@ -129,6 +129,7 @@ urlpatterns = [
     # Backup download (Editor); restore, clear-all and import (suite Admin only)
     path("backup/", views_backup.backup_page, name="fees_backup"),
     path("backup/download/", views_backup.backup_download, name="fees_backup_download"),
+    path("backup/payment-audit/", views_backup.payment_audit_page, name="fees_payment_audit"),
     path("backup/restore/", views_backup.restore, name="fees_backup_restore"),
     path("backup/clear/", views_backup.clear, name="fees_backup_clear"),
     path("backup/restored/", views_backup.restored, name="fees_backup_restored"),
