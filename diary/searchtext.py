@@ -163,8 +163,11 @@ def _evaluate(node, hits):
     return not _evaluate(node[1], hits)
 
 
-def match_fields(fields, terms):
+def match_fields(fields, terms, norms=None):
     """Match ``terms`` against ``fields`` (a list of (key, text)).
+
+    ``norms`` may hold ``normalise(text)`` of each field, in order, when the caller already has them (Search keeps them with
+    each record); otherwise they are worked out here.
 
     ``terms`` is a list of Terms (all must match) or a ``Parsed`` query (AND / OR / NOT / grouping).
     Returns None when the record does not match. Otherwise a dict ``{key: [(start, end), ...]}`` of the
@@ -178,7 +181,9 @@ def match_fields(fields, terms):
         positive = terms
     if expr is None:
         return {}
-    norms = [(key, text, normalise(text)) for key, text in fields]
+    if norms is None:
+        norms = [normalise(text) for _key, text in fields]
+    norms = [(key, text, norm) for (key, text), norm in zip(fields, norms)]
     cache = {}
 
     def hits(term):
@@ -204,10 +209,14 @@ def match_fields(fields, terms):
     return result
 
 
-def contains_whole_query(fields, terms):
-    """True when the terms, joined by one space, appear together in one field (used to rank results)."""
+def contains_whole_query(fields, terms, norms=None):
+    """True when the terms, joined by one space, appear together in one field (used to rank results).
+
+    ``norms`` as for ``match_fields``."""
     joined = " ".join(t.text for t in terms)
-    return any(joined in normalise(text) for _key, text in fields)
+    if norms is None:
+        norms = [normalise(text) for _key, text in fields]
+    return any(joined in norm for norm in norms)
 
 
 def snippet(original, spans, width=90):
