@@ -123,6 +123,7 @@ ROUTES = {
     "fees_prefs": (U, "?key=col-widths:memos"),
     "fees_backup": (E, ""),
     "fees_backup_download": (E, ""),
+    "fees_payment_audit": (A, ""),
     "fees_backup_restore": (A, ""),
     "fees_backup_clear": (A, ""),
     "fees_backup_restored": (A, ""),
