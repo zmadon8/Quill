@@ -322,16 +322,24 @@ def _footer_aggregate(qs, default_tds_rate):
         2,
     )
     zero = Value(Decimal("0"), output_field=money)
+    # The names are not the column names: an aggregate may not share a name with a field of the model.
     row = qs.order_by().aggregate(
-        count=Count("pk"),
-        total_fees=Coalesce(Sum("total_fees"), zero),
-        net_of_tds=Coalesce(Sum(ExpressionWrapper(F("total_fees") - less_tds, output_field=money)), zero),
-        amount_received=Coalesce(Sum("amount_received"), zero),
-        amount_tds=Coalesce(Sum("amount_tds"), zero),
-        amount_due=Coalesce(Sum(ExpressionWrapper(F("total_fees") - F("amount_paid"), output_field=money)), zero),
+        n_rows=Count("pk"),
+        sum_total=Coalesce(Sum("total_fees"), zero),
+        sum_net=Coalesce(Sum(ExpressionWrapper(F("total_fees") - less_tds, output_field=money)), zero),
+        sum_received=Coalesce(Sum("amount_received"), zero),
+        sum_tds=Coalesce(Sum("amount_tds"), zero),
+        sum_due=Coalesce(Sum(ExpressionWrapper(F("total_fees") - F("amount_paid"), output_field=money)), zero),
     )
-    totals = {field: round2(row[field]) for field in FOOTER_FIELDS}
-    totals["count"] = row["count"]
+    totals = {
+        "total_fees": round2(row["sum_total"]),
+        "net_of_tds": round2(row["sum_net"]),
+        "amount_received": round2(row["sum_received"]),
+        "amount_tds": round2(row["sum_tds"]),
+        "amount_due": round2(row["sum_due"]),
+    }
+    assert set(totals) == set(FOOTER_FIELDS)
+    totals["count"] = row["n_rows"]
     return totals
 
 
