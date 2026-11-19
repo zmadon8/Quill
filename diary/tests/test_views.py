@@ -373,14 +373,15 @@ class HomeIndexTests(TestCase):
         resp = self.client.get(reverse("review_list") + "?subject=3")
         self.assertRedirects(resp, reverse("flags") + "?subject=3", fetch_redirect_response=False)
 
-    def test_site_js_keeps_back_and_forward_inside_the_site(self):
+    def test_site_js_has_no_in_app_back_and_forward(self):
+        """The header Back and Forward arrows were removed (the browser has them), with their saved list of pages."""
         from pathlib import Path
 
         js = (Path(__file__).resolve().parents[2] / "static" / "js" / "site.js").read_text()
         self.assertNotIn("history.back", js)
         self.assertNotIn("history.go", js)
-        self.assertIn("sessionStorage", js)
-        self.assertIn("isSitePath", js)
+        self.assertNotIn("quill.nav", js)
+        self.assertNotIn("data-back", js)
 
     def test_search_button_cannot_break_over_two_lines(self):
         from pathlib import Path
