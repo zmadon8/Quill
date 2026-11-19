@@ -238,6 +238,10 @@ else:
 # Compress pages and text on the way out (much less to download on a phone). Set GZIP_RESPONSES=0 to switch off.
 if _flag("GZIP_RESPONSES", default=True):
     MIDDLEWARE.insert(1, "config.middleware.TextGZipMiddleware")  # right after SecurityMiddleware
+# Content-Security-Policy in report-only mode (config/csp.py): browsers report what a policy would block, nothing is blocked.
+# CSP_REPORT_ONLY=0 switches it off.
+if _flag("CSP_REPORT_ONLY", default=True):
+    MIDDLEWARE.insert(1, "config.csp.CspReportOnlyMiddleware")
 # QUILL_PERF_LOG=1 logs the time and number of database queries of every Investments request (and adds a Server-Timing header). Off by default.
 PERF_LOG = _flag("QUILL_PERF_LOG", default=False)
 # How many proxies add their own entry to the end of X-Forwarded-For (Render: 1). The visitor's address is counted from the end,
