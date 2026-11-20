@@ -158,7 +158,7 @@ def get_firm(profile, firm_id):
     groups = list(firm.groups.order_by(Lower("name")))
     rollups = matter_rollups(profile, firm_id)
     matters = []
-    for matter in firm.matters.select_related("client").order_by(Lower("name")):
+    for matter in firm.matters.select_related("client", "group").order_by(Lower("name")):
         roll = rollups.get(matter.pk, {"memo_status": None, "has_written_off": False})
         matters.append(
             {
