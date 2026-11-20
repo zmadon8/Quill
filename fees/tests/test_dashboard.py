@@ -255,7 +255,7 @@ class RateKpiTests(TestCase):
 
     def test_working_days_completed(self):
         self._enter_working_days()
-        self.assertEqual(working_days_completed(self.profile, NOW), {"month": 14, "year": 214, "last30": 21})
+        self.assertEqual(working_days_completed(self.profile, NOW), {"month": 14, "year": 214, "last30": 21, "year_total": 220})
 
     def test_fees_a_day(self):
         self._seed()

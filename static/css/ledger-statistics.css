@@ -36,3 +36,34 @@ body.ledger .pivot-chart .hv-tip i { display: inline-block; width: 14px; border-
 .explain-list dt { font-weight: 600; margin-top: .6rem; }
 .explain-list dd { margin: .15rem 0 0; }
 .explain-table td, .explain-table th[scope=row] { text-align: left; vertical-align: top; white-space: normal; }
+
+/* Projected Totals (owner round 2026-11): the chart under the Standard table. */
+body.ledger .projection { margin-top: 1.5rem; }
+body.ledger .projection .section-head { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; }
+body.ledger .projection-pick { margin: 0 0 0 auto; }
+body.ledger .projection-figure { margin: .5rem 0 0; }
+body.ledger .projection-chart { display: block; width: 100%; height: auto; max-width: 860px; }
+body.ledger .projection-chart .pc-grid { stroke: var(--line, #e3e6ea); }
+body.ledger .projection-chart .pc-axis { font-size: 11px; fill: var(--muted); }
+body.ledger .projection-chart .pc-note { font-size: 12px; font-weight: 600; }
+body.ledger .projection-chart .pc-value { font-size: 12px; fill: var(--ink); }
+body.ledger .projection-chart .pc-actual-text { fill: var(--accent); }
+body.ledger .projection-chart .pc-projected-text { fill: var(--accent); }
+body.ledger .projection-chart .pc-actual-line { fill: none; stroke: var(--accent); stroke-width: 3; }
+body.ledger .projection-chart .pc-projected-line { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-dasharray: 7 5; }
+body.ledger .projection-chart .pc-pace { fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 2 4; opacity: .7; }
+body.ledger .projection-chart .pc-actual-dot { fill: var(--accent); }
+body.ledger .projection-chart .pc-projected-dot { fill: var(--card, #fff); stroke: var(--accent); stroke-width: 2; }
+body.ledger .projection-chart .pc-past-bar { fill: var(--accent-soft); }
+body.ledger .projection-chart .pc-actual-bar { fill: var(--accent); }
+body.ledger .projection-chart .pc-projected-bar { fill: url(#pc-hatch); stroke: var(--accent); stroke-dasharray: 4 3; }
+body.ledger .projection-chart .pc-hatch-line { stroke: var(--accent); stroke-width: 2; opacity: .45; }
+body.ledger .pc-legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12.5px; color: var(--muted); margin: .25rem 0; }
+body.ledger .pc-legend i { display: inline-block; width: 24px; margin-right: 6px; vertical-align: middle; }
+body.ledger .pc-legend .key-line { border-top: 3px solid var(--accent); }
+body.ledger .pc-legend .key-dash { border-top: 3px dashed var(--accent); }
+body.ledger .pc-legend .key-pace { border-top: 2px dotted var(--muted); }
+body.ledger .pc-legend .key-bar, body.ledger .pc-legend .key-hatch { width: 14px; height: 11px; }
+body.ledger .pc-legend .key-bar { background: var(--accent); }
+body.ledger .pc-legend .key-hatch { outline: 1px dashed var(--accent); background: repeating-linear-gradient(45deg, color-mix(in srgb, var(--accent) 45%, transparent) 0 2px, transparent 2px 6px); }
+body.ledger .projection-chart .pc-inside-text { fill: #fff; }

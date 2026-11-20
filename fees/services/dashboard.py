@@ -84,6 +84,7 @@ from fees.services.money import round2
 from fees.services.settings import get_settings
 from fees.services.statistics import get_period_statistics
 from fees.services.statistics.periods import last_month_window_start, working_days_completed
+from fees.services.statistics.projection import project_total
 
 __all__ = [
     "EMPTY_KPIS",
@@ -96,6 +97,8 @@ __all__ = [
     "KPI_DISPLAY_GROUPS",
     "KPI_LABELS",
     "order_kpis",
+    "PROJECTED_KPIS",
+    "projected_kpis",
 ]
 
 _ZERO = Decimal("0")
@@ -663,6 +666,36 @@ def _rate(values, working_days, base, span, per):
     if per == "day":
         return round2(amount / Decimal(days))
     return (amount * 5 / Decimal(days)).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)
+
+
+#: The "This Year" totals that get a projected figure for the whole financial year under them (Projected Totals).
+PROJECTED_KPIS = (
+    "billed_this_year",
+    "received_this_year",
+    "memos_this_year",
+    "appearances_this_year",
+    "conferences_this_year",
+    "drafts_this_year",
+)
+
+
+def projected_kpis(profile, kpis, now=None):
+    """``{kpi id: projected value for the whole financial year}`` for the "This Year" totals present in ``kpis``.
+
+    Projected = the box's figure so far / working days completed this year x working days entered for the whole year (a month
+    with none entered counts 0). Money as a two-decimal ``Decimal``, counts as whole numbers. Empty when no "This Year" total is
+    shown or no working day is completed yet. One query (the working days) when there is something to project.
+    """
+    wanted = [kpi for kpi in PROJECTED_KPIS if kpi in kpis]
+    if not wanted:
+        return {}
+    days = working_days_completed(profile, _as_date(now))
+    out = {}
+    for kpi in wanted:
+        value = project_total(kpis[kpi], days["year"], days["year_total"], money=kpi in _MONEY_KPIS)
+        if value is not None:
+            out[kpi] = value
+    return out
 
 
 def _to_json_safe(values, ids=KPI_IDS):

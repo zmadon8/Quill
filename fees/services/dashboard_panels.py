@@ -15,7 +15,9 @@ from fees.models import Memo
 from fees.services import outstanding, stats_cache
 from fees.services.dashboard import local_iso
 from fees.services.financial_year import current_financial_year
-from fees.services.statistics.periods import FY_MONTH_ORDER, MONTH_NAMES
+from fees.services.money import round2
+from fees.services.statistics.periods import FY_MONTH_ORDER, MONTH_NAMES, month_working_days
+from fees.services.statistics.projection import project_months
 
 TOP_OWERS = 5
 
@@ -47,6 +49,17 @@ def billed_by_month(profile, now=None):
     return fy, out
 
 
+def project_billed(profile, fy, months, now=None):
+    """Adds the projected part to each month of ``billed_by_month`` (Projected Totals): ``extra`` (str) is what is still to
+    come in that month at the pace so far (the rest of the current month, all of a future month, 0 for a month already over),
+    and returns the projected total for the year (str), or None when no working day is completed yet."""
+    days = month_working_days(profile, fy, now)
+    plan = project_months([Decimal(m["amount"]) for m in months], days)
+    for i, m in enumerate(months):
+        m["extra"] = str(round2(plan["months"][i]["extra"])) if plan else "0"
+    return str(plan["projected"]) if plan else None
+
+
 def _owers(profile):
     rows = outstanding.list_outstanding_by_firm(profile, {}, "amount")
     total = sum((r["outstanding"] for r in rows), Decimal("0"))
@@ -61,16 +74,24 @@ def get_panels(profile, now=None):
 
     def compute():
         fy, months = billed_by_month(profile, today)
+        projected = project_billed(profile, fy, months, today)
         top, total, firms = _owers(profile)
-        biggest = max((Decimal(m["amount"]) for m in months), default=Decimal("0"))
-        return {"fy": fy, "months": months, "max": str(biggest), "owers": top, "outstanding_total": str(total), "firm_count": firms}
+        biggest = max((Decimal(m["amount"]) + Decimal(m["extra"]) for m in months), default=Decimal("0"))
+        return {"fy": fy, "months": months, "max": str(biggest), "projected": projected, "owers": top,
+                "outstanding_total": str(total), "firm_count": firms}
 
     payload = stats_cache.get_or_compute(profile, "dashboard", {"view": "panels", "today": local_iso(today)}, compute, today_sensitive=True)
     biggest = Decimal(payload["max"]) or Decimal("1")
     for m in payload["months"]:
         amount = Decimal(m["amount"])
+        extra = Decimal(m.get("extra") or "0")
         m["amount"] = amount
+        m["extra"] = extra
         m["height"] = int(round(amount / biggest * 100)) if amount > 0 else 0
+        # The projected part sits on top of the actual one (hatched); the two heights add up to at most 100.
+        m["extra_height"] = min(int(round((amount + extra) / biggest * 100)) - m["height"], 100 - m["height"]) if extra > 0 else 0
+        m["projected"] = amount + extra
+    payload["projected"] = Decimal(payload["projected"]) if payload.get("projected") else None
     for row in payload["owers"]:
         row["outstanding"] = Decimal(row["outstanding"])
     total = Decimal(payload["outstanding_total"])

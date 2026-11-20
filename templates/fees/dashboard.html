@@ -35,14 +35,15 @@
 </div>
 {% if kpis_enabled %}
 <section aria-label="Dashboard boxes" id="kpis">
-<dl class="kpi-grid">{% for k in kpi_rows %}<div class="kpi"><dt>{{ k.label }}</dt><dd class="money">{% if k.money %}{{ k.value|fees_money:money_unit }}{% else %}{{ k.value }}{% endif %}</dd></div>{% endfor %}</dl>
+<dl class="kpi-grid">{% for k in kpi_rows %}<div class="kpi"><dt>{{ k.label }}</dt><dd class="money">{% if k.money %}{{ k.value|fees_money:money_unit }}{% else %}{{ k.value }}{% endif %}</dd>{% if k.projected is not None %}<dd class="kpi-projected" title="So far &divide; working days completed &times; working days in the financial year">Projected: <span class="money">{% if k.money %}{{ k.projected|fees_money:money_unit }}{% else %}{{ k.projected }}{% endif %}</span></dd>{% endif %}</div>{% endfor %}</dl>
 </section>
 {% endif %}
 <div class="dash-panels">
 <section class="dash-panel" aria-labelledby="billed-heading">
   <div class="dash-panel-head"><h2 id="billed-heading">Billed by month</h2><span class="muted">{{ panels.fy }}</span>{% if fees_settings.statistics_enabled %}<a class="dash-more" href="{% url 'fees_statistics' %}">Statistics</a>{% endif %}</div>
   <figure class="bar-chart" aria-label="Billed in each month of {{ panels.fy }}">
-    <ol class="bars">{% for m in panels.months %}<li class="bar{% if m.is_current %} is-current{% endif %}{% if m.is_future %} is-future{% endif %}"{% if m.is_current %} aria-current="true"{% endif %}><span class="bar-fill" style="height:{{ m.height }}%"></span><span class="bar-label">{{ m.label }}</span><span class="visually-hidden">: {{ m.amount|fees_money:money_unit }}</span></li>{% endfor %}</ol>
+    <ol class="bars">{% for m in panels.months %}<li class="bar{% if m.is_current %} is-current{% endif %}{% if m.is_future %} is-future{% endif %}"{% if m.is_current %} aria-current="true"{% endif %}>{% if m.extra_height %}<span class="bar-extra" style="height:{{ m.extra_height }}%" title="Projected for {{ m.label }}: {{ m.projected|fees_money:money_unit }}"></span>{% endif %}<span class="bar-fill" style="height:{{ m.height }}%"></span><span class="bar-label">{{ m.label }}</span><span class="visually-hidden">: {{ m.amount|fees_money:money_unit }}{% if m.extra %}; projected for the month {{ m.projected|fees_money:money_unit }}{% endif %}</span></li>{% endfor %}</ol>
+    {% if panels.projected is not None %}<figcaption class="bar-legend"><span><i class="key-actual" aria-hidden="true"></i>Billed</span><span><i class="key-projected" aria-hidden="true"></i>Projected</span><span class="bar-projected">Projected for {{ panels.fy }}: <strong>{{ panels.projected|fees_money:money_unit }}</strong></span></figcaption>{% endif %}
   </figure>
 </section>
 <section class="dash-panel" aria-labelledby="owers-heading">

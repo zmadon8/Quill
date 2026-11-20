@@ -21,7 +21,9 @@ def selected_kpis(config):
     return dashboard.selected_kpi_ids(config)
 
 
-def _kpi_rows(values, chosen):
+def _kpi_rows(values, chosen, projected=None):
+    """One row per chosen box; a "This Year" total also carries its projected figure for the year (None when there is none)."""
+    projected = projected or {}
     rows = []
     for kpi in chosen:
         value = values.get(kpi, 0)
@@ -31,6 +33,7 @@ def _kpi_rows(values, chosen):
                 "label": dashboard.KPI_LABELS[kpi],
                 "value": value,
                 "money": dashboard.kpi_kind(kpi) == "money",
+                "projected": projected.get(kpi),
             }
         )
     return rows
@@ -70,11 +73,12 @@ def dashboard_page(request):
         chosen = [k for k in chosen if k != "amount_overdue"]  # no Overdue box when Overdue is off
     if not written_off_on(config):
         chosen = [k for k in chosen if k != "written_off_total"]  # no Written Off box when Written off memos is off
+    shown = {k: kpis[k] for k in chosen if k in kpis}
     return render_page(
         request,
         "fees/dashboard.html",
         {
-            "kpi_rows": _kpi_rows(kpis, chosen),
+            "kpi_rows": _kpi_rows(kpis, chosen, dashboard.projected_kpis(profile, shown) if config.get("statistics_enabled", True) else {}),
             "kpis_enabled": bool(config.get("statistics_enabled", True)),
             "kpi_groups": [
                 {

@@ -47,7 +47,7 @@ from fees.services.financial_year import derive_financial_year
 from fees.services.money import round2
 from fees.services.statistics._common import FY_RE, max_fy
 
-__all__ = ["get_period_statistics", "working_days_completed", "last_month_window_start"]
+__all__ = ["get_period_statistics", "working_days_completed", "last_month_window_start", "month_working_days"]
 
 _ZERO = Decimal("0")
 
@@ -216,8 +216,51 @@ def last_month_window_start(today) -> datetime.date:
     return same_day + datetime.timedelta(days=1)
 
 
+def _entered_working_days(profile):
+    """``{(financial_year, month): working days entered}`` for the profile, in ONE query."""
+    return {
+        (r["financial_year"], r["month"]): r["working_days"] or 0
+        for r in PeriodAdjustment.objects.filter(profile=profile).values("financial_year", "month", "working_days")
+    }
+
+
+def _completed_in_month(entered, year, month, now):
+    """Working days completed in one month (unrounded): all of a past month, the current month pro-rated, 0 for a future month."""
+    if (year, month) > (now.year, now.month):
+        return 0
+    if (year, month) == (now.year, now.month):
+        return entered * (now.day / monthrange(year, month)[1])
+    return entered
+
+
+def _as_day(now):
+    if now is None:
+        return datetime.date.today()
+    return now.date() if isinstance(now, datetime.datetime) else now
+
+
+def month_working_days(profile, financial_year=None, now=None, entered=None):
+    """Twelve ``(entered, completed)`` pairs, April to March, for ``financial_year`` (the current one by default).
+
+    ``completed`` follows the Statistics page: a past month in full, the current month pro-rated by the days gone (rounded to
+    a whole day, as the Statistics table rounds it), a future month 0. A month with nothing entered is ``(0, 0)``. One query,
+    unless ``entered`` (from ``_entered_working_days``) is passed in.
+    """
+    now = _as_day(now)
+    fy = financial_year or derive_financial_year(now)
+    if entered is None:
+        entered = _entered_working_days(profile)
+    start = int(fy[:4])
+    out = []
+    for month in FY_MONTH_ORDER:
+        year = start if month >= 4 else start + 1
+        wd = entered.get((fy, month), 0)
+        out.append((wd, _js_round(_completed_in_month(wd, year, month, now))))
+    return out
+
+
 def working_days_completed(profile, now=None) -> dict:
-    """Working days completed so far, for the Dashboard rates: ``{"month", "year", "last30"}`` (whole numbers).
+    """Working days for the Dashboard rates and projections: ``{"month", "year", "last30", "year_total"}`` (whole numbers).
 
     The working days of each month are the ones entered in Edit Statistics (``PeriodAdjustment.working_days``), read in ONE
     query. A past month counts in full, a future month counts 0, and the current month counts the entered figure pro-rated by
@@ -227,29 +270,11 @@ def working_days_completed(profile, now=None) -> dict:
     * ``year``: the current financial year so far (1 April up to today).
     * ``last30``: the period from the day after today's date last month to today (19 Nov: 20 Oct to 19 Nov). Each month in it
       gives its entered working days x (its days inside the window / its days), and the total is rounded to a whole day.
+    * ``year_total``: every working day entered for the current financial year (the base of the projected totals).
     """
-    if now is None:
-        now = datetime.date.today()
-    if isinstance(now, datetime.datetime):
-        now = now.date()
-    fy = derive_financial_year(now)
-    entered = {
-        (r["financial_year"], r["month"]): r["working_days"] or 0
-        for r in PeriodAdjustment.objects.filter(profile=profile).values("financial_year", "month", "working_days")
-    }
-
-    def done_in_month(year, month):
-        wd = entered.get((derive_financial_year(datetime.date(year, month, 1)), month), 0)
-        if (year, month) > (now.year, now.month):
-            return 0
-        if (year, month) == (now.year, now.month):
-            return wd * (now.day / monthrange(year, month)[1])
-        return wd
-
-    fy_start_year = int(fy[:4])
-    year_total = sum(
-        done_in_month(fy_start_year if m >= 4 else fy_start_year + 1, m) for m in FY_MONTH_ORDER
-    )
+    now = _as_day(now)
+    entered = _entered_working_days(profile)
+    months = month_working_days(profile, derive_financial_year(now), now, entered)
 
     # The last-30-days window: each month it touches gives its entered working days pro-rated by the share of that month's
     # calendar days inside the window. The current month's share is the days gone, so it matches the "this month" figure.
@@ -263,10 +288,12 @@ def working_days_completed(profile, now=None) -> dict:
         wd = entered.get((derive_financial_year(datetime.date(year, month, 1)), month), 0)
         last30 += wd * days_in_window / monthrange(year, month)[1]
 
+    current = months[FY_MONTH_ORDER.index(now.month)][1]
     return {
-        "month": _js_round(done_in_month(now.year, now.month)),
-        "year": _js_round(year_total),
+        "month": current,
+        "year": sum(completed for _wd, completed in months),
         "last30": _js_round(last30),
+        "year_total": sum(wd for wd, _completed in months),
     }
 
 
