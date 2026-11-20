@@ -1,481 +1,471 @@
 {
-  "about": "Golden table for the Short / Full number display (plan 24.3; Short rupees follow the Fee Register's short figures, owner round 2026-11). Shared by investments/tests/test_money_auto.py and static/js/investments/money_auto.js (run by investments/tests/money_auto_js_check.js). Values are strings so no float noise enters. Expected text was worked out by hand.",
-  "cases": [
-    {
-      "v": "24126000",
-      "mode": "auto",
-      "out": "₹2.41 cr"
-    },
-    {
-      "v": "24126000",
-      "mode": "full",
-      "out": "₹2,41,26,000"
-    },
-    {
-      "v": "2412600",
-      "mode": "auto",
-      "out": "₹24.13 lac"
-    },
-    {
-      "v": "2412600",
-      "mode": "full",
-      "out": "₹24,12,600"
-    },
-    {
-      "v": "85400",
-      "mode": "auto",
-      "out": "₹85.4k"
-    },
-    {
-      "v": "85400",
-      "mode": "full",
-      "out": "₹85,400"
-    },
-    {
-      "v": "950",
-      "mode": "auto",
-      "out": "₹0.95k"
-    },
-    {
-      "v": "950",
-      "mode": "full",
-      "out": "₹950"
-    },
-    {
-      "v": "950.5",
-      "mode": "auto",
-      "out": "₹0.95k"
-    },
-    {
-      "v": "950.5",
-      "mode": "full",
-      "out": "₹950.50"
-    },
-    {
-      "v": "0",
-      "mode": "auto",
-      "out": "₹0"
-    },
-    {
-      "v": "0",
-      "mode": "full",
-      "out": "₹0"
-    },
-    {
-      "v": "0.004",
-      "mode": "auto",
-      "out": "₹0"
-    },
-    {
-      "v": "-0.004",
-      "mode": "auto",
-      "out": "₹0"
-    },
-    {
-      "v": "0.005",
-      "mode": "full",
-      "out": "₹0.01"
-    },
-    {
-      "v": "-0.005",
-      "mode": "full",
-      "out": "−₹0.01"
-    },
-    {
-      "v": "1000",
-      "mode": "auto",
-      "out": "₹1k"
-    },
-    {
-      "v": "1000",
-      "mode": "full",
-      "out": "₹1,000"
-    },
-    {
-      "v": "999.99",
-      "mode": "auto",
-      "out": "₹1k"
-    },
-    {
-      "v": "999.994",
-      "mode": "auto",
-      "out": "₹1k"
-    },
-    {
-      "v": "999.995",
-      "mode": "auto",
-      "out": "₹1k"
-    },
-    {
-      "v": "999995",
-      "mode": "auto",
-      "out": "₹10 lac"
-    },
-    {
-      "v": "999994",
-      "mode": "auto",
-      "out": "₹10 lac"
-    },
-    {
-      "v": "99994",
-      "mode": "auto",
-      "out": "₹99.99k"
-    },
-    {
-      "v": "99999.5",
-      "mode": "auto",
-      "out": "₹100k"
-    },
-    {
-      "v": "9999900",
-      "mode": "auto",
-      "out": "₹100 lac"
-    },
-    {
-      "v": "9999499",
-      "mode": "auto",
-      "out": "₹99.99 lac"
-    },
-    {
-      "v": "100000",
-      "mode": "auto",
-      "out": "₹1 lac"
-    },
-    {
-      "v": "10000000",
-      "mode": "auto",
-      "out": "₹1 cr"
-    },
-    {
-      "v": "1234567890",
-      "mode": "auto",
-      "out": "₹123.46 cr"
-    },
-    {
-      "v": "1234567890",
-      "mode": "full",
-      "out": "₹1,23,45,67,890"
-    },
-    {
-      "v": "-60300",
-      "mode": "auto",
-      "out": "−₹60.3k"
-    },
-    {
-      "v": "-60300",
-      "mode": "full",
-      "out": "−₹60,300"
-    },
-    {
-      "v": "69000",
-      "mode": "auto",
-      "signed": true,
-      "out": "+₹69k"
-    },
-    {
-      "v": "69000",
-      "mode": "full",
-      "signed": true,
-      "out": "+₹69,000"
-    },
-    {
-      "v": "-69000",
-      "mode": "auto",
-      "signed": true,
-      "out": "−₹69k"
-    },
-    {
-      "v": "0",
-      "mode": "auto",
-      "signed": true,
-      "out": "₹0"
-    },
-    {
-      "v": "1877934",
-      "mode": "auto",
-      "signed": true,
-      "out": "+₹18.78 lac"
-    },
-    {
-      "v": "1877934",
-      "mode": "full",
-      "signed": true,
-      "out": "+₹18,77,934"
-    },
-    {
-      "v": "12345.675",
-      "mode": "auto",
-      "out": "₹12.35k"
-    },
-    {
-      "v": "1.005",
-      "mode": "full",
-      "out": "₹1.01"
-    },
-    {
-      "v": "100",
-      "mode": "full",
-      "out": "₹100"
-    },
-    {
-      "v": "99999.5",
-      "mode": "full",
-      "out": "₹99,999.50"
-    },
-    {
-      "v": "1500",
-      "cur": "USD",
-      "mode": "auto",
-      "out": "$1.50 k"
-    },
-    {
-      "v": "1500",
-      "cur": "USD",
-      "mode": "full",
-      "out": "$1,500"
-    },
-    {
-      "v": "1234567.89",
-      "cur": "USD",
-      "mode": "auto",
-      "out": "$1.23 m"
-    },
-    {
-      "v": "1234567.89",
-      "cur": "USD",
-      "mode": "full",
-      "out": "$1,234,567.89"
-    },
-    {
-      "v": "999999",
-      "cur": "USD",
-      "mode": "auto",
-      "out": "$1.00 m"
-    },
-    {
-      "v": "250.25",
-      "cur": "EUR",
-      "mode": "auto",
-      "out": "€250.25"
-    },
-    {
-      "v": "-2500000",
-      "cur": "GBP",
-      "mode": "auto",
-      "out": "−£2.50 m"
-    },
-    {
-      "v": "50000",
-      "cur": "SGD",
-      "mode": "auto",
-      "out": "SGD 50.00 k"
-    },
-    {
-      "v": "7.5",
-      "mode": "auto",
-      "out": "₹8"
-    },
-    {
-      "v": "250000",
-      "mode": "auto",
-      "out": "₹2.5 lac"
-    },
-    {
-      "v": "2412600",
-      "mode": "full",
-      "dec": 2,
-      "out": "₹24,12,600.00"
-    },
-    {
-      "v": "950.5",
-      "mode": "full",
-      "dec": 0,
-      "out": "₹951"
-    },
-    {
-      "v": "950.55",
-      "mode": "full",
-      "dec": 1,
-      "out": "₹950.6"
-    },
-    {
-      "v": "-60300.004",
-      "mode": "full",
-      "dec": 2,
-      "out": "−₹60,300.00"
-    },
-    {
-      "v": "0.004",
-      "mode": "full",
-      "dec": 2,
-      "out": "₹0.00"
-    },
-    {
-      "v": "69000",
-      "mode": "full",
-      "signed": true,
-      "dec": 2,
-      "out": "+₹69,000.00"
-    },
-    {
-      "v": "2412600",
-      "mode": "auto",
-      "dec": 0,
-      "out": "₹24.13 lac"
-    },
-    {
-      "v": "85460",
-      "mode": "auto",
-      "dec": 0,
-      "out": "₹85.46k"
-    },
-    {
-      "kind": "units",
-      "v": "0",
-      "mode": "auto",
-      "out": "0"
-    },
-    {
-      "kind": "units",
-      "v": "12.5",
-      "mode": "auto",
-      "out": "12.5"
-    },
-    {
-      "kind": "units",
-      "v": "999.9999",
-      "mode": "auto",
-      "out": "999.9999"
-    },
-    {
-      "kind": "units",
-      "v": "1000",
-      "mode": "auto",
-      "out": "1 k"
-    },
-    {
-      "kind": "units",
-      "v": "1000",
-      "mode": "full",
-      "out": "1,000"
-    },
-    {
-      "kind": "units",
-      "v": "1560",
-      "mode": "auto",
-      "out": "1.56 k"
-    },
-    {
-      "kind": "units",
-      "v": "1560",
-      "mode": "full",
-      "out": "1,560"
-    },
-    {
-      "kind": "units",
-      "v": "15600",
-      "mode": "auto",
-      "out": "15.6 k"
-    },
-    {
-      "kind": "units",
-      "v": "156000",
-      "mode": "auto",
-      "out": "1.56 lac"
-    },
-    {
-      "kind": "units",
-      "v": "156000",
-      "mode": "full",
-      "out": "1,56,000"
-    },
-    {
-      "kind": "units",
-      "v": "1560000",
-      "mode": "auto",
-      "out": "15.6 lac"
-    },
-    {
-      "kind": "units",
-      "v": "12000000",
-      "mode": "auto",
-      "out": "1.2 cr"
-    },
-    {
-      "kind": "units",
-      "v": "99999.996",
-      "mode": "auto",
-      "out": "1 lac"
-    },
-    {
-      "kind": "units",
-      "v": "999999999",
-      "mode": "auto",
-      "out": "100 cr"
-    },
-    {
-      "kind": "units",
-      "v": "-2500",
-      "mode": "auto",
-      "out": "-2.5 k"
-    },
-    {
-      "kind": "units",
-      "v": "-2500",
-      "mode": "full",
-      "out": "-2,500"
-    },
-    {
-      "kind": "units",
-      "v": "1234567.891",
-      "mode": "auto",
-      "out": "12.35 lac"
-    },
-    {
-      "kind": "units",
-      "v": "1234567.891",
-      "mode": "full",
-      "out": "12,34,567.891"
-    },
-    {
-      "kind": "units",
-      "v": "50.1665",
-      "mode": "auto",
-      "out": "50.1665"
-    },
-    {
-      "kind": "units",
-      "v": "5.000",
-      "mode": "full",
-      "out": "5"
-    },
-    {
-      "kind": "units",
-      "v": "1234.5",
-      "mode": "full",
-      "dec": 0,
-      "out": "1,235"
-    },
-    {
-      "kind": "units",
-      "v": "1234.5",
-      "mode": "auto",
-      "dec": 0,
-      "out": "1.23 k"
-    },
-    {
-      "kind": "units",
-      "v": "7",
-      "mode": "auto",
-      "dec": 2,
-      "out": "7.00"
-    },
-    {
-      "kind": "units",
-      "v": "2000.123",
-      "mode": "full",
-      "dec": 2,
-      "out": "2,000.12"
-    }
-  ]
+ "about": "Golden table for the Short / Full number display (plan 24.3; Short rupees follow the Fee Register's short figures, owner round 2026-11). Shared by investments/tests/test_money_auto.py and static/js/investments/money_auto.js (run by investments/tests/money_auto_js_check.js). Values are strings so no float noise enters. Full rupees and units show up to 2 decimals with trailing zeros dropped, as the Fee Register (owner round 2026-11; the decimals settings are gone). Expected text was worked out by hand.",
+ "cases": [
+  {
+   "v": "24126000",
+   "mode": "auto",
+   "out": "₹2.41 cr"
+  },
+  {
+   "v": "24126000",
+   "mode": "full",
+   "out": "₹2,41,26,000"
+  },
+  {
+   "v": "2412600",
+   "mode": "auto",
+   "out": "₹24.13 lac"
+  },
+  {
+   "v": "2412600",
+   "mode": "full",
+   "out": "₹24,12,600"
+  },
+  {
+   "v": "85400",
+   "mode": "auto",
+   "out": "₹85.4k"
+  },
+  {
+   "v": "85400",
+   "mode": "full",
+   "out": "₹85,400"
+  },
+  {
+   "v": "950",
+   "mode": "auto",
+   "out": "₹0.95k"
+  },
+  {
+   "v": "950",
+   "mode": "full",
+   "out": "₹950"
+  },
+  {
+   "v": "950.5",
+   "mode": "auto",
+   "out": "₹0.95k"
+  },
+  {
+   "v": "950.5",
+   "mode": "full",
+   "out": "₹950.5"
+  },
+  {
+   "v": "0",
+   "mode": "auto",
+   "out": "₹0"
+  },
+  {
+   "v": "0",
+   "mode": "full",
+   "out": "₹0"
+  },
+  {
+   "v": "0.004",
+   "mode": "auto",
+   "out": "₹0"
+  },
+  {
+   "v": "-0.004",
+   "mode": "auto",
+   "out": "₹0"
+  },
+  {
+   "v": "0.005",
+   "mode": "full",
+   "out": "₹0.01"
+  },
+  {
+   "v": "-0.005",
+   "mode": "full",
+   "out": "−₹0.01"
+  },
+  {
+   "v": "1000",
+   "mode": "auto",
+   "out": "₹1k"
+  },
+  {
+   "v": "1000",
+   "mode": "full",
+   "out": "₹1,000"
+  },
+  {
+   "v": "999.99",
+   "mode": "auto",
+   "out": "₹1k"
+  },
+  {
+   "v": "999.994",
+   "mode": "auto",
+   "out": "₹1k"
+  },
+  {
+   "v": "999.995",
+   "mode": "auto",
+   "out": "₹1k"
+  },
+  {
+   "v": "999995",
+   "mode": "auto",
+   "out": "₹10 lac"
+  },
+  {
+   "v": "999994",
+   "mode": "auto",
+   "out": "₹10 lac"
+  },
+  {
+   "v": "99994",
+   "mode": "auto",
+   "out": "₹99.99k"
+  },
+  {
+   "v": "99999.5",
+   "mode": "auto",
+   "out": "₹100k"
+  },
+  {
+   "v": "9999900",
+   "mode": "auto",
+   "out": "₹100 lac"
+  },
+  {
+   "v": "9999499",
+   "mode": "auto",
+   "out": "₹99.99 lac"
+  },
+  {
+   "v": "100000",
+   "mode": "auto",
+   "out": "₹1 lac"
+  },
+  {
+   "v": "10000000",
+   "mode": "auto",
+   "out": "₹1 cr"
+  },
+  {
+   "v": "1234567890",
+   "mode": "auto",
+   "out": "₹123.46 cr"
+  },
+  {
+   "v": "1234567890",
+   "mode": "full",
+   "out": "₹1,23,45,67,890"
+  },
+  {
+   "v": "-60300",
+   "mode": "auto",
+   "out": "−₹60.3k"
+  },
+  {
+   "v": "-60300",
+   "mode": "full",
+   "out": "−₹60,300"
+  },
+  {
+   "v": "69000",
+   "mode": "auto",
+   "signed": true,
+   "out": "+₹69k"
+  },
+  {
+   "v": "69000",
+   "mode": "full",
+   "signed": true,
+   "out": "+₹69,000"
+  },
+  {
+   "v": "-69000",
+   "mode": "auto",
+   "signed": true,
+   "out": "−₹69k"
+  },
+  {
+   "v": "0",
+   "mode": "auto",
+   "signed": true,
+   "out": "₹0"
+  },
+  {
+   "v": "1877934",
+   "mode": "auto",
+   "signed": true,
+   "out": "+₹18.78 lac"
+  },
+  {
+   "v": "1877934",
+   "mode": "full",
+   "signed": true,
+   "out": "+₹18,77,934"
+  },
+  {
+   "v": "12345.675",
+   "mode": "auto",
+   "out": "₹12.35k"
+  },
+  {
+   "v": "1.005",
+   "mode": "full",
+   "out": "₹1.01"
+  },
+  {
+   "v": "100",
+   "mode": "full",
+   "out": "₹100"
+  },
+  {
+   "v": "99999.5",
+   "mode": "full",
+   "out": "₹99,999.5"
+  },
+  {
+   "v": "1500",
+   "cur": "USD",
+   "mode": "auto",
+   "out": "$1.50 k"
+  },
+  {
+   "v": "1500",
+   "cur": "USD",
+   "mode": "full",
+   "out": "$1,500"
+  },
+  {
+   "v": "1234567.89",
+   "cur": "USD",
+   "mode": "auto",
+   "out": "$1.23 m"
+  },
+  {
+   "v": "1234567.89",
+   "cur": "USD",
+   "mode": "full",
+   "out": "$1,234,567.89"
+  },
+  {
+   "v": "999999",
+   "cur": "USD",
+   "mode": "auto",
+   "out": "$1.00 m"
+  },
+  {
+   "v": "250.25",
+   "cur": "EUR",
+   "mode": "auto",
+   "out": "€250.25"
+  },
+  {
+   "v": "-2500000",
+   "cur": "GBP",
+   "mode": "auto",
+   "out": "−£2.50 m"
+  },
+  {
+   "v": "50000",
+   "cur": "SGD",
+   "mode": "auto",
+   "out": "SGD 50.00 k"
+  },
+  {
+   "v": "7.5",
+   "mode": "auto",
+   "out": "₹8"
+  },
+  {
+   "v": "250000",
+   "mode": "auto",
+   "out": "₹2.5 lac"
+  },
+  {
+   "kind": "units",
+   "v": "0",
+   "mode": "auto",
+   "out": "0"
+  },
+  {
+   "kind": "units",
+   "v": "12.5",
+   "mode": "auto",
+   "out": "12.5"
+  },
+  {
+   "kind": "units",
+   "v": "999.9999",
+   "mode": "auto",
+   "out": "1,000"
+  },
+  {
+   "kind": "units",
+   "v": "1000",
+   "mode": "auto",
+   "out": "1 k"
+  },
+  {
+   "kind": "units",
+   "v": "1000",
+   "mode": "full",
+   "out": "1,000"
+  },
+  {
+   "kind": "units",
+   "v": "1560",
+   "mode": "auto",
+   "out": "1.56 k"
+  },
+  {
+   "kind": "units",
+   "v": "1560",
+   "mode": "full",
+   "out": "1,560"
+  },
+  {
+   "kind": "units",
+   "v": "15600",
+   "mode": "auto",
+   "out": "15.6 k"
+  },
+  {
+   "kind": "units",
+   "v": "156000",
+   "mode": "auto",
+   "out": "1.56 lac"
+  },
+  {
+   "kind": "units",
+   "v": "156000",
+   "mode": "full",
+   "out": "1,56,000"
+  },
+  {
+   "kind": "units",
+   "v": "1560000",
+   "mode": "auto",
+   "out": "15.6 lac"
+  },
+  {
+   "kind": "units",
+   "v": "12000000",
+   "mode": "auto",
+   "out": "1.2 cr"
+  },
+  {
+   "kind": "units",
+   "v": "99999.996",
+   "mode": "auto",
+   "out": "1 lac"
+  },
+  {
+   "kind": "units",
+   "v": "999999999",
+   "mode": "auto",
+   "out": "100 cr"
+  },
+  {
+   "kind": "units",
+   "v": "-2500",
+   "mode": "auto",
+   "out": "-2.5 k"
+  },
+  {
+   "kind": "units",
+   "v": "-2500",
+   "mode": "full",
+   "out": "-2,500"
+  },
+  {
+   "kind": "units",
+   "v": "1234567.891",
+   "mode": "auto",
+   "out": "12.35 lac"
+  },
+  {
+   "kind": "units",
+   "v": "1234567.891",
+   "mode": "full",
+   "out": "12,34,567.89"
+  },
+  {
+   "kind": "units",
+   "v": "50.1665",
+   "mode": "auto",
+   "out": "50.17"
+  },
+  {
+   "kind": "units",
+   "v": "5.000",
+   "mode": "full",
+   "out": "5"
+  },
+  {
+   "kind": "units",
+   "v": "2.1342",
+   "mode": "full",
+   "out": "2.13"
+  },
+  {
+   "kind": "units",
+   "v": "2.1",
+   "mode": "full",
+   "out": "2.1"
+  },
+  {
+   "kind": "units",
+   "v": "2",
+   "mode": "full",
+   "out": "2"
+  },
+  {
+   "kind": "units",
+   "v": "2.1000",
+   "mode": "auto",
+   "out": "2.1"
+  },
+  {
+   "kind": "units",
+   "v": "-0.004",
+   "mode": "full",
+   "out": "0"
+  },
+  {
+   "kind": "units",
+   "v": "4820.5126",
+   "mode": "full",
+   "out": "4,820.51"
+  },
+  {
+   "v": "2.1342",
+   "mode": "full",
+   "out": "₹2.13"
+  },
+  {
+   "v": "484461.5",
+   "mode": "full",
+   "out": "₹4,84,461.5"
+  },
+  {
+   "v": "484461.525",
+   "mode": "full",
+   "out": "₹4,84,461.53"
+  },
+  {
+   "v": "-60300.004",
+   "mode": "full",
+   "out": "−₹60,300"
+  },
+  {
+   "v": "0.004",
+   "mode": "full",
+   "out": "₹0"
+  },
+  {
+   "v": "69000.10",
+   "mode": "full",
+   "signed": true,
+   "out": "+₹69,000.1"
+  }
+ ]
 }

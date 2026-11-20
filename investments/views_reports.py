@@ -287,6 +287,33 @@ def annual_view(request):
                                                     "default_cutoff": settings_row.long_term_days, "include_div": settings_row.include_dividends})
 
 
+@inv_reader
+def profit_loss_view(request):
+    """Profit / Loss: every sale, year by year, with its profit or loss, %, XIRR and the split into long-term and short-term capital
+    gains and Other income (services/profit_loss.py)."""
+    from .services import profit_loss
+
+    profile = profile_or_404(request)
+    portfolio, broker, _asat = selection(request, profile)
+    report = profit_loss.build(profile, portfolio=portfolio, broker=broker)
+    if request.GET.get("export") == "xlsx":
+        from .exports import response
+
+        rows = []
+        for year in report.years:
+            for s in year.sales:
+                rows.append([year.label, s["name"], s["first_bought"], s["sold"], s["days"], None if s["lump_sum"] else s["units"], s["cost"],
+                             s["proceeds"], s["profit"], _pct(s["pct"]), _pct(s["xirr"]), s["long_gain"], s["short_gain"], s["other_income"]])
+        years = [[y.label, y.totals.count, y.totals.cost, y.totals.proceeds, y.totals.profit, _pct(y.totals.pct), _pct(y.totals.xirr),
+                  y.totals.long_gain, y.totals.short_gain, y.totals.other_income] for y in report.years]
+        return response("Profit and Loss.xlsx", [
+            ("By year", ["Financial year", "Sales", "Cost", "Proceeds", "Profit / Loss", "Profit / Loss %", "XIRR %", "Long-term capital gains",
+                         "Short-term capital gains", "Other income"], years),
+            ("Sales", ["Financial year", "Investment", "First bought", "Sold", "Days held", "Units", "Cost", "Proceeds", "Profit / Loss",
+                       "Profit / Loss %", "XIRR %", "Long-term capital gains", "Short-term capital gains", "Other income"], rows)])
+    return page(request, "investments/profit_loss.html", {"page_title_text": "Profit / Loss", "r": report})
+
+
 def _annual_export(r):
     from .exports import annual_sheets, response
 

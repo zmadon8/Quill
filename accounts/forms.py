@@ -304,7 +304,7 @@ class MySettingsForm(forms.ModelForm):
             self.fields["investments_period"].required = False
             self.fields["investments_period"].label = "Investments period for returns"
             self.fields["investments_period"].help_text = (
-                "The period used for Gain, Portfolio XIRR, index XIRR and Alpha on the Investments Overview cards, and for Portfolio XIRR "
+                "The period used for Gain, Portfolio XIRR, index XIRR and Alpha on the Investments Home cards, and for Portfolio XIRR "
                 "on Home. All: since the first purchase. A period longer than your history uses the whole history."
             )
         if "header_initials" in self.fields:
@@ -432,7 +432,7 @@ class MyDisplayForm(MySettingsForm):
 
     # Home page details: the Dashboard / Overview items shown below the cards, one tick-box group per program, no limit.
     DETAIL_FIELDS = (("home_details_fees", suite.KEY_FEES, "Fee Register", "Dashboard"),
-                     ("home_details_investments", suite.KEY_INVESTMENTS, "Investments", "Overview"))
+                     ("home_details_investments", suite.KEY_INVESTMENTS, "Investments", "Home"))
 
     def _add_detail_fields(self):
         from accounts import home_cards

@@ -7,6 +7,10 @@
 
 {% url "investments_admin_catalogue_item" inst.pk as next_url %}{% include "investments/_price_history.html" %}
 
+{% if not is_admin %}<div class="sec"><h2>Shared details</h2></div>
+<p class="hint">These belong to the investment itself, for everyone who holds it, so only an Admin changes them.</p>
+<dl class="kv"><dt>Name</dt><dd>{{ inst.name }}</dd><dt>Code</dt><dd>{{ inst.code|default:"none" }}</dd>{% if registry %}<dt>{{ registry.source }} name</dt><dd>{{ registry.name }}{% if registry.plan %} &middot; Plan: {{ registry.plan }}{% endif %}{% if registry.option %} &middot; Option: {{ registry.option }}{% endif %}{% if registry.mismatch %} (registry ISIN {{ registry.isin }} differs){% endif %}</dd>{% endif %}<dt>ISIN</dt><dd>{{ inst.isin|default:"none" }}</dd><dt>Currency</dt><dd>{{ inst.currency }}</dd><dt>Capital Gains</dt><dd>{% if inst.capital_gains %}Yes{% else %}No (sale profit is Other income){% endif %}</dd><dt>Price source</dt><dd>{{ inst.get_price_source_display }}</dd></dl>
+{% endif %}
 {% if is_admin %}
 <div class="sec"><h2>Shared details</h2><span class="hint">a change affects {{ affected }} profile{{ affected|pluralize }}</span></div>
 <form method="post" action="{% url 'investments_admin_catalogue_action' inst.pk %}" class="form">{% csrf_token %}<input type="hidden" name="action" value="details">{% include "investments/_form.html" with form=details_form %}

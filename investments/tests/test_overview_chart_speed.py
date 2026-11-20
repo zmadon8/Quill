@@ -80,7 +80,7 @@ class OverviewChartTests(InvTestCase):
     def test_sections_are_in_the_new_order(self):
         self.client.get(reverse("investments_dashboard"))
         page = self.client.get(reverse("investments_investment", args=[self.reliance.pk])).content.decode()
-        order = [page.index(t) for t in (">Where it is held<", ">Chart<", ">Purchase by purchase<", ">Records<", ">Folio numbers<", ">Your details<")]
+        order = [page.index(t) for t in (">Where it is held<", ">Chart<", ">Purchase by purchase<", ">Transaction History<", ">Folio numbers<", ">Your details<")]
         self.assertEqual(order, sorted(order))
 
 

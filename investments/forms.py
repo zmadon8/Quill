@@ -236,27 +236,28 @@ class TransactionForm(ProfileForm):
             if self.held_units is None:
                 self.held_units = holdings.held_units(self.profile)
             held = set(self.held_units)
-            # Back-dated sales are allowed, so investments sold out since (any purchase, opening or transfer-in on record) are offered too, in
-            # their own group. One cheap query; the real check is on the sale's date (see clean()).
-            from investments.models import STATUS_FINAL, Transaction
-
-            history = set(Transaction.objects.filter(profile=self.profile, status=STATUS_FINAL, side="buy").values_list("instrument_id", flat=True).distinct())
+            # Only what is held now can be sold (owner round 2026-11: sold-out investments are not listed). Editing a sale keeps its own
+            # investment even when it is sold out since. The check against the units held on the sale's date is in clean().
             own = set()
             if mode == "edit_sell":
                 own.add(getattr(self.initial.get("instrument"), "pk", self.initial.get("instrument")))
-            sold_out = (history | own) - held
-            qs = self.fields["instrument"].queryset.filter(pk__in=held | sold_out)
+            qs = self.fields["instrument"].queryset.filter(pk__in=held | own)
             self.fields["instrument"].queryset = qs
-            self.fields["instrument"].error_messages["invalid_choice"] = "Choose an investment you hold, or held in the past, from the list."
-            names = [(i.pk, str(i), i.pk in sold_out) for i in qs]
-            self.fields["instrument"].choices = [("", "---------")] + [(pk, label) for pk, label, old in names if not old] + (
-                [("Sold out (for back-dated sales)", [(pk, label) for pk, label, old in names if old])] if sold_out and any(n[2] for n in names) else [])
+            self.fields["instrument"].error_messages["invalid_choice"] = "Choose an investment you hold now from the list."
             self.break_before = ("units",)
             # A sale asks for the date, investment, where it was held, units and price; charges and a note sit under "More".
             self.more_fields = tuple(n for n in ("charges", "note") if n in self.fields)
             self.more_label = "Charges and note"
-        elif mode in ("buy", "edit"):
-            # A purchase asks for the date, investment, where it goes, units and price; the rest sits under "More".
+        elif mode == "buy":
+            # Owner round 2026-11: a purchase has no charges, allotment date or note (an edit still has them), and Folio and "How were these
+            # units acquired?" sit on their own line under Mark as Tentative, not under a fold.
+            for name in ("charges", "allotment_date", "note"):
+                del self.fields[name]
+            self.order_fields(["date", "instrument", "portfolio", "broker", "units", "price", "lump_amount", "value_after", "tentative", "amount",
+                               "folio", "new_folio", "origin", "corporate_action"])
+            self.break_before = ("folio",)
+        elif mode == "edit":
+            # An edit asks for the date, investment, where it goes, units and price; the rest sits under "More".
             self.more_fields = tuple(n for n in ("folio", "new_folio", "origin", "allotment_date", "charges", "corporate_action", "note") if n in self.fields)
             self.more_label = "Allotment date, charges, folio and more"
             self.more_first = tuple(n for n in ("folio", "new_folio", "origin") if n in self.fields)
@@ -617,6 +618,7 @@ class CatalogueDetailsForm(forms.Form):
     fallback_source = forms.ChoiceField(choices=[("", "None"), ("yahoo", "Yahoo"), ("amfi", "AMFI"), ("mfapi", "mfapi.in")], required=False)
     fetch_enabled = forms.BooleanField(required=False, label="Fetch nightly")
     next_results_date = forms.DateField(required=False, widget=date_widget(), label="Next results date (optional)")
+    capital_gains = forms.BooleanField(required=False, label="Capital Gains (untick and sale profit is Other income)")
 
     def clean_currency(self):
         return self.cleaned_data["currency"].upper()
@@ -769,13 +771,6 @@ class DisplaySettingsForm(forms.Form):
     my_money = forms.ChoiceField(choices=[("auto", "Short (Thousand, Lac, Crore)"), ("full", "Full Figures")], label="Number display for you")
     money_default = forms.ChoiceField(choices=[("auto", "Short (Thousand, Lac, Crore)"), ("full", "Full Figures")], label="Starting choice for new people in this profile")
     compact_tables = forms.BooleanField(required=False, label="Compact tables")
-    units_decimals = forms.TypedChoiceField(choices=[("", "Standard (as many as needed, up to 4)"), ("0", "0"), ("1", "1"), ("2", "2"), ("3", "3"), ("4", "4")],
-                                            coerce=int, empty_value=None, required=False, label="Decimals in units",
-                                            help_text="How many decimals units show (for example 4,820.512 or 4,820.51). Display only: units are kept exact.")
-    rupee_decimals = forms.TypedChoiceField(choices=[("", "Standard (paise only when there are some)"), ("0", "0"), ("1", "1"), ("2", "2")],
-                                            coerce=int, empty_value=None, required=False, label="Decimals in full rupee figures",
-                                            help_text="Full figures show exactly this many decimals; short figures (k, lac, cr) always show up to 2. "
-                                                      "Display only: Excel exports and every calculation keep the exact amount.")
     column_picker = forms.BooleanField(required=False, label="Column picker",
                                        help_text="A Columns menu above each table, as in the Fee Register, to choose the columns you see. "
                                                  "Your choice is remembered in this browser, table by table.")

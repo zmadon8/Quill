@@ -3,8 +3,8 @@
 ``PAGES`` has one row per page of the mockups. Phase 0 serves every row as an empty shell showing its empty-state text,
 so the whole menu works; a later phase replaces a row's view with the real one (the URL name stays the same).
 
-Navigation is six top entries (Overview, Holdings, Reports, Alerts, Catalogue, History), each with an optional second row of
-links, exactly as in the mockups.
+Navigation is five top entries (Home, Holdings, Reports, Catalogue, History), each with an optional second row of links.
+Alerts is a tab of Reports, and Dividends sits inside Corporate Actions as a third row (owner round 2026-11).
 """
 from collections import namedtuple
 
@@ -18,10 +18,9 @@ Page = namedtuple("Page", "slug path title group sub empty admin")
 
 #: Top navigation: (key, label, url name of its first page).
 TOP = (
-    ("overview", "Overview", "investments_dashboard"),
+    ("overview", "Home", "investments_dashboard"),
     ("holdings", "Holdings", "investments_holdings"),
     ("reports", "Reports", "investments_performance"),
-    ("alerts", "Alerts", "investments_alerts"),
     ("catalogue", "Catalogue", "investments_admin_catalogue"),
     ("history", "History", "investments_history"),
 )
@@ -39,8 +38,8 @@ PAGES = (
     _p("search", "search/", "Search", "overview", None, "Type at least two letters to search investments, folios, brokers and transactions."),
     # Holdings: investments
     _p("holdings", "holdings/", "Investments", "holdings", "Investments", "No investments yet. Add an investment to begin."),
-    _p("add_1", "holdings/add/", "Add investment: type", "holdings", "Investments", "Choose what kind of investment this is."),
-    _p("add_2", "holdings/add/details/", "Add investment: details", "holdings", "Investments", "Search by company name or code."),
+    _p("add_1", "holdings/add/", "New Investment", "holdings", "New Investment", "Choose what kind of investment this is."),
+    _p("add_2", "holdings/add/details/", "Add investment: details", "holdings", "New Investment", "Search by company name or code."),
     # Holdings: transactions
     _p("transactions", "transactions/", "Transactions", "holdings", "Transactions", "No transactions yet. Add a purchase or an opening balance."),
     _p("txn_new_buy", "transactions/buy/", "Add a purchase", "holdings", "Transactions", "Record what you bought."),
@@ -51,8 +50,8 @@ PAGES = (
     _p("txn_to_confirm", "transactions/to-complete/", "To complete", "holdings", "Transactions", "Nothing to complete. Tentative entries and pending SIP entries appear here."),
     _p("import_statement", "transactions/import/", "Import a Statement", "holdings", "Transactions", "Load trades from a broker or fund house file, then review them before saving."),
     # Holdings: other
-    _p("dividends", "dividends/", "Dividends", "holdings", "Dividends", "No dividends recorded yet."),
-    _p("dividend_new", "dividends/new/", "Add a dividend", "holdings", "Dividends", "Record a dividend you received."),
+    _p("dividends", "dividends/", "Dividends", "holdings", "Corporate Actions", "No dividends recorded yet."),
+    _p("dividend_new", "dividends/new/", "Add a dividend", "holdings", "Corporate Actions", "Record a dividend you received."),
     _p("corporate_actions", "corporate-actions/", "Corporate Actions", "holdings", "Corporate Actions", "No splits or bonuses recorded."),
     _p("brokers", "brokers/", "Brokers", "holdings", "Brokers", "No brokers yet. Add one in Settings > Brokers."),
     # Reports
@@ -60,12 +59,12 @@ PAGES = (
     _p("charts", "reports/charts/", "Charts", "reports", "Charts", "No data to chart yet."),
     _p("value", "reports/value/", "Total Portfolio Value", "reports", "Total Portfolio Value", "No holdings to value yet."),
     _p("annual", "reports/annual/", "Annual Report", "reports", "Annual Report", "No transactions in this financial year."),
+    _p("profit_loss", "reports/profit-loss/", "Profit / Loss", "reports", "Profit / Loss", "No sales yet."),
+    _p("alerts", "alerts/", "Alerts and guardrails", "reports", "Alerts", "No alerts. Set thresholds under Alert settings on this page."),
     _p("reports", "reports/", "Other Reports", "reports", "Other Reports", "Pick a report."),
     _p("report_yearly", "reports/yearly/", "Year-by-year returns", "reports", "Other Reports", "No completed financial years yet."),
     _p("report_compare_brokers", "reports/compare-brokers/", "Compare brokers", "reports", "Other Reports", "Needs holdings with at least two brokers."),
     _p("history", "history/", "History", "history", None, "No changes recorded yet."),
-    # Alerts
-    _p("alerts", "alerts/", "Alerts and guardrails", "alerts", None, "No alerts. Set thresholds under Alert settings on this page."),
     # Settings
     _p("settings", "settings/", "Settings: General", "settings", "General", "Settings."),
     _p("settings_brokers", "settings/brokers/", "Settings: Brokers", "settings", "Brokers", "Add the brokers and platforms you use."),
@@ -85,10 +84,10 @@ BY_SLUG = {p.slug: p for p in PAGES}
 #: Pages reached by id or as a step of another page: url name suffix -> (top group, second-row label). They share the menu
 #: state of the page they belong to. (`investments_<suffix>` is the URL name.)
 EXTRA = {
-    "investment": ("holdings", "Investments"), "added": ("holdings", "Investments"), "inv_delete": ("holdings", "Investments"),
+    "investment": ("holdings", "Investments"), "added": ("holdings", "New Investment"), "inv_delete": ("holdings", "Investments"),
     "txn_edit": ("holdings", "Transactions"), "txn_complete": ("holdings", "Transactions"), "txn_refused": ("holdings", "Transactions"),
     "broker_detail": ("holdings", "Brokers"), "admin_catalogue_item": ("catalogue", "Catalogue"), "report": ("reports", "Other Reports"),
-    "dividend_edit": ("holdings", "Dividends"),
+    "dividend_edit": ("holdings", "Corporate Actions"), "corporate_action_edit": ("holdings", "Corporate Actions"),
     "admin_source_formats": ("catalogue", "Price sources"), "admin_source_format": ("catalogue", "Price sources"),
 }
 
@@ -104,12 +103,12 @@ def url_of(slug):
 #: The second row under the header, per top entry: (label, first page slug), in this order.
 SUB_ROWS = {
     "holdings": (
-        ("Investments", "holdings"), ("Transactions", "transactions"), ("Dividends", "dividends"),
+        ("Investments", "holdings"), ("Transactions", "transactions"), ("New Investment", "add_1"),
         ("Corporate Actions", "corporate_actions"), ("Brokers", "brokers"),
     ),
     "reports": (
         ("Performance", "performance"), ("Charts", "charts"), ("Total Portfolio Value", "value"),
-        ("Annual Report", "annual"), ("Other Reports", "reports"),
+        ("Annual Report", "annual"), ("Profit / Loss", "profit_loss"), ("Alerts", "alerts"), ("Other Reports", "reports"),
     ),
     "settings": (
         ("General", "settings"), ("Brokers", "settings_brokers"),
@@ -121,10 +120,29 @@ SUB_ROWS = {
     ),
 }
 
+#: A third row under a second-row tab: tab label -> ((label, first page slug), ...). The pages of each are listed in THIRD.
+THIRD_ROWS = {
+    "Corporate Actions": (("Actions", "corporate_actions"), ("Dividends", "dividends")),
+}
+#: url name suffix -> its third-row label.
+THIRD = {
+    "corporate_actions": "Actions", "corporate_action_edit": "Actions",
+    "dividends": "Dividends", "dividend_new": "Dividends", "dividend_edit": "Dividends",
+}
+
+
+def third_row(request, sub_label):
+    """The third row (a list of dicts) for the current page, or [] when its tab has none."""
+    slug = current_slug(request)
+    current = THIRD.get(slug)
+    return [{"name": label, "url": url_of(first), "on": label == current} for label, first in THIRD_ROWS.get(sub_label or "", ())]
+
+
 def menu_slugs():
     """The pages a header entry or a sub-tab opens. Their name is already on screen, underlined, so (as in the Fee Register)
     their own title is kept only for screen readers."""
-    return {name[len("investments_"):] for _k, _l, name in TOP} | {first for rows in SUB_ROWS.values() for _l, first in rows}
+    return ({name[len("investments_"):] for _k, _l, name in TOP} | {first for rows in SUB_ROWS.values() for _l, first in rows}
+            | {first for rows in THIRD_ROWS.values() for _l, first in rows})
 
 
 def current_slug(request):
@@ -169,7 +187,9 @@ def render_context(request, profile, extra=None):
     is_admin = bool(getattr(request.user, "is_admin", False))
     settings_row = core.get_settings(profile, create=False) if profile is not None else None
     top, sub = navigation(request, is_admin)
+    on_sub = next((s["name"] for s in sub if s["on"]), None)
     context = {
+        "inv_third": third_row(request, on_sub),
         "inv_sub_side": _on_settings_page(request),
         "inv_profile": profile,
         "inv_settings": settings_row,

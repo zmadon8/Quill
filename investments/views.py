@@ -145,11 +145,11 @@ def overview_save(request):
     if request.method == "POST":
         if request.POST.get("standard"):
             masters.update_settings(profile, request.user, overview={})
-            messages.success(request, "The Overview shows the standard figures again.")
+            messages.success(request, "Home shows the standard figures again.")
         else:
             masters.update_settings(profile, request.user, overview=overview.clean(request.POST.getlist("box"), request.POST.getlist("metric"),
                                                                                   request.POST.getlist("period")))
-            messages.success(request, "Overview saved.")
+            messages.success(request, "Home saved.")
     return redirect(reverse("investments_dashboard"))
 
 
@@ -256,6 +256,16 @@ def set_money_mode(request):
     return JsonResponse({"ok": True, "mode": mode})
 
 
+def _units_text(units):
+    """Units as the sale form's Units box takes them: at most 4 decimals (the box's limit; rounded down, so never more than is held) and
+    no trailing zeros ("10", not "10.0000000000", which Sell all used to put in the box and the form then refused)."""
+    from decimal import ROUND_DOWN
+
+    value = Decimal(units or 0).quantize(Decimal("0.0001"), rounding=ROUND_DOWN)
+    text = f"{value:f}"
+    return text.rstrip("0").rstrip(".") if "." in text else text
+
+
 @inv_editor
 @handle_errors(json=True)
 def available_units(request):
@@ -279,11 +289,11 @@ def available_units(request):
         place = (int(request.GET["portfolio"]), int(request.GET["broker"]), int(folio) if folio.isdigit() else None)
     if place is not None:
         units = sum((u for p, b, f, u in rows if (p.pk if p else None, b.pk if b else None, f.pk if f else None) == place), Decimal(0))
-        return JsonResponse({"ok": True, "place": True, "units": str(units)})
+        return JsonResponse({"ok": True, "place": True, "units": _units_text(units)})
     awaiting = sum((core.tentative_cost(t) or Decimal(0) for t in tx.tentative_for(profile) if t.instrument_id == inst.pk and t.side == "buy"), Decimal(0))
     return JsonResponse({"ok": True, "awaiting": str(awaiting), "buckets": [
         {"portfolio": p.pk if p else None, "portfolio_name": p.name if p else "", "broker": b.pk if b else None,
-         "broker_name": b.name if b else "", "folio": f.pk if f else None, "folio_name": f.number if f else "", "units": str(u)}
+         "broker_name": b.name if b else "", "folio": f.pk if f else None, "folio_name": f.number if f else "", "units": _units_text(u)}
         for p, b, f, u in rows]})
 
 

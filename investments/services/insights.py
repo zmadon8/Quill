@@ -11,6 +11,7 @@ from investments.money_auto import format_indian
 from investments.services import core, dashboard, fetch
 
 KINDS = [
+    ("alerts", "Alerts present (first, links to the Alerts page)"),
     ("vs_index", "Portfolio against the Default Index"),
     ("below_cost", "A holding well below cost and trailing the index"),
     ("turning_long", "Purchases turning long-term within 60 days"),
@@ -29,7 +30,26 @@ def compute(profile, today=None):
     today = today or date.today()
     kept = statscache.get_or_compute(profile, "insights", {}, lambda: _worked_out(profile, today), today_sensitive=True, today=today)
     dismissed = set(AlertState.objects.filter(profile=profile, key__startswith=DISMISS_PREFIX, dismissed_on__isnull=False).values_list("key", flat=True))
-    return sorted((i for i in kept if i["key"] not in dismissed), key=lambda i: -i["rank"])
+    shown = sorted((i for i in kept if i["key"] not in dismissed), key=lambda i: -i["rank"])
+    present = _alerts_present(profile, today)
+    return ([present] if present else []) + shown
+
+
+def _alerts_present(profile, today):
+    """"Alerts Present" at the top when there are alerts (owner round 2026-11). It only reads alerts already worked out
+    (``alerts.peek_count``: the cache row and the dismissals, never the holdings), so it does not slow the Overview; until the alerts
+    have been worked out once that day (the nightly warm-up, the Alerts page or the menu dot does it) it does not show. Kept out of the
+    cached list so a dismissed or snoozed alert takes it away at once. It cannot be dismissed itself: clear the alerts instead."""
+    from django.urls import reverse
+
+    from investments.services import alerts
+
+    s = core.get_settings(profile, create=False)
+    if "alerts" in set((s.insights_off if s else None) or []):
+        return None
+    if not alerts.peek_count(profile, today):
+        return None
+    return {"kind": "alerts", "rank": 1000, "text": "Alerts Present", "url": reverse("investments_alerts"), "key": DISMISS_PREFIX + "alerts:present"}
 
 
 def _worked_out(profile, today):

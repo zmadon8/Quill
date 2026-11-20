@@ -5,8 +5,8 @@ one golden table ``investments/tests/golden/money_auto.json``.
 
 Rules (owner decisions, plan 24.3 and the owner round of November 2026):
 
-* Full: the complete amount, Indian grouping for rupees (Western for foreign currencies) (``₹24,12,600``). Whole rupees show no decimals; an amount
-  with paise shows two (``₹950.50``).
+* Full: the complete amount, Indian grouping for rupees (Western for foreign currencies) (``₹24,12,600``). Rupees follow the Fee Register:
+  up to 2 decimals, trailing zeros dropped (``₹950.5``, ``₹950.55``, ``₹950``; owner round 2026-11). A foreign amount with cents shows two.
 * Short (stored as ``auto``), rupees: exactly the Fee Register's short figures (``fees.services.money.format_money``
   with the standard suffixes): below 10 the whole rupees; below 1 lakh thousands (``k``); below 1 crore lacs (``lac``);
   otherwise crores (``cr``), with up to 2 decimals and trailing zeros dropped (``₹2.41 cr``, ``₹24.13 lac``,
@@ -17,8 +17,8 @@ Rules (owner decisions, plan 24.3 and the owner round of November 2026):
   (``−₹60.30 k``); ``signed=True`` also puts ``+`` before a positive amount (gains).
 * Foreign amounts: Auto uses ``k`` and ``m`` (millions), Full shows the whole amount with Western grouping (``$1,234,567.89``); rupees and units stay Indian (D178).
 
-* Units (``format_units``): Full is the exact quantity, Indian grouping, trailing zeros dropped (or the decimals chosen in
-  Settings > Display). Short keeps a quantity below 1,000 as Full shows it; from 1,000 it uses ``k`` / ``lac`` / ``cr`` like
+* Units (``format_units``): Full is the quantity to up to 2 decimals, Indian grouping, trailing zeros dropped (2.1342 is 2.13, 2.1 is
+  2.1, 2 is 2; owner round 2026-11, as the Fee Register). Short keeps a quantity below 1,000 as Full shows it; from 1,000 it uses ``k`` / ``lac`` / ``cr`` like
   rupees but with no symbol, a space before every suffix, up to 2 decimals, trailing zeros dropped (``1.56 k``, ``15.6 lac``,
   ``1.2 cr``), and a figure that rounds up to the next unit is shown in that unit.
 
@@ -92,9 +92,17 @@ def _sign(negative, signed, is_zero):
     return "+" if signed and not negative and not is_zero else ""
 
 
+def _trimmed(amount, grouper):
+    """A non-negative amount to up to 2 decimals, trailing zeros dropped (``2.1342`` is ``2.13``, ``2.10`` is ``2.1``, ``2.00`` is ``2``), as the
+    Fee Register shows figures (``fees.services.money._trim_decimals``)."""
+    whole, _dot, frac = f"{_round2(amount):f}".partition(".")
+    frac = frac.rstrip("0")
+    return grouper(whole) + ("." + frac if frac else "")
+
+
 def _fee_register_short(exact):
     """``(text, is zero)`` for a non-negative rupee amount, as the Fee Register's short figures show it: up to 2 decimals, trailing
-    zeros dropped (the decimals setting is for full figures only)."""
+    zeros dropped."""
     places = 2
     if exact < 10:
         whole = int(exact.quantize(Decimal(1), rounding=ROUND_HALF_UP))
@@ -117,13 +125,12 @@ def _fixed(amount, places, grouper):
     return grouper(whole) + ("." + frac if places else "")
 
 
-def format_amount(value, *, currency="INR", mode=AUTO, signed=False, symbol=None, decimals=None):
+def format_amount(value, *, currency="INR", mode=AUTO, signed=False, symbol=None):
     """Format ``value`` (Decimal, int, float or numeric string) for display.
 
     ``currency`` is ``"INR"`` (rupees: Indian grouping, k / lac / cr) or any other code (k / m, Western grouping).
     ``mode`` is ``"auto"`` or ``"full"``. ``signed`` adds ``+`` to positive amounts. ``symbol`` overrides the
-    currency's symbol (an unknown code with no symbol is shown as ``"CODE "``). ``decimals`` (Settings > Display, 0 to 2) fixes the
-    decimals of a full amount; short figures always show up to 2. None keeps the standard rule.
+    currency's symbol (an unknown code with no symbol is shown as ``"CODE "``).
     """
     amount = _dec(value)
     negative = amount < _ZERO
@@ -134,11 +141,9 @@ def format_amount(value, *, currency="INR", mode=AUTO, signed=False, symbol=None
     if rupees and mode != FULL:
         body, is_zero = _fee_register_short(abs(amount))
         return f"{_sign(negative, signed, is_zero)}{sym}{body}"
-    if mode == FULL and decimals is not None:
-        places = max(0, min(int(decimals), 2))
-        body = _fixed(abs(amount), places, grouper)
-        return f"{_sign(negative, signed, set(body) <= set('0,.'))}{sym}{body}"
     sign = _sign(negative, signed, magnitude == _ZERO)
+    if rupees:      # Full rupees: up to 2 decimals, trailing zeros dropped
+        return f"{sign}{sym}{_trimmed(magnitude, grouper)}"
     if mode == FULL or magnitude < Decimal(1000):
         return f"{sign}{sym}{_plain(magnitude, grouper)}"
     units = _INR_UNITS if rupees else _FOREIGN_UNITS
@@ -173,11 +178,11 @@ def format_rupees(value, *, mode=AUTO, signed=False):
 _UNIT_STEPS = ((Decimal(1000), "k"), (Decimal(100000), "lac"), (Decimal(10000000), "cr"))
 
 
-def format_units(value, *, mode=AUTO, decimals=None):
-    """A quantity of units in the chosen mode (see the module notes). ``decimals`` fixes the decimals of a Full quantity."""
+def format_units(value, *, mode=AUTO):
+    """A quantity of units in the chosen mode (see the module notes)."""
     exact = _dec(value)
     magnitude = abs(exact)
-    neg = "-" if exact < _ZERO else ""
+    neg = "-" if exact < _ZERO and _round2(magnitude) != _ZERO else ""
     if mode != FULL and magnitude >= _UNIT_STEPS[0][0]:
         idx = 0
         while idx + 1 < len(_UNIT_STEPS) and magnitude >= _UNIT_STEPS[idx + 1][0]:
@@ -189,11 +194,4 @@ def format_units(value, *, mode=AUTO, decimals=None):
         whole, _dot, frac = f"{scaled:f}".partition(".")
         frac = frac.rstrip("0")
         return f"{neg}{group_indian(whole)}{'.' + frac if frac else ''} {_UNIT_STEPS[idx][1]}"
-    if decimals is not None:
-        text = f"{magnitude.quantize(Decimal(1).scaleb(-int(decimals)), rounding=ROUND_HALF_UP):f}"
-    else:
-        text = f"{magnitude:f}"
-        if "." in text:
-            text = text.rstrip("0").rstrip(".")
-    whole, _dot, frac = text.partition(".")
-    return f"{neg}{group_indian(whole)}{'.' + frac if frac else ''}"
+    return neg + _trimmed(magnitude, group_indian)

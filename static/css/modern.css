@@ -107,9 +107,7 @@ body .program-nav button.icon-tool.search-toggle::before, body .program-nav butt
 body .program-nav button.icon-tool.search-toggle:hover { border: 0; background: transparent; box-shadow: none; color: var(--ink); }
 body .program-nav button.icon-tool.search-toggle:focus-visible { border: 0; background: transparent; outline: 2px solid currentColor; outline-offset: 2px; }
 body:is(.ledger, .look) .search-pop-all { margin-left: 8px; font-size: 13px; white-space: nowrap; }
-/* Filled headline card: the Investments value card. */
-body.inv .strip .f.hl, body.inv .strip .f.hl:first-child { background: linear-gradient(135deg, var(--accent), var(--accent-deep)); border-color: transparent; }
-body.inv .strip .f.hl :is(.lab, .fig, .fig small, .m) { color: var(--on-accent); }
+/* No card is filled in a different colour (owner round 2026-11, as the Fee Register's Dashboard boxes since D236). */
 body.look .program-cards .program-card .program-link { border: 0; border-radius: 0; box-shadow: none; background: none; }
 
 /* Investments header: Buy and Sell buttons beside the program links (editors only). */

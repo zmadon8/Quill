@@ -176,7 +176,7 @@ FEES_EXTRA_DETAILS = [("billed_by_month", "Billed by month (this financial year)
                       ("recent_matters", "Recently billed matters")]
 INVESTMENTS_EXTRA_DETAILS = [("over_time", "Over time (the period table)"), ("allocation", "Allocation by asset class")]
 DETAIL_PROGRAMS = (KEY_FEES, KEY_INVESTMENTS)
-NOT_READY = "Open the Overview once to fill this in."
+NOT_READY = "Open Investments > Home once to fill this in."
 
 
 def details_catalogue(program):
@@ -264,7 +264,7 @@ def _investments_details(profile, user):
     period = getattr(user, "investments_period", "all") or "all"
     payload = dashboard.peek_payload(profile, period=period)  # the cache only, never a calculation
     if payload is None:
-        return [{"kind": "note", "title": "Investments: Overview", "text": NOT_READY, "url": url}]
+        return [{"kind": "note", "title": "Investments: Home", "text": NOT_READY, "url": url}]
     totals = payload["totals"]
     suffix = "" if period == "all" else f" ({period.upper()})"
 
@@ -286,7 +286,7 @@ def _investments_details(profile, user):
     items = [(labels[k] + (suffix if k in with_period else ""), figures[k]) for k in keys if k in figures]
     sections = []
     if items:
-        sections.append({"kind": "kpis", "title": "Investments: Overview", "items": items, "url": url})
+        sections.append({"kind": "kpis", "title": "Investments: Home", "items": items, "url": url})
     if "over_time" in keys:
         table = payload["overview"]
         formats = {"pct": lambda v: pct(v), "pct_signed": lambda v: pct(v, True), "money": lambda v: rupees(v),

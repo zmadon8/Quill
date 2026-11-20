@@ -364,11 +364,7 @@ def investment(request, pk):
         "can_refresh": inst.kind != KIND_ALTERNATIVE and inst.fetch_enabled and inst.price_source not in ("manual", "upload"),
         "can_delete": (not any(counts.values())) or getattr(request.user, "is_admin", False),
     }
-    if inst.profile_id is None and inst.kind != KIND_ALTERNATIVE:
-        # The shared price history with the Editor's tools (owner round 2026-11), the same block as on the catalogue page.
-        from .views_catalogue import price_history_context
-
-        context.update(price_history_context(request, inst, prefix="p", profile=profile))
+    # A shared investment's price history is on its Catalogue page only (owner round 2026-11).
     return page(request, "investments/investment.html", context)
 
 
@@ -544,7 +540,10 @@ def investment_edit(request, pk):
                 messages.success(request, "Saved." if changed else "Nothing to change.")
                 return redirect(reverse("investments_investment", args=[pk]))
     tab = "prices" if request.GET.get("tab") == "prices" else "details"
-    context = {"page_title_text": f"Edit {inst.name}", "inst": inst, "form": form, "tab": tab}
+    counts = masters.records_of(profile, inst)
+    # Deleting a private investment is here: it has no Catalogue page, and Holdings no longer offers it (owner round 2026-11).
+    context = {"page_title_text": f"Edit {inst.name}", "inst": inst, "form": form, "tab": tab,
+               "can_delete": (not any(counts.values())) or getattr(request.user, "is_admin", False)}
     if tab == "prices":     # the entry form and list of the investment's values (an own investment is an alternative one)
         context.update({"alt_form": forms.AltValueForm(lump_sum=inst.lump_sum), "can_edit": True,
                         "alt_values": _flag_derived(AltValue.objects.filter(profile=profile, instrument=inst).order_by("-date")[:20], profile, inst)})
@@ -570,8 +569,12 @@ def investment_shared(request, pk):
 @inv_editor
 @handle_errors()
 def inv_delete(request, pk):
+    """Delete an investment private to this profile (from its Edit page). A shared investment is deleted in the Catalogue only
+    (owner round 2026-11), so it is a 404 here."""
     profile = profile_or_404(request)
     inst = _instrument_or_404(profile, pk)
+    if inst.profile_id != profile.pk:
+        raise Http404
     counts = masters.records_of(profile, inst)
     form = forms.DeleteInstrumentForm(request.POST or None)
     other_profiles = (ProfileInvestment.objects.filter(instrument=inst).exclude(profile=profile).exists() if inst.profile_id is None else False)

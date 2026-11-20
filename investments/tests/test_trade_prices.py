@@ -132,7 +132,7 @@ class UnitPricedManualInvestmentTests(ManualPricedBase):
 
     def test_the_investment_page_lists_the_entries_with_their_tags(self):
         self.buy(d(2024, 1, 5), 10, 100)
-        page = self.client.get(reverse("investments_investment", args=[self.reliance.pk]))
+        page = self.client.get(reverse("investments_admin_catalogue_item", args=[self.reliance.pk]))   # shared: its Catalogue page
         self.assertContains(page, "Manual Price History")
         self.assertContains(page, '<span class="tag">From purchase</span>')
 

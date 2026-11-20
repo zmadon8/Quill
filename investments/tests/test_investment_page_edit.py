@@ -89,7 +89,7 @@ class ManualPriceHistoryPageTests(InvTestCase):
         self.reliance.refresh_from_db()
         self.buy(d(2024, 1, 5), 10, 101)
         self.assertTrue(ManualPrice.objects.filter(instrument=self.reliance, date=d(2024, 1, 5)).exists())
-        r = self.client.get(reverse("investments_investment", args=[self.reliance.pk]))
+        r = self.client.get(reverse("investments_admin_catalogue_item", args=[self.reliance.pk]))   # shared: its Catalogue page
         self.assertContains(r, "Manual Price History")
         self.assertContains(r, '<span class="tag">From purchase</span>')
         self.assertContains(r, "kept and wins")
@@ -99,7 +99,7 @@ class ManualPriceHistoryPageTests(InvTestCase):
         masters.update_shared_details(self.profile, self.user, own, price_source="manual")
         own.refresh_from_db()
         self.buy(d(2024, 1, 5), 4, 250, instrument=own)
-        r = self.client.get(reverse("investments_investment", args=[own.pk]))
+        r = self.client.get(reverse("investments_admin_catalogue_item", args=[own.pk]))      # a share is shared: its Catalogue page
         self.assertContains(r, "Manual Price History")
         self.assertContains(r, '<span class="tag">From purchase</span>')
 

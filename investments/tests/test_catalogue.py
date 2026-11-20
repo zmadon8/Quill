@@ -261,16 +261,35 @@ class CataloguePageTests(InvTestCase):
         self.assertEqual(ManualPrice.objects.get(instrument=self.reliance, date=d(2026, 11, 5)).close, D("1320.5"))
         self.assertTrue(CatalogueHistory.objects.filter(record_type="price", by=editor).exists())
 
-    def test_price_history_is_on_the_investment_page(self):
+    def test_price_history_is_on_the_catalogue_page_only(self):
+        # Owner round 2026-11: a shared investment's price history (with the viewer's first purchase and the trim tool) is in the
+        # Catalogue; its Holdings page only points there.
         Price.objects.create(instrument=self.reliance, date=d(2026, 11, 5), close=D(1300), source="api", basis="split_adjusted")
         self.client.force_login(self.user)
-        page = self.client.get(reverse("investments_investment", args=[self.reliance.pk]))
+        url = reverse("investments_admin_catalogue_item", args=[self.reliance.pk])
+        page = self.client.get(url)
         self.assertContains(page, 'id="prices"')
         self.assertContains(page, "Fetch the price history from")
         self.assertContains(page, 'action="%s"' % reverse("investments_price_action", args=[self.reliance.pk]))
         self.buy(d(2024, 1, 1), 10, 100)
-        page = self.client.get(reverse("investments_investment", args=[self.reliance.pk]))
-        self.assertContains(page, "your first purchase (1 Jan 2024)")
+        page = self.client.get(url)
+        self.assertContains(page, "fetched price")                  # the trim tool, without printing a date from the records (plan 21.1)
+        self.assertNotContains(page, "1 Jan 2024")
+        holdings_page = self.client.get(reverse("investments_investment", args=[self.reliance.pk]))
+        self.assertNotContains(holdings_page, "Fetch the price history from")
+        self.assertNotContains(holdings_page, "Shared details")
+        self.assertContains(holdings_page, 'href="%s">Catalogue page</a>' % url)
+
+    def test_capital_gains_is_on_the_catalogue_page(self):
+        self.client.force_login(self.user)
+        url = reverse("investments_admin_catalogue_item", args=[self.reliance.pk])
+        self.assertContains(self.client.get(url), 'name="capital_gains"')
+        self.client.post(reverse("investments_admin_catalogue_action", args=[self.reliance.pk]), {
+            "action": "details", "name": self.reliance.name, "code": self.reliance.code, "currency": "INR", "asset_class": "equity",
+            "price_source": self.reliance.price_source, "isin": "", "exchange": "", "fallback_source": "", "sector": ""})
+        self.reliance.refresh_from_db()
+        self.assertFalse(self.reliance.capital_gains)        # unticked: sale profit is Other income
+        self.assertTrue(CatalogueHistory.objects.filter(instrument_id_ref=self.reliance.pk, field="capital_gains").exists())
 
     def test_fetch_from_a_chosen_date_keeps_uploads_and_hand_entered_prices(self):
         Price.objects.create(instrument=self.reliance, date=d(2026, 11, 2), close=D(1), source="upload", basis="split_adjusted")
