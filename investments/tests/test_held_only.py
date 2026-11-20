@@ -105,8 +105,7 @@ class HeldOnlyTests(InvTestCase):
         self.assertEqual(Transaction.objects.filter(instrument=self.tata).count(), 0)
 
     def test_a_sale_of_a_sold_out_investment_is_refused(self):
-        self.buy(d(2023, 2, 1), 2, 55, instrument=self.fund)     # 7 bought, 5 sold in June: 2 were still held in March, but none now
-        r = self.sell_post(self.fund, "2023-03-01", "2")
+        r = self.sell_post(self.fund, "2023-03-01", "2")         # 5 bought, 5 sold in June: held in March, but none now
         self.assertContains(r, "Choose an investment you hold now from the list.")
         self.assertEqual(Transaction.objects.filter(instrument=self.fund, side="sell").count(), 1)
 
@@ -223,6 +222,7 @@ class MultiRowTransactionTests(InvTestCase):
 
     def test_buy_form_has_folio_and_origin_under_tentative_and_no_charges_date_or_note(self):
         # Owner round 2026-11: Folio and "How were these units acquired?" sit below Mark as Tentative; no charges, allotment date or note.
+        self.buy(d(2024, 1, 1), 1, 10)
         html = self.client.get(reverse("investments_txn_new_buy")).content.decode()
         form = html[html.index('id="txn-form"'):html.index('<template id="extra-row-template">')]
         self.assertNotIn('<details class="more-fields"', form)

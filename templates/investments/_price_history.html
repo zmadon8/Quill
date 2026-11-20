@@ -17,13 +17,13 @@
   <label>Date <input type="date" name="date" value="{{ p_today|date:'Y-m-d' }}" max="{{ p_today|date:'Y-m-d' }}"></label><label>Close <input name="close" size="10" inputmode="decimal"></label><label>Reason <input name="reason" size="20"></label><button type="submit">Add price</button></form>
 {% if p_fetchable %}
 <form method="post" action="{% url 'investments_price_action' inst.pk %}" class="filters">{% csrf_token %}<input type="hidden" name="next" value="{{ next_url }}"><input type="hidden" name="action" value="fetch_from">
-  <label>Fetch the price history from <input type="date" name="from" value="{% if p_first_purchase %}{{ p_first_purchase|date:'Y-m-d' }}{% elif p_oldest %}{{ p_oldest|date:'Y-m-d' }}{% endif %}" max="{{ p_today|date:'Y-m-d' }}" required></label><button type="submit" class="secondary">Fetch to today</button>
+  <label>Fetch the price history from <input type="date" name="from" value="{% if p_first_purchase and not p_hide_dates %}{{ p_first_purchase|date:'Y-m-d' }}{% elif p_oldest %}{{ p_oldest|date:'Y-m-d' }}{% endif %}" max="{{ p_today|date:'Y-m-d' }}" required></label><button type="submit" class="secondary">Fetch to today</button>
   <span class="hint">From {{ inst.get_price_source_display }}. Fetched prices in those dates are replaced; hand-entered and uploaded prices are kept.</span></form>
 {% endif %}
 {% if p_trim and not p_trim.problem %}
 <form method="post" action="{% url 'investments_price_action' inst.pk %}" class="filters">{% csrf_token %}<input type="hidden" name="next" value="{{ next_url }}"><input type="hidden" name="action" value="trim">
-  <span>Remove the {{ p_trim.remove }} fetched price{{ p_trim.remove|pluralize }} from before {% if p_trim.own %}your first purchase ({{ p_trim.cutoff|date:"j M Y" }}){% else %}the first purchase in any profile (another profile bought it earlier than you){% endif %}.</span><button type="submit" class="secondary"{% if not p_trim.remove %} disabled{% endif %}>Preview</button></form>
-{% elif not p_trim %}<p class="hint">To remove the prices from before the first purchase, open the investment from Holdings.</p>
+  <span>Remove the {{ p_trim.remove }} fetched price{{ p_trim.remove|pluralize }} from before {% if p_trim.own %}your first purchase{% if not p_hide_dates %} ({{ p_trim.cutoff|date:"j M Y" }}){% endif %}{% else %}the first purchase in any profile (another profile bought it earlier than you){% endif %}.</span><button type="submit" class="secondary"{% if not p_trim.remove %} disabled{% endif %}>Preview</button></form>
+{% elif not p_trim %}<p class="hint">Removing the prices from before the first purchase needs a profile that holds it.</p>
 {% endif %}
 {% if inst.kind != "index" %}
 <form method="post" action="{% url 'investments_price_action' inst.pk %}" class="filters">{% csrf_token %}<input type="hidden" name="next" value="{{ next_url }}"><input type="hidden" name="action" value="clear_prices">

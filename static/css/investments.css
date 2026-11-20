@@ -376,7 +376,5 @@ body.inv table.led.ov{min-width:0;width:100%;table-layout:auto;font-size:13px}
 body.inv table.led.ov th,body.inv table.led.ov td{padding:4px 6px;white-space:nowrap;font-size:13px}
 body.inv table.led.ov th:first-child,body.inv table.led.ov td:first-child{white-space:normal;max-width:9rem}
 body.inv table.led.ov .col-resizer{width:6px}
-/* A third row inside a tab (Corporate Actions: Actions, Dividends), smaller than the tabs above it (owner round 2026-11). */
-body.inv nav.sub.third{display:flex;flex-wrap:wrap;gap:2px 14px;margin:-4px 0 12px;font-size:.93em}
-body.inv nav.sub.third a{min-height:26px;color:var(--muted);text-decoration:none;border-bottom:2px solid transparent}
-body.inv nav.sub.third a.on{color:var(--ink);border-bottom-color:var(--ink)}
+/* Third row (Corporate Actions: Actions, Dividends) */
+nav.sub.third{display:flex;gap:2px 14px;margin:-4px 0 12px;font-size:.93em}nav.third a{min-height:26px}

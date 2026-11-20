@@ -64,9 +64,9 @@ def catalogue_new(request):
 
 def price_history_context(request, inst, prefix="", profile=None):
     """The price-history block of the catalogue item page and of an investment's own page (``templates/investments/_price_history.html``).
-    ``prefix`` keeps its query parameters apart from the page's own. ``profile`` is the viewer's own profile: its first purchase is shown
-    (never another profile's dates, plan 21.1) and the trim tool is offered. The price history is on the Catalogue page only (owner round
-    2026-11), so the catalogue passes it."""
+    ``prefix`` keeps its query parameters apart from the page's own. ``profile`` is the viewer's own profile, for the trim tool. The price
+    history is on the Catalogue page only (owner round 2026-11), so the catalogue passes it; the page sets ``p_hide_dates`` so that no date
+    from any profile's records is shown there (plan 21.1): the trim tool works from them on the server but does not print them."""
     start, end = parse_date(request.GET.get(prefix + "from")), parse_date(request.GET.get(prefix + "to"))
     try:
         number = int(request.GET.get(prefix + "page", 1))
@@ -110,7 +110,7 @@ def catalogue_item(request, pk):
         "today": datetime.date.today(), "is_admin": is_admin,
         "index_choices": Instrument.objects.filter(profile=None, kind="index").order_by("name"),
         "registry": __import__("investments.services.investment_page", fromlist=["registry_record"]).registry_record(inst),
-        **price_history_context(request, inst, profile=profile)}, selectors=False)
+        **price_history_context(request, inst, profile=profile), "p_hide_dates": True}, selectors=False)
 
 
 @inv_admin

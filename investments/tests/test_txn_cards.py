@@ -40,11 +40,11 @@ class TxnCardTests(InvTestCase):
 
     def test_buy_with_two_full_cards_saves_both(self):
         post = {**self.card("", "2024-01-01", "10", "100"), "extra_rows": "1",
-                **self.card("x1", "2024-02-01", "5", "50", instrument=self.fund, broker=self.groww, note="second")}
+                **self.card("x1", "2024-02-01", "5", "50", instrument=self.fund, broker=self.groww, new_folio="F-2")}
         self.assertRedirects(self.client.post(reverse("investments_txn_new_buy"), post), reverse("investments_transactions"))
         self.assertEqual(Transaction.objects.count(), 2)
         second = Transaction.objects.get(instrument=self.fund)
-        self.assertEqual((second.date, second.broker_id, second.note), (d(2024, 2, 1), self.groww.pk, "second"))
+        self.assertEqual((second.date, second.broker_id, second.folio.number), (d(2024, 2, 1), self.groww.pk, "F-2"))
 
     def test_a_bad_card_saves_nothing(self):
         post = {**self.card("", "2024-01-01", "10", "100"), "extra_rows": "1", **self.card("x1", "2024-02-01", "", "50")}
