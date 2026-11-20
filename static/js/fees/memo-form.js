@@ -50,7 +50,6 @@
 
   function addTicks() {
     var isNew = form.getAttribute("data-new") === "1";
-    var linesDefault = form.getAttribute("data-lines-default") !== "0";
     Object.keys(LINES).forEach(function (line) {
       var box = form.querySelector('[data-line="' + line + '"]');
       if (!box) { return; }
@@ -66,7 +65,8 @@
       wrap.appendChild(cb);
       wrap.appendChild(lab);
       box.insertBefore(wrap, box.firstChild);
-      cb.checked = isNew ? linesDefault : lineHasValue(line);
+      // A new memo: each line as Settings > Memos says (one switch per line); an existing memo: the lines it uses.
+      cb.checked = isNew ? form.getAttribute("data-line-default-" + line) !== "0" : lineHasValue(line);
       setLine(line, cb.checked, false);
       cb.addEventListener("change", function () {
         setLine(line, cb.checked, true);

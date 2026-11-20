@@ -430,6 +430,7 @@ _SETTINGS_TEXT = (
 _SETTINGS_SHEET_COLUMNS = ["id"] + [name for name, _kind, _default in SETTINGS_COLUMNS]
 _WEB_TEXT_KEYS = ("export_owner_name", "memo_filename_pattern") + tuple(MEMO_TEXT_DEFAULT_KEYS)
 _WEB_BOOL_KEYS = ("statistics_enabled", "show_bank", "written_off_enabled")
+_LINE_DEFAULT_KEYS = ("default_line_appearances", "default_line_conferences", "default_line_misc")
 #: Older files: the Dashboard switches now merged into Statistics (any one off turns it off).
 _LEGACY_STATISTICS_KEYS = ("dashboard_kpis_enabled", "dashboard_enabled")
 
@@ -520,6 +521,9 @@ def _apply_web_settings(settings, workbook, found=None):
     for key in _WEB_BOOL_KEYS:
         if key in found:
             setattr(settings, key, _bool(found[key], default=True))
+    for key in _LINE_DEFAULT_KEYS:
+        # A file without the per-line switches: each line follows the desktop row's single switch.
+        setattr(settings, key, _bool(found[key], default=True) if key in found else settings.default_lines_enabled)
     if "memo_signature_default" in found:
         settings.memo_signature_default = _bool(found["memo_signature_default"], default=False)
     if _text(found.get("list_default_filter")).strip() in ("all", "active"):

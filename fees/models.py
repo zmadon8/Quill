@@ -76,7 +76,11 @@ class FeesSettings(models.Model):
     money_suffix_lac = models.CharField(max_length=12, default="lac")
     money_suffix_crore = models.CharField(max_length=12, default="cr")
     hide_payment_when_paid = models.BooleanField(default=False)
-    default_lines_enabled = models.BooleanField(default=True)
+    default_lines_enabled = models.BooleanField(default=True)   # kept for the desktop backup file: on when any line below is on
+    # Which fee lines a new memo starts with switched on (owner round 2026-11: one switch per line instead of one for all).
+    default_line_appearances = models.BooleanField(default=True)
+    default_line_conferences = models.BooleanField(default=True)
+    default_line_misc = models.BooleanField(default=True)
     default_payment_amount = models.CharField(max_length=10, default="zero")
     show_status_dots = models.BooleanField(default=True)
     dashboard_kpis = models.CharField(max_length=500, blank=True, default="")
