@@ -36,7 +36,7 @@
 <table class="ledger-table stat-table" data-table-id="statistics">
   <caption>Statistics by {% if granularity == "financialYear" %}financial year{% else %}{{ granularity }}{% if granularity == "month" or granularity == "quarter" %} for {{ fy }}{% endif %}{% endif %}</caption>
   <thead><tr><th scope="col">Metric</th>{% for p in stats.periods %}<th scope="col" class="money{% if p.is_current_month %} current-col{% elif p.is_future %} future-col{% endif %}">{{ p.label }}</th>{% endfor %}{% if stats.periods|length > 1 %}<th scope="col" class="money total-col">Total</th>{% endif %}</tr></thead>
-  <tbody>{% for row in table %}<tr><th scope="row">{{ row.label }}</th>{% for c in row.cells %}<td class="money{% if c.current %} current-col{% endif %}{% if c.overridden %} hand{% endif %}"{% if c.overridden %} title="Entered by hand in Settings, Start Years &amp; Statistics"{% endif %}>{% if row.money %}{{ c.value|fees_money:money_unit }}{% else %}{{ c.value|default_if_none:"" }}{% endif %}</td>{% endfor %}{% if stats.periods|length > 1 %}<td class="money total-col">{% if row.total is not None %}{% if row.money %}{{ row.total|fees_money:money_unit }}{% else %}{{ row.total }}{% endif %}{% endif %}</td>{% endif %}</tr>{% endfor %}</tbody>
+  <tbody>{% for row in table %}<tr><th scope="row">{{ row.label }}</th>{% for c in row.cells %}<td class="money{% if c.current %} current-col{% endif %}">{% if row.money %}{{ c.value|fees_money:money_unit }}{% else %}{{ c.value|default_if_none:"" }}{% endif %}</td>{% endfor %}{% if stats.periods|length > 1 %}<td class="money total-col">{% if row.total is not None %}{% if row.money %}{{ row.total|fees_money:money_unit }}{% else %}{{ row.total }}{% endif %}{% endif %}</td>{% endif %}</tr>{% endfor %}</tbody>
 </table>
 </div>
 <section class="projection" aria-labelledby="projection-heading">
@@ -46,17 +46,9 @@
   <label>Chart <select name="chart">{% for k, label in projection_measures %}<option value="{{ k }}"{% if k == projection_measure %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
   <button type="submit">Show</button>
 </form></div>
-{% if projection_chart %}
-<figure class="projection-figure">
-  {{ projection_chart }}
-  <figcaption>
-    <p class="pc-legend">{% if granularity == "month" %}<span><i class="key-line" aria-hidden="true"></i>Actual</span><span><i class="key-dash" aria-hidden="true"></i>Projected</span><span><i class="key-pace" aria-hidden="true"></i>Pace from 1 April</span>{% else %}<span><i class="key-bar" aria-hidden="true"></i>Actual</span><span><i class="key-hatch" aria-hidden="true"></i>Projected rest of the year</span>{% endif %}</p>
-    <p>{{ projection_label }} so far: <strong>{% if projection_money %}{{ projection_plan.so_far|fees_money:money_unit }}{% else %}{{ projection_plan.so_far }}{% endif %}</strong> in {{ projection_plan.done }} of {{ projection_plan.total }} working days. Projected for {{ projection_fy }}: <strong>{% if projection_money %}{{ projection_plan.projected|fees_money:money_unit }}{% else %}{{ projection_plan.projected }}{% endif %}</strong> (so far &divide; {{ projection_plan.done }} &times; {{ projection_plan.total }}). <a href="{% url 'fees_statistics_explain' %}#projected">How this is worked out</a></p>
-  </figcaption>
-</figure>
-{% else %}<p class="muted">{{ projection_note }}</p>{% endif %}
+{% include "fees/_projection_figure.html" %}
 </section>
-<p class="page-actions explain-link"><a class="button secondary" href="{% url 'fees_statistics_explain' %}">Explain Statistics</a></p>
+<p class="page-actions explain-link"><a class="button secondary" href="{% url 'fees_statistics_explain' %}">Explain Statistics</a>{% if can_edit %} <a class="button secondary" href="{% url 'fees_settings' %}?tab=years&amp;fy={{ fy }}#settings-years">Edit Statistics</a>{% endif %}</p>
 
 {% else %}
 <form method="get" class="filters" aria-label="Choose the pivot">
@@ -69,30 +61,26 @@
   {% include "fees/_fy_select.html" with name="from_fy" label="From Financial Year" options=fy_options selected=chosen.from_fy all_label="Earliest" %}
   {% include "fees/_fy_select.html" with name="to_fy" label="To Financial Year" options=fy_options selected=chosen.to_fy all_label="Latest" %}
   </span>
+  <label>Show As <select name="view">{% for id, label in explore_views %}<option value="{{ id }}"{% if id == chosen.view %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
   <button type="submit">Show</button>
 </form>
 
 {% if pivot_error %}<p class="notice" role="alert">{{ pivot_error }}</p>{% endif %}
 {% if pivot %}
 {% if pivot.adjusted %}<p class="muted">Includes the figures entered in Settings &gt; Edit Statistics.</p>{% elif pivot.adjustments_left_out %}<p class="muted">The figures entered in Settings &gt; Edit Statistics are for the whole profile, month by month, so they are used only when the rows are months, quarters or years and no firm is chosen.</p>{% endif %}
-<div class="table-wrap">
-<table class="ledger-table pivot-table stat-table" id="pivot-table" data-table-id="statistics-pivot">
-  <caption>{% for id, label in measures %}{% if id == chosen.measure %}{{ label }}{% endif %}{% endfor %} by {% for id, label in row_dims %}{% if id == chosen.row_dim %}{{ label|lower }}{% endif %}{% endfor %}{% if chosen.col_dim != "none" %}, across {% for id, label in col_dims %}{% if id == chosen.col_dim %}{{ label|lower }}{% endif %}{% endfor %}{% endif %}</caption>
-  <thead><tr><th scope="col">Row</th>{% for c in pivot.columns %}<th scope="col" class="money">{{ c.label }}</th>{% endfor %}{% if pivot.columns|length > 1 %}<th scope="col" class="money">Total</th>{% endif %}</tr></thead>
-  <tbody>{% for r in pivot.rows %}<tr><th scope="row">{{ r.label }}</th>{% for v in r.values %}<td class="money">{% if pivot.money %}{{ v|fees_money:money_unit }}{% else %}{{ v|floatformat:"-2" }}{% endif %}</td>{% endfor %}{% if pivot.columns|length > 1 %}<td class="money">{% if pivot.money %}{{ r.total|fees_money:money_unit }}{% else %}{{ r.total|floatformat:"-2" }}{% endif %}</td>{% endif %}</tr>{% empty %}<tr><td colspan="{{ pivot.columns|length|add:2 }}">Nothing to show for these choices.</td></tr>{% endfor %}</tbody>
-  {% if pivot.rows %}<tfoot><tr><th scope="row">Total</th>{% for v in pivot.totals %}<td class="money">{% if pivot.money %}{{ v|fees_money:money_unit }}{% else %}{{ v|floatformat:"-2" }}{% endif %}</td>{% endfor %}{% if pivot.columns|length > 1 %}<td class="money">{% if pivot.money %}{{ pivot.grand_total|fees_money:money_unit }}{% else %}{{ pivot.grand_total|floatformat:"-2" }}{% endif %}</td>{% endif %}</tr></tfoot>{% endif %}
-</table>
-</div>
-
-<div class="chart-tools" data-chart-tools hidden>
-  <label><input type="checkbox" data-chart-on> Show chart</label>
-  <label>Chart Type <select data-chart-type><option value="bar">Bars (Grouped)</option><option value="stacked">Bars (Stacked)</option><option value="line" selected>Line</option></select></label>
-</div>
-<figure class="pivot-chart" data-chart-figure hidden>
-  <div data-chart-canvas></div>
-  <figcaption>The table above holds the same figures.</figcaption>
+{% if chosen.view == "projected" %}
+<section class="projection" aria-label="Projected Totals">{% include "fees/_projection_figure.html" %}</section>
+{% elif chosen.view == "table" %}
+{% include "fees/_pivot_table.html" with table_id="statistics-pivot" %}
+{% else %}
+<figure class="pivot-chart" data-chart-figure data-chart-type="{{ chosen.view }}">
+  <div data-chart-canvas><p class="muted">The chart needs JavaScript; the figures are below.</p></div>
 </figure>
+<details class="chart-figures"><summary>Figures in this chart</summary>
+{% include "fees/_pivot_table.html" with table_id="statistics-pivot-figures" %}
+</details>
 {{ chart_data|json_script:"pivot-data" }}
+{% endif %}
 {% endif %}
 
 <h2 id="saved-views-heading">Saved views</h2>
@@ -109,4 +97,4 @@
 {% endif %}
 {% endif %}
 {% endblock %}
-{% block page_js %}{% if tab == "explore" and pivot %}<script src="{% static 'js/investments/chart-hover.js' %}"></script><script src="{% static 'js/pivot-chart.js' %}"></script>{% endif %}{% endblock %}
+{% block page_js %}{% if tab == "explore" and pivot and chosen.view in "bar,stacked,line" %}<script src="{% static 'js/investments/chart-hover.js' %}"></script><script src="{% static 'js/pivot-chart.js' %}"></script>{% elif projection.chart %}<script src="{% static 'js/investments/chart-hover.js' %}"></script>{% endif %}{% endblock %}

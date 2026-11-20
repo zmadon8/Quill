@@ -1,9 +1,12 @@
 """Settings page and its saves, bank accounts, the Word template and signature (upload and download), the
 file-name preview and the statistics grid."""
 import datetime
+import re
 from types import SimpleNamespace
+from urllib.parse import urlencode
 
 from django.contrib import messages
+from django.db import transaction
 from django.http import Http404
 from django.shortcuts import redirect
 from django.urls import reverse
@@ -83,10 +86,13 @@ def settings_context(profile, fy=None, tab="memos"):
     }
     if config["statistics_enabled"]:
         fy = fy or current_financial_year()
+        years = fy_options.financial_year_options(profile, config["initial_financial_year"], fy)
+        # Every year in one grid with one Save (owner round 2026-11); the year asked for (the current one by default) is open.
         context.update(
             fy=fy,
-            fy_options=fy_options.financial_year_options(profile, config["initial_financial_year"], fy),
+            fy_options=years,
             adjustment_rows=adjustment_rows(profile, fy),
+            adjustment_years=_adjustment_years(profile, years, fy),
         )
     return context
 
@@ -259,17 +265,24 @@ def filename_preview(request):
     )
 
 
+def _adjustment_years(profile, years, open_fy):
+    """Every year of the Edit Statistics grid, its saved months read in ONE query: [{fy, rows, open}]."""
+    from fees.models import PeriodAdjustment
+    from fees.services.statistics.adjustments import _to_dto
+
+    saved = {}
+    for row in PeriodAdjustment.objects.filter(profile=profile, financial_year__in=years):
+        saved.setdefault(row.financial_year, {})[row.month] = _to_dto(row)
+    return [{"fy": year, "rows": adjustment_rows(profile, year, saved.get(year, {})), "open": year == open_fy} for year in years]
+
+
 def _optional(text, parse):
     value = (text or "").strip()
     return parse(value) if value else None
 
 
-def _save_adjustment(profile, post):
-    """Save one month of the statistics grid from posted form values; returns its financial year."""
-    month = forms.parse_int(post.get("month"), "Month", default=0)
-    if not 1 <= month <= 12:
-        raise FeesError("INVALID_MONTH", "Month must be from 1 to 12.")
-    fy = financial_year_param(post)
+def _parse_adjustment(post, fy, month):
+    """One month's adjustment from posted values (``post`` maps the plain field names: working_days, override_billed ...)."""
     adjustment = {
         "financial_year": fy,
         "month": month,
@@ -283,8 +296,69 @@ def _save_adjustment(profile, post):
         adjustment[key] = _optional(post.get(key), lambda v, k=label: forms.parse_int(v, k))
     for key in ("override_billed", "override_received", "override_received_plus_tds"):
         adjustment[key] = forms.parse_decimal(post.get(key), key)
-    statistics.save_adjustment(profile, adjustment)
+    return adjustment
+
+
+def _save_adjustment(profile, post):
+    """Save one month of the statistics grid from posted form values; returns its financial year."""
+    month = forms.parse_int(post.get("month"), "Month", default=0)
+    if not 1 <= month <= 12:
+        raise FeesError("INVALID_MONTH", "Month must be from 1 to 12.")
+    fy = financial_year_param(post)
+    statistics.save_adjustment(profile, _parse_adjustment(post, fy, month))
     return fy
+
+
+_FY_LABEL = re.compile(r"^\d{4}-\d{2}$")
+#: A field of the whole Edit Statistics grid: ``<field>__<financial year>__<month>``, e.g. ``working_days__2026-27__4``.
+_GRID_FIELD = re.compile(r"^(working_days|extra_appearances|extra_conferences|extra_drafts|override_appearances|"
+                         r"override_conferences|override_drafts|override_billed|override_received|"
+                         r"override_received_plus_tds)__(\d{4}-\d{2})__(\d{1,2})$")
+_ADJUSTMENT_KEYS = ("working_days", "extra_appearances", "extra_conferences", "extra_drafts", "override_appearances",
+                    "override_conferences", "override_drafts", "override_billed", "override_received",
+                    "override_received_plus_tds")
+_MONTH_NAMES = ("January", "February", "March", "April", "May", "June", "July", "August", "September", "October",
+                "November", "December")
+
+
+def _same(saved, adjustment):
+    """True when ``adjustment`` holds what is saved (a month never saved counts as all 0 and no replacements)."""
+    for key in _ADJUSTMENT_KEYS:
+        old = saved.get(key) if saved else None
+        if old is None and not key.startswith("override_"):
+            old = 0
+        if (old is None) != (adjustment[key] is None) or (old is not None and old != adjustment[key]):
+            return False
+    return True
+
+
+def _save_grid(profile, post):
+    """Save the whole Edit Statistics grid (every year and month on the page) with its one Save button.
+
+    Every month is read first, so a mistake anywhere saves nothing; then only the months that changed are saved, in one
+    transaction. Returns the number of months saved.
+    """
+    cells = {}
+    for name, value in post.items():
+        match = _GRID_FIELD.match(name)
+        if match:
+            key, fy, month = match.group(1), match.group(2), int(match.group(3))
+            if 1 <= month <= 12:
+                cells.setdefault((fy, month), {})[key] = value
+    wanted = []
+    for (fy, month), values in sorted(cells.items()):
+        try:
+            wanted.append(_parse_adjustment(values, fy, month))
+        except FeesError as err:
+            raise FeesError(err.code, f"{_MONTH_NAMES[month - 1]} {fy}: {err.message}") from err
+    saved = {}
+    for fy in {a["financial_year"] for a in wanted}:
+        saved.update({(fy, row["month"]): row for row in statistics.list_adjustments(profile, fy)})
+    changed = [a for a in wanted if not _same(saved.get((a["financial_year"], a["month"])), a)]
+    with transaction.atomic():
+        for adjustment in changed:
+            statistics.save_adjustment(profile, adjustment)
+    return len(changed)
 
 
 @fees_read_write
@@ -300,6 +374,22 @@ def statistics_grid(request):
             ensure_statistics_on(config)
             return _save_adjustment(profile, post)
 
+        if is_page_post(request) and post.get("grid") == "1":
+            fy = post.get("fy") or ""
+            query = {"tab": "years", **({"fy": fy} if _FY_LABEL.match(fy) else {})}
+            try:
+                ensure_statistics_on(config)
+                count = _save_grid(profile, post)
+            except FeesError as err:
+                if err.status == 404:
+                    raise Http404(err.message) from err
+                messages.error(request, err.message)
+            else:
+                if count:
+                    messages.success(request, f"Edit Statistics saved ({count} month{'s' if count != 1 else ''} changed).")
+                else:
+                    messages.info(request, "No changes to save.")
+            return redirect(reverse("fees_settings") + "?" + urlencode(query) + "#settings-years")
         if is_page_post(request):
             fy = post.get("fy") or ""
             return page_post(request, save, "Adjustments saved.", _to="fees_settings", _fragment="#settings-years", fy=fy)

@@ -444,6 +444,7 @@ def get_period_statistics(profile, granularity, financial_year, options=None, no
             "amount_recovered": a["amount_recovered"],
             # The ENTERED working days are reported; rates use the effective ones.
             "working_days": entered,
+            "working_days_entered": entered,
         }
         if overridden:
             period["overridden"] = overridden
@@ -483,8 +484,9 @@ def get_period_statistics(profile, granularity, financial_year, options=None, no
             "amount_received": round2(s("amount_received")),
             "amount_received_plus_tds": round2(s("amount_received_plus_tds")),
             "amount_recovered": round2(s("amount_recovered")),
-            # For a rolled-up period "working days" is the effective (elapsed) total.
+            # For a rolled-up period "working days" is the effective (elapsed) total; the entered total is kept beside it.
             "working_days": eff_wd,
+            "working_days_entered": s("working_days_entered"),
         }
         if overridden:
             period["overridden"] = overridden

@@ -1,0 +1,10 @@
+{% load fees_money %}{# Projected Totals chart (Statistics > Standard and Explore). Context: projection (views_statistics.build_projection), money_unit. #}
+{% if projection.chart %}
+<figure class="projection-figure">
+  {{ projection.chart }}
+  <figcaption>
+    <p class="pc-legend">{% if projection.mode == "month" %}<span><i class="key-line" aria-hidden="true"></i>Actual</span><span><i class="key-dash" aria-hidden="true"></i>Projected</span><span><i class="key-pace" aria-hidden="true"></i>Pace from 1 April</span>{% else %}<span><i class="key-bar" aria-hidden="true"></i>Actual</span><span><i class="key-hatch" aria-hidden="true"></i>Projected rest of the year</span>{% endif %}<span>Point at the chart to see the figures.</span></p>
+    <p>{{ projection.label }} so far: <strong>{% if projection.money %}{{ projection.plan.so_far|fees_money:money_unit }}{% else %}{{ projection.plan.so_far }}{% endif %}</strong> in {{ projection.plan.done }} of {{ projection.plan.total }} working days. Projected for {{ projection.fy }}: <strong>{% if projection.money %}{{ projection.plan.projected|fees_money:money_unit }}{% else %}{{ projection.plan.projected }}{% endif %}</strong> (so far &divide; {{ projection.plan.done }} &times; {{ projection.plan.total }}). <a href="{% url 'fees_statistics_explain' %}#projected">How this is worked out</a></p>
+  </figcaption>
+</figure>
+{% else %}<p class="muted">{{ projection.note }}</p>{% endif %}

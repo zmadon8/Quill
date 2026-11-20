@@ -6,7 +6,9 @@ body.ledger .saved-views { list-style: none; padding: 0; margin: 0; }
 body.ledger .saved-views li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 4px 0; }
 body.ledger .saved-views form { margin: 0; }
 body.ledger .chart-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 24px; margin: 12px 0 8px; }
-body.ledger .chart-tools[hidden], body.ledger .pivot-chart[hidden] { display: none; }
+body.ledger .pivot-chart[hidden] { display: none; }
+body.ledger .chart-figures { margin-top: .75rem; }
+body.ledger .chart-figures > summary { cursor: pointer; color: var(--muted); }
 body.ledger .pivot-chart { margin: 0; padding: 16px; overflow-x: auto; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); }
 body.ledger .pivot-chart svg { display: block; max-width: none; font: inherit; }
 body.ledger .pivot-chart figcaption { color: var(--muted); font-size: .857rem; }
@@ -16,18 +18,17 @@ body.ledger .stat-table thead th.future-col { color: var(--faint); }
 body.ledger .stat-table :is(td, th).current-col, body.ledger .stat-table :is(td, th).total-col { background: var(--paper-2); }
 body.ledger .stat-table td.total-col { font-weight: 600; }
 body.ledger .stat-table thead th:first-child { position: sticky; left: 0; z-index: 3; }
-body.ledger .stat-table td.hand { font-style: italic; color: var(--accent); cursor: help; }
 
 /* Explore chart: hover, touch and keyboard values (chart-hover.js, as in the Investments charts). */
 body.ledger .chart-plot { position: relative; width: max-content; }
-body.ledger .pivot-chart svg.hv { touch-action: pan-y; cursor: crosshair; }
-body.ledger .pivot-chart svg.hv:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
-body.ledger .pivot-chart svg .hv-guide { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; pointer-events: none; }
-body.ledger .pivot-chart .hv-tip { position: absolute; top: 6px; z-index: 5; pointer-events: none; background: var(--card); color: var(--ink); border: 1px solid var(--line-strong); border-radius: 4px; padding: 6px 9px; font-size: .893rem; line-height: 1.4; box-shadow: var(--shadow-float, 0 2px 8px rgba(0,0,0,.15)); white-space: nowrap; }
-body.ledger .pivot-chart .hv-tip[hidden] { display: none; }
-body.ledger .pivot-chart .hv-tip b { display: block; margin-bottom: 2px; }
-body.ledger .pivot-chart .hv-tip span { display: flex; justify-content: space-between; gap: 14px; }
-body.ledger .pivot-chart .hv-tip i { display: inline-block; width: 14px; border-top: 2px solid var(--ink); vertical-align: middle; margin-right: 6px; }
+body.ledger :is(.pivot-chart, .projection-figure) svg.hv { touch-action: pan-y; cursor: crosshair; }
+body.ledger :is(.pivot-chart, .projection-figure) svg.hv:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+body.ledger :is(.pivot-chart, .projection-figure) svg .hv-guide { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; pointer-events: none; }
+body.ledger :is(.pivot-chart, .projection-figure) .hv-tip { position: absolute; top: 6px; z-index: 5; pointer-events: none; background: var(--card); color: var(--ink); border: 1px solid var(--line-strong); border-radius: 4px; padding: 6px 9px; font-size: .893rem; line-height: 1.4; box-shadow: var(--shadow-float, 0 2px 8px rgba(0,0,0,.15)); white-space: nowrap; }
+body.ledger :is(.pivot-chart, .projection-figure) .hv-tip[hidden] { display: none; }
+body.ledger :is(.pivot-chart, .projection-figure) .hv-tip b { display: block; margin-bottom: 2px; }
+body.ledger :is(.pivot-chart, .projection-figure) .hv-tip span { display: flex; justify-content: space-between; gap: 14px; }
+body.ledger :is(.pivot-chart, .projection-figure) .hv-tip i { display: inline-block; width: 14px; border-top: 2px solid var(--ink); vertical-align: middle; margin-right: 6px; }
 
 
 /* Explain Statistics (the button under the Standard table, and its page). */
@@ -67,3 +68,4 @@ body.ledger .pc-legend .key-bar, body.ledger .pc-legend .key-hatch { width: 14px
 body.ledger .pc-legend .key-bar { background: var(--accent); }
 body.ledger .pc-legend .key-hatch { outline: 1px dashed var(--accent); background: repeating-linear-gradient(45deg, color-mix(in srgb, var(--accent) 45%, transparent) 0 2px, transparent 2px 6px); }
 body.ledger .projection-chart .pc-inside-text { fill: #fff; }
+body.ledger .projection-figure .chart-plot { width: auto; max-width: 860px; }

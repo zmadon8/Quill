@@ -7,7 +7,11 @@
 
 They only draw: the figures come from ``fees.services.statistics.projection``. Every text is escaped; colours come from the
 page's CSS classes (``.pc-*`` in ledger-statistics.css), so the chart follows the colour theme.
+
+Hovering (or touching, or the arrow keys on the focused chart) shows the figures of the month or year under the cursor, the
+actual and the projected side by side: ``static/js/investments/chart-hover.js`` reads the ``data-hover`` attribute.
 """
+import json
 from decimal import Decimal
 
 from django.utils.html import escape
@@ -66,9 +70,32 @@ class _Plot:
                        for i, n in enumerate(names))
 
 
-def _svg(body, label):
-    return mark_safe(f'<svg class="projection-chart" viewBox="0 0 {W} {H}" role="img" aria-label="{escape(label)}" '
-                     f'preserveAspectRatio="xMidYMid meet">{body}</svg>')
+ACTUAL_COLOUR = "var(--accent)"
+PROJECTED_COLOUR = "var(--muted)"
+
+
+def _tip_value(value, money):
+    """A figure for the hover box, in full (the axis is short; the box gives the exact figure)."""
+    if value is None:
+        return ""
+    if money:
+        return "\u20b9" + format_money(Decimal(str(value)), unit="full")
+    return f"{float(value):,.0f}"
+
+
+def _svg(body, label, hover=None, plot=None):
+    """The chart, wrapped with the hover box when ``hover`` is ``{"d": [labels], "s": [{"l", "c", "v"}]}``."""
+    if hover is None:
+        return mark_safe(f'<svg class="projection-chart" viewBox="0 0 {W} {H}" role="img" aria-label="{escape(label)}" '
+                         f'preserveAspectRatio="xMidYMid meet">{body}</svg>')
+    data = dict(hover, x=[round(plot.x(i), 1) for i in range(len(hover["d"]))])
+    return mark_safe(
+        '<div class="chart-plot">'
+        f'<svg class="projection-chart ch hv" viewBox="0 0 {W} {H}" role="img" aria-label="{escape(label)}" tabindex="0" '
+        f'data-top="{PAD_T}" data-bottom="{H - PAD_B}" data-hover="{escape(json.dumps(data))}" '
+        f'preserveAspectRatio="xMidYMid meet">{body}</svg>'
+        '<div class="hv-tip" role="status" hidden></div></div>'
+    )
 
 
 def running_total_svg(month_names, plan, current_index, title, money=True, unit="full"):
@@ -111,7 +138,24 @@ def running_total_svg(month_names, plan, current_index, title, money=True, unit=
     body.append(plot.labels(month_names))
     label = (f"{title}, running total: {_label(plan['so_far'], money, unit)} so far, "
              f"projected {_label(plan['projected'], money, unit)} for the year")
-    return _svg("".join(body), label)
+    # The hover box: the month on its own and the running total, each actual and projected.
+    in_month, projected_month, to_date, projected_to_date = [], [], [], []
+    run_actual = run_projected = Decimal("0")
+    for i, m in enumerate(months):
+        run_actual += m["actual"]
+        run_projected += m["actual"] + m["extra"]
+        happened = i <= current_index
+        in_month.append(_tip_value(m["actual"], money) if happened else "Not yet")
+        projected_month.append(_tip_value(m["actual"] + m["extra"], money))
+        to_date.append(_tip_value(run_actual, money) if happened else "Not yet")
+        projected_to_date.append(_tip_value(run_projected, money))
+    hover = {"d": list(month_names), "s": [
+        {"l": "Actual, the month", "c": ACTUAL_COLOUR, "v": in_month},
+        {"l": "Projected, the month", "c": PROJECTED_COLOUR, "v": projected_month},
+        {"l": "Actual, running total", "c": ACTUAL_COLOUR, "v": to_date},
+        {"l": "Projected, running total", "c": PROJECTED_COLOUR, "v": projected_to_date},
+    ]}
+    return _svg("".join(body), label, hover, plot)
 
 
 def year_columns_svg(years, title, money=True, unit="full"):
@@ -138,4 +182,9 @@ def year_columns_svg(years, title, money=True, unit="full"):
             body.append(f'<text class="pc-value" x="{plot.x(i):.1f}" y="{y_actual - 8:.1f}" text-anchor="middle">'
                         f'{escape(_label(actual, money, unit))}</text>')
     body.append(plot.labels([name for name, _a, _p in years]))
-    return _svg("".join(body), f"{title} by financial year")
+    hover = {"d": [name for name, _a, _p in years], "s": [
+        {"l": "Actual", "c": ACTUAL_COLOUR, "v": [_tip_value(a, money) for _n, a, _p in years]},
+        {"l": "Projected", "c": PROJECTED_COLOUR,
+         "v": [_tip_value(p, money) if p is not None else "Year over" for _n, _a, p in years]},
+    ]}
+    return _svg("".join(body), f"{title} by financial year", hover, plot)

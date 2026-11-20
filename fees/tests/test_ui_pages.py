@@ -1026,12 +1026,15 @@ class StatisticsPageTests(UiPageBase):
 
     def test_edit_grid_in_settings_is_a_form_grid_for_editors_and_read_only_for_readers(self):
         editor = self.assert_page(self.page("fees_settings", query="?fy=2026-27", user=self.editor), "edit")
-        self.assertEqual(editor.count('id="adj-'), 12)
+        self.assertEqual(editor.count('id="adj-'), 1)  # one form for every year
         self.assertIn('action="%s"' % reverse("fees_settings_statistics_grid"), editor)
         self.assertIn('name="return_to" value="settings"', editor)
-        self.assertIn('aria-label="Working days, April"', editor)
-        self.assertIn('aria-label="Replace billed, March"', editor)
+        self.assertIn('aria-label="Working days, April 2026-27"', editor)
+        self.assertIn('aria-label="Replace billed, March 2026-27"', editor)
+        self.assertIn('name="working_days__2026-27__4"', editor)
         self.assertLess(editor.index(">April</th>"), editor.index(">March</th>"))
+        grid = editor[editor.index('id="adj-grid"'):]
+        self.assertEqual(grid[:grid.index("</form>")].count('<button type="submit"'), 1)  # a single Save
         self.assert_no_unlabelled_controls(editor, "edit")
         reader = self.assert_page(self.page("fees_settings", query="?fy=2026-27"), "edit-reader")
         self.assertNotIn("<form id=\"adj-", reader)
@@ -1047,7 +1050,7 @@ class StatisticsPageTests(UiPageBase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response["Location"], reverse("fees_settings") + "?fy=2026-27#settings-years")
         text = self.html(self.client.get(response["Location"]))
-        self.assertIn('name="working_days" value="21"', text)
+        self.assertIn('name="working_days__2026-27__4" value="21"', text)
         self.assertIn('value="5000', text)
         self.assertIn("Adjustments saved.", text)
 
@@ -1059,12 +1062,12 @@ class StatisticsPageTests(UiPageBase):
         base = {"return_to": "settings", "fy": "2026-27", "month": "5"}
         self.client.post(url, {**base, "working_days": "20", "override_appearances": "3"})
         text = self.html(self.client.get(reverse("fees_settings") + "?fy=2026-27"))
-        self.assertIn('name="override_appearances" value="3" ', text)
+        self.assertIn('name="override_appearances__2026-27__5" value="3" ', text)
         response = self.client.post(url, {**base, "working_days": "22", "override_appearances": "3.00"})
         text = self.html(self.client.get(response["Location"]))
         self.assertIn("Adjustments saved.", text)
         self.assertNotIn("whole number", text)
-        self.assertIn('name="working_days" value="22"', text)
+        self.assertIn('name="working_days__2026-27__5" value="22"', text)
 
     def test_edit_form_error_is_a_message_not_json(self):
         self.login(self.editor)
@@ -1074,18 +1077,36 @@ class StatisticsPageTests(UiPageBase):
         self.assertEqual(response.status_code, 302)
         self.assertIn("Working days must be a whole number.", self.html(self.client.get(response["Location"])))
 
-    def test_explore_tab_shows_form_table_and_off_by_default_chart(self):
+    def test_explore_tab_shows_form_and_table_by_default(self):
         text = self.assert_page(self.page("fees_statistics", query="?tab=explore"), "explore")
-        for name in ("measure", "row_dim", "col_dim", "firm_id", "from_fy", "to_fy"):
+        for name in ("measure", "row_dim", "col_dim", "firm_id", "from_fy", "to_fy", "view"):
             self.assertIn('name="%s"' % name, text)
+        self.assertLess(text.index('name="view"'), text.index('<button type="submit">Show</button>'))
+        self.assertIn('<option value="table" selected>Table</option>', text)
+        self.assertIn('<option value="projected">Projected Totals</option>', text)
         self.assertIn('<table class="ledger-table pivot-table', text)
         self.assertIn("<caption>Amount Billed by financial year</caption>", text)
-        self.assertIn('data-chart-tools hidden', text)
-        self.assertIn('data-chart-figure hidden', text)
-        self.assertNotIn("data-chart-on checked", text)
-        self.assertIn('id="pivot-data"', text)
-        self.assertIn("js/pivot-chart.js", text)
+        self.assertNotIn("data-chart-figure", text)
+        self.assertNotIn("js/pivot-chart.js", text)
         self.assert_no_unlabelled_controls(text, "explore")
+
+    def test_explore_shows_the_chosen_chart(self):
+        for view in ("bar", "stacked", "line"):
+            text = self.assert_page(self.page("fees_statistics", query="?tab=explore&view=" + view), view)
+            self.assertIn('data-chart-type="%s"' % view, text)
+            self.assertIn('id="pivot-data"', text)
+            self.assertIn("js/pivot-chart.js", text)
+            self.assertIn("<summary>Figures in this chart</summary>", text)
+            self.assertIn('<option value="%s" selected>' % view, text)
+
+    def test_explore_projected_totals(self):
+        text = self.assert_page(self.page("fees_statistics", query="?tab=explore&view=projected&measure=memos"), "projected")
+        self.assertIn("Choose one of those as the Measure.", text)
+        text = self.html(self.page("fees_statistics", query="?tab=explore&view=projected&measure=billed&row_dim=firm"))
+        self.assertIn("Projected Totals need Rows by Month or by Financial Year.", text)
+        text = self.html(self.page("fees_statistics", query="?tab=explore&view=projected&measure=billed&row_dim=financialYear"))
+        self.assertIn('aria-label="Projected Totals"', text)
+        self.assertNotIn('<table class="ledger-table pivot-table', text)
 
     def test_explore_pivot_follows_the_query(self):
         text = self.html(self.page("fees_statistics", query="?tab=explore&measure=memos&row_dim=firm&col_dim=none"))
