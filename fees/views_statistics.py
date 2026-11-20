@@ -133,6 +133,13 @@ def stat_options(query):
     return options
 
 
+#: The Standard table's rows: the export rows, then the working days (entered for the period, and completed up to today).
+STANDARD_ROWS = xlsx.STAT_METRIC_ROWS + (
+    ("working_days_entered", "Working Days", False),
+    ("days_completed", "Working Days Completed", False),
+)
+
+
 def _table(stats):
     """The rows of the period table: one per metric, one value per period."""
     rows = []
@@ -146,24 +153,17 @@ def _table(stats):
 #: Metrics that add up across periods (the Total column); ratios do not.
 _SUMMED_METRICS = frozenset(
     ("num_appearances", "num_conferences", "num_drafts", "amount_billed", "amount_recovered",
-     "amount_received", "amount_received_plus_tds")
+     "amount_received", "amount_received_plus_tds", "working_days_entered", "days_completed")
 )
 
 
 def _display_table(stats):
-    """The period table for the page: like ``_table`` but each cell says whether it was typed in by hand,
-    plus a Total per summable metric. The JSON endpoint keeps using ``_table``."""
+    """The period table for the page: like ``_table`` but with the working-days rows and a Total per summable metric.
+    A figure entered by hand looks like any other (owner round 2026-11). The JSON endpoint keeps using ``_table``."""
     periods = stats["periods"]
     rows = []
-    for key, label, is_money in xlsx.STAT_METRIC_ROWS:
-        cells = [
-            {
-                "value": period.get(key),
-                "overridden": key in (period.get("overridden") or ()),
-                "current": bool(period.get("is_current_month")),
-            }
-            for period in periods
-        ]
+    for key, label, is_money in STANDARD_ROWS:
+        cells = [{"value": period.get(key), "current": bool(period.get("is_current_month"))} for period in periods]
         total = None
         if key in _SUMMED_METRICS and periods:
             total = sum((period.get(key) or 0 for period in periods), 0)
@@ -173,7 +173,7 @@ def _display_table(stats):
 
 def metric_choices(visible):
     """Every metric of the Standard table as ``{"key", "label", "on"}`` for the Metrics box; all on when the user has not chosen."""
-    return [{"key": key, "label": label, "on": visible is None or key in visible} for key, label, _money in xlsx.STAT_METRIC_ROWS]
+    return [{"key": key, "label": label, "on": visible is None or key in visible} for key, label, _money in STANDARD_ROWS]
 
 
 def _shown(key, value):
@@ -184,9 +184,12 @@ def _shown(key, value):
     return value
 
 
-def adjustment_rows(profile, fy):
-    """Twelve month rows in financial-year order, each with the saved adjustment values (blank when none)."""
-    saved = {row["month"]: row for row in statistics.list_adjustments(profile, fy)}
+def adjustment_rows(profile, fy, saved=None):
+    """Twelve month rows in financial-year order, each with the saved adjustment values (blank when none).
+
+    ``saved`` may be the year's adjustments already read (``{month: row}``), to save the query."""
+    if saved is None:
+        saved = {row["month"]: row for row in statistics.list_adjustments(profile, fy)}
     rows = []
     for month in FY_MONTHS:
         row = saved.get(month) or {}
@@ -207,46 +210,93 @@ def adjustment_rows(profile, fy):
     return rows
 
 
-def projection_context(profile, granularity, fy, stats, options, query, unit):
-    """Projected Totals on the Standard tab: a chart of the chosen total for the current financial year.
+def build_projection(profile, mode, measure, options, unit, stats=None, from_fy=None, to_fy=None):
+    """The Projected Totals chart of ``measure`` (a key of ``PROJECTED_MEASURES``) for the current financial year.
 
-    Show By Month (the current year): the running total, solid so far and dashed to 31 March. Show By Financial Year: one
-    column a year, the current one stacked (so far + projected rest of the year). Otherwise, or before any working day is
-    completed, a short note instead of a chart.
+    ``mode`` "month": the running total, April to March, solid so far and dashed to 31 March. ``mode`` "year": one column a
+    financial year (``from_fy`` to ``to_fy`` when given), the current one stacked. ``stats`` may be the period statistics
+    already worked out for the same mode, to save the queries. Returns ``{chart, plan, money, label, note}``: ``chart`` is
+    None (and ``note`` says why) before any working day of the year is completed.
     """
     current = current_financial_year()
-    measure = _choice(query, "chart", [(k, label) for k, label, _money in PROJECTED_MEASURES], "amount_billed")
     label, money = next((lab, m) for k, lab, m in PROJECTED_MEASURES if k == measure)
+    result = {"chart": None, "plan": None, "money": money, "label": label, "note": "", "fy": current, "mode": mode}
+    reusable = stats is not None and stats.get("financial_year") == current and not options.get("exclude_current_month")
+    options = {k: v for k, v in options.items() if k != "exclude_current_month"}
+    if mode == "month" and reusable:
+        months = stats
+    else:
+        months = statistics.get_period_statistics(profile, "month", current, options)
+    periods = months["periods"]
+    plan = project_months([p[measure] for p in periods], [(p["working_days"], p["days_completed"]) for p in periods], money)
+    if plan is None:
+        result["note"] = (f"No working days are entered for {current} up to today, so nothing can be projected. "
+                          "Enter them in Settings, Start Years & Statistics.")
+        return result
+    if mode == "month":
+        now = next((i for i, p in enumerate(periods) if p.get("is_current_month")), 11)
+        chart = running_total_svg([p["label"] for p in periods], plan, now, label, money, unit)
+    else:
+        if stats is None or stats.get("granularity") != "financialYear":
+            stats = statistics.get_period_statistics(profile, "financialYear", None, options)
+        rows = [p for p in reversed(stats["periods"])
+                if (not from_fy or p["key"] >= from_fy) and (not to_fy or p["key"] <= to_fy)]
+        years = [(p["label"], p[measure], plan["projected"] if p["key"] == current else None) for p in rows]
+        if all(p["key"] != current for p in rows) and (not to_fy or current <= to_fy) and (not from_fy or current >= from_fy):
+            years.append((current, plan["so_far"], plan["projected"]))
+        chart = year_columns_svg(years, label, money, unit)
+    result.update(chart=chart, plan=plan)
+    return result
+
+
+def projection_context(profile, granularity, fy, stats, options, query, unit):
+    """Projected Totals on the Standard tab: Show By Month (the current year) draws the running total, Show By Financial Year
+    the stacked year columns; anything else gets a short note instead of a chart."""
+    current = current_financial_year()
+    measure = _choice(query, "chart", [(k, label) for k, label, _money in PROJECTED_MEASURES], "amount_billed")
     context = {
         "projection_fy": current,
         "projection_measures": [(k, lab) for k, lab, _m in PROJECTED_MEASURES],
         "projection_measure": measure,
-        "projection_chart": None,
-        "projection_note": "",
     }
     if granularity == "quarter" or (granularity == "month" and fy != current):
-        context["projection_note"] = f"Show By Month for {current}, or By Financial Year, to see the projected totals."
+        context["projection"] = {"chart": None, "note": f"Show By Month for {current}, or By Financial Year, to see the projected totals."}
         return context
-    reuse = granularity == "month" and not options.get("exclude_current_month")
-    months = stats if reuse else statistics.get_period_statistics(
-        profile, "month", current, {k: v for k, v in options.items() if k != "exclude_current_month"}
-    )
-    periods = months["periods"]
-    plan = project_months([p[measure] for p in periods], [(p["working_days"], p["days_completed"]) for p in periods], money)
-    if plan is None:
-        context["projection_note"] = (f"No working days are entered for {current} up to today, so nothing can be projected. "
-                                      "Enter them in Settings, Start Years & Statistics.")
-        return context
-    if granularity == "month":
-        now = next((i for i, p in enumerate(periods) if p.get("is_current_month")), 11)
-        svg = running_total_svg([p["label"] for p in periods], plan, now, label, money, unit)
-    else:
-        years = [(p["label"], p[measure], plan["projected"] if p["key"] == current else None) for p in reversed(stats["periods"])]
-        if all(p["key"] != current for p in stats["periods"]):
-            years.append((current, plan["so_far"], plan["projected"]))
-        svg = year_columns_svg(years, label, money, unit)
-    context.update(projection_chart=svg, projection_plan=plan, projection_money=money, projection_label=label)
+    context["projection"] = build_projection(profile, "month" if granularity == "month" else "year", measure, options, unit, stats)
     return context
+
+
+#: Explore's "Show As" choices: the table, a chart of it, or the Projected Totals of the chosen measure.
+EXPLORE_VIEWS = (
+    ("table", "Table"),
+    ("bar", "Bars (Grouped)"),
+    ("stacked", "Bars (Stacked)"),
+    ("line", "Line"),
+    ("projected", "Projected Totals"),
+)
+#: Explore measure -> the period key Projected Totals uses (the measures that can be projected).
+EXPLORE_PROJECTED = {
+    "billed": "amount_billed",
+    "received": "amount_received",
+    "receivedPlusTds": "amount_received_plus_tds",
+    "appearances": "num_appearances",
+    "conferences": "num_conferences",
+    "drafts": "num_drafts",
+}
+
+
+def explore_projection(profile, chosen, unit):
+    """Projected Totals for Explore's choices, or a note saying which choices it needs."""
+    if chosen["measure"] not in EXPLORE_PROJECTED:
+        return {"chart": None, "note": "Projected Totals are for Amount Billed, Amount Received, Received + TDS, Appearances, "
+                                        "Conferences and Drafts. Choose one of those as the Measure."}
+    if chosen["row_dim"] not in ("month", "financialYear"):
+        return {"chart": None, "note": "Projected Totals need Rows by Month or by Financial Year."}
+    if chosen["firm_id"]:
+        return {"chart": None, "note": "Projected Totals are for the whole Fee Register: choose All Firms."}
+    mode = "month" if chosen["row_dim"] == "month" else "year"
+    return build_projection(profile, mode, EXPLORE_PROJECTED[chosen["measure"]], {}, unit,
+                            from_fy=chosen["from_fy"] or None, to_fy=chosen["to_fy"] or None)
 
 
 def _choice(query, key, choices, default):
@@ -254,7 +304,7 @@ def _choice(query, key, choices, default):
     return value if value in dict(choices) else default
 
 
-def _explore_context(profile, query):
+def _explore_context(profile, query, unit="full"):
     """The Explore tab: the chosen pivot settings, the pivot as table rows, and the saved views with their links."""
     chosen = {
         "measure": _choice(query, "measure", MEASURES, "billed"),
@@ -266,6 +316,7 @@ def _explore_context(profile, query):
         else current_financial_year(),
         "to_fy": financial_year_param(query, "to_fy", default=False) or "",
         "firm_id": int_or_none(query.get("firm_id")),
+        "view": _choice(query, "view", EXPLORE_VIEWS, "table"),
     }
     req = {key: chosen[key] for key in ("measure", "row_dim", "col_dim")}
     for key in ("from_fy", "to_fy", "firm_id"):
@@ -295,6 +346,8 @@ def _explore_context(profile, query):
         "adjusted": pivot.get("adjusted", False),
         "adjustments_left_out": pivot.get("adjustments_left_out", False),
     }
+    if chosen["view"] == "projected":
+        context["projection"] = explore_projection(profile, chosen, unit)
     context["chart_data"] = {
         "money": pivot["money"],
         "columns": [col["label"] for col in columns],
@@ -348,7 +401,8 @@ def statistics_page(request):
         context.update(projection_context(profile, granularity, fy, stats, stat_options(request.GET), request.GET,
                                           config.money_unit))
     else:
-        context.update(_explore_context(profile, request.GET))
+        context.update(_explore_context(profile, request.GET, config.money_unit))
+        context["explore_views"] = EXPLORE_VIEWS
         context["fy_options"] = fy_options.financial_year_options(
             profile, config.initial_financial_year, (context["chosen"]["from_fy"], context["chosen"]["to_fy"]),
             only_years=context["explore_years"],
@@ -369,7 +423,7 @@ def save_metrics(request):
     profile, _config = scope.context(request)
     query = {"tab": "standard"}
     if request.method == "POST":
-        known = {key for key, _label, _money in xlsx.STAT_METRIC_ROWS}
+        known = {key for key, _label, _money in STANDARD_ROWS}
         prefs.set_metrics(profile, request.user, [k for k in request.POST.getlist("metric") if k in known])
         messages.success(request, "Metrics saved.")
         granularity = request.POST.get("granularity", "")

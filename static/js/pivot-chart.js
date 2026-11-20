@@ -1,11 +1,11 @@
 (function () {
   "use strict";
-  // Explore: an optional chart of the pivot table. Off by default; the table holds the same figures and is the
-  // accessible version. Drawn as inline SVG with the host palette (CSS variables from tokens.css). No libraries.
-  var tools = document.querySelector("[data-chart-tools]");
+  // Explore: the chart chosen in "Show As" (data-chart-type on the figure: bar, stacked or line). The figures sit under it
+  // in "Figures in this chart", the accessible version. Drawn as inline SVG with the host palette (CSS variables from
+  // tokens.css). No libraries.
   var figure = document.querySelector("[data-chart-figure]");
   var dataNode = document.getElementById("pivot-data");
-  if (!tools || !figure || !dataNode) { return; }
+  if (!figure || !dataNode) { return; }
   var data;
   try { data = JSON.parse(dataNode.textContent); } catch (e) { return; }
   if (!data || !data.rows || !data.rows.length || !data.columns || !data.columns.length) { return; }
@@ -13,8 +13,6 @@
   var MAX_ROWS = 40;
   var VARS = ["--chart-1", "--chart-2", "--chart-3", "--chart-4", "--chart-5"];  // oxblood, dark green, ochre, slate blue, rust (ledger.css)
   var canvas = figure.querySelector("[data-chart-canvas]");
-  var toggle = tools.querySelector("[data-chart-on]");
-  var kind = tools.querySelector("[data-chart-type]");
 
   var FALLBACK = ["#7A2E2E", "#2F5D3A", "#B7862B", "#4A6075", "#A8532E"];
   function css(name, fallback) {
@@ -49,7 +47,7 @@
     var series = data.columns.map(function (label, i) {
       return { label: label, color: css(VARS[i % VARS.length], FALLBACK[i % FALLBACK.length]), values: rows.map(function (r) { return num(r.values[i]); }) };
     });
-    var type = kind ? kind.value : "bar";
+    var type = figure.getAttribute("data-chart-type") || "bar";
     var stacked = type === "stacked";
     var H = 320, B = 90, T = 12, R = 12, ph = H - T - B;
     var top = 0, low = 0;
@@ -144,12 +142,5 @@
     }
   }
 
-  function refresh() {
-    figure.hidden = !toggle.checked;
-    if (toggle.checked) { draw(); }
-  }
-  tools.hidden = false;
-  toggle.checked = false;
-  toggle.addEventListener("change", refresh);
-  if (kind) { kind.addEventListener("change", function () { if (toggle.checked) { draw(); } }); }
+  draw();
 })();

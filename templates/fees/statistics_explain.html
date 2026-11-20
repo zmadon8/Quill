@@ -15,7 +15,7 @@
   <dt>Which payments count</dt>
   <dd>Amount Received and Received + TDS follow the date of the payment, not the date of the memo it paid. Amount Recovered follows the memo: it is what has been paid against the memos issued in the period, whenever it was paid.</dd>
   <dt>Entered by hand</dt>
-  <dd>In Settings, Start Years &amp; Statistics, each month can have its working days, extra appearances, conferences and drafts, and figures that replace the worked-out ones. Extras are added to the memo counts. A replacement figure is used instead of the worked-out one and is marked in the table.</dd>
+  <dd>In Settings, Start Years &amp; Statistics, each month can have its working days, extra appearances, conferences and drafts, and figures that replace the worked-out ones. Extras are added to the memo counts. A replacement figure is used instead of the worked-out one; the table shows it like any other figure.</dd>
 </dl>
 
 <h2 id="working-days">Working days completed</h2>
@@ -49,6 +49,8 @@
     <tr><th scope="row">Conferences / Week</th><td>Conferences &divide; working days completed &times; 5</td><td></td></tr>
     <tr><th scope="row">Drafts / Week</th><td>Drafts &divide; working days completed &times; 5</td><td></td></tr>
     <tr><th scope="row">Fees / Week</th><td>Amount Billed &divide; working days completed &times; 5</td><td>The same as Fees / Day &times; 5.</td></tr>
+    <tr><th scope="row">Working Days</th><td>The working days entered for the period</td><td>A quarter or year adds up its months, future months included.</td></tr>
+    <tr><th scope="row">Working Days Completed</th><td>The working days of the period up to today</td><td>See <a href="#working-days">Working days completed</a>.</td></tr>
   </tbody>
 </table>
 </div>
@@ -85,7 +87,7 @@
   <dt>Working days in the year</dt><dd>The working days entered for all twelve months. A month with none entered counts 0, in the year and in the days completed.</dd>
   <dt>Month by month</dt><dd>A month already over: what happened. The current month: what happened so far + the rate a working day &times; its working days still to come. A future month: the rate a working day &times; its working days. These add up to the projected year.</dd>
   <dt>Example</dt><dd>On 19 November, with 230 working days entered for the year and 145 completed (132 from April to October, and 20 &times; 19 &divide; 30 = 13 in November): billed so far &#8377;23.90 L is &#8377;16,483 a working day, so the projected year is &#8377;16,483 &times; 230 = &#8377;37.91 L. November is projected at its &#8377;2.10 L so far + &#8377;16,483 &times; 7 = &#8377;3.25 L; December (16 working days) at &#8377;2.64 L.</dd>
-  <dt>Where it shows</dt><dd>Dashboard: under each &ldquo;This Year&rdquo; box, and hatched on top of the bars in Billed by month. Statistics &gt; Standard: Show By Month draws the running total, solid so far and dashed to 31 March; Show By Financial Year draws the current year as one stacked column, so far and the projected rest of the year.</dd>
+  <dt>Where it shows</dt><dd>Dashboard: under each &ldquo;This Year&rdquo; box, and hatched on top of the bars in Billed by month. Statistics &gt; Standard: Show By Month draws the running total, solid so far and dashed to 31 March; Show By Financial Year draws the current year as one stacked column, so far and the projected rest of the year. Statistics &gt; Explore: Show As Projected Totals, with Rows by Month or by Financial Year. Point at a chart (or tap it, or use the arrow keys) to see the actual and the projected figures of that month or year.</dd>
   <dt>When nothing shows</dt><dd>Until at least one working day of the year is completed.</dd>
 </dl>
 

@@ -7,6 +7,7 @@ import datetime
 from decimal import Decimal
 
 from django.test import SimpleTestCase
+from django.urls import reverse
 
 from fees.services import dashboard, dashboard_panels
 from fees.services.financial_year import current_financial_year
@@ -127,7 +128,7 @@ class StandardChartTests(UiPageBase):
         self._enter()
         text = self.assert_page(self.page("fees_statistics", query=f"?granularity=month&fy={self.fy}"), "month chart")
         self.assert_no_unlabelled_controls(text, "month chart")
-        self.assertIn('class="projection-chart"', text)
+        self.assertIn('class="projection-chart ch hv"', text)
         self.assertIn('class="pc-actual-line"', text)
         self.assertIn('class="pc-projected-line"', text)
         self.assertIn("Projected for " + self.fy, text)
@@ -140,7 +141,7 @@ class StandardChartTests(UiPageBase):
 
     def test_quarters_and_no_working_days_show_a_note(self):
         text = self.html(self.page("fees_statistics", query=f"?granularity=quarter&fy={self.fy}"))
-        self.assertNotIn('class="projection-chart"', text)
+        self.assertNotIn('class="projection-chart', text)
         self.assertIn("to see the projected totals", text)
         PeriodAdjustment.objects.filter(profile=self.profile).delete()
         text = self.html(self.page("fees_statistics", query=f"?granularity=month&fy={self.fy}"))
@@ -149,3 +150,90 @@ class StandardChartTests(UiPageBase):
     def test_the_explain_page_explains_the_projection(self):
         text = self.assert_page(self.page("fees_statistics_explain"), "explain")
         self.assertIn('id="projected"', text)
+
+
+class StandardTableTests(UiPageBase):
+    """Owner round 2026-11: no special look for figures entered by hand; Working Days rows; Explain and Edit Statistics buttons."""
+
+    def test_entered_figures_look_like_the_others(self):
+        save_adjustment(self.profile, {"financial_year": "2026-27", "month": 4, "working_days": 20, "override_billed": Decimal("5000")})
+        text = self.html(self.page("fees_statistics", query="?granularity=month&fy=2026-27"))
+        self.assertNotIn(" hand", text.split('data-table-id="statistics"')[1].split("</table>")[0])
+        self.assertNotIn("Entered by hand in Settings", text)
+
+    def test_working_days_rows_and_metric_choices(self):
+        save_adjustment(self.profile, {"financial_year": "2026-27", "month": 4, "working_days": 20})
+        text = self.html(self.page("fees_statistics", query="?granularity=month&fy=2026-27"))
+        self.assertIn('<th scope="row">Working Days</th>', text)
+        self.assertIn('<th scope="row">Working Days Completed</th>', text)
+        self.assertIn('name="metric" value="working_days_entered"', text)
+        self.assertIn('name="metric" value="days_completed"', text)
+
+    def test_a_year_lists_the_entered_working_days_of_its_months(self):
+        from fees.services.statistics import get_period_statistics
+        for month in (4, 5):
+            save_adjustment(self.profile, {"financial_year": "2026-27", "month": month, "working_days": 20})
+        quarters = get_period_statistics(self.profile, "quarter", "2026-27", {}, datetime.date(2026, 4, 15))
+        q1 = quarters["periods"][0]
+        self.assertEqual(q1["working_days_entered"], 40)
+        self.assertEqual(q1["days_completed"], 10)  # 20 x 15 / 30 in April, nothing yet of May
+
+    def test_explain_and_edit_buttons(self):
+        editor = self.html(self.page("fees_statistics", query="?granularity=month&fy=2026-27", user=self.editor))
+        self.assertIn(">Explain Statistics</a>", editor)
+        self.assertIn(reverse("fees_settings") + "?tab=years&amp;fy=2026-27#settings-years", editor)
+        self.assertIn(">Edit Statistics</a>", editor)
+        reader = self.html(self.page("fees_statistics", query="?granularity=month&fy=2026-27"))
+        self.assertNotIn(">Edit Statistics</a>", reader)
+
+    def test_the_projection_chart_has_hover_figures(self):
+        fy = current_financial_year()
+        for month in FY_MONTH_ORDER:
+            save_adjustment(self.profile, {"financial_year": fy, "month": month, "working_days": 20})
+        bill_today(self.profile)
+        text = self.html(self.page("fees_statistics", query=f"?granularity=month&fy={fy}"))
+        self.assertIn('class="projection-chart ch hv"', text)
+        self.assertIn("data-hover=", text)
+        self.assertIn("Actual, the month", text)
+        self.assertIn("Projected, the month", text)
+        self.assertIn('class="hv-tip"', text)
+        self.assertIn("js/investments/chart-hover.js", text)
+        years = self.html(self.page("fees_statistics", query="?granularity=financialYear"))
+        self.assertIn('class="projection-chart ch hv"', years)
+
+
+class EditStatisticsGridTests(UiPageBase):
+    """One Save for every year and month of Settings > Years and Statistics > Edit Statistics."""
+
+    def post_grid(self, data):
+        self.login(self.editor)
+        return self.client.post(reverse("fees_settings_statistics_grid"),
+                                {"return_to": "settings", "grid": "1", "fy": "2026-27", **data})
+
+    def test_one_save_changes_months_of_several_years(self):
+        response = self.post_grid({"working_days__2026-27__6": "21", "working_days__2025-26__1": "19",
+                                   "override_billed__2025-26__1": "7000", "extra_drafts__2026-27__6": "2"})
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], reverse("fees_settings") + "?tab=years&fy=2026-27#settings-years")
+        june = PeriodAdjustment.objects.get(profile=self.profile, financial_year="2026-27", month=6)
+        jan = PeriodAdjustment.objects.get(profile=self.profile, financial_year="2025-26", month=1)
+        self.assertEqual((june.working_days, june.extra_drafts), (21, 2))
+        self.assertEqual((jan.working_days, jan.ov_billed), (19, Decimal("7000")))
+        self.assertIn("2 months changed", self.html(self.client.get(response["Location"])))
+
+    def test_unchanged_and_empty_months_are_not_saved(self):
+        before = PeriodAdjustment.objects.filter(profile=self.profile).count()
+        april = PeriodAdjustment.objects.get(profile=self.profile, financial_year="2026-27", month=4)
+        response = self.post_grid({"working_days__2026-27__7": "0", "working_days__2026-27__4": str(april.working_days),
+                                   "extra_appearances__2026-27__4": str(april.extra_appearances),
+                                   "extra_conferences__2026-27__4": str(april.extra_conferences),
+                                   "extra_drafts__2026-27__4": str(april.extra_drafts),
+                                   **{f"override_{k}__2026-27__4": "" if getattr(april, "ov_" + k) is None else str(getattr(april, "ov_" + k))
+                                      for k in ("appearances", "conferences", "drafts", "billed", "received", "received_plus_tds")}})
+        self.assertEqual(PeriodAdjustment.objects.filter(profile=self.profile).count(), before)
+        self.assertIn("No changes to save.", self.html(self.client.get(response["Location"])))
+
+    def test_a_mistake_anywhere_saves_nothing(self):
+        response = self.post_grid({"working_days__2026-27__6": "21", "working_days__2026-27__7": "x"})
+        self.assertFalse(PeriodAdjustment.objects.filter(profile=self.profile, financial_year="2026-27", month=6).exists())
+        self.assertIn("July 2026-27: Working days must be a whole number.", self.html(self.client.get(response["Location"])))

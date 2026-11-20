@@ -19,3 +19,6 @@ body.ledger .filename-builder { border: 0; padding: 0; margin: 8px 0 0; }
 @media (max-width: 640px) { body.ledger .settings-card :is(.grid-2, .grid-3) { grid-template-columns: 1fr; } }
 body.ledger .settings-panels, body.ledger .settings-card { min-width: 0; }
 @media (max-width: 599px) { body.ledger .settings-card .filters button { align-self: flex-start; } }
+/* Edit Statistics: one collapsible table a year, one Save for them all (owner round 2026-11). */
+body.ledger .adjust-year { margin: .5rem 0; }
+body.ledger .adjust-year > summary { cursor: pointer; font-weight: 600; padding: .25rem 0; }
