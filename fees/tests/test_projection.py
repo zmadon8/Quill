@@ -128,7 +128,7 @@ class StandardChartTests(UiPageBase):
         self._enter()
         text = self.assert_page(self.page("fees_statistics", query=f"?granularity=month&fy={self.fy}"), "month chart")
         self.assert_no_unlabelled_controls(text, "month chart")
-        self.assertIn('class="projection-chart"', text)
+        self.assertIn('class="projection-chart ch hv"', text)
         self.assertIn('class="pc-actual-line"', text)
         self.assertIn('class="pc-projected-line"', text)
         self.assertIn("Projected for " + self.fy, text)
@@ -141,7 +141,7 @@ class StandardChartTests(UiPageBase):
 
     def test_quarters_and_no_working_days_show_a_note(self):
         text = self.html(self.page("fees_statistics", query=f"?granularity=quarter&fy={self.fy}"))
-        self.assertNotIn('class="projection-chart"', text)
+        self.assertNotIn('class="projection-chart', text)
         self.assertIn("to see the projected totals", text)
         PeriodAdjustment.objects.filter(profile=self.profile).delete()
         text = self.html(self.page("fees_statistics", query=f"?granularity=month&fy={self.fy}"))
