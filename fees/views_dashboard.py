@@ -94,7 +94,7 @@ def dashboard_page(request):
             "kpi_order_value": ",".join(chosen),
             "customise_open": request.GET.get("customise") == "1",
             "recent_matters": memo_lists.list_recent_matters(profile),
-            "panels": dashboard_panels.get_panels(profile),
+            "panels": dashboard_panels.get_panels(profile, chart=request.GET.get("chart", "billed")),
             "money_unit": config.get("money_unit", "full"),
         },
     )

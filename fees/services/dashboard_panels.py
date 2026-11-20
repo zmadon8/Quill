@@ -60,6 +60,37 @@ def project_billed(profile, fy, months, now=None):
     return str(plan["projected"]) if plan else None
 
 
+#: The Dashboard's month chart (owner round 2026-11): (id, label, the period key, is money). Billed reads the memos directly; the rest
+#: come from the Statistics period engine, so they match the Statistics page (Received by payment date, Appearances with the extras).
+PANEL_CHARTS = (
+    ("billed", "Billed", "amount_billed", True),
+    ("received", "Received", "amount_received", True),
+    ("received_tds", "Received + TDS", "amount_received_plus_tds", True),
+    ("appearances", "Appearances", "num_appearances", False),
+)
+PANEL_CHART_IDS = tuple(c[0] for c in PANEL_CHARTS)
+
+
+def by_month(profile, chart, now=None):
+    """``(fy, months, projected)`` for a chart other than Billed: the months as ``billed_by_month`` gives them (``amount`` the figure,
+    a string) with the projected part (``extra``) and the projected year (a string, or None before a working day is completed)."""
+    from fees.services.statistics import get_period_statistics
+
+    today = _today(now)
+    fy = current_financial_year(today)
+    _id, _label, key, money = next(c for c in PANEL_CHARTS if c[0] == chart)
+    periods = get_period_statistics(profile, "month", fy, {"exclude_future_months": True, "pro_rate_current_month": True}, today)["periods"]
+    values = [Decimal(str(p[key] or 0)) for p in periods]
+    plan = project_months(values, [(p["working_days"], p["days_completed"]) for p in periods], money)
+    months = []
+    for i, p in enumerate(periods):
+        extra = plan["months"][i]["extra"] if plan else Decimal("0")
+        months.append({"label": p["label"], "month": p["month"], "amount": str(values[i]),
+                       "extra": str(round2(extra) if money else extra.quantize(Decimal("0.1"))),
+                       "is_current": bool(p.get("is_current_month")), "is_future": bool(p.get("is_future"))})
+    return fy, months, (str(plan["projected"]) if plan else None)
+
+
 def _owers(profile):
     rows = outstanding.list_outstanding_by_firm(profile, {}, "amount")
     total = sum((r["outstanding"] for r in rows), Decimal("0"))
@@ -68,19 +99,30 @@ def _owers(profile):
     return top, total, len(rows)
 
 
-def get_panels(profile, now=None):
-    """The cached Dashboard panels: {fy, months, max, owers, outstanding_total, firm_count}. Money values are strings."""
+def get_panels(profile, now=None, chart="billed"):
+    """The cached Dashboard panels: {fy, months, max, owers, outstanding_total, firm_count, chart, chart_label, money}. Money values are
+    strings. ``chart`` picks the month chart (``PANEL_CHARTS``; Billed when unknown)."""
     today = _today(now)
+    chart = chart if chart in PANEL_CHART_IDS else "billed"
+    _id, chart_label, _key, money = next(c for c in PANEL_CHARTS if c[0] == chart)
 
     def compute():
-        fy, months = billed_by_month(profile, today)
-        projected = project_billed(profile, fy, months, today)
+        if chart == "billed":
+            fy, months = billed_by_month(profile, today)
+            projected = project_billed(profile, fy, months, today)
+        else:
+            fy, months, projected = by_month(profile, chart, today)
         top, total, firms = _owers(profile)
         biggest = max((Decimal(m["amount"]) + Decimal(m["extra"]) for m in months), default=Decimal("0"))
         return {"fy": fy, "months": months, "max": str(biggest), "projected": projected, "owers": top,
                 "outstanding_total": str(total), "firm_count": firms}
 
-    payload = stats_cache.get_or_compute(profile, "dashboard", {"view": "panels", "today": local_iso(today)}, compute, today_sensitive=True)
+    params = {"view": "panels", "today": local_iso(today)}
+    if chart != "billed":
+        params["chart"] = chart
+    payload = stats_cache.get_or_compute(profile, "dashboard", params, compute, today_sensitive=True)
+    payload.update(chart=chart, chart_label=chart_label, money=money,
+                   charts=[(c[0], c[1]) for c in PANEL_CHARTS])
     biggest = Decimal(payload["max"]) or Decimal("1")
     for m in payload["months"]:
         amount = Decimal(m["amount"])
