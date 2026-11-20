@@ -115,15 +115,16 @@ class AddNoteTests(NoteViewCase):
         second = Note.objects.get(text_plain="second")
         self.assertEqual((self.get(self.note).position, second.position), (1, 2))
 
-    def test_an_empty_note_is_refused(self):
+    def test_a_link_to_without_text_is_allowed(self):
         resp = self.add(f"topic:{self.topic.pk}", self.topic, text="")
-        self.assertEqual(resp.status_code, 400)
-        self.assertEqual(Note.objects.count(), 1)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(Note.objects.count(), 2)
+        self.assertEqual(Note.objects.order_by("-pk").first().text, "")
 
     def test_the_add_form_offers_note_everywhere(self):
         for ref in (f"subject:{self.subject.pk}", f"topic:{self.topic.pk}", f"item:{self.one.pk}", f"section:{self.sec.pk}"):
             body = self.client.get(reverse("edit_inline_add"), {"ref": ref, "next": self.next}).json()
-            self.assertIn(("inside:note", "Note"), [(c["value"], c["label"]) for c in body["choices"]], ref)
+            self.assertIn(("inside:note", "Link To"), [(c["value"], c["label"]) for c in body["choices"]], ref)
 
     def test_without_javascript_a_note_is_added_then_the_editor_opens(self):
         resp = self.client.post(reverse("edit_add"), {"what": "note", "parent_type": "item", "parent_id": self.one.pk,
@@ -135,7 +136,7 @@ class AddNoteTests(NoteViewCase):
 
     def test_the_add_page_offers_note(self):
         resp = self.client.get(reverse("edit_add"), {"parent": f"section:{self.sec.pk}", "next": self.next})
-        self.assertContains(resp, '<option value="inside:note">Note</option>', html=False)
+        self.assertContains(resp, '<option value="inside:note">Link To</option>', html=False)
 
 
 class EditorTests(NoteViewCase):

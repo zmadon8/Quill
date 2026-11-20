@@ -212,3 +212,14 @@ body.ledger .filters > .push:empty { display: none; }
 /* Pay Ticked Memos pressed with nothing ticked: the line beside the buttons says so. */
 body.ledger .bulk-bar [data-pay-summary].pay-error { color: var(--danger, #b00020); font-weight: 600; }
 
+
+/* Projected Totals (owner round 2026-11): the projected part of a month sits hatched on top of what was billed. */
+body.ledger .bar-extra { display: block; width: 100%; box-sizing: border-box; border: 1px dashed var(--accent); border-bottom: 0; border-radius: 6px 6px 0 0;
+  background: repeating-linear-gradient(45deg, color-mix(in srgb, var(--accent) 35%, transparent) 0 2px, transparent 2px 6px); }
+body.ledger .bar-extra + .bar-fill { border-top-left-radius: 0; border-top-right-radius: 0; margin-top: -6px; }
+body.ledger .bar-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; margin-top: 10px; font-size: 12px; color: var(--muted); }
+body.ledger .bar-legend i { display: inline-block; width: 12px; height: 10px; margin-right: 5px; vertical-align: -1px; border-radius: 2px; }
+body.ledger .bar-legend .key-actual { background: var(--accent-soft); }
+body.ledger .bar-legend .key-projected { border: 1px dashed var(--accent); background: repeating-linear-gradient(45deg, color-mix(in srgb, var(--accent) 35%, transparent) 0 2px, transparent 2px 6px); }
+body.ledger .bar-projected { margin-left: auto; color: var(--ink); }
+body.ledger .kpi .kpi-projected { margin: 2px 0 0; font-size: 12.5px; color: var(--accent); }

@@ -38,7 +38,7 @@ ALLOWED_PARENTS = {
 
 NICE = {
     "subject": "Subject", "topic": "Topic", "subtopic": "Sub-topic", "section": "Section",
-    "item": "Item", "case": "Case", "note": "Note", "notelink": "Note link",
+    "item": "Item", "case": "Case", "note": "Link To", "notelink": "Link To link",
 }
 
 PARENT_COLUMNS = ("subject", "topic", "subtopic", "item", "section", "note")

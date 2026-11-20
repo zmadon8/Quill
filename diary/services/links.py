@@ -28,7 +28,7 @@ def link_target(link):
 
 def _destination(ctx, target):
     if target is None or target[0] not in TARGET_KINDS:
-        raise Refused("A Note can link to a Subject, Topic, Sub-topic, Section or Item.")
+        raise Refused("A Link To can point to a Subject, Topic, Sub-topic, Section or Item.")
     return get_record(ctx, target[0], target[1])
 
 

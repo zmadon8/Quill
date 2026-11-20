@@ -83,6 +83,8 @@ from fees.services.financial_year import derive_financial_year
 from fees.services.money import round2
 from fees.services.settings import get_settings
 from fees.services.statistics import get_period_statistics
+from fees.services.statistics.periods import last_month_window_start, working_days_completed
+from fees.services.statistics.projection import project_total
 
 __all__ = [
     "EMPTY_KPIS",
@@ -95,6 +97,8 @@ __all__ = [
     "KPI_DISPLAY_GROUPS",
     "KPI_LABELS",
     "order_kpis",
+    "PROJECTED_KPIS",
+    "projected_kpis",
 ]
 
 _ZERO = Decimal("0")
@@ -187,10 +191,12 @@ KPI_GROUPS = {
     "appearances_per_week_this_year": "derived",
 }
 
-#: The rates: id -> (the figure it is worked out from, the span in days it covers, "day" or "week").
-#: Fees / Day is the billed amount divided by the days of the span; Appearances / Week is the appearances divided by the weeks of the
-#: span. "Last 30 days" is 30 days; "this month" is the calendar month so far (the days up to and including today, so the figure
-#: is an average per day so far, not diluted by days to come); "this year" is the financial year so far, counted the same way.
+#: The rates: id -> (the figure it is worked out from, the span it covers, "day" or "week").
+#: Fees / Day is the billed amount divided by the WORKING days completed in the span. Appearances / Week is the appearances divided
+#: by those working days, times 5 (a working week has 5 working days, not 7). The working days are the ones entered per month in
+#: Edit Statistics (``periods.working_days_completed``): "this month" and "this year" are the month and the financial year so far
+#: (the current month pro-rated by the days gone), "last30" is the 30 days ending today. The billed amount and the appearances are
+#: those of the memos issued in the same span.
 DERIVED_KPIS = {
     "fees_per_day_last30": ("billed_last30", "last30", "day"),
     "fees_per_day_this_month": ("billed_this_month", "month", "day"),
@@ -542,7 +548,7 @@ def get_dashboard_summary(profile, now=None, settings=None, with_appearances=Tru
 def _compute_activity(profile, today):
     """The ``activity`` group: counts and last-30-day billing from one pass over the memos."""
     today_iso = local_iso(today)
-    start30 = local_iso(today - datetime.timedelta(days=29))
+    start30 = local_iso(last_month_window_start(today))
     fy = derive_financial_year(today_iso)
     ym = today_iso[:7]
 
@@ -635,7 +641,7 @@ def _compute_kpis(profile, today, settings, selected=None):
     if "activity" in groups:
         values.update(_compute_activity(profile, today))
     if "received30" in groups:
-        start30 = local_iso(today - datetime.timedelta(days=29))
+        start30 = local_iso(last_month_window_start(today))
         values["received_last30"] = _gross_received_between(profile, start30, local_iso(today))
     if "appearances" in groups:
         appearances = stats_appearances(
@@ -643,31 +649,53 @@ def _compute_kpis(profile, today, settings, selected=None):
         )
         values["appearances_this_month"] = appearances["month"]
         values["appearances_this_year"] = appearances["year"]
-    for kpi in selected:
-        if kpi in DERIVED_KPIS:
-            values[kpi] = _rate(values, today, *DERIVED_KPIS[kpi])
+    if any(kpi in DERIVED_KPIS for kpi in selected):
+        working_days = working_days_completed(profile, today)
+        for kpi in selected:
+            if kpi in DERIVED_KPIS:
+                values[kpi] = _rate(values, working_days, *DERIVED_KPIS[kpi])
     return _to_json_safe(values, selected)
 
 
-def _days_in_span(span, today):
-    """The days a span covers up to and including ``today``: 30, the day of the month, or the days of the financial year so far."""
-    if span == "last30":
-        return 30
-    if span == "month":
-        return today.day
-    fy_start = datetime.date(int(derive_financial_year(local_iso(today))[:4]), 4, 1)
-    return (today - fy_start).days + 1
-
-
-def _rate(values, today, base, span, per):
-    """Fees a day (money) or appearances a week (one decimal) over ``span``; 0 when the span has no days."""
-    days = _days_in_span(span, today)
+def _rate(values, working_days, base, span, per):
+    """Fees a working day (money) or appearances a working week of 5 days (one decimal); 0 when no working days are completed."""
+    days = working_days[span]
     amount = Decimal(str(values[base]))
     if days <= 0:
         return _ZERO
     if per == "day":
         return round2(amount / Decimal(days))
-    return (amount * 7 / Decimal(days)).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)
+    return (amount * 5 / Decimal(days)).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)
+
+
+#: The "This Year" totals that get a projected figure for the whole financial year under them (Projected Totals).
+PROJECTED_KPIS = (
+    "billed_this_year",
+    "received_this_year",
+    "memos_this_year",
+    "appearances_this_year",
+    "conferences_this_year",
+    "drafts_this_year",
+)
+
+
+def projected_kpis(profile, kpis, now=None):
+    """``{kpi id: projected value for the whole financial year}`` for the "This Year" totals present in ``kpis``.
+
+    Projected = the box's figure so far / working days completed this year x working days entered for the whole year (a month
+    with none entered counts 0). Money as a two-decimal ``Decimal``, counts as whole numbers. Empty when no "This Year" total is
+    shown or no working day is completed yet. One query (the working days) when there is something to project.
+    """
+    wanted = [kpi for kpi in PROJECTED_KPIS if kpi in kpis]
+    if not wanted:
+        return {}
+    days = working_days_completed(profile, _as_date(now))
+    out = {}
+    for kpi in wanted:
+        value = project_total(kpis[kpi], days["year"], days["year_total"], money=kpi in _MONEY_KPIS)
+        if value is not None:
+            out[kpi] = value
+    return out
 
 
 def _to_json_safe(values, ids=KPI_IDS):

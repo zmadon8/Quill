@@ -39,6 +39,24 @@
   <tbody>{% for row in table %}<tr><th scope="row">{{ row.label }}</th>{% for c in row.cells %}<td class="money{% if c.current %} current-col{% endif %}{% if c.overridden %} hand{% endif %}"{% if c.overridden %} title="Entered by hand in Settings, Start Years &amp; Statistics"{% endif %}>{% if row.money %}{{ c.value|fees_money:money_unit }}{% else %}{{ c.value|default_if_none:"" }}{% endif %}</td>{% endfor %}{% if stats.periods|length > 1 %}<td class="money total-col">{% if row.total is not None %}{% if row.money %}{{ row.total|fees_money:money_unit }}{% else %}{{ row.total }}{% endif %}{% endif %}</td>{% endif %}</tr>{% endfor %}</tbody>
 </table>
 </div>
+<section class="projection" aria-labelledby="projection-heading">
+<div class="section-head"><h2 id="projection-heading">Projected Totals, {{ projection_fy }}</h2>
+<form method="get" class="filters projection-pick" aria-label="Choose the total to chart">
+  <input type="hidden" name="tab" value="standard"><input type="hidden" name="granularity" value="{{ granularity }}"><input type="hidden" name="fy" value="{{ fy }}">
+  <label>Chart <select name="chart">{% for k, label in projection_measures %}<option value="{{ k }}"{% if k == projection_measure %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+  <button type="submit">Show</button>
+</form></div>
+{% if projection_chart %}
+<figure class="projection-figure">
+  {{ projection_chart }}
+  <figcaption>
+    <p class="pc-legend">{% if granularity == "month" %}<span><i class="key-line" aria-hidden="true"></i>Actual</span><span><i class="key-dash" aria-hidden="true"></i>Projected</span><span><i class="key-pace" aria-hidden="true"></i>Pace from 1 April</span>{% else %}<span><i class="key-bar" aria-hidden="true"></i>Actual</span><span><i class="key-hatch" aria-hidden="true"></i>Projected rest of the year</span>{% endif %}</p>
+    <p>{{ projection_label }} so far: <strong>{% if projection_money %}{{ projection_plan.so_far|fees_money:money_unit }}{% else %}{{ projection_plan.so_far }}{% endif %}</strong> in {{ projection_plan.done }} of {{ projection_plan.total }} working days. Projected for {{ projection_fy }}: <strong>{% if projection_money %}{{ projection_plan.projected|fees_money:money_unit }}{% else %}{{ projection_plan.projected }}{% endif %}</strong> (so far &divide; {{ projection_plan.done }} &times; {{ projection_plan.total }}). <a href="{% url 'fees_statistics_explain' %}#projected">How this is worked out</a></p>
+  </figcaption>
+</figure>
+{% else %}<p class="muted">{{ projection_note }}</p>{% endif %}
+</section>
+<p class="page-actions explain-link"><a class="button secondary" href="{% url 'fees_statistics_explain' %}">Explain Statistics</a></p>
 
 {% else %}
 <form method="get" class="filters" aria-label="Choose the pivot">

@@ -411,7 +411,7 @@ class Note(RichTextMixin, Record):
         ]
 
     def __str__(self):
-        return self.text_plain[:60] or f"Note {self.pk}"
+        return self.text_plain[:60] or f"Link To {self.pk}"
 
 
 class NoteLink(Record):

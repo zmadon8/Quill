@@ -13,7 +13,7 @@ PAGES = (
     ("Flags", "Items and Sections that are flagged (for review, overruled, doubted)", "flags", "all"),
     ("Hyperlinks", "Citations with a web link, and those without", "flag_links", "all"),
     ("History", "Your edits, and restoring an earlier version", "diary_history", "all"),
-    ("Trash", "Deleted Subjects, Topics, Items and Notes", "trash", "editor"),
+    ("Trash", "Deleted Subjects, Topics, Items and Links To", "trash", "editor"),
     ("Export", "The diary as a Word file or an Offline copy", "export", "all"),
     ("Settings", "How the diary is shown and exported", "profile_settings", "all"),
     ("Import", "Load a diary from a Word file", "import_word", "admin"),

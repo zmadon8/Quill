@@ -340,7 +340,7 @@ class MySettingsForm(forms.ModelForm):
         if "justify_text" in self.fields:
             self.fields["justify_text"].required = False
             self.fields["justify_text"].help_text = (
-                "Lines up the right-hand edge of the text of Items, Sections and Notes on screen. Off: the text is left-aligned. "
+                "Lines up the right-hand edge of the text of Items, Sections and Links To on screen. Off: the text is left-aligned. "
                 "The Word export is not affected."
             )
         if "group_digits" in self.fields:

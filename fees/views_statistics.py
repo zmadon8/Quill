@@ -16,6 +16,8 @@ from fees.pages import TEXT_TYPE, XLSX_TYPE, file_response, flag, int_or_none, j
 from fees.services import filter_options, firms, fy_options, prefs, statistics
 from fees.services.financial_year import current_financial_year
 from fees.services.heavy import heavy_operation
+from fees.services.statistics.projection import PROJECTED_MEASURES, project_months
+from fees.projection_charts import running_total_svg, year_columns_svg
 
 _FY_RE = re.compile(r"^\d{4}-\d{2}$")
 _GRANULARITIES = ("month", "quarter", "financialYear")
@@ -205,6 +207,48 @@ def adjustment_rows(profile, fy):
     return rows
 
 
+def projection_context(profile, granularity, fy, stats, options, query, unit):
+    """Projected Totals on the Standard tab: a chart of the chosen total for the current financial year.
+
+    Show By Month (the current year): the running total, solid so far and dashed to 31 March. Show By Financial Year: one
+    column a year, the current one stacked (so far + projected rest of the year). Otherwise, or before any working day is
+    completed, a short note instead of a chart.
+    """
+    current = current_financial_year()
+    measure = _choice(query, "chart", [(k, label) for k, label, _money in PROJECTED_MEASURES], "amount_billed")
+    label, money = next((lab, m) for k, lab, m in PROJECTED_MEASURES if k == measure)
+    context = {
+        "projection_fy": current,
+        "projection_measures": [(k, lab) for k, lab, _m in PROJECTED_MEASURES],
+        "projection_measure": measure,
+        "projection_chart": None,
+        "projection_note": "",
+    }
+    if granularity == "quarter" or (granularity == "month" and fy != current):
+        context["projection_note"] = f"Show By Month for {current}, or By Financial Year, to see the projected totals."
+        return context
+    reuse = granularity == "month" and not options.get("exclude_current_month")
+    months = stats if reuse else statistics.get_period_statistics(
+        profile, "month", current, {k: v for k, v in options.items() if k != "exclude_current_month"}
+    )
+    periods = months["periods"]
+    plan = project_months([p[measure] for p in periods], [(p["working_days"], p["days_completed"]) for p in periods], money)
+    if plan is None:
+        context["projection_note"] = (f"No working days are entered for {current} up to today, so nothing can be projected. "
+                                      "Enter them in Settings, Start Years & Statistics.")
+        return context
+    if granularity == "month":
+        now = next((i for i, p in enumerate(periods) if p.get("is_current_month")), 11)
+        svg = running_total_svg([p["label"] for p in periods], plan, now, label, money, unit)
+    else:
+        years = [(p["label"], p[measure], plan["projected"] if p["key"] == current else None) for p in reversed(stats["periods"])]
+        if all(p["key"] != current for p in stats["periods"]):
+            years.append((current, plan["so_far"], plan["projected"]))
+        svg = year_columns_svg(years, label, money, unit)
+    context.update(projection_chart=svg, projection_plan=plan, projection_money=money, projection_label=label)
+    return context
+
+
 def _choice(query, key, choices, default):
     value = (query.get(key) or default).strip()
     return value if value in dict(choices) else default
@@ -301,6 +345,8 @@ def statistics_page(request):
             "table": table if visible is None else [row for row in table if row["key"] in visible] or table,
             "metric_choices": metric_choices(visible),
         })
+        context.update(projection_context(profile, granularity, fy, stats, stat_options(request.GET), request.GET,
+                                          config.money_unit))
     else:
         context.update(_explore_context(profile, request.GET))
         context["fy_options"] = fy_options.financial_year_options(
@@ -435,6 +481,17 @@ def year_end(request):
     fy = financial_year_param(request.GET)
     summary = statistics.get_year_end_summary(profile, fy, stat_options(request.GET))
     return render_page(request, "fees/year_end.html", {"fy": fy, "summary": summary})
+
+
+@fees_reader
+@handle_fees_errors()
+@require_safe
+def explain(request):
+    """Explain Statistics: the formula and meaning of every metric (a fixed page, no figures, no queries beyond the page's own)."""
+    _profile, config = scope.context(request)
+    if config is not None and not config.statistics_enabled:
+        return render_page(request, "fees/statistics.html", {"stats_off": True})
+    return render_page(request, "fees/statistics_explain.html", {"tab": "standard"})
 
 
 @fees_reader

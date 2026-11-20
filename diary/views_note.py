@@ -17,6 +17,7 @@ from django.urls import reverse
 from . import reading
 from . import services as svc
 from .models import Note, NoteLink, Subject, Subtopic, Topic
+from .richtext import plain_text
 from .services.core import Ctx, ancestors, get_record, label, record_type
 from .services.links import TARGET_KINDS
 from .services.moves import NICE
@@ -32,7 +33,7 @@ PURPOSES = ("link", "retarget", "move")
 def _load_note(request, pk):
     note = Note._base_manager.filter(pk=pk, profile=request.profile, deleted_at__isnull=True).first()
     if note is None:
-        raise Http404("That Note does not exist.")
+        raise Http404("That Link To does not exist.")
     return note
 
 
@@ -52,8 +53,10 @@ def _save_text_first(request, note):
     """Save the typed text if the form carried it (so no button on the page loses it). Returns True if it was saved."""
     if "text" not in request.POST:
         return False
-    result = svc.edit(request.profile, request.user, "note", note.pk, {"text": request.POST.get("text", "")},
-                      _version(request))
+    text = request.POST.get("text", "")
+    if not plain_text(text).strip():
+        text = ""  # the text is optional: an empty box saves as no text (not an empty paragraph)
+    result = svc.edit(request.profile, request.user, "note", note.pk, {"text": text}, _version(request))
     return result.changed
 
 
@@ -94,7 +97,7 @@ def _note_key(note):
     for column in ("item", "section", "subtopic", "topic", "subject"):
         if getattr(note, f"{column}_id"):
             return column, getattr(note, f"{column}_id")
-    raise Http404("That Note has no place.")
+    raise Http404("That Link To has no place.")
 
 
 @editor_page
@@ -105,11 +108,10 @@ def note_editor(request, pk):
     if request.method == "GET":
         return _render(request, note, back)
     if request.POST.get("merge"):
-        messages.info(request, "Someone else changed this Note. Your text is below; compare it with the saved version, then Save.")
+        messages.info(request, "Someone else changed this Link To. Your text is below; compare it with the saved version, then Save.")
         return _render(request, note, back, text=request.POST.get("text", ""), theirs=True)
-    result = svc.edit(request.profile, request.user, "note", note.pk, {"text": request.POST.get("text", "")},
-                      _version(request))
-    messages.success(request, "Saved." if result.changed else "No change.")
+    changed = _save_text_first(request, note) if "text" in request.POST else False
+    messages.success(request, "Saved." if changed else "No change.")
     return redirect(back)
 
 
@@ -142,7 +144,7 @@ def note_link(request):
     link_id = int(op_id) if op_id.isdigit() else (int(post["link"]) if post.get("link", "").isdigit() else None)
     if op == "add":
         if note is None:
-            raise Http404("Unknown Note.")
+            raise Http404("Unknown Link To.")
         result = svc.add_link(request.profile, request.user, note.pk, _target(request))
         messages.success(request, "Link added." if result.changed else "That link is already there.")
         return redirect(editor)
@@ -222,7 +224,7 @@ def note_pick(request):
     else:
         value = source.get("note", "")
         if not value.isdigit():
-            raise Http404("Unknown Note.")
+            raise Http404("Unknown Link To.")
         note_id = int(value)
     if purpose != "retarget":
         note = _load_note(request, note_id)

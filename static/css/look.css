@@ -94,7 +94,7 @@ body.look .item-body { font-family: var(--font-sans); }
 body.look .item .num { font-family: var(--font-sans); }
 body.look .item:hover { background: var(--paper-2); }
 body.look .citation { color: var(--ink-3); }
-body.look .note { background: var(--card); border-top: 0; border-left: 2px solid var(--line-strong); padding: .5rem .875rem; color: var(--ink-3); }
+body.look .note { background: var(--card); border-top: 0; border-left: 2px solid var(--line-strong); padding: .1rem .875rem; color: var(--ink-3); line-height: 1.5; }
 body.look .flag-text { font-weight: 600; letter-spacing: .05em; }
 body.look .review-marker { border-radius: var(--radius); }
 body.look mark, body.look .search-snippet mark { background: #ECDCA0; color: inherit; box-shadow: none; }

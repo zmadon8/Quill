@@ -33,6 +33,7 @@ urlpatterns = [
     path("statistics/views/", views_statistics.saved_views, name="fees_statistics_views"),
     path("statistics/views/<int:view_id>/delete/", views_statistics.saved_view_delete, name="fees_statistics_view_delete"),
     path("statistics/year-end/", views_statistics.year_end, name="fees_statistics_year_end"),
+    path("statistics/explain/", views_statistics.explain, name="fees_statistics_explain"),
     path("statistics/metrics/", views_statistics.save_metrics, name="fees_statistics_metrics"),
     path("statistics/export/", views_statistics.export_statistics, name="fees_statistics_export"),
     path("statistics/annual-export/", views_statistics.export_annual, name="fees_statistics_annual_export"),
