@@ -23,11 +23,10 @@ class GoldenTableTests(SimpleTestCase):
         for case in _cases():
             with self.subTest(case=case):
                 if case.get("kind") == "units":
-                    got = format_units(case["v"], mode=case["mode"], decimals=case.get("dec"))
+                    got = format_units(case["v"], mode=case["mode"])
                 else:
                     got = format_amount(
-                        case["v"], currency=case.get("cur", "INR"), mode=case["mode"], signed=case.get("signed", False),
-                        decimals=case.get("dec")
+                        case["v"], currency=case.get("cur", "INR"), mode=case["mode"], signed=case.get("signed", False)
                     )
                 self.assertEqual(got, case["out"])
 

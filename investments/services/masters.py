@@ -149,7 +149,7 @@ SETTINGS_FIELDS = {
     "sectoral_enabled", "include_dividends", "alt_treatment", "money_default", "default_exchange",
     "show_status_dots", "rule_a_fall_enabled", "rule_a_rise_enabled", "rule_a_window_enabled", "rule_a_fall_pct", "rule_a_rise_pct", "rule_a_window_days", "rule_a_window_fall_pct", "rule_b_loss_enabled", "rule_b_gain_enabled", "guardrails_enabled", "maturity_enabled", "source_problems_enabled",
     "rule_b_loss_pct", "rule_b_gain_pct", "guardrail_replaces_global", "alert_email", "maturity_alert_days", "year_cutoffs", "insights_off", "concentration_limit", "compact_tables",
-    "column_picker", "index_line_floor_zero", "overview", "units_decimals", "rupee_decimals", "corporate_auto",
+    "column_picker", "index_line_floor_zero", "overview", "corporate_auto",
 }
 
 

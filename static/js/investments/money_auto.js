@@ -53,16 +53,15 @@
   function pad2(n) { return (n < 10n ? "0" : "") + n.toString(); }
 
   // Short rupee figures exactly as the Fee Register shows them (fees.services.money.format_money).
-  function fixedFull(ex, places, grouper) {
-    var unit = 10n ** BigInt(places);
-    var n = roundDiv(ex.num, ex.den, unit, 1n);
-    var whole = n / unit, frac = n % unit, f = frac.toString();
-    while (f.length < places) { f = "0" + f; }
-    return { text: grouper(whole.toString()) + (places ? "." + f : ""), zero: n === 0n };
+  // Up to 2 decimals, trailing zeros dropped (2.1342 is 2.13, 2.10 is 2.1, 2.00 is 2): the Fee Register's rule (owner round 2026-11).
+  function trimmed(ex, grouper) {
+    var n = roundDiv(ex.num, ex.den, 100n, 1n);
+    var f = pad2(n % 100n).replace(/0+$/, "");
+    return { text: grouper((n / 100n).toString()) + (f ? "." + f : ""), zero: n === 0n };
   }
 
   function shortRupees(ex, neg, signed, sym) {
-    var places = 2; // short figures always show up to 2 decimals; the decimals setting is for full figures
+    var places = 2; // short figures show up to 2 decimals
     var body, zero = false;
     if (ex.num < 10n * ex.den) {
       var whole = roundDiv(ex.num, ex.den, 1n, 1n);
@@ -99,10 +98,7 @@
     var sign = "";
     if (paise !== 0n) { sign = p.neg ? MINUS : (opts.signed ? "+" : ""); }
     if (rupees && mode !== "full") { return shortRupees(ex, p.neg, !!opts.signed, sym); }
-    if (mode === "full" && opts.decimals !== undefined && opts.decimals !== null) {
-      var fx = fixedFull(ex, Math.max(0, Math.min(opts.decimals, 2)), grouper);
-      return (fx.zero ? "" : (p.neg ? MINUS : (opts.signed ? "+" : ""))) + sym + fx.text;
-    }
+    if (mode === "full" && rupees) { return sign + sym + trimmed(ex, grouper).text; }
     if (mode === "full" || paise < 100000n) { return sign + sym + plain(paise, grouper); }
     var units = rupees ? INR_UNITS : FOREIGN_UNITS;
     var idx = 0, i;
@@ -128,9 +124,8 @@
       f = pad2(s % 100n).replace(/0+$/, "");
       return neg + groupIndian((s / 100n).toString()) + (f ? "." + f : "") + [" k", " lac", " cr"][x];
     }
-    if (opts.decimals !== undefined && opts.decimals !== null) { return neg + fixedFull(ex, opts.decimals, groupIndian).text; }
-    f = p.frac.replace(/0+$/, "");
-    return neg + groupIndian(p.whole.toString()) + (f ? "." + f : "");
+    var t = trimmed(ex, groupIndian);
+    return (t.zero ? "" : neg) + t.text;
   }
 
   var api = { formatUnits: formatUnits, formatAmount: formatAmount, groupIndian: groupIndian };

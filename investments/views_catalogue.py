@@ -64,8 +64,9 @@ def catalogue_new(request):
 
 def price_history_context(request, inst, prefix="", profile=None):
     """The price-history block of the catalogue item page and of an investment's own page (``templates/investments/_price_history.html``).
-    ``prefix`` keeps its query parameters apart from the page's own. ``profile`` is given on the investment's own page only: the catalogue
-    never shows a date from any profile's records (plan 21.1), so the first purchase and the trim tool are on the investment's page."""
+    ``prefix`` keeps its query parameters apart from the page's own. ``profile`` is the viewer's own profile: its first purchase is shown
+    (never another profile's dates, plan 21.1) and the trim tool is offered. The price history is on the Catalogue page only (owner round
+    2026-11), so the catalogue passes it."""
     start, end = parse_date(request.GET.get(prefix + "from")), parse_date(request.GET.get(prefix + "to"))
     try:
         number = int(request.GET.get(prefix + "page", 1))
@@ -87,7 +88,7 @@ def price_history_context(request, inst, prefix="", profile=None):
 
 @inv_reader
 def catalogue_item(request, pk):
-    profile_or_404(request)
+    profile = profile_or_404(request)
     inst = _shared_or_404(pk)
     is_admin = bool(getattr(request.user, "is_admin", False))
     start, end = parse_date(request.GET.get("from")), parse_date(request.GET.get("to"))
@@ -107,7 +108,9 @@ def catalogue_item(request, pk):
         "moves": fetch.one_day_moves(inst), "stale_days": fetch.stale_days(inst),
         "deleted_prices": CatalogueHistory.objects.filter(instrument_id_ref=inst.pk, record_type="price_deleted")[:10],
         "today": datetime.date.today(), "is_admin": is_admin,
-        "index_choices": Instrument.objects.filter(profile=None, kind="index").order_by("name"), **price_history_context(request, inst)}, selectors=False)
+        "index_choices": Instrument.objects.filter(profile=None, kind="index").order_by("name"),
+        "registry": __import__("investments.services.investment_page", fromlist=["registry_record"]).registry_record(inst),
+        **price_history_context(request, inst, profile=profile)}, selectors=False)
 
 
 @inv_admin

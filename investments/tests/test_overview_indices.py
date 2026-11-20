@@ -78,7 +78,7 @@ class OverviewTests(InvTestCase):
         self.buy(d(2023, 1, 2), 10, 100)
         self.client.force_login(self.user)
         page = self.client.get(reverse("investments_dashboard") + "?customise=1")
-        self.assertContains(page, "Customise the Overview")
+        self.assertContains(page, "Customise Home")
         self.assertContains(page, "Returns by period")
         self.client.post(reverse("investments_overview_save"), {"box": ["count", "value"], "metric": ["realised"], "period": ["3y"]})
         self.assertEqual(InvestmentSettings.objects.get(profile=self.profile).overview, {"boxes": ["count", "value"], "metrics": ["realised"], "periods": ["3y"]})
@@ -164,23 +164,17 @@ class BuiltInAndDecimalsTests(InvTestCase):
         self.assertTrue(indices.is_builtin(Instrument.objects.get(code="^NSEI")))
         self.assertIn(("Sensex", "^BSESN"), indices.SUGGESTED)
 
-    def test_decimals_chosen_in_settings_change_only_the_display(self):
+    def test_units_and_full_rupees_show_up_to_two_decimals(self):
+        # Owner round 2026-11: no decimals settings; as the Fee Register, up to 2 decimals with trailing zeros dropped.
         self.buy(d(2024, 1, 2), "4820.5126", "100.5")
         self.client.force_login(self.user)
-        r = self.client.post(reverse("investments_settings_display"), {"my_money": "auto", "money_default": "auto", "default_exchange": "NS",
-                                                                        "units_decimals": "2", "rupee_decimals": "2"})
-        self.assertEqual(r.status_code, 302)
-        row = InvestmentSettings.objects.get(profile=self.profile)
-        self.assertEqual((row.units_decimals, row.rupee_decimals), (2, 2))
+        display = self.client.get(reverse("investments_settings_display")).content.decode()
+        self.assertNotIn("units_decimals", display)
+        self.assertNotIn("rupee_decimals", display)
         html = self.client.get(reverse("investments_transactions")).content.decode()
         self.assertIn("4,820.51", html)
         self.assertNotIn("4,820.5126", html)
-        self.assertIn('data-full="₹4,84,461.52"', html)                # 4820.5126 x 100.5 = 484461.5163, two decimals
-        self.client.post(reverse("investments_settings_display"), {"my_money": "auto", "money_default": "auto", "default_exchange": "NS",
-                                                                    "units_decimals": "", "rupee_decimals": ""})
-        html = self.client.get(reverse("investments_transactions")).content.decode()
-        self.assertIn("4,820.5126", html)
-
+        self.assertIn('data-full="₹4,84,461.52"', html)                # 4820.5126 x 100.5 = 484461.5163, to 2 decimals
 
 class ClearHistoryTests(InvTestCase):
     def setUp(self):

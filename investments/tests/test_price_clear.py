@@ -75,6 +75,6 @@ class ClearPriceHistoryTests(InvTestCase):
 
     def test_the_investment_page_offers_the_button(self):
         self.buy(d(2024, 1, 1), 10, 100)
-        page = self.client.get(reverse("investments_investment", args=[self.reliance.pk])).content.decode()
+        page = self.client.get(reverse("investments_admin_catalogue_item", args=[self.reliance.pk])).content.decode()
         self.assertIn('name="action" value="clear_prices"', page)
         self.assertIn("Clear price history", page)

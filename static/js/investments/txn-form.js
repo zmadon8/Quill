@@ -7,7 +7,7 @@
   var form = document.getElementById("txn-form") || document.querySelector("form.form");
   if (!form) { return; }
   var lumps = (form.getAttribute("data-lump") || "").split(",");
-  function fmt(u) { return parseFloat(u).toLocaleString("en-IN", { maximumFractionDigits: 4 }); }
+  function fmt(u) { return parseFloat(u).toLocaleString("en-IN", { maximumFractionDigits: 2 }); }
   function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
   function setup(card, prefix) {
   function field(name) { return card.querySelector("[name='" + prefix + name + "']"); }

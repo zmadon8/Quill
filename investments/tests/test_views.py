@@ -44,7 +44,7 @@ class PageTests(InvTestCase):
         r = self.post("investments_txn_new_buy", base)
         self.assertRedirects(r, reverse("investments_transactions"))
         t = Transaction.objects.get()
-        self.assertEqual(tx.core.buy_total(t), D("1005"))
+        self.assertEqual(tx.core.buy_total(t), D("1000"))        # the Buy form has no Charges box (owner round 2026-11)
         prices.set_manual_price(self.profile, self.user, self.reliance, d(2024, 6, 1), "150")
         r = self.client.get(reverse("investments_dashboard"))
         self.assertContains(r, "Reliance Industries")
@@ -71,7 +71,7 @@ class PageTests(InvTestCase):
         self.buy(d(2024, 1, 1), 10, 100)
         r = self.client.get(reverse("investments_available_units"), {"instrument": self.reliance.pk, "date": "2024-03-01"})
         data = r.json()
-        self.assertEqual(data["buckets"][0]["units"], "10.0000")
+        self.assertEqual(data["buckets"][0]["units"], "10")
         self.assertEqual(data["buckets"][0]["broker_name"], "Zerodha")
 
     def test_tentative_flow_through_pages(self):
@@ -202,14 +202,20 @@ class PageTests(InvTestCase):
         self.assertNotContains(r, "Done")
 
     def test_delete_investment_pages(self):
-        fresh = masters.create_instrument(self.profile, self.user, kind="share", name="Wipro", code="WIPRO.NS")
+        # Owner round 2026-11: Holdings no longer deletes a shared investment (that is the Catalogue's); a private one is deleted from its Edit page.
+        shared = masters.create_instrument(self.profile, self.user, kind="share", name="Wipro", code="WIPRO.NS")
+        self.assertEqual(self.client.get(reverse("investments_inv_delete", args=[shared.pk])).status_code, 404)
+        self.assertNotContains(self.client.get(reverse("investments_investment", args=[self.reliance.pk])), "Delete this investment")
+        fresh = masters.create_instrument(self.profile, self.user, kind="alternative", name="Gold coins", asset_class="gold")
+        self.assertContains(self.client.get(reverse("investments_investment_edit", args=[fresh.pk])), reverse("investments_inv_delete", args=[fresh.pk]))
         r = self.post("investments_inv_delete", {}, [fresh.pk])
         self.assertRedirects(r, reverse("investments_holdings"))
-        self.buy(d(2024, 1, 1), 1, 1)
-        r = self.client.get(reverse("investments_inv_delete", args=[self.reliance.pk]))
+        gold = masters.create_instrument(self.profile, self.user, kind="alternative", name="Gold bars", asset_class="gold")
+        self.buy(d(2024, 1, 1), 1, 1, instrument=gold)
+        r = self.client.get(reverse("investments_inv_delete", args=[gold.pk]))
         self.assertContains(r, "permanently remove")
-        r = self.post("investments_inv_delete", {"confirm_name": "nope"}, [self.reliance.pk])
-        self.assertTrue(Instrument.objects.filter(pk=self.reliance.pk).exists())
+        r = self.post("investments_inv_delete", {"confirm_name": "nope"}, [gold.pk])
+        self.assertTrue(Instrument.objects.filter(pk=gold.pk).exists())
 
     def test_sorting_attribute_and_all_tables_have_headers(self):
         self.buy(d(2024, 1, 1), 1, 1)

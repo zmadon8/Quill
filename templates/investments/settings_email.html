@@ -38,7 +38,7 @@
 <div class="tbl"><table data-table-id="email-blocks"><thead><tr><th>Block</th><th>Kept when</th></tr></thead><tbody>
 {% for name, when in blocks %}<tr><td><code>&#123;&#123;#{{ name }}&#125;&#125; ... &#123;&#123;/{{ name }}&#125;&#125;</code></td><td>{{ when }}</td></tr>{% endfor %}
 </tbody></table></div>
-<p class="hint">Amounts are in full figures with Indian grouping (Rs. 48,12,550.40). Percentages have two decimals. A blank line left behind by a block that was dropped is removed.</p>
+<p class="hint">Amounts are in full figures with Indian grouping (Rs. 48,12,550.4: up to 2 decimals, trailing zeros dropped). Percentages have two decimals. A blank line left behind by a block that was dropped is removed.</p>
 </details>
 {% if row.last_attempt_at %}<div class="sec"><h2>Last send</h2></div>
 <p>{{ row.last_attempt_at|date:"j M Y H:i" }}: {% if row.last_ok %}OK{% else %}<span class="error">PROBLEM</span>{% endif %}. {{ row.last_message }}</p>{% endif %}
