@@ -343,6 +343,10 @@ class MySettingsForm(forms.ModelForm):
                 "Lines up the right-hand edge of the text of Items, Sections and Links To on screen. Off: the text is left-aligned. "
                 "The Word export is not affected."
             )
+        if "search_as_word" in self.fields:
+            self.fields["search_as_word"].required = False
+            self.fields["search_as_word"].label = "Search button as a word"
+            self.fields["search_as_word"].help_text = "Shows the word Search on a button in the header instead of the magnifier, in every program."
         if "group_digits" in self.fields:
             self.fields["group_digits"].required = False
             self.fields["group_digits"].help_text = (
@@ -412,7 +416,7 @@ class MyDisplayForm(MySettingsForm):
     landing_program = None  # only Start Screens has this field
 
     class Meta(MySettingsForm.Meta):
-        fields = ("justify_text", "group_digits", "colour_theme")
+        fields = ("justify_text", "group_digits", "search_as_word", "colour_theme")
 
     # Home card figures: one tick-box group per program (declared in __init__ from home_cards.metric_catalogue), at most 3 each.
     METRIC_FIELDS = (("home_metrics_diary", suite.KEY_DIARY, "Case Law Diary"), ("home_metrics_fees", suite.KEY_FEES, "Fee Register"),

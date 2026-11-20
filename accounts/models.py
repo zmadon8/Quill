@@ -38,6 +38,8 @@ class User(AbstractUser):
     # Owner round (2026-12): add Indian-grouped commas to number boxes while typing (static/js/number-commas.js). On unless switched off
     # (My settings, Display). The server accepts commas in every number box either way.
     group_digits = models.BooleanField("Add commas while typing numbers", default=True)
+    # Owner round (2026-11): the header's Search shown as the word "Search" on a button instead of the magnifier (My settings, Display).
+    search_as_word = models.BooleanField("Search as a word", default=False)
     # Owner round (2026-11): the accent colour of every page, per user (My settings, Display; an Admin can set it too). Only the
     # accent changes (buttons, the current tab, links); status colours, the Word memo and the exports never do. tokens.css has one
     # html[data-theme] block per choice; the default, oxblood, needs none.

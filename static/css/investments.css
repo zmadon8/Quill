@@ -3,8 +3,6 @@
    dropped because the suite's shared shell (base_suite.html, design.css) supplies them. Uses the suite's tokens
    (static/css/tokens.css) plus the two new tokens --gain and --loss (owner to confirm, plan 25.3). */
 body.inv{--ox:var(--oxblood);--gain:#15803D;--loss:#B42318;--s1:#1e1c19;--s2:#5a5348;--s3:#8d8577;--s4:#b9b2a3;--s5:#d9d3c5;--data:1rem}
-/* The sub-tabs look like the Fee Register's (ledger.css .stat-tabs) and share a row with the page's buttons (.tab-bar). */
-/* Page buttons beside the sub-tabs are the Fee Register's small buttons, the main one first. */
 body.inv .more-menu{position:relative}
 body.inv .more-menu > summary{list-style:none}
 body.inv .more-menu > summary::-webkit-details-marker{display:none}
@@ -189,14 +187,12 @@ body.inv .sw span.on{background:var(--ink);color:var(--bg)}
 body.inv .panel h3 .sw{margin-left:14px}
 body.inv .fld .sw{align-self:flex-start;margin-left:0}
 
-/* ---------- shell alignment with the suite header (added by hand, not generated) ---------- */
 /* Page titles follow the Fee Register (ledger.css): a page a header entry or sub-tab opens keeps its <h1> for screen readers
    only; other pages show a plain <h1> in .page-head, with a muted line beside it where there is one. */
 body.inv .page-head .page-meta{margin:0;color:var(--muted);font-size:.857rem}
 body.inv .program-nav a .dot{display:inline-block;width:9px;height:9px;background:var(--danger);border-radius:50%;margin-left:5px;vertical-align:2px}
 body.inv .tools .status{padding-top:0}
 
-/* ---------- real controls (forms, inputs, small helpers; added by hand) ---------- */
 body.inv input[type=text],body.inv input[type=search],body.inv input[type=date],body.inv input[type=number],body.inv input:not([type]),
 body.inv select,body.inv textarea{min-height:var(--tap);padding:0 12px;border:1px solid var(--hair);background:#fff;border-radius:2px;font:15.5px var(--font-sans);color:var(--ink);max-width:100%}
 body.inv textarea{padding:10px 12px;min-height:90px}
@@ -218,7 +214,6 @@ body.inv .pager{margin:14px 0;display:flex;gap:16px;align-items:center}
 body.inv .visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 body.inv .bars .b span.r{text-align:right}
 
-/* ---------- table fit and tools labels (added by hand) ---------- */
 body.inv table.led td{white-space:nowrap}
 body.inv table.led td.nm{white-space:normal;min-width:11rem}
 body.inv .cols>*{min-width:0}
@@ -257,7 +252,6 @@ body.inv table.led tr.sub td{font-size:.929rem}
 body.inv table.led td.act a{font-size:.857rem}
 body.inv.compact table.led td{padding:4px 10px}
 body.inv.compact table.led td.nm{font-size:inherit}
-/* Filters and form labels: small capitals above the control, as in the Fee Register */
 body.inv .sel{gap:4px}
 body.inv .sel>span,body.inv .sel>label>span,body.inv .fld>label{font-size:13px;font-weight:500;text-transform:none;letter-spacing:0;color:var(--muted)}
 body.inv .tools{padding:12px;gap:8px 12px;background:var(--card);border:1px solid var(--line);border-radius:var(--radius)}
@@ -271,19 +265,16 @@ body.inv .fld.bad input,body.inv .fld.bad select,body.inv .fld .in.err{border-co
 body.inv .fld .note.err{color:#B91C1C}
 body.inv .form{padding-top:0}
 body.inv .acts-row{gap:8px;margin-top:16px}
-/* Buttons: btn p / q / sm / dng are ledger.css primary / secondary / small / danger (grouped there). */
 body.inv .btn:disabled,body.inv button:disabled{opacity:.45;cursor:not-allowed}
 body.inv button.linklike{background:none;border:0;padding:0;color:var(--accent-hover);text-decoration:none;cursor:pointer;font:inherit}
 body.inv button.linklike:hover{text-decoration:underline}
 body.inv .toggle{border-color:var(--line-strong);border-radius:var(--radius);font-size:.857rem}
 body.inv .toggle span{min-height:calc(var(--tap) - 2px)}
 body.inv .toggle span.on{background:var(--accent-tint);color:var(--accent-hover)}
-/* Notices: ledger.css .notice, .notice.warning and .alert-error */
 body.inv .ban{padding:12px 16px;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);font-size:1rem}
 body.inv .ban.wa{background:#FFFBEB;border-color:#FCD34D;color:#92400E}
 body.inv .ban.al{background:#FEF2F2;border-color:#FCA5A5;color:#B91C1C}
 body.inv .ban .r{font-size:.857rem;}
-/* Figures: the Fee Register Dashboard's boxes (ledger.css .kpi-grid) */
 body.inv .strip{border-top:3px double var(--ink);border-bottom:1px solid var(--ink)}
 body.inv .strip .f{padding:12px 16px;border-left:1px solid var(--line)}
 body.inv .strip .f:first-child{padding-left:16px}
@@ -291,7 +282,6 @@ body.inv .lab{font-size:13px;font-weight:600;}
 body.inv .fig{font-size:1.75rem;font-weight:400}
 body.inv .fig small{font-size:.857rem}
 body.inv .kvs .v{font-size:1.286rem}
-/* Cards, lists and text */
 body.inv .panel{padding:16px;background:var(--card);border:1px solid var(--line);border-radius:var(--radius)}
 body.inv .panel h3,body.inv aside.ins h3,body.inv .choices h3{font-family:var(--font-serif);font-size:1.07rem;font-weight:500}
 body.inv .choices,body.inv ol.steps{border-top:1px solid var(--line)}
@@ -302,12 +292,10 @@ body.inv .tag.amb{border-color:#FCD34D;background:#FFFBEB;color:#92400E}
 body.inv .tag.ox{border-color:var(--accent);color:var(--accent-hover)}
 body.inv .kv dt{font-size:.857rem}
 body.inv .kv{font-size:1rem}
-/* Column picker (Settings > Display; the Fee Register's Columns menu) */
 body.inv table.led .col-hidden{display:none}
 body.inv .table-tools{display:flex;justify-content:flex-end;margin:0 0 6px}
 body.inv table.led td.wrap{white-space:normal;min-width:10rem}
 body.inv table.led select.kind{min-width:9rem}
-/* Owner round 2026-11: figures on one line, 90-day trend lines, price range buttons */
 body.inv .strip{grid-template-columns:repeat(auto-fit,minmax(10.5rem,1fr));grid-auto-flow:row}
 body.inv .fig,body.inv .fig .m{white-space:nowrap}
 body.inv .fig small{white-space:normal}
@@ -322,26 +310,21 @@ body.inv nav.seg a.on{background:var(--white);color:var(--ink);font-weight:600;b
 .more-fields > summary { cursor: pointer; padding: .3rem 0; }
 .more-notes{display:block;margin:0 0 8px;font-size:.8rem;line-height:1.4;color:var(--muted)}
 .more-notes .note{display:inline;margin:0 .75em 0 0;padding:0;border:0;background:none;font-size:inherit;color:inherit}
-/* Buy and sell cards: portfolio, broker, units and price share one row on desktop. */
 .txn-card .fld select[name$=portfolio]{width:15ch;min-width:0}
 .txn-card .fld select[name$=broker]{width:20ch;min-width:0}
 body.inv .txn-card .fld.fld-num{flex:1 1 11ch;width:auto}body.inv .txn-card .fld-num input{width:100%;min-width:0;box-sizing:border-box}
-/* Each transaction on the buy and sell pages is a rounded card, so one transaction is clearly apart from the next. */
 .txn-card { border: 1px solid var(--line, var(--hair)); border-radius: 18px; background: var(--card, transparent); padding: 14px 20px 16px; margin: 0 0 16px; }
 .txn-card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
 .txn-card-title { font-size: .95rem; }
 .txn-card .avail-line { margin: 10px 0 0; padding-top: 8px; border-top: 1px solid var(--line, var(--hair)); }
 
-/* Update Prices in the header: a small refresh button; its progress text sits beside it and is empty until used. */
 body.inv .upd{display:inline-flex;align-items:center;gap:6px}
 body.inv .upd-btn{min-width:34px;min-height:34px;border:0;background:none;color:inherit;font-size:1.1rem;line-height:1;cursor:pointer}
 body.inv .upd-btn:disabled{opacity:.5;cursor:not-allowed}
 body.inv .upd-status{max-width:14rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.8rem;color:var(--muted)}
 body.inv .upd-status:empty{display:none}
-/* Type and Status filters on one line */
 body.inv form.filters{display:flex;flex-wrap:wrap;align-items:flex-end;gap:16px}
 
-/* Chart hover (chart-hover.js): a guide line and a tooltip over the SVG line charts; without JS the chart is unchanged */
 body.inv figure.chart{position:relative}
 body.inv svg.ch.hv{touch-action:pan-y;cursor:crosshair}
 body.inv svg.ch.hv:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
@@ -353,7 +336,6 @@ body.inv .hv-tip b{display:block;margin-bottom:2px}
 body.inv .hv-tip span{display:flex;justify-content:space-between;gap:14px}
 body.inv .hv-tip i{display:inline-block;width:14px;border-top:2px solid var(--ink);vertical-align:middle;margin-right:6px}
 
-/* Buy, Awaiting purchase, Opening balance: Date (narrow), then the Investment box with Held beside it. */
 body.inv .fld.fld-date{flex:0 0 9.5rem;width:9.5rem}
 body.inv .fld.fld-date input{min-width:0;width:100%;box-sizing:border-box}
 body.inv .fld.fld-invest{flex:1 1 0;min-width:0;width:auto}
@@ -362,19 +344,14 @@ body.inv .fld.fld-invest input[type=text]{min-width:0}
 body.inv .fld .combo-held-box{width:auto;min-width:0;margin:0}
 body.inv .row-break{flex:0 0 100%;height:0;margin:0}
 @media (max-width:560px){body.inv .fld.fld-date{flex:1 1 100%;width:100%}body.inv .fld.fld-invest{flex:1 1 100%}body.inv .fld.fld-invest .combo-row{flex-wrap:wrap}}
-/* Manual Price History form: Date, Total value, Unit price, Note and the button on one line (phones wrap). */
 @media(min-width:561px){body.inv .altv{display:flex;gap:16px;align-items:flex-start}body.inv .altv .row{flex:1;flex-wrap:nowrap;margin:0}body.inv .altv .fld{flex:none;width:12rem}body.inv .altv .fld:first-child{width:9.75rem}body.inv .altv .fld:nth-child(3):not(:last-child){width:10rem}body.inv .altv .fld:last-child{flex:1;width:auto}body.inv .altv input{min-width:0;width:100%;box-sizing:border-box}body.inv .altv .note:not(.err){display:none}body.inv .altv .btn{margin-top:21px}}
-/* A checkbox in a form field is an inline box beside its text, not a 160px-wide input. */
 body.inv .fld input[type=checkbox]{min-width:0;width:auto;margin:0}
 body.inv .fld>label:has(>input[type=checkbox]){display:flex;align-items:center;gap:6px}
-/* Overview cards: the figure keeps its size as the maximum and shrinks only to fit on one line */
 body.inv .strip .f{container-type:inline-size;min-width:0;overflow:hidden}
 body.inv .strip .fig{font-size:clamp(1.1rem,9cqi,1.75rem);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 body.inv .strip .fig small{display:block;white-space:normal;font-size:.857rem}
-/* Over time: compact, in the chart's column */
 body.inv table.led.ov{min-width:0;width:100%;table-layout:auto;font-size:13px}
 body.inv table.led.ov th,body.inv table.led.ov td{padding:4px 6px;white-space:nowrap;font-size:13px}
 body.inv table.led.ov th:first-child,body.inv table.led.ov td:first-child{white-space:normal;max-width:9rem}
 body.inv table.led.ov .col-resizer{width:6px}
-/* Third row (Corporate Actions: Actions, Dividends) */
 nav.sub.third{display:flex;gap:2px 14px;margin:-4px 0 12px;font-size:.93em}nav.third a{min-height:26px}

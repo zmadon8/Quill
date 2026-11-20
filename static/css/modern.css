@@ -132,3 +132,4 @@ th:last-child>.col-resizer{right:14px!important}
 body.ledger{--tap-sm:28px}@media (max-width:599px),(pointer:coarse){body.ledger{--tap-sm:36px}}
 body.ledger main :is(button,.button,.btn):not(.link,.linklike,.chip,.alloc-remove,.kpi-arrow,.alloc-default-submit){min-height:var(--tap);padding:0 14px;font-size:14px;line-height:1.2}
 body.ledger main :is(button.small,.button.small,.btn.sm,.btn-sm,.page-actions :is(.btn,.button,button),td :is(button,.button,.btn),.table-tools :is(button,.button,.btn)):not(.link,.linklike,.chip,.alloc-remove,.kpi-arrow,.alloc-default-submit),body.ledger .col-menu>summary{min-height:var(--tap-sm);padding:0 10px;font-size:13px;line-height:1.2}
+.search-word{min-height:30px;padding:0 12px;border:1px solid var(--accent);border-radius:var(--radius);color:var(--accent);font-weight:600}

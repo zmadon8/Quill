@@ -233,7 +233,7 @@ class MemoScreenTests(UiPageBase):
             text = self.html(self.page(name))
             bar = text[text.index('class="filters"'):text.index("</form>", text.index('class="filters"'))]
             self.assertNotIn("View Filters", bar, name)
-            self.assertNotIn("Reset Filters", bar, name)
+            self.assertIn('href="%s">Reset Filters</a>' % reverse(name), bar)     # owner round 2026-11
             self.assertNotIn("<dialog", bar, name)
             self.assertEqual('name="unpaid"' in bar, name == "fees_memos", name)   # Outstanding Only, on Memos
             self.assertLess(bar.index('name="fy"'), bar.index('name="firm"'))
@@ -649,8 +649,9 @@ class FeebookAndPaymentTests(UiPageBase):
         text = self.assert_page(self.page("fees_payment_new", user=self.editor), "payment")
         self.assertIn('method="post" action="%s"' % reverse("fees_payment_new"), text)
         for name in ("amount", "date_of_payment", "tds_rate", "auto_tds", "tds_amount", "payee", "bank_account_id",
-                     "alloc_memo_0", "alloc_amount_0", "alloc_tds_0", "alloc_memo_2"):
+                     "alloc_memo_0", "alloc_amount_0", "alloc_tds_0"):
             self.assertIn('name="%s"' % name, text)
+        self.assertNotIn('name="alloc_memo_1"', text)     # one blank memo row when nothing was ticked (owner round 2026-11)
         self.assertIn('<button type="submit" class="primary">Save</button>', text)
         self.assertIn("js/fees/payment-form.js", text)
         # Script-made parts stay hidden until the script shows them.
@@ -673,6 +674,7 @@ class FeebookAndPaymentTests(UiPageBase):
         memo = self.seed["memo_a"]
         memo.refresh_from_db()
         self.assertEqual(self.selected_memo(text, 0), memo.memo_number)
+        self.assertNotIn('name="alloc_memo_1"', text)       # only the ticked memo, no blank row (owner round 2026-11)
         self.assertIn('data-matters="%d"' % i["matter"], text)
         self.assertIn("?memo=%d" % i["memo"], text)
         self.assertIn(reverse("fees_memo_detail", kwargs={"memo_id": i["memo"]}), text)
@@ -685,6 +687,7 @@ class FeebookAndPaymentTests(UiPageBase):
         text = self.assert_page(self.page("fees_payment_new", query=query, user=self.editor), "payment-two")
         self.assertEqual(self.selected_memo(text, 0), a.memo_number)
         self.assertEqual(self.selected_memo(text, 1), b.memo_number)
+        self.assertNotIn('name="alloc_memo_2"', text)
         self.assertIn("?memo=%d&amp;memo=%d" % (a.pk, b.pk), text)
         self.assertIn('data-matters="%d"' % self.ids()["matter"], text)
 
@@ -708,9 +711,8 @@ class FeebookAndPaymentTests(UiPageBase):
 
     def test_each_row_is_a_separate_block_with_its_number(self):
         text = self.html(self.page("fees_payment_new", user=self.editor))
-        self.assertEqual(text.count('<div class="alloc-row" data-alloc-row>'), 3 + 1)
-        for n in (1, 2, 3):
-            self.assertIn('<span data-row-no>%d</span>' % n, text)
+        self.assertEqual(text.count('<div class="alloc-row" data-alloc-row>'), 1 + 1)   # one blank row (owner round 2026-11) and the template
+        self.assertIn('<span data-row-no>1</span>', text)
         self.assertIn("<legend>Allocate To Memos</legend>", text)
         self.assertIn("+ Memo</button>", text)
 

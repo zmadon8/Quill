@@ -19,6 +19,7 @@
       <p class="setting-help">How the site looks. Only yours. {% if user.is_admin %}The names everyone sees are on the Names page of this tab.{% endif %}</p>
       {% include "_setting_row.html" with f=display_form.justify_text help=display_form.justify_text.help_text who="you" checkbox=True %}
       {% include "_setting_row.html" with f=display_form.group_digits help=display_form.group_digits.help_text who="you" checkbox=True %}
+      {% include "_setting_row.html" with f=display_form.search_as_word help=display_form.search_as_word.help_text who="you" checkbox=True %}
       {% include "_setting_row.html" with f=display_form.colour_theme help=display_form.colour_theme.help_text who="you" %}
       <p class="theme-swatches" aria-hidden="true">{% for key, label in display_form.colour_theme.field.choices %}<span class="theme-swatch" data-swatch="{{ key }}">{{ label }}</span>{% endfor %}</p>
     </section>

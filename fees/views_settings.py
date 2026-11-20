@@ -75,6 +75,7 @@ def settings_context(profile, fy=None, tab="memos"):
         # One switch per fee line (owner round 2026-11): (setting key, label, on).
         "line_default_choices": [(key, label, config[key]) for key, label in (
             ("default_line_appearances", "Appearances"), ("default_line_conferences", "Conferences"), ("default_line_misc", "Drafts / Misc"))],
+        "payment_modes_text": "\n".join(config["payment_modes"]),
         "max_party_types": settings_service.MAX_PARTY_TYPES,
         "max_party_type": settings_service.MAX_PARTY_TYPE,
         "start_year_options": fy_options.start_year_options(

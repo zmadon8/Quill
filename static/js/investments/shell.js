@@ -66,7 +66,10 @@
       if (!th.textContent.trim()) { return; }
       th.style.cursor = "pointer";
       th.setAttribute("tabindex", "0");
-      th.setAttribute("aria-sort", "none");
+      // A heading marked data-sorted="ascending" is the order the server sent the rows in (shown, and the first click reverses it).
+      var start = th.getAttribute("data-sorted");
+      th.setAttribute("aria-sort", start || "none");
+      if (start) { th.classList.add("sorted"); if (start === "descending") { th.classList.add("d"); } }
       function go() {
         var dir = th.getAttribute("aria-sort") === "ascending" ? -1 : 1;
         Array.prototype.forEach.call(th.parentNode.cells, function (o) { o.setAttribute("aria-sort", "none"); o.classList.remove("sorted", "d"); /* keeps r / c alignment classes */ });

@@ -112,6 +112,8 @@ def header_style(request):
     theme = (getattr(user, "colour_theme", "") if signed_in else "") or "oxblood"
     return {"header_words": True, "justify_text": justify, "group_digits": group_digits, "colour_theme": theme,
             "remove_citation_hyphen": bool(signed_in and getattr(user, "remove_citation_hyphen", False)),
+            # Owner round (2026-11): the header's Search as the word on a button, not the magnifier.
+            "search_as_word": bool(signed_in and getattr(user, "search_as_word", False)),
             # Owner round (2026-12): the citation style of the reading page and whether citations on separate lines are numbered.
             "citation_style": (getattr(user, "citation_style", "") if signed_in else "") or "bubbles",
             "number_citation_lines": bool(getattr(user, "number_citation_lines", True)) if signed_in else True,

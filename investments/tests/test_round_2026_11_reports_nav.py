@@ -41,14 +41,28 @@ class ProfitLossServiceTests(InvTestCase):
         self.assertEqual(r.totals.profit, D("2550.00"))
         self.assertEqual(r.totals.count, 2)
 
-    def test_the_page_and_its_export(self):
+    def test_the_page_shows_the_years_only_and_each_year_opens_its_sales(self):
         self.client.force_login(self.user)
         page = self.client.get(reverse("investments_profit_loss"))
         self.assertContains(page, '<h1 class="visually-hidden">Profit / Loss</h1>')
-        for text in ("Long-term capital gains", "Short-term capital gains", "Other income", "Profit / Loss %", "2024-25", "2023-24"):
+        for text in ("Long-term capital gains", "Short-term capital gains", "Other income", "Profit / Loss %"):
             self.assertContains(page, text)
-        export = self.client.get(reverse("investments_profit_loss") + "?export=xlsx")
-        self.assertEqual(export.status_code, 200)
+        year_url = reverse("investments_profit_loss_year", args=["2024-25"])
+        self.assertContains(page, 'href="%s">2024-25</a>' % year_url)
+        self.assertNotContains(page, "Reliance Industries")             # the sales are on the year's page, not here
+        self.assertEqual(self.client.get(reverse("investments_profit_loss") + "?export=xlsx").status_code, 200)
+        year = self.client.get(year_url)
+        html = year.content.decode()
+        head = html.split('data-table-id="inv-profit-loss-year"')[1].split("</thead>")[0]
+        self.assertLess(head.index(">Sold<"), head.index(">Investment<"))
+        self.assertLess(head.index(">First bought<"), head.index(">Investment<"))
+        self.assertIn('data-sorted="ascending">Sold', head)
+        self.assertIn("data-sortable", html.split('data-table-id="inv-profit-loss-year"')[1][:40])
+        self.assertContains(year, "Reliance Industries")
+        self.assertNotContains(year, self.fund.name)                     # sold in 2023-24
+        self.assertContains(year, 'class="on" aria-current="page">Profit / Loss</a>')
+        self.assertEqual(self.client.get(year_url + "?export=xlsx").status_code, 200)
+        self.assertEqual(self.client.get(reverse("investments_profit_loss_year", args=["2019-20"])).status_code, 404)
 
 
 class NavigationTests(InvTestCase):

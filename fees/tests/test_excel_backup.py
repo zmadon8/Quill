@@ -240,7 +240,7 @@ class ExportContractTests(TestCase):
              "show_bank", "written_off_enabled", "default_line_appearances", "default_line_conferences", "default_line_misc",
              "memo_default_name", "memo_default_designation",
              "memo_default_address", "memo_default_bank_details", "memo_default_pan",
-             "memo_signature_default", "list_default_filter", "plaintiff_types", "defendant_types"],
+             "memo_signature_default", "list_default_filter", "plaintiff_types", "defendant_types", "payment_modes"],
         )
         self.assertEqual(values["show_bank"], 1)   # owner round 2026-11: on by default
         self.assertEqual(values["written_off_enabled"], 1)   # on by default
