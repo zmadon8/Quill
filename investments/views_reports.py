@@ -287,10 +287,19 @@ def annual_view(request):
                                                     "default_cutoff": settings_row.long_term_days, "include_div": settings_row.include_dividends})
 
 
+_PL_SALE_HEADER = ["Sold", "First bought", "Investment", "Days held", "Units", "Cost", "Proceeds", "Profit / Loss", "Profit / Loss %", "XIRR %",
+                   "Long-term capital gains", "Short-term capital gains", "Other income"]
+
+
+def _pl_sale_row(s):
+    return [s["sold"], s["first_bought"], s["name"], s["days"], None if s["lump_sum"] else s["units"], s["cost"], s["proceeds"], s["profit"],
+            _pct(s["pct"]), _pct(s["xirr"]), s["long_gain"], s["short_gain"], s["other_income"]]
+
+
 @inv_reader
 def profit_loss_view(request):
-    """Profit / Loss: every sale, year by year, with its profit or loss, %, XIRR and the split into long-term and short-term capital
-    gains and Other income (services/profit_loss.py)."""
+    """Profit / Loss: the By year table only (owner round 2026-11); each year opens its own page with the sales of that year
+    (``profit_loss_year``). The figures are services/profit_loss.py's."""
     from .services import profit_loss
 
     profile = profile_or_404(request)
@@ -299,19 +308,36 @@ def profit_loss_view(request):
     if request.GET.get("export") == "xlsx":
         from .exports import response
 
-        rows = []
-        for year in report.years:
-            for s in year.sales:
-                rows.append([year.label, s["name"], s["first_bought"], s["sold"], s["days"], None if s["lump_sum"] else s["units"], s["cost"],
-                             s["proceeds"], s["profit"], _pct(s["pct"]), _pct(s["xirr"]), s["long_gain"], s["short_gain"], s["other_income"]])
         years = [[y.label, y.totals.count, y.totals.cost, y.totals.proceeds, y.totals.profit, _pct(y.totals.pct), _pct(y.totals.xirr),
                   y.totals.long_gain, y.totals.short_gain, y.totals.other_income] for y in report.years]
+        rows = [[y.label] + _pl_sale_row(s) for y in report.years for s in y.sales]
         return response("Profit and Loss.xlsx", [
             ("By year", ["Financial year", "Sales", "Cost", "Proceeds", "Profit / Loss", "Profit / Loss %", "XIRR %", "Long-term capital gains",
                          "Short-term capital gains", "Other income"], years),
-            ("Sales", ["Financial year", "Investment", "First bought", "Sold", "Days held", "Units", "Cost", "Proceeds", "Profit / Loss",
-                       "Profit / Loss %", "XIRR %", "Long-term capital gains", "Short-term capital gains", "Other income"], rows)])
+            ("Sales", ["Financial year"] + _PL_SALE_HEADER, rows)])
     return page(request, "investments/profit_loss.html", {"page_title_text": "Profit / Loss", "r": report})
+
+
+@inv_reader
+def profit_loss_year(request, label):
+    """One financial year of Profit / Loss: its sales, oldest sale first (any column can be sorted), and the year's totals."""
+    from django.http import Http404
+
+    from .services import profit_loss
+
+    profile = profile_or_404(request)
+    portfolio, broker, _asat = selection(request, profile)
+    report = profit_loss.build(profile, portfolio=portfolio, broker=broker)
+    year = next((y for y in report.years if y.label == label), None)
+    if year is None:
+        raise Http404("No sales in that financial year.")
+    if request.GET.get("export") == "xlsx":
+        from .exports import response
+
+        return response(f"Profit and Loss {label}.xlsx", [(label, _PL_SALE_HEADER, [_pl_sale_row(s) for s in year.sales])])
+    return page(request, "investments/profit_loss_year.html", {
+        "page_title_text": f"Profit / Loss {label}", "y": year, "years": [y.label for y in report.years],
+        "back_url": __import__("django.urls", fromlist=["reverse"]).reverse("investments_profit_loss"), "back_label": "Profit / Loss"})
 
 
 def _annual_export(r):

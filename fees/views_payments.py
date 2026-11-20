@@ -110,6 +110,7 @@ def _form_page(request, form, payment=None, memo_ids=None, errors=None, status=2
             "memo_query": "&".join(f"memo={n}" for n in memo_ids) if payment is None else "",
             "matter_ids": ",".join(str(n) for n in matter_ids),
             "bank_choices": settings_service.list_bank_accounts(profile),
+            "payment_modes": settings_service.payment_modes(profile),
             "errors": errors or [],
         },
         status=status,
@@ -119,6 +120,7 @@ def _form_page(request, form, payment=None, memo_ids=None, errors=None, status=2
 def _echo(post):
     """What the user typed, in the shape the form template reads."""
     form = {name: post.get(name, "") for name in FORM_FIELDS}
+    form["payment_mode"] = forms.posted_party_type(post, "payment_mode")
     form["auto_tds"] = post.get("auto_tds") == "1"
     rows = [
         {

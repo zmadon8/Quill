@@ -50,6 +50,15 @@ def default_defendant_types():
     return list(DEFAULT_DEFENDANT_TYPES)
 
 
+#: The initial Mode of payment choices (owner round 2026-11); the drop-down also offers Custom, as the party types do.
+DEFAULT_PAYMENT_MODES = ("RTGS", "NEFT", "Cheque", "UPI")
+
+
+def default_payment_modes():
+    """A fresh list of the initial Mode of payment choices."""
+    return list(DEFAULT_PAYMENT_MODES)
+
+
 class FeesSettings(models.Model):
     """One row per profile: all porting-brief section 9 keys plus the new web switches.
 
@@ -109,6 +118,7 @@ class FeesSettings(models.Model):
     # The drop-down lists for a memo's and a matter's Plaintiff type and Defendant type (edited in Settings).
     plaintiff_types = models.JSONField(default=default_plaintiff_types, blank=True)
     defendant_types = models.JSONField(default=default_defendant_types, blank=True)
+    payment_modes = models.JSONField(default=default_payment_modes, blank=True)   # the Mode drop-down of the payment form
     # Cache stamp (R-DATA-6).
     data_version = models.BigIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)

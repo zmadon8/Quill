@@ -44,6 +44,25 @@ class HeaderStyleTests(TestCase):
         # The Settings gear, Search, Home and Sign out are the only icons (no Back and Forward: the browser has them)
         self.assertEqual(header.count("<svg"), 4)
 
+    def test_search_can_be_a_word_on_a_button_for_one_user(self):
+        # Owner round 2026-11: My settings > Display > Search button as a word; only that user's header changes.
+        self.editor.search_as_word = True
+        self.editor.save(update_fields=["search_as_word"])
+        for name in ("diary_home", "fees_memos", "investments_dashboard"):
+            with self.subTest(page=name):
+                response = self.client.get(reverse(name))
+                if response.status_code != 200:
+                    continue        # a program this user is not in
+                header = response.content.decode().split('<header class="site-header"')[1].split("</header>")[0]
+                self.assertIn('class="search-word search-toggle"', header)
+                self.assertIn(">Search</button>", header)
+        page = self.client.get(reverse("my_settings") + "?tab=display").content.decode()
+        self.assertIn('name="search_as_word"', page)
+        self.client.post(reverse("my_settings"), {"tab": "display", "colour_theme": "oxblood"})
+        self.editor.refresh_from_db()
+        self.assertFalse(self.editor.search_as_word)
+        self.assertIn('class="icon-tool search-toggle"', self.header())
+
     def test_the_trash_is_a_tab_of_history_not_a_header_item(self):
         self.assertNotIn(reverse("trash"), self.header())
         history = self.client.get(reverse("diary_history")).content.decode()

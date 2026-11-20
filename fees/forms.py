@@ -171,8 +171,9 @@ def parse_int(text, label="Number", default=0):
 # ---------------------------------------------------------------------------
 
 #: How many memo rows a payment form shows at least (a payment may be split over up to
-#: ``payment_service.MAX_ALLOCATIONS`` memos).
-PAYMENT_ROWS = 3
+#: ``payment_service.MAX_ALLOCATIONS`` memos). Owner round 2026-11: no blank row next to the memos already on the form
+#: (the ticked memos, or a payment's own); one blank row only when there is none.
+PAYMENT_ROWS = 1
 
 _ROW_KEY = re.compile(r"^alloc_(?:memo|amount|tds)_(\d+)$")
 
@@ -277,7 +278,7 @@ def payment_form_from_dto(dto):
 
 
 #: The two type boxes that are a drop-down plus a Custom box (``<name>_choice`` and ``<name>_custom``), and the drop-down's Custom value.
-PARTY_TYPE_FIELDS = ("plaintiff_type", "defendant_type")
+PARTY_TYPE_FIELDS = ("plaintiff_type", "defendant_type", "payment_mode")   # payment_mode: the same drop-down plus Custom
 PARTY_CUSTOM = "__custom__"
 
 
@@ -469,7 +470,7 @@ SETTINGS_NUMBERS = (
 
 
 #: Settings keys that are lists typed one entry per line (the Plaintiff type and Defendant type lists).
-SETTINGS_LINE_LISTS = ("plaintiff_types", "defendant_types")
+SETTINGS_LINE_LISTS = ("plaintiff_types", "defendant_types", "payment_modes")
 
 
 def settings_data_from_post(post):

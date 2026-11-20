@@ -108,6 +108,7 @@ urlpatterns += [
     path("catalogue/price-history/archive/", vp.price_archive, name="investments_price_archive"),
     path("corporate-actions/<int:pk>/edit/", vi.corporate_action_edit, name="investments_corporate_action_edit"),
     path("dividends/<int:pk>/", vi.dividend_form, name="investments_dividend_edit"),
+    path("reports/profit-loss/<str:label>/", vr.profit_loss_year, name="investments_profit_loss_year"),
     path("reports/<slug:slug>/", vr.report_view, name="investments_report"),
     path("insights/dismiss/", vr.insights_dismiss, name="investments_insight_dismiss"),
     path("api/prices/wanted/", vhelp.wanted, name="investments_helper_wanted"),

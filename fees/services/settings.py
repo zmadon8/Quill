@@ -142,6 +142,7 @@ SETTINGS_KEYS = frozenset(
         "memo_default_pan",
         "plaintiff_types",
         "defendant_types",
+        "payment_modes",
     )
 )
 
@@ -214,6 +215,11 @@ def party_types(profile):
     """``{"plaintiff": [...], "defendant": [...]}``: the Plaintiff type and Defendant type drop-down lists of the profile's memo and matter forms."""
     config = get_settings(profile)
     return {"plaintiff": config["plaintiff_types"], "defendant": config["defendant_types"]}
+
+
+def payment_modes(profile):
+    """The Mode of payment drop-down list of the profile's payment form (Settings > Payments; Custom is always offered too)."""
+    return get_settings(profile)["payment_modes"]
 
 
 # ---------------------------------------------------------------------------
@@ -359,8 +365,8 @@ def _validate_candidate(key, value):
         if len(text) > 120:
             raise _invalid("This field must be at most 120 characters")
         return text
-    if key in ("plaintiff_types", "defendant_types"):
-        return _party_types(value, "Plaintiff types" if key == "plaintiff_types" else "Defendant types")
+    if key in ("plaintiff_types", "defendant_types", "payment_modes"):
+        return _party_types(value, {"plaintiff_types": "Plaintiff types", "defendant_types": "Defendant types"}.get(key, "Modes of payment"))
     if key == "memo_default_pan":
         text = str(value)
         if len(text) > 20:

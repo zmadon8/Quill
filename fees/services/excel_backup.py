@@ -237,10 +237,11 @@ WEB_SETTINGS_KEYS = [
     "list_default_filter",
     "plaintiff_types",
     "defendant_types",
+    "payment_modes",
 ]
 
 #: The ``WebSettings`` keys that hold a list: written one entry per line in a single cell (an older file has neither, so a restore keeps the defaults).
-WEB_LIST_KEYS = ("plaintiff_types", "defendant_types")
+WEB_LIST_KEYS = ("plaintiff_types", "defendant_types", "payment_modes")
 
 #: Keys an older file may still carry in ``WebSettings``: the Dashboard switches that were merged into
 #: ``statistics_enabled`` (a restore turns Statistics off if any of them is off) and the profile-wide Items per page
