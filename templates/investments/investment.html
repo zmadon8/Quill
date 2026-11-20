@@ -6,7 +6,7 @@
   {% if pi.links %}<div class="sub">{% for l in pi.links %}<a href="{{ l.url }}" rel="noopener noreferrer" target="_blank">{{ l.label }}</a>{% if not forloop.last %} &middot; {% endif %}{% endfor %}</div>{% endif %}</div>
   <div class="acts">{% if can_edit %}<a class="btn p" href="{% url 'investments_txn_new_buy' %}?instrument={{ inst.pk }}">Buy</a><a class="btn q" href="{% url 'investments_txn_new_sell' %}?instrument={{ inst.pk }}">Sell</a>{% endif %}
     {% if can_edit and can_refresh %}<button type="button" class="btn q" id="refresh-price" data-url="{% url 'investments_update_prices' %}" data-instrument="{{ inst.pk }}">Refresh price</button><span class="hint" id="refresh-status" role="status" aria-live="polite"></span>{% endif %}
-    {% if inst.profile_id is None and user.is_admin %}<a class="btn q" href="{% url 'investments_admin_catalogue_item' inst.pk %}">Edit</a>{% elif inst.profile_id is not None and can_edit %}<a class="btn q" href="{% url 'investments_investment_edit' inst.pk %}">Edit</a>{% endif %}</div></div>
+    {% if inst.profile_id is None %}<a class="btn q" href="{% url 'investments_admin_catalogue_item' inst.pk %}">{% if user.is_admin %}Edit{% else %}Catalogue{% endif %}</a>{% elif inst.profile_id is not None and can_edit %}<a class="btn q" href="{% url 'investments_investment_edit' inst.pk %}">Edit</a>{% endif %}</div></div>
 {% if h.provisional %}<div class="ban al" role="alert"><span><b>Split or bonus pending: figures may be wrong.</b> Confirm it or mark it not applicable.</span><span class="r"><a href="{% url 'investments_corporate_actions' %}">Corporate actions</a></span></div>{% endif %}
 {% if h.awaiting %}<div class="ban wa"><span><b>Tentative:</b> {{ h.awaiting|inr }} counted at cost until it is finalised.</span><span class="r"><a href="{% url 'investments_txn_to_confirm' %}">To complete</a></span></div>{% endif %}
 <div class="kvs">
@@ -52,7 +52,7 @@
 {% if held or sold %}<p class="hint">{{ "legend"|measure_tip }}</p>{% endif %}
 {% endwith %}
 
-<div class="sec"><h2>Records</h2><div class="acts"><a class="btn q" href="?export=xlsx">Export to Excel</a>{% if can_edit %}<a class="btn q" href="{% url 'investments_dividend_new' %}?instrument={{ inst.pk }}">Add dividend</a><a class="btn q" href="{% url 'investments_txn_opening' %}?instrument={{ inst.pk }}">Opening balance</a>{% endif %}</div></div>
+<div class="sec"><h2>Transaction History</h2><div class="acts"><a class="btn q" href="?export=xlsx">Export to Excel</a>{% if can_edit %}<a class="btn q" href="{% url 'investments_dividend_new' %}?instrument={{ inst.pk }}">Add dividend</a><a class="btn q" href="{% url 'investments_txn_opening' %}?instrument={{ inst.pk }}">Opening balance</a>{% endif %}</div></div>
 {% if txns %}<div class="tw"><table data-table-id="inv-investment-5" class="led" data-sortable><thead><tr><th>Date</th><th>Portfolio</th><th>Buy / sell</th>{% if inst.lump_sum %}<th class="r">Amount</th><th class="r">Value after</th>{% else %}<th class="r">Units</th><th class="r">Price</th><th class="r">Charges</th>{% endif %}<th>Broker</th><th>Folio</th><th></th></tr></thead><tbody>
 {% for t in txns %}<tr><td data-sort="{{ t.date|date:'Y-m-d' }}">{{ t.date|date:"j M Y" }}{% if t.allotment_date and t.allotment_date != t.date %}<small class="na"> allotted {{ t.allotment_date|date:"j M" }}</small>{% endif %}</td>
 <td>{{ t.portfolio.name }}</td><td>{{ t.get_side_display }}{% if t.is_opening %}<span class="tag">Opening</span>{% endif %}{% if t.status == "tentative" %}<span class="tag amb">Tentative</span>{% endif %}{% if t.status == "pending_sip" %}<span class="tag amb">SIP, to confirm</span>{% endif %}</td>
@@ -65,7 +65,10 @@
 {% if transfers %}<h3>Transfers</h3><div class="tw"><table data-table-id="inv-investment-6" class="led"><thead><tr><th>Date</th>{% if not inst.lump_sum %}<th class="r">Units</th>{% endif %}<th>From</th><th>To</th></tr></thead><tbody>
 {% for tr in transfers %}<tr><td>{{ tr.date|date:"j M Y" }}</td>{% if not inst.lump_sum %}<td class="r" data-sort="{{ tr.units }}">{{ tr.units|units }}</td>{% endif %}<td>{{ tr.from_broker.name }} / {{ tr.from_portfolio.name }}</td><td>{{ tr.to_broker.name }} / {{ tr.to_portfolio.name }}</td></tr>{% endfor %}</tbody></table></div>{% endif %}
 
-{% if inst.profile_id or inst.kind == "alternative" or inst.price_source != "manual" and inst.price_source != "upload" %}<div class="sec"><h2>{% if inst.kind == "alternative" or inst.price_source == "manual" or inst.price_source == "upload" %}Manual Price History{% else %}Prices{% endif %}</h2></div>{% endif %}
+{# Owner round 2026-11: a shared investment's price history and shared details are on its Catalogue page only; an investment private to
+   this profile has no Catalogue page, so its own prices stay here (and its fields are on its Edit page). #}
+{% if inst.profile_id %}
+<div class="sec" id="prices"><h2>{% if inst.kind == "alternative" or inst.price_source == "manual" or inst.price_source == "upload" %}Manual Price History{% else %}Prices{% endif %}</h2></div>
 {% if inst.kind == "alternative" %}
   {% include "investments/_alt_values.html" %}
 {% else %}
@@ -73,10 +76,9 @@
   {% if manual_prices %}<div class="tw"><table data-table-id="inv-investment-manual" class="led"><thead><tr><th>Date</th><th class="r">Price</th><th>Note</th><th></th></tr></thead><tbody>
   {% for m in manual_prices %}<tr><td>{{ m.date|date:"j M Y" }}</td><td class="r">{{ m.close|price }}{% if m.calc_before is not None %}<br><small class="calc-before">Before sale (calculated): {{ m.calc_before|inr }}</small>{% endif %}</td><td>{% if m.derived %}<span class="tag">{{ m.note }}</span>{% else %}{{ m.note }}{% endif %}</td><td class="act">{% if can_edit %}<form method="post" action="{% url 'investments_investment_price_delete' inst.pk m.pk %}" style="display:inline">{% csrf_token %}<button class="linklike">Delete</button></form>{% endif %}</td></tr>{% endfor %}
   </tbody></table></div>{% endif %}
-  {% else %}{% url "investments_investment" inst.pk as inv_url %}{% with next_url=inv_url|add:"#prices" %}{% include "investments/_price_history.html" %}{% endwith %}
-  <p class="hint">The same prices are in <a href="{% url 'investments_admin_catalogue_item' inst.pk %}">Catalogue</a>.</p>{% endif %}
+  {% endif %}
 {% endif %}
-
+{% else %}<p class="hint" id="prices">Its price history and shared details (Capital Gains included) are on its <a href="{% url 'investments_admin_catalogue_item' inst.pk %}">Catalogue page</a>.</p>{% endif %}
 
 {% if foreign %}<div class="sec"><h2>In {{ foreign.currency }} and in rupees</h2></div>
 <table data-table-id="inv-investment-foreign" class="led"><thead><tr><th></th><th class="r">{{ foreign.currency }}</th><th class="r">Rupees</th></tr></thead><tbody>
@@ -103,17 +105,6 @@
 {% if can_edit %}<form method="post" action="{% url 'investments_investment_details' inst.pk %}">{% csrf_token %}{% include "investments/_form.html" with form=details_form %}<div class="acts-row"><button class="btn q" name="action" value="save">Save details</button></div></form>
 {% elif pi.notes %}<p>{{ pi.notes }}</p>{% endif %}
 
-<div class="sec"><h2>Shared details</h2></div>
-<p class="hint">These belong to the investment itself, for everyone who holds it, so only an Admin changes them.</p>
-{% if user.is_superuser %}
-<form method="post" action="{% url 'investments_investment_shared' inst.pk %}" class="row">{% csrf_token %}
-  <div class="fld"><label>Name</label><input name="name" value="{{ inst.name }}"></div><div class="fld"><label>Code</label><input name="code" value="{{ inst.code }}"></div>
-  <div class="fld"><label>ISIN</label><input name="isin" value="{{ inst.isin }}"></div><div class="fld"><label>Currency</label><input name="currency" value="{{ inst.currency }}" maxlength="3"></div>
-  <div class="fld"><label>Capital Gains</label><label><input type="hidden" name="capital_marker" value="1"><input type="checkbox" name="capital_gains" value="1"{% if inst.capital_gains %} checked{% endif %}> Capital Gains (untick and sale profit is Other income)</label></div>
-  <div class="fld"><label>&nbsp;</label><button class="btn q" type="submit">Save shared details</button></div></form>
-{% else %}<dl class="kv"><dt>Name</dt><dd>{{ inst.name }}</dd><dt>Code</dt><dd>{{ inst.code|default:"none" }}</dd>{% if registry %}<dt>{{ registry.source }} name</dt><dd>{{ registry.name }}{% if registry.plan %} &middot; Plan: {{ registry.plan }}{% endif %}{% if registry.option %} &middot; Option: {{ registry.option }}{% endif %}{% if registry.mismatch %} (registry ISIN {{ registry.isin }} differs){% endif %}</dd>{% endif %}<dt>ISIN</dt><dd>{{ inst.isin|default:"none" }}</dd><dt>Currency</dt><dd>{{ inst.currency }}</dd><dt>Capital Gains</dt><dd>{% if inst.capital_gains %}Yes{% else %}No (sale profit is Other income){% endif %}</dd><dt>Price source</dt><dd>{{ inst.get_price_source_display }}</dd></dl>{% endif %}
-
 {% if history %}<div class="sec"><h2>Recent changes</h2><a class="lk" href="{% url 'investments_history' %}?instrument={{ inst.pk }}">All history</a></div>
 <ul class="plain">{% for r in history %}<li>{{ r.changed_at|date:"j M Y, g:i a" }} &middot; {{ r.description|default:r.get_change_kind_display }}</li>{% endfor %}</ul>{% endif %}
-{% if can_edit and can_delete %}<div class="sec"><a class="btn dng" href="{% url 'investments_inv_delete' inst.pk %}">Delete this investment</a></div>{% endif %}
 {% endblock %}

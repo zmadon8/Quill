@@ -21,7 +21,7 @@ class CommaPostTests(InvTestCase):
             "units": "1,25,000", "price": "1,234.50", "charges": "1,000"})
         self.assertRedirects(r, reverse("investments_transactions"))
         row = Transaction.objects.get()
-        self.assertEqual((row.units, row.price, row.charges), (D("125000"), D("1234.50"), D("1000")))
+        self.assertEqual((row.units, row.price, row.charges), (D("125000"), D("1234.50"), D("0")))   # no Charges on Buy
 
     def test_opening_balance_rows_with_commas(self):
         r = self.client.post(reverse("investments_txn_opening"), {
@@ -66,7 +66,7 @@ class NumberBoxTests(InvTestCase):
 
     def test_the_buy_form_number_boxes_are_text_with_an_inputmode(self):
         html = self.client.get(reverse("investments_txn_new_buy")).content.decode()
-        for field in ("units", "price", "charges"):
+        for field in ("units", "price"):
             tag = next(t for t in self.inputs(html) if f'name="{field}"' in t)
             self.assertIn('type="text"', tag, field)
             self.assertIn('inputmode="decimal"', tag, field)

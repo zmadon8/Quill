@@ -13,7 +13,7 @@
 {% if pending_actions %}<div class="ban al" role="alert"><span><b>{% for a in pending_actions|slice:":1" %}{{ a.get_kind_display }} pending: figures may be wrong.{% endfor %}</b> {% for a in pending_actions %}{{ a.instrument.name }} ({{ a.describe }}, {{ a.ex_date|date:"j M Y" }}){% if not forloop.last %}; {% endif %}{% endfor %}. Confirm or mark not applicable.</span><span class="r"><a href="{% url 'investments_corporate_actions' %}">Corporate actions</a></span></div>{% endif %}
 {% if unpriced %}<div class="ban wa"><span>{{ unpriced|length }} holding{{ unpriced|length|pluralize }} without a price ({% for h in unpriced|slice:":3" %}{{ h.name }}{% if not forloop.last %}, {% endif %}{% endfor %}{% if unpriced|length > 3 %} and more{% endif %}) are valued at cost.</span></div>{% endif %}
 {% if boxes %}<div class="strip">{% for b in boxes %}
-  {% if b == "value" %}<div class="f hl"><div class="lab">Current value</div><div class="fig">{{ totals.value|inr }}</div></div>
+  {% if b == "value" %}<div class="f"><div class="lab">Current value</div><div class="fig">{{ totals.value|inr }}</div></div>
   {% elif b == "invested" %}<div class="f"><div class="lab">Invested</div><div class="fig">{{ totals.invested|inr }}</div></div>
   {% elif b == "gain" %}<div class="f"><div class="lab">Gain{% if card_period %} ({{ card_period }}){% endif %}</div><div class="fig">{{ totals.gain|inr_signed }}<small>{{ totals.gain_pct|pct_signed }}</small></div></div>
   {% elif b == "xirr" %}<div class="f"><div class="lab" title="{{ 'xirr'|measure_tip }}">Portfolio XIRR{% if card_period %} ({{ card_period }}){% endif %}</div><div class="fig">{{ totals.xirr|pct }}<small>a year, on money you put in</small></div></div>
@@ -25,7 +25,7 @@
   {% if include_div %}<span class="na">Dividends count in XIRR (Settings &gt; General); the index comparison is against the price index only.</span>{% endif %}</form>
 {% for n in notes %}<p class="hint">{{ n }}</p>{% endfor %}
 {% if customise_open and can_edit %}
-<div class="panel" id="customise"><h3>Customise the Overview</h3>
+<div class="panel" id="customise"><h3>Customise Home</h3>
 <form method="post" action="{% url 'investments_overview_save' %}">{% csrf_token %}
 <p class="hint">Boxes at the top: figures as at the date chosen above.</p>
 <ul class="plain cols th">{% for id, label, help, on in box_choices %}<li><label class="chk"><input type="checkbox" name="box" value="{{ id }}"{% if on %} checked{% endif %}> {{ label }}</label>{% if help %} <span class="hint">{{ help }}</span>{% endif %}</li>{% endfor %}</ul>
@@ -44,7 +44,7 @@
 {% for row in period_table.rows %}<tr><td title="{{ row.help }}">{{ row.label }}</td>{% for v in row.values %}<td class="r">{% if v is None %}<span class="na">n/a</span>{% elif row.fmt == "money" %}{{ v|inr }}{% elif row.fmt == "money_signed" %}{{ v|inr_signed }}{% elif row.fmt == "pct_signed" %}{{ v|pct_signed }}{% else %}{{ v|pct }}{% endif %}</td>{% endfor %}</tr>{% endfor %}
 </tbody></table></div>
 <p class="hint">{% for p in period_table.periods %}{% if p.id == "all" %}All: from the first purchase, {{ p.start|date:"j M Y" }}. {% elif p.short %}{{ p.label }} *: your history is shorter, so from the first purchase, {{ p.start|date:"j M Y" }}. {% else %}{{ p.label }}: from {{ p.start|date:"j M Y" }}. {% endif %}{% endfor %}The value at the start of a period counts as money put in on that day. Point at a figure's name for what it means.</p>
-{% elif can_edit and not customise_open %}<p class="hint"><a href="?customise=1#customise">Customise the Overview</a> to add figures for the same periods as the chart (1M to All).</p>{% endif %}
+{% elif can_edit and not customise_open %}<p class="hint"><a href="?customise=1#customise">Customise Home</a> to add figures for the same periods as the chart (1M to All).</p>{% endif %}
     {% if has_any %}<p class="hint">Every investment is listed on the <a href="{% url 'investments_holdings' %}">Holdings</a> page.</p>
     {% include "investments/_chart_block.html" with title="Value against the same money in the index" chart=chart ranges=chart_ranges anchor="chart" caption="Portfolio value and the same money invested in the index" %}{% endif %}
     {% if breakdown %}
@@ -62,7 +62,7 @@
   </div>
   <aside class="ins"><h3>Insights</h3>
     {% if insights %}<ol>{% for i in insights %}{% if all_insights or forloop.counter <= 5 %}<li><a class="go" href="{{ i.url }}">{{ i.text }}</a>
-      {% if can_edit %}<form method="post" action="{% url 'investments_insight_dismiss' %}" style="display:inline">{% csrf_token %}<input type="hidden" name="key" value="{{ i.key }}"><input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="x linklike" aria-label="Dismiss" title="Dismiss">&times;</button></form>{% endif %}</li>{% endif %}{% endfor %}</ol>
+      {% if can_edit and i.kind != "alerts" %}<form method="post" action="{% url 'investments_insight_dismiss' %}" style="display:inline">{% csrf_token %}<input type="hidden" name="key" value="{{ i.key }}"><input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="x linklike" aria-label="Dismiss" title="Dismiss">&times;</button></form>{% endif %}</li>{% endif %}{% endfor %}</ol>
     {% if insights|length > 5 and not all_insights %}<a class="more" href="?insights=all">Show all {{ insights|length }}</a>{% endif %}
     {% else %}<p class="hint">Nothing to point out at the moment.</p>{% endif %}
     <p class="hint"><small>Worked out by fixed rules from your own figures; they describe, they do not advise.</small></p></aside>

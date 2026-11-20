@@ -40,6 +40,7 @@ REAL = {
     "charts": vr.charts_view,
     "value": vr.value_view,
     "annual": vr.annual_view,
+    "profit_loss": vr.profit_loss_view,
     "reports": vr.reports_index,
     "report_yearly": lambda request: vr.report_view(request, "yearly"),
     "report_compare_brokers": lambda request: vr.report_view(request, "compare-brokers"),

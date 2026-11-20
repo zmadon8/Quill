@@ -64,17 +64,18 @@ class HeldOnlyTests(InvTestCase):
         self.assertIn('<details class="more-fields">', html)
         self.assertIn("Charges and note", html)
 
-    def test_sale_has_no_held_only_box_and_lists_held_then_sold_out(self):
+    def test_sale_has_no_held_only_box_and_lists_only_what_is_held(self):
+        # Owner round 2026-11: only what is held now can be sold; sold-out investments are not listed.
         html = self.form_html("investments_txn_new_sell")
         self.assertNotIn("held-only-box", html)
-        self.assertIn("Sold out (for back-dated sales)", html)
-        self.assertLess(html.index(f'<option value="{self.reliance.pk}"'), html.index("Sold out (for back-dated sales)"))
-        self.assertGreater(html.index(f'<option value="{self.fund.pk}"'), html.index("Sold out (for back-dated sales)"))
+        self.assertRegex(html, rf'<option value="{self.reliance.pk}"')
+        self.assertNotIn("Sold out", html.split('name="instrument"')[1].split("</select>")[0])
+        self.assertNotRegex(html, rf'<option value="{self.fund.pk}"')       # sold out: not offered
         self.assertNotRegex(html, rf'<option value="{self.tata.pk}"')       # never bought: not offered
 
-    def test_instrument_link_preselects_a_sold_out_investment(self):
+    def test_instrument_link_to_a_sold_out_investment_selects_nothing(self):
         r = self.client.get(reverse("investments_txn_new_sell") + f"?instrument={self.fund.pk}")
-        self.assertRegex(r.content.decode(), rf'<option value="{self.fund.pk}"[^>]*selected')
+        self.assertNotRegex(r.content.decode(), rf'<option value="{self.fund.pk}"')
 
     def test_tick_box_defaults(self):
         self.assertTrue(self.box(self.form_html("investments_txn_transfer")))
@@ -100,17 +101,16 @@ class HeldOnlyTests(InvTestCase):
     def test_sale_of_something_never_held_is_refused(self):
         r = self.sell_post(self.tata, "2024-02-01")
         self.assertEqual(r.status_code, 200)
-        self.assertContains(r, "Choose an investment you hold, or held in the past, from the list.")
+        self.assertContains(r, "Choose an investment you hold now from the list.")
         self.assertEqual(Transaction.objects.filter(instrument=self.tata).count(), 0)
 
-    def test_back_dated_sale_of_a_since_sold_out_investment_succeeds(self):
-        self.buy(d(2023, 2, 1), 2, 55, instrument=self.fund)     # 7 bought, 5 sold in June: 2 were still held in March
-        r = self.sell_post(self.fund, "2023-03-01", "2")
-        self.assertEqual(r.status_code, 302)
-        self.assertEqual(Transaction.objects.filter(instrument=self.fund, side="sell").count(), 2)
+    def test_a_sale_of_a_sold_out_investment_is_refused(self):
+        r = self.sell_post(self.fund, "2023-03-01", "2")         # 5 bought, 5 sold in June: held in March, but none now
+        self.assertContains(r, "Choose an investment you hold now from the list.")
+        self.assertEqual(Transaction.objects.filter(instrument=self.fund, side="sell").count(), 1)
 
     def test_sale_dated_before_the_first_buy_is_refused(self):
-        r = self.sell_post(self.fund, "2022-12-31")
+        r = self.sell_post(self.reliance, "2022-12-31")
         self.assertContains(r, "You held none of this investment on 31 Dec 2022.")
 
     def test_editing_a_tentative_sale_keeps_its_own_investment(self):
@@ -220,14 +220,19 @@ class MultiRowTransactionTests(InvTestCase):
         self.assertRedirects(r, reverse("investments_transactions"))
         self.assertEqual(Transaction.objects.count(), 1)
 
-    def test_buy_form_explains_allotment_date_only(self):
+    def test_buy_form_has_folio_and_origin_under_tentative_and_no_charges_date_or_note(self):
+        # Owner round 2026-11: Folio and "How were these units acquired?" sit below Mark as Tentative; no charges, allotment date or note.
+        self.buy(d(2024, 1, 1), 1, 10)
         html = self.client.get(reverse("investments_txn_new_buy")).content.decode()
-        self.assertNotIn("trade date", html)
-        self.assertIn("starts the holding period", html)
-        self.assertIn("New Folio Number", html)
-        self.assertNotIn("Or a new folio", html)
-        fold = html[html.index('<details class="more-fields"'):]
-        self.assertLess(fold.index('name="folio"'), fold.index('name="new_folio"'))
-        self.assertLess(fold.index('name="new_folio"'), fold.index('name="origin"'))
-        self.assertLess(fold.index('name="origin"'), fold.index('class="more-notes"'))
-        self.assertLess(fold.index('class="more-notes"'), fold.index('name="allotment_date"'))
+        form = html[html.index('id="txn-form"'):html.index('<template id="extra-row-template">')]
+        self.assertNotIn('<details class="more-fields"', form)
+        self.assertIn("New Folio Number", form)
+        self.assertLess(form.index('name="tentative"'), form.index('name="folio"'))
+        self.assertLess(form.index('name="folio"'), form.index('name="new_folio"'))
+        self.assertLess(form.index('name="new_folio"'), form.index('name="origin"'))
+        for gone in ('name="charges"', 'name="allotment_date"', 'name="note"', "starts the holding period"):
+            self.assertNotIn(gone, form)
+        self.assertIn('href="%s">Add New Investment</a>' % reverse("investments_add_1"), html)
+        edit = self.client.get(reverse("investments_txn_edit", args=[Transaction.objects.filter(side="buy").first().pk])).content.decode()
+        for kept in ('name="charges"', 'name="allotment_date"', 'name="note"'):
+            self.assertIn(kept, edit)           # an edit keeps them

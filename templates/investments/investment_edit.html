@@ -12,5 +12,6 @@
   {% include "investments/_form.html" %}
   <div class="acts-row"><button class="btn p" type="submit">Save</button><a class="btn q" href="{% url 'investments_investment' inst.pk %}">Cancel</a></div>
 </form>
+{% if can_delete %}<div class="sec"><a class="btn dng" href="{% url 'investments_inv_delete' inst.pk %}">Delete this investment</a></div>{% endif %}
 {% endif %}
 {% endblock %}

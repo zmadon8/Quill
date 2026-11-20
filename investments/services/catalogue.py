@@ -21,7 +21,7 @@ from investments.services import fetch, prices
 
 PAGE = 50
 EDITABLE = ("name", "code", "isin", "exchange", "currency", "asset_class", "sector", "price_source", "fallback_source", "fetch_enabled",
-            "next_results_date")
+            "next_results_date", "capital_gains")
 
 
 def require_admin(user):

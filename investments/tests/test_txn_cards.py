@@ -24,9 +24,10 @@ class TxnCardTests(InvTestCase):
     def test_buy_page_cards_have_the_full_field_set(self):
         html = self.client.get(reverse("investments_txn_new_buy")).content.decode()
         template = html[html.index('<template id="extra-row-template">'):html.index("</template>")]
-        for name in ("date", "instrument", "portfolio", "broker", "units", "price", "allotment_date", "charges", "folio", "new_folio",
-                     "origin", "corporate_action", "note"):
+        for name in ("date", "instrument", "portfolio", "broker", "units", "price", "folio", "new_folio", "origin", "corporate_action"):
             self.assertIn(f'name="x__i__-{name}"', template)
+        for name in ("allotment_date", "charges", "note"):          # not on a purchase (owner round 2026-11)
+            self.assertNotIn(f'name="x__i__-{name}"', template)
         self.assertIn('class="txn-card txn-row"', template)
         self.assertIn('data-combo data-for="x__i__-instrument"', template)      # the combobox replaces the Held only box on Buy
         self.assertNotIn("held-only-box", template)
@@ -39,11 +40,11 @@ class TxnCardTests(InvTestCase):
 
     def test_buy_with_two_full_cards_saves_both(self):
         post = {**self.card("", "2024-01-01", "10", "100"), "extra_rows": "1",
-                **self.card("x1", "2024-02-01", "5", "50", instrument=self.fund, broker=self.groww, note="second")}
+                **self.card("x1", "2024-02-01", "5", "50", instrument=self.fund, broker=self.groww, new_folio="F-2")}
         self.assertRedirects(self.client.post(reverse("investments_txn_new_buy"), post), reverse("investments_transactions"))
         self.assertEqual(Transaction.objects.count(), 2)
         second = Transaction.objects.get(instrument=self.fund)
-        self.assertEqual((second.date, second.broker_id, second.note), (d(2024, 2, 1), self.groww.pk, "second"))
+        self.assertEqual((second.date, second.broker_id, second.folio.number), (d(2024, 2, 1), self.groww.pk, "F-2"))
 
     def test_a_bad_card_saves_nothing(self):
         post = {**self.card("", "2024-01-01", "10", "100"), "extra_rows": "1", **self.card("x1", "2024-02-01", "", "50")}
@@ -84,7 +85,7 @@ class TxnCardTests(InvTestCase):
         self.sell(d(2024, 3, 1), 4, 100)
         url = reverse("investments_available_units")
         base = {"instrument": self.reliance.pk, "portfolio": self.portfolio.pk, "broker": self.zerodha.pk, "folio": ""}
-        self.assertEqual(self.client.get(url, {**base, "date": "2024-02-01"}).json()["units"], "10.0000")
+        self.assertEqual(self.client.get(url, {**base, "date": "2024-02-01"}).json()["units"], "10")   # no trailing zeros for Sell all
         self.assertEqual(D(self.client.get(url, {**base, "date": "2024-04-01"}).json()["units"]), D(6))
         other = self.client.get(url, {**base, "broker": self.groww.pk, "date": "2024-04-01"}).json()
         self.assertEqual((other["place"], D(other["units"])), (True, D(0)))

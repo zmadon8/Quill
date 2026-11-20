@@ -89,7 +89,7 @@ class ShellTests(TestCase):
                 if page.slug not in REAL:      # a real page has its own content; only the shells show the empty-state text
                     self.assertContains(response, page.title)
                     self.assertContains(response, escape(page.empty))
-                for label in ("Overview", "Holdings", "Reports", "Alerts", "Catalogue"):
+                for label in ("Home", "Holdings", "Reports", "Catalogue"):
                     self.assertContains(response, label)
                 # The gear in the header opens the Investments settings.
                 self.assertContains(response, 'class="home-button gear-button" href="%s"' % reverse("investments_settings"))
