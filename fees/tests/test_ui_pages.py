@@ -711,9 +711,8 @@ class FeebookAndPaymentTests(UiPageBase):
 
     def test_each_row_is_a_separate_block_with_its_number(self):
         text = self.html(self.page("fees_payment_new", user=self.editor))
-        self.assertEqual(text.count('<div class="alloc-row" data-alloc-row>'), 3 + 1)
-        for n in (1, 2, 3):
-            self.assertIn('<span data-row-no>%d</span>' % n, text)
+        self.assertEqual(text.count('<div class="alloc-row" data-alloc-row>'), 1 + 1)   # one blank row (owner round 2026-11) and the template
+        self.assertIn('<span data-row-no>1</span>', text)
         self.assertIn("<legend>Allocate To Memos</legend>", text)
         self.assertIn("+ Memo</button>", text)
 
