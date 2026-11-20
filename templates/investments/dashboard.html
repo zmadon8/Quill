@@ -13,7 +13,7 @@
 {% if pending_actions %}<div class="ban al" role="alert"><span><b>{% for a in pending_actions|slice:":1" %}{{ a.get_kind_display }} pending: figures may be wrong.{% endfor %}</b> {% for a in pending_actions %}{{ a.instrument.name }} ({{ a.describe }}, {{ a.ex_date|date:"j M Y" }}){% if not forloop.last %}; {% endif %}{% endfor %}. Confirm or mark not applicable.</span><span class="r"><a href="{% url 'investments_corporate_actions' %}">Corporate actions</a></span></div>{% endif %}
 {% if unpriced %}<div class="ban wa"><span>{{ unpriced|length }} holding{{ unpriced|length|pluralize }} without a price ({% for h in unpriced|slice:":3" %}{{ h.name }}{% if not forloop.last %}, {% endif %}{% endfor %}{% if unpriced|length > 3 %} and more{% endif %}) are valued at cost.</span></div>{% endif %}
 {% if boxes %}<div class="strip">{% for b in boxes %}
-  {% if b == "value" %}<div class="f hl"><div class="lab">Current value</div><div class="fig">{{ totals.value|inr }}</div></div>
+  {% if b == "value" %}<div class="f"><div class="lab">Current value</div><div class="fig">{{ totals.value|inr }}</div></div>
   {% elif b == "invested" %}<div class="f"><div class="lab">Invested</div><div class="fig">{{ totals.invested|inr }}</div></div>
   {% elif b == "gain" %}<div class="f"><div class="lab">Gain{% if card_period %} ({{ card_period }}){% endif %}</div><div class="fig">{{ totals.gain|inr_signed }}<small>{{ totals.gain_pct|pct_signed }}</small></div></div>
   {% elif b == "xirr" %}<div class="f"><div class="lab" title="{{ 'xirr'|measure_tip }}">Portfolio XIRR{% if card_period %} ({{ card_period }}){% endif %}</div><div class="fig">{{ totals.xirr|pct }}<small>a year, on money you put in</small></div></div>
