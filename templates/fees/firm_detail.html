@@ -18,7 +18,8 @@
 {% include "fees/_matter_filter_nav.html" %}
 <nav class="list-filter" aria-label="Sort matters by">Sort by: {% if by == 'client' %}<a href="?by=partner&amp;matters={{ matters_shown }}">Partner</a> | <strong aria-current="true">Client</strong>{% else %}<strong aria-current="true">Partner</strong> | <a href="?by=client&amp;matters={{ matters_shown }}">Client</a>{% endif %}</nav>
 </div>
-{% for s in sections %}{% if s.rows or by == 'partner' %}<div class="card group-card"><h3 class="group-caption">{{ s.title }}</h3>
+{# A partner or client with no matter in this view (Active, Archived, All) is not shown at all (owner round 2026-11). #}
+{% for s in sections %}{% if s.rows %}<div class="card group-card"><h3 class="group-caption">{{ s.title }}</h3>
 <ul class="matter-list">{% for row in s.rows %}{% include "fees/_firm_matter_row.html" %}{% endfor %}</ul></div>{% endif %}{% endfor %}
 {% if not matter_rows %}<p class="muted">No matters.</p>{% endif %}
 </section>

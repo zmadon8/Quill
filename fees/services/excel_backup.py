@@ -227,6 +227,11 @@ WEB_SETTINGS_KEYS = [
     "statistics_enabled",
     "show_bank",
     "written_off_enabled",
+    # Which fee lines a new memo starts with (owner round 2026-11); an older file has only the desktop row's
+    # default_lines_enabled, which a restore then gives to all three.
+    "default_line_appearances",
+    "default_line_conferences",
+    "default_line_misc",
 ] + MEMO_TEXT_DEFAULT_KEYS + [
     "memo_signature_default",
     "list_default_filter",

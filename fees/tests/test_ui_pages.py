@@ -433,6 +433,35 @@ class FirmScreenTests(UiPageBase):
         self.assertIn('href="?by=partner&amp;matters=', client)
         self.assertIn("Archived Only", client)
 
+    def test_firm_page_leaves_out_partners_and_clients_with_no_matter_in_the_view(self):
+        # Owner round 2026-11: no card for a partner or client without a matter in the chosen view.
+        i = self.ids()
+        lonely = Group.objects.create(profile=self.profile, firm_id=i["firm"], name="Partner With Nothing")
+        archived_only = Group.objects.create(profile=self.profile, firm_id=i["firm"], name="Partner With Archived")
+        Matter.objects.create(profile=self.profile, firm_id=i["firm"], group=archived_only, name="Old Matter Zeta", is_archived=True)
+        active = self.html(self.page("fees_firm_detail", {"firm_id": i["firm"]}, "?matters=active"))
+        self.assertNotIn(lonely.name, active)
+        self.assertNotIn(archived_only.name, active)
+        archived = self.html(self.page("fees_firm_detail", {"firm_id": i["firm"]}, "?matters=archived"))
+        self.assertIn(archived_only.name, archived)
+        self.assertNotIn(lonely.name, archived)
+        everything = self.html(self.page("fees_firm_detail", {"firm_id": i["firm"]}, "?matters=all"))
+        self.assertNotIn(lonely.name, everything)
+
+    def test_firm_page_names_the_other_grouping_beside_each_matter(self):
+        # Owner round 2026-11: Partner-wise shows each matter's client, Client-wise its partner.
+        i = self.ids()
+        group = Group.objects.filter(firm_id=i["firm"]).first()
+        matter = Matter.objects.filter(firm_id=i["firm"], is_archived=False).first()
+        client = Client.objects.create(profile=self.profile, firm_id=i["firm"], name="Acme Holdings")
+        Matter.objects.filter(pk=matter.pk).update(group=group, client=client)
+        partner_wise = self.html(self.page("fees_firm_detail", {"firm_id": i["firm"]}))
+        self.assertIn('<span class="matter-other">&middot; Client: Acme Holdings</span>', partner_wise)
+        self.assertNotIn("&middot; Partner: ", partner_wise)
+        client_wise = self.html(self.page("fees_firm_detail", {"firm_id": i["firm"]}, "?by=client"))
+        self.assertIn('<span class="matter-other">&middot; Partner: %s</span>' % escape(group.name), client_wise)
+        self.assertNotIn("&middot; Client: ", client_wise)
+
     def test_partners_page_lists_the_partners_and_links_to_each(self):
         i = self.ids()
         group = Group.objects.filter(firm_id=i["firm"]).first()

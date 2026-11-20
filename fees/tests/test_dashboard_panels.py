@@ -73,3 +73,25 @@ class PanelPageTests(UiPageBase):
             self.assertIn(label, text)
         self.assertIn(">Share of total</a></th>", text)
         self.assertIn('class="share-bar"', text)
+
+
+class PanelChartChoiceTests(UiPageBase):
+    """Owner round 2026-11: the Dashboard's month chart can show Billed, Received, Received + TDS or Appearances."""
+
+    def test_the_chart_drop_down_and_each_choice(self):
+        text = self.html(self.page("fees_dashboard"))
+        self.assertIn('name="chart"', text)
+        for value, label in (("billed", "Billed"), ("received", "Received"), ("received_tds", "Received + TDS"), ("appearances", "Appearances")):
+            self.assertIn(f'<option value="{value}"', text)
+            page = self.html(self.page("fees_dashboard", query=f"?chart={value}"))
+            self.assertIn(f">{label} by month</h2>", page)
+            self.assertEqual(page.count('<li class="bar'), 12)
+        self.assertIn(">Billed by month</h2>", self.html(self.page("fees_dashboard", query="?chart=nonsense")))
+
+    def test_received_follows_the_statistics_engine(self):
+        from fees.services.statistics import get_period_statistics
+
+        now = datetime.date(2026, 11, 10)
+        _fy, months, _projected = dashboard_panels.by_month(self.profile, "received", now)
+        periods = get_period_statistics(self.profile, "month", "2026-27", {"exclude_future_months": True, "pro_rate_current_month": True}, now)["periods"]
+        self.assertEqual([Decimal(m["amount"]) for m in months], [Decimal(str(p["amount_received"])) for p in periods])
