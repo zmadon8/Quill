@@ -102,6 +102,7 @@ urlpatterns = [
     path("matters/<int:matter_id>/ledger/export/", views_exports.matter_ledger_export, name="fees_matter_ledger_export"),
     # Feebook
     path("feebook/", views_feebook.feebook_page, name="fees_feebook"),
+    path("feebook/payment/<int:payment_id>/", views_feebook.feebook_payment, name="fees_feebook_payment"),
     path("feebook/export/", views_exports.feebook_export, name="fees_feebook_export"),
     # Outstanding
     path("outstanding/", views_outstanding.outstanding_summary, name="fees_outstanding"),

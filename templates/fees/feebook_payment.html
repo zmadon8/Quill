@@ -1,0 +1,10 @@
+{% extends "fees/base_fees.html" %}
+{% load fees_money %}
+{% block page_title %}Payment of {{ payment_date|fees_date }} - {{ program_label }}{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Payment of {{ payment_date|fees_date }}{% if payee %}: {{ payee }}{% endif %}</h1>
+<p class="page-actions" role="group" aria-label="Payment actions"><a class="button small secondary" href="{% url 'fees_feebook' %}">Back to Feebook</a></p></div>
+<div class="table-card"><div class="table-wrap">
+{% include "fees/_feebook_table.html" %}
+</div></div>
+{% endblock %}

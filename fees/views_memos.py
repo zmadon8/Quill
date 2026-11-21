@@ -211,7 +211,10 @@ def _create(request, based_on=None):
         firm_id = (request.POST.get("firm_id") or "").strip()
         if firm_id and not matters.list_matters(profile, firm_id=int(firm_id) if firm_id.isdigit() else -1).filter(pk=data["matter_id"]).exists():
             raise FeesError("INVALID_MEMO", "That matter does not belong to the chosen firm.")
-        memo = memos.create_memo(profile, data, is_draft=request.POST.get("action") == "draft")
+        is_draft = request.POST.get("action") == "draft"
+        if is_draft:
+            data["date"] = None   # a draft carries no date: it gets one when the memo is finalised
+        memo = memos.create_memo(profile, data, is_draft=is_draft)
     except FeesError as err:
         return _failed(request, err, form, based_on=based_on)
     return _saved(request, memo)
@@ -276,11 +279,16 @@ def memo_edit(request, memo_id):
     profile, _settings = scope.context(request)
     detail = memos.get_memo(profile, memo_id)
     if request.method == "GET":
-        return _form_page(request, forms.memo_form_from_detail(detail), memo=detail)
+        form = forms.memo_form_from_detail(detail)
+        if detail["is_draft"] and not form["date"]:
+            form["date"] = forms._today_iso()   # a draft has no date; finalising it starts from today
+        return _form_page(request, form, memo=detail)
     form = forms.echo_memo_form(request.POST, FORM_FIELDS)
     try:
         data = forms.memo_data_from_post(request.POST)
         data["matter_id"] = detail["matter_id"]  # a memo never changes matter
+        if detail["is_draft"] and request.POST.get("action") == "draft":
+            data["date"] = None   # saved as a draft again: the date is removed
         if detail["is_draft"] and request.POST.get("action") in ("save", "save_export"):
             # "Save memo" on a draft: check it as a finished memo first, then save and number it together.
             memos.validate_memo_input(data, is_draft=False)
@@ -303,7 +311,9 @@ def memo_based_on(request, memo_id):
         memos.get_memo(profile, memo_id)  # another profile's memo is a 404
         return _create(request, based_on=memo_id)
     source = memos.create_based_on(profile, memo_id)
-    return _form_page(request, forms.memo_form_from_detail(source), based_on=memo_id)
+    form = forms.memo_form_from_detail(source)
+    form["date"] = forms._today_iso()   # a new memo, so today's date
+    return _form_page(request, form, based_on=memo_id)
 
 
 def _move_page(request, memo, errors=None, status=200):

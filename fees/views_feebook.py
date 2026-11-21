@@ -1,4 +1,5 @@
 """Feebook: every payment against the memos it settled, and the unaccounted payments."""
+from django.http import Http404
 from django.views.decorators.http import require_safe
 
 from fees import scope
@@ -28,6 +29,8 @@ def feebook_page(request):
                 filters["financial_year"] = chosen
             options = filter_options.feebook_options(profile, filters, banks)
     entries = feebook.list_feebook(profile, filters)
+    if getattr(request.user, "feebook_group_payments", False):
+        entries = feebook.group_by_payment(entries)   # memos paid together on one line (My settings > Display)
     totals = {
         key: sum((e[key] or 0 for e in entries), start=0) for key in ("amount_paid", "tds", "paid_plus_tds")
     }
@@ -61,4 +64,23 @@ def feebook_page(request):
             "money_unit": settings.money_unit,
             "query_string": query.urlencode(),
         },
+    )
+
+
+@fees_reader
+@handle_fees_errors()
+@require_safe
+def feebook_payment(request, payment_id):
+    """Every line of one payment, with the Feebook's own columns (the page a grouped Feebook line opens)."""
+    profile, settings = scope.context(request)
+    entries = feebook.list_feebook(profile, {"payment_id": payment_id})
+    if not entries:
+        raise Http404("No such payment.")
+    totals = {key: sum((e[key] or 0 for e in entries), start=0) for key in ("amount_paid", "tds", "paid_plus_tds")}
+    totals["count"] = len(entries)
+    return render_page(
+        request,
+        "fees/feebook_payment.html",
+        {"entries": entries, "totals": totals, "money_unit": settings.money_unit,
+         "payment_date": entries[0]["date_of_payment"], "payee": entries[0]["payee"]},
     )
