@@ -67,9 +67,20 @@ body.look .program-link { margin: 0 0 12px; border: 1px solid var(--line); backg
 body.look .program-link:hover { border-color: var(--accent-soft); background: var(--card); color: var(--accent); box-shadow: var(--shadow-float); }
 
 /* ---- Headline figures: each one a card ---- */
-body.ledger .kpi-grid { gap: 12px; overflow: visible; border: 0; }
-body.ledger .kpi { margin: 0; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--card); box-shadow: var(--shadow-card); }
+body.ledger .kpi-grid { gap: 8px; overflow: visible; border: 0; }
+body.ledger .kpi { margin: 0; padding: 6px 10px; border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--card); box-shadow: var(--shadow-card); }
 body.ledger .kpi dd, body.inv .fig { font-family: var(--font-sans); font-weight: 600; letter-spacing: -.01em; }
+/* Owner round 2026-11: Fee Register cards smaller still, phones included (two a line on a phone, not one) */
+body.ledger .kpi dt { font-size: 12px; }
+body.ledger .kpi dd { margin-top: 1px; font-size: 1.05rem; line-height: 1.2; }
+body.ledger .kpi .kpi-projected { margin-top: 0; font-size: 11.5px; }
+body.ledger .ageing-cards { gap: 8px; }
+body.ledger .ageing-card { gap: 0; padding: 6px 10px; }
+body.ledger .ageing-label, body.ledger .ageing-count { font-size: 11.5px; }
+body.ledger .ageing-amount { font-size: 15px; }
+body.ledger .dash-panel { padding: 10px 14px; }
+body.ledger .dash-panel-head { margin-bottom: 6px; }
+@media (max-width: 599px) { body.ledger main dl.kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; } body.ledger .kpi { padding: 5px 8px; } body.ledger .kpi dd { font-size: 1rem; } body.ledger .ageing-card { padding: 5px 8px; } }
 body.inv .fig { font-size: 24px; }
 body.inv .strip { gap: 12px; border: 0; }
 body.inv .strip .f, body.inv .strip .f:first-child { padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--card); box-shadow: var(--shadow-card); }

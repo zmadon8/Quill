@@ -40,6 +40,8 @@ class User(AbstractUser):
     group_digits = models.BooleanField("Add commas while typing numbers", default=True)
     # Owner round (2026-11): the header's Search shown as the word "Search" on a button instead of the magnifier (My settings, Display).
     search_as_word = models.BooleanField("Search as a word", default=False)
+    # Owner round (2026-11): the Fee Register Feebook shows memos paid together by one payment as a single line.
+    feebook_group_payments = models.BooleanField("Feebook: memos paid together on one line", default=False)
     # Owner round (2026-11): the accent colour of every page, per user (My settings, Display; an Admin can set it too). Only the
     # accent changes (buttons, the current tab, links); status colours, the Word memo and the exports never do. tokens.css has one
     # html[data-theme] block per choice; the default, oxblood, needs none.

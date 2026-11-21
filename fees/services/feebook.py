@@ -70,7 +70,7 @@ from fees.services.money import round2
 from fees.services.payments import gross
 from fees.services.settings import get_settings
 
-__all__ = ["list_feebook"]
+__all__ = ["list_feebook", "group_by_payment"]
 
 #: Shown in place of a draft memo's (missing) number in a group listing.
 _DRAFT_LABEL = "(draft)"
@@ -139,6 +139,11 @@ def _allocation_rows(profile, filters):
     bank_account_id = filters.get("bank_account_id")
     if bank_account_id is not None:
         qs = qs.filter(payment__bank_account_id=bank_account_id)
+
+    # One payment's lines (the page a grouped Feebook line opens).
+    payment_id = filters.get("payment_id")
+    if payment_id is not None:
+        qs = qs.filter(payment_id=payment_id)
 
     return qs
 
@@ -267,7 +272,7 @@ def list_feebook(profile, filters=None):
                 continue
             entries.append(_allocation_entry(alloc, groups.get(alloc.payment_id, [])))
 
-    for payment in _unaccounted_rows(profile, filters):
+    for payment in ([] if filters.get("payment_id") is not None else _unaccounted_rows(profile, filters)):
         if not _passes_fy(payment.date_of_payment, initial_fy, financial_year):
             continue
         entries.append(_unaccounted_entry(payment))
@@ -276,3 +281,55 @@ def list_feebook(profile, filters=None):
     # within one payment is preserved from the query ordering).
     entries.sort(key=lambda row: (row["date_of_payment"], row["payment_id"]), reverse=True)
     return entries
+
+
+def _shared(rows, id_key, name_key):
+    """``(id, name, more)`` for one column of a payment's lines: the first line's value, and ``more`` = ``""`` when every line has the
+    same value, ``"& Anr."`` when there are two different values, ``"& Ors."`` when there are more."""
+    seen = []
+    for row in rows:
+        if row[id_key] not in seen:
+            seen.append(row[id_key])
+    first = rows[0]
+    return first[id_key], first[name_key], ("" if len(seen) < 2 else "& Anr." if len(seen) == 2 else "& Ors.")
+
+
+def group_by_payment(entries):
+    """``entries`` (from :func:`list_feebook`) with the lines of one payment that settled several memos merged into one line
+    (the Feebook setting "memos paid together on one line"). Pure: no query.
+
+    The merged line has the first memo's number followed by ``& Anr.`` (two memos) or ``& Ors.`` (more); Firm and Matter likewise
+    when they differ (``firm_more``, ``matter_more``, ``memo_more``); Paid, TDS and Paid + TDS are summed; Type reads only
+    ``Multiple``. ``grouped`` is True on a merged line, whose link goes to the page listing each of the payment's lines. A payment
+    with one line showing (a single memo, an unaccounted payment, or the others filtered out) is left as it is. The order of
+    ``entries`` is kept (a merged line stands where the payment's first line stood).
+    """
+    by_payment = {}
+    for row in entries:
+        by_payment.setdefault(row["payment_id"], []).append(row)
+    out = []
+    done = set()
+    for row in entries:
+        pid = row["payment_id"]
+        rows = by_payment[pid]
+        if len(rows) < 2:
+            out.append(row)
+            continue
+        if pid in done:
+            continue
+        done.add(pid)
+        memo_id, memo_number, memo_more = _shared(rows, "memo_id", "memo_number")
+        firm_id, firm_name, firm_more = _shared(rows, "firm_id", "firm_name")
+        matter_id, matter_name, matter_more = _shared(rows, "matter_id", "matter_name")
+        merged = dict(rows[0])
+        merged.update(
+            grouped=True, memo_id=memo_id, memo_number=memo_number, memo_more=memo_more,
+            firm_id=firm_id, firm_name=firm_name, firm_more=firm_more,
+            matter_id=matter_id, matter_name=matter_name, matter_more=matter_more,
+            amount_paid=sum((r["amount_paid"] for r in rows), start=round2(0)),
+            tds=sum((r["tds"] for r in rows), start=round2(0)),
+            paid_plus_tds=sum((r["paid_plus_tds"] for r in rows), start=round2(0)),
+            payment_type="Multiple", group_memo_numbers=[], memo_total=None,
+        )
+        out.append(merged)
+    return out

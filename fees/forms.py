@@ -56,7 +56,7 @@ def blank_memo_form(config):
     """A new memo form's starting values: the user's Settings defaults."""
     form = {name: "" for name in MEMO_TEXT_FIELDS + MEMO_CUSTOM_FIELDS}
     form.update(
-        date="",
+        date=_today_iso(),   # a new memo starts on today's date (owner round 2026-11); a draft is saved without one
         matter_id="",
         custom_memo_number="",
         num_appearances="0",
