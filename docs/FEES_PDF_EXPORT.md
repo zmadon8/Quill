@@ -34,6 +34,7 @@ Typical time is 2 to 6 seconds. Microsoft documents the conversion as
 | Memory | Our server only uploads and downloads, streamed in 64 KB pieces. No converter runs here. |
 | Several people export at once | One PDF at a time per worker (a non-blocking lock). A second request in the same worker is told at once "Another PDF is being made. Try again in a few seconds."; it never waits. So at least 2 of the 4 request threads (2 workers x 2 threads) stay free for ordinary pages. The PDF button also ignores further presses for 30 seconds and reads "Making PDF...". |
 | Microsoft is slow or down | Each call waits at most 15 s and the whole export at most 25 s (gunicorn allows 60 s). Then it stops with a message. |
+| A memo over 4 MB (Microsoft's limit for this kind of upload) | Refused with a message to use Word. Templates and signatures are 2 MB each at most, so a memo is far smaller. |
 | Microsoft refuses (busy, expired sign-in, bad file) | The memo page shows the reason and a link to the Word memo. Never an error page. When Microsoft is busy (429) the message says when to try again. |
 | A leftover file in OneDrive | Deleted in a `finally` block; the nightly `pdf_keepalive` also removes this program's files older than an hour. |
 | Hostile answers | The PDF must come over HTTPS from a Microsoft download host (`*.files.1drv.com`, `*.sharepoint.com`, `*.livefilestore.com`, `*.onedrive.com`, `*.microsoftpersonalcontent.com`), is capped at 20 MB, must be a PDF, and our token is never sent to that link. |
@@ -63,8 +64,7 @@ who you are; the free account is not charged.
    | `MS_GRAPH_TOKEN_KEY` | any long random text, for example 50 letters and digits; keep it, changing it means connecting again |
    | `MS_GRAPH_TENANT` | `consumers` (already in `render.yaml`) |
    | `MS_GRAPH_SECRET_EXPIRES` | the secret's expiry date as `YYYY-MM-DD` (optional; Settings then warns 30 days before) |
-
-   `MS_GRAPH_REDIRECT_URI` is only needed if the site is reached under more than one address.
+   | `MS_GRAPH_REDIRECT_URI` | web service only: the same address as in step 2, `https://<your site>/fees/settings/pdf/callback/` |
 7. After the deploy: Fee Register > **Settings** > **Word** > **Connect Microsoft 365**, sign in with the hotmail account and accept.
 8. Press **Test With The Newest Memo** and compare the PDF with the Word file.
 
@@ -73,6 +73,8 @@ who you are; the free account is not charged.
 - The OAuth 2.0 authorisation-code flow with PKCE and a checked `state` (kept in the Admin's session for 10 minutes). Scopes
   `Files.ReadWrite.AppFolder`, `offline_access`, `openid`, `email`, `profile`: the site sees only its own folder
   (`OneDrive/Apps/Quill PDF`; Microsoft sometimes names it `Apps/Graph`), not the rest of the OneDrive.
+- The return page checks `state` before anything else, so a link that did not start from our own Connect changes nothing. The
+  one-time code in its address is removed from the app's log lines (`diary/logfilters.py`).
 - One connection for the whole site (`fees.PdfConnection`, one row). Only an Admin can connect, reconnect, test or disconnect.
   Every user with access to a Fee Register profile, Readers included, may then make PDFs unless they switched it off.
 - The [refresh token lasts up to 90 days and is replaced on every use](https://learn.microsoft.com/en-us/entra/identity-platform/refresh-tokens);
@@ -89,8 +91,8 @@ who you are; the free account is not charged.
   switched on for this user. After a failure the page says why and offers "download the Word memo".
 - **Memo form:** the save-and-download buttons read **Word** and **PDF**.
 - **My settings > Display:** "Memo PDF button" (Only you, on by default). Off: no PDF button, and the PDF address answers 403.
-- **Fee Register > Settings > Word > PDF export through Microsoft 365:** the status for everyone (connected as, since, last PDF,
-  last problem); for an Admin also Connect / Reconnect, Test With The Newest Memo, Disconnect and the secret's expiry warning.
+- **Fee Register > Settings > Word > PDF export through Microsoft 365:** the status for everyone (connected or not, since, last
+  PDF); for an Admin also the account, the last problem, Connect / Reconnect, Test With The Newest Memo, Disconnect and the secret's expiry warning.
 
 ## 7. Fonts
 

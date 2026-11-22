@@ -52,6 +52,9 @@ services:
         value: consumers
       - key: MS_GRAPH_SECRET_EXPIRES
         sync: false
+      # The sign-in return address registered with Microsoft, exactly: https://<site>/fees/settings/pdf/callback/
+      - key: MS_GRAPH_REDIRECT_URI
+        sync: false
       # Email (Forgot my password, emailed backups). Set these in the dashboard; leave EMAIL_HOST empty to keep email off.
       # See docs/EMAIL.md.
       - key: EMAIL_HOST

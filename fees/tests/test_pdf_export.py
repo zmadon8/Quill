@@ -142,6 +142,15 @@ class ConvertTests(TestCase):
         self.assertEqual(PdfConnection.objects.get(pk=1).refresh_token, "")
         self.assertFalse(pdf_graph.available())
 
+    def test_a_token_microsoft_dropped_early_is_renewed_once(self):
+        connect()
+        token = ("POST", pdf_graph.LOGIN_HOST, answer(200, {"access_token": "access-2", "refresh_token": "refresh-2", "expires_in": 3600}))
+        fake, pdf = self.run_convert([("PUT", pdf_graph.GRAPH, answer(401, {"error": {"code": "InvalidAuthenticationToken"}})), token]
+                                     + happy_path())
+        self.assertEqual(pdf.read(), PDF)
+        self.assertEqual([c["method"] for c in fake.calls], ["PUT", "POST", "PUT", "GET", "GET", "DELETE"])
+        self.assertEqual(fake.calls[2]["auth"], "Bearer access-2")
+
     def test_a_second_pdf_in_the_same_worker_is_refused_at_once(self):
         connect()
         self.assertTrue(pdf_graph._lock.acquire(blocking=False))
@@ -338,12 +347,14 @@ class PdfViewTests(TestCase):
         self.client.force_login(self.editor)
         page = self.client.get(reverse("fees_settings") + "?tab=word").content.decode()
         self.assertIn("PDF export through Microsoft 365", page)
-        self.assertIn("connected as owner@hotmail.com", page)
+        self.assertIn("Status: connected since", page)
+        self.assertNotIn("owner@hotmail.com", page)          # the account is shown to Admins only
         self.assertNotIn(reverse("fees_pdf_connect"), page)
         self.client.force_login(self.admin)
         page = self.client.get(reverse("fees_settings") + "?tab=word").content.decode()
         for name in ("fees_pdf_connect", "fees_pdf_disconnect", "fees_pdf_test"):
             self.assertIn(reverse(name), page, name)
+        self.assertIn("connected as owner@hotmail.com", page)
 
     def test_connect_keeps_the_check_in_the_session_and_goes_to_microsoft(self):
         self.client.force_login(self.admin)
@@ -365,6 +376,17 @@ class PdfViewTests(TestCase):
         self.assertEqual(finish.call_args[0][0], "C")
         self.assertTrue(response["Location"].endswith(reverse("fees_settings") + "?tab=word"))
         self.assertIn("connected to Microsoft 365 as owner@hotmail.com", said(response))
+
+    def test_a_callback_that_did_not_start_here_shows_nothing_it_carries(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse("fees_pdf_callback") + "?error=x&error_description=Call+this+number&state=\u00e9")
+        self.assertEqual(response.status_code, 302)
+        self.assertNotIn("Call this number", said(response))
+        self.client.get(reverse("fees_pdf_connect"))
+        state = self.client.session["fees_pdf_sign_in"]["state"]
+        response = self.client.get(reverse("fees_pdf_callback") + f"?error=access_denied&error_description=Call+this+number&state={state}")
+        self.assertIn("not connected (access_denied)", said(response))
+        self.assertNotIn("Call this number", said(response))
 
     def test_disconnect_forgets_the_sign_in(self):
         self.client.force_login(self.admin)

@@ -3,10 +3,12 @@ import logging
 import re
 
 TOKEN_PATH_RE = re.compile(r"(/offline/)[^/\s]+")
+#: The one-time code Microsoft sends to the Fee Register's PDF sign-in callback (docs/FEES_PDF_EXPORT.md).
+PDF_CALLBACK_RE = re.compile(r"(/fees/settings/pdf/callback/\?)[^\s\"']+")
 
 
 def redact(text):
-    return TOKEN_PATH_RE.sub(r"\1<token>", text)
+    return PDF_CALLBACK_RE.sub(r"\1<redacted>", TOKEN_PATH_RE.sub(r"\1<token>", text))
 
 
 class RedactOfflineToken(logging.Filter):

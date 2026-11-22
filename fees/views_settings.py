@@ -457,15 +457,21 @@ def pdf_callback(request):
 
     from fees.exports import pdf_graph
 
-    saved = request.session.pop(PDF_SESSION_KEY, None) or {}
+    import re
+
+    saved = request.session.get(PDF_SESSION_KEY) or {}
     state = request.GET.get("state", "")
     code = request.GET.get("code", "")
+    # The state is checked first: a link that did not come from our own Connect changes nothing and shows nothing it carries.
+    if not saved.get("state") or not state or not secrets.compare_digest(str(saved["state"]).encode(), state.encode()):
+        messages.error(request, "The Microsoft sign-in could not be checked. Press Connect again.")
+        return _word_settings()
+    request.session.pop(PDF_SESSION_KEY, None)
     if request.GET.get("error"):
-        reason = (request.GET.get("error_description") or request.GET.get("error"))[:200]
-        messages.error(request, f"Microsoft 365 was not connected: {reason}")
-    elif (not saved.get("state") or not state or not code or not secrets.compare_digest(str(saved["state"]), state)
-          or time.time() - float(saved.get("at") or 0) > PDF_SIGN_IN_SECONDS):
-        messages.error(request, "The Microsoft sign-in could not be checked (it may have taken too long). Press Connect again.")
+        reason = re.sub(r"[^a-z_]", "", request.GET.get("error", "").lower())[:40]
+        messages.error(request, f"Microsoft 365 was not connected ({reason or 'refused'}). Press Connect again to retry.")
+    elif not code or time.time() - float(saved.get("at") or 0) > PDF_SIGN_IN_SECONDS:
+        messages.error(request, "The Microsoft sign-in took too long. Press Connect again.")
     else:
         try:
             account = pdf_graph.finish_sign_in(code, str(saved.get("verifier", "")), _pdf_redirect_uri(request),

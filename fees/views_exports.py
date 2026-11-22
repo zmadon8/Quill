@@ -36,6 +36,8 @@ def memo_pdf(request, memo_id):
     if not getattr(request.user, "pdf_export", True):
         raise PermissionDenied("PDF is switched off for you on My settings.")
     try:
+        if not pdf_graph.available():
+            raise pdf_graph.PdfError(pdf_graph.NOT_SET_UP if not pdf_graph.configured() else pdf_graph.NOT_CONNECTED)
         return file_response(word_template.render_memo_pdf(profile, memo_id), PDF_TYPE)
     except (FeesError, pdf_graph.PdfError) as err:
         messages.error(request, f"The PDF could not be made. {err.message}")

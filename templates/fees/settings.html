@@ -129,9 +129,9 @@
 <h2 id="pdf-export-h">PDF export through Microsoft 365</h2>
 <p class="setting-help">A memo's PDF is its Word memo, converted by Microsoft 365 in the owner's OneDrive (folder Apps), then removed from there. {% include "_who_tag.html" with who="all" %}</p>
 {% if not pdf_status.configured %}<p>Not set up on this site yet.{% if user.is_admin %} The steps are in docs/FEES_PDF_EXPORT.md (the four MS_GRAPH settings on Render).{% endif %}</p>
-{% elif pdf_status.connected %}<p>Status: connected{% if pdf_status.account %} as {{ pdf_status.account }}{% endif %}{% if pdf_status.connected_at %} since {{ pdf_status.connected_at|date:"j M Y" }}{% endif %}{% if pdf_status.last_success_at %}. Last PDF {{ pdf_status.last_success_at|date:"j M Y, H:i" }}{% endif %}.</p>
-{% if pdf_status.last_error %}<p class="muted">Last problem{% if pdf_status.last_error_at %} ({{ pdf_status.last_error_at|date:"j M Y, H:i" }}){% endif %}: {{ pdf_status.last_error }}</p>{% endif %}
-{% else %}<p>Status: not connected.{% if pdf_status.last_error %} {{ pdf_status.last_error }}{% endif %}</p>{% endif %}
+{% elif pdf_status.connected %}<p>Status: connected{% if pdf_status.account and user.is_admin %} as {{ pdf_status.account }}{% endif %}{% if pdf_status.connected_at %} since {{ pdf_status.connected_at|date:"j M Y" }}{% endif %}{% if pdf_status.last_success_at %}. Last PDF {{ pdf_status.last_success_at|date:"j M Y, H:i" }}{% endif %}.</p>
+{% if pdf_status.last_error and user.is_admin %}<p class="muted">Last problem{% if pdf_status.last_error_at %} ({{ pdf_status.last_error_at|date:"j M Y, H:i" }}){% endif %}: {{ pdf_status.last_error }}</p>{% endif %}
+{% else %}<p>Status: not connected.{% if pdf_status.last_error and user.is_admin %} {{ pdf_status.last_error }}{% endif %}</p>{% endif %}
 {% if pdf_status.configured and user.is_admin %}
 {% if pdf_status.secret_expires %}<p{% if pdf_status.secret_warning %} class="notice"{% endif %}>The app secret expires on {{ pdf_status.secret_expires|date:"j M Y" }}.{% if pdf_status.secret_warning %} Make a new secret in the Microsoft Entra admin centre and update MS_GRAPH_CLIENT_SECRET and MS_GRAPH_SECRET_EXPIRES on Render before then.{% endif %}</p>{% endif %}
 <p>{% if pdf_status.connected %}<a class="button small secondary" href="{% url 'fees_pdf_test' %}">Test With The Newest Memo</a>{% endif %}

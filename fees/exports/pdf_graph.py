@@ -42,6 +42,8 @@ CALL_SECONDS = 15
 #: Removing the Word file from OneDrive after the export gets its own short allowance.
 DELETE_SECONDS = 8
 MAX_PDF_BYTES = 20 * 1024 * 1024
+#: Microsoft's simple upload takes at most 4 MB; a memo is far smaller (template and signature are 2 MB each at most).
+MAX_UPLOAD_BYTES = 4 * 1024 * 1024
 CHUNK = 64 * 1024
 #: Hosts Microsoft sends the converted PDF from (the link it redirects to is already signed, so no token goes there).
 DOWNLOAD_HOSTS = ("sharepoint.com", "files.1drv.com", "livefilestore.com", "onedrive.com", "onedrive.live.com",
@@ -188,14 +190,15 @@ def _remaining(deadline):
     return min(CALL_SECONDS, left)
 
 
-def _send(method, url, deadline, token=None, data=None, content_type=None):
+def _send(method, url, deadline, token=None, data=None, content_type=None, accept="application/json"):
     """``(status, headers, response)``. ``response`` is readable (and closed by the caller); an HTTP error status is returned, not raised."""
     request = urllib.request.Request(url, data=data, method=method)
     if token:
         request.add_header("Authorization", "Bearer " + token)
     if content_type:
         request.add_header("Content-Type", content_type)
-    request.add_header("Accept", "application/json")
+    if accept:
+        request.add_header("Accept", accept)
     try:
         response = _urlopen(request, _remaining(deadline))
     except urllib.error.HTTPError as exc:
@@ -349,10 +352,19 @@ def _access_token(deadline, force=False):
 # ---------------------------------------------------------------------------
 
 
+class _Expired(Exception):
+    """The access token was refused (401); one renewal is tried before giving up."""
+
+
 def _upload(token, data, deadline):
+    if len(data) > MAX_UPLOAD_BYTES:
+        raise PdfError("This Word memo is larger than 4 MB, which Microsoft 365 does not take this way. Use Word instead.")
     name = f"{FILE_PREFIX}{uuid.uuid4().hex}.docx"
     url = f"{GRAPH}/me/drive/special/approot:/{name}:/content"
     status_code, headers, response = _send("PUT", url, deadline, token=token, data=data, content_type=DOCX_TYPE)
+    if status_code == 401:
+        _close(response)
+        raise _Expired()
     if status_code not in (200, 201):
         raise _graph_failure(status_code, headers, response)
     item_id = _read_json(response).get("id")
@@ -410,7 +422,7 @@ def _download_pdf(token, item_id, deadline):
         _close(response)
         if not allowed_download(location):
             raise PdfError("Microsoft 365 sent the PDF from an address this site does not trust.")
-        status_code, headers, response = _send("GET", location, deadline)   # the link is signed: no token is sent
+        status_code, headers, response = _send("GET", location, deadline, accept=None)   # the link is signed: no token is sent
         if status_code == 200:
             return _stream_pdf(response, deadline)
     raise _graph_failure(status_code, headers, response)
@@ -435,7 +447,14 @@ def convert(docx_bytes):
     try:
         deadline = time.monotonic() + TOTAL_SECONDS
         token = _access_token(deadline)
-        item_id = _upload(token, docx_bytes, deadline)
+        try:
+            item_id = _upload(token, docx_bytes, deadline)
+        except _Expired:
+            token = _access_token(deadline, force=True)   # Microsoft dropped the token early: renew it once
+            try:
+                item_id = _upload(token, docx_bytes, deadline)
+            except _Expired:
+                raise PdfError(RECONNECT, reconnect=True) from None
         try:
             pdf = _download_pdf(token, item_id, deadline)
         finally:
