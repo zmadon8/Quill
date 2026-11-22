@@ -18,7 +18,7 @@ Workbooks (sheet, columns, totals) are copied from ``exportService.ts``:
 * ``export_ledger``: sheet ``Ledger``; bold ``Totals (n)`` row (Memo, Payment, TDS; Balance blank); file ``Ledger[ - name].xlsx``.
 * ``export_feebook``: sheet ``Feebook``; only the visible columns, Date and Memo No. always;
   file ``Feebook {FY or All Years}.xlsx``.
-* ``export_outstanding``: sheet ``Outstanding``; only the visible columns, Date, Memo Number and Due always;
+* ``export_outstanding``: sheet ``Outstanding``; only the visible columns, Date, Memo No. and Due always;
   bold ``TOTAL`` row (in the Matter column when shown, else the Memo column);
   default file ``All Outstanding Memos.xlsx``.
 * ``export_outstanding_by_firm``: sheet ``Outstanding by Firm``; bold ``TOTAL``;
@@ -114,7 +114,7 @@ OUTSTANDING_COLUMNS = (
     ("partner", "Partner", 22, False, lambda e: _text(e["partner_name"])),
     ("client", "Client", 22, False, lambda e: _text(e.get("client_name"))),
     ("date", "Date", 14, False, lambda e: format_date(e["date"])),
-    ("memo", "Memo Number", 16, False, lambda e: _text(e["memo_number"])),
+    ("memo", "Memo No.", 16, False, lambda e: _text(e["memo_number"])),
     ("matter", "Matter Name", 28, False, lambda e: _text(e["matter_name"])),
     ("total", "Total Memo Amount", 18, True, lambda e: e["total_fees"]),
     ("net", "Net of TDS", 14, True, lambda e: e["net_of_tds"]),
@@ -266,7 +266,7 @@ def export_memos(profile, filters=None):
     sheet = book.sheet("Memos", (16, 14, 28, 28, 14, 14, 14, 18, 10))
     sheet.header(
         [
-            "Memo Number", "Date", "Firm", "Matter Name", "Total Fees", "Net of TDS",
+            "Memo No.", "Date", "Firm", "Matter Name", "Total Fees", "Net of TDS",
             "Amount Paid", "Date of Last Payment", "Status",
         ]
     )
@@ -290,7 +290,7 @@ def export_memos(profile, filters=None):
 
 #: The Matter page's memo table, in its column order (the Columns menu hides by position): (header, width, money, value of a list item).
 MATTER_MEMO_COLUMNS = (
-    ("No.", 16, False, lambda m: _text(m["memo_number"])),
+    ("Memo No.", 16, False, lambda m: _text(m["memo_number"])),
     ("Date", 14, False, lambda m: format_date(m["date"]) if m["date"] else ""),   # a draft may have no date yet
     ("Apps", 8, False, lambda m: m["num_appearances"] or 0),
     ("Confs", 8, False, lambda m: m["num_conferences"] or 0),
@@ -415,7 +415,7 @@ def export_feebook(profile, filters=None, visible_keys=None):
 
 
 def export_outstanding(profile, filters=None, visible_keys=None, file_name=None):
-    """The Outstanding workbook. ``visible_keys`` limits the columns (Date, Memo Number and Due are kept).
+    """The Outstanding workbook. ``visible_keys`` limits the columns (Date, Memo No. and Due are kept).
 
     ``file_name`` replaces the default ``All Outstanding Memos.xlsx`` when it is not blank.
     """

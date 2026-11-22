@@ -309,3 +309,4 @@ body.ledger .fees-form input[readonly][aria-disabled=true] { background: var(--p
    or the open Columns list is partly hidden behind the table. Also lift the heading row's buttons while the menu is open. */
 body.ledger .table-tools:has(.col-menu[open]), body.ledger .sec:has(.col-menu[open]) { position: relative; z-index: 40; }
 body.ledger .col-menu[open] { z-index: 40; }
+body.ledger .ledger-table :is(th, td).memo-no { background: var(--accent-tint); }
