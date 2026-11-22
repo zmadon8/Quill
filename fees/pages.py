@@ -18,6 +18,7 @@ from fees.services import prefs
 XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 DOCX_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 TEXT_TYPE = "text/plain; charset=utf-8"
+PDF_TYPE = "application/pdf"
 
 #: The ``default_tab`` setting value to the URL name of that page.
 TAB_URL_NAMES = {

@@ -105,6 +105,7 @@ def memo_detail(request, memo_id):
             "memo": memo,
             "payments": payments.list_payments_for_memo(profile, memo_id),
             "money_unit": settings.money_unit,
+            "pdf_on": pdf_on(request),
         },
     )
 
@@ -180,6 +181,7 @@ def _form_page(request, form, memo=None, based_on=None, errors=None, status=200)
             "picker": picker,
             "party_types": settings_service.party_types(profile),
             "has_signature": word_template.has_signature(profile),
+            "pdf_on": pdf_on(request),
             "errors": errors or [],
         },
         status=status,
@@ -196,9 +198,21 @@ def _failed(request, err, form, memo=None, based_on=None):
 def _saved(request, memo):
     messages.success(request, "Draft saved." if memo.is_draft else f"Memo {memo.memo_number} saved.")
     response = redirect("fees_memo_detail", memo_id=memo.pk)
-    if request.POST.get("action") == "save_export" and not memo.is_draft:
+    action = request.POST.get("action")
+    if action == "save_export" and not memo.is_draft:
         response["Location"] += "?export=word"  # the memo page starts the Word download
+    elif action == "save_export_pdf" and not memo.is_draft:
+        response["Location"] += "?export=pdf"   # ... or the PDF
     return response
+
+
+def pdf_on(request):
+    """Whether this user gets a PDF button: they have not switched it off (My settings) and PDF export is connected."""
+    if not getattr(request.user, "pdf_export", True):
+        return False
+    from fees.exports import pdf_graph
+
+    return pdf_graph.available()
 
 
 def _create(request, based_on=None):
@@ -289,7 +303,7 @@ def memo_edit(request, memo_id):
         data["matter_id"] = detail["matter_id"]  # a memo never changes matter
         if detail["is_draft"] and request.POST.get("action") == "draft":
             data["date"] = None   # saved as a draft again: the date is removed
-        if detail["is_draft"] and request.POST.get("action") in ("save", "save_export"):
+        if detail["is_draft"] and request.POST.get("action") in ("save", "save_export", "save_export_pdf"):
             # "Save memo" on a draft: check it as a finished memo first, then save and number it together.
             memos.validate_memo_input(data, is_draft=False)
             with transaction.atomic():

@@ -33,7 +33,7 @@ from django.db import transaction
 from fees.errors import FeesError
 from fees.exports import images, template_prep, word
 from fees.exports.docx_zip import MAX_TEMPLATE_BYTES
-from fees.exports.filenames import memo_export_filename
+from fees.exports.filenames import memo_export_filename, pdf_filename
 from fees.exports.placeholders import build_placeholder_map
 from fees.models import FeesSettings, Memo, WordTemplate
 from fees.services import memos
@@ -46,6 +46,7 @@ __all__ = [
     "get_template_info",
     "has_signature",
     "render_memo_docx",
+    "render_memo_pdf",
     "upload_signature",
     "upload_template",
 ]
@@ -236,3 +237,16 @@ def render_memo_docx(profile, memo_id):
     signature = _signature_of(row) if memo.include_signature else None
     rendered = word.render(_bytes(row.prepared), mapping, signature)
     return memo_export_filename(memo, settings_row), rendered
+
+
+def render_memo_pdf(profile, memo_id):
+    """``(file_name, TemporaryFile)`` of the memo as PDF: the Word memo above, converted by Microsoft 365
+    (``fees.exports.pdf_graph``). Raises ``FeesError`` (no template, no memo) or ``pdf_graph.PdfError``. Read only."""
+    from fees.exports import pdf_graph
+
+    name, rendered = render_memo_docx(profile, memo_id)
+    try:
+        data = rendered.read()
+    finally:
+        rendered.close()
+    return pdf_filename(name), pdf_graph.convert(data)

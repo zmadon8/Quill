@@ -1,10 +1,15 @@
 """Excel and Word exports. Every export is a GET and a pure read, so a Reader may use them (R-EX-6)."""
+from django.contrib import messages
+from django.core.exceptions import PermissionDenied
+from django.shortcuts import redirect
+from django.urls import reverse
 from django.views.decorators.http import require_safe
 
 from fees import scope
 from fees.decorators import fees_reader, handle_fees_errors
 from fees.exports import xlsx
-from fees.pages import DOCX_TYPE, XLSX_TYPE, bank_on, feebook_filters, file_response, memo_filters, outstanding_filters, overdue_on
+from fees.errors import FeesError
+from fees.pages import DOCX_TYPE, PDF_TYPE, XLSX_TYPE, bank_on, feebook_filters, file_response, memo_filters, outstanding_filters, overdue_on
 from fees.services import memos, word_template
 from fees.views_ledger import client_param, group_param, scope_for
 
@@ -16,6 +21,25 @@ def memo_word(request, memo_id):
     profile, _settings = scope.context(request)
     memos.get_memo(profile, memo_id)  # another profile's memo is a 404 before any template work
     return file_response(word_template.render_memo_docx(profile, memo_id), DOCX_TYPE)
+
+
+@fees_reader
+@handle_fees_errors()
+@require_safe
+def memo_pdf(request, memo_id):
+    """The memo as PDF: the Word memo converted by Microsoft 365 (docs/FEES_PDF_EXPORT.md). A user who switched PDF off on My
+    settings is refused; any failure goes back to the memo page with the reason and a link to the Word file."""
+    from fees.exports import pdf_graph
+
+    profile, _settings = scope.context(request)
+    memos.get_memo(profile, memo_id)  # another profile's memo is a 404 before anything else
+    if not getattr(request.user, "pdf_export", True):
+        raise PermissionDenied("PDF is switched off for you on My settings.")
+    try:
+        return file_response(word_template.render_memo_pdf(profile, memo_id), PDF_TYPE)
+    except (FeesError, pdf_graph.PdfError) as err:
+        messages.error(request, f"The PDF could not be made. {err.message}")
+        return redirect(reverse("fees_memo_detail", kwargs={"memo_id": memo_id}) + "?pdf=failed")
 
 
 @fees_reader

@@ -13,6 +13,8 @@ Deliberately NOT in a backup file:
     Effect: a restore deletes profiles by queryset delete, which cascades to their links and copies, so after any
     restore all links and saved copies are gone and the Admin makes a new link. (A restore can therefore never
     bring back a link that was revoked.)
+  * fees.PdfConnection (the Microsoft 365 sign-in for memo PDFs): like the Offline link's token, a key to the owner's
+    OneDrive must never travel in a backup file. A restore leaves the connection as it is.
   * PurgeLog (history of the deleted-profile purge job),
   * sessions (people simply sign in again),
   * BackupFile and BackupLog (a backup must never contain other backups).

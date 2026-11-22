@@ -55,6 +55,7 @@ urlpatterns = [
     path("memos/<int:memo_id>/move/", views_memos.memo_move, name="fees_memo_move"),
     path("memos/<int:memo_id>/based-on/", views_memos.memo_based_on, name="fees_memo_based_on"),
     path("memos/<int:memo_id>/word/", views_exports.memo_word, name="fees_memo_word"),
+    path("memos/<int:memo_id>/pdf/", views_exports.memo_pdf, name="fees_memo_pdf"),
     path("memos/<int:memo_id>/statement/", views_exports.memo_statement, name="fees_memo_statement"),
     # Payments (Editor)
     path("payments/new/", views_payments.payment_new, name="fees_payment_new"),
@@ -126,6 +127,10 @@ urlpatterns = [
     path("settings/template/tags/", views_settings.template_tags_download, name="fees_template_tags_download"),
     path("settings/filename-preview/", views_settings.filename_preview, name="fees_filename_preview"),
     path("settings/statistics-grid/", views_settings.statistics_grid, name="fees_settings_statistics_grid"),
+    path("settings/pdf/connect/", views_settings.pdf_connect, name="fees_pdf_connect"),
+    path("settings/pdf/callback/", views_settings.pdf_callback, name="fees_pdf_callback"),
+    path("settings/pdf/disconnect/", views_settings.pdf_disconnect, name="fees_pdf_disconnect"),
+    path("settings/pdf/test/", views_settings.pdf_test, name="fees_pdf_test"),
     # The signed-in user's own interface preferences (column widths): any role, never fee data
     path("prefs/", views_prefs.prefs_endpoint, name="fees_prefs"),
     # Backup download (Editor); restore, clear-all and import (suite Admin only)

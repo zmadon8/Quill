@@ -13,12 +13,12 @@ from django.urls import reverse
 from django.views.decorators.http import require_http_methods, require_safe, require_POST
 
 from fees import forms, scope
-from fees.decorators import fees_editor, fees_read_write, fees_reader, handle_fees_errors
+from fees.decorators import fees_admin, fees_editor, fees_read_write, fees_reader, handle_fees_errors
 from fees.errors import FeesError
 from fees.exports import tag_reference
 from fees.exports.filenames import DEFAULT_PATTERN, PLACEHOLDERS, memo_export_filename, validate_pattern
 from fees.models import BankAccount, Memo
-from fees.pages import DOCX_TYPE, bytes_response, json_ok, render_page
+from fees.pages import DOCX_TYPE, PDF_TYPE, bytes_response, file_response, json_ok, render_page
 from fees.services import settings as settings_service
 from fees.services import fy_options, statistics, word_template
 from fees.services.financial_year import current_financial_year
@@ -83,6 +83,7 @@ def settings_context(profile, fy=None, tab="memos"):
         ),
         "bank_accounts": settings_service.list_bank_accounts(profile),
         "template_info": word_template.get_template_info(profile),
+        "pdf_status": _pdf_status(),
         "payment_amount_choices": PAYMENT_AMOUNT_CHOICES,
         "money_unit_choices": MONEY_UNIT_CHOICES,
         "money_unit": config["money_unit"],
@@ -402,3 +403,104 @@ def statistics_grid(request):
     ensure_statistics_on(config)
     fy = financial_year_param(request.GET)
     return json_ok({"financial_year": fy, "adjustments": statistics.list_adjustments(profile, fy)})
+
+
+# ---------------------------------------------------------------------------
+# PDF export through Microsoft 365 (docs/FEES_PDF_EXPORT.md): connect, callback, disconnect, test. Admin only.
+# ---------------------------------------------------------------------------
+
+#: Where the sign-in's ``state`` and PKCE verifier wait between Connect and Microsoft's callback (the Admin's session).
+PDF_SESSION_KEY = "fees_pdf_sign_in"
+#: A sign-in must come back within this many seconds.
+PDF_SIGN_IN_SECONDS = 600
+
+
+def _pdf_status():
+    from fees.exports import pdf_graph
+
+    return pdf_graph.status()
+
+
+def _word_settings():
+    return redirect(reverse("fees_settings") + "?tab=word")
+
+
+def _pdf_redirect_uri(request):
+    from django.conf import settings as django_settings
+
+    return django_settings.MS_GRAPH_REDIRECT_URI or request.build_absolute_uri(reverse("fees_pdf_callback"))
+
+
+@fees_admin
+@require_safe
+def pdf_connect(request):
+    """Send the Admin to Microsoft to sign in (a plain link, so it is a navigation, not a form post)."""
+    import time
+
+    from fees.exports import pdf_graph
+
+    try:
+        url, state, verifier = pdf_graph.start_sign_in(_pdf_redirect_uri(request))
+    except pdf_graph.PdfError as err:
+        messages.error(request, err.message)
+        return _word_settings()
+    request.session[PDF_SESSION_KEY] = {"state": state, "verifier": verifier, "at": time.time()}
+    return redirect(url)
+
+
+@fees_admin
+@require_safe
+def pdf_callback(request):
+    """Microsoft sends the Admin back here with a code; it is checked against the session and exchanged for the sign-in."""
+    import secrets
+    import time
+
+    from fees.exports import pdf_graph
+
+    saved = request.session.pop(PDF_SESSION_KEY, None) or {}
+    state = request.GET.get("state", "")
+    code = request.GET.get("code", "")
+    if request.GET.get("error"):
+        reason = (request.GET.get("error_description") or request.GET.get("error"))[:200]
+        messages.error(request, f"Microsoft 365 was not connected: {reason}")
+    elif (not saved.get("state") or not state or not code or not secrets.compare_digest(str(saved["state"]), state)
+          or time.time() - float(saved.get("at") or 0) > PDF_SIGN_IN_SECONDS):
+        messages.error(request, "The Microsoft sign-in could not be checked (it may have taken too long). Press Connect again.")
+    else:
+        try:
+            account = pdf_graph.finish_sign_in(code, str(saved.get("verifier", "")), _pdf_redirect_uri(request),
+                                               request.user.get_username())
+        except pdf_graph.PdfError as err:
+            messages.error(request, err.message)
+        else:
+            messages.success(request, f"PDF export is connected to Microsoft 365{' as ' + account if account else ''}.")
+    return _word_settings()
+
+
+@fees_admin
+@require_POST
+def pdf_disconnect(request):
+    from fees.exports import pdf_graph
+
+    pdf_graph.disconnect()
+    messages.success(request, "PDF export is disconnected. No PDF button is shown until an Admin connects again.")
+    return _word_settings()
+
+
+@fees_admin
+@handle_fees_errors(fallback="fees_settings")
+@require_safe
+def pdf_test(request):
+    """Convert this profile's newest numbered memo, so the Admin can compare the PDF with its Word file."""
+    from fees.exports import pdf_graph
+
+    profile, _settings = scope.context(request)
+    memo = Memo.objects.filter(profile=profile, memo_number__isnull=False).order_by("-date", "-pk").only("pk").first()
+    if memo is None:
+        messages.error(request, "There is no numbered memo in this profile to test with yet.")
+        return _word_settings()
+    try:
+        return file_response(word_template.render_memo_pdf(profile, memo.pk), PDF_TYPE)
+    except (FeesError, pdf_graph.PdfError) as err:
+        messages.error(request, f"The test PDF could not be made. {err.message}")
+        return _word_settings()

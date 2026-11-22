@@ -41,6 +41,17 @@ services:
       # (comma separated), for example https://diary.example.com
       - key: CSRF_TRUSTED_ORIGINS
         sync: false
+      # Memo PDFs through Microsoft 365 (docs/FEES_PDF_EXPORT.md). Leave MS_GRAPH_CLIENT_ID empty to keep PDF off.
+      - key: MS_GRAPH_CLIENT_ID
+        sync: false
+      - key: MS_GRAPH_CLIENT_SECRET
+        sync: false
+      - key: MS_GRAPH_TOKEN_KEY
+        sync: false
+      - key: MS_GRAPH_TENANT
+        value: consumers
+      - key: MS_GRAPH_SECRET_EXPIRES
+        sync: false
       # Email (Forgot my password, emailed backups). Set these in the dashboard; leave EMAIL_HOST empty to keep email off.
       # See docs/EMAIL.md.
       - key: EMAIL_HOST
@@ -72,8 +83,9 @@ services:
     # refresh_offline_copies remakes the saved Offline copy behind each secret link (Profiles > Offline link). Like the
     # email step it is followed by || echo, so it can never change rc or hide the backup/purge result.
     # send_report_emails sends the Investments report emails (weekly / monthly / quarterly / annual) whose period has ended (Investments > Settings > Email reports).
+    # pdf_keepalive renews the Microsoft 365 sign-in for memo PDFs and clears leftover files (does nothing while PDF is off).
     # warm_investments_cache works out the Overview, Holdings and Alerts figures once the prices are in, so the first visit of the day is fast.
-    startCommand: sh -c 'python manage.py fetch_prices || echo "fetch_prices failed (see Investments > Settings > Price sources)"; python manage.py create_sip_entries || echo "create_sip_entries failed (ignored)"; python manage.py pin_prices || echo "pin_prices failed (see Investments > Settings > Price history)"; python manage.py run_backup && python manage.py purge_deleted_profiles && python manage.py purge_old_history && python manage.py prune_prices; rc=$?; python manage.py send_email_backups || echo "send_email_backups failed (see Backups > Email backups)"; python manage.py refresh_offline_copies || echo "refresh_offline_copies failed (see Profiles > Offline link)"; python manage.py warm_investments_cache || echo "warm_investments_cache failed (ignored)"; python manage.py send_alert_emails || echo "send_alert_emails failed (ignored)"; python manage.py send_report_emails || echo "send_report_emails failed (see Investments > Settings > Email reports)"; python manage.py clearsessions || echo "clearsessions failed (ignored)"; exit $rc'
+    startCommand: sh -c 'python manage.py fetch_prices || echo "fetch_prices failed (see Investments > Settings > Price sources)"; python manage.py create_sip_entries || echo "create_sip_entries failed (ignored)"; python manage.py pin_prices || echo "pin_prices failed (see Investments > Settings > Price history)"; python manage.py run_backup && python manage.py purge_deleted_profiles && python manage.py purge_old_history && python manage.py prune_prices; rc=$?; python manage.py send_email_backups || echo "send_email_backups failed (see Backups > Email backups)"; python manage.py refresh_offline_copies || echo "refresh_offline_copies failed (see Profiles > Offline link)"; python manage.py warm_investments_cache || echo "warm_investments_cache failed (ignored)"; python manage.py send_alert_emails || echo "send_alert_emails failed (ignored)"; python manage.py send_report_emails || echo "send_report_emails failed (see Investments > Settings > Email reports)"; python manage.py pdf_keepalive || echo "pdf_keepalive failed (see Fee Register > Settings > Word)"; python manage.py clearsessions || echo "clearsessions failed (ignored)"; exit $rc'
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.8
@@ -97,6 +109,17 @@ services:
       # Days of edit history kept (the newest version of every record is always kept).
       - key: HISTORY_RETENTION_DAYS
         value: "30"
+      # Memo PDFs through Microsoft 365 (docs/FEES_PDF_EXPORT.md). Leave MS_GRAPH_CLIENT_ID empty to keep PDF off.
+      - key: MS_GRAPH_CLIENT_ID
+        sync: false
+      - key: MS_GRAPH_CLIENT_SECRET
+        sync: false
+      - key: MS_GRAPH_TOKEN_KEY
+        sync: false
+      - key: MS_GRAPH_TENANT
+        value: consumers
+      - key: MS_GRAPH_SECRET_EXPIRES
+        sync: false
       # Email (Forgot my password, emailed backups). Set these in the dashboard; leave EMAIL_HOST empty to keep email off.
       # See docs/EMAIL.md.
       - key: EMAIL_HOST

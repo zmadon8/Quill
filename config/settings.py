@@ -218,6 +218,17 @@ def _flag(name, default=False):
     return default if not raw else raw in ("1", "true", "yes", "on")
 
 
+# Fee Register memo PDF through Microsoft 365 (docs/FEES_PDF_EXPORT.md). The memo's Word file is converted by Microsoft in the
+# owner's OneDrive app folder. With any of the first three missing, PDF is off and no button is shown. MS_GRAPH_TOKEN_KEY is any
+# long random text; it encrypts the stored Microsoft sign-in (never in a backup). MS_GRAPH_SECRET_EXPIRES (YYYY-MM-DD, optional) is
+# when the app's client secret expires, so Settings can warn in time.
+MS_GRAPH_CLIENT_ID = os.environ.get("MS_GRAPH_CLIENT_ID", "").strip()
+MS_GRAPH_CLIENT_SECRET = os.environ.get("MS_GRAPH_CLIENT_SECRET", "").strip()
+MS_GRAPH_TOKEN_KEY = os.environ.get("MS_GRAPH_TOKEN_KEY", "").strip()
+MS_GRAPH_TENANT = os.environ.get("MS_GRAPH_TENANT", "").strip() or "consumers"
+MS_GRAPH_REDIRECT_URI = os.environ.get("MS_GRAPH_REDIRECT_URI", "").strip()
+MS_GRAPH_SECRET_EXPIRES = os.environ.get("MS_GRAPH_SECRET_EXPIRES", "").strip()
+
 EMAIL_HOST = os.environ.get("EMAIL_HOST", "").strip()
 EMAIL_PORT = _int("EMAIL_PORT", 587)
 EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
