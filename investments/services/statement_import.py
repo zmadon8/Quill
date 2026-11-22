@@ -11,7 +11,7 @@ name, code and ISIN guessed from the file and from the stored AMFI scheme list; 
 investments are created, and the lines are matched to them through ``aliases`` (the file's text -> the new investment) so a corrected
 name still matches. Nothing is guessed from the internet: prices come with the next Update Prices or the nightly fetch.
 
-Holdings sheet (owner round 2026-11): a file may also give, on every row, the investment's name and code separately, its type (Share,
+Holdings sheet (owner round 2026-11): a file may also give, on every row, the investment's name and code separately, its type (Equity,
 Mutual Fund, ...), the portfolio and the broker. A code that matches an investment uses it; otherwise the investment is added from the
 row's name, code and type when the file is saved (no separate step), and a portfolio or broker the profile does not have is added too.
 The portfolio and broker chosen on the page are used only for rows that leave those cells blank.
@@ -48,7 +48,7 @@ EXACT_ONLY = {"portfolio", "broker", "origin"}
 SELL_WORDS = ("sell", "sale", "redeem", "redemption", "s", "switch out", "switch-out")
 TENTATIVE_DAYS = 10
 #: The types a missing investment can be added as from a file. An alternative investment needs no code (it has no price feed).
-ADDABLE_KINDS = ((KIND_SHARE, "Share or ETF"), (KIND_FUND, "Mutual fund"), (KIND_FOREIGN, "Foreign share"), (KIND_ALTERNATIVE, "Alternative"))
+ADDABLE_KINDS = ((KIND_SHARE, "Equity (share or ETF)"), (KIND_FUND, "Mutual fund"), (KIND_FOREIGN, "Foreign share"), (KIND_ALTERNATIVE, "Alternative"))
 #: Words in a Type cell, and the type they mean.
 KIND_WORDS = ((KIND_FUND, ("mutual fund", "fund", "mf", "scheme", "sip")), (KIND_FOREIGN, ("foreign", "us share", "us stock", "international")),
               (KIND_ALTERNATIVE, ("alternative", "ppf", "fd", "fixed deposit", "bond", "gold", "property", "real estate", "nps", "epf", "other")),

@@ -34,7 +34,7 @@ def catalogue_list(request):
         return _export(items)
     return page(request, "investments/catalogue.html", {
         "page_title_text": "Investment catalogue", "items": items, "q": q, "kind": kind, "source": source, "flag": flag,
-        "kinds": [("", "All types"), ("share", "Share"), ("fund", "Mutual fund"), ("foreign", "Foreign"), ("index", "Index")],
+        "kinds": [("", "All types"), ("share", "Equity"), ("fund", "Mutual fund"), ("foreign", "Foreign"), ("index", "Index")],
         "sources": [("", "All sources"), ("yahoo", "Yahoo"), ("amfi", "AMFI"), ("mfapi", "mfapi.in"), ("manual", "Manual"), ("upload", "Uploaded")],
         "flags": [("", "Any"), ("stale", "Stale"), ("failing", "Fetch failing"), ("split", "Split detected"), ("duplicate", "Possible duplicate")],
         "new_form": forms.CatalogueNewForm(), "is_admin": bool(getattr(request.user, "is_admin", False))}, selectors=False)

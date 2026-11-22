@@ -30,7 +30,7 @@ class BreakdownTests(InvTestCase):
             self.assertEqual(sum((r["value"] for r in table["rows"]), D(0)), value, key)
             self.assertEqual(table["total"]["invested"], D("2000.00"), key)
             self.assertAlmostEqual(sum(r["share"] for r in table["rows"]), 1.0, places=6)
-        self.assertEqual([r["name"] for r in data["breakdown"]["type"]["rows"]], ["Share", "Mutual fund"])
+        self.assertEqual([r["name"] for r in data["breakdown"]["type"]["rows"]], ["Equity", "Mutual fund"])
         self.assertEqual([r["name"] for r in data["breakdown"]["portfolio"]["rows"]], ["Main"])
         brokers = {r["name"]: r["value"] for r in data["breakdown"]["broker"]["rows"]}
         self.assertEqual(brokers, {"Zerodha": D("1200.00"), "Groww": D("1100.00")})
@@ -56,12 +56,12 @@ class BreakdownTests(InvTestCase):
         url = reverse("investments_dashboard")
         page = self.client.get(url).content.decode()
         self.assertEqual(page.count('data-table-id="inv-overview-breakdown"'), 1)
-        self.assertIn("<td>Share</td>", page)
+        self.assertIn("<td>Equity</td>", page)
         self.assertIn("by Portfolio", page)
         self.assertIn("breakdown=broker#breakdown", page)
         page = self.client.get(url + "?breakdown=portfolio").content.decode()
         self.assertIn("<td>Main</td>", page)
-        self.assertNotIn("<td>Share</td>", page)
+        self.assertNotIn("<td>Equity</td>", page)
         page = self.client.get(url + "?breakdown=broker").content.decode()
         self.assertIn("<td>Zerodha</td>", page)
         self.assertIn("<td>Groww</td>", page)
@@ -69,7 +69,7 @@ class BreakdownTests(InvTestCase):
     def test_an_unknown_choice_falls_back_to_type(self):
         self.client.force_login(self.user)
         page = self.client.get(reverse("investments_dashboard") + "?breakdown=nonsense").content.decode()
-        self.assertIn("<td>Share</td>", page)
+        self.assertIn("<td>Equity</td>", page)
         self.assertIn("<td>Mutual fund</td>", page)
 
     def test_login_is_required(self):

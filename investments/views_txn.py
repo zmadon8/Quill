@@ -715,9 +715,9 @@ def _import_sample():
     header = ["Date of transaction", "Name of investment", "Investment code", "Type", "Folio", "Portfolio", "Broker", "Transaction type",
               "Transaction price", "Transaction quantity", "Origin"]
     # Origin is optional (blank means a purchase). Bonus shares, split units and shares received on a demerger need no price.
-    rows = [[_date(2019, 5, 2), "Reliance Industries", "RELIANCE.NS", "Share", "", "Main", "Zerodha", "Buy", 1350.25, 10, "Purchase"],
+    rows = [[_date(2019, 5, 2), "Reliance Industries", "RELIANCE.NS", "Equity", "", "Main", "Zerodha", "Buy", 1350.25, 10, "Purchase"],
             [_date(2021, 3, 15), "Parag Parikh Flexi Cap Fund - Direct Growth", "122639", "Mutual Fund", "1234567/89", "Main", "Direct", "Buy", 41.2, 242.718, "Purchase"],
-            [_date(2024, 10, 28), "Reliance Industries", "RELIANCE.NS", "Share", "", "Main", "Zerodha", "Buy", None, 10, "Bonus"]]
+            [_date(2024, 10, 28), "Reliance Industries", "RELIANCE.NS", "Equity", "", "Main", "Zerodha", "Buy", None, 10, "Bonus"]]
     return response("Holdings import sample.xlsx", [("Holdings", header, rows)])
 
 

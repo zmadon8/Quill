@@ -71,7 +71,7 @@ def holdings_list(request):
         return response("Holdings.xlsx", holdings_sheet(out))
     return page(request, "investments/holdings.html", {
         "page_title_text": "Investments", "rows": out, "held_count": held_count, "sold_count": sold_count, "kind": kind, "status": status, "holdings_filters": True,
-        "kinds": [("", "All types"), ("share", "Share"), ("fund", "Mutual fund"), ("alternative", "Alternative"), ("foreign", "Foreign")],
+        "kinds": [("", "All types"), ("share", "Equity"), ("fund", "Mutual fund"), ("alternative", "Alternative"), ("foreign", "Foreign")],
         "status_choices": [("held", "Held"), ("sold_out", "Sold out"), ("not_bought", "Not bought yet"), ("all", "All")],
     })
 
@@ -82,7 +82,7 @@ def holdings_list(request):
 def add_1(request):
     masters.ensure_default_portfolio(profile_or_404(request))
     return page(request, "investments/add_1.html", {"page_title_text": "Add investment", "kinds": [
-        ("share", "Share or ETF", "An exchange-listed share. Type its code (for example RELIANCE.NS)."),
+        ("share", "Equity (share or ETF)", "An exchange-listed share. Type its code (for example RELIANCE.NS)."),
         ("fund", "Mutual fund", "Pick the exact plan and option; each has its own scheme code."),
         ("alternative", "Alternative investment", "Anything without a public price: a deposit, PPF, property, gold, unlisted shares."),
         ("foreign", "Foreign investment", "Priced in another currency; the rupee value is worked out with an exchange rate."),

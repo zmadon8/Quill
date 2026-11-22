@@ -12,7 +12,7 @@ from investments.models import HOLDABLE_KINDS, KIND_ALTERNATIVE, ProfileInvestme
 from investments.services import fetch, holdings, performance, prices, statscache
 from investments.svgchart import sparkline
 
-PAYLOAD_VERSION = 3   # 2: Index XIRR and Alpha per row; 3: lump_sum on each instrument
+PAYLOAD_VERSION = 4   # 2: Index XIRR and Alpha per row; 3: lump_sum on each instrument; 4: the Share type is labelled Equity
 
 
 class _Instrument:

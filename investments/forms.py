@@ -122,7 +122,7 @@ class ProfileForm(forms.Form):
         r = instrument_search.lookup_record(self["new_source"].value(), self["new_code"].value())
         if not r:
             return ""
-        bits = ["Fund" if r["kind"] == "fund" else "Share", r["code"], r["isin"], r["plan"] and f"{r['plan']} Plan", r["option"] and f"{r['option']} Option"]
+        bits = ["Fund" if r["kind"] == "fund" else "Equity", r["code"], r["isin"], r["plan"] and f"{r['plan']} Plan", r["option"] and f"{r['option']} Option"]
         return "New \u00b7 " + " \u00b7 ".join(b for b in bits if b)
 
     @property
@@ -416,7 +416,7 @@ class SwitchForm(ProfileForm):
         self.mark_held("from_instrument", default=True)
 
 
-KIND_CHOICES = [(KIND_SHARE, "Share or ETF"), ("fund", "Mutual fund"), (KIND_ALTERNATIVE, "Alternative investment"), (KIND_FOREIGN, "Foreign investment")]
+KIND_CHOICES = [(KIND_SHARE, "Equity (share or ETF)"), ("fund", "Mutual fund"), (KIND_ALTERNATIVE, "Alternative investment"), (KIND_FOREIGN, "Foreign investment")]
 
 
 class InstrumentForm(forms.Form):
@@ -625,7 +625,7 @@ class CatalogueDetailsForm(forms.Form):
 
 
 class CatalogueNewForm(forms.Form):
-    kind = forms.ChoiceField(choices=[("share", "Share"), ("fund", "Mutual fund"), ("foreign", "Foreign"), ("index", "Index")])
+    kind = forms.ChoiceField(choices=[("share", "Equity"), ("fund", "Mutual fund"), ("foreign", "Foreign"), ("index", "Index")])
     name = forms.CharField(max_length=200)
     code = forms.CharField(max_length=60, required=False)
     isin = forms.CharField(max_length=20, required=False)
