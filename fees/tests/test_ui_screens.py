@@ -44,6 +44,7 @@ SCREENS = (
     ("fees_matter_statement", "matter", "", False),
     ("fees_matter_ledger", "matter", "", False),
     ("fees_feebook", None, "", False),
+    ("fees_feebook_payment", "payment", "", False),
     ("fees_outstanding", None, "", False),
     ("fees_outstanding_detail", None, "", False),
     ("fees_search_page", None, "?q=alpha", False),

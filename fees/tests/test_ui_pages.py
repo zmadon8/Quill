@@ -217,7 +217,7 @@ class MemoScreenTests(UiPageBase):
 
     def test_memo_list_has_table_landmarks(self):
         text = self.assert_page(self.page("fees_memos"), "memos")
-        self.assertIn('<th scope="col" data-col-fixed>No.</th>', text)
+        self.assertIn('<th scope="col" class="memo-no" data-col-fixed>Memo No.</th>', text)
         self.assertIn('<th scope="row" colspan="4">Total (', text)
         self.assertIn('data-fees-columns="memos"', text)
         self.assertIn('aria-label="Memo actions"', text)
@@ -258,7 +258,7 @@ class MemoScreenTests(UiPageBase):
         self.assertIn('<form method="get" action="%s" data-pay-form' % reverse("fees_payment_new"), editor)
         self.assertIn(">Pay Ticked Memos</button>", editor)
         head = editor[editor.index("<thead>"):editor.index("</thead>")]
-        self.assertLess(head.index("Select to pay"), head.index(">No.</th>"))   # the tick column is on the far left
+        self.assertLess(head.index("Select to pay"), head.index(">Memo No.</th>"))   # the tick column is on the far left
         ticks = editor.count('type="checkbox" name="memo"')
         self.assertGreater(ticks, 0)
         self.assertIn("js/fees/outstanding.js", editor)
@@ -620,7 +620,7 @@ class FeebookAndPaymentTests(UiPageBase):
 
     def test_feebook_unaccounted_shows_plain_visible_text(self):
         text = self.html(self.page("fees_feebook", query="?unaccounted=1"))
-        self.assertIn("<td>Unaccounted</td>", text)
+        self.assertIn('<td class="memo-no">Unaccounted</td>', text)
         self.assertNotIn("status-unaccounted", text)
 
     def test_feebook_hides_edit_controls_from_a_reader(self):
@@ -641,7 +641,7 @@ class FeebookAndPaymentTests(UiPageBase):
         text = self.html(self.page("fees_feebook", user=self.editor, query="?unaccounted=1"))
         body = text.split("<tbody>", 1)[-1].split("</tbody>", 1)[0]
         self.assertIn('aria-label="Edit payment of ', body)
-        self.assertRegex(body, r'<td><a href="%s"[^>]*>Unaccounted</a></td>' % re.escape(reverse("fees_payment_edit", args=[self.seed["unaccounted"]["id"]])))
+        self.assertRegex(body, r'<td class="memo-no"><a href="%s"[^>]*>Unaccounted</a></td>' % re.escape(reverse("fees_payment_edit", args=[self.seed["unaccounted"]["id"]])))
         for gone in ("row-menu", "More actions", "/assign/", "Memo number", ">Attach<", "<form"):
             self.assertNotIn(gone, body)
 
@@ -1254,7 +1254,7 @@ class StatusMarkerSettingTests(UiPageBase):
         detail = self.html(self.page("fees_outstanding_detail"))
         self.assertRegex(detail, r'<span class="status status-(unpaid|partial|overdue)"><span class="status-word">(Unpaid|Partly paid)')
         feebook = self.html(self.page("fees_feebook", query="?unaccounted=1"))
-        self.assertIn("<td>Unaccounted</td>", feebook)
+        self.assertIn('<td class="memo-no">Unaccounted</td>', feebook)
 
     def test_off_applies_to_editors_too(self):
         self.set_dots(False)
