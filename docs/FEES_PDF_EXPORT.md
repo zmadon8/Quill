@@ -1,6 +1,7 @@
 # Fee Register: memo PDF export through Microsoft 365
 
-Status: **design, not built**. Owner decisions are in section 9.
+Status: **design, not built**. Owner decisions so far: a Microsoft 365 **Family** plan, signed in with a hotmail address
+(a personal Microsoft account); PDF can be switched off **per user**; the memo buttons read **Word** and **PDF**. Open points are in section 9.
 
 ## 1. What it does
 
@@ -12,7 +13,7 @@ Nothing heavy runs on our server. LibreOffice is not installed, there is no Dock
 ## 2. How one export works
 
 ```
-Memo page: [Export to Word]  [Export to PDF]
+Memo page: [Word]  [PDF]
                                   |
 1. Fill the template (existing render_memo_docx)      on our server, about 0.5 MB, under 0.1 s
 2. Upload the .docx to the owner's OneDrive           PUT  /me/drive/special/approot:/{random}.docx:/content
@@ -43,8 +44,9 @@ far above a memo.
 - The owner connects **once**, from Fee Register > Settings > PDF export, as an Admin. Every profile and every user who may export
   Word (Readers included, R-EX-6) may then export PDF. Their memos are converted in the owner's OneDrive.
 - **Flow.** The standard OAuth 2.0 authorisation-code flow for a confidential web app, with the scopes `Files.ReadWrite.AppFolder`
-  (or `Files.ReadWrite` if the account type needs it, section 9) and `offline_access`. The app sees only its own folder,
-  `OneDrive/Apps/Quill PDF`, not the rest of the OneDrive.
+  and `offline_access`. The app sees only its own folder, `OneDrive/Apps/Quill PDF`, not the rest of the OneDrive. The
+  [app folder permission](https://github.com/OneDrive/onedrive-api-docs/blob/live/docs/rest-api/concepts/special-folders-appfolder.md)
+  is supported for personal accounts like the owner's. (Microsoft sometimes names the folder `Apps/Graph` instead; harmless.)
 - **Tokens.** Microsoft returns a short-lived access token and a refresh token. The
   [refresh token lasts up to 90 days and is replaced on every use](https://learn.microsoft.com/en-us/entra/identity-platform/refresh-tokens).
   So each export and a nightly "keep alive" step (added to the existing cron job, ending in `|| echo` like the others, at no extra
@@ -53,15 +55,25 @@ far above a memo.
 - **Storage.** The refresh token is stored encrypted (Fernet, from the `cryptography` package) with a key in the environment
   variable `MS_TOKEN_KEY`. It is never logged and never put in a backup, so a backup file cannot be used to reach the OneDrive.
   Restoring a backup leaves the connection as it is.
-- **App registration** (owner, once, about 20 minutes, guided). Register "Quill PDF" in the Microsoft Entra admin centre with the
-  redirect URI `https://<site>/fees/settings/pdf/callback/` and create a client secret. The ID and secret go into Render environment
-  variables: `MS_CLIENT_ID`, `MS_CLIENT_SECRET`, `MS_TENANT` (`common`, `consumers` or the tenant ID, section 9) and `MS_TOKEN_KEY`.
+- **App registration** (owner, once, about 30 minutes, guided). Microsoft no longer lets a personal account register an app on its
+  own: it needs a Microsoft Entra directory, which a
+  [free Azure account](https://learn.microsoft.com/en-us/graph/auth-register-app-v2) provides (Microsoft asks for a card to confirm
+  who you are; the free account is not charged). In it, register "Quill PDF" with "Personal Microsoft accounts only", the redirect
+  URI `https://<site>/fees/settings/pdf/callback/`, and a client secret. Then sign in to the site's PDF settings with the **hotmail**
+  account. The values go into Render environment variables: `MS_CLIENT_ID`, `MS_CLIENT_SECRET`, `MS_TENANT=consumers` and
+  `MS_TOKEN_KEY`.
   A client secret expires after at most 24 months, so the settings page shows its expiry date and warns 30 days before.
 
 ## 5. Screens
 
-**Memo page.** An "Export to PDF" button beside "Export to Word". It is shown only when the connection is working and the memo has
-a number (the same rule as Word). While the PDF is made, the button reads "Making PDF..." and is disabled.
+**Memo page.** Two buttons, **Word** and **PDF** (until now the Word button read "Export to Word"; screen readers still hear
+"Export to Word" and "Export to PDF"). PDF is shown only when the connection is working, the memo has a number (the same rule as
+Word) and PDF is on for this user. While the PDF is made, the button reads "Making PDF..." and is disabled. On the memo form, the
+"save and export" button likewise reads **Word**, with **PDF** beside it.
+
+**Per user: "PDF export" on/off.** A new field `User.pdf_export` (default on). An Admin sets it on the Users screen (Add and Edit
+user), like "Can See Who Is Active". When it is off, that user sees no PDF button and the PDF address answers 403 for them, while
+Word stays available. It is kept in backups like the other user settings.
 
 **Fee Register > Settings > PDF export** (the Word template section):
 
@@ -99,25 +111,27 @@ The owner's first "Test" confirms this before anyone relies on it.
 | `fees/models.py` + migration | `PdfConnection`: one row for the site (account name, encrypted refresh token, connected at, last success, last error). |
 | `fees/services/word_template.py` | `render_memo_pdf(profile, memo_id)`: `render_memo_docx`, then `pdf_graph.convert`. |
 | `fees/exports/filenames.py` | The file name with a chosen extension (`.pdf`), same pattern. |
+| `accounts/models.py` + migration, `accounts/forms.py`, Users templates | `User.pdf_export` (default on), the Admin's checkbox on Add and Edit user, and the backup field list. |
 | `fees/views_exports.py`, `fees/views_settings.py`, `fees/urls.py` | `fees_memo_pdf` (Reader), `fees_pdf_connect`, `fees_pdf_callback`, `fees_pdf_disconnect`, `fees_pdf_test` (Admin). |
 | Templates | The memo page button and the settings card. |
 | `fees/management/commands/pdf_keepalive.py` + `render.yaml` | Nightly token refresh and leftover cleanup, after the backup, `|| echo`. |
 | `config/settings.py`, `render.yaml` | `MS_CLIENT_ID`, `MS_CLIENT_SECRET`, `MS_TENANT`, `MS_TOKEN_KEY` (`sync: false`). The feature is off while any of them is missing. |
 | `requirements.txt` | `cryptography` (token encryption). |
 | `backups` | The connection table is excluded from backup and restore. |
-| Tests | Each step and each failure (timeout, 401, 429, conversion error, oversized PDF, wrong redirect host), the lock, permissions, the route tables, and that the token never appears in a page, a log line or a backup. |
+| Tests | Each step and each failure (timeout, 401, 429, conversion error, oversized PDF, wrong redirect host), the lock, permissions, the per-user switch (button hidden, address refused, Word unaffected), the route tables, and that the token never appears in a page, a log line or a backup. |
 
 Memory check: `fees_memory_bench` gets a "PDF export" row with a mocked Microsoft. Cap 5 MB.
 
-## 9. Owner decisions needed before the build
+## 9. Owner decisions
 
-1. **Which kind of Microsoft 365?** *Business* (Business Basic, Standard, ...; it has a work address and an admin centre) or
-   *Personal/Family* (an outlook.com, hotmail.com or live.com sign-in). Business: `MS_TENANT` is your tenant ID and the setup is
-   simplest. Personal/Family: `MS_TENANT` is `consumers`, and Microsoft now asks personal accounts to register apps inside a
-   (free) Entra directory; the setup guide covers this. Either works for the conversion.
-2. **Which Microsoft account connects** (the one whose OneDrive is used).
-3. **Adding the `cryptography` package** for the token encryption (pure install, no system libraries).
-4. Whether a failed PDF should **offer the Word file at once** (proposed: yes, a link in the message).
+Decided: Family plan with a hotmail sign-in (`MS_TENANT=consumers`, app folder permission); PDF on or off per user; buttons
+**Word** and **PDF**.
+
+Still open:
+
+1. **Who switches PDF off for a user**: only an Admin on the Users screen (proposed), or each user on My settings too?
+2. **Adding the `cryptography` package** for the token encryption (pure install, no system libraries).
+3. Whether a failed PDF should **offer the Word file at once** (proposed: yes, a link in the message).
 
 ## 10. Not included
 

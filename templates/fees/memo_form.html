@@ -96,7 +96,7 @@
     <a class="button" href="{% if memo %}{% url 'fees_memo_detail' memo.id %}{% else %}{% url 'fees_memos' %}{% endif %}">Cancel</a>
     {% if not memo or memo.is_draft %}<button type="submit" name="action" value="draft" class="secondary">Save as Draft</button>{% endif %}
     <button type="submit" name="action" value="save" class="primary">Save</button>
-    <button type="submit" name="action" value="save_export" class="secondary">Export to Word</button>
+    <button type="submit" name="action" value="save_export" class="secondary" title="Save, then download the Word memo" aria-label="Save and export to Word">Word</button>
   </p>{% endif %}
 </form>
 {% endblock %}
