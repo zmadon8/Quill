@@ -102,6 +102,7 @@ ROUTES = {
     "fees_matter_ledger": (R, ""),
     "fees_matter_ledger_export": (R, ""),
     "fees_feebook": (R, ""),
+    "fees_feebook_payment": (R, ""),
     "fees_feebook_export": (R, ""),
     "fees_outstanding": (R, ""),
     "fees_outstanding_detail": (R, ""),

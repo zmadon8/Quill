@@ -52,7 +52,7 @@ class XlsxBase(TestCase):
 
 class MemosExportTests(XlsxBase):
     HEADERS = [
-        "Memo Number", "Date", "Firm", "Matter Name", "Total Fees", "Net of TDS", "Amount Paid",
+        "Memo No.", "Date", "Firm", "Matter Name", "Total Fees", "Net of TDS", "Amount Paid",
         "Date of Last Payment", "Status",
     ]
 
@@ -204,7 +204,7 @@ class FeebookTests(XlsxBase):
 
 class OutstandingTests(XlsxBase):
     ALL = [
-        "Firm", "Partner", "Client", "Date", "Memo Number", "Matter Name", "Total Memo Amount", "Net of TDS",
+        "Firm", "Partner", "Client", "Date", "Memo No.", "Matter Name", "Total Memo Amount", "Net of TDS",
         "Already Paid", "Due",
     ]
 
@@ -225,10 +225,10 @@ class OutstandingTests(XlsxBase):
     def test_visible_columns_and_total_label_position(self):
         _n, sheets = values(xlsx.export_outstanding(self.profile, visible_keys=["firm", "paid"]))
         rows = sheets["Outstanding"]
-        self.assertEqual(rows[0], ["Firm", "Date", "Memo Number", "Already Paid", "Due"])
+        self.assertEqual(rows[0], ["Firm", "Date", "Memo No.", "Already Paid", "Due"])
         self.assertEqual(rows[-1][2], "TOTAL")
         _n, sheets = values(xlsx.export_outstanding(self.profile, visible_keys=["matter"]))
-        self.assertEqual(sheets["Outstanding"][0], ["Date", "Memo Number", "Matter Name", "Due"])
+        self.assertEqual(sheets["Outstanding"][0], ["Date", "Memo No.", "Matter Name", "Due"])
         self.assertEqual(sheets["Outstanding"][-1][2], "TOTAL")
 
     def test_custom_file_name(self):

@@ -7,7 +7,7 @@ from decimal import Decimal
 from investments.services import chartview, core, holdings, overview, performance, series, statscache
 
 #: Bump when the cached payload gains or changes a part, so older cached payloads are not read (2: the Type/Portfolio/Broker breakdown; 3: its XIRR column; 4: the buy and sell markers of the chart).
-PAYLOAD_VERSION = 5
+PAYLOAD_VERSION = 6   # 6: the Share type is labelled Equity
 MONEY_FIELDS = ("units", "avg_cost", "price", "value", "gain", "awaiting", "cost", "dividends")
 
 

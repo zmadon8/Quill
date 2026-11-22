@@ -35,7 +35,7 @@ class FeebookUnaccountedLinkTests(UiPageBase):
 
     def test_reader_gets_plain_text(self):
         text = self.html(self.page("fees_feebook", query="?unaccounted=1"))
-        self.assertIn("<td>Unaccounted</td>", text)
+        self.assertIn('<td class="memo-no">Unaccounted</td>', text)
 
 
 class OverdueOffTests(UiPageBase):

@@ -62,7 +62,7 @@ class LumpDisplayTests(InvTestCase):
         self.assertEqual(html.count('<th class="r">Units</th>'), 1)
 
     def test_holdings_dash_and_cache_version(self):
-        self.assertEqual(holdings_page.PAYLOAD_VERSION, 3)
+        self.assertEqual(holdings_page.PAYLOAD_VERSION, 4)
         self.assertEqual(self.client.get(reverse("investments_holdings")).status_code, 200)
 
     def test_history_describes_a_lump_sale_in_money(self):

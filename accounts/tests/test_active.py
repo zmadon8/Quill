@@ -73,6 +73,7 @@ class ActivePanelTests(TestCase):
         User.objects.filter(pk=cls.old_user.pk).update(last_seen_at=now - timedelta(days=2))
         other_profile = Profile.objects.create(name="Chambers B", program="diary")
         ProfileMembership.objects.create(user=cls.now_user, profile=other_profile, program=other_profile.program, role="reader", last_used_at=now)
+        ProfileMembership.objects.filter(user=cls.now_user, profile__name="Main").update(last_seen_at=now - timedelta(minutes=1))
 
     def home(self, user):
         self.client.force_login(user)
@@ -96,7 +97,12 @@ class ActivePanelTests(TestCase):
     def test_content_and_order(self):
         resp = self.home(self.admin)
         self.assertContains(resp, "Nina Now")
-        self.assertContains(resp, "Chambers B")  # most recently used profile
+        # Nina has a Main and a Chambers B profile; only Main was opened today. A profile she merely has access to
+        # (or last used) is not listed, and neither is the program's name.
+        where = {r["name"]: r["where"] for r in resp.context["active_now"]}
+        self.assertEqual(where["Nina Now"], "Main")
+        self.assertNotContains(resp, "Chambers B")
+        self.assertNotContains(resp, "Case Law Diary \u00b7")
         self.assertContains(resp, "Earlier Today")
         self.assertNotContains(resp, "olga")
         active = [r["name"] for r in resp.context["active_now"]]
@@ -193,13 +199,19 @@ class ActiveInEveryProfileTests(TestCase):
         self.client.get(reverse("diary_home"))
         self.client.get(reverse("fees_dashboard"))
         where = self.where()["ziyad"]
-        self.assertIn("Case Law Diary \u00b7 Main", where)
-        self.assertIn("Fee Register \u00b7 Ziyad", where)
+        self.assertIn("Main", where)
+        self.assertIn("Ziyad", where)
+        self.assertNotIn("Fee Register", where)
 
     def test_only_the_profiles_used_today_show(self):
         self.client.force_login(self.ziyad)
         self.client.get(reverse("diary_home"))
-        self.assertEqual(self.where()["ziyad"], "Case Law Diary \u00b7 Main")
+        self.assertEqual(self.where()["ziyad"], "Main")
+
+    def test_a_profile_never_opened_is_not_listed(self):
+        self.client.force_login(self.ziyad)
+        self.client.get(reverse("home") + "?home=1")  # Home opens no profile
+        self.assertEqual(self.where()["ziyad"], "")
 
     def test_a_second_page_within_a_minute_writes_nothing(self):
         self.client.force_login(self.ziyad)

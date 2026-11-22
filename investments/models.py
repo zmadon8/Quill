@@ -14,7 +14,7 @@ UNITS = {"max_digits": 20, "decimal_places": 4}
 
 KIND_SHARE, KIND_FUND, KIND_ALTERNATIVE, KIND_FOREIGN, KIND_INDEX = "share", "fund", "alternative", "foreign", "index"
 INSTRUMENT_KINDS = [
-    (KIND_SHARE, "Share"), (KIND_FUND, "Mutual fund"), (KIND_ALTERNATIVE, "Alternative"),
+    (KIND_SHARE, "Equity"), (KIND_FUND, "Mutual fund"), (KIND_ALTERNATIVE, "Alternative"),
     (KIND_FOREIGN, "Foreign"), (KIND_INDEX, "Index"),
 ]
 #: Kinds a person can buy (an index only serves as a comparison).

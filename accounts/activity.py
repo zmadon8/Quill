@@ -1,11 +1,9 @@
 """Who is active: the Active Now and Earlier Today panel on Home (visible to Admins and to users an Admin allowed)."""
 from datetime import timedelta
 
-from django.db.models import F
 from django.utils import timezone
 
 from .models import ProfileMembership, User
-from .suite import get_names
 
 ACTIVE_MINUTES = 5
 
@@ -27,30 +25,29 @@ def active_panel():
         User.objects.filter(last_seen_at__gte=start_of_day, is_active=True, deleted_at__isnull=True)
         .order_by("-last_seen_at", "username")
     )
-    seen_in, fallback = {}, {}
+    seen_in = {}
     if users:
+        # Only memberships opened today (``last_seen_at`` is set by accounts.middleware when a page of that profile is
+        # used). A profile the user merely has access to, or last used on another day, is never listed.
         memberships = (
             ProfileMembership.objects.filter(
-                user__in=[u.pk for u in users], suspended=False, profile__deleted_at__isnull=True
+                user__in=[u.pk for u in users], suspended=False, profile__deleted_at__isnull=True,
+                last_seen_at__gte=start_of_day,
             )
             .select_related("profile")
-            .order_by(F("last_seen_at").desc(nulls_last=True), F("last_used_at").desc(nulls_last=True), "pk")
+            .order_by("-last_seen_at", "pk")
         )
-        names = get_names()
         for m in memberships:
-            profile = (m.profile.display_name or "").strip() or m.profile.name
-            label = f"{names.get(m.program, m.program)} \u00b7 {profile}"
-            if m.last_seen_at is not None and m.last_seen_at >= start_of_day:
-                # Every profile the user worked in today, the latest first (a Diary and a Fee Register profile both show).
-                seen_in.setdefault(m.user_id, []).append(label)
-            else:
-                # Not seen in any profile today (only on Home, or before profiles were tracked): the one used last.
-                fallback.setdefault(m.user_id, label)
+            # The profile's name only (not the program), once even if a Diary and a Fee Register profile share a name.
+            name = (m.profile.display_name or "").strip() or m.profile.name
+            names = seen_in.setdefault(m.user_id, [])
+            if name not in names:
+                names.append(name)
     cutoff = now - timedelta(minutes=ACTIVE_MINUTES)
     rows = [
         {
             "name": u.get_full_name().strip() or u.username,
-            "where": ", ".join(seen_in[u.pk]) if u.pk in seen_in else fallback.get(u.pk, ""),
+            "where": ", ".join(seen_in.get(u.pk, [])),
             "recent": u.last_seen_at >= cutoff,
         }
         for u in users

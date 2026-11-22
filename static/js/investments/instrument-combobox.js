@@ -86,7 +86,7 @@
     function showHints(item, isNew) {
       priceLine.textContent = item.price_text || ""; priceLine.hidden = !item.price_text;
       if (isNew) {
-        var bits = [item.kind === "fund" ? "Fund" : "Share", item.code];
+        var bits = [item.kind === "fund" ? "Fund" : "Equity", item.code];
         if (item.isin) { bits.push(item.isin); }
         if (item.plan) { bits.push(item.plan + " Plan"); }
         if (item.option) { bits.push(item.option + " Option"); }
