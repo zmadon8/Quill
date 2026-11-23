@@ -431,6 +431,37 @@ def _pdf_redirect_uri(request):
     return django_settings.MS_GRAPH_REDIRECT_URI or request.build_absolute_uri(reverse("fees_pdf_callback"))
 
 
+def _pdf_failed(request, message):
+    """A failed Connect: the reason stays on the Settings page (Last problem) and in the log, not only in a passing message."""
+    import logging
+
+    from fees.exports import pdf_graph
+
+    logging.getLogger("fees.pdf").warning("PDF export connect failed: %s", message)
+    pdf_graph.record_connect_problem(message)
+    messages.error(request, message)
+    return _word_settings()
+
+
+def _other_host(request):
+    """The site address Microsoft sends the sign-in back to, when it is not the one this page was opened on (else None).
+
+    The check values wait in the browser's session, which belongs to one address: Connect must start on the address Microsoft
+    returns to, or the return cannot be checked.
+    """
+    from urllib.parse import urlsplit
+
+    from django.conf import settings as django_settings
+
+    configured = django_settings.MS_GRAPH_REDIRECT_URI
+    if not configured:
+        return None
+    parts = urlsplit(configured)
+    if parts.scheme != "https" or not parts.netloc or parts.netloc.lower() == request.get_host().lower():
+        return None
+    return f"https://{parts.netloc}"
+
+
 @fees_admin
 @require_safe
 def pdf_connect(request):
@@ -439,11 +470,14 @@ def pdf_connect(request):
 
     from fees.exports import pdf_graph
 
+    other = _other_host(request)
+    if other:
+        # Opened under another address of the site: start again on the one Microsoft returns to (sign in there if needed).
+        return redirect(other + reverse("fees_pdf_connect"))
     try:
         url, state, verifier = pdf_graph.start_sign_in(_pdf_redirect_uri(request))
     except pdf_graph.PdfError as err:
-        messages.error(request, err.message)
-        return _word_settings()
+        return _pdf_failed(request, err.message)
     request.session[PDF_SESSION_KEY] = {"state": state, "verifier": verifier, "at": time.time()}
     return redirect(url)
 
@@ -452,34 +486,34 @@ def pdf_connect(request):
 @require_safe
 def pdf_callback(request):
     """Microsoft sends the Admin back here with a code; it is checked against the session and exchanged for the sign-in."""
+    import re
     import secrets
     import time
 
     from fees.exports import pdf_graph
-
-    import re
 
     saved = request.session.get(PDF_SESSION_KEY) or {}
     state = request.GET.get("state", "")
     code = request.GET.get("code", "")
     # The state is checked first: a link that did not come from our own Connect changes nothing and shows nothing it carries.
     if not saved.get("state") or not state or not secrets.compare_digest(str(saved["state"]).encode(), state.encode()):
-        messages.error(request, "The Microsoft sign-in could not be checked. Press Connect again.")
-        return _word_settings()
+        why = ("this browser has no Connect in progress on this address" if not saved.get("state")
+               else "the answer does not match the Connect in progress")
+        return _pdf_failed(request, f"The Microsoft sign-in could not be checked ({why}). Press Connect again, on {request.get_host()}.")
     request.session.pop(PDF_SESSION_KEY, None)
     if request.GET.get("error"):
         reason = re.sub(r"[^a-z_]", "", request.GET.get("error", "").lower())[:40]
-        messages.error(request, f"Microsoft 365 was not connected ({reason or 'refused'}). Press Connect again to retry.")
-    elif not code or time.time() - float(saved.get("at") or 0) > PDF_SIGN_IN_SECONDS:
-        messages.error(request, "The Microsoft sign-in took too long. Press Connect again.")
-    else:
-        try:
-            account = pdf_graph.finish_sign_in(code, str(saved.get("verifier", "")), _pdf_redirect_uri(request),
-                                               request.user.get_username())
-        except pdf_graph.PdfError as err:
-            messages.error(request, err.message)
-        else:
-            messages.success(request, f"PDF export is connected to Microsoft 365{' as ' + account if account else ''}.")
+        detail = re.search(r"AADSTS\d+", request.GET.get("error_description", ""))
+        code_text = (reason or "refused") + (f", {detail.group(0)}" if detail else "")
+        return _pdf_failed(request, f"Microsoft 365 was not connected ({code_text}). Press Connect again to retry.")
+    if not code or time.time() - float(saved.get("at") or 0) > PDF_SIGN_IN_SECONDS:
+        return _pdf_failed(request, "The Microsoft sign-in took too long. Press Connect again.")
+    try:
+        account = pdf_graph.finish_sign_in(code, str(saved.get("verifier", "")), _pdf_redirect_uri(request),
+                                           request.user.get_username())
+    except pdf_graph.PdfError as err:
+        return _pdf_failed(request, err.message)
+    messages.success(request, f"PDF export is connected to Microsoft 365{' as ' + account if account else ''}.")
     return _word_settings()
 
 

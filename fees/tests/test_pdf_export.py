@@ -388,6 +388,37 @@ class PdfViewTests(TestCase):
         self.assertIn("not connected (access_denied)", said(response))
         self.assertNotIn("Call this number", said(response))
 
+    def test_a_failed_connect_stays_on_the_settings_page(self):
+        self.client.force_login(self.admin)
+        pdf_graph.disconnect()
+        self.client.get(reverse("fees_pdf_callback") + "?code=C&state=S")       # no Connect in progress in this browser
+        page = self.client.get(reverse("fees_settings") + "?tab=word").content.decode()
+        self.assertIn("Status: not connected.", page)
+        self.assertIn("Last problem", page)
+        self.assertIn("no Connect in progress on this address", page)
+
+    @override_settings(MS_GRAPH_REDIRECT_URI="https://madon.example/fees/settings/pdf/callback/", ALLOWED_HOSTS=["testserver", "madon.example"])
+    def test_connect_on_another_address_of_the_site_moves_to_the_registered_one(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse("fees_pdf_connect"))
+        self.assertEqual(response["Location"], "https://madon.example" + reverse("fees_pdf_connect"))
+        self.assertNotIn("fees_pdf_sign_in", self.client.session)
+        response = self.client.get(reverse("fees_pdf_connect"), HTTP_HOST="madon.example", secure=True)
+        self.assertTrue(response["Location"].startswith(pdf_graph.LOGIN_HOST))
+
+    def test_microsofts_reason_is_named_when_the_code_is_refused(self):
+        pdf_graph.disconnect()
+        self.client.force_login(self.admin)
+        self.client.get(reverse("fees_pdf_connect"))
+        state = self.client.session["fees_pdf_sign_in"]["state"]
+        refused = FakeMicrosoft([("POST", pdf_graph.LOGIN_HOST, answer(401, {
+            "error": "invalid_client", "error_description": "AADSTS7000215: Invalid client secret provided."}))])
+        with mock.patch.object(pdf_graph, "_urlopen", refused):
+            response = self.client.get(reverse("fees_pdf_callback") + f"?code=C&state={state}")
+        self.assertIn("invalid_client, AADSTS7000215", said(response))
+        self.assertIn("AADSTS7000215", PdfConnection.objects.get(pk=1).last_error)
+        self.assertFalse(pdf_graph.available())
+
     def test_disconnect_forgets_the_sign_in(self):
         self.client.force_login(self.admin)
         self.client.post(reverse("fees_pdf_disconnect"))
