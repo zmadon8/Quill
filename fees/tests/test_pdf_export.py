@@ -407,6 +407,7 @@ class PdfViewTests(TestCase):
         self.assertTrue(response["Location"].startswith(pdf_graph.LOGIN_HOST))
 
     def test_microsofts_reason_is_named_when_the_code_is_refused(self):
+        pdf_graph.disconnect()
         self.client.force_login(self.admin)
         self.client.get(reverse("fees_pdf_connect"))
         state = self.client.session["fees_pdf_sign_in"]["state"]
