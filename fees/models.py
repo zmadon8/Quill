@@ -611,3 +611,25 @@ class FeesUserPrefs(models.Model):
 
     def __str__(self):
         return f"{self.key} prefs of user {self.user_id}"
+
+
+class PdfConnection(models.Model):
+    """The one Microsoft 365 sign-in the memo PDF export uses (docs/FEES_PDF_EXPORT.md). At most one row, ``pk=1``.
+
+    The tokens are encrypted with ``MS_GRAPH_TOKEN_KEY`` (``fees.exports.pdf_graph``). Like ``OfflineLink`` this table is never
+    in a backup file: a backup is emailed and kept off-site, and must not carry a key to the owner's OneDrive. A restore leaves
+    it as it is.
+    """
+
+    account = models.CharField(max_length=200, blank=True, default="")
+    refresh_token = models.TextField(blank=True, default="")
+    access_token = models.TextField(blank=True, default="")
+    access_expires_at = models.DateTimeField(null=True, blank=True)
+    connected_at = models.DateTimeField(null=True, blank=True)
+    connected_by = models.CharField(max_length=150, blank=True, default="")
+    last_success_at = models.DateTimeField(null=True, blank=True)
+    last_error = models.CharField(max_length=300, blank=True, default="")
+    last_error_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"PDF connection ({self.account or 'not connected'})"

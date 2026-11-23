@@ -1,9 +1,10 @@
 {% extends "fees/base_fees.html" %}
-{% load fees_money %}
+{% load static fees_money %}
 {% block page_width %}w-4xl{% endblock %}
 {% block page_title %}Memo {{ memo.memo_number|default:"(draft)" }} - {{ program_label }}{% endblock %}
 {% block content %}
-{% if request.GET.export == "word" and memo.memo_number %}<p class="notice" data-word-download="{% url 'fees_memo_word' memo.id %}" role="status">Your Word memo is downloading. If it does not start, <a href="{% url 'fees_memo_word' memo.id %}">download it here</a>.</p>{% endif %}
+{% if request.GET.export == "word" and memo.memo_number %}<p class="notice" data-word-download="{% url 'fees_memo_word' memo.id %}" role="status">Your Word memo is downloading. If it does not start, <a href="{% url 'fees_memo_word' memo.id %}">download it here</a>.</p>{% elif request.GET.export == "pdf" and memo.memo_number and pdf_on %}<p class="notice" data-word-download="{% url 'fees_memo_pdf' memo.id %}" role="status">Your PDF is being made and downloads in a few seconds. If it does not start, <a href="{% url 'fees_memo_pdf' memo.id %}">download it here</a>, or <a href="{% url 'fees_memo_word' memo.id %}">download the Word memo</a>.</p>{% endif %}
+{% if request.GET.pdf == "failed" %}<p class="notice" role="status">You can <a href="{% url 'fees_memo_word' memo.id %}">download the Word memo</a> instead.</p>{% endif %}
 <div class="page-head"><h1>Memo {{ memo.memo_number|default:"(draft)" }}</h1>
 <p class="page-actions"><span class="visually-hidden">Related pages: </span><a href="{% url 'fees_memos' %}">Memos</a> | <a href="{% url 'fees_matter_detail' memo.matter_id %}">{{ memo.matter_name }}</a> | <a href="{% url 'fees_firm_detail' memo.firm_id %}">{{ memo.firm_name }}</a></p></div>
 <dl>
@@ -41,7 +42,8 @@
   <tbody>{% for p in payments %}<tr><td>{{ p.date_of_payment|fees_date }}</td><td>{{ p.payee }}</td><td>{{ p.payment_mode }}</td><td class="money">{{ p.amount|fees_money:money_unit }}</td><td class="money">{{ p.tds_amount|fees_money:money_unit }}</td>{% if can_edit %}<td><a href="{% url 'fees_payment_edit' p.id %}" aria-label="Edit payment of {{ p.amount|fees_money:money_unit }} on {{ p.date_of_payment|fees_date }}">Edit</a></td>{% endif %}</tr>{% empty %}<tr><td colspan="6">No payments.</td></tr>{% endfor %}</tbody>
 </table></div>
 <p class="page-actions button-row" role="group" aria-label="Memo actions">
-  <a class="button primary" href="{% url 'fees_memo_word' memo.id %}">Export to Word</a>
+  <a class="button primary" href="{% url 'fees_memo_word' memo.id %}" aria-label="Export to Word">Word</a>
+  {% if pdf_on %}<a class="button primary" href="{% url 'fees_memo_pdf' memo.id %}" aria-label="Export to PDF" data-pdf-button>PDF</a>{% endif %}
   {% if can_edit %}<a class="button secondary" href="{% url 'fees_memo_edit' memo.id %}">Edit</a>
   <a class="button secondary" href="{% url 'fees_memo_based_on' memo.id %}">New memo based on this</a>
   <a class="button secondary" href="{% url 'fees_payment_new' %}?memo={{ memo.id }}">Add payment</a>{% endif %}
@@ -65,8 +67,8 @@
   </form>
 </details>{% endif %}
 {% endblock %}
-{% block page_js %}{% if request.GET.export == "word" and memo.memo_number %}<script>
-  // "Save and Export to Word" on the memo form lands here; start the download once. The link above is the fallback.
+{% block page_js %}{% if pdf_on %}<script src="{% static 'js/fees/pdf-button.js' %}"></script>{% endif %}{% if request.GET.export == "word" and memo.memo_number or request.GET.export == "pdf" and memo.memo_number and pdf_on %}<script>
+  // "Word" or "PDF" on the memo form saves and lands here; start the download once. The link above is the fallback.
   (function () {
     var box = document.querySelector("[data-word-download]");
     if (box && window.history && history.replaceState) { history.replaceState(null, "", window.location.pathname); }

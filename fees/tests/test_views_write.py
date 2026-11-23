@@ -212,12 +212,12 @@ class MemoWriteTests(WriteBase):
         memo = self.new_memo()
         page = self.client.get(reverse("fees_memo_detail", kwargs={"memo_id": memo.pk})).content.decode()
         word = reverse("fees_memo_word", kwargs={"memo_id": memo.pk})
-        self.assertIn('<a class="button primary" href="%s">Export to Word</a>' % word, page)
+        self.assertIn('<a class="button primary" href="%s" aria-label="Export to Word">Word</a>' % word, page)
 
     def test_memo_form_has_the_export_to_word_button(self):
         page = self.client.get(reverse("fees_memo_new")).content.decode()
         self.assertIn('name="action" value="save_export"', page)
-        self.assertIn(">Export to Word</button>", page)
+        self.assertIn('aria-label="Save and export to Word">Word</button>', page)
 
     def test_edit_draft_with_save_but_no_date_stays_a_draft(self):
         draft = memos.save_draft(self.profile, {"matter_id": self.seed["matter_1"].pk})

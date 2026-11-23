@@ -261,6 +261,12 @@ def memo_export_filename(memo, settings, pattern=None, today=None):
     return stem + EXTENSION
 
 
+def pdf_filename(docx_name):
+    """The PDF's name: the Word memo's name with ``.pdf`` instead of ``.docx``."""
+    stem = docx_name[: -len(EXTENSION)] if docx_name.lower().endswith(EXTENSION) else docx_name
+    return stem + ".pdf"
+
+
 # ---------------------------------------------------------------------------
 # Content-Disposition (R-FN-6.8, R-EX-5)
 # ---------------------------------------------------------------------------

@@ -65,6 +65,7 @@ ROUTES = {
     "fees_memo_based_on": (RW, ""),
     "fees_memo_move": (E, ""),
     "fees_memo_word": (R, ""),
+    "fees_memo_pdf": (R, ""),
     "fees_memo_statement": (R, ""),
     "fees_payment_new": (RW, ""),
     "fees_payment_payees": (E, "?matters=%(matter_id)d"),
@@ -133,6 +134,10 @@ ROUTES = {
     "fees_import": (A, ""),
     "fees_import_inspect": (AW, ""),
     "fees_import_run": (AW, ""),
+    "fees_pdf_connect": (A, ""),
+    "fees_pdf_callback": (A, ""),
+    "fees_pdf_disconnect": (AW, ""),
+    "fees_pdf_test": (A, ""),
 }
 
 
@@ -141,13 +146,15 @@ ROUTES = {
 # POST-driven (its upload form lives on the backup page), so a GET sends the user back there.
 FIXTURE = Path(__file__).parent / "fixtures" / "Template 2-11-2026 (short tags).docx"
 
-REDIRECTS = {"fees_landing", "fees_firms_clients", "fees_firms_client_detail", "fees_statistics_metrics", "fees_backup_restore", "fees_backup_restored", "fees_backup_cleared"}
+REDIRECTS = {"fees_landing", "fees_firms_clients", "fees_firms_client_detail", "fees_statistics_metrics", "fees_backup_restore", "fees_backup_restored", "fees_backup_cleared",
+             # PDF export is not set up in the tests, so each of these goes back to a page with the reason.
+             "fees_memo_pdf", "fees_pdf_connect", "fees_pdf_callback", "fees_pdf_test"}
 
 # Editor-only routes that also accept POST (the payment forms are RW: a Reader may open them, only an Editor saves) (the rest of the E routes are GET only).
 E_POST = {"fees_memo_move"}
 
 # Admin-only routes that take a POST from the Admin without a 403 or 405 (the GET-and-POST ones plus the POST-only ones).
-ADMIN_POST = {"fees_backup_restore", "fees_backup_clear", "fees_import_inspect", "fees_import_run"}
+ADMIN_POST = {"fees_backup_restore", "fees_backup_clear", "fees_import_inspect", "fees_import_run", "fees_pdf_disconnect"}
 
 
 def route_names():

@@ -348,6 +348,11 @@ class MySettingsForm(forms.ModelForm):
             self.fields["feebook_group_payments"].label = "Feebook: memos paid together on one line"
             self.fields["feebook_group_payments"].help_text = ("Fee Register. When one payment settles several memos, the Feebook shows a single line: the first memo "
                                                                "number followed by & Anr. or & Ors., the details they share, and the total paid and TDS. Click it to see each payment.")
+        if "pdf_export" in self.fields:
+            self.fields["pdf_export"].required = False
+            self.fields["pdf_export"].label = "Memo PDF button"
+            self.fields["pdf_export"].help_text = ("Fee Register. Shows a PDF button beside Word on each memo, made from the same Word file "
+                                                   "through the owner's Microsoft 365. Off: only Word is offered to you.")
         if "search_as_word" in self.fields:
             self.fields["search_as_word"].required = False
             self.fields["search_as_word"].label = "Search button as a word"
@@ -421,7 +426,7 @@ class MyDisplayForm(MySettingsForm):
     landing_program = None  # only Start Screens has this field
 
     class Meta(MySettingsForm.Meta):
-        fields = ("justify_text", "group_digits", "search_as_word", "feebook_group_payments", "colour_theme")
+        fields = ("justify_text", "group_digits", "search_as_word", "feebook_group_payments", "pdf_export", "colour_theme")
 
     # Home card figures: one tick-box group per program (declared in __init__ from home_cards.metric_catalogue), at most 3 each.
     METRIC_FIELDS = (("home_metrics_diary", suite.KEY_DIARY, "Case Law Diary"), ("home_metrics_fees", suite.KEY_FEES, "Fee Register"),
