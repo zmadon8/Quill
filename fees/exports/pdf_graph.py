@@ -17,6 +17,7 @@ import base64
 import datetime
 import hashlib
 import json
+import re
 import secrets
 import socket
 import tempfile
@@ -160,6 +161,15 @@ def _record_success():
     PdfConnection.objects.filter(pk=1).update(last_success_at=timezone.now(), last_error="", last_error_at=None)
 
 
+def record_connect_problem(message):
+    """Keep why a Connect failed, for the Settings page, even before any connection exists (the row then has no sign-in)."""
+    from fees.models import PdfConnection
+
+    row, _created = PdfConnection.objects.get_or_create(pk=1)
+    row.last_error, row.last_error_at = message[:300], timezone.now()
+    row.save(update_fields=["last_error", "last_error_at"])
+
+
 def _record_error(message):
     from fees.models import PdfConnection
 
@@ -277,11 +287,18 @@ def _token_call(fields, deadline):
     data = _read_json(response)
     if status_code == 200 and data.get("access_token"):
         return data
-    if data.get("error") in ("invalid_grant", "interaction_required", "consent_required"):
+    error = re.sub(r"[^a-z_]", "", str(data.get("error") or "").lower())[:40]
+    found = re.search(r"AADSTS\d+", str(data.get("error_description") or ""))
+    codes = ", ".join(c for c in (error, found.group(0) if found else "") if c) or f"HTTP {status_code}"
+    if fields.get("grant_type") == "refresh_token" and error in ("invalid_grant", "interaction_required", "consent_required"):
         raise PdfError(RECONNECT, reconnect=True)
-    if data.get("error") == "invalid_client":
-        raise PdfError("Microsoft refused the app's ID or secret. Check MS_GRAPH_CLIENT_ID and MS_GRAPH_CLIENT_SECRET (the secret may have expired).")
-    raise PdfError(UNREACHABLE if status_code >= 500 else "Microsoft refused the sign-in. Try Connect again.")
+    if error in ("invalid_client", "unauthorized_client"):
+        raise PdfError(f"Microsoft refused the app's ID or secret ({codes}). Check MS_GRAPH_CLIENT_ID and MS_GRAPH_CLIENT_SECRET on Render "
+                       "(use the secret's Value, not its ID; it may have expired).")
+    if error == "invalid_grant":
+        raise PdfError(f"Microsoft did not accept the sign-in ({codes}). Check that the Redirect URI in the app registration is exactly "
+                       "this site's /fees/settings/pdf/callback/ address, then press Connect again.")
+    raise PdfError(UNREACHABLE if status_code >= 500 else f"Microsoft refused the sign-in ({codes}). Press Connect again.")
 
 
 def _account_of(id_token):
