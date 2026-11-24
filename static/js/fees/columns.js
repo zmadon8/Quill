@@ -187,6 +187,15 @@
         if (id && window.QuillColumnOrder) { window.QuillColumnOrder.reset(id); }   // a changed column order too (reloads the page)
       });
       list.appendChild(reset);
+      // Re-arranging the columns (static/js/column-order.js): a panel with the headings alone.
+      if (id && window.QuillColumnOrder && window.QuillColumnOrder.can(id)) {
+        var arrange = document.createElement("button");
+        arrange.type = "button";
+        arrange.className = "col-reset";
+        arrange.textContent = "Arrange Columns";
+        arrange.addEventListener("click", function () { menu.open = false; window.QuillColumnOrder.open(id); });
+        list.appendChild(arrange);
+      }
       menu.appendChild(list);
       var wrap = table.closest(".table-wrap, .tw") || table;
       // Slot rule: a page can name the row where the menu belongs (data-columns-for="<table id>", for example the row with the
