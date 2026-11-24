@@ -48,7 +48,11 @@ MAX_UPLOAD_BYTES = 4 * 1024 * 1024
 CHUNK = 64 * 1024
 #: Hosts Microsoft sends the converted PDF from (the link it redirects to is already signed, so no token goes there).
 DOWNLOAD_HOSTS = ("sharepoint.com", "files.1drv.com", "livefilestore.com", "onedrive.com", "onedrive.live.com",
-                  "microsoftpersonalcontent.com", "graph.microsoft.com")
+                  "microsoftpersonalcontent.com", "graph.microsoft.com",
+                  # Microsoft's file conversion service (OneDrive media transform), where a converted PDF is served from.
+                  "svc.ms")
+#: A file just uploaded may not be found at once (a personal OneDrive takes a moment): ask again after these pauses.
+NOT_FOUND_PAUSES = (1.5, 3.0)
 #: Files this program leaves in the app folder start with this; the nightly cleanup removes old ones.
 FILE_PREFIX = "quill-memo-"
 LEFTOVER_AGE = timedelta(hours=1)
@@ -384,10 +388,23 @@ def _upload(token, data, deadline):
         raise _Expired()
     if status_code not in (200, 201):
         raise _graph_failure(status_code, headers, response)
-    item_id = _read_json(response).get("id")
+    return _item_path(_read_json(response))
+
+
+def _item_path(item):
+    """The Graph address of an uploaded or listed file. A personal OneDrive can keep the app folder in a drive of its own, so the
+    file's own drive is named when Microsoft gives it."""
+    item_id = item.get("id") if isinstance(item, dict) else None
     if not item_id:
         raise PdfError("Microsoft 365 did not accept the Word file.")
-    return str(item_id)
+    parent = item.get("parentReference") if isinstance(item.get("parentReference"), dict) else {}
+    quoted = urllib.parse.quote(str(item_id), safe="")
+    drive = parent.get("driveId")
+    return f"/drives/{urllib.parse.quote(str(drive), safe='')}/items/{quoted}" if drive else f"/me/drive/items/{quoted}"
+
+
+def _sleep(seconds):
+    time.sleep(seconds)
 
 
 def allowed_download(url):
@@ -429,26 +446,33 @@ def _stream_pdf(response, deadline):
         _close(response)
 
 
-def _download_pdf(token, item_id, deadline):
-    url = f"{GRAPH}/me/drive/items/{urllib.parse.quote(item_id, safe='')}/content?format=pdf"
+def _download_pdf(token, item_path, deadline):
+    url = f"{GRAPH}{item_path}/content?format=pdf"
     status_code, headers, response = _send("GET", url, deadline, token=token)
+    for pause in NOT_FOUND_PAUSES:
+        if status_code != 404 or time.monotonic() + pause > deadline - 2:
+            break
+        _close(response)          # just uploaded and not found yet: Microsoft is still settling it
+        _sleep(pause)
+        status_code, headers, response = _send("GET", url, deadline, token=token)
     if status_code == 200:
         return _stream_pdf(response, deadline)
     if status_code in (301, 302, 303, 307, 308):
         location = headers.get("Location", "") if headers else ""
         _close(response)
         if not allowed_download(location):
-            raise PdfError("Microsoft 365 sent the PDF from an address this site does not trust.")
+            host = (urllib.parse.urlparse(location).hostname or "no address")[:80]
+            raise PdfError(f"Microsoft 365 sent the PDF from an address this site does not trust ({host}).")
         status_code, headers, response = _send("GET", location, deadline, accept=None)   # the link is signed: no token is sent
         if status_code == 200:
             return _stream_pdf(response, deadline)
     raise _graph_failure(status_code, headers, response)
 
 
-def _delete(token, item_id):
+def _delete(token, item_path):
     """Remove the Word file from OneDrive. Failures are ignored here; the nightly cleanup catches anything left."""
     try:
-        _status, _headers, response = _send("DELETE", f"{GRAPH}/me/drive/items/{urllib.parse.quote(item_id, safe='')}",
+        _status, _headers, response = _send("DELETE", f"{GRAPH}{item_path}",
                                             time.monotonic() + DELETE_SECONDS, token=token)
         _close(response)
     except PdfError:
@@ -492,7 +516,7 @@ def keep_alive():
         return 0
     deadline = time.monotonic() + TOTAL_SECONDS * 2
     token = _access_token(deadline, force=True)
-    status_code, headers, response = _send("GET", f"{GRAPH}/me/drive/special/approot/children?$select=id,name,createdDateTime&$top=200",
+    status_code, headers, response = _send("GET", f"{GRAPH}/me/drive/special/approot/children?$select=id,name,createdDateTime,parentReference&$top=200",
                                            deadline, token=token)
     if status_code != 200:
         raise _graph_failure(status_code, headers, response)
@@ -502,7 +526,7 @@ def keep_alive():
         name = str(item.get("name") or "")
         created = _parse_time(item.get("createdDateTime"))
         if name.startswith(FILE_PREFIX) and item.get("id") and created is not None and created < cutoff:
-            _delete(token, str(item["id"]))
+            _delete(token, _item_path(item))
             removed += 1
     return removed
 

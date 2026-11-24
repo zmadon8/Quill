@@ -121,6 +121,43 @@ class ConvertTests(TestCase):
         self.assertEqual(fake.calls[-1]["method"], "DELETE")
         self.assertIn("does not trust", PdfConnection.objects.get(pk=1).last_error)
 
+    def test_a_personal_onedrive_app_folder_in_its_own_drive_and_the_conversion_service(self):
+        connect()
+        transform = "https://southcentralus1-mediap.svc.ms/transform/pdf?provider=spo&token=signed"
+        uploaded = {"id": "ITEM9", "parentReference": {"driveId": "abc123"}}
+        item = pdf_graph.GRAPH + "/drives/abc123/items/ITEM9"
+        fake = FakeMicrosoft([
+            ("PUT", pdf_graph.GRAPH + "/me/drive/special/approot:/", answer(201, uploaded)),
+            ("GET", item + "/content?format=pdf", answer(404, {"error": {"code": "itemNotFound", "message": "Item not found"}})),
+            ("GET", item + "/content?format=pdf", answer(302, headers={"Location": transform})),
+            ("GET", transform, answer(200, PDF)),
+            ("DELETE", item, answer(204)),
+        ])
+        with mock.patch.object(pdf_graph, "_urlopen", fake), mock.patch.object(pdf_graph, "_sleep") as pause:
+            pdf = pdf_graph.convert(b"DOCX")
+        self.assertEqual(pdf.read(), PDF)
+        pause.assert_called_once_with(1.5)
+        self.assertIsNone(fake.calls[3]["auth"])
+
+    def test_a_file_never_found_says_so_and_is_still_removed(self):
+        connect()
+        missing = answer(404, {"error": {"code": "itemNotFound", "message": "Item not found"}})
+        script = happy_path()
+        script[1:3] = [("GET", script[1][1], missing), ("GET", script[1][1],
+                       answer(404, {"error": {"message": "Item not found"}})), ("GET", script[1][1], answer(404, {"error": {"message": "Item not found"}}))]
+        with mock.patch.object(pdf_graph, "_sleep"):
+            fake, err = self.run_convert(script)
+        self.assertIn("Item not found", err.message)
+        self.assertEqual(fake.calls[-1]["method"], "DELETE")
+
+    def test_an_untrusted_host_is_named(self):
+        connect()
+        script = happy_path()
+        script[1] = ("GET", script[1][1], answer(302, headers={"Location": "https://cdn.example.net/x.pdf"}))
+        del script[2]
+        _fake, err = self.run_convert(script)
+        self.assertIn("(cdn.example.net)", err.message)
+
     def test_an_expired_access_token_is_renewed_and_the_new_refresh_token_kept(self):
         connect(access_valid=False)
         token = ("POST", pdf_graph.LOGIN_HOST + "/consumers/oauth2/v2.0/token",
@@ -198,6 +235,8 @@ class ConvertTests(TestCase):
         self.assertFalse(pdf_graph.allowed_download("http://public.am.files.1drv.com/x"))
         self.assertFalse(pdf_graph.allowed_download("https://files.1drv.com.evil.com/x"))
         self.assertFalse(pdf_graph.allowed_download("https://evilsharepoint.com/x"))
+        self.assertTrue(pdf_graph.allowed_download("https://southcentralus1-mediap.svc.ms/transform/pdf"))
+        self.assertFalse(pdf_graph.allowed_download("https://svc.ms.evil.com/x"))
 
     def test_keep_alive_renews_and_removes_only_old_leftovers(self):
         connect()
