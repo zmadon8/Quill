@@ -34,10 +34,11 @@ Typical time is 2 to 6 seconds. Microsoft documents the conversion as
 | Memory | Our server only uploads and downloads, streamed in 64 KB pieces. No converter runs here. |
 | Several people export at once | One PDF at a time per worker (a non-blocking lock). A second request in the same worker is told at once "Another PDF is being made. Try again in a few seconds."; it never waits. So at least 2 of the 4 request threads (2 workers x 2 threads) stay free for ordinary pages. The PDF button also ignores further presses for 30 seconds and reads "Making PDF...". |
 | Microsoft is slow or down | Each call waits at most 15 s and the whole export at most 25 s (gunicorn allows 60 s). Then it stops with a message. |
+| A just-uploaded file is not found yet (a personal OneDrive takes a moment) | The file is addressed in its own drive, and the PDF is asked for again after 1.5 s and 3 s. |
 | A memo over 4 MB (Microsoft's limit for this kind of upload) | Refused with a message to use Word. Templates and signatures are 2 MB each at most, so a memo is far smaller. |
 | Microsoft refuses (busy, expired sign-in, bad file) | The memo page shows the reason and a link to the Word memo. Never an error page. When Microsoft is busy (429) the message says when to try again. |
 | A leftover file in OneDrive | Deleted in a `finally` block; the nightly `pdf_keepalive` also removes this program's files older than an hour. |
-| Hostile answers | The PDF must come over HTTPS from a Microsoft download host (`*.files.1drv.com`, `*.sharepoint.com`, `*.livefilestore.com`, `*.onedrive.com`, `*.microsoftpersonalcontent.com`), is capped at 20 MB, must be a PDF, and our token is never sent to that link. |
+| Hostile answers | The PDF must come over HTTPS from a Microsoft download host (`*.files.1drv.com`, `*.sharepoint.com`, `*.livefilestore.com`, `*.onedrive.com`, `*.microsoftpersonalcontent.com`, and Microsoft's conversion service `*.svc.ms`; a refused host is named in the message), is capped at 20 MB, must be a PDF, and our token is never sent to that link. |
 
 ## 4. One-time setup (owner, about 30 minutes)
 
