@@ -1,17 +1,18 @@
 (function () {
   "use strict";
-  // Re-orderable columns for every table with a stable data-table-id (the suite's one column-ordering component).
-  // Each heading gets a small grip: drag it sideways (mouse or finger), or focus it and press Left / Right, to move that column.
-  // The order is kept in this browser (localStorage "quill.order.<table id>", a JSON array of column keys) and applied by moving
-  // the real cells of every row BEFORE the resizing and Fee Register Columns scripts start, so they see the final order. After a
-  // move the page reloads once (a tick box ticked on the page is cleared). Without JavaScript the columns keep their order.
-  // A table is left alone when it has fewer than two headings, a heading with colspan, or a row that is neither one cell per
-  // column nor one cell across the whole table (a totals row with merged cells would no longer line up).
-  // Hidden columns (quill.fees.hide.*) stay stored by their ORIGINAL position so exports ("?hide=") still match the server;
-  // each heading carries data-orig-index for fees/columns.js to translate.
+  // Re-arranging the columns of a table (every table with a stable data-table-id). Not an everyday job, so it is a small panel:
+  // "Arrange Columns" (in the Fee Register's Columns menu, or as a small button above any other table) lists the column headings
+  // alone, each with Up and Down buttons. Apply keeps the order in this browser (localStorage "quill.order.<table id>", a JSON
+  // array of column keys) and reloads the page once (a tick box ticked on the page is cleared); Reset Order goes back to the
+  // original. The saved order is applied here by moving the real cells of every row BEFORE the resizing and Columns scripts start,
+  // so they see the final order. A footer row with merged cells keeps its merged cell when the columns it covers stay side by side,
+  // otherwise its text sits in the first of them. A table is left alone when it has fewer than two headings, a heading with
+  // colspan, a rowspan, or a row whose cells do not add up to the number of columns. Hidden columns (quill.fees.hide.*) stay stored
+  // by their ORIGINAL position so exports ("?hide=") still match the server; each heading carries data-orig-index for
+  // fees/columns.js to translate. Without JavaScript the columns keep their order.
   var PREFIX = "quill.order.";
-  var FOCUS = "quill.order.focus";
   var ID_PATTERN = /^[a-z0-9][a-z0-9_-]{0,39}$/;
+  var known = {};
 
   function slug(text, i) {
     var s = (text || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 30);
@@ -32,25 +33,47 @@
     } catch (err) { /* private mode */ }
   }
 
-  // The rows that must move with the columns, or null when the table cannot be re-ordered.
-  function movableRows(table, count) {
+  // Every row that has more than one cell, with the columns each cell covers; null when the table cannot be re-arranged.
+  function plan(table, count) {
     var out = [];
-    var rows = table.rows;
-    for (var r = 0; r < rows.length; r++) {
-      var cells = rows[r].cells;
-      if (cells.length === 1) { continue; }   // one cell across the whole table (an empty-table line, a note)
-      if (cells.length !== count) { return null; }
-      for (var c = 0; c < cells.length; c++) { if (span(cells[c]) !== 1) { return null; } }
-      out.push(rows[r]);
+    for (var r = 0; r < table.rows.length; r++) {
+      var tr = table.rows[r];
+      if (tr.cells.length === 1) { continue; }   // one cell across the table (an empty-table line, a note)
+      var at = 0;
+      var list = [];
+      for (var c = 0; c < tr.cells.length; c++) {
+        if ((parseInt(tr.cells[c].getAttribute("rowspan"), 10) || 1) > 1) { return null; }
+        var s = span(tr.cells[c]);
+        list.push({ cell: tr.cells[c], from: at, to: at + s });
+        at += s;
+      }
+      if (at !== count) { return null; }
+      out.push({ tr: tr, list: list });
     }
     return out;
   }
 
-  function moveCells(rows, from, to) {
-    rows.forEach(function (tr) {
-      var cell = tr.cells[from];
-      var before = to > from ? tr.cells[to].nextSibling : tr.cells[to];
-      tr.insertBefore(cell, before);
+  // perm[newPlace] = the original column that goes there.
+  function arrange(rows, count, perm) {
+    var where = [];
+    perm.forEach(function (orig, place) { where[orig] = place; });
+    rows.forEach(function (row) {
+      var slots = [];
+      row.list.forEach(function (c) {
+        var places = [];
+        for (var k = c.from; k < c.to; k++) { places.push(where[k]); }
+        var lo = Math.min.apply(null, places);
+        var hi = Math.max.apply(null, places);
+        if (hi - lo + 1 === c.to - c.from) { slots[lo] = { cell: c.cell, span: c.to - c.from }; }
+        else { c.cell.removeAttribute("colspan"); slots[where[c.from]] = { cell: c.cell, span: 1 }; }
+      });
+      var filler = row.tr.parentNode && row.tr.parentNode.tagName === "THEAD" ? "th" : "td";
+      var n = 0;
+      while (n < count) {
+        var slot = slots[n];
+        if (slot) { row.tr.appendChild(slot.cell); n += slot.span; }
+        else { row.tr.appendChild(document.createElement(filler)); n += 1; }
+      }
     });
   }
 
@@ -59,167 +82,135 @@
     if (!ID_PATTERN.test(id) || !table.tHead || !table.tHead.rows.length) { return; }
     var heads = Array.prototype.slice.call(table.tHead.rows[0].cells);
     if (heads.length < 2 || heads.some(function (th) { return span(th) !== 1; })) { return; }
-    var rows = movableRows(table, heads.length);
+    var rows = plan(table, heads.length);
     if (!rows) { return; }
 
     // Stable keys (the heading's own data-col, else a slug of its text), written back so later scripts use the same ones.
     var keys = [];
+    var labels = [];
     heads.forEach(function (th, i) {
       var k = th.getAttribute("data-col") || slug(th.textContent, i);
       while (keys.indexOf(k) !== -1) { k = k + "-" + i; }
       th.setAttribute("data-col", k);
       th.setAttribute("data-orig-index", String(i));
       keys.push(k);
+      labels.push((th.textContent || "").replace(/\s+/g, " ").trim() || "Column " + (i + 1) + " (no heading)");
     });
 
-    // Apply the saved order: every saved key still present first, in order; new columns keep their place at the end.
+    // Apply the saved order: the saved keys still present first, in order; any other column keeps its place after them.
     var saved = readOrder(id).filter(function (k) { return keys.indexOf(k) !== -1; });
-    var custom = false;
-    if (saved.length) {
-      var wanted = saved.concat(keys.filter(function (k) { return saved.indexOf(k) === -1; }));
-      for (var to = 0; to < wanted.length; to++) {
-        var now = table.tHead.rows[0].cells;
-        var from = -1;
-        for (var f = 0; f < now.length; f++) { if (now[f].getAttribute("data-col") === wanted[to]) { from = f; break; } }
-        if (from > to) { moveCells(rows, from, to); }
-      }
-      heads = Array.prototype.slice.call(table.tHead.rows[0].cells);
-      custom = heads.some(function (th, i) { return th.getAttribute("data-orig-index") !== String(i); });
-    }
+    var wanted = saved.concat(keys.filter(function (k) { return saved.indexOf(k) === -1; }));
+    var perm = wanted.map(function (k) { return keys.indexOf(k); });
+    var custom = perm.some(function (orig, place) { return orig !== place; });
+    if (custom) { arrange(rows, heads.length, perm); }
 
-    function currentKeys() { return heads.map(function (th) { return th.getAttribute("data-col"); }); }
+    known[id] = { table: table, keys: keys, labels: labels, order: wanted, custom: custom };
 
-    function commit(newKeys) {
-      var original = heads.map(function (th) { return th.getAttribute("data-col"); }).sort().join();
-      var inOrder = newKeys.slice().sort().join() === original;
-      if (!inOrder) { return; }
-      var natural = keys.join() === newKeys.join();
-      writeOrder(id, natural ? [] : newKeys);
-      try { window.sessionStorage.setItem(FOCUS, id + "|" + (commit.focusKey || "")); } catch (err) { /* ignore */ }
-      window.location.reload();
-    }
-
-    function moveKey(key, delta) {
-      var list = currentKeys();
-      var at = list.indexOf(key);
-      var target = at + delta;
-      if (at < 0 || target < 0 || target >= list.length) { return; }
-      list.splice(target, 0, list.splice(at, 1)[0]);
-      commit.focusKey = key;
-      commit(list);
-    }
-
-    heads.forEach(function (th, i) {
-      var key = th.getAttribute("data-col");
-      var label = (th.textContent || "").trim() || "column " + (i + 1);
-      var grip = document.createElement("button");
-      grip.type = "button";
-      grip.className = "col-mover";
-      grip.setAttribute("data-col-mover", id + "|" + key);
-      grip.setAttribute("aria-label", "Move column " + label + " (drag, or Left and Right arrow keys)");
-      grip.title = "Drag to move this column";
-      grip.addEventListener("click", function (e) { e.preventDefault(); e.stopPropagation(); });
-      grip.addEventListener("keydown", function (e) {
-        if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") { return; }
-        e.preventDefault();
-        e.stopPropagation();
-        moveKey(key, e.key === "ArrowRight" ? 1 : -1);
-      });
-      grip.addEventListener("pointerdown", function (e) {
-        if (e.button !== undefined && e.button !== 0) { return; }
-        e.preventDefault();
-        e.stopPropagation();
-        var moved = false;
-        var dropAt = null;
-        try { grip.setPointerCapture(e.pointerId); } catch (err) { /* older browsers */ }
-        th.classList.add("col-moving");
-        function over(x) {
-          var found = null;
-          var cells = table.tHead.rows[0].cells;
-          for (var n = 0; n < cells.length; n++) {
-            var box = cells[n].getBoundingClientRect();
-            if (x >= box.left && x <= box.right) { found = cells[n]; break; }
-          }
-          return found;
-        }
-        function clear() { Array.prototype.forEach.call(table.tHead.rows[0].cells, function (c) { c.classList.remove("col-drop"); }); }
-        function move(ev) {
-          moved = true;
-          clear();
-          var hit = over(ev.clientX);
-          dropAt = hit && hit !== th ? hit : null;
-          if (dropAt) { dropAt.classList.add("col-drop"); }
-        }
-        function up() {
-          grip.removeEventListener("pointermove", move);
-          grip.removeEventListener("pointerup", up);
-          grip.removeEventListener("pointercancel", cancel);
-          th.classList.remove("col-moving");
-          clear();
-          if (moved && dropAt) {
-            var list = currentKeys();
-            var from = list.indexOf(key);
-            var to = list.indexOf(dropAt.getAttribute("data-col"));
-            if (from >= 0 && to >= 0) {
-              list.splice(to, 0, list.splice(from, 1)[0]);
-              commit.focusKey = key;
-              commit(list);
-            }
-          }
-        }
-        function cancel() {
-          grip.removeEventListener("pointermove", move);
-          grip.removeEventListener("pointerup", up);
-          grip.removeEventListener("pointercancel", cancel);
-          th.classList.remove("col-moving");
-          clear();
-        }
-        grip.addEventListener("pointermove", move);
-        grip.addEventListener("pointerup", up);
-        grip.addEventListener("pointercancel", cancel);
-      });
-      th.insertBefore(grip, th.firstChild);
-    });
-
-    // "Reset Column Order", only while the order has been changed.
-    if (custom) {
-      var tools = table.closest(".table-wrap, .tw") || table;
+    // A table with no Fee Register Columns menu gets its own small button (the menu has "Arrange Columns" in it).
+    if (!table.hasAttribute("data-fees-columns")) {
       var bar = document.createElement("p");
-      bar.className = "table-tools col-order-tools";
-      var reset = document.createElement("button");
-      reset.type = "button";
-      reset.className = "small";
-      reset.textContent = "Reset Column Order";
-      reset.addEventListener("click", function () { writeOrder(id, []); window.location.reload(); });
-      bar.appendChild(reset);
-      tools.parentNode.insertBefore(bar, tools);
+      bar.className = "table-tools";
+      var button = document.createElement("button");
+      button.type = "button";
+      button.className = "small";
+      button.textContent = "Arrange Columns";
+      button.addEventListener("click", function () { openPanel(id); });
+      bar.appendChild(button);
+      var wrap = table.closest(".table-wrap, .tw") || table;
+      wrap.parentNode.insertBefore(bar, wrap);
     }
   }
 
-  // The grip's look, added here so no page's stylesheet grows (the page-weight guard counts CSS files).
-  var style = document.createElement("style");
-  style.textContent =
-    "th>.col-mover{display:inline-block;vertical-align:middle;width:12px;height:16px;margin:0 4px 0 -2px;padding:0;border:0;border-radius:3px;background:none;color:inherit;cursor:grab;touch-action:none;opacity:.45}" +
-    "th>.col-mover::before{content:'\\22EE\\22EE';display:block;font-size:11px;line-height:16px;letter-spacing:-3px;text-align:center;text-transform:none}" +
-    "th:hover>.col-mover,th>.col-mover:focus-visible,th.col-moving>.col-mover{opacity:1}" +
-    "th>.col-mover:focus-visible{outline:2px solid currentColor;outline-offset:1px}" +
-    "th.col-moving{opacity:.6}th.col-drop{box-shadow:inset 3px 0 0 currentColor}";
-  document.head.appendChild(style);
+  var styled = false;
+  function openPanel(id) {
+    var info = known[id];
+    if (!info || !document.createElement("dialog").showModal) { return; }
+    if (!styled) {
+      styled = true;
+      var style = document.createElement("style");
+      style.textContent =
+        "dialog.col-arrange{max-width:30rem;width:92vw;border:1px solid #999;border-radius:8px;padding:16px 20px}" +
+        "dialog.col-arrange ol{list-style:none;margin:8px 0;padding:0;max-height:60vh;overflow:auto}" +
+        "dialog.col-arrange li{display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid #ddd}" +
+        "dialog.col-arrange li span{flex:1;overflow-wrap:anywhere}" +
+        "dialog.col-arrange .col-arrange-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}";
+      document.head.appendChild(style);
+    }
+    var order = info.order.slice();
+    var dialog = document.createElement("dialog");
+    dialog.className = "col-arrange";
+    dialog.setAttribute("aria-labelledby", "col-arrange-h");
+    var h = document.createElement("h2");
+    h.id = "col-arrange-h";
+    h.textContent = "Arrange columns";
+    var help = document.createElement("p");
+    help.textContent = "Move a column up to bring it nearer the left of the table, or down to send it to the right. Nothing changes until you press Apply.";
+    var list = document.createElement("ol");
+    var actions = document.createElement("div");
+    actions.className = "col-arrange-actions";
+
+    function button(text, onClick, label) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.textContent = text;
+      if (label) { b.setAttribute("aria-label", label); }
+      b.addEventListener("click", onClick);
+      return b;
+    }
+    function draw(focusKey, focusUp) {
+      list.textContent = "";
+      order.forEach(function (key, at) {
+        var name = info.labels[info.keys.indexOf(key)];
+        var li = document.createElement("li");
+        var text = document.createElement("span");
+        text.textContent = name;
+        function move(delta) {
+          var to = at + delta;
+          order.splice(to, 0, order.splice(at, 1)[0]);
+          draw(key, delta < 0);
+        }
+        var up = button("Up", function () { move(-1); }, "Move " + name + " up");
+        var down = button("Down", function () { move(1); }, "Move " + name + " down");
+        up.disabled = at === 0;
+        down.disabled = at === order.length - 1;
+        li.appendChild(text);
+        li.appendChild(up);
+        li.appendChild(down);
+        list.appendChild(li);
+        if (key === focusKey) {
+          var target = focusUp ? up : down;
+          if (target.disabled) { target = focusUp ? down : up; }
+          window.setTimeout(function () { target.focus(); }, 0);
+        }
+      });
+    }
+    draw();
+
+    actions.appendChild(button("Apply", function () {
+      var original = order.join() === info.keys.join();
+      writeOrder(id, original ? [] : order);
+      window.location.reload();
+    }));
+    actions.appendChild(button("Reset Order", function () {
+      writeOrder(id, []);
+      window.location.reload();
+    }));
+    actions.appendChild(button("Cancel", function () { dialog.close(); }));
+    dialog.appendChild(h);
+    dialog.appendChild(help);
+    dialog.appendChild(list);
+    dialog.appendChild(actions);
+    dialog.addEventListener("close", function () { dialog.remove(); });
+    document.body.appendChild(dialog);
+    dialog.showModal();
+  }
 
   document.querySelectorAll("table[data-table-id], table[data-resizable-columns]").forEach(init);
 
-  // Back to the grip that was just used, so the arrow keys can be pressed again.
-  try {
-    var focus = window.sessionStorage.getItem(FOCUS);
-    if (focus) {
-      window.sessionStorage.removeItem(FOCUS);
-      var target = document.querySelector('[data-col-mover="' + focus.replace(/"/g, "") + '"]');
-      if (target) { document.addEventListener("DOMContentLoaded", function () { target.focus(); }); }
-    }
-  } catch (err) { /* ignore */ }
-
-  // For fees/columns.js: clears a changed order and reloads; true when it did.
+  // For fees/columns.js: the Columns menu's "Arrange Columns" button and its "Reset Columns & Widths".
   window.QuillColumnOrder = {
+    can: function (id) { return !!known[id] && !!document.createElement("dialog").showModal; },
+    open: openPanel,
     reset: function (id) {
       if (!readOrder(id).length) { return false; }
       writeOrder(id, []);
