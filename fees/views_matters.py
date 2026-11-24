@@ -84,6 +84,8 @@ def matter_new(request):
         messages.success(request, f"Matter {matter.name} created.")
         return redirect("fees_matter_detail", matter_id=matter.pk)
     form = _form_values()
+    # A new matter's Cause title starts as Settings > Memos > Caption, as a new memo's does.
+    form["court_name"] = settings_service.get_settings(profile)["default_court_name"] or ""
     firm_id = int_or_none(request.GET.get("firm"))
     if firm_id is not None:
         form["firm_id"] = firm_id
