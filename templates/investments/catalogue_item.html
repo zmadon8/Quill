@@ -1,4 +1,5 @@
 {% extends "investments/base_investments.html" %}
+{% load static %}{% block order_js %}<script src="{% static 'js/column-order.js' %}"></script>{% endblock %}
 {% block inv_content %}
 <div class="invhead"><div><h1>{{ inst.name }}</h1><div class="sub">{{ inst.get_kind_display }}{% if inst.code %} &middot; {{ inst.code }}{% endif %} &middot; source {{ inst.get_price_source_display }} &middot; basis {{ inst.price_basis|default:"none" }}</div></div>
   <div class="acts"><a class="btn q" href="{% url 'investments_admin_catalogue' %}">All investments</a>{% if is_admin %}<a class="btn q" href="{% url 'investments_admin_upload' %}">Upload history</a>{% endif %}</div></div>

@@ -1,4 +1,5 @@
 {% extends "investments/base_investments.html" %}
+{% load static %}{% block order_js %}<script src="{% static 'js/column-order.js' %}"></script>{% endblock %}
 {% block inv_content %}
 <div class="page-head"><h1>Google Sheet prices</h1></div>
 <p class="hint">A Google Sheet looks up the closing prices of your shares and indices with GOOGLEFINANCE and sends them here every evening. Its prices fill only days that have no price yet; the nightly Yahoo and bhavcopy prices (the exchange's official close) replace them. Mutual funds are not in the sheet: their NAVs come from AMFI's daily file. The sheet receives only codes and names, never holdings or transactions.</p>

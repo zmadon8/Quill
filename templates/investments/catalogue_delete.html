@@ -1,4 +1,5 @@
 {% extends "investments/base_investments.html" %}
+{% load static %}{% block order_js %}<script src="{% static 'js/column-order.js' %}"></script>{% endblock %}
 {# Catalogue > an investment > Delete: what goes, then the confirmation (plan 21.1; owner round 2026-11). Counts per profile only. #}
 {% block inv_content %}
 <div class="page-head"><h1>Delete {{ inst.name }}</h1></div>

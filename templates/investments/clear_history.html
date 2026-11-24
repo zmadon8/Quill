@@ -1,4 +1,5 @@
 {% extends "investments/base_investments.html" %}
+{% load static %}{% block order_js %}<script src="{% static 'js/column-order.js' %}"></script>{% endblock %}
 {# Settings > General > Clear transaction history (Admin; owner round 2026-11): what goes, then the profile's name typed to confirm. #}
 {% block inv_content %}
 <div class="page-head"><h1>Clear the transaction history of {{ inv_profile.name }}</h1></div>

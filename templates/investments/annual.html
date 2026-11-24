@@ -1,4 +1,5 @@
 {% extends "investments/base_investments.html" %}
+{% load static %}{% block order_js %}<script src="{% static 'js/column-order.js' %}"></script>{% endblock %}
 {% load investments_money %}
 {% block inv_content %}
 <h1 class="visually-hidden">Annual Report {{ label }}</h1>

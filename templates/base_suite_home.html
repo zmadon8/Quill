@@ -9,3 +9,4 @@
 {% block crumb_nav %}{% include "_settings_tabs.html" %}{% endblock %}
 {# A settings tab that holds more than one page (Users & Profiles, Display) lists them down the left, as Backup lists its sections; the page itself, with any text that explains it, fills the right-hand column. Pages fill page_content; the others fill content. #}
 {% block content %}{% if suite_subtabs %}<div class="settings-layout"><nav class="settings-nav" aria-label="Pages of this tab">{% for t in suite_subtabs %}<a href="{{ t.url }}"{% if t.on %} class="on" aria-current="page"{% endif %}>{{ t.name }}</a>{% endfor %}</nav><div class="settings-panels">{% endif %}{% block page_content %}{% endblock %}{% if suite_subtabs %}</div></div>{% endif %}{% endblock %}
+{% block order_js %}<script src="{% static 'js/column-order.js' %}"></script>{% endblock %}

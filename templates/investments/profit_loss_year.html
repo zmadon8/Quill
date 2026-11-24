@@ -1,4 +1,5 @@
 {% extends "investments/base_investments.html" %}
+{% load static %}{% block order_js %}<script src="{% static 'js/column-order.js' %}"></script>{% endblock %}
 {% load investments_money %}
 {# Profit / Loss of one financial year (owner round 2026-11): its sales, dates first, oldest sale first; every column sorts. Context: y (profit_loss.Year), years. #}
 {% block page_actions %}<p class="page-actions" role="group" aria-label="Profit / Loss actions"><a class="btn q" href="?export=xlsx">Export to Excel</a></p>{% endblock %}

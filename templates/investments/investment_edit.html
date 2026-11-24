@@ -1,4 +1,5 @@
 {% extends "investments/base_investments.html" %}
+{% load static %}{% block order_js %}<script src="{% static 'js/column-order.js' %}"></script>{% endblock %}
 {% block inv_content %}
 <div class="page-head"><h1>{{ page_title_text }}</h1></div>
 <nav class="tabs" aria-label="Edit"><a href="{% url 'investments_investment_edit' inst.pk %}"{% if tab == "details" %} class="on" aria-current="page"{% endif %}>Details</a><a href="{% url 'investments_investment_edit' inst.pk %}?tab=prices"{% if tab == "prices" %} class="on" aria-current="page"{% endif %}>Price History</a></nav>
