@@ -22,9 +22,6 @@
       data-number-url="{% url 'fees_memo_preview_number' %}"
       data-new="{% if memo %}0{% else %}1{% endif %}"
       data-draft="{% if not memo or memo.is_draft %}1{% else %}0{% endif %}"
-      data-line-default-appearances="{% if fees_settings.default_line_appearances %}1{% else %}0{% endif %}"
-      data-line-default-conferences="{% if fees_settings.default_line_conferences %}1{% else %}0{% endif %}"
-      data-line-default-misc="{% if fees_settings.default_line_misc %}1{% else %}0{% endif %}"
       data-money-unit="{{ fees_settings.money_unit|default:'full' }}">
   {% csrf_token %}
   {% if based_on %}<input type="hidden" name="based_on" value="{{ based_on }}">{% endif %}
@@ -96,7 +93,7 @@
     <a class="button" href="{% if memo %}{% url 'fees_memo_detail' memo.id %}{% else %}{% url 'fees_memos' %}{% endif %}">Cancel</a>
     {% if not memo or memo.is_draft %}<button type="submit" name="action" value="draft" class="secondary">Save as Draft</button>{% endif %}
     <button type="submit" name="action" value="save" class="primary">Save</button>
-    <button type="submit" name="action" value="save_export" class="secondary" title="Save, then download the Word memo" aria-label="Save and export to Word">Word</button>
+    <button type="submit" name="action" value="save_export" class="secondary" title="Save, then download the Word memo" aria-label="Save and export to Word">{% if request.user.word_button_long %}Download Memo (Word){% else %}Word{% endif %}</button>
     {% if pdf_on %}<button type="submit" name="action" value="save_export_pdf" class="secondary" title="Save, then download the memo as PDF" aria-label="Save and export to PDF">PDF</button>{% endif %}
   </p>{% endif %}
 </form>

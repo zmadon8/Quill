@@ -45,6 +45,9 @@ class User(AbstractUser):
     # Owner round (2026-11): the Fee Register memo page shows a PDF button (Microsoft 365, docs/FEES_PDF_EXPORT.md). On unless the
     # user switches it off for themselves (My settings, Display). Word is never affected.
     pdf_export = models.BooleanField("Fee Register: PDF button on memos", default=True)
+    # Owner round (2026-11): the Fee Register "Word" button on a memo reads "Download Memo (Word)" for this user when on (My settings,
+    # Display). Off by default; only the words on the two buttons change, the download is the same.
+    word_button_long = models.BooleanField("Fee Register: name the Word button Download Memo (Word)", default=False)
     # Owner round (2026-11): the accent colour of every page, per user (My settings, Display; an Admin can set it too). Only the
     # accent changes (buttons, the current tab, links); status colours, the Word memo and the exports never do. tokens.css has one
     # html[data-theme] block per choice; the default, oxblood, needs none.

@@ -31,9 +31,6 @@
       <div class="setting-row"><label>Fees / conference <input type="text" inputmode="decimal" name="default_fees_per_conference" value="{{ config.default_fees_per_conference|fees_plain }}"></label>{% include "_who_tag.html" with who="profile" %}<span class="setting-help">The fee for one conference on a new memo.</span></div>
       <div class="setting-row"><label>Misc / draft <input type="text" inputmode="decimal" name="default_fees_misc_drafting" value="{{ config.default_fees_misc_drafting|fees_plain }}"></label>{% include "_who_tag.html" with who="profile" %}<span class="setting-help">The charge for one draft on a new memo.</span></div>
     </div>
-    <div class="setting-row"><span class="setting-label">Fee lines on in a new memo</span>{% include "_who_tag.html" with who="profile" %}
-      <span class="line-defaults">{% for key, label, on in line_default_choices %}<label><input type="hidden" name="{{ key }}" value="0"><input type="checkbox" name="{{ key }}" value="1"{% if on %} checked{% endif %}> {{ label }}</label> {% endfor %}</span>
-      <span class="setting-help">Each line a new memo starts with switched on; a line left off can still be switched on in the memo.</span></div>
     <h3 class="small-caps">Memo text defaults</h3>
     <p class="setting-help">Used by new memos and by the Word memo when a memo has no text of its own.</p>
     <div class="setting-row"><label>Caption <textarea name="default_court_name" rows="3" cols="40">{{ config.default_court_name }}</textarea></label>{% include "_who_tag.html" with who="profile" %}<span class="setting-help">The heading at the top of the memo, one line per row.</span></div>

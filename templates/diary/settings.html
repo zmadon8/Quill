@@ -12,7 +12,7 @@
   </nav>
   <div class="settings-panels">
 
-  <section class="settings-panel-body" data-section="reading" id="section-reading">
+  <section class="card settings-card settings-panel-body" data-section="reading" id="section-reading">
     <h2>Reading</h2>
     <p class="setting-help">These are shared by everyone using the profile <strong>{{ request.profile.name }}</strong>. The section <strong>My Number Formats</strong> is only yours. Your opening page is on <a href="{% url 'my_settings' %}?tab=start">Start Screens</a>.</p>
     {% if not can_change %}<p class="read-only-note">You can read these settings but not change them. Only the Editors of this profile can.</p>{% endif %}
@@ -43,7 +43,7 @@
     </div>
   </section>
 
-  <section class="settings-panel-body" data-section="numbers" id="section-numbers">
+  <section class="card settings-card settings-panel-body" data-section="numbers" id="section-numbers">
     <h2>My Number Formats</h2>
     <p class="setting-help">These follow you into every {{ diary_name }} profile you use. Changing formats changes how numbers are shown (on screen and in the Word export) but never your stored data.</p>
     <form method="post" action="{% url 'my_settings' %}" class="stack settings-section-form" data-section-form data-preview-url="{% url 'format_preview' %}">
@@ -81,7 +81,7 @@
     </form>
   </section>
 
-  <section class="settings-panel-body" data-section="data" id="section-data">
+  <section class="card settings-card settings-panel-body" data-section="data" id="section-data">
     <h2>Data</h2>
     <div class="setting-row">
       <span class="setting-label">Word export</span>

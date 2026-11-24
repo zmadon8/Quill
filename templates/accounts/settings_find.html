@@ -1,0 +1,53 @@
+{% extends "base_suite_home.html" %}
+{% load static %}
+{% block title %}Find a Setting - {{ site_name }}{% endblock %}
+{% block content %}
+<h1 class="visually-hidden">Find a setting</h1>
+<div class="settings-layout" data-settings-find>
+  <nav class="settings-nav" aria-label="Where settings are">
+    {% for g in groups %}<a href="#find-{{ forloop.counter }}">{{ g.title }}</a>{% endfor %}
+    {% if server_settings %}<a href="#find-server">On the server</a>{% endif %}
+  </nav>
+  <div class="settings-panels">
+    <section class="card settings-card" aria-labelledby="find-h">
+      <h2 id="find-h">Find a setting</h2>
+      <p class="setting-help">Every setting you can change, with where it is and who it affects. Type a word to narrow the list, or press a name to open its page.</p>
+      <form method="get" action="{% url 'settings_search' %}" role="search" class="find-form">
+        <label class="visually-hidden" for="find-q">Search settings</label>
+        <input type="search" id="find-q" name="q" value="{{ q }}" placeholder="For example: password, colour, backup, overdue" autocomplete="off" data-find-input>
+        <button type="submit">Find</button>
+        {% if q %}<a href="{% url 'settings_search' %}">Show all</a>{% endif %}
+      </form>
+      <p class="setting-help" role="status" aria-live="polite" data-find-count>{{ total }} setting{{ total|pluralize }}{% if q %} found for &ldquo;{{ q }}&rdquo;{% endif %}.</p>
+    </section>
+    {% for g in groups %}
+    <section class="card settings-card" id="find-{{ forloop.counter }}" data-find-group>
+      <h2>{{ g.title }}</h2>
+      {% for r in g.rows %}
+      <div class="setting-row" data-find-row data-hay="{{ r.hay }}">
+        <span class="setting-label">{% if r.url %}<a href="{{ r.url }}">{{ r.name }}</a>{% else %}{{ r.name }}{% endif %}</span><span class="who-tag {{ r.who_class }}">{{ r.who }}</span>
+        <span class="setting-help">{{ r.what }}</span>
+        <span class="setting-help">Where: {{ r.where }}</span>
+      </div>
+      {% endfor %}
+    </section>
+    {% empty %}
+    <p class="muted">No setting matches &ldquo;{{ q }}&rdquo;. Try one word, such as <a href="?q=password">password</a>, <a href="?q=colour">colour</a> or <a href="?q=backup">backup</a>.</p>
+    {% endfor %}
+    <p class="muted" data-find-none hidden>No setting matches what you typed. Try one word.</p>
+    {% if server_settings %}
+    <section class="card settings-card" id="find-server">
+      <h2>On the server</h2>
+      <p class="setting-help">Admin only. These are set in the Render dashboard (Environment), not in the site. Changing one needs a restart or a deploy. The steps are in <code>docs/MAINTENANCE.md</code>.</p>
+      {% for name, what in server_settings %}
+      <div class="setting-row" data-find-row data-hay="{{ name|lower }} {{ what|lower }} server render environment">
+        <span class="setting-label"><code>{{ name }}</code></span>
+        <span class="setting-help">{{ what }}</span>
+      </div>
+      {% endfor %}
+    </section>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}<script src="{% static 'js/settings-find.js' %}"></script>{% endblock %}

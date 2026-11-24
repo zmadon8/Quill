@@ -1,7 +1,6 @@
 (function () {
   "use strict";
   // Memo form helpers. Everything here is optional: the form saves the same without JavaScript.
-  // - Ticks for the Appearances, Conferences and Drafting lines (an unticked line is cleared and greyed out).
   // - A live total and the total in words. The total shown at once is a preview; the words and the figures come from the
   //   server (data-totals-url) and replace the preview when they arrive. The server recomputes everything on save.
   // - The memo number a new memo would get (data-number-url), shown as a hint. Nothing is reserved.
@@ -20,74 +19,17 @@
   function money(x) { return M ? M.formatMoney(x, unit) : String(x); }
   function cents(x) { return Math.round(x * 100) / 100; }
 
-  var LINES = {
-    appearances: { fields: ["num_appearances", "fees_per_appearance", "dates_of_appearances"], label: "Appearances" },
-    conferences: { fields: ["num_conferences", "fees_per_conference", "dates_of_conferences"], label: "Conferences" },
-    misc: { fields: ["misc_drafting_description", "fees_misc_drafting"], label: "Misc / Drafting" }
-  };
-  var ticks = {};
-
-  function lineHasValue(line) {
-    return LINES[line].fields.some(function (n) {
-      var f = field(n);
-      if (!f) { return false; }
-      if (/^(num_|fees_|custom_)/.test(n)) { return num(n) !== 0; }
-      return f.value.trim() !== "";
-    });
-  }
-
-  function setLine(line, on, clear) {
-    LINES[line].fields.forEach(function (n) {
-      var f = field(n);
-      if (!f) { return; }
-      if (!on && clear) { f.value = /^(num_|fees_)/.test(n) ? "0" : ""; }
-      f.disabled = false;
-      f.readOnly = !on;
-      f.setAttribute("aria-disabled", on ? "false" : "true");
-      f.classList.toggle("line-off", !on);
-    });
-  }
-
-  function addTicks() {
-    var isNew = form.getAttribute("data-new") === "1";
-    Object.keys(LINES).forEach(function (line) {
-      var box = form.querySelector('[data-line="' + line + '"]');
-      if (!box) { return; }
-      var id = "tick-" + line;
-      var wrap = document.createElement("p");
-      wrap.className = "line-tick check";
-      var cb = document.createElement("input");
-      cb.type = "checkbox";
-      cb.id = id;
-      var lab = document.createElement("label");
-      lab.setAttribute("for", id);
-      lab.textContent = LINES[line].label;
-      wrap.appendChild(cb);
-      wrap.appendChild(lab);
-      box.insertBefore(wrap, box.firstChild);
-      // A new memo: each line as Settings > Memos says (one switch per line); an existing memo: the lines it uses.
-      cb.checked = isNew ? form.getAttribute("data-line-default-" + line) !== "0" : lineHasValue(line);
-      setLine(line, cb.checked, false);
-      cb.addEventListener("change", function () {
-        setLine(line, cb.checked, true);
-        dirty = true;
-        refresh();
-      });
-      ticks[line] = cb;
-    });
-  }
-
   // ---- custom amounts ----
   var CUSTOM = ["custom_fees_appearances", "custom_fees_conferences", "custom_fees_misc", "custom_total_fees"];
   var customTick = form.querySelector("[data-custom-tick]");
-  function lineAuto(count, rate, line) {
-    return (ticks[line] && !ticks[line].checked) ? 0 : cents(num(count) * num(rate));
+  function lineAuto(count, rate) {
+    return cents(num(count) * num(rate));
   }
   function autoFigures() {
     return {
-      custom_fees_appearances: lineAuto("num_appearances", "fees_per_appearance", "appearances"),
-      custom_fees_conferences: lineAuto("num_conferences", "fees_per_conference", "conferences"),
-      custom_fees_misc: (ticks.misc && !ticks.misc.checked) ? 0 : num("fees_misc_drafting"),
+      custom_fees_appearances: lineAuto("num_appearances", "fees_per_appearance"),
+      custom_fees_conferences: lineAuto("num_conferences", "fees_per_conference"),
+      custom_fees_misc: num("fees_misc_drafting"),
       custom_total_fees: 0
     };
   }
@@ -118,17 +60,13 @@
   function localTotal() {
     var override = num("custom_total_fees");
     if (override > 0) { return override; }
-    function line(count, rate, custom, on) {
-      if (!on) { return 0; }
+    function line(count, rate, custom) {
       var c = val(custom).trim();
       return c !== "" ? num(custom) : cents(num(count) * num(rate));
     }
-    var a = line("num_appearances", "fees_per_appearance", "custom_fees_appearances", !ticks.appearances || ticks.appearances.checked);
-    var c = line("num_conferences", "fees_per_conference", "custom_fees_conferences", !ticks.conferences || ticks.conferences.checked);
-    var m = 0;
-    if (!ticks.misc || ticks.misc.checked) {
-      m = val("custom_fees_misc").trim() !== "" ? num("custom_fees_misc") : num("fees_misc_drafting");
-    }
+    var a = line("num_appearances", "fees_per_appearance", "custom_fees_appearances");
+    var c = line("num_conferences", "fees_per_conference", "custom_fees_conferences");
+    var m = val("custom_fees_misc").trim() !== "" ? num("custom_fees_misc") : num("fees_misc_drafting");
     return cents(a + c + m);
   }
 
@@ -227,7 +165,6 @@
     }
   });
 
-  addTicks();
   addCustom();
   refresh();
   askNumber();

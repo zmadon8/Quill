@@ -12,7 +12,7 @@
   </nav>
   <div class="settings-panels">
 
-  <section class="settings-panel-body" data-section="site" id="section-site">
+  <section class="card settings-card settings-panel-body" data-section="site" id="section-site">
     <h2>When I open the site</h2>
     <p class="setting-help">Where the site opens for you: first when you sign in, then inside each program. Only yours.</p>
     <form method="post" action="{% url 'my_settings' %}" class="stack settings-section-form" data-section-form>
@@ -25,7 +25,7 @@
   </section>
 
   {% if diary_form %}
-  <section class="settings-panel-body" data-section="diary" id="section-diary">
+  <section class="card settings-card settings-panel-body" data-section="diary" id="section-diary">
     <h2>{{ diary_name }}</h2>
     <form method="post" action="{% url 'my_settings' %}" class="stack settings-section-form" data-section-form data-opening>
       {% csrf_token %}
@@ -44,7 +44,7 @@
   {% endif %}
 
   {% if fees_form %}
-  <section class="settings-panel-body" data-section="fees" id="section-fees">
+  <section class="card settings-card settings-panel-body" data-section="fees" id="section-fees">
     <h2>{{ fees_name }}</h2>
     <form method="post" action="{% url 'my_settings' %}" class="stack settings-section-form" data-section-form>
       {% csrf_token %}
@@ -57,7 +57,7 @@
   {% endif %}
 
   {% if inv_profile %}
-  <section class="settings-panel-body" data-section="investments" id="section-investments">
+  <section class="card settings-card settings-panel-body" data-section="investments" id="section-investments">
     <h2>{{ investments_name }}</h2>
     <form method="post" action="{% url 'my_settings' %}" class="stack settings-section-form" data-section-form>
       {% csrf_token %}

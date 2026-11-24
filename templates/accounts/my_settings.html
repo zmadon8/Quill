@@ -11,7 +11,7 @@
   </nav>
   <div class="settings-panels">
 
-  <section class="settings-panel-body" data-section="account" id="section-account">
+  <section class="card settings-card settings-panel-body" data-section="account" id="section-account">
     <h2>Account</h2>
     <p class="setting-help">Everything here is only yours. The settings everyone in a profile shares are on each program's own tab.</p>
     <form method="post" action="{% url 'my_settings' %}" class="stack settings-section-form" data-section-form>
@@ -29,7 +29,7 @@
     </div>
   </section>
 
-  <section class="settings-panel-body" data-section="profile" id="section-profile">
+  <section class="card settings-card settings-panel-body" data-section="profile" id="section-profile">
     <h2>Profile View</h2>
     <p class="setting-help">The profiles you can use in each program. The one marked <strong>In use</strong> is the one you are looking at now. Switching opens that program's first page.</p>
     {% for group in profile_groups %}

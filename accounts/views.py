@@ -482,6 +482,48 @@ def suite_settings(request):
     return render(request, "accounts/settings.html", {"form": form})
 
 
+@login_required
+@require_GET
+def settings_search(request):
+    """Find a setting: every setting this user may see, grouped by where it is changed, with a search box. Each row links to its page.
+
+    The list is ``accounts/settings_catalogue.py``. Without JavaScript the box submits ``?q=``; with it, ``static/js/settings-find.js``
+    narrows the list as you type.
+    """
+    from . import settings_catalogue as cat
+
+    names = suite.get_names()
+    name_map = {"diary": names[suite.KEY_DIARY], "fees": names[suite.KEY_FEES], "inv": names[suite.KEY_INVESTMENTS]}
+    seen = {}
+
+    def may_see(vis):
+        if vis not in seen:
+            if vis == cat.ALL:
+                seen[vis] = True
+            elif vis == cat.ADMIN:
+                seen[vis] = request.user.is_admin
+            elif vis == cat.DIARY:
+                seen[vis] = request_profile(request) is not None
+            elif vis == cat.FEES:
+                seen[vis] = programs.fees_enabled() and request_profile(request, suite.KEY_FEES) is not None
+            else:
+                seen[vis] = programs.investments_enabled() and request_profile(request, suite.KEY_INVESTMENTS) is not None
+        return seen[vis]
+
+    q = (request.GET.get("q") or "").strip()[:100]
+    groups = []
+    total = 0
+    for title, rows in cat.build(name_map, may_see, q):
+        for row in rows:
+            row["url"] = (reverse(row["url_name"]) + row["query"]) if row["url_name"] else ""
+        total += len(rows)
+        groups.append({"title": title, "rows": rows})
+    return render(request, "accounts/settings_find.html", {
+        "q": q, "groups": groups, "total": total,
+        "server_settings": cat.SERVER_SETTINGS if request.user.is_admin else (),
+    })
+
+
 def _live_profiles(program=None):
     """Live profiles of every enabled program, or only of ``program`` (the diary-only actions below)."""
     keys = programs.enabled_program_keys() if program is None else [program]

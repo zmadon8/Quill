@@ -15,7 +15,7 @@
   var isDirty = function (form) { return form.getAttribute("data-dirty") === "1"; };
   var anyDirty = function () { return forms.some(isDirty); };
   var dirtyIn = function (panel) {
-    return forms.some(function (f) { return isDirty(f) && panel && panel.contains(f); });
+    return forms.some(function (f) { return isDirty(f) && panel && (panel.contains(f) || f.contains(panel)); });
   };
   var panelFor = function (key) {
     return panels.filter(function (p) { return p.getAttribute("data-section") === key; })[0] || null;
@@ -34,11 +34,10 @@
 
   var discard = function (panel) {
     forms.forEach(function (f) {
-      if (!panel.contains(f)) { return; }
+      if (!panel.contains(f) && !f.contains(panel)) { return; }
       f.reset();
       f.removeAttribute("data-dirty");
-      var note = f.querySelector("[data-dirty-note]");
-      if (note) { note.hidden = true; }
+      Array.prototype.forEach.call(f.querySelectorAll("[data-dirty-note]"), function (note) { note.hidden = true; });
     });
   };
 
@@ -70,7 +69,9 @@
     var form = event.target && event.target.form;
     if (!form || !form.hasAttribute("data-section-form")) { return; }
     form.setAttribute("data-dirty", "1");
-    var note = form.querySelector("[data-dirty-note]");
+    // A form that holds several sections (My Display) shows the note in the section being edited.
+    var panel = event.target.closest ? event.target.closest("[data-section]") : null;
+    var note = (panel && form.contains(panel) ? panel : form).querySelector("[data-dirty-note]");
     if (note) { note.hidden = false; }
   };
   root.addEventListener("input", mark);
