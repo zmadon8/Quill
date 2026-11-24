@@ -253,7 +253,7 @@ def suite_nav(request):
         mine = build(tabs)
         if not mine:
             continue
-        on = any(t["on"] for t in mine)
+        on = any(t["on"] for t in mine) or (tabs is SETTINGS_TABS and current == "settings_search")
         if tabs is not SETTINGS_TABS:  # Settings has no header item: the user name opens it
             items.append({"url": reverse(home) if home in {t[0] for t in tabs} else mine[0]["url"], "name": label, "icon": icon, "on": on})
         if on and len(mine) > 1:

@@ -2,7 +2,7 @@
 
 A private website for keeping your case law diary. This is **Milestone 0**: the foundation only. You can log in, manage users, and make, download and restore backups. The diary screens themselves (Subjects, Topics, Items, Notes, Word import) come in later milestones.
 
-The longer plans are in `docs/PLAN.md` (what is built when), `docs/DESIGN.md` (how it will work) and `docs/HOSTING_AND_DEPLOY.md` (hosting, cost and everyday habits). `docs/SETTINGS.md` lists every setting, where it is changed and whether it is per user, per profile, suite-wide, per browser or a server setting.
+The longer plans are in `docs/PLAN.md` (what is built when), `docs/DESIGN.md` (how it will work) and `docs/HOSTING_AND_DEPLOY.md` (hosting, cost and everyday habits). `docs/SETTINGS.md` lists every setting, where it is changed and whether it is per user, per profile, suite-wide, per browser or a server setting. `docs/MAINTENANCE.md` is the owner's guide to looking after the site: routine checks, what to do when something goes wrong, moving to a new Render project, and setting up the emailed backups and memo PDFs again. In the site itself, the **Find a setting** box at the right of the Settings tabs lists and searches every setting.
 
 ## What works in Milestone 0
 
@@ -27,6 +27,14 @@ The longer plans are in `docs/PLAN.md` (what is built when), `docs/DESIGN.md` (h
 - **Phone fixes and speed (round 13b):** on a phone and tablet the Edit button now sits beside the Contents icon. The full-screen editing card is sized to the visible screen (so the Save buttons stay in view when the keyboard opens), no longer pops the keyboard up by itself on a touch screen, shows "Saving..." and "Saved.", and shows any failure in a red band under the top bar. Pages are compressed on the way out, a Topic or Sub-topic page no longer loads the rest of the Subject, and scrolling does less work.
 
 - **Round 16:** a page keeps your place when it reloads; citations can carry a **Link** (switch links on and off with the Hyperlinks on citations tick box in Settings > Case Law Diary > Reading); **For review is merged into the Flags** (None, Pending, Overruled, Doubted, Other; a drop-down with text beside every flag but None; Sections too); a **Flags** tab lists flagged records and citations with or without links, grouped by Subject; Search's ticks are History, Group by Subject, Citations, Flags, Headers. See `docs/DESIGN.md` D87-D90.
+
+## Round 2026-11d: settings
+
+- **Find a setting** (box at the right of the Settings tabs, page `/settings/find/`): the full list of every setting you may see, grouped by tab, narrowed as you type. The list is `accounts/settings_catalogue.py`; keep it in step with `docs/SETTINGS.md`.
+- **Settings > Display > My Display > Name the memo's Word button Download Memo (Word)**: per user, off by default. Renames the Word button on a Fee Register memo and on the memo form.
+- **Settings pages share the Fee Register's layout** (a card for each section, small-capitals sub-headings, a row for each setting with its who tag, a Save in each card).
+- **Fee Register memo form:** the Appearances, Conferences and Drafts / Misc tick boxes, and the Settings > Memos option "Fee lines on in a new memo", are removed (fees migration 0021).
+- **Help** is rewritten for the whole suite (Settings, Find a setting, the Fee Register, troubleshooting).
 
 ## How to edit
 

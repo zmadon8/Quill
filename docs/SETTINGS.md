@@ -80,6 +80,7 @@ are in a section of their own on the diary Settings tab, apart from the shared o
 | `justify_text` | Justify text | Settings > Display | Per user | Only you |
 | `group_digits` | Add commas while typing numbers: on (default), every number box in every program regroups what you type in Indian grouping (12,34,567.50) and keeps the caret in place. Off: numbers stay as typed. Commas you type are accepted either way | Settings > Display > My Display | Per user | Only you |
 | `home_show_figures` | Show figures on the Home page: on (default). Off: the Home cards show only the program names, and the details below the cards are left out. The figures you picked are kept | Settings > Display > My Home Page | Per user | Only you |
+| `word_button_long` | Name the memo's Word button Download Memo (Word): on, the Word button on a Fee Register memo and the Word button at the foot of the memo form read Download Memo (Word); off (default), Word. Only the words change | Settings > Display > My Display | Per user | Only you |
 | `colour_theme` | Colour theme: Oxblood (default), Royal Blue, Navy, Violet, Plum or Teal. Changes the accent (buttons, current tab, links) on every page; status colours and exports never change | Settings > Display; an Admin on the user's edit screen | Per user | Only you |
 | `header_initials` | Letters in the header badge: up to 3, shown upper-case in the round badge at the top right. Blank: the first letters of your first and last name | Settings > Account and Profile View | Per user | Only you |
 | `remove_citation_hyphen` | Remove the hyphen before the citation: on, the Case Law Diary on screen leaves out the " - " between an Item's text and its inline citations (default off). The Word export and offline copy keep the hyphen. The ";" between several inline citations is always gone | Settings > Case Law Diary > My Number Formats | Per user | Only you |
@@ -172,7 +173,7 @@ are noted: Opening page and Items per page are personal only (section 4.2).
 | `default_fees_per_appearance` | Fees / appearance (default fee) | Memos > Default fees | Per profile | Everyone in this profile |
 | `default_fees_per_conference` | Fees / conference | Memos > Default fees | Per profile | Everyone in this profile |
 | `default_fees_misc_drafting` | Misc / draft | Memos > Default fees | Per profile | Everyone in this profile |
-| `default_lines_enabled` | Fee lines on by default | Memos | Per profile | Everyone in this profile |
+| `default_lines_enabled` | Not a setting any more: no screen shows it. It stays only because the desktop backup file still has the column (a restore reads it, the Excel backup writes it) | None | Per profile, automatic | n/a |
 | `default_court_name` | Caption (default court name) | Memos > Memo text defaults | Per profile | Everyone in this profile |
 | `memo_default_name` | Name on memos | Memos > Memo text defaults | Per profile | Everyone in this profile |
 | `memo_default_designation` | Designation | Memos > Memo text defaults | Per profile | Everyone in this profile |
@@ -321,6 +322,10 @@ Removed in an earlier round: `User.header_style` and `User.show_home_button` (mi
 | `FeesSettings.show_status_dots`, `hide_payment_when_paid` | They do different things (the status legend strip; the Payment button on paid memos), so they do not overlap |
 | `Profile.reading_all_mode` choice "remember" | Still the default and used by many profiles |
 
+## 8a. Find a setting (search within Settings)
+
+Every settings page shows a **Find a setting** box at the right of the Settings tab strip. It opens `/settings/find/` (`settings_search`, any signed-in user), which lists every setting the user may see (one row each: name, what it does, where it is, who it affects, a link to its page), grouped by tab, and narrows as you type (`static/js/settings-find.js`; without JavaScript the box submits `?q=` and the server filters). An Admin also sees the server settings (environment variables) at the end. The list is the hand-kept table in `accounts/settings_catalogue.py`; **when you add, rename or remove a setting, change that table too**, and every `url_name` in it must be a real URL name.
+
 ## 8. How this was checked
 
 Each row was compared by search with: the field lists of `accounts/models.py`, `diary/models.py`, `fees/models.py`
@@ -396,3 +401,7 @@ figures as they always were. Index XIRR and Alpha are not affected: they always 
 ## Capital Gains and Other income
 
 Every investment has a **Capital Gains** tick box (`Instrument.capital_gains`), on when an investment is added. Untick it and the profit or loss on a sale is reported as **Other income** (Annual Report, Total income summary, report emails, Excel exports) instead of short or long term capital gains; this is a record-keeping aid, the CA decides. It replaces the old "Taxed as Interest" box, which meant the opposite: investments 0043 turned an old "on" into Capital Gains off and an old "off" into on. A backup made before that still restores, with the old flag turned the same way. The report-email placeholders `{{interest_income}}` and `{{fy_interest_income}}` keep their names and now carry Other income.
+
+## Fee lines on in a new memo removed (owner round 2026-11)
+
+The Appearances, Conferences and Drafts / Misc tick boxes on the memo form (added by `static/js/fees/memo-form.js`) and the three settings that chose which of them a new memo started with (`FeesSettings.default_line_appearances`, `default_line_conferences`, `default_line_misc`, Settings > Fee Register > Memos > Fee lines on in a new memo) are gone (fees migration 0021). Every fee line is always on the form; a count of 0 means the line is not used. The `WebSettings` sheet of the Excel backup no longer writes the three keys, and a restore of an older file ignores them. `default_lines_enabled` stays for the desktop file only.

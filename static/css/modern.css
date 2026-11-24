@@ -30,7 +30,7 @@ body:is(.ledger, .look) main :is(h2, h3) { font-family: var(--font-sans); font-w
 body.look :is(.label, .panel-label, .stack label, legend, th, dt, .meta) {
   text-transform: none; letter-spacing: 0; font-size: 13px; font-weight: 500; color: var(--muted);
 }
-body:is(.ledger, .look) main :is(.memo-form label.check, .line-tick label) { font-size: 14px; }
+body:is(.ledger, .look) main :is(.memo-form label.check) { font-size: 14px; }
 body.inv table.led tr.grp td { letter-spacing: .04em; font-size: 12px; font-weight: 600; background: var(--paper-2); border-bottom: 1px solid var(--line); }
 
 /* ---- Buttons and fields: rounded, white secondary, filled accent primary ---- */

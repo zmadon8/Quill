@@ -122,9 +122,6 @@ SETTINGS_KEYS = frozenset(
         "money_suffix_crore",
         "hide_payment_when_paid",
         "default_lines_enabled",
-        "default_line_appearances",
-        "default_line_conferences",
-        "default_line_misc",
         "default_payment_amount",
         "show_status_dots",
         "dashboard_kpis",
@@ -145,9 +142,6 @@ SETTINGS_KEYS = frozenset(
         "payment_modes",
     )
 )
-
-#: The fee lines' own "on in a new memo" switches (owner round 2026-11), in memo-form order.
-LINE_DEFAULT_KEYS = ("default_line_appearances", "default_line_conferences", "default_line_misc")
 
 #: Limits of the Plaintiff type and Defendant type lists (an entry has to fit the 100-character type column of a memo and a matter).
 MAX_PARTY_TYPES = 50
@@ -329,9 +323,6 @@ def _validate_candidate(key, value):
     if key in (
         "hide_payment_when_paid",
         "default_lines_enabled",
-        "default_line_appearances",
-        "default_line_conferences",
-        "default_line_misc",
         "show_status_dots",
         "statistics_enabled",
         "show_bank",
@@ -401,11 +392,6 @@ def _merge(settings, data):
             value = _validate_candidate(key, raw)
         setattr(settings, key, value)
         changed.append(key)
-    if any(k in changed for k in LINE_DEFAULT_KEYS):
-        # The desktop file's single switch follows the three: on when any line starts on.
-        settings.default_lines_enabled = any(getattr(settings, k) for k in LINE_DEFAULT_KEYS)
-        if "default_lines_enabled" not in changed:
-            changed.append("default_lines_enabled")
     return changed
 
 

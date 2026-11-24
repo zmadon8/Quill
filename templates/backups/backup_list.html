@@ -1,5 +1,6 @@
 {% extends "base_suite_home.html" %}
 {% load static %}
+{% block extra_css %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/settings.css' %}">{% endblock %}
 {% block title %}Backups - {{ program_label }}{% endblock %}
 {% block content %}
 <h1 class="visually-hidden">Backups</h1>
@@ -10,7 +11,8 @@
 </nav>
 <div class="settings-panels">
 
-<section class="settings-panel-body" data-section="saved" id="section-saved">
+<section class="card settings-card settings-panel-body" data-section="saved" id="section-saved">
+<h2>Saved Backups</h2>
 <p>Only the newest 30 backups are kept inside the database, whether they were made by the nightly job, before an update, before a restore, around an import or by hand; older ones are removed automatically. A new one is made every night by the scheduled job. Download any backup you want to keep for longer.</p>
 <div class="actions">
   <form method="post" action="{% url 'backup_now' %}" class="inline">
@@ -20,7 +22,7 @@
   <a href="{% url 'restore_upload' %}">Restore from a file on my computer</a>
 </div>
 
-<h2>Off-site copy</h2>
+<h3 class="small-caps">Off-site copy</h3>
 {% if offsite.configured %}
 <p>Each nightly backup is also copied to <strong>{{ offsite.destination }}</strong>.
 {% if offsite.last_ok %}Last successful copy: {{ offsite.last_ok.started_at|date:"Y-m-d H:i" }} IST.{% else %}No successful copy yet.{% endif %}
@@ -29,7 +31,7 @@
 <p>Off-site copy is not set up. Backups are kept only inside the database. See the hosting guide to switch it on.</p>
 {% endif %}
 
-<h2>Saved backups</h2>
+<h3 class="small-caps">Saved backups</h3>
 {% if backups %}
 <div class="table-wrap">
 <table data-table-id="backups-list">
@@ -51,7 +53,7 @@
 <p>There are no backups yet. Press "Backup now".</p>
 {% endif %}
 
-<h2>History (last 30)</h2>
+<h3 class="small-caps">History (last 30)</h3>
 <div class="table-wrap">
 <table data-table-id="backups-log">
   <thead><tr><th>Time (IST)</th><th>What</th><th>Result</th><th>Details</th></tr></thead>
@@ -71,7 +73,7 @@
 </div>
 </section>
 
-<section class="settings-panel-body" data-section="email" id="section-email">
+<section class="card settings-card settings-panel-body" data-section="email" id="section-email">
 <h2>Email backups</h2>
 <p>The nightly job can email you copies kept away from the server, in a mailbox you trust. Tick each kind of file you want and choose how often it goes. <strong>These files hold everything in the suite (the regular backup also holds the scrambled passwords of every user), so send them only to people who may see everything.</strong></p>
 {% if not configured %}
@@ -116,7 +118,7 @@
   <button type="submit" name="action" value="test" formnovalidate>Send A Test Email</button>
   <span class="dirty-note" data-dirty-note hidden>You have unsaved changes.</span>
 </form>
-<h2>Last send</h2>
+<h3 class="small-caps">Last send</h3>
 {% if schedule.last_attempt_at %}
 <p>{{ schedule.last_attempt_at|date:"Y-m-d H:i" }} IST: {% if schedule.last_ok %}OK{% else %}<span class="error">FAILED</span>{% endif %}. {{ schedule.last_message }}</p>
 {% else %}

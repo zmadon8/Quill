@@ -42,6 +42,7 @@ urlpatterns = [
     path("my-settings/password/", views.MyPasswordChangeView.as_view(), name="password_change"),
     path("my-settings/preview/", views.format_preview, name="format_preview"),
     path("settings/", views.suite_settings, name="settings"),
+    path("settings/find/", views.settings_search, name="settings_search"),
     path("profiles/", views.profile_list, name="profile_list"),
     path("profiles/new/", views.profile_create, name="profile_create"),
     path("profiles/<int:pk>/edit/", views.profile_edit, name="profile_edit"),

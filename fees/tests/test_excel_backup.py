@@ -237,7 +237,7 @@ class ExportContractTests(TestCase):
         self.assertEqual(
             list(values.keys()),
             ["export_owner_name", "memo_filename_pattern", "statistics_enabled",
-             "show_bank", "written_off_enabled", "default_line_appearances", "default_line_conferences", "default_line_misc",
+             "show_bank", "written_off_enabled",
              "memo_default_name", "memo_default_designation",
              "memo_default_address", "memo_default_bank_details", "memo_default_pan",
              "memo_signature_default", "list_default_filter", "plaintiff_types", "defendant_types", "payment_modes"],

@@ -430,9 +430,6 @@ def matter_data_from_post(post):
 #: Settings keys that are on/off switches (a form sends a hidden ``0`` before the box, so the last value wins).
 SETTINGS_FLAGS = (
     "hide_payment_when_paid",
-    "default_line_appearances",
-    "default_line_conferences",
-    "default_line_misc",
     "show_status_dots",
     "statistics_enabled",
     "show_bank",

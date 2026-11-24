@@ -1,13 +1,23 @@
 {% extends "base_suite_home.html" %}
+{% load static %}
+{% block extra_css %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/settings.css' %}">{% endblock %}
 {% block title %}Appearance - {{ site_name }}{% endblock %}
 {% block page_content %}
 <h1 class="visually-hidden">Appearance</h1>
-<p class="setting-help">Everything on this page is a choice for {% include "_who_tag.html" with who="all" %}: the names are the same for every user.</p>
-<p>The names everyone sees. <strong>Site name</strong> is the name of the whole website (Madon.co.in unless you change it): it is used in emails and in the browser tab of the shared pages. <strong>Home page name</strong> is the name of the first page after login (top left on the Home, Admins, Settings and Help pages). <strong>Case law diary name</strong> is the diary&rsquo;s name: top left on its pages (unless a profile has its own Display Name), in page titles, as the Settings item for the diary, and at the start of exported file names (unless a profile has its own). Only the displayed names change; nothing else is affected.</p>
-<form method="post" class="stack">
+<form method="post" class="settings-section-form">
   {% csrf_token %}
-  {{ form.as_p }}
-  <button type="submit">Save</button>
-  <a href="{% url 'home' %}?home=1">Cancel</a>
+  <section class="card settings-card" id="section-names">
+    <h2>Names</h2>
+    <p class="setting-help">The names everyone sees. Each name below is the same for every user {% include "_who_tag.html" with who="all" %}. Only the displayed names change; nothing else is affected.</p>
+    {% if form.non_field_errors %}{{ form.non_field_errors }}{% endif %}
+    <h3 class="small-caps">The website</h3>
+    {% include "_setting_row.html" with f=form.site_name help="The name of the whole website (Madon.co.in unless you change it). It is used in emails and in the browser tab of the shared pages. Leave blank for the default." who="all" %}
+    <h3 class="small-caps">Pages and programs</h3>
+    {% include "_setting_row.html" with f=form.home_name help="The first page after login: top left on the Home, Settings and Help pages." who="all" %}
+    {% include "_setting_row.html" with f=form.diary_name help="The diary's name: top left on its pages (unless a profile has its own Home Page Name), in page titles, as its Settings tab, and at the start of exported file names (unless a profile has its own)." who="all" %}
+    {% if form.fees_name %}{% include "_setting_row.html" with f=form.fees_name help="The Fee Register's name, wherever it is shown." who="all" %}{% endif %}
+    {% if form.investments_name %}{% include "_setting_row.html" with f=form.investments_name help="Investments' name, wherever it is shown. Leave it as it is to keep the current name." who="all" %}{% endif %}
+    <p class="section-actions"><button type="submit" class="primary">Save</button> <a href="{% url 'home' %}?home=1">Cancel</a></p>
+  </section>
 </form>
 {% endblock %}
