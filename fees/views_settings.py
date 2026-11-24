@@ -439,7 +439,11 @@ def pdf_return_address(request):
 
     from django.urls import Resolver404, resolve
 
+    from django.conf import settings as django_settings
+
     address = _pdf_redirect_uri(request)
+    if not django_settings.MS_GRAPH_REDIRECT_URI:
+        return address, ""     # built by the site itself from the callback route, so it is right
     parts = urlsplit(address)
     expected = "https://" + (parts.netloc or request.get_host()) + reverse("fees_pdf_callback")
     if parts.scheme != "https" or not parts.netloc:
