@@ -1,4 +1,5 @@
 {% extends "investments/base_investments.html" %}
+{% load static %}{% block order_js %}<script src="{% static 'js/column-order.js' %}"></script>{% endblock %}
 {% block inv_content %}
 <h1 class="visually-hidden">Brokers</h1>
 <section class="card settings-frame">

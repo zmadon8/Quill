@@ -1,4 +1,5 @@
 {% extends "investments/base_investments.html" %}
+{% load static %}{% block order_js %}<script src="{% static 'js/column-order.js' %}"></script>{% endblock %}
 {% block inv_content %}
 <h1 class="visually-hidden">Corporate Actions</h1>
 <p class="hint">An action is recorded once for everyone, because it is a fact about the company. It changes this profile's holdings only after you confirm it, and your original trades are never changed. Each action is decided case by case:</p>

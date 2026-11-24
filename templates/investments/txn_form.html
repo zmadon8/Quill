@@ -1,4 +1,6 @@
 {% extends "investments/base_investments.html" %}
+{# No re-orderable columns here: this page is already at the JavaScript size limit (config/tests/test_efficiency_guards.py). #}
+{% block order_js %}{% endblock %}
 {% block inv_content %}
 <div class="page-head"><h1>{{ page_title_text }}</h1>{% if mode == "buy" %}<a class="btn q" href="{% url 'investments_add_1' %}">Add New Investment</a>{% endif %}</div>
 <form method="post" class="form" id="txn-form" novalidate data-units-url="{{ units_url }}" data-lump="{{ lump_ids }}"{% if is_sell %} data-sell="1"{% endif %}{% if exclude_id %} data-exclude="{{ exclude_id }}"{% endif %}>{% csrf_token %}

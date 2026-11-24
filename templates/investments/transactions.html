@@ -1,4 +1,5 @@
 {% extends "investments/base_investments.html" %}
+{% load static %}{% block order_js %}<script src="{% static 'js/column-order.js' %}"></script>{% endblock %}
 {% load investments_money %}
 {% block page_actions %}<div class="page-actions" role="group" aria-label="Transaction actions">{% if can_edit %}<details class="more-menu"><summary class="btn q">More</summary><div class="more-list"><a href="{% url 'investments_import_statement' %}">Import a Statement</a><a href="{% url 'investments_txn_opening' %}">Opening Balance</a><a href="{% url 'investments_txn_transfer' %}">Transfer</a><a href="{% url 'investments_txn_switch' %}">Fund switch</a></div></details>{% endif %}<a class="btn q" href="?export=xlsx&amp;q={{ q|urlencode }}&amp;side={{ side|urlencode }}{% if tentative %}&amp;tentative=1{% endif %}">Export to Excel</a></div>{% endblock %}
 {% block inv_content %}

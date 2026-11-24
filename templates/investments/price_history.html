@@ -1,4 +1,5 @@
 {% extends "investments/base_investments.html" %}
+{% load static %}{% block order_js %}<script src="{% static 'js/column-order.js' %}"></script>{% endblock %}
 {% block inv_content %}
 <h1 class="visually-hidden">Price history</h1>
 <p class="hint">Three layers: the normal backup, which also carries a small set of <b>pinned prices</b> (index values on every transaction date, and prices on every 31 March); the <b>price archive</b>, which holds every stored price and can be downloaded or emailed; and automatic <b>pruning</b> of daily prices older than 5 years to one a month. Pruning is for every profile because prices are shared.</p>

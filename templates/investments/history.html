@@ -1,4 +1,5 @@
 {% extends "investments/base_investments.html" %}
+{% load static %}{% block order_js %}<script src="{% static 'js/column-order.js' %}"></script>{% endblock %}
 {% block inv_content %}
 <h1 class="visually-hidden">History</h1>
 <p class="hint">The last 100 changes in this profile, by everyone who works in it. Every change is kept permanently.</p>

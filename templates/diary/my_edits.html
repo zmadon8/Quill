@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}{% block order_js %}<script src="{% static 'js/column-order.js' %}"></script>{% endblock %}
 {% block title %}History - {{ program_label }}{% endblock %}
 {% block content %}
 {% include "diary/_history_tabs.html" with tab="history" %}

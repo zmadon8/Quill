@@ -1,4 +1,5 @@
 {% extends "investments/base_investments.html" %}
+{% load static %}{% block order_js %}<script src="{% static 'js/column-order.js' %}"></script>{% endblock %}
 {% block page_actions %}<p class="page-actions" role="group" aria-label="Catalogue actions"><a class="btn q" href="?export=xlsx&q={{ q }}&type={{ kind }}&source={{ source }}&flag={{ flag }}">Export to Excel</a></p>{% endblock %}
 {% block inv_content %}
 <h1 class="visually-hidden">Investment catalogue</h1>

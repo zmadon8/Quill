@@ -78,8 +78,15 @@
     var heads = Array.prototype.slice.call(table.querySelectorAll("thead tr:first-child th"));
     if ((!key && !id) || (key && heads.length < 2)) { return; }
 
+    // Columns can be re-ordered (static/js/column-order.js). Hidden columns are stored by their ORIGINAL position (so an export's
+    // ?hide= still matches the server); here they are worked with by their position on the page.
+    var origOf = heads.map(function (th, p) { var v = parseInt(th.getAttribute("data-orig-index"), 10); return isNaN(v) ? p : v; });
+    function toPos(list) { return list.map(function (o) { return origOf.indexOf(o); }).filter(function (p) { return p >= 0; }); }
+    function toOrig(list) { return list.map(function (p) { return origOf[p]; }); }
+
     var hidden = key
-      ? read(key).filter(function (i) { return typeof i === "number" && i >= 0 && i < heads.length && !heads[i].hasAttribute("data-col-fixed"); })
+      ? toPos(read(key).filter(function (i) { return typeof i === "number" && i >= 0 && i < heads.length; }))
+          .filter(function (p) { return !heads[p].hasAttribute("data-col-fixed"); })
       : [];
 
     // Remember each cell's original span once, then apply() sets the visible span from the hidden list.
@@ -140,7 +147,7 @@
         b.addEventListener("click", function () {
           hidden = pair[1] ? [] : indexes.slice();
           boxes.forEach(function (box) { box.checked = pair[1]; });
-          write(key, hidden);
+          write(key, toOrig(hidden));
           apply();
           layout();
         });
@@ -158,7 +165,7 @@
         box.addEventListener("change", function () {
           hidden = hidden.filter(function (n) { return n !== i; });
           if (!box.checked) { hidden.push(i); }
-          write(key, hidden);
+          write(key, toOrig(hidden));
           apply();
           layout();
         });
@@ -173,10 +180,11 @@
       reset.textContent = "Reset Columns & Widths";
       reset.addEventListener("click", function () {
         hidden = [];
-        write(key, hidden);
+        write(key, toOrig(hidden));
         boxes.forEach(function (b) { b.checked = true; });
         apply();
         if (sizer) { sizer.resetWidths(); }
+        if (id && window.QuillColumnOrder) { window.QuillColumnOrder.reset(id); }   // a changed column order too (reloads the page)
       });
       list.appendChild(reset);
       menu.appendChild(list);

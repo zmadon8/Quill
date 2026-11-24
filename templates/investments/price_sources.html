@@ -1,4 +1,5 @@
 {% extends "investments/base_investments.html" %}
+{% load static %}{% block order_js %}<script src="{% static 'js/column-order.js' %}"></script>{% endblock %}
 {% block inv_content %}
 <h1 class="visually-hidden">Price sources</h1>
 <p class="hint">Prices are fetched by the nightly job (and the Update Prices button) with the standard library only. A refused or failed request is retried a few times, then that symbol keeps its last price and is marked old. Hand-entered and uploaded prices are never overwritten. Local helper: <b>{% if helper_on %}on{% else %}off{% endif %}</b>.</p>

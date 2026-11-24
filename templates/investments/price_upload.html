@@ -1,4 +1,5 @@
 {% extends "investments/base_investments.html" %}
+{% load static %}{% block order_js %}<script src="{% static 'js/column-order.js' %}"></script>{% endblock %}
 {% block inv_content %}
 <div class="page-head"><h1>Upload price history</h1></div>
 <p class="hint">CSV or Excel, one row per investment per day: a symbol (or ISIN or scheme code), a date, a close and optionally a basis. Unknown symbols are listed and skipped. Nothing is written until you confirm, and a file with any bad row is not applied at all. Keep the original files safe: they are the backup of uploaded prices.</p>

@@ -1,4 +1,5 @@
 {% extends "investments/base_investments.html" %}
+{% load static %}{% block order_js %}<script src="{% static 'js/column-order.js' %}"></script>{% endblock %}
 {% load investments_money %}
 {# Profit / Loss (owner round 2026-11): the By year table; each year opens its own page of sales (profit_loss_year.html). Context: r (profit_loss.Report). #}
 {% block page_actions %}<p class="page-actions" role="group" aria-label="Profit / Loss actions"><a class="btn q" href="?export=xlsx">Export to Excel</a></p>{% endblock %}

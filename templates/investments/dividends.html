@@ -1,4 +1,5 @@
 {% extends "investments/base_investments.html" %}
+{% load static %}{% block order_js %}<script src="{% static 'js/column-order.js' %}"></script>{% endblock %}
 {% load investments_money %}
 {% block page_actions %}<p class="page-actions" role="group" aria-label="Dividend actions">{% if can_edit %}<a class="btn p" href="{% url 'investments_dividend_new' %}">Add a dividend</a>{% endif %}<a class="btn q" href="?export=xlsx">Export to Excel</a></p>{% endblock %}
 {% block inv_content %}
