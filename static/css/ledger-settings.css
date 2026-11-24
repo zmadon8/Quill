@@ -22,5 +22,3 @@ body.ledger .settings-panels, body.ledger .settings-card { min-width: 0; }
 /* Edit Statistics: one collapsible table a year, one Save for them all (owner round 2026-11). */
 body.ledger .adjust-year { margin: .5rem 0; }
 body.ledger .adjust-year > summary { cursor: pointer; font-weight: 600; padding: .25rem 0; }
-/* The shared settings card (site.css) caps a box at 36rem; the Fee Register's own boxes keep filling their column. */
-body.ledger .settings-card .setting-row :is(input[type=text], input[type=email], input[type=number], input[type=search], select, textarea) { max-width: none; }
