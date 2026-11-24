@@ -71,7 +71,7 @@ NOT_PAGES = {
     "fees_template_download", "fees_template_tags_download", "fees_prefs", "fees_signature_upload", "fees_signature_download", "fees_filename_preview",
     "fees_settings_statistics_grid", "fees_backup_download", "fees_backup_restore", "fees_backup_restored",
     "fees_backup_cleared", "fees_import_inspect", "fees_import_run", "fees_payment_audit",
-    "fees_memo_pdf", "fees_pdf_connect", "fees_pdf_callback", "fees_pdf_disconnect", "fees_pdf_test",
+    "fees_memo_pdf", "fees_pdf_connect", "fees_pdf_callback", "fees_pdf_callback_no_slash", "fees_pdf_disconnect", "fees_pdf_test",
 }
 
 

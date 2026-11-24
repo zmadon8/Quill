@@ -39,10 +39,27 @@ def _destination(request):
     return reverse("home") + "?home=1"
 
 
+def _pdf_sign_in_return(request, exception):
+    """Microsoft's answer to the Fee Register PDF Connect, arriving at an address that is not the callback (the return address
+    registered with Microsoft is off by a character): forward it to the callback, which checks it, instead of sending it Home."""
+    if not isinstance(exception, Resolver404) or "state" not in request.GET or not ("code" in request.GET or "error" in request.GET):
+        return None
+    session = getattr(request, "session", None)
+    if session is None or "fees_pdf_sign_in" not in session:
+        return None
+    try:
+        return reverse("fees_pdf_callback") + "?" + request.GET.urlencode()
+    except Exception:  # noqa: BLE001 - the Fee Register may be switched off
+        return None
+
+
 def not_found(request, exception=None, template_name="404.html"):
     """handler404: 302 to Home for unmatched addresses and for a missing record, a plain 404 for everything else."""
     if not _is_browser_page_request(request):
         return page_not_found(request, exception, template_name)
+    pdf_return = _pdf_sign_in_return(request, exception)
+    if pdf_return:
+        return HttpResponseRedirect(pdf_return)
     if isinstance(exception, Http404) and not isinstance(exception, Resolver404):
         # The address exists but the record does not (deleted, or another profile's): say so on the page we land on.
         # Temporary (302): a restore from the Trash can make this address live again, so it must not be cached.
