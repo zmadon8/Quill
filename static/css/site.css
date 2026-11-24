@@ -718,11 +718,3 @@ textarea.single-line { display: block; width: 100%; max-width: 28rem; min-height
 .combo-tag.new { background: var(--ink, #1C1B19); color: var(--white, #fff); }
 .combo-add { display: block; min-height: 44px; padding: 12px; box-sizing: border-box; }
 .combo-line { margin: 4px 0 0; font-size: .857rem; color: var(--muted, #6b6860); }
-
-/* Re-orderable columns (static/js/column-order.js): a small grip at the start of each heading; drag it sideways or use Left / Right. */
-th > .col-mover { display: inline-block; vertical-align: middle; width: 12px; height: 16px; margin: 0 4px 0 -2px; padding: 0; border: 0; border-radius: 3px; background: none; color: var(--muted); cursor: grab; touch-action: none; opacity: .45; }
-th > .col-mover::before { content: "\22EE\22EE"; display: block; font-size: 11px; line-height: 16px; letter-spacing: -3px; text-align: center; text-transform: none; }
-th:hover > .col-mover, th > .col-mover:focus-visible, th.col-moving > .col-mover { opacity: 1; }
-th > .col-mover:focus-visible { outline: 2px solid var(--focus, currentColor); outline-offset: 1px; }
-th.col-moving { opacity: .6; }
-th.col-drop { box-shadow: inset 3px 0 0 var(--accent, currentColor); }

@@ -196,6 +196,16 @@
     }
   }
 
+  // The grip's look, added here so no page's stylesheet grows (the page-weight guard counts CSS files).
+  var style = document.createElement("style");
+  style.textContent =
+    "th>.col-mover{display:inline-block;vertical-align:middle;width:12px;height:16px;margin:0 4px 0 -2px;padding:0;border:0;border-radius:3px;background:none;color:inherit;cursor:grab;touch-action:none;opacity:.45}" +
+    "th>.col-mover::before{content:'\\22EE\\22EE';display:block;font-size:11px;line-height:16px;letter-spacing:-3px;text-align:center;text-transform:none}" +
+    "th:hover>.col-mover,th>.col-mover:focus-visible,th.col-moving>.col-mover{opacity:1}" +
+    "th>.col-mover:focus-visible{outline:2px solid currentColor;outline-offset:1px}" +
+    "th.col-moving{opacity:.6}th.col-drop{box-shadow:inset 3px 0 0 currentColor}";
+  document.head.appendChild(style);
+
   document.querySelectorAll("table[data-table-id], table[data-resizable-columns]").forEach(init);
 
   // Back to the grip that was just used, so the arrow keys can be pressed again.

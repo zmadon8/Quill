@@ -53,7 +53,7 @@
       {% block content %}{% endblock %}
     </main>
   </div>
-  <script src="{% static 'js/column-order.js' %}"></script>
+  {% block order_js %}<script src="{% static 'js/column-order.js' %}"></script>{% endblock %}
   <script src="{% static 'js/resizable-columns.js' %}"></script>
   {% block extra_js %}{% endblock %}
   <script src="{% static 'js/toasts.js' %}"></script>
