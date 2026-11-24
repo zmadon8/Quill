@@ -419,6 +419,35 @@ class PdfViewTests(TestCase):
         self.assertIn("AADSTS7000215", PdfConnection.objects.get(pk=1).last_error)
         self.assertFalse(pdf_graph.available())
 
+    def test_a_return_address_without_the_final_slash_still_connects(self):
+        self.client.force_login(self.admin)
+        self.client.get(reverse("fees_pdf_connect"))
+        state = self.client.session["fees_pdf_sign_in"]["state"]
+        with mock.patch.object(pdf_graph, "finish_sign_in", return_value="owner@hotmail.com"):
+            response = self.client.get(reverse("fees_pdf_callback").rstrip("/") + f"?code=C&state={state}")
+        self.assertTrue(response["Location"].endswith(reverse("fees_settings") + "?tab=word"))
+        self.assertIn("connected to Microsoft 365", said(response))
+
+    def test_microsofts_answer_at_an_unknown_address_is_forwarded_not_sent_home(self):
+        self.client.force_login(self.admin)
+        self.client.get(reverse("fees_pdf_connect"))
+        response = self.client.get("/fees/pdf/callback/?code=C&state=S", HTTP_ACCEPT="text/html")
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], reverse("fees_pdf_callback") + "?code=C&state=S")
+        self.client.session.flush()
+        self.client.force_login(self.editor)
+        response = self.client.get("/fees/pdf/callback/?code=C&state=S", HTTP_ACCEPT="text/html")
+        self.assertNotIn("pdf/callback", response.get("Location", ""))      # no Connect in progress: the usual rule
+
+    @override_settings(MS_GRAPH_REDIRECT_URI="https://testserver/fees/settings/")
+    def test_a_wrong_return_address_is_named_on_connect_and_on_settings(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse("fees_pdf_connect"))
+        self.assertFalse(response["Location"].startswith(pdf_graph.LOGIN_HOST))
+        self.assertIn("is not this site's sign-in return page", said(response))
+        page = self.client.get(reverse("fees_settings") + "?tab=word").content.decode()
+        self.assertIn("https://testserver/fees/settings/pdf/callback/", page)
+
     def test_disconnect_forgets_the_sign_in(self):
         self.client.force_login(self.admin)
         self.client.post(reverse("fees_pdf_disconnect"))

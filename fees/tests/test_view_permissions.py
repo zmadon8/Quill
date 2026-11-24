@@ -136,6 +136,7 @@ ROUTES = {
     "fees_import_run": (AW, ""),
     "fees_pdf_connect": (A, ""),
     "fees_pdf_callback": (A, ""),
+    "fees_pdf_callback_no_slash": (A, ""),
     "fees_pdf_disconnect": (AW, ""),
     "fees_pdf_test": (A, ""),
 }
@@ -148,7 +149,7 @@ FIXTURE = Path(__file__).parent / "fixtures" / "Template 2-11-2026 (short tags).
 
 REDIRECTS = {"fees_landing", "fees_firms_clients", "fees_firms_client_detail", "fees_statistics_metrics", "fees_backup_restore", "fees_backup_restored", "fees_backup_cleared",
              # PDF export is not set up in the tests, so each of these goes back to a page with the reason.
-             "fees_memo_pdf", "fees_pdf_connect", "fees_pdf_callback", "fees_pdf_test"}
+             "fees_memo_pdf", "fees_pdf_connect", "fees_pdf_callback", "fees_pdf_callback_no_slash", "fees_pdf_test"}
 
 # Editor-only routes that also accept POST (the payment forms are RW: a Reader may open them, only an Editor saves) (the rest of the E routes are GET only).
 E_POST = {"fees_memo_move"}

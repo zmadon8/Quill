@@ -50,6 +50,9 @@ who you are; the free account is not charged.
    * Name: `Quill PDF`.
    * Supported account types: **Personal Microsoft accounts only**.
    * Redirect URI: platform **Web**, `https://<your site>/fees/settings/pdf/callback/` (the site's own address, exactly).
+     Fee Register > Settings > Word shows the exact address to copy (Admins), and Connect refuses with a message if
+     `MS_GRAPH_REDIRECT_URI` points anywhere else. An answer from Microsoft that lands on a wrong address of the site is passed on
+     to the return page instead of going Home.
 3. On the app's **Overview**, copy the **Application (client) ID**.
 4. **Certificates & secrets** > **New client secret**, 24 months. Copy the **Value** at once (it is shown only once) and note the
    expiry date.

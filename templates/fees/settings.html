@@ -133,6 +133,8 @@
 {% if pdf_status.last_error and user.is_admin %}<p class="muted">Last problem{% if pdf_status.last_error_at %} ({{ pdf_status.last_error_at|date:"j M Y, H:i" }}){% endif %}: {{ pdf_status.last_error }}</p>{% endif %}
 {% else %}<p>Status: not connected.</p>{% if pdf_status.last_error and user.is_admin %}<p class="notice">Last problem{% if pdf_status.last_error_at %} ({{ pdf_status.last_error_at|date:"j M Y, H:i" }}){% endif %}: {{ pdf_status.last_error }}</p>{% endif %}{% endif %}
 {% if pdf_status.configured and user.is_admin %}
+<p class="setting-help">Microsoft sends the sign-in back to <code>{{ pdf_return_address }}</code>. The Redirect URI in the Microsoft app registration must be exactly this, and Connect must be pressed on this same address.</p>
+{% if pdf_return_problem %}<p class="notice">{{ pdf_return_problem }}</p>{% endif %}
 {% if pdf_status.secret_expires %}<p{% if pdf_status.secret_warning %} class="notice"{% endif %}>The app secret expires on {{ pdf_status.secret_expires|date:"j M Y" }}.{% if pdf_status.secret_warning %} Make a new secret in the Microsoft Entra admin centre and update MS_GRAPH_CLIENT_SECRET and MS_GRAPH_SECRET_EXPIRES on Render before then.{% endif %}</p>{% endif %}
 <p>{% if pdf_status.connected %}<a class="button small secondary" href="{% url 'fees_pdf_test' %}">Test With The Newest Memo</a>{% endif %}
 <a class="button small{% if pdf_status.connected %} secondary{% endif %}" href="{% url 'fees_pdf_connect' %}">{% if pdf_status.connected %}Reconnect{% else %}Connect Microsoft 365{% endif %}</a></p>

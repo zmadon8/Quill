@@ -123,6 +123,8 @@ def settings_page(request):
         return redirect(f"{reverse('fees_settings')}?tab={tab}" if tab in SETTINGS_SECTIONS else "fees_settings")
     context = settings_context(profile, financial_year_param(request.GET, default=False), tab=tab)
     context["personal_form"] = _personal_form(request, profile)
+    if context["pdf_status"]["configured"] and request.user.is_admin:
+        context["pdf_return_address"], context["pdf_return_problem"] = pdf_return_address(request)
     return render_page(request, "fees/settings.html", context)
 
 
@@ -431,6 +433,27 @@ def _pdf_redirect_uri(request):
     return django_settings.MS_GRAPH_REDIRECT_URI or request.build_absolute_uri(reverse("fees_pdf_callback"))
 
 
+def pdf_return_address(request):
+    """``(address, problem)``: where Microsoft is asked to send the sign-in back, and what is wrong with it ("" when fine)."""
+    from urllib.parse import urlsplit
+
+    from django.urls import Resolver404, resolve
+
+    address = _pdf_redirect_uri(request)
+    parts = urlsplit(address)
+    expected = "https://" + (parts.netloc or request.get_host()) + reverse("fees_pdf_callback")
+    if parts.scheme != "https" or not parts.netloc:
+        return address, f"MS_GRAPH_REDIRECT_URI must be a full https address, {expected}"
+    try:
+        match = resolve(parts.path or "/")
+    except Resolver404:
+        match = None
+    if match is None or match.url_name not in ("fees_pdf_callback", "fees_pdf_callback_no_slash") or parts.query:
+        return address, (f"MS_GRAPH_REDIRECT_URI is {address}, which is not this site's sign-in return page. Set it on Render, and the "
+                         f"Redirect URI in the Microsoft app registration, to exactly {expected}")
+    return address, ""
+
+
 def _pdf_failed(request, message):
     """A failed Connect: the reason stays on the Settings page (Last problem) and in the log, not only in a passing message."""
     import logging
@@ -474,8 +497,11 @@ def pdf_connect(request):
     if other:
         # Opened under another address of the site: start again on the one Microsoft returns to (sign in there if needed).
         return redirect(other + reverse("fees_pdf_connect"))
+    address, problem = pdf_return_address(request)
+    if problem:
+        return _pdf_failed(request, problem)
     try:
-        url, state, verifier = pdf_graph.start_sign_in(_pdf_redirect_uri(request))
+        url, state, verifier = pdf_graph.start_sign_in(address)
     except pdf_graph.PdfError as err:
         return _pdf_failed(request, err.message)
     request.session[PDF_SESSION_KEY] = {"state": state, "verifier": verifier, "at": time.time()}

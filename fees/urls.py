@@ -129,6 +129,8 @@ urlpatterns = [
     path("settings/statistics-grid/", views_settings.statistics_grid, name="fees_settings_statistics_grid"),
     path("settings/pdf/connect/", views_settings.pdf_connect, name="fees_pdf_connect"),
     path("settings/pdf/callback/", views_settings.pdf_callback, name="fees_pdf_callback"),
+    # The same, registered with Microsoft without the final slash (the site's unknown-address rule would otherwise send it Home).
+    path("settings/pdf/callback", views_settings.pdf_callback, name="fees_pdf_callback_no_slash"),
     path("settings/pdf/disconnect/", views_settings.pdf_disconnect, name="fees_pdf_disconnect"),
     path("settings/pdf/test/", views_settings.pdf_test, name="fees_pdf_test"),
     # The signed-in user's own interface preferences (column widths): any role, never fee data
