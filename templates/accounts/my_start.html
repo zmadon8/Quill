@@ -1,5 +1,6 @@
 {% extends "base_suite_home.html" %}
 {% load static %}
+{% block extra_css %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/settings.css' %}">{% endblock %}
 {% block title %}Start Screens - {{ site_name }}{% endblock %}
 {% block content %}
 <h1 class="visually-hidden">Start Screens</h1>

@@ -1,4 +1,6 @@
 {% extends "base_suite_home.html" %}
+{% load static %}
+{% block extra_css %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/settings.css' %}">{% endblock %}
 {% block title %}Appearance - {{ site_name }}{% endblock %}
 {% block page_content %}
 <h1 class="visually-hidden">Appearance</h1>
