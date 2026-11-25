@@ -98,7 +98,8 @@ def transaction_sheets(txns, transfers=None, dividends=None, automatic=None):
     return sheets
 
 
-HOLDINGS_HEADER = ["Name", "Type", "Code", "ISIN", "Units", "Average cost", "Cost", "Price", "Price date", "Value", "Gain", "Gain %", "XIRR %", "Index XIRR %", "Alpha (XIRR − Index XIRR) %",
+HOLDINGS_HEADER = ["Name", "Type", "Code", "ISIN", "Units", "Average cost", "Cost", "Price", "Price date", "Value", "Gain", "Gain %", "XIRR %", "Index XIRR %", "XIRR Alpha (XIRR − Index XIRR) %",
+                   "CAGR %", "Index CAGR %", "CAGR Alpha (CAGR − Index CAGR) %",
                    "First bought", "Status", "Realised gain", "Other income", "Dividends"]
 
 
@@ -110,7 +111,9 @@ def holdings_sheet(rows):
         lump = getattr(h.instrument, "lump_sum", False)   # money only: no units, average cost or price per unit (D192)
         out.append([h.instrument.name, h.instrument.get_kind_display(), h.instrument.code, h.instrument.isin, None if lump else h.units,
                     None if lump else h.avg_cost, h.cost, None if lump else h.price, h.price_date, h.value if h.is_held and not h.blocked else None, h.gain if shown else None, h.gain_pct if shown else None,
-                    None if h.blocked else h.xirr, None if h.blocked else h.index_xirr, None if h.blocked else h.alpha, h.first_date, status, h.realised, h.interest_income, h.dividends])
+                    None if h.blocked else h.xirr, None if h.blocked else h.index_xirr, None if h.blocked else h.alpha,
+                    None if h.blocked else getattr(h, "cagr", None), None if h.blocked else getattr(h, "index_cagr", None),
+                    None if h.blocked else getattr(h, "cagr_alpha", None), h.first_date, status, h.realised, h.interest_income, h.dividends])
     return [("Holdings", HOLDINGS_HEADER, out)]
 
 

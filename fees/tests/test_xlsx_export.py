@@ -249,6 +249,28 @@ class OutstandingTests(XlsxBase):
         self.assertTrue(all(c.font.b for c in total))
         self.assertEqual(body[0][2].number_format, "#,##0")
 
+    def test_matter_totals_is_the_summary_view_as_on_screen(self):
+        # Owner round 2026-12: Outstanding > All Memos, View Summary (Matter Totals) exports that table.
+        from fees.services import outstanding
+
+        name, sheets = open_cells(xlsx.export_outstanding_matters(self.profile))
+        self.assertEqual(name, xlsx.OUTSTANDING_MATTER_FILENAME)
+        rows = sheets["Matter Totals"]
+        self.assertEqual([c.value for c in rows[0]], ["Matter", "Firm", "Partner", "Client", "Memos", "Total", "Net of TDS", "Paid", "Due"])
+        groups = outstanding.list_outstanding(self.profile)
+        body, total = rows[1:-1], rows[-1]
+        self.assertEqual(len(body), len(groups))
+        self.assertEqual([r[0].value for r in body], [g["matter_name"] for g in groups])
+        self.assertEqual([r[8].value for r in body], [float(g["subtotal"]) for g in groups])
+        self.assertEqual(total[0].value, "Total due")
+        self.assertEqual(total[4].value, sum(len(g["entries"]) for g in groups))
+        self.assertEqual(total[8].value, sum(r[8].value for r in body))
+        self.assertTrue(all(c.font.b for c in total))
+
+    def test_matter_totals_leave_out_hidden_columns_but_keep_matter_and_due(self):
+        _n, sheets = values(xlsx.export_outstanding_matters(self.profile, hidden_positions=[0, 2, 3, 8]))
+        self.assertEqual(sheets["Matter Totals"][0], ["Matter", "Firm", "Memos", "Total", "Net of TDS", "Paid", "Due"])
+
     def test_em_dash_file_name_header_is_rfc5987(self):
         header = content_disposition(xlsx.OUTSTANDING_FIRM_SUMMARY_FILENAME)
         self.assertIn("filename*=UTF-8''Outstanding%20%E2%80%94%20Firm%20Summary.xlsx", header)

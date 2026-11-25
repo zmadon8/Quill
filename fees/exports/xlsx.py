@@ -58,6 +58,8 @@ __all__ = [
     "STAT_METRIC_ROWS",
     "MONEY_FORMAT",
     "OUTSTANDING_FIRM_SUMMARY_FILENAME",
+    "OUTSTANDING_MATTER_FILENAME",
+    "export_outstanding_matters",
     "export_annual_summary",
     "export_feebook",
     "export_ledger",
@@ -444,6 +446,49 @@ def export_outstanding(profile, filters=None, visible_keys=None, file_name=None)
             total_row.append("")
     sheet.row(total_row, bold=True)
     return _xlsx_name(file_name, DEFAULT_OUTSTANDING_FILENAME), book.save()
+
+
+#: The Summary (Matter Totals) table of All Memos, in its on-screen order: (key, heading, width, is money).
+OUTSTANDING_MATTER_COLUMNS = (
+    ("matter", "Matter", 32, False), ("firm", "Firm", 28, False), ("partner", "Partner", 20, False), ("client", "Client", 20, False),
+    ("memos", "Memos", 10, False), ("total", "Total", 16, True), ("net", "Net of TDS", 16, True), ("paid", "Paid", 16, True),
+    ("due", "Due", 16, True),
+)
+OUTSTANDING_MATTER_FILENAME = "Outstanding \u2014 Matter Totals.xlsx"
+
+
+def export_outstanding_matters(profile, filters=None, hidden_positions=()):
+    """The Summary (Matter Totals) view of Outstanding > All Memos as a workbook: one row per matter, as on the screen, with its total row.
+
+    ``hidden_positions`` are the columns hidden in the page's Columns menu (their places in the on-screen table, sent as ``?hide=``);
+    Matter and Due are always kept, as on the page."""
+    groups = outstanding_service.list_outstanding(profile, filters)
+    hidden = {int(p) for p in hidden_positions}
+    columns = [c for n, c in enumerate(OUTSTANDING_MATTER_COLUMNS) if n not in hidden or c[0] in ("matter", "due")]
+    book = _Book()
+    sheet = book.sheet("Matter Totals", [c[2] for c in columns])
+    sheet.header([c[1] for c in columns])
+    grand = {"memos": 0, "due": _ZERO}
+    for g in groups:
+        values = {"matter": _text(g["matter_name"]), "firm": _text(g["firm_name"]), "partner": _text(g["partner_name"]),
+                  "client": _text(g["client_name"]), "memos": len(g["entries"]), "total": g["subtotal_total"], "net": g["subtotal_net_of_tds"],
+                  "paid": g["subtotal_paid"], "due": g["subtotal"]}
+        sheet.row([Money(values[c[0]]) if c[3] else values[c[0]] for c in columns])
+        grand["memos"] += len(g["entries"])
+        grand["due"] += g["subtotal"]
+    # The total row is the page's own: the number of memos and the total due (the page leaves Total, Net of TDS and Paid blank there).
+    total_row = []
+    for c in columns:
+        if c[0] == "matter":
+            total_row.append("Total due")
+        elif c[0] == "memos":
+            total_row.append(grand["memos"])
+        elif c[0] == "due":
+            total_row.append(Money(grand["due"]))
+        else:
+            total_row.append("")
+    sheet.row(total_row, bold=True)
+    return OUTSTANDING_MATTER_FILENAME, book.save()
 
 
 def export_outstanding_by_firm(profile, filters=None, sort="amount"):
