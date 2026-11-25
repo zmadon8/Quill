@@ -125,7 +125,6 @@ def _overview_context(request, settings_row, data, index):
     from .services import overview
 
     chosen = overview.choice(settings_row)
-    name = index.name if index else "Nifty 50"
     return {
         "boxes": chosen["boxes"], "period_table": data.get("overview") or {"periods": [], "rows": []},
     }
