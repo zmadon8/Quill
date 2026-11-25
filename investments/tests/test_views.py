@@ -229,7 +229,8 @@ class PageTests(InvTestCase):
         html = self.client.get(reverse("investments_holdings")).content.decode()
         head = html.split("<thead>")[1].split("</thead>")[0]
         self.assertLess(head.index("XIRR</th>"), head.index(">Index XIRR</th>"))
-        self.assertLess(head.index(">Index XIRR</th>"), head.index(">Alpha</th>"))
+        self.assertLess(head.index(">Index XIRR</th>"), head.index(">XIRR Alpha</th>"))    # renamed from Alpha (owner round 2026-12)
+        self.assertLess(head.index(">XIRR Alpha</th>"), head.index(">CAGR</th>"))
         self.assertIn('data-col="index-xirr"', head)
         self.assertIn('data-col="alpha"', head)
         row = html.split("<tbody>")[1].split("</tr>")[0]
