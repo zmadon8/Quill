@@ -192,8 +192,8 @@ SETTINGS = (
        "Settings > {fees} > Display", YOU, "fees_settings", "?tab=display", FEES, words="page size rows"),
     _s("fees", "Excel backup and import", "Download an Excel backup, restore, import memos, or clear all data (Admin).",
        "Settings > {fees} > Data", PROFILE, "fees_settings", "?tab=data", FEES, words="clear restore"),
-    _s("fees", "Dashboard figures", "Which figures the Dashboard shows (the Customise box on the Dashboard).",
-       "{fees} > Dashboard > Customise", PROFILE, "fees_dashboard", "", FEES, words="kpis"),
+    _s("fees", "Dashboard boxes", "Which boxes the Dashboard shows, and in what order.",
+       "Settings > {fees} > Years And Statistics", PROFILE, "fees_settings", "?tab=years#dashboard-boxes", FEES, words="kpis dashboard figures customise"),
 
     # ---- Investments --------------------------------------------------------------------------------------------------
     _s("investments", "SIP entries", "Whether SIP entries are pending until you confirm them, or created as final.",
@@ -224,6 +224,8 @@ SETTINGS = (
        "Settings > {inv} > Brokers", PROFILE, "investments_settings_brokers", "", INVESTMENTS, words="platform"),
     _s("investments", "Default broker for each type", "The broker new purchases of shares, funds, alternatives and foreign investments start with.",
        "Settings > {inv} > Brokers", PROFILE, "investments_settings_brokers", "", INVESTMENTS),
+    _s("investments", "Home page figures", "The boxes at the top of the Home page, the figures in the Returns by period table and the periods shown.",
+       "Settings > {inv} > Display", PROFILE, "investments_settings_display", "", INVESTMENTS, words="customise home overview boxes periods returns"),
     _s("investments", "Number display for you (Short or Full)", "Shows rupee amounts in short figures (k, lac, cr) or in full.",
        "Settings > {inv} > Display", YOU, "investments_settings_display", "", INVESTMENTS, words="my money short full"),
     _s("investments", "Starting number display for new people", "The Short or Full choice a new person in this profile starts with.",

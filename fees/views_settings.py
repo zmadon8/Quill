@@ -120,6 +120,10 @@ def settings_page(request):
         return redirect(f"{reverse('fees_settings')}?tab={tab}" if tab in SETTINGS_SECTIONS else "fees_settings")
     context = settings_context(profile, financial_year_param(request.GET, default=False), tab=tab)
     context["personal_form"] = _personal_form(request, profile)
+    if context["config"]["statistics_enabled"]:
+        from fees.views_dashboard import kpi_choice_context   # the Dashboard boxes choice (moved here from the Dashboard's Customise panel)
+
+        context.update(kpi_choice_context(request, context["config"]))
     if context["pdf_status"]["configured"] and request.user.is_admin:
         context["pdf_return_address"], context["pdf_return_problem"] = pdf_return_address(request)
     return render_page(request, "fees/settings.html", context)

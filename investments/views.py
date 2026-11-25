@@ -121,14 +121,23 @@ def _breakdown_context(request, data):
 
 
 def _overview_context(request, settings_row, data, index):
-    """The chosen boxes, the period table and, with ?customise=1, the Customise form (owner round 2026-11)."""
+    """The chosen boxes and the period table (owner round 2026-11). The choice itself is on Settings > Display."""
     from .services import overview
 
     chosen = overview.choice(settings_row)
     name = index.name if index else "Nifty 50"
     return {
         "boxes": chosen["boxes"], "period_table": data.get("overview") or {"periods": [], "rows": []},
-        "customise_open": request.GET.get("customise") == "1",
+    }
+
+
+def overview_choice_context(settings_row, index):
+    """The choice of Home boxes, period figures and periods, shown on Settings > Display (moved from the Home page's Customise panel)."""
+    from .services import overview
+
+    chosen = overview.choice(settings_row)
+    name = index.name if index else "Nifty 50"
+    return {
         "box_choices": [(b, label.replace("{index}", name), help_text, b in chosen["boxes"]) for b, label, help_text in overview.BOXES],
         "metric_choices": [(m, label.replace("{index}", name), help_text, m in chosen["metrics"]) for m, label, _f, help_text in overview.METRICS],
         "period_choices": [(p, label, p in chosen["periods"]) for p, label in overview.PERIODS],
@@ -150,7 +159,7 @@ def overview_save(request):
             masters.update_settings(profile, request.user, overview=overview.clean(request.POST.getlist("box"), request.POST.getlist("metric"),
                                                                                   request.POST.getlist("period")))
             messages.success(request, "Home saved.")
-    return redirect(reverse("investments_dashboard"))
+    return redirect(reverse("investments_settings_display") + "#home-figures")
 
 
 @inv_reader

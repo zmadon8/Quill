@@ -11,4 +11,17 @@
   <div class="acts-row"><button class="btn p" type="submit">Save</button></div>
 </form>{% endif %}
 </section>
+{% if box_choices and can_edit %}
+<section class="card settings-frame" id="home-figures"><h2>Home page figures</h2>
+<form method="post" action="{% url 'investments_overview_save' %}">{% csrf_token %}
+<p class="setting-help">Boxes at the top of the Investments Home page: figures as at the date chosen there.</p>
+<ul class="plain cols th">{% for id, label, help, on in box_choices %}<li><label class="chk"><input type="checkbox" name="box" value="{{ id }}"{% if on %} checked{% endif %}> {{ label }}</label>{% if help %} <span class="hint">{{ help }}</span>{% endif %}</li>{% endfor %}</ul>
+<h3 class="small-caps">Returns by period</h3>
+<p class="setting-help">The figures in the "Returns by period" table, and the periods to show them for.</p>
+<ul class="plain">{% for id, label, help, on in metric_choices %}<li><label class="chk"><input type="checkbox" name="metric" value="{{ id }}"{% if on %} checked{% endif %}> {{ label }}</label>{% if help %} <span class="hint">{{ help }}</span>{% endif %}</li>{% endfor %}</ul>
+<p>{% for id, label, on in period_choices %}<label class="chk"><input type="checkbox" name="period" value="{{ id }}"{% if on %} checked{% endif %}> {{ label }}</label> {% endfor %}</p>
+<div class="acts-row"><button class="btn p" type="submit">Save</button><button class="btn q" type="submit" name="standard" value="1">Standard choice</button></div>
+<p class="setting-help">The choice is for everyone in this profile. Each period adds a little work when the figures are worked out (they are then kept until something changes).</p>
+</form></section>
+{% endif %}
 {% endblock %}

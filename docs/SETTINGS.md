@@ -197,7 +197,7 @@ are noted: Opening page and Items per page are personal only (section 4.2).
 | `memos_start_year` | Memos start year | Years and statistics | Per profile | Everyone in this profile |
 | `feebook_start_year` | Feebook start year | Years and statistics | Per profile | Everyone in this profile |
 | `statistics_enabled` | Statistics and Dashboard on or off, one switch for both pages and the Dashboard figures (off: neither is in the header; the Dashboard address and an Opening page of Dashboard open Memos). Replaces the old `dashboard_enabled` and `dashboard_kpis_enabled` | Years and statistics | Per profile | Everyone in this profile |
-| `dashboard_kpis` | Which dashboard figures show (the Customise box on the Dashboard, not on the Settings page) | Fee Register > Dashboard > Customise | Per profile | Everyone in this profile |
+| `dashboard_kpis` | Dashboard boxes: which boxes the Dashboard shows, and in what order (moved from the Dashboard's Customise panel, owner round 2026-12) | Settings > Fee Register > Years And Statistics > Dashboard boxes (Editors) | Per profile | Everyone in this profile |
 | `money_unit` | Figures (full, thousands, lacs, crores) | Display | Per profile | Everyone in this profile |
 | `list_default_filter` | Firms and matters: show by default (All or Active only) | Display | Per profile | Everyone in this profile |
 | `money_suffix_thousands`, `money_suffix_lac`, `money_suffix_crore` | Not shown any more: each person chooses the letters on Settings > Display > My Display (see `short_thousands` in section 2.1). The columns stay only for the Excel backup file | None | Per profile, automatic | n/a |

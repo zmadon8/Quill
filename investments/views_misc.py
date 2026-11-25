@@ -245,8 +245,11 @@ def settings_display(request):
         masters.set_money_preference(request.user, d["my_money"])
         messages.success(request, "Saved.")
         return redirect(reverse("investments_settings_display"))
+    from .views import overview_choice_context
+
     return page(request, "investments/settings_simple.html", {"page_title_text": "Display", "form": form,
-                                                             "intro": "How amounts are shown. Excel exports always contain the exact figures."}, selectors=False)
+                                                             "intro": "How amounts are shown. Excel exports always contain the exact figures.",
+                                                             **overview_choice_context(row, masters.default_index_for(profile))}, selectors=False)
 
 
 @inv_read_write

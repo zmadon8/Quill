@@ -5,33 +5,6 @@
 <div class="page-head"><h1 class="visually-hidden">{% if fees_settings.statistics_enabled %}Statistics{% else %}Dashboard{% endif %}</h1></div>
 <div class="tab-bar">
 {% include "fees/_stats_tabs.html" with tab="dashboard" %}
-{% if kpis_enabled and can_edit %}
-<details class="kpi-customise"{% if customise_open %} open{% endif %}>
-  <summary>Customise</summary>
-  <form method="post" action="{% url 'fees_dashboard_kpis' %}" class="fees-form kpi-customise-form" data-kpi-customise>{% csrf_token %}
-    <button type="submit" class="visually-hidden" tabindex="-1" aria-hidden="true">Save Boxes</button>
-    <input type="hidden" name="order" value="{{ kpi_order_value }}">
-    <h2 class="kpi-customise-title">Customise Overview boxes</h2>
-    <div class="kpi-customise-cols">
-      <div class="kpi-pick">
-        {% include "_select_all_none.html" with name="kpi" label="the Overview boxes" submit=True %}
-        {% for g in kpi_groups %}<fieldset class="kpi-group"><legend>{{ g.title }}</legend>
-        {% for k in g.items %}<label><input type="checkbox" name="kpi" value="{{ k.id }}"{% if k.on %} checked{% endif %}> {{ k.label }}</label>
-        {% endfor %}</fieldset>
-        {% endfor %}
-      </div>
-      <div class="kpi-order">
-        <h3>Order</h3>
-        <ol class="kpi-order-list" data-kpi-order>{% for k in kpi_order %}<li data-kpi="{{ k.id }}"><span>{{ k.label }}</span>
-          <span class="kpi-order-arrows"><button type="submit" name="move" value="{{ k.id }}:up" class="kpi-arrow" aria-label="Move {{ k.label }} up"{% if k.first %} disabled{% endif %}>&#9650;</button><button type="submit" name="move" value="{{ k.id }}:down" class="kpi-arrow" aria-label="Move {{ k.label }} down"{% if k.last %} disabled{% endif %}>&#9660;</button></span></li>{% endfor %}</ol>
-        <p class="muted">Ticking a box adds it to the end. With none ticked, every box shows.</p>
-      </div>
-    </div>
-    <button type="submit" class="primary">Save Boxes</button>
-  </form>
-  <script src="{% static 'js/fees/dashboard-kpis.js' %}"></script>
-</details>
-{% endif %}
 </div>
 {% if kpis_enabled %}
 <section aria-label="Dashboard boxes" id="kpis">

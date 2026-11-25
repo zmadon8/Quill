@@ -119,9 +119,10 @@ class FyOptionsOnlyYearsTests(TestCase):
 
 
 class AllNoneControlsTests(WriteBase):
-    def test_the_dashboard_customise_form_has_real_submit_buttons(self):
+    def test_the_dashboard_boxes_form_has_real_submit_buttons(self):
+        # Owner round 2026-12: the choice of Dashboard boxes is on Settings > Years And Statistics, not on the Dashboard.
         FeesSettings.objects.update_or_create(profile=self.profile, defaults={"statistics_enabled": True})
-        html = self.client.get(reverse("fees_dashboard")).content.decode()
+        html = self.client.get(reverse("fees_settings"), {"tab": "years"}).content.decode()
         self.assertIn('data-select-all-none="kpi"', html)
         self.assertIn('<button type="submit" name="select" value="all"', html)
         self.assertIn('<button type="submit" name="select" value="none"', html)
@@ -133,8 +134,8 @@ class AllNoneControlsTests(WriteBase):
         self.assertEqual(response.status_code, 302)
         self.assertIn("tick=all", response["Location"])
         self.assertEqual(FeesSettings.objects.get(profile=self.profile).dashboard_kpis, before)
-        every = self.client.get(reverse("fees_dashboard"), {"customise": "1", "tick": "all"}).content.decode()
-        none = self.client.get(reverse("fees_dashboard"), {"customise": "1", "tick": "none"}).content.decode()
+        every = self.client.get(reverse("fees_settings"), {"tab": "years", "tick": "all"}).content.decode()
+        none = self.client.get(reverse("fees_settings"), {"tab": "years", "tick": "none"}).content.decode()
         boxes = re.findall(r'<input type="checkbox" name="kpi"[^>]*>', every)
         self.assertTrue(boxes)
         self.assertTrue(all(" checked" in box for box in boxes))

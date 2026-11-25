@@ -979,15 +979,17 @@ class DashboardScreenTests(UiPageBase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response["Location"], reverse("fees_landing"))
 
-    def test_customise_is_for_editors_only_and_posts_to_the_existing_endpoint(self):
+    def test_the_dashboard_boxes_choice_is_on_settings_for_editors_only(self):
+        # Owner round 2026-12: no Customise button on the Dashboard; the choice is Settings > Years And Statistics > Dashboard boxes.
         self.settings_on()
-        reader = self.html(self.page("fees_dashboard"))
-        self.assertNotIn("kpi-customise", reader)
+        for user in (None, self.editor):
+            dash = self.html(self.page("fees_dashboard", user=user))
+            self.assertNotIn("kpi-customise", dash)
+            self.assertNotIn('name="kpi"', dash)
+        reader = self.html(self.page("fees_settings", query="?tab=years"))
         self.assertNotIn('name="kpi"', reader)
-        editor = self.assert_page(self.page("fees_dashboard", user=self.editor), "dashboard-editor")
-        self.assertIn('<details class="kpi-customise">', editor)
-        self.assertIn("<summary>Customise</summary>", editor)
-        self.assertIn("Customise Overview boxes", editor)
+        editor = self.html(self.page("fees_settings", user=self.editor, query="?tab=years"))
+        self.assertIn("Dashboard boxes", editor)
         self.assertIn('method="post" action="%s"' % reverse("fees_dashboard_kpis"), editor)
         self.assertIn('<button type="submit" class="primary">Save Boxes</button>', editor)
         self.assertEqual(editor.count('name="kpi"'), len(dashboard.KPI_IDS))
@@ -995,7 +997,7 @@ class DashboardScreenTests(UiPageBase):
 
     def test_customise_groups_cover_every_kpi_and_the_order_list_has_arrows(self):
         self.settings_on(dashboard_kpis="billed_this_year,memos_last30,drafts_last30")
-        editor = self.html(self.page("fees_dashboard", user=self.editor))
+        editor = self.html(self.page("fees_settings", user=self.editor, query="?tab=years"))
         for title in ("Billing", "Receipts", "Memos", "Appearances &amp; work", "Outstanding"):
             self.assertIn("<legend>%s</legend>" % title, editor)
         for kpi in dashboard.KPI_IDS:
@@ -1016,8 +1018,8 @@ class DashboardScreenTests(UiPageBase):
             {"kpi": ["billed_this_year", "memos_last30"], "order": "billed_this_year,memos_last30", "move": "memos_last30:up"},
         )
         self.assertEqual(response.status_code, 302)
+        self.assertIn("tab=years", response["Location"])
         page = self.html(self.client.get(response["Location"]))
-        self.assertIn('<details class="kpi-customise" open>', page)
         self.assertIn('name="order" value="memos_last30,billed_this_year"', page)
 
     def test_recent_matters_link_to_matter_firm_and_memo(self):

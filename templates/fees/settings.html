@@ -3,7 +3,7 @@
 {% block page_width %}w-4xl{% endblock %}
 {% block extra_css %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/ledger-settings.css' %}">{% endblock %}
 {% block page_title %}Settings - {{ program_label }}{% endblock %}
-{% block page_js %}<script src="{% static 'js/fees/filename-preview.js' %}"></script><script src="{% static 'js/fees/filename-builder.js' %}"></script><script src="{% static 'js/settings-sections.js' %}"></script>{% endblock %}
+{% block page_js %}<script src="{% static 'js/fees/dashboard-kpis.js' %}"></script><script src="{% static 'js/fees/filename-preview.js' %}"></script><script src="{% static 'js/fees/filename-builder.js' %}"></script><script src="{% static 'js/settings-sections.js' %}"></script>{% endblock %}
 {% block content %}
 <h1 class="visually-hidden">Settings</h1>
 <div class="settings-layout" data-settings-sections data-initial="{{ tab }}">
@@ -157,6 +157,7 @@
   </fieldset>
   {% if can_edit %}<p class="section-actions"><button type="submit" class="primary">Save</button> <span class="dirty-note" data-dirty-note hidden>You have unsaved changes.</span></p>{% endif %}
 </form>
+{% if config.statistics_enabled and can_edit %}{% include "fees/_dashboard_boxes.html" %}{% endif %}
 {% if config.statistics_enabled %}<section class="card settings-card" aria-labelledby="edit-stats-h"><h2 id="edit-stats-h">Edit Statistics</h2>
 {% include "fees/_adjustment_grid.html" %}
 </section>{% endif %}
