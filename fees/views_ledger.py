@@ -24,6 +24,12 @@ def scope_for(profile, kind, object_id, group_id=None, client_id=None):
         else:
             out = {"firm_id": owner.pk}
         if client_id is not None:
+            from fees.models import Client
+            from fees.services import client_scope
+
+            # A client's Ledger (the client page's Ledger button): the client must belong to this firm.
+            if client_id != client_scope.BLANK and not Client.objects.filter(profile=profile, pk=client_id, firm_id=owner.pk).exists():
+                raise Http404("Client not found")
             out["client_id"] = client_id
         return out, owner
     owner = matters.get_matter(profile, object_id)
