@@ -542,22 +542,22 @@ class FirmScreenTests(UiPageBase):
         self.assertIn('name="firm_id" value="%d"' % other, moved)
 
     def test_matter_form_layout(self):
-        # Laid out like the memo form (owner round 2026-12): the firm-name tick, then the two addressee lines, the cause title,
+        # Laid out like the memo form (owner round 2026-12): the two addressee lines (no firm-name tick), the cause title,
         # Brief on Behalf of, the Additional Details tick and the parties, each a drop-down type beside its name.
         i = self.ids()
-        Matter.objects.filter(pk=i["matter"]).update(addressee_use_firm_name=True, addressee_line1="Kept")
+        Matter.objects.filter(pk=i["matter"]).update(addressee_line1="Kept")
         edit = self.html(self.page("fees_matter_edit", {"matter_id": i["matter"]}, user=self.editor))
         self.assertIn('class="fees-form memo-form"', edit)
-        order = [edit.index(x) for x in ('name="short_name"', 'name="addressee_use_firm_name"', 'name="addressee_line1"', 'name="addressee_line2"',
+        order = [edit.index(x) for x in ('name="short_name"', 'name="addressee_line1"', 'name="addressee_line2"',
                                          'name="court_name"', 'name="client_position"', 'name="additional_details"', 'name="plaintiff_name"',
                                          'name="defendant_name"')]
         self.assertEqual(order, sorted(order))
-        self.assertIn('name="addressee_line1" value="Kept" maxlength="300" readonly aria-disabled="true"', edit)
+        self.assertIn('name="addressee_line1" value="Kept" maxlength="300">', edit)
+        self.assertNotIn('name="addressee_use_firm_name"', edit)
         self.assertIn(">Cause title <textarea", edit)
         self.assertNotIn("Details, left", edit)
         for side in ("plaintiff", "defendant"):
             self.assertIn('<select name="%s_type_choice"' % side, edit)
-        self.assertIn("js/fees/matter-form.js", edit)
         self.assertIn("js/fees/additional-details.js", edit)
 
     def test_additional_details_tick_is_off_and_hides_the_boxes_until_there_is_text(self):
@@ -589,13 +589,28 @@ class FirmScreenTests(UiPageBase):
         self.assertEqual((cleared["additional_details_left"], cleared["additional_details_right"]), ("", ""))
         self.assertEqual(memo_data_from_post(base)["additional_details_left"], "L")   # a form without the tick is unchanged
 
-    def test_a_new_matter_uses_the_firm_name_as_the_addressee_and_a_new_payment_starts_today(self):
+    def test_a_new_matter_has_the_firm_name_in_addressee_line_1_and_a_new_payment_starts_today(self):
         from django.utils import timezone
 
-        new = self.html(self.page("fees_matter_new", user=self.editor))
-        self.assertIn('name="addressee_use_firm_name" value="1" data-addressee-firm checked>', new)
+        from fees.models import Firm
+
+        # Owner round 2026-12: no "use the firm name" tick on a new matter; the box starts with the chosen firm's name.
+        firm = Firm.objects.get(pk=self.ids()["firm"])
+        new = self.html(self.page("fees_matter_new", query="?firm=%d" % firm.pk, user=self.editor))
+        self.assertNotIn('name="addressee_use_firm_name"', new)
+        self.assertIn('name="addressee_line1" value="%s" maxlength="300">' % escape(firm.name), new)
         payment = self.html(self.page("fees_payment_new", user=self.editor))
         self.assertIn('name="date_of_payment" value="%s"' % timezone.localdate().isoformat(), payment)
+
+    def test_an_old_matter_that_used_the_firm_name_shows_it_in_addressee_line_1(self):
+        from fees.models import Firm
+
+        i = self.ids()
+        Matter.objects.filter(pk=i["matter"]).update(addressee_use_firm_name=True, addressee_line1="")
+        firm = Firm.objects.get(pk=i["firm"])
+        edit = self.html(self.page("fees_matter_edit", {"matter_id": i["matter"]}, user=self.editor))
+        self.assertNotIn('name="addressee_use_firm_name"', edit)
+        self.assertIn('name="addressee_line1" value="%s" maxlength="300">' % escape(firm.name), edit)
 
     def test_client_position_is_not_shown_beside_the_firm_and_matter(self):
         # Client Position is only for the memo exported to Word (owner round 2026-11), so no page lists it.

@@ -767,6 +767,10 @@ def _load(profile, workbook):
         )
     loader.flush()
     n_matters = loader.count
+    # The matter form has no "use the firm name" tick any more (owner round 2026-12): a matter that had it gets the firm's name in
+    # Addressee line 1 instead.
+    for matter in Matter.objects.filter(profile=profile, addressee_use_firm_name=True).select_related("firm").only("pk", "firm__name"):
+        Matter.objects.filter(pk=matter.pk).update(addressee_line1=matter.firm.name, addressee_use_firm_name=False)
 
     n_clients = _restore_clients(profile, workbook, matter_ids, matter_scope, firm_ids)
 

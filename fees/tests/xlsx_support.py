@@ -78,7 +78,6 @@ def seed_web_data(profile):
     matter_1 = matters.create_matter(
         profile, firm_a.pk, group_a.pk, "Matter One",
         addressee_line1="To Alpha", notes="note one", short_name="M1", court_name="High Court",
-        addressee_use_firm_name=True,
     )
     matter_2 = matters.create_matter(profile, firm_a.pk, group_a2.pk, "Matter Two")
     matter_3 = matters.create_matter(profile, firm_b.pk, group_b.pk, "Matter Three")
