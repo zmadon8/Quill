@@ -16,8 +16,7 @@ from fees.services.matters import MEMO_DEFAULT_FIELDS
 
 def _form_values(matter=None):
     values = {name: "" for name in MEMO_DEFAULT_FIELDS if name != "addressee_use_firm_name"}
-    # A new matter uses the firm name as the addressee unless the tick is taken off (owner round 2026-12).
-    values.update(name="", firm_id="", group_id="", addressee_use_firm_name=True, client_id="", client_new="")
+    values.update(name="", firm_id="", group_id="", addressee_use_firm_name=False, client_id="", client_new="")
     if matter is not None:
         for name in MEMO_DEFAULT_FIELDS:
             values[name] = getattr(matter, name)
@@ -86,9 +85,12 @@ def matter_new(request):
     form = _form_values()
     # A new matter's Cause title starts as Settings > Memos > Caption, as a new memo's does.
     form["court_name"] = settings_service.get_settings(profile)["default_court_name"] or ""
+    # No "use the firm name" tick on a new matter (owner round 2026-12): Addressee line 1 simply starts with the firm's name, to keep or change.
+    form["addressee_use_firm_name"] = False
     firm_id = int_or_none(request.GET.get("firm"))
     if firm_id is not None:
         form["firm_id"] = firm_id
+        form["addressee_line1"] = firms.get_firm(profile, firm_id)["firm"].name
         group_id = int_or_none(request.GET.get("group"))
         if group_id is not None and any(g.pk == group_id for g in firms.get_firm(profile, firm_id)["groups"]):
             form["group_id"] = group_id

@@ -589,11 +589,16 @@ class FirmScreenTests(UiPageBase):
         self.assertEqual((cleared["additional_details_left"], cleared["additional_details_right"]), ("", ""))
         self.assertEqual(memo_data_from_post(base)["additional_details_left"], "L")   # a form without the tick is unchanged
 
-    def test_a_new_matter_uses_the_firm_name_as_the_addressee_and_a_new_payment_starts_today(self):
+    def test_a_new_matter_has_the_firm_name_in_addressee_line_1_and_a_new_payment_starts_today(self):
         from django.utils import timezone
 
-        new = self.html(self.page("fees_matter_new", user=self.editor))
-        self.assertIn('name="addressee_use_firm_name" value="1" data-addressee-firm checked>', new)
+        from fees.models import Firm
+
+        # Owner round 2026-12: no "use the firm name" tick on a new matter; the box starts with the chosen firm's name.
+        firm = Firm.objects.get(pk=self.ids()["firm"])
+        new = self.html(self.page("fees_matter_new", query="?firm=%d" % firm.pk, user=self.editor))
+        self.assertNotIn('name="addressee_use_firm_name"', new)
+        self.assertIn('name="addressee_line1" value="%s" maxlength="300">' % escape(firm.name), new)
         payment = self.html(self.page("fees_payment_new", user=self.editor))
         self.assertIn('name="date_of_payment" value="%s"' % timezone.localdate().isoformat(), payment)
 

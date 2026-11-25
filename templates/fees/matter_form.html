@@ -28,7 +28,8 @@
   <p class="muted">A new memo for this matter starts with these.</p>
   <div class="memo-grid cols-2">
   {# Addressee: the tick comes first; while it is ticked the two lines are greyed out (read-only, so what was typed is kept). matter-form.js keeps that in step; without the script the page shows the saved state. #}
-  <label class="check wide"><input type="checkbox" name="addressee_use_firm_name" value="1" data-addressee-firm{% if form.addressee_use_firm_name %} checked{% endif %}> Use the firm name as the addressee</label>
+  {# A new matter has no tick: Addressee line 1 starts with the firm's name. An existing matter keeps the tick it was saved with. #}
+  {% if matter %}<label class="check wide"><input type="checkbox" name="addressee_use_firm_name" value="1" data-addressee-firm{% if form.addressee_use_firm_name %} checked{% endif %}> Use the firm name as the addressee</label>{% endif %}
   <div class="field wide" data-addressee-lines><div class="memo-grid cols-2">
   <label>Addressee line 1 <input type="text" name="addressee_line1" value="{{ form.addressee_line1 }}" maxlength="300"{% if form.addressee_use_firm_name %} readonly aria-disabled="true"{% endif %}></label>
   <label>Addressee, second line (Enter for a new line) <textarea name="addressee_line2" rows="1" style="resize:vertical" maxlength="300"{% if form.addressee_use_firm_name %} readonly aria-disabled="true"{% endif %}>{{ form.addressee_line2 }}</textarea></label>
