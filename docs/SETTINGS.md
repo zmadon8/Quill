@@ -175,6 +175,7 @@ are noted: Opening page and Items per page are personal only (section 4.2).
 | `default_fees_per_conference` | Fees / conference | Memos > Default fees | Per profile | Everyone in this profile |
 | `default_fees_misc_drafting` | Misc / draft | Memos > Default fees | Per profile | Everyone in this profile |
 | `default_lines_enabled` | Not a setting any more: no screen shows it. It stays only because the desktop backup file still has the column (a restore reads it, the Excel backup writes it) | None | Per profile, automatic | n/a |
+| `draft_memos_enabled` | Draft memos: on (default) lets a memo be saved as a draft and shows the Memos and Draft Memos tabs; off hides the tabs and the Save as Draft button and sends the Drafts address back to Memos. Refused while the profile has a draft memo. Not in the Excel backup file (the site backup carries it) | Memos > Draft memos | Per profile | Everyone in this profile |
 | `default_court_name` | Caption (default court name) | Memos > Memo text defaults | Per profile | Everyone in this profile |
 | `memo_default_name` | Name on memos | Memos > Memo text defaults | Per profile | Everyone in this profile |
 | `memo_default_designation` | Designation | Memos > Memo text defaults | Per profile | Everyone in this profile |

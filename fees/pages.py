@@ -74,6 +74,12 @@ def written_off_on(settings):
     return _flag(settings, "written_off_enabled")
 
 
+def drafts_on(settings):
+    """True unless Draft memos are switched off in Settings > Memos: then the Drafts and Memos tabs, the Save as Draft button and the
+    Drafts page are gone (the setting cannot be switched off while the profile has a draft memo)."""
+    return _flag(settings, "draft_memos_enabled")
+
+
 def nav_for(request, settings):
     """The header entries for this page. The first entry is Statistics with the Dashboard as its first tab; it is left
     out when Statistics (which covers the Dashboard) is switched off."""
@@ -111,6 +117,7 @@ def render_page(request, template, context=None, status=200):
         "fees_overdue_on": overdue_on(settings),
         # False when Written off memos is switched off in Settings: no write-off control, key or status shows anywhere.
         "fees_written_off_on": written_off_on(settings),
+        "fees_drafts_on": drafts_on(settings),
         # The user's other Fee Register profiles, for the header switcher (memberships are cached, so no query).
         "fees_other_profiles": [m.profile for m in request_memberships(request, KEY_FEES)[1:]],
         # The user's saved column widths per table id, embedded in the page (one small query).

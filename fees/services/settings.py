@@ -54,7 +54,7 @@ from django.db.models.functions import Lower
 from config.comma_numbers import plain_number
 from fees.errors import FeesError
 from fees.exports.filenames import validate_pattern
-from fees.models import BankAccount, FeesSettings, Payment
+from fees.models import BankAccount, FeesSettings, Memo, Payment
 from fees.services import history
 from fees.services.memos import touch
 
@@ -128,6 +128,7 @@ SETTINGS_KEYS = frozenset(
         "statistics_enabled",
         "show_bank",
         "written_off_enabled",
+        "draft_memos_enabled",
         "memo_signature_default",
         "list_default_filter",
         "export_owner_name",
@@ -327,6 +328,7 @@ def _validate_candidate(key, value):
         "statistics_enabled",
         "show_bank",
         "written_off_enabled",
+        "draft_memos_enabled",
         "memo_signature_default",
     ):
         return bool(value)
@@ -406,6 +408,13 @@ def update_settings(profile, data):
     """
     with transaction.atomic():
         settings, _created = FeesSettings.objects.get_or_create(profile=profile)
+        if "draft_memos_enabled" in data and data["draft_memos_enabled"] is not None and not data["draft_memos_enabled"]:
+            drafts = Memo.objects.filter(profile=profile, is_draft=True).count()
+            if drafts:
+                raise _invalid(
+                    f"Draft memos cannot be switched off while this profile has {drafts} draft memo{'s' if drafts != 1 else ''}. "
+                    "Finalise or delete them first."
+                )
         changed = _merge(settings, data)
         if changed:
             settings.save(update_fields=changed + ["updated_at"])

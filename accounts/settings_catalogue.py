@@ -144,6 +144,8 @@ SETTINGS = (
        "Settings > {diary} > Data", EVERYONE, "import_word", vis=ADMIN, words="word import"),
 
     # ---- Fee Register -------------------------------------------------------------------------------------------------
+    _s("fees", "Draft memos", "On: a memo can be saved as a draft, and the Memos page has Memos and Draft Memos tabs. Off: no Save as Draft button and no tabs. Cannot be switched off while the profile has a draft memo.",
+       "Settings > {fees} > Memos > Draft memos", PROFILE, "fees_settings", "?tab=memos", FEES, words="drafts tab save as draft"),
     _s("fees", "Default fees", "The fee per appearance, the fee per conference and the charge per draft a new memo starts with.",
        "Settings > {fees} > Memos > Default fees", PROFILE, "fees_settings", "?tab=memos", FEES, words="fees per appearance conference misc draft"),
     _s("fees", "Memo text defaults", "The caption, name, designation, PAN, address and bank details a new memo and the Word memo start with.",

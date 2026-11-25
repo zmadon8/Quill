@@ -434,6 +434,7 @@ SETTINGS_FLAGS = (
     "statistics_enabled",
     "show_bank",
     "written_off_enabled",
+    "draft_memos_enabled",
     "memo_signature_default",
 )
 #: Settings keys that are text or choices (passed through as typed; the service validates them).

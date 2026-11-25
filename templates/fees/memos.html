@@ -4,7 +4,7 @@
 {% block content %}
 <h1 class="visually-hidden">Memos</h1>
 <div class="tab-bar">
-<nav class="stat-tabs sub-tabs" aria-label="Memo lists"><a href="{% url 'fees_memos' %}" class="on" aria-current="page">Memos</a><a href="{% url 'fees_memo_drafts' %}">Draft Memos</a></nav>
+{% if fees_drafts_on %}<nav class="stat-tabs sub-tabs" aria-label="Memo lists"><a href="{% url 'fees_memos' %}" class="on" aria-current="page">Memos</a><a href="{% url 'fees_memo_drafts' %}">Draft Memos</a></nav>{% endif %}
 <p class="page-actions" role="group" aria-label="Memo actions">{% if can_edit %}<a class="button small primary" href="{% url 'fees_memo_new' %}">New Memo</a> {% endif %}<a class="button small secondary" href="{% url 'fees_memos_export' %}?{{ query_string }}">Export To Excel</a></p>
 </div>
 {% url 'fees_memos' as reset_url %}{% include "fees/_filters_form.html" with show_fy=True inline=True show_unpaid=True reset_url=reset_url %}

@@ -25,6 +25,10 @@
 <p class="setting-help">The starting figures and wording of a new memo.</p>
 <form method="post" action="{% url 'fees_settings' %}" data-section-form>{% csrf_token %}<input type="hidden" name="tab" value="memos">
   <fieldset class="section-fields"{% if not can_edit %} disabled{% endif %}>
+    <h3 class="small-caps">Draft memos</h3>
+    {% if draft_count and config.draft_memos_enabled %}<div class="setting-row"><span class="setting-label">Draft memos: on</span>{% include "_who_tag.html" with who="profile" %}
+      <span class="setting-help">This profile has {{ draft_count }} draft memo{{ draft_count|pluralize }}, so Draft memos cannot be switched off. Finalise or delete {{ draft_count|pluralize:"it,them" }} first (Memos &gt; Draft Memos).</span></div>
+    {% else %}<div class="setting-row"><label><input type="hidden" name="draft_memos_enabled" value="0"><input type="checkbox" name="draft_memos_enabled" value="1"{% if config.draft_memos_enabled %} checked{% endif %}> Draft memos</label>{% include "_who_tag.html" with who="profile" %}<span class="setting-help">On: a memo can be saved as a draft (no number yet) and the Memos page has Memos and Draft Memos tabs. Off: no Save as Draft button and no tabs on the Memos page. It cannot be switched off while the profile has a draft memo.</span></div>{% endif %}
     <h3 class="small-caps">Default fees</h3>
     <div class="grid-3">
       <div class="setting-row"><label>Fees / appearance <input type="text" inputmode="decimal" name="default_fees_per_appearance" value="{{ config.default_fees_per_appearance|fees_plain }}"></label>{% include "_who_tag.html" with who="profile" %}<span class="setting-help">The fee for one appearance on a new memo.</span></div>

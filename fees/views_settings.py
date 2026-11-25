@@ -73,6 +73,7 @@ def settings_context(profile, fy=None, tab="memos"):
         "config": config,
         "party_types_text": {"plaintiff": "\n".join(config["plaintiff_types"]), "defendant": "\n".join(config["defendant_types"])},
         "payment_modes_text": "\n".join(config["payment_modes"]),
+        "draft_count": Memo.objects.filter(profile=profile, is_draft=True).count(),
         "max_party_types": settings_service.MAX_PARTY_TYPES,
         "max_party_type": settings_service.MAX_PARTY_TYPE,
         "start_year_options": fy_options.start_year_options(
