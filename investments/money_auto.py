@@ -87,10 +87,11 @@ def group_western(digits):
 
 
 def _plain(amount, grouper):
-    """``amount`` (already rounded to 2 places, non-negative) as grouped text; paise only when there are some."""
+    """``amount`` (already rounded to 2 places, non-negative) as grouped text: at most 2 decimals, trailing zeros dropped."""
     whole, frac = divmod(int(amount * 100), 100)
     text = grouper(str(whole))
-    return text if frac == 0 else f"{text}.{frac:02d}"
+    f = f"{frac:02d}".rstrip("0")
+    return f"{text}.{f}" if f else text
 
 
 def _sign(negative, signed, is_zero):
@@ -169,7 +170,9 @@ def format_amount(value, *, currency="INR", mode=AUTO, signed=False, symbol=None
     suffix = units[index][1]
     if not suffix:
         return f"{sign}{sym}{_plain(scaled, grouper)}"
-    return f"{sign}{sym}{scaled:.2f} {suffix}"
+    whole, _dot, frac = f"{scaled:.2f}".partition(".")
+    frac = frac.rstrip("0")
+    return f"{sign}{sym}{whole}{'.' + frac if frac else ''} {suffix}"
 
 
 def format_indian(value, places=2):

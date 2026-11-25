@@ -1,5 +1,5 @@
 {% extends "investments/base_investments.html" %}
-{% load static %}{% block order_js %}<script src="{% static 'js/column-order.js' %}"></script>{% endblock %}
+{% load static investments_money %}{% block order_js %}<script src="{% static 'js/column-order.js' %}"></script>{% endblock %}
 {% block inv_content %}
 <div class="page-head"><h1>{{ page_title_text }}</h1></div>
 <p class="hint">{{ action.instrument.name }}: {{ action.describe }}, ex-date {{ action.ex_date|date:"j M Y" }}.{% if action.kind == "demerger" %} Changing the cost percentage, the ratio, the date or the new company works out your lots again. Shares of the new company that the program made for you are made again from the new terms; shares you recorded or edited yourself are left as they are, so check them against the new terms.{% endif %}</p>
@@ -13,7 +13,7 @@
     <tbody>
     {% for r in allotments %}<tr>
       <td>{{ r.portfolio }}</td><td>{{ r.broker }}</td><td class="fo" title="{{ r.folio|default:"-" }}">{{ r.folio|default:"-" }}</td>
-      <td class="num">{{ r.held|floatformat:"-4" }}</td><td class="num">{{ r.default|floatformat:"-4" }}</td>
+      <td class="num">{{ r.held|units }}</td><td class="num">{{ r.default|units }}</td>
       <td class="num">{% if r.own %}<span class="note">recorded by you</span>{% else %}<input type="text" inputmode="decimal" name="{{ r.field }}" value="{{ r.override }}" placeholder="{{ r.default|floatformat:"-4" }}" aria-label="Override units for {{ r.portfolio }}, {{ r.broker }}">{% endif %}</td>
     </tr>{% endfor %}
     </tbody>

@@ -3,6 +3,6 @@
 {% block page_title %}{{ title }} - {{ program_label }}{% endblock %}
 {% block content %}
 <h1>{{ title }}</h1>
-<p class="page-actions" role="group" aria-label="Ledger actions"><a href="{% if kind == 'firm' %}{% if group_id %}{% url 'fees_group_detail' owner.pk group_id %}{% else %}{% url 'fees_firm_detail' owner.pk %}{% endif %}{% else %}{% url 'fees_matter_detail' owner.pk %}{% endif %}">Back</a> <a class="button small secondary" href="{% if kind == 'firm' %}{% url 'fees_firm_ledger_export' owner.pk %}{% if group_id %}?group={{ group_id }}{% endif %}{% else %}{% url 'fees_matter_ledger_export' owner.pk %}{% endif %}">Export To Excel</a></p>
+<p class="page-actions" role="group" aria-label="Ledger actions"><a href="{% if kind == 'firm' %}{% if client_id and client_id != 'blank' %}{% url 'fees_firm_client_detail' owner.pk client_id %}{% elif group_id %}{% url 'fees_group_detail' owner.pk group_id %}{% else %}{% url 'fees_firm_detail' owner.pk %}{% endif %}{% else %}{% url 'fees_matter_detail' owner.pk %}{% endif %}">Back</a> <a class="button small secondary" href="{% if kind == 'firm' %}{% url 'fees_firm_ledger_export' owner.pk %}{% if group_id %}?group={{ group_id }}{% if client_id %}&amp;client={{ client_id }}{% endif %}{% elif client_id %}?client={{ client_id }}{% endif %}{% else %}{% url 'fees_matter_ledger_export' owner.pk %}{% endif %}">Export To Excel</a></p>
 {% include "fees/_ledger_table.html" with table_id="ledger" show_totals=True %}
 {% endblock %}

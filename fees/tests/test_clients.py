@@ -111,6 +111,27 @@ class ClientPagesTests(ClientBase):
         self.assertEqual(self.client.get(reverse("fees_firm_client_detail", args=[self.firm_a.pk, a.pk])).status_code, 200)
         self.assertEqual(self.client.get(reverse("fees_firm_client_detail", args=[self.firm_b.pk, a.pk])).status_code, 404)
 
+    def test_a_client_has_a_ledger_of_its_matters_only(self):
+        # Owner round 2026-12: the client page (and the firm's Clients list) open a Ledger of that client's matters.
+        acme = clients.create_client(self.profile, self.firm_a.pk, "Acme")
+        mine = self.matter(self.firm_a, self.group_a, "Acme v State", acme)
+        other = self.matter(self.firm_a, self.group_a, "Someone Else")
+        make_memo(self.profile, mine)
+        make_memo(self.profile, other, fees_misc_drafting=700)
+        url = reverse("fees_firm_ledger", args=[self.firm_a.pk]) + "?client=%d" % acme.pk
+        self.assertContains(self.client.get(reverse("fees_firm_client_detail", args=[self.firm_a.pk, acme.pk])), url.replace("&", "&amp;"))
+        self.assertContains(self.client.get(reverse("fees_firm_clients", args=[self.firm_a.pk])), url)
+        page = self.client.get(url)
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, "Ledger - Alpha &amp; Co - Acme")
+        self.assertEqual(len(page.context["rows"]), 1)                       # only Acme's memo, not the other matter's
+        self.assertContains(page, reverse("fees_firm_ledger_export", args=[self.firm_a.pk]) + "?client=%d" % acme.pk)
+        self.assertContains(page, reverse("fees_firm_client_detail", args=[self.firm_a.pk, acme.pk]))   # Back goes to the client
+        export = self.client.get(reverse("fees_firm_ledger_export", args=[self.firm_a.pk]), {"client": acme.pk})
+        self.assertEqual(export.status_code, 200)
+        # Another firm's client is not this firm's: not found.
+        self.assertEqual(self.client.get(reverse("fees_firm_ledger", args=[self.firm_b.pk]), {"client": acme.pk}).status_code, 404)
+
     def test_a_new_client_typed_on_the_matter_form_is_made_under_the_matters_firm(self):
         response = self.client.post(reverse("fees_matter_new"), {
             "name": "Fresh", "firm_id": self.firm_b.pk, "group_id": self.group_b.pk, "client_new": "Newco",

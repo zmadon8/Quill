@@ -53,7 +53,8 @@
   function plain(paise, grouper) {
     var whole = paise / 100n, frac = paise % 100n;
     var text = grouper(whole.toString());
-    return frac === 0n ? text : text + "." + (frac < 10n ? "0" : "") + frac.toString();
+    var f = pad2(frac).replace(/0+$/, "");   // at most 2 decimals, no trailing zeros (owner round 2026-12)
+    return f ? text + "." + f : text;
   }
 
   function pad2(n) { return (n < 10n ? "0" : "") + n.toString(); }
@@ -116,7 +117,8 @@
     }
     var suffix = units[idx][1];
     if (!suffix) { return sign + sym + plain(scaled, grouper); }
-    return sign + sym + (scaled / 100n).toString() + "." + pad2(scaled % 100n) + " " + suffix;
+    var sf = pad2(scaled % 100n).replace(/0+$/, "");
+    return sign + sym + (scaled / 100n).toString() + (sf ? "." + sf : "") + " " + suffix;
   }
 
   // Mirror of format_units.

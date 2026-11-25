@@ -90,7 +90,8 @@ class UnitPriceEntryTests(InvTestCase):
         self.assertContains(page, "For per-unit investments, enter a unit price and the value is worked out from the units you held on that date")
         self.assertContains(page, 'data-table-id="inv-investment-2"')
         self.assertContains(page, '<th class="r">Total value</th><th class="r">Unit price</th><th>Note</th>')
-        self.assertContains(page, '<td class="r">250.50</td>')
+        # At most two decimals, no trailing zero; the exact figure on hover (owner round 2026-12).
+        self.assertContains(page, '<td class="r"><span class="m" title="250.5">250.5</span></td>')
 
     def test_a_hand_entry_without_a_price_has_an_empty_unit_price_cell(self):
         self.save(self.gold, {"date": "2024-03-12", "total_value": "3000"})

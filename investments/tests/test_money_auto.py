@@ -44,7 +44,7 @@ class GoldenTableTests(SimpleTestCase):
         self.assertEqual(format_amount("1234567.89", currency="USD", mode="full"), "$1,234,567.89")
         self.assertEqual(format_amount("1234567", currency="EUR", mode="full"), "\u20ac1,234,567")
         self.assertEqual(format_amount("1234567", currency="USD"), "$1.23 m")
-        self.assertEqual(format_amount("45600", currency="USD"), "$45.60 k")
+        self.assertEqual(format_amount("45600", currency="USD"), "$45.6 k")   # no trailing zero (owner round 2026-12)
         self.assertEqual(format_amount("1234567", currency="INR", mode="full"), "\u20b912,34,567")
         self.assertEqual(format_indian("1234567.5"), "12,34,567.50")
         self.assertEqual(format_indian(-1234567, 0), "-12,34,567")
@@ -79,6 +79,39 @@ class UnitsFormatTests(SimpleTestCase):
         self.assertIn('data-full="1,560"', html)
         self.assertIn('class="m"', html)
         self.assertEqual(units(None), "")
+
+
+class AtMostTwoDecimalsTests(SimpleTestCase):
+    """Owner round 2026-12: every Investments table shows at most two decimals, with no trailing zeros, and the exact figure on hover."""
+
+    def test_price_has_at_most_two_decimals_and_the_exact_figure_as_its_tooltip(self):
+        from investments.templatetags.investments_money import price
+
+        self.assertEqual(str(price(Decimal("1234.5678"))), '<span class="m" title="1,234.5678">1,234.57</span>')
+        self.assertEqual(str(price(Decimal("250.5000"))), '<span class="m" title="250.5">250.5</span>')
+        self.assertEqual(str(price(Decimal("100"))), '<span class="m" title="100">100</span>')
+        self.assertEqual(str(price(Decimal("-0.004"))), '<span class="m" title="0.004">0</span>')
+        self.assertEqual(price(None), "")
+
+    def test_percentages_drop_trailing_zeros_and_keep_the_exact_figure_on_hover(self):
+        from investments.templatetags.investments_money import pct, pct_signed, pct_text
+
+        self.assertEqual(str(pct(0.123)), '<span title="12.3%">12.3%</span>')
+        self.assertEqual(str(pct(0.1234567)), '<span title="12.34567%">12.35%</span>')
+        self.assertEqual(str(pct_signed(0.05)), '<span class="g" title="+5%">+5%</span>')
+        self.assertEqual(str(pct_signed(-0.0125)), '<span class="l" title="\u22121.25%">\u22121.25%</span>')
+        self.assertEqual(pct_text(0.5), "50%")
+
+    def test_units_show_the_stored_decimals_on_hover(self):
+        from investments.templatetags.investments_money import units
+
+        html = str(units(Decimal("12.3456")))
+        self.assertIn('data-full="12.35"', html)
+        self.assertIn('title="12.3456"', html)
+
+    def test_foreign_amounts_drop_trailing_zeros(self):
+        self.assertEqual(format_amount("1234.5", currency="USD", mode="full"), "$1,234.5")
+        self.assertEqual(format_amount("1500", currency="USD", mode="auto"), "$1.5 k")
 
 
 class JavaScriptMirrorTests(SimpleTestCase):

@@ -42,15 +42,51 @@ def money(value, currency="INR", signed=False):
     return _span(value, currency, bool(signed))
 
 
+def _trim(number, places):
+    """``number`` (non-negative) to at most ``places`` decimals, half up, trailing zeros and a bare point dropped, Indian grouping."""
+    from decimal import ROUND_HALF_UP, Decimal
+
+    from investments.money_auto import group_indian
+
+    q = Decimal(str(number)).quantize(Decimal(1).scaleb(-places), rounding=ROUND_HALF_UP)
+    whole, _dot, frac = f"{q:f}".partition(".")
+    frac = frac.rstrip("0")
+    return group_indian(whole) + ("." + frac if frac else "")
+
+
+def _pct_parts(value):
+    """``(sign, shown, exact)`` of a fraction as a percentage: shown with at most 2 decimals and no trailing zeros, exact to 6."""
+    v = float(value)
+    sign = "\u2212" if v < 0 and _trim(abs(v) * 100, 2) != "0" else ""
+    return sign, _trim(abs(v) * 100, 2), _trim(abs(v) * 100, 6)
+
+
 def _pct(value, signed):
     if value is None or value == "":
         return format_html('<span class="na">n/a</span>')
-    text = f"{abs(float(value)) * 100:.2f}"
+    sign, text, exact = _pct_parts(value)
     if signed:
-        sign = "+" if float(value) > 0 else ("\u2212" if float(value) < 0 else "")
+        sign = "+" if float(value) > 0 and text != "0" else sign
         cls = "g" if sign == "+" else ("l" if sign else "")
-        return format_html('<span class="{}">{}{}%</span>', cls, sign, text)
-    return format_html("{}{}%", "\u2212" if float(value) < 0 else "", text)
+        return format_html('<span class="{}" title="{}{}%">{}{}%</span>', cls, sign, exact, sign, text)
+    return format_html('<span title="{}{}%">{}{}%</span>', sign, exact, sign, text)
+
+
+@register.filter
+def pct_text(value):
+    """The same percentage as plain text, for inside an attribute (an aria-label or a title)."""
+    if value is None or value == "":
+        return "n/a"
+    sign, text, _exact = _pct_parts(value)
+    return f"{sign}{text}%"
+
+
+@register.filter
+def inr_text(value):
+    """A rupee amount as plain Full text, for inside an attribute (a title)."""
+    if value is None or value == "":
+        return ""
+    return format_amount(value, currency="INR", mode=FULL)
 
 
 @register.filter
@@ -73,26 +109,25 @@ def units(value):
         return ""
     auto = format_units(value, mode=AUTO)
     full = format_units(value, mode=FULL)
-    return format_html('<span class="m" data-auto="{}" data-full="{}" title="{}">{}</span>', auto, full, full, auto)
+    from decimal import Decimal
+
+    exact = Decimal(str(value))
+    exact_text = ("-" if exact < 0 and _trim(abs(exact), 6) != "0" else "") + _trim(abs(exact), 6)   # pointing at it: every decimal stored
+    return format_html('<span class="m" data-auto="{}" data-full="{}" title="{}">{}</span>', auto, full, exact_text, auto)
 
 
 @register.filter
 def price(value):
-    """A price per unit with at least two and at most four decimals, Indian grouping."""
+    """A price per unit: at most two decimals, trailing zeros dropped, Indian grouping (owner round 2026-12). Pointing at it shows the
+    exact figure (up to six decimals, as an average cost can have many)."""
     if value is None:
         return ""
     from decimal import Decimal
 
-    from investments.money_auto import group_indian
-
-    from decimal import ROUND_HALF_UP
-
-    value = Decimal(value).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)   # an average cost can have many decimals
-    text = f"{abs(value):f}"
-    whole, _dot, frac = text.partition(".")
-    frac = frac.rstrip("0")
-    frac = (frac + "00")[:max(2, len(frac))]
-    return ("\u2212" if value < 0 else "") + group_indian(whole) + "." + frac
+    value = Decimal(value)
+    shown, exact = _trim(abs(value), 2), _trim(abs(value), 6)
+    sign = "\u2212" if value < 0 and shown != "0" else ""
+    return format_html('<span class="m" title="{}{}">{}{}</span>', sign, exact, sign, shown)
 
 
 @register.filter
