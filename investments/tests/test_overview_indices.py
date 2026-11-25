@@ -176,8 +176,9 @@ class BuiltInAndDecimalsTests(InvTestCase):
         self.assertNotIn("units_decimals", display)
         self.assertNotIn("rupee_decimals", display)
         html = self.client.get(reverse("investments_transactions")).content.decode()
-        self.assertIn("4,820.51", html)
-        self.assertNotIn("4,820.5126", html)
+        self.assertIn('data-full="4,820.51"', html)
+        self.assertNotIn(">4,820.5126<", html)                         # never shown in the table ...
+        self.assertIn('title="4,820.5126"', html)                      # ... only when pointed at (owner round 2026-12)
         self.assertIn('data-full="₹4,84,461.52"', html)                # 4820.5126 x 100.5 = 484461.5163, to 2 decimals
 
 class ClearHistoryTests(InvTestCase):

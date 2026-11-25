@@ -44,7 +44,7 @@ class GoldenTableTests(SimpleTestCase):
         self.assertEqual(format_amount("1234567.89", currency="USD", mode="full"), "$1,234,567.89")
         self.assertEqual(format_amount("1234567", currency="EUR", mode="full"), "\u20ac1,234,567")
         self.assertEqual(format_amount("1234567", currency="USD"), "$1.23 m")
-        self.assertEqual(format_amount("45600", currency="USD"), "$45.60 k")
+        self.assertEqual(format_amount("45600", currency="USD"), "$45.6 k")   # no trailing zero (owner round 2026-12)
         self.assertEqual(format_amount("1234567", currency="INR", mode="full"), "\u20b912,34,567")
         self.assertEqual(format_indian("1234567.5"), "12,34,567.50")
         self.assertEqual(format_indian(-1234567, 0), "-12,34,567")
