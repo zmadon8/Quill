@@ -80,6 +80,7 @@ are in a section of their own on the diary Settings tab, apart from the shared o
 | `justify_text` | Justify text | Settings > Display | Per user | Only you |
 | `group_digits` | Add commas while typing numbers: on (default), every number box in every program regroups what you type in Indian grouping (12,34,567.50) and keeps the caret in place. Off: numbers stay as typed. Commas you type are accepted either way | Settings > Display > My Display | Per user | Only you |
 | `home_show_figures` | Show figures on the Home page: on (default). Off: the Home cards show only the program names, and the details below the cards are left out. The figures you picked are kept | Settings > Display > My Home Page | Per user | Only you |
+| `short_thousands`, `short_lac`, `short_crore` | Letters for shortened numbers: the letters after a shortened figure from 1,000 (default k), 1,00,000 (lac) and 1,00,00,000 (cr), in the Fee Register (Figures: short), Investments (Short) and the Home cards, on screen and in the charts' axis labels. Blank keeps the standard letters. Up to 12 characters: letters, spaces, a dot or a hyphen. Replaces the per-profile `FeesSettings.money_suffix_*` boxes, which were saved but never applied (the columns stay for the Excel backup file) | Settings > Display > My Display | Per user | Only you |
 | `word_button_long` | Name the memo's Word button Download Memo (Word): on, the Word button on a Fee Register memo and the Word button at the foot of the memo form read Download Memo (Word); off (default), Word. Only the words change | Settings > Display > My Display | Per user | Only you |
 | `colour_theme` | Colour theme: Oxblood (default), Royal Blue, Navy, Violet, Plum or Teal. Changes the accent (buttons, current tab, links) on every page; status colours and exports never change | Settings > Display; an Admin on the user's edit screen | Per user | Only you |
 | `header_initials` | Letters in the header badge: up to 3, shown upper-case in the round badge at the top right. Blank: the first letters of your first and last name | Settings > Account and Profile View | Per user | Only you |
@@ -199,7 +200,7 @@ are noted: Opening page and Items per page are personal only (section 4.2).
 | `dashboard_kpis` | Which dashboard figures show (the Customise box on the Dashboard, not on the Settings page) | Fee Register > Dashboard > Customise | Per profile | Everyone in this profile |
 | `money_unit` | Figures (full, thousands, lacs, crores) | Display | Per profile | Everyone in this profile |
 | `list_default_filter` | Firms and matters: show by default (All or Active only) | Display | Per profile | Everyone in this profile |
-| `money_suffix_thousands`, `money_suffix_lac`, `money_suffix_crore` | Suffix letters for short figures | Display | Per profile | Everyone in this profile |
+| `money_suffix_thousands`, `money_suffix_lac`, `money_suffix_crore` | Not shown any more: each person chooses the letters on Settings > Display > My Display (see `short_thousands` in section 2.1). The columns stay only for the Excel backup file | None | Per profile, automatic | n/a |
 | `data_version` | Counter that invalidates the statistics cache | None; automatic | Per profile | n/a |
 | `profile`, `created_at`, `updated_at` | Owner and bookkeeping | None | Per profile | n/a |
 

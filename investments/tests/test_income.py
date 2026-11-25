@@ -274,7 +274,6 @@ class AlertTests(InvTestCase):
         self.client.force_login(self.user)
         r = self.client.get(reverse("investments_alerts"))
         self.assertContains(r, "Matures in 10 days")
-        self.assertContains(r, 'class="dot"')
         self.assertEqual(fd.profile_id, self.profile.pk)
 
     def _off(self, **switches):

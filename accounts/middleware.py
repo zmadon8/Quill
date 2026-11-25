@@ -2,6 +2,7 @@
 from django.db import DatabaseError
 from django.utils import timezone
 
+from . import shortletters
 from .models import ProfileMembership, User
 from .suite import KEY_DIARY, KEY_FEES, KEY_INVESTMENTS
 
@@ -30,6 +31,26 @@ def touch_profile(request, now):
                 ProfileMembership.objects.filter(pk=membership.pk).update(last_seen_at=now)
                 membership.last_seen_at = now
             return
+
+
+class ShortLettersMiddleware:
+    """Use the signed-in user's own letters for shortened numbers (k, lac, cr by default) while the request runs."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        user = getattr(request, "user", None)
+        token = None
+        if user is not None and user.is_authenticated:
+            letters = {"thousands": user.short_thousands, "lac": user.short_lac, "crore": user.short_crore}
+            if any(letters.values()):
+                token = shortletters.use(letters)
+        try:
+            return self.get_response(request)
+        finally:
+            if token is not None:
+                shortletters.release(token)
 
 
 class LastSeenMiddleware:

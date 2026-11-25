@@ -74,8 +74,20 @@
     table.insertBefore(group, table.firstChild);
     var widths = store.read(id, keys) || {};
 
+    // The element that scrolls the table sideways, if any. Measuring the natural widths briefly shrinks the table, which makes the
+    // browser snap that element back to the left; the position is put back afterwards, so resizing a far-right column keeps the view.
+    function scroller() {
+      for (var el = table.parentElement; el && el !== document.body; el = el.parentElement) {
+        var x = window.getComputedStyle(el).overflowX;
+        if ((x === "auto" || x === "scroll") && el.scrollWidth > el.clientWidth) { return el; }
+      }
+      return null;
+    }
+
     // Natural (auto layout) widths, measured with any custom widths set aside.
     function natural() {
+      var box = scroller();
+      var kept = box ? box.scrollLeft : 0;
       var width = table.style.width;
       var saved = cols.map(function (c) { return c.style.width; });
       table.classList.remove("fixed-cols");
@@ -85,6 +97,7 @@
       cols.forEach(function (c, i) { c.style.width = saved[i]; });
       table.style.width = width;
       if (Object.keys(widths).length) { table.classList.add("fixed-cols"); }
+      if (box) { box.scrollLeft = kept; }
       return out;
     }
 
@@ -92,6 +105,12 @@
     var resetRow = null;
     // Puts the custom widths on the <col> elements; columns without one keep their measured natural width.
     function layout() {
+      var box = scroller();
+      var kept = box ? box.scrollLeft : 0;
+      place();
+      if (box) { box.scrollLeft = kept; }
+    }
+    function place() {
       var gone = hidden();
       cols.forEach(function (c, i) { c.classList.toggle("col-hidden", gone.indexOf(i) !== -1); });
       var set = Object.keys(widths).some(function (k) { return keys.indexOf(k) !== -1; });

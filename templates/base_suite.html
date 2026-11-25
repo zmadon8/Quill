@@ -6,6 +6,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   {% if group_digits %}<meta name="group-digits" content="on">{% endif %}
+  {% if short_letters %}<meta name="short-letters" content="{{ short_letters }}">{% endif %}
   <title>{% block title %}{% block program_title %}{{ site_name }}{% endblock %}{% endblock %}</title>
   {# Hyperlinks on citations on/off (D87): read before the page is drawn, so switching never needs a reload. #}
   <script>try{if(localStorage.getItem("quill.links")==="off"){document.documentElement.classList.add("links-off");}}catch(e){}</script>

@@ -4,7 +4,7 @@ body.ledger [data-filename-result] { min-height: 1.4em; }
 body.ledger .settings-tabs { margin: 0 0 16px; }
 body.ledger .settings-panel[hidden] { display: none; }
 body.ledger .settings-card { margin: 0 0 16px; padding: 16px 20px; }
-body.ledger .settings-card > h2 { margin: 0 0 12px; font-family: var(--serif, Georgia, serif); font-size: 1.15rem; font-weight: 600; }
+body.ledger .settings-card > h2 { margin: 0 0 12px; font-family: var(--font-sans); font-size: 1.15rem; font-weight: 600; }
 body.ledger .settings-card label { display: block; margin: 0 0 8px; }
 body.ledger .settings-card label input[type=checkbox] { display: inline; width: auto; }
 body.ledger .settings-card :is(input[type=text], input[type=number], select, textarea) { display: block; width: 100%; box-sizing: border-box; }
@@ -22,3 +22,4 @@ body.ledger .settings-panels, body.ledger .settings-card { min-width: 0; }
 /* Edit Statistics: one collapsible table a year, one Save for them all (owner round 2026-11). */
 body.ledger .adjust-year { margin: .5rem 0; }
 body.ledger .adjust-year > summary { cursor: pointer; font-weight: 600; padding: .25rem 0; }
+body.ledger .settings-card legend { font-family: var(--font-sans); }

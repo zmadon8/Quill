@@ -26,6 +26,8 @@ Assumptions I made where the plan is silent are recorded in docs/DESIGN.md (D101
 """
 from decimal import ROUND_HALF_UP, Decimal
 
+from accounts import shortletters
+
 __all__ = ["format_amount", "format_rupees", "format_units", "format_indian", "group_indian", "group_western", "AUTO", "FULL"]
 
 AUTO = "auto"
@@ -38,7 +40,12 @@ _CENT = Decimal("0.01")
 _ZERO = Decimal(0)
 
 #: (divisor, suffix) from small to large, per currency family.
-_INR_UNITS = ((Decimal(1), ""), (Decimal(1000), "k"), (Decimal(100000), "lac"), (Decimal(10000000), "cr"))
+def _inr_units():
+    """The rupee units with the letters the signed-in user chose (k, lac and cr unless changed in Settings > Display)."""
+    letters = shortletters.get()
+    return ((Decimal(1), ""), (Decimal(1000), letters["thousands"]), (Decimal(100000), letters["lac"]), (Decimal(10000000), letters["crore"]))
+
+
 _FOREIGN_UNITS = ((Decimal(1), ""), (Decimal(1000), "k"), (Decimal(1000000), "m"))
 
 _SYMBOLS = {"INR": RUPEE, "USD": "$", "EUR": "\u20ac", "GBP": "\u00a3", "JPY": "\u00a5"}
@@ -107,7 +114,9 @@ def _fee_register_short(exact):
     if exact < 10:
         whole = int(exact.quantize(Decimal(1), rounding=ROUND_HALF_UP))
         return group_indian(str(whole)), whole == 0
-    for limit, divisor, suffix in ((Decimal(100000), Decimal(1000), "k"), (Decimal(10000000), Decimal(100000), "lac"), (None, Decimal(10000000), "cr")):
+    letters = shortletters.get()
+    for limit, divisor, suffix in ((Decimal(100000), Decimal(1000), letters["thousands"]), (Decimal(10000000), Decimal(100000), letters["lac"]),
+                                   (None, Decimal(10000000), letters["crore"])):
         if limit is None or exact < limit:
             step = Decimal(1).scaleb(-places)
             scaled = (exact / divisor).quantize(step, rounding=ROUND_HALF_UP)
@@ -146,7 +155,7 @@ def format_amount(value, *, currency="INR", mode=AUTO, signed=False, symbol=None
         return f"{sign}{sym}{_trimmed(magnitude, grouper)}"
     if mode == FULL or magnitude < Decimal(1000):
         return f"{sign}{sym}{_plain(magnitude, grouper)}"
-    units = _INR_UNITS if rupees else _FOREIGN_UNITS
+    units = _inr_units() if rupees else _FOREIGN_UNITS
     exact = abs(amount)
     index = 0
     for i, (divisor, _suffix) in enumerate(units):
@@ -175,7 +184,9 @@ def format_rupees(value, *, mode=AUTO, signed=False):
     return format_amount(value, currency="INR", mode=mode, signed=signed)
 
 
-_UNIT_STEPS = ((Decimal(1000), "k"), (Decimal(100000), "lac"), (Decimal(10000000), "cr"))
+def _unit_steps():
+    letters = shortletters.get()
+    return ((Decimal(1000), letters["thousands"]), (Decimal(100000), letters["lac"]), (Decimal(10000000), letters["crore"]))
 
 
 def format_units(value, *, mode=AUTO):
@@ -183,6 +194,7 @@ def format_units(value, *, mode=AUTO):
     exact = _dec(value)
     magnitude = abs(exact)
     neg = "-" if exact < _ZERO and _round2(magnitude) != _ZERO else ""
+    _UNIT_STEPS = _unit_steps()
     if mode != FULL and magnitude >= _UNIT_STEPS[0][0]:
         idx = 0
         while idx + 1 < len(_UNIT_STEPS) and magnitude >= _UNIT_STEPS[idx + 1][0]:

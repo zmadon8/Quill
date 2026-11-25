@@ -24,6 +24,8 @@ from __future__ import annotations
 import datetime
 from decimal import ROUND_HALF_UP, Decimal
 
+from accounts import shortletters
+
 __all__ = [
     "round2",
     "format_currency",
@@ -130,9 +132,9 @@ def format_money(
     value,
     *,
     unit: str = "full",
-    suffix_thousands: str = DEFAULT_SUFFIX_THOUSANDS,
-    suffix_lac: str = DEFAULT_SUFFIX_LAC,
-    suffix_crore: str = DEFAULT_SUFFIX_CRORE,
+    suffix_thousands: str | None = None,
+    suffix_lac: str | None = None,
+    suffix_crore: str | None = None,
 ) -> str:
     """Formats a figure for the chosen display mode (ports formatMoneyUnit).
 
@@ -144,6 +146,11 @@ def format_money(
     """
     if value is None:
         value = 0
+    # Letters not given come from the signed-in user's own choice (Settings > Display), else k, lac and cr.
+    letters = shortletters.get()
+    suffix_thousands = suffix_thousands or letters["thousands"]
+    suffix_lac = suffix_lac or letters["lac"]
+    suffix_crore = suffix_crore or letters["crore"]
     v = _to_decimal(value)
     if unit == "full":
         return format_currency(v)

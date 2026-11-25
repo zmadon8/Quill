@@ -39,6 +39,13 @@
     return sign + text;
   }
 
+  // The signed-in user's own letters for shortened figures (<meta name="short-letters" content="k|lac|cr">), else k, lac, cr.
+  function letters() {
+    var meta = typeof document !== "undefined" ? document.querySelector('meta[name="short-letters"]') : null;
+    var p = meta ? (meta.getAttribute("content") || "").split("|") : [];
+    return { thousands: p[0] || "k", lac: p[1] || "lac", crore: p[2] || "cr" };
+  }
+
   function scaled(x, divisor, suffix) {
     var s = String(suffix).trim();
     return trimmed(x / divisor) + (s.length > 1 ? " " : "") + s;
@@ -48,7 +55,7 @@
   function formatMoney(x, unit, suffixes) {
     var v = x === null || x === undefined || x === "" ? 0 : Number(x);
     if (!isFinite(v)) { v = 0; }
-    var s = suffixes || {};
+    var s = suffixes || letters();
     if (!unit || unit === "full") { return formatCurrency(v); }
     var a = Math.abs(v);
     if (a < 10) { return formatCurrency(v); }
