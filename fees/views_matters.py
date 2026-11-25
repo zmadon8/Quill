@@ -21,6 +21,10 @@ def _form_values(matter=None):
         for name in MEMO_DEFAULT_FIELDS:
             values[name] = getattr(matter, name)
         values.update(name=matter.name, firm_id=matter.firm_id, group_id=matter.group_id, client_id=matter.client_id or "")
+        if matter.addressee_use_firm_name:
+            # Brought back by an older backup: show (and so save) the firm's name in the box, as there is no tick any more.
+            values["addressee_line1"] = matter.firm.name
+            values["addressee_use_firm_name"] = False
     return values
 
 

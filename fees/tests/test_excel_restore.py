@@ -206,6 +206,17 @@ def minimal_sheets(memo_count=1):
     }
 
 
+class AddresseeTickRestoreTests(TestCase):
+    def test_a_matter_that_used_the_firm_name_gets_it_in_addressee_line_1(self):
+        # Owner round 2026-12: there is no "use the firm name" tick any more, so an older file's ticked matter gets the name typed in.
+        profile = fees_profile("Addressee")
+        sheets = minimal_sheets(1)
+        sheets["Matters"] = [["id", "firm_id", "partner_id", "name", "addressee_line1", "addressee_use_firm_name"], [1, 1, 1, "M", "", 1]]
+        restore(profile, build_workbook(sheets))
+        matter = Matter.objects.get(profile=profile)
+        self.assertEqual((matter.addressee_line1, matter.addressee_use_firm_name), ("F", False))
+
+
 class WebToWebRoundTripTests(TestCase):
     def setUp(self):
         self.source = fees_profile("RT-Source")

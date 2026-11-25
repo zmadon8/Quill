@@ -241,3 +241,19 @@ class ClientMigrationTests(ClientBase):
         self.assertEqual(Client.objects.filter(name__iexact="twin").count(), 1)
 
 
+
+
+class AddresseeTickMigrationTests(ClientBase):
+    """Owner round 2026-12, migration 0023: a matter that used the firm name as the addressee gets that name in Addressee line 1."""
+
+    def test_ticked_matters_get_the_firm_name_and_others_are_unchanged(self):
+        step = importlib.import_module("fees.migrations.0023_addressee_firm_name_into_line1")
+        ticked = self.matter(self.firm_a, self.group_a, "Ticked")
+        Matter.objects.filter(pk=ticked.pk).update(addressee_use_firm_name=True, addressee_line1="Old text", addressee_line2="Mumbai")
+        typed = self.matter(self.firm_b, self.group_b, "Typed")
+        Matter.objects.filter(pk=typed.pk).update(addressee_line1="The Secretary")
+        step.firm_name_into_line1(apps, None)
+        ticked.refresh_from_db()
+        typed.refresh_from_db()
+        self.assertEqual((ticked.addressee_line1, ticked.addressee_line2, ticked.addressee_use_firm_name), ("Alpha & Co", "Mumbai", False))
+        self.assertEqual((typed.addressee_line1, typed.addressee_use_firm_name), ("The Secretary", False))

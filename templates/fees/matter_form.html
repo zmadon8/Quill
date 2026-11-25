@@ -27,12 +27,10 @@
   <fieldset class="memo-card"><legend class="sr-only">Memo details for this matter</legend>
   <p class="muted">A new memo for this matter starts with these.</p>
   <div class="memo-grid cols-2">
-  {# Addressee: the tick comes first; while it is ticked the two lines are greyed out (read-only, so what was typed is kept). matter-form.js keeps that in step; without the script the page shows the saved state. #}
-  {# A new matter has no tick: Addressee line 1 starts with the firm's name. An existing matter keeps the tick it was saved with. #}
-  {% if matter %}<label class="check wide"><input type="checkbox" name="addressee_use_firm_name" value="1" data-addressee-firm{% if form.addressee_use_firm_name %} checked{% endif %}> Use the firm name as the addressee</label>{% endif %}
+  {# No "use the firm name" tick (owner round 2026-12): a new matter's Addressee line 1 starts with the firm's name, to keep or change. #}
   <div class="field wide" data-addressee-lines><div class="memo-grid cols-2">
-  <label>Addressee line 1 <input type="text" name="addressee_line1" value="{{ form.addressee_line1 }}" maxlength="300"{% if form.addressee_use_firm_name %} readonly aria-disabled="true"{% endif %}></label>
-  <label>Addressee, second line (Enter for a new line) <textarea name="addressee_line2" rows="1" style="resize:vertical" maxlength="300"{% if form.addressee_use_firm_name %} readonly aria-disabled="true"{% endif %}>{{ form.addressee_line2 }}</textarea></label>
+  <label>Addressee line 1 <input type="text" name="addressee_line1" value="{{ form.addressee_line1 }}" maxlength="300"></label>
+  <label>Addressee, second line (Enter for a new line) <textarea name="addressee_line2" rows="1" style="resize:vertical" maxlength="300">{{ form.addressee_line2 }}</textarea></label>
   </div></div>
   <label>Cause title <textarea name="court_name" rows="4">{{ form.court_name }}</textarea></label>
   <label>Brief on Behalf of <span class="muted">(used only in the memo exported to Word)</span> <input type="text" name="client_position" value="{{ form.client_position }}" maxlength="300"></label>
@@ -49,4 +47,4 @@
   {% if can_edit %}<p class="button-bar"><a class="button" href="{% if matter %}{% url 'fees_matter_detail' matter.pk %}{% else %}{% url 'fees_firms' %}{% endif %}">Cancel</a> <button type="submit" class="primary">Save</button></p>{% endif %}
 </form>
 {% endblock %}
-{% block page_js %}{% if can_edit %}<script src="{% static 'js/fees/party-type.js' %}"></script><script src="{% static 'js/fees/additional-details.js' %}"></script><script src="{% static 'js/fees/matter-form.js' %}"></script>{% endif %}{% endblock %}
+{% block page_js %}{% if can_edit %}<script src="{% static 'js/fees/party-type.js' %}"></script><script src="{% static 'js/fees/additional-details.js' %}"></script>{% endif %}{% endblock %}
