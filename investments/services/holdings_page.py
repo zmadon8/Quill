@@ -12,7 +12,7 @@ from investments.models import HOLDABLE_KINDS, KIND_ALTERNATIVE, ProfileInvestme
 from investments.services import fetch, holdings, performance, prices, statscache
 from investments.svgchart import sparkline
 
-PAYLOAD_VERSION = 4   # 2: Index XIRR and Alpha per row; 3: lump_sum on each instrument; 4: the Share type is labelled Equity
+PAYLOAD_VERSION = 5   # 2: Index XIRR and Alpha per row; 3: lump_sum on each instrument; 4: the Share type is labelled Equity; 5: CAGR, Index CAGR, CAGR Alpha
 
 
 class _Instrument:
@@ -50,6 +50,9 @@ class Row:
         self.xirr = data["xirr"]
         self.index_xirr = data.get("index_xirr")   # absent from rows cached before the index columns existed
         self.alpha = data.get("alpha")
+        self.cagr = data.get("cagr")
+        self.index_cagr = data.get("index_cagr")
+        self.cagr_alpha = data.get("cagr_alpha")
         self.unpriced = data["unpriced"]
         self.stale = data["stale"]
         self.blocked = data["blocked"]
@@ -82,7 +85,8 @@ def _dump(h, stale, sparks):
         "units": str(h.units), "cost": str(h.cost), "value": str(h.value), "awaiting": str(h.awaiting),
         "first_date": h.first_date.isoformat() if h.first_date else None, "price_date": h.price_date.isoformat() if h.price_date else None,
         "price": str(h.price) if h.price is not None else None,
-        "xirr": h.xirr, "index_xirr": h.index_xirr, "alpha": h.alpha, "unpriced": h.unpriced, "stale": inst.pk in stale, "blocked": h.blocked, "is_held": h.is_held,
+        "xirr": h.xirr, "index_xirr": h.index_xirr, "alpha": h.alpha,
+        "cagr": h.cagr, "index_cagr": h.index_cagr, "cagr_alpha": h.cagr_alpha, "unpriced": h.unpriced, "stale": inst.pk in stale, "blocked": h.blocked, "is_held": h.is_held,
         "sold_out": h.sold_out, "empty": h.empty, "spark": sparks.get(inst.pk),
         "realised": str(h.realised), "dividends": str(h.dividends), "interest_income": str(h.interest_income),
     }
@@ -92,6 +96,7 @@ def compute(profile, portfolio=None, broker=None, as_of=None):
     """Every line the page can show (all types and statuses), plus the counts the page keeps: ``{"rows", "held_count", "sold_count"}``."""
     rows, _totals = holdings.compute(profile, portfolio=portfolio, broker=broker, as_of=as_of)
     performance.decorate_with_index(profile, rows, holdings.Totals(), as_of or date.today())
+    performance.decorate_with_cagr(profile, rows, as_of or date.today())
     # Investments added but not yet bought still belong in the list.
     # They are "Not bought yet", never "Held": nothing is held until units (or a tentative purchase) exist.
     seen = {h.instrument.pk for h in rows}

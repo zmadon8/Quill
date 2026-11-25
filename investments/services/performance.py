@@ -11,7 +11,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 from investments import indexcmp, xirr
-from investments.models import PinnedPrice, ProfileInvestment
+from investments.models import ManualPrice, PinnedPrice, Price, ProfileInvestment
 from investments.services import core, holdings, masters, prices
 
 ZERO = Decimal(0)
@@ -101,6 +101,45 @@ def decorate_with_index(profile, rows, totals, as_of, settings_row=None):
     if default_series.approximate or any(s.approximate for s in sect_series.values()):
         notes.append("Some index values are approximate (a nearby or month-end day was used).")
     return notes
+
+
+def _first_price_on_or_after(instrument, day, end):
+    """``(date, close)`` of the first stored price on or after ``day`` and on or before ``end`` (a hand-entered price wins a tie), or None."""
+    fetched = Price.objects.filter(instrument=instrument, date__gte=day, date__lte=end).order_by("date").values_list("date", "close").first()
+    manual = ManualPrice.objects.filter(instrument=instrument, date__gte=day, date__lte=end).order_by("date").values_list("date", "close").first()
+    if fetched and manual:
+        return manual if manual[0] <= fetched[0] else fetched
+    return manual or fetched
+
+
+def decorate_with_cagr(profile, rows, as_of, settings_row=None):
+    """Fill in ``cagr``, ``index_cagr`` and ``cagr_alpha`` on holdings (the Holdings page, owner round 2026-12).
+
+    CAGR is the investment's own price growth a year from the first stored price on or after the day its first unit was bought to its
+    latest price; Index CAGR is the Default Index's growth over exactly the same two dates, and CAGR Alpha is the first less the second.
+    Alternative and lump-sum investments have no unit price history, so they show none; nor does a span shorter than the minimum period.
+    """
+    candidates = [h for h in rows if h.first_date and h.price_date and h.price is not None and h.instrument.kind != "alternative"
+                  and not getattr(h.instrument, "lump_sum", False)]
+    if not candidates:
+        return
+    settings_row = settings_row or core.get_settings(profile, create=False)
+    spans = []
+    for h in candidates:
+        start = _first_price_on_or_after(h.instrument, h.first_date, h.price_date)
+        if start is None:
+            continue
+        d0, p0 = start
+        h.cagr = growth_rate(p0, h.price, d0, h.price_date)
+        if h.cagr is not None:
+            spans.append((h, d0, h.price_date))
+    default = _default_index(profile, settings_row)
+    if default is None or not spans:
+        return
+    series = IndexSeries(default, min(d0 for _h, d0, _d1 in spans) - timedelta(days=1), max(as_of, max(d1 for _h, _d0, d1 in spans)))
+    for h, d0, d1 in spans:
+        h.index_cagr = index_cagr(series, d0, d1)
+        h.cagr_alpha = indexcmp.alpha(h.cagr, h.index_cagr)
 
 
 # ---------------------------------------------------------------- the Performance tab

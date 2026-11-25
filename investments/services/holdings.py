@@ -43,6 +43,9 @@ class Holding:
     alpha: float = None
     sect_xirr: float = None
     sect_alpha: float = None
+    cagr: float = None                              # price growth a year since the first unit was bought (Holdings page only)
+    index_cagr: float = None                        # the Default Index's growth over the same dates
+    cagr_alpha: float = None                        # cagr less index_cagr
     dividends: Decimal = ZERO                       # received, shown separately; never part of value
     provisional: bool = False                       # a corporate action is waiting for this profile's confirmation
     blocked: bool = False                           # ... and Settings says block: value, gain and XIRR are n/a and left out of totals

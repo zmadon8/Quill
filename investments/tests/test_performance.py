@@ -125,6 +125,27 @@ class PerformanceTests(InvTestCase):
         self.assertIsNone(rows[0].index_xirr)
         self.assertAlmostEqual(rows[0].alpha, rows[0].cagr - rows[0].index_cagr, places=9)
 
+    def test_holdings_rows_have_cagr_index_cagr_and_cagr_alpha_from_the_first_purchase(self):
+        # Owner round 2026-12: the Holdings page's CAGR runs from the day the first unit was bought to the latest price, and the Index CAGR
+        # covers exactly the same dates.
+        from investments.services import holdings_page
+
+        self.buy(d(2022, 6, 1), 10, 100)
+        self.buy(d(2023, 3, 1), 5, 100)
+        rows, _held, _sold = holdings_page.load(self.profile, as_of=d(2024, 6, 1))
+        row = next(r for r in rows if r.instrument.pk == self.reliance.pk)
+        self.assertAlmostEqual(row.cagr, 1.0004 ** 365 - 1, places=3)
+        self.assertAlmostEqual(row.index_cagr, 1.0002 ** 365 - 1, places=3)
+        self.assertAlmostEqual(row.cagr_alpha, row.cagr - row.index_cagr, places=9)
+
+    def test_holdings_page_shows_xirr_alpha_and_the_cagr_columns(self):
+        self.buy(d(2022, 6, 1), 10, 100)
+        self.client.force_login(self.user)
+        page = self.client.get(reverse("investments_holdings")).content.decode()
+        for heading in (">XIRR Alpha</th>", ">CAGR</th>", ">Index CAGR</th>", ">CAGR Alpha</th>"):
+            self.assertIn(heading, page)
+        self.assertNotIn(">Alpha</th>", page)
+
     def test_cagr_page_and_export_say_index_cagr(self):
         self.buy(d(2022, 1, 1), 10, 100)
         self.client.force_login(self.user)

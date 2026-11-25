@@ -114,8 +114,13 @@ def feebook_export(request):
 @handle_fees_errors()
 @require_safe
 def outstanding_export(request):
+    """All Memos as Excel. With ``?view=summary`` (the Summary (Matter Totals) view) it is that table instead: one row per matter, the
+    columns shown on the screen (``?hide=`` from the Columns menu) and the total row."""
     profile, settings = scope.context(request)
-    return file_response(xlsx.export_outstanding(profile, outstanding_filters(request.GET, overdue_on(settings))), XLSX_TYPE)
+    filters = outstanding_filters(request.GET, overdue_on(settings))
+    if request.GET.get("view") == "summary":
+        return file_response(xlsx.export_outstanding_matters(profile, filters, _hidden_columns(request)), XLSX_TYPE)
+    return file_response(xlsx.export_outstanding(profile, filters), XLSX_TYPE)
 
 
 @fees_reader
