@@ -156,7 +156,7 @@ class PickerEndpointTests(PickerBase):
         self.assertTrue(out["ok"])
         self.assertEqual((out["matter_id"], out["firm_id"], out["archived"]), (self.m1.pk, self.firm_a.pk, False))
         self.assertEqual(out["fields"]["court_name"], "High Court")
-        self.assertEqual(out["fields"]["addressee_line1"], "Alpha & Co")   # "use the firm's name" wins
+        self.assertEqual(out["fields"]["addressee_line1"], "To Alpha")     # the matter's own Addressee line 1 (no firm-name tick any more)
         self.assertNotIn("plaintiff_name", out["fields"])
         self.assertNotIn("notes", out["fields"])
 
