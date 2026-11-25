@@ -106,18 +106,27 @@
 
     known[id] = { table: table, keys: keys, labels: labels, order: wanted, custom: custom };
 
-    // A table with no Fee Register Columns menu gets its own small button (the menu has "Arrange Columns" in it).
+    // A table with no Columns menu gets its own small button: in the spot the page names for it (data-columns-for="<table id>", for
+    // example the line with Metrics), else in a line above the table. When fees/columns.js later gives the table a Columns menu
+    // (Investments, with the column picker on), the menu carries "Arrange Columns" and adopt() removes this button.
     if (!table.hasAttribute("data-fees-columns")) {
-      var bar = document.createElement("p");
-      bar.className = "table-tools";
       var button = document.createElement("button");
       button.type = "button";
       button.className = "small";
       button.textContent = "Arrange Columns";
       button.addEventListener("click", function () { openPanel(id); });
-      bar.appendChild(button);
-      var wrap = table.closest(".table-wrap, .tw") || table;
-      wrap.parentNode.insertBefore(bar, wrap);
+      var slot = document.querySelector('[data-columns-for="' + id + '"]');
+      if (slot) {
+        slot.appendChild(button);
+        known[id].button = button;
+      } else {
+        var bar = document.createElement("p");
+        bar.className = "table-tools";
+        bar.appendChild(button);
+        var wrap = table.closest(".table-wrap, .tw") || table;
+        wrap.parentNode.insertBefore(bar, wrap);
+        known[id].button = bar;
+      }
     }
   }
 
@@ -211,6 +220,10 @@
   window.QuillColumnOrder = {
     can: function (id) { return !!known[id] && !!document.createElement("dialog").showModal; },
     open: openPanel,
+    adopt: function (id) {   // the table has a Columns menu with its own Arrange Columns: drop the separate button
+      var info = known[id];
+      if (info && info.button && info.button.parentNode) { info.button.parentNode.removeChild(info.button); info.button = null; }
+    },
     reset: function (id) {
       if (!readOrder(id).length) { return false; }
       writeOrder(id, []);

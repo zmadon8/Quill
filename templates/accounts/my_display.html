@@ -26,6 +26,11 @@
       {% include "_setting_row.html" with f=display_form.feebook_group_payments help=display_form.feebook_group_payments.help_text who="you" checkbox=True %}
       {% include "_setting_row.html" with f=display_form.pdf_export help=display_form.pdf_export.help_text who="you" checkbox=True %}
       {% include "_setting_row.html" with f=display_form.word_button_long help=display_form.word_button_long.help_text who="you" checkbox=True %}
+      <h3 class="small-caps">Shortened numbers</h3>
+      <p class="setting-help">Where a figure is shown shortened (the Fee Register's Figures choice, Investments' Short choice, the Home cards), these are the letters after it, for example 2.41 cr. Leave a box blank for the standard letters.</p>
+      {% include "_setting_row.html" with f=display_form.short_thousands help=display_form.short_thousands.help_text who="you" %}
+      {% include "_setting_row.html" with f=display_form.short_lac help=display_form.short_lac.help_text who="you" %}
+      {% include "_setting_row.html" with f=display_form.short_crore help=display_form.short_crore.help_text who="you" %}
       <h3 class="small-caps">Colour</h3>
       {% include "_setting_row.html" with f=display_form.colour_theme help=display_form.colour_theme.help_text who="you" %}
       <p class="theme-swatches" aria-hidden="true">{% for key, label in display_form.colour_theme.field.choices %}<span class="theme-swatch" data-swatch="{{ key }}">{{ label }}</span>{% endfor %}</p>

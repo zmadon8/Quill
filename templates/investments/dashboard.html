@@ -25,27 +25,15 @@
 <form method="get" class="opts" id="ov-period-form"{% if not include_div %} style="padding:0"{% endif %}><noscript><button class="btn q sm">Show</button></noscript>
   {% if include_div %}<span class="na">Dividends count in XIRR (Settings &gt; General); the index comparison is against the price index only.</span>{% endif %}</form>
 {% for n in notes %}<p class="hint">{{ n }}</p>{% endfor %}
-{% if customise_open and can_edit %}
-<div class="panel" id="customise"><h3>Customise Home</h3>
-<form method="post" action="{% url 'investments_overview_save' %}">{% csrf_token %}
-<p class="hint">Boxes at the top: figures as at the date chosen above.</p>
-<ul class="plain cols th">{% for id, label, help, on in box_choices %}<li><label class="chk"><input type="checkbox" name="box" value="{{ id }}"{% if on %} checked{% endif %}> {{ label }}</label>{% if help %} <span class="hint">{{ help }}</span>{% endif %}</li>{% endfor %}</ul>
-<p class="hint">The "Returns by period" table: the figures, and the periods to show them for.</p>
-<ul class="plain">{% for id, label, help, on in metric_choices %}<li><label class="chk"><input type="checkbox" name="metric" value="{{ id }}"{% if on %} checked{% endif %}> {{ label }}</label>{% if help %} <span class="hint">{{ help }}</span>{% endif %}</li>{% endfor %}</ul>
-<p>{% for id, label, on in period_choices %}<label class="chk"><input type="checkbox" name="period" value="{{ id }}"{% if on %} checked{% endif %}> {{ label }}</label> {% endfor %}</p>
-<div class="acts-row"><button class="btn p" type="submit">Save</button><button class="btn q" type="submit" name="standard" value="1">Standard choice</button><a class="btn q" href="?">Close</a></div>
-<p class="hint">The choice is for everyone in this profile. Each period adds a little work when the figures are worked out (they are then kept until something changes).</p>
-</form></div>
-{% endif %}
 <div class="cols">
   <div>
 {% if period_table.rows %}
-<div class="sec" style="margin-top:8px"><h2>Returns by period</h2>{% if can_edit %}<div class="acts"><a class="btn q sm" href="?customise=1#customise">Customise</a></div>{% endif %}</div>
+<div class="sec" style="margin-top:8px"><h2>Returns by period</h2></div>
 <div class="tw"><table data-table-id="inv-overview-periods" class="led ov"><thead><tr><th>Figure</th>{% for p in period_table.periods %}<th class="r">{{ p.label }}{% if p.short %}&nbsp;*{% endif %}</th>{% endfor %}</tr></thead><tbody>
 {% for row in period_table.rows %}<tr><td title="{{ row.help }}">{{ row.label }}</td>{% for v in row.values %}<td class="r">{% if v is None %}<span class="na">n/a</span>{% elif row.fmt == "money" %}{{ v|inr }}{% elif row.fmt == "money_signed" %}{{ v|inr_signed }}{% elif row.fmt == "pct_signed" %}{{ v|pct_signed }}{% else %}{{ v|pct }}{% endif %}</td>{% endfor %}</tr>{% endfor %}
 </tbody></table></div>
 <p class="hint">{% for p in period_table.periods %}{% if p.id == "all" %}All: from the first purchase, {{ p.start|date:"j M Y" }}. {% elif p.short %}{{ p.label }} *: your history is shorter, so from the first purchase, {{ p.start|date:"j M Y" }}. {% else %}{{ p.label }}: from {{ p.start|date:"j M Y" }}. {% endif %}{% endfor %}The value at the start of a period counts as money put in on that day. Point at a figure's name for what it means.</p>
-{% elif can_edit and not customise_open %}<p class="hint"><a href="?customise=1#customise">Customise Home</a> to add figures for the same periods as the chart (1M to All).</p>{% endif %}
+{% elif can_edit %}<p class="hint">Add figures for the same periods as the chart (1M to All) in <a href="{% url 'investments_settings_display' %}#home-figures">Settings &gt; Display</a>.</p>{% endif %}
     {% if has_any %}<p class="hint">Every investment is listed on the <a href="{% url 'investments_holdings' %}">Holdings</a> page.</p>
     {% include "investments/_chart_block.html" with title="Value against the same money in the index" chart=chart ranges=chart_ranges anchor="chart" caption="Portfolio value and the same money invested in the index" %}{% endif %}
     {% if breakdown %}

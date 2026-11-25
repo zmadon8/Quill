@@ -3,7 +3,7 @@
 {% block page_width %}w-4xl{% endblock %}
 {% block extra_css %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/ledger-settings.css' %}">{% endblock %}
 {% block page_title %}Settings - {{ program_label }}{% endblock %}
-{% block page_js %}<script src="{% static 'js/fees/filename-preview.js' %}"></script><script src="{% static 'js/fees/filename-builder.js' %}"></script><script src="{% static 'js/settings-sections.js' %}"></script>{% endblock %}
+{% block page_js %}<script src="{% static 'js/fees/dashboard-kpis.js' %}"></script><script src="{% static 'js/fees/filename-preview.js' %}"></script><script src="{% static 'js/fees/filename-builder.js' %}"></script><script src="{% static 'js/settings-sections.js' %}"></script>{% endblock %}
 {% block content %}
 <h1 class="visually-hidden">Settings</h1>
 <div class="settings-layout" data-settings-sections data-initial="{{ tab }}">
@@ -25,6 +25,10 @@
 <p class="setting-help">The starting figures and wording of a new memo.</p>
 <form method="post" action="{% url 'fees_settings' %}" data-section-form>{% csrf_token %}<input type="hidden" name="tab" value="memos">
   <fieldset class="section-fields"{% if not can_edit %} disabled{% endif %}>
+    <h3 class="small-caps">Draft memos</h3>
+    {% if draft_count and config.draft_memos_enabled %}<div class="setting-row"><span class="setting-label">Draft memos: on</span>{% include "_who_tag.html" with who="profile" %}
+      <span class="setting-help">This profile has {{ draft_count }} draft memo{{ draft_count|pluralize }}, so Draft memos cannot be switched off. Finalise or delete {{ draft_count|pluralize:"it,them" }} first (Memos &gt; Draft Memos).</span></div>
+    {% else %}<div class="setting-row"><label><input type="hidden" name="draft_memos_enabled" value="0"><input type="checkbox" name="draft_memos_enabled" value="1"{% if config.draft_memos_enabled %} checked{% endif %}> Draft memos</label>{% include "_who_tag.html" with who="profile" %}<span class="setting-help">On: a memo can be saved as a draft (no number yet) and the Memos page has Memos and Draft Memos tabs. Off: no Save as Draft button and no tabs on the Memos page. It cannot be switched off while the profile has a draft memo.</span></div>{% endif %}
     <h3 class="small-caps">Default fees</h3>
     <div class="grid-3">
       <div class="setting-row"><label>Fees / appearance <input type="text" inputmode="decimal" name="default_fees_per_appearance" value="{{ config.default_fees_per_appearance|fees_plain }}"></label>{% include "_who_tag.html" with who="profile" %}<span class="setting-help">The fee for one appearance on a new memo.</span></div>
@@ -157,6 +161,7 @@
   </fieldset>
   {% if can_edit %}<p class="section-actions"><button type="submit" class="primary">Save</button> <span class="dirty-note" data-dirty-note hidden>You have unsaved changes.</span></p>{% endif %}
 </form>
+{% if config.statistics_enabled and can_edit %}{% include "fees/_dashboard_boxes.html" %}{% endif %}
 {% if config.statistics_enabled %}<section class="card settings-card" aria-labelledby="edit-stats-h"><h2 id="edit-stats-h">Edit Statistics</h2>
 {% include "fees/_adjustment_grid.html" %}
 </section>{% endif %}
@@ -171,11 +176,7 @@
       <div class="setting-row"><label>Figures <select name="money_unit">{% for value, label in money_unit_choices %}<option value="{{ value }}"{% if config.money_unit == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>{% include "_who_tag.html" with who="profile" %}<span class="setting-help">Whether amounts show in full or in thousands, lacs and crores.</span></div>
       <div class="setting-row"><label>Firms and matters: show by default <select name="list_default_filter"><option value="all"{% if config.list_default_filter == "all" %} selected{% endif %}>All</option><option value="active"{% if config.list_default_filter == "active" %} selected{% endif %}>Active Only</option></select></label>{% include "_who_tag.html" with who="profile" %}<span class="setting-help">Whether the Firms and Matters lists start with everything or only active ones.</span></div>
     </div>
-    <div class="grid-3">
-      <div class="setting-row"><label>Suffix, thousands <input type="text" name="money_suffix_thousands" value="{{ config.money_suffix_thousands }}" size="6"></label>{% include "_who_tag.html" with who="profile" %}<span class="setting-help">The letter after a figure in thousands (short figures only).</span></div>
-      <div class="setting-row"><label>Suffix, lac <input type="text" name="money_suffix_lac" value="{{ config.money_suffix_lac }}" size="6"></label>{% include "_who_tag.html" with who="profile" %}<span class="setting-help">The letter after a figure in lacs (short figures only).</span></div>
-      <div class="setting-row"><label>Suffix, crore <input type="text" name="money_suffix_crore" value="{{ config.money_suffix_crore }}" size="6"></label>{% include "_who_tag.html" with who="profile" %}<span class="setting-help">The letter after a figure in crores (short figures only).</span></div>
-    </div>
+    <p class="setting-help">The letters after shortened figures (k, lac, cr) are chosen by each person on <a href="{% url 'my_settings' %}?tab=display">Settings &gt; Display</a>.</p>
   </fieldset>
   {% if can_edit %}<p class="section-actions"><button type="submit" class="primary">Save</button> <span class="dirty-note" data-dirty-note hidden>You have unsaved changes.</span></p>{% endif %}
 </form>

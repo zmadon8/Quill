@@ -19,6 +19,7 @@
   {% include "fees/_fy_select.html" with name="fy" label="Financial Year" options=fy_options selected=fy %}
   <button type="submit">Show</button>
 </form>
+<div class="stat-tools" style="display:flex;flex-wrap:wrap;align-items:flex-start;gap:.5rem 1rem">
 <details class="kpi-customise stat-metrics">
   <summary>Metrics</summary>
   <form method="post" action="{% url 'fees_statistics_metrics' %}" class="fees-form" aria-label="Choose the metrics shown">{% csrf_token %}
@@ -32,6 +33,8 @@
     <button type="submit" class="primary">Save Metrics</button>
   </form>
 </details>
+<span data-columns-for="statistics"></span>
+</div>
 <div class="table-wrap">
 <table class="ledger-table stat-table" data-table-id="statistics">
   <caption>Statistics by {% if granularity == "financialYear" %}financial year{% else %}{{ granularity }}{% if granularity == "month" or granularity == "quarter" %} for {{ fy }}{% endif %}{% endif %}</caption>

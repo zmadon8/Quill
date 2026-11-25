@@ -10,7 +10,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
-from . import landing, programs, suite
+from . import landing, programs, shortletters, suite
 from .netutil import client_ip
 from .models import (
     ROLE_CHOICES,
@@ -431,15 +431,44 @@ class MyDisplayForm(MySettingsForm):
     landing_program = None  # only Start Screens has this field
 
     class Meta(MySettingsForm.Meta):
-        fields = ("justify_text", "group_digits", "search_as_word", "feebook_group_payments", "pdf_export", "word_button_long", "colour_theme")
+        fields = ("justify_text", "group_digits", "search_as_word", "feebook_group_payments", "pdf_export", "word_button_long", "short_thousands", "short_lac", "short_crore", "colour_theme")
 
     # Home card figures: one tick-box group per program (declared in __init__ from home_cards.metric_catalogue), at most 3 each.
     METRIC_FIELDS = (("home_metrics_diary", suite.KEY_DIARY, "Case Law Diary"), ("home_metrics_fees", suite.KEY_FEES, "Fee Register"),
                      ("home_metrics_investments", suite.KEY_INVESTMENTS, "Investments"))
 
+    SHORT_LETTER_FIELDS = (("short_thousands", "Letters for thousands", "k", "1,000 to 99,999"),
+                           ("short_lac", "Letters for lacs", "lac", "1,00,000 to 99,99,999"),
+                           ("short_crore", "Letters for crores", "cr", "1,00,00,000 and more"))
+
+    def _clean_short(self, name):
+        value = (self.cleaned_data.get(name) or "").strip()
+        if name not in self.data:
+            return getattr(self.instance, name)
+        if not shortletters.valid(value):
+            raise forms.ValidationError("Use up to %d letters (spaces, a dot or a hyphen are allowed; no digits)." % shortletters.MAX_LENGTH)
+        return value
+
+    def clean_short_thousands(self):
+        return self._clean_short("short_thousands")
+
+    def clean_short_lac(self):
+        return self._clean_short("short_lac")
+
+    def clean_short_crore(self):
+        return self._clean_short("short_crore")
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         from accounts import home_cards
+
+        for name, label, standard, span in self.SHORT_LETTER_FIELDS:
+            if name in self.fields:
+                self.fields[name].required = False
+                self.fields[name].label = label
+                self.fields[name].help_text = ("The letters after a shortened figure from %s, in every program (Fee Register, Investments, Home). "
+                                               "Blank: %s." % (span, standard))
+                self.fields[name].widget.attrs.update({"placeholder": standard, "size": 8})
 
         for name, program, title in self.METRIC_FIELDS:
             self.fields[name] = forms.MultipleChoiceField(

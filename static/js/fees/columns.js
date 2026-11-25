@@ -195,6 +195,7 @@
         arrange.textContent = "Arrange Columns";
         arrange.addEventListener("click", function () { menu.open = false; window.QuillColumnOrder.open(id); });
         list.appendChild(arrange);
+        window.QuillColumnOrder.adopt(id);   // the separate button above the table is no longer needed
       }
       menu.appendChild(list);
       var wrap = table.closest(".table-wrap, .tw") || table;

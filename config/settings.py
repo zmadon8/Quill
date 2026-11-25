@@ -79,6 +79,7 @@ MIDDLEWARE = [
     "fees.middleware.FeesEnabledMiddleware",
     "fees.middleware.FeesActorMiddleware",
     "investments.middleware.InvestmentsEnabledMiddleware",
+    "accounts.middleware.ShortLettersMiddleware",
     "accounts.middleware.LastSeenMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]

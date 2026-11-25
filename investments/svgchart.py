@@ -5,6 +5,7 @@ import math
 from datetime import date
 from decimal import Decimal
 
+from accounts import shortletters
 from investments.money_auto import format_indian
 
 PATTERNS = ("", "6 4", "2 3", "10 3 2 3", "1 2", "8 2")
@@ -133,9 +134,9 @@ def _hover(days, lines, x, noted=None):
 def _fmt(v, places=0):
     v = float(v)
     if abs(v) >= 1e7:
-        return f"{v / 1e7:.{max(1, places)}f} cr"
+        return f"{v / 1e7:.{max(1, places)}f} {shortletters.crore()}"
     if abs(v) >= 1e5:
-        return f"{v / 1e5:.{max(1, places)}f} lac"
+        return f"{v / 1e5:.{max(1, places)}f} {shortletters.lac()}"
     return format_indian(v, places)
 
 

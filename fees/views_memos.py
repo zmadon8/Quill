@@ -8,7 +8,7 @@ from django.views.decorators.http import require_http_methods, require_safe, req
 from fees import forms, scope
 from fees.decorators import fees_editor, fees_read_write, fees_reader, handle_fees_errors
 from fees.errors import FeesError
-from fees.pages import json_ok, memo_filters, page_number, render_page, written_off_on
+from fees.pages import drafts_on, json_ok, memo_filters, page_number, render_page, written_off_on
 from fees.services import firms as firms_service
 from fees.services import filter_options, fy_options, matters, memo_fees, memo_lists, memos, payments, prefs
 from fees.services.fees_in_words import fees_in_words
@@ -89,6 +89,9 @@ def memo_list(request):
 @handle_fees_errors()
 @require_safe
 def draft_list(request):
+    _profile, config = scope.context(request)
+    if not drafts_on(config):
+        return redirect("fees_memos")   # Draft memos are switched off for this profile (Settings > Memos)
     return _list_page(request, "drafts_only", "fees/drafts.html")
 
 
@@ -226,6 +229,8 @@ def _create(request, based_on=None):
         if firm_id and not matters.list_matters(profile, firm_id=int(firm_id) if firm_id.isdigit() else -1).filter(pk=data["matter_id"]).exists():
             raise FeesError("INVALID_MEMO", "That matter does not belong to the chosen firm.")
         is_draft = request.POST.get("action") == "draft"
+        if is_draft and not drafts_on(_settings):
+            raise FeesError("INVALID_MEMO", "Draft memos are switched off for this profile (Settings > Memos).")
         if is_draft:
             data["date"] = None   # a draft carries no date: it gets one when the memo is finalised
         memo = memos.create_memo(profile, data, is_draft=is_draft)

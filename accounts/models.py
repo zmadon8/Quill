@@ -48,6 +48,11 @@ class User(AbstractUser):
     # Owner round (2026-11): the Fee Register "Word" button on a memo reads "Download Memo (Word)" for this user when on (My settings,
     # Display). Off by default; only the words on the two buttons change, the download is the same.
     word_button_long = models.BooleanField("Fee Register: name the Word button Download Memo (Word)", default=False)
+    # Owner round (2026-11): the letters after shortened numbers (thousands, lacs, crores), in every program; blank means k, lac and cr
+    # (accounts/shortletters.py, Settings > Display > My Display).
+    short_thousands = models.CharField("Letters for thousands", max_length=12, blank=True, default="")
+    short_lac = models.CharField("Letters for lacs", max_length=12, blank=True, default="")
+    short_crore = models.CharField("Letters for crores", max_length=12, blank=True, default="")
     # Owner round (2026-11): the accent colour of every page, per user (My settings, Display; an Admin can set it too). Only the
     # accent changes (buttons, the current tab, links); status colours, the Word memo and the exports never do. tokens.css has one
     # html[data-theme] block per choice; the default, oxblood, needs none.

@@ -74,12 +74,16 @@ class OverviewTests(InvTestCase):
         self.assertGreaterEqual(rows["drawdown"][1], 0)
         self.assertTrue(row.pk)
 
-    def test_customise_is_for_editors_and_the_page_shows_the_choice(self):
+    def test_the_choice_is_on_settings_for_editors_and_home_shows_it(self):
         self.buy(d(2023, 1, 2), 10, 100)
         self.client.force_login(self.user)
-        page = self.client.get(reverse("investments_dashboard") + "?customise=1")
-        self.assertContains(page, "Customise Home")
+        # Owner round 2026-12: no Customise button on Home; the choice is on Settings > Display > Home page figures.
+        page = self.client.get(reverse("investments_dashboard"))
+        self.assertNotContains(page, "Customise")
         self.assertContains(page, "Returns by period")
+        settings_page = self.client.get(reverse("investments_settings_display"))
+        self.assertContains(settings_page, "Home page figures")
+        self.assertContains(settings_page, reverse("investments_overview_save"))
         self.client.post(reverse("investments_overview_save"), {"box": ["count", "value"], "metric": ["realised"], "period": ["3y"]})
         self.assertEqual(InvestmentSettings.objects.get(profile=self.profile).overview, {"boxes": ["count", "value"], "metrics": ["realised"], "periods": ["3y"]})
         page = self.client.get(reverse("investments_dashboard")).content.decode()

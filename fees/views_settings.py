@@ -73,6 +73,7 @@ def settings_context(profile, fy=None, tab="memos"):
         "config": config,
         "party_types_text": {"plaintiff": "\n".join(config["plaintiff_types"]), "defendant": "\n".join(config["defendant_types"])},
         "payment_modes_text": "\n".join(config["payment_modes"]),
+        "draft_count": Memo.objects.filter(profile=profile, is_draft=True).count(),
         "max_party_types": settings_service.MAX_PARTY_TYPES,
         "max_party_type": settings_service.MAX_PARTY_TYPE,
         "start_year_options": fy_options.start_year_options(
@@ -120,6 +121,10 @@ def settings_page(request):
         return redirect(f"{reverse('fees_settings')}?tab={tab}" if tab in SETTINGS_SECTIONS else "fees_settings")
     context = settings_context(profile, financial_year_param(request.GET, default=False), tab=tab)
     context["personal_form"] = _personal_form(request, profile)
+    if context["config"]["statistics_enabled"]:
+        from fees.views_dashboard import kpi_choice_context   # the Dashboard boxes choice (moved here from the Dashboard's Customise panel)
+
+        context.update(kpi_choice_context(request, context["config"]))
     if context["pdf_status"]["configured"] and request.user.is_admin:
         context["pdf_return_address"], context["pdf_return_problem"] = pdf_return_address(request)
     return render_page(request, "fees/settings.html", context)

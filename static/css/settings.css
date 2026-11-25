@@ -1,7 +1,7 @@
 /* Settings pages (Home shell and diary): the Fee Register's layout, a card per section. Loaded only by those pages, so the size guard
    (config/tests/test_efficiency_guards.py) does not count it against the Fee Register or Investments pages. */
 .settings-card { margin: 0 0 16px; padding: 16px 20px; min-width: 0; background: var(--card, #fff); border: 1px solid var(--line, #d8d4cb); border-radius: var(--radius, 6px); }
-.settings-card > h2 { margin: 0 0 8px; font-family: var(--serif, Georgia, serif); font-size: 1.15rem; font-weight: 600; }
+.settings-card > h2 { margin: 0 0 8px; font-family: var(--font-sans); font-size: 1.15rem; font-weight: 600; }
 .settings-card > h2 + .setting-help { margin: -4px 0 12px; }
 .settings-card .small-caps { margin: 16px 0 6px; font-size: .75rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 .settings-card .setting-row :is(input[type=text], input[type=email], input[type=number], select, textarea) { display: block; box-sizing: border-box; width: 100%; max-width: 36rem; }

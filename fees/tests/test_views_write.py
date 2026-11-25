@@ -725,7 +725,7 @@ class SettingsWriteTests(WriteBase):
             "fees_dashboard_kpis",
             {"kpi": ["billed_this_month", "billed_this_year", "bogus"], "order": "billed_this_year,billed_this_month"},
         )
-        self.assertRedirects(response, reverse("fees_dashboard"), fetch_redirect_response=False)
+        self.assertRedirects(response, reverse("fees_settings") + "?tab=years#dashboard-boxes", fetch_redirect_response=False)
         self.assertEqual(self.config().dashboard_kpis, "billed_this_year,billed_this_month")
 
     def test_dashboard_kpi_ticking_appends_and_unticking_removes(self):
@@ -737,7 +737,7 @@ class SettingsWriteTests(WriteBase):
         data = {"kpi": ["billed_this_year", "memos_last30", "drafts_last30"], "order": "billed_this_year,memos_last30,drafts_last30"}
         response = self.post("fees_dashboard_kpis", dict(data, move="drafts_last30:up"))
         self.assertEqual(response.status_code, 302)
-        self.assertIn("customise=1", response["Location"])
+        self.assertIn("tab=years", response["Location"])
         self.assertEqual(self.config().dashboard_kpis, "billed_this_year,drafts_last30,memos_last30")
         self.post("fees_dashboard_kpis", dict(data, move="billed_this_year:up"))
         self.assertEqual(self.config().dashboard_kpis, "billed_this_year,memos_last30,drafts_last30")

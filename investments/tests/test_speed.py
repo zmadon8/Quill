@@ -217,18 +217,14 @@ class AlertBadgeTests(InvTestCase):
         self.client.force_login(self.user)
         masters.create_instrument(self.profile, self.user, kind="alternative", name="FD", maturity_date=d.today() + timedelta(days=10))
 
-    def test_a_page_does_not_work_the_alerts_out_but_asks_for_the_count_afterwards(self):
+    def test_the_menu_has_no_alert_dot_and_no_page_works_the_alerts_out(self):
+        # Owner round 2026-11: the red circle beside Reports is gone, so a page no longer works the alerts out for it.
         InvestmentsStatsCache.objects.filter(profile=self.profile).delete()
         page = self.client.get(reverse("investments_holdings")).content.decode()
-        self.assertIn('data-alert-url="/investments/prefs/alert-count/"', page)
-        self.assertIn("js/investments/alert-badge", page)
+        self.assertNotIn("data-alert-url", page)
+        self.assertNotIn("Alerts need attention", page)
+        self.assertNotIn("alert-badge", page)
         self.assertFalse(InvestmentsStatsCache.objects.filter(profile=self.profile, kind="alerts").exists())
-        count = self.client.get(reverse("investments_alert_count")).json()["count"]
-        self.assertGreaterEqual(count, 1)
-        self.assertEqual(count, len(alerts.visible(self.profile)))
-        page = self.client.get(reverse("investments_holdings")).content.decode()
-        self.assertNotIn("data-alert-url", page)           # now kept: the badge is in the page itself
-        self.assertIn('aria-label="Alerts need attention"', page)      # a dot, no number
 
     def test_the_count_is_for_readers_only(self):
         self.client.logout()

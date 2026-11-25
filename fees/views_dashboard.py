@@ -80,19 +80,6 @@ def dashboard_page(request):
         {
             "kpi_rows": _kpi_rows(kpis, chosen, dashboard.projected_kpis(profile, shown) if config.get("statistics_enabled", True) else {}),
             "kpis_enabled": bool(config.get("statistics_enabled", True)),
-            "kpi_groups": [
-                {
-                    "title": title,
-                    "items": [{"id": kpi, "label": dashboard.KPI_LABELS[kpi], "on": _tick_state(request, kpi, chosen)} for kpi in ids if (kpi != "amount_overdue" or overdue_on(config)) and (kpi != "written_off_total" or written_off_on(config))],
-                }
-                for title, ids in dashboard.KPI_DISPLAY_GROUPS
-            ],
-            "kpi_order": [
-                {"id": kpi, "label": dashboard.KPI_LABELS[kpi], "first": i == 0, "last": i == len(chosen) - 1}
-                for i, kpi in enumerate(chosen)
-            ],
-            "kpi_order_value": ",".join(chosen),
-            "customise_open": request.GET.get("customise") == "1",
             "recent_matters": memo_lists.list_recent_matters(profile),
             "panels": dashboard_panels.get_panels(profile, chart=request.GET.get("chart", "billed")),
             "money_unit": config.get("money_unit", "full"),
@@ -101,11 +88,35 @@ def dashboard_page(request):
 
 
 def _tick_state(request, kpi, chosen):
-    """Whether the Customise box for ``kpi`` is ticked: as saved, or all / none after the All and None buttons."""
-    tick = request.GET.get("tick") if request.GET.get("customise") == "1" else None
+    """Whether the Dashboard boxes tick for ``kpi`` is ticked: as saved, or all / none after the All and None buttons."""
+    tick = request.GET.get("tick")
     if tick in ("all", "none"):
         return tick == "all"
     return kpi in chosen
+
+
+def kpi_choice_context(request, config):
+    """What the Dashboard boxes choice on Settings > Years And Statistics shows: every box in its group (ticked or not), and the order.
+
+    Moved from the Dashboard's own Customise panel (owner round 2026-12): the choice is a setting, so it is on the Settings page.
+    """
+    chosen = selected_kpis(config)
+    if not overdue_on(config):
+        chosen = [k for k in chosen if k != "amount_overdue"]
+    if not written_off_on(config):
+        chosen = [k for k in chosen if k != "written_off_total"]
+    return {
+        "kpi_groups": [
+            {
+                "title": title,
+                "items": [{"id": kpi, "label": dashboard.KPI_LABELS[kpi], "on": _tick_state(request, kpi, chosen)} for kpi in ids
+                          if (kpi != "amount_overdue" or overdue_on(config)) and (kpi != "written_off_total" or written_off_on(config))],
+            }
+            for title, ids in dashboard.KPI_DISPLAY_GROUPS
+        ],
+        "kpi_order": [{"id": kpi, "label": dashboard.KPI_LABELS[kpi], "first": i == 0, "last": i == len(chosen) - 1} for i, kpi in enumerate(chosen)],
+        "kpi_order_value": ",".join(chosen),
+    }
 
 
 @fees_editor
@@ -119,7 +130,7 @@ def save_kpis(request):
     profile, _settings = scope.context(request)
     tick = request.POST.get("select")
     if tick in ("all", "none"):  # the All and None buttons: show the boxes again all ticked or all clear, save nothing
-        return redirect(reverse("fees_dashboard") + "?customise=1&tick=" + tick + "#kpis")
+        return redirect(reverse("fees_settings") + "?tab=years&tick=" + tick + "#dashboard-boxes")
     chosen = dashboard.order_kpis(
         request.POST.getlist("kpi"),
         [k for k in request.POST.get("order", "").split(",") if k],
@@ -127,9 +138,9 @@ def save_kpis(request):
     )
     settings_service.update_settings(profile, {"dashboard_kpis": ",".join(chosen)})
     if request.POST.get("move"):
-        return redirect(reverse("fees_dashboard") + "?customise=1#kpis")
+        return redirect(reverse("fees_settings") + "?tab=years#dashboard-boxes")
     messages.success(request, "Dashboard boxes saved.")
-    return redirect("fees_dashboard")
+    return redirect(reverse("fees_settings") + "?tab=years#dashboard-boxes")
 
 
 @fees_reader

@@ -199,25 +199,8 @@ def render_context(request, profile, extra=None):
         "inv_sub": sub,
         "inv_title_in_menu": current_slug(request) in menu_slugs(),
         "inv_money_mode": masters.money_preference(request.user, profile) if profile is not None else "auto",
-        **_alert_badge(profile),
         "can_edit": request_role(request, KEY_INVESTMENTS) == ROLE_EDITOR,
         "inv_other_profiles": [m.profile for m in request_memberships(request, KEY_INVESTMENTS)[1:]],
     }
     context.update(extra or {})
     return context
-
-
-def _alert_badge(profile):
-    """The nav badge: the count when the alerts are already worked out, else a URL the page asks for it after it has loaded.
-
-    Working the alerts out (``alerts.count``) can mean evaluating every holding, so it must not hold up each page."""
-    if profile is None:
-        return {"inv_alert_count": 0, "inv_alert_url": ""}
-    from django.urls import reverse
-
-    from investments.services import alerts
-
-    count = alerts.peek_count(profile)
-    if count is None:
-        return {"inv_alert_count": 0, "inv_alert_url": reverse("investments_alert_count")}
-    return {"inv_alert_count": count, "inv_alert_url": ""}

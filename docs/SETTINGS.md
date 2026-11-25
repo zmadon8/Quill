@@ -80,6 +80,7 @@ are in a section of their own on the diary Settings tab, apart from the shared o
 | `justify_text` | Justify text | Settings > Display | Per user | Only you |
 | `group_digits` | Add commas while typing numbers: on (default), every number box in every program regroups what you type in Indian grouping (12,34,567.50) and keeps the caret in place. Off: numbers stay as typed. Commas you type are accepted either way | Settings > Display > My Display | Per user | Only you |
 | `home_show_figures` | Show figures on the Home page: on (default). Off: the Home cards show only the program names, and the details below the cards are left out. The figures you picked are kept | Settings > Display > My Home Page | Per user | Only you |
+| `short_thousands`, `short_lac`, `short_crore` | Letters for shortened numbers: the letters after a shortened figure from 1,000 (default k), 1,00,000 (lac) and 1,00,00,000 (cr), in the Fee Register (Figures: short), Investments (Short) and the Home cards, on screen and in the charts' axis labels. Blank keeps the standard letters. Up to 12 characters: letters, spaces, a dot or a hyphen. Replaces the per-profile `FeesSettings.money_suffix_*` boxes, which were saved but never applied (the columns stay for the Excel backup file) | Settings > Display > My Display | Per user | Only you |
 | `word_button_long` | Name the memo's Word button Download Memo (Word): on, the Word button on a Fee Register memo and the Word button at the foot of the memo form read Download Memo (Word); off (default), Word. Only the words change | Settings > Display > My Display | Per user | Only you |
 | `colour_theme` | Colour theme: Oxblood (default), Royal Blue, Navy, Violet, Plum or Teal. Changes the accent (buttons, current tab, links) on every page; status colours and exports never change | Settings > Display; an Admin on the user's edit screen | Per user | Only you |
 | `header_initials` | Letters in the header badge: up to 3, shown upper-case in the round badge at the top right. Blank: the first letters of your first and last name | Settings > Account and Profile View | Per user | Only you |
@@ -174,6 +175,7 @@ are noted: Opening page and Items per page are personal only (section 4.2).
 | `default_fees_per_conference` | Fees / conference | Memos > Default fees | Per profile | Everyone in this profile |
 | `default_fees_misc_drafting` | Misc / draft | Memos > Default fees | Per profile | Everyone in this profile |
 | `default_lines_enabled` | Not a setting any more: no screen shows it. It stays only because the desktop backup file still has the column (a restore reads it, the Excel backup writes it) | None | Per profile, automatic | n/a |
+| `draft_memos_enabled` | Draft memos: on (default) lets a memo be saved as a draft and shows the Memos and Draft Memos tabs; off hides the tabs and the Save as Draft button and sends the Drafts address back to Memos. Refused while the profile has a draft memo. Not in the Excel backup file (the site backup carries it) | Memos > Draft memos | Per profile | Everyone in this profile |
 | `default_court_name` | Caption (default court name) | Memos > Memo text defaults | Per profile | Everyone in this profile |
 | `memo_default_name` | Name on memos | Memos > Memo text defaults | Per profile | Everyone in this profile |
 | `memo_default_designation` | Designation | Memos > Memo text defaults | Per profile | Everyone in this profile |
@@ -196,10 +198,10 @@ are noted: Opening page and Items per page are personal only (section 4.2).
 | `memos_start_year` | Memos start year | Years and statistics | Per profile | Everyone in this profile |
 | `feebook_start_year` | Feebook start year | Years and statistics | Per profile | Everyone in this profile |
 | `statistics_enabled` | Statistics and Dashboard on or off, one switch for both pages and the Dashboard figures (off: neither is in the header; the Dashboard address and an Opening page of Dashboard open Memos). Replaces the old `dashboard_enabled` and `dashboard_kpis_enabled` | Years and statistics | Per profile | Everyone in this profile |
-| `dashboard_kpis` | Which dashboard figures show (the Customise box on the Dashboard, not on the Settings page) | Fee Register > Dashboard > Customise | Per profile | Everyone in this profile |
+| `dashboard_kpis` | Dashboard boxes: which boxes the Dashboard shows, and in what order (moved from the Dashboard's Customise panel, owner round 2026-12) | Settings > Fee Register > Years And Statistics > Dashboard boxes (Editors) | Per profile | Everyone in this profile |
 | `money_unit` | Figures (full, thousands, lacs, crores) | Display | Per profile | Everyone in this profile |
 | `list_default_filter` | Firms and matters: show by default (All or Active only) | Display | Per profile | Everyone in this profile |
-| `money_suffix_thousands`, `money_suffix_lac`, `money_suffix_crore` | Suffix letters for short figures | Display | Per profile | Everyone in this profile |
+| `money_suffix_thousands`, `money_suffix_lac`, `money_suffix_crore` | Not shown any more: each person chooses the letters on Settings > Display > My Display (see `short_thousands` in section 2.1). The columns stay only for the Excel backup file | None | Per profile, automatic | n/a |
 | `data_version` | Counter that invalidates the statistics cache | None; automatic | Per profile | n/a |
 | `profile`, `created_at`, `updated_at` | Owner and bookkeeping | None | Per profile | n/a |
 

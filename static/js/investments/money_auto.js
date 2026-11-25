@@ -7,7 +7,13 @@
   var MINUS = "\u2212";
   var SYMBOLS = { INR: "\u20b9", USD: "$", EUR: "\u20ac", GBP: "\u00a3", JPY: "\u00a5" };
   // Units in paise: 1 rupee = 100 paise.
-  var INR_UNITS = [[100n, ""], [100000n, "k"], [10000000n, "lac"], [1000000000n, "cr"]];
+  // The letters after shortened numbers: the signed-in user's own (the page's <meta name="short-letters" content="k|lac|cr">), else k, lac, cr.
+  function letters() {
+    var meta = typeof document !== "undefined" ? document.querySelector('meta[name="short-letters"]') : null;
+    var p = meta ? (meta.getAttribute("content") || "").split("|") : [];
+    return { k: p[0] || "k", lac: p[1] || "lac", cr: p[2] || "cr" };
+  }
+  function inrUnits() { var L = letters(); return [[100n, ""], [100000n, L.k], [10000000n, L.lac], [1000000000n, L.cr]]; }
   var FOREIGN_UNITS = [[100n, ""], [100000n, "k"], [100000000n, "m"]];
 
   // "123.456" -> {neg, scaled} where scaled is paise * 1000 (3 extra digits kept for exact half-up on the fly).
@@ -68,10 +74,10 @@
       body = groupIndian(whole.toString());
       zero = whole === 0n;
     } else {
-      var div, suf;
-      if (ex.num < 100000n * ex.den) { div = 1000n; suf = "k"; }
-      else if (ex.num < 10000000n * ex.den) { div = 100000n; suf = "lac"; }
-      else { div = 10000000n; suf = "cr"; }
+      var div, suf, L = letters();
+      if (ex.num < 100000n * ex.den) { div = 1000n; suf = L.k; }
+      else if (ex.num < 10000000n * ex.den) { div = 100000n; suf = L.lac; }
+      else { div = 10000000n; suf = L.cr; }
       var unit = 10n ** BigInt(places);
       var s = roundDiv(ex.num, ex.den, unit, div); // the unit to ``places`` decimals, half up
       body = groupIndian((s / unit).toString());
@@ -100,7 +106,7 @@
     if (rupees && mode !== "full") { return shortRupees(ex, p.neg, !!opts.signed, sym); }
     if (mode === "full" && rupees) { return sign + sym + trimmed(ex, grouper).text; }
     if (mode === "full" || paise < 100000n) { return sign + sym + plain(paise, grouper); }
-    var units = rupees ? INR_UNITS : FOREIGN_UNITS;
+    var units = rupees ? inrUnits() : FOREIGN_UNITS;
     var idx = 0, i;
     for (i = 0; i < units.length; i++) { if (ex.num * 100n >= units[i][0] * ex.den) { idx = i; } }
     var scaled = roundDiv(ex.num, ex.den, 100n * 100n, units[idx][0]); // hundredths of the unit
@@ -122,7 +128,7 @@
       s = roundDiv(ex.num, ex.den, 100n, D[x]);
       if (x < 2 && s * D[x] >= D[x + 1] * 100n) { x++; s = roundDiv(ex.num, ex.den, 100n, D[x]); }
       f = pad2(s % 100n).replace(/0+$/, "");
-      return neg + groupIndian((s / 100n).toString()) + (f ? "." + f : "") + [" k", " lac", " cr"][x];
+      return neg + groupIndian((s / 100n).toString()) + (f ? "." + f : "") + " " + [letters().k, letters().lac, letters().cr][x];
     }
     var t = trimmed(ex, groupIndian);
     return (t.zero ? "" : neg) + t.text;

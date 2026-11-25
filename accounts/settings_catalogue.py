@@ -76,6 +76,8 @@ SETTINGS = (
        "Settings > Display > My Display", YOU, "my_settings", "?tab=display", words="pdf export"),
     _s("display", "Name the memo's Word button Download Memo (Word)", "The Word button on a memo, and on the memo form, reads Download Memo (Word) instead of Word.",
        "Settings > Display > My Display", YOU, "my_settings", "?tab=display", words="rename word button download memo"),
+    _s("display", "Letters for shortened numbers", "The letters after a shortened figure: thousands (k), lacs (lac) and crores (cr) unless you change them. Used in the Fee Register, Investments and the Home cards.",
+       "Settings > Display > My Display", YOU, "my_settings", "?tab=display", words="short truncated suffix k lac cr crore thousand words"),
     _s("display", "Colour theme", "The accent colour of every page: Oxblood, Royal Blue, Navy, Violet, Plum or Teal.",
        "Settings > Display > My Display", YOU, "my_settings", "?tab=display", words="color appearance"),
     _s("display", "Home card figures", "Up to 3 figures on each program's card on the Home page.",
@@ -142,6 +144,8 @@ SETTINGS = (
        "Settings > {diary} > Data", EVERYONE, "import_word", vis=ADMIN, words="word import"),
 
     # ---- Fee Register -------------------------------------------------------------------------------------------------
+    _s("fees", "Draft memos", "On: a memo can be saved as a draft, and the Memos page has Memos and Draft Memos tabs. Off: no Save as Draft button and no tabs. Cannot be switched off while the profile has a draft memo.",
+       "Settings > {fees} > Memos > Draft memos", PROFILE, "fees_settings", "?tab=memos", FEES, words="drafts tab save as draft"),
     _s("fees", "Default fees", "The fee per appearance, the fee per conference and the charge per draft a new memo starts with.",
        "Settings > {fees} > Memos > Default fees", PROFILE, "fees_settings", "?tab=memos", FEES, words="fees per appearance conference misc draft"),
     _s("fees", "Memo text defaults", "The caption, name, designation, PAN, address and bank details a new memo and the Word memo start with.",
@@ -186,14 +190,12 @@ SETTINGS = (
        "Settings > {fees} > Display", PROFILE, "fees_settings", "?tab=display", FEES, words="money unit"),
     _s("fees", "Firms and matters: show by default", "Whether the Firms and Matters lists open on All or Active only.",
        "Settings > {fees} > Display", PROFILE, "fees_settings", "?tab=display", FEES, words="archived"),
-    _s("fees", "Suffix letters for short figures", "The letters after figures in thousands, lacs and crores.",
-       "Settings > {fees} > Display", PROFILE, "fees_settings", "?tab=display", FEES, words="k lac cr"),
     _s("fees", "My items per page", "How many memos or payments a page of Memos, Drafts and Feebook shows. All shows a whole year.",
        "Settings > {fees} > Display", YOU, "fees_settings", "?tab=display", FEES, words="page size rows"),
     _s("fees", "Excel backup and import", "Download an Excel backup, restore, import memos, or clear all data (Admin).",
        "Settings > {fees} > Data", PROFILE, "fees_settings", "?tab=data", FEES, words="clear restore"),
-    _s("fees", "Dashboard figures", "Which figures the Dashboard shows (the Customise box on the Dashboard).",
-       "{fees} > Dashboard > Customise", PROFILE, "fees_dashboard", "", FEES, words="kpis"),
+    _s("fees", "Dashboard boxes", "Which boxes the Dashboard shows, and in what order.",
+       "Settings > {fees} > Years And Statistics", PROFILE, "fees_settings", "?tab=years#dashboard-boxes", FEES, words="kpis dashboard figures customise"),
 
     # ---- Investments --------------------------------------------------------------------------------------------------
     _s("investments", "SIP entries", "Whether SIP entries are pending until you confirm them, or created as final.",
@@ -224,6 +226,8 @@ SETTINGS = (
        "Settings > {inv} > Brokers", PROFILE, "investments_settings_brokers", "", INVESTMENTS, words="platform"),
     _s("investments", "Default broker for each type", "The broker new purchases of shares, funds, alternatives and foreign investments start with.",
        "Settings > {inv} > Brokers", PROFILE, "investments_settings_brokers", "", INVESTMENTS),
+    _s("investments", "Home page figures", "The boxes at the top of the Home page, the figures in the Returns by period table and the periods shown.",
+       "Settings > {inv} > Display", PROFILE, "investments_settings_display", "", INVESTMENTS, words="customise home overview boxes periods returns"),
     _s("investments", "Number display for you (Short or Full)", "Shows rupee amounts in short figures (k, lac, cr) or in full.",
        "Settings > {inv} > Display", YOU, "investments_settings_display", "", INVESTMENTS, words="my money short full"),
     _s("investments", "Starting number display for new people", "The Short or Full choice a new person in this profile starts with.",
