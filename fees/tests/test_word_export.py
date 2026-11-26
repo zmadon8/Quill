@@ -85,6 +85,19 @@ class PlaceholderMapTests(SimpleTestCase):
         self.assertIs(mapping["IF_PL"], True)
         self.assertEqual(mapping["L16"], "")
 
+    def test_a_fee_alone_never_keeps_a_line(self):
+        # Owner round 2026-12: appearances and conferences need a count; drafts need their description.
+        mapping = build_placeholder_map(
+            sample_memo(num_appearances=0, fees_per_appearance=Decimal("5000"), num_conferences=0, fees_per_conference=Decimal("2000"),
+                        misc_drafting_description="  ", fees_misc_drafting=Decimal("3000"))
+        )
+        self.assertEqual((mapping["IF_APP"], mapping["IF_CONF"], mapping["IF_MISC"]), (False, False, False))
+        mapping = build_placeholder_map(
+            sample_memo(num_appearances=1, fees_per_appearance=Decimal("0"), num_conferences=1, fees_per_conference=Decimal("0"),
+                        misc_drafting_description="Written submissions", fees_misc_drafting=Decimal("0"))
+        )
+        self.assertEqual((mapping["IF_APP"], mapping["IF_CONF"], mapping["IF_MISC"]), (True, True, True))
+
     def test_short_name_wins_for_matter(self):
         mapping = build_placeholder_map(sample_memo(matter_short_name="Acme"))
         self.assertEqual(mapping["L7"], "Acme")
