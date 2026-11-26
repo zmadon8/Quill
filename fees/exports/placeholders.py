@@ -124,15 +124,15 @@ TAG_DOCS = {
         "(a picture)",
     ),
     "SHOW_APPEARANCES": (
-        "Block kept when there are appearances (a count, or a fee per appearance)",
+        "Block kept when the number of appearances is 1 or more (a fee alone does not keep it)",
         "{{#IF_APP}} ... {{/IF_APP}}",
     ),
     "SHOW_CONFERENCES": (
-        "Block kept when there are conferences (a count, or a fee per conference)",
+        "Block kept when the number of conferences is 1 or more (a fee alone does not keep it)",
         "{{#IF_CONF}} ... {{/IF_CONF}}",
     ),
     "SHOW_MISC": (
-        "Block kept when there is a drafting or miscellaneous fee or description",
+        "Block kept when the Misc / drafting description has been typed (a fee alone does not keep it)",
         "{{#IF_MISC}} ... {{/IF_MISC}}",
     ),
     "SHOW_PLAINTIFF": ("Block kept when a plaintiff name has been entered", "{{#IF_PL}} ... {{/IF_PL}}"),
@@ -214,9 +214,11 @@ def _text(value):
 def _base_map(memo):
     num_app = memo.get("num_appearances") or 0
     num_conf = memo.get("num_conferences") or 0
-    show_app = num_app > 0 or (memo.get("fees_per_appearance") or 0) > 0
-    show_conf = num_conf > 0 or (memo.get("fees_per_conference") or 0) > 0
-    show_misc = (memo.get("fees_misc_drafting") or 0) > 0 or bool(memo.get("misc_drafting_description"))
+    # Owner round 2026-12: a fee typed on its own never brings a line into the Word memo. The appearances and conferences lines need a
+    # count of at least one; the drafts / misc line needs its description.
+    show_app = num_app > 0
+    show_conf = num_conf > 0
+    show_misc = bool((memo.get("misc_drafting_description") or "").strip())
     plaintiff = memo.get("plaintiff_name") or ""
     defendant = memo.get("defendant_name") or ""
     client = memo.get("client_position") or ""
