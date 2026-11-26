@@ -124,15 +124,15 @@ TAG_DOCS = {
         "(a picture)",
     ),
     "SHOW_APPEARANCES": (
-        "Block kept when the number of appearances is 1 or more (a fee alone does not keep it)",
+        "Block kept when the appearances line adds to the total, or the number of appearances is 1 or more",
         "{{#IF_APP}} ... {{/IF_APP}}",
     ),
     "SHOW_CONFERENCES": (
-        "Block kept when the number of conferences is 1 or more (a fee alone does not keep it)",
+        "Block kept when the conferences line adds to the total, or the number of conferences is 1 or more",
         "{{#IF_CONF}} ... {{/IF_CONF}}",
     ),
     "SHOW_MISC": (
-        "Block kept when the Misc / drafting description has been typed (a fee alone does not keep it)",
+        "Block kept when there is a drafting or miscellaneous fee, or a description",
         "{{#IF_MISC}} ... {{/IF_MISC}}",
     ),
     "SHOW_PLAINTIFF": ("Block kept when a plaintiff name has been entered", "{{#IF_PL}} ... {{/IF_PL}}"),
@@ -214,11 +214,12 @@ def _text(value):
 def _base_map(memo):
     num_app = memo.get("num_appearances") or 0
     num_conf = memo.get("num_conferences") or 0
-    # Owner round 2026-12: a fee typed on its own never brings a line into the Word memo. The appearances and conferences lines need a
-    # count of at least one; the drafts / misc line needs its description.
-    show_app = num_app > 0
-    show_conf = num_conf > 0
-    show_misc = bool((memo.get("misc_drafting_description") or "").strip())
+    # Owner round 2026-12: a line is kept whenever it adds to the total, so the Total always equals the sum of the lines shown (the line's
+    # own fee, typed or worked out, is not 0), or when its count (appearances, conferences) or description (drafts / misc) is filled in.
+    show_app = num_app > 0 or (memo.get("fees_appearances") or 0) != 0
+    show_conf = num_conf > 0 or (memo.get("fees_conferences") or 0) != 0
+    show_misc = (memo.get("fees_misc") if memo.get("fees_misc") is not None else memo.get("fees_misc_drafting") or 0) != 0 or bool(
+        (memo.get("misc_drafting_description") or "").strip())
     plaintiff = memo.get("plaintiff_name") or ""
     defendant = memo.get("defendant_name") or ""
     client = memo.get("client_position") or ""

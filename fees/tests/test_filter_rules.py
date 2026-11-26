@@ -141,13 +141,15 @@ class AllNoneControlsTests(WriteBase):
         self.assertTrue(all(" checked" in box for box in boxes))
         self.assertFalse(any(" checked" in box for box in re.findall(r'<input type="checkbox" name="kpi"[^>]*>', none)))
 
-    def test_the_outstanding_tick_boxes_have_all_and_none(self):
+    def test_the_outstanding_tick_boxes_have_none_but_no_all(self):
         html = self.client.get(reverse("fees_outstanding_detail")).content.decode()
         self.assertIn('data-select-all-none="memo"', html)
         self.assertRegex(html, r'data-select-all-none="memo"[^>]*data-max="200"[^>]* hidden')  # shown by the script
         self.assertIn('data-pay-form data-max="200"', html)  # the Pay bar script reads the same cap (it said 5 before)
-        self.assertIn('data-select="all">All</button>', html)
+        self.assertNotIn('data-select="all">All</button>', html)   # owner round 2026-12: no All for paying memos
         self.assertIn('data-select="none">None</button>', html)
+        memos_page = self.client.get(reverse("fees_memos"), {"fy": ""}).content.decode()
+        self.assertNotIn('data-select="all">All</button>', memos_page)
 
     def test_the_user_form_role_pickers_have_all_and_none(self):
         self.client.force_login(self.admin)
