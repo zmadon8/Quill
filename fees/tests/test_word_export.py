@@ -76,7 +76,7 @@ class PlaceholderMapTests(SimpleTestCase):
 
     def test_flags_follow_the_data(self):
         mapping = build_placeholder_map(
-            sample_memo(num_appearances=0, fees_per_appearance=Decimal("0"), misc_drafting_description="",
+            sample_memo(num_appearances=0, fees_per_appearance=Decimal("0"), fees_appearances=Decimal("0"), misc_drafting_description="",
                         fees_misc_drafting=Decimal("0"))
         )
         self.assertIs(mapping["IF_APP"], False)
@@ -85,18 +85,20 @@ class PlaceholderMapTests(SimpleTestCase):
         self.assertIs(mapping["IF_PL"], True)
         self.assertEqual(mapping["L16"], "")
 
-    def test_a_fee_alone_never_keeps_a_line(self):
-        # Owner round 2026-12: appearances and conferences need a count; drafts need their description.
+    def test_every_line_that_adds_to_the_total_is_kept(self):
+        # Owner round 2026-12: the Total always equals the sum of the lines shown, so any line with a fee in it stays.
         mapping = build_placeholder_map(
-            sample_memo(num_appearances=0, fees_per_appearance=Decimal("5000"), num_conferences=0, fees_per_conference=Decimal("2000"),
-                        misc_drafting_description="  ", fees_misc_drafting=Decimal("3000"))
-        )
-        self.assertEqual((mapping["IF_APP"], mapping["IF_CONF"], mapping["IF_MISC"]), (False, False, False))
-        mapping = build_placeholder_map(
-            sample_memo(num_appearances=1, fees_per_appearance=Decimal("0"), num_conferences=1, fees_per_conference=Decimal("0"),
-                        misc_drafting_description="Written submissions", fees_misc_drafting=Decimal("0"))
+            sample_memo(num_appearances=0, fees_appearances=Decimal("5000"), num_conferences=0, fees_conferences=Decimal("2000"),
+                        misc_drafting_description="  ", fees_misc=Decimal("3000"), fees_misc_drafting=Decimal("3000"))
         )
         self.assertEqual((mapping["IF_APP"], mapping["IF_CONF"], mapping["IF_MISC"]), (True, True, True))
+        # A rate with no count adds nothing to the total, so that line goes; a count or a description keeps its line.
+        mapping = build_placeholder_map(
+            sample_memo(num_appearances=0, fees_per_appearance=Decimal("5000"), fees_appearances=Decimal("0"),
+                        num_conferences=1, fees_per_conference=Decimal("0"), fees_conferences=Decimal("0"),
+                        misc_drafting_description="Written submissions", fees_misc=Decimal("0"), fees_misc_drafting=Decimal("0"))
+        )
+        self.assertEqual((mapping["IF_APP"], mapping["IF_CONF"], mapping["IF_MISC"]), (False, True, True))
 
     def test_short_name_wins_for_matter(self):
         mapping = build_placeholder_map(sample_memo(matter_short_name="Acme"))
