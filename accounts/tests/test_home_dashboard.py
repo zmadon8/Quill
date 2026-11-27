@@ -314,14 +314,11 @@ class HomeDetailsTests(TestCase):
         self.assertIn("<dt>Subjects</dt>", html)
 
     def test_kpis_switched_off_show_a_note(self):
-        from fees.services import settings as settings_service
-
         self.user.home_details = {"fees": ["memos_this_year"]}
+        self.user.statistics_enabled = False   # the user's own switch
         self.user.save()
-        config = {**settings_service.get_settings(self.fees), "statistics_enabled": False}
-        with mock.patch("fees.services.settings.get_settings", return_value=config):
-            html = self.home()
-        self.assertIn("switched off in the Fee Register settings", html)
+        html = self.home()
+        self.assertIn("switched off in your settings", html)
         self.assertNotIn("<dt>Memos This Year</dt>", html)
 
     def test_investments_items_say_so_when_the_overview_is_not_cached(self):
