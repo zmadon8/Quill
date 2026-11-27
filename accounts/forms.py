@@ -348,6 +348,12 @@ class MySettingsForm(forms.ModelForm):
             self.fields["feebook_group_payments"].label = "Feebook: memos paid together on one line"
             self.fields["feebook_group_payments"].help_text = ("Fee Register. When one payment settles several memos, the Feebook shows a single line: the first memo "
                                                                "number followed by & Anr. or & Ors., the details they share, and the total paid and TDS. Click it to see each payment.")
+        if "statistics_enabled" in self.fields:
+            self.fields["statistics_enabled"].required = False
+            self.fields["statistics_enabled"].label = "Statistics and Dashboard"
+            self.fields["statistics_enabled"].help_text = ("Fee Register. Shows the Statistics and Dashboard pages and their figures to you. Switched off, both leave "
+                                                           "your header and Home, and if your opening page was the Dashboard you open on Memos. Other people using the "
+                                                           "same profile are not affected.")
         if "pdf_export" in self.fields:
             self.fields["pdf_export"].required = False
             self.fields["pdf_export"].label = "Memo PDF button"
@@ -431,7 +437,7 @@ class MyDisplayForm(MySettingsForm):
     landing_program = None  # only Start Screens has this field
 
     class Meta(MySettingsForm.Meta):
-        fields = ("justify_text", "group_digits", "search_as_word", "feebook_group_payments", "pdf_export", "word_button_long", "short_thousands", "short_lac", "short_crore", "colour_theme")
+        fields = ("justify_text", "group_digits", "search_as_word", "feebook_group_payments", "statistics_enabled", "pdf_export", "word_button_long", "short_thousands", "short_lac", "short_crore", "colour_theme")
 
     # Home card figures: one tick-box group per program (declared in __init__ from home_cards.metric_catalogue), at most 3 each.
     METRIC_FIELDS = (("home_metrics_diary", suite.KEY_DIARY, "Case Law Diary"), ("home_metrics_fees", suite.KEY_FEES, "Fee Register"),

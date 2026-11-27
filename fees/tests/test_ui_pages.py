@@ -6,6 +6,7 @@ Later screens subclass it and add their own checks on top of ``assert_page``.
 """
 import re
 
+from django.contrib.auth import get_user_model
 from django.db import connection
 from django.test import override_settings
 from django.test.utils import CaptureQueriesContext
@@ -93,7 +94,7 @@ class ShellTests(UiPageBase):
 
     def test_program_nav_order_and_current_page(self):
         # The seeded profile has Statistics switched off, which leaves it out of the menu; switch it on.
-        FeesSettings.objects.update_or_create(profile=self.profile, defaults={"statistics_enabled": True})
+        get_user_model().objects.update(statistics_enabled=True)
         text = self.html(self.page("fees_memos"))
         nav = text[text.index('<nav class="program-nav"'):text.index("</nav>")]
         positions = [nav.index(">%s</a>" % label) for label in NAV_LABELS]
@@ -102,7 +103,7 @@ class ShellTests(UiPageBase):
         self.assertRegex(nav, r'<a href="%s" class="on" aria-current="page">Memos</a>' % re.escape(reverse("fees_memos")))
 
     def test_statistics_is_left_out_when_switched_off(self):
-        FeesSettings.objects.update_or_create(profile=self.profile, defaults={"statistics_enabled": False})
+        get_user_model().objects.update(statistics_enabled=False)
         nav = self.html(self.page("fees_memos"))
         nav = nav[nav.index('<nav class="program-nav"'):nav.index("</nav>")]
         self.assertNotIn(">Statistics</a>", nav)
@@ -110,7 +111,7 @@ class ShellTests(UiPageBase):
         self.assertEqual(nav.count('href="%s"' % reverse("fees_dashboard")), 0)
 
     def test_statistics_entry_is_current_on_the_dashboard_and_statistics_pages(self):
-        FeesSettings.objects.update_or_create(profile=self.profile, defaults={"statistics_enabled": True})
+        get_user_model().objects.update(statistics_enabled=True)
         for name in ("fees_dashboard", "fees_statistics"):
             with self.subTest(page=name):
                 text = self.html(self.page(name))
@@ -120,7 +121,7 @@ class ShellTests(UiPageBase):
                 self.assertNotIn(">Dashboard</a>", nav)
 
     def test_statistics_show_by_names_month_quarter_and_financial_year(self):
-        FeesSettings.objects.update_or_create(profile=self.profile, defaults={"statistics_enabled": True})
+        get_user_model().objects.update(statistics_enabled=True)
         text = self.html(self.page("fees_statistics"))
         for value, label in (("month", "Month"), ("quarter", "Quarter"), ("financialYear", "Financial Year")):
             self.assertRegex(text, r'<option value="%s"( selected)?>%s</option>' % (value, label))
@@ -951,7 +952,8 @@ class DashboardScreenTests(UiPageBase):
     """T8.6: KPI boxes, customise, recent matters."""
 
     def settings_on(self, **extra):
-        FeesSettings.objects.update_or_create(profile=self.profile, defaults=dict({"statistics_enabled": True}, **extra))
+        get_user_model().objects.update(statistics_enabled=extra.pop("statistics_enabled", True))   # the user's own switch
+        FeesSettings.objects.update_or_create(profile=self.profile, defaults=extra)
 
     def test_dashboard_landmarks_and_boxes(self):
         self.settings_on(statistics_enabled=True)
@@ -1204,7 +1206,7 @@ class StatisticsPageTests(UiPageBase):
         self.assertEqual(SavedView.objects.filter(profile=self.profile).count(), 1)
 
     def test_page_still_answers_when_statistics_is_switched_off(self):
-        FeesSettings.objects.update_or_create(profile=self.profile, defaults={"statistics_enabled": False})
+        get_user_model().objects.update(statistics_enabled=False)
         text = self.assert_page(self.page("fees_statistics"), "off")
         self.assertIn("Statistics is switched off in Settings.", text)
         self.assertNotIn("still correct", text)

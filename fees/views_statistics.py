@@ -74,7 +74,7 @@ _ADJUSTMENT_OVERRIDES = (
 
 
 def ensure_statistics_on(config):
-    """Raise ``STATISTICS_DISABLED`` (409) when the profile has Statistics switched off (owner decision 3).
+    """Raise ``STATISTICS_DISABLED`` (409) when the user has Statistics switched off (owner decision 3).
 
     Nothing in the statistics engine runs when it is off, so every Statistics page, data, explore, saved
     view, adjustment and export view calls this first. ``config`` is the settings from ``scope.context``.

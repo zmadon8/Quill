@@ -99,7 +99,7 @@ class MemoWriteTests(WriteBase):
     def test_the_drafts_count_box_shows_only_while_statistics_are_on(self):
         label = "No. of drafts (statistics only; does not affect the memo total)"
         self.assertIn(label, self.client.get(reverse("fees_memo_new")).content.decode())
-        FeesSettings.objects.filter(profile=self.profile).update(statistics_enabled=False)
+        get_user_model().objects.update(statistics_enabled=False)
         off = self.client.get(reverse("fees_memo_new")).content.decode()
         self.assertNotIn(label, off)
         self.assertNotIn("No. of drafts", off)

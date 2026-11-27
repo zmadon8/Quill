@@ -58,13 +58,13 @@ FILENAME_PARTS = (
 )
 
 
-def settings_context(profile, fy=None, tab="memos"):
+def settings_context(profile, fy=None, tab="memos", user=None):
     """What the Settings page shows besides the form values.
 
     ``fy`` is the financial year of the Edit statistics grid (the current year when not given); the grid is
     built only while Statistics is switched on.
     """
-    config = settings_service.get_settings(profile)
+    config = settings_service.for_user(settings_service.get_settings(profile), user)
     context = {
         "filename_presets": FILENAME_PRESETS,
         "filename_parts": FILENAME_PARTS,
@@ -112,14 +112,14 @@ def settings_page(request):
         except FeesError as err:
             if err.status == 404:
                 raise Http404(err.message) from err
-            context = settings_context(profile, tab=tab)
+            context = settings_context(profile, tab=tab, user=request.user)
             context["personal_form"] = _personal_form(request, profile)
             context["errors"] = [err.message]
             return render_page(request, "fees/settings.html", context, status=err.status)
         messages.success(request, "Settings saved.")
         # A save from one section returns to that section; an older form that names none returns to the page.
         return redirect(f"{reverse('fees_settings')}?tab={tab}" if tab in SETTINGS_SECTIONS else "fees_settings")
-    context = settings_context(profile, financial_year_param(request.GET, default=False), tab=tab)
+    context = settings_context(profile, financial_year_param(request.GET, default=False), tab=tab, user=request.user)
     context["personal_form"] = _personal_form(request, profile)
     if context["config"]["statistics_enabled"]:
         from fees.views_dashboard import kpi_choice_context   # the Dashboard boxes choice (moved here from the Dashboard's Customise panel)
@@ -136,7 +136,7 @@ def _personal_form(request, profile):
     from fees.personal_form import FeesPersonalForm
 
     return FeesPersonalForm(
-        prefix="fees", profile=profile, user=request.user, fees_settings=FeesSettings.objects.filter(profile=profile).first(),
+        prefix="fees", profile=profile, user=request.user, fees_settings=settings_service.for_user(FeesSettings.objects.filter(profile=profile).first(), request.user),
     )
 
 

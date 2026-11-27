@@ -6,6 +6,7 @@ Feebook, no Bank account box on a payment, no Bank column in the Feebook export,
 old link is ignored, and editing a payment keeps the bank it had. Both are on by default and round-trip through the
 Fee Register backup keys.
 """
+from django.contrib.auth import get_user_model
 from django.test import override_settings
 from django.urls import reverse
 
@@ -19,7 +20,11 @@ from fees.tests.test_views_write import WriteBase
 
 
 def _switch(profile, **values):
-    settings_service.update_settings(profile, values)
+    """Statistics and Dashboard is each user's own switch (My settings > Display); every other switch belongs to the profile."""
+    if "statistics_enabled" in values:
+        get_user_model().objects.update(statistics_enabled=values.pop("statistics_enabled"))
+    if values:
+        settings_service.update_settings(profile, values)
 
 
 def _nav(html):
@@ -41,16 +46,14 @@ class DashboardSwitchTests(WriteBase):
 
     def test_settings_page_saves_both_switches(self):
         page = self.client.get(reverse("fees_settings") + "?tab=years")
-        self.assertContains(page, 'name="statistics_enabled"')
+        self.assertNotContains(page, 'name="statistics_enabled"')   # the switch is the user's, on My settings > Display
         self.assertNotContains(page, 'name="dashboard_enabled"')
         self.assertNotContains(page, 'name="dashboard_kpis_enabled"')
         self.assertContains(page, 'name="show_bank"')
-        self.post("fees_settings", {"tab": "years", "statistics_enabled": "0"})
+        self.post("fees_settings", {"tab": "years", "statistics_enabled": "0"})   # ignored: not a profile setting any more
         self.post("fees_settings", {"tab": "payments", "show_bank": "0"})
         row = FeesSettings.objects.get(profile=self.profile)
-        self.assertEqual((row.statistics_enabled, row.show_bank), (False, False))
-        self.post("fees_settings", {"tab": "years", "statistics_enabled": ["0", "1"]})
-        self.assertTrue(FeesSettings.objects.get(profile=self.profile).statistics_enabled)
+        self.assertEqual((row.statistics_enabled, row.show_bank), (True, False))
 
     def test_statistics_off_leaves_the_header_and_tabs_and_the_dashboard_address_opens_the_first_page(self):
         _switch(self.profile, statistics_enabled=False)

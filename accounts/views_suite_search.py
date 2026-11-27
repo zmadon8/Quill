@@ -41,7 +41,7 @@ def _fees(request, profile, q):
     from fees.services.search import search
 
     hits = search(profile, q, limit=50, can_edit=request_role(request, KEY_FEES) == ROLE_EDITOR,
-                  statistics_on=dashboard_on(fees_settings.get_settings(profile)))
+                  statistics_on=dashboard_on(fees_settings.for_user(fees_settings.get_settings(profile), request.user)))
     urls = {"firm": "fees_firm_detail", "matter": "fees_matter_detail", "memo": "fees_memo_detail"}
     return len(hits), [{"title": h["title"], "subtitle": h.get("subtitle", ""), "kind": h["kind"].capitalize(),
                         "url": h.get("url") or reverse(urls[h["kind"]], args=[h["id"]])} for h in hits[:PER_PROGRAM]], \

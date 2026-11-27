@@ -208,10 +208,11 @@ def my_settings(request):
     if fees_profile:
         from fees.models import FeesSettings
         from fees.personal_form import FeesPersonalForm
+        from fees.services.settings import for_user as settings_service_for_user
 
         fees_form = FeesPersonalForm(
             bound_for("start", "fees"), prefix="fees", profile=fees_profile, user=request.user,
-            fees_settings=FeesSettings.objects.filter(profile=fees_profile).first(),
+            fees_settings=settings_service_for_user(FeesSettings.objects.filter(profile=fees_profile).first(), request.user),
         )
     if post is not None:
         # Every form of the section is checked so that every error is shown at once; nothing is saved unless all are fine.
