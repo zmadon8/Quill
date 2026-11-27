@@ -317,13 +317,13 @@ class MySettingsForm(forms.ModelForm):
             self.fields["citation_style"].required = False
             self.fields["citation_style"].help_text = (
                 "Case Law Diary, on screen. Plain: a hyphen after the Item's text, then each citation and its comment as text, numbered "
-                "(a), (b) when there are two or more. Bubbles: each citation and its comment in a bubble, not numbered when they follow the "
-                "text. Bubbles, arranged: the same bubbles, long ones wrapped onto two lines and short ones stacked, so more fit beside the text."
+                "(a), (b) when there are two or more. Bubbles: each citation and its comment in a bubble that runs on from the text and "
+                "carries on to the next line with open ends; when an Item has several citations each bubble starts with its (a), (b) tag."
             )
         if "number_citation_lines" in self.fields:
             self.fields["number_citation_lines"].required = False
             self.fields["number_citation_lines"].help_text = (
-                "For the two bubble styles: number the citations (a), (b) when an Item shows them on separate lines. The plain style always numbers them."
+                "For the bubble style: number the citations (a), (b) when an Item shows them on separate lines. The plain style always numbers them."
             )
         if "citation_full_size" in self.fields:
             self.fields["citation_full_size"].required = False

@@ -776,9 +776,11 @@ class ReadingScreenTests(TestCase):
         self.assertContains(resp, "See also: ")
         self.assertContains(resp, "Carlill v. Carbolic Smoke Ball Co")
         self.assertNotContains(resp, " ; ")
-        # The bubbles (the standard citation style) are not numbered in a line; the plain style numbers several citations (a), (b), and
-        # a single citation shows without a label in every style.
+        # The bubbles (the standard citation style) carry the (a), (b) tag of several in-line citations in data-label (drawn at the bubble's
+        # start); the plain style numbers them in the text, and a single citation shows without a label in every style.
         self.assertNotContains(resp, '<span class="num">(a)</span> <em class="citation">Carlill', html=False)
+        self.assertContains(resp, 'data-label="(a)"><em class="citation">Carlill', html=False)
+        self.assertNotContains(resp, 'data-label="(a)"><em class="citation">Harvey', html=False)
         self.assertContains(resp, '<span class="case-comment">', html=False)
         reader = self.users["reader"]
         reader.citation_style = "plain"
@@ -789,6 +791,7 @@ class ReadingScreenTests(TestCase):
             html=False)
         self.assertNotContains(resp, '<span class="num">(a)</span> <em class="citation">Harvey', html=False)
         self.assertContains(resp, 'class="item-body cite-plain"')
+        self.assertNotContains(resp, 'data-label="(a)"')
 
     def test_topic_and_subtopic_views_show_correct_buttons_and_numbers(self):
         self.client.force_login(self.users["reader"])
@@ -909,12 +912,13 @@ class ReadingCitationTests(TestCase):
         self.assertEqual([c["label"] for c in block["cases"]], ["(a)", "(b)", "(c)"])
         self.assertEqual([c["has_comment"] for c in block["cases"]], [True, False, True])
 
-    def test_inline_citations_are_packed_and_the_reader_loads_the_packer(self):
+    def test_inline_citations_flow_with_the_text_and_need_no_script(self):
         self.client.force_login(join_main(User.objects.create_user("pack-reader", password=PASSWORD)))
         subject = Subject.objects.get(name=SAMPLE_PREFIX + "Contract Law")
         html = self.client.get(reverse("read_subject", args=[subject.pk])).content.decode()
-        self.assertIn('class="item-body cite-pack"', html)
-        self.assertIn("js/cite-pack.js", html)
+        self.assertIn('class="item-body cite-inline"', html)
+        self.assertNotIn("cite-pack", html)
+        self.assertNotIn("cite-band", html)
 
     def test_the_citation_style_is_per_user(self):
         user = join_main(User.objects.create_user("style-reader", password=PASSWORD))
@@ -922,10 +926,10 @@ class ReadingCitationTests(TestCase):
         subject = Subject.objects.get(name=SAMPLE_PREFIX + "Contract Law")
         page = lambda: self.client.get(reverse("read_subject", args=[subject.pk])).content.decode()
         self.assertEqual(user.citation_style, "bubbles")
-        self.assertIn('class="item-body cite-pack"', page())
-        user.citation_style = "arranged"
-        user.save(update_fields=["citation_style"])
-        self.assertIn('class="item-body cite-pack cite-band"', page())
+        self.assertIn('class="item-body cite-inline"', page())
+        self.client.post(reverse("my_settings"), {"tab": "diary", "citation_style": "arranged"})   # the old tile style no longer exists
+        user.refresh_from_db()
+        self.assertEqual(user.citation_style, "bubbles")
         self.client.post(reverse("my_settings"), {"tab": "diary", "citation_style": "plain", "number_citation_lines": "on"})
         user.refresh_from_db()
         self.assertEqual(user.citation_style, "plain")
@@ -947,7 +951,7 @@ class ReadingCitationTests(TestCase):
                                                   "citation_full_size": "on"})
         user.refresh_from_db()
         self.assertTrue(user.citation_full_size)
-        self.assertIn('class="item-body cite-big cite-pack"', page())
+        self.assertIn('class="item-body cite-big cite-inline"', page())
 
     def test_citations_on_separate_lines_are_numbered_unless_turned_off(self):
         # The sample's "Revocation of an offer" Item shows its two citations on separate lines.

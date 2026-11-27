@@ -209,30 +209,25 @@ body.look :is(.case-comment, .case-line-comment) { font: normal 14px/1.6 var(--f
 body.look a.cite-link { text-decoration: none; }
 body.look a.cite-link .citation { background: var(--info-tint); color: var(--info); }
 html.links-off body.look a.cite-link .citation { background: var(--paper-2); color: var(--ink-3); }
-/* One bubble per citation on the reading page (owner round 2026-11): its (a), (b) label on in-line multi-citation Items, the citation and its
-   comment all sit inside it. The citation inside is plain italic text; a citation with a link colours the whole bubble. The bubble flows
-   like text (inline, each line piece drawn as its own rounded box), so it follows the Item's text on the same line and wraps mid-bubble
-   instead of jumping whole to a new line and leaving a stretched line behind it. */
-body.look .cite-bubble { display: inline; padding: 1px 7px; border-radius: 6px; -webkit-box-decoration-break: clone; box-decoration-break: clone; background: var(--paper-2); color: var(--ink-3); font: normal 14px/1.6 var(--font-sans); }
+/* One bubble per citation on the reading page (owner round 2026-11, D201; open ends and start tag 2026-12, D237): the citation and its comment
+   sit inside it. The bubble flows like text (inline) after the Item's text and carries on to the next line as one shape (slice): the rounded
+   cap shows only where the citation really starts and ends, a flat edge at a line break means it continues. When an Item has several
+   citations in a line, each bubble starts with its (a), (b) tag (data-label), so a line piece without a tag is the rest of the citation above.
+   The citation inside is plain italic text; a citation with a link colours the whole bubble. */
+body.look .cite-bubble { display: inline; padding: 3px 9px; border-radius: 6px; -webkit-box-decoration-break: slice; box-decoration-break: slice; background: var(--paper-2); color: var(--ink-3); font: normal 14px/1.6 var(--font-sans); }
 body.look .cite-bubble.linked { background: var(--info-tint); color: var(--info); }
 html.links-off body.look .cite-bubble.linked { background: var(--paper-2); color: var(--ink-3); }
 body.look .cite-bubble .citation, body.look .cite-bubble a.cite-link .citation, html.links-off body.look .cite-bubble a.cite-link .citation { display: inline; margin: 0; padding: 0; border-radius: 0; background: none; color: inherit; font: italic 14px/1.6 var(--font-sans); }
 body.look .cite-bubble a.cite-link { color: inherit; }
 body.look .cite-bubble .num { color: inherit; font-style: normal; }
-/* In-line citations as tiles (owner round 2026-12, D214): the Item's text and each citation bubble are flex items at their natural width, so
-   a citation that fits on one line stays on one line and sits 8px after the text when there is room; cite-pack.js may change the
-   bubbles' order so that more of them fit on a line. */
-body.look .cite-pack { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 8px; }
-body.look .cite-pack > * { flex: 0 1 auto; min-width: 0; max-width: 100%; }
-body.look .cite-pack > :is(.cite-sep, .no-text) { display: none; }
-body.look .cite-pack > .case { text-align: left; }
-body.look .cite-pack > :is(.note, .linked-from, .see-also) { flex-basis: 100%; order: 999; } body.look .cite-pack > .flag-text { order: 998; }
-body.look .cite-pack .cite-bubble { display: inline-block; max-width: 100%; box-sizing: border-box; padding: 3px 9px; line-height: 1.45; }
+/* In-line citations: lines tall enough that a bubble on one line never touches the bubble on the next. */
+body.look .item-body.cite-inline { line-height: 1.95; }
+body.look .cite-inline .cite-bubble[data-label] { padding-left: 0; }
+body.look .cite-inline .cite-bubble[data-label]::before { content: attr(data-label); display: inline-block; margin-right: 7px; padding: 3px 7px; border-radius: 6px 0 0 6px; background: rgba(84, 91, 102, .16); color: var(--ink-3); font: normal 700 12px var(--font-sans); }
+body.look .cite-inline .cite-bubble.linked[data-label]::before { background: rgba(43, 95, 170, .18); color: var(--info); }
+html.links-off body.look .cite-inline .cite-bubble.linked[data-label]::before { background: rgba(84, 91, 102, .16); color: var(--ink-3); }
 /* Citations as large as the Item's text (My Number Formats, D230). */
 html body.look .item-body.cite-big :is(.citation, .case-comment, .case-line-comment, .cite-bubble), html.links-off body.look .item-body.cite-big .cite-bubble a.cite-link .citation { font-size: 17px; }
-/* Arranged bubbles (D226): cite-pack.js places the text and each bubble in two-line bands; the flag, Notes and "Linked from" follow below. */
-body.look .cite-band.packed { display: block; position: relative; }
-body.look .cite-band.packed > .case .cite-bubble { display: block; }
 /* The plain style (D226): no bubble; a hyphen after the text, then each citation in italics with its number and comment. */
 body.look .cite-plain .cite-bubble, html.links-off body.look .cite-plain .cite-bubble.linked, body.look .cite-plain .cite-bubble.linked { display: inline; padding: 0; border-radius: 0; background: none; color: var(--ink-3); font: inherit; }
 body.look .cite-plain .cite-bubble .citation { font-style: italic; font-size: 14px; }
