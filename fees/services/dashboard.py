@@ -83,7 +83,7 @@ from fees.services.financial_year import derive_financial_year
 from fees.services.money import round2
 from fees.services.settings import get_settings
 from fees.services.statistics import get_period_statistics
-from fees.services.statistics.periods import last_month_window_start, working_days_completed
+from fees.services.statistics.periods import last_30_days_start, working_days_completed
 from fees.services.statistics.projection import project_total
 
 __all__ = [
@@ -548,7 +548,7 @@ def get_dashboard_summary(profile, now=None, settings=None, with_appearances=Tru
 def _compute_activity(profile, today):
     """The ``activity`` group: counts and last-30-day billing from one pass over the memos."""
     today_iso = local_iso(today)
-    start30 = local_iso(last_month_window_start(today))
+    start30 = local_iso(last_30_days_start(today))
     fy = derive_financial_year(today_iso)
     ym = today_iso[:7]
 
@@ -641,7 +641,7 @@ def _compute_kpis(profile, today, settings, selected=None):
     if "activity" in groups:
         values.update(_compute_activity(profile, today))
     if "received30" in groups:
-        start30 = local_iso(last_month_window_start(today))
+        start30 = local_iso(last_30_days_start(today))
         values["received_last30"] = _gross_received_between(profile, start30, local_iso(today))
     if "appearances" in groups:
         appearances = stats_appearances(
@@ -748,7 +748,7 @@ def get_dashboard_kpis(profile, now=None, settings=None):
     selected = selected_kpi_ids(settings)
     # The selected ids, in their saved order, are part of the cache key, so a changed selection or
     # order never reads a stale shape.
-    params = {"view": "kpis", "today": local_iso(today), "ids": ",".join(selected)}
+    params = {"view": "kpis", "today": local_iso(today), "ids": ",".join(selected), "window": "30d"}  # "window" retires figures cached under the old month-long window
 
     def compute():
         return _compute_kpis(profile, today, settings, selected)

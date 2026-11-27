@@ -25,7 +25,7 @@
   <dt>The current month</dt><dd>Entered working days &times; (today&rsquo;s date &divide; days in the month), rounded to a whole day. Example: 20 working days in November, on 19 November: 20 &times; 19 &divide; 30 = 12.7, so 13.</dd>
   <dt>A future month</dt><dd>0.</dd>
   <dt>A quarter or a financial year</dt><dd>The sum of its months, worked out as above.</dd>
-  <dt>The last 30 days</dt><dd>From the day after today&rsquo;s date last month up to today (on 19 November: 20 October to 19 November). Each month in it gives its entered working days &times; (its days inside the window &divide; its days in all), and the total is rounded to a whole day. Example, with 22 working days entered for October and 20 for November: 22 &times; 12 &divide; 31 = 8.5, plus 20 &times; 19 &divide; 30 = 12.7, total 21.2, so 21.</dd>
+  <dt>The last 30 days</dt><dd>The 30 calendar days ending today, today included (on 19 November: 21 October to 19 November). Each month in it gives its entered working days &times; (its days inside the window &divide; its days in all), and the total is rounded to a whole day. Example, with 23 working days entered for October and 20 for November: 23 &times; 11 &divide; 31 = 8.2, plus 20 &times; 19 &divide; 30 = 12.7, total 20.8, so 21.</dd>
   <dt>No working days entered</dt><dd>The rate shows 0.</dd>
 </dl>
 
@@ -56,7 +56,7 @@
 </div>
 
 <h2 id="dashboard">Dashboard and Home boxes</h2>
-<p>Three periods: <strong>This Month</strong> (the calendar month so far), <strong>This Year</strong> (the financial year so far) and <strong>Last 30 Days</strong> (from the day after today&rsquo;s date last month up to today).</p>
+<p>Three periods: <strong>This Month</strong> (the calendar month so far), <strong>This Year</strong> (the financial year so far) and <strong>Last 30 Days</strong> (the 30 calendar days ending today, today included).</p>
 <div class="table-wrap">
 <table class="ledger-table explain-table" data-table-id="statistics-explain-dashboard">
   <caption>Formula of each Dashboard box</caption>

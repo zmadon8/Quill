@@ -43,7 +43,7 @@ from fees.services.statistics import get_period_statistics
 from fees.services.statistics.periods import working_days_completed
 from fees.tests.datasets import build_planning_dataset
 
-# A fixed "now" in FY 2025-26; the last-30-days window is 21 Jan 2026 .. 20 Feb 2026 (the day after 20 Jan, to today).
+# A fixed "now" in FY 2025-26; the last-30-days window is 22 Jan 2026 .. 20 Feb 2026 (30 days, today included).
 NOW = datetime.date(2026, 2, 20)
 
 
@@ -106,7 +106,7 @@ class KpiCatalogueTests(TestCase):
         Memos:
           A  2026-02-10  misc 1000, 2 apps, 1 conf, 1 draft  (this month, FY, last30)
           B  2026-01-15  misc 2000, 1 app,  2 conf, 0 draft  (FY; last30 window
-                                                              starts 23 Jan, so OUT of last30)
+                                                              starts 22 Jan, so OUT of last30)
           C  2026-02-01  misc 3000, 3 apps, 0 conf, 2 drafts (this month, FY, last30)
           D  2025-05-10  misc 5000, 1 app,  0 conf           (older FY month)
           E  draft       misc  700, 0 apps                   (draft; current month)
@@ -144,14 +144,14 @@ class KpiCatalogueTests(TestCase):
         self.assertEqual(kpis["billed_this_month"], str(Decimal("4000.00")))
         # Billed this FY (2025-26): A 1000 + B 2000 + C 3000 + D 5000 = 11000.
         self.assertEqual(kpis["billed_this_year"], str(Decimal("11000.00")))
-        # Billed last 30 (23 Jan .. 20 Feb): A 1000 + C 3000 = 4000 (B is 15 Jan, out).
+        # Billed last 30 (22 Jan .. 20 Feb): A 1000 + C 3000 = 4000 (B is 15 Jan, out).
         self.assertEqual(kpis["billed_last30"], str(Decimal("4000.00")))
 
         # Received (gross) this month (Feb 2026): A 550.
         self.assertEqual(kpis["received_this_month"], str(Decimal("550.00")))
         # Received this FY: A 550 + B 800 + D 400 = 1750.
         self.assertEqual(kpis["received_this_year"], str(Decimal("1750.00")))
-        # Received last 30 (23 Jan .. 20 Feb): A 550 only (B paid 10 Jan, out).
+        # Received last 30 (22 Jan .. 20 Feb): A 550 only (B paid 10 Jan, out).
         self.assertEqual(kpis["received_last30"], str(Decimal("550.00")))
 
         # Memo counts (non-draft): month A, C = 2; year A, B, C, D = 4; last30 A, C = 2.
@@ -233,7 +233,7 @@ class RateKpiTests(TestCase):
 
     NOW is 20 Feb 2026. Every month of FY 2025-26 from April to February has 20 working days entered (March has none).
     Working days completed: this month 20 * 20 / 28 = 14.3 -> 14; this year 10 full months (Apr to Jan) = 200, plus 14 = 214;
-    the last 30 days (21 Jan to 20 Feb) are 11 of January's 31 days and 20 of February's 28: 20 * 11 / 31 + 20 * 20 / 28 = 21.4 -> 21.
+    the last 30 days (22 Jan to 20 Feb) are 10 of January's 31 days and 20 of February's 28: 20 * 10 / 31 + 20 * 20 / 28 = 20.7 -> 21.
     """
 
     def setUp(self):

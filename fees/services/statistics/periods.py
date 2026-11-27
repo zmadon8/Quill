@@ -47,7 +47,7 @@ from fees.services.financial_year import derive_financial_year
 from fees.services.money import round2
 from fees.services.statistics._common import FY_RE, max_fy
 
-__all__ = ["get_period_statistics", "working_days_completed", "last_month_window_start", "month_working_days"]
+__all__ = ["get_period_statistics", "working_days_completed", "last_30_days_start", "month_working_days"]
 
 _ZERO = Decimal("0")
 
@@ -209,11 +209,9 @@ def _per_week(count, working_days) -> Decimal:
     return _ZERO
 
 
-def last_month_window_start(today) -> datetime.date:
-    """First day of "the last 30 days": the day after today's date in the previous month (19 Nov -> 20 Oct; 20 Oct to 19 Nov)."""
-    year, month = (today.year, today.month - 1) if today.month > 1 else (today.year - 1, 12)
-    same_day = datetime.date(year, month, min(today.day, monthrange(year, month)[1]))
-    return same_day + datetime.timedelta(days=1)
+def last_30_days_start(today) -> datetime.date:
+    """First day of "the last 30 days": 29 days before today, so the window is exactly 30 calendar days with today included (19 Nov -> 21 Oct; 21 Oct to 19 Nov)."""
+    return today - datetime.timedelta(days=29)
 
 
 def _entered_working_days(profile):
@@ -268,7 +266,7 @@ def working_days_completed(profile, now=None) -> dict:
 
     * ``month``: the current calendar month so far.
     * ``year``: the current financial year so far (1 April up to today).
-    * ``last30``: the period from the day after today's date last month to today (19 Nov: 20 Oct to 19 Nov). Each month in it
+    * ``last30``: the 30 calendar days ending today (19 Nov: 21 Oct to 19 Nov). Each month in it
       gives its entered working days x (its days inside the window / its days), and the total is rounded to a whole day.
     * ``year_total``: every working day entered for the current financial year (the base of the projected totals).
     """
@@ -280,7 +278,7 @@ def working_days_completed(profile, now=None) -> dict:
     # calendar days inside the window. The current month's share is the days gone, so it matches the "this month" figure.
     last30 = 0.0
     counted = {}
-    day = last_month_window_start(now)
+    day = last_30_days_start(now)
     while day <= now:
         counted[(day.year, day.month)] = counted.get((day.year, day.month), 0) + 1
         day += datetime.timedelta(days=1)
