@@ -15,7 +15,7 @@ from django.test import override_settings
 from django.urls import reverse
 
 from fees.errors import FeesError, status_for
-from fees.models import FeesSettings, PeriodAdjustment, SavedView
+from fees.models import PeriodAdjustment, SavedView
 from fees.tests.test_views_read import SeededViewsBase
 
 ENGINE = (
@@ -85,14 +85,12 @@ class StatisticsOffTests(SeededViewsBase):
                     self.assertNotIn("still correct", text)
                     self.assertNotIn("<caption>", text)
 
-    def test_only_an_editor_gets_the_settings_link(self):
+    def test_everyone_gets_the_link_to_their_own_switch(self):
         self.off()
-        self.login(self.reader)
-        reader = self.client.get(reverse("fees_statistics")).content.decode("utf-8")
-        self.assertNotIn("Open Settings", reader)
-        self.login(self.editor)
-        editor = self.client.get(reverse("fees_statistics")).content.decode("utf-8")
-        self.assertIn('<a href="%s">Open Settings</a>' % reverse("fees_settings"), editor)
+        link = '<a href="%s?tab=display">My settings &gt; Display</a>' % reverse("my_settings")
+        for user in (self.reader, self.editor):
+            self.login(user)
+            self.assertIn(link, self.client.get(reverse("fees_statistics")).content.decode("utf-8"))
 
     def test_json_endpoints_answer_409_and_compute_nothing(self):
         self.off()

@@ -21,7 +21,7 @@ def from_profiles(apps, schema_editor):
 class Migration(migrations.Migration):
     """Owner round 2026-11: switching Statistics and Dashboard off belongs to the user, not the profile."""
 
-    dependencies = [("accounts", "0045_user_short_letters"), ("fees", "0023_addressee_firm_name_into_line1")]
+    dependencies = [("accounts", "0046_citation_style_one_bubble"), ("fees", "0023_addressee_firm_name_into_line1")]
 
     operations = [
         migrations.AddField(model_name="user", name="statistics_enabled", field=models.BooleanField(default=True, verbose_name="Fee Register: Statistics and Dashboard")),
