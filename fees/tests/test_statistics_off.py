@@ -9,6 +9,7 @@ behaviour is unchanged.
 from contextlib import ExitStack
 from unittest import mock
 
+from django.contrib.auth import get_user_model
 from django.contrib.messages import get_messages
 from django.test import override_settings
 from django.urls import reverse
@@ -60,7 +61,7 @@ def tripwires(stack):
 class StatisticsOffTests(SeededViewsBase):
     def setUp(self):
         super().setUp()
-        FeesSettings.objects.filter(profile=self.profile).update(statistics_enabled=False)
+        get_user_model().objects.update(statistics_enabled=False)
 
     def off(self):
         stack = ExitStack()
@@ -154,7 +155,7 @@ class StatisticsOnTests(SeededViewsBase):
 
     def setUp(self):
         super().setUp()
-        FeesSettings.objects.filter(profile=self.profile).update(statistics_enabled=True)
+        get_user_model().objects.update(statistics_enabled=True)
 
     def test_pages_and_endpoints_answer(self):
         self.login(self.reader)

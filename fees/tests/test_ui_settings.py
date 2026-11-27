@@ -25,8 +25,7 @@ class SettingsScreenTests(UiPageBase):
         self.assertIn("Bank accounts</h3>", text)
         self.assertIn("You have unsaved changes.", text)
         for name in ("export_owner_name", "memo_filename_pattern", "memo_default_name", "memo_default_designation",
-                     "memo_default_pan", "initial_financial_year", "memos_start_year", "feebook_start_year",
-                     "statistics_enabled"):
+                     "memo_default_pan", "initial_financial_year", "memos_start_year", "feebook_start_year"):
             self.assertIn('name="%s"' % name, text, name)
         self.assertIn('<textarea name="memo_default_address"', text)
         self.assertIn('<textarea name="default_court_name"', text)

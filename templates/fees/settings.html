@@ -157,7 +157,7 @@
       <div class="setting-row">{% include "fees/_fy_select.html" with name="feebook_start_year" label="Feebook start year" options=start_year_options selected=config.feebook_start_year %}{% include "_who_tag.html" with who="profile" %}<span class="setting-help">The first year in the Feebook year drop-down.</span></div>
     </div>
     <p class="hint">The first year shown in each area (e.g. 2026-27). Earlier years are hidden from that area's year drop-down, but the data stays stored.</p>
-    <div class="setting-row"><label><input type="hidden" name="statistics_enabled" value="0"><input type="checkbox" name="statistics_enabled" value="1"{% if config.statistics_enabled %} checked{% endif %}> Statistics and Dashboard</label>{% include "_who_tag.html" with who="profile" %}<span class="setting-help">Shows the Statistics and Dashboard pages and their figures. Switched off, both leave the header, and anyone whose opening page was the Dashboard opens on Memos.</span></div>
+    <p class="setting-help">Statistics and Dashboard on or off is your own choice, on <a href="{% url 'my_settings' %}?tab=display">My settings &gt; Display</a>. {% if not config.statistics_enabled %}It is off for you now, so the Dashboard boxes and Edit Statistics are hidden here.{% endif %}</p>
   </fieldset>
   {% if can_edit %}<p class="section-actions"><button type="submit" class="primary">Save</button> <span class="dirty-note" data-dirty-note hidden>You have unsaved changes.</span></p>{% endif %}
 </form>

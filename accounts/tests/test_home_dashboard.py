@@ -236,7 +236,7 @@ class HomeMetricsChoiceTests(TestCase):
         from fees.models import FeesSettings
 
         self.post(home_metrics_present="1", home_metrics_fees=["billed_this_year", "payments"])
-        FeesSettings.objects.filter(profile=self.fees).update(statistics_enabled=False)
+        User.objects.update(statistics_enabled=False)   # the user's own switch
         html = self.home()
         self.assertIn("<div><dt>Billed This Year</dt><dd>\u2013</dd></div>", html)
         self.assertIn("<dt>Payments recorded</dt>", html)  # a figure that does not need Statistics still shows

@@ -197,7 +197,7 @@ are noted: Opening page and Items per page are personal only (section 4.2).
 | `initial_financial_year` | Statistics start year | Years and statistics | Per profile | Everyone in this profile |
 | `memos_start_year` | Memos start year | Years and statistics | Per profile | Everyone in this profile |
 | `feebook_start_year` | Feebook start year | Years and statistics | Per profile | Everyone in this profile |
-| `statistics_enabled` | Statistics and Dashboard on or off, one switch for both pages and the Dashboard figures (off: neither is in the header; the Dashboard address and an Opening page of Dashboard open Memos). Replaces the old `dashboard_enabled` and `dashboard_kpis_enabled` | Years and statistics | Per profile | Everyone in this profile |
+| `User.statistics_enabled` | Statistics and Dashboard on or off, one switch for both pages and the Dashboard figures (off: neither is in the header or Home; the Dashboard address and an Opening page of Dashboard open Memos). Moved from the profile to the user (owner round 2026-11); `FeesSettings.statistics_enabled` is no longer read | My settings > Display > My Display | Only you | You |
 | `dashboard_kpis` | Dashboard boxes: which boxes the Dashboard shows, and in what order (moved from the Dashboard's Customise panel, owner round 2026-12) | Settings > Fee Register > Years And Statistics > Dashboard boxes (Editors) | Per profile | Everyone in this profile |
 | `money_unit` | Figures (full, thousands, lacs, crores) | Display | Per profile | Everyone in this profile |
 | `list_default_filter` | Firms and matters: show by default (All or Active only) | Display | Per profile | Everyone in this profile |

@@ -426,6 +426,22 @@ def update_settings(profile, data):
     return get_settings(profile)
 
 
+def for_user(config, user):
+    """``config`` (a settings dict or a ``FeesSettings`` row) with the switches that belong to the person, not the profile.
+
+    Statistics and Dashboard is chosen by each user (My settings > Display), so the profile's own value is ignored. A dict
+    comes back as a copy; a row is changed in memory only (never saved). With no signed-in user, or no ``config``, it is
+    returned as it is.
+    """
+    if config is None or user is None or not getattr(user, "is_authenticated", False):
+        return config
+    on = bool(getattr(user, "statistics_enabled", True))
+    if isinstance(config, dict):
+        return {**config, "statistics_enabled": on}
+    config.statistics_enabled = on
+    return config
+
+
 # ---------------------------------------------------------------------------
 # Bank accounts (R-SET-2)
 # ---------------------------------------------------------------------------

@@ -118,7 +118,7 @@ def _fees_figures(profile, user=None):
     # The Dashboard figures (worked out, and kept, by the Dashboard's own code). Switched off with Statistics: a dash.
     kpi_keys = [k for k in keys if k in dashboard.KPI_LABELS]
     if kpi_keys:
-        config = settings_service.get_settings(profile)
+        config = settings_service.for_user(settings_service.get_settings(profile), user)
         shown = bool(config.get("statistics_enabled", True))
         kpis = dashboard.get_dashboard_kpis(profile, settings={**config, "dashboard_kpis": ",".join(kpi_keys)}) if shown else {}
         for k in kpi_keys:
@@ -211,7 +211,7 @@ def _fees_details(profile, user):
     keys = chosen_details(user, KEY_FEES)
     if not keys:
         return []
-    config = settings_service.get_settings(profile)
+    config = settings_service.for_user(settings_service.get_settings(profile), user)
     unit = config.get("money_unit", "full")
 
     def money(value):

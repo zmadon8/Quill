@@ -66,7 +66,7 @@ def dashboard_page(request):
     if off is not None:
         return off
     profile, _settings = scope.context(request)
-    config = settings_service.get_settings(profile)
+    config = settings_service.for_user(settings_service.get_settings(profile), request.user)
     kpis = dashboard.get_dashboard_kpis(profile, settings=config)
     chosen = selected_kpis(config)
     if not overdue_on(config):
@@ -149,7 +149,7 @@ def save_kpis(request):
 def kpi_json(request):
     """JSON: every KPI and the saved selection."""
     profile, _settings = scope.context(request)
-    config = settings_service.get_settings(profile)
+    config = settings_service.for_user(settings_service.get_settings(profile), request.user)
     values = dashboard.get_dashboard_kpis(profile, settings=config)
     return json_ok({"kpis": values, "selected": selected_kpis(config), "enabled": bool(config["statistics_enabled"])})
 

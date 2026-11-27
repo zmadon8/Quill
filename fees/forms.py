@@ -431,7 +431,6 @@ def matter_data_from_post(post):
 SETTINGS_FLAGS = (
     "hide_payment_when_paid",
     "show_status_dots",
-    "statistics_enabled",
     "show_bank",
     "written_off_enabled",
     "draft_memos_enabled",
