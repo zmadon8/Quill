@@ -234,3 +234,10 @@ body.ledger .bar-legend .key-projected { border: 1px dashed var(--accent); backg
 body.ledger .bar-projected { margin-left: auto; color: var(--ink); }
 body.ledger .kpi .kpi-projected { margin: 2px 0 0; font-size: 12.5px; color: var(--accent); }
 body.ledger .dash-chart-pick { margin: 0 0 8px; font-size: 13px; }
+
+/* The memo page's More menu looks like a button (the same as the Columns menu button, at full button height). */
+body.ledger .more-menu > summary { list-style: none; cursor: pointer; display: inline-flex; align-items: center; box-sizing: border-box; min-height: var(--tap); padding: 0 14px; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--white); color: var(--ink); font-size: 14px; font-weight: 500; line-height: 1.2; box-shadow: 0 1px 2px rgba(16, 24, 40, .05); }
+body.ledger .more-menu > summary::-webkit-details-marker { display: none; }
+body.ledger .more-menu > summary::after { content: "\00a0\25be"; }
+body.ledger .more-menu > summary:hover, body.ledger .more-menu[open] > summary { border-color: var(--ink); background: var(--paper-2); }
+body.ledger .more-menu[open] > summary { margin-bottom: 12px; }
