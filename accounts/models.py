@@ -87,11 +87,10 @@ class User(AbstractUser):
     # Owner round (2026-11): Case Law Diary display. On: no " - " between the Item text and its inline citations. Off (default): as before.
     remove_citation_hyphen = models.BooleanField("Remove the hyphen before the citation", default=False)
     # Owner round (2026-12): how an Item's citations look on the reading page (a personal choice, on screen only).
-    CITATION_PLAIN, CITATION_BUBBLES, CITATION_ARRANGED = "plain", "bubbles", "arranged"
+    CITATION_PLAIN, CITATION_BUBBLES = "plain", "bubbles"
     CITATION_STYLE_CHOICES = [
         (CITATION_PLAIN, "Plain text after a hyphen, always numbered"),
         (CITATION_BUBBLES, "Bubbles"),
-        (CITATION_ARRANGED, "Bubbles, arranged to fill the space"),
     ]
     citation_style = models.CharField("Citations", max_length=10, choices=CITATION_STYLE_CHOICES, default=CITATION_BUBBLES)
     number_citation_lines = models.BooleanField("Number citations on separate lines", default=True)

@@ -130,7 +130,7 @@ SETTINGS = (
        "Settings > {diary} > My Number Formats", YOU, "profile_settings", "?tab=numbers", DIARY, words="numbering topic section item citations (a) (b)"),
     _s("diary", "Date in Word file names", "The date format in the names of exported Word files.",
        "Settings > {diary} > My Number Formats", YOU, "profile_settings", "?tab=numbers", DIARY, words="export date"),
-    _s("diary", "Citation style", "Plain, Bubbles or Bubbles, arranged. Screen only.",
+    _s("diary", "Citation style", "Plain or Bubbles. Screen only.",
        "Settings > {diary} > My Number Formats", YOU, "profile_settings", "?tab=numbers", DIARY, words="bubbles"),
     _s("diary", "Number citations on separate lines", "For the bubble styles, the (a), (b) beside citations shown one per line.",
        "Settings > {diary} > My Number Formats", YOU, "profile_settings", "?tab=numbers", DIARY),
