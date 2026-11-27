@@ -69,6 +69,7 @@ class DashboardSwitchTests(WriteBase):
         self.assertRedirects(self.client.get(reverse("fees_landing")), reverse("fees_dashboard"), fetch_redirect_response=False)
         _switch(self.profile, statistics_enabled=False)
         self.assertRedirects(self.client.get(reverse("fees_landing")), reverse("fees_memos"), fetch_redirect_response=False)
+        self.editor.refresh_from_db()   # the switch is on the user row
         form = FeesPersonalForm(profile=self.profile, user=self.editor, fees_settings=FeesSettings.objects.get(profile=self.profile))
         self.assertNotIn("dashboard", [value for value, _label in form.fields["default_tab"].choices])
 
