@@ -15,7 +15,7 @@ from django.test import override_settings
 from django.urls import reverse
 
 from fees.errors import FeesError, status_for
-from fees.models import FeesSettings, PeriodAdjustment, SavedView
+from fees.models import PeriodAdjustment, SavedView
 from fees.tests.test_views_read import SeededViewsBase
 
 ENGINE = (

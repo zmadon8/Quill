@@ -233,8 +233,6 @@ class HomeMetricsChoiceTests(TestCase):
         self.assertNotIn("<dt>Outstanding</dt>", html)
 
     def test_dashboard_figures_on_the_card_are_a_dash_when_statistics_are_off(self):
-        from fees.models import FeesSettings
-
         self.post(home_metrics_present="1", home_metrics_fees=["billed_this_year", "payments"])
         User.objects.update(statistics_enabled=False)   # the user's own switch
         html = self.home()
