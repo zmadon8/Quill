@@ -56,7 +56,6 @@
 </form>
 {% endif %}
 {% if can_edit %}<details class="more-menu"><summary>More</summary>
-  <p><a href="{% url 'fees_memo_move' memo.id %}">Move this memo to another matter</a></p>
   {% if not memo.is_draft and fees_written_off_on %}<form method="post" action="{% url 'fees_memo_write_off' memo.id %}">{% csrf_token %}
     {% if memo.written_off %}<input type="hidden" name="written_off" value="0"><button type="submit">Remove The Write-off</button>
     {% else %}<input type="hidden" name="written_off" value="1"><button type="submit">Write Off As A Bad Debt</button>{% endif %}
@@ -65,7 +64,8 @@
     <label><input type="checkbox" name="confirm" value="1" required> Yes, delete this memo{% if payments %} and the payments made only to it{% endif %}</label>
     <button type="submit">Delete Memo</button>
   </form>
-</details>{% endif %}
+</details>
+<p class="page-actions memo-move-action"><a class="button" href="{% url 'fees_memo_move' memo.id %}">Move to new Matter</a></p>{% endif %}
 {% endblock %}
 {% block page_js %}{% if pdf_on %}<script src="{% static 'js/fees/pdf-button.js' %}"></script>{% endif %}{% if request.GET.export == "word" and memo.memo_number or request.GET.export == "pdf" and memo.memo_number and pdf_on %}<script>
   // "Word" or "PDF" on the memo form saves and lands here; start the download once. The link above is the fallback.
