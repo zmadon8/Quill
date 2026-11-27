@@ -201,6 +201,8 @@ body.inv .fld.bad input,body.inv .fld.bad select{border-color:var(--danger);bord
 body.inv .fld input,body.inv .fld select{min-width:160px}
 body.inv .fld select[name=folio]{width:15ch;min-width:0}
 body.inv .inline-edit{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0}
+/* A drop-down in a one-line form is only as wide as its longest choice, so the buttons after it stay on the same line. */
+body.inv .inline-edit select,body.inv select[name=choice]{width:auto}
 body.inv ul.plain{list-style:none;margin:8px 0;padding:0}
 body.inv ul.plain li{padding:6px 0;border-bottom:1px solid var(--hair)}
 body.inv ul.conflicts{padding-left:18px}
