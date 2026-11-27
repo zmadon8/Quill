@@ -5,7 +5,6 @@ body.ledger .pivot-table tbody td.money:last-child { font-weight: 600; }
 body.ledger .saved-views { list-style: none; padding: 0; margin: 0; }
 body.ledger .saved-views li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 4px 0; }
 body.ledger .saved-views form { margin: 0; }
-body.ledger .chart-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 24px; margin: 12px 0 8px; }
 body.ledger .pivot-chart[hidden] { display: none; }
 body.ledger .chart-figures { margin-top: .75rem; }
 body.ledger .chart-figures > summary { cursor: pointer; color: var(--muted); }

@@ -85,14 +85,12 @@ body.ledger main :is(input, select, textarea)::placeholder { color: var(--faint)
 body.ledger main :is(input, select, textarea):disabled, body.ledger main :is(input, textarea)[readonly] { background: var(--paper-2); color: var(--muted); cursor: not-allowed; }
 body.ledger main input[type=checkbox], body.ledger main input[type=radio] { width: 16px; height: 16px; accent-color: var(--accent); }
 body.ledger main textarea { width: 100%; max-width: 100%; }
-body.ledger main :is(.filters, .fees-form, .memo-form, .form-grid) label, body.ledger .label {
+body.ledger main :is(.filters, .fees-form, .memo-form) label, body.ledger .label {
   display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--muted);
 }
 body.ledger main :is(.filters, .fees-form, .memo-form) label:has(> input[type=checkbox]), body.ledger main :is(.filters, .fees-form, .memo-form) label:has(> input[type=radio]) {
   flex-direction: row; align-items: center; gap: 8px; min-height: var(--tap); font-size: 1rem; font-weight: 500; text-transform: none; letter-spacing: normal; color: var(--ink-2);
 }
-body.ledger .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; }
-body.ledger .form-grid > .wide { grid-column: 1 / -1; }
 
 /* ---- 5. Cards, alerts, notices ---- */
 body.ledger .card { padding: 16px; }
@@ -107,8 +105,6 @@ body.ledger .messages li { padding: 8px 16px; background: var(--white); border: 
 body.ledger .messages li.success { border-left-color: var(--ok); color: var(--ink); }
 body.ledger .messages li.error { border-left-color: var(--bad); color: var(--ink); }
 body.ledger .messages li.warning { border-left-color: var(--warn); background: var(--white); color: var(--ink); }
-body.ledger .alert-warn { padding: 12px 16px; background: #FFFBEB; border: 1px solid #FCD34D; border-radius: var(--radius); color: #92400E; }
-body.ledger .alert-ok { padding: 12px 16px; background: #F0FDF4; border: 1px solid #86EFAC; border-radius: var(--radius); color: #166534; }
 
 /* ---- 6. Tables ---- */
 body.ledger .table-wrap { width: fit-content; max-width: 100%; overflow: auto; max-height: 70vh; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); -webkit-overflow-scrolling: touch; }
@@ -174,8 +170,6 @@ body.ledger .pager { display: flex; flex-wrap: wrap; align-items: center; gap: 8
 body.ledger .pager-status { color: var(--muted); }
 
 /* ---- 8. KPI strip ---- */
-body.ledger .section-rule { margin: 0; padding: 0 0 8px; border-bottom: 1px solid var(--ink); }
-body.ledger .year-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); gap: 8px; }
 
 /* ---- 9. Dialog panel (payment and confirmation pages) and sticky bars ---- */
 body.ledger .save-bar { position: sticky; bottom: 0; z-index: 10; display: flex; align-items: center; justify-content: flex-end; gap: 12px; padding: 8px 0; background: var(--paper); border-top: 1px solid var(--line); color: var(--muted); }
@@ -185,15 +179,6 @@ body.ledger .confirm ul { margin: 0; padding-left: 1.25rem; }
 body.ledger .confirm.warning-box { padding: 12px 16px; border: 1px solid; border-radius: var(--radius); }
 
 /* ---- 10. Fees forms ---- */
-body.ledger .group-list { list-style: none; margin: 0; padding: 0; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); }
-body.ledger .group-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 8px 12px; border-bottom: 1px solid var(--line); }
-body.ledger .group-list li:last-child { border-bottom: 0; }
-body.ledger .group-list .group-name { min-width: 10rem; font-weight: 500; }
-body.ledger .group-pills { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
-body.ledger .group-pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 4px 2px 12px; border: 1px solid var(--line-strong); border-radius: 999px; background: var(--card); }
-body.ledger .group-pill:hover { border-color: var(--accent); background: var(--accent-tint); }
-body.ledger .group-pill .group-pill-link { font-weight: 500; color: var(--ink); text-decoration: none; padding: 4px 8px 4px 0; }
-body.ledger .group-pill form.inline { margin: 0; }
 body.ledger .inline-forms form.inline, body.ledger form.inline { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 8px 4px 0; }
 
 /* ---- 11. Statistics extras ---- */
@@ -235,9 +220,6 @@ body.ledger .card.firm-top { display: grid; grid-template-columns: minmax(0, 1fr
 body.ledger .firm-top > * { padding: 16px; }
 body.ledger .firm-top .firm-groups { border-left: 1px solid var(--line); }
 body.ledger .firm-top .firm-groups h2 { margin-top: 0; }
-body.ledger .chips.group-list { background: transparent; border: 0; flex-direction: row; }
-body.ledger .chips.group-list li.chip { padding: 2px 8px; background: var(--paper-2); border: 1px solid var(--line); }
-body.ledger .chips.group-list li.chip input[type=text] { width: 9rem; }
 body.ledger .group-card { margin: 0 0 12px; padding: 0; }
 body.ledger .group-card .group-caption { margin: 0; padding: 8px 12px; font-family: var(--font-sans); font-size: 1rem; font-weight: 600; color: var(--ink-2); border-bottom: 1px solid var(--line); }
 body.ledger .matter-list { list-style: none; margin: 0; padding: 0; }
@@ -250,9 +232,6 @@ body.ledger .busy-card { padding: 24px; margin-top: 24px; background: var(--card
 @media (max-width: 699px) { body.ledger .card.firm-top { grid-template-columns: minmax(0, 1fr); } body.ledger .firm-top .firm-groups { border-left: 0; border-top: 1px solid var(--line); } }
 
 /* ---- 12. Phone ---- */
-@media (max-width: 899px) {
-  body.ledger .form-grid { grid-template-columns: minmax(0, 1fr); }
-}
 @media (max-width: 599px) {
   body.ledger .site-header { padding: 0 12px; }
   body.ledger main { padding: 16px 12px 0; }
