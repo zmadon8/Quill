@@ -125,6 +125,14 @@ body.ledger .bar-fill { display: block; width: 100%; min-height: 2px; border-rad
 body.ledger .bar.is-current .bar-fill { background: var(--accent); }
 body.ledger .bar.is-future .bar-fill { background: var(--paper-2); }
 body.ledger .bar-label { font-size: 11px; color: var(--muted); }
+/* Dashboard bars: point at a month to see its figure (the text for screen readers is already in each bar). */
+body.ledger .bar { position: relative; }
+body.ledger .bar-tip { display: none; position: absolute; z-index: 20; top: 0; left: 50%; transform: translateX(-50%); padding: 4px 8px; white-space: nowrap; font-size: 12px; line-height: 1.4; color: var(--ink); background: var(--white); border: 1px solid var(--line-strong); border-radius: var(--radius); box-shadow: var(--shadow-float); pointer-events: none; }
+body.ledger .bar-tip > span { display: block; color: var(--muted); }
+body.ledger .bar:first-child .bar-tip { left: 0; transform: none; }
+body.ledger .bar:last-child .bar-tip { left: auto; right: 0; transform: none; }
+body.ledger .bar:hover .bar-tip { display: block; }
+body.ledger .bar:hover .bar-fill { filter: brightness(.92); }
 body.ledger .owers { list-style: none; margin: 0; padding: 0; }
 body.ledger .owers li { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
 body.ledger .owers li:last-child { border-bottom: 0; }
@@ -180,7 +188,15 @@ body.ledger .firm-links { margin: 0; display: flex; flex-wrap: wrap; gap: 8px; }
 /* Statistics: the From and To years always share one line; the Metrics box sits under the period bar */
 body.ledger .filters .fy-range { display: flex; flex-wrap: nowrap; gap: 8px 12px; min-width: 0; }
 body.ledger .filters .fy-range > label { flex: 1 1 auto; min-width: 0; }
-body.ledger .stat-metrics { margin: 8px 0; }
+body.ledger .stat-metrics { margin: 0; }
+/* Metrics and Arrange Columns sit on one line (an open Metrics panel grows downward). */
+body.ledger .stat-tools { margin: 8px 0; }
+body.ledger .stat-tools > * { margin-top: 0; margin-bottom: 0; }
+body.ledger .stat-tools > .stat-metrics > summary { padding: 0 10px; font-size: 13px; line-height: 1.2; }
+/* Buttons and menu buttons (Columns, Metrics, Customise) that share a row are one height with no extra top margin: in filter, toolbar
+   and heading rows that is the full button height (--tap); in the tab bar and page-action rows, where every button is small, --tap-sm. */
+body.ledger :is(.filters, .bulk-bar, .table-tools, .section-head, .stat-tools) :is(button, .button, .btn, .col-menu > summary, .kpi-customise > summary):not(.link, .linklike, .chip, .alloc-remove, .kpi-arrow, .alloc-default-submit) { box-sizing: border-box; min-height: var(--tap); margin-top: 0; }
+body.ledger :is(.tab-bar, .page-actions) :is(button, .button, .btn, .col-menu > summary, .kpi-customise > summary):not(.link, .linklike, .chip, .alloc-remove, .kpi-arrow, .alloc-default-submit) { box-sizing: border-box; min-height: var(--tap-sm); margin-top: 0; }
 body.ledger .filters select.capped { width: auto; max-width: 15rem; text-overflow: ellipsis; }
 body.ledger .payment-form .alloc-due { align-self: flex-end; padding: 0 0 9px; white-space: nowrap; color: var(--ink-2); }
 
