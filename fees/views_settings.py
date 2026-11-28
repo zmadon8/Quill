@@ -12,6 +12,7 @@ from django.shortcuts import redirect
 from django.urls import reverse
 from django.views.decorators.http import require_http_methods, require_safe, require_POST
 
+from accounts.forms import MyFeesDisplayForm
 from fees import forms, scope
 from fees.decorators import fees_admin, fees_editor, fees_read_write, fees_reader, handle_fees_errors
 from fees.errors import FeesError
@@ -114,6 +115,7 @@ def settings_page(request):
                 raise Http404(err.message) from err
             context = settings_context(profile, tab=tab, user=request.user)
             context["personal_form"] = _personal_form(request, profile)
+            context["fees_display_form"] = MyFeesDisplayForm(instance=request.user)
             context["errors"] = [err.message]
             return render_page(request, "fees/settings.html", context, status=err.status)
         messages.success(request, "Settings saved.")
@@ -121,6 +123,7 @@ def settings_page(request):
         return redirect(f"{reverse('fees_settings')}?tab={tab}" if tab in SETTINGS_SECTIONS else "fees_settings")
     context = settings_context(profile, financial_year_param(request.GET, default=False), tab=tab, user=request.user)
     context["personal_form"] = _personal_form(request, profile)
+    context["fees_display_form"] = MyFeesDisplayForm(instance=request.user)
     if context["config"]["statistics_enabled"]:
         from fees.views_dashboard import kpi_choice_context   # the Dashboard boxes choice (moved here from the Dashboard's Customise panel)
 

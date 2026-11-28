@@ -46,7 +46,8 @@ class DashboardSwitchTests(WriteBase):
 
     def test_settings_page_saves_both_switches(self):
         page = self.client.get(reverse("fees_settings") + "?tab=years")
-        self.assertNotContains(page, 'name="statistics_enabled"')   # the switch is the user's, on My settings > Display
+        years = page.content.decode().split('id="settings-years"')[1].split('id="settings-display"')[0]
+        self.assertNotIn('name="statistics_enabled"', years)   # the switch is the user's, in Display (Mine), not a profile setting
         self.assertNotContains(page, 'name="dashboard_enabled"')
         self.assertNotContains(page, 'name="dashboard_kpis_enabled"')
         self.assertContains(page, 'name="show_bank"')

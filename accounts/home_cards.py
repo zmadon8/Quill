@@ -222,7 +222,7 @@ def _fees_details(profile, user):
     chosen_kpis = [k for k in keys if k in dashboard.KPI_LABELS]
     notes = []
     if chosen_kpis and not config.get("statistics_enabled", True):
-        notes.append("The Dashboard figures are switched off in your settings (My settings > Display).")
+        notes.append("The Dashboard figures are switched off in your settings (Settings > Fee Register > Display).")
     elif "amount_overdue" in chosen_kpis and "amount_overdue" not in ids:
         notes.append("Amount overdue is not shown because overdue is switched off in the Fee Register settings.")
     if notes:

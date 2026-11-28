@@ -718,3 +718,5 @@ textarea.single-line { display: block; width: 100%; max-width: 28rem; min-height
 .combo-tag.new { background: var(--ink, #1C1B19); color: var(--white, #fff); }
 .combo-add { display: block; min-height: 44px; padding: 12px; box-sizing: border-box; }
 .combo-line { margin: 4px 0 0; font-size: .857rem; color: var(--muted, #6b6860); }
+/* Tick box labels only as wide as their words (a click further along the line does not tick). */
+label:not(.seg-option):has(input:is([type=checkbox],[type=radio])),label:not(.seg-option):has(+input:is([type=checkbox],[type=radio])){width:fit-content;max-width:100%}

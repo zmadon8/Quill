@@ -4,7 +4,7 @@ Status: **built; waiting for the owner's one-time Microsoft setup (section 4)**.
 an Admin has connected, no PDF button is shown anywhere and nothing changes.
 
 Owner decisions: a Microsoft 365 **Family** plan signed in with a hotmail address (a personal Microsoft account); each user
-switches their own PDF button on or off (My settings > Display, on by default); the memo buttons read **Word** and **PDF**; a
+switches their own PDF button on or off (Settings > Fee Register > Display, on by default); the memo buttons read **Word** and **PDF**; a
 failed PDF offers the Word file at once; the `cryptography` package is added for the token encryption.
 
 ## 1. What it does
@@ -94,7 +94,7 @@ who you are; the free account is not charged.
 - **Memo page:** **Word** and **PDF** (screen readers hear "Export to Word" and "Export to PDF"). PDF shows only while connected and
   switched on for this user. After a failure the page says why and offers "download the Word memo".
 - **Memo form:** the save-and-download buttons read **Word** and **PDF**.
-- **My settings > Display:** "Memo PDF button" (Only you, on by default). Off: no PDF button, and the PDF address answers 403.
+- **Settings > Fee Register > Display (Mine):** "Memo PDF button" (Only you, on by default). Off: no PDF button, and the PDF address answers 403.
 - **Fee Register > Settings > Word > PDF export through Microsoft 365:** the status for everyone (connected or not, since, last
   PDF); for an Admin also the account, the last problem, Connect / Reconnect, Test With The Newest Memo, Disconnect and the secret's expiry warning.
 

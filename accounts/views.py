@@ -14,7 +14,7 @@ from django.views.decorators.http import require_GET, require_http_methods, requ
 from . import landing, programs, suite, user_trash
 from .clear import ClearRefused, clear_preview, clear_profile
 from .forms import (
-    MyAccountForm, MyCitationForm, MyDisplayForm, MyInvestmentsForm, MyStartForm,
+    MyAccountForm, MyCitationForm, MyDisplayForm, MyFeesDisplayForm, MyInvestmentsForm, MyStartForm,
 )
 from .forms import UsernamePasswordResetForm, _client_ip, ProfileForm, SuiteNamesForm, UserCreateForm, UserEditForm
 from .models import OfflineLink, Profile, ProfileMembership, PurgeLog, ResetRequest, prune_reset_requests
@@ -198,6 +198,9 @@ def my_settings(request):
 
     account_form = MyAccountForm(bound_for("account", ""), instance=request.user)
     display_form = MyDisplayForm(bound_for("display", ""), instance=request.user)
+    # The Fee Register switches posted from Fee Register > Settings > Display (only when the page sent its marker).
+    fees_display_form = MyFeesDisplayForm(
+        post if post is not None and posted == "fees" and "fees_display_present" in post else None, instance=request.user)
     start_form = MyStartForm(bound_for("start", ""), instance=request.user)
     citation_form = MyCitationForm(bound_for("diary", ""), instance=request.user)
     investments_form = MyInvestmentsForm(bound_for("investments", ""), instance=request.user)
@@ -216,7 +219,7 @@ def my_settings(request):
         )
     if post is not None:
         # Every form of the section is checked so that every error is shown at once; nothing is saved unless all are fine.
-        everything = (account_form, display_form, start_form, citation_form, investments_form, diary_form, fees_form)
+        everything = (account_form, display_form, fees_display_form, start_form, citation_form, investments_form, diary_form, fees_form)
         checked = [f for f in everything if f is not None and f.is_bound]
         valid = True
         for one in checked:

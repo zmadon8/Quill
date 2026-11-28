@@ -361,9 +361,9 @@ class MySettingsForm(forms.ModelForm):
                                                    "through the owner's Microsoft 365. Off: only Word is offered to you.")
         if "word_button_long" in self.fields:
             self.fields["word_button_long"].required = False
-            self.fields["word_button_long"].label = "Name the memo's Word button Download Memo (Word)"
+            self.fields["word_button_long"].label = "Name the memo's Word button Save & Download"
             self.fields["word_button_long"].help_text = ("Fee Register. On: the Word button on a memo, and the Word button on the memo form, "
-                                                         "read Download Memo (Word). Off: they read Word. The download is the same.")
+                                                         "read Save & Download. Off: they read Word. The download is the same.")
         if "search_as_word" in self.fields:
             self.fields["search_as_word"].required = False
             self.fields["search_as_word"].label = "Search button as a word"
@@ -431,13 +431,24 @@ class MyInvestmentsForm(MySettingsForm):
         fields = ("investments_period",)
 
 
+class MyFeesDisplayForm(MySettingsForm):
+    """Fee Register > Settings > Display > Mine: the four Fee Register switches that belong to the user (they used to sit on My Display).
+    The page sends ``fees_display_present`` with them; the view binds this form only then, so a save of another section never
+    unticks them."""
+
+    landing_program = None  # only Start Screens has this field
+
+    class Meta(MySettingsForm.Meta):
+        fields = ("feebook_group_payments", "statistics_enabled", "pdf_export", "word_button_long")
+
+
 class MyDisplayForm(MySettingsForm):
     """Display: justify text, commas while typing numbers, colour theme and what Home shows."""
 
     landing_program = None  # only Start Screens has this field
 
     class Meta(MySettingsForm.Meta):
-        fields = ("justify_text", "group_digits", "search_as_word", "feebook_group_payments", "statistics_enabled", "pdf_export", "word_button_long", "short_thousands", "short_lac", "short_crore", "colour_theme")
+        fields = ("justify_text", "group_digits", "search_as_word", "short_thousands", "short_lac", "short_crore", "colour_theme")
 
     # Home card figures: one tick-box group per program (declared in __init__ from home_cards.metric_catalogue), at most 3 each.
     METRIC_FIELDS = (("home_metrics_diary", suite.KEY_DIARY, "Case Law Diary"), ("home_metrics_fees", suite.KEY_FEES, "Fee Register"),

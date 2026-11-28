@@ -32,7 +32,7 @@ def context(request):
     settings = None
     if profile is not None:
         settings = FeesSettings.objects.filter(profile=profile).first() or FeesSettings(profile=profile)
-        # Statistics and Dashboard is each user's own choice (My settings > Display), not the profile's.
+        # Statistics and Dashboard is each user's own choice (Settings > Fee Register > Display), not the profile's.
         settings = for_user(settings, getattr(request, "user", None))
     result = (profile, settings)
     request._fees_ctx = result

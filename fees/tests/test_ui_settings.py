@@ -47,7 +47,9 @@ class SettingsScreenTests(UiPageBase):
         text = self.settings_text(self.editor)
         self.assertGreaterEqual(text.count('class="setting-row"'), 25)
         self.assertGreaterEqual(text.count("Everyone in this profile"), 25)
-        self.assertEqual(text.count('class="who-tag who-you"'), 1)  # only "My items per page" is personal here
+        # Personal here: My items per page and the four Fee Register switches moved from Settings > Display (Feebook paid-together
+        # line, Statistics and Dashboard, Memo PDF button, Word button name).
+        self.assertEqual(text.count('class="who-tag who-you"'), 5)
         for row in text.split('class="setting-row"')[1:]:
             self.assertIn("setting-help", row.split("</div>")[0], row[:80])
 
