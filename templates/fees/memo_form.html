@@ -93,7 +93,7 @@
     <a class="button" href="{% if memo %}{% url 'fees_memo_detail' memo.id %}{% else %}{% url 'fees_memos' %}{% endif %}">Cancel</a>
     {% if fees_drafts_on %}{% if not memo or memo.is_draft %}<button type="submit" name="action" value="draft" class="secondary">Save as Draft</button>{% endif %}{% endif %}
     <button type="submit" name="action" value="save" class="primary">Save</button>
-    <button type="submit" name="action" value="save_export" class="secondary" title="Save, then download the Word memo" aria-label="Save and export to Word">{% if request.user.word_button_long %}Download Memo (Word){% else %}Word{% endif %}</button>
+    <button type="submit" name="action" value="save_export" class="secondary" title="Save, then download the Word memo" aria-label="Save and export to Word">{% if request.user.word_button_long %}Save &amp; Download{% else %}Word{% endif %}</button>
     {% if pdf_on %}<button type="submit" name="action" value="save_export_pdf" class="secondary" title="Save, then download the memo as PDF" aria-label="Save and export to PDF">PDF</button>{% endif %}
   </p>{% endif %}
 </form>

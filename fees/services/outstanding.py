@@ -118,6 +118,11 @@ def _scoped_memos(profile, filters, written_off_on=True):
 
     qs = client_scope.narrow(qs, filters.get("client_id"), "matter__")
 
+    # ``stats_only`` (set by the Dashboard's Who owes the most and the Home card, never by the Outstanding page itself) leaves out
+    # the matters marked "Leave out of Statistics".
+    if filters.get("stats_only"):
+        qs = qs.filter(matter__exclude_from_statistics=False)
+
     # Written-off memos are excluded unless explicitly included (Req #7); with the feature off there are none.
     if written_off_on and not filters.get("include_written_off"):
         qs = qs.filter(written_off=False)

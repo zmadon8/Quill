@@ -142,7 +142,7 @@
 {% if pdf_status.connected %}<form method="post" action="{% url 'fees_pdf_disconnect' %}">{% csrf_token %}<button type="submit">Disconnect</button></form>{% endif %}
 <p class="setting-help">Admin only. Connect signs in once with the Microsoft account whose OneDrive is used; it is kept for everyone. Disconnect forgets it here (the app can also be removed under the account's privacy settings at account.microsoft.com).</p>
 {% endif %}
-<p class="setting-help">Your own PDF button can be switched off on <a href="{% url 'my_settings' %}?tab=display">My settings, Display</a>.</p>
+<p class="setting-help">Your own PDF button can be switched off under <a href="?tab=display">Display</a> (Mine).</p>
 </section>
 </section>
 
@@ -157,7 +157,7 @@
       <div class="setting-row">{% include "fees/_fy_select.html" with name="feebook_start_year" label="Feebook start year" options=start_year_options selected=config.feebook_start_year %}{% include "_who_tag.html" with who="profile" %}<span class="setting-help">The first year in the Feebook year drop-down.</span></div>
     </div>
     <p class="hint">The first year shown in each area (e.g. 2026-27). Earlier years are hidden from that area's year drop-down, but the data stays stored.</p>
-    <p class="setting-help">Statistics and Dashboard on or off is your own choice, on <a href="{% url 'my_settings' %}?tab=display">My settings &gt; Display</a>. {% if not config.statistics_enabled %}It is off for you now, so the Dashboard boxes and Edit Statistics are hidden here.{% endif %}</p>
+    <p class="setting-help">Statistics and Dashboard on or off is your own choice, under <a href="?tab=display">Display</a> (Mine). {% if not config.statistics_enabled %}It is off for you now, so the Dashboard boxes and Edit Statistics are hidden here.{% endif %}</p>
   </fieldset>
   {% if can_edit %}<p class="section-actions"><button type="submit" class="primary">Save</button> <span class="dirty-note" data-dirty-note hidden>You have unsaved changes.</span></p>{% endif %}
 </form>
@@ -181,8 +181,12 @@
   {% if can_edit %}<p class="section-actions"><button type="submit" class="primary">Save</button> <span class="dirty-note" data-dirty-note hidden>You have unsaved changes.</span></p>{% endif %}
 </form>
 <h3 class="small-caps">Mine</h3>
-<form method="post" action="{% url 'my_settings' %}" data-section-form>{% csrf_token %}<input type="hidden" name="tab" value="fees">
+<form method="post" action="{% url 'my_settings' %}" data-section-form>{% csrf_token %}<input type="hidden" name="tab" value="fees"><input type="hidden" name="fees_display_present" value="1">
   <div class="setting-row"><label for="{{ personal_form.items_per_page.id_for_label }}">My items per page</label>{% include "_who_tag.html" with who="you" %} {{ personal_form.items_per_page }}<span class="setting-help">How many memos or payments one page of Memos, Drafts and Feebook shows, for you. Type All to show a whole financial year on one page; the most you can type is 1000. Leave it blank to use the standard 50.</span></div>
+  {% include "_setting_row.html" with f=fees_display_form.feebook_group_payments help=fees_display_form.feebook_group_payments.help_text who="you" checkbox=True %}
+  {% include "_setting_row.html" with f=fees_display_form.statistics_enabled help=fees_display_form.statistics_enabled.help_text who="you" checkbox=True %}
+  {% include "_setting_row.html" with f=fees_display_form.pdf_export help=fees_display_form.pdf_export.help_text who="you" checkbox=True %}
+  {% include "_setting_row.html" with f=fees_display_form.word_button_long help=fees_display_form.word_button_long.help_text who="you" checkbox=True %}
   <p class="section-actions"><button type="submit" class="primary">Save</button> <span class="dirty-note" data-dirty-note hidden>You have unsaved changes.</span></p>
 </form>
 </section>

@@ -120,6 +120,9 @@ def _collect_memo_defaults(values):
             out[field] = (value or "").strip()
         else:
             out[field] = value if value is not None else ""
+    # Not a memo default (a memo never copies it), but saved the same way: only when the caller sent it.
+    if "exclude_from_statistics" in values:
+        out["exclude_from_statistics"] = bool(values["exclude_from_statistics"])
     return out
 
 

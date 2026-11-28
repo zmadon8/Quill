@@ -57,6 +57,8 @@ __all__ = [
     "WEB_CLIENTS_HEADERS",
     "WEB_MATTER_CLIENTS_SHEET",
     "WEB_MATTER_CLIENTS_HEADERS",
+    "WEB_MATTER_FLAGS_SHEET",
+    "WEB_MATTER_FLAGS_HEADERS",
     "SETTINGS_COLUMNS",
     "ELECTRON_ONLY_DEFAULTS",
     "NOT_NULL_DEFAULTS",
@@ -210,6 +212,11 @@ WEB_CLIENTS_SHEET = "WebClients"
 WEB_CLIENTS_HEADERS = ["id", "name", "firm_id", "created_at"]
 WEB_MATTER_CLIENTS_SHEET = "WebMatterClients"
 WEB_MATTER_CLIENTS_HEADERS = ["matter_id", "client_id"]
+
+#: The matters left out of Statistics (owner round 2026-12): one more web-only sheet, listing only the matters that have the flag. An older
+#: file without it restores every matter as counted.
+WEB_MATTER_FLAGS_SHEET = "WebMatterFlags"
+WEB_MATTER_FLAGS_HEADERS = ["matter_id", "exclude_from_statistics"]
 
 #: The five memo text defaults (R-SET-7) carried by ``WebSettings``.
 MEMO_TEXT_DEFAULT_KEYS = [
@@ -554,6 +561,12 @@ def export_workbook(profile):
     write_rows(links_sheet, WEB_MATTER_CLIENTS_HEADERS, (
         [pk, client_id]
         for pk, client_id in Matter.objects.filter(profile=profile, client__isnull=False).order_by("pk").values_list("pk", "client_id")
+        .iterator(chunk_size=_CHUNK)
+    ))
+    matter_flags_sheet = workbook.create_sheet(WEB_MATTER_FLAGS_SHEET)
+    write_rows(matter_flags_sheet, WEB_MATTER_FLAGS_HEADERS, (
+        [pk, 1]
+        for pk in Matter.objects.filter(profile=profile, exclude_from_statistics=True).order_by("pk").values_list("pk", flat=True)
         .iterator(chunk_size=_CHUNK)
     ))
 

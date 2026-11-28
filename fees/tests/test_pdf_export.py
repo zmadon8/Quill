@@ -24,7 +24,6 @@ from fees.exports import pdf_graph
 from fees.exports.filenames import content_disposition, pdf_filename
 from fees.models import PdfConnection
 from fees.services import word_template
-from diary.tests.helpers import join_main
 from fees.tests import xlsx_support as xs
 
 User = get_user_model()
@@ -502,16 +501,37 @@ class PdfViewTests(TestCase):
 
 @override_settings(SECURE_SSL_REDIRECT=False)
 class MySettingsSwitchTests(TestCase):
+    """The Fee Register switches of a user are on Fee Register > Settings > Display (Mine), saved through My settings (tab fees)."""
+
     def test_each_user_switches_their_own_pdf_button(self):
-        user = join_main(User.objects.create_user("lena", password=PASSWORD))
+        profile = Profile.objects.create(program=KEY_FEES, name="Switch-Fees")
+        user = User.objects.create_user("lena", password=PASSWORD)
+        ProfileMembership.objects.create(user=user, profile=profile, role=ROLE_EDITOR)
         self.assertTrue(user.pdf_export)
         self.client.force_login(user)
-        page = self.client.get(reverse("my_settings") + "?tab=display").content.decode()
-        self.assertIn('name="pdf_export"', page)
+        page = self.client.get(reverse("fees_settings") + "?tab=display").content.decode()
+        for name in ("feebook_group_payments", "statistics_enabled", "pdf_export", "word_button_long"):
+            self.assertIn('name="%s"' % name, page)
         self.assertIn("Memo PDF button", page)
-        self.client.post(reverse("my_settings"), {"tab": "display", "colour_theme": "oxblood"})
-        user.refresh_from_db()
-        self.assertFalse(user.pdf_export)
-        self.client.post(reverse("my_settings"), {"tab": "display", "colour_theme": "oxblood", "pdf_export": "on"})
+        self.assertIn("Save &amp; Download", page)
+        mine = self.client.get(reverse("my_settings") + "?tab=display").content.decode()
+        for name in ("feebook_group_payments", "statistics_enabled", "pdf_export", "word_button_long"):
+            self.assertNotIn('name="%s"' % name, mine)
+        # A save of another section (Items per page, no marker) leaves the switches alone.
+        self.client.post(reverse("my_settings"), {"tab": "fees", "fees-items_per_page": "20"})
         user.refresh_from_db()
         self.assertTrue(user.pdf_export)
+        # The Display save with the marker and no ticks switches them off; a tick switches one on.
+        self.client.post(reverse("my_settings"), {"tab": "fees", "fees_display_present": "1", "fees-items_per_page": "20"})
+        user.refresh_from_db()
+        self.assertFalse(user.pdf_export)
+        self.assertFalse(user.statistics_enabled)
+        self.client.post(reverse("my_settings"), {"tab": "fees", "fees_display_present": "1", "pdf_export": "on", "word_button_long": "on"})
+        user.refresh_from_db()
+        self.assertTrue(user.pdf_export)
+        self.assertTrue(user.word_button_long)
+        # A save of My Display no longer touches them.
+        self.client.post(reverse("my_settings"), {"tab": "display", "colour_theme": "oxblood"})
+        user.refresh_from_db()
+        self.assertTrue(user.pdf_export)
+        self.assertTrue(user.word_button_long)

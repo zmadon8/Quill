@@ -44,6 +44,10 @@
   <fieldset class="memo-card"><legend class="sr-only">Notes</legend>
   <div class="memo-grid"><label>Notes <textarea name="notes" rows="3">{{ form.notes }}</textarea></label></div>
   </fieldset>
+  <fieldset class="memo-card"><legend class="sr-only">Statistics</legend>
+  <div class="memo-grid"><div class="field wide"><label class="search-check"><input type="hidden" name="exclude_from_statistics" value="0"><input type="checkbox" name="exclude_from_statistics" value="1"{% if form.exclude_from_statistics %} checked{% endif %}> Leave out of Statistics</label>
+  <span class="setting-help">Ticked: this matter's memos and payments are not counted in Statistics, the Dashboard, the Home cards or the Year-End summary. They still show on Memos, Feebook and Outstanding, and in the Excel backup.</span></div></div>
+  </fieldset>
   {% if can_edit %}<p class="button-bar"><a class="button" href="{% if matter %}{% url 'fees_matter_detail' matter.pk %}{% else %}{% url 'fees_firms' %}{% endif %}">Cancel</a> <button type="submit" class="primary">Save</button></p>{% endif %}
 </form>
 {% endblock %}

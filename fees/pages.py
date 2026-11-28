@@ -53,7 +53,7 @@ def _flag(settings, name):
 
 
 def dashboard_on(settings):
-    """True unless the user has switched Statistics off (My settings > Display); one switch covers the Dashboard too."""
+    """True unless the user has switched Statistics off (Settings > Fee Register > Display); one switch covers the Dashboard too."""
     return _flag(settings, "statistics_enabled")
 
 

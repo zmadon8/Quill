@@ -31,7 +31,9 @@ The longer plans are in `docs/PLAN.md` (what is built when), `docs/DESIGN.md` (h
 ## Round 2026-11d: settings
 
 - **Find a setting** (box at the right of the Settings tabs, page `/settings/find/`): the full list of every setting you may see, grouped by tab, narrowed as you type. The list is `accounts/settings_catalogue.py`; keep it in step with `docs/SETTINGS.md`.
-- **Settings > Display > My Display > Name the memo's Word button Download Memo (Word)**: per user, off by default. Renames the Word button on a Fee Register memo and on the memo form.
+- **Settings > Fee Register > Display > Mine**: the Fee Register switches that belong to one user (Feebook: memos paid together on one line, Statistics and Dashboard, Memo PDF button, and **Name the memo's Word button Save & Download**; the last is off by default and renames the Word button on a Fee Register memo and on the memo form). They used to be on Settings > Display > My Display.
+- **Fee Register matter > Leave out of Statistics** (`Matter.exclude_from_statistics`, fees migration 0024): the matter's memos and payments are left out of Statistics, the Dashboard boxes, charts and panels, the Year-End summary, the Excel exports of those figures and the Home card figures. They stay on Memos, Feebook, Outstanding, History and search, and in the Excel backup (extra sheet `WebMatterFlags`). Every such figure starts from `fees/services/stats_scope.py`.
+- **Fee Register memo page:** Word, PDF, Edit, New memo based on this and Add payment are at the top of the page, under the heading.
 - **Settings pages share the Fee Register's layout** (a card for each section, small-capitals sub-headings, a row for each setting with its who tag, a Save in each card).
 - **Fee Register memo form:** the Appearances, Conferences and Drafts / Misc tick boxes, and the Settings > Memos option "Fee lines on in a new memo", are removed (fees migration 0021).
 - **Help** is rewritten for the whole suite (Settings, Find a setting, the Fee Register, troubleshooting).

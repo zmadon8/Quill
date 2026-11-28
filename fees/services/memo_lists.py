@@ -397,10 +397,11 @@ def list_recent_matters(profile, limit=10):
     matter, its firm, the latest memo's date / number / id, the memo count and
     the matter's archived flag. Two queries: the grouped aggregate and one to
     read the latest memo number / id per listed matter in a single ``IN`` query.
-    Drafts are excluded so this reflects real, numbered memos.
+    Drafts are excluded so this reflects real, numbered memos. Matters marked "Leave out of Statistics" are not listed (this list
+    is only the Dashboard's and the Home page's).
     """
     grouped = list(
-        Memo.objects.filter(profile=profile, is_draft=False)
+        Memo.objects.filter(profile=profile, is_draft=False, matter__exclude_from_statistics=False)
         .values("matter_id", "matter__name", "firm_id", "firm__name", "matter__is_archived")
         .annotate(last_date=Max("date"), memo_count=Count("id"))
         .order_by("-last_date", "-matter_id")[:limit]

@@ -76,6 +76,7 @@ from fees.services.excel_backup import (
     TABLES,
     WEB_CLIENTS_SHEET,
     WEB_MATTER_CLIENTS_SHEET,
+    WEB_MATTER_FLAGS_SHEET,
     WEB_MEMO_FLAGS_SHEET,
     LEGACY_WEB_SETTINGS_KEYS,
     WEB_LIST_KEYS,
@@ -472,6 +473,17 @@ def _memo_flags(workbook, found):
     return flags, default
 
 
+def _restore_matter_flags(profile, workbook, matter_ids):
+    """The web-only ``WebMatterFlags`` sheet: the matters left out of Statistics. Absent (an older or desktop file): every matter counts."""
+    left_out = []
+    for _number, v in _read_sheet(workbook, WEB_MATTER_FLAGS_SHEET, ["matter_id", "exclude_from_statistics"], ["matter_id"]):
+        matter_id = matter_ids.get(_key(v["matter_id"]))
+        if matter_id and _bool(v["exclude_from_statistics"], default=True):
+            left_out.append(matter_id)
+    if left_out:
+        Matter.objects.filter(profile=profile, pk__in=left_out).update(exclude_from_statistics=True)
+
+
 def _restore_clients(profile, workbook, matter_ids, matter_scope, firm_ids):
     """The web-only ``WebClients`` and ``WebMatterClients`` sheets: the clients, then each matter's client. Absent (an older file or a
     desktop file): no clients. Returns the number of clients restored.
@@ -772,6 +784,7 @@ def _load(profile, workbook):
     for matter in Matter.objects.filter(profile=profile, addressee_use_firm_name=True).select_related("firm").only("pk", "firm__name"):
         Matter.objects.filter(pk=matter.pk).update(addressee_line1=matter.firm.name, addressee_use_firm_name=False)
 
+    _restore_matter_flags(profile, workbook, matter_ids)
     n_clients = _restore_clients(profile, workbook, matter_ids, matter_scope, firm_ids)
 
     # Bank accounts

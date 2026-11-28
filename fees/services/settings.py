@@ -429,7 +429,7 @@ def update_settings(profile, data):
 def for_user(config, user):
     """``config`` (a settings dict or a ``FeesSettings`` row) with the switches that belong to the person, not the profile.
 
-    Statistics and Dashboard is chosen by each user (My settings > Display), so the profile's own value is ignored. A dict
+    Statistics and Dashboard is chosen by each user (Settings > Fee Register > Display), so the profile's own value is ignored. A dict
     comes back as a copy; a row is changed in memory only (never saved). With no signed-in user, or no ``config``, it is
     returned as it is.
     """

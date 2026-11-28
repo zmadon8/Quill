@@ -42,7 +42,8 @@ from decimal import Decimal
 from django.db.models import Sum
 from django.db.models.functions import ExtractMonth, ExtractYear
 
-from fees.models import Allocation, FeesSettings, Memo, PeriodAdjustment
+from fees.models import FeesSettings, PeriodAdjustment
+from fees.services import stats_scope
 from fees.services.financial_year import derive_financial_year
 from fees.services.money import round2
 from fees.services.statistics._common import FY_RE, max_fy
@@ -128,7 +129,7 @@ def _build_accumulators(profile, include_drafts, cur_key):
 
     # (1) Memos: counts and billed (stored total_fees) by FY + month. Group by
     # is_draft too so drafts can be routed to the current month in Python.
-    memo_qs = Memo.objects.filter(profile=profile)
+    memo_qs = stats_scope.memos(profile)
     if not include_drafts:
         memo_qs = memo_qs.filter(is_draft=False)
     memo_rows = (
@@ -154,7 +155,7 @@ def _build_accumulators(profile, include_drafts, cur_key):
 
     # (2) Received (receipt basis): by the PAYMENT date's FY + month.
     recv_rows = (
-        Allocation.objects.filter(profile=profile)
+        stats_scope.allocations(profile)
         .annotate(
             pay_year=ExtractYear("payment__date_of_payment"),
             pay_month=ExtractMonth("payment__date_of_payment"),
@@ -176,7 +177,7 @@ def _build_accumulators(profile, include_drafts, cur_key):
     # (3) Recovered: gross paid against NON-DRAFT memos ISSUED in the period
     # (billing basis), attributed to the memo's FY + calendar month.
     recovered_rows = (
-        Allocation.objects.filter(profile=profile, memo__is_draft=False)
+        stats_scope.allocations(profile).filter(memo__is_draft=False)
         .annotate(cal_month=ExtractMonth("memo__date"))
         .values("memo__financial_year", "cal_month")
         .annotate(recovered=Sum("amount") + Sum("tds_amount"))

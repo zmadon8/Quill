@@ -24,7 +24,7 @@ class FeesPersonalForm(forms.Form):
         self.profile = profile
         self.user = user
         # A switched-off Dashboard is not offered (the landing page would open Memos instead).
-        # The switch is the user's own (My settings > Display), so it is read from the user.
+        # The switch is the user's own (Settings > Fee Register > Display), so it is read from the user.
         offered = [c for c in OPENING_PAGES if c[0] != "dashboard" or getattr(user, "statistics_enabled", True)]
         self.fields["default_tab"].choices = [("", "Memos (standard)")] + offered
         self.fields["items_per_page"].widget.attrs.update({"size": 8, "inputmode": "numeric"})

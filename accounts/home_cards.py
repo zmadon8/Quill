@@ -108,13 +108,13 @@ def _fees_figures(profile, user=None):
     values = {"memos_fy": format_indian(figures['memos_fy'], 0), "outstanding": "\u20b9" + format_money(figures["outstanding"], unit="short"),
               "drafts": format_indian(figures['drafts'], 0), "fy": str(figures.get("fy", DASH))}
     if "memos_total" in keys:
-        from fees.models import Memo
+        from fees.services import stats_scope
 
-        values["memos_total"] = format_indian(Memo.objects.filter(profile=profile, is_draft=False).count(), 0)
+        values["memos_total"] = format_indian(stats_scope.memos(profile).filter(is_draft=False).count(), 0)
     if "payments" in keys:
-        from fees.models import Payment
+        from fees.services import stats_scope
 
-        values["payments"] = format_indian(Payment.objects.filter(profile=profile).count(), 0)
+        values["payments"] = format_indian(stats_scope.payments(profile).count(), 0)
     # The Dashboard figures (worked out, and kept, by the Dashboard's own code). Switched off with Statistics: a dash.
     kpi_keys = [k for k in keys if k in dashboard.KPI_LABELS]
     if kpi_keys:
@@ -222,7 +222,7 @@ def _fees_details(profile, user):
     chosen_kpis = [k for k in keys if k in dashboard.KPI_LABELS]
     notes = []
     if chosen_kpis and not config.get("statistics_enabled", True):
-        notes.append("The Dashboard figures are switched off in your settings (My settings > Display).")
+        notes.append("The Dashboard figures are switched off in your settings (Settings > Fee Register > Display).")
     elif "amount_overdue" in chosen_kpis and "amount_overdue" not in ids:
         notes.append("Amount overdue is not shown because overdue is switched off in the Fee Register settings.")
     if notes:

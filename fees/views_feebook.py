@@ -30,7 +30,7 @@ def feebook_page(request):
             options = filter_options.feebook_options(profile, filters, banks)
     entries = feebook.list_feebook(profile, filters)
     if getattr(request.user, "feebook_group_payments", False):
-        entries = feebook.group_by_payment(entries)   # memos paid together on one line (My settings > Display)
+        entries = feebook.group_by_payment(entries)   # memos paid together on one line (Settings > Fee Register > Display)
     totals = {
         key: sum((e[key] or 0 for e in entries), start=0) for key in ("amount_paid", "tds", "paid_plus_tds")
     }

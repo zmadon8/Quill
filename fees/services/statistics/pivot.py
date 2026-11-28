@@ -37,7 +37,8 @@ from decimal import Decimal
 from django.db.models.functions import ExtractMonth, ExtractYear
 
 from fees.errors import FeesError
-from fees.models import Allocation, Memo, PeriodAdjustment
+from fees.models import PeriodAdjustment
+from fees.services import stats_scope
 from fees.services.financial_year import derive_financial_year, quarter_of_month
 from fees.services.money import round2
 from fees.services.statistics._common import max_fy
@@ -185,7 +186,7 @@ def _driving_rows(profile, req, firm_ids, is_receipt):
     to_fy = req.get("to_fy")
 
     if is_receipt:
-        qs = Allocation.objects.filter(profile=profile, memo__is_draft=False)
+        qs = stats_scope.allocations(profile).filter(memo__is_draft=False)
         if firm_ids:
             qs = qs.filter(memo__firm_id__in=firm_ids)
         qs = qs.annotate(
@@ -234,7 +235,7 @@ def _driving_rows(profile, req, firm_ids, is_receipt):
             }
         return
 
-    qs = Memo.objects.filter(profile=profile, is_draft=False)
+    qs = stats_scope.memos(profile).filter(is_draft=False)
     if firm_ids:
         qs = qs.filter(firm_id__in=firm_ids)
     if from_fy:
@@ -287,7 +288,7 @@ def _first_memo_by_matter(profile, firm_ids):
     first memo predates the range is correctly not "new" within the range. One
     query, read in ``(matter, date, id)`` order; the first row per matter wins.
     """
-    qs = Memo.objects.filter(profile=profile, is_draft=False)
+    qs = stats_scope.memos(profile).filter(is_draft=False)
     if firm_ids:
         qs = qs.filter(firm_id__in=firm_ids)
     first = {}

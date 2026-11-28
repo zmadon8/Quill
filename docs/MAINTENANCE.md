@@ -319,7 +319,7 @@ Settings > Fee Register > **Word Documents** > PDF export > **Connect Microsoft 
 | "The app secret expires on..." in a warning | Do 9.5. |
 | An error naming a **host** | Microsoft started using a new download host. Send the message to Kiro; the allow-list is in `fees/exports/pdf_graph.py`. |
 | "Another PDF is being made" | Wait a few seconds and press PDF again. |
-| Your own PDF button is missing | Settings > Display > **Memo PDF button** is off for you. |
+| Your own PDF button is missing | Settings > Fee Register > Display > **Memo PDF button** is off for you. |
 
 If you move the site to a new address, add the new redirect URI in Entra (App registrations > Quill PDF > Authentication) and update `MS_GRAPH_REDIRECT_URI`, then **Connect** again.
 
@@ -399,7 +399,7 @@ Set up or redo `docs/HOSTING_AND_DEPLOY.md` section 6a: a private Backblaze B2 o
 - [ ] `/healthz/` says OK.
 - [ ] Sign in as Admin; Home shows every program; the names are right (Settings > Display > Names).
 - [ ] A diary Subject opens; Search finds a known citation.
-- [ ] A Fee Register memo opens; **Word** (or Download Memo (Word)) downloads and opens; **PDF** works if used.
+- [ ] A Fee Register memo opens; **Word** (or Save & Download) downloads and opens; **PDF** works if used.
 - [ ] Investments Holdings opens; Settings > Investments shows what you expect.
 - [ ] Settings > Backup: **Backup Now** works; the next morning a "Daily" backup is there.
 - [ ] Email test arrives; Email Backups shows a recent **Last send**.

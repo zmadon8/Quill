@@ -44,6 +44,7 @@ settings tab. Its old addresses under `/investments/settings/` redirect (308) to
 | Date in Word file names | Settings > Case Law Diary > My Number Formats |
 | Fee Register Opening page | Settings > Start Screens |
 | Fee Register Items per page | Settings > Fee Register > Display |
+| Fee Register Display switches (Feebook paid-together line, Statistics and Dashboard, Memo PDF button, Word button name) | Settings > Fee Register > Display (Mine) |
 | Investments start page | Settings > Start Screens |
 | Investments period for returns | The **Period** drop-down under the cards on Investments > Overview |
 | Remove the hyphen before the citation | Settings > Case Law Diary > My Number Formats |
@@ -81,7 +82,7 @@ are in a section of their own on the diary Settings tab, apart from the shared o
 | `group_digits` | Add commas while typing numbers: on (default), every number box in every program regroups what you type in Indian grouping (12,34,567.50) and keeps the caret in place. Off: numbers stay as typed. Commas you type are accepted either way | Settings > Display > My Display | Per user | Only you |
 | `home_show_figures` | Show figures on the Home page: on (default). Off: the Home cards show only the program names, and the details below the cards are left out. The figures you picked are kept | Settings > Display > My Home Page | Per user | Only you |
 | `short_thousands`, `short_lac`, `short_crore` | Letters for shortened numbers: the letters after a shortened figure from 1,000 (default k), 1,00,000 (lac) and 1,00,00,000 (cr), in the Fee Register (Figures: short), Investments (Short) and the Home cards, on screen and in the charts' axis labels. Blank keeps the standard letters. Up to 12 characters: letters, spaces, a dot or a hyphen. Replaces the per-profile `FeesSettings.money_suffix_*` boxes, which were saved but never applied (the columns stay for the Excel backup file) | Settings > Display > My Display | Per user | Only you |
-| `word_button_long` | Name the memo's Word button Download Memo (Word): on, the Word button on a Fee Register memo and the Word button at the foot of the memo form read Download Memo (Word); off (default), Word. Only the words change | Settings > Display > My Display | Per user | Only you |
+| `word_button_long` | Name the memo's Word button Save & Download: on, the Word button on a Fee Register memo and the Word button at the foot of the memo form read Save & Download; off (default), Word. Only the words change | Settings > Fee Register > Display | Per user | Only you |
 | `colour_theme` | Colour theme: Oxblood (default), Royal Blue, Navy, Violet, Plum or Teal. Changes the accent (buttons, current tab, links) on every page; status colours and exports never change | Settings > Display; an Admin on the user's edit screen | Per user | Only you |
 | `header_initials` | Letters in the header badge: up to 3, shown upper-case in the round badge at the top right. Blank: the first letters of your first and last name | Settings > Account and Profile View | Per user | Only you |
 | `remove_citation_hyphen` | Remove the hyphen before the citation: on, the Case Law Diary on screen leaves out the " - " between an Item's text and its inline citations (default off). The Word export and offline copy keep the hyphen. The ";" between several inline citations is always gone | Settings > Case Law Diary > My Number Formats | Per user | Only you |
@@ -197,7 +198,7 @@ are noted: Opening page and Items per page are personal only (section 4.2).
 | `initial_financial_year` | Statistics start year | Years and statistics | Per profile | Everyone in this profile |
 | `memos_start_year` | Memos start year | Years and statistics | Per profile | Everyone in this profile |
 | `feebook_start_year` | Feebook start year | Years and statistics | Per profile | Everyone in this profile |
-| `User.statistics_enabled` | Statistics and Dashboard on or off, one switch for both pages and the Dashboard figures (off: neither is in the header or Home; the Dashboard address and an Opening page of Dashboard open Memos). Moved from the profile to the user (owner round 2026-11); `FeesSettings.statistics_enabled` is no longer read | My settings > Display > My Display | Only you | You |
+| `User.statistics_enabled` | Statistics and Dashboard on or off, one switch for both pages and the Dashboard figures (off: neither is in the header or Home; the Dashboard address and an Opening page of Dashboard open Memos). Moved from the profile to the user (owner round 2026-11); `FeesSettings.statistics_enabled` is no longer read | Settings > Fee Register > Display | Only you | You |
 | `dashboard_kpis` | Dashboard boxes: which boxes the Dashboard shows, and in what order (moved from the Dashboard's Customise panel, owner round 2026-12) | Settings > Fee Register > Years And Statistics > Dashboard boxes (Editors) | Per profile | Everyone in this profile |
 | `money_unit` | Figures (full, thousands, lacs, crores) | Display | Per profile | Everyone in this profile |
 | `list_default_filter` | Firms and matters: show by default (All or Active only) | Display | Per profile | Everyone in this profile |
@@ -232,6 +233,14 @@ The `settings` and `stats-metrics` keys cannot be written through the column-wid
 | Home, Settings, Admin (Users, Profiles, Backups), the diary (History, My edits, conflicts, Clear preview) | In this browser only (`quill.cols.<id>` in section 5) | Admin and diary tables are layout preferences of one screen; no server table or migration is needed, and the keys the diary and Backups already used keep working |
 
 Sorting Users & Profiles > Users and Profiles is not a stored setting: it is the `?sort=` part of the address (`?sort=name`, `?sort=-name`), so a sorted view can be bookmarked.
+
+### 4.3 `fees.Matter.exclude_from_statistics` (per matter)
+
+| Field | Setting | Page and section | Stored | Who |
+| --- | --- | --- | --- | --- |
+| `exclude_from_statistics` | Leave out of Statistics: off (default). On: the matter's memos, and the payments made to them, are not counted in Statistics, the Dashboard boxes, charts and panels (Who owes the most, Billed by month, Recently billed matters), the Year-End summary, the Excel exports of those figures, and the Fee Register figures on the Home card. They stay on Memos, Feebook, Outstanding, History and search, in Word and PDF memos and in the Excel backup (the extra sheet `WebMatterFlags`, which lists only the matters that have it on) | Matter > Edit | Per matter, so per profile | Everyone in this profile |
+
+Every figure above starts from `fees/services/stats_scope.py` (`memos`, `allocations`, `payments`). The Edit Statistics adjustments are not tied to a matter and are not affected.
 
 ## 5. Settings kept in the browser (localStorage)
 

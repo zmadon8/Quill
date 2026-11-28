@@ -19,7 +19,7 @@ from decimal import Decimal
 from django.db.models import Sum
 from django.db.models.functions import ExtractMonth, ExtractYear
 
-from fees.models import Allocation, Memo
+from fees.services import stats_scope
 from fees.services.financial_year import derive_financial_year
 from fees.services.money import round2
 
@@ -80,7 +80,7 @@ def get_statistics(profile, breakdown):
     # grouped by the chosen dimension from non-draft memos.
     if by_fy_receipt:
         memo_rows = (
-            Memo.objects.filter(profile=profile, is_draft=False)
+            stats_scope.memos(profile).filter(is_draft=False)
             .values(id_field, name_field)
             .annotate(apps=Sum("num_appearances"), billed=Sum("total_fees"))
         )
@@ -89,7 +89,7 @@ def get_statistics(profile, breakdown):
         # Sum("total_fees") would multiply by the allocation fan-out, so read the
         # stored net column on the memo instead (maintained by payments).
         memo_rows = (
-            Memo.objects.filter(profile=profile, is_draft=False)
+            stats_scope.memos(profile).filter(is_draft=False)
             .values(id_field, name_field)
             .annotate(
                 apps=Sum("num_appearances"),
@@ -117,7 +117,7 @@ def get_statistics(profile, breakdown):
         # Received per FY of the PAYMENT; ensure a row exists for an FY that only
         # has receipts. Bucket the grouped year + month rows in Python.
         recv_rows = (
-            Allocation.objects.filter(profile=profile)
+            stats_scope.allocations(profile)
             .annotate(
                 pay_year=ExtractYear("payment__date_of_payment"),
                 pay_month=ExtractMonth("payment__date_of_payment"),
