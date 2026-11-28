@@ -267,9 +267,6 @@ class Matter(models.Model):
     client = models.ForeignKey(Client, null=True, blank=True, on_delete=models.SET_NULL, related_name="matters")
     name = models.CharField(max_length=150)
     is_archived = models.BooleanField(default=False)
-    # Owner round (2026-12): a matter whose memos and payments are left out of Statistics, the Dashboard, the Home cards and the Year-End
-    # summary (fees/services/stats_scope.py). Everywhere else (Memos, Feebook, Outstanding, exports of lists, backup) it is unchanged.
-    exclude_from_statistics = models.BooleanField("Leave out of Statistics", default=False)
     short_name = models.CharField(max_length=150, blank=True, default="")
     notes = models.TextField(blank=True, default="")
     # Memo defaults (all optional text).

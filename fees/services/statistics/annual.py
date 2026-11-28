@@ -21,7 +21,7 @@ from decimal import Decimal
 from django.db.models import Count, Sum
 from django.db.models.functions import ExtractMonth, ExtractYear
 
-from fees.services import stats_scope
+from fees.models import Allocation, Memo
 from fees.services.financial_year import derive_financial_year
 from fees.services.money import round2
 
@@ -69,8 +69,8 @@ def get_annual_breakdown(profile, financial_year, by):
 
     # Billed side: memos issued in the FY.
     billed_rows = (
-        stats_scope.memos(profile).filter(
-            is_draft=False, financial_year=financial_year
+        Memo.objects.filter(
+            profile=profile, is_draft=False, financial_year=financial_year
         )
         .values(id_field, name_field, "firm__name")
         .annotate(
@@ -95,7 +95,7 @@ def get_annual_breakdown(profile, financial_year, by):
     recv_id = f"memo__{id_field}"
     recv_name = f"memo__{name_field}"
     received_rows = (
-        stats_scope.allocations(profile).filter(memo__is_draft=False)
+        Allocation.objects.filter(profile=profile, memo__is_draft=False)
         .annotate(
             pay_year=ExtractYear("payment__date_of_payment"),
             pay_month=ExtractMonth("payment__date_of_payment"),

@@ -111,7 +111,7 @@ class ExportContractTests(TestCase):
 
     def test_sheet_names_and_order(self):
         self.assertEqual(
-            list(self.book.keys()), [sheet for sheet, _cols in DESKTOP_TABLES] + ["WebSettings", "WebMemoFlags", "WebClients", "WebMatterClients", "WebMatterFlags"]
+            list(self.book.keys()), [sheet for sheet, _cols in DESKTOP_TABLES] + ["WebSettings", "WebMemoFlags", "WebClients", "WebMatterClients"]
         )
 
     def test_header_rows_equal_the_desktop_columns(self):

@@ -77,7 +77,8 @@ from decimal import ROUND_HALF_UP, Decimal
 from django.db.models import DecimalField, Sum, Value
 from django.db.models.functions import Coalesce
 
-from fees.services import memo_fees, stats_cache, stats_scope
+from fees.models import Allocation, Memo
+from fees.services import memo_fees, stats_cache
 from fees.services.financial_year import derive_financial_year
 from fees.services.money import round2
 from fees.services.settings import get_settings
@@ -388,7 +389,8 @@ def _gross_received_between(profile, start_iso, end_iso) -> Decimal:
     """
     money_field = DecimalField(max_digits=14, decimal_places=2)
     agg = (
-        stats_scope.allocations(profile).filter(
+        Allocation.objects.filter(
+            profile=profile,
             payment__date_of_payment__gte=start_iso,
             payment__date_of_payment__lte=end_iso,
         )
@@ -468,7 +470,7 @@ def get_dashboard_summary(profile, now=None, settings=None, with_appearances=Tru
     current_fy = derive_financial_year(today_iso)
     ym = today_iso[:7]
 
-    rows = stats_scope.memos(profile).filter(is_draft=False).values(
+    rows = Memo.objects.filter(profile=profile, is_draft=False).values(
         "date",
         "financial_year",
         "written_off",
@@ -550,7 +552,7 @@ def _compute_activity(profile, today):
     fy = derive_financial_year(today_iso)
     ym = today_iso[:7]
 
-    rows = stats_scope.memos(profile).values(
+    rows = Memo.objects.all().filter(profile=profile).values(
         "date",
         "financial_year",
         "is_draft",

@@ -11,7 +11,8 @@ from decimal import Decimal
 from django.db.models import Sum
 from django.db.models.functions import ExtractMonth
 
-from fees.services import outstanding, stats_cache, stats_scope
+from fees.models import Memo
+from fees.services import outstanding, stats_cache
 from fees.services.dashboard import local_iso
 from fees.services.financial_year import current_financial_year
 from fees.services.money import round2
@@ -32,7 +33,7 @@ def billed_by_month(profile, now=None):
     today = _today(now)
     fy = current_financial_year(today)
     rows = (
-        stats_scope.memos(profile).filter(is_draft=False, financial_year=fy)
+        Memo.objects.filter(profile=profile, is_draft=False, financial_year=fy)
         .annotate(cal_month=ExtractMonth("date")).values("cal_month").annotate(billed=Sum("total_fees")).order_by()
     )
     by_month = {r["cal_month"]: r["billed"] or Decimal("0") for r in rows}
@@ -91,7 +92,7 @@ def by_month(profile, chart, now=None):
 
 
 def _owers(profile):
-    rows = outstanding.list_outstanding_by_firm(profile, {"stats_only": True}, "amount")
+    rows = outstanding.list_outstanding_by_firm(profile, {}, "amount")
     total = sum((r["outstanding"] for r in rows), Decimal("0"))
     top = [{"firm_id": r["firm_id"], "firm_name": r["firm_name"], "outstanding": str(r["outstanding"]), "memo_count": r["memo_count"]}
            for r in rows[:TOP_OWERS]]
@@ -148,8 +149,8 @@ def home_figures(profile, now=None):
 
     def compute():
         fy = current_financial_year(today)
-        drafts = stats_scope.memos(profile).filter(is_draft=True).count()
-        memos_fy = stats_scope.memos(profile).filter(is_draft=False, financial_year=fy).count()
+        drafts = Memo.objects.filter(profile=profile, is_draft=True).count()
+        memos_fy = Memo.objects.filter(profile=profile, is_draft=False, financial_year=fy).count()
         _top, total, _firms = _owers(profile)
         return {"fy": fy, "memos_fy": memos_fy, "drafts": drafts, "outstanding": str(total)}
 

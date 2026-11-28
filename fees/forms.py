@@ -413,9 +413,6 @@ def matter_data_from_post(post):
         for name in ("additional_details_left", "additional_details_right"):
             if name in defaults:
                 defaults[name] = ""
-    if "exclude_from_statistics" in post:
-        # The form sends a hidden 0 before the tick box, so the last value wins; a post without it leaves the matter as it is.
-        defaults["exclude_from_statistics"] = post.getlist("exclude_from_statistics")[-1] == "1"
     firm = (post.get("firm_id") or "").strip()
     group = (post.get("group_id") or "").strip()
     return (

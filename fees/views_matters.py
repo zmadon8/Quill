@@ -16,12 +16,11 @@ from fees.services.matters import MEMO_DEFAULT_FIELDS
 
 def _form_values(matter=None):
     values = {name: "" for name in MEMO_DEFAULT_FIELDS if name != "addressee_use_firm_name"}
-    values.update(name="", firm_id="", group_id="", addressee_use_firm_name=False, client_id="", client_new="", exclude_from_statistics=False)
+    values.update(name="", firm_id="", group_id="", addressee_use_firm_name=False, client_id="", client_new="")
     if matter is not None:
         for name in MEMO_DEFAULT_FIELDS:
             values[name] = getattr(matter, name)
-        values.update(name=matter.name, firm_id=matter.firm_id, group_id=matter.group_id, client_id=matter.client_id or "",
-                      exclude_from_statistics=matter.exclude_from_statistics)
+        values.update(name=matter.name, firm_id=matter.firm_id, group_id=matter.group_id, client_id=matter.client_id or "")
         if matter.addressee_use_firm_name:
             # Brought back by an older backup: show (and so save) the firm's name in the box, as there is no tick any more.
             values["addressee_line1"] = matter.firm.name
@@ -32,7 +31,6 @@ def _form_values(matter=None):
 def _echo(post):
     values = {name: forms.posted_party_type(post, name) if name in forms.PARTY_TYPE_FIELDS else post.get(name, "") for name in _form_values()}
     values["addressee_use_firm_name"] = post.get("addressee_use_firm_name") == "1"
-    values["exclude_from_statistics"] = bool(post.getlist("exclude_from_statistics")) and post.getlist("exclude_from_statistics")[-1] == "1"
     values["firm_id"] = int_or_none(post.get("firm_id")) or ""
     values["group_id"] = int_or_none(post.get("group_id")) or ""
     values["client_id"] = int_or_none(post.get("client_id")) or ""

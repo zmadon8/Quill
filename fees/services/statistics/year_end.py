@@ -20,8 +20,7 @@ from decimal import Decimal
 from django.db.models import Count, Min, Q, Sum
 from django.db.models.functions import ExtractMonth, ExtractYear
 
-from fees.models import FeesSettings
-from fees.services import stats_scope
+from fees.models import Allocation, FeesSettings, Memo
 from fees.services.financial_year import derive_financial_year
 from fees.services.money import round2
 from fees.services.statistics.periods import get_period_statistics
@@ -54,8 +53,8 @@ def get_year_end_summary(profile, financial_year, options=None):
 
     # Billed (stored effective total) and written-off for the FY's non-draft memos.
     memo_agg = (
-        stats_scope.memos(profile).filter(
-            is_draft=False, financial_year=financial_year
+        Memo.objects.filter(
+            profile=profile, is_draft=False, financial_year=financial_year
         )
         .aggregate(
             memo_count=Count("id"),
@@ -72,7 +71,7 @@ def get_year_end_summary(profile, financial_year, options=None):
     # Received (net) and TDS by PAYMENT date FY (receipt basis), bucketed in
     # Python from the grouped year + month rows so it stays one query.
     recv_rows = (
-        stats_scope.allocations(profile)
+        Allocation.objects.filter(profile=profile)
         .annotate(
             pay_year=ExtractYear("payment__date_of_payment"),
             pay_month=ExtractMonth("payment__date_of_payment"),
@@ -90,7 +89,7 @@ def get_year_end_summary(profile, financial_year, options=None):
     # New matters: matters whose earliest non-draft memo falls in this FY.
     new_matters = 0
     first_rows = (
-        stats_scope.memos(profile).filter(is_draft=False)
+        Memo.objects.filter(profile=profile, is_draft=False)
         .values("matter_id")
         .annotate(first_fy=Min("financial_year"))
     )
@@ -99,8 +98,8 @@ def get_year_end_summary(profile, financial_year, options=None):
             new_matters += 1
 
     active_firms = (
-        stats_scope.memos(profile).filter(
-            is_draft=False, financial_year=financial_year
+        Memo.objects.filter(
+            profile=profile, is_draft=False, financial_year=financial_year
         )
         .values("firm_id")
         .distinct()

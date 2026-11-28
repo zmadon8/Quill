@@ -234,14 +234,6 @@ The `settings` and `stats-metrics` keys cannot be written through the column-wid
 
 Sorting Users & Profiles > Users and Profiles is not a stored setting: it is the `?sort=` part of the address (`?sort=name`, `?sort=-name`), so a sorted view can be bookmarked.
 
-### 4.3 `fees.Matter.exclude_from_statistics` (per matter)
-
-| Field | Setting | Page and section | Stored | Who |
-| --- | --- | --- | --- | --- |
-| `exclude_from_statistics` | Leave out of Statistics: off (default). On: the matter's memos, and the payments made to them, are not counted in Statistics, the Dashboard boxes, charts and panels (Who owes the most, Billed by month, Recently billed matters), the Year-End summary, the Excel exports of those figures, and the Fee Register figures on the Home card. They stay on Memos, Feebook, Outstanding, History and search, in Word and PDF memos and in the Excel backup (the extra sheet `WebMatterFlags`, which lists only the matters that have it on) | Matter > Edit | Per matter, so per profile | Everyone in this profile |
-
-Every figure above starts from `fees/services/stats_scope.py` (`memos`, `allocations`, `payments`). The Edit Statistics adjustments are not tied to a matter and are not affected.
-
 ## 5. Settings kept in the browser (localStorage)
 
 Per browser and device, never on the server, never shared. Clearing site data resets them.
